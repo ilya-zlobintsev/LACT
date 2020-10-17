@@ -5,12 +5,12 @@ use std::thread;
 use std::fs;
 use serde::{Serialize, Deserialize};
 
+use crate::gpu_controller::GpuController;
 use crate::SOCK_PATH;
-use crate::fan_controller::FanController;
 
 #[derive(Clone)]
 pub struct Daemon {
-    fan_controller: FanController,
+    gpu_controller: GpuController,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -20,9 +20,9 @@ pub enum Action {
 }
 
 impl Daemon {
-    pub fn new(fan_controller: FanController) -> Daemon {
+    pub fn new(gpu_controller: GpuController) -> Daemon {
         Daemon {
-            fan_controller,
+            gpu_controller,
         }
     }
 
@@ -36,9 +36,10 @@ impl Daemon {
         Command::new("chmod").arg("666").arg(SOCK_PATH).output().expect("Failed to chmod");
 
         for stream in listener.incoming() {
+            let d = self.clone();
             match stream {
                 Ok(stream) => {
-                    thread::spawn(|| Daemon::handle_connection(stream));
+                    thread::spawn(move || Daemon::handle_connection(d, stream));
                 }
                 Err(err) => {
                     println!("Error: {}", err);
@@ -48,19 +49,17 @@ impl Daemon {
         }
     }
 
-    fn handle_connection(mut stream: UnixStream) {
+    fn handle_connection(self, mut stream: UnixStream) {
         let mut buffer = Vec::<u8>::new();
         stream.read_to_end(&mut buffer).unwrap();
         println!("finished reading");
         let action: Action = bincode::deserialize(&buffer).unwrap();
         
-        let response = match action {
-            Action::GetInfo => "gpu information",
-            Action::GetStats => {
-                "gpu stats"
-            },
+        let response: Vec<u8> = match action {
+            Action::GetStats => bincode::serialize(&self.gpu_controller.get_stats()).unwrap(),
+            Action::GetInfo => bincode::serialize(&self.gpu_controller.get_info()).unwrap(),
         };
-        stream.write_all(response.as_bytes()).unwrap();
+        stream.write_all(&response).expect("Failed writing response");
     
     }
 

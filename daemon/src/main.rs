@@ -1,9 +1,9 @@
 use daemon::daemon::Daemon;
-use daemon::fan_controller::FanController;
+use daemon::gpu_controller::GpuController;
 
 fn main() {
-    let fan_controller = FanController::new("afsadfasdfa");
-    let d = Daemon::new(fan_controller);
+    let gpu_controller = GpuController::new("/sys/class/drm/card0/device");
+    let d = Daemon::new(gpu_controller);
     d.run();
 }
 

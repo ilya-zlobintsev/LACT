@@ -1,4 +1,6 @@
-#[derive(Clone)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FanController {
     hwmon_path: String,
 }
