@@ -96,6 +96,43 @@
             },
             "args": [],
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'gui'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=gui",
+                    "--package=gui"
+                ],
+                "filter": {
+                    "name": "gui",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'gui'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=gui",
+                    "--package=gui"
+                ],
+                "filter": {
+                    "name": "gui",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
