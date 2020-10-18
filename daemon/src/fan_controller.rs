@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FanController {
@@ -7,6 +7,8 @@ pub struct FanController {
 
 impl FanController {
     pub fn new(hwmon_path: &str) -> FanController {
-        FanController { hwmon_path: hwmon_path.to_string() }
+        FanController {
+            hwmon_path: hwmon_path.to_string(),
+        }
     }
 }

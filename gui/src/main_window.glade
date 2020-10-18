@@ -8,11 +8,17 @@
   <object class="GtkTextBuffer" id="gpu_model_text_buffer">
     <property name="text">gpu_model</property>
   </object>
+  <object class="GtkTextBuffer" id="link_speed_text_buffer">
+    <property name="text" translatable="yes">1.0 GT/s PCIe x1</property>
+  </object>
   <object class="GtkTextBuffer" id="manufacturer_text_buffer">
     <property name="text" translatable="yes">Manufacturer</property>
   </object>
   <object class="GtkTextBuffer" id="vbios_version_text_buffer">
     <property name="text" translatable="yes">vbios_version</property>
+  </object>
+  <object class="GtkTextBuffer" id="vram_size_text_buffer">
+    <property name="text" translatable="yes">1024 MiB</property>
   </object>
   <object class="GtkWindow" id="main_window">
     <property name="can-focus">False</property>
@@ -23,7 +29,7 @@
         <property name="visible">True</property>
         <property name="can-focus">True</property>
         <child>
-          <!-- n-columns=2 n-rows=4 -->
+          <!-- n-columns=2 n-rows=6 -->
           <object class="GtkGrid">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
@@ -169,6 +175,80 @@
               <packing>
                 <property name="left-attach">1</property>
                 <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">end</property>
+                <property name="margin-left">5</property>
+                <property name="margin-right">5</property>
+                <property name="margin-start">5</property>
+                <property name="margin-end">5</property>
+                <property name="margin-top">5</property>
+                <property name="margin-bottom">5</property>
+                <property name="label" translatable="yes">Memory Size</property>
+                <property name="justify">fill</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">4</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkTextView">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="margin-top">7</property>
+                <property name="hexpand">True</property>
+                <property name="editable">False</property>
+                <property name="justification">fill</property>
+                <property name="cursor-visible">False</property>
+                <property name="buffer">vram_size_text_buffer</property>
+                <property name="accepts-tab">False</property>
+                <property name="monospace">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">4</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">end</property>
+                <property name="margin-left">5</property>
+                <property name="margin-right">5</property>
+                <property name="margin-start">5</property>
+                <property name="margin-end">5</property>
+                <property name="margin-top">5</property>
+                <property name="margin-bottom">5</property>
+                <property name="label" translatable="yes">Link speed</property>
+                <property name="justify">fill</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">5</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkTextView">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="margin-top">7</property>
+                <property name="hexpand">True</property>
+                <property name="editable">False</property>
+                <property name="justification">fill</property>
+                <property name="cursor-visible">False</property>
+                <property name="buffer">link_speed_text_buffer</property>
+                <property name="accepts-tab">False</property>
+                <property name="monospace">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">5</property>
               </packing>
             </child>
           </object>

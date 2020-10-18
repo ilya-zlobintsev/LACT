@@ -11,10 +11,10 @@ enum Opt {
 fn main() {
     let opt = Opt::from_args();
     match opt {
-        Opt::Stats => { 
+        Opt::Stats => {
             let gpu_stats = daemon::get_gpu_stats();
             println!("VRAM: {}/{}", gpu_stats.mem_used, gpu_stats.mem_total);
-        },
+        }
         Opt::Info => {
             let gpu_info = daemon::get_gpu_info();
             println!("GPU Vendor: {}", gpu_info.gpu_vendor);

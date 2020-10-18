@@ -33,12 +33,22 @@ fn build_ui(application: &gtk::Application) {
         .get_object("manufacturer_text_buffer")
         .expect("Couldn't get textbuffer");
 
+    let vram_size_text_buffer: TextBuffer = builder
+        .get_object("vram_size_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    let link_speed_text_buffer: TextBuffer = builder
+        .get_object("link_speed_text_buffer")
+        .expect("Couldn't get textbuffer");
+
     match daemon::get_gpu_info() {
         Ok(gpu_info) => {
             gpu_model_text_buffer.set_text(&gpu_info.card_model);
             manufacturer_text_buffer.set_text(&gpu_info.card_vendor);
             vbios_version_text_buffer.set_text(&gpu_info.vbios_version);
             driver_text_buffer.set_text(&gpu_info.driver);
+            vram_size_text_buffer.set_text(&format!("{} MiB", &gpu_info.vram_size));
+            link_speed_text_buffer.set_text(&format!("{} x{}", &gpu_info.link_speed, &gpu_info.link_width));
         }
         Err(_) => {
             MessageDialog::new(

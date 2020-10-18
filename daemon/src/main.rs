@@ -6,4 +6,3 @@ fn main() {
     let d = Daemon::new(gpu_controller);
     d.run();
 }
-

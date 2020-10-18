@@ -1,9 +1,9 @@
-use std::os::unix::net::{UnixStream, UnixListener};
+use serde::{Deserialize, Serialize};
+use std::fs;
 use std::io::{Read, Write};
+use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::Command;
 use std::thread;
-use std::fs;
-use serde::{Serialize, Deserialize};
 
 use crate::gpu_controller::GpuController;
 use crate::SOCK_PATH;
@@ -21,9 +21,7 @@ pub enum Action {
 
 impl Daemon {
     pub fn new(gpu_controller: GpuController) -> Daemon {
-        Daemon {
-            gpu_controller,
-        }
+        Daemon { gpu_controller }
     }
 
     pub fn run(self) {
@@ -32,8 +30,12 @@ impl Daemon {
         }
 
         let listener = UnixListener::bind(SOCK_PATH).unwrap();
-        
-        Command::new("chmod").arg("666").arg(SOCK_PATH).output().expect("Failed to chmod");
+
+        Command::new("chmod")
+            .arg("666")
+            .arg(SOCK_PATH)
+            .output()
+            .expect("Failed to chmod");
 
         for stream in listener.incoming() {
             let d = self.clone();
@@ -54,13 +56,13 @@ impl Daemon {
         stream.read_to_end(&mut buffer).unwrap();
         println!("finished reading");
         let action: Action = bincode::deserialize(&buffer).unwrap();
-        
+
         let response: Vec<u8> = match action {
             Action::GetStats => bincode::serialize(&self.gpu_controller.get_stats()).unwrap(),
             Action::GetInfo => bincode::serialize(&self.gpu_controller.gpu_info).unwrap(),
         };
-        stream.write_all(&response).expect("Failed writing response");
-    
+        stream
+            .write_all(&response)
+            .expect("Failed writing response");
     }
-
 }
