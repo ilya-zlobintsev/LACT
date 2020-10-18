@@ -13,9 +13,10 @@ pub struct GpuStats {
 pub struct GpuController {
     hw_path: PathBuf,
     fan_controller: FanController,
+    pub gpu_info: GpuInfo,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct GpuInfo {
     pub gpu_vendor: String,
     pub gpu_model: String,
@@ -26,16 +27,20 @@ pub struct GpuInfo {
 }
 
 impl GpuController {
-    pub fn new(hw_path: &str) -> GpuController {
+    pub fn new(hw_path: &str) -> Self {
+        let gpu_info = GpuController::get_info(PathBuf::from(hw_path));
+        println!("Initializing for {:?}", gpu_info);
+
         GpuController {
             hw_path: PathBuf::from(hw_path),
             fan_controller: FanController::new(hw_path),
+            gpu_info,
         }
     }
 
-    pub fn get_info(self) -> GpuInfo {
+    fn get_info(hw_path: PathBuf) -> GpuInfo {
         let uevent =
-            fs::read_to_string(self.hw_path.join("uevent")).expect("Failed to read uevent");
+            fs::read_to_string(hw_path.join("uevent")).expect("Failed to read uevent");
 
         //caps for raw values, lowercase for parsed
         let mut driver = String::new();
@@ -72,8 +77,13 @@ impl GpuController {
         //some weird space character, don't touch
         let pci_id_line = format!("	{}", MODEL_ID.to_lowercase());
         let card_ids_line = format!("		{} {}", CARD_VENDOR_ID.to_lowercase(), CARD_MODEL_ID.to_lowercase());
-        println!("looking for {}", pci_id_line);
+
         for line in full_hwid_list.split('\n') {
+            if line.len() > CARD_VENDOR_ID.len() {
+                if line[0..CARD_VENDOR_ID.len()] == CARD_VENDOR_ID.to_lowercase() {
+                    card_vendor = line.splitn(2, ' ').collect::<Vec<&str>>()[1].trim_start().to_string();
+                }
+            }
             if line.contains(&pci_id_line) {
                 model = line[pci_id_line.len()..].trim_start().to_string();
             }
@@ -82,13 +92,13 @@ impl GpuController {
             }
         }
 
-        let vbios_version = fs::read_to_string(self.hw_path.join("vbios_version"))
-            .expect("Failed to read vbios_info");
+        let vbios_version = fs::read_to_string(hw_path.join("vbios_version"))
+            .expect("Failed to read vbios_info").trim().to_string();
 
         GpuInfo {
             gpu_vendor: vendor,
             gpu_model: model,
-            card_vendor: String::new(),
+            card_vendor,
             card_model,
             driver,
             vbios_version,

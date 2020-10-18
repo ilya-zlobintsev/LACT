@@ -57,7 +57,7 @@ impl Daemon {
         
         let response: Vec<u8> = match action {
             Action::GetStats => bincode::serialize(&self.gpu_controller.get_stats()).unwrap(),
-            Action::GetInfo => bincode::serialize(&self.gpu_controller.get_info()).unwrap(),
+            Action::GetInfo => bincode::serialize(&self.gpu_controller.gpu_info).unwrap(),
         };
         stream.write_all(&response).expect("Failed writing response");
     
