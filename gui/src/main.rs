@@ -41,6 +41,19 @@ fn build_ui(application: &gtk::Application) {
         .get_object("link_speed_text_buffer")
         .expect("Couldn't get textbuffer");
 
+    let vulkan_device_name_text_buffer: TextBuffer = builder  
+        .get_object("vulkan_device_name_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    let vulkan_version_text_buffer: TextBuffer = builder
+        .get_object("vulkan_version_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    let vulkan_features_text_buffer: TextBuffer = builder
+        .get_object("vulkan_features_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+
     match daemon::get_gpu_info() {
         Ok(gpu_info) => {
             gpu_model_text_buffer.set_text(&gpu_info.card_model);
@@ -49,6 +62,10 @@ fn build_ui(application: &gtk::Application) {
             driver_text_buffer.set_text(&gpu_info.driver);
             vram_size_text_buffer.set_text(&format!("{} MiB", &gpu_info.vram_size));
             link_speed_text_buffer.set_text(&format!("{} x{}", &gpu_info.link_speed, &gpu_info.link_width));
+
+            vulkan_device_name_text_buffer.set_text(&gpu_info.vulkan_info.device_name);
+            vulkan_version_text_buffer.set_text(&gpu_info.vulkan_info.api_version);
+            vulkan_features_text_buffer.set_text(&gpu_info.vulkan_info.features);
         }
         Err(_) => {
             MessageDialog::new(

@@ -41,7 +41,7 @@ impl Daemon {
             let d = self.clone();
             match stream {
                 Ok(stream) => {
-                    thread::spawn(move || Daemon::handle_connection(d, stream));
+                    thread::spawn(move || d.handle_connection(stream));
                 }
                 Err(err) => {
                     println!("Error: {}", err);
@@ -54,7 +54,7 @@ impl Daemon {
     fn handle_connection(self, mut stream: UnixStream) {
         let mut buffer = Vec::<u8>::new();
         stream.read_to_end(&mut buffer).unwrap();
-        println!("finished reading");
+        println!("finished reading, buffer size {}", buffer.len());
         let action: Action = bincode::deserialize(&buffer).unwrap();
 
         let response: Vec<u8> = match action {

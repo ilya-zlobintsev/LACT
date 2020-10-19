@@ -1,5 +1,6 @@
 use crate::fan_controller::FanController;
 use serde::{Deserialize, Serialize};
+use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 use std::fs;
 use std::path::PathBuf;
 
@@ -10,10 +11,17 @@ pub struct GpuStats {
 }
 
 #[derive(Clone)]
-pub struct GpuController {
+pub struct GpuController { 
     hw_path: PathBuf,
     fan_controller: FanController,
     pub gpu_info: GpuInfo,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct VulkanInfo {
+    pub device_name: String,
+    pub api_version: String,
+    pub features: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -22,32 +30,34 @@ pub struct GpuInfo {
     pub gpu_model: String,
     pub card_model: String,
     pub card_vendor: String,
+    pub model_id: String,
+    pub vendor_id: String,
     pub driver: String,
     pub vbios_version: String,
     pub vram_size: u64, //in MiB
     pub link_speed: String,
     pub link_width: u8,
+    pub vulkan_info: VulkanInfo,
 }
 
 impl GpuController {
     pub fn new(hw_path: &str) -> Self {
-        let gpu_info = GpuController::get_info(PathBuf::from(hw_path));
-        println!("Initializing for {:?}", gpu_info);
-
-        GpuController {
+        let mut controller = GpuController {
             hw_path: PathBuf::from(hw_path),
             fan_controller: FanController::new(hw_path),
-            gpu_info,
-        }
+            gpu_info: Default::default(),
+        };
+        controller.gpu_info = controller.get_info();
+        println!("{:?}", controller.gpu_info);
+        controller
     }
 
-    fn get_info(hw_path: PathBuf) -> GpuInfo {
-        let uevent = fs::read_to_string(hw_path.join("uevent")).expect("Failed to read uevent");
+    fn get_info(&self) -> GpuInfo {
+        let uevent = fs::read_to_string(self.hw_path.join("uevent")).expect("Failed to read uevent");
 
-        //caps for raw values, lowercase for parsed
         let mut driver = String::new();
-        let mut VENDOR_ID = String::new();
-        let mut MODEL_ID = String::new();
+        let mut vendor_id = String::new();
+        let mut model_id = String::new();
         let mut CARD_VENDOR_ID = String::new();
         let mut CARD_MODEL_ID = String::new();
 
@@ -57,8 +67,8 @@ impl GpuController {
                 "DRIVER" => driver = split[1].to_string(),
                 "PCI_ID" => {
                     let ids = split[1].split(':').collect::<Vec<&str>>();
-                    VENDOR_ID = ids[0].to_string();
-                    MODEL_ID = ids[1].to_string();
+                    vendor_id = ids[0].to_string();
+                    model_id = ids[1].to_string();
                 }
                 "PCI_SUBSYS_ID" => {
                     let ids = split[1].split(':').collect::<Vec<&str>>();
@@ -78,7 +88,7 @@ impl GpuController {
             .expect("Could not read pci.ids. Perhaps the \"hwids\" package is not installed?");
 
         //some weird space character, don't touch
-        let pci_id_line = format!("	{}", MODEL_ID.to_lowercase());
+        let pci_id_line = format!("	{}", model_id.to_lowercase());
         let card_ids_line = format!(
             "		{} {}",
             CARD_VENDOR_ID.to_lowercase(),
@@ -101,12 +111,12 @@ impl GpuController {
             }
         }
 
-        let vbios_version = fs::read_to_string(hw_path.join("vbios_version"))
+        let vbios_version = fs::read_to_string(self.hw_path.join("vbios_version"))
             .expect("Failed to read vbios_info")
             .trim()
             .to_string();
 
-        let vram_size = fs::read_to_string(hw_path.join("mem_info_vram_total"))
+        let vram_size = fs::read_to_string(self.hw_path.join("mem_info_vram_total"))
             .expect("Failed to read mem size")
             .trim()
             .parse::<u64>()
@@ -114,27 +124,32 @@ impl GpuController {
             / 1024
             / 1024;
 
-        let link_speed = fs::read_to_string(hw_path.join("current_link_speed"))
+        let link_speed = fs::read_to_string(self.hw_path.join("current_link_speed"))
             .expect("Failed to read link speed")
             .trim()
             .to_string();
            
-        let link_width = fs::read_to_string(hw_path.join("current_link_width"))
+        let link_width = fs::read_to_string(self.hw_path.join("current_link_width"))
             .expect("Failed to read link width")
             .trim()
             .parse::<u8>()
             .unwrap();
+
+        let vulkan_info = GpuController::get_vulkan_info(&model_id);
 
         GpuInfo {
             gpu_vendor: vendor,
             gpu_model: model,
             card_vendor,
             card_model,
+            model_id,
+            vendor_id,
             driver,
             vbios_version,
             vram_size,
             link_speed,
             link_width,
+            vulkan_info,
         }
     }
 
@@ -158,5 +173,27 @@ impl GpuController {
             mem_total,
             mem_used,
         }
+    }
+
+    fn get_vulkan_info(pci_id: &str) -> VulkanInfo {
+        let instance = Instance::new(None, &InstanceExtensions::none(), None)
+            .expect("failed to create instance");
+
+        for physical in PhysicalDevice::enumerate(&instance) {
+            if format!("{:x}", physical.pci_device_id()) == pci_id.to_lowercase() {
+                let api_version = physical.api_version().to_string();
+                let device_name = physical.name().to_string();
+                let features = format!("{:?}", physical.supported_features());
+                    
+                return VulkanInfo {
+                    device_name,
+                    api_version,
+                    features,
+                };
+            }
+        }
+
+        VulkanInfo { device_name: "Not supported".to_string(), api_version: "".to_string(), features: "".to_string()}
+
     }
 }

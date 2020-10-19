@@ -9,6 +9,7 @@ pub mod gpu_controller;
 
 pub const SOCK_PATH: &str = "/tmp/amdgpu-configurator.sock";
 
+#[derive(Debug)]
 pub enum DaemonError {
     ConnectionFailed,
 }
@@ -43,4 +44,6 @@ pub fn get_gpu_info() -> Result<GpuInfo, DaemonError> {
         }
         Err(_) => Err(DaemonError::ConnectionFailed),
     }
+
+    
 }

@@ -16,7 +16,7 @@ fn main() {
             println!("VRAM: {}/{}", gpu_stats.mem_used, gpu_stats.mem_total);
         }
         Opt::Info => {
-            let gpu_info = daemon::get_gpu_info();
+            let gpu_info = daemon::get_gpu_info().unwrap();
             println!("GPU Vendor: {}", gpu_info.gpu_vendor);
             println!("GPU Model: {}", gpu_info.card_model);
             println!("Driver in use: {}", gpu_info.driver);
