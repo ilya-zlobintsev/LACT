@@ -1,0 +1,60 @@
+use crate::{Action, gpu_controller::GpuStats, SOCK_PATH, gpu_controller::GpuInfo};
+use std::io::{Read, Write};
+use std::os::unix::net::UnixStream;
+
+#[derive(Debug)]
+pub enum DaemonConnectionError {
+    ConnectionFailed,
+}
+
+#[derive(Clone, Copy)]
+pub struct DaemonConnection {
+}
+
+impl DaemonConnection {
+    pub fn new() -> Result<Self, DaemonConnectionError> {
+        match UnixStream::connect(SOCK_PATH) {
+            Ok(mut stream) => { 
+                stream.write(&bincode::serialize(&Action::CheckAlive).unwrap()).unwrap();
+                let mut buffer = Vec::<u8>::new();
+                stream.read_to_end(&mut buffer).unwrap();
+                
+                if buffer[0] == 1 {
+                    Ok(DaemonConnection { })
+                }
+                else {
+                    Err(DaemonConnectionError::ConnectionFailed)
+                }
+            }
+            Err(_) => Err(DaemonConnectionError::ConnectionFailed),
+        }
+    }
+
+    pub fn get_gpu_stats(&self) -> GpuStats {
+        let mut stream = UnixStream::connect(SOCK_PATH).expect("Failed to connect to daemon");
+        stream
+            .write(&bincode::serialize(&Action::GetStats).unwrap())
+            .unwrap();
+        /*stream
+            .shutdown(std::net::Shutdown::Write)
+            .expect("Could not shut down");*/
+    
+        let mut buffer = Vec::<u8>::new();
+        stream.read_to_end(&mut buffer).unwrap();
+    
+        bincode::deserialize(&buffer).unwrap()
+    }
+    
+    pub fn get_gpu_info(&self) -> GpuInfo {
+        let mut s = UnixStream::connect(SOCK_PATH).unwrap();
+        s.write_all(&bincode::serialize(&Action::GetInfo).unwrap())
+            .unwrap();
+        /*s.shutdown(std::net::Shutdown::Write)
+            .expect("Could not shut down");*/
+    
+        let mut buffer = Vec::<u8>::new();
+        s.read_to_end(&mut buffer).unwrap();
+    
+        bincode::deserialize(&buffer).unwrap()
+    }
+}

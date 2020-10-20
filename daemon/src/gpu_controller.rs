@@ -1,19 +1,21 @@
-use crate::fan_controller::FanController;
+use crate::hw_mon::HWMon;
 use serde::{Deserialize, Serialize};
-use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
-use std::fs;
+use std::{collections::HashMap, fs};
 use std::path::PathBuf;
+use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GpuStats {
     pub mem_used: u64,
     pub mem_total: u64,
+    pub mem_freq: i32,
+    pub gpu_freq: i32,
 }
 
 #[derive(Clone)]
-pub struct GpuController { 
+pub struct GpuController {
     hw_path: PathBuf,
-    fan_controller: FanController,
+    hw_mon: HWMon,
     pub gpu_info: GpuInfo,
 }
 
@@ -41,10 +43,10 @@ pub struct GpuInfo {
 }
 
 impl GpuController {
-    pub fn new(hw_path: &str) -> Self {
+    pub fn new(hw_path: PathBuf) -> Self {
         let mut controller = GpuController {
-            hw_path: PathBuf::from(hw_path),
-            fan_controller: FanController::new(hw_path),
+            hw_path: hw_path.clone(),
+            hw_mon: HWMon::new(&hw_path.join("hwmon/hwmon0")),
             gpu_info: Default::default(),
         };
         controller.gpu_info = controller.get_info();
@@ -53,7 +55,8 @@ impl GpuController {
     }
 
     fn get_info(&self) -> GpuInfo {
-        let uevent = fs::read_to_string(self.hw_path.join("uevent")).expect("Failed to read uevent");
+        let uevent =
+            fs::read_to_string(self.hw_path.join("uevent")).expect("Failed to read uevent");
 
         let mut driver = String::new();
         let mut vendor_id = String::new();
@@ -128,7 +131,7 @@ impl GpuController {
             .expect("Failed to read link speed")
             .trim()
             .to_string();
-           
+
         let link_width = fs::read_to_string(self.hw_path.join("current_link_width"))
             .expect("Failed to read link width")
             .trim()
@@ -169,9 +172,14 @@ impl GpuController {
             / 1024
             / 1024;
 
+        let (mem_freq, gpu_freq) = (self.hw_mon.get_mem_freq(), self.hw_mon.get_gpu_freq());
+
+
         GpuStats {
             mem_total,
             mem_used,
+            mem_freq,
+            gpu_freq,
         }
     }
 
@@ -184,7 +192,7 @@ impl GpuController {
                 let api_version = physical.api_version().to_string();
                 let device_name = physical.name().to_string();
                 let features = format!("{:?}", physical.supported_features());
-                    
+
                 return VulkanInfo {
                     device_name,
                     api_version,
@@ -193,7 +201,10 @@ impl GpuController {
             }
         }
 
-        VulkanInfo { device_name: "Not supported".to_string(), api_version: "".to_string(), features: "".to_string()}
-
+        VulkanInfo {
+            device_name: "Not supported".to_string(),
+            api_version: "".to_string(),
+            features: "".to_string(),
+        }
     }
 }

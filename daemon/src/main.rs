@@ -1,8 +1,6 @@
-use daemon::daemon::Daemon;
-use daemon::gpu_controller::GpuController;
+use daemon::Daemon;
 
 fn main() {
-    let gpu_controller = GpuController::new("/sys/class/drm/card0/device");
-    let d = Daemon::new(gpu_controller);
-    d.run();
+    let d = Daemon::new();
+    d.listen();
 }
