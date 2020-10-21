@@ -72,6 +72,9 @@ fn build_ui(application: &gtk::Application) {
     let gpu_temp_text_buffer: TextBuffer = builder
         .get_object("gpu_temp_text_buffer").unwrap();
 
+    let gpu_power_text_buffer: TextBuffer = builder
+        .get_object("gpu_power_text_buffer").unwrap();
+
     let d = match DaemonConnection::new() {
         Ok(a) => a,
         Err(_) => {
@@ -133,6 +136,8 @@ fn build_ui(application: &gtk::Application) {
         vram_clock_text_buffer.set_text(&format!("{}MHz", gpu_stats.mem_freq));
 
         gpu_temp_text_buffer.set_text(&format!("{}°C", gpu_stats.gpu_temp));
+
+        gpu_power_text_buffer.set_text(&format!("{}/{}W", gpu_stats.power_avg, gpu_stats.power_max));
 
         glib::Continue(true)
     });

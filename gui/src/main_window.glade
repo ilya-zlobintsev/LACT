@@ -11,6 +11,9 @@
   <object class="GtkTextBuffer" id="gpu_model_text_buffer">
     <property name="text">gpu_model</property>
   </object>
+  <object class="GtkTextBuffer" id="gpu_power_text_buffer">
+    <property name="text" translatable="yes">50W/100W</property>
+  </object>
   <object class="GtkTextBuffer" id="gpu_temp_text_buffer">
     <property name="text" translatable="yes">100°C</property>
   </object>
@@ -412,65 +415,171 @@
           </packing>
         </child>
         <child>
-          <!-- n-columns=2 n-rows=3 -->
-          <object class="GtkGrid">
+          <object class="GtkBox">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
+            <property name="orientation">vertical</property>
             <child>
-              <object class="GtkLabel">
+              <!-- n-columns=2 n-rows=2 -->
+              <object class="GtkGrid">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="halign">center</property>
-                <property name="margin-start">5</property>
-                <property name="margin-end">5</property>
-                <property name="margin-top">5</property>
-                <property name="margin-bottom">5</property>
-                <property name="label" translatable="yes">VRAM Usage</property>
-                <property name="justify">center</property>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkOverlay">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="hexpand">True</property>
                 <child>
-                  <object class="GtkLevelBar" id="vram_usage_level_bar">
-                    <property name="height-request">30</property>
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="valign">start</property>
+                    <property name="halign">center</property>
                     <property name="margin-start">5</property>
                     <property name="margin-end">5</property>
                     <property name="margin-top">5</property>
                     <property name="margin-bottom">5</property>
-                    <property name="hexpand">True</property>
-                    <property name="value">0.5</property>
+                    <property name="label" translatable="yes">VRAM Usage</property>
+                    <property name="justify">center</property>
                   </object>
                   <packing>
-                    <property name="index">-1</property>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">0</property>
                   </packing>
                 </child>
-                <child type="overlay">
-                  <object class="GtkLabel" id="vram_usage_label">
+                <child>
+                  <object class="GtkOverlay">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="hexpand">True</property>
-                    <property name="label" translatable="yes">512/1024 MiB</property>
-                    <attributes>
-                      <attribute name="style" value="normal"/>
-                      <attribute name="weight" value="bold"/>
-                    </attributes>
+                    <child>
+                      <object class="GtkLevelBar" id="vram_usage_level_bar">
+                        <property name="height-request">30</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="valign">start</property>
+                        <property name="margin-start">5</property>
+                        <property name="margin-end">5</property>
+                        <property name="margin-top">5</property>
+                        <property name="margin-bottom">5</property>
+                        <property name="hexpand">True</property>
+                        <property name="value">0.5</property>
+                      </object>
+                      <packing>
+                        <property name="index">-1</property>
+                      </packing>
+                    </child>
+                    <child type="overlay">
+                      <object class="GtkLabel" id="vram_usage_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="label" translatable="yes">512/1024 MiB</property>
+                        <attributes>
+                          <attribute name="style" value="normal"/>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
+                      </object>
+                    </child>
                   </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="halign">center</property>
+                    <property name="hexpand">True</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="margin-start">5</property>
+                        <property name="margin-end">5</property>
+                        <property name="margin-top">5</property>
+                        <property name="margin-bottom">5</property>
+                        <property name="label" translatable="yes">GPU Clock</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkTextView">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="margin-start">5</property>
+                        <property name="margin-end">5</property>
+                        <property name="margin-top">6</property>
+                        <property name="editable">False</property>
+                        <property name="cursor-visible">False</property>
+                        <property name="buffer">gpu_clock_text_buffer</property>
+                        <property name="accepts-tab">False</property>
+                        <property name="monospace">True</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">0</property>
+                    <property name="top-attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="halign">center</property>
+                    <property name="hexpand">True</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="margin-start">5</property>
+                        <property name="margin-end">5</property>
+                        <property name="margin-top">5</property>
+                        <property name="margin-bottom">5</property>
+                        <property name="label" translatable="yes">VRAM Clock</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkTextView">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="margin-start">5</property>
+                        <property name="margin-end">5</property>
+                        <property name="margin-top">6</property>
+                        <property name="editable">False</property>
+                        <property name="cursor-visible">False</property>
+                        <property name="buffer">vram_clock_text_buffer</property>
+                        <property name="accepts-tab">False</property>
+                        <property name="monospace">True</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="left-attach">1</property>
+                    <property name="top-attach">1</property>
+                  </packing>
                 </child>
               </object>
               <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">0</property>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
               </packing>
             </child>
             <child>
@@ -487,7 +596,7 @@
                     <property name="margin-end">5</property>
                     <property name="margin-top">5</property>
                     <property name="margin-bottom">5</property>
-                    <property name="label" translatable="yes">GPU Clock</property>
+                    <property name="label" translatable="yes">Power Usage</property>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -501,10 +610,10 @@
                     <property name="can-focus">True</property>
                     <property name="margin-start">5</property>
                     <property name="margin-end">5</property>
-                    <property name="margin-top">6</property>
+                    <property name="margin-top">7</property>
                     <property name="editable">False</property>
                     <property name="cursor-visible">False</property>
-                    <property name="buffer">gpu_clock_text_buffer</property>
+                    <property name="buffer">gpu_power_text_buffer</property>
                     <property name="accepts-tab">False</property>
                     <property name="monospace">True</property>
                   </object>
@@ -516,62 +625,10 @@
                 </child>
               </object>
               <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">1</property>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
               </packing>
-            </child>
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="halign">center</property>
-                <property name="hexpand">True</property>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="margin-start">5</property>
-                    <property name="margin-end">5</property>
-                    <property name="margin-top">5</property>
-                    <property name="margin-bottom">5</property>
-                    <property name="label" translatable="yes">VRAM Clock</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkTextView">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="margin-start">5</property>
-                    <property name="margin-end">5</property>
-                    <property name="margin-top">6</property>
-                    <property name="editable">False</property>
-                    <property name="cursor-visible">False</property>
-                    <property name="buffer">vram_clock_text_buffer</property>
-                    <property name="accepts-tab">False</property>
-                    <property name="monospace">True</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <placeholder/>
-            </child>
-            <child>
-              <placeholder/>
             </child>
           </object>
           <packing>

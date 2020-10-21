@@ -39,4 +39,16 @@ impl HWMon {
 
         fs::read_to_string(filename).unwrap().trim().parse::<i32>().unwrap() / 1000
     }
+
+    pub fn get_power_cap(&self) -> i32 {
+        let filename = self.hwmon_path.join("power1_cap");
+
+        fs::read_to_string(filename).unwrap().trim().parse::<i32>().unwrap() / 1000000
+    }
+
+    pub fn get_power_avg(&self) -> i32 {
+        let filename = self.hwmon_path.join("power1_average");
+
+        fs::read_to_string(filename).unwrap().trim().parse::<i32>().unwrap() / 1000000
+    }
 }

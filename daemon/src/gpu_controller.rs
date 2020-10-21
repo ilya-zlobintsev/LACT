@@ -11,6 +11,8 @@ pub struct GpuStats {
     pub mem_freq: i32,
     pub gpu_freq: i32,
     pub gpu_temp: i32,
+    pub power_avg: i32,
+    pub power_max: i32,
 }
 
 #[derive(Clone)]
@@ -175,7 +177,7 @@ impl GpuController {
 
         let (mem_freq, gpu_freq) = (self.hw_mon.get_mem_freq(), self.hw_mon.get_gpu_freq());
         let gpu_temp = self.hw_mon.get_gpu_temp();
-
+        let (power_avg, power_max) = (self.hw_mon.get_power_avg(), self.hw_mon.get_power_cap());
 
         GpuStats {
             mem_total,
@@ -183,6 +185,8 @@ impl GpuController {
             mem_freq,
             gpu_freq,
             gpu_temp,
+            power_avg,
+            power_max,
         }
     }
 
