@@ -68,7 +68,7 @@ impl Daemon {
             Action::GetInfo => bincode::serialize(&gpu_controller.gpu_info).unwrap(),
             Action::CheckAlive => vec![1],
         };
-        println!("responding with {:?}", response);
+        println!("responding with {} bytes", response.len());
 
         stream
             .write_all(&response)

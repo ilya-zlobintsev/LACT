@@ -10,6 +10,7 @@ pub struct GpuStats {
     pub mem_total: u64,
     pub mem_freq: i32,
     pub gpu_freq: i32,
+    pub gpu_temp: i32,
 }
 
 #[derive(Clone)]
@@ -173,6 +174,7 @@ impl GpuController {
             / 1024;
 
         let (mem_freq, gpu_freq) = (self.hw_mon.get_mem_freq(), self.hw_mon.get_gpu_freq());
+        let gpu_temp = self.hw_mon.get_gpu_temp();
 
 
         GpuStats {
@@ -180,6 +182,7 @@ impl GpuController {
             mem_used,
             mem_freq,
             gpu_freq,
+            gpu_temp,
         }
     }
 

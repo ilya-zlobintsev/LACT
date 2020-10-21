@@ -11,6 +11,9 @@
   <object class="GtkTextBuffer" id="gpu_model_text_buffer">
     <property name="text">gpu_model</property>
   </object>
+  <object class="GtkTextBuffer" id="gpu_temp_text_buffer">
+    <property name="text" translatable="yes">100°C</property>
+  </object>
   <object class="GtkTextBuffer" id="link_speed_text_buffer">
     <property name="text" translatable="yes">1.0 GT/s PCIe x1</property>
   </object>
@@ -317,9 +320,10 @@
                       <object class="GtkTextView">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
-                        <property name="margin-top">5</property>
+                        <property name="margin-top">6</property>
                         <property name="margin-bottom">5</property>
                         <property name="buffer">vulkan_device_name_text_buffer</property>
+                        <property name="monospace">True</property>
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
@@ -330,9 +334,10 @@
                       <object class="GtkTextView">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
-                        <property name="margin-top">5</property>
+                        <property name="margin-top">6</property>
                         <property name="margin-bottom">5</property>
                         <property name="buffer">vulkan_version_text_buffer</property>
+                        <property name="monospace">True</property>
                       </object>
                       <packing>
                         <property name="left-attach">1</property>
@@ -585,10 +590,76 @@
           </packing>
         </child>
         <child>
-          <placeholder/>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">center</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-start">5</property>
+                    <property name="margin-end">5</property>
+                    <property name="margin-top">5</property>
+                    <property name="margin-bottom">5</property>
+                    <property name="label" translatable="yes">Temperature</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkTextView">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="margin-start">5</property>
+                    <property name="margin-end">5</property>
+                    <property name="margin-top">6</property>
+                    <property name="margin-bottom">5</property>
+                    <property name="editable">False</property>
+                    <property name="cursor-visible">False</property>
+                    <property name="buffer">gpu_temp_text_buffer</property>
+                    <property name="accepts-tab">False</property>
+                    <property name="monospace">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <placeholder/>
+            </child>
+          </object>
+          <packing>
+            <property name="position">2</property>
+          </packing>
         </child>
         <child type="tab">
-          <placeholder/>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Ventilation</property>
+          </object>
+          <packing>
+            <property name="position">2</property>
+            <property name="tab-fill">False</property>
+          </packing>
         </child>
       </object>
     </child>

@@ -69,6 +69,9 @@ fn build_ui(application: &gtk::Application) {
     let vram_clock_text_buffer: TextBuffer = builder
         .get_object("vram_clock_text_buffer").unwrap();    
 
+    let gpu_temp_text_buffer: TextBuffer = builder
+        .get_object("gpu_temp_text_buffer").unwrap();
+
     let d = match DaemonConnection::new() {
         Ok(a) => a,
         Err(_) => {
@@ -125,8 +128,11 @@ fn build_ui(application: &gtk::Application) {
         
         let text = format!("{}/{} MiB", gpu_stats.mem_used, gpu_stats.mem_total);
         vram_usage_label.set_text(&text);
+
         gpu_clock_text_buffer.set_text(&format!("{}MHz", gpu_stats.gpu_freq));
         vram_clock_text_buffer.set_text(&format!("{}MHz", gpu_stats.mem_freq));
+
+        gpu_temp_text_buffer.set_text(&format!("{}°C", gpu_stats.gpu_temp));
 
         glib::Continue(true)
     });

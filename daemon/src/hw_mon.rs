@@ -49,4 +49,10 @@ impl HWMon {
 
         fs::read_to_string(filename).unwrap().trim().parse::<i32>().unwrap() / 1000 / 1000
     }
+
+    pub fn get_gpu_temp(&self) -> i32 {
+        let filename = self.hwmon_path.join("temp1_input");
+
+        fs::read_to_string(filename).unwrap().trim().parse::<i32>().unwrap() / 1000
+    }
 }
