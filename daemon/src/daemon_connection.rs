@@ -1,10 +1,11 @@
-use crate::{Action, gpu_controller::GpuStats, SOCK_PATH, gpu_controller::GpuInfo};
+use crate::{Action, SOCK_PATH, gpu_controller::GpuInfo, gpu_controller::GpuStats, hw_mon::HWMonError};
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 
 #[derive(Debug)]
 pub enum DaemonConnectionError {
     ConnectionFailed,
+    PermissionDenied,
 }
 
 #[derive(Clone, Copy)]
@@ -57,4 +58,35 @@ impl DaemonConnection {
     
         bincode::deserialize(&buffer).unwrap()
     }
+
+    pub fn start_fan_control(&self) -> Result<(), DaemonConnectionError> {
+        let mut s = UnixStream::connect(SOCK_PATH).unwrap();
+        s.write_all(&bincode::serialize(&Action::StartFanControl).unwrap())
+            .unwrap();
+
+        let mut buffer = Vec::<u8>::new();
+        s.read_to_end(&mut buffer).unwrap();
+
+        let result: Result<(), HWMonError> = bincode::deserialize(&buffer).unwrap();
+        
+        match result {
+            Ok(_) => Ok(()),
+            Err(_) => Err(DaemonConnectionError::PermissionDenied),
+        }
+    }
+
+    pub fn stop_fan_control(&self) -> Result<(), DaemonConnectionError> {
+        let mut s = UnixStream::connect(SOCK_PATH).unwrap();
+        s.write_all(&bincode::serialize(&Action::StopFanControl).unwrap()).unwrap();
+        
+        let mut buffer = Vec::<u8>::new();
+        s.read_to_end(&mut buffer).unwrap();
+
+        let result: Result<(), HWMonError> = bincode::deserialize(&buffer).unwrap();
+        
+        match result {
+            Ok(_) => Ok(()),
+            Err(_) => Err(DaemonConnectionError::PermissionDenied),
+        }
+    }   
 }

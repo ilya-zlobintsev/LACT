@@ -1,6 +1,6 @@
-use crate::hw_mon::HWMon;
+use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs};
+use std::fs;
 use std::path::PathBuf;
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 
@@ -13,6 +13,7 @@ pub struct GpuStats {
     pub gpu_temp: i32,
     pub power_avg: i32,
     pub power_max: i32,
+    pub fan_speed: i32,
 }
 
 #[derive(Clone)]
@@ -64,8 +65,8 @@ impl GpuController {
         let mut driver = String::new();
         let mut vendor_id = String::new();
         let mut model_id = String::new();
-        let mut CARD_VENDOR_ID = String::new();
-        let mut CARD_MODEL_ID = String::new();
+        let mut card_vendor_id = String::new();
+        let mut card_model_id = String::new();
 
         for line in uevent.split('\n') {
             let split = line.split('=').collect::<Vec<&str>>();
@@ -78,8 +79,8 @@ impl GpuController {
                 }
                 "PCI_SUBSYS_ID" => {
                     let ids = split[1].split(':').collect::<Vec<&str>>();
-                    CARD_VENDOR_ID = ids[0].to_string();
-                    CARD_MODEL_ID = ids[1].to_string();
+                    card_vendor_id = ids[0].to_string();
+                    card_model_id = ids[1].to_string();
                 }
                 _ => (),
             }
@@ -97,13 +98,13 @@ impl GpuController {
         let pci_id_line = format!("	{}", model_id.to_lowercase());
         let card_ids_line = format!(
             "		{} {}",
-            CARD_VENDOR_ID.to_lowercase(),
-            CARD_MODEL_ID.to_lowercase()
+            card_vendor_id.to_lowercase(),
+            card_model_id.to_lowercase()
         );
 
         for line in full_hwid_list.split('\n') {
-            if line.len() > CARD_VENDOR_ID.len() {
-                if line[0..CARD_VENDOR_ID.len()] == CARD_VENDOR_ID.to_lowercase() {
+            if line.len() > card_vendor_id.len() {
+                if line[0..card_vendor_id.len()] == card_vendor_id.to_lowercase() {
                     card_vendor = line.splitn(2, ' ').collect::<Vec<&str>>()[1]
                         .trim_start()
                         .to_string();
@@ -117,29 +118,28 @@ impl GpuController {
             }
         }
 
-        let vbios_version = fs::read_to_string(self.hw_path.join("vbios_version"))
-            .expect("Failed to read vbios_info")
+        let vbios_version = match fs::read_to_string(self.hw_path.join("vbios_version")) {
+            Ok(v) => v,
+            Err(_) => "".to_string(),
+        }
             .trim()
             .to_string();
 
-        let vram_size = fs::read_to_string(self.hw_path.join("mem_info_vram_total"))
-            .expect("Failed to read mem size")
-            .trim()
-            .parse::<u64>()
-            .unwrap()
-            / 1024
-            / 1024;
+        let vram_size = match fs::read_to_string(self.hw_path.join("mem_info_vram_total")) {
+            Ok(a) => a.trim().parse::<u64>().unwrap() / 1024 / 1024,
+            Err(_) => 0,
+        };
 
-        let link_speed = fs::read_to_string(self.hw_path.join("current_link_speed"))
-            .expect("Failed to read link speed")
-            .trim()
-            .to_string();
+        let link_speed = match fs::read_to_string(self.hw_path.join("current_link_speed")) {
+            Ok(a) => a.trim().to_string(),
+            Err(_) => "".to_string(),
+        };
 
-        let link_width = fs::read_to_string(self.hw_path.join("current_link_width"))
-            .expect("Failed to read link width")
-            .trim()
-            .parse::<u8>()
-            .unwrap();
+        let link_width = match fs::read_to_string(self.hw_path.join("current_link_width")) {
+            Ok(a) => a.trim().parse::<u8>().unwrap(),
+            Err(_) => 0,
+        };
+
 
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
 
@@ -159,7 +159,7 @@ impl GpuController {
         }
     }
 
-    pub fn get_stats(self) -> GpuStats {
+    pub fn get_stats(&self) -> GpuStats {
         let mem_total = fs::read_to_string(self.hw_path.join("mem_info_vram_total"))
             .expect("Could not read device file")
             .trim()
@@ -178,6 +178,7 @@ impl GpuController {
         let (mem_freq, gpu_freq) = (self.hw_mon.get_mem_freq(), self.hw_mon.get_gpu_freq());
         let gpu_temp = self.hw_mon.get_gpu_temp();
         let (power_avg, power_max) = (self.hw_mon.get_power_avg(), self.hw_mon.get_power_cap());
+        let fan_speed = self.hw_mon.get_fan_speed();
 
         GpuStats {
             mem_total,
@@ -187,7 +188,16 @@ impl GpuController {
             gpu_temp,
             power_avg,
             power_max,
+            fan_speed,
         }
+    }
+
+    pub fn start_fan_control(&self) -> Result<(), HWMonError> {
+        self.hw_mon.start_fan_control()
+    }
+
+    pub fn stop_fan_control(&self) -> Result<(), HWMonError> {
+        self.hw_mon.stop_fan_control()
     }
 
     fn get_vulkan_info(pci_id: &str) -> VulkanInfo {

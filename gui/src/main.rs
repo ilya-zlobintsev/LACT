@@ -8,7 +8,7 @@ use gtk::{ButtonsType, DialogFlags, Label, LevelBar, MessageType, prelude::*};
 
 use gtk::{Builder, MessageDialog, TextBuffer, Window};
 
-use std::{process::Command, env::args, thread, time::Duration};
+use std::{env::args, thread, time::Duration};
 
 fn build_ui(application: &gtk::Application) {
     let glade_src = include_str!("main_window.glade");
@@ -75,6 +75,9 @@ fn build_ui(application: &gtk::Application) {
     let gpu_power_text_buffer: TextBuffer = builder
         .get_object("gpu_power_text_buffer").unwrap();
 
+    let fan_speed_text_buffer: TextBuffer = builder
+        .get_object("fan_speed_text_buffer").unwrap();
+
     let d = match DaemonConnection::new() {
         Ok(a) => a,
         Err(_) => {
@@ -138,6 +141,8 @@ fn build_ui(application: &gtk::Application) {
         gpu_temp_text_buffer.set_text(&format!("{}°C", gpu_stats.gpu_temp));
 
         gpu_power_text_buffer.set_text(&format!("{}/{}W", gpu_stats.power_avg, gpu_stats.power_max));
+
+        fan_speed_text_buffer.set_text(&format!("{}RPM", gpu_stats.fan_speed));
 
         glib::Continue(true)
     });

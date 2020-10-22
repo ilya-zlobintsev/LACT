@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::Command;
-use std::thread;
 
 use crate::gpu_controller::GpuController;
 
@@ -23,6 +22,8 @@ pub enum Action {
     CheckAlive,
     GetInfo,
     GetStats,
+    StartFanControl,
+    StopFanControl,
 }
 
 impl Daemon {
@@ -42,12 +43,13 @@ impl Daemon {
         Daemon { listener, gpu_controller: GpuController::new(PathBuf::from("/sys/class/drm/card0/device"))}
     }
 
-    pub fn listen(self) {
+    pub fn listen(mut self) {
         for stream in self.listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    let controller = self.gpu_controller.clone();
-                    thread::spawn(move || Daemon::handle_connection(controller, stream));
+                    //let controller = self.gpu_controller.clone();
+                    //thread::spawn(move || Daemon::handle_connection(controller, stream));
+                    Daemon::handle_connection(&mut self.gpu_controller, stream);
                 }
                 Err(err) => {
                     println!("Error: {}", err);
@@ -57,22 +59,26 @@ impl Daemon {
         }
     }
 
-    fn handle_connection(gpu_controller: GpuController, mut stream: UnixStream) {
+    fn handle_connection(gpu_controller: &mut GpuController, mut stream: UnixStream) {
         let mut buffer: [u8; 4] = [0; 4];
         stream.read(&mut buffer).unwrap();
         println!("finished reading, buffer size {}", buffer.len());
         let action: Action = bincode::deserialize(&buffer).expect("Failed to deserialize buffer");
+        println!("{:?}", action);
 
-        let response: Vec<u8> = match action {
-            Action::GetStats => bincode::serialize(&gpu_controller.get_stats()).unwrap(),
-            Action::GetInfo => bincode::serialize(&gpu_controller.gpu_info).unwrap(),
-            Action::CheckAlive => vec![1],
+        let response: Option<Vec<u8>> = match action {
+            Action::GetStats => Some(bincode::serialize(&gpu_controller.get_stats()).unwrap()),
+            Action::GetInfo => Some(bincode::serialize(&gpu_controller.gpu_info).unwrap()),
+            Action::StartFanControl => Some(bincode::serialize(&gpu_controller.start_fan_control()).unwrap()),
+            Action::StopFanControl => Some(bincode::serialize(&gpu_controller.stop_fan_control()).unwrap()),
+            Action::CheckAlive => Some(vec![1]),
         };
-        println!("responding with {} bytes", response.len());
 
-        stream
-            .write_all(&response)
-            .expect("Failed writing response");
+        if let Some(r) = &response {
+            stream
+                .write_all(&r)
+                .expect("Failed writing response");
+        }
     }
 }
 
@@ -82,35 +88,3 @@ impl Daemon {
 pub enum DaemonError {
     ConnectionFailed,
 }
-
-/*pub fn get_gpu_stats() -> GpuStats {
-    let mut stream = UnixStream::connect(SOCK_PATH).expect("Failed to connect to daemon");
-    stream
-        .write_all(&bincode::serialize(&daemon::Action::GetStats).unwrap())
-        .unwrap();
-    stream
-        .shutdown(std::net::Shutdown::Write)
-        .expect("Could not shut down");
-
-    let mut buffer = Vec::<u8>::new();
-    stream.read_to_end(&mut buffer).unwrap();
-
-    bincode::deserialize(&buffer).unwrap()
-}
-
-pub fn get_gpu_info() -> Result<GpuInfo, DaemonError> {
-    match UnixStream::connect(SOCK_PATH) {
-        Ok(mut s) => {
-            s.write_all(&bincode::serialize(&daemon::Action::GetInfo).unwrap())
-                .unwrap();
-            s.shutdown(std::net::Shutdown::Write)
-                .expect("Could not shut down");
-
-            let mut buffer = Vec::<u8>::new();
-            s.read_to_end(&mut buffer).unwrap();
-
-            Ok(bincode::deserialize(&buffer).unwrap())
-        }
-        Err(_) => Err(DaemonError::ConnectionFailed),
-    }
-}*/
