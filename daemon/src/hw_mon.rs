@@ -1,4 +1,4 @@
-use std:: {fs, path::PathBuf, sync::{Arc, atomic::{AtomicBool, Ordering}}, thread, time::Duration};
+use std:: {collections::{BTreeMap}, fs, path::PathBuf, sync::{Arc, RwLock, atomic::{AtomicBool, Ordering}}, thread, time::Duration};
 
 use serde::{Deserialize, Serialize};
 
@@ -7,21 +7,29 @@ pub enum HWMonError {
     PermissionDenied,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct HWMon {
     hwmon_path: PathBuf,
     fan_max_speed: i32,
     fan_control: Arc<AtomicBool>,
+    fan_curve: Arc<RwLock<BTreeMap<i32, f64>>>,
 }
 
 impl HWMon {
     pub fn new(hwmon_path: &PathBuf) -> HWMon {
         let fan_max_speed = fs::read_to_string(hwmon_path.join("fan1_max")).unwrap().trim().parse::<i32>().unwrap();
+        let mut fan_curve: BTreeMap<i32, f64> = BTreeMap::new();
+        fan_curve.insert(20, 0f64);
+        fan_curve.insert(40, 0f64);
+        fan_curve.insert(60, 50f64);
+        fan_curve.insert(80, 80f64);
+        fan_curve.insert(100, 100f64);
 
         HWMon {
             hwmon_path: hwmon_path.clone(),
             fan_max_speed,
             fan_control: Arc::new(AtomicBool::new(false)),
+            fan_curve: Arc::new(RwLock::new(fan_curve)),
         }
     }
 
@@ -63,7 +71,21 @@ impl HWMon {
         fs::read_to_string(filename).unwrap().trim().parse::<i32>().unwrap() / 1000000
     }
 
+    pub fn set_fan_curve(&self, curve: BTreeMap<i32, f64>) {
+        println!("trying to set curve");
+        let mut current = self.fan_curve.write().unwrap();
+        current.clear();
+        
+        for (k, v) in curve.iter() {
+            current.insert(k.clone(), v.clone());
+        }
+        println!("set curve to {:?}", current);
+    }
+
     pub fn start_fan_control(&self) -> Result<(), HWMonError> {
+        if self.fan_control.load(Ordering::SeqCst) {
+            return Ok(());
+        }
         self.fan_control.store(true, Ordering::SeqCst);
 
         match fs::write(self.hwmon_path.join("pwm1_enable"), "1") {
@@ -72,8 +94,30 @@ impl HWMon {
 
                 thread::spawn(move || {
                     while s.fan_control.load(Ordering::SeqCst) {
+                            let curve = s.fan_curve.read().unwrap();
+
                             let temp = s.get_gpu_temp();
-                            println!("{}", temp);
+                            println!("Current gpu temp: {}", temp);
+                            for (t_low, s_low) in curve.iter() {
+                                match curve.range(t_low..).nth(1) {
+                                    Some((t_high, s_high)) => {
+                                        if (t_low..t_high).contains(&&temp) {
+                                            let speed_ratio = (temp - t_low) as f64 / (t_high - t_low) as f64; //The ratio of which speed to choose within the range of current lower and upper speeds
+                                            let speed_percent = s_low + ((s_high - s_low) * speed_ratio);
+                                            let pwm = (255f64 * (speed_percent / 100f64)) as i32;
+                                            println!("pwm: {}", pwm);
+
+                                            fs::write(s.hwmon_path.join("pwm1"), pwm.to_string()).expect("Failed to write to pwm1");
+
+                                            println!("In the range of {}..{}c {}..{}%, setting speed {}% ratio {}", t_low, t_high, s_low, s_high, speed_percent, speed_ratio);
+                                            break;
+                                        }
+                                    }
+                                    None => (),
+                                }
+                            }
+                            drop(curve); //needed to release rwlock so that the curve can be changed
+
                             thread::sleep(Duration::from_millis(1000));
                         }
                     });
@@ -92,6 +136,10 @@ impl HWMon {
             },
             Err(_) => Err(HWMonError::PermissionDenied)
         }
-        
+    }
+
+    pub fn get_fan_control(&self) -> (bool, BTreeMap<i32, f64>) {
+        println!("Fan control: {}", self.fan_control.load(Ordering::SeqCst));
+        (self.fan_control.load(Ordering::SeqCst), self.fan_curve.read().unwrap().clone())
     }
 }

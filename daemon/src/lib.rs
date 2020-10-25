@@ -2,7 +2,7 @@ pub mod gpu_controller;
 pub mod hw_mon;
 pub mod daemon_connection;
 
-use std::{path::PathBuf, io::{Read, Write}};
+use std::{io::{Read, Write}, path::PathBuf, thread};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -24,6 +24,9 @@ pub enum Action {
     GetStats,
     StartFanControl,
     StopFanControl,
+    GetFanControl,
+    SetFanCurve,
+    Shutdown,
 }
 
 impl Daemon {
@@ -43,13 +46,13 @@ impl Daemon {
         Daemon { listener, gpu_controller: GpuController::new(PathBuf::from("/sys/class/drm/card0/device"))}
     }
 
-    pub fn listen(mut self) {
+    pub fn listen(self) {
         for stream in self.listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    //let controller = self.gpu_controller.clone();
-                    //thread::spawn(move || Daemon::handle_connection(controller, stream));
-                    Daemon::handle_connection(&mut self.gpu_controller, stream);
+                    let mut controller = self.gpu_controller.clone();
+                    thread::spawn(move || Daemon::handle_connection(&mut controller, stream));
+                    //Daemon::handle_connection(&mut self.gpu_controller, stream);
                 }
                 Err(err) => {
                     println!("Error: {}", err);
@@ -62,16 +65,24 @@ impl Daemon {
     fn handle_connection(gpu_controller: &mut GpuController, mut stream: UnixStream) {
         let mut buffer: [u8; 4] = [0; 4];
         stream.read(&mut buffer).unwrap();
-        println!("finished reading, buffer size {}", buffer.len());
+        //println!("finished reading, buffer size {}", buffer.len());
         let action: Action = bincode::deserialize(&buffer).expect("Failed to deserialize buffer");
-        println!("{:?}", action);
+        //println!("{:?}", action);
 
         let response: Option<Vec<u8>> = match action {
             Action::GetStats => Some(bincode::serialize(&gpu_controller.get_stats()).unwrap()),
             Action::GetInfo => Some(bincode::serialize(&gpu_controller.gpu_info).unwrap()),
             Action::StartFanControl => Some(bincode::serialize(&gpu_controller.start_fan_control()).unwrap()),
             Action::StopFanControl => Some(bincode::serialize(&gpu_controller.stop_fan_control()).unwrap()),
+            Action::GetFanControl => Some(bincode::serialize(&gpu_controller.get_fan_control()).unwrap()),
+            Action::SetFanCurve => {
+                let mut buffer = Vec::new();
+                stream.read_to_end(&mut buffer).unwrap();
+                gpu_controller.set_fan_curve(bincode::deserialize(&buffer).expect("Failed to deserialize curve"));
+                None
+            },
             Action::CheckAlive => Some(vec![1]),
+            Action::Shutdown => std::process::exit(0),
         };
 
         if let Some(r) = &response {
@@ -80,6 +91,7 @@ impl Daemon {
                 .expect("Failed writing response");
         }
     }
+
 }
 
 

@@ -1,6 +1,6 @@
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::{collections::BTreeMap, fs};
 use std::path::PathBuf;
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 
@@ -14,6 +14,12 @@ pub struct GpuStats {
     pub power_avg: i32,
     pub power_max: i32,
     pub fan_speed: i32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FanControlInfo {
+    pub enabled: bool,
+    pub curve: BTreeMap<i32, f64>,
 }
 
 #[derive(Clone)]
@@ -48,9 +54,11 @@ pub struct GpuInfo {
 
 impl GpuController {
     pub fn new(hw_path: PathBuf) -> Self {
+        let hwmon_path = fs::read_dir(&hw_path.join("hwmon")).unwrap().next().unwrap().unwrap().path();
+
         let mut controller = GpuController {
             hw_path: hw_path.clone(),
-            hw_mon: HWMon::new(&hw_path.join("hwmon/hwmon0")),
+            hw_mon: HWMon::new(&hwmon_path),
             gpu_info: Default::default(),
         };
         controller.gpu_info = controller.get_info();
@@ -198,6 +206,19 @@ impl GpuController {
 
     pub fn stop_fan_control(&self) -> Result<(), HWMonError> {
         self.hw_mon.stop_fan_control()
+    }
+
+    pub fn get_fan_control(&self) -> FanControlInfo {
+        let control = self.hw_mon.get_fan_control();
+
+        FanControlInfo {
+            enabled: control.0,
+            curve: control.1,
+        }
+    }
+
+    pub fn set_fan_curve(&self, curve: BTreeMap<i32, f64>) {
+        self.hw_mon.set_fan_curve(curve);
     }
 
     fn get_vulkan_info(pci_id: &str) -> VulkanInfo {

@@ -7,7 +7,9 @@ enum Opt {
     ///Gets realtime GPU information
     Stats,
     Info,
-    Start,
+    StartFanControl,
+    StopFanControl,
+    GetFanControl,
     Stop,
 }
 
@@ -29,11 +31,15 @@ fn main() {
             println!("Driver in use: {}", gpu_info.driver);
             print!("VBIOS Version: {}", gpu_info.vbios_version);
         },
-        Opt::Start => {
+        Opt::StartFanControl => {
             println!("{:?}", d.start_fan_control());
         },
-        Opt::Stop => {
+        Opt::StopFanControl => {
             println!("{:?}", d.stop_fan_control());
-        }
+        },
+        Opt::GetFanControl => {
+            println!("{:?}", d.get_fan_control());
+        },
+        Opt::Stop => d.shutdown(),
     }
 }

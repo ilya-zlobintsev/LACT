@@ -1,5 +1,5 @@
-use crate::{Action, SOCK_PATH, gpu_controller::GpuInfo, gpu_controller::GpuStats, hw_mon::HWMonError};
-use std::io::{Read, Write};
+use crate::{Action, SOCK_PATH, gpu_controller::GpuInfo, gpu_controller::{FanControlInfo, GpuStats}, hw_mon::HWMonError};
+use std::{collections::BTreeMap, io::{Read, Write}};
 use std::os::unix::net::UnixStream;
 
 #[derive(Debug)]
@@ -89,4 +89,25 @@ impl DaemonConnection {
             Err(_) => Err(DaemonConnectionError::PermissionDenied),
         }
     }   
+
+    pub fn get_fan_control(&self)-> FanControlInfo {
+        let mut s = UnixStream::connect(SOCK_PATH).unwrap();
+        s.write_all(&bincode::serialize(&Action::GetFanControl).unwrap()).unwrap();
+
+        let mut buffer = Vec::<u8>::new();
+        s.read_to_end(&mut buffer).unwrap();
+
+        bincode::deserialize(&buffer).unwrap()
+    }
+
+    pub fn set_fan_curve(&self, curve: BTreeMap<i32, f64>) {
+        let mut s = UnixStream::connect(SOCK_PATH).unwrap();
+        s.write_all(&bincode::serialize(&Action::SetFanCurve).unwrap()).unwrap();
+        s.write_all(&bincode::serialize(&curve).unwrap()).unwrap();
+    }
+
+    pub fn shutdown(&self) {
+        let mut s = UnixStream::connect(SOCK_PATH).unwrap();
+        s.write_all(&bincode::serialize(&Action::Shutdown).unwrap()).unwrap();
+    }
 }
