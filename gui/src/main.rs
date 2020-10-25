@@ -163,7 +163,7 @@ fn build_ui(application: &gtk::Application) {
 
         gpu_power_text_buffer.set_text(&format!("{}/{}W", gpu_stats.power_avg, gpu_stats.power_max));
 
-        fan_speed_text_buffer.set_text(&format!("{}RPM", gpu_stats.fan_speed));
+        fan_speed_text_buffer.set_text(&format!("{}RPM({}%)", gpu_stats.fan_speed, (gpu_stats.fan_speed as f64 / gpu_info.max_fan_speed as f64 * 100 as f64) as i32));
 
         glib::Continue(true)
     });

@@ -10,7 +10,7 @@ pub enum HWMonError {
 #[derive(Debug, Clone)]
 pub struct HWMon {
     hwmon_path: PathBuf,
-    fan_max_speed: i32,
+    pub fan_max_speed: i32,
     fan_control: Arc<AtomicBool>,
     fan_curve: Arc<RwLock<BTreeMap<i32, f64>>>,
 }

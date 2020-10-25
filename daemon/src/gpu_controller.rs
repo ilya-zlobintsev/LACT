@@ -50,6 +50,7 @@ pub struct GpuInfo {
     pub link_speed: String,
     pub link_width: u8,
     pub vulkan_info: VulkanInfo,
+    pub max_fan_speed: i32,
 }
 
 impl GpuController {
@@ -150,6 +151,7 @@ impl GpuController {
 
 
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
+        let max_fan_speed = self.hw_mon.fan_max_speed;
 
         GpuInfo {
             gpu_vendor: vendor,
@@ -164,6 +166,7 @@ impl GpuController {
             link_speed,
             link_width,
             vulkan_info,
+            max_fan_speed,
         }
     }
 
