@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs};
 use std::path::PathBuf;
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
+use crate::config::Config;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GpuStats {
@@ -27,6 +28,8 @@ pub struct GpuController {
     hw_path: PathBuf,
     hw_mon: HWMon,
     pub gpu_info: GpuInfo,
+    config: Config,
+    config_path: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -54,16 +57,20 @@ pub struct GpuInfo {
 }
 
 impl GpuController {
-    pub fn new(hw_path: PathBuf) -> Self {
+    pub fn new(hw_path: PathBuf, config: Config, config_path: PathBuf) -> Self {
         let hwmon_path = fs::read_dir(&hw_path.join("hwmon")).unwrap().next().unwrap().unwrap().path();
+
+        let hw_mon = HWMon::new(&hwmon_path, config.fan_control_enabled, config.fan_curve.clone());
 
         let mut controller = GpuController {
             hw_path: hw_path.clone(),
-            hw_mon: HWMon::new(&hwmon_path),
+            hw_mon,
             gpu_info: Default::default(),
+            config,
+            config_path,
         };
         controller.gpu_info = controller.get_info();
-        println!("{:?}", controller.gpu_info);
+        log::trace!("{:?}", controller.gpu_info);
         controller
     }
 
@@ -203,12 +210,26 @@ impl GpuController {
         }
     }
 
-    pub fn start_fan_control(&self) -> Result<(), HWMonError> {
-        self.hw_mon.start_fan_control()
+    pub fn start_fan_control(&mut self) -> Result<(), HWMonError> {
+        match self.hw_mon.start_fan_control() {
+            Ok(_) => {
+                self.config.fan_control_enabled = true;
+                self.config.save(&self.config_path).expect("Failed to save config");
+                Ok(())
+            },
+            Err(e) => Err(e),
+        }
     }
 
-    pub fn stop_fan_control(&self) -> Result<(), HWMonError> {
-        self.hw_mon.stop_fan_control()
+    pub fn stop_fan_control(&mut self) -> Result<(), HWMonError> {
+        match self.hw_mon.stop_fan_control() {
+            Ok(_) => {
+                self.config.fan_control_enabled = false;
+                self.config.save(&self.config_path).expect("Failed to save config");
+                Ok(())
+            },
+            Err(e) => Err(e),
+        }
     }
 
     pub fn get_fan_control(&self) -> FanControlInfo {
@@ -220,8 +241,10 @@ impl GpuController {
         }
     }
 
-    pub fn set_fan_curve(&self, curve: BTreeMap<i32, f64>) {
-        self.hw_mon.set_fan_curve(curve);
+    pub fn set_fan_curve(&mut self, curve: BTreeMap<i32, f64>) {
+        self.hw_mon.set_fan_curve(curve.clone());
+        self.config.fan_curve = curve;
+        self.config.save(&self.config_path).expect("Failed to save config");
     }
 
     fn get_vulkan_info(pci_id: &str) -> VulkanInfo {

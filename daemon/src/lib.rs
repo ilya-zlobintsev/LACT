@@ -1,8 +1,10 @@
 pub mod gpu_controller;
 pub mod hw_mon;
 pub mod daemon_connection;
+pub mod config;
 
 use std::{io::{Read, Write}, path::PathBuf, thread};
+use config::Config;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -43,19 +45,32 @@ impl Daemon {
             .output()
             .expect("Failed to chmod");
 
-        Daemon { listener, gpu_controller: GpuController::new(PathBuf::from("/sys/class/drm/card0/device"))}
+        let config_path = PathBuf::from("/etc/lact.json");
+        let config = match Config::read_from_file(&config_path) {
+            Ok(c) => c,
+            Err(_) => {
+                let c = Config::new();
+                c.save(&config_path).expect("Failed to save config");
+                c
+            }
+        };
+        log::trace!("Using config {:?}", config);
+
+        let gpu_controller = GpuController::new(PathBuf::from("/sys/class/drm/card0/device"), config, config_path);
+
+        Daemon { listener, gpu_controller }
     }
 
-    pub fn listen(self) {
+    pub fn listen(mut self) {
         for stream in self.listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    let mut controller = self.gpu_controller.clone();
-                    thread::spawn(move || Daemon::handle_connection(&mut controller, stream));
-                    //Daemon::handle_connection(&mut self.gpu_controller, stream);
+                    //let mut controller = self.gpu_controller.clone();
+                    //thread::spawn(move || Daemon::handle_connection(&mut controller, stream));
+                    Daemon::handle_connection(&mut self.gpu_controller, stream);
                 }
                 Err(err) => {
-                    println!("Error: {}", err);
+                    log::error!("Error: {}", err);
                     break;
                 }
             }
@@ -65,9 +80,9 @@ impl Daemon {
     fn handle_connection(gpu_controller: &mut GpuController, mut stream: UnixStream) {
         let mut buffer: [u8; 4] = [0; 4];
         stream.read(&mut buffer).unwrap();
-        //println!("finished reading, buffer size {}", buffer.len());
+        //log::trace!("finished reading, buffer size {}", buffer.len());
         let action: Action = bincode::deserialize(&buffer).expect("Failed to deserialize buffer");
-        //println!("{:?}", action);
+        //log::trace!("{:?}", action);
 
         let response: Option<Vec<u8>> = match action {
             Action::GetStats => Some(bincode::serialize(&gpu_controller.get_stats()).unwrap()),
