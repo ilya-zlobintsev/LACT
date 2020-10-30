@@ -2,7 +2,7 @@
 
 This application allows you to control your AMD GPU on a Linux system.
 
-![Screenshot]("https://i.imgur.com/c8jTTKy.png")
+![Screenshot](https://i.imgur.com/c8jTTKy.png)
 
 Current features:
 
