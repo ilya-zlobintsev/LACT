@@ -2,13 +2,22 @@ extern crate gdk;
 extern crate gio;
 extern crate gtk;
 
-use daemon::{Daemon, daemon_connection::DaemonConnection};
+use daemon::{daemon_connection::DaemonConnection, Daemon};
 use gio::prelude::*;
-use gtk::{Adjustment, Button, ButtonsType, DialogFlags, Frame, Label, LevelBar, MessageType, Switch, prelude::*};
+use gtk::{
+    prelude::*, Adjustment, Button, ButtonsType, DialogFlags, Frame, Label, LevelBar, MessageType,
+    Switch,
+};
 
 use gtk::{Builder, MessageDialog, TextBuffer, Window};
 
-use std::{collections::BTreeMap, env::args, sync::{Arc, RwLock}, thread, time::Duration};
+use std::{
+    collections::BTreeMap,
+    env::args,
+    sync::{Arc, RwLock},
+    thread,
+    time::Duration,
+};
 
 fn build_ui(application: &gtk::Application) {
     let glade_src = include_str!("main_window.glade");
@@ -62,31 +71,23 @@ fn build_ui(application: &gtk::Application) {
     let vram_usage_label: Label = builder
         .get_object("vram_usage_label")
         .expect("Couldn't get label");
-    
-    let gpu_clock_text_buffer: TextBuffer = builder
-        .get_object("gpu_clock_text_buffer").unwrap();    
 
-    let vram_clock_text_buffer: TextBuffer = builder
-        .get_object("vram_clock_text_buffer").unwrap();    
+    let gpu_clock_text_buffer: TextBuffer = builder.get_object("gpu_clock_text_buffer").unwrap();
 
-    let gpu_temp_text_buffer: TextBuffer = builder
-        .get_object("gpu_temp_text_buffer").unwrap();
+    let vram_clock_text_buffer: TextBuffer = builder.get_object("vram_clock_text_buffer").unwrap();
 
-    let gpu_power_text_buffer: TextBuffer = builder
-        .get_object("gpu_power_text_buffer").unwrap();
+    let gpu_temp_text_buffer: TextBuffer = builder.get_object("gpu_temp_text_buffer").unwrap();
 
-    let fan_speed_text_buffer: TextBuffer = builder
-        .get_object("fan_speed_text_buffer").unwrap();
+    let gpu_power_text_buffer: TextBuffer = builder.get_object("gpu_power_text_buffer").unwrap();
 
-    let automatic_fan_control_switch: Switch = builder
-        .get_object("automatic_fan_control_switch").unwrap();
+    let fan_speed_text_buffer: TextBuffer = builder.get_object("fan_speed_text_buffer").unwrap();
 
-    let apply_button: Button = builder
-        .get_object("apply_button").unwrap();
+    let automatic_fan_control_switch: Switch =
+        builder.get_object("automatic_fan_control_switch").unwrap();
 
-    let fan_curve_frame: Frame = builder
-        .get_object("fan_curve_frame").unwrap();
+    let apply_button: Button = builder.get_object("apply_button").unwrap();
 
+    let fan_curve_frame: Frame = builder.get_object("fan_curve_frame").unwrap();
 
     let mut unpriviliged: bool = false;
 
@@ -95,7 +96,7 @@ fn build_ui(application: &gtk::Application) {
         Err(_) => {
             unpriviliged = true;
 
-            let daemon = Daemon::new();
+            let daemon = Daemon::new(unpriviliged);
             thread::spawn(move || {
                 daemon.listen();
             });
@@ -139,20 +140,17 @@ fn build_ui(application: &gtk::Application) {
 
     let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
 
-    thread::spawn(move || {
-        loop {
-            let gpu_stats = d.get_gpu_stats();
+    thread::spawn(move || loop {
+        let gpu_stats = d.get_gpu_stats();
 
-            tx.send(gpu_stats).expect("Couldn't send text");
-            thread::sleep(Duration::from_millis(500));
-        }
+        tx.send(gpu_stats).expect("Couldn't send text");
+        thread::sleep(Duration::from_millis(500));
     });
-
 
     rx.attach(None, move |gpu_stats| {
         vram_usage_level_bar.set_max_value(gpu_stats.mem_total as f64);
         vram_usage_level_bar.set_value(gpu_stats.mem_used as f64);
-        
+
         let text = format!("{}/{} MiB", gpu_stats.mem_used, gpu_stats.mem_total);
         vram_usage_label.set_text(&text);
 
@@ -161,9 +159,14 @@ fn build_ui(application: &gtk::Application) {
 
         gpu_temp_text_buffer.set_text(&format!("{}°C", gpu_stats.gpu_temp));
 
-        gpu_power_text_buffer.set_text(&format!("{}/{}W", gpu_stats.power_avg, gpu_stats.power_max));
+        gpu_power_text_buffer
+            .set_text(&format!("{}/{}W", gpu_stats.power_avg, gpu_stats.power_max));
 
-        fan_speed_text_buffer.set_text(&format!("{}RPM({}%)", gpu_stats.fan_speed, (gpu_stats.fan_speed as f64 / gpu_info.max_fan_speed as f64 * 100 as f64) as i32));
+        fan_speed_text_buffer.set_text(&format!(
+            "{}RPM({}%)",
+            gpu_stats.fan_speed,
+            (gpu_stats.fan_speed as f64 / gpu_info.max_fan_speed as f64 * 100 as f64) as i32
+        ));
 
         glib::Continue(true)
     });
@@ -174,8 +177,7 @@ fn build_ui(application: &gtk::Application) {
         println!("Automatic fan control disabled!");
         automatic_fan_control_switch.set_active(false);
         fan_curve_frame.set_visible(true);
-    }
-    else {
+    } else {
         println!("Automatic fan control enabled");
         fan_curve_frame.set_visible(false);
     }
@@ -187,8 +189,8 @@ fn build_ui(application: &gtk::Application) {
         match switch.get_active() {
             true => {
                 fan_curve_frame.set_visible(false);
-            },
-            false => { 
+            }
+            false => {
                 fan_curve_frame.set_visible(true);
             }
         }
@@ -200,20 +202,24 @@ fn build_ui(application: &gtk::Application) {
 
     for i in 1..6 {
         let curve_temperature_adjustment: Adjustment = builder
-            .get_object(&format!("curve_temperature_adjustment_{}", i)).unwrap();
+            .get_object(&format!("curve_temperature_adjustment_{}", i))
+            .unwrap();
 
-        let value = *curve.read().unwrap().get(&(i * 20)).expect("Could not get by index");
+        let value = *curve
+            .read()
+            .unwrap()
+            .get(&(i * 20))
+            .expect("Could not get by index");
         println!("Setting value {} on adjustment {}", value, i);
         curve_temperature_adjustment.set_value(value);
 
         let c = curve.clone();
         let b = apply_button.clone();
 
-        curve_temperature_adjustment.connect_value_changed(move |adj | {
+        curve_temperature_adjustment.connect_value_changed(move |adj| {
             c.write().unwrap().insert(20 * i, adj.get_value());
             b.set_sensitive(true);
         });
-        
     }
 
     apply_button.connect_clicked(move |b| {
@@ -225,8 +231,8 @@ fn build_ui(application: &gtk::Application) {
         match automatic_fan_control_switch.get_active() {
             true => {
                 d.stop_fan_control().unwrap();
-            },
-            false => { 
+            }
+            false => {
                 d.start_fan_control().unwrap();
             }
         }
@@ -236,7 +242,6 @@ fn build_ui(application: &gtk::Application) {
 
     main_window.show();
 }
-
 
 fn main() {
     println!("Initializing gtk");

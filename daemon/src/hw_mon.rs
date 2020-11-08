@@ -26,12 +26,15 @@ pub struct HWMon {
 }
 
 impl HWMon {
-    pub fn new(hwmon_path: &PathBuf, fan_control_enabled: bool, fan_curve: BTreeMap<i32, f64>) -> HWMon {
-        let fan_max_speed = fs::read_to_string(hwmon_path.join("fan1_max"))
-            .unwrap()
-            .trim()
-            .parse::<i32>()
-            .unwrap();
+    pub fn new(
+        hwmon_path: &PathBuf,
+        fan_control_enabled: bool,
+        fan_curve: BTreeMap<i32, f64>,
+    ) -> HWMon {
+        let fan_max_speed = match fs::read_to_string(hwmon_path.join("fan1_max")) {
+            Ok(s) => s.trim().parse::<i32>().unwrap(),
+            Err(_) => 0,
+        };
 
         let mon = HWMon {
             hwmon_path: hwmon_path.clone(),
@@ -43,7 +46,7 @@ impl HWMon {
         if fan_control_enabled {
             mon.start_fan_control().unwrap();
         }
-        
+
         mon
     }
 

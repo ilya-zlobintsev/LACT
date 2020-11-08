@@ -1,9 +1,9 @@
+use crate::config::Config;
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fs};
 use std::path::PathBuf;
+use std::{collections::BTreeMap, fs};
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
-use crate::config::Config;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GpuStats {
@@ -58,9 +58,18 @@ pub struct GpuInfo {
 
 impl GpuController {
     pub fn new(hw_path: PathBuf, config: Config, config_path: PathBuf) -> Self {
-        let hwmon_path = fs::read_dir(&hw_path.join("hwmon")).unwrap().next().unwrap().unwrap().path();
+        let hwmon_path = fs::read_dir(&hw_path.join("hwmon"))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
 
-        let hw_mon = HWMon::new(&hwmon_path, config.fan_control_enabled, config.fan_curve.clone());
+        let hw_mon = HWMon::new(
+            &hwmon_path,
+            config.fan_control_enabled,
+            config.fan_curve.clone(),
+        );
 
         let mut controller = GpuController {
             hw_path: hw_path.clone(),
@@ -118,7 +127,12 @@ impl GpuController {
             card_model_id.to_lowercase()
         );
 
-        for line in full_hwid_list.split('\n') {
+        let lines: Vec<&str> = full_hwid_list.split('\n').collect();
+
+        //for line in full_hwid_list.split('\n') {
+        for i in 0..lines.len() {
+            let line = lines[i];
+
             if line.len() > card_vendor_id.len() {
                 if line[0..card_vendor_id.len()] == card_vendor_id.to_lowercase() {
                     card_vendor = line.splitn(2, ' ').collect::<Vec<&str>>()[1]
@@ -138,8 +152,8 @@ impl GpuController {
             Ok(v) => v,
             Err(_) => "".to_string(),
         }
-            .trim()
-            .to_string();
+        .trim()
+        .to_string();
 
         let vram_size = match fs::read_to_string(self.hw_path.join("mem_info_vram_total")) {
             Ok(a) => a.trim().parse::<u64>().unwrap() / 1024 / 1024,
@@ -155,7 +169,6 @@ impl GpuController {
             Ok(a) => a.trim().parse::<u8>().unwrap(),
             Err(_) => 0,
         };
-
 
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
         let max_fan_speed = self.hw_mon.fan_max_speed;
@@ -214,9 +227,11 @@ impl GpuController {
         match self.hw_mon.start_fan_control() {
             Ok(_) => {
                 self.config.fan_control_enabled = true;
-                self.config.save(&self.config_path).expect("Failed to save config");
+                self.config
+                    .save(&self.config_path)
+                    .expect("Failed to save config");
                 Ok(())
-            },
+            }
             Err(e) => Err(e),
         }
     }
@@ -225,9 +240,11 @@ impl GpuController {
         match self.hw_mon.stop_fan_control() {
             Ok(_) => {
                 self.config.fan_control_enabled = false;
-                self.config.save(&self.config_path).expect("Failed to save config");
+                self.config
+                    .save(&self.config_path)
+                    .expect("Failed to save config");
                 Ok(())
-            },
+            }
             Err(e) => Err(e),
         }
     }
@@ -244,7 +261,9 @@ impl GpuController {
     pub fn set_fan_curve(&mut self, curve: BTreeMap<i32, f64>) {
         self.hw_mon.set_fan_curve(curve.clone());
         self.config.fan_curve = curve;
-        self.config.save(&self.config_path).expect("Failed to save config");
+        self.config
+            .save(&self.config_path)
+            .expect("Failed to save config");
     }
 
     fn get_vulkan_info(pci_id: &str) -> VulkanInfo {
