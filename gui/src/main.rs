@@ -2,7 +2,7 @@ extern crate gdk;
 extern crate gio;
 extern crate gtk;
 
-use daemon::{daemon_connection::DaemonConnection, Daemon};
+use daemon::{Daemon, daemon_connection::DaemonConnection, gpu_controller::GpuInfo};
 use gio::prelude::*;
 use gtk::{
     prelude::*, Adjustment, Button, ButtonsType, DialogFlags, Frame, Label, LevelBar, MessageType,
@@ -27,42 +27,6 @@ fn build_ui(application: &gtk::Application) {
     let main_window: Window = builder
         .get_object("main_window")
         .expect("Couldn't get main_window");
-
-    let gpu_model_text_buffer: TextBuffer = builder
-        .get_object("gpu_model_text_buffer")
-        .expect("Couldn't get textbuffer");
-
-    let vbios_version_text_buffer: TextBuffer = builder
-        .get_object("vbios_version_text_buffer")
-        .expect("Couldn't get textbuffer");
-
-    let driver_text_buffer: TextBuffer = builder
-        .get_object("driver_text_buffer")
-        .expect("Couldn't get textbuffer");
-
-    let manufacturer_text_buffer: TextBuffer = builder
-        .get_object("manufacturer_text_buffer")
-        .expect("Couldn't get textbuffer");
-
-    let vram_size_text_buffer: TextBuffer = builder
-        .get_object("vram_size_text_buffer")
-        .expect("Couldn't get textbuffer");
-
-    let link_speed_text_buffer: TextBuffer = builder
-        .get_object("link_speed_text_buffer")
-        .expect("Couldn't get textbuffer");
-
-    let vulkan_device_name_text_buffer: TextBuffer = builder
-        .get_object("vulkan_device_name_text_buffer")
-        .expect("Couldn't get textbuffer");
-
-    let vulkan_version_text_buffer: TextBuffer = builder
-        .get_object("vulkan_version_text_buffer")
-        .expect("Couldn't get textbuffer");
-
-    let vulkan_features_text_buffer: TextBuffer = builder
-        .get_object("vulkan_features_text_buffer")
-        .expect("Couldn't get textbuffer");
 
     let vram_usage_level_bar: LevelBar = builder
         .get_object("vram_usage_level_bar")
@@ -121,19 +85,7 @@ fn build_ui(application: &gtk::Application) {
 
     let gpu_info = d.get_gpu_info(current_gpu_id).unwrap();
 
-    gpu_model_text_buffer.set_text(&gpu_info.card_model);
-    manufacturer_text_buffer.set_text(&gpu_info.card_vendor);
-    vbios_version_text_buffer.set_text(&gpu_info.vbios_version);
-    driver_text_buffer.set_text(&gpu_info.driver);
-    vram_size_text_buffer.set_text(&format!("{} MiB", &gpu_info.vram_size));
-    link_speed_text_buffer.set_text(&format!(
-        "{} x{}",
-        &gpu_info.link_speed, &gpu_info.link_width
-    ));
-
-    vulkan_device_name_text_buffer.set_text(&gpu_info.vulkan_info.device_name);
-    vulkan_version_text_buffer.set_text(&gpu_info.vulkan_info.api_version);
-    vulkan_features_text_buffer.set_text(&gpu_info.vulkan_info.features);
+    set_info(&builder, &gpu_info);
 
     if unpriviliged {
         automatic_fan_control_switch.set_sensitive(false);
@@ -228,12 +180,22 @@ fn build_ui(application: &gtk::Application) {
     apply_button.connect_clicked(move |b| {
         let curve = curve.read().unwrap().clone();
         println!("setting curve to {:?}", curve);
-        d.set_fan_curve(current_gpu_id, curve);
+        d.set_fan_curve(current_gpu_id, curve).unwrap();
         b.set_sensitive(false);
 
         match automatic_fan_control_switch.get_active() {
             true => {
                 d.stop_fan_control(current_gpu_id).unwrap();
+                
+                let diag = MessageDialog::new(
+                    None::<&Window>,
+                    DialogFlags::empty(),
+                    MessageType::Error,
+                    ButtonsType::Ok,
+                    "WARNING: Due to a driver bug, the GPU fan may misbehave after switching to automatic control. You may need to reboot your system to avoid issues.",
+                );
+                diag.run();
+                diag.hide();
             }
             false => {
                 d.start_fan_control(current_gpu_id).unwrap();
@@ -244,6 +206,59 @@ fn build_ui(application: &gtk::Application) {
     main_window.set_application(Some(application));
 
     main_window.show();
+}
+
+fn set_info(builder: &Builder, gpu_info: &GpuInfo) {
+    let gpu_model_text_buffer: TextBuffer = builder
+        .get_object("gpu_model_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    let vbios_version_text_buffer: TextBuffer = builder
+        .get_object("vbios_version_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    let driver_text_buffer: TextBuffer = builder
+        .get_object("driver_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    let manufacturer_text_buffer: TextBuffer = builder
+        .get_object("manufacturer_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    let vram_size_text_buffer: TextBuffer = builder
+        .get_object("vram_size_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    let link_speed_text_buffer: TextBuffer = builder
+        .get_object("link_speed_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    let vulkan_device_name_text_buffer: TextBuffer = builder
+        .get_object("vulkan_device_name_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    let vulkan_version_text_buffer: TextBuffer = builder
+        .get_object("vulkan_version_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    let vulkan_features_text_buffer: TextBuffer = builder
+        .get_object("vulkan_features_text_buffer")
+        .expect("Couldn't get textbuffer");
+
+    gpu_model_text_buffer.set_text(&gpu_info.card_model);
+    manufacturer_text_buffer.set_text(&gpu_info.card_vendor);
+    vbios_version_text_buffer.set_text(&gpu_info.vbios_version);
+    driver_text_buffer.set_text(&gpu_info.driver);
+    vram_size_text_buffer.set_text(&format!("{} MiB", &gpu_info.vram_size));
+    link_speed_text_buffer.set_text(&format!(
+        "{} x{}",
+        &gpu_info.link_speed, &gpu_info.link_width
+    ));
+
+    vulkan_device_name_text_buffer.set_text(&gpu_info.vulkan_info.device_name);
+    vulkan_version_text_buffer.set_text(&gpu_info.vulkan_info.api_version);
+    vulkan_features_text_buffer.set_text(&gpu_info.vulkan_info.features);
+
 }
 
 fn main() {
