@@ -117,34 +117,40 @@ impl Daemon {
         //log::trace!("{:?}", action);
 
         log::trace!("Executing action {:?}", action);
-        let response: Option<Vec<u8>> = match action {
-            Action::CheckAlive => Some(vec![1]),
+        let response: Result<DaemonResponse, DaemonError> = match action {
+            Action::CheckAlive => Ok(DaemonResponse::OK),
             Action::GetGpus => {
                 let mut gpus: HashMap<u32, String> = HashMap::new();
                 for controller in gpu_controllers {
                     gpus.insert(*controller.0, controller.1.gpu_info.gpu_model.clone());
                 }
-                Some(bincode::serialize(&gpus).unwrap())
+                Ok(DaemonResponse::Gpus(gpus))
             },
             Action::GetStats(i) => match gpu_controllers.get(&i) {
-                Some(controller) => Some(bincode::serialize(&controller.get_stats()).unwrap()),
-                _ => None,
+                Some(controller) => Ok(DaemonResponse::GpuStats(controller.get_stats())),
+                None => Err(DaemonError::InvalidID),
             },
             Action::GetInfo(i) => match gpu_controllers.get(&i) {
-                Some(controller) => Some(bincode::serialize(&controller.gpu_info).unwrap()),
-                _ => None,
+                Some(controller) => Ok(DaemonResponse::GpuInfo(controller.gpu_info.clone())),
+                None => Err(DaemonError::InvalidID),
             },
             Action::StartFanControl(i) => match gpu_controllers.get_mut(&i) {
-                Some(controller) => Some(bincode::serialize(&controller.start_fan_control()).unwrap()),
-                _ => None,
+                Some(controller) => match controller.start_fan_control() {
+                    Ok(_) => Ok(DaemonResponse::OK),
+                    Err(_) => Err(DaemonError::HWMonError),
+                }
+                None => Err(DaemonError::InvalidID),
             },
             Action::StopFanControl(i) => match gpu_controllers.get_mut(&i) {
-                Some(controller) => Some(bincode::serialize(&controller.stop_fan_control()).unwrap()),
-                _ => None,
+                Some(controller) => match controller.stop_fan_control() {
+                    Ok(_) => Ok(DaemonResponse::OK),
+                    Err(_) => Err(DaemonError::HWMonError),
+                },
+                None => Err(DaemonError::InvalidID),
             },
             Action::GetFanControl(i) => match gpu_controllers.get(&i) {
-                Some(controller) => Some(bincode::serialize(&controller.get_fan_control()).unwrap()),
-                _ => None,
+                Some(controller) => Ok(DaemonResponse::FanControlInfo(controller.get_fan_control())),
+                None => Err(DaemonError::InvalidID),
             }
             Action::SetFanCurve(i) => {
                 let mut buffer = Vec::new();
@@ -152,23 +158,32 @@ impl Daemon {
                 gpu_controllers.get_mut(&i).unwrap().set_fan_curve(
                     bincode::deserialize(&buffer).expect("Failed to deserialize curve"),
                 );
-                None
+                Ok(DaemonResponse::OK)
             }
             Action::Shutdown => std::process::exit(0),
         };
 
-        if let Some(r) = &response {
-            log::trace!("Responding");
-            stream.write_all(&r).expect("Failed writing response");
-            //stream
-            //    .shutdown(std::net::Shutdown::Write)
-            //    .expect("Could not shut down");
-            log::trace!("Finished responding");
-        }
+        log::trace!("Responding");
+        stream.write_all(&bincode::serialize(&response).unwrap()).expect("Failed writing response");
+        //stream
+        //    .shutdown(std::net::Shutdown::Write)
+        //    .expect("Could not shut down");
+        log::trace!("Finished responding");
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
+pub enum DaemonResponse {
+    OK,
+    GpuInfo(gpu_controller::GpuInfo),
+    GpuStats(gpu_controller::GpuStats),
+    Gpus(HashMap<u32, String>),
+    FanControlInfo(gpu_controller::FanControlInfo),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum DaemonError {
     ConnectionFailed,
+    InvalidID,
+    HWMonError,
 }

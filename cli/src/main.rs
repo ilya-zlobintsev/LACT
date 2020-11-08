@@ -38,12 +38,12 @@ fn main() {
             println!("{:?}", gpus);
         },
         Opt::Stats { gpu_id } => {
-            let gpu_stats = d.get_gpu_stats(gpu_id);
+            let gpu_stats = d.get_gpu_stats(gpu_id).unwrap();
             println!("VRAM: {}/{}", gpu_stats.mem_used, gpu_stats.mem_total);
             println!("{:?}", gpu_stats);
         },
         Opt::Info { gpu_id } => {
-            let gpu_info = d.get_gpu_info(gpu_id);
+            let gpu_info = d.get_gpu_info(gpu_id).unwrap();
             println!("GPU Vendor: {}", gpu_info.gpu_vendor);
             println!("GPU Model: {}", gpu_info.card_model);
             println!("Driver in use: {}", gpu_info.driver);
