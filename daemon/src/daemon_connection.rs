@@ -132,12 +132,20 @@ impl DaemonConnection {
         }
     }
 
-    pub fn set_fan_curve(&self, gpu_id: u32, curve: BTreeMap<i32, f64>) {
+    pub fn set_fan_curve(&self, gpu_id: u32, curve: BTreeMap<i32, f64>) -> Result<(), DaemonError> {
         let mut s = UnixStream::connect(SOCK_PATH).unwrap();
-        s.write_all(&bincode::serialize(&Action::SetFanCurve(gpu_id)).unwrap())
+        s.write_all(&bincode::serialize(&Action::SetFanCurve(gpu_id, curve)).unwrap())
             .unwrap();
         s.shutdown(std::net::Shutdown::Write).expect("Could not shut down");
-        s.write_all(&bincode::serialize(&curve).unwrap()).unwrap();
+        let mut buffer = Vec::<u8>::new();
+        s.read_to_end(&mut buffer).unwrap();
+
+        let result: Result<DaemonResponse, DaemonError> = bincode::deserialize(&buffer).unwrap();
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
     }
 
     pub fn get_gpus(&self) -> Result<HashMap<u32, String>, DaemonError> {

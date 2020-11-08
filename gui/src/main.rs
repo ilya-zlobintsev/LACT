@@ -116,7 +116,10 @@ fn build_ui(application: &gtk::Application) {
     };
     println!("Connected");
 
-    let gpu_info = d.get_gpu_info();
+    let gpus = d.get_gpus().unwrap();
+    let current_gpu_id = gpus.iter().next().unwrap().0.clone();
+
+    let gpu_info = d.get_gpu_info(current_gpu_id).unwrap();
 
     gpu_model_text_buffer.set_text(&gpu_info.card_model);
     manufacturer_text_buffer.set_text(&gpu_info.card_vendor);
@@ -141,7 +144,7 @@ fn build_ui(application: &gtk::Application) {
     let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
 
     thread::spawn(move || loop {
-        let gpu_stats = d.get_gpu_stats();
+        let gpu_stats = d.get_gpu_stats(current_gpu_id).unwrap();
 
         tx.send(gpu_stats).expect("Couldn't send text");
         thread::sleep(Duration::from_millis(500));
@@ -171,7 +174,7 @@ fn build_ui(application: &gtk::Application) {
         glib::Continue(true)
     });
 
-    let fan_control = d.get_fan_control();
+    let fan_control = d.get_fan_control(current_gpu_id).unwrap();
 
     if fan_control.enabled {
         println!("Automatic fan control disabled!");
@@ -225,15 +228,15 @@ fn build_ui(application: &gtk::Application) {
     apply_button.connect_clicked(move |b| {
         let curve = curve.read().unwrap().clone();
         println!("setting curve to {:?}", curve);
-        d.set_fan_curve(curve);
+        d.set_fan_curve(current_gpu_id, curve);
         b.set_sensitive(false);
 
         match automatic_fan_control_switch.get_active() {
             true => {
-                d.stop_fan_control().unwrap();
+                d.stop_fan_control(current_gpu_id).unwrap();
             }
             false => {
-                d.start_fan_control().unwrap();
+                d.start_fan_control(current_gpu_id).unwrap();
             }
         }
     });

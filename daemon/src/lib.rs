@@ -5,7 +5,7 @@ pub mod hw_mon;
 
 use config::Config;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs};
+use std::{collections::{BTreeMap, HashMap}, fs};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::Command;
 use std::{
@@ -33,7 +33,7 @@ pub enum Action {
     StartFanControl(u32),
     StopFanControl(u32),
     GetFanControl(u32),
-    SetFanCurve(u32),
+    SetFanCurve(u32, BTreeMap<i32, f64>),
     Shutdown,
 }
 
@@ -152,13 +152,17 @@ impl Daemon {
                 Some(controller) => Ok(DaemonResponse::FanControlInfo(controller.get_fan_control())),
                 None => Err(DaemonError::InvalidID),
             }
-            Action::SetFanCurve(i) => {
-                let mut buffer = Vec::new();
-                stream.read_to_end(&mut buffer).unwrap();
-                gpu_controllers.get_mut(&i).unwrap().set_fan_curve(
-                    bincode::deserialize(&buffer).expect("Failed to deserialize curve"),
-                );
-                Ok(DaemonResponse::OK)
+            Action::SetFanCurve(i, curve) => match gpu_controllers.get_mut(&i) {
+                Some(controller) => {
+
+                    let mut buffer = Vec::new();
+                    stream.read_to_end(&mut buffer).unwrap();
+                    
+                    controller.set_fan_curve(curve);
+                    
+                    Ok(DaemonResponse::OK)
+                },
+                None => Err(DaemonError::InvalidID),
             }
             Action::Shutdown => std::process::exit(0),
         };
