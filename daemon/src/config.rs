@@ -1,5 +1,5 @@
-use std::{collections::BTreeMap, io, fs, path::PathBuf};
 use serde::{Deserialize, Serialize};
+use std::{collections::BTreeMap, fs, io, path::PathBuf};
 
 #[derive(Debug)]
 pub enum ConfigError {
@@ -42,7 +42,7 @@ impl Config {
 
     pub fn read_from_file(path: &PathBuf) -> Result<Self, ConfigError> {
         let json = fs::read_to_string(path)?;
-        
+
         Ok(serde_json::from_str::<Config>(&json)?)
     }
 

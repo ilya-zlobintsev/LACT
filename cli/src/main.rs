@@ -5,40 +5,58 @@ use structopt::StructOpt;
 #[structopt(rename_all = "lower")]
 enum Opt {
     ///Gets realtime GPU information
-    Stats,
-    Info,
-    StartFanControl,
-    StopFanControl,
-    GetFanControl,
+    Stats {
+        gpu_id: u32,
+    },
+    Gpus,
+    Info {
+        gpu_id: u32,
+    },
+    StartFanControl {
+        gpu_id: u32,
+    },
+    StopFanControl {
+        gpu_id: u32,
+    },
+    GetFanControl {
+        gpu_id: u32,
+    },
     Stop,
 }
 
 fn main() {
+    env_logger::init();
+    
     let opt = Opt::from_args();
 
     let d = DaemonConnection::new().unwrap();
+    log::trace!("connection established");
 
     match opt {
-        Opt::Stats => {
-            let gpu_stats = d.get_gpu_stats();
+        Opt::Gpus => {
+            let gpus = d.get_gpus();
+            println!("{:?}", gpus);
+        },
+        Opt::Stats { gpu_id } => {
+            let gpu_stats = d.get_gpu_stats(gpu_id);
             println!("VRAM: {}/{}", gpu_stats.mem_used, gpu_stats.mem_total);
             println!("{:?}", gpu_stats);
         },
-        Opt::Info => {
-            let gpu_info = d.get_gpu_info();
+        Opt::Info { gpu_id } => {
+            let gpu_info = d.get_gpu_info(gpu_id);
             println!("GPU Vendor: {}", gpu_info.gpu_vendor);
             println!("GPU Model: {}", gpu_info.card_model);
             println!("Driver in use: {}", gpu_info.driver);
             print!("VBIOS Version: {}", gpu_info.vbios_version);
         },
-        Opt::StartFanControl => {
-            println!("{:?}", d.start_fan_control());
+        Opt::StartFanControl { gpu_id } => {
+            println!("{:?}", d.start_fan_control(gpu_id));
         },
-        Opt::StopFanControl => {
-            println!("{:?}", d.stop_fan_control());
+        Opt::StopFanControl { gpu_id } => {
+            println!("{:?}", d.stop_fan_control(gpu_id));
         },
-        Opt::GetFanControl => {
-            println!("{:?}", d.get_fan_control());
+        Opt::GetFanControl { gpu_id } => {
+            println!("{:?}", d.get_fan_control(gpu_id));
         },
         Opt::Stop => d.shutdown(),
     }
