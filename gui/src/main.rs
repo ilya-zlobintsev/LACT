@@ -94,6 +94,7 @@ fn build_ui(application: &gtk::Application) {
     gpu_select_comboboxtext.connect_changed(move |combobox| {
         let mut current_gpu_id = cur_id.lock().unwrap();
         *current_gpu_id = combobox.get_active_id().unwrap().parse::<u32>().expect("invalid id");
+        println!("Set current gpu id to {}", current_gpu_id);
 
         let gpu_info = d.get_gpu_info(*current_gpu_id).unwrap();
         set_info(&build, &gpu_info);
@@ -114,6 +115,7 @@ fn build_ui(application: &gtk::Application) {
     let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
 
     thread::spawn(move || loop {
+        println!("Getting stats for {}", current_gpu_id);
         let gpu_stats = d.get_gpu_stats(current_gpu_id).unwrap();
 
         tx.send(gpu_stats).expect("Couldn't send text");

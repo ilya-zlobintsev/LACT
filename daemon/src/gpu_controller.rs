@@ -189,20 +189,15 @@ impl GpuController {
     }
 
     pub fn get_stats(&self) -> GpuStats {
-        let mem_total = fs::read_to_string(self.hw_path.join("mem_info_vram_total"))
-            .expect("Could not read device file")
-            .trim()
-            .parse::<u64>()
-            .unwrap()
-            / 1024
-            / 1024;
-        let mem_used = fs::read_to_string(self.hw_path.join("mem_info_vram_used"))
-            .expect("Could not read device file")
-            .trim()
-            .parse::<u64>()
-            .unwrap()
-            / 1024
-            / 1024;
+        let mem_total = match fs::read_to_string(self.hw_path.join("mem_info_vram_total")) {
+            Ok(a) => a.trim().parse::<u64>().unwrap() / 1024 / 1024,
+            Err(_) => 0,
+        };
+
+        let mem_used = match fs::read_to_string(self.hw_path.join("mem_info_vram_used")) {
+            Ok(a) => a.trim().parse::<u64>().unwrap() / 1024 / 1024,
+            Err(_) => 0,
+        };
 
         let (mem_freq, gpu_freq) = (self.hw_mon.get_mem_freq(), self.hw_mon.get_gpu_freq());
         let gpu_temp = self.hw_mon.get_gpu_temp();

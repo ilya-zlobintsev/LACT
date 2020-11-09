@@ -77,58 +77,68 @@ impl HWMon {
     pub fn get_mem_freq(&self) -> i32 {
         let filename = self.hwmon_path.join("freq2_input");
 
-        fs::read_to_string(filename)
-            .unwrap()
-            .trim()
-            .parse::<i32>()
-            .unwrap()
-            / 1000
-            / 1000
+        match fs::read_to_string(filename) {
+            Ok(a) => a
+                .trim()
+                .parse::<i32>()
+                .unwrap()
+                / 1000
+                / 1000,
+            _ => 0,
+        }
     }
 
     pub fn get_gpu_freq(&self) -> i32 {
         let filename = self.hwmon_path.join("freq1_input");
 
-        fs::read_to_string(filename)
-            .unwrap()
-            .trim()
-            .parse::<i32>()
-            .unwrap()
-            / 1000
-            / 1000
+        match fs::read_to_string(filename) {
+            Ok(a) => a
+                .trim()
+                .parse::<i32>()
+                .unwrap()
+                / 1000
+                / 1000,
+            _ => 0,
+        }
     }
 
     pub fn get_gpu_temp(&self) -> i32 {
         let filename = self.hwmon_path.join("temp1_input");
 
-        fs::read_to_string(filename)
-            .unwrap()
-            .trim()
-            .parse::<i32>()
-            .unwrap()
-            / 1000
+        match fs::read_to_string(filename) {
+            Ok(a) => a
+                .trim()
+                .parse::<i32>()
+                .unwrap()
+                / 1000,
+            _ => 0,
+        }
     }
 
     pub fn get_power_cap(&self) -> i32 {
         let filename = self.hwmon_path.join("power1_cap");
 
-        fs::read_to_string(filename)
-            .unwrap()
-            .trim()
-            .parse::<i32>()
-            .unwrap()
-            / 1000000
+        match fs::read_to_string(filename) {
+            Ok(a) => a
+                .trim()
+                .parse::<i32>()
+                .unwrap()
+                / 1000000,
+            _ => 0,
+        }
     }
 
     pub fn get_power_avg(&self) -> i32 {
         let filename = self.hwmon_path.join("power1_average");
 
-        fs::read_to_string(filename)
-            .unwrap()
-            .trim()
-            .parse::<i32>()
-            .unwrap()
-            / 1000000
+        match fs::read_to_string(filename) {
+            Ok(a) => a
+                .trim()
+                .parse::<i32>()
+                .unwrap()
+                / 1000000,
+            Err(_) => 0,
+        }
     }
 
     pub fn set_fan_curve(&self, curve: BTreeMap<i32, f64>) {
