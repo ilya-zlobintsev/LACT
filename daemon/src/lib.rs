@@ -113,66 +113,73 @@ impl Daemon {
         stream.read_to_end(&mut buffer).unwrap();
         //log::trace!("finished reading, buffer size {}", buffer.len());
         log::trace!("Attempting to deserialize {:?}", &buffer);
-        let action: Action = bincode::deserialize(&buffer).expect("Failed to deserialize buffer");
         //log::trace!("{:?}", action);
 
-        log::trace!("Executing action {:?}", action);
-        let response: Result<DaemonResponse, DaemonError> = match action {
-            Action::CheckAlive => Ok(DaemonResponse::OK),
-            Action::GetGpus => {
-                let mut gpus: HashMap<u32, String> = HashMap::new();
-                for controller in gpu_controllers {
-                    gpus.insert(*controller.0, controller.1.gpu_info.gpu_model.clone());
-                }
-                Ok(DaemonResponse::Gpus(gpus))
-            },
-            Action::GetStats(i) => match gpu_controllers.get(&i) {
-                Some(controller) => Ok(DaemonResponse::GpuStats(controller.get_stats())),
-                None => Err(DaemonError::InvalidID),
-            },
-            Action::GetInfo(i) => match gpu_controllers.get(&i) {
-                Some(controller) => Ok(DaemonResponse::GpuInfo(controller.gpu_info.clone())),
-                None => Err(DaemonError::InvalidID),
-            },
-            Action::StartFanControl(i) => match gpu_controllers.get_mut(&i) {
-                Some(controller) => match controller.start_fan_control() {
-                    Ok(_) => Ok(DaemonResponse::OK),
-                    Err(_) => Err(DaemonError::HWMonError),
-                }
-                None => Err(DaemonError::InvalidID),
-            },
-            Action::StopFanControl(i) => match gpu_controllers.get_mut(&i) {
-                Some(controller) => match controller.stop_fan_control() {
-                    Ok(_) => Ok(DaemonResponse::OK),
-                    Err(_) => Err(DaemonError::HWMonError),
-                },
-                None => Err(DaemonError::InvalidID),
-            },
-            Action::GetFanControl(i) => match gpu_controllers.get(&i) {
-                Some(controller) => Ok(DaemonResponse::FanControlInfo(controller.get_fan_control())),
-                None => Err(DaemonError::InvalidID),
-            }
-            Action::SetFanCurve(i, curve) => match gpu_controllers.get_mut(&i) {
-                Some(controller) => {
+        match bincode::deserialize::<Action>(&buffer) {
+            Ok(action) => {
+                log::trace!("Executing action {:?}", action);
+                let response: Result<DaemonResponse, DaemonError> = match action {
+                    Action::CheckAlive => Ok(DaemonResponse::OK),
+                    Action::GetGpus => {
+                        let mut gpus: HashMap<u32, String> = HashMap::new();
+                        for controller in gpu_controllers {
+                            gpus.insert(*controller.0, controller.1.gpu_info.gpu_model.clone());
+                        }
+                        Ok(DaemonResponse::Gpus(gpus))
+                    },
+                    Action::GetStats(i) => match gpu_controllers.get(&i) {
+                        Some(controller) => Ok(DaemonResponse::GpuStats(controller.get_stats())),
+                        None => Err(DaemonError::InvalidID),
+                    },
+                    Action::GetInfo(i) => match gpu_controllers.get(&i) {
+                        Some(controller) => Ok(DaemonResponse::GpuInfo(controller.gpu_info.clone())),
+                        None => Err(DaemonError::InvalidID),
+                    },
+                    Action::StartFanControl(i) => match gpu_controllers.get_mut(&i) {
+                        Some(controller) => match controller.start_fan_control() {
+                            Ok(_) => Ok(DaemonResponse::OK),
+                            Err(_) => Err(DaemonError::HWMonError),
+                        }
+                        None => Err(DaemonError::InvalidID),
+                    },
+                    Action::StopFanControl(i) => match gpu_controllers.get_mut(&i) {
+                        Some(controller) => match controller.stop_fan_control() {
+                            Ok(_) => Ok(DaemonResponse::OK),
+                            Err(_) => Err(DaemonError::HWMonError),
+                        },
+                        None => Err(DaemonError::InvalidID),
+                    },
+                    Action::GetFanControl(i) => match gpu_controllers.get(&i) {
+                        Some(controller) => Ok(DaemonResponse::FanControlInfo(controller.get_fan_control())),
+                        None => Err(DaemonError::InvalidID),
+                    }
+                    Action::SetFanCurve(i, curve) => match gpu_controllers.get_mut(&i) {
+                        Some(controller) => {
 
-                    let mut buffer = Vec::new();
-                    stream.read_to_end(&mut buffer).unwrap();
-                    
-                    controller.set_fan_curve(curve);
-                    
-                    Ok(DaemonResponse::OK)
-                },
-                None => Err(DaemonError::InvalidID),
-            }
-            Action::Shutdown => std::process::exit(0),
-        };
+                            let mut buffer = Vec::new();
+                            stream.read_to_end(&mut buffer).unwrap();
+                            
+                            controller.set_fan_curve(curve);
+                            
+                            Ok(DaemonResponse::OK)
+                        },
+                        None => Err(DaemonError::InvalidID),
+                    }
+                    Action::Shutdown => std::process::exit(0),
+                };
 
-        log::trace!("Responding");
-        stream.write_all(&bincode::serialize(&response).unwrap()).expect("Failed writing response");
-        //stream
-        //    .shutdown(std::net::Shutdown::Write)
-        //    .expect("Could not shut down");
-        log::trace!("Finished responding");
+                log::trace!("Responding");
+                stream.write_all(&bincode::serialize(&response).unwrap()).expect("Failed writing response");
+                //stream
+                //    .shutdown(std::net::Shutdown::Write)
+                //    .expect("Could not shut down");
+                log::trace!("Finished responding");
+            },
+            Err(_) => {
+                println!("Failed deserializing action");
+            }
+        }
+
     }
 }
 

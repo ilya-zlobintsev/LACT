@@ -15,6 +15,7 @@ pub struct GpuStats {
     pub power_avg: i32,
     pub power_max: i32,
     pub fan_speed: i32,
+    pub max_fan_speed: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -53,7 +54,6 @@ pub struct GpuInfo {
     pub link_speed: String,
     pub link_width: u8,
     pub vulkan_info: VulkanInfo,
-    pub max_fan_speed: i32,
 }
 
 impl GpuController {
@@ -171,7 +171,6 @@ impl GpuController {
         };
 
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
-        let max_fan_speed = self.hw_mon.fan_max_speed;
 
         GpuInfo {
             gpu_vendor: vendor,
@@ -186,7 +185,6 @@ impl GpuController {
             link_speed,
             link_width,
             vulkan_info,
-            max_fan_speed,
         }
     }
 
@@ -210,6 +208,7 @@ impl GpuController {
         let gpu_temp = self.hw_mon.get_gpu_temp();
         let (power_avg, power_max) = (self.hw_mon.get_power_avg(), self.hw_mon.get_power_cap());
         let fan_speed = self.hw_mon.get_fan_speed();
+        let max_fan_speed = self.hw_mon.fan_max_speed;
 
         GpuStats {
             mem_total,
@@ -220,6 +219,7 @@ impl GpuController {
             power_avg,
             power_max,
             fan_speed,
+            max_fan_speed,
         }
     }
 
