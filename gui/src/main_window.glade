@@ -45,6 +45,20 @@
   <object class="GtkTextBuffer" id="gpu_temp_text_buffer">
     <property name="text" translatable="yes">100°C</property>
   </object>
+  <object class="GtkListStore" id="gpus_list_store">
+    <columns>
+      <!-- column-name name -->
+      <column type="gchararray"/>
+    </columns>
+    <data>
+      <row>
+        <col id="0" translatable="yes">test</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">test1</col>
+      </row>
+    </data>
+  </object>
   <object class="GtkTextBuffer" id="link_speed_text_buffer">
     <property name="text" translatable="yes">1.0 GT/s PCIe x1</property>
   </object>
@@ -1125,6 +1139,22 @@
           </object>
           <packing>
             <property name="position">2</property>
+            <property name="tab-fill">False</property>
+          </packing>
+        </child>
+        <child>
+          <placeholder/>
+        </child>
+        <child type="tab">
+          <placeholder/>
+        </child>
+        <child type="action-start">
+          <object class="GtkComboBoxText" id="gpu_select_comboboxtext">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="active">0</property>
+          </object>
+          <packing>
             <property name="tab-fill">False</property>
           </packing>
         </child>

@@ -4,20 +4,12 @@ extern crate gtk;
 
 use daemon::{Daemon, daemon_connection::DaemonConnection, gpu_controller::GpuInfo};
 use gio::prelude::*;
-use gtk::{
-    prelude::*, Adjustment, Button, ButtonsType, DialogFlags, Frame, Label, LevelBar, MessageType,
-    Switch,
-};
+use gtk::{Adjustment, Button, ButtonsType, ComboBoxText, DialogFlags, Frame, Label, LevelBar, MessageType, Switch, prelude::*};
 
 use gtk::{Builder, MessageDialog, TextBuffer, Window};
+use pango::EllipsizeMode;
 
-use std::{
-    collections::BTreeMap,
-    env::args,
-    sync::{Arc, RwLock},
-    thread,
-    time::Duration,
-};
+use std::{collections::BTreeMap, env::args, sync::{Arc, Mutex, RwLock}, thread, time::Duration};
 
 fn build_ui(application: &gtk::Application) {
     let glade_src = include_str!("main_window.glade");
@@ -35,6 +27,8 @@ fn build_ui(application: &gtk::Application) {
     let vram_usage_label: Label = builder
         .get_object("vram_usage_label")
         .expect("Couldn't get label");
+
+    let gpu_select_comboboxtext: ComboBoxText = builder.get_object("gpu_select_comboboxtext").unwrap();
 
     let gpu_clock_text_buffer: TextBuffer = builder.get_object("gpu_clock_text_buffer").unwrap();
 
@@ -81,11 +75,35 @@ fn build_ui(application: &gtk::Application) {
     println!("Connected");
 
     let gpus = d.get_gpus().unwrap();
-    let current_gpu_id = gpus.iter().next().unwrap().0.clone();
 
-    let gpu_info = d.get_gpu_info(current_gpu_id).unwrap();
+    for gpu in &gpus {
+        gpu_select_comboboxtext.append(Some(&gpu.0.to_string()), &gpu.1);
+    }
 
-    set_info(&builder, &gpu_info);
+    //limits the length of gpu names in combobox
+    for cell in gpu_select_comboboxtext.get_cells() {
+        cell.set_property("width-chars", &10).unwrap();
+        cell.set_property("ellipsize", &EllipsizeMode::End).unwrap();
+    }
+
+    let current_gpu_id  = Arc::new(Mutex::new(0u32));
+
+    let cur_id = current_gpu_id.clone();
+    let build = builder.clone();
+
+    gpu_select_comboboxtext.connect_changed(move |combobox| {
+        let mut current_gpu_id = cur_id.lock().unwrap();
+        *current_gpu_id = combobox.get_active_id().unwrap().parse::<u32>().expect("invalid id");
+
+        let gpu_info = d.get_gpu_info(*current_gpu_id).unwrap();
+        set_info(&build, &gpu_info);
+    });
+
+    //gpu_select_comboboxtext.set_active_id(Some(&current_gpu_id.to_string()));
+    gpu_select_comboboxtext.set_active(Some(0));
+
+
+    let current_gpu_id = *current_gpu_id.clone().lock().unwrap();
 
     if unpriviliged {
         automatic_fan_control_switch.set_sensitive(false);
@@ -120,7 +138,7 @@ fn build_ui(application: &gtk::Application) {
         fan_speed_text_buffer.set_text(&format!(
             "{}RPM({}%)",
             gpu_stats.fan_speed,
-            (gpu_stats.fan_speed as f64 / gpu_info.max_fan_speed as f64 * 100 as f64) as i32
+            (gpu_stats.fan_speed as f64 / gpu_stats.max_fan_speed as f64 * 100 as f64) as i32
         ));
 
         glib::Continue(true)
