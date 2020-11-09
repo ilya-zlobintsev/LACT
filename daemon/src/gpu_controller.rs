@@ -262,27 +262,30 @@ impl GpuController {
     }
 
     fn get_vulkan_info(pci_id: &str) -> VulkanInfo {
-        let instance = Instance::new(None, &InstanceExtensions::none(), None)
-            .expect("failed to create instance");
+        let mut device_name = String::from("Not supported");
+        let mut api_version = String::new();
+        let mut features = String::new();
 
-        for physical in PhysicalDevice::enumerate(&instance) {
-            if format!("{:x}", physical.pci_device_id()) == pci_id.to_lowercase() {
-                let api_version = physical.api_version().to_string();
-                let device_name = physical.name().to_string();
-                let features = format!("{:?}", physical.supported_features());
+        match Instance::new(None, &InstanceExtensions::none(), None) {
+            Ok(instance) => {
+                for physical in PhysicalDevice::enumerate(&instance) {
+                    if format!("{:x}", physical.pci_device_id()) == pci_id.to_lowercase() {
+                        api_version = physical.api_version().to_string();
+                        device_name = physical.name().to_string();
+                        features = format!("{:?}", physical.supported_features());
 
-                return VulkanInfo {
-                    device_name,
-                    api_version,
-                    features,
-                };
-            }
+                    }
+                }
+            },
+            Err(_) => (),
         }
+            
 
         VulkanInfo {
-            device_name: "Not supported".to_string(),
-            api_version: "".to_string(),
-            features: "".to_string(),
+            device_name,
+            api_version,
+            features,
         }
+
     }
 }
