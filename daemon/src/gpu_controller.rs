@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{collections::BTreeMap, fs};
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 
@@ -27,7 +27,7 @@ pub struct FanControlInfo {
 #[derive(Clone)]
 pub struct GpuController {
     hw_path: PathBuf,
-    hw_mon: HWMon,
+    hw_mon: Option<HWMon>,
     pub gpu_info: GpuInfo,
     config: Config,
     config_path: PathBuf,
@@ -58,18 +58,19 @@ pub struct GpuInfo {
 
 impl GpuController {
     pub fn new(hw_path: PathBuf, config: Config, config_path: PathBuf) -> Self {
-        let hwmon_path = fs::read_dir(&hw_path.join("hwmon"))
-            .unwrap()
-            .next()
-            .unwrap()
-            .unwrap()
-            .path();
+        let hw_mon = match fs::read_dir(&hw_path.join("hwmon")) {
+            Ok(mut path) => {
+                let path = path.next().unwrap().unwrap().path();
+                let hw_mon = HWMon::new(
+                    &path,
+                    config.fan_control_enabled,
+                    config.fan_curve.clone(),
+                );
+                Some(hw_mon)
+            },
+            _ => None,
+        };
 
-        let hw_mon = HWMon::new(
-            &hwmon_path,
-            config.fan_control_enabled,
-            config.fan_curve.clone(),
-        );
 
         let mut controller = GpuController {
             hw_path: hw_path.clone(),
@@ -95,17 +96,17 @@ impl GpuController {
 
         for line in uevent.split('\n') {
             let split = line.split('=').collect::<Vec<&str>>();
-            match split[0] {
-                "DRIVER" => driver = split[1].to_string(),
-                "PCI_ID" => {
-                    let ids = split[1].split(':').collect::<Vec<&str>>();
-                    vendor_id = ids[0].to_string();
-                    model_id = ids[1].to_string();
+            match split.get(0).unwrap() {
+                &"DRIVER" => driver = split.get(1).unwrap().to_string(),
+                &"PCI_ID" => {
+                    let ids = split.last().expect("failed to get split").split(':').collect::<Vec<&str>>();
+                    vendor_id = ids.get(0).unwrap().to_string();
+                    model_id = ids.get(0).unwrap().to_string();
                 }
-                "PCI_SUBSYS_ID" => {
-                    let ids = split[1].split(':').collect::<Vec<&str>>();
-                    card_vendor_id = ids[0].to_string();
-                    card_model_id = ids[1].to_string();
+                &"PCI_SUBSYS_ID" => {
+                    let ids = split.last().expect("failed to get split").split(':').collect::<Vec<&str>>();
+                    card_vendor_id = ids.get(0).unwrap().to_string();
+                    card_model_id = ids.get(1).unwrap().to_string();
                 }
                 _ => (),
             }
@@ -116,37 +117,45 @@ impl GpuController {
         let mut card_vendor = String::new();
         let mut card_model = String::new();
 
-        let full_hwid_list = fs::read_to_string("/usr/share/hwdata/pci.ids")
-            .expect("Could not read pci.ids. Perhaps the \"hwids\" package is not installed?");
+        let mut full_hwid_list = String::new(); 
+        if Path::exists(&PathBuf::from("/usr/share/hwdata/pci.ids")) {
+            full_hwid_list = fs::read_to_string("/usr/share/hwdata/pci.ids").unwrap();
+        } else if Path::exists(&PathBuf::from("/usr/share/misc/pci.ids")) {
+            full_hwid_list = fs::read_to_string("/usr/share/misc/pci.ids").unwrap();
+        }
 
-        //some weird space character, don't touch
-        let pci_id_line = format!("	{}", model_id.to_lowercase());
-        let card_ids_line = format!(
-            "		{} {}",
-            card_vendor_id.to_lowercase(),
-            card_model_id.to_lowercase()
-        );
+        if !full_hwid_list.is_empty() {
+            //some weird space character, don't touch
+            let pci_id_line = format!("	{}", model_id.to_lowercase());
+            let card_ids_line = format!(
+                "		{} {}",
+                card_vendor_id.to_lowercase(),
+                card_model_id.to_lowercase()
+            );
 
-        let lines: Vec<&str> = full_hwid_list.split('\n').collect();
+            let lines: Vec<&str> = full_hwid_list.split('\n').collect();
 
-        //for line in full_hwid_list.split('\n') {
-        for i in 0..lines.len() {
-            let line = lines[i];
+            //for line in full_hwid_list.split('\n') {
+            for i in 0..lines.len() {
+                let line = lines[i];
 
-            if line.len() > card_vendor_id.len() {
-                if line[0..card_vendor_id.len()] == card_vendor_id.to_lowercase() {
-                    card_vendor = line.splitn(2, ' ').collect::<Vec<&str>>()[1]
-                        .trim_start()
-                        .to_string();
+                if line.len() > card_vendor_id.len() {
+                    if line[0..card_vendor_id.len()] == card_vendor_id.to_lowercase() {
+                        card_vendor = line.splitn(2, ' ').collect::<Vec<&str>>().last().unwrap()
+                            .trim_start()
+                            .to_string();
+                    }
+                }
+                if line.contains(&pci_id_line) {
+                    model = line[pci_id_line.len()..].trim_start().to_string();
+                }
+                if line.contains(&card_ids_line) {
+                    card_model = line[card_ids_line.len()..].trim_start().to_string();
                 }
             }
-            if line.contains(&pci_id_line) {
-                model = line[pci_id_line.len()..].trim_start().to_string();
-            }
-            if line.contains(&card_ids_line) {
-                card_model = line[card_ids_line.len()..].trim_start().to_string();
-            }
         }
+
+
 
         let vbios_version = match fs::read_to_string(self.hw_path.join("vbios_version")) {
             Ok(v) => v,
@@ -199,11 +208,10 @@ impl GpuController {
             Err(_) => 0,
         };
 
-        let (mem_freq, gpu_freq) = (self.hw_mon.get_mem_freq(), self.hw_mon.get_gpu_freq());
-        let gpu_temp = self.hw_mon.get_gpu_temp();
-        let (power_avg, power_max) = (self.hw_mon.get_power_avg(), self.hw_mon.get_power_cap());
-        let fan_speed = self.hw_mon.get_fan_speed();
-        let max_fan_speed = self.hw_mon.fan_max_speed;
+        let (mem_freq, gpu_freq, gpu_temp, power_avg, power_max, fan_speed, max_fan_speed) = match &self.hw_mon {
+            Some(hw_mon) => (hw_mon.get_mem_freq(), hw_mon.get_gpu_freq(), hw_mon.get_gpu_temp(), hw_mon.get_power_avg(), hw_mon.get_power_cap(), hw_mon.get_fan_speed(), hw_mon.fan_max_speed),
+            None => (0, 0, 0, 0, 0, 0, 0),
+        };
 
         GpuStats {
             mem_total,
@@ -219,46 +227,68 @@ impl GpuController {
     }
 
     pub fn start_fan_control(&mut self) -> Result<(), HWMonError> {
-        match self.hw_mon.start_fan_control() {
-            Ok(_) => {
-                self.config.fan_control_enabled = true;
-                self.config
-                    .save(&self.config_path)
-                    .expect("Failed to save config");
-                Ok(())
-            }
-            Err(e) => Err(e),
+        match &self.hw_mon {
+            Some(hw_mon) => {
+
+                match hw_mon.start_fan_control() {
+                    Ok(_) => {
+                        self.config.fan_control_enabled = true;
+                        self.config
+                            .save(&self.config_path)
+                            .expect("Failed to save config");
+                        Ok(())
+                    }
+                    Err(e) => Err(e),
+                }
+            },
+            None => Err(HWMonError::NoHWMon),
         }
     }
 
     pub fn stop_fan_control(&mut self) -> Result<(), HWMonError> {
-        match self.hw_mon.stop_fan_control() {
-            Ok(_) => {
-                self.config.fan_control_enabled = false;
+        match &self.hw_mon {
+            Some(hw_mon) => {
+                match hw_mon.stop_fan_control() {
+                    Ok(_) => {
+                        self.config.fan_control_enabled = false;
+                        self.config
+                            .save(&self.config_path)
+                            .expect("Failed to save config");
+                        Ok(())
+                    }
+                    Err(e) => Err(e),
+                }
+            },
+            None => Err(HWMonError::NoHWMon),
+        }
+    }
+
+    pub fn get_fan_control(&self) -> Result<FanControlInfo, HWMonError> {
+        match &self.hw_mon {
+            Some(hw_mon) => {
+                let control = hw_mon.get_fan_control();
+                Ok(FanControlInfo {
+                    enabled: control.0,
+                    curve: control.1,
+                })
+            },
+            None => Err(HWMonError::NoHWMon),
+        }
+
+    }
+
+    pub fn set_fan_curve(&mut self, curve: BTreeMap<i32, f64>) -> Result<(), HWMonError> {
+        match &self.hw_mon {
+            Some(hw_mon) => {
+                hw_mon.set_fan_curve(curve.clone());
+                self.config.fan_curve = curve;
                 self.config
                     .save(&self.config_path)
                     .expect("Failed to save config");
                 Ok(())
-            }
-            Err(e) => Err(e),
+            },
+            None => Err(HWMonError::NoHWMon),
         }
-    }
-
-    pub fn get_fan_control(&self) -> FanControlInfo {
-        let control = self.hw_mon.get_fan_control();
-
-        FanControlInfo {
-            enabled: control.0,
-            curve: control.1,
-        }
-    }
-
-    pub fn set_fan_curve(&mut self, curve: BTreeMap<i32, f64>) {
-        self.hw_mon.set_fan_curve(curve.clone());
-        self.config.fan_curve = curve;
-        self.config
-            .save(&self.config_path)
-            .expect("Failed to save config");
     }
 
     fn get_vulkan_info(pci_id: &str) -> VulkanInfo {

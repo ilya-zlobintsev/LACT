@@ -146,16 +146,27 @@ fn build_ui(application: &gtk::Application) {
         glib::Continue(true)
     });
 
-    let fan_control = d.get_fan_control(current_gpu_id).unwrap();
+    let fan_control = d.get_fan_control(current_gpu_id);
 
-    if fan_control.enabled {
-        println!("Automatic fan control disabled!");
-        automatic_fan_control_switch.set_active(false);
-        fan_curve_frame.set_visible(true);
-    } else {
-        println!("Automatic fan control enabled");
-        fan_curve_frame.set_visible(false);
+    match fan_control {
+        Ok(ref fan_control) => {
+            if fan_control.enabled {
+                println!("Automatic fan control disabled!");
+                automatic_fan_control_switch.set_active(false);
+                fan_curve_frame.set_visible(true);
+            } else {
+                println!("Automatic fan control enabled");
+                fan_curve_frame.set_visible(false);
+            }
+        },
+        Err(_) => {
+            automatic_fan_control_switch.set_sensitive(false);
+            automatic_fan_control_switch.set_tooltip_text(Some("Unavailable"));
+
+            fan_curve_frame.set_visible(false);
+        }
     }
+
 
     let b = apply_button.clone();
 
@@ -173,55 +184,62 @@ fn build_ui(application: &gtk::Application) {
         b.set_sensitive(true);
     });
 
-    let curve: Arc<RwLock<BTreeMap<i32, f64>>> = Arc::new(RwLock::new(fan_control.curve));
+    match fan_control {
+        Ok(fan_control) => {
 
-    for i in 1..6 {
-        let curve_temperature_adjustment: Adjustment = builder
-            .get_object(&format!("curve_temperature_adjustment_{}", i))
-            .unwrap();
+            let curve: Arc<RwLock<BTreeMap<i32, f64>>> = Arc::new(RwLock::new(fan_control.curve));
 
-        let value = *curve
-            .read()
-            .unwrap()
-            .get(&(i * 20))
-            .expect("Could not get by index");
-        println!("Setting value {} on adjustment {}", value, i);
-        curve_temperature_adjustment.set_value(value);
+            for i in 1..6 {
+                let curve_temperature_adjustment: Adjustment = builder
+                    .get_object(&format!("curve_temperature_adjustment_{}", i))
+                    .unwrap();
 
-        let c = curve.clone();
-        let b = apply_button.clone();
+                let value = *curve
+                    .read()
+                    .unwrap()
+                    .get(&(i * 20))
+                    .expect("Could not get by index");
+                println!("Setting value {} on adjustment {}", value, i);
+                curve_temperature_adjustment.set_value(value);
 
-        curve_temperature_adjustment.connect_value_changed(move |adj| {
-            c.write().unwrap().insert(20 * i, adj.get_value());
-            b.set_sensitive(true);
-        });
+                let c = curve.clone();
+                let b = apply_button.clone();
+
+                curve_temperature_adjustment.connect_value_changed(move |adj| {
+                    c.write().unwrap().insert(20 * i, adj.get_value());
+                    b.set_sensitive(true);
+                });
+            }
+
+            apply_button.connect_clicked(move |b| {
+                let curve = curve.read().unwrap().clone();
+                println!("setting curve to {:?}", curve);
+                d.set_fan_curve(current_gpu_id, curve).unwrap();
+                b.set_sensitive(false);
+
+                match automatic_fan_control_switch.get_active() {
+                    true => {
+                        d.stop_fan_control(current_gpu_id).unwrap();
+                        
+                        let diag = MessageDialog::new(
+                            None::<&Window>,
+                            DialogFlags::empty(),
+                            MessageType::Error,
+                            ButtonsType::Ok,
+                            "WARNING: Due to a driver bug, the GPU fan may misbehave after switching to automatic control. You may need to reboot your system to avoid issues.",
+                        );
+                        diag.run();
+                        diag.hide();
+                    }
+                    false => {
+                        d.start_fan_control(current_gpu_id).unwrap();
+                    }
+                }
+            });
+        },
+        Err(_) => (),
     }
 
-    apply_button.connect_clicked(move |b| {
-        let curve = curve.read().unwrap().clone();
-        println!("setting curve to {:?}", curve);
-        d.set_fan_curve(current_gpu_id, curve).unwrap();
-        b.set_sensitive(false);
-
-        match automatic_fan_control_switch.get_active() {
-            true => {
-                d.stop_fan_control(current_gpu_id).unwrap();
-                
-                let diag = MessageDialog::new(
-                    None::<&Window>,
-                    DialogFlags::empty(),
-                    MessageType::Error,
-                    ButtonsType::Ok,
-                    "WARNING: Due to a driver bug, the GPU fan may misbehave after switching to automatic control. You may need to reboot your system to avoid issues.",
-                );
-                diag.run();
-                diag.hide();
-            }
-            false => {
-                d.start_fan_control(current_gpu_id).unwrap();
-            }
-        }
-    });
 
     main_window.set_application(Some(application));
 

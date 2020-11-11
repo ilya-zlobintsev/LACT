@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HWMonError {
     PermissionDenied,
+    NoHWMon,
 }
 
 #[derive(Debug, Clone)]

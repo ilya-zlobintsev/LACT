@@ -150,7 +150,10 @@ impl Daemon {
                         None => Err(DaemonError::InvalidID),
                     },
                     Action::GetFanControl(i) => match gpu_controllers.get(&i) {
-                        Some(controller) => Ok(DaemonResponse::FanControlInfo(controller.get_fan_control())),
+                        Some(controller) => match controller.get_fan_control() {
+                            Ok(info) => Ok(DaemonResponse::FanControlInfo(info)),
+                            Err(_) => Err(DaemonError::HWMonError),
+                        }
                         None => Err(DaemonError::InvalidID),
                     }
                     Action::SetFanCurve(i, curve) => match gpu_controllers.get_mut(&i) {
@@ -159,9 +162,11 @@ impl Daemon {
                             let mut buffer = Vec::new();
                             stream.read_to_end(&mut buffer).unwrap();
                             
-                            controller.set_fan_curve(curve);
+                            match controller.set_fan_curve(curve) {
+                                Ok(_) => Ok(DaemonResponse::OK),
+                                Err(_) => Err(DaemonError::HWMonError),
+                            }
                             
-                            Ok(DaemonResponse::OK)
                         },
                         None => Err(DaemonError::InvalidID),
                     }
