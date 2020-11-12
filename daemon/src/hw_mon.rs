@@ -68,11 +68,10 @@ impl HWMon {
                 .parse::<i32>()
                 .unwrap()
         }*/
-        fs::read_to_string(self.hwmon_path.join("fan1_input"))
-            .expect("Couldn't read fan speed")
-            .trim()
-            .parse::<i32>()
-            .unwrap()
+        match fs::read_to_string(self.hwmon_path.join("fan1_input")) {
+            Ok(a) => a.trim().parse::<i32>().unwrap(),
+            _ => 0,
+        }
     }
 
     pub fn get_mem_freq(&self) -> i32 {

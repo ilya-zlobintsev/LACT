@@ -9,7 +9,7 @@ use gtk::{Adjustment, Button, ButtonsType, ComboBoxText, DialogFlags, Frame, Lab
 use gtk::{Builder, MessageDialog, TextBuffer, Window};
 use pango::EllipsizeMode;
 
-use std::{collections::BTreeMap, env::args, sync::{Arc, Mutex, RwLock}, thread, time::Duration};
+use std::{collections::BTreeMap, env::args, sync::{Arc, RwLock}, thread, time::Duration};
 
 fn build_ui(application: &gtk::Application) {
     let glade_src = include_str!("main_window.glade");
@@ -86,25 +86,54 @@ fn build_ui(application: &gtk::Application) {
         cell.set_property("ellipsize", &EllipsizeMode::End).unwrap();
     }
 
-    let current_gpu_id  = Arc::new(Mutex::new(0u32));
+    let current_gpu_id  = Arc::new(RwLock::new(0u32));
 
     let cur_id = current_gpu_id.clone();
     let build = builder.clone();
 
+
+    let fan_curv_frm = fan_curve_frame.clone();
+    let auto_fan_ctrl_swtch = automatic_fan_control_switch.clone();
+    let b = apply_button.clone();
+    
     gpu_select_comboboxtext.connect_changed(move |combobox| {
-        let mut current_gpu_id = cur_id.lock().unwrap();
+        let mut current_gpu_id = cur_id.write().unwrap();
         *current_gpu_id = combobox.get_active_id().unwrap().parse::<u32>().expect("invalid id");
         println!("Set current gpu id to {}", current_gpu_id);
 
         let gpu_info = d.get_gpu_info(*current_gpu_id).unwrap();
         set_info(&build, &gpu_info);
+
+        let fan_control = d.get_fan_control(*current_gpu_id);
+    
+        match fan_control {
+            Ok(ref fan_control) => {
+                if fan_control.enabled {
+                    println!("Automatic fan control disabled!");
+                    auto_fan_ctrl_swtch.set_active(false);
+                    fan_curv_frm.set_visible(true);
+                } else {
+                    println!("Automatic fan control enabled");
+                    auto_fan_ctrl_swtch.set_active(true);
+                    fan_curv_frm.set_visible(false);
+                }
+            },
+            Err(_) => {
+                auto_fan_ctrl_swtch.set_sensitive(false);
+                auto_fan_ctrl_swtch.set_tooltip_text(Some("Unavailable"));
+    
+                fan_curv_frm.set_visible(false);
+            }
+        }
+
+        b.set_sensitive(false);
+
     });
 
     //gpu_select_comboboxtext.set_active_id(Some(&current_gpu_id.to_string()));
     gpu_select_comboboxtext.set_active(Some(0));
 
 
-    let current_gpu_id = *current_gpu_id.clone().lock().unwrap();
 
     if unpriviliged {
         automatic_fan_control_switch.set_sensitive(false);
@@ -114,7 +143,9 @@ fn build_ui(application: &gtk::Application) {
 
     let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
 
+    let cur_gpu_id = current_gpu_id.clone();
     thread::spawn(move || loop {
+        let current_gpu_id = *cur_gpu_id.clone().read().unwrap();
         println!("Getting stats for {}", current_gpu_id);
         let gpu_stats = d.get_gpu_stats(current_gpu_id).unwrap();
 
@@ -146,7 +177,7 @@ fn build_ui(application: &gtk::Application) {
         glib::Continue(true)
     });
 
-    let fan_control = d.get_fan_control(current_gpu_id);
+    let fan_control = d.get_fan_control(*current_gpu_id.read().unwrap());
 
     match fan_control {
         Ok(ref fan_control) => {
@@ -212,6 +243,8 @@ fn build_ui(application: &gtk::Application) {
             }
 
             apply_button.connect_clicked(move |b| {
+                let current_gpu_id = *current_gpu_id.read().unwrap();
+
                 let curve = curve.read().unwrap().clone();
                 println!("setting curve to {:?}", curve);
                 d.set_fan_curve(current_gpu_id, curve).unwrap();
