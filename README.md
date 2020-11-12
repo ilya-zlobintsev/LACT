@@ -13,7 +13,7 @@ Current features:
 Currently missing:
 
 - Overclocking
-- Multi-GPU system support
+- <s>Multi-GPU system support</s> *Should work now*
 - The card model detection isn't very reliable
 
 # Installation
