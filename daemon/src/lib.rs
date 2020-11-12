@@ -3,7 +3,7 @@ pub mod daemon_connection;
 pub mod gpu_controller;
 pub mod hw_mon;
 
-use config::Config;
+use config::{Config, GpuConfig, GpuIdentifier};
 use serde::{Deserialize, Serialize};
 use std::{collections::{BTreeMap, HashMap}, fs};
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -22,6 +22,7 @@ pub const SOCK_PATH: &str = "/tmp/amdgpu-configurator.sock";
 pub struct Daemon {
     gpu_controllers: HashMap<u32, GpuController>,
     listener: UnixListener,
+    config: Config,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -38,7 +39,7 @@ pub enum Action {
 }
 
 impl Daemon {
-    pub fn new(unpriveleged: bool) -> Daemon {
+    pub fn new(unprivileged: bool) -> Daemon {
         if fs::metadata(SOCK_PATH).is_ok() {
             fs::remove_file(SOCK_PATH).expect("Failed to take control over socket");
         }
@@ -52,14 +53,14 @@ impl Daemon {
             .expect("Failed to chmod");
 
         let config_path = PathBuf::from("/etc/lact.json");
-        let config = if unpriveleged {
-            Config::new()
+        let mut config = if unprivileged {
+            Config::new(&config_path)
         } else {
             match Config::read_from_file(&config_path) {
                 Ok(c) => c,
                 Err(_) => {
-                    let c = Config::new();
-                    c.save(&config_path).expect("Failed to save config");
+                    let c = Config::new(&config_path);
+                    //c.save().unwrap();
                     c
                 }
             }
@@ -69,35 +70,58 @@ impl Daemon {
 
         let mut gpu_controllers: HashMap<u32, GpuController> = HashMap::new();
 
-        for entry in fs::read_dir("/sys/class/drm").expect("Could not open /sys/class/drm") {
+        /*for (gpu_identifier, gpu_config) in &config.gpu_configs {
+            let mut controller = GpuController::new(gpu_identifier.path.clone(), GpuConfig::new());
+            if controller.gpu_info.pci_slot == gpu_identifier.pci_id && controller.gpu_info.card_model == gpu_identifier.card_model && controller.gpu_info.gpu_model == gpu_identifier.gpu_model {
+                controller.load_config(gpu_config.clone());
+                gpu_controllers.insert(gpu_identifier.id, controller);
+            }
+        }*/
+
+        'entries: for entry in fs::read_dir("/sys/class/drm").expect("Could not open /sys/class/drm") {
             let entry = entry.unwrap();
             if entry.file_name().len() == 5 {
                 if entry.file_name().to_str().unwrap().split_at(4).0 == "card" {
                     log::info!("Initializing {:?}", entry.path());
-                    loop {
-                        let id: u32 = random();
-                        if !gpu_controllers.contains_key(&id) {
-                            gpu_controllers.insert(id, GpuController::new(entry.path().join("device"), config.clone(), config_path.clone()));
-                            break;
+
+                    let mut controller = GpuController::new(entry.path().join("device"), GpuConfig::new());
+
+                        for (id, (gpu_identifier, gpu_config)) in &config.gpu_configs {
+                        if controller.gpu_info.pci_slot == gpu_identifier.pci_id && controller.gpu_info.card_model == gpu_identifier.card_model && controller.gpu_info.gpu_model == gpu_identifier.gpu_model {
+                            controller.load_config(gpu_config.clone());
+                            gpu_controllers.insert(id.clone(), controller);
+                            log::info!("already known");
+                            continue 'entries;
                         }
                     }
+
+                    log::info!("initializing for the first time");
+
+                    let id: u32 = random();
+
+                    config.gpu_configs.insert(id, (controller.get_identifier(), controller.get_config()));
+                    gpu_controllers.insert(id, controller);
                 }
             }
         }
+        config.save().unwrap();
 
         Daemon {
             listener,
             gpu_controllers,
+            config,
         }
     }
 
     pub fn listen(mut self) {
-        for stream in self.listener.incoming() {
+        let listener = self.listener.try_clone().expect("couldn't try_clone");
+        for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {
                     //let mut controller = self.gpu_controller.clone();
                     //thread::spawn(move || Daemon::handle_connection(&mut controller, stream));
-                    Daemon::handle_connection(&mut self.gpu_controllers, stream);
+                    //Daemon::handle_connection(&mut self.gpu_controllers, stream);
+                    Daemon::handle_connection(&mut self, stream);
                 }
                 Err(err) => {
                     log::error!("Error: {}", err);
@@ -107,7 +131,8 @@ impl Daemon {
         }
     }
 
-    fn handle_connection(gpu_controllers: &mut HashMap<u32, GpuController>, mut stream: UnixStream) {
+    //fn handle_connection(gpu_controllers: &mut HashMap<u32, GpuController>, mut stream: UnixStream) {
+    fn handle_connection(&mut self, mut stream: UnixStream) {
         log::trace!("Reading buffer");
         let mut buffer = Vec::<u8>::new();
         stream.read_to_end(&mut buffer).unwrap();
@@ -122,48 +147,60 @@ impl Daemon {
                     Action::CheckAlive => Ok(DaemonResponse::OK),
                     Action::GetGpus => {
                         let mut gpus: HashMap<u32, String> = HashMap::new();
-                        for controller in gpu_controllers {
+                        for controller in &self.gpu_controllers {
                             gpus.insert(*controller.0, controller.1.gpu_info.gpu_model.clone());
                         }
                         Ok(DaemonResponse::Gpus(gpus))
                     },
-                    Action::GetStats(i) => match gpu_controllers.get(&i) {
+                    Action::GetStats(i) => match self.gpu_controllers.get(&i) {
                         Some(controller) => Ok(DaemonResponse::GpuStats(controller.get_stats())),
                         None => Err(DaemonError::InvalidID),
                     },
-                    Action::GetInfo(i) => match gpu_controllers.get(&i) {
+                    Action::GetInfo(i) => match self.gpu_controllers.get(&i) {
                         Some(controller) => Ok(DaemonResponse::GpuInfo(controller.gpu_info.clone())),
                         None => Err(DaemonError::InvalidID),
                     },
-                    Action::StartFanControl(i) => match gpu_controllers.get_mut(&i) {
+                    Action::StartFanControl(i) => match self.gpu_controllers.get_mut(&i) {
                         Some(controller) => match controller.start_fan_control() {
-                            Ok(_) => Ok(DaemonResponse::OK),
+                            Ok(_) => {
+                                self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
+                                self.config.save().unwrap();
+                                Ok(DaemonResponse::OK)
+                            },
                             Err(_) => Err(DaemonError::HWMonError),
                         }
                         None => Err(DaemonError::InvalidID),
                     },
-                    Action::StopFanControl(i) => match gpu_controllers.get_mut(&i) {
+                    Action::StopFanControl(i) => match self.gpu_controllers.get_mut(&i) {
                         Some(controller) => match controller.stop_fan_control() {
-                            Ok(_) => Ok(DaemonResponse::OK),
+                            Ok(_) => {
+                                self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
+                                self.config.save().unwrap();
+                                Ok(DaemonResponse::OK)
+                            },
                             Err(_) => Err(DaemonError::HWMonError),
                         },
                         None => Err(DaemonError::InvalidID),
                     },
-                    Action::GetFanControl(i) => match gpu_controllers.get(&i) {
+                    Action::GetFanControl(i) => match self.gpu_controllers.get(&i) {
                         Some(controller) => match controller.get_fan_control() {
                             Ok(info) => Ok(DaemonResponse::FanControlInfo(info)),
                             Err(_) => Err(DaemonError::HWMonError),
                         }
                         None => Err(DaemonError::InvalidID),
                     }
-                    Action::SetFanCurve(i, curve) => match gpu_controllers.get_mut(&i) {
+                    Action::SetFanCurve(i, curve) => match self.gpu_controllers.get_mut(&i) {
                         Some(controller) => {
 
                             let mut buffer = Vec::new();
                             stream.read_to_end(&mut buffer).unwrap();
                             
                             match controller.set_fan_curve(curve) {
-                                Ok(_) => Ok(DaemonResponse::OK),
+                                Ok(_) => {
+                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
+                                    self.config.save().unwrap();
+                                    Ok(DaemonResponse::OK)
+                                },
                                 Err(_) => Err(DaemonError::HWMonError),
                             }
                             

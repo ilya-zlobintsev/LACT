@@ -18,7 +18,7 @@ pub enum HWMonError {
     NoHWMon,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HWMon {
     hwmon_path: PathBuf,
     pub fan_max_speed: i32,

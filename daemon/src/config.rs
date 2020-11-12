@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fs, io, path::PathBuf};
+use std::{collections::{BTreeMap, HashMap}, fs, io, path::PathBuf};
 
 #[derive(Debug)]
 pub enum ConfigError {
@@ -19,13 +19,27 @@ impl From<serde_json::Error> for ConfigError {
     }
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq)]
+pub struct GpuIdentifier {
+    pub pci_id: String,
+    pub card_model: String,
+    pub gpu_model: String,
+    pub path: PathBuf,
+}
+
+impl PartialEq for GpuIdentifier {
+    fn eq(&self, other: &Self) -> bool {
+        self.pci_id == other.pci_id && self.gpu_model == other.gpu_model && self.card_model == other.card_model
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Config {
+pub struct GpuConfig {
     pub fan_control_enabled: bool,
     pub fan_curve: BTreeMap<i32, f64>,
 }
 
-impl Config {
+impl GpuConfig {
     pub fn new() -> Self {
         let mut fan_curve: BTreeMap<i32, f64> = BTreeMap::new();
         fan_curve.insert(20, 0f64);
@@ -34,9 +48,26 @@ impl Config {
         fan_curve.insert(80, 80f64);
         fan_curve.insert(100, 100f64);
 
-        Config {
+        GpuConfig {
             fan_curve,
             fan_control_enabled: false,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Config {
+    pub gpu_configs: HashMap<u32, (GpuIdentifier, GpuConfig)>,
+    pub config_path: PathBuf,
+}
+
+impl Config {
+    pub fn new(config_path: &PathBuf) -> Self {
+        let gpu_configs: HashMap<u32, (GpuIdentifier, GpuConfig)> = HashMap::new();
+
+        Config {
+            gpu_configs,
+            config_path: config_path.clone(),
         }
     }
 
@@ -46,10 +77,11 @@ impl Config {
         Ok(serde_json::from_str::<Config>(&json)?)
     }
 
-    pub fn save(&self, path: &PathBuf) -> Result<(), ConfigError> {
+    pub fn save(&self) -> Result<(), ConfigError> {
         let json = serde_json::json!(self);
+        log::info!("saving {}", json.to_string());
 
-        Ok(fs::write(path, &json.to_string())?)
+        Ok(fs::write(&self.config_path, &json.to_string())?)
     }
 }
 

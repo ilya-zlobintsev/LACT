@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{Config, GpuConfig, GpuIdentifier};
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -24,13 +24,12 @@ pub struct FanControlInfo {
     pub curve: BTreeMap<i32, f64>,
 }
 
-#[derive(Clone)]
+#[derive(Deserialize, Serialize)]
 pub struct GpuController {
-    hw_path: PathBuf,
+    pub hw_path: PathBuf,
     hw_mon: Option<HWMon>,
     pub gpu_info: GpuInfo,
-    config: Config,
-    config_path: PathBuf,
+    config: GpuConfig,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -54,10 +53,11 @@ pub struct GpuInfo {
     pub link_speed: String,
     pub link_width: u8,
     pub vulkan_info: VulkanInfo,
+    pub pci_slot: String,
 }
 
 impl GpuController {
-    pub fn new(hw_path: PathBuf, config: Config, config_path: PathBuf) -> Self {
+    pub fn new(hw_path: PathBuf, config: GpuConfig) -> Self {
         let hw_mon = match fs::read_dir(&hw_path.join("hwmon")) {
             Ok(mut path) => {
                 let path = path.next().unwrap().unwrap().path();
@@ -71,17 +71,43 @@ impl GpuController {
             _ => None,
         };
 
-
         let mut controller = GpuController {
             hw_path: hw_path.clone(),
             hw_mon,
             gpu_info: Default::default(),
             config,
-            config_path,
         };
         controller.gpu_info = controller.get_info();
         log::trace!("{:?}", controller.gpu_info);
         controller
+    }
+
+    pub fn load_config(&mut self, config: GpuConfig) {
+        self.hw_mon = match fs::read_dir(self.hw_path.join("hwmon")) {
+            Ok(mut path) => {
+                let path = path.next().unwrap().unwrap().path();
+                let hw_mon = HWMon::new(
+                    &path,
+                    config.fan_control_enabled,
+                    config.fan_curve.clone(),
+                );
+                Some(hw_mon)
+            },
+            _ => None,
+        };
+
+    }
+
+    pub fn get_config(&self) -> GpuConfig {
+        self.config.clone()
+    }
+
+    pub fn get_identifier(&self) -> GpuIdentifier {
+        GpuIdentifier { pci_id: self.gpu_info.pci_slot.clone(),
+                        card_model: self.gpu_info.card_model.clone(),
+                        gpu_model: self.gpu_info.gpu_model.clone(), 
+                        path: self.hw_path.clone() }
+
     }
 
     fn get_info(&self) -> GpuInfo {
@@ -93,6 +119,7 @@ impl GpuController {
         let mut model_id = String::new();
         let mut card_vendor_id = String::new();
         let mut card_model_id = String::new();
+        let mut pci_slot = String::new();
 
         for line in uevent.split('\n') {
             let split = line.split('=').collect::<Vec<&str>>();
@@ -102,12 +129,13 @@ impl GpuController {
                     let ids = split.last().expect("failed to get split").split(':').collect::<Vec<&str>>();
                     vendor_id = ids.get(0).unwrap().to_string();
                     model_id = ids.get(0).unwrap().to_string();
-                }
+                },
                 &"PCI_SUBSYS_ID" => {
                     let ids = split.last().expect("failed to get split").split(':').collect::<Vec<&str>>();
                     card_vendor_id = ids.get(0).unwrap().to_string();
                     card_model_id = ids.get(1).unwrap().to_string();
-                }
+                },
+                &"PCI_SLOT_NAME" => pci_slot = split.get(1).unwrap().to_string(),
                 _ => (),
             }
         }
@@ -194,6 +222,7 @@ impl GpuController {
             link_speed,
             link_width,
             vulkan_info,
+            pci_slot,
         }
     }
 
@@ -233,9 +262,6 @@ impl GpuController {
                 match hw_mon.start_fan_control() {
                     Ok(_) => {
                         self.config.fan_control_enabled = true;
-                        self.config
-                            .save(&self.config_path)
-                            .expect("Failed to save config");
                         Ok(())
                     }
                     Err(e) => Err(e),
@@ -251,9 +277,6 @@ impl GpuController {
                 match hw_mon.stop_fan_control() {
                     Ok(_) => {
                         self.config.fan_control_enabled = false;
-                        self.config
-                            .save(&self.config_path)
-                            .expect("Failed to save config");
                         Ok(())
                     }
                     Err(e) => Err(e),
@@ -282,9 +305,6 @@ impl GpuController {
             Some(hw_mon) => {
                 hw_mon.set_fan_curve(curve.clone());
                 self.config.fan_curve = curve;
-                self.config
-                    .save(&self.config_path)
-                    .expect("Failed to save config");
                 Ok(())
             },
             None => Err(HWMonError::NoHWMon),
