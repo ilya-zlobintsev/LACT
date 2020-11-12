@@ -128,7 +128,7 @@ impl GpuController {
                 &"PCI_ID" => {
                     let ids = split.last().expect("failed to get split").split(':').collect::<Vec<&str>>();
                     vendor_id = ids.get(0).unwrap().to_string();
-                    model_id = ids.get(0).unwrap().to_string();
+                    model_id = ids.get(1).unwrap().to_string();
                 },
                 &"PCI_SUBSYS_ID" => {
                     let ids = split.last().expect("failed to get split").split(':').collect::<Vec<&str>>();
@@ -160,6 +160,7 @@ impl GpuController {
                 card_vendor_id.to_lowercase(),
                 card_model_id.to_lowercase()
             );
+            log::trace!("identifying {} \n {}", pci_id_line, card_ids_line);
 
             let lines: Vec<&str> = full_hwid_list.split('\n').collect();
 
