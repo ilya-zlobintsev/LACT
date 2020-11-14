@@ -3,7 +3,7 @@ pub mod daemon_connection;
 pub mod gpu_controller;
 pub mod hw_mon;
 
-use config::{Config, GpuConfig, GpuIdentifier};
+use config::{Config, GpuConfig};
 use serde::{Deserialize, Serialize};
 use std::{collections::{BTreeMap, HashMap}, fs};
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -35,6 +35,7 @@ pub enum Action {
     StopFanControl(u32),
     GetFanControl(u32),
     SetFanCurve(u32, BTreeMap<i32, f64>),
+    SetPowerCap(u32, i32),
     Shutdown,
 }
 
@@ -191,9 +192,6 @@ impl Daemon {
                     }
                     Action::SetFanCurve(i, curve) => match self.gpu_controllers.get_mut(&i) {
                         Some(controller) => {
-
-                            let mut buffer = Vec::new();
-                            stream.read_to_end(&mut buffer).unwrap();
                             
                             match controller.set_fan_curve(curve) {
                                 Ok(_) => {
@@ -204,6 +202,17 @@ impl Daemon {
                                 Err(_) => Err(DaemonError::HWMonError),
                             }
                             
+                        },
+                        None => Err(DaemonError::InvalidID),
+                    }
+                    Action::SetPowerCap(i, cap) => match self.gpu_controllers.get_mut(&i) {
+                        Some(controller) => {
+                            match controller.set_power_cap(cap) {
+                                Ok(_) => {
+                                    Ok(DaemonResponse::OK)
+                                },
+                                Err(_) => Err(DaemonError::HWMonError),
+                            }
                         },
                         None => Err(DaemonError::InvalidID),
                     }

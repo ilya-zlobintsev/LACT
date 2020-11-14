@@ -40,12 +40,16 @@ fn build_ui(application: &gtk::Application) {
 
     let fan_speed_text_buffer: TextBuffer = builder.get_object("fan_speed_text_buffer").unwrap();
 
+    let power_cap_label: Label = builder.get_object("power_cap_label").unwrap();
+
     let automatic_fan_control_switch: Switch =
         builder.get_object("automatic_fan_control_switch").unwrap();
 
     let apply_button: Button = builder.get_object("apply_button").unwrap();
 
     let fan_curve_frame: Frame = builder.get_object("fan_curve_frame").unwrap();
+    
+    let gpu_power_adjustment: Adjustment = builder.get_object("gpu_power_adjustment").unwrap();
 
     let mut unpriviliged: bool = false;
 
@@ -94,8 +98,15 @@ fn build_ui(application: &gtk::Application) {
 
     let fan_curv_frm = fan_curve_frame.clone();
     let auto_fan_ctrl_swtch = automatic_fan_control_switch.clone();
+
     let b = apply_button.clone();
+    gpu_power_adjustment.connect_value_changed(move |adjustment| {
+        println!("changed adjustment value to {}/{}", adjustment.get_value(), adjustment.get_upper());
+        b.set_sensitive(true);
+        power_cap_label.set_text(&format!("{}/{}", adjustment.get_value().floor(), adjustment.get_upper()));
+    });
     
+    let b = apply_button.clone();
     gpu_select_comboboxtext.connect_changed(move |combobox| {
         let mut current_gpu_id = cur_id.write().unwrap();
         *current_gpu_id = combobox.get_active_id().unwrap().parse::<u32>().expect("invalid id");
@@ -166,13 +177,14 @@ fn build_ui(application: &gtk::Application) {
         gpu_temp_text_buffer.set_text(&format!("{}°C", gpu_stats.gpu_temp));
 
         gpu_power_text_buffer
-            .set_text(&format!("{}/{}W", gpu_stats.power_avg, gpu_stats.power_max));
+            .set_text(&format!("{}/{}W", gpu_stats.power_avg, gpu_stats.power_cap));
 
         fan_speed_text_buffer.set_text(&format!(
             "{}RPM({}%)",
             gpu_stats.fan_speed,
             (gpu_stats.fan_speed as f64 / gpu_stats.max_fan_speed as f64 * 100 as f64) as i32
         ));
+
 
         glib::Continue(true)
     });
@@ -268,6 +280,9 @@ fn build_ui(application: &gtk::Application) {
                         d.start_fan_control(current_gpu_id).unwrap();
                     }
                 }
+
+                let power_cap = gpu_power_adjustment.get_value().floor() as i32;
+                d.set_power_cap(current_gpu_id, power_cap).unwrap();
             });
         },
         Err(_) => (),
@@ -316,6 +331,11 @@ fn set_info(builder: &Builder, gpu_info: &GpuInfo) {
         .get_object("vulkan_features_text_buffer")
         .expect("Couldn't get textbuffer");
 
+    let power_cap_label: Label = builder.get_object("power_cap_label").unwrap();
+
+    let gpu_power_adjustment: Adjustment = builder.get_object("gpu_power_adjustment").unwrap();
+    //let power_cap_scale: Scale = builder.get_object("power_cap_scale").unwrap();
+
     gpu_model_text_buffer.set_text(&gpu_info.card_model);
     manufacturer_text_buffer.set_text(&gpu_info.card_vendor);
     vbios_version_text_buffer.set_text(&gpu_info.vbios_version);
@@ -330,6 +350,10 @@ fn set_info(builder: &Builder, gpu_info: &GpuInfo) {
     vulkan_version_text_buffer.set_text(&gpu_info.vulkan_info.api_version);
     vulkan_features_text_buffer.set_text(&gpu_info.vulkan_info.features);
 
+    power_cap_label.set_text(&format!("{}/{}", gpu_info.power_cap, gpu_info.power_cap_max));
+    gpu_power_adjustment.set_upper(gpu_info.power_cap_max as f64);
+    gpu_power_adjustment.set_value(gpu_info.power_cap as f64);
+    
 }
 
 fn main() {

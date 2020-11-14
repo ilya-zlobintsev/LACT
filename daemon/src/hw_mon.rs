@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HWMonError {
     PermissionDenied,
+    InvalidValue,
     NoHWMon,
 }
 
@@ -24,6 +25,7 @@ pub struct HWMon {
     pub fan_max_speed: i32,
     fan_control: Arc<AtomicBool>,
     fan_curve: Arc<RwLock<BTreeMap<i32, f64>>>,
+    power_cap: i32,
 }
 
 impl HWMon {
@@ -37,16 +39,18 @@ impl HWMon {
             Err(_) => 0,
         };
 
-        let mon = HWMon {
+        let mut mon = HWMon {
             hwmon_path: hwmon_path.clone(),
             fan_max_speed,
             fan_control: Arc::new(AtomicBool::new(false)),
             fan_curve: Arc::new(RwLock::new(fan_curve)),
+            power_cap: 0,
         };
 
         if fan_control_enabled {
             mon.start_fan_control().unwrap();
         }
+        mon.power_cap = mon.get_power_cap();
 
         mon
     }
@@ -115,6 +119,19 @@ impl HWMon {
         }
     }
 
+    pub fn get_power_cap_max(&self) -> i32 {
+        let filename = self.hwmon_path.join("power1_cap_max");
+
+        match fs::read_to_string(filename) {
+            Ok(a) => a
+                .trim()
+                .parse::<i32>()
+                .unwrap()
+                / 1000000,
+            _ => 0,
+        }
+    }
+
     pub fn get_power_cap(&self) -> i32 {
         let filename = self.hwmon_path.join("power1_cap");
 
@@ -125,6 +142,24 @@ impl HWMon {
                 .unwrap()
                 / 1000000,
             _ => 0,
+        }
+    }
+
+    pub fn set_power_cap(&mut self, cap: i32) -> Result<(), HWMonError> {
+
+        if cap > self.get_power_cap_max() {
+            return Err(HWMonError::InvalidValue);
+        }
+        
+        let cap = cap * 1000000;
+        log::trace!("setting power cap to {}", cap);
+
+        match fs::write(self.hwmon_path.join("power1_cap"), cap.to_string()) {
+            Ok(_) => {
+                self.power_cap = cap;
+                Ok(())
+            },
+            Err(_) => Err(HWMonError::PermissionDenied),
         }
     }
 
