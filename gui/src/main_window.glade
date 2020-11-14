@@ -39,6 +39,11 @@
   <object class="GtkTextBuffer" id="gpu_model_text_buffer">
     <property name="text">gpu_model</property>
   </object>
+  <object class="GtkAdjustment" id="gpu_power_adjustment">
+    <property name="upper">100</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
   <object class="GtkTextBuffer" id="gpu_power_text_buffer">
     <property name="text" translatable="yes">50W/100W</property>
   </object>
@@ -65,6 +70,9 @@
   <object class="GtkTextBuffer" id="manufacturer_text_buffer">
     <property name="text" translatable="yes">Manufacturer</property>
   </object>
+  <object class="GtkTextBuffer" id="power_cap_text_buffer">
+    <property name="text" translatable="yes">50/100</property>
+  </object>
   <object class="GtkTextBuffer" id="vbios_version_text_buffer">
     <property name="text" translatable="yes">vbios_version</property>
   </object>
@@ -85,6 +93,7 @@
   </object>
   <object class="GtkWindow" id="main_window">
     <property name="can-focus">False</property>
+    <property name="title" translatable="yes">LACT</property>
     <property name="default-width">350</property>
     <property name="default-height">500</property>
     <child>
@@ -670,6 +679,68 @@
                 <property name="expand">False</property>
                 <property name="fill">True</property>
                 <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkFrame">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label-xalign">0.10000000149011612</property>
+                <property name="shadow-type">none</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-start">10</property>
+                    <property name="margin-end">10</property>
+                    <child>
+                      <object class="GtkLabel" id="power_cap_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">50/100</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkScale" id="power_cap_scale">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="hexpand">True</property>
+                        <property name="adjustment">gpu_power_adjustment</property>
+                        <property name="restrict-to-fill-level">False</property>
+                        <property name="fill-level">0</property>
+                        <property name="round-digits">0</property>
+                        <property name="digits">0</property>
+                        <property name="draw-value">False</property>
+                        <property name="value-pos">left</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                </child>
+                <child type="label">
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Power Cap (Watts)</property>
+                    <attributes>
+                      <attribute name="weight" value="semibold"/>
+                    </attributes>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </object>

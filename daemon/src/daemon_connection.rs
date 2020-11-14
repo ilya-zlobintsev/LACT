@@ -148,6 +148,22 @@ impl DaemonConnection {
         }
     }
 
+    pub fn set_power_cap(&self, gpu_id: u32, cap: i32) -> Result<(), DaemonError> {
+        let mut s = UnixStream::connect(SOCK_PATH).unwrap();
+        s.write_all(&bincode::serialize(&Action::SetPowerCap(gpu_id, cap)).unwrap())
+            .unwrap();
+        s.shutdown(std::net::Shutdown::Write).expect("Could not shut down");
+        let mut buffer = Vec::<u8>::new();
+        s.read_to_end(&mut buffer).unwrap();
+
+        let result: Result<DaemonResponse, DaemonError> = bincode::deserialize(&buffer).unwrap();
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
     pub fn get_gpus(&self) -> Result<HashMap<u32, String>, DaemonError> {
         log::trace!("sending request");
         let mut s = UnixStream::connect(SOCK_PATH).unwrap();

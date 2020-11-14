@@ -1,4 +1,4 @@
-use crate::config::{Config, GpuConfig, GpuIdentifier};
+use crate::config::{GpuConfig, GpuIdentifier};
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -13,7 +13,8 @@ pub struct GpuStats {
     pub gpu_freq: i32,
     pub gpu_temp: i32,
     pub power_avg: i32,
-    pub power_max: i32,
+    pub power_cap: i32,
+    pub power_cap_max: i32,
     pub fan_speed: i32,
     pub max_fan_speed: i32,
 }
@@ -54,6 +55,8 @@ pub struct GpuInfo {
     pub link_width: u8,
     pub vulkan_info: VulkanInfo,
     pub pci_slot: String,
+    pub power_cap: i32,
+    pub power_cap_max: i32,
 }
 
 impl GpuController {
@@ -210,6 +213,11 @@ impl GpuController {
 
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
 
+        let (power_cap, power_cap_max) = match &self.hw_mon {
+            Some(hw_mon) => (hw_mon.get_power_cap(), hw_mon.get_power_cap_max()),
+            None => (0, 0),
+        };
+
         GpuInfo {
             gpu_vendor: vendor,
             gpu_model: model,
@@ -224,6 +232,8 @@ impl GpuController {
             link_width,
             vulkan_info,
             pci_slot,
+            power_cap,
+            power_cap_max,
         }
     }
 
@@ -238,9 +248,9 @@ impl GpuController {
             Err(_) => 0,
         };
 
-        let (mem_freq, gpu_freq, gpu_temp, power_avg, power_max, fan_speed, max_fan_speed) = match &self.hw_mon {
-            Some(hw_mon) => (hw_mon.get_mem_freq(), hw_mon.get_gpu_freq(), hw_mon.get_gpu_temp(), hw_mon.get_power_avg(), hw_mon.get_power_cap(), hw_mon.get_fan_speed(), hw_mon.fan_max_speed),
-            None => (0, 0, 0, 0, 0, 0, 0),
+        let (mem_freq, gpu_freq, gpu_temp, power_avg, power_cap, power_cap_max, fan_speed, max_fan_speed) = match &self.hw_mon {
+            Some(hw_mon) => (hw_mon.get_mem_freq(), hw_mon.get_gpu_freq(), hw_mon.get_gpu_temp(), hw_mon.get_power_avg(), hw_mon.get_power_cap(), hw_mon.get_power_cap_max(), hw_mon.get_fan_speed(), hw_mon.fan_max_speed),
+            None => (0, 0, 0, 0, 0, 0, 0, 0),
         };
 
         GpuStats {
@@ -250,7 +260,8 @@ impl GpuController {
             gpu_freq,
             gpu_temp,
             power_avg,
-            power_max,
+            power_cap,
+            power_cap_max,
             fan_speed,
             max_fan_speed,
         }
@@ -306,6 +317,17 @@ impl GpuController {
             Some(hw_mon) => {
                 hw_mon.set_fan_curve(curve.clone());
                 self.config.fan_curve = curve;
+                Ok(())
+            },
+            None => Err(HWMonError::NoHWMon),
+        }
+    }
+
+    pub fn set_power_cap(&mut self, cap: i32) -> Result<(), HWMonError> {
+        match &mut self.hw_mon {
+            Some(hw_mon) => {
+                hw_mon.set_power_cap(cap).unwrap();
+                self.gpu_info.power_cap = cap;
                 Ok(())
             },
             None => Err(HWMonError::NoHWMon),
