@@ -36,6 +36,7 @@ pub enum Action {
     GetFanControl(u32),
     SetFanCurve(u32, BTreeMap<i32, f64>),
     SetPowerCap(u32, i32),
+    GetPowerCap(u32),
     Shutdown,
 }
 
@@ -209,11 +210,20 @@ impl Daemon {
                         Some(controller) => {
                             match controller.set_power_cap(cap) {
                                 Ok(_) => {
+                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
+                                    self.config.save().unwrap();
                                     Ok(DaemonResponse::OK)
                                 },
                                 Err(_) => Err(DaemonError::HWMonError),
                             }
                         },
+                        None => Err(DaemonError::InvalidID),
+                    }
+                    Action::GetPowerCap(i) => match self.gpu_controllers.get(&i) {
+                        Some(controller) => match controller.get_power_cap() {
+                            Ok(cap) => Ok(DaemonResponse::PowerCap(cap)),
+                            Err(_) => Err(DaemonError::HWMonError),
+                        }
                         None => Err(DaemonError::InvalidID),
                     }
                     Action::Shutdown => std::process::exit(0),
@@ -240,6 +250,7 @@ pub enum DaemonResponse {
     GpuInfo(gpu_controller::GpuInfo),
     GpuStats(gpu_controller::GpuStats),
     Gpus(HashMap<u32, String>),
+    PowerCap((i32, i32)),
     FanControlInfo(gpu_controller::FanControlInfo),
 }
 

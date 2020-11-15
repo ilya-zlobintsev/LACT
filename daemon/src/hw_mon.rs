@@ -33,6 +33,7 @@ impl HWMon {
         hwmon_path: &PathBuf,
         fan_control_enabled: bool,
         fan_curve: BTreeMap<i32, f64>,
+        power_cap: i32,
     ) -> HWMon {
         let fan_max_speed = match fs::read_to_string(hwmon_path.join("fan1_max")) {
             Ok(s) => s.trim().parse::<i32>().unwrap(),
@@ -50,7 +51,12 @@ impl HWMon {
         if fan_control_enabled {
             mon.start_fan_control().unwrap();
         }
-        mon.power_cap = mon.get_power_cap();
+        if power_cap == -1 {
+            mon.power_cap = mon.get_power_cap();
+        }
+        else {
+            mon.set_power_cap(power_cap).unwrap();
+        }
 
         mon
     }
@@ -146,7 +152,6 @@ impl HWMon {
     }
 
     pub fn set_power_cap(&mut self, cap: i32) -> Result<(), HWMonError> {
-
         if cap > self.get_power_cap_max() {
             return Err(HWMonError::InvalidValue);
         }

@@ -37,6 +37,7 @@ impl PartialEq for GpuIdentifier {
 pub struct GpuConfig {
     pub fan_control_enabled: bool,
     pub fan_curve: BTreeMap<i32, f64>,
+    pub power_cap: i32,
 }
 
 impl GpuConfig {
@@ -51,6 +52,7 @@ impl GpuConfig {
         GpuConfig {
             fan_curve,
             fan_control_enabled: false,
+            power_cap: -1,
         }
     }
 }

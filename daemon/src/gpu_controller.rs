@@ -55,8 +55,6 @@ pub struct GpuInfo {
     pub link_width: u8,
     pub vulkan_info: VulkanInfo,
     pub pci_slot: String,
-    pub power_cap: i32,
-    pub power_cap_max: i32,
 }
 
 impl GpuController {
@@ -68,6 +66,7 @@ impl GpuController {
                     &path,
                     config.fan_control_enabled,
                     config.fan_curve.clone(),
+                    config.power_cap,
                 );
                 Some(hw_mon)
             },
@@ -93,6 +92,7 @@ impl GpuController {
                     &path,
                     config.fan_control_enabled,
                     config.fan_curve.clone(),
+                    config.power_cap,
                 );
                 Some(hw_mon)
             },
@@ -213,11 +213,6 @@ impl GpuController {
 
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
 
-        let (power_cap, power_cap_max) = match &self.hw_mon {
-            Some(hw_mon) => (hw_mon.get_power_cap(), hw_mon.get_power_cap_max()),
-            None => (0, 0),
-        };
-
         GpuInfo {
             gpu_vendor: vendor,
             gpu_model: model,
@@ -232,8 +227,6 @@ impl GpuController {
             link_width,
             vulkan_info,
             pci_slot,
-            power_cap,
-            power_cap_max,
         }
     }
 
@@ -327,8 +320,17 @@ impl GpuController {
         match &mut self.hw_mon {
             Some(hw_mon) => {
                 hw_mon.set_power_cap(cap).unwrap();
-                self.gpu_info.power_cap = cap;
+                self.config.power_cap = cap;
                 Ok(())
+            },
+            None => Err(HWMonError::NoHWMon),
+        }
+    }
+
+    pub fn get_power_cap(&self) -> Result<(i32, i32), HWMonError> {
+        match &self.hw_mon {
+            Some(hw_mon) => {
+                Ok((hw_mon.get_power_cap(), hw_mon.get_power_cap_max()))
             },
             None => Err(HWMonError::NoHWMon),
         }

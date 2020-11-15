@@ -210,6 +210,10 @@ fn build_ui(application: &gtk::Application) {
         }
     }
 
+    let (power_cap, power_cap_max) = d.get_power_cap(*current_gpu_id.read().unwrap()).unwrap();
+
+    gpu_power_adjustment.set_upper(power_cap_max as f64);
+    gpu_power_adjustment.set_value(power_cap as f64);
 
     let b = apply_button.clone();
 
@@ -331,11 +335,6 @@ fn set_info(builder: &Builder, gpu_info: &GpuInfo) {
         .get_object("vulkan_features_text_buffer")
         .expect("Couldn't get textbuffer");
 
-    let power_cap_label: Label = builder.get_object("power_cap_label").unwrap();
-
-    let gpu_power_adjustment: Adjustment = builder.get_object("gpu_power_adjustment").unwrap();
-    //let power_cap_scale: Scale = builder.get_object("power_cap_scale").unwrap();
-
     gpu_model_text_buffer.set_text(&gpu_info.card_model);
     manufacturer_text_buffer.set_text(&gpu_info.card_vendor);
     vbios_version_text_buffer.set_text(&gpu_info.vbios_version);
@@ -351,10 +350,6 @@ fn set_info(builder: &Builder, gpu_info: &GpuInfo) {
     vulkan_device_name_text_buffer.set_text(&gpu_info.vulkan_info.device_name);
     vulkan_version_text_buffer.set_text(&gpu_info.vulkan_info.api_version);
     vulkan_features_text_buffer.set_text(&vulkan_features);
-
-    power_cap_label.set_text(&format!("{}/{}", gpu_info.power_cap, gpu_info.power_cap_max));
-    gpu_power_adjustment.set_upper(gpu_info.power_cap_max as f64);
-    gpu_power_adjustment.set_value(gpu_info.power_cap as f64);
     
 }
 
