@@ -94,17 +94,20 @@
   <object class="GtkWindow" id="main_window">
     <property name="can-focus">False</property>
     <property name="title" translatable="yes">LACT</property>
-    <property name="default-width">350</property>
-    <property name="default-height">500</property>
+    <property name="default-width">450</property>
+    <property name="default-height">600</property>
     <child>
       <object class="GtkNotebook">
         <property name="visible">True</property>
         <property name="can-focus">True</property>
+        <property name="hexpand">True</property>
+        <property name="vexpand">True</property>
         <child>
           <!-- n-columns=2 n-rows=7 -->
           <object class="GtkGrid">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
+            <property name="hexpand">True</property>
             <child>
               <object class="GtkLabel">
                 <property name="visible">True</property>
@@ -329,6 +332,7 @@
                 <property name="can-focus">False</property>
                 <property name="margin-top">5</property>
                 <property name="margin-bottom">5</property>
+                <property name="hexpand">True</property>
                 <property name="label-xalign">0.5</property>
                 <property name="shadow-type">none</property>
                 <child>
@@ -337,6 +341,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="halign">center</property>
+                    <property name="hexpand">True</property>
                     <child>
                       <object class="GtkLabel">
                         <property name="visible">True</property>
@@ -408,12 +413,15 @@
                           <object class="GtkScrolledWindow">
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
+                            <property name="hexpand">True</property>
                             <property name="shadow-type">in</property>
                             <property name="propagate-natural-height">True</property>
                             <child>
                               <object class="GtkTextView">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="hexpand">True</property>
+                                <property name="editable">False</property>
                                 <property name="wrap-mode">word</property>
                                 <property name="buffer">vulkan_features_text_buffer</property>
                               </object>

@@ -346,9 +346,11 @@ fn set_info(builder: &Builder, gpu_info: &GpuInfo) {
         &gpu_info.link_speed, &gpu_info.link_width
     ));
 
+    let vulkan_features = gpu_info.vulkan_info.features.replace(',', "\n").replace("Features", "").replace("{", "").replace("}", "").replace(" ", "").replace(":", ": ");
+
     vulkan_device_name_text_buffer.set_text(&gpu_info.vulkan_info.device_name);
     vulkan_version_text_buffer.set_text(&gpu_info.vulkan_info.api_version);
-    vulkan_features_text_buffer.set_text(&gpu_info.vulkan_info.features);
+    vulkan_features_text_buffer.set_text(&vulkan_features);
 
     power_cap_label.set_text(&format!("{}/{}", gpu_info.power_cap, gpu_info.power_cap_max));
     gpu_power_adjustment.set_upper(gpu_info.power_cap_max as f64);
