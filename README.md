@@ -22,7 +22,7 @@ Currently missing:
 - Anything else:
     - Install a rust toolchain and gtk3 development headers (libgtk-3-dev on ubuntu)
     - Clone the repo
-    - sudo ./deploy.sh
+    - ./deploy.sh
 
 # Usage
 
