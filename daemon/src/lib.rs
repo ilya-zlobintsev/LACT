@@ -226,7 +226,12 @@ impl Daemon {
                         }
                         None => Err(DaemonError::InvalidID),
                     }
-                    Action::Shutdown => std::process::exit(0),
+                    Action::Shutdown => {
+                        for (_, controller) in &mut self.gpu_controllers {
+                            controller.stop_fan_control().expect("Failed to stop fan control");
+                        }
+                        std::process::exit(0);
+                    }
                 };
 
                 log::trace!("Responding");
