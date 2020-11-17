@@ -479,6 +479,159 @@
             <property name="can-focus">False</property>
             <property name="orientation">vertical</property>
             <child>
+              <object class="GtkFrame" id="overclocking_info_frame">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="margin-start">10</property>
+                <property name="margin-end">10</property>
+                <property name="margin-top">10</property>
+                <property name="margin-bottom">10</property>
+                <property name="label-xalign">0.15000000596046448</property>
+                <property name="shadow-type">in</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="halign">start</property>
+                    <property name="margin-start">5</property>
+                    <property name="margin-end">5</property>
+                    <property name="margin-top">5</property>
+                    <property name="margin-bottom">10</property>
+                    <property name="label" translatable="yes">To enable overclocking support, you need to add &lt;b&gt;amdgpu.ppfeaturemask=0xffffffff&lt;/b&gt; to your kernel boot options. Look for the documentation of your distro.</property>
+                    <property name="use-markup">True</property>
+                    <property name="wrap">True</property>
+                    <property name="selectable">True</property>
+                  </object>
+                </child>
+                <child type="label">
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Overclocking information</property>
+                    <attributes>
+                      <attribute name="foreground" value="#ffffe1e11919"/>
+                      <attribute name="size" value="12000"/>
+                    </attributes>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">center</property>
+                <property name="hexpand">True</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-start">5</property>
+                    <property name="margin-end">5</property>
+                    <property name="margin-top">5</property>
+                    <property name="margin-bottom">5</property>
+                    <property name="label" translatable="yes">Power Usage</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkTextView">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="margin-start">5</property>
+                    <property name="margin-end">5</property>
+                    <property name="margin-top">7</property>
+                    <property name="editable">False</property>
+                    <property name="cursor-visible">False</property>
+                    <property name="buffer">gpu_power_text_buffer</property>
+                    <property name="accepts-tab">False</property>
+                    <property name="monospace">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkFrame">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label-xalign">0.10000000149011612</property>
+                <property name="shadow-type">none</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-start">10</property>
+                    <property name="margin-end">10</property>
+                    <child>
+                      <object class="GtkLabel" id="power_cap_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">50/100</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkScale" id="power_cap_scale">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="hexpand">True</property>
+                        <property name="adjustment">gpu_power_adjustment</property>
+                        <property name="restrict-to-fill-level">False</property>
+                        <property name="fill-level">0</property>
+                        <property name="round-digits">0</property>
+                        <property name="digits">0</property>
+                        <property name="draw-value">False</property>
+                        <property name="value-pos">left</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                </child>
+                <child type="label">
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Power Cap (Watts)</property>
+                    <attributes>
+                      <attribute name="weight" value="semibold"/>
+                    </attributes>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+            <child>
               <!-- n-columns=2 n-rows=2 -->
               <object class="GtkGrid">
                 <property name="visible">True</property>
@@ -638,117 +791,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="halign">center</property>
-                <property name="hexpand">True</property>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="margin-start">5</property>
-                    <property name="margin-end">5</property>
-                    <property name="margin-top">5</property>
-                    <property name="margin-bottom">5</property>
-                    <property name="label" translatable="yes">Power Usage</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkTextView">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="margin-start">5</property>
-                    <property name="margin-end">5</property>
-                    <property name="margin-top">7</property>
-                    <property name="editable">False</property>
-                    <property name="cursor-visible">False</property>
-                    <property name="buffer">gpu_power_text_buffer</property>
-                    <property name="accepts-tab">False</property>
-                    <property name="monospace">True</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkFrame">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label-xalign">0.10000000149011612</property>
-                <property name="shadow-type">none</property>
-                <child>
-                  <object class="GtkBox">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="margin-start">10</property>
-                    <property name="margin-end">10</property>
-                    <child>
-                      <object class="GtkLabel" id="power_cap_label">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">50/100</property>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkScale" id="power_cap_scale">
-                        <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <property name="hexpand">True</property>
-                        <property name="adjustment">gpu_power_adjustment</property>
-                        <property name="restrict-to-fill-level">False</property>
-                        <property name="fill-level">0</property>
-                        <property name="round-digits">0</property>
-                        <property name="digits">0</property>
-                        <property name="draw-value">False</property>
-                        <property name="value-pos">left</property>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
-                  </object>
-                </child>
-                <child type="label">
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Power Cap (Watts)</property>
-                    <attributes>
-                      <attribute name="weight" value="semibold"/>
-                    </attributes>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">2</property>
+                <property name="position">3</property>
               </packing>
             </child>
           </object>

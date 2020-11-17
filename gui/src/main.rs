@@ -9,7 +9,7 @@ use gtk::{Adjustment, Button, ButtonsType, ComboBoxText, DialogFlags, Frame, Lab
 use gtk::{Builder, MessageDialog, TextBuffer, Window};
 use pango::EllipsizeMode;
 
-use std::{collections::BTreeMap, env::args, sync::{Arc, RwLock}, thread, time::Duration};
+use std::{collections::BTreeMap, env::args, fs, sync::{Arc, RwLock}, thread, time::Duration};
 
 fn build_ui(application: &gtk::Application) {
     let glade_src = include_str!("main_window.glade");
@@ -227,6 +227,17 @@ let vbios_version_text_buffer: TextBuffer = builder .get_object("vbios_version_t
     let gpu_power_adjustment: Adjustment = builder.get_object("gpu_power_adjustment").unwrap();
 
     let apply_button: Button = builder.get_object("apply_button").unwrap();
+
+    let overclocking_info_frame: Frame = builder.get_object("overclocking_info_frame").unwrap();
+
+    match fs::read_to_string("/proc/cmdline") {
+        Ok(cmdline) => {
+            if cmdline.contains("amdgpu.ppfeaturemask=") {
+                overclocking_info_frame.set_visible(false);
+            }
+        },
+        Err(_) => (),
+    }
 
     let gpu_info = d.get_gpu_info(gpu_id).unwrap();
 
