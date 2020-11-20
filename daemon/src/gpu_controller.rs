@@ -41,6 +41,27 @@ impl PowerProfile {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ClocksTable {
+    gpu_power_levels: BTreeMap<u32, (i32, i32)>, //<power level, (clockspeed, voltage)>
+    mem_power_levels: BTreeMap<u32, (i32, i32)>,
+    gpu_clocks_range: (i32, i32),
+    mem_clocks_range: (i32, i32),
+    voltage_range: (i32, i32),
+}
+
+impl ClocksTable {
+    fn new() -> Self {
+        ClocksTable {
+            gpu_power_levels: BTreeMap::new(),
+            mem_power_levels: BTreeMap::new(),
+            gpu_clocks_range: (0, 0),
+            mem_clocks_range: (0, 0),
+            voltage_range: (0, 0),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GpuStats {
     pub mem_used: u64,
@@ -91,7 +112,8 @@ pub struct GpuInfo {
     pub link_width: u8,
     pub vulkan_info: VulkanInfo,
     pub pci_slot: String,
-    pub power_profile: PowerProfile,
+    pub power_profile: Option<PowerProfile>,
+    pub clocks_table: Option<ClocksTable>,
 }
 
 impl GpuController {
@@ -239,8 +261,13 @@ impl GpuController {
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
 
         let power_profile = match self.get_power_profile() {
-            Ok(p) => p,
-            Err(_) => PowerProfile::Auto,
+            Ok(p) => Some(p),
+            Err(_) => None,
+        };
+
+        let clocks_table = match self.get_clocks_table() {
+            Ok(t) => Some(t),
+            Err(_) => None,
         };
 
         GpuInfo {
@@ -258,6 +285,7 @@ impl GpuController {
             vulkan_info,
             pci_slot,
             power_profile,
+            clocks_table,
         }
     }
 
@@ -381,6 +409,85 @@ impl GpuController {
             Ok(_) => { 
                 self.config.power_profile = profile;
                 Ok(())
+            },
+            Err(_) => Err(GpuControllerError::NotSupported),
+        }
+    }
+
+    fn get_clocks_table(&self) -> Result<ClocksTable, GpuControllerError> {
+        match fs::read_to_string(self.hw_path.join("pp_od_clk_voltage")) {
+            Ok(s) => {
+                let mut clocks_table = ClocksTable::new();
+                let lines: Vec<&str> = s.trim().split("\n").collect();
+
+                log::trace!("Reading clocks table");
+
+                let mut i = 0;
+                while i < lines.len() {
+                    log::trace!("matching {}", lines[i]);
+                    match lines[i] {
+                        "OD_SCLK:" => {
+                            i += 1;
+                            while (lines[i].split_at(2).0 != "OD") && i < lines.len() {
+                                let split: Vec<&str> = lines[i].split_whitespace().collect();
+                                let num = split[0].chars().nth(0).unwrap().to_digit(10).unwrap();
+                                let clock = split[1].replace("MHz", "").parse::<i32>().unwrap();
+                                let voltage = split[2].replace("mV", "").parse::<i32>().unwrap();
+                                clocks_table.gpu_power_levels.insert(num, (clock, voltage));
+                                log::trace!("Adding gpu power level {}MHz {}mv", clock, voltage);
+                                i += 1;
+                            }
+                        },
+                        "OD_MCLK:" => {
+                            i += 1;
+                            while (lines[i].split_at(2).0 != "OD") && i < lines.len() {
+                                let split: Vec<&str> = lines[i].split_whitespace().collect();
+                                let num = split[0].chars().nth(0).unwrap().to_digit(10).unwrap();
+                                let clock = split[1].replace("MHz", "").parse::<i32>().unwrap();
+                                let voltage = split[2].replace("mV", "").parse::<i32>().unwrap();
+                                clocks_table.mem_power_levels.insert(num, (clock, voltage));
+                                log::trace!("Adding vram power level {}MHz {}mv", clock, voltage);
+                                i += 1;
+                            }
+                        },
+                        "OD_RANGE:" => {
+                            i += 1;
+                            while lines[i].split_at(2).0 != "OD" {
+                                let split: Vec<&str> = lines[i].split_whitespace().collect();
+                                let name = split[0].replace(":", "");
+
+                                match name.as_ref() {
+                                    "SCLK" => {
+                                        let min_clock = split[1].replace("MHz", "").parse::<i32>().unwrap();
+                                        let max_clock = split[2].replace("MHz", "").parse::<i32>().unwrap();
+                                        clocks_table.gpu_clocks_range = (min_clock, max_clock);
+                                        log::trace!("Maximum gpu clock: {}", max_clock);
+                                    },
+                                    "MCLK" => {
+                                        let min_clock = split[1].replace("MHz", "").parse::<i32>().unwrap();
+                                        let max_clock = split[2].replace("MHz", "").parse::<i32>().unwrap();
+                                        clocks_table.mem_clocks_range = (min_clock, max_clock);
+                                        log::trace!("Maximum vram clock: {}", max_clock);
+                                    },
+                                    "VDDC" => {
+                                        let min_voltage = split[1].replace("mV", "").parse::<i32>().unwrap();
+                                        let max_voltage = split[2].replace("mV", "").parse::<i32>().unwrap();
+                                        clocks_table.voltage_range = (min_voltage, max_voltage);
+                                        log::trace!("Maximum voltage: {}", max_voltage);
+                                    },
+                                    _ => (),
+                                }
+
+                                i += 1;
+                                if i >= lines.len() {
+                                    break
+                                }
+                            }
+                        },
+                        _ => i += 1,
+                    }
+                }
+                Ok(clocks_table)
             },
             Err(_) => Err(GpuControllerError::NotSupported),
         }

@@ -818,8 +818,8 @@
                       <object class="GtkLabel" id="power_profile_description_label">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="margin-start">5</property>
-                        <property name="margin-end">5</property>
+                        <property name="margin-start">10</property>
+                        <property name="margin-end">10</property>
                         <property name="label" translatable="yes">Description of the selected power profile</property>
                       </object>
                       <packing>
@@ -845,6 +845,32 @@
                 <property name="expand">False</property>
                 <property name="fill">True</property>
                 <property name="position">4</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkFrame">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label-xalign">0.10000000149011612</property>
+                <property name="shadow-type">none</property>
+                <child>
+                  <placeholder/>
+                </child>
+                <child type="label">
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Power Levels</property>
+                    <attributes>
+                      <attribute name="weight" value="semibold"/>
+                    </attributes>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">5</property>
               </packing>
             </child>
           </object>

@@ -362,11 +362,18 @@ fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32) {
     gpu_power_adjustment.set_upper(power_cap_max as f64);
     gpu_power_adjustment.set_value(power_cap as f64);
 
-    power_profile_select_comboboxtext.set_active(match &gpu_info.power_profile {
-        PowerProfile::Auto => Some(0),
-        PowerProfile::High => Some(1),
-        PowerProfile::Low => Some(2),
-    });
+    match &gpu_info.power_profile {
+        Some(power_profile) => {
+            power_profile_select_comboboxtext.set_active(match power_profile {
+                PowerProfile::Auto => Some(0),
+                PowerProfile::High => Some(1),
+                PowerProfile::Low => Some(2),
+            });
+        },
+        None => {
+            power_profile_select_comboboxtext.set_sensitive(false);
+        }
+    }
 
     let fan_control = d.get_fan_control(gpu_id);
 
