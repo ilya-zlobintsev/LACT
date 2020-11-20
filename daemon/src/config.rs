@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::{BTreeMap, HashMap}, fs, io, path::PathBuf};
 
+use crate::gpu_controller::PowerProfile;
+
 #[derive(Debug)]
 pub enum ConfigError {
     IoError(io::Error),
@@ -38,6 +40,7 @@ pub struct GpuConfig {
     pub fan_control_enabled: bool,
     pub fan_curve: BTreeMap<i32, f64>,
     pub power_cap: i32,
+    pub power_profile: PowerProfile,
 }
 
 impl GpuConfig {
@@ -53,6 +56,7 @@ impl GpuConfig {
             fan_curve,
             fan_control_enabled: false,
             power_cap: -1,
+            power_profile: PowerProfile::Auto,
         }
     }
 }

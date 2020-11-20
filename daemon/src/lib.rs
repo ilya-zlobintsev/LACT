@@ -4,6 +4,7 @@ pub mod gpu_controller;
 pub mod hw_mon;
 
 use config::{Config, GpuConfig};
+use gpu_controller::PowerProfile;
 use serde::{Deserialize, Serialize};
 use std::{collections::{BTreeMap, HashMap}, fs};
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -37,6 +38,7 @@ pub enum Action {
     SetFanCurve(u32, BTreeMap<i32, f64>),
     SetPowerCap(u32, i32),
     GetPowerCap(u32),
+    SetPowerProfile(u32, PowerProfile),
     Shutdown,
 }
 
@@ -87,9 +89,10 @@ impl Daemon {
                     log::info!("Initializing {:?}", entry.path());
 
                     let mut controller = GpuController::new(entry.path().join("device"), GpuConfig::new());
+                    let gpu_info = controller.get_info();
 
-                        for (id, (gpu_identifier, gpu_config)) in &config.gpu_configs {
-                        if controller.gpu_info.pci_slot == gpu_identifier.pci_id && controller.gpu_info.card_model == gpu_identifier.card_model && controller.gpu_info.gpu_model == gpu_identifier.gpu_model {
+                    for (id, (gpu_identifier, gpu_config)) in &config.gpu_configs {
+                        if gpu_info.pci_slot == gpu_identifier.pci_id && gpu_info.card_model == gpu_identifier.card_model && gpu_info.gpu_model == gpu_identifier.gpu_model {
                             controller.load_config(gpu_config.clone());
                             gpu_controllers.insert(id.clone(), controller);
                             log::info!("already known");
@@ -106,7 +109,9 @@ impl Daemon {
                 }
             }
         }
-        config.save().unwrap();
+        if !unprivileged {
+            config.save().unwrap();
+        }
 
         Daemon {
             listener,
@@ -149,8 +154,8 @@ impl Daemon {
                     Action::CheckAlive => Ok(DaemonResponse::OK),
                     Action::GetGpus => {
                         let mut gpus: HashMap<u32, String> = HashMap::new();
-                        for controller in &self.gpu_controllers {
-                            gpus.insert(*controller.0, controller.1.gpu_info.gpu_model.clone());
+                        for (id, controller) in &self.gpu_controllers {
+                            gpus.insert(*id, controller.get_info().gpu_model.clone());
                         }
                         Ok(DaemonResponse::Gpus(gpus))
                     },
@@ -159,7 +164,7 @@ impl Daemon {
                         None => Err(DaemonError::InvalidID),
                     },
                     Action::GetInfo(i) => match self.gpu_controllers.get(&i) {
-                        Some(controller) => Ok(DaemonResponse::GpuInfo(controller.gpu_info.clone())),
+                        Some(controller) => Ok(DaemonResponse::GpuInfo(controller.get_info())),
                         None => Err(DaemonError::InvalidID),
                     },
                     Action::StartFanControl(i) => match self.gpu_controllers.get_mut(&i) {
@@ -226,6 +231,19 @@ impl Daemon {
                         }
                         None => Err(DaemonError::InvalidID),
                     }
+                    Action::SetPowerProfile(i, profile) => match self.gpu_controllers.get_mut(&i) {
+                        Some(controller) => {
+                            match controller.set_power_profile(profile) {
+                                Ok(_) => {
+                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
+                                    self.config.save().unwrap();
+                                    Ok(DaemonResponse::OK)
+                                },
+                                Err(_) => Err(DaemonError::ControllerError)
+                            }
+                        },
+                        None => Err(DaemonError::InvalidID),
+                    }
                     Action::Shutdown => {
                         for (_, controller) in &mut self.gpu_controllers {
                             controller.stop_fan_control().expect("Failed to stop fan control");
@@ -264,4 +282,5 @@ pub enum DaemonError {
     ConnectionFailed,
     InvalidID,
     HWMonError,
+    ControllerError,
 }

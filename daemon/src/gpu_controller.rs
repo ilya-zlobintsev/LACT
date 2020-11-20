@@ -6,6 +6,42 @@ use std::{collections::BTreeMap, fs};
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 
 #[derive(Serialize, Deserialize, Debug)]
+pub enum GpuControllerError {
+    NotSupported,
+    ParseError,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum PowerProfile {
+    Auto,
+    Low,
+    High,
+}
+
+impl Default for PowerProfile {
+    fn default() -> Self { PowerProfile::Auto }
+}
+
+impl PowerProfile {
+    pub fn from_str(profile: &str) -> Result<Self, GpuControllerError> {
+        match profile {
+            "auto" | "Automatic" => Ok(PowerProfile::Auto),
+            "high" | "Highest Clocks" => Ok(PowerProfile::High),
+            "low" | "Lowest Clocks" => Ok(PowerProfile::Low),
+            _ => Err(GpuControllerError::ParseError),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            PowerProfile::Auto => "auto".to_string(),
+            PowerProfile::High => "high".to_string(),
+            PowerProfile::Low => "low".to_string(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct GpuStats {
     pub mem_used: u64,
     pub mem_total: u64,
@@ -29,7 +65,7 @@ pub struct FanControlInfo {
 pub struct GpuController {
     pub hw_path: PathBuf,
     hw_mon: Option<HWMon>,
-    pub gpu_info: GpuInfo,
+    //pub gpu_info: GpuInfo,
     config: GpuConfig,
 }
 
@@ -55,32 +91,19 @@ pub struct GpuInfo {
     pub link_width: u8,
     pub vulkan_info: VulkanInfo,
     pub pci_slot: String,
+    pub power_profile: PowerProfile,
 }
 
 impl GpuController {
     pub fn new(hw_path: PathBuf, config: GpuConfig) -> Self {
-        let hw_mon = match fs::read_dir(&hw_path.join("hwmon")) {
-            Ok(mut path) => {
-                let path = path.next().unwrap().unwrap().path();
-                let hw_mon = HWMon::new(
-                    &path,
-                    config.fan_control_enabled,
-                    config.fan_curve.clone(),
-                    config.power_cap,
-                );
-                Some(hw_mon)
-            },
-            _ => None,
-        };
-
         let mut controller = GpuController {
             hw_path: hw_path.clone(),
-            hw_mon,
-            gpu_info: Default::default(),
-            config,
+            hw_mon: None,
+            config: GpuConfig::new(),
         };
-        controller.gpu_info = controller.get_info();
-        log::trace!("{:?}", controller.gpu_info);
+
+        controller.load_config(config);
+
         controller
     }
 
@@ -99,6 +122,7 @@ impl GpuController {
             _ => None,
         };
 
+        self.set_power_profile(config.power_profile).unwrap();
     }
 
     pub fn get_config(&self) -> GpuConfig {
@@ -106,14 +130,15 @@ impl GpuController {
     }
 
     pub fn get_identifier(&self) -> GpuIdentifier {
-        GpuIdentifier { pci_id: self.gpu_info.pci_slot.clone(),
-                        card_model: self.gpu_info.card_model.clone(),
-                        gpu_model: self.gpu_info.gpu_model.clone(), 
+        let gpu_info = self.get_info();
+        GpuIdentifier { pci_id: gpu_info.pci_slot.clone(),
+                        card_model: gpu_info.card_model.clone(),
+                        gpu_model: gpu_info.gpu_model.clone(), 
                         path: self.hw_path.clone() }
 
     }
 
-    fn get_info(&self) -> GpuInfo {
+    pub fn get_info(&self) -> GpuInfo {
         let uevent =
             fs::read_to_string(self.hw_path.join("uevent")).expect("Failed to read uevent");
 
@@ -213,6 +238,11 @@ impl GpuController {
 
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
 
+        let power_profile = match self.get_power_profile() {
+            Ok(p) => p,
+            Err(_) => PowerProfile::Auto,
+        };
+
         GpuInfo {
             gpu_vendor: vendor,
             gpu_model: model,
@@ -227,6 +257,7 @@ impl GpuController {
             link_width,
             vulkan_info,
             pci_slot,
+            power_profile,
         }
     }
 
@@ -333,6 +364,25 @@ impl GpuController {
                 Ok((hw_mon.get_power_cap(), hw_mon.get_power_cap_max()))
             },
             None => Err(HWMonError::NoHWMon),
+        }
+    }
+
+    fn get_power_profile(&self) -> Result<PowerProfile, GpuControllerError> {
+        match fs::read_to_string(self.hw_path.join("power_dpm_force_performance_level")) {
+            Ok(s) => {
+                Ok(PowerProfile::from_str(&s.trim()).unwrap())
+            },
+            Err(_) => Err(GpuControllerError::NotSupported),
+        }
+    }
+
+    pub fn set_power_profile(&mut self, profile: PowerProfile) -> Result<(), GpuControllerError> {
+        match fs::write(self.hw_path.join("power_dpm_force_performance_level"), profile.to_string()) {
+            Ok(_) => { 
+                self.config.power_profile = profile;
+                Ok(())
+            },
+            Err(_) => Err(GpuControllerError::NotSupported),
         }
     }
 

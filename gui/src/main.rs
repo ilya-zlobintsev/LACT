@@ -2,14 +2,24 @@ extern crate gdk;
 extern crate gio;
 extern crate gtk;
 
-use daemon::{Daemon, daemon_connection::DaemonConnection};
+use daemon::{daemon_connection::DaemonConnection, gpu_controller::PowerProfile, Daemon};
 use gio::prelude::*;
-use gtk::{Adjustment, Button, ButtonsType, ComboBoxText, DialogFlags, Frame, Label, LevelBar, MessageType, Switch, prelude::*};
+use gtk::{
+    prelude::*, Adjustment, Button, ButtonsType, ComboBoxText, DialogFlags, Frame, Label, LevelBar,
+    MessageType, Switch,
+};
 
 use gtk::{Builder, MessageDialog, TextBuffer, Window};
 use pango::EllipsizeMode;
 
-use std::{collections::BTreeMap, env::args, fs, sync::{Arc, RwLock}, thread, time::Duration};
+use std::{
+    collections::BTreeMap,
+    env::args,
+    fs,
+    sync::{Arc, RwLock},
+    thread,
+    time::Duration,
+};
 
 fn build_ui(application: &gtk::Application) {
     let glade_src = include_str!("main_window.glade");
@@ -28,7 +38,8 @@ fn build_ui(application: &gtk::Application) {
         .get_object("vram_usage_label")
         .expect("Couldn't get label");
 
-    let gpu_select_comboboxtext: ComboBoxText = builder.get_object("gpu_select_comboboxtext").unwrap();
+    let gpu_select_comboboxtext: ComboBoxText =
+        builder.get_object("gpu_select_comboboxtext").unwrap();
 
     let gpu_clock_text_buffer: TextBuffer = builder.get_object("gpu_clock_text_buffer").unwrap();
 
@@ -43,14 +54,19 @@ fn build_ui(application: &gtk::Application) {
     let power_cap_label: Label = builder.get_object("power_cap_label").unwrap();
 
     let apply_button: Button = builder.get_object("apply_button").unwrap();
-    
+
     let automatic_fan_control_switch: Switch =
         builder.get_object("automatic_fan_control_switch").unwrap();
 
     let fan_curve_frame: Frame = builder.get_object("fan_curve_frame").unwrap();
-    
+
     let gpu_power_adjustment: Adjustment = builder.get_object("gpu_power_adjustment").unwrap();
 
+    let power_profile_select_comboboxtext: ComboBoxText = builder
+        .get_object("power_profile_select_comboboxtext")
+        .unwrap();
+
+    let power_profile_description_label: Label = builder.get_object("power_profile_description_label").unwrap();
 
     let mut unpriviliged: bool = false;
 
@@ -91,30 +107,103 @@ fn build_ui(application: &gtk::Application) {
         cell.set_property("ellipsize", &EllipsizeMode::End).unwrap();
     }
 
-    let current_gpu_id  = Arc::new(RwLock::new(0u32));
+    let current_gpu_id = Arc::new(RwLock::new(0u32));
 
     let build = builder.clone();
 
     let b = apply_button.clone();
     gpu_power_adjustment.connect_value_changed(move |adjustment| {
-        println!("changed adjustment value to {}/{}", adjustment.get_value(), adjustment.get_upper());
+        println!(
+            "changed adjustment value to {}/{}",
+            adjustment.get_value(),
+            adjustment.get_upper()
+        );
         b.set_sensitive(true);
-        power_cap_label.set_text(&format!("{}/{}", adjustment.get_value().floor(), adjustment.get_upper()));
+        power_cap_label.set_text(&format!(
+            "{}/{}",
+            adjustment.get_value().floor(),
+            adjustment.get_upper()
+        ));
     });
+
+    let b = apply_button.clone();
+    let description_label = power_profile_description_label.clone();
     
+    power_profile_select_comboboxtext.connect_changed(move |combobox| {
+        println!("power profile selection changed");
+        b.set_sensitive(true);
+        match combobox.get_active().unwrap() {
+            0 => description_label.set_text("Automatically adjust core and VRAM clocks. (Default)"),
+            1 => description_label.set_text("Always run the on the highest clocks."),
+            2 => description_label.set_text("Always run the on the lowest clocks."),
+            _ => unreachable!(),
+        }
+    });
 
     let cur_id = current_gpu_id.clone();
     let b = apply_button.clone();
-    
+
     gpu_select_comboboxtext.connect_changed(move |combobox| {
         let mut current_gpu_id = cur_id.write().unwrap();
-        *current_gpu_id = combobox.get_active_id().unwrap().parse::<u32>().expect("invalid id");
+        *current_gpu_id = combobox
+            .get_active_id()
+            .unwrap()
+            .parse::<u32>()
+            .expect("invalid id");
         println!("Set current gpu id to {}", current_gpu_id);
 
         set_info(&build, d, current_gpu_id.clone());
 
         b.set_sensitive(false);
+    });
 
+
+    let cur_id = current_gpu_id.clone();
+    let auto_fan_control_switch = automatic_fan_control_switch.clone();
+    
+    apply_button.connect_clicked(move |b| {
+        let gpu_id = *cur_id.read().unwrap();
+
+        let mut curve: BTreeMap<i32, f64> = BTreeMap::new();
+        
+        for i in 1..6 {
+            let curve_temperature_adjustment: Adjustment = builder
+                .get_object(&format!("curve_temperature_adjustment_{}", i))
+                .unwrap();
+            
+            curve.insert(20 * i, curve_temperature_adjustment.get_value());
+
+        }
+    
+        println!("setting curve to {:?}", curve);
+        d.set_fan_curve(gpu_id, curve).unwrap();
+        b.set_sensitive(false);
+    
+        match auto_fan_control_switch.get_active() {
+            true => {
+                d.stop_fan_control(gpu_id).unwrap();
+                
+                let diag = MessageDialog::new(
+                    None::<&Window>,
+                    DialogFlags::empty(),
+                    MessageType::Error,
+                    ButtonsType::Ok,
+                    "WARNING: Due to a driver bug, the GPU fan may misbehave after switching to automatic control. You may need to reboot your system to avoid issues.",
+                );
+                diag.run();
+                diag.hide();
+            }
+            false => {
+                d.start_fan_control(gpu_id).unwrap();
+            }
+        }
+    
+        let power_cap = gpu_power_adjustment.get_value().floor() as i32;
+        d.set_power_cap(gpu_id, power_cap).unwrap();
+
+        d.set_power_profile(gpu_id, PowerProfile::from_str(&power_profile_select_comboboxtext.get_active_text().unwrap()).unwrap()).unwrap();
+
+        set_info(&builder, d, gpu_id);
     });
 
     //gpu_select_comboboxtext.set_active_id(Some(&current_gpu_id.to_string()));
@@ -159,7 +248,6 @@ fn build_ui(application: &gtk::Application) {
             (gpu_stats.fan_speed as f64 / gpu_stats.max_fan_speed as f64 * 100 as f64) as i32
         ));
 
-
         glib::Continue(true)
     });
 
@@ -179,8 +267,6 @@ fn build_ui(application: &gtk::Application) {
         b.set_sensitive(true);
     });
 
-
-
     main_window.set_application(Some(application));
 
     main_window.show();
@@ -190,7 +276,9 @@ fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32) {
     let gpu_model_text_buffer: TextBuffer = builder
         .get_object("gpu_model_text_buffer")
         .expect("Couldn't get textbuffer");
-let vbios_version_text_buffer: TextBuffer = builder .get_object("vbios_version_text_buffer") .expect("Couldn't get textbuffer");
+    let vbios_version_text_buffer: TextBuffer = builder
+        .get_object("vbios_version_text_buffer")
+        .expect("Couldn't get textbuffer");
     let driver_text_buffer: TextBuffer = builder
         .get_object("driver_text_buffer")
         .expect("Couldn't get textbuffer");
@@ -223,19 +311,23 @@ let vbios_version_text_buffer: TextBuffer = builder .get_object("vbios_version_t
         builder.get_object("automatic_fan_control_switch").unwrap();
 
     let fan_curve_frame: Frame = builder.get_object("fan_curve_frame").unwrap();
-    
+
     let gpu_power_adjustment: Adjustment = builder.get_object("gpu_power_adjustment").unwrap();
 
     let apply_button: Button = builder.get_object("apply_button").unwrap();
 
     let overclocking_info_frame: Frame = builder.get_object("overclocking_info_frame").unwrap();
 
+    let power_profile_select_comboboxtext: ComboBoxText = builder
+        .get_object("power_profile_select_comboboxtext")
+        .unwrap();
+
     match fs::read_to_string("/proc/cmdline") {
         Ok(cmdline) => {
             if cmdline.contains("amdgpu.ppfeaturemask=") {
                 overclocking_info_frame.set_visible(false);
             }
-        },
+        }
         Err(_) => (),
     }
 
@@ -251,7 +343,15 @@ let vbios_version_text_buffer: TextBuffer = builder .get_object("vbios_version_t
         &gpu_info.link_speed, &gpu_info.link_width
     ));
 
-    let vulkan_features = gpu_info.vulkan_info.features.replace(',', "\n").replace("Features", "").replace("{", "").replace("}", "").replace(" ", "").replace(":", ": ");
+    let vulkan_features = gpu_info
+        .vulkan_info
+        .features
+        .replace(',', "\n")
+        .replace("Features", "")
+        .replace("{", "")
+        .replace("}", "")
+        .replace(" ", "")
+        .replace(":", ": ");
 
     vulkan_device_name_text_buffer.set_text(&gpu_info.vulkan_info.device_name);
     vulkan_version_text_buffer.set_text(&gpu_info.vulkan_info.api_version);
@@ -262,9 +362,14 @@ let vbios_version_text_buffer: TextBuffer = builder .get_object("vbios_version_t
     gpu_power_adjustment.set_upper(power_cap_max as f64);
     gpu_power_adjustment.set_value(power_cap as f64);
 
-    
+    power_profile_select_comboboxtext.set_active(match &gpu_info.power_profile {
+        PowerProfile::Auto => Some(0),
+        PowerProfile::High => Some(1),
+        PowerProfile::Low => Some(2),
+    });
+
     let fan_control = d.get_fan_control(gpu_id);
-    
+
     match fan_control {
         Ok(ref fan_control) => {
             if fan_control.enabled {
@@ -276,73 +381,38 @@ let vbios_version_text_buffer: TextBuffer = builder .get_object("vbios_version_t
                 automatic_fan_control_switch.set_active(true);
                 fan_curve_frame.set_visible(false);
             }
-        },
+        }
         Err(_) => {
             automatic_fan_control_switch.set_sensitive(false);
             automatic_fan_control_switch.set_tooltip_text(Some("Unavailable"));
-    
+
             fan_curve_frame.set_visible(false);
         }
     }
-    
+
     match fan_control {
         Ok(fan_control) => {
-
-            let curve: Arc<RwLock<BTreeMap<i32, f64>>> = Arc::new(RwLock::new(fan_control.curve));
+            //let curve: Arc<RwLock<BTreeMap<i32, f64>>> = Arc::new(RwLock::new(fan_control.curve));
 
             for i in 1..6 {
                 let curve_temperature_adjustment: Adjustment = builder
                     .get_object(&format!("curve_temperature_adjustment_{}", i))
                     .unwrap();
 
-                let value = *curve
-                    .read()
-                    .unwrap()
+                let value = *fan_control.curve
                     .get(&(i * 20))
                     .expect("Could not get by index");
                 println!("Setting value {} on adjustment {}", value, i);
                 curve_temperature_adjustment.set_value(value);
 
-                let c = curve.clone();
                 let b = apply_button.clone();
 
-                curve_temperature_adjustment.connect_value_changed(move |adj| {
-                    c.write().unwrap().insert(20 * i, adj.get_value());
+                curve_temperature_adjustment.connect_value_changed(move |_| {
                     b.set_sensitive(true);
                 });
             }
 
-            apply_button.connect_clicked(move |b| {
-                //let current_gpu_id = *current_gpu_id.read().unwrap();
-
-                let curve = curve.read().unwrap().clone();
-                println!("setting curve to {:?}", curve);
-                d.set_fan_curve(gpu_id, curve).unwrap();
-                b.set_sensitive(false);
-
-                match automatic_fan_control_switch.get_active() {
-                    true => {
-                        d.stop_fan_control(gpu_id).unwrap();
-                        
-                        let diag = MessageDialog::new(
-                            None::<&Window>,
-                            DialogFlags::empty(),
-                            MessageType::Error,
-                            ButtonsType::Ok,
-                            "WARNING: Due to a driver bug, the GPU fan may misbehave after switching to automatic control. You may need to reboot your system to avoid issues.",
-                        );
-                        diag.run();
-                        diag.hide();
-                    }
-                    false => {
-                        d.start_fan_control(gpu_id).unwrap();
-                    }
-                }
-
-                let power_cap = gpu_power_adjustment.get_value().floor() as i32;
-                d.set_power_cap(gpu_id, power_cap).unwrap();
-            });
-        },
+        }
         Err(_) => (),
     }
 }
