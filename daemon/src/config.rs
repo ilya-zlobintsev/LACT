@@ -41,6 +41,8 @@ pub struct GpuConfig {
     pub fan_curve: BTreeMap<i32, f64>,
     pub power_cap: i32,
     pub power_profile: PowerProfile,
+    pub gpu_power_states: BTreeMap<u32, (i32, i32)>,  //<id, (clockspeed, voltage)>
+    pub vram_power_states: BTreeMap<u32, (i32, i32)>,
 }
 
 impl GpuConfig {
@@ -57,6 +59,8 @@ impl GpuConfig {
             fan_control_enabled: false,
             power_cap: -1,
             power_profile: PowerProfile::Auto,
+            gpu_power_states: BTreeMap::new(),
+            vram_power_states: BTreeMap::new(),
         }
     }
 }

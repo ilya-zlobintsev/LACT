@@ -157,7 +157,15 @@ impl GpuController {
             _ => None,
         };
 
-        self.set_power_profile(config.power_profile).unwrap();
+        self.set_power_profile(config.power_profile.clone()).unwrap();
+
+        for (num, (clockspeed, voltage)) in &config.gpu_power_states {
+            self.set_gpu_power_state(*num, *clockspeed, Some(*voltage)).expect("Failed to load power states");
+        }
+        
+        for (num, (clockspeed, voltage)) in &config.vram_power_states {
+            self.set_vram_power_state(*num, *clockspeed, Some(*voltage)).expect("Failed to load power states");
+        }
     }
 
     pub fn get_config(&self) -> GpuConfig {
@@ -520,6 +528,8 @@ impl GpuController {
         log::trace!("Writing {} to pp_od_clk_voltage", line);
 
         fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
+        
+        self.config.gpu_power_states.insert(num, (clockspeed, voltage.unwrap()));
 
         Ok(())
     }
@@ -536,6 +546,8 @@ impl GpuController {
         log::trace!("Writing {} to pp_od_clk_voltage", line);
 
         fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
+        
+        self.config.vram_power_states.insert(num, (clockspeed, voltage.unwrap()));
 
         Ok(())
     }
