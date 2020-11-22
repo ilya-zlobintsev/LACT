@@ -48,7 +48,7 @@ fn main() {
             println!("GPU Model: {}", gpu_info.card_model);
             println!("Driver in use: {}", gpu_info.driver);
             print!("VBIOS Version: {}", gpu_info.vbios_version);
-            println!("{:?}", gpu_info);
+            //println!("{:?}", gpu_info);
         },
         Opt::StartFanControl { gpu_id } => {
             println!("{:?}", d.start_fan_control(gpu_id));

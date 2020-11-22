@@ -125,6 +125,15 @@ impl HWMon {
         }
     }
 
+    pub fn get_voltage(&self) -> i32 {
+        let filename = self.hwmon_path.join("in0_input");
+        
+        match fs::read_to_string(filename) {
+            Ok(a) => a.trim().parse::<i32>().unwrap(),
+            Err(_) => 0,
+        }
+    }
+
     pub fn get_power_cap_max(&self) -> i32 {
         let filename = self.hwmon_path.join("power1_cap_max");
 

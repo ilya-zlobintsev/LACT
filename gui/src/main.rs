@@ -4,22 +4,12 @@ extern crate gtk;
 
 use daemon::{daemon_connection::DaemonConnection, gpu_controller::PowerProfile, Daemon};
 use gio::prelude::*;
-use gtk::{
-    prelude::*, Adjustment, Button, ButtonsType, ComboBoxText, DialogFlags, Frame, Label, LevelBar,
-    MessageType, Switch,
-};
+use gtk::{Adjustment, Button, ButtonsType, ComboBoxText, DialogFlags, Frame, Label, LevelBar, MessageType, Notebook, Switch, prelude::*};
 
 use gtk::{Builder, MessageDialog, TextBuffer, Window};
 use pango::EllipsizeMode;
 
-use std::{
-    collections::BTreeMap,
-    env::args,
-    fs,
-    sync::{Arc, RwLock},
-    thread,
-    time::Duration,
-};
+use std::{collections::BTreeMap, env::args, fs, sync::{Arc, Mutex, RwLock}, thread, time::Duration};
 
 fn build_ui(application: &gtk::Application) {
     let glade_src = include_str!("main_window.glade");
@@ -62,11 +52,23 @@ fn build_ui(application: &gtk::Application) {
 
     let gpu_power_adjustment: Adjustment = builder.get_object("gpu_power_adjustment").unwrap();
 
+    let gpu_voltage_text_buffer: TextBuffer = builder.get_object("gpu_voltage_text_buffer").unwrap();
+
     let power_profile_select_comboboxtext: ComboBoxText = builder
         .get_object("power_profile_select_comboboxtext")
         .unwrap();
 
     let power_profile_description_label: Label = builder.get_object("power_profile_description_label").unwrap();
+
+    let gpu_clockspeed_adjustment: Adjustment = builder.get_object("gpu_clockspeed_adjustment").unwrap();
+
+    let vram_clockspeed_adjustment: Adjustment = builder.get_object("vram_clockspeed_adjustment").unwrap();
+
+    let gpu_voltage_adjustment: Adjustment = builder.get_object("gpu_voltage_adjustment").unwrap();
+
+    let vram_voltage_adjustment: Adjustment = builder.get_object("vram_voltage_adjustment").unwrap();
+
+    let reset_clocks_button: Button = builder.get_object("reset_clocks_button").unwrap();
 
     let mut unpriviliged: bool = false;
 
@@ -109,102 +111,145 @@ fn build_ui(application: &gtk::Application) {
 
     let current_gpu_id = Arc::new(RwLock::new(0u32));
 
-    let build = builder.clone();
+    { //Handle power limit adjustment change
+        let apply_button = apply_button.clone();
+        gpu_power_adjustment.connect_value_changed(move |adjustment| {
+            println!(
+                "changed adjustment value to {}/{}",
+                adjustment.get_value(),
+                adjustment.get_upper()
+            );
+            apply_button.set_sensitive(true);
+            power_cap_label.set_text(&format!(
+                "{}/{}",
+                adjustment.get_value().floor(),
+                adjustment.get_upper()
+            ));
+        });
+    }
 
-    let b = apply_button.clone();
-    gpu_power_adjustment.connect_value_changed(move |adjustment| {
-        println!(
-            "changed adjustment value to {}/{}",
-            adjustment.get_value(),
-            adjustment.get_upper()
-        );
-        b.set_sensitive(true);
-        power_cap_label.set_text(&format!(
-            "{}/{}",
-            adjustment.get_value().floor(),
-            adjustment.get_upper()
-        ));
-    });
+    let adjs = [gpu_clockspeed_adjustment.clone(), vram_clockspeed_adjustment.clone(), gpu_voltage_adjustment.clone()];
 
-    let b = apply_button.clone();
-    let description_label = power_profile_description_label.clone();
-    
-    power_profile_select_comboboxtext.connect_changed(move |combobox| {
-        println!("power profile selection changed");
-        b.set_sensitive(true);
-        match combobox.get_active().unwrap() {
-            0 => description_label.set_text("Automatically adjust core and VRAM clocks. (Default)"),
-            1 => description_label.set_text("Always run the on the highest clocks."),
-            2 => description_label.set_text("Always run the on the lowest clocks."),
-            _ => unreachable!(),
-        }
-    });
+    for adjustment in adjs.iter() {
+        let b = apply_button.clone();
 
-    let cur_id = current_gpu_id.clone();
-    let b = apply_button.clone();
+        adjustment.connect_value_changed(move |_| {
+            b.set_sensitive(true);
+        });
+    }
 
-    gpu_select_comboboxtext.connect_changed(move |combobox| {
-        let mut current_gpu_id = cur_id.write().unwrap();
-        *current_gpu_id = combobox
-            .get_active_id()
-            .unwrap()
-            .parse::<u32>()
-            .expect("invalid id");
-        println!("Set current gpu id to {}", current_gpu_id);
-
-        set_info(&build, d, current_gpu_id.clone());
-
-        b.set_sensitive(false);
-    });
-
-
-    let cur_id = current_gpu_id.clone();
-    let auto_fan_control_switch = automatic_fan_control_switch.clone();
-    
-    apply_button.connect_clicked(move |b| {
-        let gpu_id = *cur_id.read().unwrap();
-
-        let mut curve: BTreeMap<i32, f64> = BTreeMap::new();
+    { //Handle changing the GPU power profile
+        let b = apply_button.clone();
+        let description_label = power_profile_description_label.clone();
         
-        for i in 1..6 {
-            let curve_temperature_adjustment: Adjustment = builder
-                .get_object(&format!("curve_temperature_adjustment_{}", i))
-                .unwrap();
+        power_profile_select_comboboxtext.connect_changed(move |combobox| {
+            println!("power profile selection changed");
+            b.set_sensitive(true);
+            match combobox.get_active().unwrap() {
+                0 => description_label.set_text("Automatically adjust core and VRAM clocks. (Default)"),
+                1 => description_label.set_text("Always run the on the highest clocks."),
+                2 => description_label.set_text("Always run the on the lowest clocks."),
+                _ => unreachable!(),
+            }
+        });
+    }
+
+
+    let gpu_power_level: Arc<Mutex<Option<u32>>> = Arc::new(Mutex::new(None));
+    let vram_power_level: Arc<Mutex<Option<u32>>> = Arc::new(Mutex::new(None));
+
+    { // Handle when the GPU is chosen from the dropdown box (also triggered on initializtion)
+        let (gpu_power_level, vram_power_level) = (gpu_power_level.clone(), vram_power_level.clone());
+        let builder = builder.clone();
+        let current_gpu_id = current_gpu_id.clone();
+
+        gpu_select_comboboxtext.connect_changed(move |combobox| {
+            let mut current_gpu_id = current_gpu_id.write().unwrap();
+            *current_gpu_id = combobox
+                .get_active_id()
+                .unwrap()
+                .parse::<u32>()
+                .expect("invalid id");
+            println!("Set current gpu id to {}", current_gpu_id);
+
+            set_info(&builder, d, current_gpu_id.clone(), &gpu_power_level, &vram_power_level);
+            println!("{}", gpu_power_level.lock().unwrap().expect("No power state"));
+        });
+    }
+
+    { //Handle reset clocks button
+        let current_gpu_id = current_gpu_id.clone();
+        let (gpu_power_level, vram_power_level) = (gpu_power_level.clone(), vram_power_level.clone());
+        let builder = builder.clone();
+        let apply_button = apply_button.clone();
+
+        reset_clocks_button.connect_clicked(move |_| {
+            let current_gpu_id = *current_gpu_id.read().unwrap();
+            d.reset_gpu_power_states(current_gpu_id).unwrap();
+
+            set_info(&builder, d, current_gpu_id, &gpu_power_level, &vram_power_level);
+            apply_button.set_sensitive(true);
+        });
+    }
+
+    { //Apply button click
+        let current_gpu_id = current_gpu_id.clone();
+        let auto_fan_control_switch = automatic_fan_control_switch.clone();
+        let (gpu_power_level, vram_power_level) = (gpu_power_level.clone(), vram_power_level.clone());
+        let builder = builder.clone();
+
+        apply_button.connect_clicked(move |_| {
+            let gpu_id = *current_gpu_id.read().unwrap();
+    
+            let mut curve: BTreeMap<i32, f64> = BTreeMap::new();
             
-            curve.insert(20 * i, curve_temperature_adjustment.get_value());
-
-        }
-    
-        println!("setting curve to {:?}", curve);
-        d.set_fan_curve(gpu_id, curve).unwrap();
-        b.set_sensitive(false);
-    
-        match auto_fan_control_switch.get_active() {
-            true => {
-                d.stop_fan_control(gpu_id).unwrap();
+            for i in 1..6 {
+                let curve_temperature_adjustment: Adjustment = builder
+                    .get_object(&format!("curve_temperature_adjustment_{}", i))
+                    .unwrap();
                 
-                let diag = MessageDialog::new(
-                    None::<&Window>,
-                    DialogFlags::empty(),
-                    MessageType::Error,
-                    ButtonsType::Ok,
-                    "WARNING: Due to a driver bug, the GPU fan may misbehave after switching to automatic control. You may need to reboot your system to avoid issues.",
-                );
-                diag.run();
-                diag.hide();
-            }
-            false => {
-                d.start_fan_control(gpu_id).unwrap();
-            }
-        }
+                curve.insert(20 * i, curve_temperature_adjustment.get_value());
     
-        let power_cap = gpu_power_adjustment.get_value().floor() as i32;
-        d.set_power_cap(gpu_id, power_cap).unwrap();
-
-        d.set_power_profile(gpu_id, PowerProfile::from_str(&power_profile_select_comboboxtext.get_active_text().unwrap()).unwrap()).unwrap();
-
-        set_info(&builder, d, gpu_id);
-    });
+            }
+        
+            println!("setting curve to {:?}", curve);
+            d.set_fan_curve(gpu_id, curve).unwrap();
+        
+            match auto_fan_control_switch.get_active() {
+                true => {
+                    d.stop_fan_control(gpu_id).unwrap();
+                    
+                    let diag = MessageDialog::new(
+                        None::<&Window>,
+                        DialogFlags::empty(),
+                        MessageType::Error,
+                        ButtonsType::Ok,
+                        "WARNING: Due to a driver bug, the GPU fan may misbehave after switching to automatic control. You may need to reboot your system to avoid issues.",
+                    );
+                    diag.run();
+                    diag.hide();
+                }
+                false => {
+                    d.start_fan_control(gpu_id).unwrap();
+                }
+            }
+        
+            let power_cap = gpu_power_adjustment.get_value().floor() as i32;
+            d.set_power_cap(gpu_id, power_cap).unwrap();
+    
+            d.set_power_profile(gpu_id, PowerProfile::from_str(&power_profile_select_comboboxtext.get_active_text().unwrap()).unwrap()).unwrap();
+    
+            if let Some(gpu_power_level) = *gpu_power_level.lock().unwrap() {
+                d.set_gpu_power_state(gpu_id, gpu_power_level, gpu_clockspeed_adjustment.get_value() as i32, Some((gpu_voltage_adjustment.get_value() * 1000.0) as i32)).unwrap();
+                if let Some(vram_power_level) = *vram_power_level.lock().unwrap() {
+                    d.set_vram_power_state(gpu_id, vram_power_level, vram_clockspeed_adjustment.get_value() as i32, Some((vram_voltage_adjustment.get_value() * 1000.0) as i32)).unwrap();
+                }
+                d.commit_gpu_power_states(gpu_id).unwrap();
+            }
+    
+            set_info(&builder, d, gpu_id, &gpu_power_level, &vram_power_level);
+        });
+    }
 
     //gpu_select_comboboxtext.set_active_id(Some(&current_gpu_id.to_string()));
     gpu_select_comboboxtext.set_active(Some(0));
@@ -248,6 +293,8 @@ fn build_ui(application: &gtk::Application) {
             (gpu_stats.fan_speed as f64 / gpu_stats.max_fan_speed as f64 * 100 as f64) as i32
         ));
 
+        gpu_voltage_text_buffer.set_text(&format!("{}V", gpu_stats.voltage as f64 / 1000.0));
+
         glib::Continue(true)
     });
 
@@ -272,7 +319,7 @@ fn build_ui(application: &gtk::Application) {
     main_window.show();
 }
 
-fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32) {
+fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32, gpu_power_level: &Arc<Mutex<Option<u32>>>, vram_power_level: &Arc<Mutex<Option<u32>>>) {
     let gpu_model_text_buffer: TextBuffer = builder
         .get_object("gpu_model_text_buffer")
         .expect("Couldn't get textbuffer");
@@ -317,6 +364,20 @@ fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32) {
     let apply_button: Button = builder.get_object("apply_button").unwrap();
 
     let overclocking_info_frame: Frame = builder.get_object("overclocking_info_frame").unwrap();
+
+    let gpu_clockspeed_adjustment: Adjustment = builder.get_object("gpu_clockspeed_adjustment").unwrap();
+
+    let vram_clockspeed_adjustment: Adjustment = builder.get_object("vram_clockspeed_adjustment").unwrap();
+
+    let gpu_voltage_adjustment: Adjustment = builder.get_object("gpu_voltage_adjustment").unwrap();
+
+    let vram_voltage_adjustment: Adjustment = builder.get_object("vram_voltage_adjustment").unwrap();
+    
+    let clocks_notebook: Notebook = builder.get_object("clocks_notebook").unwrap();
+
+    let clocks_unsupported_label: Label = builder.get_object("clocks_unsupported_label").unwrap();
+
+    //let power_levels_box: gtk::Box = builder.get_object("power_levels_box").unwrap();
 
     let power_profile_select_comboboxtext: ComboBoxText = builder
         .get_object("power_profile_select_comboboxtext")
@@ -422,11 +483,58 @@ fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32) {
         }
         Err(_) => (),
     }
+
+    /*match gpu_info.clocks_table {
+        Some(clocks_table) => {
+            for (id, (clockspeed, voltage)) in clocks_table.gpu_power_levels {
+                let adjustment = Adjustment::new(clockspeed as f64,
+                    clocks_table.gpu_clocks_range.0 as f64,
+                    clocks_table.gpu_clocks_range.1 as f64,
+                    1f64, 1f64, 1f64);
+
+                let scale = Scale::new(Orientation::Vertical, Some(&adjustment));
+                power_levels_box.pack_end(&scale, true, true, 5);
+            }
+            power_levels_box.show_all();
+        },
+        None => (),
+    }*/
+
+    match gpu_info.clocks_table {
+        Some(clocks_table) => {
+            gpu_clockspeed_adjustment.set_lower(clocks_table.gpu_clocks_range.0 as f64);
+            gpu_clockspeed_adjustment.set_upper(clocks_table.gpu_clocks_range.1 as f64);
+
+            vram_clockspeed_adjustment.set_lower(clocks_table.mem_clocks_range.0 as f64);
+            vram_clockspeed_adjustment.set_upper(clocks_table.mem_clocks_range.1 as f64);
+
+            gpu_voltage_adjustment.set_lower(clocks_table.voltage_range.0 as f64 / 1000.0);
+            gpu_voltage_adjustment.set_upper(clocks_table.voltage_range.1 as f64 / 1000.0);
+
+            let (gpu_power_level_id, (gpu_clockspeed, gpu_voltage)) = clocks_table.gpu_power_levels.iter().next_back().unwrap();
+            let (vram_power_level_id, (vram_clockspeed, vram_voltage)) = clocks_table.mem_power_levels.iter().next_back().unwrap();
+
+            gpu_clockspeed_adjustment.set_value(*gpu_clockspeed as f64);
+            vram_clockspeed_adjustment.set_value(*vram_clockspeed as f64);
+            gpu_voltage_adjustment.set_value(*gpu_voltage as f64 / 1000.0);
+            vram_voltage_adjustment.set_upper(*vram_voltage as f64 / 1000.0);
+            vram_voltage_adjustment.set_value(*vram_voltage as f64 / 1000.0);
+
+            gpu_power_level.lock().unwrap().replace(*gpu_power_level_id);
+            vram_power_level.lock().unwrap().replace(*vram_power_level_id);
+        },
+        None => {
+            clocks_notebook.set_visible(false);
+            clocks_unsupported_label.set_visible(true);
+        },
+    }
+
+    apply_button.set_sensitive(false);
 }
 
 fn main() {
     println!("Initializing gtk");
-    let application = gtk::Application::new(Some("com.ilyaz.yagc"), Default::default())
+    let application = gtk::Application::new(Some("com.ilyaz.lact"), Default::default())
         .expect("failed to initialize");
 
     application.connect_activate(|app| {

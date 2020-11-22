@@ -4,7 +4,7 @@ This application allows you to control your AMD GPU on a Linux system.
 
 |                                              |                                              |                                             |
 |----------------------------------------------|----------------------------------------------|---------------------------------------------|
-|![Screenshot](https://i.imgur.com/P08iJNX.png)|![Screenshot](https://i.imgur.com/3oE6umj.png)|![Screenshot](https://i.imgur.com/QxbDv9v.png)
+|![Screenshot](https://i.imgur.com/MdLYQTz.png)|![Screenshot](https://i.imgur.com/frnZskA.png)|![Screenshot](https://i.imgur.com/TM2VyUb.png)
  
 
 Current features:
@@ -12,10 +12,10 @@ Current features:
 - Viewing information about the GPU
 - Power/thermals monitoring
 - Fan curve control
+- Basic overclocking
 
 Currently missing:
 
-- Overclocking
 - <s>Multi-GPU system support</s> *Should work now*
 - The card model detection isn't very reliable
 

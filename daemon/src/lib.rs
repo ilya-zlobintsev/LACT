@@ -12,7 +12,6 @@ use std::process::Command;
 use std::{
     io::{Read, Write},
     path::PathBuf,
-    thread,
 };
 use rand::prelude::*;
 
@@ -39,6 +38,10 @@ pub enum Action {
     SetPowerCap(u32, i32),
     GetPowerCap(u32),
     SetPowerProfile(u32, PowerProfile),
+    SetGPUPowerState(u32, u32, i32, Option<i32>),
+    SetVRAMPowerState(u32, u32, i32, Option<i32>),
+    CommitGPUPowerStates(u32),
+    ResetGPUPowerStates(u32),
     Shutdown,
 }
 
@@ -243,6 +246,58 @@ impl Daemon {
                             }
                         },
                         None => Err(DaemonError::InvalidID),
+                    }
+                    Action::SetGPUPowerState(i, num, clockspeed, voltage) => match self.gpu_controllers.get_mut(&i) {
+                        Some(controller) => {
+                            match controller.set_gpu_power_state(num, clockspeed, voltage) {
+                                Ok(_) => {
+                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
+                                    self.config.save().unwrap();
+                                    Ok(DaemonResponse::OK)
+                                },
+                                Err(_) => Err(DaemonError::ControllerError)
+                            }
+                        },
+                        None => Err(DaemonError::InvalidID)
+                    }
+                    Action::SetVRAMPowerState(i, num, clockspeed, voltage) => match self.gpu_controllers.get_mut(&i) {
+                        Some(controller) => {
+                            match controller.set_vram_power_state(num, clockspeed, voltage) {
+                                Ok(_) => {
+                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
+                                    self.config.save().unwrap();
+                                    Ok(DaemonResponse::OK)
+                                },
+                                Err(_) => Err(DaemonError::ControllerError)
+                            }
+                        },
+                        None => Err(DaemonError::InvalidID)
+                    }
+                    Action::CommitGPUPowerStates(i) => match self.gpu_controllers.get_mut(&i) {
+                        Some(controller) => {
+                            match controller.commit_gpu_power_states() {
+                                Ok(_) => {
+                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
+                                    self.config.save().unwrap();
+                                    Ok(DaemonResponse::OK)
+                                },
+                                Err(_) => Err(DaemonError::ControllerError)
+                            }
+                        },
+                        None => Err(DaemonError::InvalidID)
+                    }
+                    Action::ResetGPUPowerStates(i) => match self.gpu_controllers.get_mut(&i) {
+                        Some(controller) => {
+                            match controller.reset_gpu_power_states() {
+                                Ok(_) => {
+                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
+                                    self.config.save().unwrap();
+                                    Ok(DaemonResponse::OK)
+                                },
+                                Err(_) => Err(DaemonError::ControllerError)
+                            }
+                        },
+                        None => Err(DaemonError::InvalidID)
                     }
                     Action::Shutdown => {
                         for (_, controller) in &mut self.gpu_controllers {

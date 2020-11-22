@@ -1,14 +1,26 @@
 use crate::config::{GpuConfig, GpuIdentifier};
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::{path::{Path, PathBuf}};
 use std::{collections::BTreeMap, fs};
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum GpuControllerError {
     NotSupported,
+    PermissionDenied,
+    UnknownError,
     ParseError,
+}
+
+impl From<std::io::Error> for GpuControllerError {
+    fn from(err: std::io::Error) -> GpuControllerError {
+        match err.kind() {
+            std::io::ErrorKind::PermissionDenied => GpuControllerError::PermissionDenied,
+            std::io::ErrorKind::NotFound => GpuControllerError::NotSupported,
+            _ => GpuControllerError::UnknownError,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -43,11 +55,11 @@ impl PowerProfile {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ClocksTable {
-    gpu_power_levels: BTreeMap<u32, (i32, i32)>, //<power level, (clockspeed, voltage)>
-    mem_power_levels: BTreeMap<u32, (i32, i32)>,
-    gpu_clocks_range: (i32, i32),
-    mem_clocks_range: (i32, i32),
-    voltage_range: (i32, i32),
+    pub gpu_power_levels: BTreeMap<u32, (i32, i32)>, //<power level, (clockspeed, voltage)>
+    pub mem_power_levels: BTreeMap<u32, (i32, i32)>,
+    pub gpu_clocks_range: (i32, i32),
+    pub mem_clocks_range: (i32, i32),
+    pub voltage_range: (i32, i32), //IN MILLIVOLTS
 }
 
 impl ClocksTable {
@@ -74,6 +86,7 @@ pub struct GpuStats {
     pub power_cap_max: i32,
     pub fan_speed: i32,
     pub max_fan_speed: i32,
+    pub voltage: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -300,10 +313,11 @@ impl GpuController {
             Err(_) => 0,
         };
 
-        let (mem_freq, gpu_freq, gpu_temp, power_avg, power_cap, power_cap_max, fan_speed, max_fan_speed) = match &self.hw_mon {
-            Some(hw_mon) => (hw_mon.get_mem_freq(), hw_mon.get_gpu_freq(), hw_mon.get_gpu_temp(), hw_mon.get_power_avg(), hw_mon.get_power_cap(), hw_mon.get_power_cap_max(), hw_mon.get_fan_speed(), hw_mon.fan_max_speed),
-            None => (0, 0, 0, 0, 0, 0, 0, 0),
+        let (mem_freq, gpu_freq, gpu_temp, power_avg, power_cap, power_cap_max, fan_speed, max_fan_speed, voltage) = match &self.hw_mon {
+            Some(hw_mon) => (hw_mon.get_mem_freq(), hw_mon.get_gpu_freq(), hw_mon.get_gpu_temp(), hw_mon.get_power_avg(), hw_mon.get_power_cap(), hw_mon.get_power_cap_max(), hw_mon.get_fan_speed(), hw_mon.fan_max_speed, hw_mon.get_voltage()),
+            None => (0, 0, 0, 0, 0, 0, 0, 0, 0),
         };
+
 
         GpuStats {
             mem_total,
@@ -316,6 +330,7 @@ impl GpuController {
             power_cap_max,
             fan_speed,
             max_fan_speed,
+            voltage,
         }
     }
 
@@ -493,6 +508,48 @@ impl GpuController {
         }
     }
 
+    pub fn set_gpu_power_state(&mut self, num: u32, clockspeed: i32, voltage: Option<i32>) -> Result<(), GpuControllerError> {
+        let mut line = format!("s {} {}", num, clockspeed);
+
+        if let Some(voltage) = voltage {
+            line.push_str(&format!(" {}", voltage));
+        }
+        line.push_str("\n");
+
+        log::trace!("Setting gpu power state {}", line);
+        log::trace!("Writing {} to pp_od_clk_voltage", line);
+
+        fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
+
+        Ok(())
+    }
+
+    pub fn set_vram_power_state(&mut self, num: u32, clockspeed: i32, voltage: Option<i32>) -> Result<(), GpuControllerError> {
+        let mut line = format!("m {} {}", num, clockspeed);
+
+        if let Some(voltage) = voltage {
+            line.push_str(&format!(" {}", voltage));
+        }
+        line.push_str("\n");
+
+        log::trace!("Setting vram power state {}", line);
+        log::trace!("Writing {} to pp_od_clk_voltage", line);
+
+        fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
+
+        Ok(())
+    }
+
+    pub fn commit_gpu_power_states(&mut self) -> Result<(), GpuControllerError> {
+        fs::write(self.hw_path.join("pp_od_clk_voltage"), b"c\n")?;
+        Ok(())
+    }
+
+    pub fn reset_gpu_power_states(&mut self) -> Result<(), GpuControllerError> {
+        fs::write(self.hw_path.join("pp_od_clk_voltage"), b"r\n")?;
+        Ok(())
+    }
+
     fn get_vulkan_info(pci_id: &str) -> VulkanInfo {
         let mut device_name = String::from("Not supported");
         let mut api_version = String::new();
@@ -519,5 +576,17 @@ impl GpuController {
             features,
         }
 
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn write_pstate() -> Result<(), GpuControllerError> {
+        let mut c = GpuController::new(PathBuf::from("/sys/class/drm/card0/device"), GpuConfig::new());
+        c.set_gpu_power_state(7, 1360, None)
     }
 }
