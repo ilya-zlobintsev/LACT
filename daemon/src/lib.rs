@@ -141,7 +141,6 @@ impl Daemon {
         }
     }
 
-    //fn handle_connection(gpu_controllers: &mut HashMap<u32, GpuController>, mut stream: UnixStream) {
     fn handle_connection(&mut self, mut stream: UnixStream) {
         log::trace!("Reading buffer");
         let mut buffer = Vec::<u8>::new();
@@ -301,7 +300,13 @@ impl Daemon {
                     }
                     Action::Shutdown => {
                         for (_, controller) in &mut self.gpu_controllers {
-                            controller.stop_fan_control().expect("Failed to stop fan control");
+                            #[allow(unused_must_use)]
+                            {
+                                controller.stop_fan_control();
+                                controller.reset_gpu_power_states();
+                                controller.commit_gpu_power_states();
+                                controller.set_power_profile(PowerProfile::Auto);
+                            }
                         }
                         std::process::exit(0);
                     }
