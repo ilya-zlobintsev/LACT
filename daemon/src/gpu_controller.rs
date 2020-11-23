@@ -157,14 +157,17 @@ impl GpuController {
             _ => None,
         };
 
-        self.set_power_profile(config.power_profile.clone()).unwrap();
+        #[allow(unused_must_use)]
+        {
+            self.set_power_profile(config.power_profile.clone());
 
-        for (num, (clockspeed, voltage)) in &config.gpu_power_states {
-            self.set_gpu_power_state(*num, *clockspeed, Some(*voltage)).expect("Failed to load power states");
-        }
-        
-        for (num, (clockspeed, voltage)) in &config.vram_power_states {
-            self.set_vram_power_state(*num, *clockspeed, Some(*voltage)).expect("Failed to load power states");
+            for (num, (clockspeed, voltage)) in &config.gpu_power_states {
+                self.set_gpu_power_state(*num, *clockspeed, Some(*voltage));
+            }
+            
+            for (num, (clockspeed, voltage)) in &config.vram_power_states {
+                self.set_vram_power_state(*num, *clockspeed, Some(*voltage));
+            }
         }
     }
 
