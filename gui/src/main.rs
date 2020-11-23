@@ -4,7 +4,7 @@ extern crate gtk;
 
 use daemon::{daemon_connection::DaemonConnection, gpu_controller::PowerProfile, Daemon};
 use gio::prelude::*;
-use gtk::{Adjustment, Button, ButtonsType, ComboBoxText, DialogFlags, Frame, Label, LevelBar, MessageType, Notebook, Switch, prelude::*};
+use gtk::{Adjustment, Button, ButtonsType, ComboBoxText, DialogFlags, Frame, Label, LevelBar, MessageType, Notebook, Scale, Switch, prelude::*};
 
 use gtk::{Builder, MessageDialog, TextBuffer, Window};
 use pango::EllipsizeMode;
@@ -69,6 +69,12 @@ fn build_ui(application: &gtk::Application) {
     let vram_voltage_adjustment: Adjustment = builder.get_object("vram_voltage_adjustment").unwrap();
 
     let reset_clocks_button: Button = builder.get_object("reset_clocks_button").unwrap();
+
+    let power_cap_scale: Scale = builder.get_object("power_cap_scale").unwrap();
+
+    let clocks_notebook: Notebook = builder.get_object("clocks_notebook").unwrap();
+
+    let clocks_unsupported_label: Label = builder.get_object("clocks_unsupported_label").unwrap();
 
     let mut unpriviliged: bool = false;
 
@@ -194,6 +200,7 @@ fn build_ui(application: &gtk::Application) {
     { //Apply button click
         let current_gpu_id = current_gpu_id.clone();
         let auto_fan_control_switch = automatic_fan_control_switch.clone();
+        let power_profile_select_comboboxtext = power_profile_select_comboboxtext.clone();
         let (gpu_power_level, vram_power_level) = (gpu_power_level.clone(), vram_power_level.clone());
         let builder = builder.clone();
 
@@ -256,6 +263,11 @@ fn build_ui(application: &gtk::Application) {
     if unpriviliged {
         automatic_fan_control_switch.set_sensitive(false);
         fan_curve_frame.set_visible(false);
+        power_profile_select_comboboxtext.set_sensitive(false);
+        power_cap_scale.set_sensitive(false);
+        clocks_notebook.set_visible(false);
+        clocks_unsupported_label.set_visible(true);
+        
         automatic_fan_control_switch.set_tooltip_text(Some("Unavailable in unprivileged mode"));
     }
 
