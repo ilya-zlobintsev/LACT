@@ -173,7 +173,6 @@ fn build_ui(application: &gtk::Application) {
             println!("Set current gpu id to {}", current_gpu_id);
 
             set_info(&builder, d, current_gpu_id.clone(), &gpu_power_level, &vram_power_level);
-            println!("{}", gpu_power_level.lock().unwrap().expect("No power state"));
         });
     }
 
