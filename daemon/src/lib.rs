@@ -307,6 +307,7 @@ impl Daemon {
                                 controller.commit_gpu_power_states();
                                 controller.set_power_profile(PowerProfile::Auto);
                             }
+                            fs::remove_file(SOCK_PATH).expect("Failed to remove socket");
                         }
                         std::process::exit(0);
                     }
