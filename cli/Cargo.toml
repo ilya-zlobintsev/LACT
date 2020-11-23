@@ -11,3 +11,4 @@ daemon = { path = "../daemon" }
 structopt = "0.3"
 log = "0.4"
 env_logger = "0.8"
+colored = "2"
