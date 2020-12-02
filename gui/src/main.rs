@@ -134,7 +134,7 @@ fn build_ui(application: &gtk::Application) {
         });
     }
 
-    let adjs = [gpu_clockspeed_adjustment.clone(), vram_clockspeed_adjustment.clone(), gpu_voltage_adjustment.clone()];
+    let adjs = [gpu_clockspeed_adjustment.clone(), vram_clockspeed_adjustment.clone(), gpu_voltage_adjustment.clone(), vram_voltage_adjustment.clone()];
 
     for adjustment in adjs.iter() {
         let b = apply_button.clone();
