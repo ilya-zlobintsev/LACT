@@ -436,6 +436,7 @@ fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32, gpu_power_level
 
     match &gpu_info.power_profile {
         Some(power_profile) => {
+            power_profile_select_comboboxtext.set_sensitive(true);
             power_profile_select_comboboxtext.set_active(match power_profile {
                 PowerProfile::Auto => Some(0),
                 PowerProfile::High => Some(1),
@@ -533,6 +534,9 @@ fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32, gpu_power_level
 
             gpu_power_level.lock().unwrap().replace(*gpu_power_level_id);
             vram_power_level.lock().unwrap().replace(*vram_power_level_id);
+
+            clocks_notebook.set_visible(true);
+            clocks_unsupported_label.set_visible(false);
         },
         None => {
             clocks_notebook.set_visible(false);
