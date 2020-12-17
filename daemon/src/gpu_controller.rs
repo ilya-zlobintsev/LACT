@@ -603,7 +603,6 @@ impl GpuController {
         let clock: i32 = line_parts[1].strip_suffix("MHZ").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
         let voltage: i32 = line_parts[2].strip_suffix("MV").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
 
-        println!("{} {} {}", num, clock, voltage);
         Ok((num, clock, voltage))
     }
 }
