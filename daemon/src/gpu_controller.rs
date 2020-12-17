@@ -1,7 +1,7 @@
 use crate::config::{GpuConfig, GpuIdentifier};
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
-use std::{path::{Path, PathBuf}};
+use std::{num::ParseIntError, path::{Path, PathBuf}};
 use std::{collections::BTreeMap, fs};
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 
@@ -20,6 +20,12 @@ impl From<std::io::Error> for GpuControllerError {
             std::io::ErrorKind::NotFound => GpuControllerError::NotSupported,
             _ => GpuControllerError::UnknownError,
         }
+    }
+}
+
+impl From<ParseIntError> for GpuControllerError {
+    fn from(_err: ParseIntError) -> GpuControllerError {
+        GpuControllerError::ParseError
     }
 }
 
@@ -455,10 +461,8 @@ impl GpuController {
                         "OD_SCLK:" => {
                             i += 1;
                             while (lines[i].split_at(2).0 != "OD") && i < lines.len() {
-                                let split: Vec<&str> = lines[i].split_whitespace().collect();
-                                let num = split[0].chars().nth(0).unwrap().to_digit(10).unwrap();
-                                let clock = split[1].replace("MHz", "").parse::<i32>().unwrap();
-                                let voltage = split[2].replace("mV", "").parse::<i32>().unwrap();
+                                let (num, clock, voltage) = GpuController::parse_clock_voltage_line(lines[i])?;
+
                                 clocks_table.gpu_power_levels.insert(num, (clock, voltage));
                                 log::trace!("Adding gpu power level {}MHz {}mv", clock, voltage);
                                 i += 1;
@@ -467,10 +471,8 @@ impl GpuController {
                         "OD_MCLK:" => {
                             i += 1;
                             while (lines[i].split_at(2).0 != "OD") && i < lines.len() {
-                                let split: Vec<&str> = lines[i].split_whitespace().collect();
-                                let num = split[0].chars().nth(0).unwrap().to_digit(10).unwrap();
-                                let clock = split[1].replace("MHz", "").parse::<i32>().unwrap();
-                                let voltage = split[2].replace("mV", "").parse::<i32>().unwrap();
+                                let (num, clock, voltage) = GpuController::parse_clock_voltage_line(lines[i])?;
+                                
                                 clocks_table.mem_power_levels.insert(num, (clock, voltage));
                                 log::trace!("Adding vram power level {}MHz {}mv", clock, voltage);
                                 i += 1;
@@ -591,6 +593,17 @@ impl GpuController {
             features,
         }
 
+    }
+
+    fn parse_clock_voltage_line(line: &str) -> Result<(u32, i32, i32), GpuControllerError> {
+        let line = line.to_uppercase();
+        let line_parts: Vec<&str> = line.split_whitespace().collect();
+
+        let num: u32 = line_parts[0].chars().nth(0).unwrap().to_digit(10).unwrap();
+        let clock: i32 = line_parts[1].strip_suffix("MHZ").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
+        let voltage: i32 = line_parts[2].strip_suffix("MV").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
+
+        Ok((num, clock, voltage))
     }
 }
 
