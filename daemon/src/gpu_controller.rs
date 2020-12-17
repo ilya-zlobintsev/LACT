@@ -1,7 +1,7 @@
 use crate::config::{GpuConfig, GpuIdentifier};
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::{num::ParseIntError, path::{Path, PathBuf}};
 use std::{collections::BTreeMap, fs};
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 
@@ -20,6 +20,12 @@ impl From<std::io::Error> for GpuControllerError {
             std::io::ErrorKind::NotFound => GpuControllerError::NotSupported,
             _ => GpuControllerError::UnknownError,
         }
+    }
+}
+
+impl From<ParseIntError> for GpuControllerError {
+    fn from(_err: ParseIntError) -> GpuControllerError {
+        GpuControllerError::ParseError
     }
 }
 
@@ -594,9 +600,10 @@ impl GpuController {
         let line_parts: Vec<&str> = line.split_whitespace().collect();
 
         let num: u32 = line_parts[0].chars().nth(0).unwrap().to_digit(10).unwrap();
-        let clock: i32 = line_parts[1].strip_suffix("MHZ").unwrap().parse().unwrap();
-        let voltage: i32 = line_parts[2].strip_suffix("MV").unwrap().parse().unwrap();
+        let clock: i32 = line_parts[1].strip_suffix("MHZ").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
+        let voltage: i32 = line_parts[2].strip_suffix("MV").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
 
+        println!("{} {} {}", num, clock, voltage);
         Ok((num, clock, voltage))
     }
 }
