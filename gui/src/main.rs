@@ -224,16 +224,6 @@ fn build_ui(application: &gtk::Application) {
             match auto_fan_control_switch.get_active() {
                 true => {
                     d.stop_fan_control(gpu_id).unwrap();
-                    
-                    let diag = MessageDialog::new(
-                        None::<&Window>,
-                        DialogFlags::empty(),
-                        MessageType::Error,
-                        ButtonsType::Ok,
-                        "WARNING: Due to a driver bug, the GPU fan may misbehave after switching to automatic control. You may need to reboot your system to avoid issues.",
-                    );
-                    diag.run();
-                    diag.hide();
                 }
                 false => {
                     d.start_fan_control(gpu_id).unwrap();
@@ -311,19 +301,32 @@ fn build_ui(application: &gtk::Application) {
 
     let b = apply_button.clone();
 
-    let switch = automatic_fan_control_switch.clone();
-    automatic_fan_control_switch.connect_changed_active(move |_| {
-        match switch.get_active() {
-            true => {
-                fan_curve_frame.set_visible(false);
+    {
+        let automatic_fan_control_switch = automatic_fan_control_switch.clone();
+        automatic_fan_control_switch.connect_changed_active(move |switch| {
+            b.set_sensitive(true);
+            match switch.get_active() {
+                true => {
+                    fan_curve_frame.set_visible(false);
+                    let diag = MessageDialog::new(
+                        None::<&Window>,
+                        DialogFlags::empty(),
+                        MessageType::Error,
+                        ButtonsType::Ok,
+                        "WARNING: Due to a driver bug, the GPU fan may misbehave after switching to automatic control. You may need to reboot your system to avoid issues.",
+                    );
+                    diag.connect_response(|diag, _| {
+                        diag.hide();
+                    });
+                    diag.show_all();
+                }
+                false => {
+                    fan_curve_frame.set_visible(true);
+                }
             }
-            false => {
-                fan_curve_frame.set_visible(true);
-            }
-        }
 
-        b.set_sensitive(true);
-    });
+        });
+    }
 
     main_window.set_application(Some(application));
 
