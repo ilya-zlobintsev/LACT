@@ -38,16 +38,16 @@ impl PartialEq for GpuIdentifier {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GpuConfig {
     pub fan_control_enabled: bool,
-    pub fan_curve: BTreeMap<i32, f64>,
-    pub power_cap: i32,
+    pub fan_curve: BTreeMap<i64, f64>,
+    pub power_cap: i64,
     pub power_profile: PowerProfile,
-    pub gpu_power_states: BTreeMap<u32, (i32, i32)>,  //<id, (clockspeed, voltage)>
-    pub vram_power_states: BTreeMap<u32, (i32, i32)>,
+    pub gpu_power_states: BTreeMap<u32, (i64, i64)>,  //<id, (clockspeed, voltage)>
+    pub vram_power_states: BTreeMap<u32, (i64, i64)>,
 }
 
 impl GpuConfig {
     pub fn new() -> Self {
-        let mut fan_curve: BTreeMap<i32, f64> = BTreeMap::new();
+        let mut fan_curve: BTreeMap<i64, f64> = BTreeMap::new();
         fan_curve.insert(20, 0f64);
         fan_curve.insert(40, 0f64);
         fan_curve.insert(60, 50f64);

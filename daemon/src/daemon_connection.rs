@@ -128,7 +128,7 @@ impl DaemonConnection {
         }
     }
 
-    pub fn set_fan_curve(&self, gpu_id: u32, curve: BTreeMap<i32, f64>) -> Result<(), DaemonError> {
+    pub fn set_fan_curve(&self, gpu_id: u32, curve: BTreeMap<i64, f64>) -> Result<(), DaemonError> {
         let mut s = UnixStream::connect(SOCK_PATH).unwrap();
         s.write_all(&bincode::serialize(&Action::SetFanCurve(gpu_id, curve)).unwrap())
             .unwrap();
@@ -144,7 +144,7 @@ impl DaemonConnection {
         }
     }
 
-    pub fn get_power_cap(&self, gpu_id: u32) -> Result<(i32, i32), DaemonError> {
+    pub fn get_power_cap(&self, gpu_id: u32) -> Result<(i64, i64), DaemonError> {
         let mut s = UnixStream::connect(SOCK_PATH).unwrap();
         s.write_all(&bincode::serialize(&Action::GetPowerCap(gpu_id)).unwrap())
             .unwrap();
@@ -165,7 +165,7 @@ impl DaemonConnection {
         }
     }
 
-    pub fn set_power_cap(&self, gpu_id: u32, cap: i32) -> Result<(), DaemonError> {
+    pub fn set_power_cap(&self, gpu_id: u32, cap: i64) -> Result<(), DaemonError> {
         let mut s = UnixStream::connect(SOCK_PATH).unwrap();
         s.write_all(&bincode::serialize(&Action::SetPowerCap(gpu_id, cap)).unwrap())
             .unwrap();
@@ -197,7 +197,7 @@ impl DaemonConnection {
         }
     }
 
-    pub fn set_gpu_power_state(&self, gpu_id: u32, num: u32, clockspeed: i32, voltage: Option<i32>) -> Result<(), DaemonError> {
+    pub fn set_gpu_power_state(&self, gpu_id: u32, num: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), DaemonError> {
         let mut s = UnixStream::connect(SOCK_PATH).unwrap();
         s.write_all(&bincode::serialize(&Action::SetGPUPowerState(gpu_id, num, clockspeed, voltage)).unwrap())
             .unwrap();
@@ -213,7 +213,7 @@ impl DaemonConnection {
         }
     }
 
-    pub fn set_vram_power_state(&self, gpu_id: u32, num: u32, clockspeed: i32, voltage: Option<i32>) -> Result<(), DaemonError> {
+    pub fn set_vram_power_state(&self, gpu_id: u32, num: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), DaemonError> {
         let mut s = UnixStream::connect(SOCK_PATH).unwrap();
         s.write_all(&bincode::serialize(&Action::SetVRAMPowerState(gpu_id, num, clockspeed, voltage)).unwrap())
             .unwrap();
