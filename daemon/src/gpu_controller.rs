@@ -61,11 +61,11 @@ impl PowerProfile {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ClocksTable {
-    pub gpu_power_levels: BTreeMap<u32, (i32, i32)>, //<power level, (clockspeed, voltage)>
-    pub mem_power_levels: BTreeMap<u32, (i32, i32)>,
-    pub gpu_clocks_range: (i32, i32),
-    pub mem_clocks_range: (i32, i32),
-    pub voltage_range: (i32, i32), //IN MILLIVOLTS
+    pub gpu_power_levels: BTreeMap<u32, (i64, i64)>, //<power level, (clockspeed, voltage)>
+    pub mem_power_levels: BTreeMap<u32, (i64, i64)>,
+    pub gpu_clocks_range: (i64, i64),
+    pub mem_clocks_range: (i64, i64),
+    pub voltage_range: (i64, i64), //IN MILLIVOLTS
 }
 
 impl ClocksTable {
@@ -84,21 +84,21 @@ impl ClocksTable {
 pub struct GpuStats {
     pub mem_used: u64,
     pub mem_total: u64,
-    pub mem_freq: i32,
-    pub gpu_freq: i32,
-    pub gpu_temp: i32,
-    pub power_avg: i32,
-    pub power_cap: i32,
-    pub power_cap_max: i32,
-    pub fan_speed: i32,
-    pub max_fan_speed: i32,
-    pub voltage: i32,
+    pub mem_freq: i64,
+    pub gpu_freq: i64,
+    pub gpu_temp: i64,
+    pub power_avg: i64,
+    pub power_cap: i64,
+    pub power_cap_max: i64,
+    pub fan_speed: i64,
+    pub max_fan_speed: i64,
+    pub voltage: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FanControlInfo {
     pub enabled: bool,
-    pub curve: BTreeMap<i32, f64>,
+    pub curve: BTreeMap<i64, f64>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -396,7 +396,7 @@ impl GpuController {
 
     }
 
-    pub fn set_fan_curve(&mut self, curve: BTreeMap<i32, f64>) -> Result<(), HWMonError> {
+    pub fn set_fan_curve(&mut self, curve: BTreeMap<i64, f64>) -> Result<(), HWMonError> {
         match &self.hw_mon {
             Some(hw_mon) => {
                 hw_mon.set_fan_curve(curve.clone());
@@ -407,7 +407,7 @@ impl GpuController {
         }
     }
 
-    pub fn set_power_cap(&mut self, cap: i32) -> Result<(), HWMonError> {
+    pub fn set_power_cap(&mut self, cap: i64) -> Result<(), HWMonError> {
         match &mut self.hw_mon {
             Some(hw_mon) => {
                 hw_mon.set_power_cap(cap).unwrap();
@@ -418,7 +418,7 @@ impl GpuController {
         }
     }
 
-    pub fn get_power_cap(&self) -> Result<(i32, i32), HWMonError> {
+    pub fn get_power_cap(&self) -> Result<(i64, i64), HWMonError> {
         match &self.hw_mon {
             Some(hw_mon) => {
                 Ok((hw_mon.get_power_cap(), hw_mon.get_power_cap_max()))
@@ -486,20 +486,20 @@ impl GpuController {
 
                                 match name.as_ref() {
                                     "SCLK" => {
-                                        let min_clock = split[1].replace("MHz", "").parse::<i32>().unwrap();
-                                        let max_clock = split[2].replace("MHz", "").parse::<i32>().unwrap();
+                                        let min_clock = split[1].replace("MHz", "").parse::<i64>().unwrap();
+                                        let max_clock = split[2].replace("MHz", "").parse::<i64>().unwrap();
                                         clocks_table.gpu_clocks_range = (min_clock, max_clock);
                                         log::trace!("Maximum gpu clock: {}", max_clock);
                                     },
                                     "MCLK" => {
-                                        let min_clock = split[1].replace("MHz", "").parse::<i32>().unwrap();
-                                        let max_clock = split[2].replace("MHz", "").parse::<i32>().unwrap();
+                                        let min_clock = split[1].replace("MHz", "").parse::<i64>().unwrap();
+                                        let max_clock = split[2].replace("MHz", "").parse::<i64>().unwrap();
                                         clocks_table.mem_clocks_range = (min_clock, max_clock);
                                         log::trace!("Maximum vram clock: {}", max_clock);
                                     },
                                     "VDDC" => {
-                                        let min_voltage = split[1].replace("mV", "").parse::<i32>().unwrap();
-                                        let max_voltage = split[2].replace("mV", "").parse::<i32>().unwrap();
+                                        let min_voltage = split[1].replace("mV", "").parse::<i64>().unwrap();
+                                        let max_voltage = split[2].replace("mV", "").parse::<i64>().unwrap();
                                         clocks_table.voltage_range = (min_voltage, max_voltage);
                                         log::trace!("Maximum voltage: {}", max_voltage);
                                     },
@@ -521,7 +521,7 @@ impl GpuController {
         }
     }
 
-    pub fn set_gpu_power_state(&mut self, num: u32, clockspeed: i32, voltage: Option<i32>) -> Result<(), GpuControllerError> {
+    pub fn set_gpu_power_state(&mut self, num: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), GpuControllerError> {
         let mut line = format!("s {} {}", num, clockspeed);
 
         if let Some(voltage) = voltage {
@@ -539,7 +539,7 @@ impl GpuController {
         Ok(())
     }
 
-    pub fn set_vram_power_state(&mut self, num: u32, clockspeed: i32, voltage: Option<i32>) -> Result<(), GpuControllerError> {
+    pub fn set_vram_power_state(&mut self, num: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), GpuControllerError> {
         let mut line = format!("m {} {}", num, clockspeed);
 
         if let Some(voltage) = voltage {
@@ -595,13 +595,13 @@ impl GpuController {
 
     }
 
-    fn parse_clock_voltage_line(line: &str) -> Result<(u32, i32, i32), GpuControllerError> {
+    fn parse_clock_voltage_line(line: &str) -> Result<(u32, i64, i64), GpuControllerError> {
         let line = line.to_uppercase();
         let line_parts: Vec<&str> = line.split_whitespace().collect();
 
         let num: u32 = line_parts[0].chars().nth(0).unwrap().to_digit(10).unwrap();
-        let clock: i32 = line_parts[1].strip_suffix("MHZ").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
-        let voltage: i32 = line_parts[2].strip_suffix("MV").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
+        let clock: i64 = line_parts[1].strip_suffix("MHZ").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
+        let voltage: i64 = line_parts[2].strip_suffix("MV").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
 
         Ok((num, clock, voltage))
     }

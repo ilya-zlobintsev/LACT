@@ -1636,7 +1636,7 @@
           <object class="GtkLabel">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Ventilation</property>
+            <property name="label" translatable="yes">Fan Speed</property>
           </object>
           <packing>
             <property name="position">2</property>

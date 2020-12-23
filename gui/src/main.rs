@@ -207,7 +207,7 @@ fn build_ui(application: &gtk::Application) {
         apply_button.connect_clicked(move |_| {
             let gpu_id = *current_gpu_id.read().unwrap();
     
-            let mut curve: BTreeMap<i32, f64> = BTreeMap::new();
+            let mut curve: BTreeMap<i64, f64> = BTreeMap::new();
             
             for i in 1..6 {
                 let curve_temperature_adjustment: Adjustment = builder
@@ -230,15 +230,15 @@ fn build_ui(application: &gtk::Application) {
                 }
             }
         
-            let power_cap = gpu_power_adjustment.get_value().floor() as i32;
+            let power_cap = gpu_power_adjustment.get_value().floor() as i64;
             d.set_power_cap(gpu_id, power_cap).unwrap();
     
             d.set_power_profile(gpu_id, PowerProfile::from_str(&power_profile_select_comboboxtext.get_active_text().unwrap()).unwrap()).unwrap();
     
             if let Some(gpu_power_level) = *gpu_power_level.lock().unwrap() {
-                d.set_gpu_power_state(gpu_id, gpu_power_level, gpu_clockspeed_adjustment.get_value() as i32, Some((gpu_voltage_adjustment.get_value() * 1000.0) as i32)).unwrap();
+                d.set_gpu_power_state(gpu_id, gpu_power_level, gpu_clockspeed_adjustment.get_value() as i64, Some((gpu_voltage_adjustment.get_value() * 1000.0) as i64)).unwrap();
                 if let Some(vram_power_level) = *vram_power_level.lock().unwrap() {
-                    d.set_vram_power_state(gpu_id, vram_power_level, vram_clockspeed_adjustment.get_value() as i32, Some((vram_voltage_adjustment.get_value() * 1000.0) as i32)).unwrap();
+                    d.set_vram_power_state(gpu_id, vram_power_level, vram_clockspeed_adjustment.get_value() as i64, Some((vram_voltage_adjustment.get_value() * 1000.0) as i64)).unwrap();
                 }
                 d.commit_gpu_power_states(gpu_id).unwrap();
             }
@@ -291,7 +291,7 @@ fn build_ui(application: &gtk::Application) {
         fan_speed_text_buffer.set_text(&format!(
             "{}RPM({}%)",
             gpu_stats.fan_speed,
-            (gpu_stats.fan_speed as f64 / gpu_stats.max_fan_speed as f64 * 100 as f64) as i32
+            (gpu_stats.fan_speed as f64 / gpu_stats.max_fan_speed as f64 * 100 as f64) as i64
         ));
 
         gpu_voltage_text_buffer.set_text(&format!("{}V", gpu_stats.voltage as f64 / 1000.0));
@@ -475,7 +475,7 @@ fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32, gpu_power_level
 
     match fan_control {
         Ok(fan_control) => {
-            //let curve: Arc<RwLock<BTreeMap<i32, f64>>> = Arc::new(RwLock::new(fan_control.curve));
+            //let curve: Arc<RwLock<BTreeMap<i64, f64>>> = Arc::new(RwLock::new(fan_control.curve));
 
             for i in 1..6 {
                 let curve_temperature_adjustment: Adjustment = builder
