@@ -599,9 +599,9 @@ impl GpuController {
         let line = line.to_uppercase();
         let line_parts: Vec<&str> = line.split_whitespace().collect();
 
-        let num: u32 = line_parts[0].chars().nth(0).unwrap().to_digit(10).unwrap();
-        let clock: i64 = line_parts[1].strip_suffix("MHZ").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
-        let voltage: i64 = line_parts[2].strip_suffix("MV").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
+        let num: u32 = line_parts.get(0).ok_or_else(|| GpuControllerError::ParseError)?.chars().nth(0).unwrap().to_digit(10).unwrap();
+        let clock: i64 = line_parts.get(1).ok_or_else(|| GpuControllerError::ParseError)?.strip_suffix("MHZ").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
+        let voltage: i64 = line_parts.get(2).ok_or_else(|| GpuControllerError::ParseError)?.strip_suffix("MV").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
 
         Ok((num, clock, voltage))
     }
