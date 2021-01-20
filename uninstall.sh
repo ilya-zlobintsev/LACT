@@ -1,5 +1,6 @@
 #!/bin/sh
-rm /usr/local/bin/lact-daemon
-rm /usr/local/bin/lact-gui
-rm /etc/systemd/system/lact.service
-rm /usr/local/share/applications/lact.desktop
+sudo systemctl disable --now lactd &&
+sudo rm /usr/local/bin/lact-daemon &&
+sudo rm /usr/local/bin/lact-gui &&
+sudo rm /etc/systemd/system/lactd.service &&
+sudo rm /usr/local/share/applications/lact.desktop
