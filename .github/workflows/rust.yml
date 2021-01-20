@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
+  build and test:
 
     runs-on: ubuntu-latest
 
@@ -18,7 +18,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install dependencies
       run: sudo apt install libgtk-3-dev libvulkan-dev
-    - name: Check
-      run: cargo check --release
+    - name: Build
+      run: cargo build --release
     - name: Run tests
       run: cargo test --release --verbose
