@@ -709,6 +709,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
     }
 
+    // pp_od_clk_voltage taken from an RX 580
     #[test]
     fn parse_clocks_table_polaris() {
         init();
@@ -731,6 +732,34 @@ mod tests {
             SCLK:     300MHz       2000MHz
             MCLK:     300MHz       2250MHz
             VDDC:     750mV        1200mV"#;
+
+        GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
+    }
+    
+    // pp_od_clk_voltage taken from a Vega 56
+    #[test]
+    fn parse_clocks_table_vega() {
+        init();
+        
+        let pp_od_clk_voltage = r#"
+            OD_SCLK:
+            0:        852Mhz        800mV
+            1:        991Mhz        900mV
+            2:       1138Mhz        950mV
+            3:       1269Mhz       1000mV
+            4:       1312Mhz       1050mV
+            5:       1474Mhz       1100mV
+            6:       1538Mhz       1150mV
+            7:       1590Mhz       1157mV
+            OD_MCLK:
+            0:        167Mhz        800mV
+            1:        500Mhz        800mV
+            2:        700Mhz        900mV
+            3:        900Mhz        950mV
+            OD_RANGE:
+            SCLK:     852MHz       2400MHz
+            MCLK:     167MHz       1500MHz
+            VDDC:     800mV        1200mV"#;
 
         GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
     }
