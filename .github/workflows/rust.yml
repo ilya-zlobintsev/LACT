@@ -21,4 +21,4 @@ jobs:
     - name: Check
       run: cargo check --release
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --release --verbose
