@@ -299,13 +299,16 @@ impl Daemon {
                         None => Err(DaemonError::InvalidID)
                     }
                     Action::Shutdown => {
-                        for (_, controller) in &mut self.gpu_controllers {
+                        for (id, controller) in &mut self.gpu_controllers {
                             #[allow(unused_must_use)]
                             {
-                                controller.stop_fan_control();
                                 controller.reset_gpu_power_states();
                                 controller.commit_gpu_power_states();
                                 controller.set_power_profile(PowerProfile::Auto);
+
+                                if self.config.gpu_configs.get(id).unwrap().1.fan_control_enabled {
+                                    controller.stop_fan_control();
+                                }
                             }
                             fs::remove_file(SOCK_PATH).expect("Failed to remove socket");
                         }

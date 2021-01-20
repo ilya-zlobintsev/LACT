@@ -1,8 +1,11 @@
 use crate::config::{GpuConfig, GpuIdentifier};
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
-use std::{num::ParseIntError, path::{Path, PathBuf}};
 use std::{collections::BTreeMap, fs};
+use std::{
+    num::ParseIntError,
+    path::{Path, PathBuf},
+};
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -10,7 +13,7 @@ pub enum GpuControllerError {
     NotSupported,
     PermissionDenied,
     UnknownError,
-    ParseError,
+    ParseError(String),
 }
 
 impl From<std::io::Error> for GpuControllerError {
@@ -24,8 +27,8 @@ impl From<std::io::Error> for GpuControllerError {
 }
 
 impl From<ParseIntError> for GpuControllerError {
-    fn from(_err: ParseIntError) -> GpuControllerError {
-        GpuControllerError::ParseError
+    fn from(err: ParseIntError) -> GpuControllerError {
+        GpuControllerError::ParseError(err.to_string())
     }
 }
 
@@ -37,7 +40,9 @@ pub enum PowerProfile {
 }
 
 impl Default for PowerProfile {
-    fn default() -> Self { PowerProfile::Auto }
+    fn default() -> Self {
+        PowerProfile::Auto
+    }
 }
 
 impl PowerProfile {
@@ -46,7 +51,7 @@ impl PowerProfile {
             "auto" | "Automatic" => Ok(PowerProfile::Auto),
             "high" | "Highest Clocks" => Ok(PowerProfile::High),
             "low" | "Lowest Clocks" => Ok(PowerProfile::Low),
-            _ => Err(GpuControllerError::ParseError),
+            _ => Err(GpuControllerError::ParseError("unrecognized GPU power profile".to_string())),
         }
     }
 
@@ -159,7 +164,7 @@ impl GpuController {
                     config.power_cap,
                 );
                 Some(hw_mon)
-            },
+            }
             _ => None,
         };
 
@@ -170,7 +175,7 @@ impl GpuController {
             for (num, (clockspeed, voltage)) in &config.gpu_power_states {
                 self.set_gpu_power_state(*num, *clockspeed, Some(*voltage));
             }
-            
+
             for (num, (clockspeed, voltage)) in &config.vram_power_states {
                 self.set_vram_power_state(*num, *clockspeed, Some(*voltage));
             }
@@ -183,11 +188,12 @@ impl GpuController {
 
     pub fn get_identifier(&self) -> GpuIdentifier {
         let gpu_info = self.get_info();
-        GpuIdentifier { pci_id: gpu_info.pci_slot.clone(),
-                        card_model: gpu_info.card_model.clone(),
-                        gpu_model: gpu_info.gpu_model.clone(), 
-                        path: self.hw_path.clone() }
-
+        GpuIdentifier {
+            pci_id: gpu_info.pci_slot.clone(),
+            card_model: gpu_info.card_model.clone(),
+            gpu_model: gpu_info.gpu_model.clone(),
+            path: self.hw_path.clone(),
+        }
     }
 
     pub fn get_info(&self) -> GpuInfo {
@@ -206,15 +212,23 @@ impl GpuController {
             match split.get(0).unwrap() {
                 &"DRIVER" => driver = split.get(1).unwrap().to_string(),
                 &"PCI_ID" => {
-                    let ids = split.last().expect("failed to get split").split(':').collect::<Vec<&str>>();
+                    let ids = split
+                        .last()
+                        .expect("failed to get split")
+                        .split(':')
+                        .collect::<Vec<&str>>();
                     vendor_id = ids.get(0).unwrap().to_string();
                     model_id = ids.get(1).unwrap().to_string();
-                },
+                }
                 &"PCI_SUBSYS_ID" => {
-                    let ids = split.last().expect("failed to get split").split(':').collect::<Vec<&str>>();
+                    let ids = split
+                        .last()
+                        .expect("failed to get split")
+                        .split(':')
+                        .collect::<Vec<&str>>();
                     card_vendor_id = ids.get(0).unwrap().to_string();
                     card_model_id = ids.get(1).unwrap().to_string();
-                },
+                }
                 &"PCI_SLOT_NAME" => pci_slot = split.get(1).unwrap().to_string(),
                 _ => (),
             }
@@ -225,7 +239,7 @@ impl GpuController {
         let mut card_vendor = String::new();
         let mut card_model = String::new();
 
-        let mut full_hwid_list = String::new(); 
+        let mut full_hwid_list = String::new();
         if Path::exists(&PathBuf::from("/usr/share/hwdata/pci.ids")) {
             full_hwid_list = fs::read_to_string("/usr/share/hwdata/pci.ids").unwrap();
         } else if Path::exists(&PathBuf::from("/usr/share/misc/pci.ids")) {
@@ -250,7 +264,11 @@ impl GpuController {
 
                 if line.len() > card_vendor_id.len() {
                     if line[0..card_vendor_id.len()] == card_vendor_id.to_lowercase() {
-                        card_vendor = line.splitn(2, ' ').collect::<Vec<&str>>().last().unwrap()
+                        card_vendor = line
+                            .splitn(2, ' ')
+                            .collect::<Vec<&str>>()
+                            .last()
+                            .unwrap()
                             .trim_start()
                             .to_string();
                     }
@@ -263,8 +281,6 @@ impl GpuController {
                 }
             }
         }
-
-
 
         let vbios_version = match fs::read_to_string(self.hw_path.join("vbios_version")) {
             Ok(v) => v,
@@ -330,11 +346,30 @@ impl GpuController {
             Err(_) => 0,
         };
 
-        let (mem_freq, gpu_freq, gpu_temp, power_avg, power_cap, power_cap_max, fan_speed, max_fan_speed, voltage) = match &self.hw_mon {
-            Some(hw_mon) => (hw_mon.get_mem_freq(), hw_mon.get_gpu_freq(), hw_mon.get_gpu_temp(), hw_mon.get_power_avg(), hw_mon.get_power_cap(), hw_mon.get_power_cap_max(), hw_mon.get_fan_speed(), hw_mon.fan_max_speed, hw_mon.get_voltage()),
+        let (
+            mem_freq,
+            gpu_freq,
+            gpu_temp,
+            power_avg,
+            power_cap,
+            power_cap_max,
+            fan_speed,
+            max_fan_speed,
+            voltage,
+        ) = match &self.hw_mon {
+            Some(hw_mon) => (
+                hw_mon.get_mem_freq(),
+                hw_mon.get_gpu_freq(),
+                hw_mon.get_gpu_temp(),
+                hw_mon.get_power_avg(),
+                hw_mon.get_power_cap(),
+                hw_mon.get_power_cap_max(),
+                hw_mon.get_fan_speed(),
+                hw_mon.fan_max_speed,
+                hw_mon.get_voltage(),
+            ),
             None => (0, 0, 0, 0, 0, 0, 0, 0, 0),
         };
-
 
         GpuStats {
             mem_total,
@@ -353,15 +388,12 @@ impl GpuController {
 
     pub fn start_fan_control(&mut self) -> Result<(), HWMonError> {
         match &self.hw_mon {
-            Some(hw_mon) => {
-
-                match hw_mon.start_fan_control() {
-                    Ok(_) => {
-                        self.config.fan_control_enabled = true;
-                        Ok(())
-                    }
-                    Err(e) => Err(e),
+            Some(hw_mon) => match hw_mon.start_fan_control() {
+                Ok(_) => {
+                    self.config.fan_control_enabled = true;
+                    Ok(())
                 }
+                Err(e) => Err(e),
             },
             None => Err(HWMonError::NoHWMon),
         }
@@ -369,14 +401,12 @@ impl GpuController {
 
     pub fn stop_fan_control(&mut self) -> Result<(), HWMonError> {
         match &self.hw_mon {
-            Some(hw_mon) => {
-                match hw_mon.stop_fan_control() {
-                    Ok(_) => {
-                        self.config.fan_control_enabled = false;
-                        Ok(())
-                    }
-                    Err(e) => Err(e),
+            Some(hw_mon) => match hw_mon.stop_fan_control() {
+                Ok(_) => {
+                    self.config.fan_control_enabled = false;
+                    Ok(())
                 }
+                Err(e) => Err(e),
             },
             None => Err(HWMonError::NoHWMon),
         }
@@ -390,10 +420,9 @@ impl GpuController {
                     enabled: control.0,
                     curve: control.1,
                 })
-            },
+            }
             None => Err(HWMonError::NoHWMon),
         }
-
     }
 
     pub fn set_fan_curve(&mut self, curve: BTreeMap<i64, f64>) -> Result<(), HWMonError> {
@@ -402,7 +431,7 @@ impl GpuController {
                 hw_mon.set_fan_curve(curve.clone());
                 self.config.fan_curve = curve;
                 Ok(())
-            },
+            }
             None => Err(HWMonError::NoHWMon),
         }
     }
@@ -413,115 +442,149 @@ impl GpuController {
                 hw_mon.set_power_cap(cap).unwrap();
                 self.config.power_cap = cap;
                 Ok(())
-            },
+            }
             None => Err(HWMonError::NoHWMon),
         }
     }
 
     pub fn get_power_cap(&self) -> Result<(i64, i64), HWMonError> {
         match &self.hw_mon {
-            Some(hw_mon) => {
-                Ok((hw_mon.get_power_cap(), hw_mon.get_power_cap_max()))
-            },
+            Some(hw_mon) => Ok((hw_mon.get_power_cap(), hw_mon.get_power_cap_max())),
             None => Err(HWMonError::NoHWMon),
         }
     }
 
     fn get_power_profile(&self) -> Result<PowerProfile, GpuControllerError> {
         match fs::read_to_string(self.hw_path.join("power_dpm_force_performance_level")) {
-            Ok(s) => {
-                Ok(PowerProfile::from_str(&s.trim()).unwrap())
-            },
+            Ok(s) => Ok(PowerProfile::from_str(&s.trim()).unwrap()),
             Err(_) => Err(GpuControllerError::NotSupported),
         }
     }
 
     pub fn set_power_profile(&mut self, profile: PowerProfile) -> Result<(), GpuControllerError> {
-        match fs::write(self.hw_path.join("power_dpm_force_performance_level"), profile.to_string()) {
-            Ok(_) => { 
+        match fs::write(
+            self.hw_path.join("power_dpm_force_performance_level"),
+            profile.to_string(),
+        ) {
+            Ok(_) => {
                 self.config.power_profile = profile;
                 Ok(())
-            },
+            }
             Err(_) => Err(GpuControllerError::NotSupported),
         }
     }
 
     fn get_clocks_table(&self) -> Result<ClocksTable, GpuControllerError> {
         match fs::read_to_string(self.hw_path.join("pp_od_clk_voltage")) {
-            Ok(s) => {
-                let mut clocks_table = ClocksTable::new();
-                let lines: Vec<&str> = s.trim().split("\n").collect();
-
-                log::trace!("Reading clocks table");
-
-                let mut i = 0;
-                while i < lines.len() {
-                    log::trace!("matching {}", lines[i]);
-                    match lines[i] {
-                        "OD_SCLK:" => {
-                            i += 1;
-                            while (lines[i].split_at(2).0 != "OD") && i < lines.len() {
-                                let (num, clock, voltage) = GpuController::parse_clock_voltage_line(lines[i])?;
-
-                                clocks_table.gpu_power_levels.insert(num, (clock, voltage));
-                                log::trace!("Adding gpu power level {}MHz {}mv", clock, voltage);
-                                i += 1;
-                            }
-                        },
-                        "OD_MCLK:" => {
-                            i += 1;
-                            while (lines[i].split_at(2).0 != "OD") && i < lines.len() {
-                                let (num, clock, voltage) = GpuController::parse_clock_voltage_line(lines[i])?;
-                                
-                                clocks_table.mem_power_levels.insert(num, (clock, voltage));
-                                log::trace!("Adding vram power level {}MHz {}mv", clock, voltage);
-                                i += 1;
-                            }
-                        },
-                        "OD_RANGE:" => {
-                            i += 1;
-                            while lines[i].split_at(2).0 != "OD" {
-                                let split: Vec<&str> = lines[i].split_whitespace().collect();
-                                let name = split[0].replace(":", "");
-
-                                match name.as_ref() {
-                                    "SCLK" => {
-                                        let min_clock = split[1].replace("MHz", "").parse::<i64>().unwrap();
-                                        let max_clock = split[2].replace("MHz", "").parse::<i64>().unwrap();
-                                        clocks_table.gpu_clocks_range = (min_clock, max_clock);
-                                        log::trace!("Maximum gpu clock: {}", max_clock);
-                                    },
-                                    "MCLK" => {
-                                        let min_clock = split[1].replace("MHz", "").parse::<i64>().unwrap();
-                                        let max_clock = split[2].replace("MHz", "").parse::<i64>().unwrap();
-                                        clocks_table.mem_clocks_range = (min_clock, max_clock);
-                                        log::trace!("Maximum vram clock: {}", max_clock);
-                                    },
-                                    "VDDC" => {
-                                        let min_voltage = split[1].replace("mV", "").parse::<i64>().unwrap();
-                                        let max_voltage = split[2].replace("mV", "").parse::<i64>().unwrap();
-                                        clocks_table.voltage_range = (min_voltage, max_voltage);
-                                        log::trace!("Maximum voltage: {}", max_voltage);
-                                    },
-                                    _ => (),
-                                }
-
-                                i += 1;
-                                if i >= lines.len() {
-                                    break
-                                }
-                            }
-                        },
-                        _ => i += 1,
-                    }
-                }
-                Ok(clocks_table)
-            },
+            Ok(table) => Self::parse_clocks_table(&table),
             Err(_) => Err(GpuControllerError::NotSupported),
         }
     }
 
-    pub fn set_gpu_power_state(&mut self, num: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), GpuControllerError> {
+    fn parse_clocks_table(table: &str) -> Result<ClocksTable, GpuControllerError> {
+        println!("PARSING \n{}\n", table);
+
+        let mut clocks_table = ClocksTable::new();
+
+        let mut lines_iter = table.trim().split("\n").into_iter();
+
+        log::trace!("Reading clocks table");
+
+        while let Some(line) = lines_iter.next() {
+            let line = line.trim();
+            log::trace!("Parsing line {}", line);
+
+            match line {
+                "OD_SCLK:" | "OD_MCLK:" => {
+                    let is_vram = match line {
+                        "OD_SCLK:" => false,
+                        "OD_MCLK:" => true,
+                        _ => unreachable!(),
+                    };
+
+                    log::trace!("Parsing clock levels");
+
+                    // If `next()` is used on the main iterator directly, it will consume the `OD_MCLK:` aswell,
+                    // which means the outer loop won't recognize that the next lines are of a different clock type.
+                    // Thus, it is better to count how many lines were of the clock levels and then substract that amount from the main iterator.
+                    let mut i = 0;
+                    let mut lines = lines_iter.clone();
+
+                    while let Some(line) = lines.next() {
+                        let line = line.trim();
+                        log::trace!("Parsing power level line {}", line);
+
+                        // Probably shouldn't unwrap, will fail on empty lines in clocks table
+                        if let Some(_) = line.chars().next().unwrap().to_digit(10) {
+                            let (num, clock, voltage) =
+                                GpuController::parse_clock_voltage_line(line)?;
+
+                            log::trace!("Power level {}: {}MHz {}mV", num, clock, voltage);
+
+                            if is_vram {
+                                clocks_table.mem_power_levels.insert(num, (clock, voltage));
+                            } else {
+                                clocks_table.gpu_power_levels.insert(num, (clock, voltage));
+                            }
+
+                            i += 1;
+                        } else {
+                            // Probably a better way to do this
+                            for _ in 0..i {
+                                lines_iter.next().unwrap();
+                            }
+                            log::trace!("Finished reading clock levels");
+                            break;
+                        }
+                    }
+                }
+                "OD_RANGE:" => {
+                    log::trace!("Parsing clock and voltage ranges");
+
+                    while let Some(line) = lines_iter.next() {
+                        let mut split = line.split_whitespace();
+
+                        let name = split.next().ok_or_else(|| GpuControllerError::ParseError("failed to get range name".to_string()))?;
+                        let min = split.next().ok_or_else(|| GpuControllerError::ParseError("failed to get range minimal value".to_string()))?;
+                        let max = split.next().ok_or_else(|| GpuControllerError::ParseError("failed to get range maximum value".to_string()))?;
+
+                        match name {
+                            "SCLK:" => {
+                                let min_clock: i64 = min.replace("MHz", "").parse()?;
+                                let max_clock: i64 = max.replace("MHz", "").parse()?;
+
+                                clocks_table.gpu_clocks_range = (min_clock, max_clock);
+                            }
+                            "MCLK:" => {
+                                let min_clock: i64 = min.replace("MHz", "").parse()?;
+                                let max_clock: i64 = max.replace("MHz", "").parse()?;
+
+                                clocks_table.mem_clocks_range = (min_clock, max_clock);
+                            }
+                            "VDDC:" => {
+                                let min_voltage: i64 = min.replace("mV", "").parse()?;
+                                let max_voltage: i64 = max.replace("mV", "").parse()?;
+
+                                clocks_table.voltage_range = (min_voltage, max_voltage);
+                            }
+                            _ => return Err(GpuControllerError::ParseError("unrecognized voltage range type".to_string())),
+                        }
+                    }
+                }
+                _ => return Err(GpuControllerError::ParseError("unrecognized line type".to_string())),
+            }
+        }
+
+        log::trace!("Successfully parsed the clocks table");
+        Ok(clocks_table)
+    }
+
+    pub fn set_gpu_power_state(
+        &mut self,
+        num: u32,
+        clockspeed: i64,
+        voltage: Option<i64>,
+    ) -> Result<(), GpuControllerError> {
         let mut line = format!("s {} {}", num, clockspeed);
 
         if let Some(voltage) = voltage {
@@ -529,17 +592,24 @@ impl GpuController {
         }
         line.push_str("\n");
 
-        log::trace!("Setting gpu power state {}", line);
-        log::trace!("Writing {} to pp_od_clk_voltage", line);
+        log::info!("Setting gpu power state {}", line);
+        log::info!("Writing {} to pp_od_clk_voltage", line);
 
         fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
-        
-        self.config.gpu_power_states.insert(num, (clockspeed, voltage.unwrap()));
+
+        self.config
+            .gpu_power_states
+            .insert(num, (clockspeed, voltage.unwrap()));
 
         Ok(())
     }
 
-    pub fn set_vram_power_state(&mut self, num: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), GpuControllerError> {
+    pub fn set_vram_power_state(
+        &mut self,
+        num: u32,
+        clockspeed: i64,
+        voltage: Option<i64>,
+    ) -> Result<(), GpuControllerError> {
         let mut line = format!("m {} {}", num, clockspeed);
 
         if let Some(voltage) = voltage {
@@ -547,12 +617,14 @@ impl GpuController {
         }
         line.push_str("\n");
 
-        log::trace!("Setting vram power state {}", line);
-        log::trace!("Writing {} to pp_od_clk_voltage", line);
+        log::info!("Setting vram power state {}", line);
+        log::info!("Writing {} to pp_od_clk_voltage", line);
 
         fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
-        
-        self.config.vram_power_states.insert(num, (clockspeed, voltage.unwrap()));
+
+        self.config
+            .vram_power_states
+            .insert(num, (clockspeed, voltage.unwrap()));
 
         Ok(())
     }
@@ -579,42 +651,87 @@ impl GpuController {
                         api_version = physical.api_version().to_string();
                         device_name = physical.name().to_string();
                         features = format!("{:?}", physical.supported_features());
-
                     }
                 }
-            },
+            }
             Err(_) => (),
         }
-            
 
         VulkanInfo {
             device_name,
             api_version,
             features,
         }
-
     }
 
     fn parse_clock_voltage_line(line: &str) -> Result<(u32, i64, i64), GpuControllerError> {
+        log::trace!("Parsing line {}", line);
+
         let line = line.to_uppercase();
         let line_parts: Vec<&str> = line.split_whitespace().collect();
 
-        let num: u32 = line_parts.get(0).ok_or_else(|| GpuControllerError::ParseError)?.chars().nth(0).unwrap().to_digit(10).unwrap();
-        let clock: i64 = line_parts.get(1).ok_or_else(|| GpuControllerError::ParseError)?.strip_suffix("MHZ").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
-        let voltage: i64 = line_parts.get(2).ok_or_else(|| GpuControllerError::ParseError)?.strip_suffix("MV").ok_or_else(|| GpuControllerError::ParseError)?.parse()?;
+        let num: u32 = line_parts
+            .get(0)
+            .ok_or_else(|| {
+                GpuControllerError::ParseError("failed to read the power level number".to_string())
+            })?
+            .chars()
+            .nth(0)
+            .unwrap()
+            .to_digit(10)
+            .unwrap();
+        let clock: i64 = line_parts
+            .get(1)
+            .ok_or_else(|| {
+                GpuControllerError::ParseError("failed to read the clockspeed".to_string())
+            })?
+            .strip_suffix("MHZ")
+            .ok_or_else(|| GpuControllerError::ParseError("failed to strip \"MHZ\"".to_string()))?
+            .parse()?;
+        let voltage: i64 = line_parts
+            .get(2)
+            .ok_or_else(|| {
+                GpuControllerError::ParseError("failed to read the voltage".to_string())
+            })?
+            .strip_suffix("MV")
+            .ok_or_else(|| GpuControllerError::ParseError("failed to strip \"mV\"".to_string()))?
+            .parse()?;
 
         Ok((num, clock, voltage))
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
     #[test]
-    fn write_pstate() -> Result<(), GpuControllerError> {
-        let mut c = GpuController::new(PathBuf::from("/sys/class/drm/card0/device"), GpuConfig::new());
-        c.set_gpu_power_state(7, 1360, None)
+    fn parse_clocks_table_polaris() {
+        init();
+
+        let pp_od_clk_voltage = r#"
+            OD_SCLK:
+            0:        300MHz        750mV
+            1:        600MHz        769mV
+            2:        900MHz        912mV
+            3:       1145MHz       1125mV
+            4:       1215MHz       1150mV
+            5:       1257MHz       1150mV
+            6:       1300MHz       1150mV
+            7:       1366MHz       1150mV
+            OD_MCLK:
+            0:        300MHz        750mV
+            1:       1000MHz        825mV
+            2:       1750MHz        975mV
+            OD_RANGE:
+            SCLK:     300MHz       2000MHz
+            MCLK:     300MHz       2250MHz
+            VDDC:     750mV        1200mV"#;
+
+        GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
     }
 }
