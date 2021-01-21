@@ -1,12 +1,15 @@
 use crate::config::{GpuConfig, GpuIdentifier};
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
+use vendor_data::VendorData;
 use std::{collections::BTreeMap, fs};
 use std::{
     num::ParseIntError,
     path::{Path, PathBuf},
 };
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
+
+pub mod vendor_data;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum GpuControllerError {
@@ -123,10 +126,7 @@ pub struct VulkanInfo {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct GpuInfo {
-    pub gpu_vendor: String,
-    pub gpu_model: String,
-    pub card_model: String,
-    pub card_vendor: String,
+    pub vendor_data: VendorData,
     pub model_id: String,
     pub vendor_id: String,
     pub driver: String,
@@ -190,8 +190,8 @@ impl GpuController {
         let gpu_info = self.get_info();
         GpuIdentifier {
             pci_id: gpu_info.pci_slot.clone(),
-            card_model: gpu_info.card_model.clone(),
-            gpu_model: gpu_info.gpu_model.clone(),
+            card_model: gpu_info.vendor_data.card_model.clone(),
+            gpu_model: gpu_info.vendor_data.gpu_model.clone(),
             path: self.hw_path.clone(),
         }
     }
@@ -234,54 +234,6 @@ impl GpuController {
             }
         }
 
-        let vendor = "AMD".to_string();
-        let mut model = String::new();
-        let mut card_vendor = String::new();
-        let mut card_model = String::new();
-
-        let mut full_hwid_list = String::new();
-        if Path::exists(&PathBuf::from("/usr/share/hwdata/pci.ids")) {
-            full_hwid_list = fs::read_to_string("/usr/share/hwdata/pci.ids").unwrap();
-        } else if Path::exists(&PathBuf::from("/usr/share/misc/pci.ids")) {
-            full_hwid_list = fs::read_to_string("/usr/share/misc/pci.ids").unwrap();
-        }
-
-        if !full_hwid_list.is_empty() {
-            //some weird space character, don't touch
-            let pci_id_line = format!("	{}", model_id.to_lowercase());
-            let card_ids_line = format!(
-                "		{} {}",
-                card_vendor_id.to_lowercase(),
-                card_model_id.to_lowercase()
-            );
-            log::trace!("identifying {} \n {}", pci_id_line, card_ids_line);
-
-            let lines: Vec<&str> = full_hwid_list.split('\n').collect();
-
-            //for line in full_hwid_list.split('\n') {
-            for i in 0..lines.len() {
-                let line = lines[i];
-
-                if line.len() > card_vendor_id.len() {
-                    if line[0..card_vendor_id.len()] == card_vendor_id.to_lowercase() {
-                        card_vendor = line
-                            .splitn(2, ' ')
-                            .collect::<Vec<&str>>()
-                            .last()
-                            .unwrap()
-                            .trim_start()
-                            .to_string();
-                    }
-                }
-                if line.contains(&pci_id_line) {
-                    model = line[pci_id_line.len()..].trim_start().to_string();
-                }
-                if line.contains(&card_ids_line) {
-                    card_model = line[card_ids_line.len()..].trim_start().to_string();
-                }
-            }
-        }
-
         let vbios_version = match fs::read_to_string(self.hw_path.join("vbios_version")) {
             Ok(v) => v,
             Err(_) => "".to_string(),
@@ -315,12 +267,16 @@ impl GpuController {
             Ok(t) => Some(t),
             Err(_) => None,
         };
+        
+        let vendor_data = match VendorData::from_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
+            Ok(data) => data,
+            Err(e) => VendorData::default(),
+        };
+
+        log::info!("Vendor data: {:?}", vendor_data);
 
         GpuInfo {
-            gpu_vendor: vendor,
-            gpu_model: model,
-            card_vendor,
-            card_model,
+            vendor_data,
             model_id,
             vendor_id,
             driver,

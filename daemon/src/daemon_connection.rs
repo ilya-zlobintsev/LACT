@@ -261,7 +261,7 @@ impl DaemonConnection {
         }
     }
 
-    pub fn get_gpus(&self) -> Result<HashMap<u32, String>, DaemonError> {
+    pub fn get_gpus(&self) -> Result<HashMap<u32, Option<String>>, DaemonError> {
         log::trace!("sending request");
         let mut s = UnixStream::connect(SOCK_PATH).unwrap();
         s.write_all(&bincode::serialize(&Action::GetGpus).unwrap())

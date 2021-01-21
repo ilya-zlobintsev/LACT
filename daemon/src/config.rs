@@ -24,8 +24,8 @@ impl From<serde_json::Error> for ConfigError {
 #[derive(Deserialize, Serialize, Debug, Clone, Hash, Eq)]
 pub struct GpuIdentifier {
     pub pci_id: String,
-    pub card_model: String,
-    pub gpu_model: String,
+    pub card_model: Option<String>,
+    pub gpu_model: Option<String>,
     pub path: PathBuf,
 }
 

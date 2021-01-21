@@ -67,8 +67,8 @@ fn main() {
 
 fn print_info(d: &DaemonConnection, gpu_id: u32) {
     let gpu_info = d.get_gpu_info(gpu_id).unwrap();
-    println!("{} {}", "GPU Model:".blue(), gpu_info.card_model.bold());
-    println!("{} {}", "GPU Vendor:".blue(), gpu_info.gpu_vendor.bold());
+    println!("{} {}", "GPU Model:".blue(), gpu_info.vendor_data.card_model.unwrap_or_default().bold());
+    println!("{} {}", "GPU Vendor:".blue(), gpu_info.vendor_data.gpu_vendor.unwrap_or_default().bold());
     println!("{} {}", "Driver in use:".blue(), gpu_info.driver.bold());
     println!("{} {}", "VBIOS Version:".blue(), gpu_info.vbios_version.bold());
     println!("{} {}", "VRAM Size:".blue(), gpu_info.vram_size.to_string().bold());

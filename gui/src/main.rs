@@ -105,8 +105,8 @@ fn build_ui(application: &gtk::Application) {
 
     let gpus = d.get_gpus().unwrap();
 
-    for gpu in &gpus {
-        gpu_select_comboboxtext.append(Some(&gpu.0.to_string()), &gpu.1);
+    for (id, gpu) in &gpus {
+        gpu_select_comboboxtext.append(Some(&id.to_string()), &gpu.clone().unwrap_or_default());
     }
 
     //limits the length of gpu names in combobox
@@ -408,8 +408,8 @@ fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32, gpu_power_level
 
     let gpu_info = d.get_gpu_info(gpu_id).unwrap();
 
-    gpu_model_text_buffer.set_text(&gpu_info.card_model);
-    manufacturer_text_buffer.set_text(&gpu_info.card_vendor);
+    gpu_model_text_buffer.set_text(&gpu_info.vendor_data.card_model.unwrap_or_default());
+    manufacturer_text_buffer.set_text(&gpu_info.vendor_data.card_vendor.unwrap_or_default());
     vbios_version_text_buffer.set_text(&gpu_info.vbios_version);
     driver_text_buffer.set_text(&gpu_info.driver);
     vram_size_text_buffer.set_text(&format!("{} MiB", &gpu_info.vram_size));
