@@ -408,7 +408,13 @@ fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32, gpu_power_level
 
     let gpu_info = d.get_gpu_info(gpu_id).unwrap();
 
-    gpu_model_text_buffer.set_text(&gpu_info.vendor_data.card_model.unwrap_or_default());
+    if let Some(card_model) = gpu_info.vendor_data.card_model {
+        gpu_model_text_buffer.set_text(&card_model);
+    }
+    else {
+        gpu_model_text_buffer.set_text(&gpu_info.vendor_data.gpu_model.unwrap_or_default());
+    }
+
     manufacturer_text_buffer.set_text(&gpu_info.vendor_data.card_vendor.unwrap_or_default());
     vbios_version_text_buffer.set_text(&gpu_info.vbios_version);
     driver_text_buffer.set_text(&gpu_info.driver);
