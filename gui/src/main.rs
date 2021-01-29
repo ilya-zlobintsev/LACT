@@ -391,6 +391,8 @@ fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32, gpu_power_level
 
     let clocks_unsupported_label: Label = builder.get_object("clocks_unsupported_label").unwrap();
 
+    let power_cap_scale: Scale = builder.get_object("power_cap_scale").unwrap();
+
     //let power_levels_box: gtk::Box = builder.get_object("power_levels_box").unwrap();
 
     let power_profile_select_comboboxtext: ComboBoxText = builder
@@ -438,10 +440,14 @@ fn set_info(builder: &Builder, d: DaemonConnection, gpu_id: u32, gpu_power_level
     vulkan_version_text_buffer.set_text(&gpu_info.vulkan_info.api_version);
     vulkan_features_text_buffer.set_text(&vulkan_features);
 
-    let (power_cap, power_cap_max) = d.get_power_cap(gpu_id).unwrap();
+    if let Ok((power_cap, power_cap_max)) = d.get_power_cap(gpu_id) {
+        gpu_power_adjustment.set_upper(power_cap_max as f64);
+        gpu_power_adjustment.set_value(power_cap as f64);
+    }
+    else {
+        power_cap_scale.set_sensitive(false);
+    }
 
-    gpu_power_adjustment.set_upper(power_cap_max as f64);
-    gpu_power_adjustment.set_value(power_cap as f64);
 
     match &gpu_info.power_profile {
         Some(power_profile) => {
