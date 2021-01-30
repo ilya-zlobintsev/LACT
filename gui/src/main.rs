@@ -1,7 +1,7 @@
 use std::thread;
 
 use app::App;
-use daemon::{Daemon, daemon_connection::DaemonConnection};
+use daemon::{daemon_connection::DaemonConnection, Daemon};
 use gtk::*;
 
 mod app;
@@ -10,18 +10,18 @@ fn main() {
     if gtk::init().is_err() {
         panic!("Cannot initialize GTK");
     }
-    
+
     let app = App::new();
-    
-    app.run(connect_daemon());
+
+    app.run(connect_daemon()).unwrap();
 }
 
 fn connect_daemon() -> DaemonConnection {
     match DaemonConnection::new() {
-        Ok(connection) =>  {
+        Ok(connection) => {
             println!("Connection to daemon established");
             connection
-        },
+        }
         Err(e) => {
             println!("Error {:?} connecting to daemon", e);
             println!("Starting unprivileged daemon instance");
@@ -36,7 +36,8 @@ fn connect_daemon() -> DaemonConnection {
                 DialogFlags::empty(),
                 gtk::MessageType::Warning,
                 gtk::ButtonsType::Ok,
-                "Unable to connect to daemon. Running in unprivileged mode.");
+                "Unable to connect to daemon. Running in unprivileged mode.",
+            );
 
             dialog.run();
             dialog.hide();
@@ -45,4 +46,3 @@ fn connect_daemon() -> DaemonConnection {
         }
     }
 }
-
