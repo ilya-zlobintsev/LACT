@@ -7,9 +7,5 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+gtk = { version = "0.9", features = ["v3_22"] }
 daemon = { path = "../daemon" }
-gtk = "0.9"
-gio = "0.9"
-glib = "0.10"
-gdk = "0.13"
-pango = "0.9"
