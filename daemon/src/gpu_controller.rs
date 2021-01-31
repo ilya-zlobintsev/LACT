@@ -1,12 +1,11 @@
 use crate::config::{GpuConfig, GpuIdentifier};
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
+use std::fs;
+use std::num::ParseIntError;
+use std::path::PathBuf;
 use vendor_data::VendorData;
-use std::{collections::BTreeMap, fs};
-use std::{
-    num::ParseIntError,
-    path::{Path, PathBuf},
-};
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 
 pub mod vendor_data;
@@ -54,7 +53,9 @@ impl PowerProfile {
             "auto" | "Automatic" => Ok(PowerProfile::Auto),
             "high" | "Highest Clocks" => Ok(PowerProfile::High),
             "low" | "Lowest Clocks" => Ok(PowerProfile::Low),
-            _ => Err(GpuControllerError::ParseError("unrecognized GPU power profile".to_string())),
+            _ => Err(GpuControllerError::ParseError(
+                "unrecognized GPU power profile".to_string(),
+            )),
         }
     }
 
@@ -121,7 +122,7 @@ pub struct GpuController {
 pub struct VulkanInfo {
     pub device_name: String,
     pub api_version: String,
-    pub features: String,
+    pub features: HashMap<String, bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -267,11 +268,12 @@ impl GpuController {
             Ok(t) => Some(t),
             Err(_) => None,
         };
-        
-        let vendor_data = match VendorData::from_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
-            Ok(data) => data,
-            Err(e) => VendorData::default(),
-        };
+
+        let vendor_data =
+            match VendorData::from_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
+                Ok(data) => data,
+                Err(e) => VendorData::default(),
+            };
 
         log::info!("Vendor data: {:?}", vendor_data);
 
@@ -500,9 +502,19 @@ impl GpuController {
                     while let Some(line) = lines_iter.next() {
                         let mut split = line.split_whitespace();
 
-                        let name = split.next().ok_or_else(|| GpuControllerError::ParseError("failed to get range name".to_string()))?;
-                        let min = split.next().ok_or_else(|| GpuControllerError::ParseError("failed to get range minimal value".to_string()))?;
-                        let max = split.next().ok_or_else(|| GpuControllerError::ParseError("failed to get range maximum value".to_string()))?;
+                        let name = split.next().ok_or_else(|| {
+                            GpuControllerError::ParseError("failed to get range name".to_string())
+                        })?;
+                        let min = split.next().ok_or_else(|| {
+                            GpuControllerError::ParseError(
+                                "failed to get range minimal value".to_string(),
+                            )
+                        })?;
+                        let max = split.next().ok_or_else(|| {
+                            GpuControllerError::ParseError(
+                                "failed to get range maximum value".to_string(),
+                            )
+                        })?;
 
                         match name {
                             "SCLK:" => {
@@ -523,11 +535,19 @@ impl GpuController {
 
                                 clocks_table.voltage_range = (min_voltage, max_voltage);
                             }
-                            _ => return Err(GpuControllerError::ParseError("unrecognized voltage range type".to_string())),
+                            _ => {
+                                return Err(GpuControllerError::ParseError(
+                                    "unrecognized voltage range type".to_string(),
+                                ))
+                            }
                         }
                     }
                 }
-                _ => return Err(GpuControllerError::ParseError("unrecognized line type".to_string())),
+                _ => {
+                    return Err(GpuControllerError::ParseError(
+                        "unrecognized line type".to_string(),
+                    ))
+                }
             }
         }
 
@@ -598,7 +618,7 @@ impl GpuController {
     fn get_vulkan_info(pci_id: &str) -> VulkanInfo {
         let mut device_name = String::from("Not supported");
         let mut api_version = String::new();
-        let mut features = String::new();
+        let mut features = HashMap::new();
 
         match Instance::new(None, &InstanceExtensions::none(), None) {
             Ok(instance) => {
@@ -606,7 +626,22 @@ impl GpuController {
                     if format!("{:x}", physical.pci_device_id()) == pci_id.to_lowercase() {
                         api_version = physical.api_version().to_string();
                         device_name = physical.name().to_string();
-                        features = format!("{:?}", physical.supported_features());
+
+                        let features_string = format!("{:?}", physical.supported_features());
+                        let features_string = features_string
+                            .replace("Features", "")
+                            .replace("{", "")
+                            .replace("}", "");
+
+                        for feature in features_string.split(',') {
+                            let (name, supported) = feature.split_once(':').unwrap();
+                            let name = name.trim();
+                            let supported: bool = supported.trim().parse().unwrap();
+
+                            features.insert(name.to_string(), supported);
+                        }
+
+                        break;
                     }
                 }
             }
@@ -691,12 +726,12 @@ mod tests {
 
         GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
     }
-    
+
     // pp_od_clk_voltage taken from a Vega 56
     #[test]
     fn parse_clocks_table_vega() {
         init();
-        
+
         let pp_od_clk_voltage = r#"
             OD_SCLK:
             0:        852Mhz        800mV

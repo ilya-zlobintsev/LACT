@@ -1,3 +1,5 @@
+#![feature(str_split_once)]
+
 pub mod config;
 pub mod daemon_connection;
 pub mod gpu_controller;
