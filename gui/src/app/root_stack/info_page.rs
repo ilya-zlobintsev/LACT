@@ -1,5 +1,8 @@
+mod vulkan_info;
+
 use daemon::gpu_controller::GpuInfo;
 use gtk::*;
+use vulkan_info::VulkanInfoFrame;
 
 #[derive(Clone)]
 pub struct InformationPage {
@@ -10,6 +13,7 @@ pub struct InformationPage {
     driver_label: Label,
     vram_size_label: Label,
     link_speed_label: Label,
+    vulkan_info_frame: VulkanInfoFrame,
 }
 
 impl InformationPage {
@@ -131,6 +135,10 @@ impl InformationPage {
         link_speed_label.set_halign(Align::Start);
 
         container.attach(&link_speed_label, 2, 5, 3, 1);
+        
+
+        let vulkan_info_frame = VulkanInfoFrame::new();
+        container.attach(&vulkan_info_frame.container, 0, 6, 5, 1);
 
         Self {
             container,
@@ -140,33 +148,36 @@ impl InformationPage {
             driver_label,
             vram_size_label,
             link_speed_label,
+            vulkan_info_frame,
         }
     }
 
     pub fn set_info(&self, gpu_info: GpuInfo) {
         self.gpu_name_label.set_markup(&format!(
             "<b>{}</b>",
-            &gpu_info.vendor_data.card_model.unwrap_or_default()
+            gpu_info.vendor_data.card_model.unwrap_or_default()
         ));
         self.gpu_manufacturer_label.set_markup(&format!(
             "<b>{}</b>",
-            &gpu_info.vendor_data.card_vendor.unwrap_or_default()
+            gpu_info.vendor_data.card_vendor.unwrap_or_default()
         ));
         self.vbios_version_label.set_markup(&format!(
             "<b>{}</b>",
-            &gpu_info.vbios_version
+            gpu_info.vbios_version
         ));
         self.driver_label.set_markup(&format!(
             "<b>{}</b>",
-            &gpu_info.driver
+            gpu_info.driver
         ));
         self.vram_size_label.set_markup(&format!(
             "<b>{}</b>",
-            &gpu_info.vram_size
+            gpu_info.vram_size
         ));
         self.link_speed_label.set_markup(&format!(
             "<b>{} x{}</b>",
-            &gpu_info.link_speed, &gpu_info.link_width
+            gpu_info.link_speed, gpu_info.link_width
         ));
+        
+        self.vulkan_info_frame.set_info(&gpu_info.vulkan_info);
     }
 }

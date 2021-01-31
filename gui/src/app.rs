@@ -21,9 +21,8 @@ impl App {
 
         let header = Header::new();
 
-        window.set_title("LACT");
-
         window.set_titlebar(Some(&header.container));
+        window.set_title("LACT");
 
         window.set_default_size(500, 600);
 
