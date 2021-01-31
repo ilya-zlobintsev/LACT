@@ -14,9 +14,6 @@ impl Header {
     pub fn new() -> Self {
         let container = HeaderBar::new();
 
-        //Doesn't work for some reason
-        container.set_title(None);
-
         if env::var("XDG_CURRENT_DESKTOP") == Ok("GNOME".to_string()) {
             container.set_show_close_button(true);
         }
