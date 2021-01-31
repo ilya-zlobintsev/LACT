@@ -11,9 +11,9 @@ fn main() {
         panic!("Cannot initialize GTK");
     }
 
-    let app = App::new();
+    let app = App::new(connect_daemon());
 
-    app.run(connect_daemon()).unwrap();
+    app.run().unwrap();
 }
 
 fn connect_daemon() -> DaemonConnection {
