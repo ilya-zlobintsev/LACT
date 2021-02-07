@@ -8,28 +8,36 @@ pub struct Header {
     pub container: HeaderBar,
     gpu_selector: ComboBoxText,
     switcher: StackSwitcher,
+    apply_button: Button,
 }
 
 impl Header {
     pub fn new() -> Self {
         let container = HeaderBar::new();
+        
+        container.set_custom_title(Some(&Grid::new())); // Bad workaround to hide the title
 
         if env::var("XDG_CURRENT_DESKTOP") == Ok("GNOME".to_string()) {
             container.set_show_close_button(true);
         }
 
         let gpu_selector = ComboBoxText::new();
-
         container.pack_start(&gpu_selector);
 
         let switcher = StackSwitcher::new();
-
         container.pack_start(&switcher);
+
+        let apply_button = Button::new();
+        apply_button.set_label("Apply");
+        apply_button.set_sensitive(false);
+        
+        container.pack_start(&apply_button);
 
         Header {
             container,
             gpu_selector,
             switcher,
+            apply_button,
         }
     }
 
@@ -57,5 +65,15 @@ impl Header {
             let selected_id = gpu_selector.get_active_id().unwrap();
             f(selected_id.parse().unwrap());
         });
+    }
+
+    pub fn connect_apply_button_clicked<F: Fn() + 'static>(&self, f: F) {
+        self.apply_button.connect_clicked(move |_| {
+            f();
+        });
+    }
+    
+    pub fn set_apply_button_sensitive(&self) {
+        self.apply_button.set_sensitive(true);
     }
 }

@@ -40,7 +40,7 @@ fn connect_daemon() -> DaemonConnection {
             );
 
             dialog.run();
-            dialog.hide();
+            dialog.close();
 
             DaemonConnection::new().unwrap()
         }

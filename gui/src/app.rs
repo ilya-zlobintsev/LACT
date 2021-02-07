@@ -8,7 +8,11 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use daemon::{daemon_connection::DaemonConnection, DaemonError};
+use daemon::{
+    daemon_connection::DaemonConnection,
+    gpu_controller::{FanControlInfo, GpuStats},
+    DaemonError,
+};
 use gtk::*;
 
 use header::Header;
@@ -81,29 +85,48 @@ impl App {
 
     fn start_stats_update_loop(&self, current_gpu_id: Arc<AtomicU32>) {
         let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+        {
+            let daemon_connection = self.daemon_connection.clone();
 
-        let daemon_connection = self.daemon_connection.clone();
+            thread::spawn(move || loop {
+                let gpu_id = current_gpu_id.load(Ordering::SeqCst);
 
-        thread::spawn(move || loop {
-            let gpu_id = current_gpu_id.load(Ordering::SeqCst);
+                if let Ok(stats) = daemon_connection.get_gpu_stats(gpu_id) {
+                    sender.send(GuiUpdateMsg::GpuStats(stats)).unwrap();
+                }
 
-            if let Ok(stats) = daemon_connection.get_gpu_stats(gpu_id) {
-                sender.send(stats).unwrap();
-            }
+                if let Ok(fan_control) = daemon_connection.get_fan_control(gpu_id) {
+                    sender
+                        .send(GuiUpdateMsg::FanControlInfo(fan_control))
+                        .unwrap();
+                }
 
-            if let Ok(fan_control) = daemon_connection.get_fan_control(gpu_id) {
-                println!("{:?}", fan_control);
-            }
+                thread::sleep(Duration::from_millis(500));
+            });
+        }
 
-            thread::sleep(Duration::from_millis(500));
-        });
+        {
+            let thermals_page = self.root_stack.thermals_page.clone();
+            let oc_page = self.root_stack.oc_page.clone();
 
-        let thermals_page = self.root_stack.thermals_page.clone();
+            receiver.attach(None, move |msg| {
+                match msg {
+                    GuiUpdateMsg::GpuStats(stats) => {
+                        thermals_page.set_thermals_info(&stats);
+                        oc_page.set_stats(&stats);
+                    }
+                    GuiUpdateMsg::FanControlInfo(fan_control_info) => {
+                        thermals_page.set_ventilation_info(fan_control_info)
+                    }
+                }
 
-        receiver.attach(None, move |stats| {
-            thermals_page.set_thermals_info(&stats);
-
-            glib::Continue(true)
-        });
+                glib::Continue(true)
+            });
+        }
     }
+}
+
+enum GuiUpdateMsg {
+    FanControlInfo(FanControlInfo),
+    GpuStats(GpuStats),
 }
