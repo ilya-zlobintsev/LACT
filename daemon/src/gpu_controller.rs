@@ -634,9 +634,12 @@ impl GpuController {
                             .replace("}", "");
 
                         for feature in features_string.split(',') {
-                            let (name, supported) = feature.split_once(':').unwrap();
-                            let name = name.trim();
-                            let supported: bool = supported.trim().parse().unwrap();
+                            // let (name, supported) = feature.split_once(':').unwrap(); Use this once it's in stable
+                            let mut split = feature.split(':');
+                            let name = split.next().unwrap().trim();
+                            let supported = split.next().unwrap().trim();
+
+                            let supported: bool = supported.parse().unwrap();
 
                             features.insert(name.to_string(), supported);
                         }
