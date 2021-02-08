@@ -1,3 +1,4 @@
+mod apply_revealer;
 mod header;
 mod root_stack;
 
@@ -8,20 +9,21 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use daemon::{
-    daemon_connection::DaemonConnection,
-    gpu_controller::{FanControlInfo, GpuStats},
-    DaemonError,
-};
+use apply_revealer::ApplyRevealer;
+use daemon::daemon_connection::DaemonConnection;
+use daemon::gpu_controller::GpuStats;
+use daemon::DaemonError;
 use gtk::*;
 
 use header::Header;
 use root_stack::RootStack;
 
+#[derive(Clone)]
 pub struct App {
     pub window: Window,
     pub header: Header,
     root_stack: RootStack,
+    apply_revealer: ApplyRevealer,
     daemon_connection: DaemonConnection,
 }
 
@@ -45,12 +47,21 @@ impl App {
 
         header.set_switcher_stack(&root_stack.container);
 
-        window.add(&root_stack.container);
+        let root_box = Box::new(Orientation::Vertical, 5);
+
+        root_box.add(&root_stack.container);
+
+        let apply_revealer = ApplyRevealer::new();
+
+        root_box.add(&apply_revealer.container);
+
+        window.add(&root_box);
 
         App {
             window,
             header,
             root_stack,
+            apply_revealer,
             daemon_connection,
         }
     }
@@ -58,29 +69,57 @@ impl App {
     pub fn run(&self) -> Result<(), DaemonError> {
         let current_gpu_id = Arc::new(AtomicU32::new(0));
 
-        let root_stack = self.root_stack.clone();
-
         {
             let current_gpu_id = current_gpu_id.clone();
-            let daemon_connection = self.daemon_connection.clone();
+            let app = self.clone();
 
             self.header.connect_gpu_selection_changed(move |gpu_id| {
-                let gpu_info = daemon_connection.get_gpu_info(gpu_id).unwrap();
-                root_stack.info_page.set_info(gpu_info);
-
+                app.set_info(gpu_id);
                 current_gpu_id.store(gpu_id, Ordering::SeqCst);
             });
         }
-
-        self.start_stats_update_loop(current_gpu_id.clone());
 
         let gpus = self.daemon_connection.get_gpus()?;
 
         self.header.set_gpus(gpus);
 
+        // Show apply button on setting changes
+        {
+            let apply_revealer = self.apply_revealer.clone();
+            self.root_stack
+                .thermals_page
+                .connect_settings_changed(move || {
+                    apply_revealer.show();
+                });
+        }
+
+        // Apply settings
+        {
+            let current_gpu_id = current_gpu_id.clone();
+            let app = self.clone();
+
+            self.apply_revealer.connect_apply_button_clicked(move || {
+                let gpu_id = current_gpu_id.load(Ordering::SeqCst);
+                app.set_info(gpu_id);
+            });
+        }
+
+        self.start_stats_update_loop(current_gpu_id.clone());
+
         self.window.show_all();
 
         Ok(gtk::main())
+    }
+
+    fn set_info(&self, gpu_id: u32) {
+        let gpu_info = self.daemon_connection.get_gpu_info(gpu_id).unwrap();
+        self.root_stack.info_page.set_info(gpu_info);
+
+        let ventilation_info = self.daemon_connection.get_fan_control(gpu_id).unwrap();
+        self.root_stack
+            .thermals_page
+            .set_ventilation_info(ventilation_info);
+
     }
 
     fn start_stats_update_loop(&self, current_gpu_id: Arc<AtomicU32>) {
@@ -93,12 +132,6 @@ impl App {
 
                 if let Ok(stats) = daemon_connection.get_gpu_stats(gpu_id) {
                     sender.send(GuiUpdateMsg::GpuStats(stats)).unwrap();
-                }
-
-                if let Ok(fan_control) = daemon_connection.get_fan_control(gpu_id) {
-                    sender
-                        .send(GuiUpdateMsg::FanControlInfo(fan_control))
-                        .unwrap();
                 }
 
                 thread::sleep(Duration::from_millis(500));
@@ -114,10 +147,9 @@ impl App {
                     GuiUpdateMsg::GpuStats(stats) => {
                         thermals_page.set_thermals_info(&stats);
                         oc_page.set_stats(&stats);
-                    }
-                    GuiUpdateMsg::FanControlInfo(fan_control_info) => {
-                        thermals_page.set_ventilation_info(fan_control_info)
-                    }
+                    } /*GuiUpdateMsg::FanControlInfo(fan_control_info) => {
+                          thermals_page.set_ventilation_info(fan_control_info)
+                      }*/
                 }
 
                 glib::Continue(true)
@@ -127,6 +159,6 @@ impl App {
 }
 
 enum GuiUpdateMsg {
-    FanControlInfo(FanControlInfo),
+    // FanControlInfo(FanControlInfo),
     GpuStats(GpuStats),
 }

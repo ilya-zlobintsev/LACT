@@ -272,7 +272,7 @@ impl GpuController {
         let vendor_data =
             match VendorData::from_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
                 Ok(data) => data,
-                Err(e) => VendorData::default(),
+                Err(_) => VendorData::default(),
             };
 
         log::info!("Vendor data: {:?}", vendor_data);

@@ -4,11 +4,11 @@ use gtk::prelude::{ComboBoxExtManual, ObjectExt};
 use gtk::*;
 use pango::EllipsizeMode;
 
+#[derive(Clone)]
 pub struct Header {
     pub container: HeaderBar,
     gpu_selector: ComboBoxText,
     switcher: StackSwitcher,
-    apply_button: Button,
 }
 
 impl Header {
@@ -27,17 +27,10 @@ impl Header {
         let switcher = StackSwitcher::new();
         container.pack_start(&switcher);
 
-        let apply_button = Button::new();
-        apply_button.set_label("Apply");
-        apply_button.set_sensitive(false);
-        
-        container.pack_start(&apply_button);
-
         Header {
             container,
             gpu_selector,
             switcher,
-            apply_button,
         }
     }
 
@@ -65,15 +58,5 @@ impl Header {
             let selected_id = gpu_selector.get_active_id().unwrap();
             f(selected_id.parse().unwrap());
         });
-    }
-
-    pub fn connect_apply_button_clicked<F: Fn() + 'static>(&self, f: F) {
-        self.apply_button.connect_clicked(move |_| {
-            f();
-        });
-    }
-    
-    pub fn set_apply_button_sensitive(&self) {
-        self.apply_button.set_sensitive(true);
     }
 }

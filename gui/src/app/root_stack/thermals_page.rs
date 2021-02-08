@@ -2,6 +2,7 @@ mod fan_curve_frame;
 
 use daemon::gpu_controller::{FanControlInfo, GpuStats};
 use gtk::*;
+use gtk::prelude::*;
 
 use fan_curve_frame::FanCurveFrame;
 
@@ -119,5 +120,11 @@ impl ThermalsPage {
         } else {
             self.fan_curve_frame.container.set_visible(false);
         }
+    }
+
+    pub fn connect_settings_changed<F: Fn() + 'static>(&self, f: F) {
+        self.fan_control_enabled_switch.connect_changed_active(move |_| {
+            f();
+        });
     }
 }
