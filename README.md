@@ -34,3 +34,5 @@ Enable and start the service (otherwise you won't be able to change any settings
 sudo systemctl enable --now lactd
 ```
 You can now use the application.
+
+Note: only members of the group `wheel` can change settings.
