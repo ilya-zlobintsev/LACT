@@ -100,6 +100,19 @@ impl App {
 
             self.apply_revealer.connect_apply_button_clicked(move || {
                 let gpu_id = current_gpu_id.load(Ordering::SeqCst);
+
+                let thermals_settings = app.root_stack.thermals_page.get_thermals_settings();
+
+                if thermals_settings.automatic_fan_control_enabled {
+                    app.daemon_connection
+                        .stop_fan_control(gpu_id)
+                        .expect("Failed to top fan control");
+                } else {
+                    app.daemon_connection
+                        .start_fan_control(gpu_id)
+                        .expect("Failed to start fan control");
+                }
+
                 app.set_info(gpu_id);
             });
         }
@@ -119,7 +132,6 @@ impl App {
         self.root_stack
             .thermals_page
             .set_ventilation_info(ventilation_info);
-
     }
 
     fn start_stats_update_loop(&self, current_gpu_id: Arc<AtomicU32>) {

@@ -1,10 +1,14 @@
 mod fan_curve_frame;
 
 use daemon::gpu_controller::{FanControlInfo, GpuStats};
-use gtk::*;
 use gtk::prelude::*;
+use gtk::*;
 
 use fan_curve_frame::FanCurveFrame;
+
+pub struct ThermalsSettings {
+    pub automatic_fan_control_enabled: bool,
+}
 
 #[derive(Clone)]
 pub struct ThermalsPage {
@@ -77,21 +81,18 @@ impl ThermalsPage {
             1,
         );
 
-
         let fan_control_enabled_switch = Switch::new();
 
         fan_control_enabled_switch.set_active(true);
         fan_control_enabled_switch.set_halign(Align::Start);
 
         grid.attach(&fan_control_enabled_switch, 2, 2, 1, 1);
-        
-        
+
         container.pack_start(&grid, false, false, 5);
 
         let fan_curve_frame = FanCurveFrame::new();
-        
-        container.pack_start(&fan_curve_frame.container, true, true, 5);
 
+        container.pack_start(&fan_curve_frame.container, true, true, 5);
 
         Self {
             container,
@@ -113,7 +114,8 @@ impl ThermalsPage {
     }
 
     pub fn set_ventilation_info(&self, fan_control_info: FanControlInfo) {
-        self.fan_control_enabled_switch.set_active(!fan_control_info.enabled);
+        self.fan_control_enabled_switch
+            .set_active(!fan_control_info.enabled);
 
         if fan_control_info.enabled {
             self.fan_curve_frame.container.set_visible(true);
@@ -123,8 +125,17 @@ impl ThermalsPage {
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static>(&self, f: F) {
-        self.fan_control_enabled_switch.connect_changed_active(move |_| {
-            f();
-        });
+        self.fan_control_enabled_switch
+            .connect_changed_active(move |_| {
+                f();
+            });
+    }
+
+    pub fn get_thermals_settings(&self) -> ThermalsSettings {
+        let automatic_fan_control_enabled = self.fan_control_enabled_switch.get_active();
+
+        ThermalsSettings {
+            automatic_fan_control_enabled,
+        }
     }
 }

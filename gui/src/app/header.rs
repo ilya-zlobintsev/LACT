@@ -17,9 +17,9 @@ impl Header {
         
         container.set_custom_title(Some(&Grid::new())); // Bad workaround to hide the title
 
-        if env::var("XDG_CURRENT_DESKTOP") == Ok("GNOME".to_string()) {
+        // if env::var("XDG_CURRENT_DESKTOP") == Ok("GNOME".to_string()) {
             container.set_show_close_button(true);
-        }
+        // }
 
         let gpu_selector = ComboBoxText::new();
         container.pack_start(&gpu_selector);
