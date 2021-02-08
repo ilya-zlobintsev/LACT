@@ -54,10 +54,16 @@ impl Daemon {
         let listener = UnixListener::bind(SOCK_PATH).unwrap();
 
         Command::new("chmod")
-            .arg("666")
+            .arg("664")
             .arg(SOCK_PATH)
             .output()
             .expect("Failed to chmod");
+        
+        Command::new("chown")
+            .arg("nobody:wheel")
+            .arg(SOCK_PATH)
+            .output()
+            .expect("Failed to chown");
 
         let config_path = PathBuf::from("/etc/lact.json");
         let mut config = if unprivileged {
