@@ -128,10 +128,13 @@ impl App {
         let gpu_info = self.daemon_connection.get_gpu_info(gpu_id).unwrap();
         self.root_stack.info_page.set_info(gpu_info);
 
-        let ventilation_info = self.daemon_connection.get_fan_control(gpu_id).unwrap();
-        self.root_stack
-            .thermals_page
-            .set_ventilation_info(ventilation_info);
+        match self.daemon_connection.get_fan_control(gpu_id) {
+            Ok(fan_control_info) => self
+                .root_stack
+                .thermals_page
+                .set_ventilation_info(fan_control_info),
+            Err(_) => self.root_stack.thermals_page.hide_fan_controls(),
+        }
     }
 
     fn start_stats_update_loop(&self, current_gpu_id: Arc<AtomicU32>) {

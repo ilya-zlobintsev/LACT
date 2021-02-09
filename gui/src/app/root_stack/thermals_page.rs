@@ -104,16 +104,25 @@ impl ThermalsPage {
     }
 
     pub fn set_thermals_info(&self, stats: &GpuStats) {
-        self.temp_label
-            .set_markup(&format!("<b>{}°C</b>", stats.gpu_temp));
-        self.fan_speed_label.set_markup(&format!(
-            "<b>{} RPM ({}%)</b>",
-            stats.fan_speed,
-            (stats.fan_speed as f64 / stats.max_fan_speed as f64 * 100.0).round()
-        ));
+        match stats.gpu_temp {
+            Some(temp) => self.temp_label.set_markup(&format!("<b>{}°C</b>", temp)),
+            None => self.temp_label.set_text("Sensor not found"),
+        }
+
+        match stats.fan_speed {
+            Some(fan_speed) => self.fan_speed_label.set_markup(&format!(
+                "<b>{} RPM ({}%)</b>",
+                fan_speed,
+                (fan_speed as f64 / stats.max_fan_speed.unwrap() as f64 * 100.0).round()
+            )),
+            None => self.fan_speed_label.set_text("No fan detected"),
+        }
     }
 
     pub fn set_ventilation_info(&self, fan_control_info: FanControlInfo) {
+        self.fan_control_enabled_switch.set_visible(true);
+        self.fan_curve_frame.container.set_visible(true);
+
         self.fan_control_enabled_switch
             .set_active(!fan_control_info.enabled);
 
@@ -137,5 +146,10 @@ impl ThermalsPage {
         ThermalsSettings {
             automatic_fan_control_enabled,
         }
+    }
+    
+    pub fn hide_fan_controls(&self) {
+        self.fan_control_enabled_switch.set_visible(false);
+        self.fan_curve_frame.container.set_visible(false);
     }
 }

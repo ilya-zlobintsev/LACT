@@ -16,16 +16,15 @@ use serde::{Deserialize, Serialize};
 pub enum HWMonError {
     PermissionDenied,
     InvalidValue,
+    Unsupported,
     NoHWMon,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HWMon {
     hwmon_path: PathBuf,
-    pub fan_max_speed: i64,
     fan_control: Arc<AtomicBool>,
     fan_curve: Arc<RwLock<BTreeMap<i64, f64>>>,
-    power_cap: i64,
 }
 
 impl HWMon {
@@ -33,35 +32,32 @@ impl HWMon {
         hwmon_path: &PathBuf,
         fan_control_enabled: bool,
         fan_curve: BTreeMap<i64, f64>,
-        power_cap: i64,
+        power_cap: Option<i64>,
     ) -> HWMon {
-        let fan_max_speed = match fs::read_to_string(hwmon_path.join("fan1_max")) {
-            Ok(s) => s.trim().parse::<i64>().unwrap(),
-            Err(_) => 0,
-        };
-
         let mut mon = HWMon {
             hwmon_path: hwmon_path.clone(),
-            fan_max_speed,
             fan_control: Arc::new(AtomicBool::new(false)),
             fan_curve: Arc::new(RwLock::new(fan_curve)),
-            power_cap: 0,
         };
 
         if fan_control_enabled {
             mon.start_fan_control().unwrap();
         }
-        if power_cap == -1 {
-            mon.power_cap = mon.get_power_cap();
-        }
-        else {
-            mon.set_power_cap(power_cap).unwrap();
+        if let Some(cap) = power_cap {
+            mon.set_power_cap(cap);
         }
 
         mon
     }
+    
+    pub fn get_fan_max_speed(&self) -> Option<i64> {
+        match fs::read_to_string(self.hwmon_path.join("fan1_max")) {
+            Ok(speed) => Some(speed.trim().parse().unwrap()),
+            Err(_) => None,
+        }
+    }
 
-    pub fn get_fan_speed(&self) -> i64 {
+    pub fn get_fan_speed(&self) -> Option<i64> {
         /*if self.fan_control.load(Ordering::SeqCst) {
             let pwm1 = fs::read_to_string(self.hwmon_path.join("pwm1"))
                 .expect("Couldn't read pwm1")
@@ -79,89 +75,89 @@ impl HWMon {
                 .unwrap()
         }*/
         match fs::read_to_string(self.hwmon_path.join("fan1_input")) {
-            Ok(a) => a.trim().parse::<i64>().unwrap(),
-            _ => 0,
+            Ok(a) => Some(a.trim().parse::<i64>().unwrap()),
+            _ => None,
         }
     }
 
-    pub fn get_mem_freq(&self) -> i64 {
+    pub fn get_mem_freq(&self) -> Option<i64> {
         let filename = self.hwmon_path.join("freq2_input");
 
         match fs::read_to_string(filename) {
-            Ok(a) => a
+            Ok(freq) => Some(freq
                 .trim()
                 .parse::<i64>()
                 .unwrap()
                 / 1000
-                / 1000,
-            _ => 0,
+                / 1000),
+            Err(_) => None,
         }
     }
 
-    pub fn get_gpu_freq(&self) -> i64 {
+    pub fn get_gpu_freq(&self) -> Option<i64> {
         let filename = self.hwmon_path.join("freq1_input");
 
         match fs::read_to_string(filename) {
-            Ok(a) => a
+            Ok(freq) => Some(freq
                 .trim()
                 .parse::<i64>()
                 .unwrap()
                 / 1000
-                / 1000,
-            _ => 0,
+                / 1000),
+            Err(_) => None,
         }
     }
 
-    pub fn get_gpu_temp(&self) -> i64 {
+    pub fn get_gpu_temp(&self) -> Option<i64> {
         let filename = self.hwmon_path.join("temp1_input");
 
         match fs::read_to_string(filename) {
-            Ok(a) => a
+            Ok(temp) => Some(temp
                 .trim()
                 .parse::<i64>()
                 .unwrap()
-                / 1000,
-            _ => 0,
+                / 1000),
+            Err(_) => None,
         }
     }
 
-    pub fn get_voltage(&self) -> i64 {
+    pub fn get_voltage(&self) -> Option<i64> {
         let filename = self.hwmon_path.join("in0_input");
         
         match fs::read_to_string(filename) {
-            Ok(a) => a.trim().parse::<i64>().unwrap(),
-            Err(_) => 0,
+            Ok(voltage) => Some(voltage.trim().parse::<i64>().unwrap()),
+            Err(_) => None,
         }
     }
 
-    pub fn get_power_cap_max(&self) -> i64 {
+    pub fn get_power_cap_max(&self) -> Option<i64> {
         let filename = self.hwmon_path.join("power1_cap_max");
 
         match fs::read_to_string(filename) {
-            Ok(a) => a
+            Ok(power_cap) => Some(power_cap
                 .trim()
                 .parse::<i64>()
                 .unwrap()
-                / 1000000,
-            _ => 0,
+                / 1000000),
+            _ => None,
         }
     }
 
-    pub fn get_power_cap(&self) -> i64 {
+    pub fn get_power_cap(&self) -> Option<i64> {
         let filename = self.hwmon_path.join("power1_cap");
 
         match fs::read_to_string(filename) {
-            Ok(a) => a
+            Ok(a) => Some(a
                 .trim()
                 .parse::<i64>()
                 .unwrap()
-                / 1000000,
-            _ => 0,
+                / 1000000),
+            _ => None,
         }
     }
 
     pub fn set_power_cap(&mut self, cap: i64) -> Result<(), HWMonError> {
-        if cap > self.get_power_cap_max() {
+        if cap > self.get_power_cap_max().ok_or_else(|| HWMonError::Unsupported)? {
             return Err(HWMonError::InvalidValue);
         }
         
@@ -169,24 +165,21 @@ impl HWMon {
         log::trace!("setting power cap to {}", cap);
 
         match fs::write(self.hwmon_path.join("power1_cap"), cap.to_string()) {
-            Ok(_) => {
-                self.power_cap = cap;
-                Ok(())
-            },
+            Ok(_) => Ok(()),
             Err(_) => Err(HWMonError::PermissionDenied),
         }
     }
 
-    pub fn get_power_avg(&self) -> i64 {
+    pub fn get_power_avg(&self) -> Option<i64> {
         let filename = self.hwmon_path.join("power1_average");
 
         match fs::read_to_string(filename) {
-            Ok(a) => a
+            Ok(a) => Some(a
                 .trim()
                 .parse::<i64>()
                 .unwrap()
-                / 1000000,
-            Err(_) => 0,
+                / 1000000),
+            Err(_) => None,
         }
     }
 
@@ -215,8 +208,9 @@ impl HWMon {
                     while s.fan_control.load(Ordering::SeqCst) {
                         let curve = s.fan_curve.read().unwrap();
 
-                        let temp = s.get_gpu_temp();
+                        let temp = s.get_gpu_temp().unwrap();
                         log::trace!("Current gpu temp: {}", temp);
+
                         for (t_low, s_low) in curve.iter() {
                             match curve.range(t_low..).nth(1) {
                                 Some((t_high, s_high)) => {

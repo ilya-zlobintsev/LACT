@@ -98,11 +98,11 @@ impl Daemon {
                     log::info!("Initializing {:?}", entry.path());
 
                     let mut controller = GpuController::new(entry.path().join("device"), GpuConfig::new());
-                    let gpu_info = controller.get_info();
+                    let gpu_info = &controller.gpu_info;
 
                     for (id, (gpu_identifier, gpu_config)) in &config.gpu_configs {
                         if gpu_info.pci_slot == gpu_identifier.pci_id && gpu_info.vendor_data.card_model == gpu_identifier.card_model && gpu_info.vendor_data.gpu_model == gpu_identifier.gpu_model {
-                            controller.load_config(gpu_config.clone());
+                            controller.load_config(&gpu_config);
                             gpu_controllers.insert(id.clone(), controller);
                             log::info!("already known");
                             continue 'entries;
@@ -163,16 +163,19 @@ impl Daemon {
                     Action::GetGpus => {
                         let mut gpus: HashMap<u32, Option<String>> = HashMap::new();
                         for (id, controller) in &self.gpu_controllers {
-                            gpus.insert(*id, controller.get_info().vendor_data.gpu_model.clone());
+                            gpus.insert(*id, controller.gpu_info.vendor_data.gpu_model.clone());
                         }
                         Ok(DaemonResponse::Gpus(gpus))
                     },
                     Action::GetStats(i) => match self.gpu_controllers.get(&i) {
-                        Some(controller) => Ok(DaemonResponse::GpuStats(controller.get_stats())),
+                        Some(controller) => match controller.get_stats() {
+                            Ok(stats) => Ok(DaemonResponse::GpuStats(stats)),
+                            Err(e) => Err(DaemonError::HWMonError),
+                        },
                         None => Err(DaemonError::InvalidID),
                     },
                     Action::GetInfo(i) => match self.gpu_controllers.get(&i) {
-                        Some(controller) => Ok(DaemonResponse::GpuInfo(controller.get_info())),
+                        Some(controller) => Ok(DaemonResponse::GpuInfo(controller.gpu_info.clone())),
                         None => Err(DaemonError::InvalidID),
                     },
                     Action::StartFanControl(i) => match self.gpu_controllers.get_mut(&i) {

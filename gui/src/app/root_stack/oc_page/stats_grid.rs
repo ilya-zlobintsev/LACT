@@ -111,15 +111,15 @@ impl StatsGrid {
     }
     
     pub fn set_stats(&self, stats: &GpuStats) {
-        self.vram_usage_bar.set_value(stats.mem_used as f64 / stats.mem_total as f64);
-        self.vram_usage_label.set_text(&format!("{}/{} MiB", stats.mem_used, stats.mem_total));
+        self.vram_usage_bar.set_value(stats.mem_used.unwrap_or_else(|| 0) as f64 / stats.mem_total.unwrap_or_else(|| 0) as f64);
+        self.vram_usage_label.set_text(&format!("{}/{} MiB", stats.mem_used.unwrap_or_else(|| 0), stats.mem_total.unwrap_or_else(|| 0)));
         
-        self.gpu_clock_label.set_markup(&format!("<b>{}MHz</b>", stats.gpu_freq));
+        self.gpu_clock_label.set_markup(&format!("<b>{}MHz</b>", stats.gpu_freq.unwrap_or_else(|| 0)));
         
-        self.vram_clock_label.set_markup(&format!("<b>{}MHz</b>", stats.mem_freq));
+        self.vram_clock_label.set_markup(&format!("<b>{}MHz</b>", stats.mem_freq.unwrap_or_else(|| 0)));
         
-        self.gpu_voltage_label.set_markup(&format!("<b>{}V</b>", stats.voltage as f64 / 1000f64));
+        self.gpu_voltage_label.set_markup(&format!("<b>{}V</b>", stats.voltage.unwrap_or_else(|| 0) as f64 / 1000f64));
         
-        self.power_usage_label.set_markup(&format!("<b>{}/{}W</b>", stats.power_avg, stats.power_cap));
+        self.power_usage_label.set_markup(&format!("<b>{}/{}W</b>", stats.power_avg.unwrap_or_else(|| 0), stats.power_cap.unwrap_or_else(|| 0)));
     }
 }

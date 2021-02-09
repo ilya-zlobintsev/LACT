@@ -91,17 +91,17 @@ impl ClocksTable {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GpuStats {
-    pub mem_used: u64,
-    pub mem_total: u64,
-    pub mem_freq: i64,
-    pub gpu_freq: i64,
-    pub gpu_temp: i64,
-    pub power_avg: i64,
-    pub power_cap: i64,
-    pub power_cap_max: i64,
-    pub fan_speed: i64,
-    pub max_fan_speed: i64,
-    pub voltage: i64,
+    pub mem_used: Option<u64>,
+    pub mem_total: Option<u64>,
+    pub mem_freq: Option<i64>,
+    pub gpu_freq: Option<i64>,
+    pub gpu_temp: Option<i64>,
+    pub power_avg: Option<i64>,
+    pub power_cap: Option<i64>,
+    pub power_cap_max: Option<i64>,
+    pub fan_speed: Option<i64>,
+    pub max_fan_speed: Option<i64>,
+    pub voltage: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -109,15 +109,6 @@ pub struct FanControlInfo {
     pub enabled: bool,
     pub curve: BTreeMap<i64, f64>,
 }
-
-#[derive(Deserialize, Serialize)]
-pub struct GpuController {
-    pub hw_path: PathBuf,
-    hw_mon: Option<HWMon>,
-    //pub gpu_info: GpuInfo,
-    config: GpuConfig,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct VulkanInfo {
     pub device_name: String,
@@ -141,20 +132,32 @@ pub struct GpuInfo {
     pub clocks_table: Option<ClocksTable>,
 }
 
+
+#[derive(Deserialize, Serialize)]
+pub struct GpuController {
+    pub hw_path: PathBuf,
+    hw_mon: Option<HWMon>,
+    pub gpu_info: GpuInfo,
+    config: GpuConfig,
+}
+
 impl GpuController {
     pub fn new(hw_path: PathBuf, config: GpuConfig) -> Self {
         let mut controller = GpuController {
             hw_path: hw_path.clone(),
             hw_mon: None,
             config: GpuConfig::new(),
+            gpu_info: GpuInfo::default(),
         };
 
-        controller.load_config(config);
+        controller.gpu_info = controller.get_info();
+
+        controller.load_config(&config);
 
         controller
     }
 
-    pub fn load_config(&mut self, config: GpuConfig) {
+    pub fn load_config(&mut self, config: &GpuConfig) {
         self.hw_mon = match fs::read_dir(self.hw_path.join("hwmon")) {
             Ok(mut path) => {
                 let path = path.next().unwrap().unwrap().path();
@@ -162,7 +165,7 @@ impl GpuController {
                     &path,
                     config.fan_control_enabled,
                     config.fan_curve.clone(),
-                    config.power_cap,
+                    Some(config.power_cap),
                 );
                 Some(hw_mon)
             }
@@ -197,7 +200,7 @@ impl GpuController {
         }
     }
 
-    pub fn get_info(&self) -> GpuInfo {
+    fn get_info(&self) -> GpuInfo {
         let uevent =
             fs::read_to_string(self.hw_path.join("uevent")).expect("Failed to read uevent");
 
@@ -293,15 +296,15 @@ impl GpuController {
         }
     }
 
-    pub fn get_stats(&self) -> GpuStats {
+    pub fn get_stats(&self) -> Result<GpuStats, HWMonError> {
         let mem_total = match fs::read_to_string(self.hw_path.join("mem_info_vram_total")) {
-            Ok(a) => a.trim().parse::<u64>().unwrap() / 1024 / 1024,
-            Err(_) => 0,
+            Ok(a) => Some(a.trim().parse::<u64>().unwrap() / 1024 / 1024),
+            Err(_) => None,
         };
 
         let mem_used = match fs::read_to_string(self.hw_path.join("mem_info_vram_used")) {
-            Ok(a) => a.trim().parse::<u64>().unwrap() / 1024 / 1024,
-            Err(_) => 0,
+            Ok(a) => Some(a.trim().parse::<u64>().unwrap() / 1024 / 1024),
+            Err(_) => None,
         };
 
         let (
@@ -323,13 +326,13 @@ impl GpuController {
                 hw_mon.get_power_cap(),
                 hw_mon.get_power_cap_max(),
                 hw_mon.get_fan_speed(),
-                hw_mon.fan_max_speed,
+                hw_mon.get_fan_max_speed(),
                 hw_mon.get_voltage(),
             ),
-            None => (0, 0, 0, 0, 0, 0, 0, 0, 0),
+            None => return Err(HWMonError::NoHWMon),
         };
 
-        GpuStats {
+        Ok(GpuStats {
             mem_total,
             mem_used,
             mem_freq,
@@ -341,7 +344,7 @@ impl GpuController {
             fan_speed,
             max_fan_speed,
             voltage,
-        }
+        })
     }
 
     pub fn start_fan_control(&mut self) -> Result<(), HWMonError> {
@@ -372,13 +375,16 @@ impl GpuController {
 
     pub fn get_fan_control(&self) -> Result<FanControlInfo, HWMonError> {
         match &self.hw_mon {
-            Some(hw_mon) => {
-                let control = hw_mon.get_fan_control();
-                Ok(FanControlInfo {
-                    enabled: control.0,
-                    curve: control.1,
-                })
-            }
+            Some(hw_mon) => match hw_mon.get_fan_speed() {
+                Some(_) => {
+                    let control = hw_mon.get_fan_control();
+                    Ok(FanControlInfo {
+                        enabled: control.0,
+                        curve: control.1,
+                    })
+                }
+                None => Err(HWMonError::Unsupported),
+            },
             None => Err(HWMonError::NoHWMon),
         }
     }
@@ -407,7 +413,16 @@ impl GpuController {
 
     pub fn get_power_cap(&self) -> Result<(i64, i64), HWMonError> {
         match &self.hw_mon {
-            Some(hw_mon) => Ok((hw_mon.get_power_cap(), hw_mon.get_power_cap_max())),
+            Some(hw_mon) => {
+                let min = hw_mon
+                    .get_power_cap()
+                    .ok_or_else(|| HWMonError::Unsupported)?;
+                let max = hw_mon
+                    .get_power_cap_max()
+                    .ok_or_else(|| HWMonError::Unsupported)?;
+
+                Ok((min, max))
+            }
             None => Err(HWMonError::NoHWMon),
         }
     }
