@@ -135,6 +135,8 @@ impl App {
                 .set_ventilation_info(fan_control_info),
             Err(_) => self.root_stack.thermals_page.hide_fan_controls(),
         }
+        
+        self.apply_revealer.hide();
     }
 
     fn start_stats_update_loop(&self, current_gpu_id: Arc<AtomicU32>) {
