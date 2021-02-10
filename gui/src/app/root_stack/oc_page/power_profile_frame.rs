@@ -1,4 +1,4 @@
-use daemon::{config::GpuConfig, gpu_controller::PowerProfile};
+use daemon::gpu_controller::PowerProfile;
 use gtk::*;
 use prelude::ComboBoxExtManual;
 

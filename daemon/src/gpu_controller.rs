@@ -137,7 +137,7 @@ pub struct GpuInfo {
 pub struct GpuController {
     pub hw_path: PathBuf,
     hw_mon: Option<HWMon>,
-    pub gpu_info: GpuInfo,
+    gpu_info: GpuInfo,
     config: GpuConfig,
 }
 
@@ -150,7 +150,7 @@ impl GpuController {
             gpu_info: GpuInfo::default(),
         };
 
-        controller.gpu_info = controller.get_info();
+        controller.gpu_info = controller.get_info_initial();
 
         controller.load_config(&config);
 
@@ -199,8 +199,24 @@ impl GpuController {
             path: self.hw_path.clone(),
         }
     }
+    
+    pub fn get_info(&self) -> GpuInfo {
+        let mut info = self.gpu_info.clone();
+        
+        info.power_profile = match self.get_power_profile() {
+            Ok(p) => Some(p),
+            Err(_) => None,
+        };
 
-    fn get_info(&self) -> GpuInfo {
+        info.clocks_table = match self.get_clocks_table() {
+            Ok(t) => Some(t),
+            Err(_) => None,
+        };
+
+        info
+    }
+
+    fn get_info_initial(&self) -> GpuInfo {
         let uevent =
             fs::read_to_string(self.hw_path.join("uevent")).expect("Failed to read uevent");
 
@@ -262,16 +278,6 @@ impl GpuController {
 
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
 
-        let power_profile = match self.get_power_profile() {
-            Ok(p) => Some(p),
-            Err(_) => None,
-        };
-
-        let clocks_table = match self.get_clocks_table() {
-            Ok(t) => Some(t),
-            Err(_) => None,
-        };
-
         let vendor_data =
             match VendorData::from_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
                 Ok(data) => data,
@@ -291,8 +297,8 @@ impl GpuController {
             link_width,
             vulkan_info,
             pci_slot,
-            power_profile,
-            clocks_table,
+            power_profile: None,
+            clocks_table: None,
         }
     }
 
