@@ -179,5 +179,7 @@ impl InformationPage {
         ));
         
         self.vulkan_info_frame.set_info(&gpu_info.vulkan_info);
+        
+        self.container.show_all();
     }
 }

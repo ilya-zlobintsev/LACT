@@ -100,10 +100,13 @@ impl VulkanInfoFrame {
     }
 
     pub fn set_info(&self, vulkan_info: &VulkanInfo) {
+        log::trace!("Setting vulkan info: {:?}", vulkan_info);
+
         self.device_name_label
             .set_markup(&format!("<b>{}</b>", vulkan_info.device_name));
         self.version_label
             .set_markup(&format!("<b>{}</b>", vulkan_info.api_version));
+
 
         for (feature, supported) in vulkan_info.features.iter() {
             let vbox = Box::new(Orientation::Horizontal, 5);
