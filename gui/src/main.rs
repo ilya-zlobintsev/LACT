@@ -7,6 +7,7 @@ use gtk::*;
 mod app;
 
 fn main() {
+    env_logger::init();
     if gtk::init().is_err() {
         panic!("Cannot initialize GTK");
     }

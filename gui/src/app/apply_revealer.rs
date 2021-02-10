@@ -33,8 +33,6 @@ impl ApplyRevealer {
     }
 
     pub fn connect_apply_button_clicked<F: Fn() + 'static>(&self, f: F) {
-        let apply_revealer = self.container.clone();
-
         self.apply_button.connect_clicked(move |_| {
             f();
         });

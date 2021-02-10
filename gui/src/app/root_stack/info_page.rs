@@ -50,7 +50,7 @@ impl InformationPage {
 
         container.attach(
             &{
-                let label = Label::new(Some("GPU Model:"));
+                let label = Label::new(Some("GPU Manufacturer:"));
                 label.set_halign(Align::End);
                 label
             },
@@ -152,14 +152,14 @@ impl InformationPage {
         }
     }
 
-    pub fn set_info(&self, gpu_info: GpuInfo) {
+    pub fn set_info(&self, gpu_info: &GpuInfo) {
         self.gpu_name_label.set_markup(&format!(
             "<b>{}</b>",
-            gpu_info.vendor_data.card_model.unwrap_or_default()
+            gpu_info.vendor_data.card_model.clone().unwrap_or_default()
         ));
         self.gpu_manufacturer_label.set_markup(&format!(
             "<b>{}</b>",
-            gpu_info.vendor_data.card_vendor.unwrap_or_default()
+            gpu_info.vendor_data.card_vendor.clone().unwrap_or_default()
         ));
         self.vbios_version_label.set_markup(&format!(
             "<b>{}</b>",

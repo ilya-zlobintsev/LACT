@@ -74,6 +74,7 @@ impl App {
             let app = self.clone();
 
             self.header.connect_gpu_selection_changed(move |gpu_id| {
+                log::info!("GPU Selection changed");
                 app.set_info(gpu_id);
                 current_gpu_id.store(gpu_id, Ordering::SeqCst);
             });
@@ -86,11 +87,20 @@ impl App {
         // Show apply button on setting changes
         {
             let apply_revealer = self.apply_revealer.clone();
+
             self.root_stack
                 .thermals_page
                 .connect_settings_changed(move || {
+                    log::trace!("Settings changed, showing apply button");
                     apply_revealer.show();
                 });
+
+            let apply_revealer = self.apply_revealer.clone();
+
+            self.root_stack.oc_page.connect_settings_changed(move || {
+                log::trace!("Settings changed, showing apply button");
+                apply_revealer.show();
+            });
         }
 
         // Apply settings
@@ -99,18 +109,32 @@ impl App {
             let app = self.clone();
 
             self.apply_revealer.connect_apply_button_clicked(move || {
+                log::info!("Applying settings");
+
                 let gpu_id = current_gpu_id.load(Ordering::SeqCst);
 
-                let thermals_settings = app.root_stack.thermals_page.get_thermals_settings();
+                {
+                    let thermals_settings = app.root_stack.thermals_page.get_thermals_settings();
 
-                if thermals_settings.automatic_fan_control_enabled {
-                    app.daemon_connection
-                        .stop_fan_control(gpu_id)
-                        .expect("Failed to top fan control");
-                } else {
-                    app.daemon_connection
-                        .start_fan_control(gpu_id)
-                        .expect("Failed to start fan control");
+                    if thermals_settings.automatic_fan_control_enabled {
+                        app.daemon_connection
+                            .stop_fan_control(gpu_id)
+                            .expect("Failed to top fan control");
+                    } else {
+                        app.daemon_connection
+                            .start_fan_control(gpu_id)
+                            .expect("Failed to start fan control");
+                    }
+                }
+
+                {
+                    let power_profile = app.root_stack.oc_page.get_power_profile();
+
+                    if let Some(profile) = power_profile {
+                        app.daemon_connection
+                            .set_power_profile(gpu_id, profile)
+                            .expect("Failed to set power profile");
+                    }
                 }
 
                 app.set_info(gpu_id);
@@ -126,7 +150,14 @@ impl App {
 
     fn set_info(&self, gpu_id: u32) {
         let gpu_info = self.daemon_connection.get_gpu_info(gpu_id).unwrap();
-        self.root_stack.info_page.set_info(gpu_info);
+        log::trace!("Setting info {:?}", &gpu_info);
+
+        self.root_stack.info_page.set_info(&gpu_info);
+
+        log::trace!("Setting power profile {:?}", gpu_info.power_profile);
+        self.root_stack
+            .oc_page
+            .set_power_profile(&gpu_info.power_profile);
 
         match self.daemon_connection.get_fan_control(gpu_id) {
             Ok(fan_control_info) => self
@@ -135,11 +166,12 @@ impl App {
                 .set_ventilation_info(fan_control_info),
             Err(_) => self.root_stack.thermals_page.hide_fan_controls(),
         }
-        
+
         self.apply_revealer.hide();
     }
 
     fn start_stats_update_loop(&self, current_gpu_id: Arc<AtomicU32>) {
+        // The loop that gets stats
         let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
         {
             let daemon_connection = self.daemon_connection.clone();
@@ -155,6 +187,7 @@ impl App {
             });
         }
 
+        // Receiving stats into the gui event loop
         {
             let thermals_page = self.root_stack.thermals_page.clone();
             let oc_page = self.root_stack.oc_page.clone();
@@ -162,6 +195,7 @@ impl App {
             receiver.attach(None, move |msg| {
                 match msg {
                     GuiUpdateMsg::GpuStats(stats) => {
+                        log::trace!("New stats received, updating");
                         thermals_page.set_thermals_info(&stats);
                         oc_page.set_stats(&stats);
                     } /*GuiUpdateMsg::FanControlInfo(fan_control_info) => {
