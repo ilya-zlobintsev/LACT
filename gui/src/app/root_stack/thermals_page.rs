@@ -1,5 +1,7 @@
 mod fan_curve_frame;
 
+use std::collections::BTreeMap;
+
 use daemon::gpu_controller::{FanControlInfo, GpuStats};
 use gtk::prelude::*;
 use gtk::*;
@@ -8,6 +10,7 @@ use fan_curve_frame::FanCurveFrame;
 
 pub struct ThermalsSettings {
     pub automatic_fan_control_enabled: bool,
+    pub curve: BTreeMap<i64, f64>,
 }
 
 #[derive(Clone)]
@@ -94,6 +97,19 @@ impl ThermalsPage {
 
         container.pack_start(&fan_curve_frame.container, true, true, 5);
 
+        // Show/hide fan curve when the switch is toggled
+        {
+            let fan_curve_frame = fan_curve_frame.clone();
+            fan_control_enabled_switch.connect_changed_active(move |switch| {
+                log::trace!("Fan control switch toggled");
+                if switch.get_active() {
+                    fan_curve_frame.hide();
+                } else {
+                    fan_curve_frame.show();
+                }
+            });
+        }
+
         Self {
             container,
             temp_label,
@@ -120,36 +136,51 @@ impl ThermalsPage {
     }
 
     pub fn set_ventilation_info(&self, fan_control_info: FanControlInfo) {
+        log::info!("Setting fan control info {:?}", fan_control_info);
+
         self.fan_control_enabled_switch.set_visible(true);
-        self.fan_curve_frame.container.set_visible(true);
 
         self.fan_control_enabled_switch
             .set_active(!fan_control_info.enabled);
-
-        if fan_control_info.enabled {
-            self.fan_curve_frame.container.set_visible(true);
-        } else {
-            self.fan_curve_frame.container.set_visible(false);
+        
+        if !fan_control_info.enabled {
+            self.fan_curve_frame.hide();
         }
+
+        self.fan_curve_frame.set_curve(&fan_control_info.curve);
     }
 
-    pub fn connect_settings_changed<F: Fn() + 'static>(&self, f: F) {
-        self.fan_control_enabled_switch
-            .connect_changed_active(move |_| {
+    pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
+        // Fan control switch toggled
+        {
+            let f = f.clone();
+            self.fan_control_enabled_switch
+                .connect_changed_active(move |_| {
+                    f();
+                });
+        }
+
+        // Fan curve adjusted
+        {
+            let f = f.clone();
+            self.fan_curve_frame.connect_adjusted(move || {
                 f();
             });
+        }
     }
 
     pub fn get_thermals_settings(&self) -> ThermalsSettings {
         let automatic_fan_control_enabled = self.fan_control_enabled_switch.get_active();
+        let curve = self.fan_curve_frame.get_curve();
 
         ThermalsSettings {
             automatic_fan_control_enabled,
+            curve,
         }
     }
-    
+
     pub fn hide_fan_controls(&self) {
         self.fan_control_enabled_switch.set_visible(false);
-        self.fan_curve_frame.container.set_visible(false);
+        self.fan_curve_frame.hide();
     }
 }

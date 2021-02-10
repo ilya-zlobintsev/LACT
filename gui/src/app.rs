@@ -67,6 +67,8 @@ impl App {
     }
 
     pub fn run(&self) -> Result<(), DaemonError> {
+        self.window.show_all();
+
         let current_gpu_id = Arc::new(AtomicU32::new(0));
 
         {
@@ -91,14 +93,14 @@ impl App {
             self.root_stack
                 .thermals_page
                 .connect_settings_changed(move || {
-                    log::trace!("Settings changed, showing apply button");
+                    log::info!("Settings changed, showing apply button");
                     apply_revealer.show();
                 });
 
             let apply_revealer = self.apply_revealer.clone();
 
             self.root_stack.oc_page.connect_settings_changed(move || {
-                log::trace!("Settings changed, showing apply button");
+                log::info!("Settings changed, showing apply button");
                 apply_revealer.show();
             });
         }
@@ -119,12 +121,16 @@ impl App {
                     if thermals_settings.automatic_fan_control_enabled {
                         app.daemon_connection
                             .stop_fan_control(gpu_id)
-                            .expect("Failed to top fan control");
+                            .expect("Failed to stop fan control");
                     } else {
                         app.daemon_connection
                             .start_fan_control(gpu_id)
                             .expect("Failed to start fan control");
                     }
+
+                    app.daemon_connection
+                        .set_fan_curve(gpu_id, thermals_settings.curve)
+                        .expect("Failed to set fan curve");
                 }
 
                 {
@@ -143,8 +149,6 @@ impl App {
 
         self.start_stats_update_loop(current_gpu_id.clone());
 
-        self.window.show_all();
-
         Ok(gtk::main())
     }
 
@@ -159,6 +163,7 @@ impl App {
             .oc_page
             .set_power_profile(&gpu_info.power_profile);
 
+        log::trace!("Setting fan control info");
         match self.daemon_connection.get_fan_control(gpu_id) {
             Ok(fan_control_info) => self
                 .root_stack
