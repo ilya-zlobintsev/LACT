@@ -81,7 +81,7 @@ impl PciDatabase {
 
         match Self::read_pci_db() {
             Some(pci_ids) => {
-                log::trace!("Parsing pci.ids");
+                log::info!("Parsing pci.ids");
 
                 let mut vendors: HashMap<String, PciVendor> = HashMap::new();
 

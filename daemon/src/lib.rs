@@ -5,15 +5,18 @@ pub mod hw_mon;
 
 use config::{Config, GpuConfig};
 use gpu_controller::PowerProfile;
+use rand::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{collections::{BTreeMap, HashMap}, fs};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::Command;
+use std::{
+    collections::{BTreeMap, HashMap},
+    fs,
+};
 use std::{
     io::{Read, Write},
     path::PathBuf,
 };
-use rand::prelude::*;
 
 use crate::gpu_controller::GpuController;
 
@@ -40,6 +43,8 @@ pub enum Action {
     SetPowerProfile(u32, PowerProfile),
     SetGPUPowerState(u32, u32, i64, Option<i64>),
     SetVRAMPowerState(u32, u32, i64, Option<i64>),
+    SetGPUMaxPowerState(u32, i64, Option<i64>),
+    SetVRAMMaxClock(u32, i64),
     CommitGPUPowerStates(u32),
     ResetGPUPowerStates(u32),
     Shutdown,
@@ -59,6 +64,12 @@ impl Daemon {
             .output()
             .expect("Failed to chmod");
         
+        Command::new("chown")
+            .arg("nobody:wheel")
+            .arg(SOCK_PATH)
+            .output()
+            .expect("Failed to chown");
+
         Command::new("chown")
             .arg("nobody:wheel")
             .arg(SOCK_PATH)
@@ -91,18 +102,24 @@ impl Daemon {
             }
         }*/
 
-        'entries: for entry in fs::read_dir("/sys/class/drm").expect("Could not open /sys/class/drm") {
+        'entries: for entry in
+            fs::read_dir("/sys/class/drm").expect("Could not open /sys/class/drm")
+        {
             let entry = entry.unwrap();
             if entry.file_name().len() == 5 {
                 if entry.file_name().to_str().unwrap().split_at(4).0 == "card" {
                     log::info!("Initializing {:?}", entry.path());
 
-                    let mut controller = GpuController::new(entry.path().join("device"), GpuConfig::new());
-                    let gpu_info = controller.get_info();
+                    let mut controller =
+                        GpuController::new(entry.path().join("device"), GpuConfig::new());
+                    let gpu_info = &controller.get_info();
 
                     for (id, (gpu_identifier, gpu_config)) in &config.gpu_configs {
-                        if gpu_info.pci_slot == gpu_identifier.pci_id && gpu_info.vendor_data.card_model == gpu_identifier.card_model && gpu_info.vendor_data.gpu_model == gpu_identifier.gpu_model {
-                            controller.load_config(gpu_config.clone());
+                        if gpu_info.pci_slot == gpu_identifier.pci_id
+                            && gpu_info.vendor_data.card_model == gpu_identifier.card_model
+                            && gpu_info.vendor_data.gpu_model == gpu_identifier.gpu_model
+                        {
+                            controller.load_config(&gpu_config);
                             gpu_controllers.insert(id.clone(), controller);
                             log::info!("already known");
                             continue 'entries;
@@ -113,7 +130,9 @@ impl Daemon {
 
                     let id: u32 = random();
 
-                    config.gpu_configs.insert(id, (controller.get_identifier(), controller.get_config()));
+                    config
+                        .gpu_configs
+                        .insert(id, (controller.get_identifier(), controller.get_config()));
                     gpu_controllers.insert(id, controller);
                 }
             }
@@ -166,33 +185,44 @@ impl Daemon {
                             gpus.insert(*id, controller.get_info().vendor_data.gpu_model.clone());
                         }
                         Ok(DaemonResponse::Gpus(gpus))
-                    },
+                    }
                     Action::GetStats(i) => match self.gpu_controllers.get(&i) {
-                        Some(controller) => Ok(DaemonResponse::GpuStats(controller.get_stats())),
+                        Some(controller) => match controller.get_stats() {
+                            Ok(stats) => Ok(DaemonResponse::GpuStats(stats)),
+                            Err(_) => Err(DaemonError::HWMonError),
+                        },
                         None => Err(DaemonError::InvalidID),
                     },
                     Action::GetInfo(i) => match self.gpu_controllers.get(&i) {
-                        Some(controller) => Ok(DaemonResponse::GpuInfo(controller.get_info())),
+                        Some(controller) => {
+                            Ok(DaemonResponse::GpuInfo(controller.get_info().clone()))
+                        }
                         None => Err(DaemonError::InvalidID),
                     },
                     Action::StartFanControl(i) => match self.gpu_controllers.get_mut(&i) {
                         Some(controller) => match controller.start_fan_control() {
                             Ok(_) => {
-                                self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
+                                self.config.gpu_configs.insert(
+                                    i,
+                                    (controller.get_identifier(), controller.get_config()),
+                                );
                                 self.config.save().unwrap();
                                 Ok(DaemonResponse::OK)
-                            },
+                            }
                             Err(_) => Err(DaemonError::HWMonError),
-                        }
+                        },
                         None => Err(DaemonError::InvalidID),
                     },
                     Action::StopFanControl(i) => match self.gpu_controllers.get_mut(&i) {
                         Some(controller) => match controller.stop_fan_control() {
                             Ok(_) => {
-                                self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
+                                self.config.gpu_configs.insert(
+                                    i,
+                                    (controller.get_identifier(), controller.get_config()),
+                                );
                                 self.config.save().unwrap();
                                 Ok(DaemonResponse::OK)
-                            },
+                            }
                             Err(_) => Err(DaemonError::HWMonError),
                         },
                         None => Err(DaemonError::InvalidID),
@@ -201,109 +231,158 @@ impl Daemon {
                         Some(controller) => match controller.get_fan_control() {
                             Ok(info) => Ok(DaemonResponse::FanControlInfo(info)),
                             Err(_) => Err(DaemonError::HWMonError),
-                        }
+                        },
                         None => Err(DaemonError::InvalidID),
-                    }
+                    },
                     Action::SetFanCurve(i, curve) => match self.gpu_controllers.get_mut(&i) {
-                        Some(controller) => {
-                            
-                            match controller.set_fan_curve(curve) {
-                                Ok(_) => {
-                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
-                                    self.config.save().unwrap();
-                                    Ok(DaemonResponse::OK)
-                                },
-                                Err(_) => Err(DaemonError::HWMonError),
+                        Some(controller) => match controller.set_fan_curve(curve) {
+                            Ok(_) => {
+                                self.config.gpu_configs.insert(
+                                    i,
+                                    (controller.get_identifier(), controller.get_config()),
+                                );
+                                self.config.save().unwrap();
+                                Ok(DaemonResponse::OK)
                             }
-                            
+                            Err(_) => Err(DaemonError::HWMonError),
                         },
                         None => Err(DaemonError::InvalidID),
-                    }
+                    },
                     Action::SetPowerCap(i, cap) => match self.gpu_controllers.get_mut(&i) {
-                        Some(controller) => {
-                            match controller.set_power_cap(cap) {
-                                Ok(_) => {
-                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
-                                    self.config.save().unwrap();
-                                    Ok(DaemonResponse::OK)
-                                },
-                                Err(_) => Err(DaemonError::HWMonError),
+                        Some(controller) => match controller.set_power_cap(cap) {
+                            Ok(_) => {
+                                self.config.gpu_configs.insert(
+                                    i,
+                                    (controller.get_identifier(), controller.get_config()),
+                                );
+                                self.config.save().unwrap();
+                                Ok(DaemonResponse::OK)
                             }
+                            Err(_) => Err(DaemonError::HWMonError),
                         },
                         None => Err(DaemonError::InvalidID),
-                    }
+                    },
                     Action::GetPowerCap(i) => match self.gpu_controllers.get(&i) {
                         Some(controller) => match controller.get_power_cap() {
                             Ok(cap) => Ok(DaemonResponse::PowerCap(cap)),
                             Err(_) => Err(DaemonError::HWMonError),
-                        }
+                        },
                         None => Err(DaemonError::InvalidID),
-                    }
+                    },
                     Action::SetPowerProfile(i, profile) => match self.gpu_controllers.get_mut(&i) {
-                        Some(controller) => {
-                            match controller.set_power_profile(profile) {
-                                Ok(_) => {
-                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
-                                    self.config.save().unwrap();
-                                    Ok(DaemonResponse::OK)
-                                },
-                                Err(_) => Err(DaemonError::ControllerError)
+                        Some(controller) => match controller.set_power_profile(profile) {
+                            Ok(_) => {
+                                self.config.gpu_configs.insert(
+                                    i,
+                                    (controller.get_identifier(), controller.get_config()),
+                                );
+                                self.config.save().unwrap();
+                                Ok(DaemonResponse::OK)
                             }
+                            Err(_) => Err(DaemonError::ControllerError),
                         },
                         None => Err(DaemonError::InvalidID),
-                    }
-                    Action::SetGPUPowerState(i, num, clockspeed, voltage) => match self.gpu_controllers.get_mut(&i) {
-                        Some(controller) => {
-                            match controller.set_gpu_power_state(num, clockspeed, voltage) {
-                                Ok(_) => {
-                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
-                                    self.config.save().unwrap();
-                                    Ok(DaemonResponse::OK)
-                                },
-                                Err(_) => Err(DaemonError::ControllerError)
+                    },
+                    Action::SetGPUPowerState(i, num, clockspeed, voltage) => {
+                        match self.gpu_controllers.get_mut(&i) {
+                            Some(controller) => {
+                                match controller.set_gpu_power_state(num, clockspeed, voltage) {
+                                    Ok(_) => {
+                                        self.config.gpu_configs.insert(
+                                            i,
+                                            (controller.get_identifier(), controller.get_config()),
+                                        );
+                                        self.config.save().unwrap();
+                                        Ok(DaemonResponse::OK)
+                                    }
+                                    Err(_) => Err(DaemonError::ControllerError),
+                                }
                             }
-                        },
-                        None => Err(DaemonError::InvalidID)
+                            None => Err(DaemonError::InvalidID),
+                        }
                     }
-                    Action::SetVRAMPowerState(i, num, clockspeed, voltage) => match self.gpu_controllers.get_mut(&i) {
-                        Some(controller) => {
-                            match controller.set_vram_power_state(num, clockspeed, voltage) {
-                                Ok(_) => {
-                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
-                                    self.config.save().unwrap();
-                                    Ok(DaemonResponse::OK)
-                                },
-                                Err(_) => Err(DaemonError::ControllerError)
+                    Action::SetVRAMPowerState(i, num, clockspeed, voltage) => {
+                        match self.gpu_controllers.get_mut(&i) {
+                            Some(controller) => {
+                                match controller.set_vram_power_state(num, clockspeed, voltage) {
+                                    Ok(_) => {
+                                        self.config.gpu_configs.insert(
+                                            i,
+                                            (controller.get_identifier(), controller.get_config()),
+                                        );
+                                        self.config.save().unwrap();
+                                        Ok(DaemonResponse::OK)
+                                    }
+                                    Err(_) => Err(DaemonError::ControllerError),
+                                }
                             }
-                        },
-                        None => Err(DaemonError::InvalidID)
+                            None => Err(DaemonError::InvalidID),
+                        }
+                    }
+                    Action::SetGPUMaxPowerState(i, clockspeed, voltage) => {
+                        match self.gpu_controllers.get_mut(&i) {
+                            Some(controller) => {
+                                match controller.set_gpu_max_power_state(clockspeed, voltage) {
+                                    Ok(()) => {
+                                        self.config.gpu_configs.insert(
+                                            i,
+                                            (controller.get_identifier(), controller.get_config()),
+                                        );
+                                        self.config.save().unwrap();
+                                        Ok(DaemonResponse::OK)
+                                    }
+                                    Err(_) => Err(DaemonError::ControllerError),
+                                }
+                            }
+                            None => Err(DaemonError::InvalidID),
+                        }
+                    }
+                    Action::SetVRAMMaxClock(i, clockspeed) => {
+                        match self.gpu_controllers.get_mut(&i) {
+                            Some(controller) => {
+                                match controller.set_vram_max_clockspeed(clockspeed) {
+                                    Ok(()) => {
+                                        self.config.gpu_configs.insert(
+                                            i,
+                                            (controller.get_identifier(), controller.get_config()),
+                                        );
+                                        self.config.save().unwrap();
+                                        Ok(DaemonResponse::OK)
+                                    }
+                                    Err(_) => Err(DaemonError::ControllerError),
+                                }
+                            }
+                            None => Err(DaemonError::InvalidID),
+                        }
                     }
                     Action::CommitGPUPowerStates(i) => match self.gpu_controllers.get_mut(&i) {
-                        Some(controller) => {
-                            match controller.commit_gpu_power_states() {
-                                Ok(_) => {
-                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
-                                    self.config.save().unwrap();
-                                    Ok(DaemonResponse::OK)
-                                },
-                                Err(_) => Err(DaemonError::ControllerError)
+                        Some(controller) => match controller.commit_gpu_power_states() {
+                            Ok(_) => {
+                                self.config.gpu_configs.insert(
+                                    i,
+                                    (controller.get_identifier(), controller.get_config()),
+                                );
+                                self.config.save().unwrap();
+                                Ok(DaemonResponse::OK)
                             }
+                            Err(_) => Err(DaemonError::ControllerError),
                         },
-                        None => Err(DaemonError::InvalidID)
-                    }
+                        None => Err(DaemonError::InvalidID),
+                    },
                     Action::ResetGPUPowerStates(i) => match self.gpu_controllers.get_mut(&i) {
-                        Some(controller) => {
-                            match controller.reset_gpu_power_states() {
-                                Ok(_) => {
-                                    self.config.gpu_configs.insert(i, (controller.get_identifier(), controller.get_config()));
-                                    self.config.save().unwrap();
-                                    Ok(DaemonResponse::OK)
-                                },
-                                Err(_) => Err(DaemonError::ControllerError)
+                        Some(controller) => match controller.reset_gpu_power_states() {
+                            Ok(_) => {
+                                self.config.gpu_configs.insert(
+                                    i,
+                                    (controller.get_identifier(), controller.get_config()),
+                                );
+                                self.config.save().unwrap();
+                                Ok(DaemonResponse::OK)
                             }
+                            Err(_) => Err(DaemonError::ControllerError),
                         },
-                        None => Err(DaemonError::InvalidID)
-                    }
+                        None => Err(DaemonError::InvalidID),
+                    },
                     Action::Shutdown => {
                         for (id, controller) in &mut self.gpu_controllers {
                             #[allow(unused_must_use)]
@@ -312,7 +391,14 @@ impl Daemon {
                                 controller.commit_gpu_power_states();
                                 controller.set_power_profile(PowerProfile::Auto);
 
-                                if self.config.gpu_configs.get(id).unwrap().1.fan_control_enabled {
+                                if self
+                                    .config
+                                    .gpu_configs
+                                    .get(id)
+                                    .unwrap()
+                                    .1
+                                    .fan_control_enabled
+                                {
                                     controller.stop_fan_control();
                                 }
                             }
@@ -323,17 +409,18 @@ impl Daemon {
                 };
 
                 log::trace!("Responding");
-                stream.write_all(&bincode::serialize(&response).unwrap()).expect("Failed writing response");
+                stream
+                    .write_all(&bincode::serialize(&response).unwrap())
+                    .expect("Failed writing response");
                 //stream
                 //    .shutdown(std::net::Shutdown::Write)
                 //    .expect("Could not shut down");
                 log::trace!("Finished responding");
-            },
+            }
             Err(_) => {
                 println!("Failed deserializing action");
             }
         }
-
     }
 }
 

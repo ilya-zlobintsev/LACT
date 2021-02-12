@@ -77,11 +77,11 @@ fn print_info(d: &DaemonConnection, gpu_id: u32) {
 
 fn print_stats(d: &DaemonConnection, gpu_id: u32) {
     let gpu_stats = d.get_gpu_stats(gpu_id).unwrap();
-    println!("{} {}/{} MiB", "VRAM Usage:".green(), gpu_stats.mem_used, gpu_stats.mem_total);
-    println!("{} {}°C", "Temperature:".green(), gpu_stats.gpu_temp);
-    println!("{} {}/{}RPM", "Fan Speed:".green(), gpu_stats.fan_speed, gpu_stats.max_fan_speed);
-    println!("{} {}MHz", "GPU Clock:".green(), gpu_stats.gpu_freq);
-    println!("{} {}V", "GPU Voltage:".green(), gpu_stats.voltage as f64 / 1000.0);
-    println!("{} {}MHz", "VRAM Clock:".green(), gpu_stats.mem_freq);
-    println!("{} {}/{}W", "Power Usage:".green(), gpu_stats.power_avg, gpu_stats.power_cap);
+    println!("{} {}/{} MiB", "VRAM Usage:".green(), gpu_stats.mem_used.unwrap_or_default(), gpu_stats.mem_total.unwrap_or_default());
+    println!("{} {}°C", "Temperature:".green(), gpu_stats.gpu_temp.unwrap_or_default());
+    println!("{} {}/{}RPM", "Fan Speed:".green(), gpu_stats.fan_speed.unwrap_or_default(), gpu_stats.max_fan_speed.unwrap_or_default());
+    println!("{} {}MHz", "GPU Clock:".green(), gpu_stats.gpu_freq.unwrap_or_default());
+    println!("{} {}V", "GPU Voltage:".green(), gpu_stats.voltage.unwrap_or_default() as f64 / 1000.0);
+    println!("{} {}MHz", "VRAM Clock:".green(), gpu_stats.mem_freq.unwrap_or_default());
+    println!("{} {}/{}W", "Power Usage:".green(), gpu_stats.power_avg.unwrap_or_default(), gpu_stats.power_cap.unwrap_or_default());
 }

@@ -1,12 +1,11 @@
 use crate::config::{GpuConfig, GpuIdentifier};
 use crate::hw_mon::{HWMon, HWMonError};
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
+use std::fs;
+use std::num::ParseIntError;
+use std::path::PathBuf;
 use vendor_data::VendorData;
-use std::{collections::BTreeMap, fs};
-use std::{
-    num::ParseIntError,
-    path::{Path, PathBuf},
-};
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
 
 pub mod vendor_data;
@@ -54,7 +53,9 @@ impl PowerProfile {
             "auto" | "Automatic" => Ok(PowerProfile::Auto),
             "high" | "Highest Clocks" => Ok(PowerProfile::High),
             "low" | "Lowest Clocks" => Ok(PowerProfile::Low),
-            _ => Err(GpuControllerError::ParseError("unrecognized GPU power profile".to_string())),
+            _ => Err(GpuControllerError::ParseError(
+                "unrecognized GPU power profile".to_string(),
+            )),
         }
     }
 
@@ -90,17 +91,17 @@ impl ClocksTable {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GpuStats {
-    pub mem_used: u64,
-    pub mem_total: u64,
-    pub mem_freq: i64,
-    pub gpu_freq: i64,
-    pub gpu_temp: i64,
-    pub power_avg: i64,
-    pub power_cap: i64,
-    pub power_cap_max: i64,
-    pub fan_speed: i64,
-    pub max_fan_speed: i64,
-    pub voltage: i64,
+    pub mem_used: Option<u64>,
+    pub mem_total: Option<u64>,
+    pub mem_freq: Option<i64>,
+    pub gpu_freq: Option<i64>,
+    pub gpu_temp: Option<i64>,
+    pub power_avg: Option<i64>,
+    pub power_cap: Option<i64>,
+    pub power_cap_max: Option<i64>,
+    pub fan_speed: Option<i64>,
+    pub max_fan_speed: Option<i64>,
+    pub voltage: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -108,20 +109,11 @@ pub struct FanControlInfo {
     pub enabled: bool,
     pub curve: BTreeMap<i64, f64>,
 }
-
-#[derive(Deserialize, Serialize)]
-pub struct GpuController {
-    pub hw_path: PathBuf,
-    hw_mon: Option<HWMon>,
-    //pub gpu_info: GpuInfo,
-    config: GpuConfig,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct VulkanInfo {
     pub device_name: String,
     pub api_version: String,
-    pub features: String,
+    pub features: HashMap<String, bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -140,20 +132,31 @@ pub struct GpuInfo {
     pub clocks_table: Option<ClocksTable>,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct GpuController {
+    pub hw_path: PathBuf,
+    hw_mon: Option<HWMon>,
+    gpu_info: GpuInfo,
+    config: GpuConfig,
+}
+
 impl GpuController {
     pub fn new(hw_path: PathBuf, config: GpuConfig) -> Self {
         let mut controller = GpuController {
             hw_path: hw_path.clone(),
             hw_mon: None,
             config: GpuConfig::new(),
+            gpu_info: GpuInfo::default(),
         };
 
-        controller.load_config(config);
+        controller.gpu_info = controller.get_info_initial();
+
+        controller.load_config(&config);
 
         controller
     }
 
-    pub fn load_config(&mut self, config: GpuConfig) {
+    pub fn load_config(&mut self, config: &GpuConfig) {
         self.hw_mon = match fs::read_dir(self.hw_path.join("hwmon")) {
             Ok(mut path) => {
                 let path = path.next().unwrap().unwrap().path();
@@ -161,7 +164,7 @@ impl GpuController {
                     &path,
                     config.fan_control_enabled,
                     config.fan_curve.clone(),
-                    config.power_cap,
+                    Some(config.power_cap),
                 );
                 Some(hw_mon)
             }
@@ -197,6 +200,22 @@ impl GpuController {
     }
 
     pub fn get_info(&self) -> GpuInfo {
+        let mut info = self.gpu_info.clone();
+
+        info.power_profile = match self.get_power_profile() {
+            Ok(p) => Some(p),
+            Err(_) => None,
+        };
+
+        info.clocks_table = match self.get_clocks_table() {
+            Ok(t) => Some(t),
+            Err(_) => None,
+        };
+
+        info
+    }
+
+    fn get_info_initial(&self) -> GpuInfo {
         let uevent =
             fs::read_to_string(self.hw_path.join("uevent")).expect("Failed to read uevent");
 
@@ -258,20 +277,11 @@ impl GpuController {
 
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
 
-        let power_profile = match self.get_power_profile() {
-            Ok(p) => Some(p),
-            Err(_) => None,
-        };
-
-        let clocks_table = match self.get_clocks_table() {
-            Ok(t) => Some(t),
-            Err(_) => None,
-        };
-        
-        let vendor_data = match VendorData::from_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
-            Ok(data) => data,
-            Err(e) => VendorData::default(),
-        };
+        let vendor_data =
+            match VendorData::from_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
+                Ok(data) => data,
+                Err(_) => VendorData::default(),
+            };
 
         log::info!("Vendor data: {:?}", vendor_data);
 
@@ -286,20 +296,20 @@ impl GpuController {
             link_width,
             vulkan_info,
             pci_slot,
-            power_profile,
-            clocks_table,
+            power_profile: None,
+            clocks_table: None,
         }
     }
 
-    pub fn get_stats(&self) -> GpuStats {
+    pub fn get_stats(&self) -> Result<GpuStats, HWMonError> {
         let mem_total = match fs::read_to_string(self.hw_path.join("mem_info_vram_total")) {
-            Ok(a) => a.trim().parse::<u64>().unwrap() / 1024 / 1024,
-            Err(_) => 0,
+            Ok(a) => Some(a.trim().parse::<u64>().unwrap() / 1024 / 1024),
+            Err(_) => None,
         };
 
         let mem_used = match fs::read_to_string(self.hw_path.join("mem_info_vram_used")) {
-            Ok(a) => a.trim().parse::<u64>().unwrap() / 1024 / 1024,
-            Err(_) => 0,
+            Ok(a) => Some(a.trim().parse::<u64>().unwrap() / 1024 / 1024),
+            Err(_) => None,
         };
 
         let (
@@ -321,13 +331,13 @@ impl GpuController {
                 hw_mon.get_power_cap(),
                 hw_mon.get_power_cap_max(),
                 hw_mon.get_fan_speed(),
-                hw_mon.fan_max_speed,
+                hw_mon.get_fan_max_speed(),
                 hw_mon.get_voltage(),
             ),
-            None => (0, 0, 0, 0, 0, 0, 0, 0, 0),
+            None => return Err(HWMonError::NoHWMon),
         };
 
-        GpuStats {
+        Ok(GpuStats {
             mem_total,
             mem_used,
             mem_freq,
@@ -339,7 +349,7 @@ impl GpuController {
             fan_speed,
             max_fan_speed,
             voltage,
-        }
+        })
     }
 
     pub fn start_fan_control(&mut self) -> Result<(), HWMonError> {
@@ -370,13 +380,16 @@ impl GpuController {
 
     pub fn get_fan_control(&self) -> Result<FanControlInfo, HWMonError> {
         match &self.hw_mon {
-            Some(hw_mon) => {
-                let control = hw_mon.get_fan_control();
-                Ok(FanControlInfo {
-                    enabled: control.0,
-                    curve: control.1,
-                })
-            }
+            Some(hw_mon) => match hw_mon.get_fan_speed() {
+                Some(_) => {
+                    let control = hw_mon.get_fan_control();
+                    Ok(FanControlInfo {
+                        enabled: control.0,
+                        curve: control.1,
+                    })
+                }
+                None => Err(HWMonError::Unsupported),
+            },
             None => Err(HWMonError::NoHWMon),
         }
     }
@@ -405,7 +418,16 @@ impl GpuController {
 
     pub fn get_power_cap(&self) -> Result<(i64, i64), HWMonError> {
         match &self.hw_mon {
-            Some(hw_mon) => Ok((hw_mon.get_power_cap(), hw_mon.get_power_cap_max())),
+            Some(hw_mon) => {
+                let min = hw_mon
+                    .get_power_cap()
+                    .ok_or_else(|| HWMonError::Unsupported)?;
+                let max = hw_mon
+                    .get_power_cap_max()
+                    .ok_or_else(|| HWMonError::Unsupported)?;
+
+                Ok((min, max))
+            }
             None => Err(HWMonError::NoHWMon),
         }
     }
@@ -500,9 +522,19 @@ impl GpuController {
                     while let Some(line) = lines_iter.next() {
                         let mut split = line.split_whitespace();
 
-                        let name = split.next().ok_or_else(|| GpuControllerError::ParseError("failed to get range name".to_string()))?;
-                        let min = split.next().ok_or_else(|| GpuControllerError::ParseError("failed to get range minimal value".to_string()))?;
-                        let max = split.next().ok_or_else(|| GpuControllerError::ParseError("failed to get range maximum value".to_string()))?;
+                        let name = split.next().ok_or_else(|| {
+                            GpuControllerError::ParseError("failed to get range name".to_string())
+                        })?;
+                        let min = split.next().ok_or_else(|| {
+                            GpuControllerError::ParseError(
+                                "failed to get range minimal value".to_string(),
+                            )
+                        })?;
+                        let max = split.next().ok_or_else(|| {
+                            GpuControllerError::ParseError(
+                                "failed to get range maximum value".to_string(),
+                            )
+                        })?;
 
                         match name {
                             "SCLK:" => {
@@ -523,11 +555,19 @@ impl GpuController {
 
                                 clocks_table.voltage_range = (min_voltage, max_voltage);
                             }
-                            _ => return Err(GpuControllerError::ParseError("unrecognized voltage range type".to_string())),
+                            _ => {
+                                return Err(GpuControllerError::ParseError(
+                                    "unrecognized voltage range type".to_string(),
+                                ))
+                            }
                         }
                     }
                 }
-                _ => return Err(GpuControllerError::ParseError("unrecognized line type".to_string())),
+                _ => {
+                    return Err(GpuControllerError::ParseError(
+                        "unrecognized line type".to_string(),
+                    ))
+                }
             }
         }
 
@@ -560,6 +600,34 @@ impl GpuController {
         Ok(())
     }
 
+    pub fn set_gpu_max_power_state(
+        &mut self,
+        clockspeed: i64,
+        voltage: Option<i64>,
+    ) -> Result<(), GpuControllerError> {
+        let profile = {
+            let gpu_power_levels = self.get_clocks_table()?.gpu_power_levels;
+            *gpu_power_levels.iter().next_back().unwrap().0
+        };
+
+        let mut line = format!("s {} {}", profile, clockspeed);
+
+        if let Some(voltage) = voltage {
+            line.push_str(&format!(" {}", voltage));
+        }
+        line.push_str("\n");
+
+        log::info!("Writing {} to pp_od_clk_voltage", line);
+
+        fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
+
+        self.config
+            .gpu_power_states
+            .insert(profile, (clockspeed, voltage.unwrap()));
+
+        Ok(())
+    }
+
     pub fn set_vram_power_state(
         &mut self,
         num: u32,
@@ -585,6 +653,26 @@ impl GpuController {
         Ok(())
     }
 
+    pub fn set_vram_max_clockspeed(&mut self, clockspeed: i64) -> Result<(), GpuControllerError> {
+        let (profile, voltage) = {
+            let mem_power_levels = self.get_clocks_table().unwrap().mem_power_levels;
+            let level = mem_power_levels.iter().next_back().unwrap();
+            (*level.0, level.1.1)
+        };
+
+        let line = format!("m {} {} {}\n", profile, clockspeed, voltage);
+
+        log::info!("Writing {} to pp_od_clk_voltage", line);
+
+        fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
+
+        self.config
+            .vram_power_states
+            .insert(profile, (clockspeed, voltage));
+
+        Ok(())
+    }
+
     pub fn commit_gpu_power_states(&mut self) -> Result<(), GpuControllerError> {
         fs::write(self.hw_path.join("pp_od_clk_voltage"), b"c\n")?;
         Ok(())
@@ -598,7 +686,7 @@ impl GpuController {
     fn get_vulkan_info(pci_id: &str) -> VulkanInfo {
         let mut device_name = String::from("Not supported");
         let mut api_version = String::new();
-        let mut features = String::new();
+        let mut features = HashMap::new();
 
         match Instance::new(None, &InstanceExtensions::none(), None) {
             Ok(instance) => {
@@ -606,7 +694,25 @@ impl GpuController {
                     if format!("{:x}", physical.pci_device_id()) == pci_id.to_lowercase() {
                         api_version = physical.api_version().to_string();
                         device_name = physical.name().to_string();
-                        features = format!("{:?}", physical.supported_features());
+
+                        let features_string = format!("{:?}", physical.supported_features());
+                        let features_string = features_string
+                            .replace("Features", "")
+                            .replace("{", "")
+                            .replace("}", "");
+
+                        for feature in features_string.split(',') {
+                            // let (name, supported) = feature.split_once(':').unwrap(); Use this once it's in stable
+                            let mut split = feature.split(':');
+                            let name = split.next().unwrap().trim();
+                            let supported = split.next().unwrap().trim();
+
+                            let supported: bool = supported.parse().unwrap();
+
+                            features.insert(name.to_string(), supported);
+                        }
+
+                        break;
                     }
                 }
             }
@@ -691,12 +797,12 @@ mod tests {
 
         GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
     }
-    
+
     // pp_od_clk_voltage taken from a Vega 56
     #[test]
     fn parse_clocks_table_vega() {
         init();
-        
+
         let pp_od_clk_voltage = r#"
             OD_SCLK:
             0:        852Mhz        800mV
