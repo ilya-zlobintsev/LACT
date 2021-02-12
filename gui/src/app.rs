@@ -105,6 +105,25 @@ impl App {
             });
         }
 
+        {
+            let app = self.clone();
+            let current_gpu_id = current_gpu_id.clone();
+
+            self.root_stack.oc_page.connect_clocks_reset(move || {
+                log::info!("Resetting clocks, but not applying");
+
+                let gpu_id = current_gpu_id.load(Ordering::SeqCst);
+
+                app.daemon_connection
+                    .reset_gpu_power_states(gpu_id)
+                    .expect("Failed to reset clocks");
+
+                app.set_info(gpu_id);
+
+                app.apply_revealer.show();
+            })
+        }
+
         // Apply settings
         {
             let current_gpu_id = current_gpu_id.clone();
@@ -133,14 +152,28 @@ impl App {
                         .expect("Failed to set fan curve");
                 }
 
-                {
-                    let power_profile = app.root_stack.oc_page.get_power_profile();
+                if let Some(clocks_settings) = app.root_stack.oc_page.get_clocks() {
+                    app.daemon_connection
+                        .set_gpu_max_power_state(
+                            gpu_id,
+                            clocks_settings.gpu_clock,
+                            Some(clocks_settings.gpu_voltage),
+                        )
+                        .expect("Failed to set GPU clockspeed/voltage");
 
-                    if let Some(profile) = power_profile {
-                        app.daemon_connection
-                            .set_power_profile(gpu_id, profile)
-                            .expect("Failed to set power profile");
-                    }
+                    app.daemon_connection
+                        .set_vram_max_clock(gpu_id, clocks_settings.vram_clock)
+                        .expect("Failed to set VRAM Clock");
+
+                    app.daemon_connection
+                        .commit_gpu_power_states(gpu_id)
+                        .expect("Failed to commit power states");
+                }
+
+                if let Some(profile) = app.root_stack.oc_page.get_power_profile() {
+                    app.daemon_connection
+                        .set_power_profile(gpu_id, profile)
+                        .expect("Failed to set power profile");
                 }
 
                 app.set_info(gpu_id);
@@ -157,6 +190,9 @@ impl App {
         log::trace!("Setting info {:?}", &gpu_info);
 
         self.root_stack.info_page.set_info(&gpu_info);
+
+        log::trace!("Setting clocks");
+        self.root_stack.oc_page.set_clocks(&gpu_info.clocks_table);
 
         log::trace!("Setting power profile {:?}", gpu_info.power_profile);
         self.root_stack

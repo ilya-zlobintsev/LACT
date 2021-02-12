@@ -231,6 +231,31 @@ impl DaemonConnection {
         }
     }
 
+    pub fn set_gpu_max_power_state(
+        &self,
+        gpu_id: u32,
+        clockspeed: i64,
+        voltage: Option<i64>,
+    ) -> Result<(), DaemonError> {
+        let mut s = UnixStream::connect(SOCK_PATH).unwrap();
+        s.write_all(
+            &bincode::serialize(&Action::SetGPUMaxPowerState(gpu_id, clockspeed, voltage))
+                .unwrap(),
+        )
+        .unwrap();
+        s.shutdown(std::net::Shutdown::Write)
+            .expect("Could not shut down");
+        let mut buffer = Vec::<u8>::new();
+        s.read_to_end(&mut buffer).unwrap();
+
+        let result: Result<DaemonResponse, DaemonError> = bincode::deserialize(&buffer).unwrap();
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
     pub fn set_vram_power_state(
         &self,
         gpu_id: u32,
@@ -241,6 +266,30 @@ impl DaemonConnection {
         let mut s = UnixStream::connect(SOCK_PATH).unwrap();
         s.write_all(
             &bincode::serialize(&Action::SetVRAMPowerState(gpu_id, num, clockspeed, voltage))
+                .unwrap(),
+        )
+        .unwrap();
+        s.shutdown(std::net::Shutdown::Write)
+            .expect("Could not shut down");
+        let mut buffer = Vec::<u8>::new();
+        s.read_to_end(&mut buffer).unwrap();
+
+        let result: Result<DaemonResponse, DaemonError> = bincode::deserialize(&buffer).unwrap();
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn set_vram_max_clock(
+        &self,
+        gpu_id: u32,
+        clockspeed: i64,
+    ) -> Result<(), DaemonError> {
+        let mut s = UnixStream::connect(SOCK_PATH).unwrap();
+        s.write_all(
+            &bincode::serialize(&Action::SetVRAMMaxClock(gpu_id, clockspeed))
                 .unwrap(),
         )
         .unwrap();

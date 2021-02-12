@@ -30,9 +30,9 @@ impl StatsGrid {
 
         {
             vram_usage_bar.set_orientation(Orientation::Horizontal);
-            vram_usage_bar.set_value(0.5);
+            vram_usage_bar.set_value(1.0);
 
-            vram_usage_label.set_text("512/1024 MiB");
+            vram_usage_label.set_text("0/0 MiB");
 
             vram_usage_overlay.add(&vram_usage_bar);
             vram_usage_overlay.add_overlay(&vram_usage_label);
@@ -46,7 +46,7 @@ impl StatsGrid {
             
             gpu_clock_box.pack_start(&Label::new(Some("GPU Clock:")), false, false, 2);
 
-            gpu_clock_label.set_markup("<b>0000MHz</b>");
+            gpu_clock_label.set_markup("<b>0MHz</b>");
 
             gpu_clock_box.pack_start(&gpu_clock_label, false, false, 2);
             
@@ -61,7 +61,7 @@ impl StatsGrid {
             
             vram_clock_box.pack_start(&Label::new(Some("VRAM Clock:")), false, false, 2);
 
-            vram_clock_label.set_markup("<b>0000MHz</b>");
+            vram_clock_label.set_markup("<b>0MHz</b>");
             
             vram_clock_box.pack_start(&vram_clock_label, false, false, 2);
             

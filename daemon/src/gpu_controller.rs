@@ -132,7 +132,6 @@ pub struct GpuInfo {
     pub clocks_table: Option<ClocksTable>,
 }
 
-
 #[derive(Deserialize, Serialize)]
 pub struct GpuController {
     pub hw_path: PathBuf,
@@ -199,10 +198,10 @@ impl GpuController {
             path: self.hw_path.clone(),
         }
     }
-    
+
     pub fn get_info(&self) -> GpuInfo {
         let mut info = self.gpu_info.clone();
-        
+
         info.power_profile = match self.get_power_profile() {
             Ok(p) => Some(p),
             Err(_) => None,
@@ -601,6 +600,34 @@ impl GpuController {
         Ok(())
     }
 
+    pub fn set_gpu_max_power_state(
+        &mut self,
+        clockspeed: i64,
+        voltage: Option<i64>,
+    ) -> Result<(), GpuControllerError> {
+        let profile = {
+            let gpu_power_levels = self.get_clocks_table()?.gpu_power_levels;
+            *gpu_power_levels.iter().next_back().unwrap().0
+        };
+
+        let mut line = format!("s {} {}", profile, clockspeed);
+
+        if let Some(voltage) = voltage {
+            line.push_str(&format!(" {}", voltage));
+        }
+        line.push_str("\n");
+
+        log::info!("Writing {} to pp_od_clk_voltage", line);
+
+        fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
+
+        self.config
+            .gpu_power_states
+            .insert(profile, (clockspeed, voltage.unwrap()));
+
+        Ok(())
+    }
+
     pub fn set_vram_power_state(
         &mut self,
         num: u32,
@@ -622,6 +649,26 @@ impl GpuController {
         self.config
             .vram_power_states
             .insert(num, (clockspeed, voltage.unwrap()));
+
+        Ok(())
+    }
+
+    pub fn set_vram_max_clockspeed(&mut self, clockspeed: i64) -> Result<(), GpuControllerError> {
+        let (profile, voltage) = {
+            let mem_power_levels = self.get_clocks_table().unwrap().mem_power_levels;
+            let level = mem_power_levels.iter().next_back().unwrap();
+            (*level.0, level.1.1)
+        };
+
+        let line = format!("m {} {} {}\n", profile, clockspeed, voltage);
+
+        log::info!("Writing {} to pp_od_clk_voltage", line);
+
+        fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
+
+        self.config
+            .vram_power_states
+            .insert(profile, (clockspeed, voltage));
 
         Ok(())
     }
