@@ -63,6 +63,12 @@ impl Daemon {
             .arg(SOCK_PATH)
             .output()
             .expect("Failed to chmod");
+        
+        Command::new("chown")
+            .arg("nobody:wheel")
+            .arg(SOCK_PATH)
+            .output()
+            .expect("Failed to chown");
 
         Command::new("chown")
             .arg("nobody:wheel")
