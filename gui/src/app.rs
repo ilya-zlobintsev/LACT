@@ -4,10 +4,13 @@ mod root_stack;
 
 extern crate gtk;
 
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use std::{
+    fs,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use apply_revealer::ApplyRevealer;
 use daemon::daemon_connection::DaemonConnection;
@@ -206,6 +209,20 @@ impl App {
                 .thermals_page
                 .set_ventilation_info(fan_control_info),
             Err(_) => self.root_stack.thermals_page.hide_fan_controls(),
+        }
+
+        {
+            let cmdline =
+                fs::read_to_string("/proc/cmdline").expect("Failed to read /proc/cmdline");
+
+            // It's overkill to both show and hide the frame, but it needs to be done in set_info because show_all overrides the default hidden state of the frame.
+            if !cmdline.contains("amdgpu.ppfeaturemask") {
+                log::info!("amdgpu.ppfeaturemask not detected, showing the warning");
+                self.root_stack.oc_page.warning_frame.show();
+            } else {
+                log::info!("overclocking support enabled, not showing the warning");
+                self.root_stack.oc_page.warning_frame.hide();
+            }
         }
 
         self.apply_revealer.hide();

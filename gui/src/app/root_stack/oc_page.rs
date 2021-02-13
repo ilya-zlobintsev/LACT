@@ -1,6 +1,7 @@
 mod clocks_frame;
 mod power_profile_frame;
 mod stats_grid;
+mod warning_frame;
 
 use clocks_frame::ClocksSettings;
 use daemon::gpu_controller::{ClocksTable, GpuStats, PowerProfile};
@@ -8,6 +9,7 @@ use gtk::*;
 
 use power_profile_frame::PowerProfileFrame;
 use stats_grid::StatsGrid;
+use warning_frame::WarningFrame;
 
 use self::clocks_frame::ClocksFrame;
 
@@ -17,11 +19,16 @@ pub struct OcPage {
     stats_grid: StatsGrid,
     power_profile_frame: PowerProfileFrame,
     clocks_frame: ClocksFrame,
+    pub warning_frame: WarningFrame,
 }
 
 impl OcPage {
     pub fn new() -> Self {
         let container = Box::new(Orientation::Vertical, 5);
+        
+        let warning_frame = WarningFrame::new();
+
+        container.pack_start(&warning_frame.container, false, true, 5);
 
         let stats_grid = StatsGrid::new();
 
@@ -40,20 +47,19 @@ impl OcPage {
             stats_grid,
             power_profile_frame,
             clocks_frame,
+            warning_frame,
         }
     }
 
     pub fn set_stats(&self, stats: &GpuStats) {
         self.stats_grid.set_stats(stats);
     }
-    
-    
+
     pub fn connect_clocks_reset<F: Fn() + 'static + Clone>(&self, f: F) {
         self.clocks_frame.connect_clocks_reset(move || {
             f();
         });
     }
-
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         {
@@ -85,7 +91,6 @@ impl OcPage {
             true => Some(self.power_profile_frame.get_selected_power_profile()),
             false => None,
         }
-    
     }
 
     pub fn set_clocks(&self, clocks_table: &Option<ClocksTable>) {
@@ -94,7 +99,7 @@ impl OcPage {
             None => self.clocks_frame.hide(),
         }
     }
-    
+
     pub fn get_clocks(&self) -> Option<ClocksSettings> {
         match self.clocks_frame.get_visibility() {
             true => Some(self.clocks_frame.get_settings()),
