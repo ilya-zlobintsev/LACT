@@ -25,7 +25,7 @@ pub struct OcPage {
 impl OcPage {
     pub fn new() -> Self {
         let container = Box::new(Orientation::Vertical, 5);
-        
+
         let warning_frame = WarningFrame::new();
 
         container.pack_start(&warning_frame.container, false, true, 5);
@@ -95,7 +95,10 @@ impl OcPage {
 
     pub fn set_clocks(&self, clocks_table: &Option<ClocksTable>) {
         match clocks_table {
-            Some(clocks_table) => self.clocks_frame.set_clocks(clocks_table),
+            Some(clocks_table) => {
+                self.clocks_frame.show();
+                self.clocks_frame.set_clocks(clocks_table);
+            }
             None => self.clocks_frame.hide(),
         }
     }

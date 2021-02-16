@@ -190,4 +190,8 @@ impl ClocksFrame {
     pub fn hide(&self) {
         self.container.set_visible(false);
     }
+
+    pub fn show(&self) {
+        self.container.set_visible(true);
+    }
 }

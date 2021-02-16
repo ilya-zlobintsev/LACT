@@ -146,6 +146,9 @@ impl ThermalsPage {
         if !fan_control_info.enabled {
             self.fan_curve_frame.hide();
         }
+        else {
+            self.fan_curve_frame.show();
+        }
 
         self.fan_curve_frame.set_curve(&fan_control_info.curve);
     }
