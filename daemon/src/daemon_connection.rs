@@ -119,7 +119,7 @@ impl DaemonConnection {
         }
     }
 
-    pub fn set_gpu_power_max_state(&self, gpu_id: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), DaemonError> {
+    pub fn set_gpu_max_power_state(&self, gpu_id: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), DaemonError> {
         match self.send_action(Action::SetGPUMaxPowerState(gpu_id, clockspeed, voltage))? {
             DaemonResponse::OK => Ok(()),
             _ => unreachable!(),
