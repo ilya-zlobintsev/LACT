@@ -14,4 +14,5 @@ vulkano = "0.20"
 log = "0.4"
 env_logger = "0.8"
 rand = "0.8"
-signal-hook = "0.1"
+signal-hook = "0.3"
+
