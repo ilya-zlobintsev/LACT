@@ -68,8 +68,13 @@ impl PowerProfile {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ClocksTable {
+    Old(ClocksTableOld),
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct ClocksTable {
+pub struct ClocksTableOld {
     pub gpu_power_levels: BTreeMap<u32, (i64, i64)>, //<power level, (clockspeed, voltage)>
     pub mem_power_levels: BTreeMap<u32, (i64, i64)>,
     pub gpu_clocks_range: (i64, i64),
@@ -77,9 +82,9 @@ pub struct ClocksTable {
     pub voltage_range: (i64, i64), //IN MILLIVOLTS
 }
 
-impl ClocksTable {
+impl ClocksTableOld {
     fn new() -> Self {
-        ClocksTable {
+        ClocksTableOld {
             gpu_power_levels: BTreeMap::new(),
             mem_power_levels: BTreeMap::new(),
             gpu_clocks_range: (0, 0),
@@ -460,9 +465,15 @@ impl GpuController {
     }
 
     fn parse_clocks_table(table: &str) -> Result<ClocksTable, GpuControllerError> {
-        println!("PARSING \n{}\n", table);
+        if table.contains("CURVE") {
+            Err(GpuControllerError::NotSupported)
+        } else {
+            Ok(ClocksTable::Old(Self::parse_clocks_table_old(table)?))
+        }
+    }
 
-        let mut clocks_table = ClocksTable::new();
+    fn parse_clocks_table_old(table: &str) -> Result<ClocksTableOld, GpuControllerError> {
+        let mut clocks_table = ClocksTableOld::new();
 
         let mut lines_iter = table.trim().split("\n").into_iter();
 
@@ -605,25 +616,26 @@ impl GpuController {
         clockspeed: i64,
         voltage: Option<i64>,
     ) -> Result<(), GpuControllerError> {
-        let profile = {
-            let gpu_power_levels = self.get_clocks_table()?.gpu_power_levels;
-            *gpu_power_levels.iter().next_back().unwrap().0
-        };
+        match self.get_clocks_table()? {
+            ClocksTable::Old(clocks_table) => {
+                let profile = { clocks_table.gpu_power_levels.iter().next_back().unwrap().0 };
 
-        let mut line = format!("s {} {}", profile, clockspeed);
+                let mut line = format!("s {} {}", profile, clockspeed);
 
-        if let Some(voltage) = voltage {
-            line.push_str(&format!(" {}", voltage));
+                if let Some(voltage) = voltage {
+                    line.push_str(&format!(" {}", voltage));
+                }
+                line.push_str("\n");
+
+                log::info!("Writing {} to pp_od_clk_voltage", line);
+
+                fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
+
+                self.config
+                    .gpu_power_states
+                    .insert(*profile, (clockspeed, voltage.unwrap()));
+            }
         }
-        line.push_str("\n");
-
-        log::info!("Writing {} to pp_od_clk_voltage", line);
-
-        fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
-
-        self.config
-            .gpu_power_states
-            .insert(profile, (clockspeed, voltage.unwrap()));
 
         Ok(())
     }
@@ -654,23 +666,26 @@ impl GpuController {
     }
 
     pub fn set_vram_max_clockspeed(&mut self, clockspeed: i64) -> Result<(), GpuControllerError> {
-        let (profile, voltage) = {
-            let mem_power_levels = self.get_clocks_table().unwrap().mem_power_levels;
-            let level = mem_power_levels.iter().next_back().unwrap();
-            (*level.0, level.1.1)
-        };
+        match self.get_clocks_table()? {
+            ClocksTable::Old(clocks_table) => {
+                let (profile, voltage) = {
+                    let level = clocks_table.mem_power_levels.iter().next_back().unwrap();
+                    (*level.0, level.1 .1)
+                };
 
-        let line = format!("m {} {} {}\n", profile, clockspeed, voltage);
+                let line = format!("m {} {} {}\n", profile, clockspeed, voltage);
 
-        log::info!("Writing {} to pp_od_clk_voltage", line);
+                log::info!("Writing {} to pp_od_clk_voltage", line);
 
-        fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
+                fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
 
-        self.config
-            .vram_power_states
-            .insert(profile, (clockspeed, voltage));
+                self.config
+                    .vram_power_states
+                    .insert(profile, (clockspeed, voltage));
 
-        Ok(())
+                Ok(())
+            }
+        }
     }
 
     pub fn commit_gpu_power_states(&mut self) -> Result<(), GpuControllerError> {

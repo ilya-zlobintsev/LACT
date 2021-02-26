@@ -118,33 +118,38 @@ impl ClocksFrame {
     }
 
     pub fn set_clocks(&self, clocks_table: &ClocksTable) {
-        self.gpu_clock_adjustment
-            .set_lower(clocks_table.gpu_clocks_range.0 as f64);
-        self.gpu_clock_adjustment
-            .set_upper(clocks_table.gpu_clocks_range.1 as f64);
+        match clocks_table {
+            ClocksTable::Old(clocks_table) => {
+                self.gpu_clock_adjustment
+                    .set_lower(clocks_table.gpu_clocks_range.0 as f64);
+                self.gpu_clock_adjustment
+                    .set_upper(clocks_table.gpu_clocks_range.1 as f64);
 
-        self.gpu_voltage_adjustment
-            .set_lower(clocks_table.voltage_range.0 as f64 / 1000.0);
-        self.gpu_voltage_adjustment
-            .set_upper(clocks_table.voltage_range.1 as f64 / 1000.0);
+                self.gpu_voltage_adjustment
+                    .set_lower(clocks_table.voltage_range.0 as f64 / 1000.0);
+                self.gpu_voltage_adjustment
+                    .set_upper(clocks_table.voltage_range.1 as f64 / 1000.0);
 
-        self.vram_clock_adjustment
-            .set_lower(clocks_table.mem_clocks_range.0 as f64);
-        self.vram_clock_adjustment
-            .set_upper(clocks_table.mem_clocks_range.1 as f64);
+                self.vram_clock_adjustment
+                    .set_lower(clocks_table.mem_clocks_range.0 as f64);
+                self.vram_clock_adjustment
+                    .set_upper(clocks_table.mem_clocks_range.1 as f64);
 
-        let (gpu_clockspeed, gpu_voltage) =
-            clocks_table.gpu_power_levels.iter().next_back().unwrap().1;
+                let (gpu_clockspeed, gpu_voltage) =
+                    clocks_table.gpu_power_levels.iter().next_back().unwrap().1;
 
-        self.gpu_clock_adjustment.set_value(*gpu_clockspeed as f64);
+                self.gpu_clock_adjustment.set_value(*gpu_clockspeed as f64);
 
-        self.gpu_voltage_adjustment
-            .set_value(*gpu_voltage as f64 / 1000.0);
+                self.gpu_voltage_adjustment
+                    .set_value(*gpu_voltage as f64 / 1000.0);
 
-        let (vram_clockspeed, _) = clocks_table.mem_power_levels.iter().next_back().unwrap().1;
+                let (vram_clockspeed, _) =
+                    clocks_table.mem_power_levels.iter().next_back().unwrap().1;
 
-        self.vram_clock_adjustment
-            .set_value(*vram_clockspeed as f64);
+                self.vram_clock_adjustment
+                    .set_value(*vram_clockspeed as f64);
+            }
+        }
     }
 
     pub fn get_settings(&self) -> ClocksSettings {
