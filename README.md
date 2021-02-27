@@ -23,8 +23,16 @@ Currently missing:
 # Installation
 
 - Arch Linux: Install the [AUR Package](https://aur.archlinux.org/packages/lact-git/)
+- Fedora:
+    - `sudo dnf install git gtk3-devel rust cargo vulkan-headers`
+    - `git clone https://github.com/ilyazzz/LACT && cd LACT`
+    - `./deploy.sh`
+- Ubuntu/Debian:
+    - `sudo apt install cargo rustc libvulkan-dev git libgtk3-dev`
+    - `git clone https://github.com/ilyazzz/LACT && cd LACT`
+    - `./deploy.sh`
 - Anything else:
-    - Install a rust toolchain and gtk3 development headers (libgtk-3-dev on ubuntu)
+    - Install a rust toolchain, gtk3 dev headers and vulkan header
     - Clone the repo
     - ./deploy.sh
 
