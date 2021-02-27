@@ -15,7 +15,8 @@ Current features:
 - Basic overclocking
 
 Currently missing:
-- Clockspeed/voltages cannot be changed on Vega20 and newer GPUs due to them using a different power level management logic
+- Voltage control on Vega20+ GPUs
+- Precise clock/voltage curve manipulation (currently can only set the maximum values)
 - <s>Multi-GPU system support</s> *Should work now*
 - The card model detection isn't very reliable
 
