@@ -182,6 +182,8 @@ impl GpuController {
             self.set_gpu_max_power_state(config.gpu_max_clock, config.gpu_max_voltage);
 
             self.set_vram_max_clockspeed(config.gpu_max_clock);
+            
+            self.commit_gpu_power_states();
         }
     }
 
