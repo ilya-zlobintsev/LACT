@@ -1037,6 +1037,6 @@ mod tests {
 
         let clocks_table = GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
 
-        panic!("{:?}", clocks_table);
+        log::info!("{:?}", clocks_table);
     }
 }
