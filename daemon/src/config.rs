@@ -41,8 +41,9 @@ pub struct GpuConfig {
     pub fan_curve: BTreeMap<i64, f64>,
     pub power_cap: i64,
     pub power_profile: PowerProfile,
-    pub gpu_power_states: BTreeMap<u32, (i64, i64)>,  //<id, (clockspeed, voltage)>
-    pub vram_power_states: BTreeMap<u32, (i64, i64)>,
+    pub gpu_max_clock: i64,
+    pub gpu_max_voltage: Option<i64>,
+    pub vram_max_clock: i64,
 }
 
 impl GpuConfig {
@@ -59,8 +60,9 @@ impl GpuConfig {
             fan_control_enabled: false,
             power_cap: -1,
             power_profile: PowerProfile::Auto,
-            gpu_power_states: BTreeMap::new(),
-            vram_power_states: BTreeMap::new(),
+            gpu_max_clock: 0,
+            gpu_max_voltage: None,
+            vram_max_clock: 0,
         }
     }
 }

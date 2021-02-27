@@ -112,22 +112,15 @@ impl DaemonConnection {
         }
     }
 
-    pub fn set_gpu_power_state(&self, gpu_id: u32, num: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), DaemonError> {
+    /*pub fn set_gpu_power_state(&self, gpu_id: u32, num: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), DaemonError> {
         match self.send_action(Action::SetGPUPowerState(gpu_id, num, clockspeed, voltage))? {
             DaemonResponse::OK => Ok(()),
             _ => unreachable!(),
         }
-    }
+    }*/
 
     pub fn set_gpu_max_power_state(&self, gpu_id: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), DaemonError> {
         match self.send_action(Action::SetGPUMaxPowerState(gpu_id, clockspeed, voltage))? {
-            DaemonResponse::OK => Ok(()),
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn set_vram_power_state(&self, gpu_id: u32, num: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), DaemonError> {
-        match self.send_action(Action::SetVRAMPowerState(gpu_id, num, clockspeed, voltage))? {
             DaemonResponse::OK => Ok(()),
             _ => unreachable!(),
         }

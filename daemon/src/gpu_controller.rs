@@ -71,6 +71,7 @@ impl PowerProfile {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ClocksTable {
     Old(ClocksTableOld),
+    New(ClocksTableNew),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -82,16 +83,14 @@ pub struct ClocksTableOld {
     pub voltage_range: (i64, i64), //IN MILLIVOLTS
 }
 
-impl ClocksTableOld {
-    fn new() -> Self {
-        ClocksTableOld {
-            gpu_power_levels: BTreeMap::new(),
-            mem_power_levels: BTreeMap::new(),
-            gpu_clocks_range: (0, 0),
-            mem_clocks_range: (0, 0),
-            voltage_range: (0, 0),
-        }
-    }
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ClocksTableNew {
+    pub current_gpu_clocks: (i64, i64),
+    pub current_max_mem_clock: i64,
+    // pub vddc_curve: [(i64, i64); 3],
+    pub gpu_clocks_range: (i64, i64),
+    pub mem_clocks_range: (i64, i64),
+    // pub voltage_range: (i64, i64), //IN MILLIVOLTS
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -180,13 +179,9 @@ impl GpuController {
         {
             self.set_power_profile(config.power_profile.clone());
 
-            for (num, (clockspeed, voltage)) in &config.gpu_power_states {
-                self.set_gpu_power_state(*num, *clockspeed, Some(*voltage));
-            }
+            self.set_gpu_max_power_state(config.gpu_max_clock, config.gpu_max_voltage);
 
-            for (num, (clockspeed, voltage)) in &config.vram_power_states {
-                self.set_vram_power_state(*num, *clockspeed, Some(*voltage));
-            }
+            self.set_vram_max_clockspeed(config.gpu_max_clock);
         }
     }
 
@@ -466,14 +461,14 @@ impl GpuController {
 
     fn parse_clocks_table(table: &str) -> Result<ClocksTable, GpuControllerError> {
         if table.contains("CURVE") {
-            Err(GpuControllerError::NotSupported)
+            Ok(ClocksTable::New(Self::parse_clocks_table_new(table)?))
         } else {
             Ok(ClocksTable::Old(Self::parse_clocks_table_old(table)?))
         }
     }
 
     fn parse_clocks_table_old(table: &str) -> Result<ClocksTableOld, GpuControllerError> {
-        let mut clocks_table = ClocksTableOld::new();
+        let mut clocks_table = ClocksTableOld::default();
 
         let mut lines_iter = table.trim().split("\n").into_iter();
 
@@ -586,7 +581,184 @@ impl GpuController {
         Ok(clocks_table)
     }
 
-    pub fn set_gpu_power_state(
+    fn parse_clocks_table_new(table: &str) -> Result<ClocksTableNew, GpuControllerError> {
+        log::trace!("Detected clocks table format for Vega20 or newer");
+
+        let mut clocks_table = ClocksTableNew::default();
+
+        let mut lines_iter = table.trim().split("\n").into_iter();
+
+        log::trace!("Reading clocks table");
+
+        while let Some(line) = &lines_iter.next() {
+            let line = line.trim();
+            log::trace!("Parsing line {}", line);
+
+            match line {
+                "OD_SCLK:" => {
+                    let min_clock_line = lines_iter
+                        .next()
+                        .ok_or_else(|| {
+                            GpuControllerError::ParseError(
+                                "unexpeceted clocks file end".to_string(),
+                            )
+                        })?
+                        .trim()
+                        .to_lowercase();
+
+                    let min_clock: i64 = min_clock_line
+                        .strip_prefix("0:")
+                        .ok_or_else(|| {
+                            GpuControllerError::ParseError(format!(
+                                "invalid clock line prefix in {}",
+                                min_clock_line
+                            ))
+                        })?
+                        .strip_suffix("mhz")
+                        .ok_or_else(|| {
+                            GpuControllerError::ParseError(format!(
+                                "invalid clock line suffix in {}",
+                                min_clock_line
+                            ))
+                        })?
+                        .trim()
+                        .parse()?;
+
+                    let max_clock_line = lines_iter
+                        .next()
+                        .ok_or_else(|| {
+                            GpuControllerError::ParseError(
+                                "unexpeceted clocks file end".to_string(),
+                            )
+                        })?
+                        .trim()
+                        .to_lowercase();
+
+                    let max_clock: i64 = max_clock_line
+                        .strip_prefix("1:")
+                        .ok_or_else(|| {
+                            GpuControllerError::ParseError(format!(
+                                "invalid clock line prefix in {}",
+                                min_clock_line
+                            ))
+                        })?
+                        .strip_suffix("mhz")
+                        .ok_or_else(|| {
+                            GpuControllerError::ParseError(format!(
+                                "invalid clock line suffix in {}",
+                                min_clock_line
+                            ))
+                        })?
+                        .trim()
+                        .parse()?;
+
+                    clocks_table.current_gpu_clocks = (min_clock, max_clock);
+                }
+                "OD_MCLK:" => {
+                    let max_clock_line = lines_iter
+                        .next()
+                        .ok_or_else(|| {
+                            GpuControllerError::ParseError("unexpected clocks file end".to_string())
+                        })?
+                        .trim()
+                        .to_lowercase();
+
+                    let max_clock = max_clock_line
+                        .strip_prefix("1:")
+                        .ok_or_else(|| {
+                            GpuControllerError::ParseError(format!(
+                                "invalid clock line prefix in {}",
+                                max_clock_line
+                            ))
+                        })?
+                        .strip_suffix("mhz")
+                        .ok_or_else(|| {
+                            GpuControllerError::ParseError(format!(
+                                "invalid clock line suffix in {}",
+                                max_clock_line
+                            ))
+                        })?
+                        .trim()
+                        .parse()?;
+
+                    clocks_table.current_max_mem_clock = max_clock;
+                }
+                "OD_RANGE:" => {
+                    while let Some(line) = &lines_iter.next() {
+                        let line = line.trim();
+                        log::trace!("Parsing OD_RANGE line {}", &line);
+
+                        match &line[..5] {
+                            "SCLK:" => {
+                                let mut split = line.split_whitespace();
+
+                                // Skips the 'SCLK'
+                                split.next().unwrap();
+
+                                let min_clock = split
+                                    .next()
+                                    .unwrap()
+                                    .strip_suffix("Mhz")
+                                    .ok_or_else(|| {
+                                        GpuControllerError::ParseError("missing suffix".to_string())
+                                    })?
+                                    .parse()?;
+
+                                let max_clock = split
+                                    .next()
+                                    .unwrap()
+                                    .strip_suffix("Mhz")
+                                    .ok_or_else(|| {
+                                        GpuControllerError::ParseError("missing suffix".to_string())
+                                    })?
+                                    .parse()?;
+
+                                clocks_table.gpu_clocks_range = (min_clock, max_clock);
+                            }
+                            "MCLK:" => {
+                                let mut split = line.split_whitespace();
+
+                                // Skips the 'SCLK'
+                                split.next().unwrap();
+
+                                let min_clock = split
+                                    .next()
+                                    .unwrap()
+                                    .strip_suffix("Mhz")
+                                    .ok_or_else(|| {
+                                        GpuControllerError::ParseError("missing suffix".to_string())
+                                    })?
+                                    .parse()?;
+
+                                let max_clock = split
+                                    .next()
+                                    .unwrap()
+                                    .strip_suffix("Mhz")
+                                    .ok_or_else(|| {
+                                        GpuControllerError::ParseError("missing suffix".to_string())
+                                    })?
+                                    .parse()?;
+
+                                clocks_table.mem_clocks_range = (min_clock, max_clock);
+                            }
+                            _ => {
+                                log::trace!("OD_RANGE ended");
+                                break;
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    log::trace!("Skipping line");
+                    continue;
+                }
+            }
+        }
+
+        Ok(clocks_table)
+    }
+
+    /*pub fn set_gpu_power_state(
         &mut self,
         num: u32,
         clockspeed: i64,
@@ -609,7 +781,7 @@ impl GpuController {
             .insert(num, (clockspeed, voltage.unwrap()));
 
         Ok(())
-    }
+    }*/
 
     pub fn set_gpu_max_power_state(
         &mut self,
@@ -631,36 +803,21 @@ impl GpuController {
 
                 fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
 
-                self.config
-                    .gpu_power_states
-                    .insert(*profile, (clockspeed, voltage.unwrap()));
+                self.config.gpu_max_clock = clockspeed;
+                self.config.gpu_max_voltage = voltage;
+            }
+            ClocksTable::New(clocks_table) => {
+                let s_line = format!("s 1 {}\n", clockspeed);
+
+                fs::write(self.hw_path.join("pp_od_clk_voltage"), s_line)?;
+
+                if let Some(voltage) = voltage {
+                    let vc_line = format!("vc 2 {} {}\n", clockspeed, voltage);
+
+                    fs::write(self.hw_path.join("pp_od_clk_voltage"), vc_line)?;
+                }
             }
         }
-
-        Ok(())
-    }
-
-    pub fn set_vram_power_state(
-        &mut self,
-        num: u32,
-        clockspeed: i64,
-        voltage: Option<i64>,
-    ) -> Result<(), GpuControllerError> {
-        let mut line = format!("m {} {}", num, clockspeed);
-
-        if let Some(voltage) = voltage {
-            line.push_str(&format!(" {}", voltage));
-        }
-        line.push_str("\n");
-
-        log::info!("Setting vram power state {}", line);
-        log::info!("Writing {} to pp_od_clk_voltage", line);
-
-        fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
-
-        self.config
-            .vram_power_states
-            .insert(num, (clockspeed, voltage.unwrap()));
 
         Ok(())
     }
@@ -669,8 +826,8 @@ impl GpuController {
         match self.get_clocks_table()? {
             ClocksTable::Old(clocks_table) => {
                 let (profile, voltage) = {
-                    let level = clocks_table.mem_power_levels.iter().next_back().unwrap();
-                    (*level.0, level.1 .1)
+                    let power_level = clocks_table.mem_power_levels.iter().next_back().unwrap();
+                    (power_level.0, power_level.1 .1)
                 };
 
                 let line = format!("m {} {} {}\n", profile, clockspeed, voltage);
@@ -679,13 +836,18 @@ impl GpuController {
 
                 fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
 
-                self.config
-                    .vram_power_states
-                    .insert(profile, (clockspeed, voltage));
+                // self.config
+                // .gpu_power_states
+                // .insert(*profile, (clockspeed, voltage.unwrap()));
+            }
+            ClocksTable::New(clocks_table) => {
+                let s_line = format!("m 1 {}\n", clockspeed);
 
-                Ok(())
+                fs::write(self.hw_path.join("pp_od_clk_voltage"), s_line)?;
             }
         }
+
+        Ok(())
     }
 
     pub fn commit_gpu_power_states(&mut self) -> Result<(), GpuControllerError> {
@@ -810,7 +972,9 @@ mod tests {
             MCLK:     300MHz       2250MHz
             VDDC:     750mV        1200mV"#;
 
-        GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
+        let clocks_table = GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
+
+        log::trace!("{:?}", clocks_table);
     }
 
     // pp_od_clk_voltage taken from a Vega 56
@@ -838,6 +1002,39 @@ mod tests {
             MCLK:     167MHz       1500MHz
             VDDC:     800mV        1200mV"#;
 
-        GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
+        let clocks_table = GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
+
+        log::trace!("{:?}", clocks_table);
+    }
+
+    // pp_od_clk_voltage taken from an RX 5700 XT
+    #[test]
+    fn parse_clocks_table_navi() {
+        init();
+
+        let pp_od_clk_voltage = r#"
+            OD_SCLK:
+            0: 800Mhz
+            1: 2100Mhz
+            OD_MCLK:
+            1: 875MHz
+            OD_VDDC_CURVE:
+            0: 800MHz 711mV
+            1: 1450MHz 801mV
+            2: 2100MHz 1191mV
+            OD_RANGE:
+            SCLK:     800Mhz       2150Mhz
+            MCLK:     625Mhz        950Mhz
+            VDDC_CURVE_SCLK[0]:     800Mhz       2150Mhz
+            VDDC_CURVE_VOLT[0]:     750mV        1200mV
+            VDDC_CURVE_SCLK[1]:     800Mhz       2150Mhz
+            VDDC_CURVE_VOLT[1]:     750mV        1200mV
+            VDDC_CURVE_SCLK[2]:     800Mhz       2150Mhz
+            VDDC_CURVE_VOLT[2]:     750mV        1200mV
+        "#;
+
+        let clocks_table = GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
+
+        panic!("{:?}", clocks_table);
     }
 }

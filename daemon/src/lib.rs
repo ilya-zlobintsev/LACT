@@ -41,8 +41,7 @@ pub enum Action {
     SetPowerCap(u32, i64),
     GetPowerCap(u32),
     SetPowerProfile(u32, PowerProfile),
-    SetGPUPowerState(u32, u32, i64, Option<i64>),
-    SetVRAMPowerState(u32, u32, i64, Option<i64>),
+    // SetGPUPowerState(u32, u32, i64, Option<i64>),
     SetGPUMaxPowerState(u32, i64, Option<i64>),
     SetVRAMMaxClock(u32, i64),
     CommitGPUPowerStates(u32),
@@ -283,7 +282,7 @@ impl Daemon {
                         },
                         None => Err(DaemonError::InvalidID),
                     },
-                    Action::SetGPUPowerState(i, num, clockspeed, voltage) => {
+                    /*Action::SetGPUPowerState(i, num, clockspeed, voltage) => {
                         match self.gpu_controllers.get_mut(&i) {
                             Some(controller) => {
                                 match controller.set_gpu_power_state(num, clockspeed, voltage) {
@@ -300,25 +299,7 @@ impl Daemon {
                             }
                             None => Err(DaemonError::InvalidID),
                         }
-                    }
-                    Action::SetVRAMPowerState(i, num, clockspeed, voltage) => {
-                        match self.gpu_controllers.get_mut(&i) {
-                            Some(controller) => {
-                                match controller.set_vram_power_state(num, clockspeed, voltage) {
-                                    Ok(_) => {
-                                        self.config.gpu_configs.insert(
-                                            i,
-                                            (controller.get_identifier(), controller.get_config()),
-                                        );
-                                        self.config.save().unwrap();
-                                        Ok(DaemonResponse::OK)
-                                    }
-                                    Err(_) => Err(DaemonError::ControllerError),
-                                }
-                            }
-                            None => Err(DaemonError::InvalidID),
-                        }
-                    }
+                    }*/
                     Action::SetGPUMaxPowerState(i, clockspeed, voltage) => {
                         match self.gpu_controllers.get_mut(&i) {
                             Some(controller) => {
