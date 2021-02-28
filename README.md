@@ -45,3 +45,52 @@ sudo systemctl enable --now lactd
 You can now use the application.
 
 Note: only members of the group `wheel` can change settings.
+
+# CLI
+
+There is also a cli available.
+
+- Getting basic information: 
+
+    `lact-cli info`
+
+    Example output:
+
+    ```
+    GPU Model: Radeon RX 570 Pulse 4GB
+    GPU Vendor: Advanced Micro Devices, Inc. [AMD/ATI]
+    Driver in use: amdgpu
+    VBIOS Version: 113-1E3871U-O4C
+    VRAM Size: 4096
+    Link Speed: 8.0 GT/s PCIe
+    ```
+- Getting current GPU stats:
+
+    `lact-cli metrics`
+
+    Example output:
+
+    ```
+    VRAM Usage: 545/4096MiB
+    Temperature: 46°C
+    Fan Speed: 785/3200RPM
+    GPU Clock: 783MHz
+    GPU Voltage: 0.975V
+    VRAM Clock: 1750MHz
+    Power Usage: 38/155W
+    ```
+    
+- Showing the current fan curve: 
+
+    `lact-cli curve status`
+    
+    Example output:
+
+    ```
+    Fan curve:
+    20C°: 0%
+    40C°: 0%
+    60C°: 50%
+    80C°: 88%
+    100C°: 100%
+    ```
