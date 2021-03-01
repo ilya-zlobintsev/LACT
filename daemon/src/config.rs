@@ -97,7 +97,7 @@ impl Config {
     }
 
     pub fn save(&self) -> Result<(), ConfigError> {
-        let json = serde_json::json!(self);
+        let json = serde_json::to_string_pretty(self)?;
         log::info!("saving {}", json.to_string());
 
         Ok(fs::write(&self.config_path, &json.to_string())?)
