@@ -1,10 +1,9 @@
 mod fan_curve_frame;
 
-use std::{collections::BTreeMap, thread};
-
 use daemon::gpu_controller::{FanControlInfo, GpuStats};
 use gtk::prelude::*;
 use gtk::*;
+use std::collections::BTreeMap;
 
 use fan_curve_frame::FanCurveFrame;
 
@@ -108,10 +107,10 @@ impl ThermalsPage {
                             let diag = MessageDialog::new(None::<&Window>, DialogFlags::empty(), MessageType::Warning, ButtonsType::Ok,
                             "Warning! Due to a driver bug, a reboot may be required for fan control to properly switch back to automatic.");
                             diag.run();
-                            diag.hide(); 
+                            diag.hide();
                             glib::Continue(false)
                         });
-                    } 
+                    }
 
                     fan_curve_frame.hide();
                 } else {
@@ -152,11 +151,10 @@ impl ThermalsPage {
 
         self.fan_control_enabled_switch
             .set_active(!fan_control_info.enabled);
-        
+
         if !fan_control_info.enabled {
             self.fan_curve_frame.hide();
-        }
-        else {
+        } else {
             self.fan_curve_frame.show();
         }
 

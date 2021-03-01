@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::{BTreeMap, HashMap}, fs, io, path::PathBuf};
+use std::collections::{BTreeMap, HashMap};
+use std::fs;
+use std::io;
+use std::path::PathBuf;
 
 use crate::gpu_controller::PowerProfile;
 
@@ -31,7 +34,9 @@ pub struct GpuIdentifier {
 
 impl PartialEq for GpuIdentifier {
     fn eq(&self, other: &Self) -> bool {
-        self.pci_id == other.pci_id && self.gpu_model == other.gpu_model && self.card_model == other.card_model
+        self.pci_id == other.pci_id
+            && self.gpu_model == other.gpu_model
+            && self.card_model == other.card_model
     }
 }
 

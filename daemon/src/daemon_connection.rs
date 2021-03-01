@@ -119,7 +119,12 @@ impl DaemonConnection {
         }
     }*/
 
-    pub fn set_gpu_max_power_state(&self, gpu_id: u32, clockspeed: i64, voltage: Option<i64>) -> Result<(), DaemonError> {
+    pub fn set_gpu_max_power_state(
+        &self,
+        gpu_id: u32,
+        clockspeed: i64,
+        voltage: Option<i64>,
+    ) -> Result<(), DaemonError> {
         match self.send_action(Action::SetGPUMaxPowerState(gpu_id, clockspeed, voltage))? {
             DaemonResponse::OK => Ok(()),
             _ => unreachable!(),
@@ -146,14 +151,14 @@ impl DaemonConnection {
             _ => unreachable!(),
         }
     }
-    
+
     pub fn get_gpus(&self) -> Result<HashMap<u32, Option<String>>, DaemonError> {
         match self.send_action(Action::GetGpus)? {
             DaemonResponse::Gpus(gpus) => Ok(gpus),
             _ => unreachable!(),
         }
     }
-    
+
     pub fn shutdown(&self) {
         let mut s = UnixStream::connect(SOCK_PATH).unwrap();
         s.write_all(&bincode::serialize(&Action::Shutdown).unwrap())

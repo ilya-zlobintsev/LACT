@@ -156,20 +156,20 @@ impl ClocksFrame {
                     .set_upper(clocks_table.gpu_clocks_range.1 as f64);
 
                 /* self.gpu_voltage_adjustment
-                    .set_lower(clocks_table.voltage_range.0 as f64 / 1000.0);
-                 self.gpu_voltage_adjustment
-                    .set_upper(clocks_table.voltage_range.1 as f64 / 1000.0);*/
+                   .set_lower(clocks_table.voltage_range.0 as f64 / 1000.0);
+                self.gpu_voltage_adjustment
+                   .set_upper(clocks_table.voltage_range.1 as f64 / 1000.0);*/
 
                 self.vram_clock_adjustment
                     .set_lower(clocks_table.mem_clocks_range.0 as f64);
                 self.vram_clock_adjustment
                     .set_upper(clocks_table.mem_clocks_range.1 as f64);
 
-
-                self.gpu_clock_adjustment.set_value(clocks_table.current_gpu_clocks.1 as f64);
+                self.gpu_clock_adjustment
+                    .set_value(clocks_table.current_gpu_clocks.1 as f64);
 
                 // self.gpu_voltage_adjustment
-                    // .set_value(*clocks_table.gpu_voltage as f64 / 1000.0);
+                // .set_value(*clocks_table.gpu_voltage as f64 / 1000.0);
 
                 self.vram_clock_adjustment
                     .set_value(clocks_table.current_max_mem_clock as f64);

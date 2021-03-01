@@ -1,6 +1,6 @@
 mod info_page;
-mod thermals_page;
 mod oc_page;
+mod thermals_page;
 
 use gtk::*;
 
@@ -27,11 +27,10 @@ impl RootStack {
         let oc_page = OcPage::new();
 
         container.add_titled(&oc_page.container, "oc_page", "OC");
-        
+
         let thermals_page = ThermalsPage::new();
 
         container.add_titled(&thermals_page.container, "thermals_page", "Thermals");
-        
 
         Self {
             container,

@@ -813,7 +813,7 @@ impl GpuController {
                 self.config.gpu_max_clock = clockspeed;
                 self.config.gpu_max_voltage = voltage;
             }
-            ClocksTable::New(clocks_table) => {
+            ClocksTable::New(_) => {
                 let s_line = format!("s 1 {}\n", clockspeed);
 
                 fs::write(self.hw_path.join("pp_od_clk_voltage"), s_line)?;
@@ -847,7 +847,7 @@ impl GpuController {
                 // .gpu_power_states
                 // .insert(*profile, (clockspeed, voltage.unwrap()));
             }
-            ClocksTable::New(clocks_table) => {
+            ClocksTable::New(_) => {
                 let s_line = format!("m 1 {}\n", clockspeed);
 
                 fs::write(self.hw_path.join("pp_od_clk_voltage"), s_line)?;

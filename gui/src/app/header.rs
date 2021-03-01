@@ -1,8 +1,7 @@
-use std::{collections::HashMap, env};
-
 use gtk::prelude::{ComboBoxExtManual, ObjectExt};
 use gtk::*;
 use pango::EllipsizeMode;
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Header {
@@ -14,12 +13,10 @@ pub struct Header {
 impl Header {
     pub fn new() -> Self {
         let container = HeaderBar::new();
-        
+
         container.set_custom_title(Some(&Grid::new())); // Bad workaround to hide the title
 
-        // if env::var("XDG_CURRENT_DESKTOP") == Ok("GNOME".to_string()) {
-            container.set_show_close_button(true);
-        // }
+        container.set_show_close_button(true);
 
         let gpu_selector = ComboBoxText::new();
         container.pack_start(&gpu_selector);

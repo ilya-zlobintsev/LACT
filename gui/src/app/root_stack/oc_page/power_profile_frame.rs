@@ -80,7 +80,7 @@ impl PowerProfileFrame {
             _ => unreachable!(),
         }
     }
-    
+
     pub fn show(&self) {
         self.container.set_visible(true);
     }
@@ -88,7 +88,7 @@ impl PowerProfileFrame {
     pub fn hide(&self) {
         self.container.set_visible(false);
     }
-    
+
     pub fn get_visibility(&self) -> bool {
         self.container.get_visible()
     }

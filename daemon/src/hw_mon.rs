@@ -44,12 +44,15 @@ impl HWMon {
             mon.start_fan_control().unwrap();
         }
         if let Some(cap) = power_cap {
-            mon.set_power_cap(cap);
+            #[allow(unused_must_use)]
+            {
+                mon.set_power_cap(cap);
+            }
         }
 
         mon
     }
-    
+
     pub fn get_fan_max_speed(&self) -> Option<i64> {
         match fs::read_to_string(self.hwmon_path.join("fan1_max")) {
             Ok(speed) => Some(speed.trim().parse().unwrap()),
@@ -84,12 +87,7 @@ impl HWMon {
         let filename = self.hwmon_path.join("freq2_input");
 
         match fs::read_to_string(filename) {
-            Ok(freq) => Some(freq
-                .trim()
-                .parse::<i64>()
-                .unwrap()
-                / 1000
-                / 1000),
+            Ok(freq) => Some(freq.trim().parse::<i64>().unwrap() / 1000 / 1000),
             Err(_) => None,
         }
     }
@@ -98,12 +96,7 @@ impl HWMon {
         let filename = self.hwmon_path.join("freq1_input");
 
         match fs::read_to_string(filename) {
-            Ok(freq) => Some(freq
-                .trim()
-                .parse::<i64>()
-                .unwrap()
-                / 1000
-                / 1000),
+            Ok(freq) => Some(freq.trim().parse::<i64>().unwrap() / 1000 / 1000),
             Err(_) => None,
         }
     }
@@ -112,18 +105,14 @@ impl HWMon {
         let filename = self.hwmon_path.join("temp1_input");
 
         match fs::read_to_string(filename) {
-            Ok(temp) => Some(temp
-                .trim()
-                .parse::<i64>()
-                .unwrap()
-                / 1000),
+            Ok(temp) => Some(temp.trim().parse::<i64>().unwrap() / 1000),
             Err(_) => None,
         }
     }
 
     pub fn get_voltage(&self) -> Option<i64> {
         let filename = self.hwmon_path.join("in0_input");
-        
+
         match fs::read_to_string(filename) {
             Ok(voltage) => Some(voltage.trim().parse::<i64>().unwrap()),
             Err(_) => None,
@@ -134,11 +123,7 @@ impl HWMon {
         let filename = self.hwmon_path.join("power1_cap_max");
 
         match fs::read_to_string(filename) {
-            Ok(power_cap) => Some(power_cap
-                .trim()
-                .parse::<i64>()
-                .unwrap()
-                / 1000000),
+            Ok(power_cap) => Some(power_cap.trim().parse::<i64>().unwrap() / 1000000),
             _ => None,
         }
     }
@@ -147,20 +132,20 @@ impl HWMon {
         let filename = self.hwmon_path.join("power1_cap");
 
         match fs::read_to_string(filename) {
-            Ok(a) => Some(a
-                .trim()
-                .parse::<i64>()
-                .unwrap()
-                / 1000000),
+            Ok(a) => Some(a.trim().parse::<i64>().unwrap() / 1000000),
             _ => None,
         }
     }
 
     pub fn set_power_cap(&mut self, cap: i64) -> Result<(), HWMonError> {
-        if cap > self.get_power_cap_max().ok_or_else(|| HWMonError::Unsupported)? {
+        if cap
+            > self
+                .get_power_cap_max()
+                .ok_or_else(|| HWMonError::Unsupported)?
+        {
             return Err(HWMonError::InvalidValue);
         }
-        
+
         let cap = cap * 1000000;
         log::trace!("setting power cap to {}", cap);
 
@@ -174,11 +159,7 @@ impl HWMon {
         let filename = self.hwmon_path.join("power1_average");
 
         match fs::read_to_string(filename) {
-            Ok(a) => Some(a
-                .trim()
-                .parse::<i64>()
-                .unwrap()
-                / 1000000),
+            Ok(a) => Some(a.trim().parse::<i64>().unwrap() / 1000000),
             Err(_) => None,
         }
     }
