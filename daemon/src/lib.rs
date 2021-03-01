@@ -180,7 +180,13 @@ impl Daemon {
     }
 
     fn get_pci_db_online() -> Result<PciDatabase, reqwest::Error> {
-        let vendors = reqwest::blocking::get("https://pci.endpoint.ml/devices.json")?.json()?;
+        let client = reqwest::blocking::Client::builder()
+            .user_agent("LACT")
+            .build()?;
+        let vendors = client
+            .get("https://pci.endpoint.ml/devices.json")
+            .send()?
+            .json()?;
         Ok(PciDatabase { vendors })
     }
 
