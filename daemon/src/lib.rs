@@ -5,6 +5,7 @@ pub mod hw_mon;
 
 use config::{Config, GpuConfig};
 use gpu_controller::PowerProfile;
+use pciid_parser::PciDatabase;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -91,15 +92,32 @@ impl Daemon {
 
         log::trace!("Using config {:?}", config);
 
-        let mut gpu_controllers: HashMap<u32, GpuController> = HashMap::new();
+        let gpu_controllers = Self::load_gpu_controllers(&mut config);
 
-        /*for (gpu_identifier, gpu_config) in &config.gpu_configs {
-            let mut controller = GpuController::new(gpu_identifier.path.clone(), GpuConfig::new());
-            if controller.gpu_info.pci_slot == gpu_identifier.pci_id && controller.gpu_info.card_model == gpu_identifier.card_model && controller.gpu_info.gpu_model == gpu_identifier.gpu_model {
-                controller.load_config(gpu_config.clone());
-                gpu_controllers.insert(gpu_identifier.id, controller);
-            }
-        }*/
+        if !unprivileged {
+            config.save().unwrap();
+        }
+
+        Daemon {
+            listener,
+            gpu_controllers,
+            config,
+        }
+    }
+
+    fn load_gpu_controllers(config: &mut Config) -> HashMap<u32, GpuController> {
+        let pci_db = match config.allow_online_update {
+            Some(true) => match Self::get_pci_db_online() {
+                Ok(db) => Some(db),
+                Err(e) => {
+                    log::info!("Error updating PCI db: {:?}", e);
+                    None
+                }
+            },
+            Some(false) | None => None,
+        };
+
+        let mut gpu_controllers: HashMap<u32, GpuController> = HashMap::new();
 
         'entries: for entry in
             fs::read_dir("/sys/class/drm").expect("Could not open /sys/class/drm")
@@ -110,7 +128,7 @@ impl Daemon {
                     log::info!("Initializing {:?}", entry.path());
 
                     let mut controller =
-                        GpuController::new(entry.path().join("device"), GpuConfig::new());
+                        GpuController::new(entry.path().join("device"), GpuConfig::new(), &pci_db);
                     let gpu_info = &controller.get_info();
 
                     for (id, (gpu_identifier, gpu_config)) in &config.gpu_configs {
@@ -136,15 +154,13 @@ impl Daemon {
                 }
             }
         }
-        if !unprivileged {
-            config.save().unwrap();
-        }
 
-        Daemon {
-            listener,
-            gpu_controllers,
-            config,
-        }
+        gpu_controllers
+    }
+
+    fn get_pci_db_online() -> Result<PciDatabase, reqwest::Error> {
+        let vendors = reqwest::blocking::get("https://pci.endpoint.ml/devices.json")?.json()?;
+        Ok(PciDatabase { vendors })
     }
 
     pub fn listen(mut self) {

@@ -143,7 +143,7 @@ pub struct GpuController {
 }
 
 impl GpuController {
-    pub fn new(hw_path: PathBuf, config: GpuConfig) -> Self {
+    pub fn new(hw_path: PathBuf, config: GpuConfig, pci_db: &Option<PciDatabase>) -> Self {
         let mut controller = GpuController {
             hw_path: hw_path.clone(),
             hw_mon: None,
@@ -151,7 +151,7 @@ impl GpuController {
             gpu_info: GpuInfo::default(),
         };
 
-        controller.gpu_info = controller.get_info_initial();
+        controller.gpu_info = controller.get_info_initial(pci_db);
 
         controller.load_config(&config);
 
@@ -215,7 +215,7 @@ impl GpuController {
         info
     }
 
-    fn get_info_initial(&self) -> GpuInfo {
+    fn get_info_initial(&self, pci_db: &Option<PciDatabase>) -> GpuInfo {
         let uevent =
             fs::read_to_string(self.hw_path.join("uevent")).expect("Failed to read uevent");
 
@@ -277,17 +277,25 @@ impl GpuController {
 
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
 
-        let vendor_data = match PciDatabase::read() {
-            Ok(pci_db) => {
-                match pci_db.get_by_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
+        let vendor_data = match pci_db {
+            Some(db) => {
+                match db.get_by_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
                     Ok(data) => data,
                     Err(_) => VendorData::default(),
                 }
             }
-            Err(_) => {
-                println!("pci.ids not found! Make sure you have 'hwdata' installed");
-                VendorData::default()
-            }
+            None => match PciDatabase::read() {
+                Ok(db) => {
+                    match db.get_by_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
+                        Ok(data) => data,
+                        Err(_) => VendorData::default(),
+                    }
+                }
+                Err(err) => {
+                    println!("{:?} pci.ids not found! Make sure you have 'hwdata' installed", err);
+                    VendorData::default()
+                }
+            },
         };
 
         log::info!("Vendor data: {:?}", vendor_data);

@@ -75,6 +75,7 @@ impl GpuConfig {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
     pub gpu_configs: HashMap<u32, (GpuIdentifier, GpuConfig)>,
+    pub allow_online_update: Option<bool>,
     pub config_path: PathBuf,
 }
 
@@ -84,6 +85,7 @@ impl Config {
 
         Config {
             gpu_configs,
+            allow_online_update: None,
             config_path: config_path.clone(),
         }
     }
