@@ -1,14 +1,12 @@
 use crate::config::{GpuConfig, GpuIdentifier};
 use crate::hw_mon::{HWMon, HWMonError};
+use pciid_parser::{PciDatabase, VendorData};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::num::ParseIntError;
 use std::path::PathBuf;
-use vendor_data::VendorData;
 use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
-
-pub mod vendor_data;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum GpuControllerError {
@@ -182,7 +180,7 @@ impl GpuController {
             self.set_gpu_max_power_state(config.gpu_max_clock, config.gpu_max_voltage);
 
             self.set_vram_max_clockspeed(config.gpu_max_clock);
-            
+
             self.commit_gpu_power_states();
         }
     }
@@ -279,11 +277,18 @@ impl GpuController {
 
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
 
-        let vendor_data =
-            match VendorData::from_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
-                Ok(data) => data,
-                Err(_) => VendorData::default(),
-            };
+        let vendor_data = match PciDatabase::read() {
+            Ok(pci_db) => {
+                match pci_db.get_by_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
+                    Ok(data) => data,
+                    Err(_) => VendorData::default(),
+                }
+            }
+            Err(_) => {
+                println!("pci.ids not found! Make sure you have 'hwdata' installed");
+                VendorData::default()
+            }
+        };
 
         log::info!("Vendor data: {:?}", vendor_data);
 
