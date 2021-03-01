@@ -1,6 +1,9 @@
-use crate::gpu_controller::{FanControlInfo, GpuStats};
 use crate::gpu_controller::{GpuInfo, PowerProfile};
 use crate::DaemonError;
+use crate::{
+    config::Config,
+    gpu_controller::{FanControlInfo, GpuStats},
+};
 use crate::{Action, DaemonResponse, SOCK_PATH};
 use std::collections::{BTreeMap, HashMap};
 use std::io::{Read, Write};
@@ -163,5 +166,19 @@ impl DaemonConnection {
         let mut s = UnixStream::connect(SOCK_PATH).unwrap();
         s.write_all(&bincode::serialize(&Action::Shutdown).unwrap())
             .unwrap();
+    }
+
+    pub fn get_config(&self) -> Result<Config, DaemonError> {
+        match self.send_action(Action::GetConfig)? {
+            DaemonResponse::Config(config) => Ok(config),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn set_config(&self, config: Config) -> Result<(), DaemonError> {
+        match self.send_action(Action::SetConfig(config))? {
+            DaemonResponse::OK => Ok(()),
+            _ => unreachable!(),
+        }
     }
 }

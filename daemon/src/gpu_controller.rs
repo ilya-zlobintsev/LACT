@@ -292,7 +292,10 @@ impl GpuController {
                     }
                 }
                 Err(err) => {
-                    println!("{:?} pci.ids not found! Make sure you have 'hwdata' installed", err);
+                    println!(
+                        "{:?} pci.ids not found! Make sure you have 'hwdata' installed",
+                        err
+                    );
                     VendorData::default()
                 }
             },

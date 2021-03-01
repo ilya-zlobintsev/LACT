@@ -12,9 +12,35 @@ fn main() {
         panic!("Cannot initialize GTK");
     }
 
-    let app = App::new(connect_daemon());
+    let connection = connect_daemon();
+
+    ask_for_online_update(&connection);
+
+    let app = App::new(connection);
 
     app.run().unwrap();
+}
+
+fn ask_for_online_update(connection: &DaemonConnection) {
+    let mut config = connection.get_config().unwrap();
+
+    if let None = config.allow_online_update {
+        let diag = MessageDialog::new(
+            None::<&Window>,
+            DialogFlags::empty(),
+            MessageType::Warning,
+            ButtonsType::YesNo,
+            "Do you wish to use the online database for GPU identification?",
+        );
+        match diag.run() {
+            ResponseType::Yes => config.allow_online_update = Some(true),
+            ResponseType::No => config.allow_online_update = Some(false),
+            _ => unreachable!(),
+        }
+        diag.hide();
+
+        connection.set_config(config).unwrap();
+    }
 }
 
 fn connect_daemon() -> DaemonConnection {

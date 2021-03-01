@@ -32,6 +32,8 @@ pub struct Daemon {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Action {
     CheckAlive,
+    GetConfig,
+    SetConfig(Config),
     GetGpus,
     GetInfo(u32),
     GetStats(u32),
@@ -81,8 +83,12 @@ impl Daemon {
             Config::new(&config_path)
         } else {
             match Config::read_from_file(&config_path) {
-                Ok(c) => c,
+                Ok(c) => {
+                    log::info!("Loaded config from {}", c.config_path.to_string_lossy());
+                    c
+                }
                 Err(_) => {
+                    log::info!("Config not found, creating");
                     let c = Config::new(&config_path);
                     //c.save().unwrap();
                     c
@@ -90,7 +96,7 @@ impl Daemon {
             }
         };
 
-        log::trace!("Using config {:?}", config);
+        log::info!("Using config {:?}", config);
 
         let gpu_controllers = Self::load_gpu_controllers(&mut config);
 
@@ -129,10 +135,25 @@ impl Daemon {
 
                     let mut controller =
                         GpuController::new(entry.path().join("device"), GpuConfig::new(), &pci_db);
-                    let gpu_info = &controller.get_info();
 
+                    let current_identifier = controller.get_identifier();
+
+                    log::info!(
+                        "Searching the config for GPU with identifier {:?}",
+                        current_identifier
+                    );
+
+                    log::info!("{}", &config.gpu_configs.len());
                     for (id, (gpu_identifier, gpu_config)) in &config.gpu_configs {
-                        if gpu_info.pci_slot == gpu_identifier.pci_id
+                        log::info!("Comparing with {:?}", gpu_identifier);
+                        if current_identifier == *gpu_identifier {
+                            controller.load_config(&gpu_config);
+                            gpu_controllers.insert(id.clone(), controller);
+                            log::info!("already known");
+                            continue 'entries;
+                        }
+
+                        /*if gpu_info.pci_slot == gpu_identifier.pci_id
                             && gpu_info.vendor_data.card_model == gpu_identifier.card_model
                             && gpu_info.vendor_data.gpu_model == gpu_identifier.gpu_model
                         {
@@ -140,7 +161,7 @@ impl Daemon {
                             gpu_controllers.insert(id.clone(), controller);
                             log::info!("already known");
                             continue 'entries;
-                        }
+                        }*/
                     }
 
                     log::info!("initializing for the first time");
@@ -403,6 +424,14 @@ impl Daemon {
                         }
                         std::process::exit(0);
                     }
+                    Action::SetConfig(config) => {
+                        self.config = config;
+                        self.gpu_controllers.clear();
+                        self.gpu_controllers = Self::load_gpu_controllers(&mut self.config);
+                        self.config.save().expect("Failed to save config");
+                        Ok(DaemonResponse::OK)
+                    }
+                    Action::GetConfig => Ok(DaemonResponse::Config(self.config.clone())),
                 };
 
                 log::trace!("Responding");
@@ -429,6 +458,7 @@ pub enum DaemonResponse {
     Gpus(HashMap<u32, Option<String>>),
     PowerCap((i64, i64)),
     FanControlInfo(gpu_controller::FanControlInfo),
+    Config(Config),
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -3,7 +3,14 @@ use daemon::daemon_connection::DaemonConnection;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
-enum Curve {
+enum ConfigOpt {
+    Show,
+    AllowOnlineUpdating,
+    DisallowOnlineUpdating,
+}
+
+#[derive(StructOpt)]
+enum CurveOpt {
     /// Shows current fan control information
     Status {
         /// Specify a GPU ID as printed in `lact-cli gpus`. By default, all GPUs are printed.
@@ -26,8 +33,9 @@ enum Opt {
         /// Specify a GPU ID as printed in `lact-cli gpus`. By default, all GPUs are printed.
         gpu_id: Option<u32>,
     },
+    Config(ConfigOpt),
     /// Fan curve control
-    Curve(Curve),
+    Curve(CurveOpt),
 }
 
 fn main() {
@@ -74,7 +82,7 @@ fn main() {
             }
         }
         Opt::Curve(curve) => match curve {
-            Curve::Status { gpu_id } => {
+            CurveOpt::Status { gpu_id } => {
                 let mut gpu_ids: Vec<u32> = Vec::new();
 
                 if let Some(gpu_id) = gpu_id {
@@ -90,7 +98,34 @@ fn main() {
                 }
             }
         },
+        Opt::Config(config_opt) => match config_opt {
+            ConfigOpt::Show => print_config(&d),
+            ConfigOpt::AllowOnlineUpdating => enable_online_update(&d),
+            ConfigOpt::DisallowOnlineUpdating => disable_online_update(&d),
+        },
     }
+}
+
+fn disable_online_update(d: &DaemonConnection) {
+    let mut config = d.get_config().unwrap();
+    config.allow_online_update = Some(false);
+    d.set_config(config).unwrap();
+}
+
+fn enable_online_update(d: &DaemonConnection) {
+    let mut config = d.get_config().unwrap();
+    config.allow_online_update = Some(true);
+    d.set_config(config).unwrap();
+}
+
+fn print_config(d: &DaemonConnection) {
+    let config = d.get_config().unwrap();
+
+    println!(
+        "{} {:?}",
+        "Online PCI DB updating:".purple(),
+        config.allow_online_update
+    );
 }
 
 fn print_fan_curve(d: &DaemonConnection, gpu_id: u32) {
