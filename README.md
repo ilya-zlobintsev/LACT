@@ -4,7 +4,7 @@ This application allows you to control your AMD GPU on a Linux system.
 
 |                                              |                                              |                                             |
 |----------------------------------------------|----------------------------------------------|---------------------------------------------|
-|![Screenshot](https://i.imgur.com/AqwkWKT.png)|![Screenshot](https://i.imgur.com/3VpQ0vC.png)|![Screenshot](https://i.imgur.com/okW7aq2.png)
+|![Screenshot](https://i.imgur.com/crEN4az.png)|![Screenshot](https://i.imgur.com/x7fTKpT.png)|![Screenshot](https://i.imgur.com/idAER4B.png)
  
 
 Current features:
@@ -23,18 +23,14 @@ Currently missing:
 # Installation
 
 - Arch Linux: Install the [AUR Package](https://aur.archlinux.org/packages/lact-git/)
-- Fedora:
-    - `sudo dnf install git gtk3-devel rust cargo vulkan-headers`
-    - `git clone https://github.com/ilyazzz/LACT && cd LACT`
-    - `./deploy.sh`
-- Ubuntu/Debian:
-    - `sudo apt install cargo rustc libvulkan-dev git libgtk3-dev`
-    - `git clone https://github.com/ilyazzz/LACT && cd LACT`
-    - `./deploy.sh`
 - Anything else:
-    - Install a rust toolchain, gtk3 dev headers and vulkan header
-    - Clone the repo
-    - ./deploy.sh
+    - Install dependencies:
+      - Ubuntu/Debian: `sudo apt install cargo rustc libvulkan-dev git libgtk3-dev`
+      - Fedora: `sudo dnf install git gtk3-devel rust cargo vulkan-headers`
+
+    - `git clone https://github.com/ilyazzz/LACT && cd LACT`
+    - `./deploy.sh` 
+
 
 # Usage
 
