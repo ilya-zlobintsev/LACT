@@ -50,7 +50,6 @@ impl PowerProfileFrame {
         }
 
         container.add(&root_box);
-
         Self {
             container,
             combo_box,
