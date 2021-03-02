@@ -6,49 +6,83 @@ use crate::{
 };
 use crate::{Action, DaemonResponse, SOCK_PATH};
 use std::collections::{BTreeMap, HashMap};
-use std::io::{Read, Write};
-use std::os::unix::net::UnixStream;
 
 #[derive(Clone, Copy)]
 pub struct DaemonConnection {}
 
+pub const BUFFER_SIZE: usize = 4096;
+
 impl DaemonConnection {
     pub fn new() -> Result<Self, DaemonError> {
-        match UnixStream::connect(SOCK_PATH) {
-            Ok(mut stream) => {
-                stream
-                    .write(&bincode::serialize(&Action::CheckAlive).unwrap())
-                    .unwrap();
+        let addr = nix::sys::socket::SockAddr::Unix(nix::sys::socket::UnixAddr::new_abstract(SOCK_PATH.as_bytes()).unwrap());
+        let socket = nix::sys::socket::socket(nix::sys::socket::AddressFamily::Unix, nix::sys::socket::SockType::Stream, nix::sys::socket::SockFlag::empty(), None).expect("Creating socket failed");
+        nix::sys::socket::connect(socket, &addr).expect("Socket connect failed");
 
-                stream
-                    .shutdown(std::net::Shutdown::Write)
-                    .expect("Could not shut down");
+        nix::unistd::write(socket, &bincode::serialize(&Action::CheckAlive).unwrap())
+            .expect("Writing check alive to socket failed");
 
-                let mut buffer = Vec::<u8>::new();
-                stream.read_to_end(&mut buffer).unwrap();
+        nix::sys::socket::shutdown(socket, nix::sys::socket::Shutdown::Write)
+            .expect("Could not shut down");
 
-                let result: Result<DaemonResponse, DaemonResponse> =
-                    bincode::deserialize(&buffer).unwrap();
-                match result {
-                    Ok(_) => Ok(DaemonConnection {}),
-                    Err(_) => Err(DaemonError::ConnectionFailed),
+        let mut buffer = Vec::<u8>::new();
+        buffer.resize(BUFFER_SIZE, 0);
+        loop {
+            match nix::unistd::read(socket, &mut buffer) {
+                Ok(0) => {
+                    break;
+                },
+                Ok(n) => {
+                    assert!(n < buffer.len());
+                    if n < buffer.len() {
+                        buffer.resize(n, 0);
+                    }
+                    break;
+                },
+                Err(e) => {
+                    panic!("Error reading from socket: {}", e);
                 }
             }
+        }
+        let result: Result<DaemonResponse, DaemonResponse> = bincode::deserialize(&buffer).expect("failed to deserialize message");
+
+        match result {
+            Ok(_) => Ok(DaemonConnection {}),
             Err(_) => Err(DaemonError::ConnectionFailed),
         }
     }
 
     fn send_action(&self, action: Action) -> Result<DaemonResponse, DaemonError> {
-        let mut s = UnixStream::connect(SOCK_PATH).expect("Connection to daemon dropped");
+        let addr = nix::sys::socket::SockAddr::Unix(nix::sys::socket::UnixAddr::new_abstract(SOCK_PATH.as_bytes()).unwrap());
+        let socket = nix::sys::socket::socket(nix::sys::socket::AddressFamily::Unix, nix::sys::socket::SockType::Stream, nix::sys::socket::SockFlag::empty(), None).expect("Socket failed");
+        nix::sys::socket::connect(socket, &addr).expect("connect failed");
 
-        s.write(&bincode::serialize(&action).unwrap())
-            .expect("Failed to write");
-        s.shutdown(std::net::Shutdown::Write)
-            .expect("Could nto shut down");
+
+        let b = bincode::serialize(&action).unwrap();
+        nix::unistd::write(socket, &b)
+            .expect("Writing action to socket failed");
+
+        nix::sys::socket::shutdown(socket, nix::sys::socket::Shutdown::Write)
+            .expect("Could not shut down");
 
         let mut buffer = Vec::<u8>::new();
-        s.read_to_end(&mut buffer).unwrap();
-
+        buffer.resize(BUFFER_SIZE, 0);
+        loop {
+            match nix::unistd::read(socket, &mut buffer) {
+                Ok(0) => {
+                    break;
+                },
+                Ok(n) => {
+                    assert!(n < buffer.len());
+                    if n < buffer.len() {
+                        buffer.resize(n, 0);
+                    }
+                    break;
+                },
+                Err(e) => {
+                    panic!("Error reading from socket: {}", e);
+                }
+            }
+        }
         bincode::deserialize(&buffer).expect("failed to deserialize message")
     }
 
@@ -163,9 +197,10 @@ impl DaemonConnection {
     }
 
     pub fn shutdown(&self) {
-        let mut s = UnixStream::connect(SOCK_PATH).unwrap();
-        s.write_all(&bincode::serialize(&Action::Shutdown).unwrap())
-            .unwrap();
+        let addr = nix::sys::socket::SockAddr::Unix(nix::sys::socket::UnixAddr::new_abstract(SOCK_PATH.as_bytes()).unwrap());
+        let socket = nix::sys::socket::socket(nix::sys::socket::AddressFamily::Unix, nix::sys::socket::SockType::Stream, nix::sys::socket::SockFlag::empty(), None).expect("Socket failed");
+        nix::sys::socket::connect(socket, &addr).expect("connect failed");
+        nix::unistd::write(socket, &mut &bincode::serialize(&Action::Shutdown).unwrap()).expect("Writing shutdown to socket failed");
     }
 
     pub fn get_config(&self) -> Result<Config, DaemonError> {
