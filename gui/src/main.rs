@@ -25,6 +25,8 @@ fn ask_for_online_update(connection: &DaemonConnection) {
     let mut config = connection.get_config().unwrap();
 
     if let None = config.allow_online_update {
+        log::trace!("Online access permission not configured! Showing the dialog");
+
         let diag = MessageDialog::new(
             None::<&Window>,
             DialogFlags::empty(),
