@@ -94,13 +94,6 @@ impl DaemonConnection {
         }
     }
 
-    pub fn get_power_cap(&self, gpu_id: u32) -> Result<(i64, i64), DaemonError> {
-        match self.send_action(Action::GetPowerCap(gpu_id))? {
-            DaemonResponse::PowerCap(cap) => Ok(cap),
-            _ => unreachable!(),
-        }
-    }
-
     pub fn set_power_cap(&self, gpu_id: u32, cap: i64) -> Result<(), DaemonError> {
         match self.send_action(Action::SetPowerCap(gpu_id, cap))? {
             DaemonResponse::OK => Ok(()),

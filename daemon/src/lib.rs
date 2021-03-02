@@ -42,7 +42,6 @@ pub enum Action {
     GetFanControl(u32),
     SetFanCurve(u32, BTreeMap<i64, f64>),
     SetPowerCap(u32, i64),
-    GetPowerCap(u32),
     SetPowerProfile(u32, PowerProfile),
     // SetGPUPowerState(u32, u32, i64, Option<i64>),
     SetGPUMaxPowerState(u32, i64, Option<i64>),
@@ -300,13 +299,6 @@ impl Daemon {
                                 self.config.save().unwrap();
                                 Ok(DaemonResponse::OK)
                             }
-                            Err(_) => Err(DaemonError::HWMonError),
-                        },
-                        None => Err(DaemonError::InvalidID),
-                    },
-                    Action::GetPowerCap(i) => match self.gpu_controllers.get(&i) {
-                        Some(controller) => match controller.get_power_cap() {
-                            Ok(cap) => Ok(DaemonResponse::PowerCap(cap)),
                             Err(_) => Err(DaemonError::HWMonError),
                         },
                         None => Err(DaemonError::InvalidID),
