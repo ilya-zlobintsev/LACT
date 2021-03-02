@@ -10,6 +10,8 @@ pub struct StatsGrid {
     vram_clock_label: Label,
     gpu_voltage_label: Label,
     power_usage_label: Label,
+    gpu_temperature_label: Label,
+    gpu_usage_label: Label,
 }
 
 impl StatsGrid {
@@ -37,7 +39,7 @@ impl StatsGrid {
             vram_usage_overlay.add(&vram_usage_bar);
             vram_usage_overlay.add_overlay(&vram_usage_label);
 
-            container.attach(&vram_usage_overlay, 1, 0, 1, 1);
+            container.attach(&vram_usage_overlay, 1, 0, 2, 1);
         }
 
         let gpu_clock_label = Label::new(None);
@@ -81,7 +83,7 @@ impl StatsGrid {
 
             gpu_voltage_box.set_halign(Align::Center);
 
-            container.attach(&gpu_voltage_box, 0, 2, 1, 1);
+            container.attach(&gpu_voltage_box, 2, 1, 1, 1);
         }
 
         let power_usage_label = Label::new(None);
@@ -96,7 +98,35 @@ impl StatsGrid {
 
             power_usage_box.set_halign(Align::Center);
 
-            container.attach(&power_usage_box, 1, 2, 1, 1);
+            container.attach(&power_usage_box, 0, 2, 1, 1);
+        }
+        
+        let gpu_temperature_label = Label::new(None);
+        {
+            let gpu_temperature_box = Box::new(Orientation::Horizontal, 5);
+
+            gpu_temperature_box.pack_start(&Label::new(Some("GPU Temperature:")), false, false, 2);
+
+            // gpu_temperature_label.set_markup("<b>0°C</b>");
+
+            gpu_temperature_box.pack_start(&gpu_temperature_label, false, false, 2);
+
+            gpu_temperature_box.set_halign(Align::Center);
+
+            container.attach(&gpu_temperature_box, 1, 2, 1, 1);
+        }
+
+        let gpu_usage_label = Label::new(None);
+        {
+            let gpu_usage_box = Box::new(Orientation::Horizontal, 5);
+
+            gpu_usage_box.pack_start(&Label::new(Some("GPU Usage:")), false, false, 2);
+
+            gpu_usage_box.pack_start(&gpu_usage_label, false, false, 2);
+
+            gpu_usage_box.set_halign(Align::Center);
+
+            container.attach(&gpu_usage_box, 2, 2, 1, 1);
         }
 
         Self {
@@ -107,6 +137,8 @@ impl StatsGrid {
             vram_clock_label,
             gpu_voltage_label,
             power_usage_label,
+            gpu_temperature_label,
+            gpu_usage_label,
         }
     }
 
@@ -140,6 +172,14 @@ impl StatsGrid {
             "<b>{}/{}W</b>",
             stats.power_avg.unwrap_or_else(|| 0),
             stats.power_cap.unwrap_or_else(|| 0)
+        ));
+        self.gpu_temperature_label.set_markup(&format!(
+            "<b>{}°C</b>", 
+            stats.gpu_temp.unwrap_or_default()
+        ));
+        self.gpu_usage_label.set_markup(&format!(
+            "<b>{}%</b>", 
+            stats.gpu_usage.unwrap_or_default()
         ));
     }
 }

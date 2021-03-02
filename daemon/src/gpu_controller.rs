@@ -104,6 +104,7 @@ pub struct GpuStats {
     pub fan_speed: Option<i64>,
     pub max_fan_speed: Option<i64>,
     pub voltage: Option<i64>,
+    pub gpu_usage: Option<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -329,6 +330,11 @@ impl GpuController {
             Ok(a) => Some(a.trim().parse::<u64>().unwrap() / 1024 / 1024),
             Err(_) => None,
         };
+        
+        let gpu_usage = match fs::read_to_string(self.hw_path.join("gpu_busy_percent")) {
+            Ok(a) => Some(a.trim().parse::<u8>().unwrap()),
+            Err(_) => None,
+        };
 
         let (
             mem_freq,
@@ -367,6 +373,7 @@ impl GpuController {
             fan_speed,
             max_fan_speed,
             voltage,
+            gpu_usage,
         })
     }
 
