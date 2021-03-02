@@ -8,12 +8,10 @@ use gpu_controller::PowerProfile;
 use pciid_parser::PciDatabase;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::{
     collections::{BTreeMap, HashMap},
     fs,
-};
-use std::{
-    path::PathBuf,
 };
 
 use crate::gpu_controller::GpuController;
@@ -21,6 +19,7 @@ use crate::gpu_controller::GpuController;
 // Abstract socket allows anyone to connect without worrying about permissions
 // https://unix.stackexchange.com/questions/579612/unix-domain-sockets-for-non-root-user
 pub const SOCK_PATH: &str = "amdgpu-configurator.sock";
+pub const BUFFER_SIZE: usize = 4096;
 
 pub struct Daemon {
     gpu_controllers: HashMap<u32, GpuController>,
@@ -52,8 +51,16 @@ pub enum Action {
 
 impl Daemon {
     pub fn new(unprivileged: bool) -> Daemon {
-        let addr = nix::sys::socket::SockAddr::Unix(nix::sys::socket::UnixAddr::new_abstract(SOCK_PATH.as_bytes()).unwrap());
-        let listener = nix::sys::socket::socket(nix::sys::socket::AddressFamily::Unix, nix::sys::socket::SockType::Stream, nix::sys::socket::SockFlag::empty(), None).expect("Socket failed");
+        let addr = nix::sys::socket::SockAddr::Unix(
+            nix::sys::socket::UnixAddr::new_abstract(SOCK_PATH.as_bytes()).unwrap(),
+        );
+        let listener = nix::sys::socket::socket(
+            nix::sys::socket::AddressFamily::Unix,
+            nix::sys::socket::SockType::Stream,
+            nix::sys::socket::SockFlag::empty(),
+            None,
+        )
+        .expect("Socket failed");
         nix::sys::socket::bind(listener, &addr).expect("Bind failed");
         nix::sys::socket::listen(listener, 128).expect("Listen failed");
 
@@ -181,27 +188,34 @@ impl Daemon {
         }
     }
 
-    fn handle_connection(&mut self, stream: i32) {
+    pub fn read_buffer(stream: i32) -> Vec<u8> {
         log::trace!("Reading buffer");
         let mut buffer = Vec::<u8>::new();
-        buffer.resize(daemon_connection::BUFFER_SIZE, 0);
+        buffer.resize(BUFFER_SIZE, 0);
         loop {
             match nix::unistd::read(stream, &mut buffer) {
                 Ok(0) => {
                     break;
-                },
+                }
                 Ok(n) => {
                     assert!(n < buffer.len());
                     if n < buffer.len() {
                         buffer.resize(n, 0);
                     }
                     break;
-                },
+                }
                 Err(e) => {
                     panic!("Error reading from socket: {}", e);
                 }
             }
         }
+
+        buffer
+    }
+
+    fn handle_connection(&mut self, stream: i32) {
+        let buffer = Self::read_buffer(stream);
+
         //log::trace!("finished reading, buffer size {}", buffer.len());
         log::trace!("Attempting to deserialize {:?}", &buffer);
         //log::trace!("{:?}", action);
@@ -422,8 +436,10 @@ impl Daemon {
                     Action::GetConfig => Ok(DaemonResponse::Config(self.config.clone())),
                 };
 
-                log::trace!("Responding");
-                nix::unistd::write(stream, &mut &bincode::serialize(&response).unwrap()).expect("Writing response to socket failed");
+                let buffer = bincode::serialize(&response).unwrap();
+
+                log::trace!("Responding, buffer length {}", buffer.len());
+                nix::unistd::write(stream, &buffer).expect("Writing response to socket failed");
                 //stream
                 //    .shutdown(std::net::Shutdown::Write)
                 //    .expect("Could not shut down");
