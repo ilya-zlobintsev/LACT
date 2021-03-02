@@ -330,7 +330,7 @@ impl GpuController {
             Ok(a) => Some(a.trim().parse::<u64>().unwrap() / 1024 / 1024),
             Err(_) => None,
         };
-        
+
         let gpu_usage = match fs::read_to_string(self.hw_path.join("gpu_busy_percent")) {
             Ok(a) => Some(a.trim().parse::<u8>().unwrap()),
             Err(_) => None,
