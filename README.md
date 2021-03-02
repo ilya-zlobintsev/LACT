@@ -44,7 +44,7 @@ sudo systemctl enable --now lactd
 ```
 You can now use the application.
 
-Note: only members of the group `wheel` can change settings.
+Note: By default, only members of the group `wheel` can change settings. This can be changed by editing `/etc/lact.json` and changing the `group` value.
 
 # CLI
 
