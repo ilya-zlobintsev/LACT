@@ -179,6 +179,12 @@ impl App {
                         .expect("Failed to set power profile");
                 }
 
+                if let Some(cap) = app.root_stack.oc_page.get_power_cap() {
+                    app.daemon_connection
+                        .set_power_cap(gpu_id, cap)
+                        .expect("Failed to set power cap");
+                }
+
                 app.set_info(gpu_id);
             });
         }
@@ -195,7 +201,7 @@ impl App {
         self.root_stack.info_page.set_info(&gpu_info);
 
         log::trace!("Setting clocks");
-        self.root_stack.oc_page.set_clocks(&gpu_info.clocks_table);
+        self.root_stack.oc_page.set_info(&gpu_info);
 
         log::trace!("Setting power profile {:?}", gpu_info.power_profile);
         self.root_stack

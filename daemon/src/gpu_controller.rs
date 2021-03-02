@@ -133,6 +133,8 @@ pub struct GpuInfo {
     pub pci_slot: String,
     pub power_profile: Option<PowerProfile>,
     pub clocks_table: Option<ClocksTable>,
+    pub power_cap: Option<i64>,
+    pub power_cap_max: Option<i64>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -212,6 +214,11 @@ impl GpuController {
             Ok(t) => Some(t),
             Err(_) => None,
         };
+
+        if let Some(hw_mon) = &self.hw_mon {
+            info.power_cap = hw_mon.get_power_cap();
+            info.power_cap_max = hw_mon.get_power_cap_max();
+        }
 
         info
     }
@@ -317,6 +324,8 @@ impl GpuController {
             pci_slot,
             power_profile: None,
             clocks_table: None,
+            power_cap: None,
+            power_cap_max: None,
         }
     }
 
