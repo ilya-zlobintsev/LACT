@@ -58,26 +58,6 @@ impl Daemon {
             fs::remove_file(SOCK_PATH).expect("Failed to take control over socket");
         }
 
-        let listener = UnixListener::bind(SOCK_PATH).unwrap();
-
-        Command::new("chmod")
-            .arg("664")
-            .arg(SOCK_PATH)
-            .output()
-            .expect("Failed to chmod");
-
-        Command::new("chown")
-            .arg("nobody:wheel")
-            .arg(SOCK_PATH)
-            .output()
-            .expect("Failed to chown");
-
-        Command::new("chown")
-            .arg("nobody:wheel")
-            .arg(SOCK_PATH)
-            .output()
-            .expect("Failed to chown");
-
         let config_path = PathBuf::from("/etc/lact.json");
         let mut config = if unprivileged {
             Config::new(&config_path)
@@ -95,6 +75,26 @@ impl Daemon {
                 }
             }
         };
+
+        let listener = UnixListener::bind(SOCK_PATH).unwrap();
+
+        Command::new("chmod")
+            .arg("664")
+            .arg(SOCK_PATH)
+            .output()
+            .expect("Failed to chmod");
+
+        Command::new("chown")
+            .arg("nobody:wheel")
+            .arg(SOCK_PATH)
+            .output()
+            .expect("Failed to chown");
+
+        Command::new("chown")
+            .arg(&format!("nobody:{}", config.group))
+            .arg(SOCK_PATH)
+            .output()
+            .expect("Failed to chown");
 
         log::info!("Using config {:?}", config);
 

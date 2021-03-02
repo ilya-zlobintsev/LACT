@@ -77,6 +77,7 @@ pub struct Config {
     pub gpu_configs: HashMap<u32, (GpuIdentifier, GpuConfig)>,
     pub allow_online_update: Option<bool>,
     pub config_path: PathBuf,
+    pub group: String,
 }
 
 impl Config {
@@ -87,6 +88,7 @@ impl Config {
             gpu_configs,
             allow_online_update: None,
             config_path: config_path.clone(),
+            group: String::from("wheel"),
         }
     }
 
