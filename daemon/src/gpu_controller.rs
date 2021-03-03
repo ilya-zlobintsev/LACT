@@ -862,7 +862,7 @@ impl GpuController {
                 let (profile, voltage) = {
                     let power_level = clocks_table.mem_power_levels.iter().next_back().unwrap();
                     log::info!("Using mem power level {:?}", power_level);
-                    (power_level.0, power_level.1.1)
+                    (power_level.0, power_level.1 .1)
                 };
 
                 let line = format!("m {} {} {}\n", profile, clockspeed, voltage);
@@ -870,7 +870,7 @@ impl GpuController {
                 log::info!("Writing {} to pp_od_clk_voltage", line);
 
                 fs::write(self.hw_path.join("pp_od_clk_voltage"), line)?;
-                
+
                 self.config.vram_max_clock = clockspeed;
             }
             ClocksTable::New(_) => {
