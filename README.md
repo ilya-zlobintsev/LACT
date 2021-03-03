@@ -18,7 +18,6 @@ Currently missing:
 - Voltage control on Vega20+ GPUs
 - Precise clock/voltage curve manipulation (currently can only set the maximum values)
 - <s>Multi-GPU system support</s> *Should work now*
-- The card model detection isn't very reliable
 
 # Installation
 
@@ -88,3 +87,11 @@ There is also a cli available.
     80C°: 88%
     100C°: 100%
     ```
+
+# Reporting issues
+ 
+ When reporting issues, please include your system info and GPU model.
+ 
+ If there's a crash, run `lact-gui` from the command line to get logs, or use `journalctl -u lactd` to see if the daemon crashed.
+ 
+ If there's an issue with GPU model identification please report it [here](https://github.com/ilyazzz/pci-id-parser/), include your GPU model and the output of `cat /sys/class/drm/card*/device/uevent`.
