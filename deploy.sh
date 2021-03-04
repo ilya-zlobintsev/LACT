@@ -7,4 +7,5 @@ sudo install -Dm644 lactd.service /etc/systemd/system/lactd.service &&
 sudo mkdir -p /usr/local/share/applications && 
 sudo install -Dm644 lact.desktop /usr/local/share/applications/ && 
 sudo systemctl daemon-reload 
-#sudo systemctl restart lactd
+sudo systemctl enable lactd &&
+sudo systemctl restart lactd
