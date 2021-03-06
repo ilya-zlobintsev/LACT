@@ -24,8 +24,8 @@ Currently missing:
 - Arch Linux: Install the [AUR Package](https://aur.archlinux.org/packages/lact-git/)
 - Anything else:
     - Install dependencies:
-      - Ubuntu/Debian: `sudo apt install cargo rustc libvulkan-dev git libgtk3-dev`
-      - Fedora: `sudo dnf install git gtk3-devel rust cargo vulkan-headers`
+      - Ubuntu/Debian: `sudo apt install cargo rustc libvulkan-dev git libgtk-3-dev make`
+      - Fedora: `sudo dnf install git gtk3-devel rust cargo vulkan-headers perl-FindBin perl-File-Compare`
 
     - `git clone https://github.com/ilyazzz/LACT && cd LACT`
     - `./deploy.sh` 
