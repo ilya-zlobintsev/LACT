@@ -472,3 +472,36 @@ pub enum DaemonError {
     HWMonError,
     ControllerError,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
+    #[test]
+    fn recognize_polaris() {
+        init();
+
+        let db = Daemon::get_pci_db_online().unwrap();
+
+        let vendor_data = db.get_by_ids("1002", "67df", "1da2", "e387").unwrap();
+
+        assert_eq!(
+            vendor_data.gpu_vendor,
+            Some("Advanced Micro Devices, Inc. [AMD/ATI]".to_string())
+        );
+
+        assert_eq!(
+            vendor_data.gpu_model,
+            Some("Ellesmere [Radeon RX 470/480/570/570X/580/580X/590]".to_string())
+        );
+
+        assert_eq!(
+            vendor_data.card_model,
+            Some("Radeon RX 580 Pulse 4GB".to_string())
+        );
+    }
+}
