@@ -39,7 +39,7 @@ impl ThermalsPage {
 
         grid.attach(
             &{
-                let label = Label::new(Some("Temperature:"));
+                let label = Label::new(Some("Temperatures:"));
                 label.set_halign(Align::End);
                 label
             },
@@ -136,8 +136,10 @@ impl ThermalsPage {
                 temperatures.push(format!("{}: {}°C", label, temp.current));
             }
 
+            temperatures.sort();
+
             if !temperatures.is_empty() {
-                temperatures.join(" ")
+                temperatures.join("\n")
             } else {
                 String::from("No sensors found")
             }
