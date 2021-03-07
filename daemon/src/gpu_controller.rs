@@ -1008,9 +1008,21 @@ mod tests {
             MCLK:     300MHz       2250MHz
             VDDC:     750mV        1200mV"#;
 
-        let clocks_table = GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
+        match GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap() {
+            ClocksTable::Old(clocks_table) => {
+                log::trace!("{:?}", clocks_table);
 
-        log::trace!("{:?}", clocks_table);
+                assert_eq!(clocks_table.gpu_clocks_range, (300, 2000));
+                assert_eq!(clocks_table.mem_clocks_range, (300, 2250));
+                assert_eq!(clocks_table.voltage_range, (750, 1200));
+                
+                assert_eq!(clocks_table.gpu_power_levels.get(&6).unwrap(), &(1300, 1150));
+                assert_eq!(clocks_table.mem_power_levels.get(&1).unwrap(), &(1000, 825));
+            },
+            _ => panic!("Invalid clocks format detected"),
+        }
+
+
     }
 
     // pp_od_clk_voltage taken from a Vega 56
@@ -1069,8 +1081,17 @@ mod tests {
             VDDC_CURVE_VOLT[2]:     750mV        1200mV
         "#;
 
-        let clocks_table = GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap();
-
-        log::info!("{:?}", clocks_table);
+        match GpuController::parse_clocks_table(pp_od_clk_voltage).unwrap() {
+            ClocksTable::New(clocks_table) => {
+                log::trace!("{:?}", clocks_table);
+                
+                assert_eq!(clocks_table.gpu_clocks_range, (800, 2150));
+                assert_eq!(clocks_table.mem_clocks_range, (625, 950));
+                
+                assert_eq!(clocks_table.current_gpu_clocks, (800, 2100));
+                assert_eq!(clocks_table.current_max_mem_clock, 875);
+            },
+            _ => panic!("Invalid clocks format detected"),
+        }
     }
 }
