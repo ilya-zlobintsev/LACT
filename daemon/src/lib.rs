@@ -440,9 +440,11 @@ impl Daemon {
 
                 log::trace!("Responding, buffer length {}", buffer.len());
                 nix::unistd::write(stream, &buffer).expect("Writing response to socket failed");
-                //stream
-                //    .shutdown(std::net::Shutdown::Write)
-                //    .expect("Could not shut down");
+
+                nix::sys::socket::shutdown(stream, nix::sys::socket::Shutdown::Both)
+                    .expect("Failed to shut down");
+                nix::unistd::close(stream).expect("Failed to close");
+
                 log::trace!("Finished responding");
             }
             Err(_) => {

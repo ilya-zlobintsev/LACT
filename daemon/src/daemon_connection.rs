@@ -1,5 +1,3 @@
-use nix::unistd;
-
 use crate::config::Config;
 use crate::gpu_controller::{FanControlInfo, GpuStats};
 use crate::gpu_controller::{GpuInfo, PowerProfile};
