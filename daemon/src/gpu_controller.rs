@@ -1,4 +1,4 @@
-use crate::config::{GpuConfig, GpuIdentifier};
+use crate::{config::{GpuConfig, GpuIdentifier}, hw_mon::Temperature};
 use crate::hw_mon::{HWMon, HWMonError};
 use pciid_parser::{PciDatabase, VendorData};
 use serde::{Deserialize, Serialize};
@@ -97,7 +97,7 @@ pub struct GpuStats {
     pub mem_total: Option<u64>,
     pub mem_freq: Option<i64>,
     pub gpu_freq: Option<i64>,
-    pub gpu_temp: Option<i64>,
+    pub temperatures: HashMap<String, Temperature>,
     pub power_avg: Option<i64>,
     pub power_cap: Option<i64>,
     pub power_cap_max: Option<i64>,
@@ -348,7 +348,7 @@ impl GpuController {
         let (
             mem_freq,
             gpu_freq,
-            gpu_temp,
+            temperatures,
             power_avg,
             power_cap,
             power_cap_max,
@@ -359,7 +359,7 @@ impl GpuController {
             Some(hw_mon) => (
                 hw_mon.get_mem_freq(),
                 hw_mon.get_gpu_freq(),
-                hw_mon.get_gpu_temp(),
+                hw_mon.get_temps(),
                 hw_mon.get_power_avg(),
                 hw_mon.get_power_cap(),
                 hw_mon.get_power_cap_max(),
@@ -375,7 +375,7 @@ impl GpuController {
             mem_used,
             mem_freq,
             gpu_freq,
-            gpu_temp,
+            temperatures,
             power_avg,
             power_cap,
             power_cap_max,

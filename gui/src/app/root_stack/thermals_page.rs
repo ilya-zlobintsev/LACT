@@ -129,10 +129,19 @@ impl ThermalsPage {
     }
 
     pub fn set_thermals_info(&self, stats: &GpuStats) {
-        match stats.gpu_temp {
-            Some(temp) => self.temp_label.set_markup(&format!("<b>{}°C</b>", temp)),
-            None => self.temp_label.set_text("Sensor not found"),
-        }
+        self.temp_label.set_markup(&format!("<b>{}</b>", {
+            let mut temperatures = Vec::new();
+
+            for (label, temp) in stats.temperatures.iter() {
+                temperatures.push(format!("{}: {}°C", label, temp.current));
+            }
+
+            if !temperatures.is_empty() {
+                temperatures.join(" ")
+            } else {
+                String::from("No sensors found")
+            }
+        }));
 
         match stats.fan_speed {
             Some(fan_speed) => self.fan_speed_label.set_markup(&format!(
