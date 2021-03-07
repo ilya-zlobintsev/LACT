@@ -1,16 +1,17 @@
-use std::{
-    collections::BTreeMap,
-    fs,
-    path::PathBuf,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, RwLock,
-    },
-    thread,
-    time::Duration,
-};
-
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
+use std::{fs, thread};
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct Temperature {
+    pub current: i64,
+    pub crit: i64,
+    pub crit_hyst: i64,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HWMonError {
@@ -101,13 +102,59 @@ impl HWMon {
         }
     }
 
-    pub fn get_gpu_temp(&self) -> Option<i64> {
-        let filename = self.hwmon_path.join("temp1_input");
+    pub fn get_temps(&self) -> HashMap<String, Temperature> {
+        let mut temps = HashMap::new();
 
-        match fs::read_to_string(filename) {
-            Ok(temp) => Some(temp.trim().parse::<i64>().unwrap() / 1000),
-            Err(_) => None,
+        for i in 1..3 {
+            let label_filename = self.hwmon_path.join(format!("temp{}_label", i));
+
+            match fs::read_to_string(label_filename) {
+                Ok(label) => {
+                    // If there's a label identifying the sensor, there should always be input and crit files too. But just in case using .unwrap_or_default()
+                    let current = {
+                        let filename = self.hwmon_path.join(format!("temp{}_input", i));
+                        fs::read_to_string(filename)
+                            .unwrap_or_default()
+                            .trim()
+                            .parse::<i64>()
+                            .unwrap_or_default()
+                            / 1000
+                    };
+
+                    let crit = {
+                        let filename = self.hwmon_path.join(format!("temp{}_crit", i));
+                        fs::read_to_string(filename)
+                            .unwrap_or_default()
+                            .trim()
+                            .parse::<i64>()
+                            .unwrap_or_default()
+                            / 1000
+                    };
+
+                    let crit_hyst = {
+                        let filename = self.hwmon_path.join(format!("temp{}_crit_hyst", i));
+                        fs::read_to_string(filename)
+                            .unwrap_or_default()
+                            .trim()
+                            .parse::<i64>()
+                            .unwrap_or_default()
+                            / 1000
+                    };
+
+                    temps.insert(
+                        label.trim().to_string(),
+                        Temperature {
+                            current,
+                            crit,
+                            crit_hyst,
+                        },
+                    );
+                }
+                Err(_) => break,
+            }
         }
+
+        temps
     }
 
     pub fn get_voltage(&self) -> Option<i64> {
@@ -187,10 +234,21 @@ impl HWMon {
 
                 thread::spawn(move || {
                     while s.fan_control.load(Ordering::SeqCst) {
-                        let curve = s.fan_curve.read().unwrap();
+                        let temps = s.get_temps();
+                        log::trace!("Temps: {:?}", temps);
+                        let edge_temps = temps.get("edge").unwrap();
 
-                        let temp = s.get_gpu_temp().unwrap();
+                        let temp = edge_temps.current;
+
+                        if temp >= edge_temps.crit || temp <= edge_temps.crit_hyst {
+                            println!("CRITICAL TEMPERATURE DETECTED! FORCING MAX FAN SPEED");
+                            fs::write(s.hwmon_path.join("pwm1"), 255.to_string())
+                                            .expect("Failed to set gpu temp in critical scenario (Warning: GPU Overheating!)");
+                        }
+
                         log::trace!("Current gpu temp: {}", temp);
+
+                        let curve = s.fan_curve.read().unwrap();
 
                         for (t_low, s_low) in curve.iter() {
                             match curve.range(t_low..).nth(1) {
@@ -210,7 +268,7 @@ impl HWMon {
                                         break;
                                     }
                                 }
-                                None => (),
+                                None => continue,
                             }
                         }
                         drop(curve); //needed to release rwlock so that the curve can be changed
