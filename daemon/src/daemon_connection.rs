@@ -1,3 +1,5 @@
+use nix::unistd;
+
 use crate::config::Config;
 use crate::gpu_controller::{FanControlInfo, GpuStats};
 use crate::gpu_controller::{GpuInfo, PowerProfile};
@@ -50,6 +52,11 @@ impl DaemonConnection {
                 }
             }
         }
+        nix::sys::socket::shutdown(socket, nix::sys::socket::Shutdown::Both)
+            .expect("Could not shut down");
+
+        nix::unistd::close(socket).expect("Failed to close");
+
         let result: Result<DaemonResponse, DaemonResponse> =
             bincode::deserialize(&buffer).expect("failed to deserialize message");
 
@@ -79,6 +86,11 @@ impl DaemonConnection {
             .expect("Could not shut down");
 
         let buffer = Daemon::read_buffer(socket);
+
+        nix::sys::socket::shutdown(socket, nix::sys::socket::Shutdown::Both)
+            .expect("Failed to shut down");
+
+        nix::unistd::close(socket).expect("Failed to close");
 
         bincode::deserialize(&buffer).expect("failed to deserialize message")
     }
