@@ -186,7 +186,13 @@ fn print_stats(d: &DaemonConnection, gpu_id: u32) {
     println!(
         "{} {}{}",
         "Temperature:".green(),
-        gpu_stats.temperatures.get("edge").unwrap().current.to_string().bold(),
+        gpu_stats
+            .temperatures
+            .get("edge")
+            .unwrap()
+            .current
+            .to_string()
+            .bold(),
         "°C".bold(),
     );
     println!(

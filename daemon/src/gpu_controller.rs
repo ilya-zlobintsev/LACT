@@ -1,5 +1,8 @@
-use crate::{config::{GpuConfig, GpuIdentifier}, hw_mon::Temperature};
 use crate::hw_mon::{HWMon, HWMonError};
+use crate::{
+    config::{GpuConfig, GpuIdentifier},
+    hw_mon::Temperature,
+};
 use pciid_parser::{PciDatabase, VendorData};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
