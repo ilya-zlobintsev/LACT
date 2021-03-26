@@ -582,3 +582,10 @@ impl From<io::Error> for OcControllerError {
         OcControllerError::IoError(err.to_string())
     }
 }
+
+#[derive(Clone)]
+pub enum ClocksTable {
+    New(NewClocksTable),
+    Old(OldClocksTable),
+    Basic(BasicClocksTable),
+}

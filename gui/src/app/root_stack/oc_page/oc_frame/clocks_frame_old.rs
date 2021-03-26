@@ -1,4 +1,4 @@
-use daemon::gpu_controller::ClocksTableOld;
+use daemon::gpu_controller::oc_controller::OldClocksTable;
 use gtk::{prelude::ComboBoxExtManual, *};
 use std::sync::{Arc, RwLock};
 
@@ -6,7 +6,7 @@ use std::sync::{Arc, RwLock};
 pub struct ClocksFrameOld {
     pub container: Grid,
     gpu_powerlevel_dropdown: ComboBoxText,
-    clocks_table: Arc<RwLock<ClocksTableOld>>,
+    clocks_table: Arc<RwLock<OldClocksTable>>,
     gpu_clock_adjustment: Adjustment,
     gpu_voltage_adjustment: Adjustment,
 }
@@ -58,7 +58,7 @@ impl ClocksFrameOld {
             container.attach(&gpu_voltage_scale, 1, 2, 1, 1);
         }
 
-        let clocks_table = Arc::new(RwLock::new(ClocksTableOld::default()));
+        let clocks_table = Arc::new(RwLock::new(OldClocksTable::default()));
 
         Self {
             container,
@@ -69,7 +69,7 @@ impl ClocksFrameOld {
         }
     }
 
-    pub fn set_data(&self, clocks_table: ClocksTableOld) {
+    pub fn set_data(&self, clocks_table: OldClocksTable) {
         for (profile, _) in clocks_table.gpu_power_levels.iter().rev() {
             log::trace!("Adding profile {}", profile);
             self.gpu_powerlevel_dropdown

@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use daemon::gpu_controller::ClocksTable;
+use daemon::gpu_controller::oc_controller::ClocksTable;
 use gtk::*;
 
 mod clocks_frame_new;
@@ -99,6 +99,7 @@ impl OcFrame {
                         // clocks_frame.set_info(&clocks_table_old);
                         *clocks_frame = Some(ClocksFrame::New(clocks_frame_new));
                     }
+                    ClocksTable::Basic(_) => unimplemented!(),
                 }
                 
                 self.clocks_frame_container.show_all();
@@ -114,6 +115,11 @@ impl OcFrame {
                         self.set_clocks(clocks_table);
                         return;
                     }
+                    ClocksTable::Basic(_) => {
+                        *clocks_frame = None;
+                        self.set_clocks(clocks_table);
+                        return;
+                    }
                 },
                 ClocksFrame::New(clocks_frame_new) => match clocks_table {
                     ClocksTable::New(clocks_frame_new) => {
@@ -121,6 +127,11 @@ impl OcFrame {
                     }
                     ClocksTable::Old(_) => {
                         // Clears the current clocks frame as the type has changed
+                        *clocks_frame = None;
+                        self.set_clocks(clocks_table);
+                        return;
+                    }
+                    ClocksTable::Basic(_) => {
                         *clocks_frame = None;
                         self.set_clocks(clocks_table);
                         return;

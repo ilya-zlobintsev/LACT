@@ -1,10 +1,10 @@
+mod oc_frame;
 mod power_cap_frame;
 mod power_profile_frame;
 mod stats_grid;
 mod warning_frame;
-mod oc_frame;
 
-use daemon::gpu_controller::{GpuInfo, GpuStats, PowerProfile};
+use daemon::gpu_controller::{oc_controller::ClocksTable, GpuInfo, GpuStats, PowerProfile};
 use gtk::*;
 
 use oc_frame::OcFrame;
@@ -107,15 +107,18 @@ impl OcPage {
         }
     }
 
-    pub fn set_info(&self, info: &GpuInfo) {
-        match info.clocks_table.clone() {
+    pub fn set_clocks(&self, clocks: &Option<ClocksTable>) {
+        match clocks {
             Some(clocks_table) => {
                 self.oc_frame.show();
-                self.oc_frame.set_clocks(clocks_table);
+                self.oc_frame.set_clocks(clocks_table.clone());
             }
             None => self.oc_frame.hide(),
         }
 
+    }
+
+    pub fn set_info(&self, info: &GpuInfo) {
         self.power_cap_frame
             .set_data(info.power_cap, info.power_cap_max);
     }
