@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=LACT
+Description=AMDGPU Control Application
+Exec=lact-gui
