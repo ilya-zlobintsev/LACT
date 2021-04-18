@@ -230,8 +230,6 @@ impl App {
                     let ppfeaturemask: u64 =
                         u64::from_str_radix(ppfeaturemask, 16).expect("Invalid ppfeaturemask");
 
-                    println!("{:?}", ppfeaturemask & PP_OVERDRIVE_MASK as u64);
-
                     if (ppfeaturemask & PP_OVERDRIVE_MASK as u64) > 0 {
                         self.root_stack.oc_page.warning_frame.hide();
                     } else {
