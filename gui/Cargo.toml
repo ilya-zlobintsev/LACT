@@ -10,7 +10,7 @@ edition = "2018"
 daemon = { path = "../daemon" }
 
 gtk = { version = "0.9", features = ["v3_22"] }
-pango = "0.9"
+pango = "0.14"
 glib = "0.10"
 
 log = "0.4"
