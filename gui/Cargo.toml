@@ -14,4 +14,4 @@ pango = "0.9"
 glib = "0.10"
 
 log = "0.4"
-env_logger = "0.8"
+env_logger = "0.9"
