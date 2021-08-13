@@ -1,4 +1,4 @@
-use gtk::prelude::{ComboBoxExtManual, ObjectExt};
+use gtk::prelude::*;
 use gtk::*;
 use pango::EllipsizeMode;
 use std::collections::HashMap;
@@ -42,7 +42,7 @@ impl Header {
         }
 
         //limits the length of gpu names in combobox
-        for cell in self.gpu_selector.get_cells() {
+        for cell in self.gpu_selector.cells() {
             cell.set_property("width-chars", &10).unwrap();
             cell.set_property("ellipsize", &EllipsizeMode::End).unwrap();
         }
@@ -52,7 +52,7 @@ impl Header {
 
     pub fn connect_gpu_selection_changed<F: Fn(u32) + 'static>(&self, f: F) {
         self.gpu_selector.connect_changed(move |gpu_selector| {
-            let selected_id = gpu_selector.get_active_id().unwrap();
+            let selected_id = gpu_selector.active_id().unwrap();
             f(selected_id.parse().unwrap());
         });
     }

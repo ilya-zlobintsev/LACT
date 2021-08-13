@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use gtk::prelude::*;
 use gtk::*;
 
 #[derive(Clone)]
@@ -178,11 +179,11 @@ impl FanCurveFrame {
     pub fn get_curve(&self) -> BTreeMap<i64, f64> {
         let mut curve = BTreeMap::new();
 
-        curve.insert(20, self.adjustment_1.get_value());
-        curve.insert(40, self.adjustment_2.get_value());
-        curve.insert(60, self.adjustment_3.get_value());
-        curve.insert(80, self.adjustment_4.get_value());
-        curve.insert(100, self.adjustment_5.get_value());
+        curve.insert(20, self.adjustment_1.value());
+        curve.insert(40, self.adjustment_2.value());
+        curve.insert(60, self.adjustment_3.value());
+        curve.insert(80, self.adjustment_4.value());
+        curve.insert(100, self.adjustment_5.value());
 
         curve
     }

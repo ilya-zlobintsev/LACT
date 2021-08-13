@@ -1,4 +1,5 @@
 use daemon::gpu_controller::VulkanInfo;
+use gtk::prelude::*;
 use gtk::*;
 
 #[derive(Clone)]

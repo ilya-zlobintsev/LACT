@@ -1,4 +1,5 @@
 use daemon::gpu_controller::ClocksTable;
+use gtk::prelude::*;
 use gtk::*;
 
 pub struct ClocksSettings {
@@ -178,11 +179,11 @@ impl ClocksFrame {
     }
 
     pub fn get_settings(&self) -> ClocksSettings {
-        let gpu_clock = self.gpu_clock_adjustment.get_value() as i64;
+        let gpu_clock = self.gpu_clock_adjustment.value() as i64;
 
-        let vram_clock = self.vram_clock_adjustment.get_value() as i64;
+        let vram_clock = self.vram_clock_adjustment.value() as i64;
 
-        let gpu_voltage = (self.gpu_voltage_adjustment.get_value() * 1000.0) as i64;
+        let gpu_voltage = (self.gpu_voltage_adjustment.value() * 1000.0) as i64;
 
         ClocksSettings {
             gpu_clock,

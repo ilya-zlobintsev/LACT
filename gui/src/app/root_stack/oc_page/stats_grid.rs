@@ -1,4 +1,5 @@
 use daemon::gpu_controller::GpuStats;
+use gtk::prelude::*;
 use gtk::*;
 
 #[derive(Clone)]
@@ -179,11 +180,12 @@ impl StatsGrid {
             None => match stats.temperatures.get("edge") {
                 Some(temp) => Some(temp.current),
                 None => None,
-            }
+            },
         };
-        
+
         if let Some(temp) = temp {
-            self.gpu_temperature_label.set_markup(&format!("<b>{}°C</b>", temp));
+            self.gpu_temperature_label
+                .set_markup(&format!("<b>{}°C</b>", temp));
         }
 
         self.gpu_usage_label

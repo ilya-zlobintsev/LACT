@@ -1,3 +1,4 @@
+use gtk::prelude::*;
 use gtk::*;
 
 #[derive(Debug, Clone)]

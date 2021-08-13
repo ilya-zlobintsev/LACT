@@ -2,6 +2,7 @@ use std::thread;
 
 use app::App;
 use daemon::{daemon_connection::DaemonConnection, Daemon};
+use gtk::prelude::*;
 use gtk::*;
 
 mod app;

@@ -6,6 +6,7 @@ mod warning_frame;
 
 use clocks_frame::ClocksSettings;
 use daemon::gpu_controller::{GpuInfo, GpuStats, PowerProfile};
+use gtk::prelude::*;
 use gtk::*;
 
 use clocks_frame::ClocksFrame;

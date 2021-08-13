@@ -16,6 +16,7 @@ use apply_revealer::ApplyRevealer;
 use daemon::daemon_connection::DaemonConnection;
 use daemon::gpu_controller::GpuStats;
 use daemon::DaemonError;
+use gtk::prelude::*;
 use gtk::*;
 
 use header::Header;
@@ -247,6 +248,10 @@ impl App {
     }
 
     fn start_stats_update_loop(&self, current_gpu_id: Arc<AtomicU32>) {
+        let context = glib::MainContext::default();
+
+        let _guard = context.acquire();
+
         // The loop that gets stats
         let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
         {

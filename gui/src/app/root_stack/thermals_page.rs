@@ -101,7 +101,7 @@ impl ThermalsPage {
             let fan_curve_frame = fan_curve_frame.clone();
             fan_control_enabled_switch.connect_changed_active(move |switch| {
                 log::trace!("Fan control switch toggled");
-                if switch.get_active() {
+                if switch.state() {
                     {
                         glib::idle_add(|| {
                             let diag = MessageDialog::new(None::<&Window>, DialogFlags::empty(), MessageType::Warning, ButtonsType::Ok,
@@ -192,7 +192,7 @@ impl ThermalsPage {
     }
 
     pub fn get_thermals_settings(&self) -> ThermalsSettings {
-        let automatic_fan_control_enabled = self.fan_control_enabled_switch.get_active();
+        let automatic_fan_control_enabled = self.fan_control_enabled_switch.state();
         let curve = self.fan_curve_frame.get_curve();
 
         ThermalsSettings {

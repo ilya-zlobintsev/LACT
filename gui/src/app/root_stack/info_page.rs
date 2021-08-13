@@ -1,6 +1,7 @@
 mod vulkan_info;
 
 use daemon::gpu_controller::GpuInfo;
+use gtk::prelude::*;
 use gtk::*;
 use vulkan_info::VulkanInfoFrame;
 

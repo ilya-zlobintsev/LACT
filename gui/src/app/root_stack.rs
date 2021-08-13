@@ -3,6 +3,7 @@ mod oc_page;
 mod software_page;
 mod thermals_page;
 
+use gtk::prelude::*;
 use gtk::*;
 
 use info_page::InformationPage;

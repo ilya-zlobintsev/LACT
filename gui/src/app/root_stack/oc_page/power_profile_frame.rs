@@ -1,6 +1,6 @@
 use daemon::gpu_controller::PowerProfile;
+use gtk::prelude::*;
 use gtk::*;
-use prelude::ComboBoxExtManual;
 
 #[derive(Clone)]
 pub struct PowerProfileFrame {
@@ -38,7 +38,7 @@ impl PowerProfileFrame {
 
         {
             let description_label = description_label.clone();
-            combo_box.connect_changed(move |combobox| match combobox.get_active().unwrap() {
+            combo_box.connect_changed(move |combobox| match combobox.active().unwrap() {
                 0 => description_label
                     .set_text("Automatically adjust GPU and VRAM clocks. (Default)"),
                 1 => description_label
@@ -72,7 +72,7 @@ impl PowerProfileFrame {
     }
 
     pub fn get_selected_power_profile(&self) -> PowerProfile {
-        match self.combo_box.get_active().unwrap() {
+        match self.combo_box.active().unwrap() {
             0 => PowerProfile::Auto,
             1 => PowerProfile::High,
             2 => PowerProfile::Low,

@@ -1,3 +1,4 @@
+use gtk::prelude::*;
 use gtk::*;
 
 #[derive(Clone)]
@@ -30,11 +31,7 @@ impl PowerCapFrame {
         {
             let label = label.clone();
             adjustment.connect_value_changed(move |adj| {
-                label.set_markup(&format!(
-                    "{}/{} W",
-                    adj.get_value().round(),
-                    adj.get_upper()
-                ));
+                label.set_markup(&format!("{}/{} W", adj.value().round(), adj.upper()));
             });
         }
 
@@ -68,7 +65,7 @@ impl PowerCapFrame {
 
     pub fn get_cap(&self) -> Option<i64> {
         // Using match gives a warning that floats shouldn't be used in patterns
-        let cap = self.adjustment.get_value();
+        let cap = self.adjustment.value();
         if cap == 0.0 {
             None
         } else {
