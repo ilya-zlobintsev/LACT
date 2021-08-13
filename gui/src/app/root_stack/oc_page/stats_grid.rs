@@ -173,10 +173,19 @@ impl StatsGrid {
             stats.power_avg.unwrap_or_else(|| 0),
             stats.power_cap.unwrap_or_else(|| 0)
         ));
-        if let Some(temp) = stats.temperatures.get("edge") {
-            self.gpu_temperature_label
-                .set_markup(&format!("<b>{}°C</b>", temp.current));
+
+        let temp = match stats.temperatures.get("junction") {
+            Some(temp) => Some(temp.current),
+            None => match stats.temperatures.get("edge") {
+                Some(temp) => Some(temp.current),
+                None => None,
+            }
+        };
+        
+        if let Some(temp) = temp {
+            self.gpu_temperature_label.set_markup(&format!("<b>{}°C</b>", temp));
         }
+
         self.gpu_usage_label
             .set_markup(&format!("<b>{}%</b>", stats.gpu_usage.unwrap_or_default()));
     }

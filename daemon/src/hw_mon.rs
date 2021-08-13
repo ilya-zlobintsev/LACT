@@ -236,26 +236,29 @@ impl HWMon {
                     while s.fan_control.load(Ordering::SeqCst) {
                         let temps = s.get_temps();
                         log::trace!("Temps: {:?}", temps);
-                        let edge_temps = temps.get("edge").unwrap();
+                        
+                        // Use junction temp when available, otherwise fall back to edge
+                        let temps = match temps.get("junction") {
+                            Some(temp) => temp,
+                            None => temps.get("edge").unwrap(),
+                        };
 
-                        let temp = edge_temps.current;
-
-                        if temp >= edge_temps.crit || temp <= edge_temps.crit_hyst {
+                        if temps.current >= temps.crit || temps.current <= temps.crit_hyst {
                             println!("CRITICAL TEMPERATURE DETECTED! FORCING MAX FAN SPEED");
                             fs::write(s.hwmon_path.join("pwm1"), 255.to_string())
                                             .expect("Failed to set gpu temp in critical scenario (Warning: GPU Overheating!)");
                         }
 
-                        log::trace!("Current gpu temp: {}", temp);
+                        log::trace!("Current gpu temp: {}", temps.current);
 
                         let curve = s.fan_curve.read().unwrap();
 
                         for (t_low, s_low) in curve.iter() {
                             match curve.range(t_low..).nth(1) {
                                 Some((t_high, s_high)) => {
-                                    if (t_low..t_high).contains(&&temp) {
+                                    if (t_low..t_high).contains(&&temps.current) {
                                         let speed_ratio =
-                                            (temp - t_low) as f64 / (t_high - t_low) as f64; //The ratio of which speed to choose within the range of current lower and upper speeds
+                                            (temps.current - t_low) as f64 / (t_high - t_low) as f64; //The ratio of which speed to choose within the range of current lower and upper speeds
                                         let speed_percent =
                                             s_low + ((s_high - s_low) * speed_ratio);
                                         let pwm = (255f64 * (speed_percent / 100f64)) as i64;
