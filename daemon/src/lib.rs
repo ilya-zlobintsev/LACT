@@ -19,7 +19,7 @@ use crate::gpu_controller::GpuController;
 // Abstract socket allows anyone to connect without worrying about permissions
 // https://unix.stackexchange.com/questions/579612/unix-domain-sockets-for-non-root-user
 pub const SOCK_PATH: &str = "amdgpu-configurator.sock";
-pub const BUFFER_SIZE: usize = 4096;
+pub const BUFFER_SIZE: usize = 16384;
 
 pub struct Daemon {
     gpu_controllers: HashMap<u32, GpuController>,
