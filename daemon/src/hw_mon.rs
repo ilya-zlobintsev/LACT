@@ -236,7 +236,7 @@ impl HWMon {
                     while s.fan_control.load(Ordering::SeqCst) {
                         let temps = s.get_temps();
                         log::trace!("Temps: {:?}", temps);
-                        
+
                         // Use junction temp when available, otherwise fall back to edge
                         let temps = match temps.get("junction") {
                             Some(temp) => temp,
@@ -257,8 +257,8 @@ impl HWMon {
                             match curve.range(t_low..).nth(1) {
                                 Some((t_high, s_high)) => {
                                     if (t_low..t_high).contains(&&temps.current) {
-                                        let speed_ratio =
-                                            (temps.current - t_low) as f64 / (t_high - t_low) as f64; //The ratio of which speed to choose within the range of current lower and upper speeds
+                                        let speed_ratio = (temps.current - t_low) as f64
+                                            / (t_high - t_low) as f64; //The ratio of which speed to choose within the range of current lower and upper speeds
                                         let speed_percent =
                                             s_low + ((s_high - s_low) * speed_ratio);
                                         let pwm = (255f64 * (speed_percent / 100f64)) as i64;

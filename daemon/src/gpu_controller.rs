@@ -9,7 +9,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::num::ParseIntError;
 use std::path::PathBuf;
-use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
+use vulkano::device::physical::PhysicalDevice;
+use vulkano::instance::{Instance, InstanceExtensions};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum GpuControllerError {
@@ -901,12 +902,21 @@ impl GpuController {
         let mut api_version = String::new();
         let mut features = HashMap::new();
 
-        match Instance::new(None, &InstanceExtensions::none(), None) {
+        let pci_id = u32::from_str_radix(pci_id, 16).expect("Invalid device ID");
+
+        match Instance::new(
+            None,
+            vulkano::Version::V1_5,
+            &InstanceExtensions::none(),
+            None,
+        ) {
             Ok(instance) => {
                 for physical in PhysicalDevice::enumerate(&instance) {
-                    if format!("{:x}", physical.pci_device_id()) == pci_id.to_lowercase() {
+                    let properties = physical.properties();
+
+                    if properties.device_id == pci_id {
                         api_version = physical.api_version().to_string();
-                        device_name = physical.name().to_string();
+                        device_name = properties.device_name.clone();
 
                         let features_string = format!("{:?}", physical.supported_features());
                         let features_string = features_string
