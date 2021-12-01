@@ -144,16 +144,16 @@ impl App {
                     if thermals_settings.automatic_fan_control_enabled {
                         app.daemon_connection
                             .stop_fan_control(gpu_id)
-                            .expect("Failed to stop fan control");
+                            .unwrap_or(println!("Failed to stop fan control"));
                     } else {
                         app.daemon_connection
                             .start_fan_control(gpu_id)
-                            .expect("Failed to start fan control");
+                            .unwrap_or(println!("Failed to start fan control"));
                     }
 
                     app.daemon_connection
                         .set_fan_curve(gpu_id, thermals_settings.curve)
-                        .expect("Failed to set fan curve");
+                        .unwrap_or(println!("Failed to set fan curve"));
                 }
 
                 if let Some(clocks_settings) = app.root_stack.oc_page.get_clocks() {
