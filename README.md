@@ -99,3 +99,7 @@ There is also a cli available.
  If there's a crash, run `lact-gui` from the command line to get logs, or use `journalctl -u lactd` to see if the daemon crashed.
  
  If there's an issue with GPU model identification please report it [here](https://github.com/ilyazzz/pci-id-parser/), include your GPU model and the output of `cat /sys/class/drm/card*/device/uevent`.
+
+# Alternatives
+
+If LACT doesn't end up working for you, make sure to check out [CoreCtrl](https://gitlab.com/corectrl/corectrl).
