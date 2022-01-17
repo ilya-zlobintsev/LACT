@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 daemon = { path = "../daemon" }
 
-gtk = { version = "0.14", features = ["v3_22"] }
+gtk = { version = "0.15", features = ["v3_22"] }
 pango = "0.14"
 glib = "0.14"
 
