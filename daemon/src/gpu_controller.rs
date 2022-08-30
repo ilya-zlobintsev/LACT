@@ -1,9 +1,8 @@
-use crate::hw_mon::{HWMon, HWMonError};
 use crate::{
     config::{GpuConfig, GpuIdentifier},
-    hw_mon::Temperature,
+    hw_mon::{HWMon, HWMonError, Temperature},
 };
-use pciid_parser::{PciDatabase, VendorData};
+use pciid_parser::{schema::DeviceInfo, Database};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
@@ -141,6 +140,25 @@ pub struct GpuInfo {
     pub power_cap_max: Option<i64>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct VendorData {
+    pub gpu_vendor: Option<String>,
+    pub gpu_model: Option<String>,
+    pub card_vendor: Option<String>,
+    pub card_model: Option<String>,
+}
+
+impl From<DeviceInfo<'_>> for VendorData {
+    fn from(info: DeviceInfo) -> Self {
+        Self {
+            gpu_vendor: info.vendor_name.map(str::to_owned),
+            gpu_model: info.device_name.map(str::to_owned),
+            card_vendor: info.subvendor_name.map(str::to_owned),
+            card_model: info.subdevice_name.map(str::to_owned),
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct GpuController {
     pub hw_path: PathBuf,
@@ -150,7 +168,7 @@ pub struct GpuController {
 }
 
 impl GpuController {
-    pub fn new(hw_path: PathBuf, config: GpuConfig, pci_db: &Option<PciDatabase>) -> Self {
+    pub fn new(hw_path: PathBuf, config: GpuConfig, pci_db: &Option<Database>) -> Self {
         let mut controller = GpuController {
             hw_path: hw_path.clone(),
             hw_mon: None,
@@ -227,7 +245,7 @@ impl GpuController {
         info
     }
 
-    fn get_info_initial(&self, pci_db: &Option<PciDatabase>) -> GpuInfo {
+    fn get_info_initial(&self, pci_db: &Option<Database>) -> GpuInfo {
         let uevent =
             fs::read_to_string(self.hw_path.join("uevent")).expect("Failed to read uevent");
 
@@ -290,19 +308,13 @@ impl GpuController {
         let vulkan_info = GpuController::get_vulkan_info(&model_id);
 
         let vendor_data = match pci_db {
-            Some(db) => {
-                match db.get_by_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
-                    Ok(data) => data,
-                    Err(_) => VendorData::default(),
-                }
-            }
-            None => match PciDatabase::read() {
-                Ok(db) => {
-                    match db.get_by_ids(&vendor_id, &model_id, &card_vendor_id, &card_model_id) {
-                        Ok(data) => data,
-                        Err(_) => VendorData::default(),
-                    }
-                }
+            Some(db) => db
+                .get_device_info(&vendor_id, &model_id, &card_vendor_id, &card_model_id)
+                .into(),
+            None => match Database::read() {
+                Ok(db) => db
+                    .get_device_info(&vendor_id, &model_id, &card_vendor_id, &card_model_id)
+                    .into(),
                 Err(err) => {
                     println!(
                         "{:?} pci.ids not found! Make sure you have 'hwdata' installed",

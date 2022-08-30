@@ -15,6 +15,6 @@ log = "0.4"
 env_logger = "0.9"
 rand = "0.8"
 signal-hook = "0.3"
-pciid-parser = { git = "https://github.com/ilyazzz/pci-id-parser.git" }
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 nix = "0.23"
+pciid-parser = { version = "0.6.0", features = ["online"] }

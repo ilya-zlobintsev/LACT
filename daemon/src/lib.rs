@@ -5,7 +5,7 @@ pub mod hw_mon;
 
 use config::{Config, GpuConfig};
 use gpu_controller::PowerProfile;
-use pciid_parser::PciDatabase;
+use pciid_parser::Database;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -99,7 +99,7 @@ impl Daemon {
 
     fn load_gpu_controllers(config: &mut Config) -> HashMap<u32, GpuController> {
         let pci_db = match config.allow_online_update {
-            Some(true) => match Self::get_pci_db_online() {
+            Some(true) => match Database::get_online() {
                 Ok(db) => Some(db),
                 Err(e) => {
                     log::info!("Error updating PCI db: {:?}", e);
@@ -163,17 +163,6 @@ impl Daemon {
         }
 
         gpu_controllers
-    }
-
-    fn get_pci_db_online() -> Result<PciDatabase, reqwest::Error> {
-        let client = reqwest::blocking::Client::builder()
-            .user_agent("LACT")
-            .build()?;
-        let vendors = client
-            .get("https://pci.endpoint.ml/devices.json")
-            .send()?
-            .json()?;
-        Ok(PciDatabase { vendors })
     }
 
     pub fn listen(mut self) {
@@ -475,6 +464,8 @@ pub enum DaemonError {
 
 #[cfg(test)]
 mod tests {
+    use crate::gpu_controller::VendorData;
+
     use super::*;
 
     fn init() {
@@ -485,9 +476,9 @@ mod tests {
     fn recognize_polaris() {
         init();
 
-        let db = Daemon::get_pci_db_online().unwrap();
+        let db = Database::get_online().unwrap();
 
-        let vendor_data = db.get_by_ids("1002", "67df", "1da2", "e387").unwrap();
+        let vendor_data: VendorData = db.get_device_info("1002", "67df", "1da2", "e387").into();
 
         assert_eq!(
             vendor_data.gpu_vendor,
