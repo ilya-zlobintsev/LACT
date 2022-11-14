@@ -1066,9 +1066,9 @@ dependencies = [
 
 [[package]]
 name = "pciid-parser"
-version = "0.6.0"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5057bd953dfcccbaba6326a1dc2a6f0e7ca1d7b8ceca37bee610b639ef9f4a0"
+checksum = "6e2ef5429455ae06f0c055262d540bf2c190ad51b72bb6cbe8488706c4dff440"
 dependencies = [
  "tracing",
  "ureq",

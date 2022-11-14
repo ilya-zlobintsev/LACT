@@ -17,4 +17,4 @@ rand = "0.8"
 signal-hook = "0.3"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 nix = "0.23"
-pciid-parser = { version = "0.6.0", features = ["online"] }
+pciid-parser = { version = "0.6.2", features = ["online"] }
