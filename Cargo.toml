@@ -1,2 +1,2 @@
 [workspace]
-members = ["daemon", "cli", "gui"]
+members = ["lact-daemon", "lact-schema", "lact-gui"]

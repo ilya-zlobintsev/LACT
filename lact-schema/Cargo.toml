@@ -1,0 +1,13 @@
+[package]
+name = "lact-schema"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+amdgpu-sysfs = { git = "https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs", branch = "blocking", features = [
+    "serde",
+] }
+serde = { version = "1.0.147", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1.0.87"
