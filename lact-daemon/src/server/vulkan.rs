@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::fork::run_forked;
 use lact_schema::VulkanInfo;
 use vulkano::{
@@ -5,7 +7,7 @@ use vulkano::{
     VulkanLibrary,
 };
 
-pub fn get_vulkan_info(vendor_id: &str, device_id: &str) -> anyhow::Result<VulkanInfo> {
+pub fn get_vulkan_info<'a>(vendor_id: &'a str, device_id: &'a str) -> anyhow::Result<VulkanInfo> {
     let vendor_id = u32::from_str_radix(vendor_id, 16)?;
     let device_id = u32::from_str_radix(device_id, 16)?;
 
@@ -26,8 +28,16 @@ pub fn get_vulkan_info(vendor_id: &str, device_id: &str) -> anyhow::Result<Vulka
                         device_name: properties.device_name.clone(),
                         api_version: device.api_version().to_string(),
                         driver_name: properties.driver_name.clone(),
-                        supported_features: vulkano_struct_to_vec(device.supported_features()),
-                        supported_extensions: vulkano_struct_to_vec(device.supported_extensions()),
+                        supported_features: device
+                            .supported_features()
+                            .as_arr()
+                            .map(|(name, enabled)| (Cow::Borrowed(name), enabled))
+                            .into(),
+                        supported_extensions: device
+                            .supported_extensions()
+                            .as_arr()
+                            .map(|(name, enabled)| (Cow::Borrowed(name), enabled))
+                            .into(),
                     };
                     return Ok(info);
                 }
@@ -35,44 +45,5 @@ pub fn get_vulkan_info(vendor_id: &str, device_id: &str) -> anyhow::Result<Vulka
 
             Err("Could not find a vulkan device with matching pci ids".to_owned())
         })
-    }
-}
-
-fn vulkano_struct_to_vec<D: std::fmt::Debug>(data: D) -> Vec<String> {
-    let output = format!("{data:?}");
-    let trimmed_output = output.trim_start_matches('[').trim_end_matches(']');
-
-    trimmed_output
-        .split(',')
-        .map(|s| s.trim().to_owned())
-        .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::vulkano_struct_to_vec;
-    use vulkano::device::{DeviceExtensions, Features};
-
-    #[test]
-    fn features_to_vec() {
-        let features = Features {
-            geometry_shader: true,
-            tessellation_shader: true,
-            ..Features::empty()
-        };
-        let vec = vulkano_struct_to_vec(features);
-        assert_eq!(vec, vec!["geometryShader", "tessellationShader"]);
-    }
-
-    #[test]
-    fn extensions_to_vec() {
-        let extensions = DeviceExtensions {
-            khr_external_fence: true,
-            khr_video_queue: true,
-            ..DeviceExtensions::empty()
-        };
-
-        let vec = vulkano_struct_to_vec(extensions);
-        assert_eq!(vec, vec!["VK_KHR_external_fence", "VK_KHR_video_queue"]);
     }
 }

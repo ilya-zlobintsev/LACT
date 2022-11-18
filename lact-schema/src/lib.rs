@@ -42,8 +42,8 @@ pub struct VulkanInfo {
     pub device_name: String,
     pub api_version: String,
     pub driver_name: Option<String>,
-    pub supported_features: Vec<String>,
-    pub supported_extensions: Vec<String>,
+    pub supported_features: HashMap<Cow<'static, str>, bool>,
+    pub supported_extensions: HashMap<Cow<'static, str>, bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

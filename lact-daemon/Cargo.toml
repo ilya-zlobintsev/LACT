@@ -27,5 +27,5 @@ tokio = { version = "1.21.2", features = [
 ] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
-vulkano = "0.32.1"
+vulkano = { git = "https://github.com/ilya-zlobintsev/vulkano", branch = "arr_features" }
 lact-schema = { path = "../lact-schema" }
