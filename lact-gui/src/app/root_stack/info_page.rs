@@ -151,11 +151,13 @@ impl InformationPage {
     pub fn set_info(&self, gpu_info: &DeviceInfo) {
         let gpu_name = gpu_info
             .pci_info
+            .as_ref()
             .and_then(|pci_info| {
                 pci_info
                     .subsystem_pci_info
                     .model
-                    .or_else(|| pci_info.device_pci_info.model)
+                    .as_deref()
+                    .or_else(|| pci_info.device_pci_info.model.as_deref())
             })
             .unwrap_or_default();
         self.gpu_name_label
@@ -163,43 +165,48 @@ impl InformationPage {
 
         let gpu_manufacturer = gpu_info
             .pci_info
+            .as_ref()
             .and_then(|pci_info| {
                 pci_info
                     .subsystem_pci_info
                     .vendor
-                    .or_else(|| pci_info.device_pci_info.model)
+                    .as_deref()
+                    .or_else(|| pci_info.device_pci_info.model.as_deref())
             })
             .unwrap_or_default();
         self.gpu_manufacturer_label
             .set_markup(&format!("<b>{gpu_manufacturer}</b>",));
 
-        let vbios_version = gpu_info.vbios_version.as_deref().unwrap_or("<unknown>");
+        let vbios_version = gpu_info.vbios_version.as_deref().unwrap_or("unknown");
         self.vbios_version_label
             .set_markup(&format!("<b>{vbios_version}</b>",));
 
         self.driver_label
             .set_markup(&format!("<b>{}</b>", gpu_info.driver));
 
-        let vram_size = gpu_info
-            .vram_size
-            .map_or_else(|| "<unknown>".to_owned(), |size| size.to_string());
-        self.vram_size_label
-            .set_markup(&format!("<b>{vram_size}</b>"));
+        // TODO
+        // let vram_size = gpu_info
+        //     .vram_size
+        //     .map_or_else(|| "unknown".to_owned(), |size| size.to_string());
+        // self.vram_size_label
+        //     .set_markup(&format!("<b>{vram_size}</b>"));
 
         let link_speed = gpu_info
             .link_info
             .current_speed
             .as_deref()
-            .unwrap_or("<unknown>");
+            .unwrap_or("unknown");
         let link_width = gpu_info
             .link_info
             .current_width
             .as_deref()
-            .unwrap_or("<unknown>");
+            .unwrap_or("unknown");
         self.link_speed_label
             .set_markup(&format!("<b>{link_speed} x{link_width}</b>",));
 
-        self.vulkan_info_frame.set_info(&gpu_info.vulkan_info);
+        if let Some(vulkan_info) = &gpu_info.vulkan_info {
+            self.vulkan_info_frame.set_info(vulkan_info);
+        }
 
         self.container.show_all();
     }

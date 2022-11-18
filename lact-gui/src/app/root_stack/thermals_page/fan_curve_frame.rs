@@ -1,7 +1,7 @@
-use std::collections::BTreeMap;
-
 use gtk::prelude::*;
 use gtk::*;
+use std::collections::BTreeMap;
+use tracing::debug;
 
 #[derive(Clone)]
 pub struct FanCurveFrame {
@@ -189,12 +189,12 @@ impl FanCurveFrame {
     }
 
     pub fn show(&self) {
-        log::info!("Manual fan control enaged, showing fan curve");
+        debug!("Manual fan control enaged, showing fan curve");
         self.container.set_visible(true);
     }
 
     pub fn hide(&self) {
-        log::info!("Manual fan control disenaged, hiding fan curve");
+        debug!("Manual fan control disenaged, hiding fan curve");
         self.container.set_visible(false);
     }
 

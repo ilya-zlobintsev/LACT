@@ -1,12 +1,10 @@
-mod clocks_frame;
+// mod clocks_frame;
 mod performance_level_frame;
 mod power_cap_frame;
 mod stats_grid;
 mod warning_frame;
 
 use amdgpu_sysfs::gpu_handle::PerformanceLevel;
-use clocks_frame::ClocksFrame;
-use clocks_frame::ClocksSettings;
 use gtk::prelude::*;
 use gtk::*;
 use lact_schema::{DeviceInfo, DeviceStats};
@@ -21,7 +19,7 @@ pub struct OcPage {
     stats_grid: StatsGrid,
     performance_level_frame: PowerProfileFrame,
     power_cap_frame: PowerCapFrame,
-    clocks_frame: ClocksFrame,
+    // clocks_frame: ClocksFrame,
     pub warning_frame: WarningFrame,
 }
 
@@ -45,15 +43,15 @@ impl OcPage {
 
         container.pack_start(&power_profile_frame.container, false, true, 0);
 
-        let clocks_frame = ClocksFrame::new();
+        // let clocks_frame = ClocksFrame::new();
 
-        container.pack_start(&clocks_frame.container, false, true, 0);
+        // container.pack_start(&clocks_frame.container, false, true, 0);
 
         Self {
             container,
             stats_grid,
             performance_level_frame: power_profile_frame,
-            clocks_frame,
+            // clocks_frame,
             warning_frame,
             power_cap_frame,
         }
@@ -100,9 +98,12 @@ impl OcPage {
         }
     }
 
-    pub fn get_power_profile(&self) -> Option<PowerProfile> {
+    pub fn get_performance_level(&self) -> Option<PowerProfile> {
         match self.performance_level_frame.get_visibility() {
-            true => Some(self.performance_level_frame.get_selected_power_profile()),
+            true => Some(
+                self.performance_level_frame
+                    .get_selected_performance_level(),
+            ),
             false => None,
         }
     }

@@ -1,4 +1,3 @@
-use daemon::gpu_controller::ClocksTable;
 use gtk::prelude::*;
 use gtk::*;
 

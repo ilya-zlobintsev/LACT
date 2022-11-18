@@ -26,7 +26,7 @@ dependencies = [
 [[package]]
 name = "amdgpu-sysfs"
 version = "0.5.0"
-source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs?branch=blocking#55ddcc95cddde27e5c5147d9b5ee4831b5d7aaf8"
+source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs?branch=blocking#0308d4c475f5091f7e8bc4b7b5d8c101f8dd40d7"
 dependencies = [
  "serde",
 ]

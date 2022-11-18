@@ -80,7 +80,8 @@ impl App {
             });
         }
 
-        let devices = self.daemon_client.list_devices()?;
+        let devices_buf = self.daemon_client.list_devices()?;
+        let devices = devices_buf.inner()?;
         self.header.set_devices(&devices);
 
         // Show apply button on setting changes
@@ -96,10 +97,10 @@ impl App {
 
             let apply_revealer = self.apply_revealer.clone();
 
-            self.root_stack.oc_page.connect_settings_changed(move || {
-                debug!("Settings changed, showing apply button");
-                apply_revealer.show();
-            });
+            // self.root_stack.oc_page.connect_settings_changed(move || {
+            //     debug!("Settings changed, showing apply button");
+            //     apply_revealer.show();
+            // });
         }
 
         {
@@ -185,13 +186,17 @@ impl App {
     }
 
     fn set_info(&self, gpu_id: &str) {
-        let info = self.daemon_client.get_device_info(gpu_id).unwrap();
+        let info_buf = self
+            .daemon_client
+            .get_device_info(gpu_id)
+            .expect("Could not fetch info");
+        let info = info_buf.inner().unwrap();
         trace!("Setting info {info:?}");
 
         self.root_stack.info_page.set_info(&info);
 
-        trace!("Setting clocks");
-        self.root_stack.oc_page.set_info(&info);
+        // trace!("Setting clocks");
+        // self.root_stack.oc_page.set_info(&info);
 
         // TODO: this should be stats
         /*trace!("Setting performance level {:?}", info.power_profile);
@@ -221,15 +226,15 @@ impl App {
                     let ppfeaturemask: u64 =
                         u64::from_str_radix(ppfeaturemask, 16).expect("Invalid ppfeaturemask");
 
-                    if (ppfeaturemask & PP_OVERDRIVE_MASK as u64) > 0 {
+                    /*if (ppfeaturemask & PP_OVERDRIVE_MASK as u64) > 0 {
                         self.root_stack.oc_page.warning_frame.hide();
                     } else {
                         self.root_stack.oc_page.warning_frame.show();
-                    }
+                    }*/
                 }
                 Err(_) => {
                     info!("Failed to read feature mask! This is expected if your system doesn't have an AMD GPU.");
-                    self.root_stack.oc_page.warning_frame.hide();
+                    // self.root_stack.oc_page.warning_frame.hide();
                 }
             }
         }
@@ -249,7 +254,10 @@ impl App {
 
             thread::spawn(move || loop {
                 let gpu_id = current_gpu_id.read().unwrap();
-                match daemon_connection.get_device_stats(&gpu_id) {
+                match daemon_connection
+                    .get_device_stats(&gpu_id)
+                    .and_then(|stats| stats.inner())
+                {
                     Ok(stats) => {
                         sender.send(GuiUpdateMsg::GpuStats(stats)).unwrap();
                     }
@@ -264,14 +272,14 @@ impl App {
         // Receiving stats into the gui event loop
         {
             let thermals_page = self.root_stack.thermals_page.clone();
-            let oc_page = self.root_stack.oc_page.clone();
+            // let oc_page = self.root_stack.oc_page.clone();
 
             receiver.attach(None, move |msg| {
                 match msg {
                     GuiUpdateMsg::GpuStats(stats) => {
                         trace!("New stats received, updating {stats:?}");
                         thermals_page.set_stats(&stats);
-                        oc_page.set_stats(&stats);
+                        // oc_page.set_stats(&stats);
                     } /*GuiUpdateMsg::FanControlInfo(fan_control_info) => {
                           thermals_page.set_ventilation_info(fan_control_info)
                       }*/

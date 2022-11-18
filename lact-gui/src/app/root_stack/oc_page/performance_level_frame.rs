@@ -1,4 +1,4 @@
-use daemon::gpu_controller::PowerProfile;
+use amdgpu_sysfs::gpu_handle::PerformanceLevel;
 use gtk::prelude::*;
 use gtk::*;
 
@@ -57,11 +57,12 @@ impl PowerProfileFrame {
         }
     }
 
-    pub fn set_active_profile(&self, profile: &PowerProfile) {
-        match profile {
-            PowerProfile::Auto => self.combo_box.set_active_id(Some("0")),
-            PowerProfile::High => self.combo_box.set_active_id(Some("1")),
-            PowerProfile::Low => self.combo_box.set_active_id(Some("2")),
+    pub fn set_active_profile(&self, level: PerformanceLevel) {
+        match level {
+            PerformanceLevel::Auto => self.combo_box.set_active_id(Some("0")),
+            PerformanceLevel::High => self.combo_box.set_active_id(Some("1")),
+            PerformanceLevel::Low => self.combo_box.set_active_id(Some("2")),
+            PerformanceLevel::Manual => todo!(),
         };
     }
 
@@ -71,11 +72,11 @@ impl PowerProfileFrame {
         });
     }
 
-    pub fn get_selected_power_profile(&self) -> PowerProfile {
+    pub fn get_selected_performance_level(&self) -> PerformanceLevel {
         match self.combo_box.active().unwrap() {
-            0 => PowerProfile::Auto,
-            1 => PowerProfile::High,
-            2 => PowerProfile::Low,
+            0 => PerformanceLevel::Auto,
+            1 => PerformanceLevel::High,
+            2 => PerformanceLevel::Low,
             _ => unreachable!(),
         }
     }
