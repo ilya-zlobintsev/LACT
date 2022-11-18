@@ -75,7 +75,7 @@ impl VulkanInfoFrame {
 
         grid.attach(&features_expander, 0, 2, 5, 1);
 
-        let features_scrolled_window = ScrolledWindow::new(NONE_ADJUSTMENT, NONE_ADJUSTMENT);
+        let features_scrolled_window = ScrolledWindow::builder().build();
 
         features_scrolled_window.set_vexpand(true);
 

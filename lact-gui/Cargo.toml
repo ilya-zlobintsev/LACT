@@ -2,19 +2,16 @@
 name = "lact-gui"
 version = "0.1.0"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+edition = "2021"
 
 [dependencies]
 lact-schema = { path = "../lact-schema" }
-gtk = { version = "0.14", features = ["v3_22"] }
-pango = "0.14"
-glib = "0.14"
-tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-nix = "0.25.0"
-anyhow = "1.0.66"
-serde_json = "1.0.87"
-serde = "1.0.147"
-amdgpu-sysfs = { git = "https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs", branch = "blocking" }
+gtk = "0.16"
+pango = "0.16"
+glib = "0.16"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+nix = "0.25"
+anyhow = "1.0"
+serde_json = "1.0"
+serde = "1.0"

@@ -43,8 +43,8 @@ impl Header {
 
         //limits the length of gpu names in combobox
         for cell in self.gpu_selector.cells() {
-            cell.set_property("width-chars", &10).unwrap();
-            cell.set_property("ellipsize", &EllipsizeMode::End).unwrap();
+            cell.set_property("width-chars", &10);
+            cell.set_property("ellipsize", &EllipsizeMode::End);
         }
 
         self.gpu_selector.set_active(Some(0));

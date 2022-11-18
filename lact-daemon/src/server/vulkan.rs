@@ -30,14 +30,14 @@ pub fn get_vulkan_info<'a>(vendor_id: &'a str, device_id: &'a str) -> anyhow::Re
                         driver_name: properties.driver_name.clone(),
                         supported_features: device
                             .supported_features()
-                            .as_arr()
+                            .into_iter()
                             .map(|(name, enabled)| (Cow::Borrowed(name), enabled))
-                            .into(),
+                            .collect(),
                         supported_extensions: device
                             .supported_extensions()
-                            .as_arr()
+                            .into_iter()
                             .map(|(name, enabled)| (Cow::Borrowed(name), enabled))
-                            .into(),
+                            .collect(),
                     };
                     return Ok(info);
                 }

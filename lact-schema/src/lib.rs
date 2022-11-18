@@ -3,7 +3,9 @@ pub mod response;
 #[cfg(test)]
 mod tests;
 
-use amdgpu_sysfs::{gpu_handle::PerformanceLevel, hw_mon::Temperature};
+pub use amdgpu_sysfs::{gpu_handle::PerformanceLevel, hw_mon::Temperature};
+
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap};
 
@@ -42,8 +44,8 @@ pub struct VulkanInfo {
     pub device_name: String,
     pub api_version: String,
     pub driver_name: Option<String>,
-    pub supported_features: HashMap<Cow<'static, str>, bool>,
-    pub supported_extensions: HashMap<Cow<'static, str>, bool>,
+    pub supported_features: IndexMap<Cow<'static, str>, bool>,
+    pub supported_extensions: IndexMap<Cow<'static, str>, bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

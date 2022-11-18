@@ -4,6 +4,7 @@ use self::fan_control::FanCurve;
 use super::vulkan::get_vulkan_info;
 use crate::fork::run_forked;
 use amdgpu_sysfs::{
+    error::Error,
     gpu_handle::GpuHandle,
     hw_mon::{FanControlMethod, HwMon},
 };
@@ -103,7 +104,7 @@ impl GpuController {
         });
         let pci_info = self.pci_info.as_ref().map(Cow::Borrowed);
         let driver = self.handle.get_driver();
-        let vbios_version = self.handle.get_vbios_version();
+        let vbios_version = self.handle.get_vbios_version().ok();
         let link_info = self.get_link_info();
 
         DeviceInfo {
@@ -117,10 +118,10 @@ impl GpuController {
 
     fn get_link_info(&self) -> LinkInfo {
         LinkInfo {
-            current_width: self.handle.get_current_link_width(),
-            current_speed: self.handle.get_current_link_speed(),
-            max_width: self.handle.get_max_link_width(),
-            max_speed: self.handle.get_max_link_speed(),
+            current_width: self.handle.get_current_link_width().ok(),
+            current_speed: self.handle.get_current_link_speed().ok(),
+            max_width: self.handle.get_max_link_width().ok(),
+            max_speed: self.handle.get_max_link_speed().ok(),
         }
     }
 
@@ -135,15 +136,15 @@ impl GpuController {
                 .map_err(|err| anyhow!("Could not lock fan control mutex: {err}"))?
                 .is_some(),
             temps: self.hw_mon_map(HwMon::get_temps).unwrap_or_default(),
-            total_vram: self.handle.get_total_vram(),
-            used_vram: self.handle.get_used_vram(),
-            busy_percent: self.handle.get_busy_percent(),
-            performance_level: self.handle.get_power_force_performance_level(),
+            total_vram: self.handle.get_total_vram().ok(),
+            used_vram: self.handle.get_used_vram().ok(),
+            busy_percent: self.handle.get_busy_percent().ok(),
+            performance_level: self.handle.get_power_force_performance_level().ok(),
         })
     }
 
-    fn hw_mon_and_then<U>(&self, f: fn(&HwMon) -> Option<U>) -> Option<U> {
-        self.handle.hw_monitors.first().and_then(f)
+    fn hw_mon_and_then<U>(&self, f: fn(&HwMon) -> Result<U, Error>) -> Option<U> {
+        self.handle.hw_monitors.first().and_then(|mon| f(mon).ok())
     }
 
     fn hw_mon_map<U>(&self, f: fn(&HwMon) -> U) -> Option<U> {
