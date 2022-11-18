@@ -1,6 +1,7 @@
 use gtk::prelude::*;
 use gtk::*;
 use lact_schema::VulkanInfo;
+use std::collections::BTreeMap;
 use tracing::trace;
 
 #[derive(Clone)]
@@ -104,7 +105,8 @@ impl VulkanInfoFrame {
         self.version_label
             .set_markup(&format!("<b>{}</b>", vulkan_info.api_version));
 
-        /*for (feature, supported) in vulkan_info.features.iter() {
+        let features: BTreeMap<_, _> = vulkan_info.supported_features.iter().collect();
+        for (feature, supported) in features.into_iter() {
             let vbox = Box::new(Orientation::Horizontal, 5);
 
             let feature_name_label = Label::new(Some(feature));
@@ -119,7 +121,6 @@ impl VulkanInfoFrame {
             vbox.pack_start(&feature_supported_checkbutton, false, false, 0);
 
             self.features_box.pack_end(&vbox, false, false, 0);
-        }*/
-        // TODO
+        }
     }
 }
