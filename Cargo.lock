@@ -576,11 +576,9 @@ name = "lact-gui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "glib",
  "gtk",
  "lact-schema",
  "nix",
- "pango",
  "serde",
  "serde_json",
  "tracing",

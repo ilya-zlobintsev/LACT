@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context};
 use lact_schema::{request::Request, response::Response, DeviceInfo, DeviceListEntry, DeviceStats};
 use nix::unistd::getuid;
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::Deserialize;
 use std::{
     io::{BufRead, BufReader, Write},
     marker::PhantomData,

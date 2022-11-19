@@ -7,8 +7,7 @@ edition = "2021"
 [dependencies]
 lact-schema = { path = "../lact-schema" }
 gtk = "0.16"
-pango = "0.16"
-glib = "0.16"
+# pango = "0.16"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 nix = "0.25"
