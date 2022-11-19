@@ -76,21 +76,21 @@ impl VulkanInfoFrame {
 
         vbox.pack_start(&grid, false, true, 5);
 
-        let features_expander = Expander::new(Some("Feature support"));
-
-        vbox.pack_start(&features_expander, false, true, 5);
+        let features_expander = Expander::builder().label("Feature support").build();
 
         let features_scrolled_window = ScrolledWindow::builder().build();
 
         features_scrolled_window.set_vexpand(true);
 
         let features_box = Box::new(Orientation::Vertical, 5);
-
         features_box.set_halign(Align::Center);
+        features_box.set_valign(Align::Fill);
 
         features_scrolled_window.add(&features_box);
 
         features_expander.add(&features_scrolled_window);
+
+        vbox.pack_start(&features_expander, false, true, 5);
 
         let extensions_box = Box::builder()
             .orientation(Orientation::Vertical)

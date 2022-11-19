@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use crate::client::DaemonClient;
 use apply_revealer::ApplyRevealer;
+use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use header::Header;
@@ -249,12 +250,11 @@ impl App {
 
         // The loop that gets stats
         let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
-        {
-            let daemon_connection = self.daemon_client.clone();
 
-            thread::spawn(move || loop {
+        thread::spawn(
+            clone!(@strong self.daemon_client as daemon_client => move || loop {
                 let gpu_id = current_gpu_id.read().unwrap();
-                match daemon_connection
+                match daemon_client
                     .get_device_stats(&gpu_id)
                     .and_then(|stats| stats.inner())
                 {
@@ -266,19 +266,19 @@ impl App {
                     }
                 }
                 thread::sleep(Duration::from_millis(500));
-            });
-        }
+            }),
+        );
 
         // Receiving stats into the gui event loop
-        {
-            let thermals_page = self.root_stack.thermals_page.clone();
-            // let oc_page = self.root_stack.oc_page.clone();
 
-            receiver.attach(None, move |msg| {
+        receiver.attach(
+            None,
+            clone!(@strong self.root_stack as root_stack,  => move |msg| {
                 match msg {
                     GuiUpdateMsg::GpuStats(stats) => {
                         trace!("New stats received, updating {stats:?}");
-                        thermals_page.set_stats(&stats);
+                        root_stack.info_page.set_stats(&stats);
+                        root_stack.thermals_page.set_stats(&stats);
                         // oc_page.set_stats(&stats);
                     } /*GuiUpdateMsg::FanControlInfo(fan_control_info) => {
                           thermals_page.set_ventilation_info(fan_control_info)
@@ -286,8 +286,8 @@ impl App {
                 }
 
                 glib::Continue(true)
-            });
-        }
+            }),
+        );
     }
 }
 

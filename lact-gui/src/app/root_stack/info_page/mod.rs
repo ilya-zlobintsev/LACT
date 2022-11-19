@@ -2,7 +2,7 @@ mod vulkan_info;
 
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::DeviceInfo;
+use lact_schema::{DeviceInfo, DeviceStats};
 use vulkan_info::VulkanInfoFrame;
 
 #[derive(Clone)]
@@ -184,13 +184,6 @@ impl InformationPage {
         self.driver_label
             .set_markup(&format!("<b>{}</b>", gpu_info.driver));
 
-        // TODO
-        // let vram_size = gpu_info
-        //     .vram_size
-        //     .map_or_else(|| "unknown".to_owned(), |size| size.to_string());
-        // self.vram_size_label
-        //     .set_markup(&format!("<b>{vram_size}</b>"));
-
         let link_speed = gpu_info
             .link_info
             .current_speed
@@ -209,5 +202,14 @@ impl InformationPage {
         }
 
         self.container.show_all();
+    }
+
+    pub fn set_stats(&self, stats: &DeviceStats) {
+        let vram_size = stats.total_vram.map_or_else(
+            || "unknown".to_owned(),
+            |size| (size / 1024 / 1024).to_string(),
+        );
+        self.vram_size_label
+            .set_markup(&format!("<b>{vram_size}MiB</b>"));
     }
 }
