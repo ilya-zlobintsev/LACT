@@ -205,11 +205,11 @@ impl InformationPage {
     }
 
     pub fn set_stats(&self, stats: &DeviceStats) {
-        let vram_size = stats.total_vram.map_or_else(
+        let vram_size = stats.vram_stats.total_vram.map_or_else(
             || "unknown".to_owned(),
             |size| (size / 1024 / 1024).to_string(),
         );
         self.vram_size_label
-            .set_markup(&format!("<b>{vram_size}MiB</b>"));
+            .set_markup(&format!("<b>{vram_size} MiB</b>"));
     }
 }

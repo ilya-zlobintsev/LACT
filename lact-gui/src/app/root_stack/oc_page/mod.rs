@@ -4,10 +4,9 @@ mod power_cap_frame;
 mod stats_grid;
 mod warning_frame;
 
-use amdgpu_sysfs::gpu_handle::PerformanceLevel;
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::{DeviceInfo, DeviceStats};
+use lact_schema::{DeviceInfo, DeviceStats, PerformanceLevel};
 use performance_level_frame::PowerProfileFrame;
 use power_cap_frame::PowerCapFrame;
 use stats_grid::StatsGrid;
@@ -62,9 +61,10 @@ impl OcPage {
     }
 
     pub fn connect_clocks_reset<F: Fn() + 'static + Clone>(&self, f: F) {
-        self.clocks_frame.connect_clocks_reset(move || {
+        /*self.clocks_frame.connect_clocks_reset(move || {
             f();
-        });
+        });*/
+        todo!()
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
@@ -76,10 +76,10 @@ impl OcPage {
                 });
         }
         {
-            let f = f.clone();
+            /*let f = f.clone();
             self.clocks_frame.connect_clocks_changed(move || {
                 f();
-            })
+            })*/
         }
         {
             self.power_cap_frame.connect_cap_changed(move || {
@@ -98,7 +98,7 @@ impl OcPage {
         }
     }
 
-    pub fn get_performance_level(&self) -> Option<PowerProfile> {
+    pub fn get_performance_level(&self) -> Option<PerformanceLevel> {
         match self.performance_level_frame.get_visibility() {
             true => Some(
                 self.performance_level_frame
@@ -122,12 +122,12 @@ impl OcPage {
         .set_data(info.power_cap, info.power_cap_max);*/
     }
 
-    pub fn get_clocks(&self) -> Option<ClocksSettings> {
+    /*pub fn get_clocks(&self) -> Option<ClocksSettings> {
         match self.clocks_frame.get_visibility() {
             true => Some(self.clocks_frame.get_settings()),
             false => None,
         }
-    }
+    }*/
 
     pub fn get_power_cap(&self) -> Option<i64> {
         self.power_cap_frame.get_cap()

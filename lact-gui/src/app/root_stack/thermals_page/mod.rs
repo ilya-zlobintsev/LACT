@@ -145,12 +145,12 @@ impl ThermalsPage {
         self.temp_label
             .set_markup(&format!("<b>{temperatures_text}</b>",));
 
-        match stats.fan_speed_current {
+        match stats.fan_stats.fan_speed_current {
             Some(fan_speed_current) => self.fan_speed_label.set_markup(&format!(
                 "<b>{} RPM ({}%)</b>",
                 fan_speed_current,
                 (fan_speed_current as f64
-                    / stats.fan_speed_max.unwrap_or(fan_speed_current) as f64
+                    / stats.fan_stats.fan_speed_max.unwrap_or(fan_speed_current) as f64
                     * 100.0)
                     .round()
             )),
@@ -159,9 +159,9 @@ impl ThermalsPage {
 
         self.fan_control_enabled_switch.set_visible(true);
         self.fan_control_enabled_switch
-            .set_active(!stats.fan_control_enabled);
+            .set_active(!stats.fan_stats.fan_control_enabled);
 
-        if stats.fan_control_enabled {
+        if stats.fan_stats.fan_control_enabled {
             self.fan_curve_frame.show();
         } else {
             self.fan_curve_frame.hide();

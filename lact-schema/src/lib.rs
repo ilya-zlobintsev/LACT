@@ -58,13 +58,46 @@ pub struct PciInfo {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceStats {
+    pub fan_stats: FanStats,
+    pub clockspeed_stats: ClockspeedStats,
+    pub voltage_stats: VoltageStats,
+    pub vram_stats: VramStats,
+    pub power_stats: PowerStats,
+    pub temps: HashMap<String, Temperature>,
+    pub busy_percent: Option<u8>,
+    pub performance_level: Option<PerformanceLevel>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct FanStats {
+    pub fan_control_enabled: bool,
     pub fan_speed_current: Option<u32>,
     pub fan_speed_max: Option<u32>,
     pub fan_speed_min: Option<u32>,
-    pub fan_control_enabled: bool,
-    pub temps: HashMap<String, Temperature>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct ClockspeedStats {
+    pub gpu_clockspeed: Option<u64>,
+    pub vram_clockspeed: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct VoltageStats {
+    pub gpu_voltage: Option<u64>,
+    pub northbridge_voltage: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct VramStats {
     pub total_vram: Option<u64>,
     pub used_vram: Option<u64>,
-    pub busy_percent: Option<u8>,
-    pub performance_level: Option<PerformanceLevel>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct PowerStats {
+    pub power_average: Option<f64>,
+    pub power_cap_current: Option<f64>,
+    pub power_cap_max: Option<f64>,
+    pub power_cap_min: Option<f64>,
 }

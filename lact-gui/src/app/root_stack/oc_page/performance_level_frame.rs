@@ -1,6 +1,6 @@
-use amdgpu_sysfs::gpu_handle::PerformanceLevel;
 use gtk::prelude::*;
 use gtk::*;
+use lact_schema::PerformanceLevel;
 
 #[derive(Clone)]
 pub struct PowerProfileFrame {

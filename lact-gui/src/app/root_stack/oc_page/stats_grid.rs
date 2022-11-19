@@ -1,6 +1,6 @@
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::DeviceStats;
+use lact_schema::{ClockspeedStats, DeviceStats, PowerStats, VoltageStats, VramStats};
 
 #[derive(Clone)]
 pub struct StatsGrid {
@@ -144,51 +144,62 @@ impl StatsGrid {
     }
 
     pub fn set_stats(&self, stats: &DeviceStats) {
-        self.vram_usage_bar.set_value(
-            stats.mem_used.unwrap_or_else(|| 0) as f64
-                / stats.mem_total.unwrap_or_else(|| 0) as f64,
-        );
+        let VramStats {
+            total_vram,
+            used_vram,
+        } = stats.vram_stats;
+
+        self.vram_usage_bar
+            .set_value(used_vram.unwrap_or(0) as f64 / total_vram.unwrap_or(0) as f64);
         self.vram_usage_label.set_text(&format!(
             "{}/{} MiB",
-            stats.mem_used.unwrap_or_else(|| 0),
-            stats.mem_total.unwrap_or_else(|| 0)
+            used_vram.unwrap_or(0) / 1024 / 1024,
+            total_vram.unwrap_or(0) / 1024 / 1024,
         ));
 
-        self.gpu_clock_label.set_markup(&format!(
-            "<b>{}MHz</b>",
-            stats.gpu_freq.unwrap_or_else(|| 0)
-        ));
+        let ClockspeedStats {
+            gpu_clockspeed,
+            vram_clockspeed,
+        } = stats.clockspeed_stats;
 
-        self.vram_clock_label.set_markup(&format!(
-            "<b>{}MHz</b>",
-            stats.mem_freq.unwrap_or_else(|| 0)
-        ));
+        self.gpu_clock_label
+            .set_markup(&format!("<b>{}MHz</b>", gpu_clockspeed.unwrap_or(0)));
+        self.vram_clock_label
+            .set_markup(&format!("<b>{}MHz</b>", vram_clockspeed.unwrap_or(0)));
+
+        let VoltageStats { gpu_voltage, .. } = stats.voltage_stats;
 
         self.gpu_voltage_label.set_markup(&format!(
             "<b>{}V</b>",
-            stats.voltage.unwrap_or_else(|| 0) as f64 / 1000f64
+            gpu_voltage.unwrap_or(0) as f64 / 1000f64
         ));
+
+        let PowerStats {
+            power_average,
+            power_cap_current,
+            power_cap_max,
+            power_cap_min,
+        } = stats.power_stats;
 
         self.power_usage_label.set_markup(&format!(
             "<b>{}/{}W</b>",
-            stats.power_avg.unwrap_or_else(|| 0),
-            stats.power_cap.unwrap_or_else(|| 0)
+            power_average.unwrap_or(0.0),
+            power_cap_current.unwrap_or(0.0)
         ));
 
-        let temp = match stats.temperatures.get("junction") {
-            Some(temp) => Some(temp.current),
-            None => match stats.temperatures.get("edge") {
-                Some(temp) => Some(temp.current),
-                None => None,
-            },
-        };
+        let maybe_temp = stats
+            .temps
+            .get("junction")
+            .or_else(|| stats.temps.get("edge"));
 
-        if let Some(temp) = temp {
+        if let Some(temp) = maybe_temp.and_then(|temp| temp.current) {
             self.gpu_temperature_label
-                .set_markup(&format!("<b>{}°C</b>", temp));
+                .set_markup(&format!("<b>{temp}°C</b>"));
         }
 
-        self.gpu_usage_label
-            .set_markup(&format!("<b>{}%</b>", stats.gpu_usage.unwrap_or_default()));
+        self.gpu_usage_label.set_markup(&format!(
+            "<b>{}%</b>",
+            stats.busy_percent.unwrap_or_default()
+        ));
     }
 }

@@ -9,7 +9,10 @@ use amdgpu_sysfs::{
     hw_mon::{FanControlMethod, HwMon},
 };
 use anyhow::{anyhow, Context};
-use lact_schema::{DeviceInfo, DeviceStats, GpuPciInfo, LinkInfo, PciInfo};
+use lact_schema::{
+    ClockspeedStats, DeviceInfo, DeviceStats, FanStats, GpuPciInfo, LinkInfo, PciInfo, PowerStats,
+    VoltageStats, VramStats,
+};
 use pciid_parser::Database;
 use std::{
     borrow::Cow,
@@ -127,17 +130,35 @@ impl GpuController {
 
     pub fn get_stats(&self) -> anyhow::Result<DeviceStats> {
         Ok(DeviceStats {
-            fan_speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
-            fan_speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
-            fan_speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
-            fan_control_enabled: self
-                .fan_control_handle
-                .lock()
-                .map_err(|err| anyhow!("Could not lock fan control mutex: {err}"))?
-                .is_some(),
+            fan_stats: FanStats {
+                fan_speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
+                fan_speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
+                fan_speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
+                fan_control_enabled: self
+                    .fan_control_handle
+                    .lock()
+                    .map_err(|err| anyhow!("Could not lock fan control mutex: {err}"))?
+                    .is_some(),
+            },
+            clockspeed_stats: ClockspeedStats {
+                gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
+                vram_clockspeed: self.hw_mon_and_then(HwMon::get_vram_clockspeed),
+            },
+            voltage_stats: VoltageStats {
+                gpu_voltage: self.hw_mon_and_then(HwMon::get_gpu_voltage),
+                northbridge_voltage: self.hw_mon_and_then(HwMon::get_northbridge_voltage),
+            },
+            vram_stats: VramStats {
+                total_vram: self.handle.get_total_vram().ok(),
+                used_vram: self.handle.get_used_vram().ok(),
+            },
+            power_stats: PowerStats {
+                power_average: self.hw_mon_and_then(HwMon::get_power_average),
+                power_cap_current: self.hw_mon_and_then(HwMon::get_power_cap),
+                power_cap_max: self.hw_mon_and_then(HwMon::get_power_cap_max),
+                power_cap_min: self.hw_mon_and_then(HwMon::get_power_cap_min),
+            },
             temps: self.hw_mon_map(HwMon::get_temps).unwrap_or_default(),
-            total_vram: self.handle.get_total_vram().ok(),
-            used_vram: self.handle.get_used_vram().ok(),
             busy_percent: self.handle.get_busy_percent().ok(),
             performance_level: self.handle.get_power_force_performance_level().ok(),
         })

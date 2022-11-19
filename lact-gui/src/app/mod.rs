@@ -273,13 +273,13 @@ impl App {
 
         receiver.attach(
             None,
-            clone!(@strong self.root_stack as root_stack,  => move |msg| {
+            clone!(@strong self.root_stack as root_stack => move |msg| {
                 match msg {
                     GuiUpdateMsg::GpuStats(stats) => {
                         trace!("New stats received, updating {stats:?}");
                         root_stack.info_page.set_stats(&stats);
                         root_stack.thermals_page.set_stats(&stats);
-                        // oc_page.set_stats(&stats);
+                        root_stack.oc_page.set_stats(&stats);
                     } /*GuiUpdateMsg::FanControlInfo(fan_control_info) => {
                           thermals_page.set_ventilation_info(fan_control_info)
                       }*/
