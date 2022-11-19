@@ -50,14 +50,14 @@ impl PowerCapFrame {
         }
     }
 
-    pub fn set_data(&self, power_cap: Option<i64>, power_cap_max: Option<i64>) {
+    pub fn set_data(&self, power_cap: Option<f64>, power_cap_max: Option<f64>) {
         if let Some(power_cap_max) = power_cap_max {
-            self.adjustment.set_upper(power_cap_max as f64);
+            self.adjustment.set_upper(power_cap_max);
         } else {
             self.container.set_visible(false);
         }
         if let Some(power_cap) = power_cap {
-            self.adjustment.set_value(power_cap as f64);
+            self.adjustment.set_value(power_cap);
         } else {
             self.container.set_visible(false);
         }

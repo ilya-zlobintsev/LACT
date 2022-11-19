@@ -177,8 +177,7 @@ impl StatsGrid {
         let PowerStats {
             power_average,
             power_cap_current,
-            power_cap_max,
-            power_cap_min,
+            ..
         } = stats.power_stats;
 
         self.power_usage_label.set_markup(&format!(

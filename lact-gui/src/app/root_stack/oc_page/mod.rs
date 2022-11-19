@@ -6,7 +6,7 @@ mod warning_frame;
 
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::{DeviceInfo, DeviceStats, PerformanceLevel};
+use lact_schema::{DeviceInfo, DeviceStats, PerformanceLevel, PowerStats};
 use performance_level_frame::PowerProfileFrame;
 use power_cap_frame::PowerCapFrame;
 use stats_grid::StatsGrid;
@@ -58,6 +58,10 @@ impl OcPage {
 
     pub fn set_stats(&self, stats: &DeviceStats) {
         self.stats_grid.set_stats(stats);
+        self.power_cap_frame.set_data(
+            stats.power_stats.power_cap_current,
+            stats.power_stats.power_cap_max,
+        );
     }
 
     pub fn connect_clocks_reset<F: Fn() + 'static + Clone>(&self, f: F) {
@@ -108,7 +112,7 @@ impl OcPage {
         }
     }
 
-    pub fn set_info(&self, info: &DeviceInfo) {
+    pub fn set_power_stats(&self, power_stats: PowerStats) {
         // TODO
         /*match &info.clocks_table {
             Some(clocks_table) => {
@@ -117,9 +121,6 @@ impl OcPage {
             }
             None => self.clocks_frame.hide(),
         }*/
-
-        /*self.power_cap_frame
-        .set_data(info.power_cap, info.power_cap_max);*/
     }
 
     /*pub fn get_clocks(&self) -> Option<ClocksSettings> {
