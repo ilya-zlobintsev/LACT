@@ -207,12 +207,12 @@ impl GpuController {
         let notify_handle = self.fan_control_handle.clone();
         let handle = tokio::spawn(async move {
             loop {
-                debug!("Fan control tick");
                 let mut temps = hw_mon.get_temps();
                 let temp = temps
                     .remove(&temp_key)
                     .expect("Could not get temperature by given key");
                 let target_rpm = curve.rpm_at_temp(temp, min_rpm, max_rpm);
+                debug!("Fan control tick: setting rpm to {target_rpm}");
 
                 if let Err(err) = hw_mon.set_fan_target(target_rpm) {
                     error!("Could not set fan speed: {err}, disabling fan control");
