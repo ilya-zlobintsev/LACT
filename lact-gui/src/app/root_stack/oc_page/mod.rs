@@ -60,10 +60,8 @@ impl OcPage {
     pub fn set_stats(&self, stats: &DeviceStats, initial: bool) {
         self.stats_grid.set_stats(stats);
         if initial {
-            self.power_cap_frame.set_data(
-                stats.power_stats.power_cap_current,
-                stats.power_stats.power_cap_max,
-            );
+            self.power_cap_frame
+                .set_data(stats.power.cap_current, stats.power.cap_max);
         }
     }
 

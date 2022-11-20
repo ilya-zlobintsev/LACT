@@ -145,9 +145,9 @@ impl StatsGrid {
 
     pub fn set_stats(&self, stats: &DeviceStats) {
         let VramStats {
-            total_vram,
-            used_vram,
-        } = stats.vram_stats;
+            total: total_vram,
+            used: used_vram,
+        } = stats.vram;
 
         self.vram_usage_bar
             .set_value(used_vram.unwrap_or(0) as f64 / total_vram.unwrap_or(0) as f64);
@@ -160,14 +160,16 @@ impl StatsGrid {
         let ClockspeedStats {
             gpu_clockspeed,
             vram_clockspeed,
-        } = stats.clockspeed_stats;
+        } = stats.clockspeed;
 
         self.gpu_clock_label
             .set_markup(&format!("<b>{}MHz</b>", gpu_clockspeed.unwrap_or(0)));
         self.vram_clock_label
             .set_markup(&format!("<b>{}MHz</b>", vram_clockspeed.unwrap_or(0)));
 
-        let VoltageStats { gpu_voltage, .. } = stats.voltage_stats;
+        let VoltageStats {
+            gpu: gpu_voltage, ..
+        } = stats.voltage;
 
         self.gpu_voltage_label.set_markup(&format!(
             "<b>{}V</b>",
@@ -175,10 +177,10 @@ impl StatsGrid {
         ));
 
         let PowerStats {
-            power_average,
-            power_cap_current,
+            average: power_average,
+            cap_current: power_cap_current,
             ..
-        } = stats.power_stats;
+        } = stats.power;
 
         self.power_usage_label.set_markup(&format!(
             "<b>{}/{}W</b>",

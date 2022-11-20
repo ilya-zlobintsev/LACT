@@ -23,7 +23,7 @@ use std::{
 use tokio::{select, sync::Notify, task::JoinHandle, time::sleep};
 use tracing::{error, info, trace, warn};
 
-type FanControlHandle = (Arc<Notify>, JoinHandle<()>);
+type FanControlHandle = (Arc<Notify>, JoinHandle<()>, FanCurve);
 
 pub struct GpuController {
     pub handle: GpuHandle,
@@ -129,35 +129,39 @@ impl GpuController {
     }
 
     pub fn get_stats(&self) -> anyhow::Result<DeviceStats> {
+        let fan_control_guard = self
+            .fan_control_handle
+            .lock()
+            .map_err(|err| anyhow!("Could not lock fan control mutex: {err}"))?;
+
         Ok(DeviceStats {
-            fan_stats: FanStats {
-                fan_speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
-                fan_speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
-                fan_speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
-                fan_control_enabled: self
-                    .fan_control_handle
-                    .lock()
-                    .map_err(|err| anyhow!("Could not lock fan control mutex: {err}"))?
-                    .is_some(),
+            fan: FanStats {
+                control_enabled: fan_control_guard.is_some(),
+                curve: fan_control_guard
+                    .as_ref()
+                    .map(|(_, _, curve)| curve.0.clone()),
+                speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
+                speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
+                speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
             },
-            clockspeed_stats: ClockspeedStats {
+            clockspeed: ClockspeedStats {
                 gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
                 vram_clockspeed: self.hw_mon_and_then(HwMon::get_vram_clockspeed),
             },
-            voltage_stats: VoltageStats {
-                gpu_voltage: self.hw_mon_and_then(HwMon::get_gpu_voltage),
-                northbridge_voltage: self.hw_mon_and_then(HwMon::get_northbridge_voltage),
+            voltage: VoltageStats {
+                gpu: self.hw_mon_and_then(HwMon::get_gpu_voltage),
+                northbridge: self.hw_mon_and_then(HwMon::get_northbridge_voltage),
             },
-            vram_stats: VramStats {
-                total_vram: self.handle.get_total_vram().ok(),
-                used_vram: self.handle.get_used_vram().ok(),
+            vram: VramStats {
+                total: self.handle.get_total_vram().ok(),
+                used: self.handle.get_used_vram().ok(),
             },
-            power_stats: PowerStats {
-                power_average: self.hw_mon_and_then(HwMon::get_power_average),
-                power_cap_current: self.hw_mon_and_then(HwMon::get_power_cap),
-                power_cap_max: self.hw_mon_and_then(HwMon::get_power_cap_max),
-                power_cap_min: self.hw_mon_and_then(HwMon::get_power_cap_min),
-                power_cap_default: self.hw_mon_and_then(HwMon::get_power_cap_default),
+            power: PowerStats {
+                average: self.hw_mon_and_then(HwMon::get_power_average),
+                cap_current: self.hw_mon_and_then(HwMon::get_power_cap),
+                cap_max: self.hw_mon_and_then(HwMon::get_power_cap_max),
+                cap_min: self.hw_mon_and_then(HwMon::get_power_cap_min),
+                cap_default: self.hw_mon_and_then(HwMon::get_power_cap_default),
             },
             temps: self.hw_mon_map(HwMon::get_temps).unwrap_or_default(),
             busy_percent: self.handle.get_busy_percent().ok(),
@@ -203,6 +207,7 @@ impl GpuController {
 
         let notify = Arc::new(Notify::new());
         let task_notify = notify.clone();
+        let task_curve = curve.clone();
 
         let notify_handle = self.fan_control_handle.clone();
         let handle = tokio::spawn(async move {
@@ -211,7 +216,7 @@ impl GpuController {
                 let temp = temps
                     .remove(&temp_key)
                     .expect("Could not get temperature by given key");
-                let target_rpm = curve.rpm_at_temp(temp, min_rpm, max_rpm);
+                let target_rpm = task_curve.rpm_at_temp(temp, min_rpm, max_rpm);
                 trace!("Fan control tick: setting rpm to {target_rpm}");
 
                 if let Err(err) = hw_mon.set_fan_target(target_rpm) {
@@ -234,7 +239,7 @@ impl GpuController {
                 .take();
         });
 
-        *notify_guard = Some((notify, handle));
+        *notify_guard = Some((notify, handle, curve));
 
         info!(
             "Started fan control with interval {}ms",
@@ -250,7 +255,7 @@ impl GpuController {
             .lock()
             .map_err(|err| anyhow!("Lock error: {err}"))?
             .take();
-        if let Some((notify, handle)) = maybe_notify {
+        if let Some((notify, handle, _)) = maybe_notify {
             notify.notify_one();
             handle.await?;
         }

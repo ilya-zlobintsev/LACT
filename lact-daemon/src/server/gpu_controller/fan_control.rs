@@ -1,10 +1,10 @@
 use amdgpu_sysfs::hw_mon::Temperature;
+use lact_schema::FanCurveMap;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use tracing::error;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct FanCurve(BTreeMap<i32, f32>);
+pub struct FanCurve(pub FanCurveMap);
 
 impl FanCurve {
     pub fn rpm_at_temp(&self, temp: Temperature, min_rpm: u32, max_rpm: u32) -> u32 {

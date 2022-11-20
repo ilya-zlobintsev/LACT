@@ -7,7 +7,12 @@ pub use amdgpu_sysfs::{gpu_handle::PerformanceLevel, hw_mon::Temperature};
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::HashMap};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, HashMap},
+};
+
+pub type FanCurveMap = BTreeMap<i32, f32>;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceListEntry<'a> {
@@ -58,22 +63,23 @@ pub struct PciInfo {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceStats {
-    pub fan_stats: FanStats,
-    pub clockspeed_stats: ClockspeedStats,
-    pub voltage_stats: VoltageStats,
-    pub vram_stats: VramStats,
-    pub power_stats: PowerStats,
+    pub fan: FanStats,
+    pub clockspeed: ClockspeedStats,
+    pub voltage: VoltageStats,
+    pub vram: VramStats,
+    pub power: PowerStats,
     pub temps: HashMap<String, Temperature>,
     pub busy_percent: Option<u8>,
     pub performance_level: Option<PerformanceLevel>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FanStats {
-    pub fan_control_enabled: bool,
-    pub fan_speed_current: Option<u32>,
-    pub fan_speed_max: Option<u32>,
-    pub fan_speed_min: Option<u32>,
+    pub control_enabled: bool,
+    pub curve: Option<FanCurveMap>,
+    pub speed_current: Option<u32>,
+    pub speed_max: Option<u32>,
+    pub speed_min: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -84,21 +90,21 @@ pub struct ClockspeedStats {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct VoltageStats {
-    pub gpu_voltage: Option<u64>,
-    pub northbridge_voltage: Option<u64>,
+    pub gpu: Option<u64>,
+    pub northbridge: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct VramStats {
-    pub total_vram: Option<u64>,
-    pub used_vram: Option<u64>,
+    pub total: Option<u64>,
+    pub used: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct PowerStats {
-    pub power_average: Option<f64>,
-    pub power_cap_current: Option<f64>,
-    pub power_cap_max: Option<f64>,
-    pub power_cap_min: Option<f64>,
-    pub power_cap_default: Option<f64>,
+    pub average: Option<f64>,
+    pub cap_current: Option<f64>,
+    pub cap_max: Option<f64>,
+    pub cap_min: Option<f64>,
+    pub cap_default: Option<f64>,
 }

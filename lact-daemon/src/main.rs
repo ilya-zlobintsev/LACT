@@ -32,5 +32,6 @@ async fn main() -> anyhow::Result<()> {
         std::process::exit(0);
     });
 
-    Ok(server.run().await)
+    server.run().await;
+    Ok(())
 }
