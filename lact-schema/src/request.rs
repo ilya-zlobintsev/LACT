@@ -8,5 +8,5 @@ pub enum Request<'a> {
     DeviceInfo { id: &'a str },
     DeviceStats { id: &'a str },
     SetFanControl { id: &'a str, enabled: bool },
-    SetPowerLimit { id: &'a str, limit: f64 },
+    SetPowerCap { id: &'a str, cap: Option<f64> },
 }

@@ -173,16 +173,22 @@ impl<'a> Handler {
         }
     }
 
-    pub fn set_power_limit(&'a self, id: &str, limit: f64) -> anyhow::Result<()> {
-        self.controller_by_id(id)?
+    pub fn set_power_cap(&'a self, id: &str, maybe_cap: Option<f64>) -> anyhow::Result<()> {
+        let hw_mon = self
+            .controller_by_id(id)?
             .handle
             .hw_monitors
             .first()
-            .context("GPU has no hardware monitor")?
-            .set_power_cap(limit)?;
+            .context("GPU has no hardware monitor")?;
+
+        let cap = match maybe_cap {
+            Some(cap) => cap,
+            None => hw_mon.get_power_cap_default()?,
+        };
+        hw_mon.set_power_cap(cap)?;
 
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
-            gpu_config.power_cap = Some(limit);
+            gpu_config.power_cap = maybe_cap;
         })
     }
 
