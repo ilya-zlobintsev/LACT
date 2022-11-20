@@ -11,6 +11,7 @@ env:
 
 jobs:
   build-test:
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     runs-on: ubuntu-20.04
 
     steps:
@@ -26,7 +27,7 @@ jobs:
 
   check-format:
     runs-on: ubuntu-20.04
-
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     steps:
       - uses: actions/checkout@v2
       - name: install rustfmt
