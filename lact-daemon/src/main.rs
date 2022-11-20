@@ -8,7 +8,7 @@ use config::Config;
 use server::Server;
 use std::str::FromStr;
 use tokio::signal::ctrl_c;
-use tracing::{warn, Level};
+use tracing::{debug_span, Instrument, Level};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
@@ -23,13 +23,12 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(async move {
         ctrl_c().await.expect("Could not listen to shutdown signal");
 
-        for controller in handler.gpu_controllers.values() {
-            if let Err(err) = controller.stop_fan_control().await {
-                warn!("Could not stop fan control on shutdown: {err}");
-            }
+        async {
+            handler.cleanup().await;
+            socket::cleanup();
         }
-
-        socket::cleanup();
+        .instrument(debug_span!("shutdown_cleanup"))
+        .await;
         std::process::exit(0);
     });
 

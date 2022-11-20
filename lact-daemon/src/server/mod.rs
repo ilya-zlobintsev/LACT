@@ -86,6 +86,7 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::SetFanControl { id, enabled } => {
             ok_response(handler.set_fan_control(id, enabled).await?)
         }
+        Request::SetPowerLimit { id, limit } => ok_response(handler.set_power_limit(id, limit)?),
     }
 }
 

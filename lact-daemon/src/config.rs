@@ -30,6 +30,7 @@ impl Default for DaemonConfig {
 pub struct GpuConfig {
     pub fan_control_enabled: bool,
     pub fan_control_settings: Option<FanControlSettings>,
+    pub power_cap: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -104,6 +105,7 @@ mod tests {
                         temperature_key: "edge".to_owned(),
                         interval_ms: 500,
                     }),
+                    ..Default::default()
                 },
             )]
             .into(),

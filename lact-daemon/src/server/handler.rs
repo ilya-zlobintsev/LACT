@@ -1,5 +1,5 @@
 use super::gpu_controller::{fan_control::FanCurve, GpuController};
-use crate::config::{Config, FanControlSettings};
+use crate::config::{Config, FanControlSettings, GpuConfig};
 use amdgpu_sysfs::sysfs::SysFS;
 use anyhow::{anyhow, Context};
 use lact_schema::{DeviceInfo, DeviceListEntry, DeviceStats};
@@ -83,6 +83,16 @@ impl<'a> Handler {
                         interval,
                     )?;
                 }
+
+                if let Some(power_cap) = gpu_config.power_cap {
+                    controller
+                        .handle
+                        .hw_monitors
+                        .first()
+                        .context("GPU has power cap defined but has no hardware monitor")?
+                        .set_power_cap(power_cap)
+                        .context("Could not set power cap")?;
+                }
             } else {
                 info!("Could not find GPU with id {id} defined in configuration");
             }
@@ -91,6 +101,20 @@ impl<'a> Handler {
         Ok(Self {
             gpu_controllers: Arc::new(controllers),
             config: Arc::new(RwLock::new(config)),
+        })
+    }
+
+    fn edit_config<F: FnOnce(&mut Config)>(&self, f: F) -> anyhow::Result<()> {
+        let mut config_guard = self.config.write().map_err(|err| anyhow!("{err}"))?;
+        f(&mut config_guard);
+        config_guard.save()?;
+        Ok(())
+    }
+
+    fn edit_gpu_config<F: FnOnce(&mut GpuConfig)>(&self, id: String, f: F) -> anyhow::Result<()> {
+        self.edit_config(|config| {
+            let gpu_config = config.gpus.entry(id).or_default();
+            f(gpu_config);
         })
     }
 
@@ -143,11 +167,48 @@ impl<'a> Handler {
                 interval,
             )?;
             gpu_config.fan_control_enabled = true;
-            config_guard.save().context("Could not save config")?;
-
-            Ok(())
+            config_guard.save().context("Could not save config")
         } else {
             self.controller_by_id(id)?.stop_fan_control().await
+        }
+    }
+
+    pub fn set_power_limit(&'a self, id: &str, limit: f64) -> anyhow::Result<()> {
+        self.controller_by_id(id)?
+            .handle
+            .hw_monitors
+            .first()
+            .context("GPU has no hardware monitor")?
+            .set_power_cap(limit)?;
+
+        self.edit_gpu_config(id.to_owned(), |gpu_config| {
+            gpu_config.power_cap = Some(limit);
+        })
+    }
+
+    pub async fn cleanup(self) {
+        let config = self.config.read().unwrap().clone();
+        for (id, gpu_config) in config.gpus {
+            if let Ok(controller) = self.controller_by_id(&id) {
+                if gpu_config.fan_control_enabled {
+                    debug!("Stopping fan control");
+                    controller
+                        .stop_fan_control()
+                        .await
+                        .expect("Could not stop fan control");
+                }
+
+                if let (Some(_), Some(hw_mon)) =
+                    (gpu_config.power_cap, controller.handle.hw_monitors.first())
+                {
+                    if let Ok(default_cap) = hw_mon.get_power_cap_default() {
+                        debug!("Setting power limit to default");
+                        hw_mon
+                            .set_power_cap(default_cap)
+                            .expect("Could not set power cap to default");
+                    }
+                }
+            }
         }
     }
 }

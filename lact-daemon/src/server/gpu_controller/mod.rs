@@ -157,6 +157,7 @@ impl GpuController {
                 power_cap_current: self.hw_mon_and_then(HwMon::get_power_cap),
                 power_cap_max: self.hw_mon_and_then(HwMon::get_power_cap_max),
                 power_cap_min: self.hw_mon_and_then(HwMon::get_power_cap_min),
+                power_cap_default: self.hw_mon_and_then(HwMon::get_power_cap_default),
             },
             temps: self.hw_mon_map(HwMon::get_temps).unwrap_or_default(),
             busy_percent: self.handle.get_busy_percent().ok(),

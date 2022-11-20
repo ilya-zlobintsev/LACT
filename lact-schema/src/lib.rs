@@ -100,4 +100,5 @@ pub struct PowerStats {
     pub power_cap_current: Option<f64>,
     pub power_cap_max: Option<f64>,
     pub power_cap_min: Option<f64>,
+    pub power_cap_default: Option<f64>,
 }
