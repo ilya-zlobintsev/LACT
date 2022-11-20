@@ -1,5 +1,6 @@
 mod fan_curve_frame;
 
+use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_schema::DeviceStats;
@@ -129,7 +130,7 @@ impl ThermalsPage {
         }
     }
 
-    pub fn set_stats(&self, stats: &DeviceStats) {
+    pub fn set_stats(&self, stats: &DeviceStats, initial: bool) {
         let mut temperatures: Vec<String> = stats
             .temps
             .iter()
@@ -157,9 +158,11 @@ impl ThermalsPage {
             None => self.fan_speed_label.set_text("No fan detected"),
         }
 
-        self.fan_control_enabled_switch.set_visible(true);
-        self.fan_control_enabled_switch
-            .set_active(!stats.fan_stats.fan_control_enabled);
+        if initial {
+            self.fan_control_enabled_switch.set_visible(true);
+            self.fan_control_enabled_switch
+                .set_active(!stats.fan_stats.fan_control_enabled);
+        }
 
         if stats.fan_stats.fan_control_enabled {
             self.fan_curve_frame.show();
@@ -172,22 +175,14 @@ impl ThermalsPage {
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        // Fan control switch toggled
-        {
-            let f = f.clone();
-            self.fan_control_enabled_switch
-                .connect_changed_active(move |_| {
-                    f();
-                });
-        }
-
-        // Fan curve adjusted
-        {
-            let f = f.clone();
-            self.fan_curve_frame.connect_adjusted(move || {
+        self.fan_control_enabled_switch
+            .connect_changed_active(clone!(@strong f => move |_| {
                 f();
-            });
-        }
+            }));
+
+        self.fan_curve_frame.connect_adjusted(move || {
+            f();
+        });
     }
 
     pub fn get_thermals_settings(&self) -> ThermalsSettings {

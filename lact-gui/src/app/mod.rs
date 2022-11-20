@@ -205,6 +205,7 @@ impl App {
 
         self.root_stack.info_page.set_info(&info);
         self.root_stack.oc_page.set_stats(&stats, true);
+        self.root_stack.thermals_page.set_stats(&stats, true);
 
         // trace!("Setting clocks");
         // self.root_stack.oc_page.set_info(&info);
@@ -288,7 +289,7 @@ impl App {
                     GuiUpdateMsg::GpuStats(stats) => {
                         trace!("New stats received, updating {stats:?}");
                         root_stack.info_page.set_stats(&stats);
-                        root_stack.thermals_page.set_stats(&stats);
+                        root_stack.thermals_page.set_stats(&stats, false);
                         root_stack.oc_page.set_stats(&stats, false);
                     } /*GuiUpdateMsg::FanControlInfo(fan_control_info) => {
                           thermals_page.set_ventilation_info(fan_control_info)
