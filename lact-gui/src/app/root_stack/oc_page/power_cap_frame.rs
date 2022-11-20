@@ -63,13 +63,13 @@ impl PowerCapFrame {
         }
     }
 
-    pub fn get_cap(&self) -> Option<i64> {
+    pub fn get_cap(&self) -> Option<f64> {
         // Using match gives a warning that floats shouldn't be used in patterns
         let cap = self.adjustment.value();
         if cap == 0.0 {
             None
         } else {
-            Some(cap as i64)
+            Some(cap)
         }
     }
 

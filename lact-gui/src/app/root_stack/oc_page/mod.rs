@@ -4,6 +4,7 @@ mod power_cap_frame;
 mod stats_grid;
 mod warning_frame;
 
+use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_schema::{DeviceInfo, DeviceStats, PerformanceLevel, PowerStats};
@@ -56,12 +57,14 @@ impl OcPage {
         }
     }
 
-    pub fn set_stats(&self, stats: &DeviceStats) {
+    pub fn set_stats(&self, stats: &DeviceStats, initial: bool) {
         self.stats_grid.set_stats(stats);
-        self.power_cap_frame.set_data(
-            stats.power_stats.power_cap_current,
-            stats.power_stats.power_cap_max,
-        );
+        if initial {
+            self.power_cap_frame.set_data(
+                stats.power_stats.power_cap_current,
+                stats.power_stats.power_cap_max,
+            );
+        }
     }
 
     pub fn connect_clocks_reset<F: Fn() + 'static + Clone>(&self, f: F) {
@@ -72,24 +75,17 @@ impl OcPage {
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        {
-            let f = f.clone();
-            self.performance_level_frame
-                .connect_power_profile_changed(move || {
-                    f();
-                });
-        }
-        {
-            /*let f = f.clone();
-            self.clocks_frame.connect_clocks_changed(move || {
-                f();
-            })*/
-        }
-        {
-            self.power_cap_frame.connect_cap_changed(move || {
-                f();
-            })
-        }
+        self.performance_level_frame
+            .connect_power_profile_changed(clone!(@strong f => move || {
+                    f()
+            }));
+        /*let f = f.clone();
+        self.clocks_frame.connect_clocks_changed(move || {
+            f();
+        })*/
+        self.power_cap_frame.connect_cap_changed(move || {
+            f();
+        })
     }
 
     pub fn set_performance_level(&self, profile: Option<PerformanceLevel>) {
@@ -130,7 +126,7 @@ impl OcPage {
         }
     }*/
 
-    pub fn get_power_cap(&self) -> Option<i64> {
+    pub fn get_power_cap(&self) -> Option<f64> {
         self.power_cap_frame.get_cap()
     }
 }

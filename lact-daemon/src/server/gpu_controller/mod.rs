@@ -21,7 +21,7 @@ use std::{
     time::Duration,
 };
 use tokio::{select, sync::Notify, task::JoinHandle, time::sleep};
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, trace, warn};
 
 type FanControlHandle = (Arc<Notify>, JoinHandle<()>);
 
@@ -212,7 +212,7 @@ impl GpuController {
                     .remove(&temp_key)
                     .expect("Could not get temperature by given key");
                 let target_rpm = curve.rpm_at_temp(temp, min_rpm, max_rpm);
-                debug!("Fan control tick: setting rpm to {target_rpm}");
+                trace!("Fan control tick: setting rpm to {target_rpm}");
 
                 if let Err(err) = hw_mon.set_fan_target(target_rpm) {
                     error!("Could not set fan speed: {err}, disabling fan control");

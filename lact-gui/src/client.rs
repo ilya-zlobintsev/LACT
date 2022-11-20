@@ -62,6 +62,12 @@ impl DaemonClient {
         Ok(())
     }
 
+    pub fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<()> {
+        self.make_request(Request::SetPowerCap { id, cap })?
+            .inner()?;
+        Ok(())
+    }
+
     pub fn get_device_info(&self, id: &str) -> anyhow::Result<ResponseBuffer<DeviceInfo>> {
         self.make_request(Request::DeviceInfo { id })
     }

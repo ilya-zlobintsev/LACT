@@ -17,6 +17,9 @@ use lact_schema::DeviceStats;
 use root_stack::RootStack;
 use tracing::{debug, error, info, trace};
 
+// In ms
+const STATS_POLL_INTERVAL: u64 = 250;
+
 #[derive(Clone)]
 pub struct App {
     pub window: Window,
@@ -98,10 +101,10 @@ impl App {
 
             let apply_revealer = self.apply_revealer.clone();
 
-            // self.root_stack.oc_page.connect_settings_changed(move || {
-            //     debug!("Settings changed, showing apply button");
-            //     apply_revealer.show();
-            // });
+            self.root_stack.oc_page.connect_settings_changed(move || {
+                debug!("Settings changed, showing apply button");
+                apply_revealer.show();
+            });
         }
 
         {
@@ -169,13 +172,13 @@ impl App {
                     app.daemon_client
                         .set_power_profile(gpu_id, profile)
                         .expect("Failed to set power profile");
-                }
+                }*/
 
                 if let Some(cap) = app.root_stack.oc_page.get_power_cap() {
                     app.daemon_client
-                        .set_power_cap(gpu_id, cap)
+                        .set_power_cap(&gpu_id, Some(cap))
                         .expect("Failed to set power cap");
-                }*/
+                }
 
                 app.set_info(&gpu_id);
             });
@@ -192,9 +195,16 @@ impl App {
             .get_device_info(gpu_id)
             .expect("Could not fetch info");
         let info = info_buf.inner().unwrap();
-        trace!("Setting info {info:?}");
+        let stats_buf = self
+            .daemon_client
+            .get_device_stats(gpu_id)
+            .expect("Could not fetch stats");
+        let stats = stats_buf.inner().unwrap();
+
+        trace!("Setting info {info:?} and stats {stats:?}");
 
         self.root_stack.info_page.set_info(&info);
+        self.root_stack.oc_page.set_stats(&stats, true);
 
         // trace!("Setting clocks");
         // self.root_stack.oc_page.set_info(&info);
@@ -265,7 +275,7 @@ impl App {
                         error!("Could not fetch stats: {err}");
                     }
                 }
-                thread::sleep(Duration::from_millis(500));
+                thread::sleep(Duration::from_millis(STATS_POLL_INTERVAL));
             }),
         );
 
@@ -279,7 +289,7 @@ impl App {
                         trace!("New stats received, updating {stats:?}");
                         root_stack.info_page.set_stats(&stats);
                         root_stack.thermals_page.set_stats(&stats);
-                        root_stack.oc_page.set_stats(&stats);
+                        root_stack.oc_page.set_stats(&stats, false);
                     } /*GuiUpdateMsg::FanControlInfo(fan_control_info) => {
                           thermals_page.set_ventilation_info(fan_control_info)
                       }*/
