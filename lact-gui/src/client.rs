@@ -1,5 +1,7 @@
 use anyhow::{anyhow, Context};
-use lact_schema::{request::Request, response::Response, DeviceInfo, DeviceListEntry, DeviceStats};
+use lact_schema::{
+    request::Request, response::Response, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
+};
 use nix::unistd::getuid;
 use serde::Deserialize;
 use std::{
@@ -56,8 +58,13 @@ impl DaemonClient {
         self.make_request(Request::ListDevices)
     }
 
-    pub fn set_fan_control(&self, id: &str, enabled: bool) -> anyhow::Result<()> {
-        self.make_request::<()>(Request::SetFanControl { id, enabled })?
+    pub fn set_fan_control(
+        &self,
+        id: &str,
+        enabled: bool,
+        curve: Option<FanCurveMap>,
+    ) -> anyhow::Result<()> {
+        self.make_request::<()>(Request::SetFanControl { id, enabled, curve })?
             .inner()?;
         Ok(())
     }

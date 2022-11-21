@@ -21,14 +21,14 @@ use std::{
     time::Duration,
 };
 use tokio::{select, sync::Notify, task::JoinHandle, time::sleep};
-use tracing::{error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 type FanControlHandle = (Arc<Notify>, JoinHandle<()>, FanCurve);
 
 pub struct GpuController {
     pub handle: GpuHandle,
     pub pci_info: Option<GpuPciInfo>,
-    pub fan_control_handle: Arc<Mutex<Option<FanControlHandle>>>,
+    pub fan_control_handle: Mutex<Option<FanControlHandle>>,
 }
 
 impl GpuController {
@@ -88,7 +88,7 @@ impl GpuController {
         Ok(Self {
             handle,
             pci_info,
-            fan_control_handle: Arc::new(Mutex::new(None)),
+            fan_control_handle: Mutex::new(None),
         })
     }
 
@@ -177,12 +177,15 @@ impl GpuController {
         self.handle.hw_monitors.first().map(f)
     }
 
-    pub fn start_fan_control(
+    pub async fn start_fan_control(
         &self,
         curve: FanCurve,
         temp_key: String,
         interval: Duration,
     ) -> anyhow::Result<()> {
+        // Stop existing task to re-apply new curve
+        self.stop_fan_control(false).await?;
+
         let hw_mon = self
             .handle
             .hw_monitors
@@ -193,50 +196,36 @@ impl GpuController {
             .set_fan_control_method(FanControlMethod::Manual)
             .context("Could not set fan control method")?;
 
-        let max_rpm = hw_mon.get_fan_max().context("Could not get min RPM")?;
-        let min_rpm = hw_mon.get_fan_min().context("Could not get max RPM")?;
-
         let mut notify_guard = self
             .fan_control_handle
             .lock()
             .map_err(|err| anyhow!("Lock error: {err}"))?;
 
-        if notify_guard.is_some() {
-            return Ok(());
-        }
-
         let notify = Arc::new(Notify::new());
         let task_notify = notify.clone();
         let task_curve = curve.clone();
+        debug!("Using curve {curve:?}");
 
-        let notify_handle = self.fan_control_handle.clone();
         let handle = tokio::spawn(async move {
             loop {
-                let mut temps = hw_mon.get_temps();
-                let temp = temps
-                    .remove(&temp_key)
-                    .expect("Could not get temperature by given key");
-                let target_rpm = task_curve.rpm_at_temp(temp, min_rpm, max_rpm);
-                trace!("Fan control tick: setting rpm to {target_rpm}");
-
-                if let Err(err) = hw_mon.set_fan_target(target_rpm) {
-                    error!("Could not set fan speed: {err}, disabling fan control");
-                    break;
-                }
-
                 select! {
                     _ = sleep(interval) => (),
                     _ = task_notify.notified() => break,
                 }
+
+                let mut temps = hw_mon.get_temps();
+                let temp = temps
+                    .remove(&temp_key)
+                    .expect("Could not get temperature by given key");
+                let target_pwm = task_curve.pwm_at_temp(temp);
+                trace!("Fan control tick: setting pwm to {target_pwm}");
+
+                if let Err(err) = hw_mon.set_fan_pwm(target_pwm) {
+                    error!("Could not set fan speed: {err}, disabling fan control");
+                    break;
+                }
             }
-            info!("Shutting down fan control");
-            if let Err(err) = hw_mon.set_fan_control_method(FanControlMethod::Auto) {
-                error!("Could not set fan control back to automatic: {err}");
-            }
-            notify_handle
-                .lock()
-                .expect("Fan control mutex error")
-                .take();
+            info!("Exited fan control task");
         });
 
         *notify_guard = Some((notify, handle, curve));
@@ -249,7 +238,7 @@ impl GpuController {
         Ok(())
     }
 
-    pub async fn stop_fan_control(&self) -> anyhow::Result<()> {
+    pub async fn stop_fan_control(&self, reset_mode: bool) -> anyhow::Result<()> {
         let maybe_notify = self
             .fan_control_handle
             .lock()
@@ -258,6 +247,18 @@ impl GpuController {
         if let Some((notify, handle, _)) = maybe_notify {
             notify.notify_one();
             handle.await?;
+        }
+
+        if reset_mode {
+            let hw_mon = self
+                .handle
+                .hw_monitors
+                .first()
+                .cloned()
+                .context("This GPU has no monitor")?;
+            hw_mon
+                .set_fan_control_method(FanControlMethod::Auto)
+                .context("Could not set fan control back to automatic: {err}")?;
         }
         Ok(())
     }

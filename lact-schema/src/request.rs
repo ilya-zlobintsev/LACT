@@ -1,3 +1,4 @@
+use crate::FanCurveMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -5,8 +6,19 @@ use serde::{Deserialize, Serialize};
 pub enum Request<'a> {
     Ping,
     ListDevices,
-    DeviceInfo { id: &'a str },
-    DeviceStats { id: &'a str },
-    SetFanControl { id: &'a str, enabled: bool },
-    SetPowerCap { id: &'a str, cap: Option<f64> },
+    DeviceInfo {
+        id: &'a str,
+    },
+    DeviceStats {
+        id: &'a str,
+    },
+    SetFanControl {
+        id: &'a str,
+        enabled: bool,
+        curve: Option<FanCurveMap>,
+    },
+    SetPowerCap {
+        id: &'a str,
+        cap: Option<f64>,
+    },
 }

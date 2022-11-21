@@ -141,7 +141,11 @@ impl App {
                     let thermals_settings = app.root_stack.thermals_page.get_thermals_settings();
 
                     app.daemon_client
-                        .set_fan_control(&gpu_id, thermals_settings.automatic_fan_control_enabled)
+                        .set_fan_control(
+                            &gpu_id,
+                            thermals_settings.automatic_fan_control_enabled,
+                            None,
+                        )
                         .expect("Could not set fan control");
 
                     // TODO

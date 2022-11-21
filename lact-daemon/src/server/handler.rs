@@ -2,7 +2,7 @@ use super::gpu_controller::{fan_control::FanCurve, GpuController};
 use crate::config::{Config, FanControlSettings, GpuConfig};
 use amdgpu_sysfs::sysfs::SysFS;
 use anyhow::{anyhow, Context};
-use lact_schema::{DeviceInfo, DeviceListEntry, DeviceStats};
+use lact_schema::{DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap};
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -77,11 +77,13 @@ impl<'a> Handler {
                         "Fan control is enabled but no settings are defined (invalid config?)",
                     )?;
                     let interval = Duration::from_millis(settings.interval_ms);
-                    controller.start_fan_control(
-                        settings.curve.clone(),
-                        settings.temperature_key.clone(),
-                        interval,
-                    )?;
+                    controller
+                        .start_fan_control(
+                            settings.curve.clone(),
+                            settings.temperature_key.clone(),
+                            interval,
+                        )
+                        .await?;
                 }
 
                 if let Some(power_cap) = gpu_config.power_cap {
@@ -147,30 +149,50 @@ impl<'a> Handler {
         self.controller_by_id(id)?.get_stats()
     }
 
-    pub async fn set_fan_control(&'a self, id: &str, enabled: bool) -> anyhow::Result<()> {
-        if enabled {
-            let mut config_guard = self.config.write().map_err(|err| anyhow!("{err}"))?;
-            let gpu_config = config_guard.gpus.entry(id.to_owned()).or_default();
-            let settings =
-                gpu_config
-                    .fan_control_settings
-                    .get_or_insert_with(|| FanControlSettings {
-                        curve: FanCurve::default(),
+    pub async fn set_fan_control(
+        &'a self,
+        id: &str,
+        enabled: bool,
+        curve: Option<FanCurveMap>,
+    ) -> anyhow::Result<()> {
+        let settings = if enabled {
+            let settings = {
+                let curve = curve.map_or_else(FanCurve::default, |curve| FanCurve(curve));
+                curve.validate()?;
+
+                let mut config_guard = self.config.write().map_err(|err| anyhow!("{err}"))?;
+                let gpu_config = config_guard.gpus.entry(id.to_owned()).or_default();
+
+                if let Some(mut existing_settings) = gpu_config.fan_control_settings.clone() {
+                    existing_settings.curve = curve;
+                    existing_settings
+                } else {
+                    FanControlSettings {
+                        curve,
                         temperature_key: "edge".to_owned(),
                         interval_ms: 500,
-                    });
+                    }
+                }
+            };
             let interval = Duration::from_millis(settings.interval_ms);
 
-            self.controller_by_id(id)?.start_fan_control(
-                settings.curve.clone(),
-                settings.temperature_key.clone(),
-                interval,
-            )?;
-            gpu_config.fan_control_enabled = true;
-            config_guard.save().context("Could not save config")
+            self.controller_by_id(id)?
+                .start_fan_control(
+                    settings.curve.clone(),
+                    settings.temperature_key.clone(),
+                    interval,
+                )
+                .await?;
+            Some(settings)
         } else {
-            self.controller_by_id(id)?.stop_fan_control().await
-        }
+            self.controller_by_id(id)?.stop_fan_control(true).await?;
+            None
+        };
+
+        self.edit_gpu_config(id.to_owned(), |config| {
+            config.fan_control_enabled = enabled;
+            config.fan_control_settings = settings
+        })
     }
 
     pub fn set_power_cap(&'a self, id: &str, maybe_cap: Option<f64>) -> anyhow::Result<()> {
@@ -199,7 +221,7 @@ impl<'a> Handler {
                 if gpu_config.fan_control_enabled {
                     debug!("Stopping fan control");
                     controller
-                        .stop_fan_control()
+                        .stop_fan_control(true)
                         .await
                         .expect("Could not stop fan control");
                 }

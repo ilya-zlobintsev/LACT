@@ -83,8 +83,8 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::ListDevices => ok_response(handler.list_devices()),
         Request::DeviceInfo { id } => ok_response(handler.get_device_info(id)?),
         Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id)?),
-        Request::SetFanControl { id, enabled } => {
-            ok_response(handler.set_fan_control(id, enabled).await?)
+        Request::SetFanControl { id, enabled, curve } => {
+            ok_response(handler.set_fan_control(id, enabled, curve).await?)
         }
         Request::SetPowerCap { id, cap } => ok_response(handler.set_power_cap(id, cap)?),
     }
