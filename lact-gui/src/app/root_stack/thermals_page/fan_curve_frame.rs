@@ -1,16 +1,13 @@
 use gtk::prelude::*;
 use gtk::*;
+use lact_schema::FanCurveMap;
 use std::collections::BTreeMap;
 use tracing::debug;
 
 #[derive(Clone)]
 pub struct FanCurveFrame {
     pub container: Frame,
-    adjustment_1: Adjustment,
-    adjustment_2: Adjustment,
-    adjustment_3: Adjustment,
-    adjustment_4: Adjustment,
-    adjustment_5: Adjustment,
+    curve: FanCurveMap,
 }
 
 impl FanCurveFrame {

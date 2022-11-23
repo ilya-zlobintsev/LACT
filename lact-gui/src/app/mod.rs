@@ -8,6 +8,7 @@ use std::thread;
 use std::time::Duration;
 
 use crate::client::DaemonClient;
+use anyhow::Context;
 use apply_revealer::ApplyRevealer;
 use glib::clone;
 use gtk::prelude::*;
@@ -127,66 +128,16 @@ impl App {
             })*/
         }
 
-        // Apply settings
-        {
-            let current_gpu_id = current_gpu_id.clone();
-            let app = self.clone();
+        self.apply_revealer.connect_apply_button_clicked(
+            clone!(@strong self as app, @strong current_gpu_id => move || {
+                if let Err(err) =  app.apply_settings(current_gpu_id.clone()) {
+                    show_error(err.context("Could not apply settings"));
 
-            self.apply_revealer.connect_apply_button_clicked(move || {
-                info!("Applying settings");
-
-                let gpu_id = current_gpu_id.read().unwrap();
-
-                {
-                    let thermals_settings = app.root_stack.thermals_page.get_thermals_settings();
-
-                    app.daemon_client
-                        .set_fan_control(
-                            &gpu_id,
-                            thermals_settings.automatic_fan_control_enabled,
-                            None,
-                        )
-                        .expect("Could not set fan control");
-
-                    // TODO
-                    /*app.daemon_client
-                    .set_fan_curve(gpu_id, thermals_settings.curve)
-                    .unwrap_or(println!("Failed to set fan curve"));*/
+                    let gpu_id = current_gpu_id.read().unwrap();
+                    app.set_info(&gpu_id)
                 }
-
-                /*if let Some(clocks_settings) = app.root_stack.oc_page.get_clocks() {
-                    app.daemon_client
-                        .set_gpu_max_power_state(
-                            gpu_id,
-                            clocks_settings.gpu_clock,
-                            Some(clocks_settings.gpu_voltage),
-                        )
-                        .expect("Failed to set GPU clockspeed/voltage");
-
-                    app.daemon_client
-                        .set_vram_max_clock(gpu_id, clocks_settings.vram_clock)
-                        .expect("Failed to set VRAM Clock");
-
-                    app.daemon_client
-                        .commit_gpu_power_states(gpu_id)
-                        .expect("Failed to commit power states");
-                }
-
-                if let Some(profile) = app.root_stack.oc_page.get_power_profile() {
-                    app.daemon_client
-                        .set_power_profile(gpu_id, profile)
-                        .expect("Failed to set power profile");
-                }*/
-
-                if let Some(cap) = app.root_stack.oc_page.get_power_cap() {
-                    app.daemon_client
-                        .set_power_cap(&gpu_id, Some(cap))
-                        .expect("Failed to set power cap");
-                }
-
-                app.set_info(&gpu_id);
-            });
-        }
+            }),
+        );
 
         self.start_stats_update_loop(current_gpu_id.clone());
 
@@ -304,9 +255,79 @@ impl App {
             }),
         );
     }
+
+    fn apply_settings(&self, current_gpu_id: Arc<RwLock<String>>) -> anyhow::Result<()> {
+        info!("Applying settings");
+
+        let gpu_id = current_gpu_id.read().unwrap();
+
+        /*let thermals_settings = self.root_stack.thermals_page.get_thermals_settings();
+
+        self.daemon_client
+            .set_fan_control(
+                &gpu_id,
+                thermals_settings.automatic_fan_control_enabled,
+                None,
+            )
+            .context("Could not set fan control")?;*/
+
+        // TODO
+        /*self.daemon_client
+        .set_fan_curve(gpu_id, thermals_settings.curve)
+        .unwrap_or(println!("Failed to set fan curve"));*/
+
+        /*if let Some(clocks_settings) = self.root_stack.oc_page.get_clocks() {
+            self.daemon_client
+                .set_gpu_max_power_state(
+                    gpu_id,
+                    clocks_settings.gpu_clock,
+                    Some(clocks_settings.gpu_voltage),
+                )
+                .expect("Failed to set GPU clockspeed/voltage");
+
+            self.daemon_client
+                .set_vram_max_clock(gpu_id, clocks_settings.vram_clock)
+                .expect("Failed to set VRAM Clock");
+
+            self.daemon_client
+                .commit_gpu_power_states(gpu_id)
+                .expect("Failed to commit power states");
+        }
+
+        if let Some(profile) = self.root_stack.oc_page.get_power_profile() {
+            self.daemon_client
+                .set_power_profile(gpu_id, profile)
+                .expect("Failed to set power profile");
+        }*/
+
+        if let Some(cap) = self.root_stack.oc_page.get_power_cap() {
+            self.daemon_client
+                .set_power_cap(&gpu_id, Some(cap))
+                .context("Failed to set power cap")?;
+        }
+
+        self.set_info(&gpu_id);
+
+        Ok(())
+    }
 }
 
 enum GuiUpdateMsg {
     // FanControlInfo(FanControlInfo),
     GpuStats(DeviceStats),
+}
+
+fn show_error(err: anyhow::Error) {
+    glib::idle_add(move || {
+        let text = format!("{err:?}");
+        let diag = MessageDialog::builder()
+            .title("Error")
+            .message_type(MessageType::Error)
+            .text(&text)
+            .buttons(ButtonsType::Close)
+            .build();
+        diag.run();
+        diag.hide();
+        glib::Continue(false)
+    });
 }

@@ -1,4 +1,4 @@
-mod fan_curve_frame;
+// mod fan_curve_frame;
 
 use glib::clone;
 use gtk::prelude::*;
@@ -7,7 +7,7 @@ use lact_schema::DeviceStats;
 use std::collections::BTreeMap;
 use tracing::trace;
 
-use fan_curve_frame::FanCurveFrame;
+// use fan_curve_frame::FanCurveFrame;
 
 pub struct ThermalsSettings {
     pub automatic_fan_control_enabled: bool,
@@ -20,7 +20,7 @@ pub struct ThermalsPage {
     temp_label: Label,
     fan_speed_label: Label,
     fan_control_enabled_switch: Switch,
-    fan_curve_frame: FanCurveFrame,
+    // fan_curve_frame: FanCurveFrame,
 }
 
 impl ThermalsPage {
@@ -94,7 +94,7 @@ impl ThermalsPage {
 
         container.pack_start(&grid, false, false, 5);
 
-        let fan_curve_frame = FanCurveFrame::new();
+        /*let fan_curve_frame = FanCurveFrame::new();
 
         container.pack_start(&fan_curve_frame.container, true, true, 5);
 
@@ -119,14 +119,14 @@ impl ThermalsPage {
                     fan_curve_frame.show();
                 }
             });
-        }
+        }*/
 
         Self {
             container,
             temp_label,
             fan_speed_label,
             fan_control_enabled_switch,
-            fan_curve_frame,
+            // fan_curve_frame,
         }
     }
 
@@ -162,12 +162,12 @@ impl ThermalsPage {
             self.fan_control_enabled_switch.set_visible(true);
             self.fan_control_enabled_switch
                 .set_active(!stats.fan.control_enabled);
-        }
 
-        if stats.fan.control_enabled {
-            self.fan_curve_frame.show();
-        } else {
-            self.fan_curve_frame.hide();
+            /*if stats.fan.control_enabled {
+                self.fan_curve_frame.show();
+            } else {
+                self.fan_curve_frame.hide();
+            }*/
         }
 
         // TODO
@@ -180,12 +180,12 @@ impl ThermalsPage {
                 f();
             }));
 
-        self.fan_curve_frame.connect_adjusted(move || {
+        /*self.fan_curve_frame.connect_adjusted(move || {
             f();
-        });
+        });*/
     }
 
-    pub fn get_thermals_settings(&self) -> ThermalsSettings {
+    /*pub fn get_thermals_settings(&self) -> ThermalsSettings {
         let automatic_fan_control_enabled = self.fan_control_enabled_switch.state();
         let curve = self.fan_curve_frame.get_curve();
 
@@ -193,10 +193,10 @@ impl ThermalsPage {
             automatic_fan_control_enabled,
             curve,
         }
-    }
+    }*/
 
     pub fn hide_fan_controls(&self) {
         self.fan_control_enabled_switch.set_visible(false);
-        self.fan_curve_frame.hide();
+        // self.fan_curve_frame.hide();
     }
 }

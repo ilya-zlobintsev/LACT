@@ -258,7 +258,7 @@ impl GpuController {
                 .context("This GPU has no monitor")?;
             hw_mon
                 .set_fan_control_method(FanControlMethod::Auto)
-                .context("Could not set fan control back to automatic: {err}")?;
+                .context("Could not set fan control back to automatic")?;
         }
         Ok(())
     }
