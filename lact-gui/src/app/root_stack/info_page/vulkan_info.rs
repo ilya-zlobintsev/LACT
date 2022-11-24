@@ -1,3 +1,4 @@
+use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_schema::VulkanInfo;
@@ -8,8 +9,8 @@ pub struct VulkanInfoFrame {
     pub container: Frame,
     device_name_label: Label,
     version_label: Label,
-    features_box: Box,
-    extensions_box: Box,
+    features_listbox: ListBox,
+    extensions_listbox: ListBox,
 }
 
 impl VulkanInfoFrame {
@@ -24,6 +25,9 @@ impl VulkanInfoFrame {
         container.set_label_align(0.5, 0.5);
 
         container.set_shadow_type(ShadowType::None);
+
+        let features_listbox = ListBox::builder().halign(Align::Fill).build();
+        let extensions_listbox = ListBox::builder().halign(Align::Fill).build();
 
         let vbox = Box::new(Orientation::Vertical, 5);
 
@@ -74,41 +78,57 @@ impl VulkanInfoFrame {
 
         grid.attach(&version_label, 2, 1, 3, 1);
 
+        let features_label = Label::builder()
+            .label("Features:")
+            .halign(Align::End)
+            .build();
+        let show_features_button = Button::builder().label("Show").halign(Align::Start).build();
+        show_features_button.connect_clicked(clone!(@strong features_listbox => move |_| {
+            show_list_window("Vulkan features", &features_listbox);
+        }));
+
+        grid.attach(&features_label, 0, 2, 2, 1);
+        grid.attach(&show_features_button, 2, 2, 2, 1);
+
+        let extensions_label = Label::builder()
+            .label("Extensions:")
+            .halign(Align::End)
+            .build();
+        let show_extensions_button = Button::builder().label("Show").halign(Align::Start).build();
+        show_extensions_button.connect_clicked(clone!(@strong extensions_listbox => move |_| {
+            show_list_window("Vulkan extensions", &extensions_listbox);
+        }));
+
+        grid.attach(&extensions_label, 0, 3, 2, 1);
+        grid.attach(&show_extensions_button, 2, 3, 2, 1);
+
         vbox.pack_start(&grid, false, true, 5);
 
-        let features_expander = Expander::builder().label("Feature support").build();
+        /*let features_expander = Expander::builder().label("Feature support").build();
 
         let features_scrolled_window = ScrolledWindow::builder().build();
 
         features_scrolled_window.set_vexpand(true);
 
-        let features_box = Box::new(Orientation::Vertical, 5);
-        features_box.set_halign(Align::Center);
-        features_box.set_valign(Align::Fill);
 
-        features_scrolled_window.add(&features_box);
+        features_scrolled_window.add(&features_listbox);
 
         features_expander.add(&features_scrolled_window);
 
         vbox.pack_start(&features_expander, false, true, 5);
 
-        let extensions_box = Box::builder()
-            .orientation(Orientation::Vertical)
-            .spacing(5)
-            .halign(Align::Center)
-            .build();
 
         let extensions_expander = Expander::builder()
             .label("Extension support")
             .child(
                 &ScrolledWindow::builder()
                     .vexpand(true)
-                    .child(&extensions_box)
+                    .child(&extensions_listbox)
                     .build(),
             )
             .build();
 
-        vbox.pack_start(&extensions_expander, false, true, 5);
+        vbox.pack_start(&extensions_expander, false, true, 5);*/
 
         container.add(&vbox);
 
@@ -116,8 +136,8 @@ impl VulkanInfoFrame {
             container,
             device_name_label,
             version_label,
-            features_box,
-            extensions_box,
+            features_listbox,
+            extensions_listbox,
         }
     }
 
@@ -129,7 +149,8 @@ impl VulkanInfoFrame {
         self.version_label
             .set_markup(&format!("<b>{}</b>", vulkan_info.api_version));
 
-        for (feature, supported) in &vulkan_info.features {
+        self.features_listbox.children().clear();
+        for (i, (feature, supported)) in vulkan_info.features.iter().enumerate() {
             let vbox = Box::new(Orientation::Horizontal, 5);
 
             let feature_name_label = Label::new(Some(&feature));
@@ -143,11 +164,14 @@ impl VulkanInfoFrame {
 
             vbox.pack_end(&feature_supported_checkbutton, false, false, 0);
 
-            self.features_box.pack_start(&vbox, false, false, 0);
+            self.features_listbox.insert(&vbox, i.try_into().unwrap());
         }
 
-        for (extension, supported) in &vulkan_info.extensions {
+        self.extensions_listbox.children().clear();
+        for (i, (extension, supported)) in vulkan_info.extensions.iter().enumerate() {
             let vbox = Box::new(Orientation::Horizontal, 5);
+            vbox.set_hexpand(true);
+
             let extension_name_label = Label::new(Some(&extension));
             vbox.pack_start(&extension_name_label, false, false, 0);
 
@@ -157,7 +181,19 @@ impl VulkanInfoFrame {
                 .build();
             vbox.pack_end(&extension_supported_checkbutton, false, false, 0);
 
-            self.extensions_box.pack_start(&vbox, false, false, 0);
+            self.extensions_listbox.insert(&vbox, i.try_into().unwrap());
         }
     }
+}
+
+fn show_list_window(title: &str, child: &ListBox) {
+    let window = Window::builder()
+        .type_(WindowType::Toplevel)
+        .title(title)
+        .width_request(500)
+        .height_request(700)
+        .build();
+    let scroll = ScrolledWindow::builder().child(child).margin(10).build();
+    window.add(&scroll);
+    window.show_all();
 }

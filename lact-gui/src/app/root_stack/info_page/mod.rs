@@ -177,7 +177,7 @@ impl InformationPage {
         self.gpu_manufacturer_label
             .set_markup(&format!("<b>{gpu_manufacturer}</b>",));
 
-        let vbios_version = gpu_info.vbios_version.as_deref().unwrap_or("unknown");
+        let vbios_version = gpu_info.vbios_version.as_deref().unwrap_or("Unknown");
         self.vbios_version_label
             .set_markup(&format!("<b>{vbios_version}</b>",));
 
@@ -188,12 +188,12 @@ impl InformationPage {
             .link_info
             .current_speed
             .as_deref()
-            .unwrap_or("unknown");
+            .unwrap_or("Unknown");
         let link_width = gpu_info
             .link_info
             .current_width
             .as_deref()
-            .unwrap_or("unknown");
+            .unwrap_or("Unknown");
         self.link_speed_label
             .set_markup(&format!("<b>{link_speed} x{link_width}</b>",));
 
@@ -206,7 +206,7 @@ impl InformationPage {
 
     pub fn set_stats(&self, stats: &DeviceStats) {
         let vram_size = stats.vram.total.map_or_else(
-            || "unknown".to_owned(),
+            || "Unknown".to_owned(),
             |size| (size / 1024 / 1024).to_string(),
         );
         self.vram_size_label
