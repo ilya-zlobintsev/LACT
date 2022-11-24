@@ -1,7 +1,11 @@
-pub mod request;
-pub mod response;
+mod request;
+mod response;
+
 #[cfg(test)]
 mod tests;
+
+pub use request::Request;
+pub use response::Response;
 
 pub use amdgpu_sysfs::{
     gpu_handle::{
@@ -19,6 +23,12 @@ use std::{
 };
 
 pub type FanCurveMap = BTreeMap<i32, f32>;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Pong<'a> {
+    pub version: &'a str,
+    pub profile: &'a str,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceListEntry<'a> {

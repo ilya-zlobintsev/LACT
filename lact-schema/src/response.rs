@@ -6,6 +6,3 @@ pub enum Response<T> {
     Ok(T),
     Error(String),
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Pong;

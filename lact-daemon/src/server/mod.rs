@@ -5,10 +5,7 @@ mod vulkan;
 
 use self::handler::Handler;
 use crate::{config::Config, socket};
-use lact_schema::{
-    request::Request,
-    response::{Pong, Response},
-};
+use lact_schema::{Pong, Request, Response};
 use serde::Serialize;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -79,7 +76,7 @@ async fn handle_stream(stream: UnixStream, handler: Handler) -> anyhow::Result<(
 #[instrument(level = "debug", skip(handler))]
 async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyhow::Result<Vec<u8>> {
     match request {
-        Request::Ping => ok_response(Pong),
+        Request::Ping => ok_response(ping()),
         Request::ListDevices => ok_response(handler.list_devices()),
         Request::DeviceInfo { id } => ok_response(handler.get_device_info(id)?),
         Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id)?),
@@ -92,4 +89,15 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
 
 fn ok_response<T: Serialize>(data: T) -> anyhow::Result<Vec<u8>> {
     Ok(serde_json::to_vec(&Response::Ok(data))?)
+}
+
+fn ping() -> Pong<'static> {
+    let version = env!("CARGO_PKG_VERSION");
+    let profile = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    };
+
+    Pong { version, profile }
 }

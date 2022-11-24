@@ -1,7 +1,4 @@
-use crate::{
-    request::Request,
-    response::{Pong, Response},
-};
+use crate::{Pong, Request, Response};
 use serde_json::json;
 
 #[test]
@@ -18,9 +15,15 @@ fn ping_requset() {
 fn pong_response() {
     let expected_response = json!({
         "status": "ok",
-        "data": null
+        "data": {
+            "version": "0.0.1",
+            "profile": "debug"
+        }
     });
-    let response = Response::Ok(Pong);
+    let response = Response::Ok(Pong {
+        version: "0.0.1",
+        profile: "debug",
+    });
 
     assert_eq!(serde_json::to_value(&response).unwrap(), expected_response);
 }

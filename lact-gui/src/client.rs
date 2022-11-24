@@ -1,7 +1,5 @@
 use anyhow::{anyhow, Context};
-use lact_schema::{
-    request::Request, response::Response, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
-};
+use lact_schema::{DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, Request, Response};
 use nix::unistd::getuid;
 use serde::Deserialize;
 use std::{
