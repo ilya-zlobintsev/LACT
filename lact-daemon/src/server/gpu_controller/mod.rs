@@ -10,8 +10,8 @@ use amdgpu_sysfs::{
 };
 use anyhow::{anyhow, Context};
 use lact_schema::{
-    ClockspeedStats, DeviceInfo, DeviceStats, FanStats, GpuPciInfo, LinkInfo, PciInfo, PowerStats,
-    VoltageStats, VramStats,
+    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, FanStats, GpuPciInfo, LinkInfo, PciInfo,
+    PowerStats, VoltageStats, VramStats,
 };
 use pciid_parser::Database;
 use std::{
@@ -109,6 +109,10 @@ impl GpuController {
         let driver = self.handle.get_driver();
         let vbios_version = self.handle.get_vbios_version().ok();
         let link_info = self.get_link_info();
+        let clocks_table = self.handle.get_power_table().ok();
+        let clocks_info = clocks_table
+            .as_ref()
+            .map_or_else(Default::default, ClocksInfo::from);
 
         DeviceInfo {
             pci_info,
@@ -116,6 +120,8 @@ impl GpuController {
             driver,
             vbios_version,
             link_info,
+            clocks_table,
+            clocks_info,
         }
     }
 

@@ -3,7 +3,13 @@ pub mod response;
 #[cfg(test)]
 mod tests;
 
-pub use amdgpu_sysfs::{gpu_handle::PerformanceLevel, hw_mon::Temperature};
+pub use amdgpu_sysfs::{
+    gpu_handle::{
+        overdrive::{ClocksTable, ClocksTableGen},
+        PerformanceLevel,
+    },
+    hw_mon::Temperature,
+};
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -34,6 +40,22 @@ pub struct DeviceInfo<'a> {
     pub driver: &'a str,
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,
+    pub clocks_table: Option<ClocksTableGen>,
+    pub clocks_info: ClocksInfo,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy)]
+pub struct ClocksInfo {
+    pub max_sclk: Option<u32>,
+    pub max_mclk: Option<u32>,
+}
+
+impl<T: ClocksTable> From<&T> for ClocksInfo {
+    fn from(table: &T) -> Self {
+        let max_sclk = table.get_max_sclk();
+        let max_mclk = table.get_max_mclk();
+        Self { max_sclk, max_mclk }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
