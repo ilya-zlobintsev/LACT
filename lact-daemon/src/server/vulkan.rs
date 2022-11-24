@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::fork::run_forked;
-use lact_schema::VulkanInfo;
+use lact_schema::{VulkanDriverInfo, VulkanInfo};
 use vulkano::{
     instance::{Instance, InstanceCreateInfo},
     VulkanLibrary,
@@ -24,17 +24,21 @@ pub fn get_vulkan_info<'a>(vendor_id: &'a str, device_id: &'a str) -> anyhow::Re
             for device in devices {
                 let properties = device.properties();
                 // Not sure how this works with systems that have multiple identical GPUs
-                if properties.vendor_id == vendor_id && properties.device_id == device_id {
+                if (properties.vendor_id, properties.device_id) == (vendor_id, device_id) {
                     let info = VulkanInfo {
                         device_name: properties.device_name.clone(),
                         api_version: device.api_version().to_string(),
-                        driver_name: properties.driver_name.clone(),
-                        supported_features: device
+                        driver: VulkanDriverInfo {
+                            version: properties.driver_version,
+                            name: properties.driver_name.clone(),
+                            info: properties.driver_info.clone(),
+                        },
+                        features: device
                             .supported_features()
                             .into_iter()
                             .map(|(name, enabled)| (Cow::Borrowed(name), enabled))
                             .collect(),
-                        supported_extensions: device
+                        extensions: device
                             .supported_extensions()
                             .into_iter()
                             .map(|(name, enabled)| (Cow::Borrowed(name), enabled))

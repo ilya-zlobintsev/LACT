@@ -70,10 +70,17 @@ pub struct LinkInfo {
 pub struct VulkanInfo {
     pub device_name: String,
     pub api_version: String,
-    pub driver_name: Option<String>,
+    pub driver: VulkanDriverInfo,
     pub enabled_layers: Vec<String>,
-    pub supported_features: IndexMap<Cow<'static, str>, bool>,
-    pub supported_extensions: IndexMap<Cow<'static, str>, bool>,
+    pub features: IndexMap<Cow<'static, str>, bool>,
+    pub extensions: IndexMap<Cow<'static, str>, bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VulkanDriverInfo {
+    pub version: u32,
+    pub name: Option<String>,
+    pub info: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

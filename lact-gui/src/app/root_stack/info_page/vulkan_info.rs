@@ -129,7 +129,7 @@ impl VulkanInfoFrame {
         self.version_label
             .set_markup(&format!("<b>{}</b>", vulkan_info.api_version));
 
-        for (feature, supported) in &vulkan_info.supported_features {
+        for (feature, supported) in &vulkan_info.features {
             let vbox = Box::new(Orientation::Horizontal, 5);
 
             let feature_name_label = Label::new(Some(&feature));
@@ -146,7 +146,7 @@ impl VulkanInfoFrame {
             self.features_box.pack_start(&vbox, false, false, 0);
         }
 
-        for (extension, supported) in &vulkan_info.supported_extensions {
+        for (extension, supported) in &vulkan_info.extensions {
             let vbox = Box::new(Orientation::Horizontal, 5);
             let extension_name_label = Label::new(Some(&extension));
             vbox.pack_start(&extension_name_label, false, false, 0);
