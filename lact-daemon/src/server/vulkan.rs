@@ -16,6 +16,7 @@ pub fn get_vulkan_info<'a>(vendor_id: &'a str, device_id: &'a str) -> anyhow::Re
             let library = VulkanLibrary::new().map_err(|err| err.to_string())?;
             let instance = Instance::new(library, InstanceCreateInfo::default())
                 .map_err(|err| err.to_string())?;
+            let enabled_layers = instance.enabled_layers().to_vec();
             let devices = instance
                 .enumerate_physical_devices()
                 .map_err(|err| err.to_string())?;
@@ -38,6 +39,7 @@ pub fn get_vulkan_info<'a>(vendor_id: &'a str, device_id: &'a str) -> anyhow::Re
                             .into_iter()
                             .map(|(name, enabled)| (Cow::Borrowed(name), enabled))
                             .collect(),
+                        enabled_layers,
                     };
                     return Ok(info);
                 }
