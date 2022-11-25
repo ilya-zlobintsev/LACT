@@ -10,5 +10,5 @@ edition = "2018"
 daemon = { path = "../daemon" }
 structopt = "0.3"
 log = "0.4"
-env_logger = "0.8"
+env_logger = "0.10"
 colored = "2"
