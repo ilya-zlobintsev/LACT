@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 amdgpu-sysfs = { path = "../../amdgpu-sysfs-rs", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
-indexmap = { version = "1.9", features = ["serde"] }
+indexmap = { version = "*", features = ["serde"] }
 
 [dev-dependencies]
 serde_json = "1.0"

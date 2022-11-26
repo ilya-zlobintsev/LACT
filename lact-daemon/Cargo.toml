@@ -27,3 +27,4 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 vulkano = { git = "https://github.com/vulkano-rs/vulkano" }
 lact-schema = { path = "../lact-schema" }
+indexmap = { version = "1.9", features = ["serde"] }

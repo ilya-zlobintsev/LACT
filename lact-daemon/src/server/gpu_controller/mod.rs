@@ -5,10 +5,11 @@ use super::vulkan::get_vulkan_info;
 use crate::fork::run_forked;
 use amdgpu_sysfs::{
     error::Error,
-    gpu_handle::GpuHandle,
+    gpu_handle::{GpuHandle, PowerLevels, PowerStateKind},
     hw_mon::{FanControlMethod, HwMon},
 };
 use anyhow::{anyhow, Context};
+use indexmap::IndexMap;
 use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, FanStats, GpuPciInfo, LinkInfo, PciInfo,
     PowerStats, VoltageStats, VramStats,
@@ -24,6 +25,13 @@ use tokio::{select, sync::Notify, task::JoinHandle, time::sleep};
 use tracing::{debug, error, info, trace, warn};
 
 type FanControlHandle = (Arc<Notify>, JoinHandle<()>, FanCurve);
+
+const POWER_LEVEL_TYPES: [PowerStateKind; 4] = [
+    PowerStateKind::CoreClock,
+    PowerStateKind::MemoryClock,
+    PowerStateKind::PcieSpeed,
+    PowerStateKind::SOCClock,
+];
 
 pub struct GpuController {
     pub handle: GpuHandle,
@@ -109,7 +117,7 @@ impl GpuController {
         let driver = self.handle.get_driver();
         let vbios_version = self.handle.get_vbios_version().ok();
         let link_info = self.get_link_info();
-        let clocks_table = self.handle.get_power_table().ok();
+        let clocks_table = self.handle.get_clocks_table().ok();
         let clocks_info = clocks_table
             .as_ref()
             .map_or_else(Default::default, ClocksInfo::from);
@@ -172,6 +180,7 @@ impl GpuController {
             temps: self.hw_mon_map(HwMon::get_temps).unwrap_or_default(),
             busy_percent: self.handle.get_busy_percent().ok(),
             performance_level: self.handle.get_power_force_performance_level().ok(),
+            power_levels: self.read_power_levels(),
         })
     }
 
@@ -267,5 +276,17 @@ impl GpuController {
                 .context("Could not set fan control back to automatic")?;
         }
         Ok(())
+    }
+
+    fn read_power_levels(&self) -> IndexMap<PowerStateKind, PowerLevels> {
+        let mut map = IndexMap::with_capacity(POWER_LEVEL_TYPES.len());
+
+        for kind in POWER_LEVEL_TYPES {
+            if let Ok(levels) = self.handle.get_power_levels(kind) {
+                map.insert(kind, levels);
+            }
+        }
+
+        map
     }
 }

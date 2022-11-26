@@ -4,6 +4,7 @@ mod response;
 #[cfg(test)]
 mod tests;
 
+use amdgpu_sysfs::gpu_handle::{PowerLevels, PowerStateKind};
 pub use request::Request;
 pub use response::Response;
 
@@ -111,6 +112,7 @@ pub struct DeviceStats {
     pub temps: HashMap<String, Temperature>,
     pub busy_percent: Option<u8>,
     pub performance_level: Option<PerformanceLevel>,
+    pub power_levels: IndexMap<PowerStateKind, PowerLevels>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
