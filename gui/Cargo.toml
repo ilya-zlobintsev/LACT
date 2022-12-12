@@ -11,7 +11,7 @@ daemon = { path = "../daemon" }
 
 gtk = { version = "0.14", features = ["v3_22"] }
 pango = "0.14"
-glib = "0.14"
+glib = "0.16"
 
 log = "0.4"
 env_logger = "0.9"
