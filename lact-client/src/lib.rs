@@ -1,6 +1,8 @@
+pub use lact_schema as schema;
+
 use anyhow::{anyhow, Context};
-use lact_schema::{DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, Request, Response};
 use nix::unistd::getuid;
+use schema::{DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, Request, Response};
 use serde::Deserialize;
 use std::{
     io::{BufRead, BufReader, Write},

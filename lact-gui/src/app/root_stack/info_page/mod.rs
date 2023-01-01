@@ -2,7 +2,7 @@ mod vulkan_info;
 
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::{DeviceInfo, DeviceStats};
+use lact_client::schema::{DeviceInfo, DeviceStats};
 use vulkan_info::VulkanInfoFrame;
 
 #[derive(Clone)]

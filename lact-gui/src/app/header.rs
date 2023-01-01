@@ -1,6 +1,6 @@
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::DeviceListEntry;
+use lact_client::schema::DeviceListEntry;
 use pango::EllipsizeMode;
 
 #[derive(Clone)]

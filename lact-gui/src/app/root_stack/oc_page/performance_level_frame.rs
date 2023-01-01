@@ -1,6 +1,6 @@
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::PerformanceLevel;
+use lact_client::schema::PerformanceLevel;
 
 #[derive(Clone)]
 pub struct PowerProfileFrame {

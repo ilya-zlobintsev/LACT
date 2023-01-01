@@ -5,7 +5,7 @@ authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2021"
 
 [dependencies]
-lact-schema = { path = "../lact-schema" }
+lact-client = { path = "../lact-client" }
 gtk = "0.16"
 # pango = "0.16"
 tracing = "0.1"

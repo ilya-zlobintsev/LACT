@@ -1,9 +1,8 @@
 mod app;
-mod client;
 
 use anyhow::{anyhow, Context};
 use app::App;
-use client::DaemonClient;
+use lact_client::DaemonClient;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::EnvFilter;
 

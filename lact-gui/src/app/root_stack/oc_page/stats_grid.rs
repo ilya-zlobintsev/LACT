@@ -1,6 +1,6 @@
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::{ClockspeedStats, DeviceStats, PowerStats, VoltageStats, VramStats};
+use lact_client::schema::{ClockspeedStats, DeviceStats, PowerStats, VoltageStats, VramStats};
 
 #[derive(Clone)]
 pub struct StatsGrid {

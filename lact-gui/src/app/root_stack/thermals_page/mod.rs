@@ -3,7 +3,7 @@
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::DeviceStats;
+use lact_client::schema::DeviceStats;
 use std::collections::BTreeMap;
 use tracing::trace;
 

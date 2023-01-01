@@ -1,7 +1,7 @@
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::VulkanInfo;
+use lact_client::schema::VulkanInfo;
 use tracing::trace;
 
 #[derive(Clone)]

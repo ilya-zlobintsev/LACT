@@ -7,14 +7,14 @@ use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
 
-use crate::client::DaemonClient;
 use anyhow::Context;
 use apply_revealer::ApplyRevealer;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use header::Header;
-use lact_schema::DeviceStats;
+use lact_client::schema::DeviceStats;
+use lact_client::DaemonClient;
 use root_stack::RootStack;
 use tracing::{debug, error, info, trace};
 

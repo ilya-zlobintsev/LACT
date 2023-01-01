@@ -565,6 +565,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fad582f4b9e86b6caa621cabeb0963332d92eea04729ab12892c2533951e6440"
 
 [[package]]
+name = "lact-client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "lact-schema",
+ "nix",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "lact-daemon"
 version = "0.2.0"
 dependencies = [
@@ -589,7 +601,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "gtk",
- "lact-schema",
+ "lact-client",
  "nix",
  "serde",
  "serde_json",

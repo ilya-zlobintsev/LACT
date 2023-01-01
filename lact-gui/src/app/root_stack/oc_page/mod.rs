@@ -7,7 +7,7 @@ mod warning_frame;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::{DeviceInfo, DeviceStats, PerformanceLevel, PowerStats};
+use lact_client::schema::{DeviceInfo, DeviceStats, PerformanceLevel, PowerStats};
 use performance_level_frame::PowerProfileFrame;
 use power_cap_frame::PowerCapFrame;
 use stats_grid::StatsGrid;

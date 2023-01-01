@@ -1,6 +1,6 @@
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::FanCurveMap;
+use lact_client::schema::FanCurveMap;
 use std::collections::BTreeMap;
 use tracing::debug;
 
