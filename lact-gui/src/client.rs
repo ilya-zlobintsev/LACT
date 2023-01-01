@@ -10,6 +10,7 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
+use tracing::info;
 
 #[derive(Clone)]
 pub struct DaemonClient {
@@ -20,6 +21,7 @@ impl DaemonClient {
     pub fn connect() -> anyhow::Result<Self> {
         let path =
             get_socket_path().context("Could not connect to daemon: socket file not found")?;
+        info!("Connecting to service at {path:?}");
         let stream = UnixStream::connect(path).context("Could not connect to daemon")?;
         let reader = BufReader::new(stream.try_clone()?);
 
