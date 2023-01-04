@@ -737,6 +737,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "gtk4",
+ "indexmap",
  "lact-client",
  "nix",
  "once_cell",
