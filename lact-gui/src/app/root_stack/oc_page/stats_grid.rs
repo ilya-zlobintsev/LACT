@@ -37,7 +37,7 @@ impl StatsGrid {
 
             vram_usage_label.set_text("0/0 MiB");
 
-            vram_usage_overlay.add(&vram_usage_bar);
+            vram_usage_overlay.set_child(Some(&vram_usage_bar));
             vram_usage_overlay.add_overlay(&vram_usage_label);
 
             container.attach(&vram_usage_overlay, 1, 0, 2, 1);
@@ -47,11 +47,11 @@ impl StatsGrid {
         {
             let gpu_clock_box = Box::new(Orientation::Horizontal, 5);
 
-            gpu_clock_box.pack_start(&Label::new(Some("GPU Clock:")), false, false, 2);
+            gpu_clock_box.append(&Label::new(Some("GPU Clock:")));
 
             gpu_clock_label.set_markup("<b>0MHz</b>");
 
-            gpu_clock_box.pack_start(&gpu_clock_label, false, false, 2);
+            gpu_clock_box.append(&gpu_clock_label);
 
             gpu_clock_box.set_halign(Align::Center);
 
@@ -62,11 +62,11 @@ impl StatsGrid {
         {
             let vram_clock_box = Box::new(Orientation::Horizontal, 5);
 
-            vram_clock_box.pack_start(&Label::new(Some("VRAM Clock:")), false, false, 2);
+            vram_clock_box.append(&Label::new(Some("VRAM Clock:")));
 
             vram_clock_label.set_markup("<b>0MHz</b>");
 
-            vram_clock_box.pack_start(&vram_clock_label, false, false, 2);
+            vram_clock_box.append(&vram_clock_label);
 
             vram_clock_box.set_halign(Align::Center);
 
@@ -76,11 +76,11 @@ impl StatsGrid {
         {
             let gpu_voltage_box = Box::new(Orientation::Horizontal, 5);
 
-            gpu_voltage_box.pack_start(&Label::new(Some("GPU Voltage:")), false, false, 2);
+            gpu_voltage_box.append(&Label::new(Some("GPU Voltage:")));
 
             gpu_voltage_label.set_markup("<b>0.000V</b>");
 
-            gpu_voltage_box.pack_start(&gpu_voltage_label, false, false, 2);
+            gpu_voltage_box.append(&gpu_voltage_label);
 
             gpu_voltage_box.set_halign(Align::Center);
 
@@ -91,11 +91,11 @@ impl StatsGrid {
         {
             let power_usage_box = Box::new(Orientation::Horizontal, 5);
 
-            power_usage_box.pack_start(&Label::new(Some("Power Usage:")), false, false, 2);
+            power_usage_box.append(&Label::new(Some("Power Usage:")));
 
             power_usage_label.set_markup("<b>00/000W</b>");
 
-            power_usage_box.pack_start(&power_usage_label, false, false, 2);
+            power_usage_box.append(&power_usage_label);
 
             power_usage_box.set_halign(Align::Center);
 
@@ -106,11 +106,11 @@ impl StatsGrid {
         {
             let gpu_temperature_box = Box::new(Orientation::Horizontal, 5);
 
-            gpu_temperature_box.pack_start(&Label::new(Some("GPU Temperature:")), false, false, 2);
+            gpu_temperature_box.append(&Label::new(Some("GPU Temperature:")));
 
             // gpu_temperature_label.set_markup("<b>0°C</b>");
 
-            gpu_temperature_box.pack_start(&gpu_temperature_label, false, false, 2);
+            gpu_temperature_box.append(&gpu_temperature_label);
 
             gpu_temperature_box.set_halign(Align::Center);
 
@@ -121,9 +121,9 @@ impl StatsGrid {
         {
             let gpu_usage_box = Box::new(Orientation::Horizontal, 5);
 
-            gpu_usage_box.pack_start(&Label::new(Some("GPU Usage:")), false, false, 2);
+            gpu_usage_box.append(&Label::new(Some("GPU Usage:")));
 
-            gpu_usage_box.pack_start(&gpu_usage_label, false, false, 2);
+            gpu_usage_box.append(&gpu_usage_label);
 
             gpu_usage_box.set_halign(Align::Center);
 

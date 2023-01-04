@@ -200,8 +200,6 @@ impl InformationPage {
         if let Some(vulkan_info) = &gpu_info.vulkan_info {
             self.vulkan_info_frame.set_info(vulkan_info);
         }
-
-        self.container.show_all();
     }
 
     pub fn set_stats(&self, stats: &DeviceStats) {

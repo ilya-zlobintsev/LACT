@@ -10,6 +10,7 @@ use std::time::Duration;
 use anyhow::Context;
 use apply_revealer::ApplyRevealer;
 use glib::clone;
+use gtk::gio::ApplicationFlags;
 use gtk::prelude::*;
 use gtk::*;
 use header::Header;
@@ -23,7 +24,8 @@ const STATS_POLL_INTERVAL: u64 = 250;
 
 #[derive(Clone)]
 pub struct App {
-    pub window: Window,
+    application: Application,
+    pub window: ApplicationWindow,
     pub header: Header,
     root_stack: RootStack,
     apply_revealer: ApplyRevealer,
@@ -32,19 +34,21 @@ pub struct App {
 
 impl App {
     pub fn new(daemon_client: DaemonClient) -> Self {
-        let window = Window::new(WindowType::Toplevel);
+        let application = Application::new(None, ApplicationFlags::default());
 
         let header = Header::new();
+        let window = ApplicationWindow::builder()
+            .title("LACT")
+            .default_width(500)
+            .default_height(600)
+            .build();
 
         window.set_titlebar(Some(&header.container));
-        window.set_title("LACT");
 
-        window.set_default_size(500, 600);
-
-        window.connect_delete_event(move |_, _| {
-            main_quit();
-            Inhibit(false)
-        });
+        // window.connect_close_request(move |_, _| {
+        //     // main_quit();
+        //     Inhibit(false)
+        // });
 
         let root_stack = RootStack::new();
 
@@ -52,15 +56,16 @@ impl App {
 
         let root_box = Box::new(Orientation::Vertical, 5);
 
-        root_box.add(&root_stack.container);
+        root_box.append(&root_stack.container);
 
         let apply_revealer = ApplyRevealer::new();
 
-        root_box.add(&apply_revealer.container);
+        root_box.append(&apply_revealer.container);
 
-        window.add(&root_box);
+        window.set_child(Some(&root_box));
 
         App {
+            application,
             window,
             header,
             root_stack,
@@ -69,79 +74,87 @@ impl App {
         }
     }
 
-    pub fn run(&self) -> anyhow::Result<()> {
-        self.window.show_all();
+    pub fn run(self) -> anyhow::Result<()> {
+        self.application
+            .connect_activate(clone!(@strong self as app => move |_| {
+                app.window.set_application(Some(&app.application));
 
-        let current_gpu_id = Arc::new(RwLock::new(String::new()));
+                let current_gpu_id = Arc::new(RwLock::new(String::new()));
 
-        {
-            let current_gpu_id = current_gpu_id.clone();
-            let app = self.clone();
+                {
+                    let current_gpu_id = current_gpu_id.clone();
 
-            self.header.connect_gpu_selection_changed(move |gpu_id| {
-                info!("GPU Selection changed");
-                app.set_info(&gpu_id);
-                *current_gpu_id.write().unwrap() = gpu_id;
-            });
-        }
-
-        let devices_buf = self.daemon_client.list_devices()?;
-        let devices = devices_buf.inner()?;
-        self.header.set_devices(&devices);
-
-        // Show apply button on setting changes
-        {
-            let apply_revealer = self.apply_revealer.clone();
-
-            self.root_stack
-                .thermals_page
-                .connect_settings_changed(move || {
-                    debug!("Settings changed, showing apply button");
-                    apply_revealer.show();
-                });
-
-            let apply_revealer = self.apply_revealer.clone();
-
-            self.root_stack.oc_page.connect_settings_changed(move || {
-                debug!("Settings changed, showing apply button");
-                apply_revealer.show();
-            });
-        }
-
-        {
-            let app = self.clone();
-            let current_gpu_id = current_gpu_id.clone();
-
-            // TODO
-            /*self.root_stack.oc_page.connect_clocks_reset(move || {
-                info!("Resetting clocks, but not applying");
-
-                let gpu_id = current_gpu_id.load(Ordering::SeqCst);
-
-                app.daemon_client
-                    .reset_gpu_power_states(gpu_id)
-                    .expect("Failed to reset clocks");
-
-                app.set_info(gpu_id);
-
-                app.apply_revealer.show();
-            })*/
-        }
-
-        self.apply_revealer.connect_apply_button_clicked(
-            clone!(@strong self as app, @strong current_gpu_id => move || {
-                if let Err(err) =  app.apply_settings(current_gpu_id.clone()) {
-                    show_error(err.context("Could not apply settings"));
-
-                    let gpu_id = current_gpu_id.read().unwrap();
-                    app.set_info(&gpu_id)
+                    app.header.connect_gpu_selection_changed(clone!(@strong app => move |gpu_id| {
+                        info!("GPU Selection changed");
+                        app.set_info(&gpu_id);
+                        *current_gpu_id.write().unwrap() = gpu_id;
+                    }));
                 }
-            }),
-        );
 
-        self.start_stats_update_loop(current_gpu_id.clone());
+                let devices_buf = app
+                    .daemon_client
+                    .list_devices()
+                    .expect("Could not list devices");
+                let devices = devices_buf.inner().expect("Could not access devices");
+                app.header.set_devices(&devices);
 
-        Ok(gtk::main())
+                // Show apply button on setting changes
+                {
+                    let apply_revealer = app.apply_revealer.clone();
+
+                    app.root_stack
+                        .thermals_page
+                        .connect_settings_changed(move || {
+                            debug!("Settings changed, showing apply button");
+                            apply_revealer.show();
+                        });
+
+                    let apply_revealer = app.apply_revealer.clone();
+
+                    app.root_stack.oc_page.connect_settings_changed(move || {
+                        debug!("Settings changed, showing apply button");
+                        apply_revealer.show();
+                    });
+                }
+
+                {
+                    let app = app.clone();
+                    let current_gpu_id = current_gpu_id.clone();
+
+                    // TODO
+                    /*app.root_stack.oc_page.connect_clocks_reset(move || {
+                        info!("Resetting clocks, but not applying");
+
+                        let gpu_id = current_gpu_id.load(Ordering::SeqCst);
+
+                        app.daemon_client
+                            .reset_gpu_power_states(gpu_id)
+                            .expect("Failed to reset clocks");
+
+                        app.set_info(gpu_id);
+
+                        app.apply_revealer.show();
+                    })*/
+                }
+
+                app.apply_revealer.connect_apply_button_clicked(
+                    clone!(@strong app as app, @strong current_gpu_id => move || {
+                        if let Err(err) =  app.apply_settings(current_gpu_id.clone()) {
+                            show_error(err.context("Could not apply settings"));
+
+                            let gpu_id = current_gpu_id.read().unwrap();
+                            app.set_info(&gpu_id)
+                        }
+                    }),
+                );
+
+                app.start_stats_update_loop(current_gpu_id.clone());
+
+                app.window.show();
+            }));
+
+        self.application.run();
+        Ok(())
     }
 
     fn set_info(&self, gpu_id: &str) {
@@ -326,7 +339,7 @@ fn show_error(err: anyhow::Error) {
             .text(&text)
             .buttons(ButtonsType::Close)
             .build();
-        diag.run();
+        diag.set_modal(true);
         diag.hide();
         glib::Continue(false)
     });

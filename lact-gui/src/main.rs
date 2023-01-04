@@ -20,7 +20,5 @@ fn main() -> anyhow::Result<()> {
 
     let app = App::new(connection);
 
-    app.run()?;
-
-    Ok(())
+    app.run()
 }

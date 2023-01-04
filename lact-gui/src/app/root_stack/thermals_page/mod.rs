@@ -5,8 +5,6 @@ use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::DeviceStats;
 use std::collections::BTreeMap;
-use tracing::trace;
-
 // use fan_curve_frame::FanCurveFrame;
 
 pub struct ThermalsSettings {
@@ -92,7 +90,7 @@ impl ThermalsPage {
 
         grid.attach(&fan_control_enabled_switch, 2, 2, 1, 1);
 
-        container.pack_start(&grid, false, false, 5);
+        container.prepend(&grid);
 
         /*let fan_curve_frame = FanCurveFrame::new();
 
@@ -178,8 +176,9 @@ impl ThermalsPage {
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         self.fan_control_enabled_switch
-            .connect_changed_active(clone!(@strong f => move |_| {
+            .connect_state_set(clone!(@strong f => move |_, _| {
                 f();
+                Inhibit(false)
             }));
 
         /*self.fan_curve_frame.connect_adjusted(move || {

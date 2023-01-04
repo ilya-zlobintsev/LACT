@@ -17,7 +17,7 @@ impl ApplyRevealer {
 
         apply_button.set_label("Apply");
 
-        container.add(&apply_button);
+        container.set_child(Some(&apply_button));
 
         Self {
             container,

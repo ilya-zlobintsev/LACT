@@ -14,9 +14,10 @@ impl Header {
     pub fn new() -> Self {
         let container = HeaderBar::new();
 
-        container.set_custom_title(Some(&Grid::new())); // Bad workaround to hide the title
+        // TODO Check if this is this still needed
+        container.set_title_widget(Some(&Grid::new())); // Bad workaround to hide the title
 
-        container.set_show_close_button(true);
+        container.set_show_title_buttons(true);
 
         let gpu_selector = ComboBoxText::new();
         container.pack_start(&gpu_selector);

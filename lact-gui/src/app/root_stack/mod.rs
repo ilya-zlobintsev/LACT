@@ -3,7 +3,6 @@ mod oc_page;
 mod software_page;
 mod thermals_page;
 
-use gtk::prelude::*;
 use gtk::*;
 
 use info_page::InformationPage;
@@ -26,19 +25,19 @@ impl RootStack {
 
         let info_page = InformationPage::new();
 
-        container.add_titled(&info_page.container, "info_page", "Information");
+        container.add_titled(&info_page.container, Some("info_page"), "Information");
 
         let oc_page = OcPage::new();
 
-        container.add_titled(&oc_page.container, "oc_page", "OC");
+        container.add_titled(&oc_page.container, Some("oc_page"), "OC");
 
         let thermals_page = ThermalsPage::new();
 
-        container.add_titled(&thermals_page.container, "thermals_page", "Thermals");
+        container.add_titled(&thermals_page.container, Some("thermals_page"), "Thermals");
 
         let software_page = SoftwarePage::new();
 
-        container.add_titled(&software_page.container, "software_page", "Software");
+        container.add_titled(&software_page.container, Some("software_page"), "Software");
 
         Self {
             container,

@@ -13,14 +13,14 @@ impl PowerProfileFrame {
     pub fn new() -> Self {
         let container = Frame::new(None);
 
-        container.set_shadow_type(ShadowType::None);
+        // container.set_shadow_type(ShadowType::None);
 
         container.set_label_widget(Some(&{
             let label = Label::new(None);
             label.set_markup("<span font_desc='11'><b>Power Profile</b></span>");
             label
         }));
-        container.set_label_align(0.2, 0.0);
+        container.set_label_align(0.2);
 
         let root_box = Box::new(Orientation::Horizontal, 5);
 
@@ -30,11 +30,11 @@ impl PowerProfileFrame {
         combo_box.append(Some("1"), "Highest clocks");
         combo_box.append(Some("2"), "Lowest clocks");
 
-        root_box.pack_start(&combo_box, false, true, 5);
+        root_box.append(&combo_box);
 
         let description_label = Label::new(Some("A description is supposed to be here"));
 
-        root_box.pack_start(&description_label, false, true, 5);
+        root_box.append(&description_label);
 
         {
             let description_label = description_label.clone();
@@ -49,7 +49,7 @@ impl PowerProfileFrame {
             });
         }
 
-        container.add(&root_box);
+        container.set_child(Some(&root_box));
         Self {
             container,
             combo_box,

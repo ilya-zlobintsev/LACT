@@ -22,9 +22,9 @@ impl VulkanInfoFrame {
             label.set_markup("<span font_desc='11'><b>Vulkan Information</b></span>");
             label
         }));
-        container.set_label_align(0.5, 0.5);
+        container.set_label_align(0.5);
 
-        container.set_shadow_type(ShadowType::None);
+        // container.set_shadow_type(ShadowType::None); // TODO
 
         let features_listbox = ListBox::builder().halign(Align::Fill).build();
         let extensions_listbox = ListBox::builder().halign(Align::Fill).build();
@@ -102,7 +102,7 @@ impl VulkanInfoFrame {
         grid.attach(&extensions_label, 0, 3, 2, 1);
         grid.attach(&show_extensions_button, 2, 3, 2, 1);
 
-        vbox.pack_start(&grid, false, true, 5);
+        vbox.prepend(&grid);
 
         /*let features_expander = Expander::builder().label("Feature support").build();
 
@@ -130,7 +130,7 @@ impl VulkanInfoFrame {
 
         vbox.pack_start(&extensions_expander, false, true, 5);*/
 
-        container.add(&vbox);
+        container.set_child(Some(&vbox));
 
         Self {
             container,
@@ -149,37 +149,37 @@ impl VulkanInfoFrame {
         self.version_label
             .set_markup(&format!("<b>{}</b>", vulkan_info.api_version));
 
-        self.features_listbox.children().clear();
+        // self.features_listbox.children().clear();
         for (i, (feature, supported)) in vulkan_info.features.iter().enumerate() {
             let vbox = Box::new(Orientation::Horizontal, 5);
 
             let feature_name_label = Label::new(Some(&feature));
 
-            vbox.pack_start(&feature_name_label, false, false, 0);
+            vbox.append(&feature_name_label);
 
             let feature_supported_checkbutton = CheckButton::new();
 
             feature_supported_checkbutton.set_sensitive(false);
             feature_supported_checkbutton.set_active(*supported);
 
-            vbox.pack_end(&feature_supported_checkbutton, false, false, 0);
+            vbox.append(&feature_supported_checkbutton);
 
             self.features_listbox.insert(&vbox, i.try_into().unwrap());
         }
 
-        self.extensions_listbox.children().clear();
+        // self.extensions_listbox.children().clear();
         for (i, (extension, supported)) in vulkan_info.extensions.iter().enumerate() {
             let vbox = Box::new(Orientation::Horizontal, 5);
             vbox.set_hexpand(true);
 
             let extension_name_label = Label::new(Some(&extension));
-            vbox.pack_start(&extension_name_label, false, false, 0);
+            vbox.append(&extension_name_label);
 
             let extension_supported_checkbutton = CheckButton::builder()
                 .sensitive(false)
                 .active(*supported)
                 .build();
-            vbox.pack_end(&extension_supported_checkbutton, false, false, 0);
+            vbox.append(&extension_supported_checkbutton);
 
             self.extensions_listbox.insert(&vbox, i.try_into().unwrap());
         }
@@ -188,12 +188,11 @@ impl VulkanInfoFrame {
 
 fn show_list_window(title: &str, child: &ListBox) {
     let window = Window::builder()
-        .type_(WindowType::Toplevel)
         .title(title)
         .width_request(500)
         .height_request(700)
         .build();
-    let scroll = ScrolledWindow::builder().child(child).margin(10).build();
-    window.add(&scroll);
-    window.show_all();
+    let scroll = ScrolledWindow::builder().child(child).build();
+    window.set_child(Some(&scroll));
+    window.show();
 }

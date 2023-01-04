@@ -12,20 +12,20 @@ impl PowerCapFrame {
     pub fn new() -> Self {
         let container = Frame::new(None);
 
-        container.set_shadow_type(ShadowType::None);
+        // container.set_shadow_type(ShadowType::None);
 
         container.set_label_widget(Some(&{
             let label = Label::new(None);
             label.set_markup("<span font_desc='11'><b>Power Usage Limit</b></span>");
             label
         }));
-        container.set_label_align(0.2, 0.0);
+        container.set_label_align(0.2);
 
         let root_box = Box::new(Orientation::Horizontal, 0);
 
         let label = Label::new(None);
 
-        root_box.pack_start(&label, false, true, 5);
+        root_box.append(&label);
 
         let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
         {
@@ -39,9 +39,9 @@ impl PowerCapFrame {
 
         scale.set_draw_value(false);
 
-        root_box.pack_start(&scale, true, true, 5);
+        root_box.append(&scale);
 
-        container.add(&root_box);
+        container.set_child(Some(&root_box));
 
         Self {
             container,

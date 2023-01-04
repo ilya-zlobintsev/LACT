@@ -7,7 +7,7 @@ mod warning_frame;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{DeviceInfo, DeviceStats, PerformanceLevel, PowerStats};
+use lact_client::schema::{DeviceStats, PerformanceLevel, PowerStats};
 use performance_level_frame::PowerProfileFrame;
 use power_cap_frame::PowerCapFrame;
 use stats_grid::StatsGrid;
@@ -29,19 +29,19 @@ impl OcPage {
 
         let warning_frame = WarningFrame::new();
 
-        container.pack_start(&warning_frame.container, false, true, 5);
+        container.append(&warning_frame.container);
 
         let stats_grid = StatsGrid::new();
 
-        container.pack_start(&stats_grid.container, false, true, 5);
+        container.append(&stats_grid.container);
 
         let power_cap_frame = PowerCapFrame::new();
 
-        container.pack_start(&power_cap_frame.container, false, true, 0);
+        container.append(&power_cap_frame.container);
 
         let power_profile_frame = PowerProfileFrame::new();
 
-        container.pack_start(&power_profile_frame.container, false, true, 0);
+        container.append(&power_profile_frame.container);
 
         // let clocks_frame = ClocksFrame::new();
 

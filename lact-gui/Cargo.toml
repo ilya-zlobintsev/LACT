@@ -6,7 +6,8 @@ edition = "2021"
 
 [dependencies]
 lact-client = { path = "../lact-client" }
-gtk = "0.16"
+gtk = { version = "0.5", package = "gtk4" }
+once_cell = "1.17.0"
 # pango = "0.16"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
