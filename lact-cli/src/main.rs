@@ -16,7 +16,7 @@ fn main() -> Result<()> {
     f(&args, &client)
 }
 
-fn list_gpus(args: &Args, client: &DaemonClient) -> Result<()> {
+fn list_gpus(_: &Args, client: &DaemonClient) -> Result<()> {
     let buffer = client.list_devices()?;
     for entry in buffer.inner()? {
         let id = entry.id;

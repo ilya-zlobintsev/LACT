@@ -161,6 +161,8 @@ impl ThermalsPage {
         if initial {
             self.fan_control_enabled_switch.set_visible(true);
             self.fan_control_enabled_switch
+                .set_sensitive(stats.fan.speed_current.is_some());
+            self.fan_control_enabled_switch
                 .set_active(!stats.fan.control_enabled);
 
             /*if stats.fan.control_enabled {
