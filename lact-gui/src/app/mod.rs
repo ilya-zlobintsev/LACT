@@ -2,22 +2,19 @@ mod apply_revealer;
 mod header;
 mod root_stack;
 
-use std::fs;
-use std::sync::{Arc, RwLock};
-use std::thread;
-use std::time::Duration;
-
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use apply_revealer::ApplyRevealer;
 use glib::clone;
-use gtk::gio::ApplicationFlags;
-use gtk::prelude::*;
-use gtk::*;
+use gtk::{gio::ApplicationFlags, prelude::*, *};
 use header::Header;
 use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
 use root_stack::RootStack;
-use tracing::{debug, error, info, trace};
+use std::fs;
+use std::sync::{Arc, RwLock};
+use std::thread;
+use std::time::Duration;
+use tracing::{debug, error, info, trace, warn};
 
 // In ms
 const STATS_POLL_INTERVAL: u64 = 250;
@@ -155,6 +152,16 @@ impl App {
                 app.start_stats_update_loop(current_gpu_id.clone());
 
                 app.window.show();
+
+                if app.daemon_client.embedded {
+                    show_error(anyhow!(
+                        r#"
+                        Could not connect to daemon, running in embedded mode.
+                        Please make sure the lactd service is running.
+                        Using embedded mode, you will not be able to change any settings.
+                    "#
+                    ));
+                }
             }));
 
         self.application.run_with_args::<String>(&[]);
@@ -335,16 +342,15 @@ enum GuiUpdateMsg {
 }
 
 fn show_error(err: anyhow::Error) {
-    glib::idle_add(move || {
-        let text = format!("{err:?}");
-        let diag = MessageDialog::builder()
-            .title("Error")
-            .message_type(MessageType::Error)
-            .text(&text)
-            .buttons(ButtonsType::Close)
-            .build();
-        diag.set_modal(true);
+    let text = format!("{err:?}");
+    warn!("{text}");
+    let diag = MessageDialog::builder()
+        .title("Error")
+        .message_type(MessageType::Error)
+        .text(&text)
+        .buttons(ButtonsType::Close)
+        .build();
+    diag.run_async(|diag, _| {
         diag.hide();
-        glib::Continue(false)
-    });
+    })
 }
