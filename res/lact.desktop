@@ -2,6 +2,6 @@
 Type=Application
 Name=LACT
 GenericName=AMDGPU Control Application
-Exec=lact-gui
+Exec=lact gui
 Icon=lact
 Categories=System;

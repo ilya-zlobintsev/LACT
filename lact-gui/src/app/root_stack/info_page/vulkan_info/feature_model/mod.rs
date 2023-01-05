@@ -1,9 +1,6 @@
 mod imp;
 
-use std::borrow::Cow;
-
 use gtk::glib::{self, Object};
-use indexmap::IndexMap;
 
 glib::wrapper! {
     pub struct FeatureModel(ObjectSubclass<imp::FeatureModel>);

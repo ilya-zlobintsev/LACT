@@ -157,7 +157,7 @@ impl App {
                 app.window.show();
             }));
 
-        self.application.run();
+        self.application.run_with_args::<String>(&[]);
         Ok(())
     }
 

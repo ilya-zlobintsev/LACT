@@ -6,7 +6,7 @@ use lact_client::DaemonClient;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
-fn main() -> anyhow::Result<()> {
+pub fn run() -> anyhow::Result<()> {
     let env_filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
         .from_env_lossy();
