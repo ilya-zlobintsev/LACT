@@ -138,8 +138,8 @@ impl App {
                 }
 
                 app.apply_revealer.connect_apply_button_clicked(
-                    clone!(@strong app as app, @strong current_gpu_id => move || {
-                        if let Err(err) =  app.apply_settings(current_gpu_id.clone()) {
+                    clone!(@strong app, @strong current_gpu_id => move || {
+                        if let Err(err) = app.apply_settings(current_gpu_id.clone()) {
                             show_error(err.context("Could not apply settings"));
 
                             let gpu_id = current_gpu_id.read().unwrap();
@@ -147,6 +147,10 @@ impl App {
                         }
                     }),
                 );
+                app.apply_revealer.connect_reset_button_clicked(clone!(@strong app, @strong current_gpu_id => move || {
+                    let gpu_id = current_gpu_id.read().unwrap();
+                    app.set_info(&gpu_id)
+                }));
 
                 app.start_stats_update_loop(current_gpu_id.clone());
 

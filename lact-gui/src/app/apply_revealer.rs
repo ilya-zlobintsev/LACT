@@ -5,23 +5,26 @@ use gtk::*;
 pub struct ApplyRevealer {
     pub container: Revealer,
     apply_button: Button,
+    reset_button: Button,
 }
 
 impl ApplyRevealer {
     pub fn new() -> Self {
-        let container = Revealer::new();
+        let container = Revealer::builder().transition_duration(150).build();
+        let vbox = Box::new(Orientation::Horizontal, 5);
 
-        container.set_transition_duration(150);
+        let apply_button = Button::builder().label("Apply").hexpand(true).build();
+        let reset_button = Button::builder().label("Reset").build();
 
-        let apply_button = Button::new();
+        vbox.append(&apply_button);
+        vbox.append(&reset_button);
 
-        apply_button.set_label("Apply");
-
-        container.set_child(Some(&apply_button));
+        container.set_child(Some(&vbox));
 
         Self {
             container,
             apply_button,
+            reset_button,
         }
     }
 
@@ -35,6 +38,12 @@ impl ApplyRevealer {
 
     pub fn connect_apply_button_clicked<F: Fn() + 'static>(&self, f: F) {
         self.apply_button.connect_clicked(move |_| {
+            f();
+        });
+    }
+
+    pub fn connect_reset_button_clicked<F: Fn() + 'static>(&self, f: F) {
+        self.reset_button.connect_clicked(move |_| {
             f();
         });
     }

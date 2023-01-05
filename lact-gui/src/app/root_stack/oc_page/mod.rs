@@ -62,6 +62,7 @@ impl OcPage {
         if initial {
             self.power_cap_frame
                 .set_data(stats.power.cap_current, stats.power.cap_max);
+            self.set_performance_level(stats.performance_level);
         }
     }
 

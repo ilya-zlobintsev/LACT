@@ -149,8 +149,10 @@ impl StatsGrid {
             used: used_vram,
         } = stats.vram;
 
-        self.vram_usage_bar
-            .set_value(used_vram.unwrap_or(0) as f64 / total_vram.unwrap_or(0) as f64);
+        if let (Some(used_vram), Some(total_vram)) = (used_vram, total_vram) {
+            self.vram_usage_bar
+                .set_value(used_vram as f64 / total_vram as f64);
+        }
         self.vram_usage_label.set_text(&format!(
             "{}/{} MiB",
             used_vram.unwrap_or(0) / 1024 / 1024,
