@@ -749,10 +749,12 @@ dependencies = [
  "gtk4",
  "indexmap",
  "lact-client",
+ "lact-daemon",
  "nix",
  "once_cell",
  "serde",
  "serde_json",
+ "tokio",
  "tracing",
  "tracing-subscriber",
 ]

@@ -50,7 +50,7 @@ impl App {
         //     Inhibit(false)
         // });
 
-        let root_stack = RootStack::new();
+        let root_stack = RootStack::new(daemon_client.embedded);
 
         header.set_switcher_stack(&root_stack.container);
 

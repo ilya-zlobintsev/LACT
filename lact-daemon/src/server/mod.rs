@@ -1,5 +1,5 @@
 pub mod gpu_controller;
-mod handler;
+pub mod handler;
 // mod pci;
 mod vulkan;
 
@@ -46,7 +46,7 @@ impl Server {
 }
 
 #[instrument(level = "debug", skip(stream, handler))]
-async fn handle_stream(stream: UnixStream, handler: Handler) -> anyhow::Result<()> {
+pub async fn handle_stream(stream: UnixStream, handler: Handler) -> anyhow::Result<()> {
     let mut stream = BufReader::new(stream);
 
     let mut buf = String::new();

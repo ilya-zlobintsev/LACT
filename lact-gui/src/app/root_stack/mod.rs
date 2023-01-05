@@ -20,7 +20,7 @@ pub struct RootStack {
 }
 
 impl RootStack {
-    pub fn new() -> Self {
+    pub fn new(embedded_daemon: bool) -> Self {
         let container = Stack::builder().vexpand(true).build();
 
         let info_page = InformationPage::new();
@@ -35,7 +35,7 @@ impl RootStack {
 
         container.add_titled(&thermals_page.container, Some("thermals_page"), "Thermals");
 
-        let software_page = SoftwarePage::new();
+        let software_page = SoftwarePage::new(embedded_daemon);
 
         container.add_titled(&software_page.container, Some("software_page"), "Software");
 

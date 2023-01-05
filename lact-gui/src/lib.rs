@@ -1,9 +1,10 @@
 mod app;
 
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use app::App;
 use lact_client::DaemonClient;
-use tracing::metadata::LevelFilter;
+use std::os::unix::net::UnixStream;
+use tracing::{error, info, metadata::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 pub fn run() -> anyhow::Result<()> {
@@ -16,9 +17,28 @@ pub fn run() -> anyhow::Result<()> {
         return Err(anyhow!("Cannot initialize GTK: {err}"));
     }
 
-    let connection = DaemonClient::connect().context("Could not connect to daemon")?;
-
+    let connection = create_connection()?;
     let app = App::new(connection);
 
     app.run()
+}
+
+fn create_connection() -> anyhow::Result<DaemonClient> {
+    match DaemonClient::connect() {
+        Ok(connection) => Ok(connection),
+        Err(err) => {
+            info!("Could not connect to socket: {err}");
+            info!("Using a local daemon");
+
+            let (server_stream, client_stream) = UnixStream::pair()?;
+
+            std::thread::spawn(move || {
+                if let Err(err) = lact_daemon::run_embedded(server_stream) {
+                    error!("Builtin daemon error: {err}");
+                }
+            });
+
+            DaemonClient::from_stream(client_stream, true)
+        }
+    }
 }

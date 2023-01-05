@@ -17,6 +17,7 @@ use tracing::info;
 #[derive(Clone)]
 pub struct DaemonClient {
     stream: Arc<Mutex<(BufReader<UnixStream>, UnixStream)>>,
+    pub embedded: bool,
 }
 
 impl DaemonClient {
@@ -25,10 +26,14 @@ impl DaemonClient {
             get_socket_path().context("Could not connect to daemon: socket file not found")?;
         info!("Connecting to service at {path:?}");
         let stream = UnixStream::connect(path).context("Could not connect to daemon")?;
-        let reader = BufReader::new(stream.try_clone()?);
+        Self::from_stream(stream, false)
+    }
 
+    pub fn from_stream(stream: UnixStream, embedded: bool) -> anyhow::Result<Self> {
+        let reader = BufReader::new(stream.try_clone()?);
         Ok(Self {
             stream: Arc::new(Mutex::new((reader, stream))),
+            embedded,
         })
     }
 

@@ -8,7 +8,7 @@ pub struct SoftwarePage {
 }
 
 impl SoftwarePage {
-    pub fn new() -> Self {
+    pub fn new(embedded_daemon: bool) -> Self {
         let container = Grid::new();
 
         container.set_margin_start(5);
@@ -38,8 +38,12 @@ impl SoftwarePage {
             true => "debug",
             false => "release",
         };
+        let mut version_text = format!("{lact_version}-{lact_release_type}");
+        if embedded_daemon {
+            version_text.push_str(" (embedded)");
+        }
 
-        lact_version_label.set_markup(&format!("<b>{}-{}</b>", lact_version, lact_release_type));
+        lact_version_label.set_markup(&format!("<b>{version_text}</b>"));
 
         lact_version_label.set_hexpand(true);
         lact_version_label.set_halign(Align::Start);
