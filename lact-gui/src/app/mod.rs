@@ -137,7 +137,7 @@ impl App {
                 app.apply_revealer.connect_apply_button_clicked(
                     clone!(@strong app, @strong current_gpu_id => move || {
                         if let Err(err) = app.apply_settings(current_gpu_id.clone()) {
-                            show_error(err.context("Could not apply settings"));
+                            show_error(&app.window, err.context("Could not apply settings"));
 
                             let gpu_id = current_gpu_id.read().unwrap();
                             app.set_info(&gpu_id)
@@ -154,7 +154,7 @@ impl App {
                 app.window.show();
 
                 if app.daemon_client.embedded {
-                    show_error(anyhow!(
+                    show_error(&app.window, anyhow!(
                         r#"
                         Could not connect to daemon, running in embedded mode.
                         Please make sure the lactd service is running.
@@ -341,14 +341,15 @@ enum GuiUpdateMsg {
     GpuStats(DeviceStats),
 }
 
-fn show_error(err: anyhow::Error) {
+fn show_error(parent: &ApplicationWindow, err: anyhow::Error) {
     let text = format!("{err:?}");
-    warn!("{text}");
+    warn!("{}", text.trim());
     let diag = MessageDialog::builder()
         .title("Error")
         .message_type(MessageType::Error)
         .text(&text)
         .buttons(ButtonsType::Close)
+        .transient_for(&*parent)
         .build();
     diag.run_async(|diag, _| {
         diag.hide();
