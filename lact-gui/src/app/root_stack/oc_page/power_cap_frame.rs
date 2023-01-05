@@ -35,7 +35,11 @@ impl PowerCapFrame {
             });
         }
 
-        let scale = Scale::new(Orientation::Horizontal, Some(&adjustment));
+        let scale = Scale::builder()
+            .orientation(Orientation::Horizontal)
+            .adjustment(&adjustment)
+            .hexpand(true)
+            .build();
 
         scale.set_draw_value(false);
 

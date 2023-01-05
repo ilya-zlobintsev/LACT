@@ -21,7 +21,7 @@ pub struct RootStack {
 
 impl RootStack {
     pub fn new() -> Self {
-        let container = Stack::new();
+        let container = Stack::builder().vexpand(true).build();
 
         let info_page = InformationPage::new();
 
