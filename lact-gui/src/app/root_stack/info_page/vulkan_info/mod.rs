@@ -32,8 +32,6 @@ impl VulkanInfoFrame {
         let features = Rc::new(RefCell::new(Vec::new()));
         let extensions = Rc::new(RefCell::new(Vec::new()));
 
-        // container.set_shadow_type(ShadowType::None); // TODO
-
         let vbox = Box::new(Orientation::Vertical, 5);
 
         let grid = Grid::new();
@@ -199,7 +197,7 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
         .child(&entry)
         .search_mode_enabled(true)
         .build();
-    search_bar.grab_focus();
+    // search_bar.grab_focus();
 
     let filter_model = FilterListModel::builder()
         .model(&base_model)
@@ -213,7 +211,6 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
 
     factory.connect_setup(move |_factory, item| {
         let item = item.downcast_ref::<gtk::ListItem>().unwrap();
-        item.set_activatable(false);
         let label = Label::builder()
             .margin_top(5)
             .margin_bottom(5)
@@ -224,6 +221,7 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
         let checkbox = CheckButton::builder().sensitive(false).build();
         let vbox = Box::builder()
             .orientation(Orientation::Horizontal)
+            .spacing(5)
             .margin_start(10)
             .margin_end(10)
             .build();
@@ -247,11 +245,7 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
         checkbox.set_active(supported);
     });
 
-    let list_view = ListView::builder()
-        .model(&selection_model)
-        .factory(&factory)
-        .show_separators(true)
-        .build();
+    let list_view = ListView::new(Some(&selection_model), Some(&factory));
     let scroll_window = ScrolledWindow::builder()
         .child(&list_view)
         .vexpand(true)
