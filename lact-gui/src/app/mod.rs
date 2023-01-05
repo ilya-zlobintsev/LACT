@@ -139,8 +139,10 @@ impl App {
                         if let Err(err) = app.apply_settings(current_gpu_id.clone()) {
                             show_error(&app.window, err.context("Could not apply settings"));
 
-                            let gpu_id = current_gpu_id.read().unwrap();
-                            app.set_info(&gpu_id)
+                            glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
+                                let gpu_id = current_gpu_id.read().unwrap();
+                                app.set_initial_stats(&gpu_id)
+                            }));
                         }
                     }),
                 );
@@ -174,17 +176,10 @@ impl App {
             .get_device_info(gpu_id)
             .expect("Could not fetch info");
         let info = info_buf.inner().unwrap();
-        let stats_buf = self
-            .daemon_client
-            .get_device_stats(gpu_id)
-            .expect("Could not fetch stats");
-        let stats = stats_buf.inner().unwrap();
 
-        trace!("Setting info {info:?} and stats {stats:?}");
+        trace!("Setting info {info:?}");
 
         self.root_stack.info_page.set_info(&info);
-        self.root_stack.oc_page.set_stats(&stats, true);
-        self.root_stack.thermals_page.set_stats(&stats, true);
 
         // trace!("Setting clocks");
         // self.root_stack.oc_page.set_info(&info);
@@ -229,6 +224,19 @@ impl App {
                 }
             }
         }
+
+        self.set_initial_stats(gpu_id);
+    }
+
+    fn set_initial_stats(&self, gpu_id: &str) {
+        let stats_buf = self
+            .daemon_client
+            .get_device_stats(gpu_id)
+            .expect("Could not fetch stats");
+        let stats = stats_buf.inner().unwrap();
+
+        self.root_stack.oc_page.set_stats(&stats, true);
+        self.root_stack.thermals_page.set_stats(&stats, true);
 
         self.apply_revealer.hide();
     }
@@ -330,7 +338,7 @@ impl App {
                 .context("Failed to set power cap")?;
         }
 
-        self.set_info(&gpu_id);
+        self.set_initial_stats(&gpu_id);
 
         Ok(())
     }
