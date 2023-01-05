@@ -4,10 +4,13 @@ use args::Command;
 use clap::Parser;
 
 fn main() -> anyhow::Result<()> {
-    let command = Command::parse();
-    match command {
-        Command::Daemon => lact_daemon::run(),
-        Command::Gui => run_gui(),
+    match Command::try_parse() {
+        Ok(Command::Daemon) => lact_daemon::run(),
+        Ok(Command::Gui) => run_gui(),
+        Err(err) => {
+            println!("{err}");
+            Ok(())
+        }
     }
 }
 
