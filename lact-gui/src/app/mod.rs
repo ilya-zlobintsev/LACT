@@ -2,6 +2,7 @@ mod apply_revealer;
 mod header;
 mod root_stack;
 
+use crate::APP_ID;
 use anyhow::{anyhow, Context};
 use apply_revealer::ApplyRevealer;
 use glib::clone;
@@ -31,7 +32,7 @@ pub struct App {
 
 impl App {
     pub fn new(daemon_client: DaemonClient) -> Self {
-        let application = Application::new(None, ApplicationFlags::default());
+        let application = Application::new(Some(APP_ID), ApplicationFlags::default());
 
         let header = Header::new();
         let window = ApplicationWindow::builder()
@@ -148,7 +149,7 @@ impl App {
                 );
                 app.apply_revealer.connect_reset_button_clicked(clone!(@strong app, @strong current_gpu_id => move || {
                     let gpu_id = current_gpu_id.read().unwrap();
-                    app.set_info(&gpu_id)
+                    app.set_initial_stats(&gpu_id)
                 }));
 
                 app.start_stats_update_loop(current_gpu_id.clone());
