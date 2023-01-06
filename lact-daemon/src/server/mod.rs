@@ -5,8 +5,10 @@ mod vulkan;
 
 use self::handler::Handler;
 use crate::{config::Config, socket};
-use lact_schema::{Pong, Request, Response};
+use anyhow::Context;
+use lact_schema::{Pong, Request, Response, SystemInfo};
 use serde::Serialize;
+use std::process::Command;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{UnixListener, UnixStream},
@@ -77,6 +79,7 @@ pub async fn handle_stream(stream: UnixStream, handler: Handler) -> anyhow::Resu
 async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyhow::Result<Vec<u8>> {
     match request {
         Request::Ping => ok_response(ping()),
+        Request::SystemInfo => ok_response(system_info()?),
         Request::ListDevices => ok_response(handler.list_devices()),
         Request::DeviceInfo { id } => ok_response(handler.get_device_info(id)?),
         Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id)?),
@@ -91,13 +94,29 @@ fn ok_response<T: Serialize>(data: T) -> anyhow::Result<Vec<u8>> {
     Ok(serde_json::to_vec(&Response::Ok(data))?)
 }
 
-fn ping() -> Pong<'static> {
+fn ping() -> Pong {
+    Pong
+}
+
+fn system_info() -> anyhow::Result<SystemInfo<'static>> {
     let version = env!("CARGO_PKG_VERSION");
     let profile = if cfg!(debug_assertions) {
         "debug"
     } else {
         "release"
     };
+    let kernel_output = Command::new("uname")
+        .arg("-r")
+        .output()
+        .context("Could not read kernel version")?;
+    let kernel_version = String::from_utf8(kernel_output.stdout)
+        .context("Invalid kernel version output")?
+        .trim()
+        .to_owned();
 
-    Pong { version, profile }
+    Ok(SystemInfo {
+        version,
+        profile,
+        kernel_version,
+    })
 }

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub enum Request<'a> {
     Ping,
     ListDevices,
+    SystemInfo,
     DeviceInfo {
         id: &'a str,
     },

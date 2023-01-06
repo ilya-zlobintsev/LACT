@@ -157,7 +157,7 @@ impl<'a> Handler {
     ) -> anyhow::Result<()> {
         let settings = if enabled {
             let settings = {
-                let curve = curve.map_or_else(FanCurve::default, |curve| FanCurve(curve));
+                let curve = curve.map_or_else(FanCurve::default, FanCurve);
                 curve.validate()?;
 
                 let mut config_guard = self.config.write().map_err(|err| anyhow!("{err}"))?;

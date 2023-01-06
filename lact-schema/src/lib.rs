@@ -26,9 +26,13 @@ use std::{
 pub type FanCurveMap = BTreeMap<i32, f32>;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Pong<'a> {
+pub struct Pong;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SystemInfo<'a> {
     pub version: &'a str,
     pub profile: &'a str,
+    pub kernel_version: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

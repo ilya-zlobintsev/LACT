@@ -15,15 +15,9 @@ fn ping_requset() {
 fn pong_response() {
     let expected_response = json!({
         "status": "ok",
-        "data": {
-            "version": "0.0.1",
-            "profile": "debug"
-        }
+        "data": null
     });
-    let response = Response::Ok(Pong {
-        version: "0.0.1",
-        profile: "debug",
-    });
+    let response = Response::Ok(Pong);
 
     assert_eq!(serde_json::to_value(&response).unwrap(), expected_response);
 }
