@@ -158,11 +158,9 @@ impl App {
 
                 if app.daemon_client.embedded {
                     show_error(&app.window, anyhow!(
-                        r#"
-                        Could not connect to daemon, running in embedded mode.
-                        Please make sure the lactd service is running.
-                        Using embedded mode, you will not be able to change any settings.
-                    "#
+                        "Could not connect to daemon, running in embedded mode. \n\
+                        Please make sure the lactd service is running. \n\
+                        Using embedded mode, you will not be able to change any settings."
                     ));
                 }
             }));

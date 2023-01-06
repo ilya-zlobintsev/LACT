@@ -7,7 +7,7 @@ use std::os::unix::net::UnixStream;
 use tracing::{error, info, metadata::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
-const APP_ID: &str = "io.github.lact";
+const APP_ID: &str = "io.github.lact-linux";
 
 pub fn run() -> anyhow::Result<()> {
     let env_filter = EnvFilter::builder()
