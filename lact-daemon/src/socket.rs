@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use nix::{
     sys::stat::{umask, Mode},
     unistd::{chown, getuid, Gid, Group},
@@ -30,7 +31,11 @@ pub async fn listen() -> anyhow::Result<UnixListener> {
     let socket_path = get_socket_path();
 
     if socket_path.exists() {
-        fs::remove_file(&socket_path)?;
+        return Err(anyhow!(
+            "Socket {socket_path:?} already exists. \
+            This probably means that another instance of lact-daemon is currently running. \
+            If you are sure that this is not the case, please remove the file"
+        ));
     }
 
     let socket_mask = Mode::S_IXUSR | Mode::S_IXGRP | Mode::S_IRWXO;
