@@ -1,16 +1,15 @@
 mod args;
 
-use args::Command;
+use args::{Args, Command};
 use clap::Parser;
 
 fn main() -> anyhow::Result<()> {
-    match Command::try_parse() {
-        Ok(Command::Daemon) => lact_daemon::run(),
-        Ok(Command::Gui) => run_gui(),
-        Err(err) => {
-            println!("{err}");
-            Ok(())
-        }
+    let args = Args::parse();
+    let command = args.command.unwrap_or(Command::Gui);
+
+    match command {
+        Command::Daemon => lact_daemon::run(),
+        Command::Gui => run_gui(),
     }
 }
 

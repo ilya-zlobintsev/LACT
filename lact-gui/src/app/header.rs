@@ -53,8 +53,9 @@ impl Header {
 
     pub fn connect_gpu_selection_changed<F: Fn(String) + 'static>(&self, f: F) {
         self.gpu_selector.connect_changed(move |gpu_selector| {
-            let selected_id = gpu_selector.active_id().unwrap();
-            f(selected_id.to_string());
+            if let Some(selected_id) = gpu_selector.active_id() {
+                f(selected_id.to_string());
+            }
         });
     }
 }
