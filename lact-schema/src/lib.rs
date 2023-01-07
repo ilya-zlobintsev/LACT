@@ -4,17 +4,15 @@ mod response;
 #[cfg(test)]
 mod tests;
 
-use amdgpu_sysfs::gpu_handle::PowerLevels;
-pub use request::Request;
-pub use response::Response;
-
 pub use amdgpu_sysfs::{
     gpu_handle::{
         overdrive::{ClocksTable, ClocksTableGen},
-        PerformanceLevel,
+        PerformanceLevel, PowerLevels,
     },
     hw_mon::Temperature,
 };
+pub use request::Request;
+pub use response::Response;
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};

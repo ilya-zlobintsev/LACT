@@ -4,7 +4,9 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-amdgpu-sysfs = { path = "../../amdgpu-sysfs-rs", features = ["serde"] }
+amdgpu-sysfs = { git = "https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs", features = [
+    "serde",
+] }
 serde = { version = "1.0", features = ["derive"] }
 indexmap = { version = "*", features = ["serde"] }
 

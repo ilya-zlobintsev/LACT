@@ -26,6 +26,7 @@ dependencies = [
 [[package]]
 name = "amdgpu-sysfs"
 version = "0.7.0"
+source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs#104890e623a34537c05c0400275ca1a53e489a64"
 dependencies = [
  "enum_dispatch",
  "serde",
