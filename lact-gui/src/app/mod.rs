@@ -142,14 +142,14 @@ impl App {
 
                             glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
                                 let gpu_id = current_gpu_id.read().unwrap();
-                                app.set_initial_stats(&gpu_id)
+                                app.set_initial(&gpu_id)
                             }));
                         }
                     }),
                 );
                 app.apply_revealer.connect_reset_button_clicked(clone!(@strong app, @strong current_gpu_id => move || {
                     let gpu_id = current_gpu_id.read().unwrap();
-                    app.set_initial_stats(&gpu_id)
+                    app.set_initial(&gpu_id)
                 }));
 
                 app.start_stats_update_loop(current_gpu_id.clone());
@@ -224,10 +224,10 @@ impl App {
             }
         }
 
-        self.set_initial_stats(gpu_id);
+        self.set_initial(gpu_id);
     }
 
-    fn set_initial_stats(&self, gpu_id: &str) {
+    fn set_initial(&self, gpu_id: &str) {
         let stats_buf = self
             .daemon_client
             .get_device_stats(gpu_id)
@@ -337,7 +337,7 @@ impl App {
                 .context("Failed to set power cap")?;
         }
 
-        self.set_initial_stats(&gpu_id);
+        self.set_initial(&gpu_id);
 
         Ok(())
     }

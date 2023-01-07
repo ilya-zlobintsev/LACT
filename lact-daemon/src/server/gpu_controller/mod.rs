@@ -109,10 +109,6 @@ impl GpuController {
         let driver = self.handle.get_driver();
         let vbios_version = self.handle.get_vbios_version().ok();
         let link_info = self.get_link_info();
-        let clocks_table = self.handle.get_clocks_table().ok();
-        let clocks_info = clocks_table
-            .as_ref()
-            .map_or_else(Default::default, ClocksInfo::from);
 
         DeviceInfo {
             pci_info,
@@ -120,8 +116,6 @@ impl GpuController {
             driver,
             vbios_version,
             link_info,
-            clocks_table,
-            clocks_info,
         }
     }
 
@@ -176,6 +170,14 @@ impl GpuController {
             memory_clock_levels: self.handle.get_memory_clock_levels().ok(),
             pcie_clock_levels: self.handle.get_pcie_clock_levels().ok(),
         })
+    }
+
+    pub fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
+        let clocks_table = self
+            .handle
+            .get_clocks_table()
+            .context("Clocks table not available")?;
+        Ok(clocks_table.into())
     }
 
     fn hw_mon_and_then<U>(&self, f: fn(&HwMon) -> Result<U, Error>) -> Option<U> {

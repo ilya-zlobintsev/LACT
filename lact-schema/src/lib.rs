@@ -55,21 +55,24 @@ pub struct DeviceInfo<'a> {
     pub driver: &'a str,
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,
-    pub clocks_table: Option<ClocksTableGen>,
-    pub clocks_info: ClocksInfo,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct ClocksInfo {
     pub max_sclk: Option<u32>,
     pub max_mclk: Option<u32>,
+    pub table: Option<ClocksTableGen>,
 }
 
-impl<T: ClocksTable> From<&T> for ClocksInfo {
-    fn from(table: &T) -> Self {
+impl From<ClocksTableGen> for ClocksInfo {
+    fn from(table: ClocksTableGen) -> Self {
         let max_sclk = table.get_max_sclk();
         let max_mclk = table.get_max_mclk();
-        Self { max_sclk, max_mclk }
+        Self {
+            max_sclk,
+            max_mclk,
+            table: Some(table),
+        }
     }
 }
 

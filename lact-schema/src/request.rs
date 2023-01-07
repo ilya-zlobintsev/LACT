@@ -13,6 +13,9 @@ pub enum Request<'a> {
     DeviceStats {
         id: &'a str,
     },
+    DeviceClocksInfo {
+        id: &'a str,
+    },
     SetFanControl {
         id: &'a str,
         enabled: bool,

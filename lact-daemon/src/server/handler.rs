@@ -2,7 +2,7 @@ use super::gpu_controller::{fan_control::FanCurve, GpuController};
 use crate::config::{Config, FanControlSettings, GpuConfig};
 use amdgpu_sysfs::sysfs::SysFS;
 use anyhow::{anyhow, Context};
-use lact_schema::{DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap};
+use lact_schema::{ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap};
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -147,6 +147,10 @@ impl<'a> Handler {
 
     pub fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
         self.controller_by_id(id)?.get_stats()
+    }
+
+    pub fn get_clocks_info(&'a self, id: &str) -> anyhow::Result<ClocksInfo> {
+        self.controller_by_id(id)?.get_clocks_info()
     }
 
     pub async fn set_fan_control(
