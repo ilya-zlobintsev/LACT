@@ -196,8 +196,8 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
     let search_bar = SearchBar::builder()
         .child(&entry)
         .search_mode_enabled(true)
+        .key_capture_widget(&window)
         .build();
-    // search_bar.grab_focus();
 
     let filter_model = FilterListModel::builder()
         .model(&base_model)
