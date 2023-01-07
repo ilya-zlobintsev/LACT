@@ -29,9 +29,9 @@ impl PerformanceLevelFrame {
 
         let combo_box = ComboBoxText::new();
 
-        combo_box.append(Some("0"), "Automatic");
-        combo_box.append(Some("1"), "Highest clocks");
-        combo_box.append(Some("2"), "Lowest clocks");
+        combo_box.append(None, "Automatic");
+        combo_box.append(None, "Highest clocks");
+        combo_box.append(None, "Lowest clocks");
 
         root_box.append(&combo_box);
 
@@ -62,9 +62,9 @@ impl PerformanceLevelFrame {
 
     pub fn set_active_profile(&self, level: PerformanceLevel) {
         match level {
-            PerformanceLevel::Auto => self.combo_box.set_active_id(Some("0")),
-            PerformanceLevel::High => self.combo_box.set_active_id(Some("1")),
-            PerformanceLevel::Low => self.combo_box.set_active_id(Some("2")),
+            PerformanceLevel::Auto => self.combo_box.set_active(Some(0)),
+            PerformanceLevel::High => self.combo_box.set_active(Some(1)),
+            PerformanceLevel::Low => self.combo_box.set_active(Some(2)),
             PerformanceLevel::Manual => todo!(),
         };
     }

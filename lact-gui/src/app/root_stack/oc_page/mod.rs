@@ -61,8 +61,11 @@ impl OcPage {
     pub fn set_stats(&self, stats: &DeviceStats, initial: bool) {
         self.stats_grid.set_stats(stats);
         if initial {
-            self.power_cap_frame
-                .set_data(stats.power.cap_current, stats.power.cap_max);
+            self.power_cap_frame.set_data(
+                stats.power.cap_current,
+                stats.power.cap_max,
+                stats.power.cap_default,
+            );
             self.set_performance_level(stats.performance_level);
         }
     }
@@ -76,16 +79,13 @@ impl OcPage {
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         self.performance_level_frame
-            .connect_power_profile_changed(clone!(@strong f => move || {
-                    f()
-            }));
+            .connect_power_profile_changed(f.clone());
+        self.power_cap_frame.connect_cap_changed(f);
+
         /*let f = f.clone();
         self.clocks_frame.connect_clocks_changed(move || {
             f();
         })*/
-        self.power_cap_frame.connect_cap_changed(move || {
-            f();
-        })
     }
 
     pub fn set_performance_level(&self, profile: Option<PerformanceLevel>) {
@@ -99,12 +99,13 @@ impl OcPage {
     }
 
     pub fn get_performance_level(&self) -> Option<PerformanceLevel> {
-        match self.performance_level_frame.get_visibility() {
-            true => Some(
-                self.performance_level_frame
-                    .get_selected_performance_level(),
-            ),
-            false => None,
+        if self.performance_level_frame.get_visibility() {
+            let level = self
+                .performance_level_frame
+                .get_selected_performance_level();
+            Some(level)
+        } else {
+            None
         }
     }
 
