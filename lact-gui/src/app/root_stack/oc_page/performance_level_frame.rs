@@ -3,24 +3,27 @@ use gtk::*;
 use lact_client::schema::PerformanceLevel;
 
 #[derive(Clone)]
-pub struct PowerProfileFrame {
-    pub container: Frame,
+pub struct PerformanceLevelFrame {
+    pub container: Box,
     combo_box: ComboBoxText,
     description_label: Label,
 }
 
-impl PowerProfileFrame {
+impl PerformanceLevelFrame {
     pub fn new() -> Self {
-        let container = Frame::new(None);
+        let container = Box::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(5)
+            .margin_start(5)
+            .margin_end(5)
+            .build();
 
-        // container.set_shadow_type(ShadowType::None);
-
-        container.set_label_widget(Some(&{
-            let label = Label::new(None);
-            label.set_markup("<span font_desc='11'><b>Power Profile</b></span>");
-            label
-        }));
-        container.set_label_align(0.2);
+        let label = Label::builder()
+            .use_markup(true)
+            .label("<span font_desc='11'><b>Performance Level</b></span>")
+            .xalign(0.1)
+            .build();
+        container.append(&label);
 
         let root_box = Box::new(Orientation::Horizontal, 5);
 
@@ -49,7 +52,7 @@ impl PowerProfileFrame {
             });
         }
 
-        container.set_child(Some(&root_box));
+        container.append(&root_box);
         Self {
             container,
             combo_box,
