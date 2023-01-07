@@ -5,11 +5,22 @@ mod socket;
 
 use anyhow::Context;
 use config::Config;
+use futures::future::select_all;
 use server::{handle_stream, handler::Handler, Server};
 use std::os::unix::net::UnixStream as StdUnixStream;
 use std::str::FromStr;
-use tokio::{runtime, signal::ctrl_c};
-use tracing::{debug_span, Instrument, Level};
+use tokio::{
+    runtime,
+    signal::unix::{signal, SignalKind},
+};
+use tracing::{debug_span, info, Instrument, Level};
+
+const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
+    SignalKind::terminate(),
+    SignalKind::interrupt(),
+    SignalKind::quit(),
+    SignalKind::hangup(),
+];
 
 pub fn run() -> anyhow::Result<()> {
     let rt = runtime::Builder::new_current_thread()
@@ -25,18 +36,7 @@ pub fn run() -> anyhow::Result<()> {
         let server = Server::new(config).await?;
         let handler = server.handler.clone();
 
-        tokio::spawn(async move {
-            ctrl_c().await.expect("Could not listen to shutdown signal");
-
-            async {
-                handler.cleanup().await;
-                socket::cleanup();
-            }
-            .instrument(debug_span!("shutdown_cleanup"))
-            .await;
-            std::process::exit(0);
-        });
-
+        tokio::spawn(listen_shutdown(handler));
         server.run().await;
         Ok(())
     })
@@ -54,4 +54,20 @@ pub fn run_embedded(stream: StdUnixStream) -> anyhow::Result<()> {
 
         handle_stream(stream, handler).await
     })
+}
+
+async fn listen_shutdown(handler: Handler) {
+    let mut signals = SHUTDOWN_SIGNALS
+        .map(|signal_kind| signal(signal_kind).expect("Could not listen to shutdown signal"));
+    let signal_futures = signals.iter_mut().map(|signal| Box::pin(signal.recv()));
+    select_all(signal_futures).await;
+
+    info!("cleaning up and shutting down...");
+    async {
+        handler.cleanup().await;
+        socket::cleanup();
+    }
+    .instrument(debug_span!("shutdown_cleanup"))
+    .await;
+    std::process::exit(0);
 }

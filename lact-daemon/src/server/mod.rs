@@ -53,7 +53,7 @@ pub async fn handle_stream(stream: UnixStream, handler: Handler) -> anyhow::Resu
 
     let mut buf = String::new();
     while stream.read_line(&mut buf).await? != 0 {
-        debug!("Handling request: {}", buf.trim_end());
+        debug!("handling request: {}", buf.trim_end());
 
         let maybe_request = serde_json::from_str(&buf);
         let response = match maybe_request {

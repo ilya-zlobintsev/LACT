@@ -98,7 +98,7 @@ impl<'a> Handler {
                         .context("Could not set power cap")?;
                 }
             } else {
-                info!("Could not find GPU with id {id} defined in configuration");
+                info!("could not find GPU with id {id} defined in configuration");
             }
         }
 
@@ -235,7 +235,7 @@ impl<'a> Handler {
         for (id, gpu_config) in config.gpus {
             if let Ok(controller) = self.controller_by_id(&id) {
                 if gpu_config.fan_control_enabled {
-                    debug!("Stopping fan control");
+                    debug!("stopping fan control");
                     controller
                         .stop_fan_control(true)
                         .await
@@ -246,7 +246,7 @@ impl<'a> Handler {
                     (gpu_config.power_cap, controller.handle.hw_monitors.first())
                 {
                     if let Ok(default_cap) = hw_mon.get_power_cap_default() {
-                        debug!("Setting power limit to default");
+                        debug!("setting power limit to default");
                         hw_mon
                             .set_power_cap(default_cap)
                             .expect("Could not set power cap to default");
