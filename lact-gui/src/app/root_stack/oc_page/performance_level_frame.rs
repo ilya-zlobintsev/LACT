@@ -2,6 +2,8 @@ use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::PerformanceLevel;
 
+use super::section_box;
+
 #[derive(Clone)]
 pub struct PerformanceLevelFrame {
     pub container: Box,
@@ -10,19 +12,7 @@ pub struct PerformanceLevelFrame {
 
 impl PerformanceLevelFrame {
     pub fn new() -> Self {
-        let container = Box::builder()
-            .orientation(Orientation::Vertical)
-            .spacing(5)
-            .margin_start(5)
-            .margin_end(5)
-            .build();
-
-        let label = Label::builder()
-            .use_markup(true)
-            .label("<span font_desc='11'><b>Performance Level</b></span>")
-            .xalign(0.1)
-            .build();
-        container.append(&label);
+        let container = section_box("Performance level");
 
         let root_box = Box::new(Orientation::Horizontal, 5);
 

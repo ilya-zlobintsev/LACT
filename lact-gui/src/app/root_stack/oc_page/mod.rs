@@ -4,12 +4,14 @@ mod power_cap_frame;
 mod stats_grid;
 mod warning_frame;
 
+use clocks_frame::ClocksFrame;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{DeviceStats, PerformanceLevel, PowerStats};
+use lact_client::schema::{ClocksTableGen, DeviceStats, PerformanceLevel};
 use performance_level_frame::PerformanceLevelFrame;
 use power_cap_frame::PowerCapFrame;
 use stats_grid::StatsGrid;
+use tracing::warn;
 use warning_frame::WarningFrame;
 
 #[derive(Clone)]
@@ -18,7 +20,7 @@ pub struct OcPage {
     stats_grid: StatsGrid,
     performance_level_frame: PerformanceLevelFrame,
     power_cap_frame: PowerCapFrame,
-    // clocks_frame: ClocksFrame,
+    clocks_frame: ClocksFrame,
     pub warning_frame: WarningFrame,
 }
 
@@ -35,21 +37,18 @@ impl OcPage {
         container.append(&stats_grid.container);
 
         let power_cap_frame = PowerCapFrame::new();
+        let performance_level_frame = PerformanceLevelFrame::new();
+        let clocks_frame = ClocksFrame::new();
 
         container.append(&power_cap_frame.container);
-
-        let power_profile_frame = PerformanceLevelFrame::new();
-
-        container.append(&power_profile_frame.container);
-
-        // let clocks_frame = ClocksFrame::new();
-        // container.append(&clocks_frame.container);
+        container.append(&performance_level_frame.container);
+        container.append(&clocks_frame.container);
 
         Self {
             container,
             stats_grid,
-            performance_level_frame: power_profile_frame,
-            // clocks_frame,
+            performance_level_frame,
+            clocks_frame,
             warning_frame,
             power_cap_frame,
         }
@@ -64,6 +63,23 @@ impl OcPage {
                 stats.power.cap_default,
             );
             self.set_performance_level(stats.performance_level);
+        }
+    }
+
+    pub fn set_clocks_table(&self, table: Option<ClocksTableGen>) {
+        match table {
+            Some(table) => match self.clocks_frame.set_table(table) {
+                Ok(()) => {
+                    self.clocks_frame.container.show();
+                }
+                Err(err) => {
+                    warn!("Got invalid clocks table: {err}");
+                    self.clocks_frame.container.hide();
+                }
+            },
+            None => {
+                self.clocks_frame.container.hide();
+            }
         }
     }
 
@@ -106,17 +122,6 @@ impl OcPage {
         }
     }
 
-    pub fn set_power_stats(&self, power_stats: PowerStats) {
-        // TODO
-        /*match &info.clocks_table {
-            Some(clocks_table) => {
-                self.clocks_frame.show();
-                self.clocks_frame.set_clocks(clocks_table);
-            }
-            None => self.clocks_frame.hide(),
-        }*/
-    }
-
     /*pub fn get_clocks(&self) -> Option<ClocksSettings> {
         match self.clocks_frame.get_visibility() {
             true => Some(self.clocks_frame.get_settings()),
@@ -127,4 +132,22 @@ impl OcPage {
     pub fn get_power_cap(&self) -> Option<f64> {
         self.power_cap_frame.get_cap()
     }
+}
+
+fn section_box(title: &str) -> Box {
+    let container = Box::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(5)
+        .margin_start(5)
+        .margin_end(5)
+        .build();
+
+    let label = Label::builder()
+        .use_markup(true)
+        .label(&format!("<span font_desc='11'><b>{title}</b></span>"))
+        .xalign(0.1)
+        .build();
+
+    container.append(&label);
+    container
 }

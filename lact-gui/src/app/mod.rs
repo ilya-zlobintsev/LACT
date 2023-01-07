@@ -237,6 +237,18 @@ impl App {
         self.root_stack.oc_page.set_stats(&stats, true);
         self.root_stack.thermals_page.set_stats(&stats, true);
 
+        let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(gpu_id) {
+            Ok(clocks_buf) => {
+                let clocks_info = clocks_buf.inner().unwrap();
+                clocks_info.table
+            }
+            Err(err) => {
+                debug!("Could not fetch clocks info: {err}");
+                None
+            }
+        };
+        self.root_stack.oc_page.set_clocks_table(maybe_clocks_table);
+
         self.apply_revealer.hide();
     }
 

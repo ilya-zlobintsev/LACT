@@ -6,7 +6,8 @@ pub use lact_schema as schema;
 use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
 use schema::{
-    DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel, Request, Response,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel, Request,
+    Response,
 };
 use serde::Deserialize;
 use std::{
@@ -87,6 +88,7 @@ impl DaemonClient {
 
     request_with_id!(get_device_info, DeviceInfo, DeviceInfo);
     request_with_id!(get_device_stats, DeviceStats, DeviceStats);
+    request_with_id!(get_device_clocks_info, DeviceClocksInfo, ClocksInfo);
 
     pub fn set_performance_level(
         &self,

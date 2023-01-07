@@ -1,3 +1,4 @@
+use super::section_box;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
@@ -13,19 +14,7 @@ pub struct PowerCapFrame {
 
 impl PowerCapFrame {
     pub fn new() -> Self {
-        let container = Box::builder()
-            .orientation(Orientation::Vertical)
-            .spacing(5)
-            .margin_start(5)
-            .margin_end(5)
-            .build();
-
-        let label = Label::builder()
-            .use_markup(true)
-            .label("<span font_desc='11'><b>Power Usage Limit</b></span>")
-            .xalign(0.1)
-            .build();
-        container.append(&label);
+        let container = section_box("Power Usage Limit");
 
         let root_box = Box::new(Orientation::Horizontal, 0);
 
