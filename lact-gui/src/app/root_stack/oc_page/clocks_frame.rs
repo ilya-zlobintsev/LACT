@@ -1,30 +1,26 @@
+use super::{oc_adjustment, section_box};
 use anyhow::{anyhow, Context};
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{ClocksTable, ClocksTableGen};
 
-use super::section_box;
-
 #[derive(Clone)]
 pub struct ClocksFrame {
     pub container: Box,
-    pub max_sclk_adjustment: Adjustment,
-    pub max_mclk_adjustment: Adjustment,
+    max_sclk_adjustment: Adjustment,
+    max_mclk_adjustment: Adjustment,
 }
 
 impl ClocksFrame {
     pub fn new() -> Self {
-        let container = section_box("Maximum Clocks");
+        let container = section_box("Maximum Clocks", 0, 5);
         container.hide();
 
-        let max_sclk_adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 1.0, 1.0);
-        let max_mclk_adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 1.0, 1.0);
+        let (sclk_box, max_sclk_adjustment) = oc_adjustment(None, "MHz");
+        let (mclk_box, max_mclk_adjustment) = oc_adjustment(None, "MHz");
 
-        let max_sclk_scale = scale(&max_sclk_adjustment);
-        let max_mclk_scale = scale(&max_mclk_adjustment);
-
-        container.append(&max_sclk_scale);
-        container.append(&max_mclk_scale);
+        container.append(&sclk_box);
+        container.append(&mclk_box);
 
         Self {
             container,
@@ -59,10 +55,19 @@ impl ClocksFrame {
     }
 }
 
-fn scale(adjustment: &Adjustment) -> Scale {
+/*fn scale(adjustment: &Adjustment) -> Scale {
     Scale::builder()
         .orientation(Orientation::Horizontal)
         .adjustment(adjustment)
         .draw_value(true)
+        .hexpand(true)
         .build()
 }
+
+fn range_label() -> Label {
+    Label::builder()
+        .yalign(0.7)
+        .margin_start(10)
+        .margin_end(10)
+        .build()
+}*/

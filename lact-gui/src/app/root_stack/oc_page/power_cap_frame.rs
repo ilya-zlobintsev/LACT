@@ -1,9 +1,7 @@
-use super::section_box;
-use glib::clone;
+use super::{oc_adjustment, section_box};
 use gtk::prelude::*;
 use gtk::*;
 use std::{cell::Cell, rc::Rc};
-use tracing::error;
 
 #[derive(Clone)]
 pub struct PowerCapFrame {
@@ -14,42 +12,9 @@ pub struct PowerCapFrame {
 
 impl PowerCapFrame {
     pub fn new() -> Self {
-        let container = section_box("Power Usage Limit");
-
-        let root_box = Box::new(Orientation::Horizontal, 0);
-
-        let label = Label::new(None);
-
-        root_box.append(&label);
-
-        let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
-        adjustment.connect_value_changed(clone!(@strong label => move |adj| {
-                label.set_markup(&format!("{}/{} W", adj.value().round(), adj.upper()));
-        }));
-
-        let scale = Scale::builder()
-            .orientation(Orientation::Horizontal)
-            .adjustment(&adjustment)
-            .hexpand(true)
-            .build();
-
-        scale.set_draw_value(false);
-
-        root_box.append(&scale);
-
+        let container = section_box("Power Usage Limit", 5, 5);
         let default_cap = Rc::new(Cell::new(None));
-        let reset_button = Button::with_label("Default");
-
-        reset_button.connect_clicked(clone!(@strong adjustment, @strong default_cap => move |_| {
-            if let Some(cap) = default_cap.get() {
-                adjustment.set_value(cap);
-            } else {
-                error!("Could not set default cap, value not provided");
-            }
-        }));
-
-        root_box.append(&reset_button);
-
+        let (root_box, adjustment) = oc_adjustment(Some(default_cap.clone()), "W");
         container.append(&root_box);
 
         Self {
