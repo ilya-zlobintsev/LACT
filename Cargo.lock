@@ -774,14 +774,9 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "gtk4",
- "indexmap",
  "lact-client",
  "lact-daemon",
- "nix",
  "once_cell",
- "serde",
- "serde_json",
- "tokio",
  "tracing",
  "tracing-subscriber",
 ]

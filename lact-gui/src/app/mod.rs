@@ -48,7 +48,11 @@ impl App {
         //     Inhibit(false)
         // });
 
-        let root_stack = RootStack::new(daemon_client.embedded);
+        let system_info_buf = daemon_client
+            .get_system_info()
+            .expect("Could not fetch system info");
+        let system_info = system_info_buf.inner().expect("Invalid system info buffer");
+        let root_stack = RootStack::new(system_info, daemon_client.embedded);
 
         header.set_switcher_stack(&root_stack.container);
 

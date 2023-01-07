@@ -7,7 +7,7 @@ use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
 use schema::{
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel, Request,
-    Response,
+    Response, SystemInfo,
 };
 use serde::Deserialize;
 use std::{
@@ -86,6 +86,7 @@ impl DaemonClient {
         self.make_request(Request::SetPowerCap { id, cap })?.inner()
     }
 
+    request_plain!(get_system_info, SystemInfo, SystemInfo);
     request_with_id!(get_device_info, DeviceInfo, DeviceInfo);
     request_with_id!(get_device_stats, DeviceStats, DeviceStats);
     request_with_id!(get_device_clocks_info, DeviceClocksInfo, ClocksInfo);
