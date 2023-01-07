@@ -242,12 +242,15 @@ impl App {
         self.root_stack.thermals_page.set_stats(&stats, true);
 
         let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(gpu_id) {
-            Ok(clocks_buf) => {
-                let clocks_info = clocks_buf.inner().unwrap();
-                clocks_info.table
-            }
+            Ok(clocks_buf) => match clocks_buf.inner() {
+                Ok(info) => info.table,
+                Err(err) => {
+                    debug!("Could not extract clocks info: {err:?}");
+                    None
+                }
+            },
             Err(err) => {
-                debug!("Could not fetch clocks info: {err}");
+                debug!("Could not fetch clocks info: {err:?}");
                 None
             }
         };
