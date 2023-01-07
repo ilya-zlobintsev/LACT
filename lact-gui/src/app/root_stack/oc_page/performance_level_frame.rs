@@ -6,7 +6,6 @@ use lact_client::schema::PerformanceLevel;
 pub struct PerformanceLevelFrame {
     pub container: Box,
     combo_box: ComboBoxText,
-    description_label: Label,
 }
 
 impl PerformanceLevelFrame {
@@ -56,7 +55,6 @@ impl PerformanceLevelFrame {
         Self {
             container,
             combo_box,
-            description_label,
         }
     }
 

@@ -4,7 +4,6 @@ mod power_cap_frame;
 mod stats_grid;
 mod warning_frame;
 
-use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{DeviceStats, PerformanceLevel, PowerStats};
@@ -13,15 +12,13 @@ use power_cap_frame::PowerCapFrame;
 use stats_grid::StatsGrid;
 use warning_frame::WarningFrame;
 
-use self::clocks_frame::ClocksFrame;
-
 #[derive(Clone)]
 pub struct OcPage {
     pub container: Box,
     stats_grid: StatsGrid,
     performance_level_frame: PerformanceLevelFrame,
     power_cap_frame: PowerCapFrame,
-    clocks_frame: ClocksFrame,
+    // clocks_frame: ClocksFrame,
     pub warning_frame: WarningFrame,
 }
 
@@ -45,14 +42,14 @@ impl OcPage {
 
         container.append(&power_profile_frame.container);
 
-        let clocks_frame = ClocksFrame::new();
+        // let clocks_frame = ClocksFrame::new();
         // container.append(&clocks_frame.container);
 
         Self {
             container,
             stats_grid,
             performance_level_frame: power_profile_frame,
-            clocks_frame,
+            // clocks_frame,
             warning_frame,
             power_cap_frame,
         }

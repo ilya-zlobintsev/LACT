@@ -1,8 +1,10 @@
 use super::gpu_controller::{fan_control::FanCurve, GpuController};
 use crate::config::{Config, FanControlSettings, GpuConfig};
-use amdgpu_sysfs::sysfs::SysFS;
+use amdgpu_sysfs::{hw_mon::HwMon, sysfs::SysFS};
 use anyhow::{anyhow, Context};
-use lact_schema::{ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap};
+use lact_schema::{
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel,
+};
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -128,6 +130,14 @@ impl<'a> Handler {
             .context("No controller with such id")?)
     }
 
+    fn hw_mon_by_id(&self, id: &str) -> anyhow::Result<&HwMon> {
+        self.controller_by_id(id)?
+            .handle
+            .hw_monitors
+            .first()
+            .context("GPU has no hardware monitor")
+    }
+
     pub fn list_devices(&'a self) -> Vec<DeviceListEntry<'a>> {
         self.gpu_controllers
             .iter()
@@ -200,12 +210,7 @@ impl<'a> Handler {
     }
 
     pub fn set_power_cap(&'a self, id: &str, maybe_cap: Option<f64>) -> anyhow::Result<()> {
-        let hw_mon = self
-            .controller_by_id(id)?
-            .handle
-            .hw_monitors
-            .first()
-            .context("GPU has no hardware monitor")?;
+        let hw_mon = self.hw_mon_by_id(id)?;
 
         let cap = match maybe_cap {
             Some(cap) => cap,
@@ -216,6 +221,13 @@ impl<'a> Handler {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
             gpu_config.power_cap = maybe_cap;
         })
+    }
+
+    pub fn set_performance_level(&self, id: &str, level: PerformanceLevel) -> anyhow::Result<()> {
+        self.controller_by_id(id)?
+            .handle
+            .set_power_force_performance_level(level)
+            .context("Could not set performance level")
     }
 
     pub async fn cleanup(self) {

@@ -88,6 +88,10 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
             ok_response(handler.set_fan_control(id, enabled, curve).await?)
         }
         Request::SetPowerCap { id, cap } => ok_response(handler.set_power_cap(id, cap)?),
+        Request::SetPerformanceLevel {
+            id,
+            performance_level,
+        } => ok_response(handler.set_performance_level(id, performance_level)?),
     }
 }
 

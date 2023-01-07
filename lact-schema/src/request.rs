@@ -1,4 +1,5 @@
 use crate::FanCurveMap;
+use amdgpu_sysfs::gpu_handle::PerformanceLevel;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -24,5 +25,9 @@ pub enum Request<'a> {
     SetPowerCap {
         id: &'a str,
         cap: Option<f64>,
+    },
+    SetPerformanceLevel {
+        id: &'a str,
+        performance_level: PerformanceLevel,
     },
 }

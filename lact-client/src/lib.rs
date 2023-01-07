@@ -1,8 +1,13 @@
+#[macro_use]
+mod macros;
+
 pub use lact_schema as schema;
 
 use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
-use schema::{DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, Request, Response};
+use schema::{
+    DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel, Request, Response,
+};
 use serde::Deserialize;
 use std::{
     io::{BufRead, BufReader, Write},
@@ -77,17 +82,22 @@ impl DaemonClient {
     }
 
     pub fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<()> {
-        self.make_request(Request::SetPowerCap { id, cap })?
-            .inner()?;
-        Ok(())
+        self.make_request(Request::SetPowerCap { id, cap })?.inner()
     }
 
-    pub fn get_device_info(&self, id: &str) -> anyhow::Result<ResponseBuffer<DeviceInfo>> {
-        self.make_request(Request::DeviceInfo { id })
-    }
+    request_with_id!(get_device_info, DeviceInfo, DeviceInfo);
+    request_with_id!(get_device_stats, DeviceStats, DeviceStats);
 
-    pub fn get_device_stats(&self, id: &str) -> anyhow::Result<ResponseBuffer<DeviceStats>> {
-        self.make_request(Request::DeviceStats { id })
+    pub fn set_performance_level(
+        &self,
+        id: &str,
+        performance_level: PerformanceLevel,
+    ) -> anyhow::Result<()> {
+        self.make_request(Request::SetPerformanceLevel {
+            id,
+            performance_level,
+        })?
+        .inner()
     }
 }
 

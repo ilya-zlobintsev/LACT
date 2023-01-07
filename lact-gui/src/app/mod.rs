@@ -323,18 +323,18 @@ impl App {
             self.daemon_client
                 .commit_gpu_power_states(gpu_id)
                 .expect("Failed to commit power states");
-        }
-
-        if let Some(profile) = self.root_stack.oc_page.get_power_profile() {
-            self.daemon_client
-                .set_power_profile(gpu_id, profile)
-                .expect("Failed to set power profile");
         }*/
 
         if let Some(cap) = self.root_stack.oc_page.get_power_cap() {
             self.daemon_client
                 .set_power_cap(&gpu_id, Some(cap))
                 .context("Failed to set power cap")?;
+        }
+
+        if let Some(level) = self.root_stack.oc_page.get_performance_level() {
+            self.daemon_client
+                .set_performance_level(&gpu_id, level)
+                .context("Failed to set power profile")?;
         }
 
         self.set_initial(&gpu_id);
