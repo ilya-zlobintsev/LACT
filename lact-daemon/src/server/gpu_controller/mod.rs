@@ -100,7 +100,7 @@ impl GpuController {
             ) {
                 Ok(info) => Some(info),
                 Err(err) => {
-                    warn!("Could not load vulkan info: {err}");
+                    warn!("could not load vulkan info: {err}");
                     None
                 }
             }
@@ -215,7 +215,7 @@ impl GpuController {
         let notify = Arc::new(Notify::new());
         let task_notify = notify.clone();
         let task_curve = curve.clone();
-        debug!("Using curve {curve:?}");
+        debug!("using curve {curve:?}");
 
         let handle = tokio::spawn(async move {
             loop {
@@ -229,20 +229,20 @@ impl GpuController {
                     .remove(&temp_key)
                     .expect("Could not get temperature by given key");
                 let target_pwm = task_curve.pwm_at_temp(temp);
-                trace!("Fan control tick: setting pwm to {target_pwm}");
+                trace!("fan control tick: setting pwm to {target_pwm}");
 
                 if let Err(err) = hw_mon.set_fan_pwm(target_pwm) {
-                    error!("Could not set fan speed: {err}, disabling fan control");
+                    error!("could not set fan speed: {err}, disabling fan control");
                     break;
                 }
             }
-            info!("Exited fan control task");
+            info!("exited fan control task");
         });
 
         *notify_guard = Some((notify, handle, curve));
 
         info!(
-            "Started fan control with interval {}ms",
+            "started fan control with interval {}ms",
             interval.as_millis()
         );
 

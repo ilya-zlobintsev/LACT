@@ -22,7 +22,7 @@ where
 
     match fork()? {
         ForkResult::Parent { child } => {
-            trace!("Waiting for message from child");
+            trace!("waiting for message from child");
 
             let mut size_buf = [0u8; size_of::<usize>()];
             rx.read_exact(&mut size_buf)?;
@@ -31,7 +31,7 @@ where
             let mut data_buf = vec![0u8; size];
             rx.read_exact(&mut data_buf)?;
 
-            trace!("Received {} data bytes from child", data_buf.len());
+            trace!("received {} data bytes from child", data_buf.len());
 
             waitpid(child, None)?;
 
@@ -42,7 +42,7 @@ where
         }
         ForkResult::Child => {
             let response = f();
-            trace!("Sending response to parent: {response:?}");
+            trace!("sending response to parent: {response:?}");
 
             let send_result = (|| {
                 let data = bincode::serialize(&response)?;
@@ -55,7 +55,7 @@ where
                 Ok(()) => 0,
                 Err(_) => 1,
             };
-            trace!("Exiting child with code {exit_code}");
+            trace!("exiting child with code {exit_code}");
             std::process::exit(exit_code);
         }
     }

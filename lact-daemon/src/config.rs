@@ -57,7 +57,7 @@ impl Config {
 
     pub fn save(&self) -> anyhow::Result<()> {
         let path = get_path();
-        debug!("Saving config to {path:?}");
+        debug!("saving config to {path:?}");
         let raw_config = serde_yaml::to_string(self)?;
         fs::write(path, raw_config).context("Could not write config")
     }
