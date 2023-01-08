@@ -1,4 +1,4 @@
-use super::{oc_adjustment, section_box};
+use super::section_box;
 use anyhow::{anyhow, Context};
 use gtk::prelude::*;
 use gtk::*;
@@ -9,6 +9,7 @@ pub struct ClocksFrame {
     pub container: Box,
     max_sclk_adjustment: Adjustment,
     max_mclk_adjustment: Adjustment,
+    max_voltage_adjustment: Adjustment,
 }
 
 impl ClocksFrame {
@@ -16,22 +17,28 @@ impl ClocksFrame {
         let container = section_box("Maximum Clocks", 0, 5);
         container.hide();
 
-        let (sclk_box, max_sclk_adjustment) = oc_adjustment(None, "MHz");
-        let (mclk_box, max_mclk_adjustment) = oc_adjustment(None, "MHz");
+        let tweaking_grid = Grid::new();
 
-        container.append(&sclk_box);
-        container.append(&mclk_box);
+        let max_sclk_adjustment = oc_adjustment("GPU Clock (MHz)", &tweaking_grid, 0);
+        let max_voltage_adjustment = oc_adjustment("GPU voltage (mV)", &tweaking_grid, 1);
+        let max_mclk_adjustment = oc_adjustment("VRAM Clock (MHz)", &tweaking_grid, 2);
+
+        container.append(&tweaking_grid);
 
         Self {
             container,
             max_sclk_adjustment,
             max_mclk_adjustment,
+            max_voltage_adjustment,
         }
     }
 
     pub fn set_table(&self, table: ClocksTableGen) -> anyhow::Result<()> {
         let current_sclk_max = table.get_max_sclk().context("No max sclk clockspeed")?;
         let current_mclk_max = table.get_max_mclk().context("No max mclk clockspeed")?;
+        let current_voltage_max = table
+            .get_max_sclk_voltage()
+            .context("No max sclk voltage")?;
 
         let ranges = table.get_allowed_ranges();
         let (sclk_min, sclk_max) = ranges
@@ -42,6 +49,8 @@ impl ClocksFrame {
             .mclk
             .and_then(|range| range.try_into().ok())
             .context("No mclk range")?;
+        // TODO
+        // let (voltage_min, voltage_max) = ranges.vddc.
 
         self.max_sclk_adjustment.set_lower(sclk_min.into());
         self.max_sclk_adjustment.set_upper(sclk_max.into());
@@ -55,19 +64,22 @@ impl ClocksFrame {
     }
 }
 
-/*fn scale(adjustment: &Adjustment) -> Scale {
-    Scale::builder()
-        .orientation(Orientation::Horizontal)
-        .adjustment(adjustment)
-        .draw_value(true)
-        .hexpand(true)
-        .build()
-}
+fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> Adjustment {
+    let label = Label::new(Some(title));
 
-fn range_label() -> Label {
-    Label::builder()
-        .yalign(0.7)
-        .margin_start(10)
-        .margin_end(10)
-        .build()
-}*/
+    let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
+    let scale = Scale::builder()
+        .orientation(Orientation::Horizontal)
+        .adjustment(&adjustment)
+        .hexpand(true)
+        .round_digits(0)
+        .digits(0)
+        .draw_value(true)
+        .value_pos(PositionType::Right)
+        .build();
+
+    grid.attach(&label, 0, row, 1, 1);
+    grid.attach(&scale, 1, row, 4, 1);
+
+    adjustment
+}

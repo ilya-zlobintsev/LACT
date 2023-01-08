@@ -59,6 +59,7 @@ pub struct DeviceInfo<'a> {
 pub struct ClocksInfo {
     pub max_sclk: Option<u32>,
     pub max_mclk: Option<u32>,
+    pub max_voltage: Option<u32>,
     pub table: Option<ClocksTableGen>,
 }
 
@@ -66,9 +67,11 @@ impl From<ClocksTableGen> for ClocksInfo {
     fn from(table: ClocksTableGen) -> Self {
         let max_sclk = table.get_max_sclk();
         let max_mclk = table.get_max_mclk();
+        let max_voltage = table.get_max_sclk_voltage();
         Self {
             max_sclk,
             max_mclk,
+            max_voltage,
             table: Some(table),
         }
     }
