@@ -25,8 +25,8 @@ dependencies = [
 
 [[package]]
 name = "amdgpu-sysfs"
-version = "0.7.0"
-source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs#d07605c605756c8483d1ccc61f227ba1b6f49f44"
+version = "0.8.0"
+source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs#170b54f57fd61c1c1f08481fdfdbe1f5c472fdf0"
 dependencies = [
  "enum_dispatch",
  "serde",
@@ -650,9 +650,9 @@ dependencies = [
 
 [[package]]
 name = "half"
-version = "2.1.0"
+version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad6a9459c9c30b177b925162351f97e7d967c7ea8bab3b8352805327daf45554"
+checksum = "02b4af3693f1b705df946e9fe5631932443781d0aabb423b62fcd4d73f6d2fd0"
 dependencies = [
  "crunchy",
 ]
@@ -1334,9 +1334,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.23.0"
+version = "1.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eab6d665857cc6ca78d6e80303a02cea7a7851e85dfbd77cbdc09bd129f1ef46"
+checksum = "1d9f76183f91ecfb55e1d7d5602bd1d979e38a3a522fe900241cf195624d67ae"
 dependencies = [
  "autocfg",
  "bytes",
@@ -1480,7 +1480,7 @@ dependencies = [
 [[package]]
 name = "vulkano"
 version = "0.32.0"
-source = "git+https://github.com/vulkano-rs/vulkano#21f850dc992a7e3a96409a6c849b981682427cdb"
+source = "git+https://github.com/vulkano-rs/vulkano#fcb46e6f8979a5a25b5829d4b70efc8430f87aaf"
 dependencies = [
  "ahash",
  "ash",
@@ -1508,7 +1508,7 @@ dependencies = [
 [[package]]
 name = "vulkano_macros"
 version = "0.32.0"
-source = "git+https://github.com/vulkano-rs/vulkano#21f850dc992a7e3a96409a6c849b981682427cdb"
+source = "git+https://github.com/vulkano-rs/vulkano#fcb46e6f8979a5a25b5829d4b70efc8430f87aaf"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
