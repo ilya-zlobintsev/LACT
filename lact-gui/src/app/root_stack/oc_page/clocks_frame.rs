@@ -7,29 +7,34 @@ use lact_client::schema::{ClocksTable, ClocksTableGen};
 #[derive(Clone)]
 pub struct ClocksFrame {
     pub container: Box,
+    tweaking_grid: Grid,
     max_sclk_adjustment: Adjustment,
     max_mclk_adjustment: Adjustment,
     max_voltage_adjustment: Adjustment,
+    clocks_data_unavailable_label: Label,
 }
 
 impl ClocksFrame {
     pub fn new() -> Self {
         let container = section_box("Maximum Clocks", 0, 5);
-        container.hide();
 
         let tweaking_grid = Grid::new();
-
         let max_sclk_adjustment = oc_adjustment("GPU Clock (MHz)", &tweaking_grid, 0);
         let max_voltage_adjustment = oc_adjustment("GPU voltage (mV)", &tweaking_grid, 1);
         let max_mclk_adjustment = oc_adjustment("VRAM Clock (MHz)", &tweaking_grid, 2);
 
+        let clocks_data_unavailable_label = Label::new(Some("No clocks data available"));
+
         container.append(&tweaking_grid);
+        container.append(&clocks_data_unavailable_label);
 
         Self {
             container,
+            tweaking_grid,
             max_sclk_adjustment,
             max_mclk_adjustment,
             max_voltage_adjustment,
+            clocks_data_unavailable_label,
         }
     }
 
@@ -61,6 +66,16 @@ impl ClocksFrame {
         self.max_mclk_adjustment.set_value(current_mclk_max.into());
 
         Ok(())
+    }
+
+    pub fn show(&self) {
+        self.tweaking_grid.show();
+        self.clocks_data_unavailable_label.hide();
+    }
+
+    pub fn hide(&self) {
+        self.tweaking_grid.hide();
+        self.clocks_data_unavailable_label.show();
     }
 }
 

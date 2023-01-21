@@ -70,15 +70,15 @@ impl OcPage {
         match table {
             Some(table) => match self.clocks_frame.set_table(table) {
                 Ok(()) => {
-                    self.clocks_frame.container.show();
+                    self.clocks_frame.show();
                 }
                 Err(err) => {
                     warn!("Got invalid clocks table: {err:?}");
-                    self.clocks_frame.container.hide();
+                    self.clocks_frame.hide();
                 }
             },
             None => {
-                self.clocks_frame.container.hide();
+                self.clocks_frame.hide();
             }
         }
     }
