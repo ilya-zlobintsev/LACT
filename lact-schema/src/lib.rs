@@ -31,6 +31,7 @@ pub struct SystemInfo<'a> {
     pub version: &'a str,
     pub profile: &'a str,
     pub kernel_version: String,
+    pub amdgpu_overdrive_enabled: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

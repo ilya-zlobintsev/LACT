@@ -8,7 +8,7 @@ use crate::{config::Config, socket};
 use anyhow::Context;
 use lact_schema::{Pong, Request, Response, SystemInfo};
 use serde::Serialize;
-use std::process::Command;
+use std::{fs, process::Command};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{UnixListener, UnixStream},
@@ -119,9 +119,27 @@ fn system_info() -> anyhow::Result<SystemInfo<'static>> {
         .trim()
         .to_owned();
 
+    let amdgpu_overdrive_enabled = if let Ok(ppfeaturemask) =
+        fs::read_to_string("/sys/module/amdgpu/parameters/ppfeaturemask")
+    {
+        const PP_OVERDRIVE_MASK: i32 = 0x4000;
+
+        let ppfeaturemask = ppfeaturemask
+            .trim()
+            .strip_prefix("0x")
+            .context("Invalid ppfeaturemask")?;
+        let ppfeaturemask: u64 =
+            u64::from_str_radix(ppfeaturemask, 16).context("Invalid ppfeaturemask")?;
+
+        Some((ppfeaturemask & PP_OVERDRIVE_MASK as u64) > 0)
+    } else {
+        None
+    };
+
     Ok(SystemInfo {
         version,
         profile,
         kernel_version,
+        amdgpu_overdrive_enabled,
     })
 }
