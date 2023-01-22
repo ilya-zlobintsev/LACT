@@ -54,8 +54,10 @@ impl ClocksFrame {
             .mclk
             .and_then(|range| range.try_into().ok())
             .context("No mclk range")?;
-        // TODO
-        // let (voltage_min, voltage_max) = ranges.vddc.
+        let (voltage_min, voltage_max) = ranges
+            .vddc
+            .and_then(|range| range.try_into().ok())
+            .context("No voltage range")?;
 
         self.max_sclk_adjustment.set_lower(sclk_min.into());
         self.max_sclk_adjustment.set_upper(sclk_max.into());
@@ -64,6 +66,11 @@ impl ClocksFrame {
         self.max_mclk_adjustment.set_lower(mclk_min.into());
         self.max_mclk_adjustment.set_upper(mclk_max.into());
         self.max_mclk_adjustment.set_value(current_mclk_max.into());
+
+        self.max_voltage_adjustment.set_lower(voltage_min.into());
+        self.max_voltage_adjustment.set_upper(voltage_max.into());
+        self.max_voltage_adjustment
+            .set_value(current_voltage_max.into());
 
         Ok(())
     }
