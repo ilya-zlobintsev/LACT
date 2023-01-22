@@ -1,5 +1,6 @@
 use crate::server::gpu_controller::fan_control::FanCurve;
 use anyhow::Context;
+use lact_schema::PerformanceLevel;
 use nix::unistd::getuid;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env, fs, path::PathBuf};
@@ -29,8 +30,12 @@ impl Default for DaemonConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct GpuConfig {
     pub fan_control_enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fan_control_settings: Option<FanControlSettings>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub power_cap: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub performance_level: Option<PerformanceLevel>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

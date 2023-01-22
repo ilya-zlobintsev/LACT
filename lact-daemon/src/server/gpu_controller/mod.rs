@@ -2,21 +2,22 @@ pub mod fan_control;
 
 use self::fan_control::FanCurve;
 use super::vulkan::get_vulkan_info;
-use crate::fork::run_forked;
+use crate::{config::GpuConfig, fork::run_forked};
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::GpuHandle,
     hw_mon::{FanControlMethod, HwMon},
+    sysfs::SysFS,
 };
 use anyhow::{anyhow, Context};
 use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, FanStats, GpuPciInfo, LinkInfo, PciInfo,
-    PowerStats, VoltageStats, VramStats,
+    PerformanceLevel, PowerStats, VoltageStats, VramStats,
 };
 use pciid_parser::Database;
 use std::{
     borrow::Cow,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -26,7 +27,7 @@ use tracing::{debug, error, info, trace, warn};
 type FanControlHandle = (Arc<Notify>, JoinHandle<()>, FanCurve);
 
 pub struct GpuController {
-    pub handle: GpuHandle,
+    handle: GpuHandle,
     pub pci_info: Option<GpuPciInfo>,
     pub fan_control_handle: Mutex<Option<FanControlHandle>>,
 }
@@ -90,6 +91,33 @@ impl GpuController {
             pci_info,
             fan_control_handle: Mutex::new(None),
         })
+    }
+
+    pub fn get_id(&self) -> anyhow::Result<String> {
+        let handle = &self.handle;
+        let pci_id = handle.get_pci_id().context("Device has no vendor id")?;
+        let pci_subsys_id = handle
+            .get_pci_subsys_id()
+            .context("Device has no subsys id")?;
+        let pci_slot_name = handle
+            .get_pci_slot_name()
+            .context("Device has no pci slot")?;
+
+        Ok(format!(
+            "{}:{}-{}:{}-{}",
+            pci_id.0, pci_id.1, pci_subsys_id.0, pci_subsys_id.1, pci_slot_name
+        ))
+    }
+
+    pub fn get_path(&self) -> &Path {
+        self.handle.get_path()
+    }
+
+    fn first_hw_mon(&self) -> anyhow::Result<&HwMon> {
+        self.handle
+            .hw_monitors
+            .first()
+            .context("GPU has no hardware monitor")
     }
 
     pub fn get_info(&self) -> DeviceInfo {
@@ -188,7 +216,7 @@ impl GpuController {
         self.handle.hw_monitors.first().map(f)
     }
 
-    pub async fn start_fan_control(
+    async fn start_fan_control(
         &self,
         curve: FanCurve,
         temp_key: String,
@@ -249,7 +277,7 @@ impl GpuController {
         Ok(())
     }
 
-    pub async fn stop_fan_control(&self, reset_mode: bool) -> anyhow::Result<()> {
+    async fn stop_fan_control(&self, reset_mode: bool) -> anyhow::Result<()> {
         let maybe_notify = self
             .fan_control_handle
             .lock()
@@ -258,19 +286,58 @@ impl GpuController {
         if let Some((notify, handle, _)) = maybe_notify {
             notify.notify_one();
             handle.await?;
+
+            if reset_mode {
+                let hw_mon = self
+                    .handle
+                    .hw_monitors
+                    .first()
+                    .cloned()
+                    .context("This GPU has no monitor")?;
+                hw_mon
+                    .set_fan_control_method(FanControlMethod::Auto)
+                    .context("Could not set fan control back to automatic")?;
+            }
         }
 
-        if reset_mode {
-            let hw_mon = self
-                .handle
-                .hw_monitors
-                .first()
-                .cloned()
-                .context("This GPU has no monitor")?;
-            hw_mon
-                .set_fan_control_method(FanControlMethod::Auto)
-                .context("Could not set fan control back to automatic")?;
+        Ok(())
+    }
+
+    pub async fn apply_config(&self, config: &GpuConfig) -> anyhow::Result<()> {
+        if config.fan_control_enabled {
+            if let Some(ref settings) = config.fan_control_settings {
+                let interval = Duration::from_millis(settings.interval_ms);
+                self.start_fan_control(
+                    settings.curve.clone(),
+                    settings.temperature_key.clone(),
+                    interval,
+                )
+                .await?;
+            } else {
+                return Err(anyhow!(
+                    "Trying to enable fan control with no settings provided"
+                ));
+            }
+        } else {
+            self.stop_fan_control(true).await?;
         }
+
+        if let Some(cap) = config.power_cap {
+            let hw_mon = self.first_hw_mon()?;
+            hw_mon.set_power_cap(cap)?;
+        } else if let Ok(hw_mon) = self.first_hw_mon() {
+            if let Ok(default_cap) = hw_mon.get_power_cap_default() {
+                hw_mon.set_power_cap(default_cap)?;
+            }
+        }
+
+        if let Some(level) = config.performance_level {
+            self.handle.set_power_force_performance_level(level)?;
+        } else if self.handle.get_power_force_performance_level().is_ok() {
+            self.handle
+                .set_power_force_performance_level(PerformanceLevel::Auto)?;
+        }
+
         Ok(())
     }
 }

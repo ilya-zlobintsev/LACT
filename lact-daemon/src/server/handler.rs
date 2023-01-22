@@ -1,6 +1,5 @@
 use super::gpu_controller::{fan_control::FanCurve, GpuController};
 use crate::config::{Config, FanControlSettings, GpuConfig};
-use amdgpu_sysfs::{hw_mon::HwMon, sysfs::SysFS};
 use anyhow::{anyhow, Context};
 use lact_schema::{
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel,
@@ -9,9 +8,8 @@ use std::{
     collections::HashMap,
     path::PathBuf,
     sync::{Arc, RwLock},
-    time::Duration,
 };
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 #[derive(Clone)]
 pub struct Handler {
@@ -39,29 +37,14 @@ impl<'a> Handler {
                 trace!("trying gpu controller at {:?}", entry.path());
                 let device_path = entry.path().join("device");
                 match GpuController::new_from_path(device_path) {
-                    Ok(controller) => {
-                        let handle = &controller.handle;
-                        let pci_id = handle.get_pci_id().context("Device has no vendor id")?;
-                        let pci_subsys_id = handle
-                            .get_pci_subsys_id()
-                            .context("Device has no subsys id")?;
-                        let pci_slot_name = handle
-                            .get_pci_slot_name()
-                            .context("Device has no pci slot")?;
-
-                        let id = format!(
-                            "{}:{}-{}:{}-{}",
-                            pci_id.0, pci_id.1, pci_subsys_id.0, pci_subsys_id.1, pci_slot_name
-                        );
-
-                        debug!(
-                            "initialized GPU controller {} for path {:?}",
-                            id,
-                            handle.get_path()
-                        );
-
-                        controllers.insert(id, controller);
-                    }
+                    Ok(controller) => match controller.get_id() {
+                        Ok(id) => {
+                            let path = controller.get_path();
+                            debug!("initialized GPU controller {id} for path {path:?}",);
+                            controllers.insert(id, controller);
+                        }
+                        Err(err) => warn!("could not initialize controller: {err:#}"),
+                    },
                     Err(error) => {
                         warn!(
                             "failed to initialize controller at {:?}, {error}",
@@ -74,29 +57,7 @@ impl<'a> Handler {
 
         for (id, gpu_config) in &config.gpus {
             if let Some(controller) = controllers.get(id) {
-                if gpu_config.fan_control_enabled {
-                    let settings = gpu_config.fan_control_settings.as_ref().context(
-                        "Fan control is enabled but no settings are defined (invalid config?)",
-                    )?;
-                    let interval = Duration::from_millis(settings.interval_ms);
-                    controller
-                        .start_fan_control(
-                            settings.curve.clone(),
-                            settings.temperature_key.clone(),
-                            interval,
-                        )
-                        .await?;
-                }
-
-                if let Some(power_cap) = gpu_config.power_cap {
-                    controller
-                        .handle
-                        .hw_monitors
-                        .first()
-                        .context("GPU has power cap defined but has no hardware monitor")?
-                        .set_power_cap(power_cap)
-                        .context("Could not set power cap")?;
-                }
+                controller.apply_config(gpu_config).await?;
             } else {
                 info!("could not find GPU with id {id} defined in configuration");
             }
@@ -108,18 +69,40 @@ impl<'a> Handler {
         })
     }
 
-    fn edit_config<F: FnOnce(&mut Config)>(&self, f: F) -> anyhow::Result<()> {
-        let mut config_guard = self.config.write().map_err(|err| anyhow!("{err}"))?;
-        f(&mut config_guard);
-        config_guard.save()?;
-        Ok(())
-    }
+    async fn edit_gpu_config<F: FnOnce(&mut GpuConfig)>(
+        &self,
+        id: String,
+        f: F,
+    ) -> anyhow::Result<()> {
+        let current_config = self
+            .config
+            .read()
+            .map_err(|err| anyhow!("{err}"))?
+            .gpus
+            .get(&id)
+            .cloned()
+            .unwrap_or_default();
 
-    fn edit_gpu_config<F: FnOnce(&mut GpuConfig)>(&self, id: String, f: F) -> anyhow::Result<()> {
-        self.edit_config(|config| {
-            let gpu_config = config.gpus.entry(id).or_default();
-            f(gpu_config);
-        })
+        let mut new_config = current_config.clone();
+        f(&mut new_config);
+
+        let controller = self.controller_by_id(&id)?;
+
+        match controller.apply_config(&new_config).await {
+            Ok(()) => {
+                let mut config_guard = self.config.write().unwrap();
+                config_guard.gpus.insert(id, new_config);
+                config_guard.save()?;
+                Ok(())
+            }
+            Err(apply_err) => {
+                error!("Could not apply settings: {apply_err:#}");
+                match controller.apply_config(&current_config).await {
+                    Ok(()) => Err(apply_err.context("Could not apply settings")),
+                    Err(err) => Err(anyhow!("Could not apply settings, and could not reset to default settings: {err:#}")),
+                }
+            }
+        }
     }
 
     fn controller_by_id(&self, id: &str) -> anyhow::Result<&GpuController> {
@@ -128,14 +111,6 @@ impl<'a> Handler {
             .get(id)
             .as_ref()
             .context("No controller with such id")?)
-    }
-
-    fn hw_mon_by_id(&self, id: &str) -> anyhow::Result<&HwMon> {
-        self.controller_by_id(id)?
-            .handle
-            .hw_monitors
-            .first()
-            .context("GPU has no hardware monitor")
     }
 
     pub fn list_devices(&'a self) -> Vec<DeviceListEntry<'a>> {
@@ -188,18 +163,8 @@ impl<'a> Handler {
                     }
                 }
             };
-            let interval = Duration::from_millis(settings.interval_ms);
-
-            self.controller_by_id(id)?
-                .start_fan_control(
-                    settings.curve.clone(),
-                    settings.temperature_key.clone(),
-                    interval,
-                )
-                .await?;
             Some(settings)
         } else {
-            self.controller_by_id(id)?.stop_fan_control(true).await?;
             None
         };
 
@@ -207,51 +172,31 @@ impl<'a> Handler {
             config.fan_control_enabled = enabled;
             config.fan_control_settings = settings
         })
+        .await
     }
 
-    pub fn set_power_cap(&'a self, id: &str, maybe_cap: Option<f64>) -> anyhow::Result<()> {
-        let hw_mon = self.hw_mon_by_id(id)?;
-
-        let cap = match maybe_cap {
-            Some(cap) => cap,
-            None => hw_mon.get_power_cap_default()?,
-        };
-        hw_mon.set_power_cap(cap)?;
-
+    pub async fn set_power_cap(&'a self, id: &str, maybe_cap: Option<f64>) -> anyhow::Result<()> {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
             gpu_config.power_cap = maybe_cap;
         })
+        .await
     }
 
-    pub fn set_performance_level(&self, id: &str, level: PerformanceLevel) -> anyhow::Result<()> {
-        self.controller_by_id(id)?
-            .handle
-            .set_power_force_performance_level(level)
-            .context("Could not set performance level")
+    pub async fn set_performance_level(
+        &self,
+        id: &str,
+        level: PerformanceLevel,
+    ) -> anyhow::Result<()> {
+        self.edit_gpu_config(id.to_owned(), |gpu_config| {
+            gpu_config.performance_level = Some(level);
+        })
+        .await
     }
 
     pub async fn cleanup(self) {
-        let config = self.config.read().unwrap().clone();
-        for (id, gpu_config) in config.gpus {
-            if let Ok(controller) = self.controller_by_id(&id) {
-                if gpu_config.fan_control_enabled {
-                    debug!("stopping fan control");
-                    controller
-                        .stop_fan_control(true)
-                        .await
-                        .expect("Could not stop fan control");
-                }
-
-                if let (Some(_), Some(hw_mon)) =
-                    (gpu_config.power_cap, controller.handle.hw_monitors.first())
-                {
-                    if let Ok(default_cap) = hw_mon.get_power_cap_default() {
-                        debug!("setting power limit to default");
-                        hw_mon
-                            .set_power_cap(default_cap)
-                            .expect("Could not set power cap to default");
-                    }
-                }
+        for (id, controller) in self.gpu_controllers.iter() {
+            if let Err(err) = controller.apply_config(&GpuConfig::default()).await {
+                error!("Could not reset settings for controller {id}: {err:#}");
             }
         }
     }
