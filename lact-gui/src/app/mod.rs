@@ -202,32 +202,6 @@ impl App {
             Err(_) => self.root_stack.thermals_page.hide_fan_controls(),
         }*/
 
-        {
-            // It's overkill to both show and hide the frame, but it needs to be done in set_info because show_all overrides the default hidden state of the frame.
-            match fs::read_to_string("/sys/module/amdgpu/parameters/ppfeaturemask") {
-                Ok(ppfeaturemask) => {
-                    const PP_OVERDRIVE_MASK: i32 = 0x4000;
-
-                    let ppfeaturemask = ppfeaturemask.trim().strip_prefix("0x").unwrap();
-
-                    trace!("ppfeaturemask {}", ppfeaturemask);
-
-                    let ppfeaturemask: u64 =
-                        u64::from_str_radix(ppfeaturemask, 16).expect("Invalid ppfeaturemask");
-
-                    /*if (ppfeaturemask & PP_OVERDRIVE_MASK as u64) > 0 {
-                        self.root_stack.oc_page.warning_frame.hide();
-                    } else {
-                        self.root_stack.oc_page.warning_frame.show();
-                    }*/
-                }
-                Err(_) => {
-                    info!("Failed to read feature mask! This is expected if your system doesn't have an AMD GPU.");
-                    // self.root_stack.oc_page.warning_frame.hide();
-                }
-            }
-        }
-
         self.set_initial(gpu_id);
     }
 

@@ -27,7 +27,7 @@ impl RootStack {
 
         container.add_titled(&info_page.container, Some("info_page"), "Information");
 
-        let oc_page = OcPage::new();
+        let oc_page = OcPage::new(&system_info);
 
         container.add_titled(&oc_page.container, Some("oc_page"), "OC");
 

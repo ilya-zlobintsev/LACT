@@ -2,17 +2,15 @@ mod clocks_frame;
 mod performance_level_frame;
 mod power_cap_frame;
 mod stats_grid;
-mod warning_frame;
 
 use clocks_frame::ClocksFrame;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{ClocksTableGen, DeviceStats, PerformanceLevel};
+use lact_client::schema::{ClocksTableGen, DeviceStats, PerformanceLevel, SystemInfo};
 use performance_level_frame::PerformanceLevelFrame;
 use power_cap_frame::PowerCapFrame;
 use stats_grid::StatsGrid;
 use tracing::warn;
-use warning_frame::WarningFrame;
 
 #[derive(Clone)]
 pub struct OcPage {
@@ -21,16 +19,21 @@ pub struct OcPage {
     performance_level_frame: PerformanceLevelFrame,
     power_cap_frame: PowerCapFrame,
     clocks_frame: ClocksFrame,
-    pub warning_frame: WarningFrame,
 }
 
 impl OcPage {
-    pub fn new() -> Self {
-        let container = Box::new(Orientation::Vertical, 5);
+    pub fn new(system_info: &SystemInfo) -> Self {
+        let container = Box::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(5)
+            .margin_top(5)
+            .margin_bottom(5)
+            .build();
 
-        let warning_frame = WarningFrame::new();
-
-        container.append(&warning_frame.container);
+        if system_info.amdgpu_overdrive_enabled == Some(false) {
+            let warning_frame = oc_warning_frame();
+            container.append(&warning_frame);
+        }
 
         let stats_grid = StatsGrid::new();
 
@@ -49,7 +52,6 @@ impl OcPage {
             stats_grid,
             performance_level_frame,
             clocks_frame,
-            warning_frame,
             power_cap_frame,
         }
     }
@@ -149,5 +151,20 @@ fn section_box(title: &str, spacing: i32, margin: i32) -> Box {
         .build();
 
     container.append(&label);
+    container
+}
+
+fn oc_warning_frame() -> Frame {
+    let container = Frame::new(Some("Overclocking information"));
+
+    container.set_label_align(0.3);
+
+    let warning_label = Label::new(None);
+
+    warning_label.set_wrap(true);
+    warning_label.set_markup("Overclocking support is not enabled! To enable overclocking support, you need to add <b>amdgpu.ppfeaturemask=0xffffffff</b> to your kernel boot options. Look for the documentation of your distro.");
+    warning_label.set_selectable(true);
+
+    container.set_child(Some(&warning_label));
     container
 }
