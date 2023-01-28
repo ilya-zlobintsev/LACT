@@ -82,15 +82,12 @@ mod tests {
     fn vec() {
         let response = unsafe {
             run_forked(|| {
-                let mut data = Vec::new();
-                data.push("hello".to_owned());
-                data.push("world".to_owned());
-                data.push("123".to_owned());
+                let data = ["hello", "world", "123"].map(str::to_owned);
                 Ok(data)
             })
             .unwrap()
         };
-        assert_eq!(response, vec!["hello", "world", "123"])
+        assert_eq!(response, ["hello", "world", "123"])
     }
 
     #[test]

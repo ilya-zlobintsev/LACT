@@ -30,7 +30,7 @@ fn list_gpus(_: &Args, client: &DaemonClient) -> Result<()> {
 }
 
 fn info(args: &Args, client: &DaemonClient) -> Result<()> {
-    for id in args.gpu_ids(&client) {
+    for id in args.gpu_ids(client) {
         let info_buffer = client.get_device_info(&id)?;
         let info = info_buffer.inner()?;
         let pci_info = info.pci_info.context("GPU reports no pci info")?;
