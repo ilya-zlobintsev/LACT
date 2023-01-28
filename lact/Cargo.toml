@@ -10,4 +10,4 @@ default = ["lact-gui"]
 lact-daemon = { path = "../lact-daemon" }
 lact-gui = { path = "../lact-gui", optional = true }
 anyhow = "1.0.68"
-clap = { version = "4.0.32", features = ["derive"] }
+clap = { version = "4.1.4", features = ["derive"] }
