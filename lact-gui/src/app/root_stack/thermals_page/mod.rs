@@ -4,7 +4,7 @@ use fan_curve_frame::FanCurveFrame;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{default_fan_curve, DeviceStats};
+use lact_client::schema::DeviceStats;
 use std::collections::BTreeMap;
 
 pub struct ThermalsSettings {
@@ -93,32 +93,22 @@ impl ThermalsPage {
         container.prepend(&grid);
 
         let fan_curve_frame = FanCurveFrame::new();
-        fan_curve_frame.set_curve(&default_fan_curve());
 
         container.append(&fan_curve_frame.container);
 
-        /*// Show/hide fan curve when the switch is toggled
+        // Show/hide fan curve when the switch is toggled
         {
             let fan_curve_frame = fan_curve_frame.clone();
-            fan_control_enabled_switch.connect_changed_active(move |switch| {
-                trace!("Fan control switch toggled");
-                if switch.state() {
-                    {
-                        glib::idle_add(|| {
-                            let diag = MessageDialog::new(None::<&Window>, DialogFlags::empty(), MessageType::Warning, ButtonsType::Ok,
-                            "Warning! Due to a driver bug, a reboot may be required for fan control to properly switch back to automatic.");
-                            diag.run();
-                            diag.hide();
-                            glib::Continue(false)
-                        });
-                    }
-
-                    fan_curve_frame.hide();
+            fan_control_enabled_switch.connect_state_set(move |_, state| {
+                if state {
+                    show_fan_control_warning();
+                    fan_curve_frame.container.hide();
                 } else {
-                    fan_curve_frame.show();
+                    fan_curve_frame.container.show();
                 }
+                Inhibit(false)
             });
-        }*/
+        }
 
         Self {
             container,
@@ -164,11 +154,11 @@ impl ThermalsPage {
             self.fan_control_enabled_switch
                 .set_active(!stats.fan.control_enabled);
 
-            /*if stats.fan.control_enabled {
-                self.fan_curve_frame.show();
+            if stats.fan.control_enabled {
+                self.fan_curve_frame.container.show();
             } else {
-                self.fan_curve_frame.hide();
-            }*/
+                self.fan_curve_frame.container.hide();
+            }
         }
 
         // TODO
@@ -201,4 +191,12 @@ impl ThermalsPage {
         self.fan_control_enabled_switch.set_visible(false);
         // self.fan_curve_frame.hide();
     }
+}
+
+fn show_fan_control_warning() {
+    let diag = MessageDialog::new(None::<&Window>, DialogFlags::empty(), MessageType::Warning, ButtonsType::Ok,
+                        "Warning! Due to a driver bug, a reboot may be required for fan control to properly switch back to automatic.");
+    diag.run_async(|diag, _| {
+        diag.hide();
+    })
 }

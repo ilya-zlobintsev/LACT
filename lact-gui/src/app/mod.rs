@@ -349,7 +349,7 @@ fn show_error(parent: &ApplicationWindow, err: anyhow::Error) {
         .message_type(MessageType::Error)
         .text(&text)
         .buttons(ButtonsType::Close)
-        .transient_for(&*parent)
+        .transient_for(parent)
         .build();
     diag.run_async(|diag, _| {
         diag.hide();

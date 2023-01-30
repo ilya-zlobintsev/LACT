@@ -57,15 +57,15 @@ impl FanCurveFrame {
         curve
     }*/
 
-    pub fn show(&self) {
-        debug!("Manual fan control enaged, showing fan curve");
-        self.container.set_visible(true);
-    }
+    // pub fn show(&self) {
+    //     debug!("Manual fan control enaged, showing fan curve");
+    //     self.container.set_visible(true);
+    // }
 
-    pub fn hide(&self) {
-        debug!("Manual fan control disenaged, hiding fan curve");
-        self.container.set_visible(false);
-    }
+    // pub fn hide(&self) {
+    //     debug!("Manual fan control disenaged, hiding fan curve");
+    //     self.container.set_visible(false);
+    // }
 
     /*pub fn connect_adjusted<F: Fn() + 'static + Clone>(&self, f: F) {
         let adjustments = [
