@@ -16,7 +16,7 @@ pciid-parser = { version = "0.6", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-tokio = { version = "1.24.2", features = [
+tokio = { version = "1.25.0", features = [
     "rt",
     "macros",
     "net",
@@ -29,4 +29,4 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 vulkano = { git = "https://github.com/vulkano-rs/vulkano" }
 lact-schema = { path = "../lact-schema" }
-futures = { version = "0.3.25", default-features = false, features = ["std", "alloc"] }
+futures = { version = "0.3.26", default-features = false, features = ["std", "alloc"] }
