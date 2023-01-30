@@ -723,6 +723,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "lact-cli",
  "lact-daemon",
  "lact-gui",
 ]

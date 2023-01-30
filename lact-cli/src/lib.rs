@@ -1,22 +1,20 @@
-mod args;
+pub mod args;
 
 use anyhow::{Context, Result};
-use args::{Args, Command};
-use clap::Parser;
+use args::{CliArgs, CliCommand};
 use lact_client::DaemonClient;
 
-fn main() -> Result<()> {
-    let args = Args::parse();
+pub fn run(args: CliArgs) -> Result<()> {
     let client = DaemonClient::connect()?;
 
     let f = match args.subcommand {
-        Command::ListGpus => list_gpus,
-        Command::Info => info,
+        CliCommand::ListGpus => list_gpus,
+        CliCommand::Info => info,
     };
     f(&args, &client)
 }
 
-fn list_gpus(_: &Args, client: &DaemonClient) -> Result<()> {
+fn list_gpus(_: &CliArgs, client: &DaemonClient) -> Result<()> {
     let buffer = client.list_devices()?;
     for entry in buffer.inner()? {
         let id = entry.id;
@@ -29,7 +27,7 @@ fn list_gpus(_: &Args, client: &DaemonClient) -> Result<()> {
     Ok(())
 }
 
-fn info(args: &Args, client: &DaemonClient) -> Result<()> {
+fn info(args: &CliArgs, client: &DaemonClient) -> Result<()> {
     for id in args.gpu_ids(client) {
         let info_buffer = client.get_device_info(&id)?;
         let info = info_buffer.inner()?;

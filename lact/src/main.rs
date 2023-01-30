@@ -10,6 +10,7 @@ fn main() -> anyhow::Result<()> {
     match command {
         Command::Daemon => lact_daemon::run(),
         Command::Gui => run_gui(),
+        Command::Cli(cli_args) => lact_cli::run(cli_args),
     }
 }
 

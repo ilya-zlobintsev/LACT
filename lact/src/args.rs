@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use lact_cli::args::CliArgs;
 
 #[derive(Parser)]
 pub struct Args {
@@ -12,4 +13,5 @@ pub enum Command {
     Daemon,
     /// Run the GUI
     Gui,
+    Cli(CliArgs),
 }
