@@ -1,11 +1,11 @@
-// mod fan_curve_frame;
+mod fan_curve_frame;
 
+use fan_curve_frame::FanCurveFrame;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::DeviceStats;
+use lact_client::schema::{default_fan_curve, DeviceStats};
 use std::collections::BTreeMap;
-// use fan_curve_frame::FanCurveFrame;
 
 pub struct ThermalsSettings {
     pub automatic_fan_control_enabled: bool,
@@ -18,7 +18,7 @@ pub struct ThermalsPage {
     temp_label: Label,
     fan_speed_label: Label,
     fan_control_enabled_switch: Switch,
-    // fan_curve_frame: FanCurveFrame,
+    fan_curve_frame: FanCurveFrame,
 }
 
 impl ThermalsPage {
@@ -92,11 +92,12 @@ impl ThermalsPage {
 
         container.prepend(&grid);
 
-        /*let fan_curve_frame = FanCurveFrame::new();
+        let fan_curve_frame = FanCurveFrame::new();
+        fan_curve_frame.set_curve(&default_fan_curve());
 
-        container.pack_start(&fan_curve_frame.container, true, true, 5);
+        container.append(&fan_curve_frame.container);
 
-        // Show/hide fan curve when the switch is toggled
+        /*// Show/hide fan curve when the switch is toggled
         {
             let fan_curve_frame = fan_curve_frame.clone();
             fan_control_enabled_switch.connect_changed_active(move |switch| {
@@ -124,7 +125,7 @@ impl ThermalsPage {
             temp_label,
             fan_speed_label,
             fan_control_enabled_switch,
-            // fan_curve_frame,
+            fan_curve_frame,
         }
     }
 

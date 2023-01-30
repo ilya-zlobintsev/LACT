@@ -1,6 +1,6 @@
 use amdgpu_sysfs::hw_mon::Temperature;
 use anyhow::anyhow;
-use lact_schema::FanCurveMap;
+use lact_schema::{default_fan_curve, FanCurveMap};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -51,17 +51,7 @@ impl FanCurve {
 
 impl Default for FanCurve {
     fn default() -> Self {
-        Self(
-            [
-                (30, 0.0),
-                (40, 0.2),
-                (50, 0.35),
-                (60, 0.5),
-                (70, 0.75),
-                (80, 1.0),
-            ]
-            .into(),
-        )
+        Self(default_fan_curve())
     }
 }
 
