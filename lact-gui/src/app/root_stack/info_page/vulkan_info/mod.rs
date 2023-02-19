@@ -145,7 +145,7 @@ impl VulkanInfoFrame {
     }
 
     pub fn set_info(&self, vulkan_info: &VulkanInfo) {
-        trace!("Setting vulkan info: {:?}", vulkan_info);
+        trace!("setting vulkan info: {:?}", vulkan_info);
 
         self.device_name_label
             .set_markup(&format!("<b>{}</b>", vulkan_info.device_name));

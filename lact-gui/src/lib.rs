@@ -29,8 +29,8 @@ fn create_connection() -> anyhow::Result<DaemonClient> {
     match DaemonClient::connect() {
         Ok(connection) => Ok(connection),
         Err(err) => {
-            info!("Could not connect to socket: {err}");
-            info!("Using a local daemon");
+            info!("could not connect to socket: {err}");
+            info!("using a local daemon");
 
             let (server_stream, client_stream) = UnixStream::pair()?;
 

@@ -75,7 +75,7 @@ impl OcPage {
                     self.clocks_frame.show();
                 }
                 Err(err) => {
-                    warn!("Got invalid clocks table: {err:?}");
+                    warn!("got invalid clocks table: {err:?}");
                     self.clocks_frame.hide();
                 }
             },

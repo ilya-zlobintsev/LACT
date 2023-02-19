@@ -269,7 +269,7 @@ impl GpuController {
 
         *notify_guard = Some((notify, handle, curve));
 
-        info!(
+        debug!(
             "started fan control with interval {}ms",
             interval.as_millis()
         );

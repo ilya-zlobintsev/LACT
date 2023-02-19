@@ -11,11 +11,10 @@ use header::Header;
 use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
 use root_stack::RootStack;
-use std::fs;
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, trace, warn};
 
 // In ms
 const STATS_POLL_INTERVAL: u64 = 250;
@@ -85,7 +84,7 @@ impl App {
 
 
                     app.header.connect_gpu_selection_changed(clone!(@strong app, @strong current_gpu_id => move |gpu_id| {
-                        info!("GPU Selection changed");
+                        debug!("GPU Selection changed");
                         app.set_info(&gpu_id);
                         *current_gpu_id.write().unwrap() = gpu_id;
                     }));
@@ -160,7 +159,7 @@ impl App {
             .expect("Could not fetch info");
         let info = info_buf.inner().unwrap();
 
-        trace!("Setting info {info:?}");
+        trace!("setting info {info:?}");
 
         self.root_stack.info_page.set_info(&info);
 
@@ -199,12 +198,12 @@ impl App {
             Ok(clocks_buf) => match clocks_buf.inner() {
                 Ok(info) => info.table,
                 Err(err) => {
-                    debug!("Could not extract clocks info: {err:?}");
+                    debug!("could not extract clocks info: {err:?}");
                     None
                 }
             },
             Err(err) => {
-                debug!("Could not fetch clocks info: {err:?}");
+                debug!("could not fetch clocks info: {err:?}");
                 None
             }
         };
@@ -213,7 +212,7 @@ impl App {
         // Show apply button on setting changes
         // This is done here because new widgets may appear after applying settings (like fan curve points) which should be connected
         let show_revealer = clone!(@strong self.apply_revealer as apply_revealer => move || {
-                debug!("Settings changed, showing apply button");
+                debug!("settings changed, showing apply button");
                 apply_revealer.show();
         });
 
@@ -261,7 +260,7 @@ impl App {
             clone!(@strong self.root_stack as root_stack => move |msg| {
                 match msg {
                     GuiUpdateMsg::GpuStats(stats) => {
-                        trace!("New stats received, updating {stats:?}");
+                        trace!("new stats received, updating {stats:?}");
                         root_stack.info_page.set_stats(&stats);
                         root_stack.thermals_page.set_stats(&stats, false);
                         root_stack.oc_page.set_stats(&stats, false);
@@ -276,7 +275,7 @@ impl App {
     }
 
     fn apply_settings(&self, current_gpu_id: Arc<RwLock<String>>) -> anyhow::Result<()> {
-        info!("Applying settings");
+        debug!("applying settings");
 
         let gpu_id = current_gpu_id.read().unwrap();
 
@@ -316,7 +315,7 @@ impl App {
         }
 
         let thermals_settings = self.root_stack.thermals_page.get_thermals_settings();
-        debug!("Applying thermal settings: {thermals_settings:?}");
+        debug!("applying thermal settings: {thermals_settings:?}");
 
         self.daemon_client
             .set_fan_control(

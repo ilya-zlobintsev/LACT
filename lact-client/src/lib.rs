@@ -30,7 +30,7 @@ impl DaemonClient {
     pub fn connect() -> anyhow::Result<Self> {
         let path =
             get_socket_path().context("Could not connect to daemon: socket file not found")?;
-        info!("Connecting to service at {path:?}");
+        info!("connecting to service at {path:?}");
         let stream = UnixStream::connect(path).context("Could not connect to daemon")?;
         Self::from_stream(stream, false)
     }
