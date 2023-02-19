@@ -218,7 +218,7 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
             .hexpand(true)
             .halign(Align::Start)
             .build();
-        let checkbox = CheckButton::builder().sensitive(false).build();
+        let image = Image::new();
         let vbox = Box::builder()
             .orientation(Orientation::Horizontal)
             .spacing(5)
@@ -226,7 +226,7 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
             .margin_end(10)
             .build();
         vbox.append(&label);
-        vbox.append(&checkbox);
+        vbox.append(&image);
         item.set_child(Some(&vbox));
     });
 
@@ -237,12 +237,18 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
         let vbox = item.child().and_downcast::<Box>().unwrap();
         let children = vbox.observe_children();
         let label = children.item(0).and_downcast::<Label>().unwrap();
-        let checkbox = children.item(1).and_downcast::<CheckButton>().unwrap();
+        let image = children.item(1).and_downcast::<Image>().unwrap();
 
         let text = model.property::<String>("name");
         let supported = model.property::<bool>("supported");
         label.set_text(&text);
-        checkbox.set_active(supported);
+
+        let icon_name = if supported {
+            "emblem-ok-symbolic"
+        } else {
+            "action-unavailable-symbolic"
+        };
+        image.set_icon_name(Some(icon_name));
     });
 
     let list_view = ListView::new(Some(selection_model), Some(factory));
