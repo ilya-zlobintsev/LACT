@@ -264,7 +264,7 @@ impl GpuController {
                     break;
                 }
             }
-            info!("exited fan control task");
+            debug!("exited fan control task");
         });
 
         *notify_guard = Some((notify, handle, curve));

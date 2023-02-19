@@ -78,14 +78,40 @@ impl FanCurveFrame {
             curve_frame.set_curve(&curve);
         }));
 
+        add_button.connect_clicked(clone!(@strong curve_frame  => move |_| {
+            curve_frame.add_point();
+        }));
+
+        remove_button.connect_clicked(clone!(@strong curve_frame  => move |_| {
+            curve_frame.remove_point();
+        }));
+
         curve_frame
+    }
+
+    fn add_point(&self) {
+        let mut curve = self.get_curve();
+        if let Some((temperature, ratio)) = curve.iter().last() {
+            curve.insert(temperature + 5, *ratio);
+            self.set_curve(&curve);
+        }
+    }
+
+    fn remove_point(&self) {
+        let mut curve = self.get_curve();
+        curve.pop_last();
+        self.set_curve(&curve);
+    }
+
+    fn notify_changed(&self) {
+        if let Some(point) = self.points.borrow().first() {
+            point.ratio.emit_by_name::<()>("value-changed", &[]);
+        }
     }
 
     pub fn set_curve(&self, curve: &FanCurveMap) {
         // Notify that the values were changed when the entire curve is overwritten, e.g. when resetting to default
-        if let Some(point) = self.points.borrow().first() {
-            point.ratio.emit_by_name::<()>("value-changed", &[]);
-        }
+        self.notify_changed();
 
         let points_container = Box::builder()
             .orientation(Orientation::Horizontal)
