@@ -306,6 +306,10 @@ impl GpuController {
     pub async fn apply_config(&self, config: &GpuConfig) -> anyhow::Result<()> {
         if config.fan_control_enabled {
             if let Some(ref settings) = config.fan_control_settings {
+                if settings.curve.0.is_empty() {
+                    return Err(anyhow!("Cannot use empty fan curve"));
+                }
+
                 let interval = Duration::from_millis(settings.interval_ms);
                 self.start_fan_control(
                     settings.curve.clone(),

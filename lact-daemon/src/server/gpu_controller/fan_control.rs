@@ -26,7 +26,6 @@ impl FanCurve {
         let percentage = match (maybe_lower, maybe_higher) {
             (Some((lower_temp, lower_speed)), Some((higher_temp, higher_speed))) => {
                 let speed_ratio = (current - lower_temp) as f32 / (higher_temp - lower_temp) as f32;
-                println!("RATIO for temp {current}: {speed_ratio}");
                 lower_speed + (higher_speed - lower_speed) * speed_ratio
             }
             (Some((_, lower_speed)), None) => *lower_speed,

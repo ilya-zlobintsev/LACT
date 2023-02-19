@@ -100,24 +100,6 @@ impl App {
                 let devices = devices_buf.inner().expect("Could not access devices");
                 app.header.set_devices(&devices);
 
-                // Show apply button on setting changes
-                {
-                    let apply_revealer = app.apply_revealer.clone();
-
-                    app.root_stack
-                        .thermals_page
-                        .connect_settings_changed(move || {
-                            debug!("Settings changed, showing apply button");
-                            apply_revealer.show();
-                        });
-
-                    let apply_revealer = app.apply_revealer.clone();
-
-                    app.root_stack.oc_page.connect_settings_changed(move || {
-                        debug!("Settings changed, showing apply button");
-                        apply_revealer.show();
-                    });
-                }
 
                 {
                     let app = app.clone();
@@ -230,6 +212,21 @@ impl App {
         };
         self.root_stack.oc_page.set_clocks_table(maybe_clocks_table);
 
+        // Show apply button on setting changes
+        // This is done here because new widgets may appear after applying settings (like fan curve points) which should be connected
+        let show_revealer = clone!(@strong self.apply_revealer as apply_revealer => move || {
+                debug!("Settings changed, showing apply button");
+                apply_revealer.show();
+        });
+
+        self.root_stack
+            .thermals_page
+            .connect_settings_changed(show_revealer.clone());
+
+        self.root_stack
+            .oc_page
+            .connect_settings_changed(show_revealer);
+
         self.apply_revealer.hide();
     }
 
@@ -285,16 +282,6 @@ impl App {
 
         let gpu_id = current_gpu_id.read().unwrap();
 
-        /*let thermals_settings = self.root_stack.thermals_page.get_thermals_settings();
-
-        self.daemon_client
-            .set_fan_control(
-                &gpu_id,
-                thermals_settings.automatic_fan_control_enabled,
-                None,
-            )
-            .context("Could not set fan control")?;*/
-
         // TODO
         /*self.daemon_client
         .set_fan_curve(gpu_id, thermals_settings.curve)
@@ -329,6 +316,17 @@ impl App {
                 .set_performance_level(&gpu_id, level)
                 .context("Failed to set power profile")?;
         }
+
+        let thermals_settings = self.root_stack.thermals_page.get_thermals_settings();
+        debug!("Applying thermal settings: {thermals_settings:?}");
+
+        self.daemon_client
+            .set_fan_control(
+                &gpu_id,
+                thermals_settings.manual_fan_control,
+                thermals_settings.curve,
+            )
+            .context("Could not set fan control")?;
 
         self.set_initial(&gpu_id);
 

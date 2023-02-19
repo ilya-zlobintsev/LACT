@@ -4,12 +4,12 @@ use fan_curve_frame::FanCurveFrame;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::DeviceStats;
-use std::collections::BTreeMap;
+use lact_client::schema::{default_fan_curve, DeviceStats, FanCurveMap};
 
+#[derive(Debug)]
 pub struct ThermalsSettings {
-    pub automatic_fan_control_enabled: bool,
-    pub curve: BTreeMap<i64, f64>,
+    pub manual_fan_control: bool,
+    pub curve: Option<FanCurveMap>,
 }
 
 #[derive(Clone)]
@@ -154,15 +154,19 @@ impl ThermalsPage {
             self.fan_control_enabled_switch
                 .set_active(!stats.fan.control_enabled);
 
+            if let Some(curve) = &stats.fan.curve {
+                self.fan_curve_frame.set_curve(curve);
+            }
+
             if stats.fan.control_enabled {
                 self.fan_curve_frame.container.show();
             } else {
                 self.fan_curve_frame.container.hide();
+                if self.fan_curve_frame.get_curve().is_empty() {
+                    self.fan_curve_frame.set_curve(&default_fan_curve());
+                }
             }
         }
-
-        // TODO
-        // self.fan_curve_frame.set_curve(&fan_control_info.curve);
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
@@ -172,24 +176,23 @@ impl ThermalsPage {
                 Inhibit(false)
             }));
 
-        /*self.fan_curve_frame.connect_adjusted(move || {
+        self.fan_curve_frame.connect_adjusted(move || {
             f();
-        });*/
+        });
     }
 
-    /*pub fn get_thermals_settings(&self) -> ThermalsSettings {
-        let automatic_fan_control_enabled = self.fan_control_enabled_switch.state();
-        let curve = self.fan_curve_frame.get_curve();
+    pub fn get_thermals_settings(&self) -> ThermalsSettings {
+        let manual_fan_control = !self.fan_control_enabled_switch.state();
+        let curve = if manual_fan_control {
+            Some(self.fan_curve_frame.get_curve())
+        } else {
+            None
+        };
 
         ThermalsSettings {
-            automatic_fan_control_enabled,
+            manual_fan_control,
             curve,
         }
-    }*/
-
-    pub fn hide_fan_controls(&self) {
-        self.fan_control_enabled_switch.set_visible(false);
-        // self.fan_curve_frame.hide();
     }
 }
 
