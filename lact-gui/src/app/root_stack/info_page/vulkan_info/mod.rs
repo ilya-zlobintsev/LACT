@@ -205,7 +205,7 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
         .incremental(true)
         .build();
 
-    let selection_model = NoSelection::new(Some(&filter_model));
+    let selection_model = NoSelection::new(Some(filter_model));
 
     let factory = gtk::SignalListItemFactory::new();
 
@@ -245,7 +245,7 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
         checkbox.set_active(supported);
     });
 
-    let list_view = ListView::new(Some(&selection_model), Some(&factory));
+    let list_view = ListView::new(Some(selection_model), Some(factory));
     let scroll_window = ScrolledWindow::builder()
         .child(&list_view)
         .vexpand(true)
