@@ -6,7 +6,7 @@ use gtk::graphene::Point;
 use gtk::gsk::Transform;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::FanCurveMap;
+use lact_client::schema::{default_fan_curve, FanCurveMap};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -47,22 +47,46 @@ impl FanCurveFrame {
 
         let temperature_title_label = Label::new(Some("Temperature (°C)"));
 
-        // let add_button = Button::builder().icon_name("list-add-symbolic").build();
+        let buttons_box = Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(5)
+            .halign(Align::End)
+            .build();
+
+        let add_button = Button::builder().icon_name("list-add-symbolic").build();
+        let remove_button = Button::builder().icon_name("list-remove-symbolic").build();
+        let default_button = Button::builder().label("Default").build();
+
+        buttons_box.append(&default_button);
+        buttons_box.append(&remove_button);
+        buttons_box.append(&add_button);
 
         root_box.append(&hbox);
         root_box.append(&temperature_title_label);
-        // root_box.append(&add_button);
+        root_box.append(&buttons_box);
 
         let points = Rc::new(RefCell::new(Vec::new()));
 
-        Self {
+        let curve_frame = Self {
             container: root_box,
             curve_container,
             points,
-        }
+        };
+
+        default_button.connect_clicked(clone!(@strong curve_frame => move |_| {
+            let curve = default_fan_curve();
+            curve_frame.set_curve(&curve);
+        }));
+
+        curve_frame
     }
 
     pub fn set_curve(&self, curve: &FanCurveMap) {
+        // Notify that the values were changed when the entire curve is overwritten, e.g. when resetting to default
+        if let Some(point) = self.points.borrow().first() {
+            point.ratio.emit_by_name::<()>("value-changed", &[]);
+        }
+
         let points_container = Box::builder()
             .orientation(Orientation::Horizontal)
             .spacing(5)

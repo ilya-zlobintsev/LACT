@@ -83,15 +83,12 @@ impl App {
 
                 let current_gpu_id = Arc::new(RwLock::new(String::new()));
 
-                {
-                    let current_gpu_id = current_gpu_id.clone();
 
-                    app.header.connect_gpu_selection_changed(clone!(@strong app => move |gpu_id| {
+                    app.header.connect_gpu_selection_changed(clone!(@strong app, @strong current_gpu_id => move |gpu_id| {
                         info!("GPU Selection changed");
                         app.set_info(&gpu_id);
                         *current_gpu_id.write().unwrap() = gpu_id;
                     }));
-                }
 
                 let devices_buf = app
                     .daemon_client
@@ -138,7 +135,7 @@ impl App {
                     app.set_initial(&gpu_id)
                 }));
 
-                app.start_stats_update_loop(current_gpu_id.clone());
+                app.start_stats_update_loop(current_gpu_id);
 
                 app.window.show();
 
@@ -151,6 +148,7 @@ impl App {
                 }
             }));
 
+        // Args are passed manually since they were already processed by clap before
         self.application.run_with_args::<String>(&[]);
         Ok(())
     }
