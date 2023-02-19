@@ -1,5 +1,7 @@
 # Linux AMDGPU Control Application
 
+<img src="res/lact.png" alt="icon" width="100"/>
+
 This application allows you to control your AMD GPU on a Linux system.
 
 |                                              |                                              |                                             |

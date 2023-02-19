@@ -38,6 +38,7 @@ impl App {
             .title("LACT")
             .default_width(500)
             .default_height(600)
+            .icon_name(APP_ID)
             .build();
 
         window.set_titlebar(Some(&header.container));

@@ -22,7 +22,7 @@ use std::{
     time::Duration,
 };
 use tokio::{select, sync::Notify, task::JoinHandle, time::sleep};
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, trace, warn};
 
 type FanControlHandle = (Arc<Notify>, JoinHandle<()>, FanCurve);
 
