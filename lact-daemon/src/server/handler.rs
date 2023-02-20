@@ -131,7 +131,12 @@ impl<'a> Handler {
     }
 
     pub fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
-        self.controller_by_id(id)?.get_stats()
+        let config = self
+            .config
+            .read()
+            .map_err(|err| anyhow!("Could not read config: {err:?}"))?;
+        let gpu_config = config.gpus.get(id);
+        self.controller_by_id(id)?.get_stats(gpu_config)
     }
 
     pub fn get_clocks_info(&'a self, id: &str) -> anyhow::Result<ClocksInfo> {
@@ -144,9 +149,9 @@ impl<'a> Handler {
         enabled: bool,
         curve: Option<FanCurveMap>,
     ) -> anyhow::Result<()> {
-        let settings = if enabled {
-            let settings = {
-                let curve = curve.map_or_else(FanCurve::default, FanCurve);
+        let settings = match curve {
+            Some(raw_curve) => {
+                let curve = FanCurve(raw_curve);
                 curve.validate()?;
 
                 let mut config_guard = self.config.write().map_err(|err| anyhow!("{err}"))?;
@@ -154,18 +159,16 @@ impl<'a> Handler {
 
                 if let Some(mut existing_settings) = gpu_config.fan_control_settings.clone() {
                     existing_settings.curve = curve;
-                    existing_settings
+                    Some(existing_settings)
                 } else {
-                    FanControlSettings {
+                    Some(FanControlSettings {
                         curve,
                         temperature_key: "edge".to_owned(),
                         interval_ms: 500,
-                    }
+                    })
                 }
-            };
-            Some(settings)
-        } else {
-            None
+            }
+            None => None,
         };
 
         self.edit_gpu_config(id.to_owned(), |config| {

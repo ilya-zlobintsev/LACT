@@ -315,16 +315,17 @@ impl App {
                 .context("Failed to set power profile")?;
         }
 
-        let thermals_settings = self.root_stack.thermals_page.get_thermals_settings();
-        debug!("applying thermal settings: {thermals_settings:?}");
+        if let Some(thermals_settings) = self.root_stack.thermals_page.get_thermals_settings() {
+            debug!("applying thermal settings: {thermals_settings:?}");
 
-        self.daemon_client
-            .set_fan_control(
-                &gpu_id,
-                thermals_settings.manual_fan_control,
-                thermals_settings.curve,
-            )
-            .context("Could not set fan control")?;
+            self.daemon_client
+                .set_fan_control(
+                    &gpu_id,
+                    thermals_settings.manual_fan_control,
+                    thermals_settings.curve,
+                )
+                .context("Could not set fan control")?;
+        }
 
         self.set_initial(&gpu_id);
 

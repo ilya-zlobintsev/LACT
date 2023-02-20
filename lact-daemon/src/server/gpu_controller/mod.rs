@@ -24,7 +24,7 @@ use std::{
 use tokio::{select, sync::Notify, task::JoinHandle, time::sleep};
 use tracing::{debug, error, trace, warn};
 
-type FanControlHandle = (Arc<Notify>, JoinHandle<()>, FanCurve);
+type FanControlHandle = (Arc<Notify>, JoinHandle<()>);
 
 pub struct GpuController {
     handle: GpuHandle,
@@ -156,18 +156,19 @@ impl GpuController {
         }
     }
 
-    pub fn get_stats(&self) -> anyhow::Result<DeviceStats> {
-        let fan_control_guard = self
+    pub fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> anyhow::Result<DeviceStats> {
+        let fan_control_enabled = self
             .fan_control_handle
             .lock()
-            .map_err(|err| anyhow!("Could not lock fan control mutex: {err}"))?;
+            .map_err(|err| anyhow!("Could not lock fan control mutex: {err}"))?
+            .is_some();
 
         Ok(DeviceStats {
             fan: FanStats {
-                control_enabled: fan_control_guard.is_some(),
-                curve: fan_control_guard
-                    .as_ref()
-                    .map(|(_, _, curve)| curve.0.clone()),
+                control_enabled: fan_control_enabled,
+                curve: gpu_config
+                    .and_then(|config| config.fan_control_settings.as_ref())
+                    .map(|settings| settings.curve.0.clone()),
                 speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
                 speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
                 speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
@@ -242,8 +243,6 @@ impl GpuController {
 
         let notify = Arc::new(Notify::new());
         let task_notify = notify.clone();
-        let task_curve = curve.clone();
-        debug!("using curve {curve:?}");
 
         let handle = tokio::spawn(async move {
             loop {
@@ -256,7 +255,7 @@ impl GpuController {
                 let temp = temps
                     .remove(&temp_key)
                     .expect("Could not get temperature by given key");
-                let target_pwm = task_curve.pwm_at_temp(temp);
+                let target_pwm = curve.pwm_at_temp(temp);
                 trace!("fan control tick: setting pwm to {target_pwm}");
 
                 if let Err(err) = hw_mon.set_fan_pwm(target_pwm) {
@@ -267,7 +266,7 @@ impl GpuController {
             debug!("exited fan control task");
         });
 
-        *notify_guard = Some((notify, handle, curve));
+        *notify_guard = Some((notify, handle));
 
         debug!(
             "started fan control with interval {}ms",
@@ -283,7 +282,7 @@ impl GpuController {
             .lock()
             .map_err(|err| anyhow!("Lock error: {err}"))?
             .take();
-        if let Some((notify, handle, _)) = maybe_notify {
+        if let Some((notify, handle)) = maybe_notify {
             notify.notify_one();
             handle.await?;
 

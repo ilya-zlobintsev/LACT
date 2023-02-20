@@ -181,17 +181,18 @@ impl ThermalsPage {
         });
     }
 
-    pub fn get_thermals_settings(&self) -> ThermalsSettings {
-        let manual_fan_control = !self.fan_control_enabled_switch.state();
-        let curve = if manual_fan_control {
-            Some(self.fan_curve_frame.get_curve())
+    pub fn get_thermals_settings(&self) -> Option<ThermalsSettings> {
+        if self.fan_control_enabled_switch.is_sensitive() {
+            let manual_fan_control = !self.fan_control_enabled_switch.state();
+            let curve = self.fan_curve_frame.get_curve();
+            let curve = if curve.is_empty() { None } else { Some(curve) };
+
+            Some(ThermalsSettings {
+                manual_fan_control,
+                curve,
+            })
         } else {
             None
-        };
-
-        ThermalsSettings {
-            manual_fan_control,
-            curve,
         }
     }
 }

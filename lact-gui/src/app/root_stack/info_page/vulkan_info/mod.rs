@@ -176,7 +176,7 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
         .build();
 
     let base_model = gio::ListStore::new(FeatureModel::static_type());
-    base_model.extend_from_slice(&items);
+    base_model.extend_from_slice(items);
 
     let expression = PropertyExpression::new(FeatureModel::static_type(), Expression::NONE, "name");
     let filter = StringFilter::builder()
