@@ -2,7 +2,7 @@ pub mod fan_control;
 
 use self::fan_control::FanCurve;
 use super::vulkan::get_vulkan_info;
-use crate::{config::GpuConfig, fork::run_forked};
+use crate::{config, fork::run_forked};
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::GpuHandle,
@@ -156,7 +156,7 @@ impl GpuController {
         }
     }
 
-    pub fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> anyhow::Result<DeviceStats> {
+    pub fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<DeviceStats> {
         let fan_control_enabled = self
             .fan_control_handle
             .lock()
@@ -302,7 +302,7 @@ impl GpuController {
         Ok(())
     }
 
-    pub async fn apply_config(&self, config: &GpuConfig) -> anyhow::Result<()> {
+    pub async fn apply_config(&self, config: &config::Gpu) -> anyhow::Result<()> {
         if config.fan_control_enabled {
             if let Some(ref settings) = config.fan_control_settings {
                 if settings.curve.0.is_empty() {

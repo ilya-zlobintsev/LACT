@@ -1,5 +1,5 @@
 use super::gpu_controller::{fan_control::FanCurve, GpuController};
-use crate::config::{Config, FanControlSettings, GpuConfig};
+use crate::config::{self, Config, FanControlSettings};
 use anyhow::{anyhow, Context};
 use lact_schema::{
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel,
@@ -69,7 +69,7 @@ impl<'a> Handler {
         })
     }
 
-    async fn edit_gpu_config<F: FnOnce(&mut GpuConfig)>(
+    async fn edit_gpu_config<F: FnOnce(&mut config::Gpu)>(
         &self,
         id: String,
         f: F,
@@ -173,7 +173,7 @@ impl<'a> Handler {
 
         self.edit_gpu_config(id.to_owned(), |config| {
             config.fan_control_enabled = enabled;
-            config.fan_control_settings = settings
+            config.fan_control_settings = settings;
         })
         .await
     }
@@ -198,7 +198,7 @@ impl<'a> Handler {
 
     pub async fn cleanup(self) {
         for (id, controller) in self.gpu_controllers.iter() {
-            if let Err(err) = controller.apply_config(&GpuConfig::default()).await {
+            if let Err(err) = controller.apply_config(&config::Gpu::default()).await {
                 error!("Could not reset settings for controller {id}: {err:#}");
             }
         }

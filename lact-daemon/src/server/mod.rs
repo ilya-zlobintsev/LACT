@@ -23,9 +23,9 @@ pub struct Server {
 impl Server {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
         let handler = Handler::new(config).await?;
-        let listener = socket::listen().await?;
+        let listener = socket::listen()?;
 
-        Ok(Self { listener, handler })
+        Ok(Self { handler, listener })
     }
 
     pub async fn run(self) {
@@ -35,7 +35,7 @@ impl Server {
                     let handler = self.handler.clone();
                     tokio::spawn(async move {
                         if let Err(error) = handle_stream(stream, handler).await {
-                            error!("{error}")
+                            error!("{error}");
                         }
                     });
                 }

@@ -7,6 +7,11 @@ use tracing::warn;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FanCurve(pub FanCurveMap);
 
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss
+)]
 impl FanCurve {
     pub fn pwm_at_temp(&self, temp: Temperature) -> u8 {
         let current = temp.current.expect("No current temp");
@@ -33,7 +38,7 @@ impl FanCurve {
             (None, None) => panic!("Could not find fan speed on the curve! This is a bug."),
         };
 
-        (u8::MAX as f32 * percentage) as u8
+        (f32::from(u8::MAX) * percentage) as u8
     }
 }
 

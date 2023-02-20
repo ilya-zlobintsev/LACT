@@ -87,7 +87,7 @@ mod tests {
             })
             .unwrap()
         };
-        assert_eq!(response, ["hello", "world", "123"])
+        assert_eq!(response, ["hello", "world", "123"]);
     }
 
     #[test]

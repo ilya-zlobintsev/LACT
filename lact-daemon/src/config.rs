@@ -10,16 +10,16 @@ const FILE_NAME: &str = "config.yaml";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Config {
-    pub daemon: DaemonConfig,
-    pub gpus: HashMap<String, GpuConfig>,
+    pub daemon: Daemon,
+    pub gpus: HashMap<String, Gpu>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DaemonConfig {
+pub struct Daemon {
     pub log_level: String,
 }
 
-impl Default for DaemonConfig {
+impl Default for Daemon {
     fn default() -> Self {
         Self {
             log_level: "info".to_owned(),
@@ -28,7 +28,7 @@ impl Default for DaemonConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-pub struct GpuConfig {
+pub struct Gpu {
     pub fan_control_enabled: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fan_control_settings: Option<FanControlSettings>,
@@ -68,13 +68,12 @@ impl Config {
     }
 
     pub fn load_or_create() -> anyhow::Result<Self> {
-        match Config::load()? {
-            Some(config) => Ok(config),
-            None => {
-                let config = Config::default();
-                config.save()?;
-                Ok(config)
-            }
+        if let Some(config) = Config::load()? {
+            Ok(config)
+        } else {
+            let config = Config::default();
+            config.save()?;
+            Ok(config)
         }
     }
 }
@@ -94,16 +93,16 @@ fn get_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{Config, DaemonConfig, FanControlSettings, GpuConfig};
+    use super::{Config, Daemon, FanControlSettings, Gpu};
     use crate::server::gpu_controller::fan_control::FanCurve;
 
     #[test]
     fn serde_de_full() {
         let config = Config {
-            daemon: DaemonConfig::default(),
+            daemon: Daemon::default(),
             gpus: [(
                 "my-gpu-id".to_owned(),
-                GpuConfig {
+                Gpu {
                     fan_control_enabled: true,
                     fan_control_settings: Some(FanControlSettings {
                         curve: FanCurve::default(),

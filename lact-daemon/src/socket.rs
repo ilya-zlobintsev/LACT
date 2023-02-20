@@ -14,7 +14,7 @@ pub fn get_socket_path() -> PathBuf {
     if uid.is_root() {
         PathBuf::from_str("/var/run/lactd.sock").unwrap()
     } else {
-        PathBuf::from_str(&format!("/var/run/user/{}/lactd.sock", uid)).unwrap()
+        PathBuf::from_str(&format!("/var/run/user/{uid}/lactd.sock")).unwrap()
     }
 }
 
@@ -22,12 +22,12 @@ pub fn cleanup() {
     let socket_path = get_socket_path();
 
     if socket_path.exists() {
-        fs::remove_file(socket_path).expect("failed to remove socket")
+        fs::remove_file(socket_path).expect("failed to remove socket");
     }
     debug!("removed socket");
 }
 
-pub async fn listen() -> anyhow::Result<UnixListener> {
+pub fn listen() -> anyhow::Result<UnixListener> {
     let socket_path = get_socket_path();
 
     if socket_path.exists() {

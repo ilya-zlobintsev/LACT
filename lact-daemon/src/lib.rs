@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+
 mod config;
 mod fork;
 mod server;
@@ -22,6 +24,10 @@ const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
     SignalKind::hangup(),
 ];
 
+/// Run the daemon, binding to the default socket.
+///
+/// # Errors
+/// Returns an error when the daemon cannot initialize.
 pub fn run() -> anyhow::Result<()> {
     let rt = runtime::Builder::new_current_thread()
         .enable_all()
@@ -42,6 +48,11 @@ pub fn run() -> anyhow::Result<()> {
     })
 }
 
+/// Run the daemon with a given `UnixStream`.
+/// This will NOT bind to a socket by itself, and the daemon will only be accessible via the given stream.
+///
+/// # Errors
+/// Returns an error when the daemon cannot initialize.
 pub fn run_embedded(stream: StdUnixStream) -> anyhow::Result<()> {
     let rt = runtime::Builder::new_current_thread()
         .enable_all()
