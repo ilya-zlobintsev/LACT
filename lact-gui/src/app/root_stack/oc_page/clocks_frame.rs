@@ -1,5 +1,4 @@
 use super::section_box;
-use anyhow::{anyhow, Context};
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{ClocksTable, ClocksTableGen};
@@ -39,38 +38,36 @@ impl ClocksFrame {
     }
 
     pub fn set_table(&self, table: ClocksTableGen) -> anyhow::Result<()> {
-        let current_sclk_max = table.get_max_sclk().context("No max sclk clockspeed")?;
-        let current_mclk_max = table.get_max_mclk().context("No max mclk clockspeed")?;
-        let current_voltage_max = table
-            .get_max_sclk_voltage()
-            .context("No max sclk voltage")?;
+        if let Some((current_sclk_max, sclk_min, sclk_max)) =
+            extract_value_and_range(&table, |table| {
+                (table.get_max_sclk(), table.get_max_sclk_range())
+            })
+        {
+            self.max_sclk_adjustment.set_lower(sclk_min.into());
+            self.max_sclk_adjustment.set_upper(sclk_max.into());
+            self.max_sclk_adjustment.set_value(current_sclk_max.into());
+        }
 
-        let ranges = table.get_allowed_ranges();
-        let (sclk_min, sclk_max) = ranges
-            .sclk
-            .try_into()
-            .map_err(|_| anyhow!("No sclk range"))?;
-        let (mclk_min, mclk_max) = ranges
-            .mclk
-            .and_then(|range| range.try_into().ok())
-            .context("No mclk range")?;
-        let (voltage_min, voltage_max) = ranges
-            .vddc
-            .and_then(|range| range.try_into().ok())
-            .context("No voltage range")?;
+        if let Some((current_mclk_max, mclk_min, mclk_max)) =
+            extract_value_and_range(&table, |table| {
+                (table.get_max_mclk(), table.get_max_mclk_range())
+            })
+        {
+            self.max_mclk_adjustment.set_lower(mclk_min.into());
+            self.max_mclk_adjustment.set_upper(mclk_max.into());
+            self.max_mclk_adjustment.set_value(current_mclk_max.into());
+        }
 
-        self.max_sclk_adjustment.set_lower(sclk_min.into());
-        self.max_sclk_adjustment.set_upper(sclk_max.into());
-        self.max_sclk_adjustment.set_value(current_sclk_max.into());
-
-        self.max_mclk_adjustment.set_lower(mclk_min.into());
-        self.max_mclk_adjustment.set_upper(mclk_max.into());
-        self.max_mclk_adjustment.set_value(current_mclk_max.into());
-
-        self.max_voltage_adjustment.set_lower(voltage_min.into());
-        self.max_voltage_adjustment.set_upper(voltage_max.into());
-        self.max_voltage_adjustment
-            .set_value(current_voltage_max.into());
+        if let Some((current_voltage_max, voltage_min, voltage_max)) =
+            extract_value_and_range(&table, |table| {
+                (table.get_max_sclk_voltage(), table.get_max_voltage_range())
+            })
+        {
+            self.max_voltage_adjustment.set_lower(voltage_min.into());
+            self.max_voltage_adjustment.set_upper(voltage_max.into());
+            self.max_voltage_adjustment
+                .set_value(current_voltage_max.into());
+        }
 
         Ok(())
     }
@@ -84,6 +81,16 @@ impl ClocksFrame {
         self.tweaking_grid.hide();
         self.clocks_data_unavailable_label.show();
     }
+}
+
+fn extract_value_and_range(
+    table: &ClocksTableGen,
+    f: fn(&ClocksTableGen) -> (Option<u32>, Option<lact_client::schema::Range>),
+) -> Option<(u32, u32, u32)> {
+    let (maybe_value, maybe_range) = f(table);
+    let (value, range) = maybe_value.zip(maybe_range)?;
+    let (min, max) = range.try_into().ok()?;
+    Some((value, min, max))
 }
 
 fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> Adjustment {
