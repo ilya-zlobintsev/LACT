@@ -11,8 +11,8 @@ use amdgpu_sysfs::{
 };
 use anyhow::{anyhow, Context};
 use lact_schema::{
-    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, FanStats, GpuPciInfo, LinkInfo, PciInfo,
-    PerformanceLevel, PowerStats, VoltageStats, VramStats,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, FanStats, GpuPciInfo,
+    LinkInfo, PciInfo, PerformanceLevel, PowerStats, VoltageStats, VramStats,
 };
 use pciid_parser::Database;
 use std::{
@@ -27,7 +27,7 @@ use tracing::{debug, error, trace, warn};
 type FanControlHandle = (Arc<Notify>, JoinHandle<()>);
 
 pub struct GpuController {
-    handle: GpuHandle,
+    pub handle: GpuHandle,
     pub pci_info: Option<GpuPciInfo>,
     pub fan_control_handle: Mutex<Option<FanControlHandle>>,
 }
@@ -339,6 +339,27 @@ impl GpuController {
         } else if self.handle.get_power_force_performance_level().is_ok() {
             self.handle
                 .set_power_force_performance_level(PerformanceLevel::Auto)?;
+        }
+
+        if config.max_core_clock.is_some()
+            || config.max_memory_clock.is_some()
+            || config.max_voltage.is_some()
+        {
+            let mut table = self.handle.get_clocks_table()?;
+
+            if let Some(clockspeed) = config.max_core_clock {
+                table.set_max_sclk(clockspeed)?;
+            }
+            if let Some(clockspeed) = config.max_memory_clock {
+                table.set_max_mclk(clockspeed)?;
+            }
+            if let Some(voltage) = config.max_voltage {
+                table.set_max_voltage(voltage)?;
+            }
+
+            self.handle
+                .set_clocks_table(&table)
+                .context("Could not write clocks table")?;
         }
 
         Ok(())

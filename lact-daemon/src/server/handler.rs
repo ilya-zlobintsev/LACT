@@ -2,7 +2,8 @@ use super::gpu_controller::{fan_control::FanCurve, GpuController};
 use crate::config::{self, Config, FanControlSettings};
 use anyhow::{anyhow, Context};
 use lact_schema::{
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel,
+    request::SetClocksCommand, ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
+    PerformanceLevel,
 };
 use std::{
     collections::HashMap,
@@ -196,8 +197,36 @@ impl<'a> Handler {
         .await
     }
 
+    pub async fn set_clocks_value(
+        &self,
+        id: &str,
+        command: SetClocksCommand,
+    ) -> anyhow::Result<()> {
+        if let SetClocksCommand::Reset = command {
+            self.controller_by_id(id)?.handle.reset_clocks_table()?;
+        }
+
+        self.edit_gpu_config(id.to_owned(), |gpu_config| match command {
+            SetClocksCommand::MaxCoreClock(clock) => gpu_config.max_core_clock = Some(clock),
+            SetClocksCommand::MaxMemoryClock(clock) => gpu_config.max_memory_clock = Some(clock),
+            SetClocksCommand::MaxVoltage(voltage) => gpu_config.max_voltage = Some(voltage),
+            SetClocksCommand::Reset => {
+                gpu_config.max_core_clock = None;
+                gpu_config.max_memory_clock = None;
+                gpu_config.max_voltage = None;
+            }
+        })
+        .await
+    }
+
     pub async fn cleanup(self) {
         for (id, controller) in self.gpu_controllers.iter() {
+            if controller.handle.get_clocks_table().is_ok() {
+                if let Err(err) = controller.handle.reset_clocks_table() {
+                    error!("Could not reset the clocks table: {err}");
+                }
+            }
+
             if let Err(err) = controller.apply_config(&config::Gpu::default()).await {
                 error!("Could not reset settings for controller {id}: {err:#}");
             }

@@ -30,4 +30,17 @@ pub enum Request<'a> {
         id: &'a str,
         performance_level: PerformanceLevel,
     },
+    SetClocksValue {
+        id: &'a str,
+        command: SetClocksCommand,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum SetClocksCommand {
+    MaxCoreClock(u32),
+    MaxMemoryClock(u32),
+    MaxVoltage(u32),
+    Reset,
 }

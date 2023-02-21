@@ -92,6 +92,9 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
             id,
             performance_level,
         } => ok_response(handler.set_performance_level(id, performance_level).await?),
+        Request::SetClocksValue { id, command } => {
+            ok_response(handler.set_clocks_value(id, command).await?)
+        }
     }
 }
 

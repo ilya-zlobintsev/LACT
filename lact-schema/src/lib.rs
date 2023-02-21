@@ -1,4 +1,4 @@
-mod request;
+pub mod request;
 mod response;
 
 #[cfg(test)]

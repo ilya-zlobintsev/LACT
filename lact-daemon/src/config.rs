@@ -3,6 +3,7 @@ use anyhow::Context;
 use lact_schema::PerformanceLevel;
 use nix::unistd::getuid;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use std::{collections::HashMap, env, fs, path::PathBuf};
 use tracing::debug;
 
@@ -27,15 +28,16 @@ impl Default for Daemon {
     }
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Gpu {
     pub fan_control_enabled: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub fan_control_settings: Option<FanControlSettings>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub power_cap: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub performance_level: Option<PerformanceLevel>,
+    pub max_core_clock: Option<u32>,
+    pub max_memory_clock: Option<u32>,
+    pub max_voltage: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
