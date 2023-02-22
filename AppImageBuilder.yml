@@ -7,9 +7,9 @@ script: |
 AppDir:
   path: /home/ilya/dev/LACT/AppDir
   app_info:
-    id: lact
+    id: io.github.lact-linux
     name: LACT
-    icon: lact
+    icon: io.github.lact-linux
     version: latest
     exec: usr/bin/lact
     exec_args: $@
