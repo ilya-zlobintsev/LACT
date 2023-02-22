@@ -4,7 +4,9 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-amdgpu-sysfs = { version = "0.9.2", features = ["serde"] }
+amdgpu-sysfs = { git = "https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs", branch = "fix/vddgfx-offset", features = [
+    "serde",
+] }
 serde = { version = "1.0", features = ["derive"] }
 indexmap = { version = "*", features = ["serde"] }
 
