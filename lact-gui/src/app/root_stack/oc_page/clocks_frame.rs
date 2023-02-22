@@ -1,4 +1,5 @@
 use super::section_box;
+use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{ClocksTable, ClocksTableGen};
@@ -10,6 +11,7 @@ pub struct ClocksFrame {
     max_sclk_adjustment: Adjustment,
     max_mclk_adjustment: Adjustment,
     max_voltage_adjustment: Adjustment,
+    reset_button: Button,
     clocks_data_unavailable_label: Label,
 }
 
@@ -22,6 +24,12 @@ impl ClocksFrame {
         let max_voltage_adjustment = oc_adjustment("GPU voltage (mV)", &tweaking_grid, 1);
         let max_mclk_adjustment = oc_adjustment("VRAM Clock (MHz)", &tweaking_grid, 2);
 
+        let reset_button = Button::builder()
+            .label("Defaults")
+            .halign(Align::End)
+            .build();
+        tweaking_grid.attach(&reset_button, 4, 3, 1, 1);
+
         let clocks_data_unavailable_label = Label::new(Some("No clocks data available"));
 
         container.append(&tweaking_grid);
@@ -33,6 +41,7 @@ impl ClocksFrame {
             max_sclk_adjustment,
             max_mclk_adjustment,
             max_voltage_adjustment,
+            reset_button,
             clocks_data_unavailable_label,
         }
     }
@@ -81,6 +90,33 @@ impl ClocksFrame {
         self.tweaking_grid.hide();
         self.clocks_data_unavailable_label.show();
     }
+
+    pub fn connect_clocks_changed<F: Fn() + 'static + Clone>(&self, f: F) {
+        let f = clone!(@strong f => move |_: &Adjustment| f());
+        self.max_sclk_adjustment.connect_value_changed(f.clone());
+        self.max_mclk_adjustment.connect_value_changed(f.clone());
+        self.max_voltage_adjustment.connect_value_changed(f);
+    }
+
+    pub fn connect_clocks_reset<F: Fn() + 'static + Clone>(&self, f: F) {
+        self.reset_button.connect_clicked(move |_| f());
+    }
+
+    pub fn get_settings(&self) -> ClocksSettings {
+        if self.tweaking_grid.is_visible() {
+            let max_core_clock = zero_to_option(self.max_sclk_adjustment.value());
+            let max_memory_clock = zero_to_option(self.max_mclk_adjustment.value());
+            let max_voltage = zero_to_option(self.max_voltage_adjustment.value());
+
+            ClocksSettings {
+                max_core_clock,
+                max_memory_clock,
+                max_voltage,
+            }
+        } else {
+            ClocksSettings::default()
+        }
+    }
 }
 
 fn extract_value_and_range(
@@ -111,4 +147,19 @@ fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> Adjustment {
     grid.attach(&scale, 1, row, 4, 1);
 
     adjustment
+}
+
+#[derive(Debug, Default)]
+pub struct ClocksSettings {
+    pub max_core_clock: Option<u32>,
+    pub max_memory_clock: Option<u32>,
+    pub max_voltage: Option<u32>,
+}
+
+fn zero_to_option(value: f64) -> Option<u32> {
+    if value == 0.0 {
+        None
+    } else {
+        Some(value as u32)
+    }
 }

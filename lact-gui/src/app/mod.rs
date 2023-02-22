@@ -8,6 +8,7 @@ use apply_revealer::ApplyRevealer;
 use glib::clone;
 use gtk::{gio::ApplicationFlags, prelude::*, *};
 use header::Header;
+use lact_client::schema::request::SetClocksCommand;
 use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
 use root_stack::RootStack;
@@ -98,25 +99,20 @@ impl App {
                 app.header.set_devices(&devices);
 
 
-                {
-                    let app = app.clone();
-                    let current_gpu_id = current_gpu_id.clone();
+                app.root_stack.oc_page.clocks_frame.connect_clocks_reset(clone!(@strong app, @strong current_gpu_id => move || {
+                    debug!("Resetting clocks");
 
-                    // TODO
-                    /*app.root_stack.oc_page.connect_clocks_reset(move || {
-                        info!("Resetting clocks, but not applying");
+                    let gpu_id = current_gpu_id.read().unwrap();
 
-                        let gpu_id = current_gpu_id.load(Ordering::SeqCst);
-
-                        app.daemon_client
-                            .reset_gpu_power_states(gpu_id)
-                            .expect("Failed to reset clocks");
-
-                        app.set_info(gpu_id);
-
-                        app.apply_revealer.show();
-                    })*/
-                }
+                    match app.daemon_client.set_clocks_value(&gpu_id, SetClocksCommand::Reset) {
+                        Ok(()) => {
+                            app.set_initial(&gpu_id);
+                        }
+                        Err(err) => {
+                            show_error(&app.window, err);
+                        }
+                    }
+                }));
 
                 app.apply_revealer.connect_apply_button_clicked(
                     clone!(@strong app, @strong current_gpu_id => move || {
@@ -325,6 +321,26 @@ impl App {
                     thermals_settings.curve,
                 )
                 .context("Could not set fan control")?;
+        }
+
+        let clocks_settings = self.root_stack.oc_page.clocks_frame.get_settings();
+
+        if let Some(clock) = clocks_settings.max_core_clock {
+            self.daemon_client
+                .set_clocks_value(&gpu_id, SetClocksCommand::MaxCoreClock(clock))
+                .context("Could not set the maximum core clock")?;
+        }
+
+        if let Some(clock) = clocks_settings.max_memory_clock {
+            self.daemon_client
+                .set_clocks_value(&gpu_id, SetClocksCommand::MaxMemoryClock(clock))
+                .context("Could not set the maximum memory clock")?;
+        }
+
+        if let Some(voltage) = clocks_settings.max_voltage {
+            self.daemon_client
+                .set_clocks_value(&gpu_id, SetClocksCommand::MaxVoltage(voltage))
+                .context("Could not set the maximum voltage")?;
         }
 
         self.set_initial(&gpu_id);

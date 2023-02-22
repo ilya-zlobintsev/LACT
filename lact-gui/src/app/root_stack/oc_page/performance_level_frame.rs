@@ -29,7 +29,6 @@ impl PerformanceLevelFrame {
         root_box.append(&description_label);
 
         {
-            let description_label = description_label.clone();
             combo_box.connect_changed(move |combobox| match combobox.active().unwrap() {
                 0 => description_label
                     .set_text("Automatically adjust GPU and VRAM clocks. (Default)"),

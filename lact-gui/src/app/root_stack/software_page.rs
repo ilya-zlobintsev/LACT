@@ -31,7 +31,7 @@ pub fn software_page(system_info: SystemInfo, embedded: bool) -> Grid {
     }
     let version_label = Label::builder()
         .use_markup(true)
-        .label(&format!("<b>{daemon_version}</b>"))
+        .label(format!("<b>{daemon_version}</b>"))
         .hexpand(true)
         .halign(Align::Start)
         .build();
@@ -51,7 +51,7 @@ pub fn software_page(system_info: SystemInfo, embedded: bool) -> Grid {
     );
     let kernel_version_label = Label::builder()
         .use_markup(true)
-        .label(&format!("<b>{}</b>", system_info.kernel_version))
+        .label(format!("<b>{}</b>", system_info.kernel_version))
         .hexpand(true)
         .halign(Align::Start)
         .build();

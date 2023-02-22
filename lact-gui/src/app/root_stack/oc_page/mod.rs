@@ -18,7 +18,7 @@ pub struct OcPage {
     stats_grid: StatsGrid,
     performance_level_frame: PerformanceLevelFrame,
     power_cap_frame: PowerCapFrame,
-    clocks_frame: ClocksFrame,
+    pub clocks_frame: ClocksFrame,
 }
 
 impl OcPage {
@@ -85,22 +85,11 @@ impl OcPage {
         }
     }
 
-    pub fn connect_clocks_reset<F: Fn() + 'static + Clone>(&self, f: F) {
-        /*self.clocks_frame.connect_clocks_reset(move || {
-            f();
-        });*/
-        todo!()
-    }
-
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         self.performance_level_frame
             .connect_power_profile_changed(f.clone());
-        self.power_cap_frame.connect_cap_changed(f);
-
-        /*let f = f.clone();
-        self.clocks_frame.connect_clocks_changed(move || {
-            f();
-        })*/
+        self.power_cap_frame.connect_cap_changed(f.clone());
+        self.clocks_frame.connect_clocks_changed(f);
     }
 
     pub fn set_performance_level(&self, profile: Option<PerformanceLevel>) {
@@ -146,7 +135,7 @@ fn section_box(title: &str, spacing: i32, margin: i32) -> Box {
 
     let label = Label::builder()
         .use_markup(true)
-        .label(&format!("<span font_desc='11'><b>{title}</b></span>"))
+        .label(format!("<span font_desc='11'><b>{title}</b></span>"))
         .xalign(0.1)
         .build();
 

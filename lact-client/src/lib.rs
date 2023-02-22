@@ -6,8 +6,8 @@ pub use lact_schema as schema;
 use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
 use schema::{
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel, Request,
-    Response, SystemInfo,
+    request::SetClocksCommand, ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
+    PerformanceLevel, Request, Response, SystemInfo,
 };
 use serde::Deserialize;
 use std::{
@@ -101,6 +101,11 @@ impl DaemonClient {
             performance_level,
         })?
         .inner()
+    }
+
+    pub fn set_clocks_value(&self, id: &str, command: SetClocksCommand) -> anyhow::Result<()> {
+        self.make_request(Request::SetClocksValue { id, command })?
+            .inner()
     }
 }
 

@@ -157,7 +157,7 @@ impl InformationPage {
                     .subsystem_pci_info
                     .model
                     .as_deref()
-                    .or_else(|| pci_info.device_pci_info.model.as_deref())
+                    .or(pci_info.device_pci_info.model.as_deref())
             })
             .unwrap_or_default();
         self.gpu_name_label
@@ -171,7 +171,7 @@ impl InformationPage {
                     .subsystem_pci_info
                     .vendor
                     .as_deref()
-                    .or_else(|| pci_info.device_pci_info.model.as_deref())
+                    .or(pci_info.device_pci_info.model.as_deref())
             })
             .unwrap_or_default();
         self.gpu_manufacturer_label
