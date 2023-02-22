@@ -26,7 +26,8 @@ dependencies = [
 [[package]]
 name = "amdgpu-sysfs"
 version = "0.9.2"
-source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs?branch=fix/vddgfx-offset#183eef73983756307bcfe99bde21edbab47a30a0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3bc14034a62b09ab17d9fa18ea0c292b6b4c616864eb611c1ffbbca90d4a58b8"
 dependencies = [
  "enum_dispatch",
  "serde",
