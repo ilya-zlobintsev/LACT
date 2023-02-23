@@ -1,0 +1,15 @@
+---
+recipes_dir: pkg/recipes
+output_dir: pkg/output
+images_dir: pkg/images
+log_dir: ~
+runtime_uri: ~
+gpg_key: ~
+gpg_name: ~
+ssh: ~
+images:
+  - name: debian
+    target: deb
+  - name: fedora-37
+    target: rpm
+custom_simple_images: ~

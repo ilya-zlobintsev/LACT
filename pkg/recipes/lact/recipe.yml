@@ -1,0 +1,33 @@
+metadata:
+  name: lact
+  description: AMDGPU control utility
+  arch: x86_64
+  license: MIT
+  version: 0.2.0
+  maintainer: ilya-zlobintsev
+  url: https://github.com/ilya-zlobintsev/lact
+  source:
+    - '../../..'
+  provides: [ lact ]
+  depends:
+    all: [ hwdata ]
+    debian: [ libgtk-4-1 ]
+    fedora-37: [ gtk4 ]
+  build_depends:
+    all: [ curl, make ]
+    debian: [ libgtk-4-dev, pkg-config, build-essential ]
+    fedora-37: [ gtk4-devel, gcc ]
+  images: [ debian, fedora-37 ]
+env:
+  RUSTUP_URL: https://sh.rustup.rs
+configure:
+  steps:
+    - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
+    - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
+build:
+  steps:
+    - cmd: bash -c "source $HOME/.cargo/env && make"
+install:
+  steps:
+    - cmd: bash -c "cd $PKGER_BLD_DIR && DESTDIR=$PKGER_OUT_DIR/usr make install"
+

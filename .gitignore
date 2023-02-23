@@ -5,3 +5,4 @@ AppDir/
 *.AppImage.zsync
 appimage-build/
 *.stignore
+pkg/output
