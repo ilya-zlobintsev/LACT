@@ -1,0 +1,26 @@
+name: Build packages
+
+on:
+  push:
+    branches: ['v2', 'master']
+
+jobs:
+  build-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install pkger
+        run: |
+          curl -L -o /tmp/pkger.deb https://github.com/vv9k/pkger/releases/download/0.11.0/pkger-0.11.0-0.amd64.deb
+          sudo apt -y install /tmp/pkger.deb
+
+      - name: Build packages
+        run: pkger -c .pkger.yml build lact
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Packages
+          path: pkg/output/*
+
