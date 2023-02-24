@@ -4,6 +4,10 @@ version = "0.2.0"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2021"
 
+[features]
+default = ["gtk-tests"]
+gtk-tests = []
+
 [dependencies]
 lact-client = { path = "../lact-client" }
 lact-daemon = { path = "../lact-daemon" }

@@ -23,7 +23,7 @@ jobs:
       - name: Build
         run: cargo build
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --verbose --no-default-features
 
   check-format:
     runs-on: ubuntu-22.04

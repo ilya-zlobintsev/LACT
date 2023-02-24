@@ -155,7 +155,7 @@ impl FanCurveFrame {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "gtk-tests"))]
 mod tests {
     use super::FanCurveFrame;
     use lact_client::schema::default_fan_curve;
