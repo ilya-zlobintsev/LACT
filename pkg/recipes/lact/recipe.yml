@@ -11,13 +11,13 @@ metadata:
   provides: [ lact ]
   depends:
     all: [ hwdata ]
-    debian: [ libgtk-4-1 ]
+    debian-12: [ libgtk-4-1 ]
     fedora-37: [ gtk4 ]
   build_depends:
     all: [ curl, make ]
-    debian: [ libgtk-4-dev, pkg-config, build-essential ]
+    debian-12: [ libgtk-4-dev, pkg-config, build-essential ]
     fedora-37: [ gtk4-devel, gcc ]
-  images: [ debian, fedora-37 ]
+  all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs
 configure:

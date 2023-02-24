@@ -19,8 +19,35 @@ jobs:
       - name: Build packages
         run: pkger -c .pkger.yml build lact
 
-      - uses: actions/upload-artifact@v3
+      - name: Copy release files
+        run: |
+          OUT_DIR=$PWD/release-artifacts
+          mkdir -p $OUT_DIR
+          
+          pushd pkg/output
+          for DISTRO in $(ls); do
+              cd $DISTRO
+              rm -f *.src.rpm
+          
+              for FILE in $(ls); do
+                  NAME="${FILE%.*}"
+                  EXT="${FILE##*.}"
+          
+          	OUT_NAME="$OUT_DIR/$NAME.$DISTRO.$EXT"
+          	cp $FILE $OUT_NAME
+              done 
+              cd ..
+          done
+          popd
+
+      - name: Create release
+        uses: ncipollo/release-action@v1.12.0
         with:
-          name: Packages
-          path: pkg/output/*
+          removeArtifacts: true
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          artifacts: "release-artifacts/*"
+          body: ${{ github.event.head_commit.message }}
+          prerelease: true
+          name: Test release
 
