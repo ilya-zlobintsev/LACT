@@ -1,3 +1,10 @@
 [workspace]
 resolver = "2"
-members = ["lact*"]
+members = [
+    "lact",
+    "lact-cli",
+    "lact-gui",
+    "lact-schema",
+    "lact-client",
+    "lact-daemon",
+]
