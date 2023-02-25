@@ -31,6 +31,13 @@ impl InformationPage {
         container.set_row_spacing(7);
         container.set_column_spacing(5);
 
+        // Dummy label to prevent the gpu name label from stealing focus
+        let dummy_label = Label::builder()
+            .selectable(true)
+            .halign(Align::Start)
+            .build();
+        container.attach(&dummy_label, 0, 0, 1, 1);
+
         container.attach(
             &{
                 let label = Label::new(Some("GPU Model:"));
@@ -43,9 +50,7 @@ impl InformationPage {
             1,
         );
 
-        let gpu_name_label = Label::new(None);
-        gpu_name_label.set_halign(Align::Start);
-
+        let gpu_name_label = value_label();
         container.attach(&gpu_name_label, 2, 0, 3, 1);
 
         container.attach(
@@ -60,9 +65,7 @@ impl InformationPage {
             1,
         );
 
-        let gpu_manufacturer_label = Label::new(None);
-        gpu_manufacturer_label.set_halign(Align::Start);
-
+        let gpu_manufacturer_label = value_label();
         container.attach(&gpu_manufacturer_label, 2, 1, 3, 1);
 
         container.attach(
@@ -77,9 +80,7 @@ impl InformationPage {
             1,
         );
 
-        let vbios_version_label = Label::new(None);
-        vbios_version_label.set_halign(Align::Start);
-
+        let vbios_version_label = value_label();
         container.attach(&vbios_version_label, 2, 2, 3, 1);
 
         container.attach(
@@ -94,9 +95,7 @@ impl InformationPage {
             1,
         );
 
-        let driver_label = Label::new(None);
-        driver_label.set_halign(Align::Start);
-
+        let driver_label = value_label();
         container.attach(&driver_label, 2, 3, 3, 1);
 
         container.attach(
@@ -111,9 +110,7 @@ impl InformationPage {
             1,
         );
 
-        let vram_size_label = Label::new(None);
-        vram_size_label.set_halign(Align::Start);
-
+        let vram_size_label = value_label();
         container.attach(&vram_size_label, 2, 4, 3, 1);
 
         container.attach(
@@ -128,7 +125,7 @@ impl InformationPage {
             1,
         );
 
-        let link_speed_label = Label::new(None);
+        let link_speed_label = value_label();
         link_speed_label.set_halign(Align::Start);
 
         container.attach(&link_speed_label, 2, 5, 3, 1);
@@ -210,4 +207,11 @@ impl InformationPage {
         self.vram_size_label
             .set_markup(&format!("<b>{vram_size} MiB</b>"));
     }
+}
+
+fn value_label() -> Label {
+    Label::builder()
+        .selectable(true)
+        .halign(Align::Start)
+        .build()
 }

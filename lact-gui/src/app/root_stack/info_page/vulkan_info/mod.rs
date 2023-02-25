@@ -1,6 +1,7 @@
 mod feature_model;
 
 use self::feature_model::FeatureModel;
+use super::value_label;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
@@ -59,9 +60,7 @@ impl VulkanInfoFrame {
             1,
         );
 
-        let device_name_label = Label::new(None);
-        device_name_label.set_halign(Align::Start);
-
+        let device_name_label = value_label();
         grid.attach(&device_name_label, 2, 0, 3, 1);
 
         grid.attach(
@@ -76,9 +75,7 @@ impl VulkanInfoFrame {
             1,
         );
 
-        let version_label = Label::new(None);
-        version_label.set_halign(Align::Start);
-
+        let version_label = value_label();
         grid.attach(&version_label, 2, 1, 3, 1);
 
         let features_label = Label::builder()
