@@ -25,9 +25,10 @@ impl OcPage {
     pub fn new(system_info: &SystemInfo) -> Self {
         let container = Box::builder()
             .orientation(Orientation::Vertical)
-            .spacing(5)
-            .margin_top(5)
-            .margin_bottom(5)
+            .spacing(15)
+            .margin_top(20)
+            .margin_start(30)
+            .margin_end(30)
             .build();
 
         if system_info.amdgpu_overdrive_enabled == Some(false) {
@@ -128,8 +129,10 @@ fn section_box(title: &str, spacing: i32, margin: i32) -> Box {
 
     let label = Label::builder()
         .use_markup(true)
-        .label(format!("<span font_desc='11'><b>{title}</b></span>"))
-        .xalign(0.1)
+        .label(format!("<span font_desc='13'><b>{title}</b></span>"))
+        .halign(Align::Start)
+        .margin_top(5)
+        .margin_bottom(5)
         .build();
 
     container.append(&label);

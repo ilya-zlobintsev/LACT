@@ -34,6 +34,8 @@ impl PowerCapFrame {
             .adjustment(&adjustment)
             .hexpand(true)
             .round_digits(0)
+            .margin_start(5)
+            .margin_end(5)
             .build();
 
         scale.set_draw_value(false);
