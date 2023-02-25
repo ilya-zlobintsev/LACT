@@ -782,7 +782,7 @@ checksum = "fad582f4b9e86b6caa621cabeb0963332d92eea04729ab12892c2533951e6440"
 
 [[package]]
 name = "lact"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -793,7 +793,7 @@ dependencies = [
 
 [[package]]
 name = "lact-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -802,7 +802,7 @@ dependencies = [
 
 [[package]]
 name = "lact-client"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "lact-schema",
