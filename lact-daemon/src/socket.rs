@@ -7,8 +7,6 @@ use std::{fs, path::PathBuf, str::FromStr};
 use tokio::net::UnixListener;
 use tracing::{debug, info};
 
-const ADMIN_GROUPS: &[&str] = &["wheel", "sudo"];
-
 pub fn get_socket_path() -> PathBuf {
     let uid = getuid();
     if uid.is_root() {
@@ -27,7 +25,7 @@ pub fn cleanup() {
     debug!("removed socket");
 }
 
-pub fn listen() -> anyhow::Result<UnixListener> {
+pub fn listen(admin_groups: &[String]) -> anyhow::Result<UnixListener> {
     let socket_path = get_socket_path();
 
     if socket_path.exists() {
@@ -43,16 +41,16 @@ pub fn listen() -> anyhow::Result<UnixListener> {
 
     let listener = UnixListener::bind(&socket_path)?;
 
-    chown(&socket_path, None, Some(socket_gid()))?;
+    chown(&socket_path, None, Some(socket_gid(admin_groups)))?;
 
     info!("listening on {socket_path:?}");
     Ok(listener)
 }
 
-fn socket_gid() -> Gid {
+fn socket_gid(admin_groups: &[String]) -> Gid {
     if getuid().is_root() {
         // Check if the group exists
-        for group_name in ADMIN_GROUPS {
+        for group_name in admin_groups {
             if let Ok(Some(group)) = Group::from_name(group_name) {
                 return group.gid;
             }

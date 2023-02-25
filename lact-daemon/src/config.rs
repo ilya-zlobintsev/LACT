@@ -8,6 +8,7 @@ use std::{collections::HashMap, env, fs, path::PathBuf};
 use tracing::debug;
 
 const FILE_NAME: &str = "config.yaml";
+const DEFAULT_ADMIN_GROUPS: [&str; 2] = ["wheel", "sudo"];
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Config {
@@ -18,12 +19,14 @@ pub struct Config {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Daemon {
     pub log_level: String,
+    pub admin_groups: Vec<String>,
 }
 
 impl Default for Daemon {
     fn default() -> Self {
         Self {
             log_level: "info".to_owned(),
+            admin_groups: DEFAULT_ADMIN_GROUPS.map(str::to_owned).to_vec(),
         }
     }
 }

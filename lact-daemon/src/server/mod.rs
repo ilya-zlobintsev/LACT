@@ -22,8 +22,8 @@ pub struct Server {
 
 impl Server {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
+        let listener = socket::listen(&config.daemon.admin_groups)?;
         let handler = Handler::new(config).await?;
-        let listener = socket::listen()?;
 
         Ok(Self { handler, listener })
     }
