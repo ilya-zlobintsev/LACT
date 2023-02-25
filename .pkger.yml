@@ -12,4 +12,6 @@ images:
     target: deb
   - name: fedora-37
     target: rpm
+  - name: ubuntu-2204
+    target: deb
 custom_simple_images: ~

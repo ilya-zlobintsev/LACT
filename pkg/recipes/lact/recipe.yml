@@ -11,11 +11,11 @@ metadata:
   provides: [ lact ]
   depends:
     all: [ hwdata ]
-    debian-12: [ libgtk-4-1 ]
+    debian-12+ubuntu-2204: [ libgtk-4-1 ]
     fedora-37: [ gtk4 ]
   build_depends:
     all: [ curl, make ]
-    debian-12: [ libgtk-4-dev, pkg-config, build-essential ]
+    debian-12+ubuntu-2204: [ libgtk-4-dev, pkg-config, build-essential ]
     fedora-37: [ gtk4-devel, gcc ]
   all_images: true
 env:
