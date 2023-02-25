@@ -57,6 +57,9 @@ sudo systemctl enable --now lactd
 ```
 You can now use the application.
 
+# API
+There is an API available over a unix socket. See [here](API.md) for more information.
+
 # CLI
 
 There is also a cli available.
