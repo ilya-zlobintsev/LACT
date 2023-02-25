@@ -133,18 +133,34 @@ fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> Adjustment {
     let label = Label::new(Some(title));
 
     let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
+
     let scale = Scale::builder()
         .orientation(Orientation::Horizontal)
         .adjustment(&adjustment)
         .hexpand(true)
         .round_digits(0)
         .digits(0)
-        .draw_value(true)
+        // .draw_value(true)
         .value_pos(PositionType::Right)
+        .build();
+
+    let value_selector = SpinButton::new(Some(&adjustment), 1.0, 0);
+    let value_label = Label::new(None);
+
+    adjustment.connect_value_changed(clone!(@strong value_label => move |adjustment| {
+        let value = adjustment.value();
+        value_label.set_text(&value.to_string());
+    }));
+
+    let popover = Popover::builder().child(&value_selector).build();
+    let value_button = MenuButton::builder()
+        .popover(&popover)
+        .child(&value_label)
         .build();
 
     grid.attach(&label, 0, row, 1, 1);
     grid.attach(&scale, 1, row, 4, 1);
+    grid.attach(&value_button, 6, row, 4, 1);
 
     adjustment
 }
