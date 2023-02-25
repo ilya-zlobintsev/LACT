@@ -26,7 +26,7 @@ Currently missing:
 
   It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't ship gtk4.
 - Fedora: an rpm is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
-- Otherwise, build from source:
+- Otherwise, build from source.
 
 **Why is there no AppImage/Flatpak/other universal format?**
 See [here](./pkg/README.md).
