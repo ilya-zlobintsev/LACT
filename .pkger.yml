@@ -8,7 +8,7 @@ gpg_key: ~
 gpg_name: ~
 ssh: ~
 images:
-  - name: debian
+  - name: debian-12
     target: deb
   - name: fedora-37
     target: rpm
