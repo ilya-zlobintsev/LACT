@@ -17,6 +17,7 @@ impl PerformanceLevelFrame {
         let root_box = Box::new(Orientation::Horizontal, 5);
 
         let combo_box = ComboBoxText::new();
+        combo_box.set_sensitive(false);
 
         combo_box.append(None, "Automatic");
         combo_box.append(None, "Highest clocks");
@@ -24,7 +25,7 @@ impl PerformanceLevelFrame {
 
         root_box.append(&combo_box);
 
-        let description_label = Label::new(Some("A description is supposed to be here"));
+        let description_label = Label::new(None);
 
         root_box.append(&description_label);
 
@@ -48,6 +49,7 @@ impl PerformanceLevelFrame {
     }
 
     pub fn set_active_profile(&self, level: PerformanceLevel) {
+        self.combo_box.set_sensitive(true);
         match level {
             PerformanceLevel::Auto => self.combo_box.set_active(Some(0)),
             PerformanceLevel::High => self.combo_box.set_active(Some(1)),

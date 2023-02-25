@@ -83,10 +83,11 @@ impl ThermalsPage {
             1,
         );
 
-        let fan_control_enabled_switch = Switch::new();
-
-        fan_control_enabled_switch.set_active(true);
-        fan_control_enabled_switch.set_halign(Align::Start);
+        let fan_control_enabled_switch = Switch::builder()
+            .active(true)
+            .halign(Align::Start)
+            .sensitive(false)
+            .build();
 
         grid.attach(&fan_control_enabled_switch, 2, 2, 1, 1);
 

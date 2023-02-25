@@ -7,6 +7,7 @@ use lact_schema::{
 };
 use std::{
     collections::HashMap,
+    env,
     path::PathBuf,
     sync::{Arc, RwLock},
 };
@@ -22,7 +23,10 @@ impl<'a> Handler {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
         let mut controllers = HashMap::new();
 
-        let base_path = PathBuf::from("/sys/class/drm");
+        let base_path = match env::var("_LACT_DRM_SYSFS_PATH") {
+            Ok(custom_path) => PathBuf::from(custom_path),
+            Err(_) => PathBuf::from("/sys/class/drm"),
+        };
 
         for entry in base_path
             .read_dir()

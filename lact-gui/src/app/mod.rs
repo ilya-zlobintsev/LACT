@@ -261,9 +261,7 @@ impl App {
                         root_stack.info_page.set_stats(&stats);
                         root_stack.thermals_page.set_stats(&stats, false);
                         root_stack.oc_page.set_stats(&stats, false);
-                    } /*GuiUpdateMsg::FanControlInfo(fan_control_info) => {
-                          thermals_page.set_ventilation_info(fan_control_info)
-                      }*/
+                    }
                 }
 
                 glib::Continue(true)
@@ -275,29 +273,6 @@ impl App {
         debug!("applying settings");
 
         let gpu_id = current_gpu_id.read().unwrap();
-
-        // TODO
-        /*self.daemon_client
-        .set_fan_curve(gpu_id, thermals_settings.curve)
-        .unwrap_or(println!("Failed to set fan curve"));*/
-
-        /*if let Some(clocks_settings) = self.root_stack.oc_page.get_clocks() {
-            self.daemon_client
-                .set_gpu_max_power_state(
-                    gpu_id,
-                    clocks_settings.gpu_clock,
-                    Some(clocks_settings.gpu_voltage),
-                )
-                .expect("Failed to set GPU clockspeed/voltage");
-
-            self.daemon_client
-                .set_vram_max_clock(gpu_id, clocks_settings.vram_clock)
-                .expect("Failed to set VRAM Clock");
-
-            self.daemon_client
-                .commit_gpu_power_states(gpu_id)
-                .expect("Failed to commit power states");
-        }*/
 
         if let Some(cap) = self.root_stack.oc_page.get_power_cap() {
             self.daemon_client
@@ -350,7 +325,6 @@ impl App {
 }
 
 enum GuiUpdateMsg {
-    // FanControlInfo(FanControlInfo),
     GpuStats(DeviceStats),
 }
 

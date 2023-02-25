@@ -113,13 +113,6 @@ impl OcPage {
         }
     }
 
-    /*pub fn get_clocks(&self) -> Option<ClocksSettings> {
-        match self.clocks_frame.get_visibility() {
-            true => Some(self.clocks_frame.get_settings()),
-            false => None,
-        }
-    }*/
-
     pub fn get_power_cap(&self) -> Option<f64> {
         self.power_cap_frame.get_cap()
     }
