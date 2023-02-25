@@ -84,6 +84,7 @@ impl App {
                         debug!("GPU Selection changed");
                         app.set_info(&gpu_id);
                         *current_gpu_id.write().unwrap() = gpu_id;
+                        debug!("Updated current GPU id");
                     }));
 
                 let devices_buf = app
@@ -223,6 +224,7 @@ impl App {
                         error!("Could not fetch stats: {err}");
                     }
                 }
+                drop(gpu_id);
                 thread::sleep(Duration::from_millis(STATS_POLL_INTERVAL));
             }),
         );

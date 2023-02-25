@@ -196,6 +196,9 @@ impl InformationPage {
 
         if let Some(vulkan_info) = &gpu_info.vulkan_info {
             self.vulkan_info_frame.set_info(vulkan_info);
+            self.vulkan_info_frame.container.show();
+        } else {
+            self.vulkan_info_frame.container.hide();
         }
     }
 
