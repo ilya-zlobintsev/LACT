@@ -17,25 +17,37 @@ Current features:
 - Basic overclocking
 
 Currently missing:
-- Voltage control on Vega20+ GPUs
 - Precise clock/voltage curve manipulation (currently can only set the maximum values)
-- <s>Multi-GPU system support</s> *Should work now*
 
 # Installation
 
 - Arch Linux: Install the [AUR Package](https://aur.archlinux.org/packages/lact/) (or the -git version)
-- Debian/Ubuntu/Pop_OS: Download a .deb from [releases](https://github.com/ilyazzz/LACT/releases/). Warning: it has not been tested heavily
+- Debian/Ubuntu/Derevatives: Download a .deb from [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+
+  It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't ship gtk4.
+- Fedora: an rpm is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 - Otherwise, build from source:
 
+**Why is there no AppImage/Flatpak/other universal format?**
+See [here](./pkg/README.md).
+
+# Configuration
+
+There is a configuration file available in `/etc/lact/config.yaml`. Most of the settings are accessible through the GUI, but some of them may be useful to be edited manually (like `admin_groups` to specify who has access to the daemon)
 
 # Building from source
-- Install dependencies:
-   - Ubuntu/Debian: `sudo apt install cargo rustc libvulkan-dev git libgtk-3-dev make`
-   - Fedora: `sudo dnf install git gtk3-devel rust cargo vulkan-headers perl-core`
 
-- `git clone https://github.com/ilyazzz/LACT && cd LACT`
-- `./deploy.sh` 
+Dependencies:
+- rust
+- gtk4
+- pkg-config
+- make
+- hwdata
 
+Steps:
+- `git clone https://github.com/ilya-zlobintsev/LACT && cd LACT`
+- `make`
+- `sudo make install`
 
 # Usage
 
@@ -51,7 +63,7 @@ There is also a cli available.
 
 - Getting basic information: 
 
-    `lact-cli info`
+    `lact cli info`
 
     Example output:
 
@@ -65,7 +77,7 @@ There is also a cli available.
     ```
 - Getting current GPU stats:
 
-    `lact-cli metrics`
+    `lact cli metrics`
 
     Example output:
 
@@ -81,7 +93,7 @@ There is also a cli available.
     
 - Showing the current fan curve: 
 
-    `lact-cli curve status`
+    `lact cli curve status`
     
     Example output:
 
@@ -96,12 +108,11 @@ There is also a cli available.
 
 # Reporting issues
  
- When reporting issues, please include your system info and GPU model.
+When reporting issues, please include your system info and GPU model.
  
- If there's a crash, run `lact-gui` from the command line to get logs, or use `journalctl -u lactd` to see if the daemon crashed.
+If there's a crash, run `lact gui` from the command line to get logs, or use `journalctl -u lactd` to see if the daemon crashed.
  
- If there's an issue with GPU model identification please report it [here](https://github.com/ilyazzz/pci-id-parser/), include your GPU model and the output of `cat /sys/class/drm/card*/device/uevent`.
 
 # Alternatives
 
-If LACT doesn't end up working for you, make sure to check out [CoreCtrl](https://gitlab.com/corectrl/corectrl).
+If LACT doesn't do what you want, make sure to check out [CoreCtrl](https://gitlab.com/corectrl/corectrl).
