@@ -4,10 +4,9 @@
 
 This application allows you to control your AMD GPU on a Linux system.
 
-|                                              |                                              |                                             |
+| GPU info                                     | Overclocking                                 | Fan control                                 |
 |----------------------------------------------|----------------------------------------------|---------------------------------------------|
-|![Screenshot](https://i.imgur.com/crEN4az.png)|![Screenshot](https://i.imgur.com/x7fTKpT.png)|![Screenshot](https://i.imgur.com/idAER4B.png)
- 
+|![image](https://user-images.githubusercontent.com/22796665/221357224-21163f94-1afd-4bb8-96bd-24f9ce1816ce.png)|![image](https://user-images.githubusercontent.com/22796665/221357297-9c03bcb5-0742-459b-bffb-9e75c93df25b.png)|![image](https://user-images.githubusercontent.com/22796665/221357332-6d26a65f-d522-4b04-86a8-c9820b334416.png)
 
 Current features:
 
@@ -55,7 +54,7 @@ Enable and start the service (otherwise you won't be able to change any settings
 ```
 sudo systemctl enable --now lactd
 ```
-You can now use the application.
+You can now use the GUI to change settings and view information.
 
 # API
 There is an API available over a unix socket. See [here](API.md) for more information.
@@ -64,50 +63,31 @@ There is an API available over a unix socket. See [here](API.md) for more inform
 
 There is also a cli available.
 
-- Getting basic information: 
+- List system GPUs: 
+
+    `lact cli list-gpus`
+
+    Example output:
+
+    ```
+    1002:687F-1043:0555-0000:0b:00.0 (Vega 10 XL/XT [Radeon RX Vega 56/64])
+    ```
+- Getting GPU information:
 
     `lact cli info`
 
     Example output:
 
     ```
-    GPU Model: Radeon RX 570 Pulse 4GB
+    lact cli info
     GPU Vendor: Advanced Micro Devices, Inc. [AMD/ATI]
+    GPU Model: Vega 10 XL/XT [Radeon RX Vega 56/64]
     Driver in use: amdgpu
-    VBIOS Version: 113-1E3871U-O4C
-    VRAM Size: 4096
-    Link Speed: 8.0 GT/s PCIe
-    ```
-- Getting current GPU stats:
-
-    `lact cli metrics`
-
-    Example output:
-
-    ```
-    VRAM Usage: 545/4096MiB
-    Temperature: 46°C
-    Fan Speed: 785/3200RPM
-    GPU Clock: 783MHz
-    GPU Voltage: 0.975V
-    VRAM Clock: 1750MHz
-    Power Usage: 38/155W
+    VBIOS version: 115-D050PIL-100
+    Link: LinkInfo { current_width: Some("16"), current_speed: Some("8.0 GT/s PCIe"), max_width: Some("16"), max_speed: Some("8.0 GT/s PCIe") }
     ```
     
-- Showing the current fan curve: 
-
-    `lact cli curve status`
-    
-    Example output:
-
-    ```
-    Fan curve:
-    20C°: 0%
-    40C°: 0%
-    60C°: 50%
-    80C°: 88%
-    100C°: 100%
-    ```
+The functionality of the CLI is quite limited. If you want to integrate LACT with some application/script, you should use the [API](API.md) instead.
 
 # Reporting issues
  
