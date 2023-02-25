@@ -1,0 +1,21 @@
+[package]
+name = "lact-gui"
+version = "0.2.0"
+authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
+edition = "2021"
+
+[features]
+default = ["gtk-tests"]
+gtk-tests = []
+
+[dependencies]
+lact-client = { path = "../lact-client" }
+lact-daemon = { path = "../lact-daemon" }
+gtk = { version = "0.6", package = "gtk4", features = ["v4_6"] }
+once_cell = "1.17.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1.0"
+
+[dev-dependencies]
+pretty_assertions = "1.3.0"

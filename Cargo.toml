@@ -1,2 +1,3 @@
 [workspace]
-members = ["daemon", "cli", "gui"]
+resolver = "2"
+members = ["lact*"]

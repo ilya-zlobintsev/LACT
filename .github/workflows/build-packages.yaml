@@ -1,0 +1,60 @@
+name: Build packages
+
+on:
+  push:
+    branches: ['v2', 'master']
+
+jobs:
+  build-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install pkger
+        run: |
+          curl -L -o /tmp/pkger.deb https://github.com/vv9k/pkger/releases/download/0.11.0/pkger-0.11.0-0.amd64.deb
+          sudo apt -y install /tmp/pkger.deb
+
+      - name: Build packages
+        run: pkger -c .pkger.yml build lact
+
+      - name: Copy release files
+        run: |
+          OUT_DIR=$PWD/release-artifacts
+          mkdir -p $OUT_DIR
+          
+          pushd pkg/output
+          for DISTRO in $(ls); do
+              cd $DISTRO
+              rm -f *.src.rpm
+          
+              for FILE in $(ls); do
+                  NAME="${FILE%.*}"
+                  EXT="${FILE##*.}"
+          
+          	OUT_NAME="$OUT_DIR/$NAME.$DISTRO.$EXT"
+          	cp $FILE $OUT_NAME
+              done 
+              cd ..
+          done
+          popd
+
+      - name: Create release
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          removeArtifacts: true
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          artifacts: "release-artifacts/*"
+          body: ${{ github.event.head_commit.message }}
+          prerelease: true
+          name: Test release
+          tag: test-build
+
+      - name: Update test-build tag
+        run: |
+          git tag -f test-build
+          git push -f origin test-build
+        shell: bash
+

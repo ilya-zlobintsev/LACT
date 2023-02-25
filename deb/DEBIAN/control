@@ -1,9 +1,0 @@
-Package: lact
-Version: 0.1
-Architecture: all
-Essential: no
-Section: admin
-Priority: optional
-Depends: libgtk-3-0
-Maintainer: Ilya Zlobintsev
-Description: AMDGPU Control Utility

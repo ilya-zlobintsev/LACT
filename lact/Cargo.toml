@@ -1,0 +1,14 @@
+[package]
+name = "lact"
+version = "0.2.0"
+edition = "2021"
+
+[features]
+default = ["lact-gui"]
+
+[dependencies]
+lact-daemon = { path = "../lact-daemon" }
+lact-cli = { path = "../lact-cli" }
+lact-gui = { path = "../lact-gui", optional = true }
+anyhow = "1.0.69"
+clap = { version = "4.1.6", features = ["derive"] }

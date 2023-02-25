@@ -1,9 +1,0 @@
-[Unit]
-Description=AMDGPU Control Daemon
-After=multi-user.target
-
-[Service]
-ExecStart=/usr/local/bin/lact-daemon
-
-[Install]
-WantedBy=graphical.target

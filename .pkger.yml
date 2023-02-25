@@ -1,0 +1,17 @@
+---
+recipes_dir: pkg/recipes
+output_dir: pkg/output
+images_dir: pkg/images
+log_dir: ~
+runtime_uri: ~
+gpg_key: ~
+gpg_name: ~
+ssh: ~
+images:
+  - name: debian-12
+    target: deb
+  - name: fedora-37
+    target: rpm
+  - name: ubuntu-2204
+    target: deb
+custom_simple_images: ~

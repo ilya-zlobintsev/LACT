@@ -1,0 +1,9 @@
+[package]
+name = "lact-cli"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+lact-client = { path = "../lact-client" }
+anyhow = "1.0.69"
+clap = { version = "4.1.6", features = ["derive"] }

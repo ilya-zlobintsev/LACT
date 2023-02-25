@@ -1,2 +1,8 @@
 /target
+AppDir/
 *.glade\~
+*.AppImage
+*.AppImage.zsync
+appimage-build/
+*.stignore
+pkg/output
