@@ -104,32 +104,6 @@ impl VulkanInfoFrame {
 
         vbox.prepend(&grid);
 
-        /*let features_expander = Expander::builder().label("Feature support").build();
-
-        let features_scrolled_window = ScrolledWindow::builder().build();
-
-        features_scrolled_window.set_vexpand(true);
-
-
-        features_scrolled_window.add(&features_listbox);
-
-        features_expander.add(&features_scrolled_window);
-
-        vbox.pack_start(&features_expander, false, true, 5);
-
-
-        let extensions_expander = Expander::builder()
-            .label("Extension support")
-            .child(
-                &ScrolledWindow::builder()
-                    .vexpand(true)
-                    .child(&extensions_listbox)
-                    .build(),
-            )
-            .build();
-
-        vbox.pack_start(&extensions_expander, false, true, 5);*/
-
         container.set_child(Some(&vbox));
 
         Self {

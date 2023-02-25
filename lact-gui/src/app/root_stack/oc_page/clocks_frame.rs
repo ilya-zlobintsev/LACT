@@ -140,7 +140,6 @@ fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> Adjustment {
         .hexpand(true)
         .round_digits(0)
         .digits(0)
-        // .draw_value(true)
         .value_pos(PositionType::Right)
         .build();
 

@@ -44,11 +44,6 @@ impl App {
 
         window.set_titlebar(Some(&header.container));
 
-        // window.connect_close_request(move |_, _| {
-        //     // main_quit();
-        //     Inhibit(false)
-        // });
-
         let system_info_buf = daemon_client
             .get_system_info()
             .expect("Could not fetch system info");
@@ -159,24 +154,6 @@ impl App {
         trace!("setting info {info:?}");
 
         self.root_stack.info_page.set_info(&info);
-
-        // trace!("Setting clocks");
-        // self.root_stack.oc_page.set_info(&info);
-
-        // TODO: this should be stats
-        /*trace!("Setting performance level {:?}", info.power_profile);
-        self.root_stack
-            .oc_page
-            .set_power_profile(&gpu_info.power_profile);
-
-        log::trace!("Setting fan control info");
-        match self.daemon_client.get_fan_control(gpu_id) {
-            Ok(fan_control_info) => self
-                .root_stack
-                .thermals_page
-                .set_ventilation_info(fan_control_info),
-            Err(_) => self.root_stack.thermals_page.hide_fan_controls(),
-        }*/
 
         self.set_initial(gpu_id);
     }
