@@ -1,8 +1,7 @@
+use crate::app::root_stack::section_box;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::PerformanceLevel;
-
-use super::section_box;
 
 #[derive(Clone)]
 pub struct PerformanceLevelFrame {
@@ -12,7 +11,7 @@ pub struct PerformanceLevelFrame {
 
 impl PerformanceLevelFrame {
     pub fn new() -> Self {
-        let container = section_box("Performance level", 5, 5);
+        let container = section_box("Performance level");
 
         let root_box = Box::new(Orientation::Horizontal, 5);
 

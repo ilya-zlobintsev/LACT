@@ -5,9 +5,11 @@ use gtk::*;
 use lact_client::schema::{DeviceInfo, DeviceStats};
 use vulkan_info::VulkanInfoFrame;
 
+use super::{label_row, section_box, values_grid};
+
 #[derive(Clone)]
 pub struct InformationPage {
-    pub container: Grid,
+    pub container: Box,
     gpu_name_label: Label,
     gpu_manufacturer_label: Label,
     vbios_version_label: Label,
@@ -19,119 +21,32 @@ pub struct InformationPage {
 
 impl InformationPage {
     pub fn new() -> Self {
-        let container = Grid::new();
+        let container = Box::new(Orientation::Vertical, 15);
 
-        container.set_margin_start(5);
-        container.set_margin_end(5);
-        container.set_margin_bottom(5);
-        container.set_margin_top(5);
+        let info_container = section_box("Basic Information");
 
-        container.set_column_homogeneous(true);
-
-        container.set_row_spacing(7);
-        container.set_column_spacing(5);
+        let values_grid = values_grid();
 
         // Dummy label to prevent the gpu name label from stealing focus
-        let dummy_label = Label::builder()
-            .selectable(true)
-            .halign(Align::Start)
-            .build();
-        container.attach(&dummy_label, 0, 0, 1, 1);
+        let dummy_label = Label::builder().selectable(true).halign(Align::End).build();
+        values_grid.attach(&dummy_label, 0, 0, 1, 1);
 
-        container.attach(
-            &{
-                let label = Label::new(Some("GPU Model:"));
-                label.set_halign(Align::End);
-                label
-            },
-            0,
-            0,
-            2,
-            1,
-        );
+        let gpu_name_label = label_row("GPU Model:", &values_grid, 0, 0, true);
+        let gpu_manufacturer_label = label_row("GPU Manufacturer:", &values_grid, 1, 0, true);
+        let vbios_version_label = label_row("VBIOS Version:", &values_grid, 2, 0, true);
+        let driver_label = label_row("Driver Version:", &values_grid, 3, 0, true);
+        let vram_size_label = label_row("VRAM Size:", &values_grid, 4, 0, true);
+        let link_speed_label = label_row("Link Speed:", &values_grid, 5, 0, true);
 
-        let gpu_name_label = value_label();
-        container.attach(&gpu_name_label, 2, 0, 3, 1);
+        info_container.append(&values_grid);
+        container.append(&info_container);
 
-        container.attach(
-            &{
-                let label = Label::new(Some("GPU Manufacturer:"));
-                label.set_halign(Align::End);
-                label
-            },
-            0,
-            1,
-            2,
-            1,
-        );
-
-        let gpu_manufacturer_label = value_label();
-        container.attach(&gpu_manufacturer_label, 2, 1, 3, 1);
-
-        container.attach(
-            &{
-                let label = Label::new(Some("VBIOS Version:"));
-                label.set_halign(Align::End);
-                label
-            },
-            0,
-            2,
-            2,
-            1,
-        );
-
-        let vbios_version_label = value_label();
-        container.attach(&vbios_version_label, 2, 2, 3, 1);
-
-        container.attach(
-            &{
-                let label = Label::new(Some("Driver in use:"));
-                label.set_halign(Align::End);
-                label
-            },
-            0,
-            3,
-            2,
-            1,
-        );
-
-        let driver_label = value_label();
-        container.attach(&driver_label, 2, 3, 3, 1);
-
-        container.attach(
-            &{
-                let label = Label::new(Some("VRAM Size:"));
-                label.set_halign(Align::End);
-                label
-            },
-            0,
-            4,
-            2,
-            1,
-        );
-
-        let vram_size_label = value_label();
-        container.attach(&vram_size_label, 2, 4, 3, 1);
-
-        container.attach(
-            &{
-                let label = Label::new(Some("Link speed:"));
-                label.set_halign(Align::End);
-                label
-            },
-            0,
-            5,
-            2,
-            1,
-        );
-
-        let link_speed_label = value_label();
-        link_speed_label.set_halign(Align::Start);
-
-        container.attach(&link_speed_label, 2, 5, 3, 1);
+        let vulkan_container = section_box("Vulkan Information");
 
         let vulkan_info_frame = VulkanInfoFrame::new();
-        container.attach(&vulkan_info_frame.container, 0, 6, 5, 1);
+
+        vulkan_container.append(&vulkan_info_frame.container);
+        container.append(&vulkan_container);
 
         Self {
             container,
@@ -210,11 +125,4 @@ impl InformationPage {
         self.vram_size_label
             .set_markup(&format!("<b>{vram_size} MiB</b>"));
     }
-}
-
-fn value_label() -> Label {
-    Label::builder()
-        .selectable(true)
-        .halign(Align::Start)
-        .build()
 }

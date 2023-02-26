@@ -1,4 +1,4 @@
-use super::section_box;
+use crate::app::root_stack::section_box;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
@@ -17,9 +17,9 @@ pub struct ClocksFrame {
 
 impl ClocksFrame {
     pub fn new() -> Self {
-        let container = section_box("Maximum Clocks", 0, 5);
+        let container = section_box("Maximum Clocks");
 
-        let tweaking_grid = Grid::new();
+        let tweaking_grid = Grid::builder().row_spacing(5).build();
         let max_sclk_adjustment = oc_adjustment("GPU Clock (MHz)", &tweaking_grid, 0);
         let max_voltage_adjustment = oc_adjustment("GPU voltage (mV)", &tweaking_grid, 1);
         let max_mclk_adjustment = oc_adjustment("VRAM Clock (MHz)", &tweaking_grid, 2);
@@ -28,7 +28,7 @@ impl ClocksFrame {
             .label("Defaults")
             .halign(Align::End)
             .build();
-        tweaking_grid.attach(&reset_button, 4, 3, 1, 1);
+        tweaking_grid.attach(&reset_button, 6, 3, 1, 1);
 
         let clocks_data_unavailable_label = Label::new(Some("No clocks data available"));
 
@@ -141,6 +141,8 @@ fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> Adjustment {
         .round_digits(0)
         .digits(0)
         .value_pos(PositionType::Right)
+        .margin_start(5)
+        .margin_end(5)
         .build();
 
     let value_selector = SpinButton::new(Some(&adjustment), 1.0, 0);

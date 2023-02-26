@@ -1,4 +1,4 @@
-use super::section_box;
+use crate::app::root_stack::section_box;
 use gtk::*;
 use gtk::{glib::clone, prelude::*};
 use std::{cell::Cell, rc::Rc};
@@ -13,7 +13,7 @@ pub struct PowerCapFrame {
 
 impl PowerCapFrame {
     pub fn new() -> Self {
-        let container = section_box("Power Usage Limit", 5, 5);
+        let container = section_box("Power Usage Limit");
         let default_cap = Rc::new(Cell::new(None));
 
         let value_suffix = "W";
@@ -34,6 +34,8 @@ impl PowerCapFrame {
             .adjustment(&adjustment)
             .hexpand(true)
             .round_digits(0)
+            .margin_start(5)
+            .margin_end(5)
             .build();
 
         scale.set_draw_value(false);

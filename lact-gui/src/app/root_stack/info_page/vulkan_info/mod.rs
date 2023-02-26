@@ -1,7 +1,9 @@
 mod feature_model;
 
+use crate::app::root_stack::{label_row, values_row};
+
 use self::feature_model::FeatureModel;
-use super::value_label;
+use super::values_grid;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
@@ -12,7 +14,7 @@ use tracing::trace;
 
 #[derive(Clone)]
 pub struct VulkanInfoFrame {
-    pub container: Frame,
+    pub container: Box,
     device_name_label: Label,
     version_label: Label,
     features: Rc<RefCell<Vec<FeatureModel>>>,
@@ -21,90 +23,34 @@ pub struct VulkanInfoFrame {
 
 impl VulkanInfoFrame {
     pub fn new() -> Self {
-        let container = Frame::new(None);
-
-        container.set_label_widget(Some(&{
-            let label = Label::new(None);
-            label.set_markup("<span font_desc='11'><b>Vulkan Information</b></span>");
-            label
-        }));
-        container.set_label_align(0.5);
+        let container = Box::new(Orientation::Vertical, 0);
 
         let features = Rc::new(RefCell::new(Vec::new()));
         let extensions = Rc::new(RefCell::new(Vec::new()));
 
-        let vbox = Box::new(Orientation::Vertical, 5);
+        let grid = values_grid();
 
-        let grid = Grid::new();
+        let device_name_label = label_row("Device name", &grid, 0, 0, true);
+        device_name_label.set_margin_top(5);
+        device_name_label.set_margin_bottom(5);
 
-        grid.set_margin_start(5);
-        grid.set_margin_end(5);
-        grid.set_margin_bottom(5);
-        grid.set_margin_top(5);
+        let version_label = label_row("Version:", &grid, 1, 0, true);
+        version_label.set_margin_top(5);
+        version_label.set_margin_bottom(5);
 
-        grid.set_column_homogeneous(true);
-        grid.set_row_homogeneous(false);
-
-        grid.set_row_spacing(7);
-        grid.set_column_spacing(5);
-
-        grid.attach(
-            &{
-                let label = Label::new(Some("Device name:"));
-                label.set_halign(Align::End);
-                label
-            },
-            0,
-            0,
-            2,
-            1,
-        );
-
-        let device_name_label = value_label();
-        grid.attach(&device_name_label, 2, 0, 3, 1);
-
-        grid.attach(
-            &{
-                let label = Label::new(Some("Version:"));
-                label.set_halign(Align::End);
-                label
-            },
-            0,
-            1,
-            2,
-            1,
-        );
-
-        let version_label = value_label();
-        grid.attach(&version_label, 2, 1, 3, 1);
-
-        let features_label = Label::builder()
-            .label("Features:")
-            .halign(Align::End)
-            .build();
-        let show_features_button = Button::builder().label("Show").halign(Align::Start).build();
+        let show_features_button = Button::builder().label("Show").halign(Align::End).build();
         show_features_button.connect_clicked(clone!(@strong features => move |_| {
             show_list_window("Vulkan features", &features.borrow());
         }));
+        values_row("Features:", &grid, &show_features_button, 2, 0);
 
-        grid.attach(&features_label, 0, 2, 2, 1);
-        grid.attach(&show_features_button, 2, 2, 2, 1);
-
-        let extensions_label = Label::builder()
-            .label("Extensions:")
-            .halign(Align::End)
-            .build();
-        let show_extensions_button = Button::builder().label("Show").halign(Align::Start).build();
+        let show_extensions_button = Button::builder().label("Show").halign(Align::End).build();
         show_extensions_button.connect_clicked(clone!(@strong extensions => move |_| {
             show_list_window("Vulkan extensions", &extensions.borrow());
         }));
+        values_row("Extensions:", &grid, &show_extensions_button, 3, 0);
 
-        grid.attach(&extensions_label, 0, 3, 2, 1);
-        grid.attach(&show_extensions_button, 2, 3, 2, 1);
-
-        vbox.prepend(&grid);
-
-        container.set_child(Some(&vbox));
+        container.append(&grid);
 
         Self {
             container,

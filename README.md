@@ -6,7 +6,7 @@ This application allows you to control your AMD GPU on a Linux system.
 
 | GPU info                                     | Overclocking                                 | Fan control                                 |
 |----------------------------------------------|----------------------------------------------|---------------------------------------------|
-|![image](https://user-images.githubusercontent.com/22796665/221357224-21163f94-1afd-4bb8-96bd-24f9ce1816ce.png)|![image](https://user-images.githubusercontent.com/22796665/221357297-9c03bcb5-0742-459b-bffb-9e75c93df25b.png)|![image](https://user-images.githubusercontent.com/22796665/221357332-6d26a65f-d522-4b04-86a8-c9820b334416.png)
+|![image](https://user-images.githubusercontent.com/22796665/221402316-7ff140ee-9013-4599-9263-bdbf15906896.png)|![image](https://user-images.githubusercontent.com/22796665/221402327-f5f69c29-8f07-4e3e-9b77-6f064b26d6f0.png)|![image](https://user-images.githubusercontent.com/22796665/221402354-06c1a2a1-4849-4953-99ea-cab94e8413af.png)|
 
 Current features:
 
