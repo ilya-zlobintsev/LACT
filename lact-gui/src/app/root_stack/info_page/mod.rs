@@ -5,7 +5,7 @@ use gtk::*;
 use lact_client::schema::{DeviceInfo, DeviceStats};
 use vulkan_info::VulkanInfoFrame;
 
-use super::{label_row, section_box};
+use super::{label_row, section_box, values_grid};
 
 #[derive(Clone)]
 pub struct InformationPage {
@@ -125,13 +125,4 @@ impl InformationPage {
         self.vram_size_label
             .set_markup(&format!("<b>{vram_size} MiB</b>"));
     }
-}
-
-fn values_grid() -> Grid {
-    Grid::builder()
-        .margin_start(10)
-        .margin_end(5)
-        .row_spacing(10)
-        .column_spacing(10)
-        .build()
 }

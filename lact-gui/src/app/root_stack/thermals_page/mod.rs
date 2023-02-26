@@ -6,6 +6,8 @@ use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{default_fan_curve, DeviceStats, FanCurveMap};
 
+use super::{label_row, section_box, values_grid, values_row};
+
 #[derive(Debug)]
 pub struct ThermalsSettings {
     pub manual_fan_control: bool,
@@ -15,7 +17,7 @@ pub struct ThermalsSettings {
 #[derive(Clone)]
 pub struct ThermalsPage {
     pub container: Box,
-    temp_label: Label,
+    temperatures_label: Label,
     fan_speed_label: Label,
     fan_control_enabled_switch: Switch,
     fan_curve_frame: FanCurveFrame,
@@ -23,79 +25,40 @@ pub struct ThermalsPage {
 
 impl ThermalsPage {
     pub fn new() -> Self {
-        let container = Box::new(Orientation::Vertical, 5);
+        let container = Box::new(Orientation::Vertical, 15);
 
-        let grid = Grid::new();
+        let stats_section = section_box("Statistics");
+        let stats_grid = values_grid();
 
-        grid.set_margin_start(5);
-        grid.set_margin_end(5);
-        grid.set_margin_bottom(5);
-        grid.set_margin_top(5);
+        let temperatures_label = label_row("Temperatures:", &stats_grid, 0, 0, false);
+        let fan_speed_label = label_row("Fan speed:", &stats_grid, 1, 0, false);
 
-        grid.set_column_homogeneous(true);
+        stats_section.append(&stats_grid);
 
-        grid.set_row_spacing(7);
-        grid.set_column_spacing(5);
+        container.append(&stats_section);
 
-        grid.attach(
-            &{
-                let label = Label::new(Some("Temperatures:"));
-                label.set_halign(Align::End);
-                label
-            },
-            0,
-            0,
-            1,
-            1,
-        );
-
-        let temp_label = Label::new(None);
-        temp_label.set_halign(Align::Start);
-
-        grid.attach(&temp_label, 2, 0, 1, 1);
-
-        grid.attach(
-            &{
-                let label = Label::new(Some("Fan speed:"));
-                label.set_halign(Align::End);
-                label
-            },
-            0,
-            1,
-            1,
-            1,
-        );
-
-        let fan_speed_label = Label::new(None);
-        fan_speed_label.set_halign(Align::Start);
-
-        grid.attach(&fan_speed_label, 2, 1, 1, 1);
-
-        grid.attach(
-            &{
-                let label = Label::new(Some("Automatic fan control:"));
-                label.set_halign(Align::End);
-                label
-            },
-            0,
-            2,
-            1,
-            1,
-        );
+        let fan_control_section = section_box("Fan control");
+        let fan_control_grid = values_grid();
 
         let fan_control_enabled_switch = Switch::builder()
             .active(true)
-            .halign(Align::Start)
+            .halign(Align::End)
+            .hexpand(true)
             .sensitive(false)
             .build();
+        values_row(
+            "Automatic fan control:",
+            &fan_control_grid,
+            &fan_control_enabled_switch,
+            0,
+            0,
+        );
 
-        grid.attach(&fan_control_enabled_switch, 2, 2, 1, 1);
-
-        container.prepend(&grid);
+        fan_control_section.append(&fan_control_grid);
 
         let fan_curve_frame = FanCurveFrame::new();
 
-        container.append(&fan_curve_frame.container);
+        fan_control_section.append(&fan_curve_frame.container);
 
         // Show/hide fan curve when the switch is toggled
         {
@@ -111,9 +74,11 @@ impl ThermalsPage {
             });
         }
 
+        container.append(&fan_control_section);
+
         Self {
             container,
-            temp_label,
+            temperatures_label,
             fan_speed_label,
             fan_control_enabled_switch,
             fan_curve_frame,
@@ -130,10 +95,10 @@ impl ThermalsPage {
         let temperatures_text = if temperatures.is_empty() {
             String::from("No sensors found")
         } else {
-            temperatures.join("\n")
+            temperatures.join(", ")
         };
 
-        self.temp_label
+        self.temperatures_label
             .set_markup(&format!("<b>{temperatures_text}</b>",));
 
         match stats.fan.speed_current {

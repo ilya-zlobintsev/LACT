@@ -99,3 +99,12 @@ fn section_box(title: &str) -> Box {
     container.append(&label);
     container
 }
+
+fn values_grid() -> Grid {
+    Grid::builder()
+        .margin_start(10)
+        .margin_end(5)
+        .row_spacing(10)
+        .column_spacing(10)
+        .build()
+}
