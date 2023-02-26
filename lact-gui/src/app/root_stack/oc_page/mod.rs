@@ -26,9 +26,6 @@ impl OcPage {
         let container = Box::builder()
             .orientation(Orientation::Vertical)
             .spacing(15)
-            .margin_top(10)
-            .margin_start(30)
-            .margin_end(30)
             .build();
 
         if system_info.amdgpu_overdrive_enabled == Some(false) {
@@ -116,26 +113,6 @@ impl OcPage {
     pub fn get_power_cap(&self) -> Option<f64> {
         self.power_cap_frame.get_cap()
     }
-}
-
-fn section_box(title: &str) -> Box {
-    let container = Box::builder()
-        .orientation(Orientation::Vertical)
-        .spacing(5)
-        .margin_start(5)
-        .margin_end(5)
-        .build();
-
-    let label = Label::builder()
-        .use_markup(true)
-        .label(format!("<span font_desc='13'><b>{title}</b></span>"))
-        .halign(Align::Start)
-        .margin_top(5)
-        .margin_bottom(5)
-        .build();
-
-    container.append(&label);
-    container
 }
 
 fn oc_warning_frame() -> Frame {

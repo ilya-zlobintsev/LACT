@@ -1,8 +1,7 @@
+use crate::app::root_stack::section_box;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::PerformanceLevel;
-
-use super::section_box;
 
 #[derive(Clone)]
 pub struct PerformanceLevelFrame {

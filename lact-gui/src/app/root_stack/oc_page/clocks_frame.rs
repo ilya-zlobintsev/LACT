@@ -1,4 +1,4 @@
-use super::section_box;
+use crate::app::root_stack::section_box;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
