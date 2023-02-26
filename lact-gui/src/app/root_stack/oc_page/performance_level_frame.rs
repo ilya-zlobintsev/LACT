@@ -12,7 +12,7 @@ pub struct PerformanceLevelFrame {
 
 impl PerformanceLevelFrame {
     pub fn new() -> Self {
-        let container = section_box("Performance level", 5, 5);
+        let container = section_box("Performance level");
 
         let root_box = Box::new(Orientation::Horizontal, 5);
 

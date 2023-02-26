@@ -1,7 +1,7 @@
 mod clocks_frame;
 mod performance_level_frame;
 mod power_cap_frame;
-mod stats_grid;
+mod stats_frame;
 
 use clocks_frame::ClocksFrame;
 use gtk::prelude::*;
@@ -9,13 +9,13 @@ use gtk::*;
 use lact_client::schema::{ClocksTableGen, DeviceStats, PerformanceLevel, SystemInfo};
 use performance_level_frame::PerformanceLevelFrame;
 use power_cap_frame::PowerCapFrame;
-use stats_grid::StatsGrid;
+use stats_frame::StatsFrame;
 use tracing::warn;
 
 #[derive(Clone)]
 pub struct OcPage {
     pub container: Box,
-    stats_grid: StatsGrid,
+    stats_frame: StatsFrame,
     performance_level_frame: PerformanceLevelFrame,
     power_cap_frame: PowerCapFrame,
     pub clocks_frame: ClocksFrame,
@@ -26,7 +26,7 @@ impl OcPage {
         let container = Box::builder()
             .orientation(Orientation::Vertical)
             .spacing(15)
-            .margin_top(20)
+            .margin_top(10)
             .margin_start(30)
             .margin_end(30)
             .build();
@@ -36,9 +36,8 @@ impl OcPage {
             container.append(&warning_frame);
         }
 
-        let stats_grid = StatsGrid::new();
-
-        container.append(&stats_grid.container);
+        let stats_frame = StatsFrame::new();
+        container.append(&stats_frame.container);
 
         let power_cap_frame = PowerCapFrame::new();
         let performance_level_frame = PerformanceLevelFrame::new();
@@ -50,7 +49,7 @@ impl OcPage {
 
         Self {
             container,
-            stats_grid,
+            stats_frame,
             performance_level_frame,
             clocks_frame,
             power_cap_frame,
@@ -58,7 +57,7 @@ impl OcPage {
     }
 
     pub fn set_stats(&self, stats: &DeviceStats, initial: bool) {
-        self.stats_grid.set_stats(stats);
+        self.stats_frame.set_stats(stats);
         if initial {
             self.power_cap_frame.set_data(
                 stats.power.cap_current,
@@ -119,12 +118,12 @@ impl OcPage {
     }
 }
 
-fn section_box(title: &str, spacing: i32, margin: i32) -> Box {
+fn section_box(title: &str) -> Box {
     let container = Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(spacing)
-        .margin_start(margin)
-        .margin_end(margin)
+        .spacing(5)
+        .margin_start(5)
+        .margin_end(5)
         .build();
 
     let label = Label::builder()

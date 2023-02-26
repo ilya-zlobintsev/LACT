@@ -2,9 +2,11 @@ use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{ClockspeedStats, DeviceStats, PowerStats, VoltageStats, VramStats};
 
+use super::section_box;
+
 #[derive(Clone)]
-pub struct StatsGrid {
-    pub container: Grid,
+pub struct StatsFrame {
+    pub container: Box,
     vram_usage_bar: LevelBar,
     vram_usage_label: Label,
     gpu_clock_label: Label,
@@ -15,35 +17,47 @@ pub struct StatsGrid {
     gpu_usage_label: Label,
 }
 
-impl StatsGrid {
+impl StatsFrame {
     pub fn new() -> Self {
-        let container = Grid::new();
+        let container = section_box("Statistics");
 
-        container.set_column_homogeneous(true);
+        let vram_usage_hbox = Box::new(Orientation::Horizontal, 5);
 
-        container.set_row_spacing(7);
-
-        container.attach(&Label::new(Some("VRAM Usage")), 0, 0, 1, 1);
+        let vram_usage_title = name_label("VRAM Usage:");
+        vram_usage_hbox.append(&vram_usage_title);
 
         let vram_usage_overlay = Overlay::new();
-
-        let vram_usage_bar = LevelBar::new();
-
+        let vram_usage_bar = LevelBar::builder()
+            .hexpand(true)
+            .value(1.0)
+            .orientation(Orientation::Horizontal)
+            .build();
         let vram_usage_label = Label::new(None);
 
-        {
-            vram_usage_bar.set_orientation(Orientation::Horizontal);
-            vram_usage_bar.set_value(1.0);
+        vram_usage_overlay.set_child(Some(&vram_usage_bar));
+        vram_usage_overlay.add_overlay(&vram_usage_label);
 
-            vram_usage_label.set_text("0/0 MiB");
+        vram_usage_hbox.append(&vram_usage_overlay);
 
-            vram_usage_overlay.set_child(Some(&vram_usage_bar));
-            vram_usage_overlay.add_overlay(&vram_usage_label);
+        container.append(&vram_usage_hbox);
 
-            container.attach(&vram_usage_overlay, 1, 0, 2, 1);
-        }
+        let labels_grid = Grid::builder()
+            .row_spacing(5)
+            .column_spacing(20)
+            .margin_top(5)
+            .margin_bottom(5)
+            .build();
 
-        let gpu_clock_label = Label::new(None);
+        let gpu_clock_label = label_row("GPU Core Clock:", &labels_grid, 0, 0);
+        let vram_clock_label = label_row("GPU Memory Clock:", &labels_grid, 0, 2);
+        let gpu_voltage_label = label_row("GPU Voltage:", &labels_grid, 1, 0);
+        let gpu_usage_label = label_row("GPU Usage:", &labels_grid, 1, 2);
+        let gpu_temperature_label = label_row("GPU Temperature:", &labels_grid, 2, 0);
+        let power_usage_label = label_row("GPU Power Usage:", &labels_grid, 2, 2);
+
+        container.append(&labels_grid);
+
+        /*let gpu_clock_label = Label::new(None);
         {
             let gpu_clock_box = Box::new(Orientation::Horizontal, 5);
 
@@ -128,7 +142,7 @@ impl StatsGrid {
             gpu_usage_box.set_halign(Align::Center);
 
             container.attach(&gpu_usage_box, 2, 2, 1, 1);
-        }
+        }*/
 
         Self {
             container,
@@ -205,4 +219,18 @@ impl StatsGrid {
             stats.busy_percent.unwrap_or_default()
         ));
     }
+}
+
+fn name_label(text: &str) -> Label {
+    Label::builder().label(text).halign(Align::Start).build()
+}
+
+fn label_row(title: &str, parent: &Grid, row: i32, column_offset: i32) -> Label {
+    let title_label = Label::builder().label(title).halign(Align::Start).build();
+    let value_label = Label::builder().halign(Align::Start).hexpand(true).build();
+
+    parent.attach(&title_label, column_offset, row, 1, 1);
+    parent.attach(&value_label, column_offset + 1, row, 1, 1);
+
+    value_label
 }

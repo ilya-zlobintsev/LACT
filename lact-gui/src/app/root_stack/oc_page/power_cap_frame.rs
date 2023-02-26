@@ -13,7 +13,7 @@ pub struct PowerCapFrame {
 
 impl PowerCapFrame {
     pub fn new() -> Self {
-        let container = section_box("Power Usage Limit", 5, 5);
+        let container = section_box("Power Usage Limit");
         let default_cap = Rc::new(Cell::new(None));
 
         let value_suffix = "W";

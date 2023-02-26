@@ -17,7 +17,7 @@ pub struct ClocksFrame {
 
 impl ClocksFrame {
     pub fn new() -> Self {
-        let container = section_box("Maximum Clocks", 0, 5);
+        let container = section_box("Maximum Clocks");
 
         let tweaking_grid = Grid::builder().row_spacing(5).build();
         let max_sclk_adjustment = oc_adjustment("GPU Clock (MHz)", &tweaking_grid, 0);
@@ -28,7 +28,7 @@ impl ClocksFrame {
             .label("Defaults")
             .halign(Align::End)
             .build();
-        tweaking_grid.attach(&reset_button, 4, 3, 1, 1);
+        tweaking_grid.attach(&reset_button, 6, 3, 1, 1);
 
         let clocks_data_unavailable_label = Label::new(Some("No clocks data available"));
 
