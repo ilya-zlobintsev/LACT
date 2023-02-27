@@ -42,7 +42,9 @@ impl ClocksFrame {
 
         let reset_button = Button::builder()
             .label("Reset")
-            .halign(Align::End)
+            .halign(Align::Fill)
+            .margin_top(5)
+            .margin_bottom(5)
             .tooltip_text("Warning: this resets all clock settings to defaults!")
             .css_classes(["destructive-action"])
             .build();
