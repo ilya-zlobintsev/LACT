@@ -62,7 +62,9 @@ impl<'a> Handler {
 
         for (id, gpu_config) in &config.gpus {
             if let Some(controller) = controllers.get(id) {
-                controller.apply_config(gpu_config).await?;
+                if let Err(err) = controller.apply_config(gpu_config).await {
+                    error!("could not apply existing config for gpu {id}: {err}");
+                }
             } else {
                 info!("could not find GPU with id {id} defined in configuration");
             }
