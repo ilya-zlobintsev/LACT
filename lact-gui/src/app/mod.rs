@@ -297,6 +297,12 @@ impl App {
                 .context("Could not set the maximum voltage")?;
         }
 
+        if let Some(offset) = clocks_settings.voltage_offset {
+            self.daemon_client
+                .set_clocks_value(&gpu_id, SetClocksCommand::VoltageOffset(offset))
+                .context("Could not set the voltage offset")?;
+        }
+
         self.set_initial(&gpu_id);
 
         Ok(())

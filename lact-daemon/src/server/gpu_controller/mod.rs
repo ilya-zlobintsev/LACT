@@ -11,8 +11,8 @@ use amdgpu_sysfs::{
 };
 use anyhow::{anyhow, Context};
 use lact_schema::{
-    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, FanStats, GpuPciInfo,
-    LinkInfo, PciInfo, PerformanceLevel, PowerStats, VoltageStats, VramStats,
+    ClocksInfo, ClocksTable, ClocksTableGen, ClockspeedStats, DeviceInfo, DeviceStats, FanStats,
+    GpuPciInfo, LinkInfo, PciInfo, PerformanceLevel, PowerStats, VoltageStats, VramStats,
 };
 use pciid_parser::Database;
 use std::{
@@ -346,6 +346,15 @@ impl GpuController {
             || config.max_voltage.is_some()
         {
             let mut table = self.handle.get_clocks_table()?;
+
+            if let ClocksTableGen::Vega20(ref mut table) = table {
+                // Avoid writing settings to the clocks table except the user-specified ones
+                // There is an issue on some GPU models where the default values are actually outside of the allowed range
+                // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example
+                table.clear();
+
+                table.voltage_offset = config.voltage_offset;
+            }
 
             if let Some(clockspeed) = config.max_core_clock {
                 table.set_max_sclk(clockspeed)?;

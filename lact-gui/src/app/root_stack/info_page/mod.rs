@@ -34,7 +34,7 @@ impl InformationPage {
         let gpu_name_label = label_row("GPU Model:", &values_grid, 0, 0, true);
         let gpu_manufacturer_label = label_row("GPU Manufacturer:", &values_grid, 1, 0, true);
         let vbios_version_label = label_row("VBIOS Version:", &values_grid, 2, 0, true);
-        let driver_label = label_row("Driver Version:", &values_grid, 3, 0, true);
+        let driver_label = label_row("Driver Used:", &values_grid, 3, 0, true);
         let vram_size_label = label_row("VRAM Size:", &values_grid, 4, 0, true);
         let link_speed_label = label_row("Link Speed:", &values_grid, 5, 0, true);
 

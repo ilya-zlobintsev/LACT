@@ -41,6 +41,7 @@ pub struct Gpu {
     pub max_core_clock: Option<u32>,
     pub max_memory_clock: Option<u32>,
     pub max_voltage: Option<u32>,
+    pub voltage_offset: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
