@@ -4,6 +4,9 @@ use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{ClocksTable, ClocksTableGen};
 
+const VOLTAGE_OFFSET_RANGE: f64 = 250.0;
+const WARNING_TEXT: &str = "Warning: changing these values may lead to system instability and potentially damage your hardware!";
+
 #[derive(Clone)]
 pub struct ClocksFrame {
     pub container: Box,
@@ -21,16 +24,29 @@ impl ClocksFrame {
         let container = section_box("Maximum Clocks");
 
         let tweaking_grid = Grid::builder().row_spacing(5).build();
-        let max_sclk_adjustment = oc_adjustment("GPU Clock (MHz)", &tweaking_grid, 0);
-        let max_voltage_adjustment = oc_adjustment("GPU voltage (mV)", &tweaking_grid, 1);
-        let max_mclk_adjustment = oc_adjustment("VRAM Clock (MHz)", &tweaking_grid, 2);
-        let voltage_offset_adjustment = oc_adjustment("GPU voltage offset (mV)", &tweaking_grid, 3);
+
+        let warning_label = Label::builder()
+            .label(WARNING_TEXT)
+            .wrap_mode(pango::WrapMode::Word)
+            .halign(Align::Start)
+            .hexpand(true)
+            .margin_top(5)
+            .margin_bottom(5)
+            .build();
+        tweaking_grid.attach(&warning_label, 0, 0, 7, 1);
+
+        let max_sclk_adjustment = oc_adjustment("GPU Clock (MHz)", &tweaking_grid, 1);
+        let max_voltage_adjustment = oc_adjustment("GPU voltage (mV)", &tweaking_grid, 2);
+        let max_mclk_adjustment = oc_adjustment("VRAM Clock (MHz)", &tweaking_grid, 3);
+        let voltage_offset_adjustment = oc_adjustment("GPU voltage offset (mV)", &tweaking_grid, 4);
 
         let reset_button = Button::builder()
-            .label("Defaults")
+            .label("Reset")
             .halign(Align::End)
+            .tooltip_text("Warning: this resets all clock settings to defaults!")
+            .css_classes(["destructive-action"])
             .build();
-        tweaking_grid.attach(&reset_button, 6, 4, 1, 1);
+        tweaking_grid.attach(&reset_button, 6, 5, 1, 1);
 
         let clocks_data_unavailable_label = Label::new(Some("No clocks data available"));
 
@@ -91,8 +107,10 @@ impl ClocksFrame {
         if let ClocksTableGen::Vega20(table) = table {
             if let Some(offset) = table.voltage_offset {
                 // TODO: check this
-                self.voltage_offset_adjustment.set_lower(-500.0);
-                self.voltage_offset_adjustment.set_upper(-500.0);
+                self.voltage_offset_adjustment
+                    .set_lower(VOLTAGE_OFFSET_RANGE * -1.0);
+                self.voltage_offset_adjustment
+                    .set_upper(VOLTAGE_OFFSET_RANGE);
                 self.voltage_offset_adjustment.set_value(offset.into());
             } else {
                 self.voltage_offset_adjustment.set_upper(0.0);
@@ -123,7 +141,8 @@ impl ClocksFrame {
         let f = clone!(@strong f => move |_: &Adjustment| f());
         self.max_sclk_adjustment.connect_value_changed(f.clone());
         self.max_mclk_adjustment.connect_value_changed(f.clone());
-        self.max_voltage_adjustment.connect_value_changed(f);
+        self.max_voltage_adjustment.connect_value_changed(f.clone());
+        self.voltage_offset_adjustment.connect_value_changed(f);
     }
 
     pub fn connect_clocks_reset<F: Fn() + 'static + Clone>(&self, f: F) {
@@ -139,7 +158,7 @@ impl ClocksFrame {
             let voltage_offset = if self.voltage_offset_adjustment.upper() == 0.0 {
                 None
             } else {
-                Some(self.voltage_offset_adjustment.value() as u32)
+                Some(self.voltage_offset_adjustment.value() as i32)
             };
 
             ClocksSettings {
@@ -196,6 +215,9 @@ fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> Adjustment {
 
     adjustment.connect_changed(
         clone!(@strong label, @strong value_label, @strong scale, @strong value_button => move |adjustment| {
+            let value = adjustment.value();
+            value_label.set_text(&value.to_string());
+
             if adjustment.upper() == 0.0 {
                 label.hide();
                 value_label.hide();
@@ -222,7 +244,7 @@ pub struct ClocksSettings {
     pub max_core_clock: Option<u32>,
     pub max_memory_clock: Option<u32>,
     pub max_voltage: Option<u32>,
-    pub voltage_offset: Option<u32>,
+    pub voltage_offset: Option<i32>,
 }
 
 fn zero_to_option(value: f64) -> Option<u32> {
