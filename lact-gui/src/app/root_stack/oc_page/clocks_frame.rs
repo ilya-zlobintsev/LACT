@@ -23,22 +23,21 @@ impl ClocksFrame {
     pub fn new() -> Self {
         let container = section_box("Maximum Clocks");
 
-        let tweaking_grid = Grid::builder().row_spacing(5).build();
-
         let warning_label = Label::builder()
             .label(WARNING_TEXT)
             .wrap_mode(pango::WrapMode::Word)
             .halign(Align::Start)
-            .hexpand(true)
             .margin_top(5)
             .margin_bottom(5)
             .build();
-        tweaking_grid.attach(&warning_label, 0, 0, 7, 1);
+        container.append(&warning_label);
 
-        let max_sclk_adjustment = oc_adjustment("GPU Clock (MHz)", &tweaking_grid, 1);
-        let max_voltage_adjustment = oc_adjustment("GPU voltage (mV)", &tweaking_grid, 2);
-        let max_mclk_adjustment = oc_adjustment("VRAM Clock (MHz)", &tweaking_grid, 3);
-        let voltage_offset_adjustment = oc_adjustment("GPU voltage offset (mV)", &tweaking_grid, 4);
+        let tweaking_grid = Grid::builder().row_spacing(5).build();
+
+        let max_sclk_adjustment = oc_adjustment("GPU Clock (MHz)", &tweaking_grid, 0);
+        let max_voltage_adjustment = oc_adjustment("GPU voltage (mV)", &tweaking_grid, 1);
+        let max_mclk_adjustment = oc_adjustment("VRAM Clock (MHz)", &tweaking_grid, 2);
+        let voltage_offset_adjustment = oc_adjustment("GPU voltage offset (mV)", &tweaking_grid, 3);
 
         let reset_button = Button::builder()
             .label("Reset")
@@ -48,7 +47,7 @@ impl ClocksFrame {
             .tooltip_text("Warning: this resets all clock settings to defaults!")
             .css_classes(["destructive-action"])
             .build();
-        tweaking_grid.attach(&reset_button, 6, 5, 1, 1);
+        tweaking_grid.attach(&reset_button, 6, 4, 1, 1);
 
         let clocks_data_unavailable_label = Label::new(Some("No clocks data available"));
 
