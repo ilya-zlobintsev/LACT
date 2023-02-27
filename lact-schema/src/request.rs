@@ -41,6 +41,7 @@ pub enum Request<'a> {
         id: &'a str,
         index: Option<u16>,
     },
+    EnableOverdrive,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
