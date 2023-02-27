@@ -352,6 +352,8 @@ impl GpuController {
                 // There is an issue on some GPU models where the default values are actually outside of the allowed range
                 // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example
                 table.clear();
+
+                table.voltage_offset = config.voltage_offset;
             }
 
             if let Some(clockspeed) = config.max_core_clock {

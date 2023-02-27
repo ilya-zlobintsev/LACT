@@ -214,6 +214,7 @@ impl<'a> Handler {
             SetClocksCommand::MaxCoreClock(clock) => gpu_config.max_core_clock = Some(clock),
             SetClocksCommand::MaxMemoryClock(clock) => gpu_config.max_memory_clock = Some(clock),
             SetClocksCommand::MaxVoltage(voltage) => gpu_config.max_voltage = Some(voltage),
+            SetClocksCommand::VoltageOffset(offset) => gpu_config.voltage_offset = Some(offset),
             SetClocksCommand::Reset => {
                 gpu_config.max_core_clock = None;
                 gpu_config.max_memory_clock = None;
