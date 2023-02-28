@@ -1,5 +1,5 @@
 mod clocks_frame;
-mod performance_level_frame;
+mod performance_frame;
 mod power_cap_frame;
 mod stats_frame;
 
@@ -7,7 +7,7 @@ use clocks_frame::ClocksFrame;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{ClocksTableGen, DeviceStats, PerformanceLevel, SystemInfo};
-use performance_level_frame::PerformanceLevelFrame;
+use performance_frame::PerformanceFrame;
 use power_cap_frame::PowerCapFrame;
 use stats_frame::StatsFrame;
 use tracing::warn;
@@ -16,7 +16,7 @@ use tracing::warn;
 pub struct OcPage {
     pub container: Box,
     stats_frame: StatsFrame,
-    performance_level_frame: PerformanceLevelFrame,
+    performance_level_frame: PerformanceFrame,
     power_cap_frame: PowerCapFrame,
     pub clocks_frame: ClocksFrame,
 }
@@ -37,7 +37,7 @@ impl OcPage {
         container.append(&stats_frame.container);
 
         let power_cap_frame = PowerCapFrame::new();
-        let performance_level_frame = PerformanceLevelFrame::new();
+        let performance_level_frame = PerformanceFrame::new();
         let clocks_frame = ClocksFrame::new();
 
         container.append(&power_cap_frame.container);

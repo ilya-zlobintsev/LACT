@@ -110,7 +110,6 @@ impl ClocksFrame {
 
         if let ClocksTableGen::Vega20(table) = table {
             if let Some(offset) = table.voltage_offset {
-                // TODO: check this
                 self.voltage_offset_adjustment
                     .set_lower(VOLTAGE_OFFSET_RANGE * -1.0);
                 self.voltage_offset_adjustment
