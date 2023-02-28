@@ -235,9 +235,13 @@ impl<'a> Handler {
         Ok(modes_table)
     }
 
-    pub async fn set_power_profile_mode(&self, id: &str, index: usize) -> anyhow::Result<()> {
+    pub async fn set_power_profile_mode(
+        &self,
+        id: &str,
+        index: Option<usize>,
+    ) -> anyhow::Result<()> {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
-            gpu_config.power_profile_mode_index = Some(index);
+            gpu_config.power_profile_mode_index = index;
         })
         .await
     }

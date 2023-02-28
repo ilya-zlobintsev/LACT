@@ -184,6 +184,24 @@ impl App {
         };
         self.root_stack.oc_page.set_clocks_table(maybe_clocks_table);
 
+        let maybe_modes_table = match self.daemon_client.get_device_power_profile_modes(gpu_id) {
+            Ok(buf) => match buf.inner() {
+                Ok(table) => Some(table),
+                Err(err) => {
+                    debug!("Could not extract profile modes table: {err:?}");
+                    None
+                }
+            },
+            Err(err) => {
+                debug!("Could not get profile modes table: {err:?}");
+                None
+            }
+        };
+        self.root_stack
+            .oc_page
+            .performance_frame
+            .set_power_profile_modes(maybe_modes_table);
+
         // Show apply button on setting changes
         // This is done here because new widgets may appear after applying settings (like fan curve points) which should be connected
         let show_revealer = clone!(@strong self.apply_revealer as apply_revealer => move || {

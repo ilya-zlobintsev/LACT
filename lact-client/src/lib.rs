@@ -7,7 +7,7 @@ use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
 use schema::{
     request::SetClocksCommand, ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
-    PerformanceLevel, Request, Response, SystemInfo,
+    PerformanceLevel, PowerProfileModesTable, Request, Response, SystemInfo,
 };
 use serde::Deserialize;
 use std::{
@@ -90,6 +90,11 @@ impl DaemonClient {
     request_with_id!(get_device_info, DeviceInfo, DeviceInfo);
     request_with_id!(get_device_stats, DeviceStats, DeviceStats);
     request_with_id!(get_device_clocks_info, DeviceClocksInfo, ClocksInfo);
+    request_with_id!(
+        get_device_power_profile_modes,
+        DevicePowerProfileModes,
+        PowerProfileModesTable
+    );
 
     pub fn set_performance_level(
         &self,
