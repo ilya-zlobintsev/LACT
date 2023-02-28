@@ -7,7 +7,7 @@ mod tests;
 pub use amdgpu_sysfs::{
     gpu_handle::{
         overdrive::{ClocksTable, ClocksTableGen, Range},
-        PerformanceLevel, PowerLevels,
+        PerformanceLevel, PowerLevels, PowerProfileMode, PowerProfileModesTable,
     },
     hw_mon::Temperature,
 };
