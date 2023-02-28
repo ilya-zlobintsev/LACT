@@ -3,6 +3,7 @@ use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{ClocksTable, ClocksTableGen};
+use tracing::debug;
 
 const VOLTAGE_OFFSET_RANGE: f64 = 250.0;
 const WARNING_TEXT: &str = "Warning: changing these values may lead to system instability and potentially damage your hardware!";
@@ -67,6 +68,8 @@ impl ClocksFrame {
     }
 
     pub fn set_table(&self, table: ClocksTableGen) -> anyhow::Result<()> {
+        debug!("using clocks table {table:?}");
+
         // The upper value "0.0" is used to hide the adjustment when info is not available
         if let Some((current_sclk_max, sclk_min, sclk_max)) =
             extract_value_and_range(&table, |table| {

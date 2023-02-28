@@ -8,7 +8,7 @@ use crate::{config::Config, socket};
 use anyhow::Context;
 use lact_schema::{Pong, Request, Response, SystemInfo};
 use serde::Serialize;
-use std::{fs, process::Command};
+use std::{fmt::Debug, fs, process::Command};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{UnixListener, UnixStream},
@@ -98,7 +98,8 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
     }
 }
 
-fn ok_response<T: Serialize>(data: T) -> anyhow::Result<Vec<u8>> {
+fn ok_response<T: Serialize + Debug>(data: T) -> anyhow::Result<Vec<u8>> {
+    debug!("responding with {data:?}");
     Ok(serde_json::to_vec(&Response::Ok(data))?)
 }
 
