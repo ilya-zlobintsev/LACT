@@ -1,10 +1,9 @@
-use std::str::FromStr;
-
 use crate::app::root_stack::section_box;
-use glib::{clone, GString};
+use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{PerformanceLevel, PowerProfileModesTable};
+use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 #[derive(Clone)]
 pub struct PerformanceFrame {
@@ -12,7 +11,8 @@ pub struct PerformanceFrame {
     level_drop_down: DropDown,
     mode_drop_down: DropDown,
     description_label: Label,
-    mode_switching_disabled_warning: Image,
+    mode_info_popover: Popover,
+    modes_table: Rc<RefCell<Option<PowerProfileModesTable>>>,
 }
 
 impl PerformanceFrame {
@@ -37,16 +37,17 @@ impl PerformanceFrame {
         grid.attach(&level_drop_down, 2, 0, 1, 1);
 
         let mode_drop_down = DropDown::builder().sensitive(false).build();
-        let mode_switching_disabled_warning = Image::builder()
-            .icon_name("dialog-warning-symbolic")
-            .tooltip_text("Performance level has to be set to \"manual\" to use power level modes")
+        let mode_info_popover = Popover::new();
+        let mode_info_button = MenuButton::builder()
+            .icon_name("info-symbolic")
             .hexpand(true)
             .halign(Align::End)
+            .popover(&mode_info_popover)
             .build();
 
         let mode_title_label = Label::new(Some("Power level mode:"));
         grid.attach(&mode_title_label, 0, 1, 1, 1);
-        grid.attach(&mode_switching_disabled_warning, 1, 1, 1, 1);
+        grid.attach(&mode_info_button, 1, 1, 1, 1);
         grid.attach(&mode_drop_down, 2, 1, 1, 1);
 
         container.append(&grid);
@@ -56,11 +57,18 @@ impl PerformanceFrame {
             level_drop_down,
             mode_drop_down,
             description_label,
-            mode_switching_disabled_warning,
+            mode_info_popover,
+            modes_table: Rc::new(RefCell::new(None)),
         };
 
         frame
             .level_drop_down
+            .connect_selected_notify(clone!(@strong frame => move |_| {
+                frame.update_from_selection();
+            }));
+
+        frame
+            .mode_drop_down
             .connect_selected_notify(clone!(@strong frame => move |_| {
                 frame.update_from_selection();
             }));
@@ -80,9 +88,9 @@ impl PerformanceFrame {
     }
 
     pub fn set_power_profile_modes(&self, table: Option<PowerProfileModesTable>) {
-        match table {
+        match &table {
             Some(table) => {
-                let model: StringList = table.modes.into_iter().map(|mode| mode.name).collect();
+                let model: StringList = table.modes.iter().map(|mode| mode.name.clone()).collect();
                 self.mode_drop_down.set_model(Some(&model));
                 self.mode_drop_down.set_selected(table.active as u32);
 
@@ -92,6 +100,7 @@ impl PerformanceFrame {
                 self.mode_drop_down.hide();
             }
         }
+        self.modes_table.replace(table);
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
@@ -133,17 +142,36 @@ impl PerformanceFrame {
         };
         self.description_label.set_text(text);
         self.mode_drop_down.set_sensitive(enable_mode_control);
-        self.mode_switching_disabled_warning
-            .set_visible(!enable_mode_control);
 
-        if let Some(model) = self
-            .mode_drop_down
-            .model()
-            .map(|model| model.downcast::<StringList>().unwrap())
-        {
-            if model.string(0) == Some(GString::from_string_unchecked("BOOTUP_DEFAULT".into())) {
-                self.mode_drop_down.set_selected(0);
+        if enable_mode_control {
+            let active_mode = self.mode_drop_down.selected();
+            let table = self.modes_table.borrow();
+
+            if let Some(table) = table.as_ref() {
+                let vbox = Box::new(Orientation::Vertical, 5);
+                let active_mode = &table.modes[active_mode as usize];
+
+                for heuristic in &table.available_heuristics {
+                    let value = active_mode
+                        .heuristics
+                        .get(heuristic)
+                        .and_then(|value| value.as_deref())
+                        .unwrap_or("-");
+
+                    let label = Label::new(Some(&format!("{heuristic}: {value}")));
+                    vbox.append(&label);
+                }
+
+                self.mode_info_popover.set_child(Some(&vbox));
+            } else {
+                let label = Label::new(Some("(No description)"));
+                self.mode_info_popover.set_child(Some(&label));
             }
+        } else {
+            let label = Label::new(Some(
+                "Performance level has to be set to \"manual\" to use power profile modes",
+            ));
+            self.mode_info_popover.set_child(Some(&label));
         }
     }
 
