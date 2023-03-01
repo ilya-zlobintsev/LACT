@@ -7,7 +7,9 @@ edition = "2021"
 
 [dependencies]
 # amdgpu-sysfs = { version = "0.9.7", features = ["serde"] }
-amdgpu-sysfs = { path = "../../amdgpu-sysfs-rs", features = ["serde"] }
+amdgpu-sysfs = { git = "https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs", branch = "feature/power-profile-modes", features = [
+    "serde",
+] }
 anyhow = "1.0"
 bincode = "1.3"
 nix = "0.26"

@@ -26,6 +26,7 @@ dependencies = [
 [[package]]
 name = "amdgpu-sysfs"
 version = "0.9.7"
+source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs?branch=feature/power-profile-modes#e1b5e9a07f2ee1eaffbb4be1cbe3695860c03f25"
 dependencies = [
  "enum_dispatch",
  "serde",
