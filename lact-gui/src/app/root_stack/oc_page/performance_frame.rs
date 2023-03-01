@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::app::root_stack::section_box;
-use glib::clone;
+use glib::{clone, GString};
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{PerformanceLevel, PowerProfileModesTable};
@@ -12,47 +12,57 @@ pub struct PerformanceFrame {
     level_drop_down: DropDown,
     mode_drop_down: DropDown,
     description_label: Label,
+    mode_switching_disabled_warning: Image,
 }
 
 impl PerformanceFrame {
     pub fn new() -> Self {
         let container = section_box("Performance");
 
+        let grid = Grid::builder().row_spacing(5).column_spacing(10).build();
+
         let levels_model: StringList = ["Automatic", "Highest Clocks", "Lower Clocks", "Manual"]
             .into_iter()
             .collect();
-
-        let level_box = Box::new(Orientation::Horizontal, 5);
 
         let level_drop_down = DropDown::builder()
             .model(&levels_model)
             .sensitive(false)
             .build();
-        let description_label = Label::new(None);
+        let description_label = Label::builder().halign(Align::End).hexpand(true).build();
+        let perfromance_title_label = Label::builder().label("Performance level:").build();
 
-        level_box.append(&level_drop_down);
-        level_box.append(&description_label);
-
-        let mode_box = Box::new(Orientation::Horizontal, 5);
+        grid.attach(&perfromance_title_label, 0, 0, 1, 1);
+        grid.attach(&description_label, 1, 0, 1, 1);
+        grid.attach(&level_drop_down, 2, 0, 1, 1);
 
         let mode_drop_down = DropDown::builder().sensitive(false).build();
+        let mode_switching_disabled_warning = Image::builder()
+            .icon_name("dialog-warning-symbolic")
+            .tooltip_text("Performance level has to be set to \"manual\" to use power level modes")
+            .hexpand(true)
+            .halign(Align::End)
+            .build();
 
-        mode_box.append(&mode_drop_down);
+        let mode_title_label = Label::new(Some("Power level mode:"));
+        grid.attach(&mode_title_label, 0, 1, 1, 1);
+        grid.attach(&mode_switching_disabled_warning, 1, 1, 1, 1);
+        grid.attach(&mode_drop_down, 2, 1, 1, 1);
 
-        container.append(&level_box);
-        container.append(&mode_box);
+        container.append(&grid);
 
         let frame = Self {
             container,
             level_drop_down,
             mode_drop_down,
             description_label,
+            mode_switching_disabled_warning,
         };
 
         frame
             .level_drop_down
             .connect_selected_notify(clone!(@strong frame => move |_| {
-                frame.set_description();
+                frame.update_from_selection();
             }));
 
         frame
@@ -66,7 +76,7 @@ impl PerformanceFrame {
             PerformanceLevel::Low => self.level_drop_down.set_selected(2),
             PerformanceLevel::Manual => self.level_drop_down.set_selected(3),
         };
-        self.set_description();
+        self.update_from_selection();
     }
 
     pub fn set_power_profile_modes(&self, table: Option<PowerProfileModesTable>) {
@@ -84,10 +94,10 @@ impl PerformanceFrame {
         }
     }
 
-    pub fn connect_power_profile_changed<F: Fn() + 'static>(&self, f: F) {
-        self.level_drop_down.connect_selected_notify(move |_| {
-            f();
-        });
+    pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
+        self.level_drop_down
+            .connect_selected_notify(clone!(@strong f => move |_| f()));
+        self.mode_drop_down.connect_selected_notify(move |_| f());
     }
 
     pub fn get_selected_performance_level(&self) -> PerformanceLevel {
@@ -100,15 +110,41 @@ impl PerformanceFrame {
             .expect("Unrecognized selected performance level")
     }
 
-    fn set_description(&self) {
+    pub fn get_selected_power_profile_mode(&self) -> Option<usize> {
+        if self.mode_drop_down.is_sensitive() {
+            Some(self.mode_drop_down.selected() as usize)
+        } else {
+            None
+        }
+    }
+
+    fn update_from_selection(&self) {
+        let mut enable_mode_control = false;
+
         let text = match self.level_drop_down.selected() {
             0 => "Automatically adjust GPU and VRAM clocks. (Default)",
             1 => "Always use the highest clockspeeds for GPU and VRAM.",
             2 => "Always use the lowest clockspeeds for GPU and VRAM.",
-            3 => "Manual performance control.",
+            3 => {
+                enable_mode_control = true;
+                "Manual performance control."
+            }
             _ => unreachable!(),
         };
         self.description_label.set_text(text);
+        self.mode_drop_down.set_sensitive(enable_mode_control);
+        self.mode_switching_disabled_warning
+            .set_visible(!enable_mode_control);
+
+        if let Some(model) = self
+            .mode_drop_down
+            .model()
+            .map(|model| model.downcast::<StringList>().unwrap())
+        {
+            if model.string(0) == Some(GString::from_string_unchecked("BOOTUP_DEFAULT".into())) {
+                self.mode_drop_down.set_selected(0);
+            }
+        }
     }
 
     pub fn show(&self) {

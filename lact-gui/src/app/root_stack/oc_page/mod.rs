@@ -83,8 +83,7 @@ impl OcPage {
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        self.performance_frame
-            .connect_power_profile_changed(f.clone());
+        self.performance_frame.connect_settings_changed(f.clone());
         self.power_cap_frame.connect_cap_changed(f.clone());
         self.clocks_frame.connect_clocks_changed(f);
     }

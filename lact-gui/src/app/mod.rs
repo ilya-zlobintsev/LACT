@@ -277,10 +277,24 @@ impl App {
                 .context("Failed to set power cap")?;
         }
 
+        // Reset the power profile mode for switching to/from manual performance level
+        self.daemon_client
+            .set_power_profile_mode(&gpu_id, None)
+            .context("Could not set default power profile mode")?;
+
         if let Some(level) = self.root_stack.oc_page.get_performance_level() {
             self.daemon_client
                 .set_performance_level(&gpu_id, level)
                 .context("Failed to set power profile")?;
+
+            let mode_index = self
+                .root_stack
+                .oc_page
+                .performance_frame
+                .get_selected_power_profile_mode();
+            self.daemon_client
+                .set_power_profile_mode(&gpu_id, mode_index)
+                .context("Could not set active power profile mode")?;
         }
 
         if let Some(thermals_settings) = self.root_stack.thermals_page.get_thermals_settings() {

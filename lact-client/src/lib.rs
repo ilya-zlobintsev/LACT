@@ -112,6 +112,11 @@ impl DaemonClient {
         self.make_request(Request::SetClocksValue { id, command })?
             .inner()
     }
+
+    pub fn set_power_profile_mode(&self, id: &str, index: Option<usize>) -> anyhow::Result<()> {
+        self.make_request(Request::SetPowerProfileMode { id, index })?
+            .inner()
+    }
 }
 
 fn get_socket_path() -> Option<PathBuf> {
