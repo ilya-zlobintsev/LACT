@@ -110,7 +110,12 @@ impl PerformanceFrame {
                     }
                     PowerProfileModesTable::Basic(basic_table) => {
                         let modes = basic_table.modes.values().cloned().collect();
-                        (modes, basic_table.active)
+                        let real_index = basic_table
+                            .modes
+                            .keys()
+                            .position(|index| *index == basic_table.active)
+                            .expect("Could not get real index of selected item");
+                        (modes, real_index)
                     }
                 };
 
@@ -153,20 +158,21 @@ impl PerformanceFrame {
                         Some(self.mode_drop_down.selected() as usize)
                     }
                     PowerProfileModesTable::Basic(basic_table) => {
-                        let selected_name = self
-                            .level_drop_down
+                        let selected_object = self
+                            .mode_drop_down
                             .selected_item()
                             .expect("No item selected")
                             .downcast::<StringObject>()
                             .unwrap();
+                        let selected_name = selected_object.string();
 
                         let selected_item = basic_table
                             .modes
                             .values()
-                            .position(|name| name == selected_name.string().as_str());
+                            .position(|name| name == selected_name.as_str());
 
                         if selected_item.is_none() {
-                            error!("Unknown selected power mode: {selected_name:?}");
+                            error!("Unknown selected power mode: {selected_name}");
                         }
 
                         selected_item
