@@ -12,6 +12,7 @@ pub struct PerformanceFrame {
     mode_drop_down: DropDown,
     description_label: Label,
     mode_info_popover: Popover,
+    mode_box: Box,
     modes_table: Rc<RefCell<Option<PowerProfileModesTable>>>,
 }
 
@@ -19,11 +20,11 @@ impl PerformanceFrame {
     pub fn new() -> Self {
         let container = section_box("Performance");
 
-        let grid = Grid::builder().row_spacing(5).column_spacing(10).build();
-
         let levels_model: StringList = ["Automatic", "Highest Clocks", "Lower Clocks", "Manual"]
             .into_iter()
             .collect();
+
+        let level_box = Box::new(Orientation::Horizontal, 10);
 
         let level_drop_down = DropDown::builder()
             .model(&levels_model)
@@ -32,9 +33,13 @@ impl PerformanceFrame {
         let description_label = Label::builder().halign(Align::End).hexpand(true).build();
         let perfromance_title_label = Label::builder().label("Performance level:").build();
 
-        grid.attach(&perfromance_title_label, 0, 0, 1, 1);
-        grid.attach(&description_label, 1, 0, 1, 1);
-        grid.attach(&level_drop_down, 2, 0, 1, 1);
+        level_box.append(&perfromance_title_label);
+        level_box.append(&description_label);
+        level_box.append(&level_drop_down);
+
+        container.append(&level_box);
+
+        let mode_box = Box::new(Orientation::Horizontal, 10);
 
         let mode_drop_down = DropDown::builder().sensitive(false).build();
         let mode_info_popover = Popover::new();
@@ -46,11 +51,11 @@ impl PerformanceFrame {
             .build();
 
         let mode_title_label = Label::new(Some("Power level mode:"));
-        grid.attach(&mode_title_label, 0, 1, 1, 1);
-        grid.attach(&mode_info_button, 1, 1, 1, 1);
-        grid.attach(&mode_drop_down, 2, 1, 1, 1);
+        mode_box.append(&mode_title_label);
+        mode_box.append(&mode_info_button);
+        mode_box.append(&mode_drop_down);
 
-        container.append(&grid);
+        container.append(&mode_box);
 
         let frame = Self {
             container,
@@ -58,6 +63,7 @@ impl PerformanceFrame {
             mode_drop_down,
             description_label,
             mode_info_popover,
+            mode_box,
             modes_table: Rc::new(RefCell::new(None)),
         };
 
@@ -88,6 +94,8 @@ impl PerformanceFrame {
     }
 
     pub fn set_power_profile_modes(&self, table: Option<PowerProfileModesTable>) {
+        self.mode_box.set_visible(table.is_some());
+
         match &table {
             Some(table) => {
                 let model: StringList = table.modes.iter().map(|mode| mode.name.clone()).collect();
