@@ -2,8 +2,9 @@ use crate::app::root_stack::section_box;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{PerformanceLevel, PowerProfileModesTable};
+use lact_client::schema::{power_profile_mode::PowerProfileModesTable, PerformanceLevel};
 use std::{cell::RefCell, rc::Rc, str::FromStr};
+use tracing::error;
 
 #[derive(Clone)]
 pub struct PerformanceFrame {
@@ -98,9 +99,24 @@ impl PerformanceFrame {
 
         match &table {
             Some(table) => {
-                let model: StringList = table.modes.iter().map(|mode| mode.name.clone()).collect();
+                let (mode_names, active) = match table {
+                    PowerProfileModesTable::Full(full_table) => {
+                        let modes: Vec<String> = full_table
+                            .modes
+                            .iter()
+                            .map(|mode| mode.name.clone())
+                            .collect();
+                        (modes, full_table.active)
+                    }
+                    PowerProfileModesTable::Basic(basic_table) => {
+                        let modes = basic_table.modes.values().cloned().collect();
+                        (modes, basic_table.active)
+                    }
+                };
+
+                let model: StringList = mode_names.into_iter().collect();
                 self.mode_drop_down.set_model(Some(&model));
-                self.mode_drop_down.set_selected(table.active as u32);
+                self.mode_drop_down.set_selected(active as u32);
 
                 self.mode_drop_down.show();
             }
@@ -129,7 +145,33 @@ impl PerformanceFrame {
 
     pub fn get_selected_power_profile_mode(&self) -> Option<usize> {
         if self.mode_drop_down.is_sensitive() {
-            Some(self.mode_drop_down.selected() as usize)
+            self.modes_table
+                .borrow()
+                .as_ref()
+                .and_then(|table| match table {
+                    PowerProfileModesTable::Full(_) => {
+                        Some(self.mode_drop_down.selected() as usize)
+                    }
+                    PowerProfileModesTable::Basic(basic_table) => {
+                        let selected_name = self
+                            .level_drop_down
+                            .selected_item()
+                            .expect("No item selected")
+                            .downcast::<StringObject>()
+                            .unwrap();
+
+                        let selected_item = basic_table
+                            .modes
+                            .values()
+                            .position(|name| name == selected_name.string().as_str());
+
+                        if selected_item.is_none() {
+                            error!("Unknown selected power mode: {selected_name:?}");
+                        }
+
+                        selected_item
+                    }
+                })
         } else {
             None
         }
@@ -156,21 +198,29 @@ impl PerformanceFrame {
             let table = self.modes_table.borrow();
 
             if let Some(table) = table.as_ref() {
-                let vbox = Box::new(Orientation::Vertical, 5);
-                let active_mode = &table.modes[active_mode as usize];
+                match &table {
+                    PowerProfileModesTable::Full(full_table) => {
+                        let vbox = Box::new(Orientation::Vertical, 5);
+                        let active_mode = &full_table.modes[active_mode as usize];
 
-                for heuristic in &table.available_heuristics {
-                    let value = active_mode
-                        .heuristics
-                        .get(heuristic)
-                        .and_then(|value| value.as_deref())
-                        .unwrap_or("-");
+                        for heuristic in &full_table.available_heuristics {
+                            let value = active_mode
+                                .heuristics
+                                .get(heuristic)
+                                .and_then(|value| value.as_deref())
+                                .unwrap_or("-");
 
-                    let label = Label::new(Some(&format!("{heuristic}: {value}")));
-                    vbox.append(&label);
+                            let label = Label::new(Some(&format!("{heuristic}: {value}")));
+                            vbox.append(&label);
+                        }
+
+                        self.mode_info_popover.set_child(Some(&vbox));
+                    }
+                    PowerProfileModesTable::Basic(_) => {
+                        let label = Label::new(Some("No description available"));
+                        self.mode_info_popover.set_child(Some(&label));
+                    }
                 }
-
-                self.mode_info_popover.set_child(Some(&vbox));
             } else {
                 let label = Label::new(Some("(No description)"));
                 self.mode_info_popover.set_child(Some(&label));

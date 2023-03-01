@@ -1,6 +1,6 @@
 use super::gpu_controller::{fan_control::FanCurve, GpuController};
 use crate::config::{self, Config, FanControlSettings};
-use amdgpu_sysfs::gpu_handle::PowerProfileModesTable;
+use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::{anyhow, Context};
 use lact_schema::{
     request::SetClocksCommand, ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,

@@ -6,8 +6,8 @@ pub use lact_schema as schema;
 use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
 use schema::{
-    request::SetClocksCommand, ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
-    PerformanceLevel, PowerProfileModesTable, Request, Response, SystemInfo,
+    power_profile_mode::PowerProfileModesTable, request::SetClocksCommand, ClocksInfo, DeviceInfo,
+    DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel, Request, Response, SystemInfo,
 };
 use serde::Deserialize;
 use std::{
