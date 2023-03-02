@@ -341,6 +341,16 @@ impl GpuController {
                 .set_power_force_performance_level(PerformanceLevel::Auto)?;
         }
 
+        if let Some(mode_index) = config.power_profile_mode_index {
+            if config.performance_level != Some(PerformanceLevel::Manual) {
+                return Err(anyhow!(
+                    "Performance level has to be set to `manual` to use power profile modes"
+                ));
+            }
+
+            self.handle.set_active_power_profile_mode(mode_index)?;
+        }
+
         if config.max_core_clock.is_some()
             || config.max_memory_clock.is_some()
             || config.max_voltage.is_some()

@@ -17,6 +17,9 @@ pub enum Request<'a> {
     DeviceClocksInfo {
         id: &'a str,
     },
+    DevicePowerProfileModes {
+        id: &'a str,
+    },
     SetFanControl {
         id: &'a str,
         enabled: bool,
@@ -33,6 +36,10 @@ pub enum Request<'a> {
     SetClocksValue {
         id: &'a str,
         command: SetClocksCommand,
+    },
+    SetPowerProfileMode {
+        id: &'a str,
+        index: Option<u16>,
     },
 }
 

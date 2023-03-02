@@ -184,6 +184,24 @@ impl App {
         };
         self.root_stack.oc_page.set_clocks_table(maybe_clocks_table);
 
+        let maybe_modes_table = match self.daemon_client.get_device_power_profile_modes(gpu_id) {
+            Ok(buf) => match buf.inner() {
+                Ok(table) => Some(table),
+                Err(err) => {
+                    debug!("Could not extract profile modes table: {err:?}");
+                    None
+                }
+            },
+            Err(err) => {
+                debug!("Could not get profile modes table: {err:?}");
+                None
+            }
+        };
+        self.root_stack
+            .oc_page
+            .performance_frame
+            .set_power_profile_modes(maybe_modes_table);
+
         // Show apply button on setting changes
         // This is done here because new widgets may appear after applying settings (like fan curve points) which should be connected
         let show_revealer = clone!(@strong self.apply_revealer as apply_revealer => move || {
@@ -259,10 +277,24 @@ impl App {
                 .context("Failed to set power cap")?;
         }
 
+        // Reset the power profile mode for switching to/from manual performance level
+        self.daemon_client
+            .set_power_profile_mode(&gpu_id, None)
+            .context("Could not set default power profile mode")?;
+
         if let Some(level) = self.root_stack.oc_page.get_performance_level() {
             self.daemon_client
                 .set_performance_level(&gpu_id, level)
                 .context("Failed to set power profile")?;
+
+            let mode_index = self
+                .root_stack
+                .oc_page
+                .performance_frame
+                .get_selected_power_profile_mode();
+            self.daemon_client
+                .set_power_profile_mode(&gpu_id, mode_index)
+                .context("Could not set active power profile mode")?;
         }
 
         if let Some(thermals_settings) = self.root_stack.thermals_page.get_thermals_settings() {

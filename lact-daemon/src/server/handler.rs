@@ -1,5 +1,6 @@
 use super::gpu_controller::{fan_control::FanCurve, GpuController};
 use crate::config::{self, Config, FanControlSettings};
+use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::{anyhow, Context};
 use lact_schema::{
     request::SetClocksCommand, ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
@@ -222,6 +223,21 @@ impl<'a> Handler {
                 gpu_config.max_memory_clock = None;
                 gpu_config.max_voltage = None;
             }
+        })
+        .await
+    }
+
+    pub fn get_power_profile_modes(&self, id: &str) -> anyhow::Result<PowerProfileModesTable> {
+        let modes_table = self
+            .controller_by_id(id)?
+            .handle
+            .get_power_profile_modes()?;
+        Ok(modes_table)
+    }
+
+    pub async fn set_power_profile_mode(&self, id: &str, index: Option<u16>) -> anyhow::Result<()> {
+        self.edit_gpu_config(id.to_owned(), |gpu_config| {
+            gpu_config.power_profile_mode_index = index;
         })
         .await
     }

@@ -84,6 +84,9 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::DeviceInfo { id } => ok_response(handler.get_device_info(id)?),
         Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id)?),
         Request::DeviceClocksInfo { id } => ok_response(handler.get_clocks_info(id)?),
+        Request::DevicePowerProfileModes { id } => {
+            ok_response(handler.get_power_profile_modes(id)?)
+        }
         Request::SetFanControl { id, enabled, curve } => {
             ok_response(handler.set_fan_control(id, enabled, curve).await?)
         }
@@ -94,6 +97,9 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         } => ok_response(handler.set_performance_level(id, performance_level).await?),
         Request::SetClocksValue { id, command } => {
             ok_response(handler.set_clocks_value(id, command).await?)
+        }
+        Request::SetPowerProfileMode { id, index } => {
+            ok_response(handler.set_power_profile_mode(id, index).await?)
         }
     }
 }

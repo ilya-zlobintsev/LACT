@@ -1,5 +1,5 @@
 mod clocks_frame;
-mod performance_level_frame;
+mod performance_frame;
 mod power_cap_frame;
 mod stats_frame;
 
@@ -7,7 +7,7 @@ use clocks_frame::ClocksFrame;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{ClocksTableGen, DeviceStats, PerformanceLevel, SystemInfo};
-use performance_level_frame::PerformanceLevelFrame;
+use performance_frame::PerformanceFrame;
 use power_cap_frame::PowerCapFrame;
 use stats_frame::StatsFrame;
 use tracing::warn;
@@ -16,7 +16,7 @@ use tracing::warn;
 pub struct OcPage {
     pub container: Box,
     stats_frame: StatsFrame,
-    performance_level_frame: PerformanceLevelFrame,
+    pub performance_frame: PerformanceFrame,
     power_cap_frame: PowerCapFrame,
     pub clocks_frame: ClocksFrame,
 }
@@ -37,7 +37,7 @@ impl OcPage {
         container.append(&stats_frame.container);
 
         let power_cap_frame = PowerCapFrame::new();
-        let performance_level_frame = PerformanceLevelFrame::new();
+        let performance_level_frame = PerformanceFrame::new();
         let clocks_frame = ClocksFrame::new();
 
         container.append(&power_cap_frame.container);
@@ -47,7 +47,7 @@ impl OcPage {
         Self {
             container,
             stats_frame,
-            performance_level_frame,
+            performance_frame: performance_level_frame,
             clocks_frame,
             power_cap_frame,
         }
@@ -83,8 +83,7 @@ impl OcPage {
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        self.performance_level_frame
-            .connect_power_profile_changed(f.clone());
+        self.performance_frame.connect_settings_changed(f.clone());
         self.power_cap_frame.connect_cap_changed(f.clone());
         self.clocks_frame.connect_clocks_changed(f);
     }
@@ -92,18 +91,16 @@ impl OcPage {
     pub fn set_performance_level(&self, profile: Option<PerformanceLevel>) {
         match profile {
             Some(profile) => {
-                self.performance_level_frame.show();
-                self.performance_level_frame.set_active_profile(profile);
+                self.performance_frame.show();
+                self.performance_frame.set_active_level(profile);
             }
-            None => self.performance_level_frame.hide(),
+            None => self.performance_frame.hide(),
         }
     }
 
     pub fn get_performance_level(&self) -> Option<PerformanceLevel> {
-        if self.performance_level_frame.get_visibility() {
-            let level = self
-                .performance_level_frame
-                .get_selected_performance_level();
+        if self.performance_frame.get_visibility() {
+            let level = self.performance_frame.get_selected_performance_level();
             Some(level)
         } else {
             None

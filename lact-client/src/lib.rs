@@ -6,8 +6,8 @@ pub use lact_schema as schema;
 use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
 use schema::{
-    request::SetClocksCommand, ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
-    PerformanceLevel, Request, Response, SystemInfo,
+    power_profile_mode::PowerProfileModesTable, request::SetClocksCommand, ClocksInfo, DeviceInfo,
+    DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel, Request, Response, SystemInfo,
 };
 use serde::Deserialize;
 use std::{
@@ -90,6 +90,11 @@ impl DaemonClient {
     request_with_id!(get_device_info, DeviceInfo, DeviceInfo);
     request_with_id!(get_device_stats, DeviceStats, DeviceStats);
     request_with_id!(get_device_clocks_info, DeviceClocksInfo, ClocksInfo);
+    request_with_id!(
+        get_device_power_profile_modes,
+        DevicePowerProfileModes,
+        PowerProfileModesTable
+    );
 
     pub fn set_performance_level(
         &self,
@@ -105,6 +110,11 @@ impl DaemonClient {
 
     pub fn set_clocks_value(&self, id: &str, command: SetClocksCommand) -> anyhow::Result<()> {
         self.make_request(Request::SetClocksValue { id, command })?
+            .inner()
+    }
+
+    pub fn set_power_profile_mode(&self, id: &str, index: Option<u16>) -> anyhow::Result<()> {
+        self.make_request(Request::SetPowerProfileMode { id, index })?
             .inner()
     }
 }
