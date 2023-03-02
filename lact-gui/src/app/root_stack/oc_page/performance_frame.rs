@@ -4,7 +4,6 @@ use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{power_profile_mode::PowerProfileModesTable, PerformanceLevel};
 use std::{cell::RefCell, rc::Rc, str::FromStr};
-use tracing::error;
 
 #[derive(Clone)]
 pub struct PerformanceFrame {
@@ -12,7 +11,7 @@ pub struct PerformanceFrame {
     level_drop_down: DropDown,
     mode_drop_down: DropDown,
     description_label: Label,
-    mode_info_popover: Popover,
+    manual_info_button: MenuButton,
     mode_box: Box,
     modes_table: Rc<RefCell<Option<PowerProfileModesTable>>>,
 }
@@ -42,10 +41,17 @@ impl PerformanceFrame {
 
         let mode_box = Box::new(Orientation::Horizontal, 10);
 
-        let mode_drop_down = DropDown::builder().sensitive(false).build();
-        let mode_info_popover = Popover::new();
-        let mode_info_button = MenuButton::builder()
-            .icon_name("info-symbolic")
+        let mode_drop_down = DropDown::builder()
+            .sensitive(false)
+            .halign(Align::End)
+            .build();
+
+        let unavailable_label = Label::new(Some(
+            "Performance level has to be set to \"manual\" to use power profile modes",
+        ));
+        let mode_info_popover = Popover::builder().child(&unavailable_label).build();
+        let manual_info_button = MenuButton::builder()
+            .icon_name("dialog-information-symbolic")
             .hexpand(true)
             .halign(Align::End)
             .popover(&mode_info_popover)
@@ -53,7 +59,7 @@ impl PerformanceFrame {
 
         let mode_title_label = Label::new(Some("Power level mode:"));
         mode_box.append(&mode_title_label);
-        mode_box.append(&mode_info_button);
+        mode_box.append(&manual_info_button);
         mode_box.append(&mode_drop_down);
 
         container.append(&mode_box);
@@ -63,7 +69,7 @@ impl PerformanceFrame {
             level_drop_down,
             mode_drop_down,
             description_label,
-            mode_info_popover,
+            manual_info_button,
             mode_box,
             modes_table: Rc::new(RefCell::new(None)),
         };
@@ -99,29 +105,15 @@ impl PerformanceFrame {
 
         match &table {
             Some(table) => {
-                let (mode_names, active) = match table {
-                    PowerProfileModesTable::Full(full_table) => {
-                        let modes: Vec<String> = full_table
-                            .modes
-                            .iter()
-                            .map(|mode| mode.name.clone())
-                            .collect();
-                        (modes, full_table.active)
-                    }
-                    PowerProfileModesTable::Basic(basic_table) => {
-                        let modes = basic_table.modes.values().cloned().collect();
-                        let real_index = basic_table
-                            .modes
-                            .keys()
-                            .position(|index| *index == basic_table.active)
-                            .expect("Could not get real index of selected item");
-                        (modes, real_index)
-                    }
-                };
+                let model: StringList = table.modes.values().cloned().collect();
+                let active_pos = table
+                    .modes
+                    .keys()
+                    .position(|key| *key == table.active)
+                    .expect("No active mode") as u32;
 
-                let model: StringList = mode_names.into_iter().collect();
                 self.mode_drop_down.set_model(Some(&model));
-                self.mode_drop_down.set_selected(active as u32);
+                self.mode_drop_down.set_selected(active_pos);
 
                 self.mode_drop_down.show();
             }
@@ -148,36 +140,16 @@ impl PerformanceFrame {
             .expect("Unrecognized selected performance level")
     }
 
-    pub fn get_selected_power_profile_mode(&self) -> Option<usize> {
+    pub fn get_selected_power_profile_mode(&self) -> Option<u16> {
         if self.mode_drop_down.is_sensitive() {
-            self.modes_table
-                .borrow()
-                .as_ref()
-                .and_then(|table| match table {
-                    PowerProfileModesTable::Full(_) => {
-                        Some(self.mode_drop_down.selected() as usize)
-                    }
-                    PowerProfileModesTable::Basic(basic_table) => {
-                        let selected_object = self
-                            .mode_drop_down
-                            .selected_item()
-                            .expect("No item selected")
-                            .downcast::<StringObject>()
-                            .unwrap();
-                        let selected_name = selected_object.string();
-
-                        let selected_item = basic_table
-                            .modes
-                            .values()
-                            .position(|name| name == selected_name.as_str());
-
-                        if selected_item.is_none() {
-                            error!("Unknown selected power mode: {selected_name}");
-                        }
-
-                        selected_item
-                    }
-                })
+            self.modes_table.borrow().as_ref().map(|table| {
+                let selected_index = table
+                    .modes
+                    .keys()
+                    .nth(self.mode_drop_down.selected() as usize)
+                    .expect("Selected mode out of range");
+                *selected_index
+            })
         } else {
             None
         }
@@ -199,44 +171,8 @@ impl PerformanceFrame {
         self.description_label.set_text(text);
         self.mode_drop_down.set_sensitive(enable_mode_control);
 
-        if enable_mode_control {
-            let active_mode = self.mode_drop_down.selected();
-            let table = self.modes_table.borrow();
-
-            if let Some(table) = table.as_ref() {
-                match &table {
-                    PowerProfileModesTable::Full(full_table) => {
-                        let vbox = Box::new(Orientation::Vertical, 5);
-                        let active_mode = &full_table.modes[active_mode as usize];
-
-                        for heuristic in &full_table.available_heuristics {
-                            let value = active_mode
-                                .heuristics
-                                .get(heuristic)
-                                .and_then(|value| value.as_deref())
-                                .unwrap_or("-");
-
-                            let label = Label::new(Some(&format!("{heuristic}: {value}")));
-                            vbox.append(&label);
-                        }
-
-                        self.mode_info_popover.set_child(Some(&vbox));
-                    }
-                    PowerProfileModesTable::Basic(_) => {
-                        let label = Label::new(Some("No description available"));
-                        self.mode_info_popover.set_child(Some(&label));
-                    }
-                }
-            } else {
-                let label = Label::new(Some("(No description)"));
-                self.mode_info_popover.set_child(Some(&label));
-            }
-        } else {
-            let label = Label::new(Some(
-                "Performance level has to be set to \"manual\" to use power profile modes",
-            ));
-            self.mode_info_popover.set_child(Some(&label));
-        }
+        self.manual_info_button.set_visible(!enable_mode_control);
+        self.mode_drop_down.set_hexpand(enable_mode_control);
     }
 
     pub fn show(&self) {

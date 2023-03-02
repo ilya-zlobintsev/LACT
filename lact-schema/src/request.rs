@@ -39,7 +39,7 @@ pub enum Request<'a> {
     },
     SetPowerProfileMode {
         id: &'a str,
-        index: Option<usize>,
+        index: Option<u16>,
     },
 }
 

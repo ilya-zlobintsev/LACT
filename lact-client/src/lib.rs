@@ -113,7 +113,7 @@ impl DaemonClient {
             .inner()
     }
 
-    pub fn set_power_profile_mode(&self, id: &str, index: Option<usize>) -> anyhow::Result<()> {
+    pub fn set_power_profile_mode(&self, id: &str, index: Option<u16>) -> anyhow::Result<()> {
         self.make_request(Request::SetPowerProfileMode { id, index })?
             .inner()
     }
