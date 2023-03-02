@@ -20,7 +20,7 @@ impl PerformanceFrame {
     pub fn new() -> Self {
         let container = section_box("Performance");
 
-        let levels_model: StringList = ["Automatic", "Highest Clocks", "Lower Clocks", "Manual"]
+        let levels_model: StringList = ["Automatic", "Highest Clocks", "Lowest Clocks", "Manual"]
             .into_iter()
             .collect();
 
