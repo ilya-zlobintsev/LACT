@@ -6,7 +6,10 @@ mod stats_frame;
 use clocks_frame::ClocksFrame;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{ClocksTableGen, DeviceStats, PerformanceLevel, SystemInfo};
+use lact_client::schema::{
+    amdgpu_sysfs::gpu_handle::{overdrive::ClocksTableGen, PerformanceLevel},
+    DeviceStats, SystemInfo,
+};
 use performance_frame::PerformanceFrame;
 use power_cap_frame::PowerCapFrame;
 use stats_frame::StatsFrame;

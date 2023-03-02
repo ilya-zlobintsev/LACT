@@ -3,16 +3,19 @@ pub mod fan_control;
 use self::fan_control::FanCurve;
 use super::vulkan::get_vulkan_info;
 use crate::{config, fork::run_forked};
-use amdgpu_sysfs::{
-    error::Error,
-    gpu_handle::GpuHandle,
-    hw_mon::{FanControlMethod, HwMon},
-    sysfs::SysFS,
-};
 use anyhow::{anyhow, Context};
 use lact_schema::{
-    ClocksInfo, ClocksTable, ClocksTableGen, ClockspeedStats, DeviceInfo, DeviceStats, FanStats,
-    GpuPciInfo, LinkInfo, PciInfo, PerformanceLevel, PowerStats, VoltageStats, VramStats,
+    amdgpu_sysfs::{
+        error::Error,
+        gpu_handle::{
+            overdrive::{ClocksTable, ClocksTableGen},
+            GpuHandle, PerformanceLevel,
+        },
+        hw_mon::{FanControlMethod, HwMon},
+        sysfs::SysFS,
+    },
+    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, FanStats, GpuPciInfo, LinkInfo, PciInfo,
+    PowerStats, VoltageStats, VramStats,
 };
 use pciid_parser::Database;
 use std::{

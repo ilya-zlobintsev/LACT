@@ -6,8 +6,10 @@ pub use lact_schema as schema;
 use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
 use schema::{
-    power_profile_mode::PowerProfileModesTable, request::SetClocksCommand, ClocksInfo, DeviceInfo,
-    DeviceListEntry, DeviceStats, FanCurveMap, PerformanceLevel, Request, Response, SystemInfo,
+    amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel},
+    request::SetClocksCommand,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, Request, Response,
+    SystemInfo,
 };
 use serde::Deserialize;
 use std::{

@@ -816,7 +816,6 @@ dependencies = [
 name = "lact-daemon"
 version = "0.3.0"
 dependencies = [
- "amdgpu-sysfs",
  "anyhow",
  "bincode",
  "futures",

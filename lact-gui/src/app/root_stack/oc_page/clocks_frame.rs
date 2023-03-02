@@ -2,7 +2,8 @@ use crate::app::root_stack::section_box;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{ClocksTable, ClocksTableGen};
+use lact_client::schema::amdgpu_sysfs;
+use lact_client::schema::amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable, ClocksTableGen};
 use tracing::debug;
 
 const VOLTAGE_OFFSET_RANGE: f64 = 250.0;
@@ -178,7 +179,12 @@ impl ClocksFrame {
 
 fn extract_value_and_range(
     table: &ClocksTableGen,
-    f: fn(&ClocksTableGen) -> (Option<u32>, Option<lact_client::schema::Range>),
+    f: fn(
+        &ClocksTableGen,
+    ) -> (
+        Option<u32>,
+        Option<amdgpu_sysfs::gpu_handle::overdrive::Range>,
+    ),
 ) -> Option<(u32, u32, u32)> {
     let (maybe_value, maybe_range) = f(table);
     let (value, range) = maybe_value.zip(maybe_range)?;

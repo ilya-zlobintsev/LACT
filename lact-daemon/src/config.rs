@@ -1,6 +1,6 @@
 use crate::server::gpu_controller::fan_control::FanCurve;
 use anyhow::Context;
-use lact_schema::PerformanceLevel;
+use lact_schema::amdgpu_sysfs::gpu_handle::PerformanceLevel;
 use nix::unistd::getuid;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;

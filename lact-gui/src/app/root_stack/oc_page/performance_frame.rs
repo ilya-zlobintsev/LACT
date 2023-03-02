@@ -2,7 +2,9 @@ use crate::app::root_stack::section_box;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{power_profile_mode::PowerProfileModesTable, PerformanceLevel};
+use lact_client::schema::amdgpu_sysfs::gpu_handle::{
+    power_profile_mode::PowerProfileModesTable, PerformanceLevel,
+};
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 #[derive(Clone)]
