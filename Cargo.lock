@@ -25,8 +25,9 @@ dependencies = [
 
 [[package]]
 name = "amdgpu-sysfs"
-version = "0.9.7"
-source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs?branch=feature/power-profile-modes-basic#bef7e0ee6c365028b127fa321d4ecbb516f6a35f"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47443bb84437d283c988cc988e28bac8f841530a855d7069cf272a691af61db0"
 dependencies = [
  "enum_dispatch",
  "serde",

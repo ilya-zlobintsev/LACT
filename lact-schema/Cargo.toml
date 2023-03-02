@@ -4,10 +4,7 @@ version = "0.3.0"
 edition = "2021"
 
 [dependencies]
-# amdgpu-sysfs = { version = "0.9.7", features = ["serde"] }
-amdgpu-sysfs = { git = "https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs", branch = "feature/power-profile-modes-basic", features = [
-    "serde",
-] }
+amdgpu-sysfs = { version = "0.10.0", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 indexmap = { version = "*", features = ["serde"] }
 
