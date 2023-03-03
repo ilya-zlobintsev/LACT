@@ -1614,7 +1614,7 @@ dependencies = [
 [[package]]
 name = "vulkano"
 version = "0.32.0"
-source = "git+https://github.com/vulkano-rs/vulkano#6994ce613e2e23ae216ec2c7956dff2f8f0ee208"
+source = "git+https://github.com/vulkano-rs/vulkano#4f03fe55acdad13a8df00fe0d883f71351818ba5"
 dependencies = [
  "ahash",
  "ash",
@@ -1642,7 +1642,7 @@ dependencies = [
 [[package]]
 name = "vulkano-macros"
 version = "0.32.0"
-source = "git+https://github.com/vulkano-rs/vulkano#6994ce613e2e23ae216ec2c7956dff2f8f0ee208"
+source = "git+https://github.com/vulkano-rs/vulkano#4f03fe55acdad13a8df00fe0d883f71351818ba5"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
