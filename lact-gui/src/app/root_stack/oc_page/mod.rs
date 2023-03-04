@@ -15,6 +15,9 @@ use power_cap_frame::PowerCapFrame;
 use stats_frame::StatsFrame;
 use tracing::warn;
 
+const OVERCLOCKING_DISABLED_TEXT: &str = "Overclocking support is not enabled! \
+You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
+
 #[derive(Clone)]
 pub struct OcPage {
     pub container: Box,
@@ -22,6 +25,7 @@ pub struct OcPage {
     pub performance_frame: PerformanceFrame,
     power_cap_frame: PowerCapFrame,
     pub clocks_frame: ClocksFrame,
+    pub enable_overclocking_button: Option<Button>,
 }
 
 impl OcPage {
@@ -31,8 +35,11 @@ impl OcPage {
             .spacing(15)
             .build();
 
+        let mut enable_overclocking_button = None;
+
         if system_info.amdgpu_overdrive_enabled == Some(false) {
-            let warning_frame = oc_warning_frame();
+            let (warning_frame, button) = oc_warning_frame();
+            enable_overclocking_button = Some(button);
             container.append(&warning_frame);
         }
 
@@ -53,6 +60,7 @@ impl OcPage {
             performance_frame: performance_level_frame,
             clocks_frame,
             power_cap_frame,
+            enable_overclocking_button,
         }
     }
 
@@ -115,17 +123,36 @@ impl OcPage {
     }
 }
 
-fn oc_warning_frame() -> Frame {
+fn oc_warning_frame() -> (Frame, Button) {
     let container = Frame::new(Some("Overclocking information"));
 
     container.set_label_align(0.3);
 
-    let warning_label = Label::new(None);
+    let vbox = Box::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(5)
+        .margin_top(10)
+        .margin_bottom(10)
+        .margin_start(10)
+        .margin_end(10)
+        .build();
 
-    warning_label.set_wrap(true);
-    warning_label.set_markup("Overclocking support is not enabled! To enable overclocking support, you need to add <b>amdgpu.ppfeaturemask=0xffffffff</b> to your kernel boot options. Look for the documentation of your distro.");
-    warning_label.set_selectable(true);
+    let warning_label = Label::builder()
+        .use_markup(true)
+        .label(OVERCLOCKING_DISABLED_TEXT)
+        .wrap(true)
+        .wrap_mode(pango::WrapMode::Word)
+        .build();
 
-    container.set_child(Some(&warning_label));
-    container
+    let enable_button = Button::builder()
+        .label("Enable Overclocking")
+        .halign(Align::End)
+        .build();
+
+    vbox.append(&warning_label);
+    vbox.append(&enable_button);
+
+    container.set_child(Some(&vbox));
+
+    (container, enable_button)
 }
