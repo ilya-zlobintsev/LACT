@@ -17,6 +17,8 @@ use tokio::{
 };
 use tracing::{debug_span, info, Instrument, Level};
 
+pub use server::system::MODULE_CONF_PATH;
+
 const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
     SignalKind::terminate(),
     SignalKind::interrupt(),

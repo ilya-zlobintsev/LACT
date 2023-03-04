@@ -1,19 +1,20 @@
 pub mod gpu_controller;
 pub mod handler;
-// mod pci;
+pub(crate) mod system;
 mod vulkan;
 
 use self::handler::Handler;
 use crate::{config::Config, socket};
-use anyhow::Context;
-use lact_schema::{Pong, Request, Response, SystemInfo};
+use lact_schema::{Pong, Request, Response};
 use serde::Serialize;
-use std::{fmt::Debug, fs, process::Command};
+use std::fmt::Debug;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{UnixListener, UnixStream},
 };
 use tracing::{debug, error, instrument};
+
+pub use system::MODULE_CONF_PATH;
 
 pub struct Server {
     pub handler: Handler,
@@ -79,7 +80,7 @@ pub async fn handle_stream(stream: UnixStream, handler: Handler) -> anyhow::Resu
 async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyhow::Result<Vec<u8>> {
     match request {
         Request::Ping => ok_response(ping()),
-        Request::SystemInfo => ok_response(system_info()?),
+        Request::SystemInfo => ok_response(system::info()?),
         Request::ListDevices => ok_response(handler.list_devices()),
         Request::DeviceInfo { id } => ok_response(handler.get_device_info(id)?),
         Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id)?),
@@ -101,6 +102,7 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::SetPowerProfileMode { id, index } => {
             ok_response(handler.set_power_profile_mode(id, index).await?)
         }
+        Request::EnableOverdrive => ok_response(system::enable_overdrive()?),
     }
 }
 
@@ -111,45 +113,4 @@ fn ok_response<T: Serialize + Debug>(data: T) -> anyhow::Result<Vec<u8>> {
 
 fn ping() -> Pong {
     Pong
-}
-
-fn system_info() -> anyhow::Result<SystemInfo<'static>> {
-    let version = env!("CARGO_PKG_VERSION");
-    let profile = if cfg!(debug_assertions) {
-        "debug"
-    } else {
-        "release"
-    };
-    let kernel_output = Command::new("uname")
-        .arg("-r")
-        .output()
-        .context("Could not read kernel version")?;
-    let kernel_version = String::from_utf8(kernel_output.stdout)
-        .context("Invalid kernel version output")?
-        .trim()
-        .to_owned();
-
-    let amdgpu_overdrive_enabled = if let Ok(ppfeaturemask) =
-        fs::read_to_string("/sys/module/amdgpu/parameters/ppfeaturemask")
-    {
-        const PP_OVERDRIVE_MASK: i32 = 0x4000;
-
-        let ppfeaturemask = ppfeaturemask
-            .trim()
-            .strip_prefix("0x")
-            .context("Invalid ppfeaturemask")?;
-        let ppfeaturemask: u64 =
-            u64::from_str_radix(ppfeaturemask, 16).context("Invalid ppfeaturemask")?;
-
-        Some((ppfeaturemask & PP_OVERDRIVE_MASK as u64) > 0)
-    } else {
-        None
-    };
-
-    Ok(SystemInfo {
-        version,
-        profile,
-        kernel_version,
-        amdgpu_overdrive_enabled,
-    })
 }

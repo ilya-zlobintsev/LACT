@@ -89,6 +89,7 @@ impl DaemonClient {
     }
 
     request_plain!(get_system_info, SystemInfo, SystemInfo);
+    request_plain!(enable_overdrive, EnableOverdrive, ());
     request_with_id!(get_device_info, DeviceInfo, DeviceInfo);
     request_with_id!(get_device_stats, DeviceStats, DeviceStats);
     request_with_id!(get_device_clocks_info, DeviceClocksInfo, ClocksInfo);

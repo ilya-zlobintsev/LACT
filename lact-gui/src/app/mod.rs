@@ -11,6 +11,7 @@ use header::Header;
 use lact_client::schema::request::SetClocksCommand;
 use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
+use lact_daemon::MODULE_CONF_PATH;
 use root_stack::RootStack;
 use std::sync::{Arc, RwLock};
 use std::thread;
@@ -126,6 +127,12 @@ impl App {
                     let gpu_id = current_gpu_id.read().unwrap();
                     app.set_initial(&gpu_id)
                 }));
+
+                if let Some(ref button) = app.root_stack.oc_page.enable_overclocking_button {
+                    button.connect_clicked(clone!(@strong app => move |_| {
+                        app.enable_overclocking();
+                    }));
+                }
 
                 app.start_stats_update_loop(current_gpu_id);
 
@@ -338,6 +345,40 @@ impl App {
         self.set_initial(&gpu_id);
 
         Ok(())
+    }
+
+    fn enable_overclocking(&self) {
+        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>. Are you sure you want to do this?");
+        let dialog = MessageDialog::builder()
+            .title("Enable Overclocking")
+            .use_markup(true)
+            .text(text)
+            .message_type(MessageType::Question)
+            .buttons(ButtonsType::OkCancel)
+            .transient_for(&self.window)
+            .build();
+
+        dialog.run_async(clone!(@strong self as app => move |diag, response| {
+            if response == ResponseType::Ok {
+                match app.daemon_client.enable_overdrive().and_then(|buffer| buffer.inner()) {
+                    Ok(_) => {
+                        let success_dialog = MessageDialog::builder()
+                            .title("Success")
+                            .text("Overclocking successfully enabled. A system reboot is required to apply the changes")
+                            .message_type(MessageType::Info)
+                            .buttons(ButtonsType::Ok)
+                            .build();
+                        success_dialog.run_async(move |diag, _| {
+                            diag.hide();
+                        });
+                    }
+                    Err(err) => {
+                        show_error(&app.window, err);
+                    }
+                }
+            }
+            diag.hide();
+        }));
     }
 }
 
