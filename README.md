@@ -30,6 +30,14 @@ Currently missing:
 **Why is there no AppImage/Flatpak/other universal format?**
 See [here](./pkg/README.md).
 
+# Usage
+
+Enable and start the service (otherwise you won't be able to change any settings):
+```
+sudo systemctl enable --now lactd
+```
+You can now use the GUI to change settings and view information.
+
 # Configuration
 
 There is a configuration file available in `/etc/lact/config.yaml`. Most of the settings are accessible through the GUI, but some of them may be useful to be edited manually (like `admin_groups` to specify who has access to the daemon)
@@ -39,6 +47,10 @@ There is a configuration file available in `/etc/lact/config.yaml`. Most of the 
 The overclocking functionality is disabled by default in the driver. There are two ways to enable it:
 - By using the "enable overclocking" option in the LACT GUI. This will create a file in `/etc/modprobe.d` that enables the required driver options. This is the easiest way and it should work for most people.
 - Specifying a boot parameter. You can manually specify the `amdgpu.ppfeaturemask=0xffffffff` kernel parameter in your bootloader to enable overclocking. See the [ArchWiki](https://wiki.archlinux.org/title/AMDGPU#Boot_parameter) for more details.
+
+# Suspend/Resume
+
+As some of the GPU settings may get reset when suspending the system, LACT will reload them on system resume. This may not work on distributions which don't use systemd, as it relies on the `org.freedesktop.login2` DBus interface.
 
 # Building from source
 
@@ -54,15 +66,8 @@ Steps:
 - `make`
 - `sudo make install`
 
-# Usage
-
-Enable and start the service (otherwise you won't be able to change any settings):
-```
-sudo systemctl enable --now lactd
-```
-You can now use the GUI to change settings and view information.
-
 # API
+
 There is an API available over a unix socket. See [here](API.md) for more information.
 
 # CLI
