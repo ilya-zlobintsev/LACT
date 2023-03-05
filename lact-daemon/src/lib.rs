@@ -4,6 +4,7 @@ mod config;
 mod fork;
 mod server;
 mod socket;
+mod suspend;
 
 use anyhow::Context;
 use config::Config;
@@ -44,7 +45,8 @@ pub fn run() -> anyhow::Result<()> {
         let server = Server::new(config).await?;
         let handler = server.handler.clone();
 
-        tokio::spawn(listen_shutdown(handler));
+        tokio::spawn(listen_exit_signals(handler.clone()));
+        tokio::spawn(suspend::listen_events(handler));
         server.run().await;
         Ok(())
     })
@@ -69,7 +71,7 @@ pub fn run_embedded(stream: StdUnixStream) -> anyhow::Result<()> {
     })
 }
 
-async fn listen_shutdown(handler: Handler) {
+async fn listen_exit_signals(handler: Handler) {
     let mut signals = SHUTDOWN_SIGNALS
         .map(|signal_kind| signal(signal_kind).expect("Could not listen to shutdown signal"));
     let signal_futures = signals.iter_mut().map(|signal| Box::pin(signal.recv()));

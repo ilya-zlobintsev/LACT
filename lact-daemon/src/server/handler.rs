@@ -61,8 +61,20 @@ impl<'a> Handler {
             }
         }
 
+        let handler = Self {
+            gpu_controllers: Arc::new(controllers),
+            config: Arc::new(RwLock::new(config)),
+        };
+        handler.load_config().await;
+
+        Ok(handler)
+    }
+
+    pub async fn load_config(&self) {
+        let config = self.config.read().expect("Faied to lock config").clone(); // Clone to avoid locking the RwLock on an await point
+
         for (id, gpu_config) in &config.gpus {
-            if let Some(controller) = controllers.get(id) {
+            if let Some(controller) = self.gpu_controllers.get(id) {
                 if let Err(err) = controller.apply_config(gpu_config).await {
                     error!("could not apply existing config for gpu {id}: {err}");
                 }
@@ -70,11 +82,6 @@ impl<'a> Handler {
                 info!("could not find GPU with id {id} defined in configuration");
             }
         }
-
-        Ok(Self {
-            gpu_controllers: Arc::new(controllers),
-            config: Arc::new(RwLock::new(config)),
-        })
     }
 
     async fn edit_gpu_config<F: FnOnce(&mut config::Gpu)>(

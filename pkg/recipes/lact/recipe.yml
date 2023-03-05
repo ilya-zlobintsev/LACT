@@ -3,7 +3,7 @@ metadata:
   description: AMDGPU control utility
   arch: x86_64
   license: MIT
-  version: 0.3.1
+  version: 0.3.2
   maintainer: ilya-zlobintsev
   url: https://github.com/ilya-zlobintsev/lact
   source:
@@ -14,7 +14,7 @@ metadata:
     debian-12+ubuntu-2204: [ libgtk-4-1 ]
     fedora-37: [ gtk4 ]
   build_depends:
-    all: [ curl, make ]
+    all: [ curl, make, dbus ]
     debian-12+ubuntu-2204: [ libgtk-4-dev, pkg-config, build-essential ]
     fedora-37: [ gtk4-devel, gcc ]
   all_images: true

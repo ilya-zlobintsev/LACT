@@ -1,6 +1,6 @@
 [package]
 name = "lact-daemon"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -33,3 +33,4 @@ futures = { version = "0.3.26", default-features = false, features = [
 serde_with = { version = "2.2.0", default-features = false, features = [
     "macros",
 ] }
+zbus = "3.10.0"
