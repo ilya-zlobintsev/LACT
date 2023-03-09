@@ -17,10 +17,13 @@ use std::{
     marker::PhantomData,
     ops::DerefMut,
     os::unix::net::UnixStream,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
+    time::Duration,
 };
-use tracing::info;
+use tracing::{error, info};
+
+const RECONNECT_INTERVAL_MS: u64 = 250;
 
 #[derive(Clone)]
 pub struct DaemonClient {
@@ -33,8 +36,12 @@ impl DaemonClient {
         let path =
             get_socket_path().context("Could not connect to daemon: socket file not found")?;
         info!("connecting to service at {path:?}");
-        let stream = UnixStream::connect(path).context("Could not connect to daemon")?;
-        Self::from_stream(stream, false)
+        let stream_pair = connect_pair(&path)?;
+
+        Ok(Self {
+            stream: Arc::new(Mutex::new(stream_pair)),
+            embedded: false,
+        })
     }
 
     pub fn from_stream(stream: UnixStream, embedded: bool) -> anyhow::Result<Self> {
@@ -56,12 +63,31 @@ impl DaemonClient {
             return Err(anyhow!("Another request was not processed properly"));
         }
 
-        let request_payload = serde_json::to_string(&request)?;
-        writer.write_all(request_payload.as_bytes())?;
-        writer.write_all(b"\n")?;
+        let response_payload = match process_request(&request, reader, writer) {
+            Ok(payload) => payload,
+            Err(err) => {
+                error!("Could not make request: {err}, reconnecting to socket");
+                let peer_addr = writer.peer_addr().context("Could not read peer address")?;
+                let path = peer_addr
+                    .as_pathname()
+                    .context("Connected socket addr is not a path")?;
 
-        let mut response_payload = String::new();
-        reader.read_line(&mut response_payload)?;
+                loop {
+                    match connect_pair(path) {
+                        Ok(new_connection) => {
+                            info!("Established new socket connection");
+                            *stream_guard = new_connection;
+                            drop(stream_guard);
+                            return self.make_request(request);
+                        }
+                        Err(err) => {
+                            error!("Could not reconnect: {err:#}, retrying in {RECONNECT_INTERVAL_MS}ms");
+                            std::thread::sleep(Duration::from_millis(RECONNECT_INTERVAL_MS));
+                        }
+                    }
+                }
+            }
+        };
 
         Ok(ResponseBuffer {
             buf: response_payload,
@@ -153,4 +179,25 @@ impl<'a, T: Deserialize<'a>> ResponseBuffer<T> {
             Response::Error(err) => Err(anyhow!("Got error from daemon: {err}")),
         }
     }
+}
+
+fn connect_pair(path: &Path) -> anyhow::Result<(BufReader<UnixStream>, UnixStream)> {
+    let stream = UnixStream::connect(path).context("Could not connect to daemon")?;
+    let reader = BufReader::new(stream.try_clone()?);
+    Ok((reader, stream))
+}
+
+fn process_request(
+    request: &Request,
+    reader: &mut BufReader<UnixStream>,
+    writer: &mut UnixStream,
+) -> anyhow::Result<String> {
+    let request_payload = serde_json::to_string(request)?;
+    writer.write_all(request_payload.as_bytes())?;
+    writer.write_all(b"\n")?;
+
+    let mut response_payload = String::new();
+    reader.read_line(&mut response_payload)?;
+
+    Ok(response_payload)
 }
