@@ -30,7 +30,7 @@ futures = { version = "0.3.26", default-features = false, features = [
     "std",
     "alloc",
 ] }
-serde_with = { version = "2.2.0", default-features = false, features = [
+serde_with = { version = "2.3.0", default-features = false, features = [
     "macros",
 ] }
 zbus = "3.10.0"
