@@ -14,12 +14,15 @@ use lact_schema::{
         hw_mon::{FanControlMethod, HwMon},
         sysfs::SysFS,
     },
-    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, FanStats, GpuPciInfo, LinkInfo, PciInfo,
-    PowerStats, VoltageStats, VramStats,
+    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo, LinkInfo,
+    PciInfo, PowerStats, VoltageStats, VramStats,
 };
+use libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, GPU_INFO};
 use pciid_parser::Database;
 use std::{
     borrow::Cow,
+    fs::File,
+    os::fd::IntoRawFd,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
@@ -31,6 +34,7 @@ type FanControlHandle = (Arc<Notify>, JoinHandle<()>);
 
 pub struct GpuController {
     pub handle: GpuHandle,
+    pub drm_handle: Option<DrmHandle>,
     pub pci_info: Option<GpuPciInfo>,
     pub fan_control_handle: Mutex<Option<FanControlHandle>>,
 }
@@ -39,6 +43,14 @@ impl GpuController {
     pub fn new_from_path(sysfs_path: PathBuf) -> anyhow::Result<Self> {
         let handle = GpuHandle::new_from_path(sysfs_path)
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
+
+        let drm_handle = match get_drm_handle(&handle) {
+            Ok(handle) => Some(handle),
+            Err(err) => {
+                warn!("Could not get DRM handle: {err}");
+                None
+            }
+        };
 
         let mut device_pci_info = None;
         let mut subsystem_pci_info = None;
@@ -91,6 +103,7 @@ impl GpuController {
 
         Ok(Self {
             handle,
+            drm_handle,
             pci_info,
             fan_control_handle: Mutex::new(None),
         })
@@ -141,12 +154,28 @@ impl GpuController {
         let vbios_version = self.handle.get_vbios_version().ok();
         let link_info = self.get_link_info();
 
+        let drm_info = self
+            .drm_handle
+            .as_ref()
+            .and_then(|handle| handle.device_info().ok())
+            .map(|drm_info| DrmInfo {
+                family_name: drm_info.get_family_name().to_string(),
+                asic_name: drm_info.get_asic_name().to_string(),
+                chip_class: drm_info.get_chip_class().to_string(),
+                compute_units: drm_info.cu_active_number,
+                vram_type: drm_info.get_vram_type().to_string(),
+                vram_bit_width: drm_info.vram_bit_width,
+                vram_max_bw: drm_info.peak_memory_bw_gb().to_string(),
+                l2_cache: drm_info.calc_l2_cache_size(),
+            });
+
         DeviceInfo {
             pci_info,
             vulkan_info,
             driver,
             vbios_version,
             link_info,
+            drm_info,
         }
     }
 
@@ -395,4 +424,16 @@ impl GpuController {
 
         Ok(())
     }
+}
+
+fn get_drm_handle(handle: &GpuHandle) -> anyhow::Result<DrmHandle> {
+    let slot_name = handle
+        .get_pci_slot_name()
+        .context("Device has no PCI slot name")?;
+    let path = format!("/dev/dri/by-path/pci-{slot_name}-render");
+    let drm_file =
+        File::open(&path).with_context(|| format!("Could not open drm file at {path}"))?;
+    let (handle, _, _) = DrmHandle::init(drm_file.into_raw_fd())
+        .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
+    Ok(handle)
 }

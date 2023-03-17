@@ -67,6 +67,19 @@ pub struct DeviceInfo<'a> {
     pub driver: &'a str,
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,
+    pub drm_info: Option<DrmInfo>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DrmInfo {
+    pub family_name: String,
+    pub asic_name: String,
+    pub chip_class: String,
+    pub compute_units: u32,
+    pub vram_type: String,
+    pub vram_bit_width: u32,
+    pub vram_max_bw: String,
+    pub l2_cache: u32,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
