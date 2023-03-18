@@ -318,6 +318,26 @@ impl App {
 
         let clocks_settings = self.root_stack.oc_page.clocks_frame.get_settings();
 
+        debug!("applying clocks settings {clocks_settings:#?}");
+
+        if let Some(clock) = clocks_settings.min_core_clock {
+            self.daemon_client
+                .set_clocks_value(&gpu_id, SetClocksCommand::MinCoreClock(clock))
+                .context("Could not set the minimum core clock")?;
+        }
+
+        if let Some(clock) = clocks_settings.min_memory_clock {
+            self.daemon_client
+                .set_clocks_value(&gpu_id, SetClocksCommand::MinMemoryClock(clock))
+                .context("Could not set the minimum memory clock")?;
+        }
+
+        if let Some(voltage) = clocks_settings.min_voltage {
+            self.daemon_client
+                .set_clocks_value(&gpu_id, SetClocksCommand::MinVoltage(voltage))
+                .context("Could not set the minimum voltage")?;
+        }
+
         if let Some(clock) = clocks_settings.max_core_clock {
             self.daemon_client
                 .set_clocks_value(&gpu_id, SetClocksCommand::MaxCoreClock(clock))

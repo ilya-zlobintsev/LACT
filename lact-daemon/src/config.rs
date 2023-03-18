@@ -38,11 +38,29 @@ pub struct Gpu {
     pub fan_control_settings: Option<FanControlSettings>,
     pub power_cap: Option<f64>,
     pub performance_level: Option<PerformanceLevel>,
+    pub min_core_clock: Option<u32>,
+    pub min_memory_clock: Option<u32>,
+    pub min_voltage: Option<u32>,
     pub max_core_clock: Option<u32>,
     pub max_memory_clock: Option<u32>,
     pub max_voltage: Option<u32>,
     pub voltage_offset: Option<i32>,
     pub power_profile_mode_index: Option<u16>,
+}
+
+impl Gpu {
+    pub fn is_core_clocks_used(&self) -> bool {
+        [
+            self.min_core_clock,
+            self.min_memory_clock,
+            self.max_voltage,
+            self.max_core_clock,
+            self.max_memory_clock,
+            self.min_voltage,
+        ]
+        .iter()
+        .any(Option::is_some)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

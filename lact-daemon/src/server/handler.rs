@@ -224,11 +224,19 @@ impl<'a> Handler {
             SetClocksCommand::MaxCoreClock(clock) => gpu_config.max_core_clock = Some(clock),
             SetClocksCommand::MaxMemoryClock(clock) => gpu_config.max_memory_clock = Some(clock),
             SetClocksCommand::MaxVoltage(voltage) => gpu_config.max_voltage = Some(voltage),
+            SetClocksCommand::MinCoreClock(clock) => gpu_config.min_core_clock = Some(clock),
+            SetClocksCommand::MinMemoryClock(clock) => gpu_config.min_memory_clock = Some(clock),
+            SetClocksCommand::MinVoltage(voltage) => gpu_config.min_voltage = Some(voltage),
             SetClocksCommand::VoltageOffset(offset) => gpu_config.voltage_offset = Some(offset),
             SetClocksCommand::Reset => {
+                gpu_config.min_core_clock = None;
+                gpu_config.min_memory_clock = None;
+                gpu_config.min_voltage = None;
                 gpu_config.max_core_clock = None;
                 gpu_config.max_memory_clock = None;
                 gpu_config.max_voltage = None;
+
+                assert!(!gpu_config.is_core_clocks_used());
             }
         })
         .await

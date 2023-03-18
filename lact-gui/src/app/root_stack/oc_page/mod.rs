@@ -20,7 +20,7 @@ You can still change basic settings, but the more advanced clocks and voltage co
 
 #[derive(Clone)]
 pub struct OcPage {
-    pub container: Box,
+    pub container: ScrolledWindow,
     stats_frame: StatsFrame,
     pub performance_frame: PerformanceFrame,
     power_cap_frame: PowerCapFrame,
@@ -30,9 +30,15 @@ pub struct OcPage {
 
 impl OcPage {
     pub fn new(system_info: &SystemInfo) -> Self {
-        let container = Box::builder()
+        let container = ScrolledWindow::builder()
+            .hscrollbar_policy(PolicyType::Never)
+            .build();
+
+        let vbox = Box::builder()
             .orientation(Orientation::Vertical)
             .spacing(15)
+            .margin_start(5)
+            .margin_end(5)
             .build();
 
         let mut enable_overclocking_button = None;
@@ -40,19 +46,21 @@ impl OcPage {
         if system_info.amdgpu_overdrive_enabled == Some(false) {
             let (warning_frame, button) = oc_warning_frame();
             enable_overclocking_button = Some(button);
-            container.append(&warning_frame);
+            vbox.append(&warning_frame);
         }
 
         let stats_frame = StatsFrame::new();
-        container.append(&stats_frame.container);
+        vbox.append(&stats_frame.container);
 
         let power_cap_frame = PowerCapFrame::new();
         let performance_level_frame = PerformanceFrame::new();
         let clocks_frame = ClocksFrame::new();
 
-        container.append(&power_cap_frame.container);
-        container.append(&performance_level_frame.container);
-        container.append(&clocks_frame.container);
+        vbox.append(&power_cap_frame.container);
+        vbox.append(&performance_level_frame.container);
+        vbox.append(&clocks_frame.container);
+
+        container.set_child(Some(&vbox));
 
         Self {
             container,

@@ -13,6 +13,12 @@ const WARNING_TEXT: &str = "Warning: changing these values may lead to system in
 pub struct ClocksFrame {
     pub container: Box,
     tweaking_grid: Grid,
+    basic_togglebutton: ToggleButton,
+    advanced_togglebutton: ToggleButton,
+    min_values_grid: Grid,
+    min_sclk_adjustment: Adjustment,
+    min_mclk_adjustment: Adjustment,
+    min_voltage_adjustment: Adjustment,
     max_sclk_adjustment: Adjustment,
     max_mclk_adjustment: Adjustment,
     max_voltage_adjustment: Adjustment,
@@ -23,7 +29,7 @@ pub struct ClocksFrame {
 
 impl ClocksFrame {
     pub fn new() -> Self {
-        let container = section_box("Maximum Clocks");
+        let container = section_box("Clockspeed and voltage");
 
         let warning_label = Label::builder()
             .label(WARNING_TEXT)
@@ -34,12 +40,36 @@ impl ClocksFrame {
             .build();
         container.append(&warning_label);
 
+        let modes_switcher = Box::new(Orientation::Horizontal, 0);
+
+        let modes_switcher_label = Label::builder()
+            .label("Configuration mode:")
+            .hexpand(true)
+            .halign(Align::Start)
+            .build();
+        let basic_togglebutton = ToggleButton::builder().label("Basic").build();
+        let advanced_togglebutton = ToggleButton::builder().label("Advanced").build();
+
+        modes_switcher.append(&modes_switcher_label);
+        modes_switcher.append(&basic_togglebutton);
+        modes_switcher.append(&advanced_togglebutton);
+
+        container.append(&modes_switcher);
+
+        let min_values_grid = Grid::builder().row_spacing(5).build();
+
+        let min_sclk_adjustment = oc_adjustment("Minimum GPU Clock (MHz)", &min_values_grid, 0);
+        let min_mclk_adjustment = oc_adjustment("Minimum VRAM Clock (MHz)", &min_values_grid, 1);
+        let min_voltage_adjustment = oc_adjustment("Minimum GPU voltage (mV)", &min_values_grid, 2);
+
+        container.append(&min_values_grid);
+
         let tweaking_grid = Grid::builder().row_spacing(5).build();
 
-        let max_sclk_adjustment = oc_adjustment("GPU Clock (MHz)", &tweaking_grid, 0);
-        let max_voltage_adjustment = oc_adjustment("GPU voltage (mV)", &tweaking_grid, 1);
-        let max_mclk_adjustment = oc_adjustment("VRAM Clock (MHz)", &tweaking_grid, 2);
-        let voltage_offset_adjustment = oc_adjustment("GPU voltage offset (mV)", &tweaking_grid, 3);
+        let max_sclk_adjustment = oc_adjustment("Maximum GPU Clock (MHz)", &tweaking_grid, 1);
+        let max_voltage_adjustment = oc_adjustment("Maximum GPU voltage (mV)", &tweaking_grid, 2);
+        let max_mclk_adjustment = oc_adjustment("Maximum VRAM Clock (MHz)", &tweaking_grid, 3);
+        let voltage_offset_adjustment = oc_adjustment("GPU voltage offset (mV)", &tweaking_grid, 4);
 
         let reset_button = Button::builder()
             .label("Reset")
@@ -49,29 +79,99 @@ impl ClocksFrame {
             .tooltip_text("Warning: this resets all clock settings to defaults!")
             .css_classes(["destructive-action"])
             .build();
-        tweaking_grid.attach(&reset_button, 6, 4, 1, 1);
+        tweaking_grid.attach(&reset_button, 6, 5, 1, 1);
 
         let clocks_data_unavailable_label = Label::new(Some("No clocks data available"));
 
         container.append(&tweaking_grid);
         container.append(&clocks_data_unavailable_label);
 
-        Self {
+        let frame = Self {
             container,
             tweaking_grid,
+            min_sclk_adjustment,
+            min_mclk_adjustment,
+            min_voltage_adjustment,
             max_sclk_adjustment,
             max_mclk_adjustment,
             max_voltage_adjustment,
             reset_button,
             clocks_data_unavailable_label,
             voltage_offset_adjustment,
-        }
+            advanced_togglebutton,
+            basic_togglebutton,
+            min_values_grid,
+        };
+
+        frame.set_configuration_mode(false);
+
+        frame
+            .basic_togglebutton
+            .connect_clicked(clone!(@strong frame => move |button| {
+                frame.set_configuration_mode(!button.is_active());
+            }));
+        frame
+            .advanced_togglebutton
+            .connect_clicked(clone!(@strong frame => move |button| {
+                frame.set_configuration_mode(button.is_active());
+            }));
+
+        frame
     }
 
     pub fn set_table(&self, table: ClocksTableGen) -> anyhow::Result<()> {
         debug!("using clocks table {table:?}");
 
         // The upper value "0.0" is used to hide the adjustment when info is not available
+
+        if let Some((current_sclk_min, sclk_min, sclk_max)) =
+            extract_value_and_range(&table, |table| {
+                (
+                    table.get_current_sclk_range().min,
+                    table.get_min_sclk_range(),
+                )
+            })
+        {
+            self.min_sclk_adjustment.set_lower(sclk_min.into());
+            self.min_sclk_adjustment.set_upper(sclk_max.into());
+            self.min_sclk_adjustment.set_value(current_sclk_min.into());
+        } else {
+            self.min_sclk_adjustment.set_upper(0.0);
+        }
+
+        if let Some((current_mclk_min, mclk_min, mclk_max)) =
+            extract_value_and_range(&table, |table| {
+                (
+                    table.get_current_mclk_range().min,
+                    table.get_min_mclk_range(),
+                )
+            })
+        {
+            self.min_mclk_adjustment.set_lower(mclk_min.into());
+            self.min_mclk_adjustment.set_upper(mclk_max.into());
+            self.min_mclk_adjustment.set_value(current_mclk_min.into());
+        } else {
+            self.min_mclk_adjustment.set_upper(0.0);
+        }
+
+        if let Some((current_min_voltage, voltage_min, voltage_max)) =
+            extract_value_and_range(&table, |table| {
+                (
+                    table
+                        .get_current_voltage_range()
+                        .and_then(|range| range.min),
+                    table.get_min_voltage_range(),
+                )
+            })
+        {
+            self.min_voltage_adjustment.set_lower(voltage_min.into());
+            self.min_voltage_adjustment.set_upper(voltage_max.into());
+            self.min_voltage_adjustment
+                .set_value(current_min_voltage.into());
+        } else {
+            self.min_voltage_adjustment.set_upper(0.0);
+        }
+
         if let Some((current_sclk_max, sclk_min, sclk_max)) =
             extract_value_and_range(&table, |table| {
                 (table.get_max_sclk(), table.get_max_sclk_range())
@@ -123,6 +223,9 @@ impl ClocksFrame {
             self.voltage_offset_adjustment.set_upper(0.0);
         }
 
+        emit_changed(&self.min_sclk_adjustment);
+        emit_changed(&self.min_mclk_adjustment);
+        emit_changed(&self.min_voltage_adjustment);
         emit_changed(&self.max_sclk_adjustment);
         emit_changed(&self.max_mclk_adjustment);
         emit_changed(&self.max_voltage_adjustment);
@@ -143,6 +246,9 @@ impl ClocksFrame {
 
     pub fn connect_clocks_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         let f = clone!(@strong f => move |_: &Adjustment| f());
+        self.min_sclk_adjustment.connect_value_changed(f.clone());
+        self.min_mclk_adjustment.connect_value_changed(f.clone());
+        self.min_voltage_adjustment.connect_value_changed(f.clone());
         self.max_sclk_adjustment.connect_value_changed(f.clone());
         self.max_mclk_adjustment.connect_value_changed(f.clone());
         self.max_voltage_adjustment.connect_value_changed(f.clone());
@@ -155,6 +261,9 @@ impl ClocksFrame {
 
     pub fn get_settings(&self) -> ClocksSettings {
         if self.tweaking_grid.is_visible() {
+            let min_core_clock = zero_to_option(self.min_sclk_adjustment.value());
+            let min_memory_clock = zero_to_option(self.min_mclk_adjustment.value());
+            let min_voltage = zero_to_option(self.min_voltage_adjustment.value());
             let max_core_clock = zero_to_option(self.max_sclk_adjustment.value());
             let max_memory_clock = zero_to_option(self.max_mclk_adjustment.value());
             let max_voltage = zero_to_option(self.max_voltage_adjustment.value());
@@ -166,6 +275,9 @@ impl ClocksFrame {
             };
 
             ClocksSettings {
+                min_core_clock,
+                min_memory_clock,
+                min_voltage,
                 max_core_clock,
                 max_memory_clock,
                 max_voltage,
@@ -174,6 +286,13 @@ impl ClocksFrame {
         } else {
             ClocksSettings::default()
         }
+    }
+
+    fn set_configuration_mode(&self, advanced: bool) {
+        self.advanced_togglebutton.set_active(advanced);
+        self.basic_togglebutton.set_active(!advanced);
+
+        self.min_values_grid.set_visible(advanced);
     }
 }
 
@@ -250,6 +369,9 @@ fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> Adjustment {
 
 #[derive(Debug, Default)]
 pub struct ClocksSettings {
+    pub min_core_clock: Option<u32>,
+    pub min_memory_clock: Option<u32>,
+    pub min_voltage: Option<u32>,
     pub max_core_clock: Option<u32>,
     pub max_memory_clock: Option<u32>,
     pub max_voltage: Option<u32>,

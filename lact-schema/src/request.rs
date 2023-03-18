@@ -50,6 +50,9 @@ pub enum SetClocksCommand {
     MaxCoreClock(u32),
     MaxMemoryClock(u32),
     MaxVoltage(u32),
+    MinCoreClock(u32),
+    MinMemoryClock(u32),
+    MinVoltage(u32),
     VoltageOffset(i32),
     Reset,
 }

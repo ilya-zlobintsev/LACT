@@ -354,10 +354,7 @@ impl GpuController {
             self.handle.set_active_power_profile_mode(mode_index)?;
         }
 
-        if config.max_core_clock.is_some()
-            || config.max_memory_clock.is_some()
-            || config.max_voltage.is_some()
-        {
+        if config.is_core_clocks_used() {
             let mut table = self.handle.get_clocks_table()?;
 
             if let ClocksTableGen::Vega20(ref mut table) = table {
@@ -367,6 +364,18 @@ impl GpuController {
                 table.clear();
 
                 table.voltage_offset = config.voltage_offset;
+            }
+
+            if let Some(min_clockspeed) = config.min_core_clock {
+                table.set_min_sclk(min_clockspeed)?;
+            }
+
+            if let Some(min_clockspeed) = config.min_memory_clock {
+                table.set_min_mclk(min_clockspeed)?;
+            }
+
+            if let Some(min_voltage) = config.min_voltage {
+                table.set_min_voltage(min_voltage)?;
             }
 
             if let Some(clockspeed) = config.max_core_clock {
