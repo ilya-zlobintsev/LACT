@@ -13,6 +13,7 @@ const WARNING_TEXT: &str = "Warning: changing these values may lead to system in
 pub struct ClocksFrame {
     pub container: Box,
     tweaking_grid: Grid,
+    modes_switcher_box: Box,
     basic_togglebutton: ToggleButton,
     advanced_togglebutton: ToggleButton,
     min_values_grid: Grid,
@@ -40,7 +41,7 @@ impl ClocksFrame {
             .build();
         container.append(&warning_label);
 
-        let modes_switcher = Box::new(Orientation::Horizontal, 0);
+        let modes_switcher_box = Box::new(Orientation::Horizontal, 0);
 
         let modes_switcher_label = Label::builder()
             .label("Configuration mode:")
@@ -50,11 +51,11 @@ impl ClocksFrame {
         let basic_togglebutton = ToggleButton::builder().label("Basic").build();
         let advanced_togglebutton = ToggleButton::builder().label("Advanced").build();
 
-        modes_switcher.append(&modes_switcher_label);
-        modes_switcher.append(&basic_togglebutton);
-        modes_switcher.append(&advanced_togglebutton);
+        modes_switcher_box.append(&modes_switcher_label);
+        modes_switcher_box.append(&basic_togglebutton);
+        modes_switcher_box.append(&advanced_togglebutton);
 
-        container.append(&modes_switcher);
+        container.append(&modes_switcher_box);
 
         let min_values_grid = Grid::builder().row_spacing(5).build();
 
@@ -101,6 +102,7 @@ impl ClocksFrame {
             advanced_togglebutton,
             basic_togglebutton,
             min_values_grid,
+            modes_switcher_box,
         };
 
         frame.set_configuration_mode(false);
@@ -236,11 +238,13 @@ impl ClocksFrame {
 
     pub fn show(&self) {
         self.tweaking_grid.show();
+        self.modes_switcher_box.show();
         self.clocks_data_unavailable_label.hide();
     }
 
     pub fn hide(&self) {
         self.tweaking_grid.hide();
+        self.modes_switcher_box.hide();
         self.clocks_data_unavailable_label.show();
     }
 
