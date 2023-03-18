@@ -67,6 +67,19 @@ Steps:
 - `make`
 - `sudo make install`
 
+It's also possible to build LACT without some of the features by using cargo feature flags.
+This can be useful if some dependency is not available on your system, or is too old.
+
+Build without DRM support (some GPU information will not be available):
+```
+cargo build --no-default-features -p lact --features=lact-gui
+```
+
+Minimal build (no GUI!):
+```
+cargo build --no-default-features -p lact
+```
+
 # API
 
 There is an API available over a unix socket. See [here](API.md) for more information.
