@@ -3,7 +3,9 @@ name = "lact-daemon"
 version = "0.4.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["drm"]
+drm = ["libdrm_amdgpu_sys"]
 
 [dependencies]
 anyhow = "1.0"
@@ -34,3 +36,4 @@ serde_with = { version = "2.3.1", default-features = false, features = [
     "macros",
 ] }
 zbus = "3.11.0"
+libdrm_amdgpu_sys = { optional = true, git = " https://github.com/Umio-Yasuno/libdrm-amdgpu-sys-rs" }

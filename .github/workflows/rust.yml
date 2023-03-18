@@ -19,7 +19,7 @@ jobs:
       - name: Update repos
         run: sudo apt update
       - name: Install dependencies
-        run: sudo apt install libgtk-4-dev pkg-config libvulkan-dev
+        run: sudo apt install libgtk-4-dev pkg-config libvulkan-dev libdrm-dev
       - name: Build
         run: cargo build
       - name: Run tests

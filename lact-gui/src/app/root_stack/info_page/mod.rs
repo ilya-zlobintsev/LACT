@@ -9,21 +9,27 @@ use super::{label_row, section_box, values_grid};
 
 #[derive(Clone)]
 pub struct InformationPage {
-    pub container: Box,
+    pub container: ScrolledWindow,
     gpu_name_label: Label,
     gpu_manufacturer_label: Label,
+    family_name: Label,
+    asic_name: Label,
     vbios_version_label: Label,
     driver_label: Label,
     vram_size_label: Label,
+    vram_type_label: Label,
+    vram_peak_bw_label: Label,
+    compute_units_label: Label,
+    cpu_accessible_vram_label: Label,
     link_speed_label: Label,
     vulkan_info_frame: VulkanInfoFrame,
 }
 
 impl InformationPage {
     pub fn new() -> Self {
-        let container = Box::new(Orientation::Vertical, 15);
+        let vbox = Box::new(Orientation::Vertical, 15);
 
-        let info_container = section_box("Basic Information");
+        let info_container = section_box("Hardware Information");
 
         let values_grid = values_grid();
 
@@ -33,20 +39,32 @@ impl InformationPage {
 
         let gpu_name_label = label_row("GPU Model:", &values_grid, 0, 0, true);
         let gpu_manufacturer_label = label_row("GPU Manufacturer:", &values_grid, 1, 0, true);
-        let vbios_version_label = label_row("VBIOS Version:", &values_grid, 2, 0, true);
-        let driver_label = label_row("Driver Used:", &values_grid, 3, 0, true);
-        let vram_size_label = label_row("VRAM Size:", &values_grid, 4, 0, true);
-        let link_speed_label = label_row("Link Speed:", &values_grid, 5, 0, true);
+        let family_name = label_row("GPU Family:", &values_grid, 2, 0, true);
+        let asic_name = label_row("ASIC Name:", &values_grid, 3, 0, true);
+        let compute_units_label = label_row("Compute Units:", &values_grid, 4, 0, true);
+        let vbios_version_label = label_row("VBIOS Version:", &values_grid, 5, 0, true);
+        let driver_label = label_row("Driver Used:", &values_grid, 6, 0, true);
+        let vram_size_label = label_row("VRAM Size:", &values_grid, 7, 0, true);
+        let vram_type_label = label_row("VRAM Type:", &values_grid, 8, 0, true);
+        let vram_peak_bw_label = label_row("Peak VRAM Bandwidth:", &values_grid, 9, 0, true);
+        let cpu_accessible_vram_label =
+            label_row("CPU Accessible VRAM:", &values_grid, 10, 0, true);
+        let link_speed_label = label_row("Link Speed:", &values_grid, 11, 0, true);
 
         info_container.append(&values_grid);
-        container.append(&info_container);
+        vbox.append(&info_container);
 
         let vulkan_container = section_box("Vulkan Information");
 
         let vulkan_info_frame = VulkanInfoFrame::new();
 
         vulkan_container.append(&vulkan_info_frame.container);
-        container.append(&vulkan_container);
+        vbox.append(&vulkan_container);
+
+        let container = ScrolledWindow::builder()
+            .hscrollbar_policy(PolicyType::Never)
+            .child(&vbox)
+            .build();
 
         Self {
             container,
@@ -57,6 +75,12 @@ impl InformationPage {
             vram_size_label,
             link_speed_label,
             vulkan_info_frame,
+            family_name,
+            asic_name,
+            vram_type_label,
+            cpu_accessible_vram_label,
+            compute_units_label,
+            vram_peak_bw_label,
         }
     }
 
@@ -73,7 +97,7 @@ impl InformationPage {
             })
             .unwrap_or_default();
         self.gpu_name_label
-            .set_markup(&format!("<b>{gpu_name}</b>",));
+            .set_markup(&format!("<b>{gpu_name}</b>"));
 
         let gpu_manufacturer = gpu_info
             .pci_info
@@ -87,11 +111,31 @@ impl InformationPage {
             })
             .unwrap_or_default();
         self.gpu_manufacturer_label
-            .set_markup(&format!("<b>{gpu_manufacturer}</b>",));
+            .set_markup(&format!("<b>{gpu_manufacturer}</b>"));
+
+        if let Some(drm_info) = &gpu_info.drm_info {
+            self.family_name
+                .set_markup(&format!("<b>{}</b>", drm_info.family_name));
+            self.asic_name
+                .set_markup(&format!("<b>{}</b>", drm_info.asic_name));
+            self.compute_units_label
+                .set_markup(&format!("<b>{}</b>", drm_info.compute_units));
+            self.vram_type_label
+                .set_markup(&format!("<b>{}</b>", drm_info.vram_type));
+            self.vram_peak_bw_label
+                .set_markup(&format!("<b>{} GiB/s</b>", drm_info.vram_max_bw));
+
+            if let Some(memory_info) = &drm_info.memory_info {
+                self.cpu_accessible_vram_label.set_markup(&format!(
+                    "<b>{} MiB</b>",
+                    memory_info.cpu_accessible_total / 1024 / 1024
+                ));
+            }
+        }
 
         let vbios_version = gpu_info.vbios_version.as_deref().unwrap_or("Unknown");
         self.vbios_version_label
-            .set_markup(&format!("<b>{vbios_version}</b>",));
+            .set_markup(&format!("<b>{vbios_version}</b>"));
 
         self.driver_label
             .set_markup(&format!("<b>{}</b>", gpu_info.driver));
