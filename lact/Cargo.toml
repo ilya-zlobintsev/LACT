@@ -4,10 +4,11 @@ version = "0.4.0"
 edition = "2021"
 
 [features]
-default = ["lact-gui"]
+default = ["lact-gui", "drm"]
+drm = ["lact-daemon/drm"]
 
 [dependencies]
-lact-daemon = { path = "../lact-daemon" }
+lact-daemon = { path = "../lact-daemon", default-features = false }
 lact-cli = { path = "../lact-cli" }
 lact-gui = { path = "../lact-gui", optional = true }
 anyhow = "1.0.70"
