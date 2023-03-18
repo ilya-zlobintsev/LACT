@@ -80,6 +80,13 @@ pub struct DrmInfo {
     pub vram_bit_width: u32,
     pub vram_max_bw: String,
     pub l2_cache: u32,
+    pub memory_info: Option<DrmMemoryInfo>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DrmMemoryInfo {
+    pub cpu_accessible_used: u64,
+    pub cpu_accessible_total: u64,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]

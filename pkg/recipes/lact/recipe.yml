@@ -12,11 +12,11 @@ metadata:
   depends:
     all: [ hwdata ]
     debian-12+ubuntu-2204: [ libgtk-4-1 ]
-    fedora-37: [ gtk4 ]
+    fedora-37: [ gtk4, libdrm ]
   build_depends:
-    all: [ curl, make, dbus ]
-    debian-12+ubuntu-2204: [ libgtk-4-dev, pkg-config, build-essential ]
-    fedora-37: [ gtk4-devel, gcc ]
+    all: [ curl, make, dbus, clang ]
+    debian-12+ubuntu-2204: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev ]
+    fedora-37: [ gtk4-devel, gcc, libdrm-devel ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs

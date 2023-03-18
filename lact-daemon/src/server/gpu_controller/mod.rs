@@ -14,8 +14,8 @@ use lact_schema::{
         hw_mon::{FanControlMethod, HwMon},
         sysfs::SysFS,
     },
-    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo, LinkInfo,
-    PciInfo, PowerStats, VoltageStats, VramStats,
+    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo, FanStats,
+    GpuPciInfo, LinkInfo, PciInfo, PowerStats, VoltageStats, VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, GPU_INFO};
 use pciid_parser::Database;
@@ -154,9 +154,17 @@ impl GpuController {
         let vbios_version = self.handle.get_vbios_version().ok();
         let link_info = self.get_link_info();
 
-        let drm_info = self
-            .drm_handle
-            .as_ref()
+        let drm_handle = self.drm_handle.as_ref();
+
+        let drm_memory_info =
+            drm_handle
+                .and_then(|handle| handle.memory_info().ok())
+                .map(|memory_info| DrmMemoryInfo {
+                    cpu_accessible_used: memory_info.cpu_accessible_vram.heap_usage,
+                    cpu_accessible_total: memory_info.cpu_accessible_vram.total_heap_size,
+                });
+
+        let drm_info = drm_handle
             .and_then(|handle| handle.device_info().ok())
             .map(|drm_info| DrmInfo {
                 family_name: drm_info.get_family_name().to_string(),
@@ -167,6 +175,7 @@ impl GpuController {
                 vram_bit_width: drm_info.vram_bit_width,
                 vram_max_bw: drm_info.peak_memory_bw_gb().to_string(),
                 l2_cache: drm_info.calc_l2_cache_size(),
+                memory_info: drm_memory_info,
             });
 
         DeviceInfo {
