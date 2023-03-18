@@ -60,6 +60,7 @@ Dependencies:
 - pkg-config
 - make
 - hwdata
+- libdrm
 
 Steps:
 - `git clone https://github.com/ilya-zlobintsev/LACT && cd LACT`
