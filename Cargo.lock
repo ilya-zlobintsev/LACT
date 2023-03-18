@@ -1023,7 +1023,7 @@ checksum = "453ad9f582a441959e5f0d088b02ce04cfe8d51a8eaf077f12ac6d3e94164ca6"
 
 [[package]]
 name = "lact"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1034,7 +1034,7 @@ dependencies = [
 
 [[package]]
 name = "lact-cli"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1043,7 +1043,7 @@ dependencies = [
 
 [[package]]
 name = "lact-client"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "lact-schema",
@@ -1055,7 +1055,7 @@ dependencies = [
 
 [[package]]
 name = "lact-daemon"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1076,7 +1076,7 @@ dependencies = [
 
 [[package]]
 name = "lact-gui"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "gtk4",
@@ -1090,7 +1090,7 @@ dependencies = [
 
 [[package]]
 name = "lact-schema"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "amdgpu-sysfs",
  "indexmap",
