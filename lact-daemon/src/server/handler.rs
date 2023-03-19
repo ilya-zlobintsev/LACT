@@ -258,10 +258,17 @@ impl<'a> Handler {
     }
 
     pub async fn cleanup(self) {
+        let disable_clocks_cleanup = self
+            .config
+            .try_read()
+            .map(|config| config.daemon.disable_clocks_cleanup)
+            .unwrap_or(false);
+
         for (id, controller) in self.gpu_controllers.iter() {
-            if controller.handle.get_clocks_table().is_ok() {
+            if !disable_clocks_cleanup && controller.handle.get_clocks_table().is_ok() {
+                debug!("resetting clocks table");
                 if let Err(err) = controller.handle.reset_clocks_table() {
-                    error!("Could not reset the clocks table: {err}");
+                    error!("could not reset the clocks table: {err}");
                 }
             }
 
