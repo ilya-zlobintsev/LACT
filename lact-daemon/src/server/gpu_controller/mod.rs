@@ -441,6 +441,8 @@ impl GpuController {
                 table.set_max_voltage(voltage)?;
             }
 
+            debug!("writing clocks commands: {:#?}", table.get_commands()?);
+
             self.handle
                 .set_clocks_table(&table)
                 .context("Could not write clocks table")?;

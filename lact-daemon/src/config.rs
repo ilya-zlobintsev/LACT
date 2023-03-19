@@ -20,6 +20,8 @@ pub struct Config {
 pub struct Daemon {
     pub log_level: String,
     pub admin_groups: Vec<String>,
+    #[serde(default)]
+    pub disable_clocks_cleanup: bool,
 }
 
 impl Default for Daemon {
@@ -27,6 +29,7 @@ impl Default for Daemon {
         Self {
             log_level: "info".to_owned(),
             admin_groups: DEFAULT_ADMIN_GROUPS.map(str::to_owned).to_vec(),
+            disable_clocks_cleanup: false,
         }
     }
 }
