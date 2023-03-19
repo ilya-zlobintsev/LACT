@@ -7,7 +7,7 @@ use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
 use schema::{
     amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel},
-    request::SetClocksCommand,
+    request::{ConfirmCommand, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, Request, Response,
     SystemInfo,
 };
@@ -104,13 +104,12 @@ impl DaemonClient {
         id: &str,
         enabled: bool,
         curve: Option<FanCurveMap>,
-    ) -> anyhow::Result<()> {
-        self.make_request::<()>(Request::SetFanControl { id, enabled, curve })?
-            .inner()?;
-        Ok(())
+    ) -> anyhow::Result<u64> {
+        self.make_request(Request::SetFanControl { id, enabled, curve })?
+            .inner()
     }
 
-    pub fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<()> {
+    pub fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<u64> {
         self.make_request(Request::SetPowerCap { id, cap })?.inner()
     }
 
@@ -129,7 +128,7 @@ impl DaemonClient {
         &self,
         id: &str,
         performance_level: PerformanceLevel,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<u64> {
         self.make_request(Request::SetPerformanceLevel {
             id,
             performance_level,
@@ -137,13 +136,27 @@ impl DaemonClient {
         .inner()
     }
 
-    pub fn set_clocks_value(&self, id: &str, command: SetClocksCommand) -> anyhow::Result<()> {
+    pub fn set_clocks_value(&self, id: &str, command: SetClocksCommand) -> anyhow::Result<u64> {
         self.make_request(Request::SetClocksValue { id, command })?
             .inner()
     }
 
-    pub fn set_power_profile_mode(&self, id: &str, index: Option<u16>) -> anyhow::Result<()> {
+    pub fn batch_set_clocks_value(
+        &self,
+        id: &str,
+        commands: Vec<SetClocksCommand>,
+    ) -> anyhow::Result<u64> {
+        self.make_request(Request::BatchSetClocksValue { id, commands })?
+            .inner()
+    }
+
+    pub fn set_power_profile_mode(&self, id: &str, index: Option<u16>) -> anyhow::Result<u64> {
         self.make_request(Request::SetPowerProfileMode { id, index })?
+            .inner()
+    }
+
+    pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
+        self.make_request(Request::ConfirmPendingConfig(command))?
             .inner()
     }
 }

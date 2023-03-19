@@ -1,6 +1,6 @@
 use crate::server::gpu_controller::fan_control::FanCurve;
 use anyhow::Context;
-use lact_schema::amdgpu_sysfs::gpu_handle::PerformanceLevel;
+use lact_schema::{amdgpu_sysfs::gpu_handle::PerformanceLevel, request::SetClocksCommand};
 use nix::unistd::getuid;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -10,10 +10,22 @@ use tracing::debug;
 const FILE_NAME: &str = "config.yaml";
 const DEFAULT_ADMIN_GROUPS: [&str; 2] = ["wheel", "sudo"];
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Config {
     pub daemon: Daemon,
+    #[serde(default = "default_apply_settings_timer")]
+    pub apply_settings_timer: u64,
     pub gpus: HashMap<String, Gpu>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            daemon: Daemon::default(),
+            apply_settings_timer: default_apply_settings_timer(),
+            gpus: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -63,6 +75,28 @@ impl Gpu {
         ]
         .iter()
         .any(Option::is_some)
+    }
+
+    pub fn apply_clocks_command(&mut self, command: &SetClocksCommand) {
+        match command {
+            SetClocksCommand::MaxCoreClock(clock) => self.max_core_clock = Some(*clock),
+            SetClocksCommand::MaxMemoryClock(clock) => self.max_memory_clock = Some(*clock),
+            SetClocksCommand::MaxVoltage(voltage) => self.max_voltage = Some(*voltage),
+            SetClocksCommand::MinCoreClock(clock) => self.min_core_clock = Some(*clock),
+            SetClocksCommand::MinMemoryClock(clock) => self.min_memory_clock = Some(*clock),
+            SetClocksCommand::MinVoltage(voltage) => self.min_voltage = Some(*voltage),
+            SetClocksCommand::VoltageOffset(offset) => self.voltage_offset = Some(*offset),
+            SetClocksCommand::Reset => {
+                self.min_core_clock = None;
+                self.min_memory_clock = None;
+                self.min_voltage = None;
+                self.max_core_clock = None;
+                self.max_memory_clock = None;
+                self.max_voltage = None;
+
+                assert!(!self.is_core_clocks_used());
+            }
+        }
     }
 }
 
@@ -119,6 +153,10 @@ fn get_path() -> PathBuf {
     }
 }
 
+fn default_apply_settings_timer() -> u64 {
+    5
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Config, Daemon, FanControlSettings, Gpu};
@@ -141,6 +179,7 @@ mod tests {
                 },
             )]
             .into(),
+            ..Default::default()
         };
         let data = serde_yaml::to_string(&config).unwrap();
         let deserialized_config: Config = serde_yaml::from_str(&data).unwrap();

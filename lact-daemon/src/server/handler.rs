@@ -3,21 +3,24 @@ use crate::config::{self, Config, FanControlSettings};
 use anyhow::{anyhow, Context};
 use lact_schema::{
     amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel},
-    request::SetClocksCommand,
+    request::{ConfirmCommand, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
 };
 use std::{
     collections::HashMap,
     env,
     path::PathBuf,
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex, RwLock},
+    time::Duration,
 };
+use tokio::sync::oneshot;
 use tracing::{debug, error, info, trace, warn};
 
 #[derive(Clone)]
 pub struct Handler {
     pub config: Arc<RwLock<Config>>,
     pub gpu_controllers: Arc<HashMap<String, GpuController>>,
+    confirm_config_tx: Arc<Mutex<Option<oneshot::Sender<ConfirmCommand>>>>,
 }
 
 impl<'a> Handler {
@@ -64,6 +67,7 @@ impl<'a> Handler {
         let handler = Self {
             gpu_controllers: Arc::new(controllers),
             config: Arc::new(RwLock::new(config)),
+            confirm_config_tx: Arc::new(Mutex::new(None)),
         };
         handler.load_config().await;
 
@@ -88,36 +92,103 @@ impl<'a> Handler {
         &self,
         id: String,
         f: F,
-    ) -> anyhow::Result<()> {
-        let current_config = self
-            .config
-            .read()
+    ) -> anyhow::Result<u64> {
+        if self
+            .confirm_config_tx
+            .try_lock()
             .map_err(|err| anyhow!("{err}"))?
-            .gpus
-            .get(&id)
-            .cloned()
-            .unwrap_or_default();
+            .is_some()
+        {
+            return Err(anyhow!(
+                "There is an unconfirmed configuration change pending"
+            ));
+        }
 
-        let mut new_config = current_config.clone();
+        let (gpu_config, apply_timer) = {
+            let config = self.config.read().map_err(|err| anyhow!("{err}"))?;
+            let apply_timer = config.apply_settings_timer;
+            let gpu_config = config.gpus.get(&id).cloned().unwrap_or_default();
+            (gpu_config, apply_timer)
+        };
+
+        let mut new_config = gpu_config.clone();
         f(&mut new_config);
 
         let controller = self.controller_by_id(&id)?;
 
         match controller.apply_config(&new_config).await {
             Ok(()) => {
-                let mut config_guard = self.config.write().unwrap();
-                config_guard.gpus.insert(id, new_config);
-                config_guard.save()?;
-                Ok(())
+                self.wait_config_confirm(id, gpu_config, new_config, apply_timer)
+                    .await?;
+                Ok(apply_timer)
             }
             Err(apply_err) => {
-                error!("Could not apply settings: {apply_err:#}");
-                match controller.apply_config(&current_config).await {
-                    Ok(()) => Err(apply_err.context("Could not apply settings")),
-                    Err(err) => Err(anyhow!("Could not apply settings, and could not reset to default settings: {err:#}")),
-                }
+                error!("could not apply settings: {apply_err:#}");
+                match controller.apply_config(&gpu_config).await {
+                        Ok(()) => Err(apply_err.context("Could not apply settings")),
+                        Err(err) => Err(anyhow!("Could not apply settings, and could not reset to default settings: {err:#}")),
+                    }
             }
         }
+    }
+
+    /// Should be called after applying new config without writing it
+    async fn wait_config_confirm(
+        &self,
+        id: String,
+        previous_config: config::Gpu,
+        new_config: config::Gpu,
+        apply_timer: u64,
+    ) -> anyhow::Result<()> {
+        let (tx, rx) = oneshot::channel();
+        *self
+            .confirm_config_tx
+            .try_lock()
+            .map_err(|err| anyhow!("{err}"))? = Some(tx);
+
+        let handler = self.clone();
+
+        tokio::task::spawn(async move {
+            let controller = handler
+                .controller_by_id(&id)
+                .expect("GPU controller disappeared");
+
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_secs(apply_timer)) => {
+                    info!("no confirmation received, reverting settings");
+
+                    if let Err(err) = controller.apply_config(&previous_config).await {
+                        error!("could not revert settings: {err:#}");
+                    }
+                }
+                result = rx => {
+                    match result {
+                        Ok(ConfirmCommand::Confirm) => {
+                            info!("saving updated config");
+
+                            let mut config_guard = handler.config.write().unwrap();
+                            config_guard.gpus.insert(id, new_config);
+
+                            if let Err(err) = config_guard.save() {
+                                error!("{err}");
+                            }
+                        }
+                        Ok(ConfirmCommand::Revert) | Err(_) => {
+                            if let Err(err) = controller.apply_config(&previous_config).await {
+                                error!("could not revert settings: {err:#}");
+                            }
+                        }
+                    }
+                }
+            }
+
+            match handler.confirm_config_tx.try_lock() {
+                Ok(mut guard) => *guard = None,
+                Err(err) => error!("{err}"),
+            }
+        });
+
+        Ok(())
     }
 
     fn controller_by_id(&self, id: &str) -> anyhow::Result<&GpuController> {
@@ -163,7 +234,7 @@ impl<'a> Handler {
         id: &str,
         enabled: bool,
         curve: Option<FanCurveMap>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<u64> {
         let settings = match curve {
             Some(raw_curve) => {
                 let curve = FanCurve(raw_curve);
@@ -193,7 +264,7 @@ impl<'a> Handler {
         .await
     }
 
-    pub async fn set_power_cap(&'a self, id: &str, maybe_cap: Option<f64>) -> anyhow::Result<()> {
+    pub async fn set_power_cap(&'a self, id: &str, maybe_cap: Option<f64>) -> anyhow::Result<u64> {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
             gpu_config.power_cap = maybe_cap;
         })
@@ -204,7 +275,7 @@ impl<'a> Handler {
         &self,
         id: &str,
         level: PerformanceLevel,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<u64> {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
             gpu_config.performance_level = Some(level);
         })
@@ -215,28 +286,25 @@ impl<'a> Handler {
         &self,
         id: &str,
         command: SetClocksCommand,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<u64> {
         if let SetClocksCommand::Reset = command {
             self.controller_by_id(id)?.handle.reset_clocks_table()?;
         }
 
-        self.edit_gpu_config(id.to_owned(), |gpu_config| match command {
-            SetClocksCommand::MaxCoreClock(clock) => gpu_config.max_core_clock = Some(clock),
-            SetClocksCommand::MaxMemoryClock(clock) => gpu_config.max_memory_clock = Some(clock),
-            SetClocksCommand::MaxVoltage(voltage) => gpu_config.max_voltage = Some(voltage),
-            SetClocksCommand::MinCoreClock(clock) => gpu_config.min_core_clock = Some(clock),
-            SetClocksCommand::MinMemoryClock(clock) => gpu_config.min_memory_clock = Some(clock),
-            SetClocksCommand::MinVoltage(voltage) => gpu_config.min_voltage = Some(voltage),
-            SetClocksCommand::VoltageOffset(offset) => gpu_config.voltage_offset = Some(offset),
-            SetClocksCommand::Reset => {
-                gpu_config.min_core_clock = None;
-                gpu_config.min_memory_clock = None;
-                gpu_config.min_voltage = None;
-                gpu_config.max_core_clock = None;
-                gpu_config.max_memory_clock = None;
-                gpu_config.max_voltage = None;
+        self.edit_gpu_config(id.to_owned(), |gpu_config| {
+            gpu_config.apply_clocks_command(&command);
+        })
+        .await
+    }
 
-                assert!(!gpu_config.is_core_clocks_used());
+    pub async fn batch_set_clocks_value(
+        &self,
+        id: &str,
+        commands: Vec<SetClocksCommand>,
+    ) -> anyhow::Result<u64> {
+        self.edit_gpu_config(id.to_owned(), |gpu_config| {
+            for command in commands {
+                gpu_config.apply_clocks_command(&command);
             }
         })
         .await
@@ -250,11 +318,29 @@ impl<'a> Handler {
         Ok(modes_table)
     }
 
-    pub async fn set_power_profile_mode(&self, id: &str, index: Option<u16>) -> anyhow::Result<()> {
+    pub async fn set_power_profile_mode(
+        &self,
+        id: &str,
+        index: Option<u16>,
+    ) -> anyhow::Result<u64> {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
             gpu_config.power_profile_mode_index = index;
         })
         .await
+    }
+
+    pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
+        if let Some(tx) = self
+            .confirm_config_tx
+            .try_lock()
+            .map_err(|err| anyhow!("{err}"))?
+            .take()
+        {
+            tx.send(command)
+                .map_err(|_| anyhow!("Could not confirm config"))
+        } else {
+            Err(anyhow!("No pending config changes"))
+        }
     }
 
     pub async fn cleanup(self) {

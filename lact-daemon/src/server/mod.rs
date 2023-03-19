@@ -99,10 +99,16 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::SetClocksValue { id, command } => {
             ok_response(handler.set_clocks_value(id, command).await?)
         }
+        Request::BatchSetClocksValue { id, commands } => {
+            ok_response(handler.batch_set_clocks_value(id, commands).await?)
+        }
         Request::SetPowerProfileMode { id, index } => {
             ok_response(handler.set_power_profile_mode(id, index).await?)
         }
         Request::EnableOverdrive => ok_response(system::enable_overdrive()?),
+        Request::ConfirmPendingConfig(command) => {
+            ok_response(handler.confirm_pending_config(command)?)
+        }
     }
 }
 
