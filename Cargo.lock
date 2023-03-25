@@ -1186,7 +1186,7 @@ checksum = "453ad9f582a441959e5f0d088b02ce04cfe8d51a8eaf077f12ac6d3e94164ca6"
 
 [[package]]
 name = "lact"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "clap 4.1.10",
@@ -1197,7 +1197,7 @@ dependencies = [
 
 [[package]]
 name = "lact-cli"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "clap 4.1.10",
@@ -1206,7 +1206,7 @@ dependencies = [
 
 [[package]]
 name = "lact-client"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "lact-schema",
@@ -1218,7 +1218,7 @@ dependencies = [
 
 [[package]]
 name = "lact-daemon"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1240,7 +1240,7 @@ dependencies = [
 
 [[package]]
 name = "lact-gui"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "gtk4",
@@ -1254,7 +1254,7 @@ dependencies = [
 
 [[package]]
 name = "lact-schema"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "amdgpu-sysfs",
  "indexmap",
@@ -2200,7 +2200,7 @@ dependencies = [
 [[package]]
 name = "vulkano"
 version = "0.32.0"
-source = "git+https://github.com/vulkano-rs/vulkano#ba8c5586291401a09d066a5f4220cfdc6a6e9185"
+source = "git+https://github.com/vulkano-rs/vulkano#5a050d85bfbc6a5a6a543ec5db195cb32740465d"
 dependencies = [
  "ahash",
  "ash",
@@ -2228,7 +2228,7 @@ dependencies = [
 [[package]]
 name = "vulkano-macros"
 version = "0.32.0"
-source = "git+https://github.com/vulkano-rs/vulkano#ba8c5586291401a09d066a5f4220cfdc6a6e9185"
+source = "git+https://github.com/vulkano-rs/vulkano#5a050d85bfbc6a5a6a543ec5db195cb32740465d"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
