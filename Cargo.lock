@@ -1137,9 +1137,9 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "indexmap"
-version = "1.9.2"
+version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1885e79c1fc4b10f0e172c475f458b7f7b93061064d98c3293e98c5ba0c8b399"
+checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
 dependencies = [
  "autocfg",
  "hashbrown",
@@ -1186,7 +1186,7 @@ checksum = "453ad9f582a441959e5f0d088b02ce04cfe8d51a8eaf077f12ac6d3e94164ca6"
 
 [[package]]
 name = "lact"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "clap 4.1.10",
@@ -1197,7 +1197,7 @@ dependencies = [
 
 [[package]]
 name = "lact-cli"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "clap 4.1.10",
@@ -1206,7 +1206,7 @@ dependencies = [
 
 [[package]]
 name = "lact-client"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "lact-schema",
@@ -1218,7 +1218,7 @@ dependencies = [
 
 [[package]]
 name = "lact-daemon"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1240,7 +1240,7 @@ dependencies = [
 
 [[package]]
 name = "lact-gui"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "gtk4",
@@ -1254,7 +1254,7 @@ dependencies = [
 
 [[package]]
 name = "lact-schema"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "amdgpu-sysfs",
  "indexmap",
