@@ -35,5 +35,5 @@ futures = { version = "0.3.27", default-features = false, features = [
 serde_with = { version = "2.3.1", default-features = false, features = [
     "macros",
 ] }
-zbus = "3.11.0"
+zbus = "3.11.1"
 libdrm_amdgpu_sys = { optional = true, git = " https://github.com/Umio-Yasuno/libdrm-amdgpu-sys-rs" }
