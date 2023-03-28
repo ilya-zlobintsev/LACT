@@ -7,6 +7,6 @@ edition = "2021"
 lact-schema = { path = "../lact-schema" }
 anyhow = "1.0.70"
 nix = { version = "0.26.2", default-features = false }
-serde = "1.0.158"
+serde = "1.0.159"
 tracing = "0.1.37"
 serde_json = "1.0.94"
