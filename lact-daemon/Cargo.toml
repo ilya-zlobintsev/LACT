@@ -28,7 +28,7 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 vulkano = "0.33.0"
 lact-schema = { path = "../lact-schema" }
-futures = { version = "0.3.27", default-features = false, features = [
+futures = { version = "0.3.28", default-features = false, features = [
     "std",
     "alloc",
 ] }
