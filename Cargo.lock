@@ -2057,8 +2057,9 @@ dependencies = [
 
 [[package]]
 name = "vulkano"
-version = "0.32.0"
-source = "git+https://github.com/vulkano-rs/vulkano#5a050d85bfbc6a5a6a543ec5db195cb32740465d"
+version = "0.33.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e1f15eeb9d93a05eb3c237332a10806eac1eb82444e54485bfcc1859c483c23"
 dependencies = [
  "ahash",
  "ash",
@@ -2085,8 +2086,9 @@ dependencies = [
 
 [[package]]
 name = "vulkano-macros"
-version = "0.32.0"
-source = "git+https://github.com/vulkano-rs/vulkano#5a050d85bfbc6a5a6a543ec5db195cb32740465d"
+version = "0.33.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "895b8a2cac1e7650d2d0552f2392da0970a358515ac11a34adaf19bfdc771b98"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
