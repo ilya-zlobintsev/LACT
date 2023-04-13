@@ -9,4 +9,4 @@ anyhow = "1.0.70"
 nix = { version = "0.26.2", default-features = false }
 serde = "1.0.158"
 tracing = "0.1.37"
-serde_json = "1.0.94"
+serde_json = "1.0.96"
