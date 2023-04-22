@@ -8,7 +8,7 @@ use lact_schema::{
 };
 use std::{
     collections::HashMap,
-    env,
+    env, fs,
     path::PathBuf,
     sync::{Arc, RwLock},
 };
@@ -35,27 +35,25 @@ impl<'a> Handler {
         {
             let entry = entry?;
 
-            let name = entry
-                .file_name()
-                .into_string()
-                .map_err(|_| anyhow!("non-utf path"))?;
-            if name.starts_with("card") && !name.contains('-') {
-                trace!("trying gpu controller at {:?}", entry.path());
-                let device_path = entry.path().join("device");
-                match GpuController::new_from_path(device_path) {
-                    Ok(controller) => match controller.get_id() {
-                        Ok(id) => {
-                            let path = controller.get_path();
-                            debug!("initialized GPU controller {id} for path {path:?}",);
-                            controllers.insert(id, controller);
+            if let Ok(drm_uevent) = fs::read_to_string(entry.path().join("uevent")) {
+                if drm_uevent.contains("DEVTYPE=drm_minor") {
+                    trace!("trying gpu controller at {:?}", entry.path());
+                    let device_path = entry.path().join("device");
+                    match GpuController::new_from_path(device_path) {
+                        Ok(controller) => match controller.get_id() {
+                            Ok(id) => {
+                                let path = controller.get_path();
+                                debug!("initialized GPU controller {id} for path {path:?}",);
+                                controllers.insert(id, controller);
+                            }
+                            Err(err) => warn!("could not initialize controller: {err:#}"),
+                        },
+                        Err(error) => {
+                            warn!(
+                                "failed to initialize controller at {:?}, {error}",
+                                entry.path()
+                            );
                         }
-                        Err(err) => warn!("could not initialize controller: {err:#}"),
-                    },
-                    Err(error) => {
-                        warn!(
-                            "failed to initialize controller at {:?}, {error}",
-                            entry.path()
-                        );
                     }
                 }
             }
