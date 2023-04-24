@@ -13,8 +13,11 @@ use std::{
     sync::{Arc, Mutex, RwLock},
     time::Duration,
 };
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, sleep};
 use tracing::{debug, error, info, trace, warn};
+
+const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
+const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 1;
 
 #[derive(Clone)]
 pub struct Handler {
@@ -27,42 +30,19 @@ impl<'a> Handler {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
         let mut controllers = HashMap::new();
 
-        let base_path = match env::var("_LACT_DRM_SYSFS_PATH") {
-            Ok(custom_path) => PathBuf::from(custom_path),
-            Err(_) => PathBuf::from("/sys/class/drm"),
-        };
+        // Sometimes LACT starts too early in the boot process, before the sysfs is initialized.
+        // For such scenarios there is a retry logic when no GPUs were found
+        for i in 1..=CONTROLLERS_LOAD_RETRY_ATTEMPTS {
+            controllers = load_controllers()?;
 
-        for entry in base_path
-            .read_dir()
-            .map_err(|error| anyhow!("Failed to read sysfs: {error}"))?
-        {
-            let entry = entry?;
-
-            let name = entry
-                .file_name()
-                .into_string()
-                .map_err(|_| anyhow!("non-utf path"))?;
-            if name.starts_with("card") && !name.contains('-') {
-                trace!("trying gpu controller at {:?}", entry.path());
-                let device_path = entry.path().join("device");
-                match GpuController::new_from_path(device_path) {
-                    Ok(controller) => match controller.get_id() {
-                        Ok(id) => {
-                            let path = controller.get_path();
-                            debug!("initialized GPU controller {id} for path {path:?}",);
-                            controllers.insert(id, controller);
-                        }
-                        Err(err) => warn!("could not initialize controller: {err:#}"),
-                    },
-                    Err(error) => {
-                        warn!(
-                            "failed to initialize controller at {:?}, {error}",
-                            entry.path()
-                        );
-                    }
-                }
+            if controllers.is_empty() {
+                warn!("no GPUs were found, retrying in {CONTROLLERS_LOAD_RETRY_INTERVAL}s (attempt {i}/{CONTROLLERS_LOAD_RETRY_ATTEMPTS})");
+                sleep(Duration::from_secs(CONTROLLERS_LOAD_RETRY_INTERVAL)).await;
+            } else {
+                break;
             }
         }
+        info!("initialized {} GPUs", controllers.len());
 
         let handler = Self {
             gpu_controllers: Arc::new(controllers),
@@ -363,4 +343,47 @@ impl<'a> Handler {
             }
         }
     }
+}
+
+fn load_controllers() -> anyhow::Result<HashMap<String, GpuController>> {
+    let mut controllers = HashMap::new();
+
+    let base_path = match env::var("_LACT_DRM_SYSFS_PATH") {
+        Ok(custom_path) => PathBuf::from(custom_path),
+        Err(_) => PathBuf::from("/sys/class/drm"),
+    };
+
+    for entry in base_path
+        .read_dir()
+        .map_err(|error| anyhow!("Failed to read sysfs: {error}"))?
+    {
+        let entry = entry?;
+
+        let name = entry
+            .file_name()
+            .into_string()
+            .map_err(|_| anyhow!("non-utf path"))?;
+        if name.starts_with("card") && !name.contains('-') {
+            trace!("trying gpu controller at {:?}", entry.path());
+            let device_path = entry.path().join("device");
+            match GpuController::new_from_path(device_path) {
+                Ok(controller) => match controller.get_id() {
+                    Ok(id) => {
+                        let path = controller.get_path();
+                        debug!("initialized GPU controller {id} for path {path:?}",);
+                        controllers.insert(id, controller);
+                    }
+                    Err(err) => warn!("could not initialize controller: {err:#}"),
+                },
+                Err(error) => {
+                    warn!(
+                        "failed to initialize controller at {:?}, {error}",
+                        entry.path()
+                    );
+                }
+            }
+        }
+    }
+
+    Ok(controllers)
 }
