@@ -13,7 +13,7 @@ use std::{
     sync::{Arc, Mutex, RwLock},
     time::Duration,
 };
-use tokio::sync::{oneshot, sleep};
+use tokio::{sync::oneshot, time::sleep};
 use tracing::{debug, error, info, trace, warn};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
