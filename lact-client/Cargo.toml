@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 lact-schema = { path = "../lact-schema" }
-anyhow = "1.0.70"
+anyhow = "1.0.71"
 nix = { version = "0.26.2", default-features = false }
-serde = "1.0.160"
+serde = "1.0.162"
 tracing = "0.1.37"
 serde_json = "1.0.96"
