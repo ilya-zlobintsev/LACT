@@ -35,5 +35,5 @@ futures = { version = "0.3.28", default-features = false, features = [
 serde_with = { version = "3.0.0", default-features = false, features = [
     "macros",
 ] }
-zbus = "3.12.0"
+zbus = "3.13.0"
 libdrm_amdgpu_sys = { optional = true, version = "0.1.2" }
