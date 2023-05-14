@@ -407,6 +407,9 @@ impl GpuController {
             self.handle.set_active_power_profile_mode(mode_index)?;
         }
 
+        // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
+        self.handle.reset_clocks_table().ok();
+
         if config.is_core_clocks_used() {
             let mut table = self.handle.get_clocks_table()?;
 
