@@ -43,11 +43,11 @@ jobs:
           done
           popd
 
-        - name: Upload artifacts
-          uses: actions/upload-artifact@v3
-          with:
-            name: ${{ matrix.target-os }}
-            path: release-artifacts/*
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.target-os }}
+          path: release-artifacts/*
 
   #create-release:
   #  needs: build-packages
