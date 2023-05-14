@@ -8,7 +8,7 @@ use apply_revealer::ApplyRevealer;
 use glib::clone;
 use gtk::{gio::ApplicationFlags, prelude::*, *};
 use header::Header;
-use lact_client::schema::request::SetClocksCommand;
+use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
 use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
@@ -101,7 +101,9 @@ impl App {
 
                     let gpu_id = current_gpu_id.read().unwrap();
 
-                    match app.daemon_client.set_clocks_value(&gpu_id, SetClocksCommand::Reset) {
+                    match app.daemon_client.set_clocks_value(&gpu_id, SetClocksCommand::Reset)
+                        .and_then(|_| app.daemon_client.confirm_pending_config(ConfirmCommand::Confirm))
+                    {
                         Ok(()) => {
                             app.set_initial(&gpu_id);
                         }
@@ -275,6 +277,7 @@ impl App {
 
     fn apply_settings(&self, current_gpu_id: Arc<RwLock<String>>) -> anyhow::Result<()> {
         debug!("applying settings");
+        // TODO: Ask confirmation for everything, not just clocks
 
         let gpu_id = current_gpu_id.read().unwrap();
 
@@ -282,17 +285,27 @@ impl App {
             self.daemon_client
                 .set_power_cap(&gpu_id, Some(cap))
                 .context("Failed to set power cap")?;
+
+            self.daemon_client
+                .confirm_pending_config(ConfirmCommand::Confirm)
+                .context("Could not commit config")?;
         }
 
         // Reset the power profile mode for switching to/from manual performance level
         self.daemon_client
             .set_power_profile_mode(&gpu_id, None)
             .context("Could not set default power profile mode")?;
+        self.daemon_client
+            .confirm_pending_config(ConfirmCommand::Confirm)
+            .context("Could not commit config")?;
 
         if let Some(level) = self.root_stack.oc_page.get_performance_level() {
             self.daemon_client
                 .set_performance_level(&gpu_id, level)
                 .context("Failed to set power profile")?;
+            self.daemon_client
+                .confirm_pending_config(ConfirmCommand::Confirm)
+                .context("Could not commit config")?;
 
             let mode_index = self
                 .root_stack
@@ -302,6 +315,9 @@ impl App {
             self.daemon_client
                 .set_power_profile_mode(&gpu_id, mode_index)
                 .context("Could not set active power profile mode")?;
+            self.daemon_client
+                .confirm_pending_config(ConfirmCommand::Confirm)
+                .context("Could not commit config")?;
         }
 
         if let Some(thermals_settings) = self.root_stack.thermals_page.get_thermals_settings() {
@@ -314,52 +330,50 @@ impl App {
                     thermals_settings.curve,
                 )
                 .context("Could not set fan control")?;
+            self.daemon_client
+                .confirm_pending_config(ConfirmCommand::Confirm)
+                .context("Could not commit config")?;
         }
 
         let clocks_settings = self.root_stack.oc_page.clocks_frame.get_settings();
+        let mut clocks_commands = Vec::new();
 
         debug!("applying clocks settings {clocks_settings:#?}");
 
         if let Some(clock) = clocks_settings.min_core_clock {
-            self.daemon_client
-                .set_clocks_value(&gpu_id, SetClocksCommand::MinCoreClock(clock))
-                .context("Could not set the minimum core clock")?;
+            clocks_commands.push(SetClocksCommand::MinCoreClock(clock));
         }
 
         if let Some(clock) = clocks_settings.min_memory_clock {
-            self.daemon_client
-                .set_clocks_value(&gpu_id, SetClocksCommand::MinMemoryClock(clock))
-                .context("Could not set the minimum memory clock")?;
+            clocks_commands.push(SetClocksCommand::MinMemoryClock(clock));
         }
 
         if let Some(voltage) = clocks_settings.min_voltage {
-            self.daemon_client
-                .set_clocks_value(&gpu_id, SetClocksCommand::MinVoltage(voltage))
-                .context("Could not set the minimum voltage")?;
+            clocks_commands.push(SetClocksCommand::MinVoltage(voltage));
         }
 
         if let Some(clock) = clocks_settings.max_core_clock {
-            self.daemon_client
-                .set_clocks_value(&gpu_id, SetClocksCommand::MaxCoreClock(clock))
-                .context("Could not set the maximum core clock")?;
+            clocks_commands.push(SetClocksCommand::MaxCoreClock(clock));
         }
 
         if let Some(clock) = clocks_settings.max_memory_clock {
-            self.daemon_client
-                .set_clocks_value(&gpu_id, SetClocksCommand::MaxMemoryClock(clock))
-                .context("Could not set the maximum memory clock")?;
+            clocks_commands.push(SetClocksCommand::MaxMemoryClock(clock));
         }
 
         if let Some(voltage) = clocks_settings.max_voltage {
-            self.daemon_client
-                .set_clocks_value(&gpu_id, SetClocksCommand::MaxVoltage(voltage))
-                .context("Could not set the maximum voltage")?;
+            clocks_commands.push(SetClocksCommand::MaxVoltage(voltage));
         }
 
         if let Some(offset) = clocks_settings.voltage_offset {
-            self.daemon_client
-                .set_clocks_value(&gpu_id, SetClocksCommand::VoltageOffset(offset))
-                .context("Could not set the voltage offset")?;
+            clocks_commands.push(SetClocksCommand::VoltageOffset(offset));
+        }
+
+        if !clocks_commands.is_empty() {
+            let delay = self
+                .daemon_client
+                .batch_set_clocks_value(&gpu_id, clocks_commands)
+                .context("Could not commit clocks settins")?;
+            self.ask_confirmation(gpu_id.clone(), delay);
         }
 
         self.set_initial(&gpu_id);
@@ -400,6 +414,50 @@ impl App {
             diag.hide();
         }));
     }
+
+    fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
+        let text = confirmation_text(delay);
+        let dialog = MessageDialog::builder()
+            .title("Confirm settings")
+            .text(text)
+            .message_type(MessageType::Question)
+            .buttons(ButtonsType::YesNo)
+            .build();
+
+        glib::source::timeout_add_local(
+            Duration::from_secs(1),
+            clone!(@strong dialog, @strong self as app, @strong gpu_id => move || {
+                delay -= 1;
+
+                let text = confirmation_text(delay);
+                dialog.set_text(Some(&text));
+
+                if delay == 0 {
+                    dialog.hide();
+                    app.set_initial(&gpu_id);
+
+                    Continue(false)
+                }  else {
+                    Continue(true)
+                }
+            }),
+        );
+
+        dialog.run_async(clone!(@strong self as app => move |diag, response| {
+            let command = match response {
+                ResponseType::Yes => ConfirmCommand::Confirm,
+                ResponseType::No => ConfirmCommand::Revert,
+                _ => unreachable!(),
+            };
+
+            diag.hide();
+
+            if let Err(err) = app.daemon_client.confirm_pending_config(command) {
+                show_error(&app.window, err);
+            }
+            app.set_initial(&gpu_id);
+        }));
+    }
 }
 
 enum GuiUpdateMsg {
@@ -419,4 +477,8 @@ fn show_error(parent: &ApplicationWindow, err: anyhow::Error) {
     diag.run_async(|diag, _| {
         diag.hide();
     })
+}
+
+fn confirmation_text(seconds_left: u64) -> String {
+    format!("Do you want to keep the new settings? (Reverting in {seconds_left} seconds)")
 }
