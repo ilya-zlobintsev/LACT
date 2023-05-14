@@ -2,7 +2,7 @@ name: Build packages
 
 on:
   push:
-    branches: ['master' 'feature/parallel-ci']
+    branches: ['master', 'feature/parallel-ci']
 
 jobs:
   build-packages:
