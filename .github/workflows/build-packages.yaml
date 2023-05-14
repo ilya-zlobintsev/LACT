@@ -2,7 +2,7 @@ name: Build packages
 
 on:
   push:
-    branches: ['master', 'feature/parallel-ci']
+    branches: ['master']
 
 jobs:
   build-packages:
@@ -53,6 +53,9 @@ jobs:
     needs: build-packages
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -68,11 +71,11 @@ jobs:
           body: ${{ github.event.head_commit.message }}
           prerelease: true
           name: Test release
-          tag: test-build-PR
+          tag: test-build
 
       - name: Update test-build tag
         run: |
-          git tag -f test-build-PR
-          git push -f origin test-build-PR
+          git tag -f test-build
+          git push -f origin test-build
         shell: bash
 
