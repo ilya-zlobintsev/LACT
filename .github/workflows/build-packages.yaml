@@ -68,8 +68,10 @@ jobs:
           body: ${{ github.event.head_commit.message }}
           prerelease: true
           name: Test release
-          tag: -build-PR
+          tag: test-build-PR
 
+      - name: Update test-build tag
+        run: |
           git tag -f test-build-PR
           git push -f origin test-build-PR
         shell: bash
