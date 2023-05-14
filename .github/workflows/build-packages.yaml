@@ -2,10 +2,14 @@ name: Build packages
 
 on:
   push:
-    branches: ['v2', 'master']
+    branches: ['master']
+  pull_request:
 
 jobs:
   build-packages:
+    strategy:
+      matrix:
+        target-os: [debian-12, ubuntu-2204, fedora-37, fedora-38]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -17,7 +21,7 @@ jobs:
           sudo apt -y install /tmp/pkger.deb
 
       - name: Build packages
-        run: pkger -c .pkger.yml build lact
+        run: pkger -c .pkger.yml build lact -i ${{ matrix.target-os }}
 
       - name: Copy release files
         run: |
@@ -40,21 +44,41 @@ jobs:
           done
           popd
 
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.target-os }}
+          path: release-artifacts/*
+
+  create-release:
+    needs: build-packages
+    runs-on: ubuntu-latest
+    # if: (github.event_name == 'push' && github.ref == 'refs/heads/master')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: downloaded-artifacts/
+
       - name: Create release
         uses: ncipollo/release-action@v1.12.0
         with:
           removeArtifacts: true
           allowUpdates: true
           artifactErrorsFailBuild: true
-          artifacts: "release-artifacts/*"
+          artifacts: "downloaded-artifacts/*/*"
           body: ${{ github.event.head_commit.message }}
           prerelease: true
-          name: Test release
-          tag: test-build
+          name: PR Test release
+          tag: test-build-pr
 
-      - name: Update test-build tag
+      - name: Update test-build-pr tag
         run: |
-          git tag -f test-build
-          git push -f origin test-build
+          git tag -f test-build-pr
+          git push -f origin test-build-pr
         shell: bash
 
