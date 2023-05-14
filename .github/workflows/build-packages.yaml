@@ -3,6 +3,7 @@ name: Build packages
 on:
   push:
     branches: ['master']
+  pull_request:
 
 jobs:
   build-packages:
@@ -52,6 +53,8 @@ jobs:
   create-release:
     needs: build-packages
     runs-on: ubuntu-latest
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/master')
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
