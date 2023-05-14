@@ -49,25 +49,28 @@ jobs:
           name: ${{ matrix.target-os }}
           path: release-artifacts/*
 
-  #create-release:
-  #  needs: build-packages
-  #  runs-on: ubuntu-latest
-  #  steps:
-  #    - name: Create release
-  #      uses: ncipollo/release-action@v1.12.0
-  #      with:
-  #        removeArtifacts: true
-  #        allowUpdates: true
-  #        artifactErrorsFailBuild: true
-  #        artifacts: "release-artifacts/*"
-  #        body: ${{ github.event.head_commit.message }}
-  #        prerelease: true
-  #        name: Test release
-  #        tag: test-build-PR
+  create-release:
+    needs: build-packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: downloaded-artifacts/
 
-  #    - name: Update test-build tag
-  #      run: |
-  #        git tag -f test-build-PR
-  #        git push -f origin test-build-PR
-  #      shell: bash
+      - name: Create release
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          removeArtifacts: true
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          artifacts: "downloaded-artifacts/*/*"
+          body: ${{ github.event.head_commit.message }}
+          prerelease: true
+          name: Test release
+          tag: -build-PR
+
+          git tag -f test-build-PR
+          git push -f origin test-build-PR
+        shell: bash
 
