@@ -53,7 +53,7 @@ jobs:
   create-release:
     needs: build-packages
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/master')
+    # if: (github.event_name == 'push' && github.ref == 'refs/heads/master')
 
     steps:
       - name: Checkout repository
@@ -73,12 +73,12 @@ jobs:
           artifacts: "downloaded-artifacts/*/*"
           body: ${{ github.event.head_commit.message }}
           prerelease: true
-          name: Test release
-          tag: test-build
+          name: PR Test release
+          tag: test-build-pr
 
-      - name: Update test-build tag
+      - name: Update test-build-pr tag
         run: |
-          git tag -f test-build
-          git push -f origin test-build
+          git tag -f test-build-pr
+          git push -f origin test-build-pr
         shell: bash
 
