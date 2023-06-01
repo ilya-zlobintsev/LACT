@@ -19,7 +19,7 @@ fn pong_response() {
     });
     let response = Response::Ok(Pong);
 
-    assert_eq!(serde_json::to_value(&response).unwrap(), expected_response);
+    assert_eq!(serde_json::to_value(response).unwrap(), expected_response);
 }
 
 #[test]
@@ -41,5 +41,5 @@ fn error_response() {
 
     let response = Response::<()>::Error("my super error".to_owned());
 
-    assert_eq!(serde_json::to_value(&response).unwrap(), expected_response);
+    assert_eq!(serde_json::to_value(response).unwrap(), expected_response);
 }
