@@ -1,4 +1,5 @@
 mod clocks_frame;
+mod oc_adjustment;
 mod performance_frame;
 mod power_cap_frame;
 mod stats_frame;

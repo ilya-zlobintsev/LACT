@@ -1,3 +1,4 @@
+use super::oc_adjustment::OcAdjustment;
 use crate::app::root_stack::section_box;
 use gtk::*;
 use gtk::{glib::clone, prelude::*};
@@ -8,7 +9,7 @@ use tracing::error;
 pub struct PowerCapFrame {
     pub container: Box,
     default_cap: Rc<Cell<Option<f64>>>,
-    adjustment: Adjustment,
+    adjustment: OcAdjustment,
 }
 
 impl PowerCapFrame {
@@ -22,7 +23,7 @@ impl PowerCapFrame {
         let label = Label::new(None);
         root_box.append(&label);
 
-        let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
+        let adjustment = OcAdjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
 
         adjustment.connect_value_changed(clone!(@strong label => move |adj| {
             let text = format!("{}/{} {}", adj.value().round(), adj.upper(), value_suffix);
@@ -74,7 +75,7 @@ impl PowerCapFrame {
         }
 
         if let Some(power_cap) = power_cap {
-            self.adjustment.set_value(power_cap);
+            self.adjustment.set_initial_value(power_cap);
         } else {
             self.container.set_visible(false);
         }
@@ -83,13 +84,7 @@ impl PowerCapFrame {
     }
 
     pub fn get_cap(&self) -> Option<f64> {
-        // Using match gives a warning that floats shouldn't be used in patterns
-        let cap = self.adjustment.value();
-        if cap == 0.0 {
-            None
-        } else {
-            Some(cap)
-        }
+        self.adjustment.get_changed_value(true)
     }
 
     pub fn connect_cap_changed<F: Fn() + 'static>(&self, f: F) {
