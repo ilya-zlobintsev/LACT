@@ -1113,10 +1113,10 @@ name = "lact"
 version = "0.4.3"
 dependencies = [
  "anyhow",
- "clap",
  "lact-cli",
  "lact-daemon",
  "lact-gui",
+ "lact-schema",
 ]
 
 [[package]]
@@ -1124,8 +1124,8 @@ name = "lact-cli"
 version = "0.4.3"
 dependencies = [
  "anyhow",
- "clap",
  "lact-client",
+ "lact-schema",
 ]
 
 [[package]]
@@ -1181,6 +1181,7 @@ name = "lact-schema"
 version = "0.4.3"
 dependencies = [
  "amdgpu-sysfs",
+ "clap",
  "indexmap",
  "serde",
  "serde_json",

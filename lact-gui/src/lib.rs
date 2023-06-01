@@ -1,18 +1,19 @@
 mod app;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use app::App;
-use lact_client::DaemonClient;
+use lact_client::{schema::args::GuiArgs, DaemonClient};
 use std::os::unix::net::UnixStream;
 use tracing::{error, info, metadata::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 const APP_ID: &str = "io.github.lact-linux";
 
-pub fn run() -> anyhow::Result<()> {
+pub fn run(args: GuiArgs) -> anyhow::Result<()> {
     let env_filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
-        .from_env_lossy();
+        .parse(args.log_level.unwrap_or_default())
+        .context("Invalid log level")?;
     tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
     if let Err(err) = gtk::init() {

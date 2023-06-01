@@ -3,10 +3,14 @@ name = "lact-schema"
 version = "0.4.3"
 edition = "2021"
 
+[features]
+args = ["clap"]
+
 [dependencies]
 amdgpu-sysfs = { version = "0.11.0", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 indexmap = { version = "*", features = ["serde"] }
+clap = { version = "4.2.7", features = ["derive"], optional = true }
 
 [dev-dependencies]
 serde_json = "1.0"

@@ -1,8 +1,6 @@
-pub mod args;
-
 use anyhow::{Context, Result};
-use args::{CliArgs, CliCommand};
 use lact_client::DaemonClient;
+use lact_schema::args::{CliArgs, CliCommand};
 
 pub fn run(args: CliArgs) -> Result<()> {
     let client = DaemonClient::connect()?;
@@ -28,7 +26,7 @@ fn list_gpus(_: &CliArgs, client: &DaemonClient) -> Result<()> {
 }
 
 fn info(args: &CliArgs, client: &DaemonClient) -> Result<()> {
-    for id in args.gpu_ids(client) {
+    for id in extract_gpu_ids(args, client) {
         let info_buffer = client.get_device_info(&id)?;
         let info = info_buffer.inner()?;
         let pci_info = info.pci_info.context("GPU reports no pci info")?;
@@ -46,4 +44,19 @@ fn info(args: &CliArgs, client: &DaemonClient) -> Result<()> {
         println!("Link: {:?}", info.link_info);
     }
     Ok(())
+}
+
+fn extract_gpu_ids(args: &CliArgs, client: &DaemonClient) -> Vec<String> {
+    match args.gpu_id {
+        Some(ref id) => vec![id.clone()],
+        None => {
+            let buffer = client.list_devices().expect("Could not list GPUs");
+            buffer
+                .inner()
+                .expect("Could not deserialize GPUs response")
+                .into_iter()
+                .map(|entry| entry.id.to_owned())
+                .collect()
+        }
+    }
 }
