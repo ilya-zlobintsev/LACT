@@ -17,6 +17,8 @@ pub struct VulkanInfoFrame {
     pub container: Box,
     device_name_label: Label,
     version_label: Label,
+    driver_name_label: Label,
+    driver_version_label: Label,
     features: Rc<RefCell<Vec<FeatureModel>>>,
     extensions: Rc<RefCell<Vec<FeatureModel>>>,
 }
@@ -34,21 +36,29 @@ impl VulkanInfoFrame {
         device_name_label.set_margin_top(5);
         device_name_label.set_margin_bottom(5);
 
-        let version_label = label_row("Version:", &grid, 1, 0, true);
+        let version_label = label_row("Vulkan version:", &grid, 1, 0, true);
         version_label.set_margin_top(5);
         version_label.set_margin_bottom(5);
+
+        let driver_name_label = label_row("Driver name:", &grid, 2, 0, true);
+        driver_name_label.set_margin_top(5);
+        driver_name_label.set_margin_bottom(5);
+
+        let driver_version_label = label_row("Driver version:", &grid, 3, 0, true);
+        driver_version_label.set_margin_top(5);
+        driver_version_label.set_margin_bottom(5);
 
         let show_features_button = Button::builder().label("Show").halign(Align::End).build();
         show_features_button.connect_clicked(clone!(@strong features => move |_| {
             show_list_window("Vulkan features", &features.borrow());
         }));
-        values_row("Features:", &grid, &show_features_button, 2, 0);
+        values_row("Features:", &grid, &show_features_button, 4, 0);
 
         let show_extensions_button = Button::builder().label("Show").halign(Align::End).build();
         show_extensions_button.connect_clicked(clone!(@strong extensions => move |_| {
             show_list_window("Vulkan extensions", &extensions.borrow());
         }));
-        values_row("Extensions:", &grid, &show_extensions_button, 3, 0);
+        values_row("Extensions:", &grid, &show_extensions_button, 5, 0);
 
         container.append(&grid);
 
@@ -56,6 +66,8 @@ impl VulkanInfoFrame {
             container,
             device_name_label,
             version_label,
+            driver_name_label,
+            driver_version_label,
             features,
             extensions,
         }
@@ -68,6 +80,16 @@ impl VulkanInfoFrame {
             .set_markup(&format!("<b>{}</b>", vulkan_info.device_name));
         self.version_label
             .set_markup(&format!("<b>{}</b>", vulkan_info.api_version));
+
+        self.driver_name_label.set_markup(&format!(
+            "<b>{}</b>",
+            vulkan_info.driver.name.as_deref().unwrap_or_default(),
+        ));
+
+        self.driver_version_label.set_markup(&format!(
+            "<b>{}</b>",
+            vulkan_info.driver.info.as_deref().unwrap_or_default(),
+        ));
 
         let features_vec: Vec<_> = vulkan_info
             .features

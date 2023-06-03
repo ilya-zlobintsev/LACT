@@ -23,6 +23,8 @@ pub fn get_vulkan_info<'a>(vendor_id: &'a str, device_id: &'a str) -> anyhow::Re
 
             for device in devices {
                 let properties = device.properties();
+                println!("Properties: {properties:?}");
+
                 // Not sure how this works with systems that have multiple identical GPUs
                 if (properties.vendor_id, properties.device_id) == (vendor_id, device_id) {
                     let info = VulkanInfo {
@@ -32,6 +34,7 @@ pub fn get_vulkan_info<'a>(vendor_id: &'a str, device_id: &'a str) -> anyhow::Re
                             version: properties.driver_version,
                             name: properties.driver_name.clone(),
                             info: properties.driver_info.clone(),
+                            driver_version: None,
                         },
                         features: device
                             .supported_features()

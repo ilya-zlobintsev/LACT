@@ -136,6 +136,7 @@ pub struct VulkanDriverInfo {
     pub version: u32,
     pub name: Option<String>,
     pub info: Option<String>,
+    pub driver_version: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
