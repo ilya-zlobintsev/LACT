@@ -157,7 +157,7 @@ impl GpuController {
         });
         let pci_info = self.pci_info.as_ref().map(Cow::Borrowed);
         let driver = self.handle.get_driver();
-        let vbios_version = self.handle.get_vbios_version().ok();
+        let vbios_version = self.get_full_vbios_version();
         let link_info = self.get_link_info();
         let drm_info = self.get_drm_info();
 
@@ -169,6 +169,23 @@ impl GpuController {
             link_info,
             drm_info,
         }
+    }
+
+    #[cfg(feature = "libdrm_amdgpu_sys")]
+    fn get_full_vbios_version(&self) -> Option<String> {
+        self.handle.get_vbios_version().ok().map(|mut base| {
+            if let Some(drm_handle) = &self.drm_handle {
+                if let Ok(vbios_info) = drm_handle.get_vbios_info() {
+                    base = format!("{base} [{}]", vbios_info.date);
+                }
+            }
+            base
+        })
+    }
+
+    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
+    fn get_full_vbios_version(&self) -> Option<String> {
+        self.handle.get_vbios_version().ok()
     }
 
     #[cfg(feature = "libdrm_amdgpu_sys")]
