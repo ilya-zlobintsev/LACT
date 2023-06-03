@@ -15,7 +15,7 @@ pciid-parser = { version = "0.6", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-tokio = { version = "1.28.1", features = [
+tokio = { version = "1.28.2", features = [
     "rt",
     "macros",
     "net",
@@ -35,5 +35,5 @@ futures = { version = "0.3.28", default-features = false, features = [
 serde_with = { version = "3.0.0", default-features = false, features = [
     "macros",
 ] }
-zbus = "3.12.0"
-libdrm_amdgpu_sys = { optional = true, version = "0.1.2" }
+zbus = "3.13.1"
+libdrm_amdgpu_sys = { optional = true, version = "0.1.4" }
