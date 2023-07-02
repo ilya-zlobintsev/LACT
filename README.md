@@ -13,10 +13,10 @@ Current features:
 - Viewing information about the GPU
 - Power/thermals monitoring
 - Fan curve control
-- Basic overclocking
+- Overclocking (GPU/VRAM clockspeed, voltage)
 
 Currently missing:
-- Precise clock/voltage curve manipulation (currently can only set the maximum values)
+- Power states configuration
 
 # Installation
 
