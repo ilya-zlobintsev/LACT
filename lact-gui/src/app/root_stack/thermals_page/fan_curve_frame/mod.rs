@@ -26,6 +26,7 @@ impl FanCurveFrame {
         let hbox = Box::new(Orientation::Horizontal, 5);
 
         let curve_container = Frame::new(Some("Fan Curve"));
+        curve_container.set_hexpand(true);
 
         curve_container.set_margin_start(10);
         curve_container.set_margin_end(10);
@@ -94,6 +95,9 @@ impl FanCurveFrame {
         let mut curve = self.get_curve();
         if let Some((temperature, ratio)) = curve.iter().last() {
             curve.insert(temperature + 5, *ratio);
+            self.set_curve(&curve);
+        } else {
+            curve.insert(50, 0.5);
             self.set_curve(&curve);
         }
     }
