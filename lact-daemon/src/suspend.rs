@@ -23,7 +23,7 @@ pub async fn listen_events(handler: Handler) {
 }
 
 async fn connect_proxy() -> anyhow::Result<Proxy<'static>> {
-    let conn = Connection::system().await?;
+    let conn = Box::pin(Connection::system()).await?;
     let proxy = Proxy::new_owned(
         conn,
         "org.freedesktop.login1",
