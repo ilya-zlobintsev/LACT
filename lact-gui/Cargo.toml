@@ -1,6 +1,6 @@
 [package]
 name = "lact-gui"
-version = "0.4.3"
+version = "0.4.4"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2021"
 
