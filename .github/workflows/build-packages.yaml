@@ -9,7 +9,7 @@ jobs:
   build-packages:
     strategy:
       matrix:
-        target-os: [debian-12, ubuntu-2204, fedora-37, fedora-38]
+        target-os: [debian-12, ubuntu-2204, fedora-37, fedora-38, arch]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

@@ -16,4 +16,6 @@ images:
     target: rpm
   - name: ubuntu-2204
     target: deb
+  - name: arch
+    target: pkg
 custom_simple_images: ~
