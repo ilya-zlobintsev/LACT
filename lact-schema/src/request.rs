@@ -59,12 +59,12 @@ pub enum ConfirmCommand {
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum SetClocksCommand {
-    MaxCoreClock(u32),
-    MaxMemoryClock(u32),
-    MaxVoltage(u32),
-    MinCoreClock(u32),
-    MinMemoryClock(u32),
-    MinVoltage(u32),
+    MaxCoreClock(i32),
+    MaxMemoryClock(i32),
+    MaxVoltage(i32),
+    MinCoreClock(i32),
+    MinMemoryClock(i32),
+    MinVoltage(i32),
     VoltageOffset(i32),
     Reset,
 }

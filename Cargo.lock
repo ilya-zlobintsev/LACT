@@ -40,9 +40,9 @@ dependencies = [
 
 [[package]]
 name = "amdgpu-sysfs"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1241e256a8f6c8cb1ef7c9dcece471f4f5392472a85448ade4ef7c53e367f9e3"
+checksum = "df7c7abdd5331a208d6977a9ecd2ba168811add784f0e9c1943fc16711ba96e5"
 dependencies = [
  "enum_dispatch",
  "serde",
@@ -1120,6 +1120,7 @@ checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
 dependencies = [
  "autocfg",
  "hashbrown 0.12.3",
+ "serde",
 ]
 
 [[package]]
@@ -1130,7 +1131,6 @@ checksum = "d5477fe2230a79769d8dc68e0eabf5437907c0457a5614a9e8dddb67f65eb65d"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.0",
- "serde",
 ]
 
 [[package]]
@@ -1161,7 +1161,7 @@ checksum = "af150ab688ff2122fcef229be89cb50dd66af9e01a4ff320cc137eecc9bacc38"
 
 [[package]]
 name = "lact"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "anyhow",
  "lact-cli",
@@ -1172,7 +1172,7 @@ dependencies = [
 
 [[package]]
 name = "lact-cli"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "anyhow",
  "lact-client",
@@ -1181,7 +1181,7 @@ dependencies = [
 
 [[package]]
 name = "lact-client"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "anyhow",
  "lact-schema",
@@ -1193,7 +1193,7 @@ dependencies = [
 
 [[package]]
 name = "lact-daemon"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1215,7 +1215,7 @@ dependencies = [
 
 [[package]]
 name = "lact-gui"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "anyhow",
  "gtk4",
@@ -1229,11 +1229,11 @@ dependencies = [
 
 [[package]]
 name = "lact-schema"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "amdgpu-sysfs",
  "clap",
- "indexmap 2.0.0",
+ "indexmap 1.9.3",
  "serde",
  "serde_json",
 ]

@@ -324,10 +324,10 @@ fn extract_value_and_range(
     f: fn(
         &ClocksTableGen,
     ) -> (
-        Option<u32>,
+        Option<i32>,
         Option<amdgpu_sysfs::gpu_handle::overdrive::Range>,
     ),
-) -> Option<(u32, u32, u32)> {
+) -> Option<(i32, i32, i32)> {
     let (maybe_value, maybe_range) = f(table);
     let (value, range) = maybe_value.zip(maybe_range)?;
     let (min, max) = range.try_into().ok()?;
@@ -398,16 +398,16 @@ fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> (Adjustment, Rc<
 
 #[derive(Debug, Default)]
 pub struct ClocksSettings {
-    pub min_core_clock: Option<u32>,
-    pub min_memory_clock: Option<u32>,
-    pub min_voltage: Option<u32>,
-    pub max_core_clock: Option<u32>,
-    pub max_memory_clock: Option<u32>,
-    pub max_voltage: Option<u32>,
+    pub min_core_clock: Option<i32>,
+    pub min_memory_clock: Option<i32>,
+    pub min_voltage: Option<i32>,
+    pub max_core_clock: Option<i32>,
+    pub max_memory_clock: Option<i32>,
+    pub max_voltage: Option<i32>,
     pub voltage_offset: Option<i32>,
 }
 
-fn get_adjustment_value((adjustment, changed): &(Adjustment, Rc<AtomicBool>)) -> Option<u32> {
+fn get_adjustment_value((adjustment, changed): &(Adjustment, Rc<AtomicBool>)) -> Option<i32> {
     let changed = changed.load(Ordering::SeqCst);
 
     if changed {
@@ -415,7 +415,7 @@ fn get_adjustment_value((adjustment, changed): &(Adjustment, Rc<AtomicBool>)) ->
         if value == 0.0 {
             None
         } else {
-            Some(value as u32)
+            Some(value as i32)
         }
     } else {
         None

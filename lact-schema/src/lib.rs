@@ -93,9 +93,9 @@ pub struct DrmMemoryInfo {
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct ClocksInfo {
-    pub max_sclk: Option<u32>,
-    pub max_mclk: Option<u32>,
-    pub max_voltage: Option<u32>,
+    pub max_sclk: Option<i32>,
+    pub max_mclk: Option<i32>,
+    pub max_voltage: Option<i32>,
     pub table: Option<ClocksTableGen>,
 }
 
