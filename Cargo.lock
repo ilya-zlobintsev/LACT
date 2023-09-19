@@ -40,9 +40,9 @@ dependencies = [
 
 [[package]]
 name = "amdgpu-sysfs"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df7c7abdd5331a208d6977a9ecd2ba168811add784f0e9c1943fc16711ba96e5"
+checksum = "8d13a380f1e3075313a793737a6b07fac7e69369779aee12b6cc03783aac0a7f"
 dependencies = [
  "enum_dispatch",
  "serde",
@@ -1120,7 +1120,6 @@ checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
 dependencies = [
  "autocfg",
  "hashbrown 0.12.3",
- "serde",
 ]
 
 [[package]]
@@ -1131,6 +1130,7 @@ checksum = "d5477fe2230a79769d8dc68e0eabf5437907c0457a5614a9e8dddb67f65eb65d"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.0",
+ "serde",
 ]
 
 [[package]]
@@ -1233,7 +1233,7 @@ version = "0.4.5"
 dependencies = [
  "amdgpu-sysfs",
  "clap",
- "indexmap 1.9.3",
+ "indexmap 2.0.0",
  "serde",
  "serde_json",
 ]
