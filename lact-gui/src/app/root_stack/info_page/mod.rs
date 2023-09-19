@@ -113,25 +113,36 @@ impl InformationPage {
         self.gpu_manufacturer_label
             .set_markup(&format!("<b>{gpu_manufacturer}</b>"));
 
+        let mut family_name = "Unknown";
+        let mut asic_name = "Unknown";
+        let mut compute_units = "Unknown".to_owned();
+        let mut vram_type = "Unknown";
+        let mut vram_max_bw = "Unknown";
+        let mut cpu_accessible_vram = "Unknown".to_owned();
         if let Some(drm_info) = &gpu_info.drm_info {
-            self.family_name
-                .set_markup(&format!("<b>{}</b>", drm_info.family_name));
-            self.asic_name
-                .set_markup(&format!("<b>{}</b>", drm_info.asic_name));
-            self.compute_units_label
-                .set_markup(&format!("<b>{}</b>", drm_info.compute_units));
-            self.vram_type_label
-                .set_markup(&format!("<b>{}</b>", drm_info.vram_type));
-            self.vram_peak_bw_label
-                .set_markup(&format!("<b>{} GiB/s</b>", drm_info.vram_max_bw));
+            family_name = &drm_info.family_name;
+            asic_name = &drm_info.asic_name;
+            compute_units = drm_info.compute_units.to_string();
+            vram_type = &drm_info.vram_type;
+            vram_max_bw = &drm_info.vram_max_bw;
 
             if let Some(memory_info) = &drm_info.memory_info {
-                self.cpu_accessible_vram_label.set_markup(&format!(
-                    "<b>{} MiB</b>",
-                    memory_info.cpu_accessible_total / 1024 / 1024
-                ));
+                cpu_accessible_vram = (memory_info.cpu_accessible_total / 1024 / 1024).to_string();
             }
         }
+
+        self.family_name
+            .set_markup(&format!("<b>{family_name}</b>"));
+        self.asic_name.set_markup(&format!("<b>{asic_name}</b>"));
+        self.compute_units_label
+            .set_markup(&format!("<b>{compute_units}</b>"));
+        self.vram_type_label
+            .set_markup(&format!("<b>{vram_type}</b>"));
+        self.vram_peak_bw_label
+            .set_markup(&format!("<b>{vram_max_bw} GiB/s</b>"));
+
+        self.cpu_accessible_vram_label
+            .set_markup(&format!("<b>{cpu_accessible_vram} MiB</b>"));
 
         let vbios_version = gpu_info.vbios_version.as_deref().unwrap_or("Unknown");
         self.vbios_version_label

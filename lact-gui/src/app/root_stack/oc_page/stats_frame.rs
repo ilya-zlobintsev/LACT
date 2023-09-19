@@ -120,10 +120,9 @@ impl StatsFrame {
             .get("junction")
             .or_else(|| stats.temps.get("edge"));
 
-        if let Some(temp) = maybe_temp.and_then(|temp| temp.current) {
-            self.gpu_temperature_label
-                .set_markup(&format!("<b>{temp}°C</b>"));
-        }
+        let temp = maybe_temp.and_then(|temp| temp.current).unwrap_or(0.0);
+        self.gpu_temperature_label
+            .set_markup(&format!("<b>{temp}°C</b>"));
 
         self.gpu_usage_label.set_markup(&format!(
             "<b>{}%</b>",
