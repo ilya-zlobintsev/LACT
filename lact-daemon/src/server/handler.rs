@@ -7,7 +7,7 @@ use lact_schema::{
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
 };
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     env,
     path::PathBuf,
     sync::{Arc, Mutex, RwLock},
@@ -22,13 +22,13 @@ const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 1;
 #[derive(Clone)]
 pub struct Handler {
     pub config: Arc<RwLock<Config>>,
-    pub gpu_controllers: Arc<HashMap<String, GpuController>>,
+    pub gpu_controllers: Arc<BTreeMap<String, GpuController>>,
     confirm_config_tx: Arc<Mutex<Option<oneshot::Sender<ConfirmCommand>>>>,
 }
 
 impl<'a> Handler {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
-        let mut controllers = HashMap::new();
+        let mut controllers = BTreeMap::new();
 
         // Sometimes LACT starts too early in the boot process, before the sysfs is initialized.
         // For such scenarios there is a retry logic when no GPUs were found
@@ -345,8 +345,8 @@ impl<'a> Handler {
     }
 }
 
-fn load_controllers() -> anyhow::Result<HashMap<String, GpuController>> {
-    let mut controllers = HashMap::new();
+fn load_controllers() -> anyhow::Result<BTreeMap<String, GpuController>> {
+    let mut controllers = BTreeMap::new();
 
     let base_path = match env::var("_LACT_DRM_SYSFS_PATH") {
         Ok(custom_path) => PathBuf::from(custom_path),
