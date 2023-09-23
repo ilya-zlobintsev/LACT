@@ -80,13 +80,12 @@ impl App {
 
                 let current_gpu_id = Arc::new(RwLock::new(String::new()));
 
-
-                    app.header.connect_gpu_selection_changed(clone!(@strong app, @strong current_gpu_id => move |gpu_id| {
-                        debug!("GPU Selection changed");
-                        app.set_info(&gpu_id);
-                        *current_gpu_id.write().unwrap() = gpu_id;
-                        debug!("Updated current GPU id");
-                    }));
+                app.header.connect_gpu_selection_changed(clone!(@strong app, @strong current_gpu_id => move |gpu_id| {
+                    debug!("GPU Selection changed");
+                    app.set_info(&gpu_id);
+                    *current_gpu_id.write().unwrap() = gpu_id;
+                    debug!("Updated current GPU id");
+                }));
 
                 let devices_buf = app
                     .daemon_client
@@ -115,14 +114,16 @@ impl App {
 
                 app.apply_revealer.connect_apply_button_clicked(
                     clone!(@strong app, @strong current_gpu_id => move || {
-                        if let Err(err) = app.apply_settings(current_gpu_id.clone()) {
-                            show_error(&app.window, err.context("Could not apply settings"));
+                        glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
+                            if let Err(err) = app.apply_settings(current_gpu_id.clone()) {
+                                show_error(&app.window, err.context("Could not apply settings"));
 
-                            glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
-                                let gpu_id = current_gpu_id.read().unwrap();
-                                app.set_initial(&gpu_id)
-                            }));
-                        }
+                                glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
+                                    let gpu_id = current_gpu_id.read().unwrap();
+                                    app.set_initial(&gpu_id)
+                                }));
+                            }
+                        }));
                     }),
                 );
                 app.apply_revealer.connect_reset_button_clicked(clone!(@strong app, @strong current_gpu_id => move || {
@@ -169,6 +170,7 @@ impl App {
     }
 
     fn set_initial(&self, gpu_id: &str) {
+        debug!("setting initial stats for gpu {gpu_id}");
         let stats_buf = self
             .daemon_client
             .get_device_stats(gpu_id)
@@ -276,10 +278,11 @@ impl App {
     }
 
     fn apply_settings(&self, current_gpu_id: Arc<RwLock<String>>) -> anyhow::Result<()> {
-        debug!("applying settings");
         // TODO: Ask confirmation for everything, not just clocks
 
+        debug!("applying settings");
         let gpu_id = current_gpu_id.read().unwrap();
+        debug!("using gpu {gpu_id}");
 
         if let Some(cap) = self.root_stack.oc_page.get_power_cap() {
             self.daemon_client
