@@ -33,20 +33,9 @@ impl VulkanInfoFrame {
         let grid = values_grid();
 
         let device_name_label = label_row("Device name", &grid, 0, 0, true);
-        device_name_label.set_margin_top(5);
-        device_name_label.set_margin_bottom(5);
-
         let version_label = label_row("Vulkan version:", &grid, 1, 0, true);
-        version_label.set_margin_top(5);
-        version_label.set_margin_bottom(5);
-
         let driver_name_label = label_row("Driver name:", &grid, 2, 0, true);
-        driver_name_label.set_margin_top(5);
-        driver_name_label.set_margin_bottom(5);
-
         let driver_version_label = label_row("Driver version:", &grid, 3, 0, true);
-        driver_version_label.set_margin_top(5);
-        driver_version_label.set_margin_bottom(5);
 
         let show_features_button = Button::builder().label("Show").halign(Align::End).build();
         show_features_button.connect_clicked(clone!(@strong features => move |_| {
@@ -112,6 +101,7 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
         .title(title)
         .width_request(500)
         .height_request(700)
+        .resizable(false)
         .build();
 
     let base_model = gio::ListStore::new(FeatureModel::static_type());

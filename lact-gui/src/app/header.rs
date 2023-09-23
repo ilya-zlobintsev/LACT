@@ -14,8 +14,7 @@ impl Header {
     pub fn new() -> Self {
         let container = HeaderBar::new();
 
-        // TODO Check if this is this still needed
-        container.set_title_widget(Some(&Grid::new())); // Bad workaround to hide the title
+        container.set_title_widget(Some(&Box::default())); // Workaround to hide the title
 
         container.set_show_title_buttons(true);
 

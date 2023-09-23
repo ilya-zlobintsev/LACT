@@ -39,8 +39,8 @@ impl App {
         let header = Header::new();
         let window = ApplicationWindow::builder()
             .title("LACT")
-            .default_width(500)
-            .default_height(600)
+            .default_width(600)
+            .default_height(750)
             .icon_name(APP_ID)
             .build();
 
@@ -428,6 +428,7 @@ impl App {
             .text(text)
             .message_type(MessageType::Question)
             .buttons(ButtonsType::YesNo)
+            .transient_for(&self.window)
             .build();
 
         glib::source::timeout_add_local(
