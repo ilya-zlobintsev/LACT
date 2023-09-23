@@ -13,12 +13,12 @@ use schema::{
 };
 use serde::Deserialize;
 use std::{
+    cell::RefCell,
     io::{BufRead, BufReader, Write},
     marker::PhantomData,
-    ops::DerefMut,
     os::unix::net::UnixStream,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    rc::Rc,
     time::Duration,
 };
 use tracing::{error, info};
@@ -27,7 +27,7 @@ const RECONNECT_INTERVAL_MS: u64 = 250;
 
 #[derive(Clone)]
 pub struct DaemonClient {
-    stream: Arc<Mutex<(BufReader<UnixStream>, UnixStream)>>,
+    stream: Rc<RefCell<(BufReader<UnixStream>, UnixStream)>>,
     pub embedded: bool,
 }
 
@@ -39,7 +39,7 @@ impl DaemonClient {
         let stream_pair = connect_pair(&path)?;
 
         Ok(Self {
-            stream: Arc::new(Mutex::new(stream_pair)),
+            stream: Rc::new(RefCell::new(stream_pair)),
             embedded: false,
         })
     }
@@ -47,7 +47,7 @@ impl DaemonClient {
     pub fn from_stream(stream: UnixStream, embedded: bool) -> anyhow::Result<Self> {
         let reader = BufReader::new(stream.try_clone()?);
         Ok(Self {
-            stream: Arc::new(Mutex::new((reader, stream))),
+            stream: Rc::new(RefCell::new((reader, stream))),
             embedded,
         })
     }
@@ -56,8 +56,11 @@ impl DaemonClient {
         &self,
         request: Request,
     ) -> anyhow::Result<ResponseBuffer<T>> {
-        let mut stream_guard = self.stream.lock().map_err(|err| anyhow!("{err}"))?;
-        let (reader, writer) = stream_guard.deref_mut();
+        let mut stream_guard = self
+            .stream
+            .try_borrow_mut()
+            .map_err(|err| anyhow!("{err}"))?;
+        let (reader, writer) = &mut *stream_guard;
 
         if !reader.buffer().is_empty() {
             return Err(anyhow!("Another request was not processed properly"));

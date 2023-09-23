@@ -6,6 +6,7 @@ use crate::APP_ID;
 use anyhow::{anyhow, Context};
 use apply_revealer::ApplyRevealer;
 use glib::clone;
+use gtk::glib::timeout_future;
 use gtk::{gio::ApplicationFlags, prelude::*, *};
 use header::Header;
 use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
@@ -13,8 +14,8 @@ use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
 use root_stack::RootStack;
-use std::sync::{Arc, RwLock};
-use std::thread;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::Duration;
 use tracing::{debug, error, trace, warn};
 
@@ -78,12 +79,12 @@ impl App {
             .connect_activate(clone!(@strong self as app => move |_| {
                 app.window.set_application(Some(&app.application));
 
-                let current_gpu_id = Arc::new(RwLock::new(String::new()));
+                let current_gpu_id = Rc::new(RefCell::new(String::new()));
 
                 app.header.connect_gpu_selection_changed(clone!(@strong app, @strong current_gpu_id => move |gpu_id| {
                     debug!("GPU Selection changed");
                     app.set_info(&gpu_id);
-                    *current_gpu_id.write().unwrap() = gpu_id;
+                    *current_gpu_id.borrow_mut() = gpu_id;
                     debug!("Updated current GPU id");
                 }));
 
@@ -98,7 +99,7 @@ impl App {
                 app.root_stack.oc_page.clocks_frame.connect_clocks_reset(clone!(@strong app, @strong current_gpu_id => move || {
                     debug!("Resetting clocks");
 
-                    let gpu_id = current_gpu_id.read().unwrap();
+                    let gpu_id = current_gpu_id.borrow().clone();
 
                     match app.daemon_client.set_clocks_value(&gpu_id, SetClocksCommand::Reset)
                         .and_then(|_| app.daemon_client.confirm_pending_config(ConfirmCommand::Confirm))
@@ -119,7 +120,7 @@ impl App {
                                 show_error(&app.window, err.context("Could not apply settings"));
 
                                 glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
-                                    let gpu_id = current_gpu_id.read().unwrap();
+                                    let gpu_id = current_gpu_id.borrow().clone();
                                     app.set_initial(&gpu_id)
                                 }));
                             }
@@ -127,7 +128,7 @@ impl App {
                     }),
                 );
                 app.apply_revealer.connect_reset_button_clicked(clone!(@strong app, @strong current_gpu_id => move || {
-                    let gpu_id = current_gpu_id.read().unwrap();
+                    let gpu_id = current_gpu_id.borrow().clone();
                     app.set_initial(&gpu_id)
                 }));
 
@@ -231,7 +232,7 @@ impl App {
         self.apply_revealer.hide();
     }
 
-    fn start_stats_update_loop(&self, current_gpu_id: Arc<RwLock<String>>) {
+    fn start_stats_update_loop(&self, current_gpu_id: Rc<RefCell<String>>) {
         let context = glib::MainContext::default();
 
         let _guard = context.acquire();
@@ -239,22 +240,25 @@ impl App {
         // The loop that gets stats
         let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
 
-        thread::spawn(
-            clone!(@strong self.daemon_client as daemon_client => move || loop {
-                let gpu_id = current_gpu_id.read().unwrap();
-                match daemon_client
-                    .get_device_stats(&gpu_id)
-                    .and_then(|stats| stats.inner())
-                {
-                    Ok(stats) => {
-                        sender.send(GuiUpdateMsg::GpuStats(stats)).unwrap();
+        context.spawn_local(
+            clone!(@strong self.daemon_client as daemon_client => async move {
+                loop {
+                    {
+                        let gpu_id = current_gpu_id.borrow();
+                        match daemon_client
+                            .get_device_stats(&gpu_id)
+                            .and_then(|stats| stats.inner())
+                        {
+                            Ok(stats) => {
+                                sender.send(GuiUpdateMsg::GpuStats(stats)).unwrap();
+                            }
+                            Err(err) => {
+                                error!("Could not fetch stats: {err}");
+                            }
+                        }
                     }
-                    Err(err) => {
-                        error!("Could not fetch stats: {err}");
-                    }
+                    timeout_future(Duration::from_millis(STATS_POLL_INTERVAL)).await;
                 }
-                drop(gpu_id);
-                thread::sleep(Duration::from_millis(STATS_POLL_INTERVAL));
             }),
         );
 
@@ -277,11 +281,11 @@ impl App {
         );
     }
 
-    fn apply_settings(&self, current_gpu_id: Arc<RwLock<String>>) -> anyhow::Result<()> {
+    fn apply_settings(&self, current_gpu_id: Rc<RefCell<String>>) -> anyhow::Result<()> {
         // TODO: Ask confirmation for everything, not just clocks
 
         debug!("applying settings");
-        let gpu_id = current_gpu_id.read().unwrap();
+        let gpu_id = current_gpu_id.borrow().clone();
         debug!("using gpu {gpu_id}");
 
         if let Some(cap) = self.root_stack.oc_page.get_power_cap() {
