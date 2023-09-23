@@ -15,6 +15,7 @@ use std::str::FromStr;
 use tokio::{
     runtime,
     signal::unix::{signal, SignalKind},
+    task::LocalSet,
 };
 use tracing::{debug_span, info, Instrument, Level};
 
@@ -42,13 +43,17 @@ pub fn run() -> anyhow::Result<()> {
         let max_level = Level::from_str(&config.daemon.log_level).context("Invalid log level")?;
         tracing_subscriber::fmt().with_max_level(max_level).init();
 
-        let server = Server::new(config).await?;
-        let handler = server.handler.clone();
+        LocalSet::new()
+            .run_until(async move {
+                let server = Server::new(config).await?;
+                let handler = server.handler.clone();
 
-        tokio::spawn(listen_exit_signals(handler.clone()));
-        tokio::spawn(suspend::listen_events(handler));
-        server.run().await;
-        Ok(())
+                tokio::task::spawn_local(listen_exit_signals(handler.clone()));
+                tokio::task::spawn_local(suspend::listen_events(handler));
+                server.run().await;
+                Ok(())
+            })
+            .await
     })
 }
 
@@ -63,11 +68,15 @@ pub fn run_embedded(stream: StdUnixStream) -> anyhow::Result<()> {
         .build()
         .expect("Could not initialize tokio runtime");
     rt.block_on(async {
-        let config = Config::default();
-        let handler = Handler::new(config).await?;
-        let stream = stream.try_into()?;
+        LocalSet::new()
+            .run_until(async move {
+                let config = Config::default();
+                let handler = Handler::new(config).await?;
+                let stream = stream.try_into()?;
 
-        handle_stream(stream, handler).await
+                handle_stream(stream, handler).await
+            })
+            .await
     })
 }
 

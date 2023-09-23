@@ -20,8 +20,9 @@ use lact_schema::{
 use pciid_parser::Database;
 use std::{
     borrow::Cow,
+    cell::RefCell,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    rc::Rc,
     time::Duration,
 };
 use tokio::{select, sync::Notify, task::JoinHandle, time::sleep};
@@ -33,14 +34,14 @@ use {
     std::{fs::File, os::fd::IntoRawFd},
 };
 
-type FanControlHandle = (Arc<Notify>, JoinHandle<()>);
+type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 
 pub struct GpuController {
     pub handle: GpuHandle,
     #[cfg(feature = "libdrm_amdgpu_sys")]
     pub drm_handle: Option<DrmHandle>,
     pub pci_info: Option<GpuPciInfo>,
-    pub fan_control_handle: Mutex<Option<FanControlHandle>>,
+    pub fan_control_handle: RefCell<Option<FanControlHandle>>,
 }
 
 impl GpuController {
@@ -111,7 +112,7 @@ impl GpuController {
             #[cfg(feature = "libdrm_amdgpu_sys")]
             drm_handle,
             pci_info,
-            fan_control_handle: Mutex::new(None),
+            fan_control_handle: RefCell::new(None),
         })
     }
 
@@ -232,7 +233,7 @@ impl GpuController {
     pub fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<DeviceStats> {
         let fan_control_enabled = self
             .fan_control_handle
-            .lock()
+            .try_borrow()
             .map_err(|err| anyhow!("Could not lock fan control mutex: {err}"))?
             .is_some();
 
@@ -311,13 +312,13 @@ impl GpuController {
 
         let mut notify_guard = self
             .fan_control_handle
-            .lock()
+            .try_borrow_mut()
             .map_err(|err| anyhow!("Lock error: {err}"))?;
 
-        let notify = Arc::new(Notify::new());
+        let notify = Rc::new(Notify::new());
         let task_notify = notify.clone();
 
-        let handle = tokio::spawn(async move {
+        let handle = tokio::task::spawn_local(async move {
             loop {
                 select! {
                     _ = sleep(interval) => (),
@@ -352,7 +353,7 @@ impl GpuController {
     async fn stop_fan_control(&self, reset_mode: bool) -> anyhow::Result<()> {
         let maybe_notify = self
             .fan_control_handle
-            .lock()
+            .try_borrow_mut()
             .map_err(|err| anyhow!("Lock error: {err}"))?
             .take();
         if let Some((notify, handle)) = maybe_notify {

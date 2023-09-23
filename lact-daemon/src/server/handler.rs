@@ -6,13 +6,7 @@ use lact_schema::{
     request::{ConfirmCommand, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
 };
-use std::{
-    collections::BTreeMap,
-    env,
-    path::PathBuf,
-    sync::{Arc, Mutex, RwLock},
-    time::Duration,
-};
+use std::{cell::RefCell, collections::BTreeMap, env, path::PathBuf, rc::Rc, time::Duration};
 use tokio::{sync::oneshot, time::sleep};
 use tracing::{debug, error, info, trace, warn};
 
@@ -21,9 +15,9 @@ const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 1;
 
 #[derive(Clone)]
 pub struct Handler {
-    pub config: Arc<RwLock<Config>>,
-    pub gpu_controllers: Arc<BTreeMap<String, GpuController>>,
-    confirm_config_tx: Arc<Mutex<Option<oneshot::Sender<ConfirmCommand>>>>,
+    pub config: Rc<RefCell<Config>>,
+    pub gpu_controllers: Rc<BTreeMap<String, GpuController>>,
+    confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
 }
 
 impl<'a> Handler {
@@ -45,9 +39,9 @@ impl<'a> Handler {
         info!("initialized {} GPUs", controllers.len());
 
         let handler = Self {
-            gpu_controllers: Arc::new(controllers),
-            config: Arc::new(RwLock::new(config)),
-            confirm_config_tx: Arc::new(Mutex::new(None)),
+            gpu_controllers: Rc::new(controllers),
+            config: Rc::new(RefCell::new(config)),
+            confirm_config_tx: Rc::new(RefCell::new(None)),
         };
         handler.load_config().await;
 
@@ -55,7 +49,7 @@ impl<'a> Handler {
     }
 
     pub async fn load_config(&self) {
-        let config = self.config.read().expect("Faied to lock config").clone(); // Clone to avoid locking the RwLock on an await point
+        let config = self.config.borrow().clone(); // Clone to avoid locking the RwLock on an await point
 
         for (id, gpu_config) in &config.gpus {
             if let Some(controller) = self.gpu_controllers.get(id) {
@@ -75,7 +69,7 @@ impl<'a> Handler {
     ) -> anyhow::Result<u64> {
         if self
             .confirm_config_tx
-            .try_lock()
+            .try_borrow_mut()
             .map_err(|err| anyhow!("{err}"))?
             .is_some()
         {
@@ -85,7 +79,7 @@ impl<'a> Handler {
         }
 
         let (gpu_config, apply_timer) = {
-            let config = self.config.read().map_err(|err| anyhow!("{err}"))?;
+            let config = self.config.try_borrow().map_err(|err| anyhow!("{err}"))?;
             let apply_timer = config.apply_settings_timer;
             let gpu_config = config.gpus.get(&id).cloned().unwrap_or_default();
             (gpu_config, apply_timer)
@@ -123,12 +117,12 @@ impl<'a> Handler {
         let (tx, rx) = oneshot::channel();
         *self
             .confirm_config_tx
-            .try_lock()
+            .try_borrow_mut()
             .map_err(|err| anyhow!("{err}"))? = Some(tx);
 
         let handler = self.clone();
 
-        tokio::task::spawn(async move {
+        tokio::task::spawn_local(async move {
             let controller = handler
                 .controller_by_id(&id)
                 .expect("GPU controller disappeared");
@@ -146,7 +140,7 @@ impl<'a> Handler {
                         Ok(ConfirmCommand::Confirm) => {
                             info!("saving updated config");
 
-                            let mut config_guard = handler.config.write().unwrap();
+                            let mut config_guard = handler.config.borrow_mut();
                             config_guard.gpus.insert(id, new_config);
 
                             if let Err(err) = config_guard.save() {
@@ -162,7 +156,7 @@ impl<'a> Handler {
                 }
             }
 
-            match handler.confirm_config_tx.try_lock() {
+            match handler.confirm_config_tx.try_borrow_mut() {
                 Ok(mut guard) => *guard = None,
                 Err(err) => error!("{err}"),
             }
@@ -199,7 +193,7 @@ impl<'a> Handler {
     pub fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
         let config = self
             .config
-            .read()
+            .try_borrow()
             .map_err(|err| anyhow!("Could not read config: {err:?}"))?;
         let gpu_config = config.gpus.get(id);
         self.controller_by_id(id)?.get_stats(gpu_config)
@@ -220,7 +214,10 @@ impl<'a> Handler {
                 let curve = FanCurve(raw_curve);
                 curve.validate()?;
 
-                let mut config_guard = self.config.write().map_err(|err| anyhow!("{err}"))?;
+                let mut config_guard = self
+                    .config
+                    .try_borrow_mut()
+                    .map_err(|err| anyhow!("{err}"))?;
                 let gpu_config = config_guard.gpus.entry(id.to_owned()).or_default();
 
                 if let Some(mut existing_settings) = gpu_config.fan_control_settings.clone() {
@@ -312,7 +309,7 @@ impl<'a> Handler {
     pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
         if let Some(tx) = self
             .confirm_config_tx
-            .try_lock()
+            .try_borrow_mut()
             .map_err(|err| anyhow!("{err}"))?
             .take()
         {
@@ -326,7 +323,7 @@ impl<'a> Handler {
     pub async fn cleanup(self) {
         let disable_clocks_cleanup = self
             .config
-            .try_read()
+            .try_borrow()
             .map(|config| config.daemon.disable_clocks_cleanup)
             .unwrap_or(false);
 

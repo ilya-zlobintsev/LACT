@@ -34,7 +34,7 @@ impl Server {
             match self.listener.accept().await {
                 Ok((stream, _)) => {
                     let handler = self.handler.clone();
-                    tokio::spawn(async move {
+                    tokio::task::spawn_local(async move {
                         if let Err(error) = handle_stream(stream, handler).await {
                             error!("{error}");
                         }
