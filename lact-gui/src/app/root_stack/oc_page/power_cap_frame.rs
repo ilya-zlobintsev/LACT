@@ -68,14 +68,10 @@ impl PowerCapFrame {
         power_cap_max: Option<f64>,
         power_cap_default: Option<f64>,
     ) {
-        if let Some(power_cap_max) = power_cap_max {
+        if let (Some(power_cap_max), Some(power_cap)) = (power_cap_max, power_cap) {
             self.adjustment.set_upper(power_cap_max);
-        } else {
-            self.container.set_visible(false);
-        }
-
-        if let Some(power_cap) = power_cap {
             self.adjustment.set_initial_value(power_cap);
+            self.container.set_visible(true);
         } else {
             self.container.set_visible(false);
         }
