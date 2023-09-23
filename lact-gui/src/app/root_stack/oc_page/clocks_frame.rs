@@ -28,6 +28,7 @@ pub struct ClocksFrame {
     max_voltage_adjustment: (Adjustment, Rc<AtomicBool>),
     voltage_offset_adjustment: (Adjustment, Rc<AtomicBool>),
     reset_button: Button,
+    warning_label: Label,
     clocks_data_unavailable_label: Label,
 }
 
@@ -85,7 +86,12 @@ impl ClocksFrame {
             .build();
         tweaking_grid.attach(&reset_button, 6, 5, 1, 1);
 
-        let clocks_data_unavailable_label = Label::new(Some("No clocks data available"));
+        let clocks_data_unavailable_label = Label::builder()
+            .label("No clocks data available")
+            .margin_start(10)
+            .margin_end(10)
+            .halign(Align::Start)
+            .build();
 
         container.append(&tweaking_grid);
         container.append(&clocks_data_unavailable_label);
@@ -105,6 +111,7 @@ impl ClocksFrame {
             advanced_togglebutton,
             basic_togglebutton,
             min_values_grid,
+            warning_label,
             modes_switcher_box,
         };
 
@@ -254,12 +261,14 @@ impl ClocksFrame {
     pub fn show(&self) {
         self.tweaking_grid.show();
         self.modes_switcher_box.show();
+        self.warning_label.show();
         self.clocks_data_unavailable_label.hide();
     }
 
     pub fn hide(&self) {
         self.tweaking_grid.hide();
         self.modes_switcher_box.hide();
+        self.warning_label.hide();
         self.clocks_data_unavailable_label.show();
     }
 
