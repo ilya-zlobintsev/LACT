@@ -23,6 +23,7 @@ pub struct InformationPage {
     cpu_accessible_vram_label: Label,
     link_speed_label: Label,
     vulkan_info_frame: VulkanInfoFrame,
+    vulkan_unavailable_label: Label,
 }
 
 impl InformationPage {
@@ -57,8 +58,17 @@ impl InformationPage {
         let vulkan_container = section_box("Vulkan Information");
 
         let vulkan_info_frame = VulkanInfoFrame::new();
-
         vulkan_container.append(&vulkan_info_frame.container);
+
+        let vulkan_unavailable_label = Label::builder()
+            .label("Vulkan is not available on this GPU")
+            .visible(false)
+            .margin_start(10)
+            .margin_end(10)
+            .halign(Align::Start)
+            .build();
+        vulkan_container.append(&vulkan_unavailable_label);
+
         vbox.append(&vulkan_container);
 
         let container = ScrolledWindow::builder()
@@ -81,6 +91,7 @@ impl InformationPage {
             cpu_accessible_vram_label,
             compute_units_label,
             vram_peak_bw_label,
+            vulkan_unavailable_label,
         }
     }
 
@@ -167,8 +178,10 @@ impl InformationPage {
         if let Some(vulkan_info) = &gpu_info.vulkan_info {
             self.vulkan_info_frame.set_info(vulkan_info);
             self.vulkan_info_frame.container.show();
+            self.vulkan_unavailable_label.hide();
         } else {
             self.vulkan_info_frame.container.hide();
+            self.vulkan_unavailable_label.show();
         }
     }
 
