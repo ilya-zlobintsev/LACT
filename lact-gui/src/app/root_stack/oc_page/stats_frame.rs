@@ -74,10 +74,13 @@ impl StatsFrame {
             used: used_vram,
         } = stats.vram;
 
-        if let (Some(used_vram), Some(total_vram)) = (used_vram, total_vram) {
-            self.vram_usage_bar
-                .set_value(used_vram as f64 / total_vram as f64);
-        }
+        let vram_usage = if let (Some(used_vram), Some(total_vram)) = (used_vram, total_vram) {
+            used_vram as f64 / total_vram as f64
+        } else {
+            0.0
+        };
+        self.vram_usage_bar.set_value(vram_usage);
+
         self.vram_usage_label.set_text(&format!(
             "{}/{} MiB",
             used_vram.unwrap_or(0) / 1024 / 1024,
