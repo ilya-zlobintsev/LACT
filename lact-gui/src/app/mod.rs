@@ -95,7 +95,6 @@ impl App {
                 let devices = devices_buf.inner().expect("Could not access devices");
                 app.header.set_devices(&devices);
 
-
                 app.root_stack.oc_page.clocks_frame.connect_clocks_reset(clone!(@strong app, @strong current_gpu_id => move || {
                     debug!("Resetting clocks");
 

@@ -37,9 +37,9 @@ impl Header {
     }
 
     pub fn set_devices(&self, gpus: &[DeviceListEntry<'_>]) {
-        for entry in gpus {
-            self.gpu_selector
-                .append(Some(entry.id), entry.name.unwrap_or_default());
+        for (i, entry) in gpus.iter().enumerate() {
+            let name = format!("{i}: {}", entry.name.unwrap_or_default());
+            self.gpu_selector.append(Some(entry.id), &name);
         }
 
         //limits the length of gpu names in combobox
