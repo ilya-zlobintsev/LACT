@@ -449,8 +449,7 @@ impl App {
         dialog.run_async(clone!(@strong self as app => move |diag, response| {
             let command = match response {
                 ResponseType::Yes => ConfirmCommand::Confirm,
-                ResponseType::No => ConfirmCommand::Revert,
-                _ => unreachable!(),
+                _ => ConfirmCommand::Revert,
             };
 
             diag.hide();
