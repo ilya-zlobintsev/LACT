@@ -16,6 +16,7 @@ use lact_daemon::MODULE_CONF_PATH;
 use root_stack::RootStack;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use tracing::{debug, error, trace, warn};
 
@@ -431,10 +432,14 @@ impl App {
             .buttons(ButtonsType::YesNo)
             .transient_for(&self.window)
             .build();
+        let confirmed = Rc::new(AtomicBool::new(false));
 
         glib::source::timeout_add_local(
             Duration::from_secs(1),
-            clone!(@strong dialog, @strong self as app, @strong gpu_id => move || {
+            clone!(@strong dialog, @strong self as app, @strong gpu_id, @strong confirmed => move || {
+                if confirmed.load(std::sync::atomic::Ordering::SeqCst) {
+                    return Continue(false)
+                }
                 delay -= 1;
 
                 let text = confirmation_text(delay);
@@ -452,6 +457,8 @@ impl App {
         );
 
         dialog.run_async(clone!(@strong self as app => move |diag, response| {
+            confirmed.store(true, std::sync::atomic::Ordering::SeqCst);
+
             let command = match response {
                 ResponseType::Yes => ConfirmCommand::Confirm,
                 _ => ConfirmCommand::Revert,
