@@ -8,3 +8,6 @@ members = [
     "lact-client",
     "lact-daemon",
 ]
+
+[profile.release]
+strip = "symbols"
