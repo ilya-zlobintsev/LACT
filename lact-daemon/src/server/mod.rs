@@ -88,9 +88,17 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::DevicePowerProfileModes { id } => {
             ok_response(handler.get_power_profile_modes(id)?)
         }
-        Request::SetFanControl { id, enabled, curve } => {
-            ok_response(handler.set_fan_control(id, enabled, curve).await?)
-        }
+        Request::SetFanControl {
+            id,
+            enabled,
+            mode,
+            static_speed,
+            curve,
+        } => ok_response(
+            handler
+                .set_fan_control(id, enabled, mode, static_speed, curve)
+                .await?,
+        ),
         Request::SetPowerCap { id, cap } => ok_response(handler.set_power_cap(id, cap).await?),
         Request::SetPerformanceLevel {
             id,

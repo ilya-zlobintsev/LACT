@@ -21,7 +21,6 @@ pub struct FanCurveFrame {
 impl FanCurveFrame {
     pub fn new() -> Self {
         let root_box = Box::new(Orientation::Vertical, 5);
-        root_box.hide();
 
         let hbox = Box::new(Orientation::Horizontal, 5);
 
