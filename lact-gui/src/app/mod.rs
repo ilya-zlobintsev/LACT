@@ -335,6 +335,8 @@ impl App {
                 .set_fan_control(
                     &gpu_id,
                     thermals_settings.manual_fan_control,
+                    thermals_settings.mode,
+                    thermals_settings.static_speed,
                     thermals_settings.curve,
                 )
                 .context("Could not set fan control")?;

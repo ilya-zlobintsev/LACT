@@ -1,6 +1,9 @@
 use crate::server::gpu_controller::fan_control::FanCurve;
 use anyhow::Context;
-use lact_schema::{amdgpu_sysfs::gpu_handle::PerformanceLevel, request::SetClocksCommand};
+use lact_schema::{
+    amdgpu_sysfs::gpu_handle::PerformanceLevel, default_fan_curve, request::SetClocksCommand,
+    FanControlMode,
+};
 use nix::unistd::getuid;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -102,9 +105,29 @@ impl Gpu {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FanControlSettings {
+    #[serde(default)]
+    pub mode: FanControlMode,
+    #[serde(default = "default_fan_static_speed")]
+    pub static_speed: f64,
     pub temperature_key: String,
     pub interval_ms: u64,
     pub curve: FanCurve,
+}
+
+impl Default for FanControlSettings {
+    fn default() -> Self {
+        Self {
+            mode: FanControlMode::default(),
+            static_speed: default_fan_static_speed(),
+            temperature_key: "edge".to_owned(),
+            interval_ms: 500,
+            curve: FanCurve(default_fan_curve()),
+        }
+    }
+}
+
+pub fn default_fan_static_speed() -> f64 {
+    0.5
 }
 
 impl Config {
@@ -159,6 +182,8 @@ fn default_apply_settings_timer() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use lact_schema::FanControlMode;
+
     use super::{Config, Daemon, FanControlSettings, Gpu};
     use crate::server::gpu_controller::fan_control::FanCurve;
 
@@ -174,6 +199,8 @@ mod tests {
                         curve: FanCurve::default(),
                         temperature_key: "edge".to_owned(),
                         interval_ms: 500,
+                        mode: FanControlMode::Curve,
+                        static_speed: 0.5,
                     }),
                     ..Default::default()
                 },

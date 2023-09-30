@@ -22,7 +22,28 @@ use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
+    str::FromStr,
 };
+
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum FanControlMode {
+    Static,
+    #[default]
+    Curve,
+}
+
+impl FromStr for FanControlMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "curve" => Ok(Self::Curve),
+            "static" => Ok(Self::Static),
+            _ => Err("unknown fan control mode".to_string()),
+        }
+    }
+}
 
 pub type FanCurveMap = BTreeMap<i32, f32>;
 
@@ -165,6 +186,8 @@ pub struct DeviceStats {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FanStats {
     pub control_enabled: bool,
+    pub control_mode: Option<FanControlMode>,
+    pub static_speed: Option<f64>,
     pub curve: Option<FanCurveMap>,
     pub speed_current: Option<u32>,
     pub speed_max: Option<u32>,

@@ -1,4 +1,4 @@
-use crate::FanCurveMap;
+use crate::{FanControlMode, FanCurveMap};
 use amdgpu_sysfs::gpu_handle::PerformanceLevel;
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +23,8 @@ pub enum Request<'a> {
     SetFanControl {
         id: &'a str,
         enabled: bool,
+        mode: Option<FanControlMode>,
+        static_speed: Option<f64>,
         curve: Option<FanCurveMap>,
     },
     SetPowerCap {

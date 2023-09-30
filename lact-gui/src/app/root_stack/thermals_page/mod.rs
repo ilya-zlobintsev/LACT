@@ -1,16 +1,19 @@
 mod fan_curve_frame;
 
-use fan_curve_frame::FanCurveFrame;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{default_fan_curve, DeviceStats, FanCurveMap};
+use lact_client::schema::{default_fan_curve, DeviceStats, FanControlMode, FanCurveMap};
 
-use super::{label_row, section_box, values_grid, values_row};
+use self::fan_curve_frame::FanCurveFrame;
+
+use super::{label_row, section_box, values_grid};
 
 #[derive(Debug)]
 pub struct ThermalsSettings {
     pub manual_fan_control: bool,
+    pub mode: Option<FanControlMode>,
+    pub static_speed: Option<f64>,
     pub curve: Option<FanCurveMap>,
 }
 
@@ -19,8 +22,10 @@ pub struct ThermalsPage {
     pub container: Box,
     temperatures_label: Label,
     fan_speed_label: Label,
-    fan_control_enabled_switch: Switch,
+    fan_static_speed_adjustment: Adjustment,
     fan_curve_frame: FanCurveFrame,
+    fan_control_mode_stack: Stack,
+    fan_control_mode_stack_switcher: StackSwitcher,
 }
 
 impl ThermalsPage {
@@ -37,51 +42,53 @@ impl ThermalsPage {
 
         container.append(&stats_section);
 
-        let fan_control_section = section_box("Fan control");
-        let fan_control_grid = values_grid();
-
-        let fan_control_enabled_switch = Switch::builder()
-            .active(true)
-            .halign(Align::End)
-            .hexpand(true)
-            .sensitive(false)
-            .build();
-        values_row(
-            "Automatic fan control:",
-            &fan_control_grid,
-            &fan_control_enabled_switch,
-            0,
-            0,
-        );
-
-        fan_control_section.append(&fan_control_grid);
-
         let fan_curve_frame = FanCurveFrame::new();
 
-        fan_control_section.append(&fan_curve_frame.container);
+        let fan_static_speed_frame = Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(5)
+            .valign(Align::Start)
+            .build();
+        let fan_static_speed_adjustment = static_speed_adj(&fan_static_speed_frame);
 
-        // Show/hide fan curve when the switch is toggled
-        {
-            let fan_curve_frame = fan_curve_frame.clone();
-            fan_control_enabled_switch.connect_state_set(move |_, state| {
-                if state {
-                    show_fan_control_warning();
-                    fan_curve_frame.container.hide();
-                } else {
-                    fan_curve_frame.container.show();
-                }
-                Inhibit(false)
-            });
-        }
+        let fan_control_section = section_box("Fan control");
+
+        let fan_control_mode_stack = Stack::builder().build();
+        let fan_control_mode_stack_switcher = StackSwitcher::builder()
+            .stack(&fan_control_mode_stack)
+            .visible(false)
+            .sensitive(false)
+            .build();
+
+        fan_control_mode_stack.add_titled(
+            &Box::new(Orientation::Vertical, 15),
+            Some("automatic"),
+            "Automatic",
+        );
+
+        fan_control_mode_stack.add_titled(&fan_curve_frame.container, Some("curve"), "Curve");
+
+        fan_control_mode_stack.add_titled(&fan_static_speed_frame, Some("static"), "Static");
+
+        fan_control_section.append(&fan_control_mode_stack_switcher);
+        fan_control_section.append(&fan_control_mode_stack);
 
         container.append(&fan_control_section);
+
+        fan_control_mode_stack.connect_visible_child_name_notify(|stack| {
+            if stack.visible_child_name() == Some("automatic".into()) {
+                show_fan_control_warning()
+            }
+        });
 
         Self {
             container,
             temperatures_label,
             fan_speed_label,
-            fan_control_enabled_switch,
+            fan_static_speed_adjustment,
             fan_curve_frame,
+            fan_control_mode_stack,
+            fan_control_mode_stack_switcher,
         }
     }
 
@@ -114,20 +121,31 @@ impl ThermalsPage {
         }
 
         if initial {
-            self.fan_control_enabled_switch.set_visible(true);
-            self.fan_control_enabled_switch
+            self.fan_control_mode_stack_switcher.set_visible(true);
+            self.fan_control_mode_stack_switcher
                 .set_sensitive(stats.fan.speed_current.is_some());
-            self.fan_control_enabled_switch
-                .set_active(!stats.fan.control_enabled);
+
+            let child_name = match stats.fan.control_mode {
+                Some(mode) if stats.fan.control_enabled => match mode {
+                    FanControlMode::Static => "static",
+                    FanControlMode::Curve => "curve",
+                },
+                _ => "automatic",
+            };
+
+            self.fan_control_mode_stack
+                .set_visible_child_name(child_name);
+
+            if let Some(static_speed) = &stats.fan.static_speed {
+                self.fan_static_speed_adjustment
+                    .set_value(*static_speed * 100.0);
+            }
 
             if let Some(curve) = &stats.fan.curve {
                 self.fan_curve_frame.set_curve(curve);
             }
 
-            if stats.fan.control_enabled {
-                self.fan_curve_frame.container.show();
-            } else {
-                self.fan_curve_frame.container.hide();
+            if !stats.fan.control_enabled {
                 if self.fan_curve_frame.get_curve().is_empty() {
                     self.fan_curve_frame.set_curve(&default_fan_curve());
                 }
@@ -136,10 +154,14 @@ impl ThermalsPage {
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        self.fan_control_enabled_switch
-            .connect_state_set(clone!(@strong f => move |_, _| {
+        self.fan_control_mode_stack
+            .connect_visible_child_name_notify(clone!(@strong f => move |_| {
                 f();
-                Inhibit(false)
+            }));
+
+        self.fan_static_speed_adjustment
+            .connect_value_changed(clone!(@strong f => move |_| {
+                f();
             }));
 
         self.fan_curve_frame.connect_adjusted(move || {
@@ -148,19 +170,73 @@ impl ThermalsPage {
     }
 
     pub fn get_thermals_settings(&self) -> Option<ThermalsSettings> {
-        if self.fan_control_enabled_switch.is_sensitive() {
-            let manual_fan_control = !self.fan_control_enabled_switch.state();
+        if self.fan_control_mode_stack_switcher.is_sensitive() {
+            let name = self.fan_control_mode_stack.visible_child_name();
+            let name = name
+                .as_ref()
+                .map(|name| name.as_str())
+                .expect("No name on the visible child");
+            let (manual_fan_control, mode) = match name {
+                "automatic" => (false, None),
+                "curve" => (true, Some(FanControlMode::Curve)),
+                "static" => (true, Some(FanControlMode::Static)),
+                _ => unreachable!(),
+            };
+            let static_speed = Some(self.fan_static_speed_adjustment.value() / 100.0);
             let curve = self.fan_curve_frame.get_curve();
             let curve = if curve.is_empty() { None } else { Some(curve) };
 
             Some(ThermalsSettings {
                 manual_fan_control,
+                mode,
+                static_speed,
                 curve,
             })
         } else {
             None
         }
     }
+}
+
+fn static_speed_adj(parent_box: &Box) -> Adjustment {
+    let label = Label::builder()
+        .label("Speed (in %)")
+        .halign(Align::Start)
+        .build();
+
+    let adjustment = Adjustment::new(0.0, 0.0, 100.0, 0.1, 1.0, 0.0);
+
+    let scale = Scale::builder()
+        .orientation(Orientation::Horizontal)
+        .adjustment(&adjustment)
+        .hexpand(true)
+        // .draw_value(true)
+        // .value_pos(PositionType::Left)
+        .margin_start(5)
+        .margin_end(5)
+        .build();
+
+    let value_selector = SpinButton::new(Some(&adjustment), 1.0, 1);
+    let value_label = Label::new(None);
+
+    let popover = Popover::builder().child(&value_selector).build();
+    let value_button = MenuButton::builder()
+        .popover(&popover)
+        .child(&value_label)
+        .build();
+
+    adjustment.connect_value_changed(clone!(@strong value_label => move |adjustment| {
+        let value = adjustment.value();
+        value_label.set_text(&format!("{value:.1}"));
+    }));
+
+    adjustment.set_value(50.0);
+
+    parent_box.append(&label);
+    parent_box.append(&scale);
+    parent_box.append(&value_button);
+
+    adjustment
 }
 
 fn show_fan_control_warning() {

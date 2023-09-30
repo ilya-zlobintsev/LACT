@@ -231,15 +231,23 @@ impl GpuController {
     }
 
     pub fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<DeviceStats> {
-        let fan_control_enabled = self
-            .fan_control_handle
-            .try_borrow()
-            .map_err(|err| anyhow!("Could not lock fan control mutex: {err}"))?
-            .is_some();
+        // let fan_control_enabled = self
+        //     .fan_control_handle
+        //     .try_borrow()
+        //     .map_err(|err| anyhow!("Could not lock fan control mutex: {err}"))?
+        //     .is_some();
 
         Ok(DeviceStats {
             fan: FanStats {
-                control_enabled: fan_control_enabled,
+                control_enabled: gpu_config
+                    .map(|config| config.fan_control_enabled)
+                    .unwrap_or_default(),
+                control_mode: gpu_config
+                    .and_then(|config| config.fan_control_settings.as_ref())
+                    .map(|settings| settings.mode.clone()),
+                static_speed: gpu_config
+                    .and_then(|config| config.fan_control_settings.as_ref())
+                    .map(|settings| settings.static_speed),
                 curve: gpu_config
                     .and_then(|config| config.fan_control_settings.as_ref())
                     .map(|settings| settings.curve.0.clone()),
@@ -291,7 +299,33 @@ impl GpuController {
         self.handle.hw_monitors.first().map(f)
     }
 
-    async fn start_fan_control(
+    async fn set_static_fan_control(&self, static_speed: f64) -> anyhow::Result<()> {
+        // Stop existing task to set static speed
+        self.stop_fan_control(false).await?;
+
+        let hw_mon = self
+            .handle
+            .hw_monitors
+            .first()
+            .cloned()
+            .context("This GPU has no monitor")?;
+
+        hw_mon
+            .set_fan_control_method(FanControlMethod::Manual)
+            .context("Could not set fan control method")?;
+
+        let static_speed_converted = (f64::from(u8::MAX) * static_speed) as u8;
+
+        if let Err(err) = hw_mon.set_fan_pwm(static_speed_converted) {
+            error!("could not set fan speed: {err}, disabling fan control");
+        }
+
+        debug!("set fan speed to {}", static_speed);
+
+        Ok(())
+    }
+
+    async fn start_curve_fan_control(
         &self,
         curve: FanCurve,
         temp_key: String,
@@ -359,18 +393,18 @@ impl GpuController {
         if let Some((notify, handle)) = maybe_notify {
             notify.notify_one();
             handle.await?;
+        }
 
-            if reset_mode {
-                let hw_mon = self
-                    .handle
-                    .hw_monitors
-                    .first()
-                    .cloned()
-                    .context("This GPU has no monitor")?;
-                hw_mon
-                    .set_fan_control_method(FanControlMethod::Auto)
-                    .context("Could not set fan control back to automatic")?;
-            }
+        if reset_mode {
+            let hw_mon = self
+                .handle
+                .hw_monitors
+                .first()
+                .cloned()
+                .context("This GPU has no monitor")?;
+            hw_mon
+                .set_fan_control_method(FanControlMethod::Auto)
+                .context("Could not set fan control back to automatic")?;
         }
 
         Ok(())
@@ -379,17 +413,24 @@ impl GpuController {
     pub async fn apply_config(&self, config: &config::Gpu) -> anyhow::Result<()> {
         if config.fan_control_enabled {
             if let Some(ref settings) = config.fan_control_settings {
-                if settings.curve.0.is_empty() {
-                    return Err(anyhow!("Cannot use empty fan curve"));
-                }
+                match settings.mode {
+                    lact_schema::FanControlMode::Static => {
+                        self.set_static_fan_control(settings.static_speed).await?
+                    }
+                    lact_schema::FanControlMode::Curve => {
+                        if settings.curve.0.is_empty() {
+                            return Err(anyhow!("Cannot use empty fan curve"));
+                        }
 
-                let interval = Duration::from_millis(settings.interval_ms);
-                self.start_fan_control(
-                    settings.curve.clone(),
-                    settings.temperature_key.clone(),
-                    interval,
-                )
-                .await?;
+                        let interval = Duration::from_millis(settings.interval_ms);
+                        self.start_curve_fan_control(
+                            settings.curve.clone(),
+                            settings.temperature_key.clone(),
+                            interval,
+                        )
+                        .await?;
+                    }
+                }
             } else {
                 return Err(anyhow!(
                     "Trying to enable fan control with no settings provided"

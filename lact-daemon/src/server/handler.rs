@@ -1,10 +1,11 @@
 use super::gpu_controller::{fan_control::FanCurve, GpuController};
-use crate::config::{self, Config, FanControlSettings};
+use crate::config::{self, default_fan_static_speed, Config, FanControlSettings};
 use anyhow::{anyhow, Context};
 use lact_schema::{
     amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel},
+    default_fan_curve,
     request::{ConfirmCommand, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap,
 };
 use std::{cell::RefCell, collections::BTreeMap, env, path::PathBuf, rc::Rc, time::Duration};
 use tokio::{sync::oneshot, time::sleep};
@@ -207,36 +208,65 @@ impl<'a> Handler {
         &'a self,
         id: &str,
         enabled: bool,
+        mode: Option<FanControlMode>,
+        static_speed: Option<f64>,
         curve: Option<FanCurveMap>,
     ) -> anyhow::Result<u64> {
-        let settings = match curve {
-            Some(raw_curve) => {
-                let curve = FanCurve(raw_curve);
-                curve.validate()?;
+        let settings = {
+            let mut config_guard = self
+                .config
+                .try_borrow_mut()
+                .map_err(|err| anyhow!("{err}"))?;
+            let gpu_config = config_guard.gpus.entry(id.to_owned()).or_default();
 
-                let mut config_guard = self
-                    .config
-                    .try_borrow_mut()
-                    .map_err(|err| anyhow!("{err}"))?;
-                let gpu_config = config_guard.gpus.entry(id.to_owned()).or_default();
-
-                if let Some(mut existing_settings) = gpu_config.fan_control_settings.clone() {
-                    existing_settings.curve = curve;
-                    Some(existing_settings)
-                } else {
-                    Some(FanControlSettings {
-                        curve,
-                        temperature_key: "edge".to_owned(),
-                        interval_ms: 500,
-                    })
-                }
+            match mode {
+                Some(mode) => match mode {
+                    FanControlMode::Static => {
+                        if let Some(mut existing_settings) = gpu_config.fan_control_settings.clone()
+                        {
+                            existing_settings.mode = mode;
+                            if let Some(static_speed) = static_speed {
+                                existing_settings.static_speed = static_speed;
+                            }
+                            Some(existing_settings)
+                        } else {
+                            Some(FanControlSettings {
+                                mode,
+                                static_speed: static_speed.unwrap_or_else(default_fan_static_speed),
+                                ..Default::default()
+                            })
+                        }
+                    }
+                    FanControlMode::Curve => {
+                        if let Some(mut existing_settings) = gpu_config.fan_control_settings.clone()
+                        {
+                            existing_settings.mode = mode;
+                            if let Some(raw_curve) = curve {
+                                let curve = FanCurve(raw_curve);
+                                curve.validate()?;
+                                existing_settings.curve = curve;
+                            }
+                            Some(existing_settings)
+                        } else {
+                            let curve = FanCurve(curve.unwrap_or_else(default_fan_curve));
+                            curve.validate()?;
+                            Some(FanControlSettings {
+                                mode,
+                                curve,
+                                ..Default::default()
+                            })
+                        }
+                    }
+                },
+                None => None,
             }
-            None => None,
         };
 
         self.edit_gpu_config(id.to_owned(), |config| {
             config.fan_control_enabled = enabled;
-            config.fan_control_settings = settings;
+            if let Some(settings) = settings {
+                config.fan_control_settings = Some(settings);
+            }
         })
         .await
     }

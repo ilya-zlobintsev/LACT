@@ -8,8 +8,8 @@ use nix::unistd::getuid;
 use schema::{
     amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel},
     request::{ConfirmCommand, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanCurveMap, Request, Response,
-    SystemInfo,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, Request,
+    Response, SystemInfo,
 };
 use serde::Deserialize;
 use std::{
@@ -106,10 +106,18 @@ impl DaemonClient {
         &self,
         id: &str,
         enabled: bool,
+        mode: Option<FanControlMode>,
+        static_speed: Option<f64>,
         curve: Option<FanCurveMap>,
     ) -> anyhow::Result<u64> {
-        self.make_request(Request::SetFanControl { id, enabled, curve })?
-            .inner()
+        self.make_request(Request::SetFanControl {
+            id,
+            enabled,
+            mode,
+            static_speed,
+            curve,
+        })?
+        .inner()
     }
 
     pub fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<u64> {
