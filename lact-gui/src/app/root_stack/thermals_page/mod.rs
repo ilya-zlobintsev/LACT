@@ -210,8 +210,6 @@ fn static_speed_adj(parent_box: &Box) -> Adjustment {
         .orientation(Orientation::Horizontal)
         .adjustment(&adjustment)
         .hexpand(true)
-        // .draw_value(true)
-        // .value_pos(PositionType::Left)
         .margin_start(5)
         .margin_end(5)
         .build();

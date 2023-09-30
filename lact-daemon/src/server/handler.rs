@@ -222,6 +222,10 @@ impl<'a> Handler {
             match mode {
                 Some(mode) => match mode {
                     FanControlMode::Static => {
+                        if matches!(static_speed, Some(speed) if !(0.0..=1.0).contains(&speed)) {
+                            return Err(anyhow!("static speed value out of range"));
+                        }
+
                         if let Some(mut existing_settings) = gpu_config.fan_control_settings.clone()
                         {
                             existing_settings.mode = mode;

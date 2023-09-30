@@ -231,12 +231,6 @@ impl GpuController {
     }
 
     pub fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<DeviceStats> {
-        // let fan_control_enabled = self
-        //     .fan_control_handle
-        //     .try_borrow()
-        //     .map_err(|err| anyhow!("Could not lock fan control mutex: {err}"))?
-        //     .is_some();
-
         Ok(DeviceStats {
             fan: FanStats {
                 control_enabled: gpu_config
@@ -316,9 +310,9 @@ impl GpuController {
 
         let static_speed_converted = (f64::from(u8::MAX) * static_speed) as u8;
 
-        if let Err(err) = hw_mon.set_fan_pwm(static_speed_converted) {
-            error!("could not set fan speed: {err}, disabling fan control");
-        }
+        hw_mon
+            .set_fan_pwm(static_speed_converted)
+            .context("could not set fan speed")?;
 
         debug!("set fan speed to {}", static_speed);
 
