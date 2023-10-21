@@ -93,8 +93,7 @@ impl<'a> Handler {
 
         match controller.apply_config(&new_config).await {
             Ok(()) => {
-                self.wait_config_confirm(id, gpu_config, new_config, apply_timer)
-                    .await?;
+                self.wait_config_confirm(id, gpu_config, new_config, apply_timer)?;
                 Ok(apply_timer)
             }
             Err(apply_err) => {
@@ -108,7 +107,7 @@ impl<'a> Handler {
     }
 
     /// Should be called after applying new config without writing it
-    async fn wait_config_confirm(
+    fn wait_config_confirm(
         &self,
         id: String,
         previous_config: config::Gpu,
@@ -129,7 +128,7 @@ impl<'a> Handler {
                 .expect("GPU controller disappeared");
 
             tokio::select! {
-                _ = tokio::time::sleep(Duration::from_secs(apply_timer)) => {
+                () = tokio::time::sleep(Duration::from_secs(apply_timer)) => {
                     info!("no confirmation received, reverting settings");
 
                     if let Err(err) = controller.apply_config(&previous_config).await {
@@ -197,7 +196,7 @@ impl<'a> Handler {
             .try_borrow()
             .map_err(|err| anyhow!("Could not read config: {err:?}"))?;
         let gpu_config = config.gpus.get(id);
-        self.controller_by_id(id)?.get_stats(gpu_config)
+        Ok(self.controller_by_id(id)?.get_stats(gpu_config))
     }
 
     pub fn get_clocks_info(&'a self, id: &str) -> anyhow::Result<ClocksInfo> {
@@ -361,7 +360,7 @@ impl<'a> Handler {
             .map(|config| config.daemon.disable_clocks_cleanup)
             .unwrap_or(false);
 
-        for (id, controller) in self.gpu_controllers.iter() {
+        for (id, controller) in &*self.gpu_controllers {
             if !disable_clocks_cleanup && controller.handle.get_clocks_table().is_ok() {
                 debug!("resetting clocks table");
                 if let Err(err) = controller.handle.reset_clocks_table() {

@@ -230,15 +230,15 @@ impl GpuController {
         }
     }
 
-    pub fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<DeviceStats> {
-        Ok(DeviceStats {
+    pub fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
+        DeviceStats {
             fan: FanStats {
                 control_enabled: gpu_config
                     .map(|config| config.fan_control_enabled)
                     .unwrap_or_default(),
                 control_mode: gpu_config
                     .and_then(|config| config.fan_control_settings.as_ref())
-                    .map(|settings| settings.mode.clone()),
+                    .map(|settings| settings.mode),
                 static_speed: gpu_config
                     .and_then(|config| config.fan_control_settings.as_ref())
                     .map(|settings| settings.static_speed),
@@ -274,7 +274,7 @@ impl GpuController {
             core_clock_levels: self.handle.get_core_clock_levels().ok(),
             memory_clock_levels: self.handle.get_memory_clock_levels().ok(),
             pcie_clock_levels: self.handle.get_pcie_clock_levels().ok(),
-        })
+        }
     }
 
     pub fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
@@ -308,6 +308,7 @@ impl GpuController {
             .set_fan_control_method(FanControlMethod::Manual)
             .context("Could not set fan control method")?;
 
+        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
         let static_speed_converted = (f64::from(u8::MAX) * static_speed) as u8;
 
         hw_mon
@@ -349,8 +350,8 @@ impl GpuController {
         let handle = tokio::task::spawn_local(async move {
             loop {
                 select! {
-                    _ = sleep(interval) => (),
-                    _ = task_notify.notified() => break,
+                    () = sleep(interval) => (),
+                    () = task_notify.notified() => break,
                 }
 
                 let mut temps = hw_mon.get_temps();
@@ -409,7 +410,7 @@ impl GpuController {
             if let Some(ref settings) = config.fan_control_settings {
                 match settings.mode {
                     lact_schema::FanControlMode::Static => {
-                        self.set_static_fan_control(settings.static_speed).await?
+                        self.set_static_fan_control(settings.static_speed).await?;
                     }
                     lact_schema::FanControlMode::Curve => {
                         if settings.curve.0.is_empty() {

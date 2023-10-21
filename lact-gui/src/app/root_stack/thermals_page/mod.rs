@@ -145,10 +145,8 @@ impl ThermalsPage {
                 self.fan_curve_frame.set_curve(curve);
             }
 
-            if !stats.fan.control_enabled {
-                if self.fan_curve_frame.get_curve().is_empty() {
-                    self.fan_curve_frame.set_curve(&default_fan_curve());
-                }
+            if !stats.fan.control_enabled && self.fan_curve_frame.get_curve().is_empty() {
+                self.fan_curve_frame.set_curve(&default_fan_curve());
             }
         }
     }
