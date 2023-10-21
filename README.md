@@ -25,6 +25,7 @@ Currently missing:
 
   It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't ship gtk4.
 - Fedora: an rpm is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+- NixOS: There is a package available on the [unstable channel](https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=lact)
 - Otherwise, build from source.
 
 **Why is there no AppImage/Flatpak/other universal format?**
