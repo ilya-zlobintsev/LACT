@@ -21,7 +21,7 @@ Currently missing:
 # Installation
 
 - Arch Linux: Install the [AUR Package](https://aur.archlinux.org/packages/lact/) (or the -git version)
-- Debian/Ubuntu/Derevatives: Download a .deb from [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+- Debian/Ubuntu/Derivatives: Download a .deb from [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
   It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't ship gtk4.
 - Fedora: an rpm is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
