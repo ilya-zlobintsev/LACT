@@ -20,6 +20,7 @@ pub struct InformationPage {
     vram_type_label: Label,
     vram_peak_bw_label: Label,
     compute_units_label: Label,
+    resizable_bar_enabled: Label,
     cpu_accessible_vram_label: Label,
     link_speed_label: Label,
     vulkan_info_frame: VulkanInfoFrame,
@@ -48,9 +49,10 @@ impl InformationPage {
         let vram_size_label = label_row("VRAM Size:", &values_grid, 7, 0, true);
         let vram_type_label = label_row("VRAM Type:", &values_grid, 8, 0, true);
         let vram_peak_bw_label = label_row("Peak VRAM Bandwidth:", &values_grid, 9, 0, true);
+        let resizable_bar_enabled = label_row("Resizeable BAR:", &values_grid, 10, 0, true);
         let cpu_accessible_vram_label =
-            label_row("CPU Accessible VRAM:", &values_grid, 10, 0, true);
-        let link_speed_label = label_row("Link Speed:", &values_grid, 11, 0, true);
+            label_row("CPU Accessible VRAM:", &values_grid, 11, 0, true);
+        let link_speed_label = label_row("Link Speed:", &values_grid, 12, 0, true);
 
         info_container.append(&values_grid);
         vbox.append(&info_container);
@@ -88,6 +90,7 @@ impl InformationPage {
             family_name,
             asic_name,
             vram_type_label,
+            resizable_bar_enabled,
             cpu_accessible_vram_label,
             compute_units_label,
             vram_peak_bw_label,
@@ -130,6 +133,8 @@ impl InformationPage {
         let mut vram_type = "Unknown";
         let mut vram_max_bw = "Unknown";
         let mut cpu_accessible_vram = "Unknown".to_owned();
+        let mut resizeable_bar_enabled = "Unknown";
+
         if let Some(drm_info) = &gpu_info.drm_info {
             family_name = &drm_info.family_name;
             asic_name = &drm_info.asic_name;
@@ -138,6 +143,12 @@ impl InformationPage {
             vram_max_bw = &drm_info.vram_max_bw;
 
             if let Some(memory_info) = &drm_info.memory_info {
+                resizeable_bar_enabled = if memory_info.resizeable_bar {
+                    "Enabled"
+                } else {
+                    "Disabled"
+                };
+
                 cpu_accessible_vram = (memory_info.cpu_accessible_total / 1024 / 1024).to_string();
             }
         }
@@ -152,6 +163,8 @@ impl InformationPage {
         self.vram_peak_bw_label
             .set_markup(&format!("<b>{vram_max_bw} GiB/s</b>"));
 
+        self.resizable_bar_enabled
+            .set_markup(&format!("<b>{resizeable_bar_enabled}</b>"));
         self.cpu_accessible_vram_label
             .set_markup(&format!("<b>{cpu_accessible_vram} MiB</b>"));
 

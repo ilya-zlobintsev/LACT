@@ -197,6 +197,7 @@ impl GpuController {
             drm_handle
                 .and_then(|handle| handle.memory_info().ok())
                 .map(|memory_info| DrmMemoryInfo {
+                    resizeable_bar: memory_info.check_resizable_bar(),
                     cpu_accessible_used: memory_info.cpu_accessible_vram.heap_usage,
                     cpu_accessible_total: memory_info.cpu_accessible_vram.total_heap_size,
                 });
@@ -211,7 +212,9 @@ impl GpuController {
                 vram_type: drm_info.get_vram_type().to_string(),
                 vram_bit_width: drm_info.vram_bit_width,
                 vram_max_bw: drm_info.peak_memory_bw_gb().to_string(),
+                l1_cache_per_cu: drm_info.get_l1_cache_size(),
                 l2_cache: drm_info.calc_l2_cache_size(),
+                l3_cache_mb: drm_info.calc_l3_cache_size_mb(),
                 memory_info: drm_memory_info,
             })
     }
