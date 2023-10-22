@@ -20,6 +20,9 @@ pub struct InformationPage {
     vram_type_label: Label,
     vram_peak_bw_label: Label,
     compute_units_label: Label,
+    l1_cache_label: Label,
+    l2_cache_label: Label,
+    l3_cache_label: Label,
     resizable_bar_enabled: Label,
     cpu_accessible_vram_label: Label,
     link_speed_label: Label,
@@ -39,20 +42,29 @@ impl InformationPage {
         let dummy_label = Label::builder().selectable(true).halign(Align::End).build();
         values_grid.attach(&dummy_label, 0, 0, 1, 1);
 
-        let gpu_name_label = label_row("GPU Model:", &values_grid, 0, 0, true);
-        let gpu_manufacturer_label = label_row("GPU Manufacturer:", &values_grid, 1, 0, true);
-        let family_name = label_row("GPU Family:", &values_grid, 2, 0, true);
-        let asic_name = label_row("ASIC Name:", &values_grid, 3, 0, true);
-        let compute_units_label = label_row("Compute Units:", &values_grid, 4, 0, true);
-        let vbios_version_label = label_row("VBIOS Version:", &values_grid, 5, 0, true);
-        let driver_label = label_row("Driver Used:", &values_grid, 6, 0, true);
-        let vram_size_label = label_row("VRAM Size:", &values_grid, 7, 0, true);
-        let vram_type_label = label_row("VRAM Type:", &values_grid, 8, 0, true);
-        let vram_peak_bw_label = label_row("Peak VRAM Bandwidth:", &values_grid, 9, 0, true);
-        let resizable_bar_enabled = label_row("Resizeable BAR:", &values_grid, 10, 0, true);
+        let mut row = 0;
+        let gpu_name_label = sequential_label_row("GPU Model:", &values_grid, &mut row);
+        let gpu_manufacturer_label =
+            sequential_label_row("GPU Manufacturer:", &values_grid, &mut row);
+        let family_name = sequential_label_row("GPU Family:", &values_grid, &mut row);
+        let asic_name = sequential_label_row("ASIC Name:", &values_grid, &mut row);
+        let compute_units_label = sequential_label_row("Compute Units:", &values_grid, &mut row);
+        let vbios_version_label = sequential_label_row("VBIOS Version:", &values_grid, &mut row);
+        let driver_label = sequential_label_row("Driver Used:", &values_grid, &mut row);
+
+        let vram_size_label = sequential_label_row("VRAM Size:", &values_grid, &mut row);
+        let vram_type_label = sequential_label_row("VRAM Type:", &values_grid, &mut row);
+        let vram_peak_bw_label =
+            sequential_label_row("Peak VRAM Bandwidth:", &values_grid, &mut row);
+
+        let l1_cache_label = sequential_label_row("L1 Cache (Per CU):", &values_grid, &mut row);
+        let l2_cache_label = sequential_label_row("L2 Cache:", &values_grid, &mut row);
+        let l3_cache_label = sequential_label_row("L3 Cache:", &values_grid, &mut row);
+
+        let resizable_bar_enabled = sequential_label_row("Resizeable BAR:", &values_grid, &mut row);
         let cpu_accessible_vram_label =
-            label_row("CPU Accessible VRAM:", &values_grid, 11, 0, true);
-        let link_speed_label = label_row("Link Speed:", &values_grid, 12, 0, true);
+            sequential_label_row("CPU Accessible VRAM:", &values_grid, &mut row);
+        let link_speed_label = sequential_label_row("Link Speed:", &values_grid, &mut row);
 
         info_container.append(&values_grid);
         vbox.append(&info_container);
@@ -94,6 +106,9 @@ impl InformationPage {
             cpu_accessible_vram_label,
             compute_units_label,
             vram_peak_bw_label,
+            l1_cache_label,
+            l2_cache_label,
+            l3_cache_label,
             vulkan_unavailable_label,
         }
     }
@@ -134,6 +149,9 @@ impl InformationPage {
         let mut vram_max_bw = "Unknown";
         let mut cpu_accessible_vram = "Unknown".to_owned();
         let mut resizeable_bar_enabled = "Unknown";
+        let mut l1_cache = "Unknown".to_owned();
+        let mut l2_cache = "Unknown".to_owned();
+        let mut l3_cache = "Unknown".to_owned();
 
         if let Some(drm_info) = &gpu_info.drm_info {
             family_name = &drm_info.family_name;
@@ -141,6 +159,9 @@ impl InformationPage {
             compute_units = drm_info.compute_units.to_string();
             vram_type = &drm_info.vram_type;
             vram_max_bw = &drm_info.vram_max_bw;
+            l1_cache = format!("{} KiB", drm_info.l1_cache_per_cu / 1024);
+            l2_cache = format!("{} KiB", drm_info.l2_cache / 1024);
+            l3_cache = format!("{} MiB", drm_info.l3_cache_mb);
 
             if let Some(memory_info) = &drm_info.memory_info {
                 resizeable_bar_enabled = if memory_info.resizeable_bar {
@@ -162,6 +183,13 @@ impl InformationPage {
             .set_markup(&format!("<b>{vram_type}</b>"));
         self.vram_peak_bw_label
             .set_markup(&format!("<b>{vram_max_bw} GiB/s</b>"));
+
+        self.l1_cache_label
+            .set_markup(&format!("<b>{l1_cache}</b>"));
+        self.l2_cache_label
+            .set_markup(&format!("<b>{l2_cache}</b>"));
+        self.l3_cache_label
+            .set_markup(&format!("<b>{l3_cache}</b>"));
 
         self.resizable_bar_enabled
             .set_markup(&format!("<b>{resizeable_bar_enabled}</b>"));
@@ -206,4 +234,10 @@ impl InformationPage {
         self.vram_size_label
             .set_markup(&format!("<b>{vram_size} MiB</b>"));
     }
+}
+
+fn sequential_label_row(title: &str, parent: &Grid, row: &mut i32) -> Label {
+    let label = label_row(title, parent, *row, 0, true);
+    *row += 1;
+    label
 }
