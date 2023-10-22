@@ -1,3 +1,4 @@
+use crate::GUI_VERSION;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::SystemInfo;
@@ -52,13 +53,12 @@ pub fn software_page(system_info: SystemInfo, embedded: bool) -> Grid {
         1,
     );
 
-    let gui_version = env!("CARGO_PKG_VERSION");
     let gui_profile = if cfg!(debug_assertions) {
         "debug"
     } else {
         "release"
     };
-    let gui_version = format!("{gui_version}-{gui_profile}");
+    let gui_version = format!("{GUI_VERSION}-{gui_profile}");
 
     let gui_version_label = Label::builder()
         .use_markup(true)

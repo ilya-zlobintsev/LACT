@@ -7,6 +7,7 @@ use std::os::unix::net::UnixStream;
 use tracing::{error, info, metadata::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
+const GUI_VERSION: &str = env!("CARGO_PKG_VERSION");
 const APP_ID: &str = "io.github.lact-linux";
 
 pub fn run(args: GuiArgs) -> anyhow::Result<()> {

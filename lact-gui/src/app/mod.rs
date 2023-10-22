@@ -2,7 +2,7 @@ mod apply_revealer;
 mod header;
 mod root_stack;
 
-use crate::APP_ID;
+use crate::{APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::ApplyRevealer;
 use glib::clone;
@@ -51,6 +51,12 @@ impl App {
             .get_system_info()
             .expect("Could not fetch system info");
         let system_info = system_info_buf.inner().expect("Invalid system info buffer");
+
+        if system_info.version != GUI_VERSION {
+            let err = anyhow!("Version mismatch between GUI and daemon ({GUI_VERSION} vs {})! Make sure you have restarted the service if you have updated LACT.", system_info.version);
+            show_error(&window, err);
+        }
+
         let root_stack = RootStack::new(system_info, daemon_client.embedded);
 
         header.set_switcher_stack(&root_stack.container);
