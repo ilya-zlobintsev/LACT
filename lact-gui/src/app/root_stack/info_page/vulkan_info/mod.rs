@@ -104,7 +104,7 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
         .resizable(false)
         .build();
 
-    let base_model = gio::ListStore::new(FeatureModel::static_type());
+    let base_model = gio::ListStore::new::<FeatureModel>();
     base_model.extend_from_slice(items);
 
     let expression = PropertyExpression::new(FeatureModel::static_type(), Expression::NONE, "name");
@@ -122,11 +122,6 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
             filter.set_search(Some(entry.text().as_str()));
         }
     }));
-    let search_bar = SearchBar::builder()
-        .child(&entry)
-        .search_mode_enabled(true)
-        .key_capture_widget(&window)
-        .build();
 
     let filter_model = FilterListModel::builder()
         .model(&base_model)
@@ -187,7 +182,7 @@ fn show_list_window(title: &str, items: &[FeatureModel]) {
         .build();
 
     let vbox = Box::new(Orientation::Vertical, 5);
-    vbox.append(&search_bar);
+    vbox.append(&entry);
     vbox.append(&scroll_window);
 
     window.set_child(Some(&vbox));

@@ -6,7 +6,7 @@ use crate::{APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::ApplyRevealer;
 use glib::clone;
-use gtk::glib::timeout_future;
+use gtk::glib::{timeout_future, ControlFlow};
 use gtk::{gio::ApplicationFlags, prelude::*, *};
 use header::Header;
 use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
@@ -245,7 +245,7 @@ impl App {
         let _guard = context.acquire();
 
         // The loop that gets stats
-        let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+        let (sender, receiver) = glib::MainContext::channel(glib::Priority::default());
 
         context.spawn_local(
             clone!(@strong self.daemon_client as daemon_client => async move {
@@ -283,7 +283,7 @@ impl App {
                     }
                 }
 
-                glib::Continue(true)
+                ControlFlow::Continue
             }),
         );
     }
@@ -446,7 +446,8 @@ impl App {
             Duration::from_secs(1),
             clone!(@strong dialog, @strong self as app, @strong gpu_id, @strong confirmed => move || {
                 if confirmed.load(std::sync::atomic::Ordering::SeqCst) {
-                    return Continue(false)
+                    return ControlFlow::Break;
+
                 }
                 delay -= 1;
 
@@ -457,9 +458,9 @@ impl App {
                     dialog.hide();
                     app.set_initial(&gpu_id);
 
-                    Continue(false)
+                    ControlFlow::Break
                 }  else {
-                    Continue(true)
+                    ControlFlow::Continue
                 }
             }),
         );
