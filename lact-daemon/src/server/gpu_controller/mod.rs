@@ -394,15 +394,15 @@ impl GpuController {
         }
 
         if reset_mode {
-            let hw_mon = self
-                .handle
-                .hw_monitors
-                .first()
-                .cloned()
-                .context("This GPU has no monitor")?;
-            hw_mon
-                .set_fan_control_method(FanControlMethod::Auto)
-                .context("Could not set fan control back to automatic")?;
+            if let Some(hw_mon) = self.handle.hw_monitors.first().cloned() {
+                if let Ok(current_control) = hw_mon.get_fan_control_method() {
+                    if !matches!(current_control, FanControlMethod::Auto) {
+                        hw_mon
+                            .set_fan_control_method(FanControlMethod::Auto)
+                            .context("Could not set fan control back to automatic")?;
+                    }
+                }
+            }
         }
 
         Ok(())
