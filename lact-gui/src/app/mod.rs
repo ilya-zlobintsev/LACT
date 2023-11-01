@@ -149,11 +149,44 @@ impl App {
                 app.window.show();
 
                 if app.daemon_client.embedded {
-                    show_error(&app.window, anyhow!(
-                        "Could not connect to daemon, running in embedded mode. \n\
+                    let text = "Could not connect to daemon, running in embedded mode. \n\
                         Please make sure the lactd service is running. \n\
-                        Using embedded mode, you will not be able to change any settings."
-                    ));
+                        Using embedded mode, you will not be able to change any settings. \n\
+                        \n\
+                        To enable the daemon, run the following command:";
+
+                    let text_label = Label::new(Some(text));
+                    let enable_label = Entry::builder()
+                        .text("sudo systemctl enable --now lactd")
+                        .editable(false)
+                        .build();
+
+                    let vbox = Box::builder()
+                        .orientation(Orientation::Vertical)
+                        .margin_top(10)
+                        .margin_bottom(10)
+                        .margin_start(10)
+                        .margin_end(10)
+                        .build();
+
+                    let close_button = Button::builder().label("Close").build();
+
+                    vbox.append(&text_label);
+                    vbox.append(&enable_label);
+                    vbox.append(&close_button);
+
+                    let diag = MessageDialog::builder()
+                        .title("Daemon info")
+                        .message_type(MessageType::Warning)
+                        .child(&vbox)
+                        .transient_for(&app.window)
+                        .build();
+
+                    close_button.connect_clicked(clone!(@strong diag => move |_| diag.hide()));
+
+                    diag.run_async(|diag, _| {
+                        diag.hide();
+                    })
                 }
             }));
 
