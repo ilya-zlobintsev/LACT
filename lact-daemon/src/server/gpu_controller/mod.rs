@@ -191,6 +191,7 @@ impl GpuController {
 
     #[cfg(feature = "libdrm_amdgpu_sys")]
     fn get_drm_info(&self) -> Option<DrmInfo> {
+        trace!("Reading DRM info");
         let drm_handle = self.drm_handle.as_ref();
 
         let drm_memory_info =

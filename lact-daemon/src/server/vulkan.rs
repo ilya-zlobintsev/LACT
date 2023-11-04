@@ -1,13 +1,14 @@
-use std::borrow::Cow;
-
 use crate::fork::run_forked;
 use lact_schema::{VulkanDriverInfo, VulkanInfo};
+use std::borrow::Cow;
+use tracing::trace;
 use vulkano::{
     instance::{Instance, InstanceCreateInfo},
     VulkanLibrary,
 };
 
 pub fn get_vulkan_info<'a>(vendor_id: &'a str, device_id: &'a str) -> anyhow::Result<VulkanInfo> {
+    trace!("Reading vulkan info");
     let vendor_id = u32::from_str_radix(vendor_id, 16)?;
     let device_id = u32::from_str_radix(device_id, 16)?;
 
