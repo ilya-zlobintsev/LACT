@@ -49,6 +49,17 @@ The overclocking functionality is disabled by default in the driver. There are t
 - By using the "enable overclocking" option in the LACT GUI. This will create a file in `/etc/modprobe.d` that enables the required driver options. This is the easiest way and it should work for most people.
 - Specifying a boot parameter. You can manually specify the `amdgpu.ppfeaturemask=0xffffffff` kernel parameter in your bootloader to enable overclocking. See the [ArchWiki](https://wiki.archlinux.org/title/AMDGPU#Boot_parameter) for more details.
 
+# Hardware support
+Tested GPU generations:
+- [X] Polaris (RX 500 series)
+- [X] Vega
+- [X] RDNA1 (RX 5000 series)
+- [X] RDNA2 (RX 6000 series)
+- [ ] RDNA3 (RX 7000 series) - overclocking is not available on stable kernel versions, and is [expected to land in Linux 6.7](https://gitlab.freedesktop.org/drm/amd/-/issues/2840#note_2079945)
+
+GPUs not listed here will still work, but might not have full functionality available.
+Monitoring/system info will be available everywhere. Integrated GPUs might also only have basic configuration available.
+
 # Suspend/Resume
 
 As some of the GPU settings may get reset when suspending the system, LACT will reload them on system resume. This may not work on distributions which don't use systemd, as it relies on the `org.freedesktop.login2` DBus interface.
