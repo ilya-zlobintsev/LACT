@@ -8,7 +8,7 @@ use tracing::{error, info, metadata::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 const GUI_VERSION: &str = env!("CARGO_PKG_VERSION");
-const APP_ID: &str = "io.github.lact-linux";
+const APP_ID: &str = "io.github.lact-linux1";
 
 pub fn run(args: GuiArgs) -> anyhow::Result<()> {
     let env_filter = EnvFilter::builder()
