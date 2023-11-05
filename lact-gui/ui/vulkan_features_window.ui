@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Created with Cambalache 0.16.0 -->
+<interface>
+  <!-- interface-name lact.ui -->
+  <requires lib="gtk" version="4.12"/>
+  <template class="VulkanFeaturesWindow" parent="GtkWindow">
+    <property name="default-height">700</property>
+    <property name="default-width">500</property>
+    <property name="resizable">False</property>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkSearchEntry" id="search_entry">
+            <property name="margin-bottom">5</property>
+            <property name="margin-end">5</property>
+            <property name="margin-start">5</property>
+            <property name="margin-top">5</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow">
+            <property name="vexpand">True</property>
+            <child>
+              <object class="GtkListView">
+                <property name="factory">features_factory</property>
+                <property name="model">selection_model</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+  <object class="GtkSignalListItemFactory" id="features_factory"/>
+  <object class="GtkNoSelection" id="selection_model">
+    <property name="model">filter_model</property>
+  </object>
+  <object class="GtkStringFilter" id="search_filter"/>
+  <object class="GtkFilterListModel" id="filter_model">
+    <property name="filter">search_filter</property>
+    <property name="incremental">True</property>
+  </object>
+</interface>

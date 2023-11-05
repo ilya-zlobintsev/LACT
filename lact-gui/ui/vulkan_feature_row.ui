@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Created with Cambalache 0.16.0 -->
+<interface>
+  <requires lib="gtk" version="4.6"/>
+  <template class="VulkanFeatureRow" parent="GtkBox">
+    <property name="focus-on-click">False</property>
+    <property name="hexpand">True</property>
+    <property name="hexpand-set">True</property>
+    <property name="margin-bottom">10</property>
+    <property name="margin-end">10</property>
+    <property name="margin-start">10</property>
+    <property name="margin-top">10</property>
+    <child>
+      <object class="GtkLabel" id="name_label">
+        <property name="halign">start</property>
+        <property name="hexpand">True</property>
+        <property name="label">feature name</property>
+        <property name="selectable">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkImage" id="available_image">
+        <property name="halign">end</property>
+        <property name="icon-name">action-unavailable-symbolic</property>
+      </object>
+    </child>
+  </template>
+</interface>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/io/github/lact-linux">
+    <file compressed="true" preprocess="xml-stripblanks">vulkan_feature_row.ui</file>
+    <file compressed="true" preprocess="xml-stripblanks">vulkan_features_window.ui</file>
+  </gresource>
+</gresources>
