@@ -267,6 +267,7 @@ impl GpuController {
             },
             power: PowerStats {
                 average: self.hw_mon_and_then(HwMon::get_power_average),
+                current: self.hw_mon_and_then(HwMon::get_power_input),
                 cap_current: self.hw_mon_and_then(HwMon::get_power_cap),
                 cap_max: self.hw_mon_and_then(HwMon::get_power_cap_max),
                 cap_min: self.hw_mon_and_then(HwMon::get_power_cap_min),

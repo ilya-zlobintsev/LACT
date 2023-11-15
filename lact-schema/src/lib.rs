@@ -218,6 +218,7 @@ pub struct VramStats {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct PowerStats {
     pub average: Option<f64>,
+    pub current: Option<f64>,
     pub cap_current: Option<f64>,
     pub cap_max: Option<f64>,
     pub cap_min: Option<f64>,
