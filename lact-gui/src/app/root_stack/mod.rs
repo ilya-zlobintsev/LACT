@@ -9,7 +9,7 @@ use gtk::{
     *,
 };
 
-use self::software_page::software_page;
+use self::software_page::SoftwarePage;
 use info_page::InformationPage;
 use lact_client::schema::SystemInfo;
 use oc_page::OcPage;
@@ -44,7 +44,7 @@ impl RootStack {
 
         container.add_titled(&thermals_page.container, Some("thermals_page"), "Thermals");
 
-        let software_page = software_page(system_info, embedded_daemon);
+        let software_page = SoftwarePage::new(system_info, embedded_daemon);
         container.add_titled(&software_page, Some("software_page"), "Software");
 
         Self {

@@ -1,92 +1,82 @@
 use crate::GUI_VERSION;
-use gtk::prelude::*;
-use gtk::*;
+use gtk::glib::{self, Object};
 use lact_client::schema::SystemInfo;
 
-pub fn software_page(system_info: SystemInfo, embedded: bool) -> Grid {
-    let container = Grid::new();
+glib::wrapper! {
+    pub struct SoftwarePage(ObjectSubclass<imp::SoftwarePage>)
+        @extends gtk::Box, gtk::Widget,
+        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
+}
 
-    container.set_margin_start(5);
-    container.set_margin_end(5);
-    container.set_margin_bottom(5);
-    container.set_margin_top(5);
+impl SoftwarePage {
+    pub fn new(system_info: SystemInfo, embedded: bool) -> Self {
+        let mut daemon_version = format!("{}-{}", system_info.version, system_info.profile);
+        if embedded {
+            daemon_version.push_str("-embedded");
+        }
 
-    container.set_column_spacing(5);
+        let gui_profile = if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        };
+        let gui_version = format!("{GUI_VERSION}-{gui_profile}");
 
-    container.attach(
-        &{
-            let label = Label::new(None);
-            label.set_markup("LACT Daemon:");
-            label.set_halign(Align::End);
-            label.set_hexpand(true);
-            label
-        },
-        0,
-        0,
-        1,
-        1,
-    );
-    let mut daemon_version = format!("{}-{}", system_info.version, system_info.profile);
-    if embedded {
-        daemon_version.push_str("-embedded");
+        Object::builder()
+            .property("daemon-version", daemon_version)
+            .property("gui-version", gui_version)
+            .property("kernel-version", system_info.kernel_version)
+            .build()
     }
-    let daemon_version_label = Label::builder()
-        .use_markup(true)
-        .label(format!("<b>{daemon_version}</b>"))
-        .hexpand(true)
-        .halign(Align::Start)
-        .build();
+}
 
-    container.attach(&daemon_version_label, 1, 0, 1, 1);
-
-    container.attach(
-        &{
-            let label = Label::new(None);
-            label.set_markup("LACT GUI:");
-            label.set_halign(Align::End);
-            label.set_hexpand(true);
-            label
+mod imp {
+    #![allow(clippy::enum_variant_names)]
+    use crate::app::info_row::InfoRow;
+    use glib::Properties;
+    use gtk::{
+        glib::{self, subclass::InitializingObject},
+        prelude::*,
+        subclass::{
+            prelude::*,
+            widget::{CompositeTemplateClass, WidgetImpl},
         },
-        0,
-        1,
-        1,
-        1,
-    );
-
-    let gui_profile = if cfg!(debug_assertions) {
-        "debug"
-    } else {
-        "release"
+        CompositeTemplate,
     };
-    let gui_version = format!("{GUI_VERSION}-{gui_profile}");
+    use std::cell::RefCell;
 
-    let gui_version_label = Label::builder()
-        .use_markup(true)
-        .label(format!("<b>{gui_version}</b>"))
-        .hexpand(true)
-        .halign(Align::Start)
-        .build();
+    #[derive(CompositeTemplate, Default, Properties)]
+    #[properties(wrapper_type = super::SoftwarePage)]
+    #[template(file = "ui/software_page.blp")]
+    pub struct SoftwarePage {
+        #[property(get, set)]
+        daemon_version: RefCell<String>,
+        #[property(get, set)]
+        gui_version: RefCell<String>,
+        #[property(get, set)]
+        kernel_version: RefCell<String>,
+    }
 
-    container.attach(&gui_version_label, 1, 1, 1, 1);
+    #[glib::object_subclass]
+    impl ObjectSubclass for SoftwarePage {
+        const NAME: &'static str = "SoftwarePage";
+        type Type = super::SoftwarePage;
+        type ParentType = gtk::Box;
 
-    container.attach(
-        &Label::builder()
-            .label("Kernel version:")
-            .halign(Align::End)
-            .hexpand(true)
-            .build(),
-        0,
-        2,
-        1,
-        1,
-    );
-    let kernel_version_label = Label::builder()
-        .use_markup(true)
-        .label(format!("<b>{}</b>", system_info.kernel_version))
-        .hexpand(true)
-        .halign(Align::Start)
-        .build();
-    container.attach(&kernel_version_label, 1, 2, 1, 1);
+        fn class_init(class: &mut Self::Class) {
+            InfoRow::ensure_type();
 
-    container
+            class.bind_template();
+        }
+
+        fn instance_init(obj: &InitializingObject<Self>) {
+            obj.init_template();
+        }
+    }
+
+    #[glib::derived_properties]
+    impl ObjectImpl for SoftwarePage {}
+
+    impl WidgetImpl for SoftwarePage {}
+    impl BoxImpl for SoftwarePage {}
 }

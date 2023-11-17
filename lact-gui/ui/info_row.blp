@@ -1,0 +1,21 @@
+using Gtk 4.0;
+using Pango 1.0;
+
+template $InfoRow: Box {
+    orientation: horizontal;
+    hexpand: true;
+    margin-start: 10;
+    margin-end: 10;
+
+    Label {
+        label: bind template.name;
+        halign: start;
+        hexpand: true;
+    }
+
+    Label value_label {
+        label: bind template.value;
+        halign: end;
+        selectable: true;
+    }
+}
