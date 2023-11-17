@@ -1,4 +1,11 @@
-use gtk::glib::{self, Object};
+use gtk::{
+    glib::{
+        self,
+        subclass::types::{IsSubclassable, ObjectSubclass},
+        Object,
+    },
+    subclass::box_::BoxImpl,
+};
 
 glib::wrapper! {
     pub struct PageSection(ObjectSubclass<imp::PageSection>)
@@ -11,6 +18,8 @@ impl PageSection {
         Object::builder().property("name", name).build()
     }
 }
+
+unsafe impl<T: ObjectSubclass + BoxImpl> IsSubclassable<T> for PageSection {}
 
 mod imp {
     use glib::Properties;
