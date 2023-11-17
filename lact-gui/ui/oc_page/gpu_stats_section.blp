@@ -15,12 +15,14 @@ template $GpuStatsSection: $PageSection {
         Overlay {
             LevelBar vram_usage_bar {
                 hexpand: true;
-                value: 0.0;
+                value: bind template.vram-usage;
                 orientation: horizontal;
             }
 
             [overlay]
-            Label vram_usage_label {}
+            Label vram_usage_label {
+                label: bind template.vram-usage-text;
+            }
         }
     }
 
