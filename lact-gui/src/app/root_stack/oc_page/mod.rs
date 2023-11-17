@@ -2,8 +2,8 @@ mod clocks_frame;
 mod oc_adjustment;
 mod performance_frame;
 mod power_cap_frame;
-mod stats_frame;
 
+use crate::app::gpu_stats_section::GpuStatsSection;
 use clocks_frame::ClocksFrame;
 use gtk::prelude::*;
 use gtk::*;
@@ -13,7 +13,6 @@ use lact_client::schema::{
 };
 use performance_frame::PerformanceFrame;
 use power_cap_frame::PowerCapFrame;
-use stats_frame::StatsFrame;
 use tracing::warn;
 
 const OVERCLOCKING_DISABLED_TEXT: &str = "Overclocking support is not enabled! \
@@ -22,7 +21,7 @@ You can still change basic settings, but the more advanced clocks and voltage co
 #[derive(Clone)]
 pub struct OcPage {
     pub container: ScrolledWindow,
-    stats_frame: StatsFrame,
+    stats_section: GpuStatsSection,
     pub performance_frame: PerformanceFrame,
     power_cap_frame: PowerCapFrame,
     pub clocks_frame: ClocksFrame,
@@ -48,8 +47,8 @@ impl OcPage {
             vbox.append(&warning_frame);
         }
 
-        let stats_frame = StatsFrame::new();
-        vbox.append(&stats_frame.container);
+        let stats_section = GpuStatsSection::new();
+        vbox.append(&stats_section);
 
         let power_cap_frame = PowerCapFrame::new();
         let performance_level_frame = PerformanceFrame::new();
@@ -63,7 +62,7 @@ impl OcPage {
 
         Self {
             container,
-            stats_frame,
+            stats_section,
             performance_frame: performance_level_frame,
             clocks_frame,
             power_cap_frame,
@@ -72,7 +71,7 @@ impl OcPage {
     }
 
     pub fn set_stats(&self, stats: &DeviceStats, initial: bool) {
-        self.stats_frame.set_stats(stats);
+        self.stats_section.set_stats(stats);
         if initial {
             self.power_cap_frame.set_data(
                 stats.power.cap_current,
