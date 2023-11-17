@@ -108,13 +108,18 @@ impl StatsFrame {
 
         let PowerStats {
             average: power_average,
+            current: power_current,
             cap_current: power_cap_current,
             ..
         } = stats.power;
 
+        let power_current = power_current
+            .filter(|value| *value != 0.0)
+            .or(power_average);
+
         self.power_usage_label.set_markup(&format!(
             "<b>{}/{}W</b>",
-            power_average.unwrap_or(0.0),
+            power_current.unwrap_or(0.0),
             power_cap_current.unwrap_or(0.0)
         ));
 
