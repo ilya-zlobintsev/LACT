@@ -1,4 +1,4 @@
-use crate::app::root_stack::section_box;
+use crate::app::page_section::PageSection;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
@@ -14,7 +14,7 @@ const WARNING_TEXT: &str = "Warning: changing these values may lead to system in
 // The AtomicBool stores if the value was changed
 #[derive(Clone)]
 pub struct ClocksFrame {
-    pub container: Box,
+    pub container: PageSection,
     tweaking_grid: Grid,
     modes_switcher_box: Box,
     basic_togglebutton: ToggleButton,
@@ -34,7 +34,7 @@ pub struct ClocksFrame {
 
 impl ClocksFrame {
     pub fn new() -> Self {
-        let container = section_box("Clockspeed and voltage");
+        let container = PageSection::new("Clockspeed and voltage");
 
         let warning_label = Label::builder()
             .label(WARNING_TEXT)

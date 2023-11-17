@@ -32,7 +32,7 @@ impl SoftwarePage {
 
 mod imp {
     #![allow(clippy::enum_variant_names)]
-    use crate::app::info_row::InfoRow;
+    use crate::app::{info_row::InfoRow, page_section::PageSection};
     use glib::Properties;
     use gtk::{
         glib::{self, subclass::InitializingObject},
@@ -65,6 +65,7 @@ mod imp {
 
         fn class_init(class: &mut Self::Class) {
             InfoRow::ensure_type();
+            PageSection::ensure_type();
 
             class.bind_template();
         }

@@ -1,4 +1,4 @@
-use crate::app::root_stack::section_box;
+use crate::app::page_section::PageSection;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
@@ -9,7 +9,7 @@ use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 #[derive(Clone)]
 pub struct PerformanceFrame {
-    pub container: Box,
+    pub container: PageSection,
     level_drop_down: DropDown,
     mode_drop_down: DropDown,
     description_label: Label,
@@ -20,7 +20,7 @@ pub struct PerformanceFrame {
 
 impl PerformanceFrame {
     pub fn new() -> Self {
-        let container = section_box("Performance");
+        let container = PageSection::new("Performance");
 
         let levels_model: StringList = ["Automatic", "Highest Clocks", "Lowest Clocks", "Manual"]
             .into_iter()

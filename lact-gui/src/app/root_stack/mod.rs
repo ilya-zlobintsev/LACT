@@ -3,11 +3,7 @@ mod oc_page;
 mod software_page;
 mod thermals_page;
 
-use gtk::{
-    prelude::IsA,
-    traits::{BoxExt, GridExt},
-    *,
-};
+use gtk::{prelude::IsA, traits::GridExt, *};
 
 use self::software_page::SoftwarePage;
 use info_page::InformationPage;
@@ -78,26 +74,6 @@ fn label_row(title: &str, parent: &Grid, row: i32, column_offset: i32, selectabl
     values_row(title, parent, &value_label, row, column_offset);
 
     value_label
-}
-
-fn section_box(title: &str) -> Box {
-    let container = Box::builder()
-        .orientation(Orientation::Vertical)
-        .spacing(5)
-        .margin_start(5)
-        .margin_end(5)
-        .build();
-
-    let label = Label::builder()
-        .use_markup(true)
-        .label(format!("<span font_desc='13'><b>{title}</b></span>"))
-        .halign(Align::Start)
-        .margin_top(5)
-        .margin_bottom(5)
-        .build();
-
-    container.append(&label);
-    container
 }
 
 fn values_grid() -> Grid {
