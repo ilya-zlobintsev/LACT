@@ -5,9 +5,11 @@ use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{default_fan_curve, DeviceStats, FanControlMode, FanCurveMap};
 
+use crate::app::page_section::PageSection;
+
 use self::fan_curve_frame::FanCurveFrame;
 
-use super::{label_row, section_box, values_grid};
+use super::{label_row, values_grid};
 
 #[derive(Debug)]
 pub struct ThermalsSettings {
@@ -32,7 +34,7 @@ impl ThermalsPage {
     pub fn new() -> Self {
         let container = Box::new(Orientation::Vertical, 15);
 
-        let stats_section = section_box("Statistics");
+        let stats_section = PageSection::new("Statistics");
         let stats_grid = values_grid();
 
         let temperatures_label = label_row("Temperatures:", &stats_grid, 0, 0, false);
@@ -51,7 +53,7 @@ impl ThermalsPage {
             .build();
         let fan_static_speed_adjustment = static_speed_adj(&fan_static_speed_frame);
 
-        let fan_control_section = section_box("Fan control");
+        let fan_control_section = PageSection::new("Fan control");
 
         let fan_control_mode_stack = Stack::builder().build();
         let fan_control_mode_stack_switcher = StackSwitcher::builder()

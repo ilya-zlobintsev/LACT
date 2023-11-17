@@ -1,5 +1,7 @@
 mod apply_revealer;
 mod header;
+mod info_row;
+mod page_section;
 mod root_stack;
 
 use crate::{APP_ID, GUI_VERSION};

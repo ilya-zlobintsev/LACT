@@ -3,13 +3,9 @@ mod oc_page;
 mod software_page;
 mod thermals_page;
 
-use gtk::{
-    prelude::IsA,
-    traits::{BoxExt, GridExt},
-    *,
-};
+use gtk::{prelude::IsA, traits::GridExt, *};
 
-use self::software_page::software_page;
+use self::software_page::SoftwarePage;
 use info_page::InformationPage;
 use lact_client::schema::SystemInfo;
 use oc_page::OcPage;
@@ -44,7 +40,7 @@ impl RootStack {
 
         container.add_titled(&thermals_page.container, Some("thermals_page"), "Thermals");
 
-        let software_page = software_page(system_info, embedded_daemon);
+        let software_page = SoftwarePage::new(system_info, embedded_daemon);
         container.add_titled(&software_page, Some("software_page"), "Software");
 
         Self {
@@ -78,26 +74,6 @@ fn label_row(title: &str, parent: &Grid, row: i32, column_offset: i32, selectabl
     values_row(title, parent, &value_label, row, column_offset);
 
     value_label
-}
-
-fn section_box(title: &str) -> Box {
-    let container = Box::builder()
-        .orientation(Orientation::Vertical)
-        .spacing(5)
-        .margin_start(5)
-        .margin_end(5)
-        .build();
-
-    let label = Label::builder()
-        .use_markup(true)
-        .label(format!("<span font_desc='13'><b>{title}</b></span>"))
-        .halign(Align::Start)
-        .margin_top(5)
-        .margin_bottom(5)
-        .build();
-
-    container.append(&label);
-    container
 }
 
 fn values_grid() -> Grid {

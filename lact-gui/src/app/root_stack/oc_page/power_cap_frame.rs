@@ -1,5 +1,5 @@
 use super::oc_adjustment::OcAdjustment;
-use crate::app::root_stack::section_box;
+use crate::app::page_section::PageSection;
 use gtk::*;
 use gtk::{glib::clone, prelude::*};
 use std::{cell::Cell, rc::Rc};
@@ -7,14 +7,14 @@ use tracing::error;
 
 #[derive(Clone)]
 pub struct PowerCapFrame {
-    pub container: Box,
+    pub container: PageSection,
     default_cap: Rc<Cell<Option<f64>>>,
     adjustment: OcAdjustment,
 }
 
 impl PowerCapFrame {
     pub fn new() -> Self {
-        let container = section_box("Power Usage Limit");
+        let container = PageSection::new("Power Usage Limit");
         let default_cap = Rc::new(Cell::new(None));
 
         let value_suffix = "W";
