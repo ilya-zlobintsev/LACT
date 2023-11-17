@@ -1,10 +1,11 @@
 mod clocks_frame;
+mod gpu_stats_section;
 mod oc_adjustment;
 mod performance_frame;
 mod power_cap_frame;
 
-use crate::app::gpu_stats_section::GpuStatsSection;
 use clocks_frame::ClocksFrame;
+use gpu_stats_section::GpuStatsSection;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{

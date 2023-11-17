@@ -1,5 +1,5 @@
-use super::page_section::PageSection;
-use gtk::glib::{self, subclass::types::ObjectSubclassIsExt, Object};
+use crate::app::page_section::PageSection;
+use gtk::glib::{self, Object};
 use lact_client::schema::{DeviceStats, PowerStats};
 
 glib::wrapper! {
@@ -14,16 +14,14 @@ impl GpuStatsSection {
     }
 
     pub fn set_stats(&self, stats: &DeviceStats) {
-        let imp = self.imp();
-
         let vram_usage =
             if let (Some(used_vram), Some(total_vram)) = (stats.vram.used, stats.vram.total) {
                 used_vram as f64 / total_vram as f64
             } else {
                 0.0
             };
-        imp.vram_usage_bar.set_value(vram_usage);
-        imp.vram_usage_label.set_text(&format!(
+        self.set_vram_usage(vram_usage);
+        self.set_vram_usage_text(format!(
             "{}/{} MiB",
             stats.vram.used.unwrap_or(0) / 1024 / 1024,
             stats.vram.total.unwrap_or(0) / 1024 / 1024,
@@ -80,19 +78,14 @@ mod imp {
             prelude::*,
             widget::{CompositeTemplateClass, WidgetImpl},
         },
-        CompositeTemplate, Label, LevelBar, TemplateChild,
+        CompositeTemplate,
     };
     use std::cell::RefCell;
 
     #[derive(CompositeTemplate, Default, Properties)]
     #[properties(wrapper_type = super::GpuStatsSection)]
-    #[template(file = "ui/gpu_stats_section.blp")]
+    #[template(file = "ui/oc_page/gpu_stats_section.blp")]
     pub struct GpuStatsSection {
-        #[template_child]
-        pub vram_usage_label: TemplateChild<Label>,
-        #[template_child]
-        pub vram_usage_bar: TemplateChild<LevelBar>,
-
         #[property(get, set)]
         core_clock: RefCell<String>,
         #[property(get, set)]
@@ -105,6 +98,10 @@ mod imp {
         gpu_usage: RefCell<String>,
         #[property(get, set)]
         power_usage: RefCell<String>,
+        #[property(get, set)]
+        vram_usage: RefCell<f64>,
+        #[property(get, set)]
+        vram_usage_text: RefCell<String>,
     }
 
     #[glib::object_subclass]
