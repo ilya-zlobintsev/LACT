@@ -1,4 +1,5 @@
 mod apply_revealer;
+mod gpu_stats_section;
 mod header;
 mod info_row;
 mod page_section;
