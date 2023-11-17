@@ -1,11 +1,11 @@
 mod vulkan_info;
 
+use super::{label_row, values_grid};
+use crate::app::page_section::PageSection;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{DeviceInfo, DeviceStats};
 use vulkan_info::VulkanInfoFrame;
-
-use super::{label_row, section_box, values_grid};
 
 #[derive(Clone)]
 pub struct InformationPage {
@@ -34,7 +34,7 @@ impl InformationPage {
     pub fn new() -> Self {
         let vbox = Box::new(Orientation::Vertical, 15);
 
-        let info_container = section_box("Hardware Information");
+        let info_container = PageSection::new("Hardware Information");
 
         let values_grid = values_grid();
 
@@ -69,7 +69,7 @@ impl InformationPage {
         info_container.append(&values_grid);
         vbox.append(&info_container);
 
-        let vulkan_container = section_box("Vulkan Information");
+        let vulkan_container = PageSection::new("Vulkan Information");
 
         let vulkan_info_frame = VulkanInfoFrame::new();
         vulkan_container.append(&vulkan_info_frame.container);

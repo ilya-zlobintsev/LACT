@@ -1,11 +1,11 @@
-use crate::app::root_stack::{label_row, section_box};
+use crate::app::{page_section::PageSection, root_stack::label_row};
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{ClockspeedStats, DeviceStats, PowerStats, VoltageStats, VramStats};
 
 #[derive(Clone)]
 pub struct StatsFrame {
-    pub container: Box,
+    pub container: PageSection,
     vram_usage_bar: LevelBar,
     vram_usage_label: Label,
     gpu_clock_label: Label,
@@ -18,7 +18,7 @@ pub struct StatsFrame {
 
 impl StatsFrame {
     pub fn new() -> Self {
-        let container = section_box("Statistics");
+        let container = PageSection::new("Statistics");
 
         let vram_usage_hbox = Box::new(Orientation::Horizontal, 5);
 

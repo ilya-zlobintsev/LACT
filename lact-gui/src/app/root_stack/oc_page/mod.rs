@@ -38,8 +38,6 @@ impl OcPage {
         let vbox = Box::builder()
             .orientation(Orientation::Vertical)
             .spacing(15)
-            .margin_start(5)
-            .margin_end(5)
             .build();
 
         let mut enable_overclocking_button = None;
