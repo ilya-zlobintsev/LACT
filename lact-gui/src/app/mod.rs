@@ -35,8 +35,6 @@ pub struct App {
 
 impl App {
     pub fn new(daemon_client: DaemonClient) -> Self {
-        gio::resources_register_include!("ui.gresource").expect("Failed to register resources.");
-
         let application = Application::new(Some(APP_ID), ApplicationFlags::default());
 
         let header = Header::new();

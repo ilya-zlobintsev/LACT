@@ -1,0 +1,35 @@
+using Gtk 4.0;
+
+template $VulkanFeaturesWindow: Window {
+  default-height: 700;
+  default-width: 500;
+
+  Box {
+    orientation: vertical;
+
+    SearchEntry search_entry {}
+
+    ScrolledWindow {
+      vexpand: true;
+
+      ListView {
+        factory: features_factory;
+        model: selection_model;
+        show-separators: true;
+      }
+    }
+  }
+}
+
+SignalListItemFactory features_factory {}
+
+NoSelection selection_model {
+  model: filter_model;
+}
+
+StringFilter search_filter {}
+
+FilterListModel filter_model {
+  filter: search_filter;
+  incremental: true;
+}

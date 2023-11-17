@@ -30,7 +30,7 @@ mod imp {
 
     #[derive(CompositeTemplate, Default, Properties)]
     #[properties(wrapper_type = super::VulkanFeatureRow)]
-    #[template(resource = "/io/github/lact-linux/vulkan_feature_row.ui")]
+    #[template(file = "ui/vulkan_feature_row.blp")]
     pub struct VulkanFeatureRow {
         #[template_child]
         name_label: TemplateChild<Label>,

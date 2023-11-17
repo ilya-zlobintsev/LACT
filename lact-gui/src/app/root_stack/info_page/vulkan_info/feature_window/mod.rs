@@ -37,7 +37,7 @@ mod imp {
 
     #[derive(CompositeTemplate, Properties, Default)]
     #[properties(wrapper_type = super::VulkanFeaturesWindow)]
-    #[template(resource = "/io/github/lact-linux/vulkan_features_window.ui")]
+    #[template(file = "ui/vulkan_features_window.blp")]
     pub struct VulkanFeaturesWindow {
         #[property(get, set)]
         model: RefCell<Option<gio::ListModel>>,
