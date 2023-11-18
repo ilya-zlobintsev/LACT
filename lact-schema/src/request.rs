@@ -47,6 +47,9 @@ pub enum Request<'a> {
         id: &'a str,
         index: Option<u16>,
     },
+    GetPowerStates {
+        id: &'a str,
+    },
     EnableOverdrive,
     ConfirmPendingConfig(ConfirmCommand),
 }

@@ -9,13 +9,13 @@ use lact_schema::{
         error::Error,
         gpu_handle::{
             overdrive::{ClocksTable, ClocksTableGen},
-            GpuHandle, PerformanceLevel,
+            GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
         },
         hw_mon::{FanControlMethod, HwMon},
         sysfs::SysFS,
     },
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo, LinkInfo,
-    PciInfo, PowerStats, VoltageStats, VramStats,
+    PciInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use pciid_parser::Database;
 use std::{
@@ -23,6 +23,7 @@ use std::{
     cell::RefCell,
     path::{Path, PathBuf},
     rc::Rc,
+    str::FromStr,
     time::Duration,
 };
 use tokio::{select, sync::Notify, task::JoinHandle, time::sleep};
@@ -37,7 +38,7 @@ use {
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 
 pub struct GpuController {
-    pub handle: GpuHandle,
+    pub(super) handle: GpuHandle,
     #[cfg(feature = "libdrm_amdgpu_sys")]
     pub drm_handle: Option<DrmHandle>,
     pub pci_info: Option<GpuPciInfo>,
@@ -410,6 +411,42 @@ impl GpuController {
         Ok(())
     }
 
+    pub fn get_power_states(&self, gpu_config: Option<&config::Gpu>) -> PowerStates {
+        let core = self.get_power_states_kind(gpu_config, PowerLevelKind::CoreClock);
+        let memory = self.get_power_states_kind(gpu_config, PowerLevelKind::MemoryClock);
+        PowerStates { core, memory }
+    }
+
+    fn get_power_states_kind<T>(
+        &self,
+        gpu_config: Option<&config::Gpu>,
+        kind: PowerLevelKind,
+    ) -> Vec<PowerState<T>>
+    where
+        T: FromStr,
+        <T as std::str::FromStr>::Err: std::fmt::Display,
+    {
+        let enabled_states = gpu_config.and_then(|gpu| gpu.power_states.get(&kind));
+        let levels = self
+            .handle
+            .get_clock_levels::<T>(kind)
+            .unwrap_or_else(|_| PowerLevels {
+                levels: Vec::new(),
+                active: None,
+            })
+            .levels;
+
+        levels
+            .into_iter()
+            .enumerate()
+            .map(|(i, value)| {
+                let i = u8::try_from(i).unwrap();
+                let enabled = enabled_states.map_or(true, |enabled| enabled.contains(&i));
+                PowerState { enabled, value }
+            })
+            .collect()
+    }
+
     pub async fn apply_config(&self, config: &config::Gpu) -> anyhow::Result<()> {
         if config.fan_control_enabled {
             if let Some(ref settings) = config.fan_control_settings {
@@ -508,6 +545,18 @@ impl GpuController {
             self.handle
                 .set_clocks_table(&table)
                 .context("Could not write clocks table")?;
+        }
+
+        for (kind, states) in &config.power_states {
+            if config.performance_level != Some(PerformanceLevel::Manual) {
+                return Err(anyhow!(
+                    "Performance level has to be set to `manual` to configure power states"
+                ));
+            }
+
+            self.handle
+                .set_enabled_power_levels(*kind, states)
+                .with_context(|| format!("Could not set {kind:?} power states"))?;
         }
 
         Ok(())
