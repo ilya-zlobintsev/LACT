@@ -5,7 +5,7 @@ use lact_schema::{
     amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel},
     default_fan_curve,
     request::{ConfirmCommand, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PowerStates,
 };
 use std::{cell::RefCell, collections::BTreeMap, env, path::PathBuf, rc::Rc, time::Duration};
 use tokio::{sync::oneshot, time::sleep};
@@ -279,6 +279,17 @@ impl<'a> Handler {
             gpu_config.power_cap = maybe_cap;
         })
         .await
+    }
+
+    pub fn get_power_states(&self, id: &str) -> anyhow::Result<PowerStates> {
+        let config = self
+            .config
+            .try_borrow()
+            .map_err(|err| anyhow!("Could not read config: {err:?}"))?;
+        let gpu_config = config.gpus.get(id);
+
+        let states = self.controller_by_id(id)?.get_power_states(gpu_config);
+        Ok(states)
     }
 
     pub async fn set_performance_level(

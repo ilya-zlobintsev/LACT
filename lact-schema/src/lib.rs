@@ -224,3 +224,15 @@ pub struct PowerStats {
     pub cap_min: Option<f64>,
     pub cap_default: Option<f64>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PowerStates {
+    pub core: Vec<PowerState<u64>>,
+    pub memory: Vec<PowerState<u64>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct PowerState<T> {
+    pub enabled: bool,
+    pub value: T,
+}

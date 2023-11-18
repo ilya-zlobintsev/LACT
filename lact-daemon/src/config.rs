@@ -1,7 +1,9 @@
 use crate::server::gpu_controller::fan_control::FanCurve;
 use anyhow::Context;
 use lact_schema::{
-    amdgpu_sysfs::gpu_handle::PerformanceLevel, default_fan_curve, request::SetClocksCommand,
+    amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind},
+    default_fan_curve,
+    request::SetClocksCommand,
     FanControlMode,
 };
 use nix::unistd::getuid;
@@ -64,6 +66,7 @@ pub struct Gpu {
     pub max_voltage: Option<i32>,
     pub voltage_offset: Option<i32>,
     pub power_profile_mode_index: Option<u16>,
+    pub power_states: HashMap<PowerLevelKind, Vec<u8>>,
 }
 
 impl Gpu {
