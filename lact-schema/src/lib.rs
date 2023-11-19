@@ -228,7 +228,7 @@ pub struct PowerStats {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PowerStates {
     pub core: Vec<PowerState<u64>>,
-    pub memory: Vec<PowerState<u64>>,
+    pub vram: Vec<PowerState<u64>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]

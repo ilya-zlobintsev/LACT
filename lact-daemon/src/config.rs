@@ -66,6 +66,7 @@ pub struct Gpu {
     pub max_voltage: Option<i32>,
     pub voltage_offset: Option<i32>,
     pub power_profile_mode_index: Option<u16>,
+    #[serde(default)]
     pub power_states: HashMap<PowerLevelKind, Vec<u8>>,
 }
 

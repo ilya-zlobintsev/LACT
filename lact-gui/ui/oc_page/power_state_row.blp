@@ -1,0 +1,12 @@
+using Gtk 4.0;
+
+template $PowerStateRow: Box {
+    orientation: horizontal;
+    spacing: 5;
+
+    CheckButton {
+        active: bind template.enabled bidirectional;
+        label: bind template.title;
+        hexpand: true;
+    }
+}

@@ -3,11 +3,13 @@ mod gpu_stats_section;
 mod oc_adjustment;
 mod performance_frame;
 mod power_cap_frame;
+mod power_states;
 
+use self::power_states::power_states_frame::PowerStatesFrame;
 use clocks_frame::ClocksFrame;
 use gpu_stats_section::GpuStatsSection;
-use gtk::prelude::*;
 use gtk::*;
+use gtk::{glib::clone, prelude::*};
 use lact_client::schema::{
     amdgpu_sysfs::gpu_handle::{overdrive::ClocksTableGen, PerformanceLevel},
     DeviceStats, SystemInfo,
@@ -25,6 +27,7 @@ pub struct OcPage {
     stats_section: GpuStatsSection,
     pub performance_frame: PerformanceFrame,
     power_cap_frame: PowerCapFrame,
+    pub power_states_frame: PowerStatesFrame,
     pub clocks_frame: ClocksFrame,
     pub enable_overclocking_button: Option<Button>,
 }
@@ -54,9 +57,18 @@ impl OcPage {
         let power_cap_frame = PowerCapFrame::new();
         let performance_level_frame = PerformanceFrame::new();
         let clocks_frame = ClocksFrame::new();
+        let power_states_frame = PowerStatesFrame::new();
+
+        performance_level_frame.connect_settings_changed(
+            clone!(@strong performance_level_frame, @strong power_states_frame => move || {
+                let level = performance_level_frame.get_selected_performance_level();
+                power_states_frame.set_sensitive(level == PerformanceLevel::Manual);
+            }),
+        );
 
         vbox.append(&power_cap_frame.container);
         vbox.append(&performance_level_frame.container);
+        vbox.append(&power_states_frame);
         vbox.append(&clocks_frame.container);
 
         container.set_child(Some(&vbox));
@@ -68,6 +80,7 @@ impl OcPage {
             clocks_frame,
             power_cap_frame,
             enable_overclocking_button,
+            power_states_frame,
         }
     }
 
@@ -103,7 +116,8 @@ impl OcPage {
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         self.performance_frame.connect_settings_changed(f.clone());
         self.power_cap_frame.connect_cap_changed(f.clone());
-        self.clocks_frame.connect_clocks_changed(f);
+        self.clocks_frame.connect_clocks_changed(f.clone());
+        self.power_states_frame.connect_values_changed(f);
     }
 
     pub fn set_performance_level(&self, profile: Option<PerformanceLevel>) {
