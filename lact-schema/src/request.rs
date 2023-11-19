@@ -1,5 +1,5 @@
 use crate::{FanControlMode, FanCurveMap};
-use amdgpu_sysfs::gpu_handle::PerformanceLevel;
+use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -49,6 +49,11 @@ pub enum Request<'a> {
     },
     GetPowerStates {
         id: &'a str,
+    },
+    SetEnabledPowerStates {
+        id: &'a str,
+        kind: PowerLevelKind,
+        states: Vec<u8>,
     },
     EnableOverdrive,
     ConfirmPendingConfig(ConfirmCommand),

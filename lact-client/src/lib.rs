@@ -6,7 +6,9 @@ pub use lact_schema as schema;
 use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
 use schema::{
-    amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel},
+    amdgpu_sysfs::gpu_handle::{
+        power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
+    },
     request::{ConfirmCommand, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PowerStates,
     Request, Response, SystemInfo,
@@ -159,6 +161,16 @@ impl DaemonClient {
         commands: Vec<SetClocksCommand>,
     ) -> anyhow::Result<u64> {
         self.make_request(Request::BatchSetClocksValue { id, commands })?
+            .inner()
+    }
+
+    pub fn set_enabled_power_states(
+        &self,
+        id: &str,
+        kind: PowerLevelKind,
+        states: Vec<u8>,
+    ) -> anyhow::Result<u64> {
+        self.make_request(Request::SetEnabledPowerStates { id, kind, states })?
             .inner()
     }
 

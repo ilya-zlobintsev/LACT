@@ -19,11 +19,11 @@ impl PowerStatesList {
         Object::builder().property("title", title).build()
     }
 
-    pub fn get_enabled_power_states(&self) -> Vec<usize> {
+    pub fn get_enabled_power_states(&self) -> Vec<u8> {
         self.rows()
             .iter()
             .filter(|row| row.enabled())
-            .map(|row| row.index() as usize)
+            .map(|row| row.index())
             .collect()
     }
 
@@ -34,7 +34,8 @@ impl PowerStatesList {
     ) {
         let store = gio::ListStore::new::<PowerStateRow>();
         for (i, state) in power_states.into_iter().enumerate() {
-            let row = PowerStateRow::new(state, i, value_suffix);
+            let index = u8::try_from(i).expect("Power state index doesn't fit in u8?");
+            let row = PowerStateRow::new(state, index, value_suffix);
             store.append(&row);
         }
 

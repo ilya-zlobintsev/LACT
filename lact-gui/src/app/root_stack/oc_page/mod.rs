@@ -10,12 +10,14 @@ use clocks_frame::ClocksFrame;
 use gpu_stats_section::GpuStatsSection;
 use gtk::*;
 use gtk::{glib::clone, prelude::*};
+use lact_client::schema::amdgpu_sysfs::gpu_handle::PowerLevelKind;
 use lact_client::schema::{
     amdgpu_sysfs::gpu_handle::{overdrive::ClocksTableGen, PerformanceLevel},
     DeviceStats, SystemInfo,
 };
 use performance_frame::PerformanceFrame;
 use power_cap_frame::PowerCapFrame;
+use std::collections::HashMap;
 use tracing::warn;
 
 const OVERCLOCKING_DISABLED_TEXT: &str = "Overclocking support is not enabled! \
@@ -141,6 +143,14 @@ impl OcPage {
 
     pub fn get_power_cap(&self) -> Option<f64> {
         self.power_cap_frame.get_cap()
+    }
+
+    pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
+        if self.performance_frame.get_selected_performance_level() == PerformanceLevel::Manual {
+            self.power_states_frame.get_enabled_power_states()
+        } else {
+            HashMap::new()
+        }
     }
 }
 

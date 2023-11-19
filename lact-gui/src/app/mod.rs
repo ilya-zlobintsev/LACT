@@ -433,21 +433,27 @@ impl App {
             clocks_commands.push(SetClocksCommand::VoltageOffset(offset));
         }
 
+        let enabled_power_states = self.root_stack.oc_page.get_enabled_power_states();
+
+        for (kind, states) in enabled_power_states {
+            if !states.is_empty() {
+                self.daemon_client
+                    .set_enabled_power_states(&gpu_id, kind, states)
+                    .context("Could not set power states")?;
+
+                self.daemon_client
+                    .confirm_pending_config(ConfirmCommand::Confirm)
+                    .context("Could not commit config")?;
+            }
+        }
+
         if !clocks_commands.is_empty() {
             let delay = self
                 .daemon_client
                 .batch_set_clocks_value(&gpu_id, clocks_commands)
                 .context("Could not commit clocks settins")?;
-
             self.ask_confirmation(gpu_id.clone(), delay);
         }
-
-        let enabled_states = self
-            .root_stack
-            .oc_page
-            .power_states_frame
-            .get_enabled_power_states();
-        println!("{:?}", enabled_states);
 
         self.set_initial(&gpu_id);
 
