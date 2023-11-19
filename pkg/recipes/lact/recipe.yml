@@ -17,8 +17,8 @@ metadata:
   build_depends:
     all: [ curl, make, dbus, clang ]
     debian-12+ubuntu-2204: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev ]
-    fedora-37+fedora-38: [ gtk4-devel, gcc, libdrm-devel ]
-    arch: [ gtk4 ]
+    fedora-37+fedora-38: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler ]
+    arch: [ gtk4, blueprint-compiler ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs
@@ -26,6 +26,10 @@ configure:
   steps:
     - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
+    - cmd: >-
+        curl -o /tmp/blueprint-compiler.deb http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb &&
+        apt install -y /tmp/blueprint-compiler.deb
+      deb: true
 build:
   steps:
     - cmd: bash -c "source $HOME/.cargo/env && make"
