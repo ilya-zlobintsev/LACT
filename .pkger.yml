@@ -10,9 +10,9 @@ ssh: ~
 images:
   - name: debian-12
     target: deb
-  - name: fedora-37
-    target: rpm
   - name: fedora-38
+    target: rpm
+  - name: fedora-39
     target: rpm
   - name: ubuntu-2204
     target: deb
