@@ -9,4 +9,9 @@ template $PowerStateRow: Box {
         label: bind template.title;
         hexpand: true;
     }
+
+    Image {
+        icon-name: "pan-start-symbolic";
+        visible: bind template.active;
+    }
 }

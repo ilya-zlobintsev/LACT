@@ -13,7 +13,7 @@ pub use response::Response;
 use amdgpu_sysfs::{
     gpu_handle::{
         overdrive::{ClocksTable, ClocksTableGen},
-        PerformanceLevel, PowerLevels,
+        PerformanceLevel,
     },
     hw_mon::Temperature,
 };
@@ -181,9 +181,9 @@ pub struct DeviceStats {
     pub temps: HashMap<String, Temperature>,
     pub busy_percent: Option<u8>,
     pub performance_level: Option<PerformanceLevel>,
-    pub core_clock_levels: Option<PowerLevels<u64>>,
-    pub memory_clock_levels: Option<PowerLevels<u64>>,
-    pub pcie_clock_levels: Option<PowerLevels<String>>,
+    pub core_power_state: Option<usize>,
+    pub memory_power_state: Option<usize>,
+    pub pcie_power_state: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

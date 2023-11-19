@@ -44,6 +44,8 @@ mod imp {
         enabled: AtomicBool,
         #[property(get, set)]
         index: AtomicU8,
+        #[property(get, set)]
+        active: AtomicBool,
     }
 
     #[glib::object_subclass]

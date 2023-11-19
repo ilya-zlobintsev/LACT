@@ -277,9 +277,21 @@ impl GpuController {
             temps: self.hw_mon_map(HwMon::get_temps).unwrap_or_default(),
             busy_percent: self.handle.get_busy_percent().ok(),
             performance_level: self.handle.get_power_force_performance_level().ok(),
-            core_clock_levels: self.handle.get_core_clock_levels().ok(),
-            memory_clock_levels: self.handle.get_memory_clock_levels().ok(),
-            pcie_clock_levels: self.handle.get_pcie_clock_levels().ok(),
+            core_power_state: self
+                .handle
+                .get_core_clock_levels()
+                .ok()
+                .and_then(|levels| levels.active),
+            memory_power_state: self
+                .handle
+                .get_memory_clock_levels()
+                .ok()
+                .and_then(|levels| levels.active),
+            pcie_power_state: self
+                .handle
+                .get_pcie_clock_levels()
+                .ok()
+                .and_then(|levels| levels.active),
         }
     }
 

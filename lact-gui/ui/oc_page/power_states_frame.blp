@@ -14,10 +14,12 @@ template $PowerStatesFrame: Box {
 
             $PowerStatesList core_states_list {
                 title: "GPU power states";
+                sensitive: bind template.configurable;
             }
 
             $PowerStatesList vram_states_list {
                 title: "VRAM power states";
+                sensitive: bind template.configurable;
             }
         }
     }
