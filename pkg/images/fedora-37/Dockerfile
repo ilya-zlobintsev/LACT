@@ -1,1 +1,0 @@
-FROM fedora:37
