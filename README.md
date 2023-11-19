@@ -73,6 +73,7 @@ Dependencies:
 - make
 - hwdata
 - libdrm
+- blueprint-compiler
 
 Steps:
 - `git clone https://github.com/ilya-zlobintsev/LACT && cd LACT`
