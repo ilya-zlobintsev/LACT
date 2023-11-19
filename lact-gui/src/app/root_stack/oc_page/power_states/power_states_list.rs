@@ -1,7 +1,7 @@
 use crate::app::root_stack::oc_page::power_states::power_state_row::PowerStateRow;
 use gtk::{
     gio,
-    glib::{self, clone, subclass::types::ObjectSubclassIsExt, Cast, Object},
+    glib::{self, clone, subclass::types::ObjectSubclassIsExt, Cast, CastNone, Object},
     prelude::{ListBoxRowExt, WidgetExt},
     ListBoxRow, Widget,
 };
@@ -47,6 +47,18 @@ impl PowerStatesList {
     pub fn connect_values_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         for row in self.rows() {
             row.connect_enabled_notify(clone!(@strong f => move |_| f()));
+        }
+    }
+
+    pub fn set_active_state(&self, i: usize) {
+        let imp = self.imp();
+
+        for object in imp.states_listbox.observe_children().into_iter().flatten() {
+            let list_row: ListBoxRow = object.downcast().unwrap();
+            if let Some(row) = list_row.child().and_downcast::<PowerStateRow>() {
+                let active = row.index() == i as u8;
+                row.set_active(active);
+            }
         }
     }
 

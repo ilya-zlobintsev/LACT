@@ -64,7 +64,7 @@ impl OcPage {
         performance_level_frame.connect_settings_changed(
             clone!(@strong performance_level_frame, @strong power_states_frame => move || {
                 let level = performance_level_frame.get_selected_performance_level();
-                power_states_frame.set_sensitive(level == PerformanceLevel::Manual);
+                power_states_frame.set_configurable(level == PerformanceLevel::Manual);
             }),
         );
 
@@ -88,6 +88,7 @@ impl OcPage {
 
     pub fn set_stats(&self, stats: &DeviceStats, initial: bool) {
         self.stats_section.set_stats(stats);
+        self.power_states_frame.set_stats(stats);
         if initial {
             self.power_cap_frame.set_data(
                 stats.power.cap_current,

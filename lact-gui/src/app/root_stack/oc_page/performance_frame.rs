@@ -49,7 +49,7 @@ impl PerformanceFrame {
             .build();
 
         let unavailable_label = Label::new(Some(
-            "Performance level has to be set to \"manual\" to use power profile modes",
+            "Performance level has to be set to \"manual\" to use power states and modes",
         ));
         let mode_info_popover = Popover::builder().child(&unavailable_label).build();
         let manual_info_button = MenuButton::builder()
