@@ -2,7 +2,9 @@ use super::gpu_controller::{fan_control::FanCurve, GpuController};
 use crate::config::{self, default_fan_static_speed, Config, FanControlSettings};
 use anyhow::{anyhow, Context};
 use lact_schema::{
-    amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel},
+    amdgpu_sysfs::gpu_handle::{
+        power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
+    },
     default_fan_curve,
     request::{ConfirmCommand, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PowerStates,
@@ -299,6 +301,10 @@ impl<'a> Handler {
     ) -> anyhow::Result<u64> {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
             gpu_config.performance_level = Some(level);
+
+            if level != PerformanceLevel::Manual {
+                gpu_config.power_states.clear();
+            }
         })
         .await
     }
@@ -346,6 +352,18 @@ impl<'a> Handler {
     ) -> anyhow::Result<u64> {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
             gpu_config.power_profile_mode_index = index;
+        })
+        .await
+    }
+
+    pub async fn set_enabled_power_states(
+        &self,
+        id: &str,
+        kind: PowerLevelKind,
+        enabled_states: Vec<u8>,
+    ) -> anyhow::Result<u64> {
+        self.edit_gpu_config(id.to_owned(), |gpu| {
+            gpu.power_states.insert(kind, enabled_states);
         })
         .await
     }

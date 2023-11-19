@@ -9,12 +9,12 @@ glib::wrapper! {
 }
 
 impl PowerStateRow {
-    pub fn new<T: Display>(power_state: PowerState<T>, index: usize, value_suffix: &str) -> Self {
+    pub fn new<T: Display>(power_state: PowerState<T>, index: u8, value_suffix: &str) -> Self {
         let title = format!("{}: {} {}", index, power_state.value, value_suffix);
         Object::builder()
             .property("enabled", power_state.enabled)
             .property("title", title)
-            .property("index", index as u64)
+            .property("index", index)
             .build()
     }
 }
@@ -31,7 +31,7 @@ mod imp {
     };
     use std::{
         cell::RefCell,
-        sync::atomic::{AtomicBool, AtomicU64},
+        sync::atomic::{AtomicBool, AtomicU8},
     };
 
     #[derive(CompositeTemplate, Default, Properties)]
@@ -43,7 +43,7 @@ mod imp {
         #[property(get, set)]
         enabled: AtomicBool,
         #[property(get, set)]
-        index: AtomicU64,
+        index: AtomicU8,
     }
 
     #[glib::object_subclass]

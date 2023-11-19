@@ -26,7 +26,7 @@ impl PowerStatesFrame {
         imp.vram_states_list.connect_values_changed(f);
     }
 
-    pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<usize>> {
+    pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
         let imp = self.imp();
         let core_states = imp.core_states_list.get_enabled_power_states();
         let vram_states = imp.vram_states_list.get_enabled_power_states();
