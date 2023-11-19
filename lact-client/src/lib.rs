@@ -8,8 +8,8 @@ use nix::unistd::getuid;
 use schema::{
     amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel},
     request::{ConfirmCommand, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, Request,
-    Response, SystemInfo,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PowerStates,
+    Request, Response, SystemInfo,
 };
 use serde::Deserialize;
 use std::{
@@ -134,6 +134,7 @@ impl DaemonClient {
         DevicePowerProfileModes,
         PowerProfileModesTable
     );
+    request_with_id!(get_power_states, GetPowerStates, PowerStates);
 
     pub fn set_performance_level(
         &self,

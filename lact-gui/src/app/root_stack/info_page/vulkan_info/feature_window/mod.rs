@@ -68,18 +68,6 @@ mod imp {
         }
     }
 
-    // impl Default for VulkanFeaturesWindow {
-    //     fn default() -> Self {
-    //         Self {
-    //             model: RefCell::new(gio::ListStore::new::<VulkanFeature>().into()),
-    //             features_factory: Default::default(),
-    //             filter_model: Default::default(),
-    //             search_filter: Default::default(),
-    //             search_entry: Default::default(),
-    //         }
-    //     }
-    // }
-
     #[glib::derived_properties]
     impl ObjectImpl for VulkanFeaturesWindow {
         fn constructed(&self) {

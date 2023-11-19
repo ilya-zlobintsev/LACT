@@ -256,6 +256,20 @@ impl App {
             .performance_frame
             .set_power_profile_modes(maybe_modes_table);
 
+        match self
+            .daemon_client
+            .get_power_states(gpu_id)
+            .and_then(|states| states.inner())
+        {
+            Ok(power_states) => {
+                self.root_stack
+                    .oc_page
+                    .power_states_frame
+                    .set_power_states(power_states);
+            }
+            Err(err) => warn!("could not get power states: {err:?}"),
+        }
+
         // Show apply button on setting changes
         // This is done here because new widgets may appear after applying settings (like fan curve points) which should be connected
         let show_revealer = clone!(@strong self.apply_revealer as apply_revealer => move || {
@@ -424,8 +438,16 @@ impl App {
                 .daemon_client
                 .batch_set_clocks_value(&gpu_id, clocks_commands)
                 .context("Could not commit clocks settins")?;
+
             self.ask_confirmation(gpu_id.clone(), delay);
         }
+
+        let enabled_states = self
+            .root_stack
+            .oc_page
+            .power_states_frame
+            .get_enabled_power_states();
+        println!("{:?}", enabled_states);
 
         self.set_initial(&gpu_id);
 

@@ -413,8 +413,8 @@ impl GpuController {
 
     pub fn get_power_states(&self, gpu_config: Option<&config::Gpu>) -> PowerStates {
         let core = self.get_power_states_kind(gpu_config, PowerLevelKind::CoreClock);
-        let memory = self.get_power_states_kind(gpu_config, PowerLevelKind::MemoryClock);
-        PowerStates { core, memory }
+        let vram = self.get_power_states_kind(gpu_config, PowerLevelKind::MemoryClock);
+        PowerStates { core, vram }
     }
 
     fn get_power_states_kind<T>(
