@@ -20,6 +20,8 @@ jobs:
         run: sudo apt update
       - name: Install dependencies
         run: sudo apt install libgtk-4-dev pkg-config libvulkan-dev libdrm-dev
+      - name: Install blueprint-compiler
+        run: curl -o /tmp/blueprint-compiler.deb http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb && sudo apt install -y /tmp/blueprint-compiler.deb
       - name: Build
         run: cargo build
       - name: Run tests
