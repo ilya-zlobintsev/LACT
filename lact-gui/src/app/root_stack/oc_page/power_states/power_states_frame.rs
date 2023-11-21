@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use gtk::glib::{self, subclass::types::ObjectSubclassIsExt, Object};
+use gtk::{
+    glib::{self, subclass::types::ObjectSubclassIsExt, Object},
+    prelude::WidgetExt,
+};
 use lact_client::schema::{amdgpu_sysfs::gpu_handle::PowerLevelKind, DeviceStats, PowerStates};
 
 glib::wrapper! {
@@ -16,6 +19,12 @@ impl PowerStatesFrame {
 
     pub fn set_power_states(&self, states: PowerStates) {
         let imp = self.imp();
+
+        imp.expander.set_sensitive(!states.is_empty());
+        if states.is_empty() {
+            imp.expander.set_expanded(false);
+        }
+
         imp.core_states_list.set_power_states(states.core, "MHz");
         imp.vram_states_list.set_power_states(states.vram, "MHz");
     }
@@ -64,7 +73,7 @@ mod imp {
             prelude::*,
             widget::{CompositeTemplateClass, WidgetImpl},
         },
-        CompositeTemplate,
+        CompositeTemplate, Expander,
     };
     use std::sync::atomic::AtomicBool;
 
@@ -72,6 +81,8 @@ mod imp {
     #[properties(wrapper_type = super::PowerStatesFrame)]
     #[template(file = "ui/oc_page/power_states_frame.blp")]
     pub struct PowerStatesFrame {
+        #[template_child]
+        pub expander: TemplateChild<Expander>,
         #[template_child]
         pub core_states_list: TemplateChild<PowerStatesList>,
         #[template_child]
