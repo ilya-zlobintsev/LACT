@@ -519,6 +519,7 @@ impl GpuController {
         self.handle.reset_clocks_table().ok();
 
         if config.is_core_clocks_used() {
+            let clocks = config.clocks_configuration;
             let mut table = self.handle.get_clocks_table()?;
 
             if let ClocksTableGen::Vega20(ref mut table) = table {
@@ -527,28 +528,28 @@ impl GpuController {
                 // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example
                 table.clear();
 
-                table.voltage_offset = config.voltage_offset;
+                table.voltage_offset = clocks.voltage_offset;
             }
 
-            if let Some(min_clockspeed) = config.min_core_clock {
+            if let Some(min_clockspeed) = clocks.min_core_clock {
                 table.set_min_sclk(min_clockspeed)?;
             }
 
-            if let Some(min_clockspeed) = config.min_memory_clock {
+            if let Some(min_clockspeed) = clocks.min_memory_clock {
                 table.set_min_mclk(min_clockspeed)?;
             }
 
-            if let Some(min_voltage) = config.min_voltage {
+            if let Some(min_voltage) = clocks.min_voltage {
                 table.set_min_voltage(min_voltage)?;
             }
 
-            if let Some(clockspeed) = config.max_core_clock {
+            if let Some(clockspeed) = clocks.max_core_clock {
                 table.set_max_sclk(clockspeed)?;
             }
-            if let Some(clockspeed) = config.max_memory_clock {
+            if let Some(clockspeed) = clocks.max_memory_clock {
                 table.set_max_mclk(clockspeed)?;
             }
-            if let Some(voltage) = config.max_voltage {
+            if let Some(voltage) = clocks.max_voltage {
                 table.set_max_voltage(voltage)?;
             }
 
