@@ -24,8 +24,8 @@ impl RootStack {
         let container = Stack::builder()
             .vexpand(true)
             .margin_top(15)
-            .margin_start(50)
-            .margin_end(50)
+            .margin_start(30)
+            .margin_end(30)
             .build();
 
         let info_page = InformationPage::new();

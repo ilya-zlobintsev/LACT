@@ -28,12 +28,11 @@ impl PowerStatesFrame {
 
     pub fn set_stats(&self, stats: &DeviceStats) {
         let imp = self.imp();
-        if let Some(core_state) = stats.core_power_state {
-            imp.core_states_list.set_active_state(core_state);
-        }
-        if let Some(memory_state) = stats.memory_power_state {
-            imp.vram_states_list.set_active_state(memory_state);
-        }
+
+        imp.core_states_list
+            .set_active_state(stats.core_power_state);
+        imp.vram_states_list
+            .set_active_state(stats.memory_power_state);
     }
 
     pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
