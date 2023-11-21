@@ -79,6 +79,7 @@ impl Gpu {
             self.max_core_clock,
             self.max_memory_clock,
             self.min_voltage,
+            self.voltage_offset,
         ]
         .iter()
         .any(Option::is_some)
@@ -100,6 +101,7 @@ impl Gpu {
                 self.max_core_clock = None;
                 self.max_memory_clock = None;
                 self.max_voltage = None;
+                self.voltage_offset = None;
 
                 assert!(!self.is_core_clocks_used());
             }
