@@ -58,6 +58,16 @@ pub struct Gpu {
     pub fan_control_settings: Option<FanControlSettings>,
     pub power_cap: Option<f64>,
     pub performance_level: Option<PerformanceLevel>,
+    #[serde(default, flatten)]
+    pub clocks_configuration: ClocksConfiguration,
+    pub power_profile_mode_index: Option<u16>,
+    #[serde(default)]
+    pub power_states: HashMap<PowerLevelKind, Vec<u8>>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct ClocksConfiguration {
     pub min_core_clock: Option<i32>,
     pub min_memory_clock: Option<i32>,
     pub min_voltage: Option<i32>,
@@ -65,44 +75,25 @@ pub struct Gpu {
     pub max_memory_clock: Option<i32>,
     pub max_voltage: Option<i32>,
     pub voltage_offset: Option<i32>,
-    pub power_profile_mode_index: Option<u16>,
-    #[serde(default)]
-    pub power_states: HashMap<PowerLevelKind, Vec<u8>>,
 }
 
 impl Gpu {
     pub fn is_core_clocks_used(&self) -> bool {
-        [
-            self.min_core_clock,
-            self.min_memory_clock,
-            self.max_voltage,
-            self.max_core_clock,
-            self.max_memory_clock,
-            self.min_voltage,
-            self.voltage_offset,
-        ]
-        .iter()
-        .any(Option::is_some)
+        self.clocks_configuration != ClocksConfiguration::default()
     }
 
     pub fn apply_clocks_command(&mut self, command: &SetClocksCommand) {
+        let clocks = &mut self.clocks_configuration;
         match command {
-            SetClocksCommand::MaxCoreClock(clock) => self.max_core_clock = Some(*clock),
-            SetClocksCommand::MaxMemoryClock(clock) => self.max_memory_clock = Some(*clock),
-            SetClocksCommand::MaxVoltage(voltage) => self.max_voltage = Some(*voltage),
-            SetClocksCommand::MinCoreClock(clock) => self.min_core_clock = Some(*clock),
-            SetClocksCommand::MinMemoryClock(clock) => self.min_memory_clock = Some(*clock),
-            SetClocksCommand::MinVoltage(voltage) => self.min_voltage = Some(*voltage),
-            SetClocksCommand::VoltageOffset(offset) => self.voltage_offset = Some(*offset),
+            SetClocksCommand::MaxCoreClock(clock) => clocks.max_core_clock = Some(*clock),
+            SetClocksCommand::MaxMemoryClock(clock) => clocks.max_memory_clock = Some(*clock),
+            SetClocksCommand::MaxVoltage(voltage) => clocks.max_voltage = Some(*voltage),
+            SetClocksCommand::MinCoreClock(clock) => clocks.min_core_clock = Some(*clock),
+            SetClocksCommand::MinMemoryClock(clock) => clocks.min_memory_clock = Some(*clock),
+            SetClocksCommand::MinVoltage(voltage) => clocks.min_voltage = Some(*voltage),
+            SetClocksCommand::VoltageOffset(offset) => clocks.voltage_offset = Some(*offset),
             SetClocksCommand::Reset => {
-                self.min_core_clock = None;
-                self.min_memory_clock = None;
-                self.min_voltage = None;
-                self.max_core_clock = None;
-                self.max_memory_clock = None;
-                self.max_voltage = None;
-                self.voltage_offset = None;
-
+                *clocks = ClocksConfiguration::default();
                 assert!(!self.is_core_clocks_used());
             }
         }
@@ -188,9 +179,11 @@ fn default_apply_settings_timer() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use lact_schema::FanControlMode;
 
-    use super::{Config, Daemon, FanControlSettings, Gpu};
+    use super::{ClocksConfiguration, Config, Daemon, FanControlSettings, Gpu};
     use crate::server::gpu_controller::fan_control::FanCurve;
 
     #[test]
@@ -217,5 +210,22 @@ mod tests {
         let data = serde_yaml::to_string(&config).unwrap();
         let deserialized_config: Config = serde_yaml::from_str(&data).unwrap();
         assert_eq!(config, deserialized_config);
+    }
+
+    #[test]
+    fn clocks_configuration_applied() {
+        let mut gpu = Gpu {
+            fan_control_enabled: false,
+            fan_control_settings: None,
+            power_cap: None,
+            performance_level: None,
+            clocks_configuration: ClocksConfiguration::default(),
+            power_profile_mode_index: None,
+            power_states: HashMap::new(),
+        };
+
+        assert!(!gpu.is_core_clocks_used());
+        gpu.clocks_configuration.voltage_offset = Some(10);
+        assert!(gpu.is_core_clocks_used());
     }
 }
