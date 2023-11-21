@@ -1102,6 +1102,7 @@ checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
 dependencies = [
  "autocfg",
  "hashbrown 0.12.3",
+ "serde",
 ]
 
 [[package]]
@@ -1112,7 +1113,6 @@ checksum = "8adf3ddd720272c6ea8bf59463c04e0f93d0bbf7c5439b691bca2987e0270897"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.1",
- "serde",
 ]
 
 [[package]]
@@ -1143,7 +1143,7 @@ checksum = "af150ab688ff2122fcef229be89cb50dd66af9e01a4ff320cc137eecc9bacc38"
 
 [[package]]
 name = "lact"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "lact-cli",
@@ -1154,7 +1154,7 @@ dependencies = [
 
 [[package]]
 name = "lact-cli"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "lact-client",
@@ -1163,7 +1163,7 @@ dependencies = [
 
 [[package]]
 name = "lact-client"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "lact-schema",
@@ -1175,7 +1175,7 @@ dependencies = [
 
 [[package]]
 name = "lact-daemon"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1197,7 +1197,7 @@ dependencies = [
 
 [[package]]
 name = "lact-gui"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "gtk4",
@@ -1210,11 +1210,11 @@ dependencies = [
 
 [[package]]
 name = "lact-schema"
-version = "0.4.6"
+version = "0.5.0"
 dependencies = [
  "amdgpu-sysfs",
  "clap",
- "indexmap 2.0.2",
+ "indexmap 1.9.3",
  "serde",
  "serde_json",
 ]
