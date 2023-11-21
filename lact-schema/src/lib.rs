@@ -231,6 +231,12 @@ pub struct PowerStates {
     pub vram: Vec<PowerState<u64>>,
 }
 
+impl PowerStates {
+    pub fn is_empty(&self) -> bool {
+        self.core.is_empty() && self.vram.is_empty()
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct PowerState<T> {
     pub enabled: bool,
