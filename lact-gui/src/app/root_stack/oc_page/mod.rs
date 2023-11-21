@@ -2,9 +2,11 @@ mod clocks_frame;
 mod gpu_stats_section;
 mod oc_adjustment;
 mod performance_frame;
-mod power_cap_frame;
+mod power_cap_section;
+// mod power_cap_frame;
 mod power_states;
 
+use self::power_cap_section::PowerCapSection;
 use self::power_states::power_states_frame::PowerStatesFrame;
 use clocks_frame::ClocksFrame;
 use gpu_stats_section::GpuStatsSection;
@@ -16,7 +18,7 @@ use lact_client::schema::{
     DeviceStats, SystemInfo,
 };
 use performance_frame::PerformanceFrame;
-use power_cap_frame::PowerCapFrame;
+// use power_cap_frame::PowerCapFrame;
 use std::collections::HashMap;
 use tracing::warn;
 
@@ -28,7 +30,8 @@ pub struct OcPage {
     pub container: ScrolledWindow,
     stats_section: GpuStatsSection,
     pub performance_frame: PerformanceFrame,
-    power_cap_frame: PowerCapFrame,
+    // power_cap_frame: PowerCapFrame,
+    power_cap_section: PowerCapSection,
     pub power_states_frame: PowerStatesFrame,
     pub clocks_frame: ClocksFrame,
     pub enable_overclocking_button: Option<Button>,
@@ -58,7 +61,7 @@ impl OcPage {
         let stats_section = GpuStatsSection::new();
         vbox.append(&stats_section);
 
-        let power_cap_frame = PowerCapFrame::new();
+        let power_cap_section = PowerCapSection::new();
         let performance_level_frame = PerformanceFrame::new();
         let clocks_frame = ClocksFrame::new();
         let power_states_frame = PowerStatesFrame::new();
@@ -70,7 +73,7 @@ impl OcPage {
             }),
         );
 
-        vbox.append(&power_cap_frame.container);
+        vbox.append(&power_cap_section);
         vbox.append(&performance_level_frame.container);
         vbox.append(&power_states_frame);
         vbox.append(&clocks_frame.container);
@@ -82,7 +85,7 @@ impl OcPage {
             stats_section,
             performance_frame: performance_level_frame,
             clocks_frame,
-            power_cap_frame,
+            power_cap_section,
             enable_overclocking_button,
             power_states_frame,
         }
@@ -92,11 +95,20 @@ impl OcPage {
         self.stats_section.set_stats(stats);
         self.power_states_frame.set_stats(stats);
         if initial {
-            self.power_cap_frame.set_data(
-                stats.power.cap_current,
-                stats.power.cap_max,
-                stats.power.cap_default,
-            );
+            self.power_cap_section
+                .set_max_value(stats.power.cap_max.unwrap_or_default());
+            self.power_cap_section
+                .set_min_value(stats.power.cap_min.unwrap_or_default());
+            self.power_cap_section
+                .set_default_value(stats.power.cap_default.unwrap_or_default());
+
+            if let Some(current_cap) = stats.power.cap_current {
+                self.power_cap_section.set_initial_value(current_cap);
+                self.power_cap_section.set_visible(true);
+            } else {
+                self.power_cap_section.set_visible(false);
+            }
+
             self.set_performance_level(stats.performance_level);
         }
     }
@@ -120,7 +132,8 @@ impl OcPage {
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         self.performance_frame.connect_settings_changed(f.clone());
-        self.power_cap_frame.connect_cap_changed(f.clone());
+        self.power_cap_section
+            .connect_current_value_notify(clone!(@strong f => move |_| f()));
         self.clocks_frame.connect_clocks_changed(f.clone());
         self.power_states_frame.connect_values_changed(f);
     }
@@ -145,7 +158,7 @@ impl OcPage {
     }
 
     pub fn get_power_cap(&self) -> Option<f64> {
-        self.power_cap_frame.get_cap()
+        self.power_cap_section.get_user_cap()
     }
 
     pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
