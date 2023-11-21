@@ -32,7 +32,12 @@ pub struct InformationPage {
 
 impl InformationPage {
     pub fn new() -> Self {
-        let vbox = Box::new(Orientation::Vertical, 15);
+        let vbox = Box::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(15)
+            .margin_start(20)
+            .margin_end(20)
+            .build();
 
         let info_container = PageSection::new("Hardware Information");
 

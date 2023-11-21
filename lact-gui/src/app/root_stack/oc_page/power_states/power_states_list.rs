@@ -50,13 +50,13 @@ impl PowerStatesList {
         }
     }
 
-    pub fn set_active_state(&self, i: usize) {
+    pub fn set_active_state(&self, i: Option<usize>) {
         let imp = self.imp();
 
         for object in imp.states_listbox.observe_children().into_iter().flatten() {
             let list_row: ListBoxRow = object.downcast().unwrap();
             if let Some(row) = list_row.child().and_downcast::<PowerStateRow>() {
-                let active = row.index() == i as u8;
+                let active = Some(row.index() as usize) == i;
                 row.set_active(active);
             }
         }

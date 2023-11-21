@@ -32,7 +32,12 @@ pub struct ThermalsPage {
 
 impl ThermalsPage {
     pub fn new() -> Self {
-        let container = Box::new(Orientation::Vertical, 15);
+        let container = Box::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(15)
+            .margin_start(20)
+            .margin_end(20)
+            .build();
 
         let stats_section = PageSection::new("Statistics");
         let stats_grid = values_grid();
