@@ -15,6 +15,7 @@ use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
 use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
+use libadwaita::Application;
 use root_stack::RootStack;
 use std::cell::RefCell;
 use std::rc::Rc;

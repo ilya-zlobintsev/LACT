@@ -15,6 +15,7 @@ gtk = { version = "0.7", package = "gtk4", features = ["v4_6", "blueprint"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
+libadwaita = "0.5.3"
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"
