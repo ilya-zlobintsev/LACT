@@ -73,7 +73,7 @@ Dependencies:
 - make
 - hwdata
 - libdrm
-- blueprint-compiler
+- blueprint-compiler 0.10.0 or higher (Ubuntu 22.04 in particular ships an older version in the repos, you can manually download a [deb file](http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb) of a new version)
 
 Steps:
 - `git clone https://github.com/ilya-zlobintsev/LACT && cd LACT`
