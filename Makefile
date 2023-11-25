@@ -6,7 +6,7 @@ build-release:
 
 install:
 	install -Dm755 target/release/lact ${DESTDIR}/bin/lact
-	install -Dm755 res/lactd.service ${DESTDIR}/lib/systemd/system/lactd.service
+	install -Dm644 res/lactd.service ${DESTDIR}/lib/systemd/system/lactd.service
 	install -Dm755 res/io.github.lact-linux.desktop ${DESTDIR}/share/applications/io.github.lact-linux.desktop
 	install -Dm755 res/io.github.lact-linux.png ${DESTDIR}/share/pixmaps/io.github.lact-linux.png
 
