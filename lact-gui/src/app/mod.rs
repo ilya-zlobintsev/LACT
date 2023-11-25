@@ -83,7 +83,7 @@ impl App {
         }
     }
 
-    pub fn run(self) -> anyhow::Result<()> {
+    pub fn run(self, connection_err: Option<anyhow::Error>) -> anyhow::Result<()> {
         self.application
             .connect_activate(clone!(@strong self as app => move |_| {
                 app.window.set_application(Some(&app.application));
@@ -151,13 +151,17 @@ impl App {
                 app.window.show();
 
                 if app.daemon_client.embedded {
-                    let text = "Could not connect to daemon, running in embedded mode. \n\
-                        Please make sure the lactd service is running. \n\
-                        Using embedded mode, you will not be able to change any settings. \n\
-                        \n\
-                        To enable the daemon, run the following command:";
+                    let error_text = connection_err.as_ref().map(|err| {
+                        format!("Error info: {err:#}\n\n")
+                    }).unwrap_or_default();
 
-                    let text_label = Label::new(Some(text));
+                    let text = format!("Could not connect to daemon, running in embedded mode. \n\
+                        Please make sure the lactd service is running. \n\
+                        Using embedded mode, you will not be able to change any settings. \n\n\
+                        {error_text}\
+                        To enable the daemon, run the following command:");
+
+                    let text_label = Label::new(Some(&text));
                     let enable_label = Entry::builder()
                         .text("sudo systemctl enable --now lactd")
                         .editable(false)

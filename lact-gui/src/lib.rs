@@ -21,17 +21,17 @@ pub fn run(args: GuiArgs) -> anyhow::Result<()> {
         return Err(anyhow!("Cannot initialize GTK: {err}"));
     }
 
-    let connection = create_connection()?;
+    let (connection, connection_err) = create_connection()?;
     let app = App::new(connection);
 
-    app.run()
+    app.run(connection_err)
 }
 
-fn create_connection() -> anyhow::Result<DaemonClient> {
+fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
     match DaemonClient::connect() {
-        Ok(connection) => Ok(connection),
+        Ok(connection) => Ok((connection, None)),
         Err(err) => {
-            info!("could not connect to socket: {err}");
+            info!("could not connect to socket: {err:#}");
             info!("using a local daemon");
 
             let (server_stream, client_stream) = UnixStream::pair()?;
@@ -42,7 +42,8 @@ fn create_connection() -> anyhow::Result<DaemonClient> {
                 }
             });
 
-            DaemonClient::from_stream(client_stream, true)
+            let client = DaemonClient::from_stream(client_stream, true)?;
+            Ok((client, Some(err)))
         }
     }
 }
