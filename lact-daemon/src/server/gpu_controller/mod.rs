@@ -175,14 +175,13 @@ impl GpuController {
 
     #[cfg(feature = "libdrm_amdgpu_sys")]
     fn get_full_vbios_version(&self) -> Option<String> {
-        self.handle.get_vbios_version().ok().map(|mut base| {
-            if let Some(drm_handle) = &self.drm_handle {
-                if let Ok(vbios_info) = drm_handle.get_vbios_info() {
-                    base = format!("{base} [{}]", vbios_info.date);
-                }
+        if let Some(drm_handle) = &self.drm_handle {
+            if let Ok(vbios_info) = drm_handle.get_vbios_info() {
+                return Some(format!("{} [{}]", vbios_info.ver, vbios_info.date));
             }
-            base
-        })
+        }
+
+        self.handle.get_vbios_version().ok()
     }
 
     #[cfg(not(feature = "libdrm_amdgpu_sys"))]
