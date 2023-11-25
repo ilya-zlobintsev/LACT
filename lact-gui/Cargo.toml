@@ -10,7 +10,7 @@ gtk-tests = []
 
 [dependencies]
 lact-client = { path = "../lact-client" }
-lact-daemon = { path = "../lact-daemon" }
+lact-daemon = { path = "../lact-daemon", default-features = false }
 gtk = { version = "0.7", package = "gtk4", features = ["v4_6", "blueprint"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
