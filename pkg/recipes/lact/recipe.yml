@@ -35,5 +35,5 @@ build:
     - cmd: bash -c "source $HOME/.cargo/env && make"
 install:
   steps:
-    - cmd: bash -c "cd $PKGER_BLD_DIR && DESTDIR=$PKGER_OUT_DIR/usr make install"
+    - cmd: bash -c "cd $PKGER_BLD_DIR && DESTDIR=$PKGER_OUT_DIR PREFIX=/usr make install"
 
