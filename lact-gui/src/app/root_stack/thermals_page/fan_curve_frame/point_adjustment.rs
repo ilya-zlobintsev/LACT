@@ -23,7 +23,7 @@ impl PointAdjustment {
             .hexpand(true)
             .vexpand(true)
             .inverted(true)
-            .tooltip_text("Fan speed (%)")
+            .tooltip_text("Fan speed")
             .digits(3)
             .draw_value(true)
             .build();

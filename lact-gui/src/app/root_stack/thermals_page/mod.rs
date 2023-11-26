@@ -56,8 +56,11 @@ impl ThermalsPage {
 
         let fan_static_speed_frame = Box::builder()
             .orientation(Orientation::Horizontal)
-            .spacing(5)
-            .valign(Align::Start)
+            .spacing(12)
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
             .build();
         let fan_static_speed_adjustment = static_speed_adj(&fan_static_speed_frame);
 
@@ -78,7 +81,15 @@ impl ThermalsPage {
 
         fan_control_mode_stack.add_titled(&fan_curve_frame.container, Some("curve"), "Curve");
 
-        fan_control_mode_stack.add_titled(&fan_static_speed_frame, Some("static"), "Static");
+        fan_control_mode_stack.add_titled(
+            &libadwaita::Bin::builder()
+                .css_classes(["card"])
+                .valign(Align::Start)
+                .child(&fan_static_speed_frame)
+                .build(),
+            Some("static"),
+            "Static",
+        );
 
         fan_control_section.append(&fan_control_mode_stack_switcher);
         fan_control_section.append(&fan_control_mode_stack);
@@ -212,10 +223,7 @@ impl ThermalsPage {
 }
 
 fn static_speed_adj(parent_box: &Box) -> Adjustment {
-    let label = Label::builder()
-        .label("Speed (in %)")
-        .halign(Align::Start)
-        .build();
+    let label = Label::builder().label("Speed").halign(Align::Start).build();
 
     let adjustment = Adjustment::new(0.0, 0.0, 100.0, 0.1, 1.0, 0.0);
 
@@ -223,22 +231,20 @@ fn static_speed_adj(parent_box: &Box) -> Adjustment {
         .orientation(Orientation::Horizontal)
         .adjustment(&adjustment)
         .hexpand(true)
-        .margin_start(5)
-        .margin_end(5)
         .build();
 
     let value_selector = SpinButton::new(Some(&adjustment), 1.0, 1);
-    let value_label = Label::new(None);
+    let value_label = Label::builder().margin_start(12).margin_end(12).build();
 
     let popover = Popover::builder().child(&value_selector).build();
     let value_button = MenuButton::builder()
+        .css_classes(["circular"])
         .popover(&popover)
         .child(&value_label)
         .build();
 
     adjustment.connect_value_changed(clone!(@strong value_label => move |adjustment| {
-        let value = adjustment.value();
-        value_label.set_text(&format!("{value:.1}"));
+        value_label.set_text(&format!("{:.1}%", adjustment.value()));
     }));
 
     adjustment.set_value(50.0);
