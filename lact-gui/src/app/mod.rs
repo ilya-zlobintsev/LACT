@@ -45,7 +45,7 @@ impl App {
             .title("LACT")
             .default_width(700)
             .default_height(820)
-            .width_request(300)
+            .width_request(350)
             .height_request(200)
             .icon_name(APP_ID)
             .build();
