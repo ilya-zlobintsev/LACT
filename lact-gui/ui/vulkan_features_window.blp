@@ -1,23 +1,33 @@
 using Gtk 4.0;
+using Adw 1;
 
-template $VulkanFeaturesWindow: Window {
+template $VulkanFeaturesWindow: Adw.Window {
   default-height: 700;
   default-width: 500;
 
-  Box {
-    orientation: vertical;
-
-    SearchEntry search_entry {}
-
-    ScrolledWindow {
-      vexpand: true;
-
-      ListView {
-        factory: features_factory;
-        model: selection_model;
-        show-separators: true;
-      }
+  Adw.ToolbarView {
+    [top] Adw.HeaderBar {}
+    [top] SearchEntry search_entry {
+        margin-top: 6;
+        margin-bottom: 12;
+        margin-start: 12;
+        margin-end: 6;
     }
+
+    content: Box {
+      orientation: vertical;
+  
+      ScrolledWindow {
+        vexpand: true;
+        hscrollbar-policy: never;
+  
+        ListView {
+          factory: features_factory;
+          model: selection_model;
+          show-separators: true;
+        }
+      }
+    };
   }
 }
 

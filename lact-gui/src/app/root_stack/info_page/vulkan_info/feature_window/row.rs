@@ -77,6 +77,16 @@ mod imp {
                 })
                 .sync_create()
                 .build();
+            obj.bind_property("feature", &self.available_image.get(), "tooltip-text")
+                .transform_to(|_, feature: VulkanFeature| {
+                    if feature.supported() {
+                        Some("Supported")
+                    } else {
+                        Some("Unsupported")
+                    }
+                })
+                .sync_create()
+                .build();
         }
     }
 

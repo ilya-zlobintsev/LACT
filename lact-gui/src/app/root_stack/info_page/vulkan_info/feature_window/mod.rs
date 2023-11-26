@@ -6,7 +6,7 @@ use gtk::{gio, glib};
 
 glib::wrapper! {
     pub struct VulkanFeaturesWindow(ObjectSubclass<imp::VulkanFeaturesWindow>)
-        @extends gtk::Box, gtk::Widget, gtk::Window,
+        @extends gtk::Box, gtk::Widget, gtk::Window, libadwaita::Window,
         @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
 }
 
@@ -33,6 +33,7 @@ mod imp {
         CompositeTemplate, Expression, FilterListModel, PropertyExpression, SearchEntry,
         SignalListItemFactory, StringFilter, TemplateChild,
     };
+    use libadwaita::subclass::window::AdwWindowImpl;
     use std::cell::RefCell;
 
     #[derive(CompositeTemplate, Properties, Default)]
@@ -57,7 +58,7 @@ mod imp {
     impl ObjectSubclass for VulkanFeaturesWindow {
         const NAME: &'static str = "VulkanFeaturesWindow";
         type Type = super::VulkanFeaturesWindow;
-        type ParentType = gtk::Window;
+        type ParentType = libadwaita::Window;
 
         fn class_init(class: &mut Self::Class) {
             class.bind_template();
@@ -116,5 +117,6 @@ mod imp {
 
     impl WidgetImpl for VulkanFeaturesWindow {}
     impl WindowImpl for VulkanFeaturesWindow {}
+    impl AdwWindowImpl for VulkanFeaturesWindow {}
     impl ApplicationWindowImpl for VulkanFeaturesWindow {}
 }
