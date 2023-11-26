@@ -4,22 +4,21 @@ use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::amdgpu_sysfs;
 use lact_client::schema::amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable, ClocksTableGen};
+use libadwaita::prelude::ActionRowExt;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::debug;
 
 const VOLTAGE_OFFSET_RANGE: f64 = 250.0;
-const WARNING_TEXT: &str = "Warning: changing these values may lead to system instability and potentially damage your hardware!";
 
 // The AtomicBool stores if the value was changed
 #[derive(Clone)]
 pub struct ClocksFrame {
     pub container: PageSection,
-    tweaking_grid: Grid,
-    modes_switcher_box: Box,
-    basic_togglebutton: ToggleButton,
-    advanced_togglebutton: ToggleButton,
-    min_values_grid: Grid,
+    max_values_box: Box,
+    heading_listbox: ListBox,
+    advanced_switch_row: libadwaita::SwitchRow,
+    min_values_box: Box,
     min_sclk_adjustment: (Adjustment, Rc<AtomicBool>),
     min_mclk_adjustment: (Adjustment, Rc<AtomicBool>),
     min_voltage_adjustment: (Adjustment, Rc<AtomicBool>),
@@ -28,7 +27,6 @@ pub struct ClocksFrame {
     max_voltage_adjustment: (Adjustment, Rc<AtomicBool>),
     voltage_offset_adjustment: (Adjustment, Rc<AtomicBool>),
     reset_button: Button,
-    warning_label: Label,
     clocks_data_unavailable_label: Label,
 }
 
@@ -36,55 +34,94 @@ impl ClocksFrame {
     pub fn new() -> Self {
         let container = PageSection::new("Clockspeed and voltage");
 
-        let warning_label = Label::builder()
-            .label(WARNING_TEXT)
-            .wrap_mode(pango::WrapMode::Word)
-            .halign(Align::Start)
-            .margin_top(5)
-            .margin_bottom(5)
+        let heading_listbox = ListBox::builder()
+            .css_classes(["boxed-list"])
+            .selection_mode(SelectionMode::None)
             .build();
-        container.append(&warning_label);
 
-        let modes_switcher_box = Box::new(Orientation::Horizontal, 0);
+        heading_listbox.append(&libadwaita::ActionRow::builder()
+            .css_classes(["warning"])
+            .title("Warning!")
+            .subtitle("Changing these values may lead to system instability and potentially damage your hardware!")
+            .subtitle_lines(0)
+            .build());
 
-        let modes_switcher_label = Label::builder()
-            .label("Configuration mode:")
-            .hexpand(true)
-            .halign(Align::Start)
+        let advanced_switch_row = libadwaita::SwitchRow::builder()
+            .title("Advanced mode")
+            .active(false)
             .build();
-        let basic_togglebutton = ToggleButton::builder().label("Basic").build();
-        let advanced_togglebutton = ToggleButton::builder().label("Advanced").build();
+        heading_listbox.append(&advanced_switch_row);
 
-        modes_switcher_box.append(&modes_switcher_label);
-        modes_switcher_box.append(&basic_togglebutton);
-        modes_switcher_box.append(&advanced_togglebutton);
+        container.append(&heading_listbox);
 
-        container.append(&modes_switcher_box);
+        let min_values_box = Box::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(12)
+            .build();
+        min_values_box.append(
+            &Label::builder()
+                .label("Minimum Values")
+                .xalign(0.0)
+                .css_classes(["title-4"])
+                .build(),
+        );
+        let min_values_listbox = ListBox::builder()
+            .css_classes(["boxed-list"])
+            .selection_mode(SelectionMode::None)
+            .build();
+        min_values_box.append(&min_values_listbox);
 
-        let min_values_grid = Grid::builder().row_spacing(5).build();
+        let min_sclk_adjustment = oc_adjustment("Minimum GPU Clock (MHz)", &min_values_listbox);
+        let min_mclk_adjustment = oc_adjustment("Minimum VRAM Clock (MHz)", &min_values_listbox);
+        let min_voltage_adjustment = oc_adjustment("Minimum GPU voltage (mV)", &min_values_listbox);
 
-        let min_sclk_adjustment = oc_adjustment("Minimum GPU Clock (MHz)", &min_values_grid, 0);
-        let min_mclk_adjustment = oc_adjustment("Minimum VRAM Clock (MHz)", &min_values_grid, 1);
-        let min_voltage_adjustment = oc_adjustment("Minimum GPU voltage (mV)", &min_values_grid, 2);
+        container.append(&min_values_box);
 
-        container.append(&min_values_grid);
+        let max_values_box = Box::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(12)
+            .build();
+        max_values_box.append(
+            &Label::builder()
+                .label("Maximum Values")
+                .xalign(0.0)
+                .css_classes(["title-4"])
+                .build(),
+        );
+        let max_values_listbox = ListBox::builder()
+            .css_classes(["boxed-list"])
+            .selection_mode(SelectionMode::None)
+            .build();
+        max_values_box.append(&max_values_listbox);
 
-        let tweaking_grid = Grid::builder().row_spacing(5).build();
-
-        let max_sclk_adjustment = oc_adjustment("Maximum GPU Clock (MHz)", &tweaking_grid, 1);
-        let max_voltage_adjustment = oc_adjustment("Maximum GPU voltage (mV)", &tweaking_grid, 2);
-        let max_mclk_adjustment = oc_adjustment("Maximum VRAM Clock (MHz)", &tweaking_grid, 3);
-        let voltage_offset_adjustment = oc_adjustment("GPU voltage offset (mV)", &tweaking_grid, 4);
+        let max_sclk_adjustment = oc_adjustment("Maximum GPU Clock (MHz)", &max_values_listbox);
+        let max_voltage_adjustment = oc_adjustment("Maximum GPU voltage (mV)", &max_values_listbox);
+        let max_mclk_adjustment = oc_adjustment("Maximum VRAM Clock (MHz)", &max_values_listbox);
+        let voltage_offset_adjustment =
+            oc_adjustment("GPU voltage offset (mV)", &max_values_listbox);
 
         let reset_button = Button::builder()
             .label("Reset")
-            .halign(Align::Fill)
-            .margin_top(5)
-            .margin_bottom(5)
-            .tooltip_text("Warning: this resets all clock settings to defaults!")
-            .css_classes(["destructive-action"])
+            .child(
+                &Label::builder()
+                    .label("Reset")
+                    .margin_start(12)
+                    .margin_end(12)
+                    .build(),
+            )
+            .valign(Align::Center)
+            .halign(Align::Center)
+            .css_classes(["destructive-action", "circular"])
             .build();
-        tweaking_grid.attach(&reset_button, 6, 5, 1, 1);
+        let reset_row = libadwaita::ActionRow::builder()
+            .title("Reset values")
+            .subtitle(
+                "Warning: this will reset all clock and voltage settings to their default values",
+            )
+            .subtitle_lines(0)
+            .build();
+        reset_row.add_suffix(&reset_button);
+        max_values_listbox.append(&reset_row);
 
         let clocks_data_unavailable_label = Label::builder()
             .label("No clocks data available")
@@ -92,12 +129,14 @@ impl ClocksFrame {
             .halign(Align::Start)
             .build();
 
-        container.append(&tweaking_grid);
+        container.append(&max_values_box);
         container.append(&clocks_data_unavailable_label);
 
         let frame = Self {
             container,
-            tweaking_grid,
+            max_values_box,
+            heading_listbox,
+            advanced_switch_row,
             min_sclk_adjustment,
             min_mclk_adjustment,
             min_voltage_adjustment,
@@ -107,24 +146,15 @@ impl ClocksFrame {
             reset_button,
             clocks_data_unavailable_label,
             voltage_offset_adjustment,
-            advanced_togglebutton,
-            basic_togglebutton,
-            min_values_grid,
-            warning_label,
-            modes_switcher_box,
+            min_values_box,
         };
 
         frame.set_configuration_mode(false);
 
         frame
-            .basic_togglebutton
-            .connect_clicked(clone!(@strong frame => move |button| {
-                frame.set_configuration_mode(!button.is_active());
-            }));
-        frame
-            .advanced_togglebutton
-            .connect_clicked(clone!(@strong frame => move |button| {
-                frame.set_configuration_mode(button.is_active());
+            .advanced_switch_row
+            .connect_active_notify(clone!(@strong frame => move |row| {
+                frame.set_configuration_mode(row.is_active());
             }));
 
         frame
@@ -258,16 +288,14 @@ impl ClocksFrame {
     }
 
     pub fn show(&self) {
-        self.tweaking_grid.show();
-        self.modes_switcher_box.show();
-        self.warning_label.show();
+        self.max_values_box.show();
+        self.heading_listbox.show();
         self.clocks_data_unavailable_label.hide();
     }
 
     pub fn hide(&self) {
-        self.tweaking_grid.hide();
-        self.modes_switcher_box.hide();
-        self.warning_label.hide();
+        self.max_values_box.hide();
+        self.heading_listbox.hide();
         self.clocks_data_unavailable_label.show();
     }
 
@@ -291,7 +319,7 @@ impl ClocksFrame {
     }
 
     pub fn get_settings(&self) -> ClocksSettings {
-        if self.tweaking_grid.is_visible() {
+        if self.max_values_box.is_visible() {
             let min_core_clock = get_adjustment_value(&self.min_sclk_adjustment);
             let min_memory_clock = get_adjustment_value(&self.min_mclk_adjustment);
             let min_voltage = get_adjustment_value(&self.min_voltage_adjustment);
@@ -320,10 +348,7 @@ impl ClocksFrame {
     }
 
     fn set_configuration_mode(&self, advanced: bool) {
-        self.advanced_togglebutton.set_active(advanced);
-        self.basic_togglebutton.set_active(!advanced);
-
-        self.min_values_grid.set_visible(advanced);
+        self.min_values_box.set_visible(advanced);
     }
 }
 
@@ -342,64 +367,26 @@ fn extract_value_and_range(
     Some((value, min, max))
 }
 
-fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> (Adjustment, Rc<AtomicBool>) {
-    let label = Label::builder().label(title).halign(Align::Start).build();
-
+fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<AtomicBool>) {
     let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
 
-    let scale = Scale::builder()
-        .orientation(Orientation::Horizontal)
+    let value_selector = libadwaita::SpinRow::builder()
+        .title(title)
         .adjustment(&adjustment)
-        .hexpand(true)
-        .round_digits(0)
-        .digits(0)
-        .value_pos(PositionType::Right)
-        .margin_start(5)
-        .margin_end(5)
-        .build();
-
-    let value_selector = SpinButton::new(Some(&adjustment), 1.0, 0);
-    let value_label = Label::new(None);
-
-    let popover = Popover::builder().child(&value_selector).build();
-    let value_button = MenuButton::builder()
-        .popover(&popover)
-        .child(&value_label)
         .build();
 
     let changed = Rc::new(AtomicBool::new(false));
 
-    adjustment.connect_value_changed(
-        clone!(@strong value_label, @strong changed => move |adjustment| {
-            changed.store(true, Ordering::SeqCst);
+    adjustment.connect_value_changed(clone!(@strong changed => move |_| {
+        changed.store(true, Ordering::SeqCst);
+    }));
 
-            let value = adjustment.value();
-            value_label.set_text(&value.to_string());
-        }),
-    );
-
-    adjustment.connect_changed(
-        clone!(@strong label, @strong value_label, @strong scale, @strong value_button => move |adjustment| {
-            let value = adjustment.value();
-            value_label.set_text(&value.to_string());
-
-            if adjustment.upper() == 0.0 {
-                label.hide();
-                value_label.hide();
-                scale.hide();
-                value_button.hide();
-            } else {
-                label.show();
-                value_label.show();
-                scale.show();
-                value_button.show();
-            }
+    adjustment.connect_changed(clone!(@strong value_selector => move |adjustment| {
+            value_selector.set_sensitive(adjustment.upper() == 0.0);
         }
     ));
 
-    grid.attach(&label, 0, row, 1, 1);
-    grid.attach(&scale, 1, row, 4, 1);
-    grid.attach(&value_button, 6, row, 4, 1);
+    listbox.append(&value_selector);
 
     (adjustment, changed)
 }
