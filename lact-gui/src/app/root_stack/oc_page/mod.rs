@@ -22,6 +22,8 @@ use performance_frame::PerformanceFrame;
 use std::collections::HashMap;
 use tracing::warn;
 
+use super::list_clamp;
+
 const OVERCLOCKING_DISABLED_TEXT: &str = "Overclocking support is not enabled! \
 You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
 
@@ -45,9 +47,7 @@ impl OcPage {
 
         let vbox = Box::builder()
             .orientation(Orientation::Vertical)
-            .spacing(15)
-            .margin_start(20)
-            .margin_end(20)
+            .spacing(12)
             .build();
 
         let mut enable_overclocking_button = None;
@@ -78,7 +78,7 @@ impl OcPage {
         vbox.append(&power_states_frame);
         vbox.append(&clocks_frame.container);
 
-        container.set_child(Some(&vbox));
+        container.set_child(Some(&list_clamp(&vbox)));
 
         Self {
             container,

@@ -88,8 +88,7 @@ impl ClocksFrame {
 
         let clocks_data_unavailable_label = Label::builder()
             .label("No clocks data available")
-            .margin_start(10)
-            .margin_end(10)
+            .css_classes(["error"])
             .halign(Align::Start)
             .build();
 

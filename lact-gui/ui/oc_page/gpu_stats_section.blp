@@ -1,74 +1,98 @@
 using Gtk 4.0;
+using Adw 1;
 
 template $GpuStatsSection: $PageSection {
     name: "Statistics";
-    spacing: 10;
+    spacing: 12;
 
     Box {
-        orientation: horizontal;
-        spacing: 5;
+        styles ["card"]
+        orientation: vertical;
+        spacing: 12;
 
-        Label {
-            label: "VRAM Usage:";
+        Box {
+            orientation: vertical;
+            margin-top: 12;
+            margin-start: 12;
+            margin-end: 12;
+            spacing: 6;
+
+            Label {
+                label: "VRAM Usage";
+                xalign: 0.0;
+            }
+
+            Overlay {
+                LevelBar vram_usage_bar {
+                    hexpand: true;
+                    height-request: 18;
+                    value: bind template.vram-usage;
+                    orientation: horizontal;
+                }
+
+                [overlay]
+                Label vram_usage_label {
+                    label: bind template.vram-usage-text;
+                }
+            }
         }
 
-        Overlay {
-            LevelBar vram_usage_bar {
+        Separator {
+            orientation: horizontal;
+        }
+
+        Box {
+            orientation: horizontal;
+            margin-bottom: 12;
+            margin-start: 12;
+            margin-end: 12;
+            homogeneous: true;
+            spacing: 12;
+
+            Box {
+                orientation: vertical;
                 hexpand: true;
-                value: bind template.vram-usage;
-                orientation: horizontal;
+                spacing: 6;
+
+                $InfoRow {
+                    name: "GPU Core Clock:";
+                    value: bind template.core-clock;
+                }
+
+                $InfoRow {
+                    name: "GPU Voltage:";
+                    value: bind template.voltage;
+                }
+
+                $InfoRow {
+                    name: "GPU Temperature (hotspot):";
+                    value: bind template.temperature;
+                }
             }
 
-            [overlay]
-            Label vram_usage_label {
-                label: bind template.vram-usage-text;
-            }
-        }
-    }
+            //Separator {
+            //    orientation: vertical;
+            //}
 
-    Box {
-        orientation: horizontal;
-        spacing: 10;
+            Box {
+                orientation: vertical;
+                hexpand: true;
+                spacing: 6;
 
-        Box {
-            orientation: vertical;
-            hexpand: true;
-            spacing: 5;
+                $InfoRow {
+                    name: "GPU Memory Clock:";
+                    value: bind template.vram-clock;
+                }
 
-            $InfoRow {
-                name: "GPU Core Clock:";
-                value: bind template.core-clock;
-            }
+                $InfoRow {
+                    name: "GPU Usage:";
+                    value: bind template.gpu-usage;
+                }
 
-            $InfoRow {
-                name: "GPU Voltage:";
-                value: bind template.voltage;
-            }
-
-            $InfoRow {
-                name: "GPU Temperature (hotspot):";
-                value: bind template.temperature;
-            }
-        }
-
-        Box {
-            orientation: vertical;
-            hexpand: true;
-            spacing: 5;
-
-            $InfoRow {
-                name: "GPU Memory Clock:";
-                value: bind template.vram-clock;
-            }
-
-            $InfoRow {
-                name: "GPU Usage:";
-                value: bind template.gpu-usage;
-            }
-
-            $InfoRow {
-                name: "Power Usage:";
-                value: bind template.power-usage;
+                $InfoRow {
+                    name: "Power Usage:";
+                    value: bind template.power-usage;
+                }
             }
         }
     }
