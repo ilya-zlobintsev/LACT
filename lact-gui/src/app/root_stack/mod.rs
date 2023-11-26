@@ -3,12 +3,11 @@ mod oc_page;
 mod software_page;
 mod thermals_page;
 
+use self::software_page::software_page;
 use gtk::{prelude::IsA, traits::GridExt, *};
-use libadwaita::prelude::ActionRowExt;
-
-use self::software_page::SoftwarePage;
 use info_page::InformationPage;
 use lact_client::schema::SystemInfo;
+use libadwaita::prelude::ActionRowExt;
 use oc_page::OcPage;
 use thermals_page::ThermalsPage;
 
@@ -36,7 +35,7 @@ impl RootStack {
 
         container.add_titled(&thermals_page.container, Some("thermals_page"), "Thermals");
 
-        let software_page = SoftwarePage::new(system_info, embedded_daemon);
+        let software_page = software_page(system_info, embedded_daemon);
         container.add_titled(&software_page, Some("software_page"), "Software");
 
         Self {
@@ -106,7 +105,23 @@ impl LabelRow {
         }
     }
 
+    pub fn new_with_content(title: &str, content: &str) -> Self {
+        let row = Self::new(title);
+        row.set_content(content);
+        row
+    }
+
     pub fn set_content(&self, content: &str) {
         self.content_label.set_label(content);
     }
+}
+
+pub fn list_clamp(child: &impl IsA<Widget>) -> libadwaita::Clamp {
+    libadwaita::Clamp::builder()
+        .maximum_size(600)
+        .margin_top(24)
+        .margin_bottom(24)
+        .child(child)
+        .valign(Align::Start)
+        .build()
 }

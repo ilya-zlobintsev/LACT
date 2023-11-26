@@ -1,6 +1,6 @@
 mod vulkan_info;
 
-use super::LabelRow;
+use super::{list_clamp, LabelRow};
 use crate::app::page_section::PageSection;
 use gtk::prelude::*;
 use gtk::*;
@@ -98,12 +98,7 @@ impl InformationPage {
 
         vbox.append(&vulkan_container);
 
-        let clamp = libadwaita::Clamp::builder()
-            .maximum_size(600)
-            .margin_top(24)
-            .margin_bottom(24)
-            .child(&vbox)
-            .build();
+        let clamp = list_clamp(&vbox);
 
         let container = ScrolledWindow::builder()
             .hscrollbar_policy(PolicyType::Never)
