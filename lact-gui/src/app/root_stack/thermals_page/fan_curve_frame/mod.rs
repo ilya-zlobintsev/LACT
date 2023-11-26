@@ -2,11 +2,10 @@ mod point_adjustment;
 
 use self::point_adjustment::PointAdjustment;
 use glib::clone;
-use gtk::graphene::Point;
-use gtk::gsk::Transform;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{default_fan_curve, FanCurveMap};
+use libadwaita::prelude::BinExt;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -14,56 +13,65 @@ use std::rc::Rc;
 #[derive(Clone)]
 pub struct FanCurveFrame {
     pub container: Box,
-    curve_container: Frame,
+    curve_container: libadwaita::Bin,
     points: Rc<RefCell<Vec<PointAdjustment>>>,
 }
 
 impl FanCurveFrame {
     pub fn new() -> Self {
-        let root_box = Box::new(Orientation::Vertical, 5);
+        let root_box = Box::builder()
+            .orientation(Orientation::Vertical)
+            .css_classes(["card"])
+            .height_request(450)
+            .build();
 
         let hbox = Box::new(Orientation::Horizontal, 5);
 
-        let curve_container = Frame::new(Some("Fan Curve"));
-        curve_container.set_hexpand(true);
+        let curve_container = libadwaita::Bin::new();
 
-        curve_container.set_margin_start(10);
-        curve_container.set_margin_end(10);
-        curve_container.set_margin_top(10);
-
-        let ratio_title_label = Label::builder().label("Fan speed (%)").build();
-
-        let fixed = Fixed::new();
-        fixed.put(&ratio_title_label, 0.0, 0.0);
-
-        // This is a workaround to rotate the label that only looks good at the default window size
-        // Unfortunately there's no other way to do this (short of implementing custom rendering for a widget) as gtk4 removed the `angle` property for labels
-        let rotation_transform = Transform::new()
-            .rotate(-90.0)
-            .translate(&Point::new(-200.0, 10.0));
-        fixed.set_child_transform(&ratio_title_label, Some(&rotation_transform));
-
-        hbox.append(&fixed);
         hbox.append(&curve_container);
-
-        let temperature_title_label = Label::new(Some("Temperature (°C)"));
 
         let buttons_box = Box::builder()
             .orientation(Orientation::Horizontal)
-            .spacing(5)
-            .halign(Align::End)
+            .hexpand(true)
+            .spacing(12)
+            .margin_bottom(12)
+            .halign(Align::Center)
             .build();
 
-        let add_button = Button::builder().icon_name("list-add-symbolic").build();
-        let remove_button = Button::builder().icon_name("list-remove-symbolic").build();
-        let default_button = Button::builder().label("Default").build();
+        let add_button = Button::builder()
+            .icon_name("list-add-symbolic")
+            .css_classes(["circular"])
+            .tooltip_text("Add point")
+            .build();
+        let remove_button = Button::builder()
+            .icon_name("list-remove-symbolic")
+            .css_classes(["circular"])
+            .tooltip_text("Remove last point")
+            .build();
+        let default_button = Button::builder()
+            .css_classes(["circular"])
+            .child(
+                &Label::builder()
+                    .label("Reset")
+                    .margin_start(12)
+                    .margin_end(12)
+                    .build(),
+            )
+            .build();
 
-        buttons_box.append(&default_button);
         buttons_box.append(&remove_button);
+        buttons_box.append(&default_button);
         buttons_box.append(&add_button);
 
         root_box.append(&hbox);
-        root_box.append(&temperature_title_label);
+        root_box.append(
+            &Separator::builder()
+                .orientation(Orientation::Horizontal)
+                .margin_top(12)
+                .margin_bottom(12)
+                .build(),
+        );
         root_box.append(&buttons_box);
 
         let points = Rc::new(RefCell::new(Vec::new()));
@@ -119,7 +127,6 @@ impl FanCurveFrame {
 
         let points_container = Box::builder()
             .orientation(Orientation::Horizontal)
-            .spacing(5)
             .vexpand(true)
             .build();
 
