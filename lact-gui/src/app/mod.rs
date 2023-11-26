@@ -43,8 +43,10 @@ impl App {
         let toolbars = Toolbars::new();
         let window = libadwaita::ApplicationWindow::builder()
             .title("LACT")
-            .default_width(600)
+            .default_width(700)
             .default_height(820)
+            .width_request(300)
+            .height_request(200)
             .icon_name(APP_ID)
             .build();
 
@@ -104,6 +106,7 @@ impl App {
             .sidebar(
                 &libadwaita::NavigationPage::builder()
                     .child(&sidebar_view)
+                    .title("LACT")
                     .build(),
             )
             .content(

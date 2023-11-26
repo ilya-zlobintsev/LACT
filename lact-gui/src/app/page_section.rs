@@ -67,9 +67,6 @@ mod imp {
             let obj = self.obj();
 
             obj.bind_property("name", &self.section_label.get(), "label")
-                .transform_to(|_, value: String| {
-                    Some(format!("<span font_desc='13'><b>{value}</b></span>"))
-                })
                 .build();
         }
     }

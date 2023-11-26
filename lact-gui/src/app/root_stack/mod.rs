@@ -21,12 +21,7 @@ pub struct RootStack {
 
 impl RootStack {
     pub fn new(system_info: SystemInfo, embedded_daemon: bool) -> Self {
-        let container = Stack::builder()
-            .vexpand(true)
-            .margin_top(15)
-            .margin_start(30)
-            .margin_end(30)
-            .build();
+        let container = Stack::builder().vexpand(true).hexpand(true).build();
 
         let info_page = InformationPage::new();
 
@@ -52,6 +47,7 @@ impl RootStack {
     }
 }
 
+#[deprecated]
 fn values_row<W: IsA<Widget>>(
     title: &str,
     parent: &Grid,
@@ -65,6 +61,7 @@ fn values_row<W: IsA<Widget>>(
     parent.attach(value_child, column_offset + 1, row, 1, 1);
 }
 
+#[deprecated]
 fn label_row(title: &str, parent: &Grid, row: i32, column_offset: i32, selectable: bool) -> Label {
     let value_label = Label::builder()
         .halign(Align::End)
@@ -76,6 +73,7 @@ fn label_row(title: &str, parent: &Grid, row: i32, column_offset: i32, selectabl
     value_label
 }
 
+#[deprecated]
 fn values_grid() -> Grid {
     Grid::builder()
         .margin_start(10)
