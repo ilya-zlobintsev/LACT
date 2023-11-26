@@ -91,6 +91,8 @@ pub fn list_clamp(child: &impl IsA<Widget>) -> libadwaita::Clamp {
         .maximum_size(600)
         .margin_top(24)
         .margin_bottom(24)
+        .margin_start(6)
+        .margin_end(6)
         .child(child)
         .valign(Align::Start)
         .build()
