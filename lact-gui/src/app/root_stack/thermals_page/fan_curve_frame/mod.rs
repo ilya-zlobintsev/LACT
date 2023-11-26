@@ -5,7 +5,6 @@ use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{default_fan_curve, FanCurveMap};
-use libadwaita::prelude::BinExt;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -13,7 +12,7 @@ use std::rc::Rc;
 #[derive(Clone)]
 pub struct FanCurveFrame {
     pub container: Box,
-    curve_container: libadwaita::Bin,
+    curve_container: ScrolledWindow,
     points: Rc<RefCell<Vec<PointAdjustment>>>,
 }
 
@@ -27,7 +26,9 @@ impl FanCurveFrame {
 
         let hbox = Box::new(Orientation::Horizontal, 5);
 
-        let curve_container = libadwaita::Bin::new();
+        let curve_container = ScrolledWindow::builder()
+            .vscrollbar_policy(PolicyType::Never)
+            .build();
 
         hbox.append(&curve_container);
 
@@ -68,7 +69,6 @@ impl FanCurveFrame {
         root_box.append(
             &Separator::builder()
                 .orientation(Orientation::Horizontal)
-                .margin_top(12)
                 .margin_bottom(12)
                 .build(),
         );
@@ -127,6 +127,7 @@ impl FanCurveFrame {
 
         let points_container = Box::builder()
             .orientation(Orientation::Horizontal)
+            .margin_bottom(12)
             .vexpand(true)
             .build();
 
