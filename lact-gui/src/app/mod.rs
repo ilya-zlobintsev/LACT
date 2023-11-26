@@ -15,6 +15,7 @@ use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
 use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
+use libadwaita::prelude::MessageDialogExt;
 use root_stack::RootStack;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -155,44 +156,51 @@ impl App {
                         format!("Error info: {err:#}\n\n")
                     }).unwrap_or_default();
 
-                    let text = format!("Could not connect to daemon, running in embedded mode. \n\
-                        Please make sure the lactd service is running. \n\
-                        Using embedded mode, you will not be able to change any settings. \n\n\
-                        {error_text}\
-                        To enable the daemon, run the following command:");
+                    let enable_text = "sudo systemctl enable --now lactd";
 
-                    let text_label = Label::new(Some(&text));
                     let enable_label = Entry::builder()
-                        .text("sudo systemctl enable --now lactd")
+                        .text(enable_text)
+                        .css_classes(["card"])
                         .editable(false)
+                        .hexpand(true)
                         .build();
 
-                    let vbox = Box::builder()
-                        .orientation(Orientation::Vertical)
-                        .margin_top(10)
-                        .margin_bottom(10)
-                        .margin_start(10)
-                        .margin_end(10)
+                    let hbox = Box::builder()
+                        .orientation(Orientation::Horizontal)
+                        .spacing(6)
+                        .build();
+                    let copy_btn = Button::builder()
+                        .css_classes(["circular", "flat"])
+                        .tooltip_text("Copy")
+                        .icon_name("edit-copy-symbolic")
                         .build();
 
-                    let close_button = Button::builder().label("Close").build();
+                    copy_btn.connect_clicked(move |_| {
+                        match gdk::Display::default() {
+                            None => eprintln!("Failed to get default gdk display"),
+                            Some(d) => d.clipboard().set_text(&enable_text)
+                        }
+                    });
 
-                    vbox.append(&text_label);
-                    vbox.append(&enable_label);
-                    vbox.append(&close_button);
+                    hbox.append(&enable_label);
+                    hbox.append(&copy_btn);
 
-                    let diag = MessageDialog::builder()
+                    let diag = libadwaita::MessageDialog::builder()
                         .title("Daemon info")
-                        .message_type(MessageType::Warning)
-                        .child(&vbox)
+                        .heading("Could not connect to daemon")
+                        .body(format!("Running in embedded mode.\n\
+                            Please make sure the lactd service is running.\n\
+                            Using embedded mode, you will not be able to change any settings.\n\n\
+                            {error_text}\
+                            To enable the daemon, run the following command:"))
+                        .extra_child(&hbox)
+                        .modal(true)
                         .transient_for(&app.window)
+                        .hide_on_close(true)
                         .build();
 
-                    close_button.connect_clicked(clone!(@strong diag => move |_| diag.hide()));
-
-                    diag.run_async(|diag, _| {
-                        diag.hide();
-                    })
+                    diag.add_response("close", "_Close");
+                    diag.present();
                 }
             }));
 
