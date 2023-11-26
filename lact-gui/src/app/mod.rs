@@ -60,7 +60,7 @@ impl App {
             show_error(&window, err);
         }
 
-        let root_stack = RootStack::new(system_info, daemon_client.embedded);
+        let root_stack = RootStack::new(window.clone(), system_info, daemon_client.embedded);
 
         {
             let stack = root_stack.container.clone();

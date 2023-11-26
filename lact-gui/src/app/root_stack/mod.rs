@@ -20,7 +20,11 @@ pub struct RootStack {
 }
 
 impl RootStack {
-    pub fn new(system_info: SystemInfo, embedded_daemon: bool) -> Self {
+    pub fn new(
+        root_win: libadwaita::ApplicationWindow,
+        system_info: SystemInfo,
+        embedded_daemon: bool,
+    ) -> Self {
         let container = Stack::builder().vexpand(true).hexpand(true).build();
 
         let info_page = InformationPage::new();
@@ -31,7 +35,7 @@ impl RootStack {
 
         container.add_titled(&oc_page.container, Some("oc_page"), "OC");
 
-        let thermals_page = ThermalsPage::new();
+        let thermals_page = ThermalsPage::new(root_win);
 
         container.add_titled(&thermals_page.container, Some("thermals_page"), "Thermals");
 
