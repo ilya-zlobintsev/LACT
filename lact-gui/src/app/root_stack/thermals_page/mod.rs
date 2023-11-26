@@ -4,6 +4,7 @@ use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{default_fan_curve, DeviceStats, FanControlMode, FanCurveMap};
+use libadwaita::prelude::MessageDialogExt;
 
 use crate::app::page_section::PageSection;
 
@@ -243,9 +244,10 @@ fn static_speed_adj(parent_box: &Box) -> Adjustment {
 }
 
 fn show_fan_control_warning() {
-    let diag = MessageDialog::new(None::<&Window>, DialogFlags::empty(), MessageType::Warning, ButtonsType::Ok,
-                        "Warning! Due to a driver bug, a reboot may be required for fan control to properly switch back to automatic.");
-    diag.run_async(|diag, _| {
-        diag.hide();
-    })
+    let diag = libadwaita::MessageDialog::builder()
+        .heading("Warning")
+        .body("Due to a driver bug, a reboot may be required for fan control to properly switch back to automatic")
+        .build();
+    diag.add_response("ok", "_Ok");
+    diag.present();
 }

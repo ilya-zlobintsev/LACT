@@ -264,7 +264,6 @@ impl App {
                         .extra_child(&hbox)
                         .modal(true)
                         .transient_for(&app.window)
-                        .hide_on_close(true)
                         .build();
 
                     diag.add_response("close", "_Close");
@@ -541,50 +540,62 @@ impl App {
     }
 
     fn enable_overclocking(&self) {
-        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>. Are you sure you want to do this?");
-        // TODO: to libadwaita
-        let dialog = MessageDialog::builder()
-            .title("Enable Overclocking")
-            .use_markup(true)
-            .text(text)
-            .message_type(MessageType::Question)
-            .buttons(ButtonsType::OkCancel)
+        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>");
+        let dialog = libadwaita::MessageDialog::builder()
+            .heading("Enable Overclocking")
+            .body_use_markup(true)
+            .body(text)
+            .modal(true)
             .transient_for(&self.window)
             .build();
 
-        dialog.run_async(clone!(@strong self as app => move |diag, response| {
-            if response == ResponseType::Ok {
+        let res_ok = "ok";
+        let res_cancel = "cancel";
+
+        dialog.add_response(res_cancel, "_Cancel");
+        dialog.add_response(res_ok, "_Ok");
+        dialog.set_response_appearance(res_cancel, libadwaita::ResponseAppearance::Destructive);
+        dialog.set_response_appearance(res_ok, libadwaita::ResponseAppearance::Suggested);
+
+        dialog.connect_response(None, clone!(@strong self as app => move |_, response| {
+            if response == res_ok {
                 match app.daemon_client.enable_overdrive().and_then(|buffer| buffer.inner()) {
                     Ok(_) => {
-                        let success_dialog = MessageDialog::builder()
-                            .title("Success")
-                            .text("Overclocking successfully enabled. A system reboot is required to apply the changes")
-                            .message_type(MessageType::Info)
-                            .buttons(ButtonsType::Ok)
+                        let success_dialog = libadwaita::MessageDialog::builder()
+                            .heading("Success")
+                            .body("Overclocking successfully enabled. A system reboot is required to apply the changes")
+                            .modal(true)
+                            .transient_for(&app.window)
                             .build();
-                        success_dialog.run_async(move |diag, _| {
-                            diag.hide();
-                        });
+                        success_dialog.add_response("ok", "_Ok");
+                        success_dialog.present();
                     }
                     Err(err) => {
                         show_error(&app.window, err);
                     }
                 }
             }
-            diag.hide();
         }));
+
+        dialog.present();
     }
 
     fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
         let text = confirmation_text(delay);
-        // TODO: to libadwaita
-        let dialog = MessageDialog::builder()
-            .title("Confirm settings")
-            .text(text)
-            .message_type(MessageType::Question)
-            .buttons(ButtonsType::YesNo)
+        let dialog = libadwaita::MessageDialog::builder()
+            .heading("Confirm settings")
+            .body(text)
+            .modal(true)
             .transient_for(&self.window)
             .build();
+
+        let res_yes = "yes";
+        let res_no = "no";
+
+        dialog.add_response(res_no, "_No");
+        dialog.add_response(res_yes, "_Yes");
+        dialog.set_response_appearance(res_no, libadwaita::ResponseAppearance::Destructive);
+        dialog.set_response_appearance(res_yes, libadwaita::ResponseAppearance::Suggested);
         let confirmed = Rc::new(AtomicBool::new(false));
 
         glib::source::timeout_add_local(
@@ -597,7 +608,7 @@ impl App {
                 delay -= 1;
 
                 let text = confirmation_text(delay);
-                dialog.set_text(Some(&text));
+                dialog.set_body(&text);
 
                 if delay == 0 {
                     dialog.hide();
@@ -610,21 +621,25 @@ impl App {
             }),
         );
 
-        dialog.run_async(clone!(@strong self as app => move |diag, response| {
-            confirmed.store(true, std::sync::atomic::Ordering::SeqCst);
+        dialog.connect_response(
+            None,
+            clone!(@strong self as app => move |diag, response| {
+                confirmed.store(true, std::sync::atomic::Ordering::SeqCst);
 
-            let command = match response {
-                ResponseType::Yes => ConfirmCommand::Confirm,
-                _ => ConfirmCommand::Revert,
-            };
+                let command = match response {
+                    res if res == res_yes => ConfirmCommand::Confirm,
+                    _ => ConfirmCommand::Revert,
+                };
 
-            diag.hide();
+                diag.hide();
 
-            if let Err(err) = app.daemon_client.confirm_pending_config(command) {
-                show_error(&app.window, err);
-            }
-            app.set_initial(&gpu_id);
-        }));
+                if let Err(err) = app.daemon_client.confirm_pending_config(command) {
+                    show_error(&app.window, err);
+                }
+                app.set_initial(&gpu_id);
+            }),
+        );
+        dialog.present();
     }
 }
 
@@ -635,17 +650,16 @@ enum GuiUpdateMsg {
 fn show_error(parent: &libadwaita::ApplicationWindow, err: anyhow::Error) {
     let text = format!("{err:?}");
     warn!("{}", text.trim());
-    // TODO: to libadwaita
-    let diag = MessageDialog::builder()
-        .title("Error")
-        .message_type(MessageType::Error)
-        .text(&text)
-        .buttons(ButtonsType::Close)
+    let diag = libadwaita::MessageDialog::builder()
+        .heading("Error")
+        .body(&text)
+        .modal(true)
         .transient_for(parent)
         .build();
-    diag.run_async(|diag, _| {
-        diag.hide();
-    })
+
+    diag.add_response("close", "_Close");
+
+    diag.present();
 }
 
 fn confirmation_text(seconds_left: u64) -> String {

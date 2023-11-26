@@ -21,7 +21,7 @@ impl Toolbars {
             .show_title(true)
             .build();
 
-        // TODO: new gtk select
+        // WARN: gtk::ComboBoxText is deprecated, use gtk::DropDown instead
         let gpu_selector = ComboBoxText::builder()
             .margin_top(12)
             .margin_bottom(12)
@@ -42,7 +42,7 @@ impl Toolbars {
             self.gpu_selector.append(Some(entry.id), &name);
         }
 
-        //limits the length of gpu names in combobox
+        // limits the length of gpu names in combobox
         for cell in self.gpu_selector.cells() {
             cell.set_property("width-chars", 10);
             cell.set_property("ellipsize", EllipsizeMode::End);
