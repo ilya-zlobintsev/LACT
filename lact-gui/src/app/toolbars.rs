@@ -4,35 +4,36 @@ use lact_client::schema::DeviceListEntry;
 use pango::EllipsizeMode;
 
 #[derive(Clone)]
-pub struct Header {
-    pub container: HeaderBar,
-    gpu_selector: ComboBoxText,
-    switcher: StackSwitcher,
+pub struct Toolbars {
+    pub headerbar: libadwaita::HeaderBar,
+    pub gpu_selector: ComboBoxText,
+    pub title: libadwaita::WindowTitle,
 }
 
-impl Header {
+impl Toolbars {
     pub fn new() -> Self {
-        let container = HeaderBar::new();
+        let title = libadwaita::WindowTitle::builder()
+            .title("Information")
+            .build();
 
-        container.set_title_widget(Some(&Box::default())); // Workaround to hide the title
+        let headerbar = libadwaita::HeaderBar::builder()
+            .title_widget(&title)
+            .show_title(true)
+            .build();
 
-        container.set_show_title_buttons(true);
+        // TODO: new gtk select
+        let gpu_selector = ComboBoxText::builder()
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
+            .build();
 
-        let gpu_selector = ComboBoxText::new();
-        container.pack_start(&gpu_selector);
-
-        let switcher = StackSwitcher::new();
-        container.pack_start(&switcher);
-
-        Header {
-            container,
+        Self {
+            headerbar,
             gpu_selector,
-            switcher,
+            title,
         }
-    }
-
-    pub fn set_switcher_stack(&self, stack: &Stack) {
-        self.switcher.set_stack(Some(stack));
     }
 
     pub fn set_devices(&self, gpus: &[DeviceListEntry<'_>]) {

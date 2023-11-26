@@ -1,8 +1,8 @@
 mod apply_revealer;
-mod header;
 mod info_row;
 mod page_section;
 mod root_stack;
+mod toolbars;
 
 use crate::{APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
@@ -10,17 +10,17 @@ use apply_revealer::ApplyRevealer;
 use glib::clone;
 use gtk::glib::{timeout_future, ControlFlow};
 use gtk::{gio::ApplicationFlags, prelude::*, *};
-use header::Header;
 use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
 use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
-use libadwaita::prelude::MessageDialogExt;
+use libadwaita::prelude::{AdwApplicationWindowExt, MessageDialogExt};
 use root_stack::RootStack;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
+use toolbars::Toolbars;
 use tracing::{debug, error, trace, warn};
 
 // In ms
@@ -28,9 +28,9 @@ const STATS_POLL_INTERVAL: u64 = 250;
 
 #[derive(Clone)]
 pub struct App {
-    application: Application,
-    pub window: ApplicationWindow,
-    pub header: Header,
+    application: libadwaita::Application,
+    pub window: libadwaita::ApplicationWindow,
+    pub toolbars: Toolbars,
     root_stack: RootStack,
     apply_revealer: ApplyRevealer,
     daemon_client: DaemonClient,
@@ -38,17 +38,15 @@ pub struct App {
 
 impl App {
     pub fn new(daemon_client: DaemonClient) -> Self {
-        let application = Application::new(Some(APP_ID), ApplicationFlags::default());
+        let application = libadwaita::Application::new(Some(APP_ID), ApplicationFlags::default());
 
-        let header = Header::new();
-        let window = ApplicationWindow::builder()
+        let toolbars = Toolbars::new();
+        let window = libadwaita::ApplicationWindow::builder()
             .title("LACT")
             .default_width(600)
             .default_height(820)
             .icon_name(APP_ID)
             .build();
-
-        window.set_titlebar(Some(&header.container));
 
         let system_info_buf = daemon_client
             .get_system_info()
@@ -62,22 +60,89 @@ impl App {
 
         let root_stack = RootStack::new(system_info, daemon_client.embedded);
 
-        header.set_switcher_stack(&root_stack.container);
+        {
+            let stack = root_stack.container.clone();
+            let title = toolbars.title.clone();
+            root_stack.container.connect_visible_child_notify(move |_| {
+                if let Some(child) = stack.visible_child() {
+                    title.set_title(stack.page(&child).title().unwrap().as_str())
+                }
+            });
+        }
 
-        let root_box = Box::new(Orientation::Vertical, 5);
+        let root_view = libadwaita::ToolbarView::new();
 
-        root_box.append(&root_stack.container);
+        root_view.add_top_bar(&toolbars.headerbar);
+        root_view.set_content(Some(&root_stack.container));
 
         let apply_revealer = ApplyRevealer::new();
 
-        root_box.append(&apply_revealer.container);
+        root_view.add_bottom_bar(&apply_revealer.container);
 
-        window.set_child(Some(&root_box));
+        let sidebar_view = libadwaita::ToolbarView::new();
+
+        let stack_sidebar = StackSidebar::builder()
+            .stack(&root_stack.container)
+            .vexpand(true)
+            .build();
+        stack_sidebar.remove_css_class("sidebar");
+        sidebar_view.add_top_bar(
+            &libadwaita::HeaderBar::builder()
+                .title_widget(&libadwaita::WindowTitle::builder().title("LACT").build())
+                .build(),
+        );
+        sidebar_view.set_content(Some(
+            &ScrolledWindow::builder()
+                .child(&stack_sidebar)
+                .vexpand(true)
+                .hscrollbar_policy(PolicyType::Never)
+                .build(),
+        ));
+        sidebar_view.add_bottom_bar(&toolbars.gpu_selector);
+
+        let split_view = libadwaita::NavigationSplitView::builder()
+            .sidebar(
+                &libadwaita::NavigationPage::builder()
+                    .child(&sidebar_view)
+                    .build(),
+            )
+            .content(
+                &libadwaita::NavigationPage::builder()
+                    .child(&root_view)
+                    .build(),
+            )
+            .build();
+
+        {
+            let split_view = split_view.clone();
+            let lb = stack_sidebar
+                .first_child()
+                .unwrap()
+                .first_child()
+                .unwrap()
+                .first_child()
+                .unwrap()
+                .downcast::<ListBox>()
+                .unwrap();
+            lb.connect_row_activated(move |_lb, _row| {
+                split_view.set_show_content(true);
+            });
+        }
+
+        let breakpoint = libadwaita::Breakpoint::new(libadwaita::BreakpointCondition::new_length(
+            libadwaita::BreakpointConditionLengthType::MaxWidth,
+            800.0,
+            libadwaita::LengthUnit::Sp,
+        ));
+        breakpoint.add_setter(&split_view, "collapsed", &glib::Value::from(true));
+        window.add_breakpoint(breakpoint);
+
+        window.set_content(Some(&split_view));
 
         App {
             application,
             window,
-            header,
+            toolbars,
             root_stack,
             apply_revealer,
             daemon_client,
@@ -91,7 +156,7 @@ impl App {
 
                 let current_gpu_id = Rc::new(RefCell::new(String::new()));
 
-                app.header.connect_gpu_selection_changed(clone!(@strong app, @strong current_gpu_id => move |gpu_id| {
+                app.toolbars.connect_gpu_selection_changed(clone!(@strong app, @strong current_gpu_id => move |gpu_id| {
                     debug!("GPU Selection changed");
                     app.set_info(&gpu_id);
                     *current_gpu_id.borrow_mut() = gpu_id;
@@ -103,7 +168,7 @@ impl App {
                     .list_devices()
                     .expect("Could not list devices");
                 let devices = devices_buf.inner().expect("Could not access devices");
-                app.header.set_devices(&devices);
+                app.toolbars.set_devices(&devices);
 
                 app.root_stack.oc_page.clocks_frame.connect_clocks_reset(clone!(@strong app, @strong current_gpu_id => move || {
                     debug!("Resetting clocks");
@@ -474,6 +539,7 @@ impl App {
 
     fn enable_overclocking(&self) {
         let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>. Are you sure you want to do this?");
+        // TODO: to libadwaita
         let dialog = MessageDialog::builder()
             .title("Enable Overclocking")
             .use_markup(true)
@@ -508,6 +574,7 @@ impl App {
 
     fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
         let text = confirmation_text(delay);
+        // TODO: to libadwaita
         let dialog = MessageDialog::builder()
             .title("Confirm settings")
             .text(text)
@@ -562,9 +629,10 @@ enum GuiUpdateMsg {
     GpuStats(DeviceStats),
 }
 
-fn show_error(parent: &ApplicationWindow, err: anyhow::Error) {
+fn show_error(parent: &libadwaita::ApplicationWindow, err: anyhow::Error) {
     let text = format!("{err:?}");
     warn!("{}", text.trim());
+    // TODO: to libadwaita
     let diag = MessageDialog::builder()
         .title("Error")
         .message_type(MessageType::Error)
