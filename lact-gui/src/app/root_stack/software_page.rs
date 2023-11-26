@@ -23,7 +23,7 @@ pub fn software_page(system_info: SystemInfo, embedded: bool) -> gtk::ScrolledWi
 
     listbox.append(
         &LabelRow::new_with_content(
-            "LACT GUI",
+            "Kernel version",
             &format!(
                 "{}-{}",
                 GUI_VERSION,
