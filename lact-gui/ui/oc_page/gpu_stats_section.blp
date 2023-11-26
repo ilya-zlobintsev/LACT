@@ -2,7 +2,7 @@ using Gtk 4.0;
 using Adw 1;
 
 template $GpuStatsSection: $PageSection {
-    name: "Statistics";
+    name: "GPU Statistics";
     spacing: 12;
 
     Box {
@@ -55,17 +55,17 @@ template $GpuStatsSection: $PageSection {
                 spacing: 6;
 
                 $InfoRow {
-                    name: "GPU Core Clock:";
+                    name: "Core Clock:";
                     value: bind template.core-clock;
                 }
 
                 $InfoRow {
-                    name: "GPU Voltage:";
+                    name: "Voltage:";
                     value: bind template.voltage;
                 }
 
                 $InfoRow {
-                    name: "GPU Temperature (hotspot):";
+                    name: "Temp (hotspot):";
                     value: bind template.temperature;
                 }
             }
@@ -80,12 +80,12 @@ template $GpuStatsSection: $PageSection {
                 spacing: 6;
 
                 $InfoRow {
-                    name: "GPU Memory Clock:";
+                    name: "Memory Clock:";
                     value: bind template.vram-clock;
                 }
 
                 $InfoRow {
-                    name: "GPU Usage:";
+                    name: "Usage:";
                     value: bind template.gpu-usage;
                 }
 
