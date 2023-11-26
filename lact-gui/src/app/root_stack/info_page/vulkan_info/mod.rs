@@ -1,8 +1,8 @@
 mod feature_window;
 
 use self::feature_window::VulkanFeaturesWindow;
-
 use crate::app::root_stack::info_page::vulkan_info::feature_window::feature::VulkanFeature;
+use crate::app::root_stack::LabelRow;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
@@ -10,15 +10,13 @@ use lact_client::schema::VulkanInfo;
 use libadwaita::prelude::ActionRowExt;
 use tracing::trace;
 
-use super::InfoRow;
-
 #[derive(Clone)]
 pub struct VulkanInfoFrame {
     pub container: ListBox,
-    device_name_row: InfoRow,
-    version_row: InfoRow,
-    driver_name_row: InfoRow,
-    driver_version_row: InfoRow,
+    device_name_row: LabelRow,
+    version_row: LabelRow,
+    driver_name_row: LabelRow,
+    driver_version_row: LabelRow,
     features_model: gio::ListStore,
     extensions_model: gio::ListStore,
 }
@@ -33,10 +31,10 @@ impl VulkanInfoFrame {
         let features_model = gio::ListStore::new::<VulkanFeature>();
         let extensions_model = gio::ListStore::new::<VulkanFeature>();
 
-        let device_name_row = InfoRow::new("Device name");
-        let version_row = InfoRow::new("Vulkan version");
-        let driver_name_row = InfoRow::new("Driver name");
-        let driver_version_row = InfoRow::new("Driver version");
+        let device_name_row = LabelRow::new("Device name");
+        let version_row = LabelRow::new("Vulkan version");
+        let driver_name_row = LabelRow::new("Driver name");
+        let driver_version_row = LabelRow::new("Driver version");
 
         container.append(&device_name_row.container);
         container.append(&version_row.container);

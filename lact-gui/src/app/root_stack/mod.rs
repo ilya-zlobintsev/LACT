@@ -4,6 +4,7 @@ mod software_page;
 mod thermals_page;
 
 use gtk::{prelude::IsA, traits::GridExt, *};
+use libadwaita::prelude::ActionRowExt;
 
 use self::software_page::SoftwarePage;
 use info_page::InformationPage;
@@ -81,4 +82,31 @@ fn values_grid() -> Grid {
         .row_spacing(10)
         .column_spacing(10)
         .build()
+}
+
+#[derive(Clone)]
+pub struct LabelRow {
+    pub container: libadwaita::ActionRow,
+    content_label: Label,
+}
+
+impl LabelRow {
+    pub fn new(title: &str) -> Self {
+        let container = libadwaita::ActionRow::builder().title(title).build();
+        let label = Label::builder()
+            .css_classes(["dim-label"])
+            .ellipsize(pango::EllipsizeMode::End)
+            .selectable(true)
+            .build();
+        container.add_suffix(&label);
+
+        Self {
+            container,
+            content_label: label,
+        }
+    }
+
+    pub fn set_content(&self, content: &str) {
+        self.content_label.set_label(content);
+    }
 }

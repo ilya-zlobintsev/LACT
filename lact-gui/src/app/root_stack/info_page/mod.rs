@@ -1,58 +1,31 @@
 mod vulkan_info;
 
+use super::LabelRow;
 use crate::app::page_section::PageSection;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{DeviceInfo, DeviceStats};
-use libadwaita::prelude::ActionRowExt;
 use vulkan_info::VulkanInfoFrame;
-
-#[derive(Clone)]
-pub struct InfoRow {
-    pub container: libadwaita::ActionRow,
-    content_label: Label,
-}
-
-impl InfoRow {
-    pub fn new(title: &str) -> Self {
-        let container = libadwaita::ActionRow::builder().title(title).build();
-        let label = Label::builder()
-            .css_classes(["dim-label"])
-            .ellipsize(pango::EllipsizeMode::End)
-            .selectable(true)
-            .build();
-        container.add_suffix(&label);
-
-        Self {
-            container,
-            content_label: label,
-        }
-    }
-
-    pub fn set_content(&self, content: &str) {
-        self.content_label.set_label(content);
-    }
-}
 
 #[derive(Clone)]
 pub struct InformationPage {
     pub container: ScrolledWindow,
-    gpu_name_row: InfoRow,
-    gpu_manufacturer_row: InfoRow,
-    family_name_row: InfoRow,
-    asic_name_row: InfoRow,
-    vbios_version_row: InfoRow,
-    driver_row: InfoRow,
-    vram_size_row: InfoRow,
-    vram_type_row: InfoRow,
-    vram_peak_bw_row: InfoRow,
-    compute_units_row: InfoRow,
-    l1_cache_row: InfoRow,
-    l2_cache_row: InfoRow,
-    l3_cache_row: InfoRow,
-    resizable_bar_enabled_row: InfoRow,
-    cpu_accessible_vram_row: InfoRow,
-    link_speed_row: InfoRow,
+    gpu_name_row: LabelRow,
+    gpu_manufacturer_row: LabelRow,
+    family_name_row: LabelRow,
+    asic_name_row: LabelRow,
+    vbios_version_row: LabelRow,
+    driver_row: LabelRow,
+    vram_size_row: LabelRow,
+    vram_type_row: LabelRow,
+    vram_peak_bw_row: LabelRow,
+    compute_units_row: LabelRow,
+    l1_cache_row: LabelRow,
+    l2_cache_row: LabelRow,
+    l3_cache_row: LabelRow,
+    resizable_bar_enabled_row: LabelRow,
+    cpu_accessible_vram_row: LabelRow,
+    link_speed_row: LabelRow,
     vulkan_info_frame: VulkanInfoFrame,
     vulkan_unavailable_label: Label,
 }
@@ -71,25 +44,25 @@ impl InformationPage {
             .selection_mode(SelectionMode::None)
             .build();
 
-        let gpu_name_row = InfoRow::new("GPU Model");
-        let gpu_manufacturer_row = InfoRow::new("GPU Manufacturer");
-        let family_name_row = InfoRow::new("GPU Family");
-        let asic_name_row = InfoRow::new("ASIC Name");
-        let compute_units_row = InfoRow::new("Compute Units");
-        let vbios_version_row = InfoRow::new("VBIOS Version");
-        let driver_row = InfoRow::new("Driver Used");
+        let gpu_name_row = LabelRow::new("GPU Model");
+        let gpu_manufacturer_row = LabelRow::new("GPU Manufacturer");
+        let family_name_row = LabelRow::new("GPU Family");
+        let asic_name_row = LabelRow::new("ASIC Name");
+        let compute_units_row = LabelRow::new("Compute Units");
+        let vbios_version_row = LabelRow::new("VBIOS Version");
+        let driver_row = LabelRow::new("Driver Used");
 
-        let vram_size_row = InfoRow::new("VRAM Size");
-        let vram_type_row = InfoRow::new("VRAM Type");
-        let vram_peak_bw_row = InfoRow::new("Peak VRAM Bandwidth");
+        let vram_size_row = LabelRow::new("VRAM Size");
+        let vram_type_row = LabelRow::new("VRAM Type");
+        let vram_peak_bw_row = LabelRow::new("Peak VRAM Bandwidth");
 
-        let l1_cache_row = InfoRow::new("L1 Cache (Per CU)");
-        let l2_cache_row = InfoRow::new("L2 Cache");
-        let l3_cache_row = InfoRow::new("L3 Cache");
+        let l1_cache_row = LabelRow::new("L1 Cache (Per CU)");
+        let l2_cache_row = LabelRow::new("L2 Cache");
+        let l3_cache_row = LabelRow::new("L3 Cache");
 
-        let resizable_bar_enabled_row = InfoRow::new("Resizeable BAR");
-        let cpu_accessible_vram_row = InfoRow::new("CPU Accessible VRAM");
-        let link_speed_row = InfoRow::new("Link Speed");
+        let resizable_bar_enabled_row = LabelRow::new("Resizeable BAR");
+        let cpu_accessible_vram_row = LabelRow::new("CPU Accessible VRAM");
+        let link_speed_row = LabelRow::new("Link Speed");
 
         info_listbox.append(&gpu_name_row.container);
         info_listbox.append(&gpu_manufacturer_row.container);
