@@ -1,13 +1,13 @@
 mod fan_curve_frame;
 
 use self::fan_curve_frame::FanCurveFrame;
-use super::{label_row, values_grid};
+use super::{list_clamp, LabelRow};
 use crate::app::page_section::PageSection;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{default_fan_curve, DeviceStats, FanControlMode, FanCurveMap};
-use libadwaita::prelude::MessageDialogExt;
+use libadwaita::prelude::*;
 
 #[derive(Debug)]
 pub struct ThermalsSettings {
@@ -19,9 +19,9 @@ pub struct ThermalsSettings {
 
 #[derive(Clone)]
 pub struct ThermalsPage {
-    pub container: Box,
-    temperatures_label: Label,
-    fan_speed_label: Label,
+    pub container: ScrolledWindow,
+    temperatures_row: LabelRow,
+    fan_speed_row: LabelRow,
     fan_static_speed_adjustment: Adjustment,
     fan_curve_frame: FanCurveFrame,
     fan_control_mode_stack: Stack,
@@ -30,22 +30,27 @@ pub struct ThermalsPage {
 
 impl ThermalsPage {
     pub fn new(root_win: libadwaita::ApplicationWindow) -> Self {
-        let container = Box::builder()
+        let vbox = Box::builder()
             .orientation(Orientation::Vertical)
-            .spacing(15)
-            .margin_start(20)
-            .margin_end(20)
+            .spacing(12)
             .build();
 
         let stats_section = PageSection::new("Statistics");
-        let stats_grid = values_grid();
+        let stats_listbox = ListBox::builder()
+            .css_classes(["boxed-list"])
+            .selection_mode(SelectionMode::None)
+            .build();
 
-        let temperatures_label = label_row("Temperatures:", &stats_grid, 0, 0, false);
-        let fan_speed_label = label_row("Fan speed:", &stats_grid, 1, 0, false);
+        let temperatures_row = LabelRow::new("Temperatures");
 
-        stats_section.append(&stats_grid);
+        let fan_speed_row = LabelRow::new("Fan speed");
 
-        container.append(&stats_section);
+        stats_listbox.append(&temperatures_row.container);
+        stats_listbox.append(&fan_speed_row.container);
+
+        stats_section.append(&stats_listbox);
+
+        vbox.append(&stats_section);
 
         let fan_curve_frame = FanCurveFrame::new();
 
@@ -78,7 +83,7 @@ impl ThermalsPage {
         fan_control_section.append(&fan_control_mode_stack_switcher);
         fan_control_section.append(&fan_control_mode_stack);
 
-        container.append(&fan_control_section);
+        vbox.append(&fan_control_section);
 
         fan_control_mode_stack.connect_visible_child_name_notify(move |stack| {
             if stack.visible_child_name() == Some("automatic".into()) {
@@ -86,10 +91,15 @@ impl ThermalsPage {
             }
         });
 
+        let container = ScrolledWindow::builder()
+            .hscrollbar_policy(PolicyType::Never)
+            .child(&list_clamp(&vbox))
+            .build();
+
         Self {
             container,
-            temperatures_label,
-            fan_speed_label,
+            temperatures_row,
+            fan_speed_row,
             fan_static_speed_adjustment,
             fan_curve_frame,
             fan_control_mode_stack,
@@ -107,23 +117,23 @@ impl ThermalsPage {
         let temperatures_text = if temperatures.is_empty() {
             String::from("No sensors found")
         } else {
-            temperatures.join(", ")
+            temperatures.join(" | ")
         };
 
-        self.temperatures_label
-            .set_markup(&format!("<b>{temperatures_text}</b>",));
+        self.temperatures_row.set_content(&temperatures_text);
 
-        match stats.fan.speed_current {
-            Some(fan_speed_current) => self.fan_speed_label.set_markup(&format!(
-                "<b>{} RPM ({}%)</b>",
-                fan_speed_current,
-                (fan_speed_current as f64
-                    / stats.fan.speed_max.unwrap_or(fan_speed_current) as f64
-                    * 100.0)
-                    .round()
-            )),
-            None => self.fan_speed_label.set_text("No fan detected"),
-        }
+        self.fan_speed_row
+            .set_content(&match stats.fan.speed_current {
+                Some(fan_speed_current) => format!(
+                    "{} RPM ({}%)",
+                    fan_speed_current,
+                    (fan_speed_current as f64
+                        / stats.fan.speed_max.unwrap_or(fan_speed_current) as f64
+                        * 100.0)
+                        .round()
+                ),
+                None => "No fan detected".into(),
+            });
 
         if initial {
             self.fan_control_mode_stack_switcher.set_visible(true);

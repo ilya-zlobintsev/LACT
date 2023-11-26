@@ -99,6 +99,8 @@ impl LabelRow {
         let label = Label::builder()
             .css_classes(["dim-label"])
             .ellipsize(pango::EllipsizeMode::End)
+            .xalign(1.0)
+            .justify(Justification::Right)
             .selectable(true)
             .build();
         container.add_suffix(&label);
