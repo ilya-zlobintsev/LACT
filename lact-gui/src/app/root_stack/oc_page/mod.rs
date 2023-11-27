@@ -19,13 +19,9 @@ use lact_client::schema::{
 };
 use performance_frame::PerformanceFrame;
 // use power_cap_frame::PowerCapFrame;
+use super::list_clamp;
 use std::collections::HashMap;
 use tracing::warn;
-
-use super::list_clamp;
-
-const OVERCLOCKING_DISABLED_TEXT: &str = "Overclocking support is not enabled! \
-You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
 
 #[derive(Clone)]
 pub struct OcPage {
@@ -170,36 +166,63 @@ impl OcPage {
     }
 }
 
-fn oc_warning_frame() -> (Frame, Button) {
-    let container = Frame::new(Some("Overclocking information"));
-
-    container.set_label_align(0.3);
-
+fn oc_warning_frame() -> (libadwaita::Bin, Button) {
     let vbox = Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(5)
-        .margin_top(10)
-        .margin_bottom(10)
-        .margin_start(10)
-        .margin_end(10)
+        .spacing(6)
+        .margin_top(12)
+        .margin_bottom(12)
+        .margin_start(12)
+        .margin_end(12)
         .build();
 
-    let warning_label = Label::builder()
-        .use_markup(true)
-        .label(OVERCLOCKING_DISABLED_TEXT)
-        .wrap(true)
-        .wrap_mode(pango::WrapMode::Word)
+    let heading_box = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(6)
+        .hexpand(false)
+        .halign(Align::Start)
         .build();
+
+    heading_box.append(
+        &Image::builder()
+            .icon_name("dialog-warning-symbolic")
+            .css_classes(["warning"])
+            .build(),
+    );
+    heading_box.append(
+        &Label::builder()
+            .css_classes(["warning", "heading"])
+            .label("Warning")
+            .xalign(0.0)
+            .build(),
+    );
+
+    vbox.append(&heading_box);
+
+    vbox.append(
+        &Label::builder()
+            .label(concat!(
+                "Overclocking support is not enabled. You can still change ",
+                "basic settings, but clocks and voltage control will not be available",
+            ))
+            .wrap(true)
+            .xalign(0.0)
+            .wrap_mode(pango::WrapMode::Word)
+            .build(),
+    );
 
     let enable_button = Button::builder()
         .label("Enable Overclocking")
         .halign(Align::End)
         .build();
 
-    vbox.append(&warning_label);
     vbox.append(&enable_button);
 
-    container.set_child(Some(&vbox));
-
-    (container, enable_button)
+    (
+        libadwaita::Bin::builder()
+            .css_classes(["card"])
+            .child(&vbox)
+            .build(),
+        enable_button,
+    )
 }
