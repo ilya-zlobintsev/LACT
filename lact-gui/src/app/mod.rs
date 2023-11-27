@@ -43,8 +43,8 @@ impl App {
         let gpu_selector = GpuSelector::new();
         let window = libadwaita::ApplicationWindow::builder()
             .title("LACT")
-            .default_width(700)
-            .default_height(820)
+            .default_width(820)
+            .default_height(750)
             .width_request(420)
             .height_request(200)
             .icon_name(APP_ID)

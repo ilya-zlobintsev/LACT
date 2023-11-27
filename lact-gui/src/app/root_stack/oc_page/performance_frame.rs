@@ -5,7 +5,7 @@ use gtk::*;
 use lact_client::schema::amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel,
 };
-use libadwaita::prelude::{ComboRowExt, ActionRowExt};
+use libadwaita::prelude::{ActionRowExt, ComboRowExt};
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 #[derive(Clone)]
@@ -145,16 +145,17 @@ impl PerformanceFrame {
     fn update_from_selection(&self) {
         let mut enable_mode_control = false;
 
-        self.level_row.set_subtitle(match self.level_row.selected() {
-            0 => "Automatically adjust GPU and VRAM clocks. (Default)",
-            1 => "Always use the highest clockspeeds for GPU and VRAM.",
-            2 => "Always use the lowest clockspeeds for GPU and VRAM.",
-            3 => {
-                enable_mode_control = true;
-                "Manual performance control."
-            }
-            _ => unreachable!(),
-        });
+        self.level_row
+            .set_subtitle(match self.level_row.selected() {
+                0 => "Automatically adjust GPU and VRAM clocks. (Default)",
+                1 => "Always use the highest clockspeeds for GPU and VRAM.",
+                2 => "Always use the lowest clockspeeds for GPU and VRAM.",
+                3 => {
+                    enable_mode_control = true;
+                    "Manual performance control."
+                }
+                _ => unreachable!(),
+            });
         self.mode_row.set_sensitive(enable_mode_control);
     }
 
