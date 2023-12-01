@@ -12,7 +12,7 @@ use tracing::debug;
 const VOLTAGE_OFFSET_RANGE: f64 = 250.0;
 
 // The AtomicBool stores if the value was changed
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ClocksFrame {
     pub container: PageSection,
     max_values_box: Box,

@@ -11,7 +11,7 @@ use libadwaita::prelude::ActionRowExt;
 use oc_page::OcPage;
 use thermals_page::ThermalsPage;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct RootStack {
     pub container: libadwaita::ViewStack,
     pub info_page: InformationPage,
@@ -51,7 +51,7 @@ impl RootStack {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct LabelRow {
     pub container: libadwaita::ActionRow,
     content_label: Label,

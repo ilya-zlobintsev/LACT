@@ -1,7 +1,7 @@
 use gtk::prelude::*;
 use gtk::*;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ApplyBox {
     pub container: Box,
     apply_button: Button,

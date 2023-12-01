@@ -1,10 +1,12 @@
 mod apply_box;
 mod gpu_selector;
+mod headerbar;
 mod info_row;
 mod page_section;
 mod root_stack;
 
 use self::apply_box::ApplyBox;
+use self::headerbar::Headerbar;
 use crate::{APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use glib::clone;
@@ -15,7 +17,7 @@ use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
 use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
-use libadwaita::prelude::{AdwApplicationWindowExt, MessageDialogExt, NavigationPageExt};
+use libadwaita::prelude::{AdwApplicationWindowExt, MessageDialogExt};
 use root_stack::RootStack;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -40,7 +42,6 @@ impl App {
     pub fn new(daemon_client: DaemonClient) -> Self {
         let application = libadwaita::Application::new(Some(APP_ID), ApplicationFlags::default());
 
-        let gpu_selector = GpuSelector::new();
         let window = libadwaita::ApplicationWindow::builder()
             .title("LACT")
             .default_width(820)
@@ -64,16 +65,15 @@ impl App {
 
         let root_view = libadwaita::ToolbarView::new();
 
-        let root_view_headerbar = libadwaita::HeaderBar::builder().show_title(false).build();
-        let apply_box = ApplyBox::new();
-        root_view_headerbar.pack_start(&gpu_selector.dropdown);
-        root_view_headerbar.pack_end(&apply_box.container);
+        let headerbar = Headerbar::new();
 
-        root_view.add_top_bar(&root_view_headerbar);
-        root_view.add_bottom_bar(&libadwaita::ViewSwitcherBar::builder()
-            .reveal(true)
-            .stack(&root_stack.container)
-            .build());
+        root_view.add_top_bar(&headerbar.container);
+        root_view.add_bottom_bar(
+            &libadwaita::ViewSwitcherBar::builder()
+                .reveal(true)
+                .stack(&root_stack.container)
+                .build(),
+        );
         root_view.set_content(Some(&root_stack.container));
 
         window.set_content(Some(&root_view));
@@ -81,9 +81,9 @@ impl App {
         App {
             application,
             window,
-            gpu_selector,
+            gpu_selector: headerbar.gpu_selector,
             root_stack,
-            apply_box,
+            apply_box: headerbar.apply_box,
             daemon_client,
         }
     }

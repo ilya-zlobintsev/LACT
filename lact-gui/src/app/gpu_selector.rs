@@ -3,7 +3,7 @@ use gtk::*;
 use lact_client::schema::DeviceListEntry;
 use pango::EllipsizeMode;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct GpuSelector {
     pub dropdown: ComboBoxText,
 }

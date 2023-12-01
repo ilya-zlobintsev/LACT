@@ -23,7 +23,7 @@ use super::list_clamp;
 use std::collections::HashMap;
 use tracing::warn;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct OcPage {
     pub container: ScrolledWindow,
     stats_section: GpuStatsSection,

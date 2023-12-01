@@ -6,7 +6,7 @@ use gtk::{
     Adjustment, Box, Label, MenuButton, Orientation, Popover, Scale, SpinButton,
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct PointAdjustment {
     pub temperature: Adjustment,
     pub ratio: Adjustment,

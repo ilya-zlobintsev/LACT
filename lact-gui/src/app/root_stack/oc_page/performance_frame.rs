@@ -8,7 +8,7 @@ use lact_client::schema::amdgpu_sysfs::gpu_handle::{
 use libadwaita::prelude::{ActionRowExt, ComboRowExt};
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct PerformanceFrame {
     pub container: PageSection,
     level_row: libadwaita::ComboRow,

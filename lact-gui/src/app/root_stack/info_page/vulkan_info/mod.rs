@@ -10,7 +10,7 @@ use lact_client::schema::VulkanInfo;
 use libadwaita::prelude::ActionRowExt;
 use tracing::trace;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct VulkanInfoFrame {
     pub container: ListBox,
     device_name_row: LabelRow,

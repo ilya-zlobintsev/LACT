@@ -17,7 +17,7 @@ pub struct ThermalsSettings {
     pub curve: Option<FanCurveMap>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ThermalsPage {
     pub container: ScrolledWindow,
     temperatures_row: LabelRow,
