@@ -11,12 +11,14 @@ pub struct GpuSelector {
 impl GpuSelector {
     pub fn new() -> Self {
         // WARN: gtk::ComboBoxText is deprecated, use gtk::DropDown instead
-        let dropdown = ComboBoxText::builder()
-            .margin_top(12)
-            .margin_bottom(12)
-            .margin_start(12)
-            .margin_end(12)
-            .build();
+        let dropdown = ComboBoxText::new();
+
+        dropdown
+            .first_child()
+            .unwrap()
+            .first_child()
+            .unwrap()
+            .add_css_class("flat");
 
         Self { dropdown }
     }

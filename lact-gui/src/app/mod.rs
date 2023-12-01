@@ -64,79 +64,19 @@ impl App {
 
         let root_view = libadwaita::ToolbarView::new();
 
-        let root_view_headerbar = libadwaita::HeaderBar::builder().show_title(true).build();
+        let root_view_headerbar = libadwaita::HeaderBar::builder().show_title(false).build();
         let apply_box = ApplyBox::new();
+        root_view_headerbar.pack_start(&gpu_selector.dropdown);
         root_view_headerbar.pack_end(&apply_box.container);
 
         root_view.add_top_bar(&root_view_headerbar);
+        root_view.add_bottom_bar(&libadwaita::ViewSwitcherBar::builder()
+            .reveal(true)
+            .stack(&root_stack.container)
+            .build());
         root_view.set_content(Some(&root_stack.container));
 
-        let sidebar_view = libadwaita::ToolbarView::new();
-
-        let stack_sidebar = StackSidebar::builder()
-            .stack(&root_stack.container)
-            .vexpand(true)
-            .build();
-        stack_sidebar.remove_css_class("sidebar");
-        sidebar_view.add_top_bar(&libadwaita::HeaderBar::builder().show_title(true).build());
-        sidebar_view.set_content(Some(
-            &ScrolledWindow::builder()
-                .child(&stack_sidebar)
-                .vexpand(true)
-                .hscrollbar_policy(PolicyType::Never)
-                .build(),
-        ));
-        sidebar_view.add_bottom_bar(&gpu_selector.dropdown);
-
-        let root_nav_page = libadwaita::NavigationPage::builder()
-            .child(&root_view)
-            .title("Information")
-            .build();
-        let split_view = libadwaita::NavigationSplitView::builder()
-            .sidebar(
-                &libadwaita::NavigationPage::builder()
-                    .child(&sidebar_view)
-                    .title("LACT")
-                    .build(),
-            )
-            .content(&root_nav_page)
-            .build();
-
-        {
-            let split_view = split_view.clone();
-            let lb = stack_sidebar
-                .first_child()
-                .unwrap()
-                .first_child()
-                .unwrap()
-                .first_child()
-                .unwrap()
-                .downcast::<ListBox>()
-                .unwrap();
-            lb.connect_row_activated(move |_lb, _row| {
-                split_view.set_show_content(true);
-            });
-        }
-
-        {
-            let stack = root_stack.container.clone();
-            let root_nav_page = root_nav_page.clone();
-            root_stack.container.connect_visible_child_notify(move |_| {
-                if let Some(child) = stack.visible_child() {
-                    root_nav_page.set_title(stack.page(&child).title().unwrap().as_str())
-                }
-            });
-        }
-
-        let breakpoint = libadwaita::Breakpoint::new(libadwaita::BreakpointCondition::new_length(
-            libadwaita::BreakpointConditionLengthType::MaxWidth,
-            800.0,
-            libadwaita::LengthUnit::Sp,
-        ));
-        breakpoint.add_setter(&split_view, "collapsed", &glib::Value::from(true));
-        window.add_breakpoint(breakpoint);
-
-        window.set_content(Some(&split_view));
+        window.set_content(Some(&root_view));
 
         App {
             application,

@@ -13,7 +13,7 @@ use thermals_page::ThermalsPage;
 
 #[derive(Clone)]
 pub struct RootStack {
-    pub container: Stack,
+    pub container: libadwaita::ViewStack,
     pub info_page: InformationPage,
     pub thermals_page: ThermalsPage,
     pub oc_page: OcPage,
@@ -25,22 +25,22 @@ impl RootStack {
         system_info: SystemInfo,
         embedded_daemon: bool,
     ) -> Self {
-        let container = Stack::builder().vexpand(true).hexpand(true).build();
+        let container = libadwaita::ViewStack::builder().vexpand(true).hexpand(true).build();
 
         let info_page = InformationPage::new();
 
-        container.add_titled(&info_page.container, Some("info_page"), "Information");
+        container.add_titled_with_icon(&info_page.container, Some("info_page"), "Information", "info-symbolic");
 
         let oc_page = OcPage::new(&system_info);
 
-        container.add_titled(&oc_page.container, Some("oc_page"), "Overclock");
+        container.add_titled_with_icon(&oc_page.container, Some("oc_page"), "Overclock", "power-profile-performance-symbolic");
 
         let thermals_page = ThermalsPage::new(root_win);
 
-        container.add_titled(&thermals_page.container, Some("thermals_page"), "Thermals");
+        container.add_titled_with_icon(&thermals_page.container, Some("thermals_page"), "Thermals", "temperature-symbolic");
 
         let software_page = software_page(system_info, embedded_daemon);
-        container.add_titled(&software_page, Some("software_page"), "Software");
+        container.add_titled_with_icon(&software_page, Some("software_page"), "Software", "preferences-other-symbolic");
 
         Self {
             container,
