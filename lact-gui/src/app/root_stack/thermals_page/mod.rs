@@ -2,7 +2,7 @@ mod fan_curve_frame;
 
 use self::fan_curve_frame::FanCurveFrame;
 use super::{list_clamp, LabelRow};
-use crate::app::page_section::PageSection;
+use crate::{app::page_section::PageSection, info_dialog};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
@@ -29,7 +29,7 @@ pub struct ThermalsPage {
 }
 
 impl ThermalsPage {
-    pub fn new(root_win: libadwaita::ApplicationWindow) -> Self {
+    pub fn new(root_win: &impl IsA<Window>) -> Self {
         let vbox = Box::builder()
             .orientation(Orientation::Vertical)
             .spacing(12)
@@ -96,11 +96,13 @@ impl ThermalsPage {
 
         vbox.append(&fan_control_section);
 
-        fan_control_mode_stack.connect_visible_child_name_notify(move |stack| {
-            if stack.visible_child_name() == Some("automatic".into()) {
-                show_fan_control_warning(&root_win)
-            }
-        });
+        fan_control_mode_stack.connect_visible_child_name_notify(
+            clone!(@strong root_win => move |stack| {
+                if stack.visible_child_name() == Some("automatic".into()) {
+                    show_fan_control_warning(&root_win)
+                }
+            }),
+        );
 
         let container = ScrolledWindow::builder()
             .hscrollbar_policy(PolicyType::Never)
@@ -256,13 +258,15 @@ fn static_speed_adj(parent_box: &Box) -> Adjustment {
     adjustment
 }
 
-fn show_fan_control_warning(root_win: &libadwaita::ApplicationWindow) {
-    let diag = libadwaita::MessageDialog::builder()
-        .heading("Warning")
-        .body("Due to a driver bug, a reboot may be required for fan control to properly switch back to automatic")
-        .modal(true)
-        .transient_for(root_win)
-        .build();
-    diag.add_response("ok", "_Ok");
-    diag.present();
+fn show_fan_control_warning(root_win: &impl IsA<Window>) {
+    info_dialog!(
+        root_win,
+        "Warning",
+        concat!(
+            "Due to a driver bug, a reboot may be required for fan control ",
+            "to properly switch back to automatic"
+        ),
+        "ok",
+        "_Ok"
+    );
 }

@@ -1,4 +1,5 @@
 mod apply_box;
+mod dialogs;
 mod gpu_selector;
 mod headerbar;
 mod info_row;
@@ -7,7 +8,8 @@ mod root_stack;
 
 use self::apply_box::ApplyBox;
 use self::headerbar::Headerbar;
-use crate::{APP_ID, GUI_VERSION};
+use crate::app::dialogs::show_error;
+use crate::{info_dialog, APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use glib::clone;
 use gpu_selector::GpuSelector;
@@ -61,7 +63,7 @@ impl App {
             show_error(&window, err);
         }
 
-        let root_stack = RootStack::new(window.clone(), system_info, daemon_client.embedded);
+        let root_stack = RootStack::new(&window, system_info, daemon_client.embedded);
 
         let root_view = libadwaita::ToolbarView::new();
 
@@ -189,21 +191,17 @@ impl App {
                     hbox.append(&enable_label);
                     hbox.append(&copy_btn);
 
-                    let diag = libadwaita::MessageDialog::builder()
-                        .title("Daemon info")
-                        .heading("Could not connect to daemon")
-                        .body(format!("Running in embedded mode.\n\
+                    let diag = info_dialog!(
+                        &app.window,
+                        "Could not connect to daemon",
+                        format!("Running in embedded mode.\n\
                             Please make sure the lactd service is running.\n\
                             Using embedded mode, you will not be able to change any settings.\n\n\
                             {error_text}\
-                            To enable the daemon, run the following command:"))
-                        .extra_child(&hbox)
-                        .modal(true)
-                        .transient_for(&app.window)
-                        .build();
-
-                    diag.add_response("close", "_Close");
-                    diag.present();
+                            To enable the daemon, run the following command:"),
+                        "close",
+                        "_Close");
+                    diag.set_extra_child(Some(&hbox));
                 }
             }));
 
@@ -493,25 +491,28 @@ impl App {
         dialog.set_response_appearance(res_cancel, libadwaita::ResponseAppearance::Destructive);
         dialog.set_response_appearance(res_ok, libadwaita::ResponseAppearance::Suggested);
 
-        dialog.connect_response(None, clone!(@strong self as app => move |_, response| {
-            if response == res_ok {
-                match app.daemon_client.enable_overdrive().and_then(|buffer| buffer.inner()) {
-                    Ok(_) => {
-                        let success_dialog = libadwaita::MessageDialog::builder()
-                            .heading("Success")
-                            .body("Overclocking successfully enabled. A system reboot is required to apply the changes")
-                            .modal(true)
-                            .transient_for(&app.window)
-                            .build();
-                        success_dialog.add_response("ok", "_Ok");
-                        success_dialog.present();
-                    }
-                    Err(err) => {
-                        show_error(&app.window, err);
+        dialog.connect_response(
+            None,
+            clone!(@strong self as app => move |_, response| {
+                if response == res_ok {
+                    match app.daemon_client.enable_overdrive().and_then(|buffer| buffer.inner()) {
+                        Ok(_) => {
+                            info_dialog!(
+                                &app.window,
+                                "Success",
+                                concat!(
+                                    "Overclocking successfully enabled. ",
+                                    "A system reboot is required to apply the changes"),
+                                "ok",
+                                "_Ok");
+                        }
+                        Err(err) => {
+                            show_error(&app.window, err);
+                        }
                     }
                 }
-            }
-        }));
+            }),
+        );
 
         dialog.present();
     }
@@ -581,21 +582,6 @@ impl App {
 
 enum GuiUpdateMsg {
     GpuStats(DeviceStats),
-}
-
-fn show_error(parent: &libadwaita::ApplicationWindow, err: anyhow::Error) {
-    let text = format!("{err:?}");
-    warn!("{}", text.trim());
-    let diag = libadwaita::MessageDialog::builder()
-        .heading("Error")
-        .body(&text)
-        .modal(true)
-        .transient_for(parent)
-        .build();
-
-    diag.add_response("close", "_Close");
-
-    diag.present();
 }
 
 fn confirmation_text(seconds_left: u64) -> String {

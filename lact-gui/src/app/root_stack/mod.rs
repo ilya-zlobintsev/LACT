@@ -21,26 +21,49 @@ pub struct RootStack {
 
 impl RootStack {
     pub fn new(
-        root_win: libadwaita::ApplicationWindow,
+        root_win: &impl IsA<Window>,
         system_info: SystemInfo,
         embedded_daemon: bool,
     ) -> Self {
-        let container = libadwaita::ViewStack::builder().vexpand(true).hexpand(true).build();
+        let container = libadwaita::ViewStack::builder()
+            .vexpand(true)
+            .hexpand(true)
+            .build();
 
         let info_page = InformationPage::new();
 
-        container.add_titled_with_icon(&info_page.container, Some("info_page"), "Information", "info-symbolic");
+        container.add_titled_with_icon(
+            &info_page.container,
+            Some("info_page"),
+            "Information",
+            "info-symbolic",
+        );
 
         let oc_page = OcPage::new(&system_info);
 
-        container.add_titled_with_icon(&oc_page.container, Some("oc_page"), "Overclock", "power-profile-performance-symbolic");
+        container.add_titled_with_icon(
+            &oc_page.container,
+            Some("oc_page"),
+            "Overclock",
+            "power-profile-performance-symbolic",
+        );
 
         let thermals_page = ThermalsPage::new(root_win);
 
-        container.add_titled_with_icon(&thermals_page.container, Some("thermals_page"), "Thermals", "temperature-symbolic");
+        container.add_titled_with_icon(
+            &thermals_page.container,
+            Some("thermals_page"),
+            "Thermals",
+            "temperature-symbolic",
+        );
 
         let software_page = software_page(system_info, embedded_daemon);
-        container.add_titled_with_icon(&software_page, Some("software_page"), "Software", "preferences-other-symbolic");
+        container.add_titled_with_icon(
+            &software_page,
+            Some("software_page"),
+            "Software",
+            "preferences-other-symbolic",
+        );
 
         Self {
             container,
