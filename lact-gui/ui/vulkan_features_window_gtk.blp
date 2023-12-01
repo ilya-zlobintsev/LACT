@@ -1,12 +1,12 @@
 using Gtk 4.0;
-using Adw 1;
 
-template $VulkanFeaturesWindow: Adw.Window {
+template $VulkanFeaturesWindow: Window {
     default-height: 700;
     default-width: 500;
 
-    Adw.ToolbarView {
-        [top] Adw.HeaderBar {}
+    Box {
+        orientation: vertical;
+
         [top] SearchEntry search_entry {
             margin-top: 6;
             margin-bottom: 6;
@@ -14,7 +14,7 @@ template $VulkanFeaturesWindow: Adw.Window {
             margin-end: 12;
         }
 
-        content: Box {
+        Box {
             orientation: vertical;
     
             ScrolledWindow {
@@ -27,7 +27,7 @@ template $VulkanFeaturesWindow: Adw.Window {
                     show-separators: true;
                 }
             }
-        };
+        }
     }
 }
 

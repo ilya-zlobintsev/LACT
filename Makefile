@@ -5,6 +5,9 @@ PREFIX ?= /usr/local
 build-release:
 	cargo build --release
 
+build-libadwaita-release:
+	cargo build --release --features libadwaita
+
 install:
 	install -Dm755 target/release/lact $(DESTDIR)$(PREFIX)/bin/lact
 	install -Dm644 res/lactd.service $(DESTDIR)$(PREFIX)/lib/systemd/system/lactd.service

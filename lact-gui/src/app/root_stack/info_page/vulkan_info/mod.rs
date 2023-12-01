@@ -2,13 +2,15 @@ mod feature_window;
 
 use self::feature_window::VulkanFeaturesWindow;
 use crate::app::root_stack::info_page::vulkan_info::feature_window::feature::VulkanFeature;
-use crate::app::root_stack::LabelRow;
+use crate::app::root_stack::{action_row, LabelRow};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::VulkanInfo;
-use libadwaita::prelude::ActionRowExt;
 use tracing::trace;
+
+#[cfg(feature = "libadwaita")]
+use libadwaita::prelude::ActionRowExt;
 
 #[derive(Debug, Clone)]
 pub struct VulkanInfoFrame {
@@ -41,25 +43,45 @@ impl VulkanInfoFrame {
         container.append(&driver_name_row.container);
         container.append(&driver_version_row.container);
 
-        let features_row = libadwaita::ActionRow::builder()
-            .activatable(true)
-            .title("Features")
-            .build();
-        features_row.add_suffix(&Image::from_icon_name("go-next-symbolic"));
-        features_row.connect_activated(clone!(@strong features_model => move |_| {
-            show_features_window("Vulkan features", features_model.clone());
-        }));
-        container.append(&features_row);
+        #[cfg(feature = "libadwaita")]
+        {
+            let features_row = libadwaita::ActionRow::builder()
+                .activatable(true)
+                .title("Features")
+                .build();
+            features_row.add_suffix(&Image::from_icon_name("go-next-symbolic"));
+            features_row.connect_activated(clone!(@strong features_model => move |_| {
+                show_features_window("Vulkan features", features_model.clone());
+            }));
+            container.append(&features_row);
 
-        let extensions_row = libadwaita::ActionRow::builder()
-            .activatable(true)
-            .title("Extensions")
-            .build();
-        extensions_row.add_suffix(&Image::from_icon_name("go-next-symbolic"));
-        extensions_row.connect_activated(clone!(@strong extensions_model => move |_| {
-            show_features_window("Vulkan extensions", extensions_model.clone());
-        }));
-        container.append(&extensions_row);
+            let extensions_row = libadwaita::ActionRow::builder()
+                .activatable(true)
+                .title("Extensions")
+                .build();
+            extensions_row.add_suffix(&Image::from_icon_name("go-next-symbolic"));
+            extensions_row.connect_activated(clone!(@strong extensions_model => move |_| {
+                show_features_window("Vulkan extensions", extensions_model.clone());
+            }));
+            container.append(&extensions_row);
+        }
+
+        #[cfg(not(feature = "libadwaita"))]
+        {
+            let features_btn = Button::builder().label("View").build();
+            features_btn.connect_clicked(clone!(@strong features_model => move |_| {
+                show_features_window("Vulkan features", features_model.clone());
+            }));
+            let features_row = action_row("Features", None, &[&features_btn], None);
+            container.append(&features_row);
+
+            let extensions_btn = Button::builder().label("View").build();
+            extensions_btn.connect_clicked(clone!(@strong extensions_model => move |_| {
+                show_features_window("Vulkan extensions", extensions_model.clone());
+            }));
+            let extensions_row = action_row("Extensions", None, &[&extensions_btn], None);
+            container.append(&extensions_row);
+        }
 
         Self {
             container,

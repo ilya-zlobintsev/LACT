@@ -19,7 +19,6 @@ use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
 use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
-use libadwaita::prelude::{AdwApplicationWindowExt, MessageDialogExt};
 use root_stack::RootStack;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -27,13 +26,24 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use tracing::{debug, error, trace, warn};
 
+#[cfg(feature = "libadwaita")]
+use libadwaita::prelude::{AdwApplicationWindowExt, MessageDialogExt};
+
 // In ms
 const STATS_POLL_INTERVAL: u64 = 250;
 
 #[derive(Clone)]
 pub struct App {
+    #[cfg(feature = "libadwaita")]
     application: libadwaita::Application,
+    #[cfg(feature = "libadwaita")]
     pub window: libadwaita::ApplicationWindow,
+
+    #[cfg(not(feature = "libadwaita"))]
+    application: Application,
+    #[cfg(not(feature = "libadwaita"))]
+    pub window: ApplicationWindow,
+
     pub gpu_selector: GpuSelector,
     root_stack: RootStack,
     apply_box: ApplyBox,
@@ -42,9 +52,24 @@ pub struct App {
 
 impl App {
     pub fn new(daemon_client: DaemonClient) -> Self {
+        #[cfg(feature = "libadwaita")]
         let application = libadwaita::Application::new(Some(APP_ID), ApplicationFlags::default());
 
+        #[cfg(not(feature = "libadwaita"))]
+        let application = Application::new(Some(APP_ID), ApplicationFlags::default());
+
+        #[cfg(feature = "libadwaita")]
         let window = libadwaita::ApplicationWindow::builder()
+            .title("LACT")
+            .default_width(820)
+            .default_height(750)
+            .width_request(420)
+            .height_request(200)
+            .icon_name(APP_ID)
+            .build();
+
+        #[cfg(not(feature = "libadwaita"))]
+        let window = ApplicationWindow::builder()
             .title("LACT")
             .default_width(820)
             .default_height(750)
@@ -65,20 +90,38 @@ impl App {
 
         let root_stack = RootStack::new(&window, system_info, daemon_client.embedded);
 
-        let root_view = libadwaita::ToolbarView::new();
-
         let headerbar = Headerbar::new();
 
-        root_view.add_top_bar(&headerbar.container);
-        root_view.add_bottom_bar(
-            &libadwaita::ViewSwitcherBar::builder()
-                .reveal(true)
-                .stack(&root_stack.container)
-                .build(),
-        );
-        root_view.set_content(Some(&root_stack.container));
+        #[cfg(feature = "libadwaita")]
+        {
+            let root_view = libadwaita::ToolbarView::new();
+            root_view.add_top_bar(&headerbar.container);
+            root_view.add_bottom_bar(
+                &libadwaita::ViewSwitcherBar::builder()
+                    .reveal(true)
+                    .stack(&root_stack.container)
+                    .build(),
+            );
+            root_view.set_content(Some(&root_stack.container));
+            window.set_content(Some(&root_view));
+        }
 
-        window.set_content(Some(&root_view));
+        #[cfg(not(feature = "libadwaita"))]
+        {
+            let root_view = Box::builder().orientation(Orientation::Vertical).build();
+            root_view.append(&root_stack.container);
+            root_view.append(&Separator::new(Orientation::Horizontal));
+            root_view.append(
+                &StackSwitcher::builder()
+                    .stack(&root_stack.container)
+                    .halign(Align::Center)
+                    .vexpand(false)
+                    .hexpand(true)
+                    .build(),
+            );
+            window.set_titlebar(Some(&headerbar.container));
+            window.set_child(Some(&root_view));
+        }
 
         App {
             application,
@@ -201,7 +244,16 @@ impl App {
                             To enable the daemon, run the following command:"),
                         "close",
                         "_Close");
+
+                    #[cfg(feature = "libadwaita")]
                     diag.set_extra_child(Some(&hbox));
+
+                    #[cfg(not(feature = "libadwaita"))]
+                    {
+                        hbox.set_margin_start(12);
+                        hbox.set_margin_end(12);
+                        diag.first_child().unwrap().first_child().unwrap().downcast::<Box>().unwrap().append(&hbox);
+                    }
                 }
             }));
 
@@ -473,6 +525,7 @@ impl App {
         Ok(())
     }
 
+    #[cfg(feature = "libadwaita")]
     fn enable_overclocking(&self) {
         let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>");
         let dialog = libadwaita::MessageDialog::builder()
@@ -517,6 +570,42 @@ impl App {
         dialog.present();
     }
 
+    #[cfg(not(feature = "libadwaita"))]
+    fn enable_overclocking(&self) {
+        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>. Are you sure you want to do this?");
+        let dialog = MessageDialog::builder()
+            .title("Enable Overclocking")
+            .use_markup(true)
+            .text(text)
+            .message_type(MessageType::Question)
+            .buttons(ButtonsType::OkCancel)
+            .transient_for(&self.window)
+            .build();
+
+        dialog.run_async(clone!(@strong self as app => move |diag, response| {
+            if response == ResponseType::Ok {
+                match app.daemon_client.enable_overdrive().and_then(|buffer| buffer.inner()) {
+                    Ok(_) => {
+                        let success_dialog = MessageDialog::builder()
+                            .title("Success")
+                            .text("Overclocking successfully enabled. A system reboot is required to apply the changes")
+                            .message_type(MessageType::Info)
+                            .buttons(ButtonsType::Ok)
+                            .build();
+                        success_dialog.run_async(move |diag, _| {
+                            diag.hide();
+                        });
+                    }
+                    Err(err) => {
+                        show_error(&app.window, err);
+                    }
+                }
+            }
+            diag.hide();
+        }));
+    }
+
+    #[cfg(feature = "libadwaita")]
     fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
         let text = confirmation_text(delay);
         let dialog = libadwaita::MessageDialog::builder()
@@ -577,6 +666,58 @@ impl App {
             }),
         );
         dialog.present();
+    }
+
+    #[cfg(not(feature = "libadwaita"))]
+    fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
+        let text = confirmation_text(delay);
+        let dialog = MessageDialog::builder()
+            .title("Confirm settings")
+            .text(text)
+            .message_type(MessageType::Question)
+            .buttons(ButtonsType::YesNo)
+            .transient_for(&self.window)
+            .build();
+        let confirmed = Rc::new(AtomicBool::new(false));
+
+        glib::source::timeout_add_local(
+            Duration::from_secs(1),
+            clone!(@strong dialog, @strong self as app, @strong gpu_id, @strong confirmed => move || {
+                if confirmed.load(std::sync::atomic::Ordering::SeqCst) {
+                    return ControlFlow::Break;
+
+                }
+                delay -= 1;
+
+                let text = confirmation_text(delay);
+                dialog.set_text(Some(&text));
+
+                if delay == 0 {
+                    dialog.hide();
+                    app.set_initial(&gpu_id);
+
+                    ControlFlow::Break
+                }  else {
+                    ControlFlow::Continue
+                }
+            }),
+        );
+
+        dialog.run_async(clone!(@strong self as app => move |diag, response| {
+            confirmed.store(true, std::sync::atomic::Ordering::SeqCst);
+
+            let command = match response {
+                ResponseType::Yes => ConfirmCommand::Confirm,
+                _ => ConfirmCommand::Revert,
+            };
+
+            diag.hide();
+
+            if let Err(err) = app.daemon_client.confirm_pending_config(command) {
+                show_error(&app.window, err);
+            }
+            app.set_initial(&gpu_id);
+        }));
     }
 }
 

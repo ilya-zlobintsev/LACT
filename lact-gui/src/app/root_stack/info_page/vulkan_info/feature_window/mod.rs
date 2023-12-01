@@ -4,9 +4,17 @@ mod row;
 use glib::Object;
 use gtk::{gio, glib};
 
+#[cfg(feature = "libadwaita")]
 glib::wrapper! {
     pub struct VulkanFeaturesWindow(ObjectSubclass<imp::VulkanFeaturesWindow>)
         @extends gtk::Box, gtk::Widget, gtk::Window, libadwaita::Window,
+        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
+}
+
+#[cfg(not(feature = "libadwaita"))]
+glib::wrapper! {
+    pub struct VulkanFeaturesWindow(ObjectSubclass<imp::VulkanFeaturesWindow>)
+        @extends gtk::Box, gtk::Widget, gtk::Window,
         @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
 }
 
@@ -33,12 +41,34 @@ mod imp {
         CompositeTemplate, Expression, FilterListModel, PropertyExpression, SearchEntry,
         SignalListItemFactory, StringFilter, TemplateChild,
     };
-    use libadwaita::subclass::window::AdwWindowImpl;
     use std::cell::RefCell;
 
+    #[cfg(feature = "libadwaita")]
+    use libadwaita::subclass::window::AdwWindowImpl;
+
+    #[cfg(feature = "libadwaita")]
     #[derive(CompositeTemplate, Properties, Default)]
     #[properties(wrapper_type = super::VulkanFeaturesWindow)]
     #[template(file = "ui/vulkan_features_window.blp")]
+    pub struct VulkanFeaturesWindow {
+        #[property(get, set)]
+        model: RefCell<Option<gio::ListModel>>,
+        #[template_child]
+        features_factory: TemplateChild<SignalListItemFactory>,
+
+        #[template_child]
+        filter_model: TemplateChild<FilterListModel>,
+
+        #[template_child]
+        search_filter: TemplateChild<StringFilter>,
+        #[template_child]
+        search_entry: TemplateChild<SearchEntry>,
+    }
+
+    #[cfg(not(feature = "libadwaita"))]
+    #[derive(CompositeTemplate, Properties, Default)]
+    #[properties(wrapper_type = super::VulkanFeaturesWindow)]
+    #[template(file = "ui/vulkan_features_window_gtk.blp")]
     pub struct VulkanFeaturesWindow {
         #[property(get, set)]
         model: RefCell<Option<gio::ListModel>>,
@@ -58,7 +88,12 @@ mod imp {
     impl ObjectSubclass for VulkanFeaturesWindow {
         const NAME: &'static str = "VulkanFeaturesWindow";
         type Type = super::VulkanFeaturesWindow;
+
+        #[cfg(feature = "libadwaita")]
         type ParentType = libadwaita::Window;
+
+        #[cfg(not(feature = "libadwaita"))]
+        type ParentType = gtk::Window;
 
         fn class_init(class: &mut Self::Class) {
             class.bind_template();
@@ -117,6 +152,9 @@ mod imp {
 
     impl WidgetImpl for VulkanFeaturesWindow {}
     impl WindowImpl for VulkanFeaturesWindow {}
+
+    #[cfg(feature = "libadwaita")]
     impl AdwWindowImpl for VulkanFeaturesWindow {}
+
     impl ApplicationWindowImpl for VulkanFeaturesWindow {}
 }

@@ -1,18 +1,31 @@
-use crate::app::page_section::PageSection;
+use crate::app::{page_section::PageSection, root_stack::action_row};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel,
 };
-use libadwaita::prelude::{ActionRowExt, ComboRowExt};
 use std::{cell::RefCell, rc::Rc, str::FromStr};
+
+#[cfg(feature = "libadwaita")]
+use libadwaita::prelude::{ActionRowExt, ComboRowExt};
 
 #[derive(Debug, Clone)]
 pub struct PerformanceFrame {
     pub container: PageSection,
+
+    #[cfg(feature = "libadwaita")]
     level_row: libadwaita::ComboRow,
+    #[cfg(feature = "libadwaita")]
     mode_row: libadwaita::ComboRow,
+
+    #[cfg(not(feature = "libadwaita"))]
+    level_row: DropDown,
+    #[cfg(not(feature = "libadwaita"))]
+    level_subtitle: Label,
+    #[cfg(not(feature = "libadwaita"))]
+    mode_row: DropDown,
+
     modes_table: Rc<RefCell<Option<PowerProfileModesTable>>>,
 }
 
@@ -29,33 +42,83 @@ impl PerformanceFrame {
             .into_iter()
             .collect();
 
-        let level_row = libadwaita::ComboRow::builder()
-            .model(&levels_model)
-            .title("Performance level")
-            .subtitle("")
-            .subtitle_lines(0)
-            .sensitive(false)
-            .build();
+        #[cfg(feature = "libadwaita")]
+        let level_row = {
+            let row = libadwaita::ComboRow::builder()
+                .model(&levels_model)
+                .title("Performance level")
+                .subtitle("")
+                .subtitle_lines(0)
+                .sensitive(false)
+                .build();
+            listbox.append(&row);
+            row
+        };
 
-        listbox.append(&level_row);
+        #[cfg(not(feature = "libadwaita"))]
+        let level_subtitle;
+        #[cfg(not(feature = "libadwaita"))]
+        let level_row = {
+            let dropdown = DropDown::builder()
+                .model(&levels_model)
+                .sensitive(false)
+                .valign(Align::Center)
+                .build();
+            let row = action_row("Performance level", Some(""), &[&dropdown], None);
+            level_subtitle = row
+                .first_child()
+                .unwrap()
+                .first_child()
+                .unwrap()
+                .first_child()
+                .unwrap()
+                .next_sibling()
+                .unwrap()
+                .downcast::<Label>()
+                .unwrap();
+            listbox.append(&row);
+            dropdown
+        };
 
         let filler_model: StringList = [""].into_iter().collect();
 
-        let mode_row = libadwaita::ComboRow::builder()
-            .model(&filler_model)
-            .title("Power level mode")
-            .subtitle("Set \"Performance level\" to \"Manual\" to use power states and modes")
-            .subtitle_lines(0)
-            .sensitive(false)
-            .build();
+        #[cfg(feature = "libadwaita")]
+        let mode_row = {
+            let row = libadwaita::ComboRow::builder()
+                .model(&filler_model)
+                .title("Power level mode")
+                .subtitle("Set \"Performance level\" to \"Manual\" to use power states and modes")
+                .subtitle_lines(0)
+                .sensitive(false)
+                .build();
+            listbox.append(&row);
+            row
+        };
 
-        listbox.append(&mode_row);
+        #[cfg(not(feature = "libadwaita"))]
+        let mode_row = {
+            let dropdown = DropDown::builder()
+                .model(&filler_model)
+                .sensitive(false)
+                .valign(Align::Center)
+                .build();
+            let row = action_row(
+                "Power level mode",
+                Some("Set \"Performance level\" to \"Manual\" to use power states and modes"),
+                &[&dropdown],
+                None,
+            );
+            listbox.append(&row);
+            dropdown
+        };
 
         container.append(&listbox);
 
         let frame = Self {
             container,
             level_row,
+            #[cfg(not(feature = "libadwaita"))]
+            level_subtitle,
             mode_row,
             modes_table: Rc::new(RefCell::new(None)),
         };
@@ -145,17 +208,23 @@ impl PerformanceFrame {
     fn update_from_selection(&self) {
         let mut enable_mode_control = false;
 
-        self.level_row
-            .set_subtitle(match self.level_row.selected() {
-                0 => "Automatically adjust GPU and VRAM clocks. (Default)",
-                1 => "Always use the highest clockspeeds for GPU and VRAM.",
-                2 => "Always use the lowest clockspeeds for GPU and VRAM.",
-                3 => {
-                    enable_mode_control = true;
-                    "Manual performance control."
-                }
-                _ => unreachable!(),
-            });
+        let subtitle = match self.level_row.selected() {
+            0 => "Automatically adjust GPU and VRAM clocks. (Default)",
+            1 => "Always use the highest clockspeeds for GPU and VRAM.",
+            2 => "Always use the lowest clockspeeds for GPU and VRAM.",
+            3 => {
+                enable_mode_control = true;
+                "Manual performance control."
+            }
+            _ => unreachable!(),
+        };
+
+        #[cfg(feature = "libadwaita")]
+        self.level_row.set_subtitle(subtitle);
+
+        #[cfg(not(feature = "libadwaita"))]
+        self.level_subtitle.set_text(subtitle);
+
         self.mode_row.set_sensitive(enable_mode_control);
     }
 

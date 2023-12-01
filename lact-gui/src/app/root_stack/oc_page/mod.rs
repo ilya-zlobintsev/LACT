@@ -8,6 +8,7 @@ mod power_states;
 
 use self::power_cap_section::PowerCapSection;
 use self::power_states::power_states_frame::PowerStatesFrame;
+use super::list_clamp;
 use clocks_frame::ClocksFrame;
 use gpu_stats_section::GpuStatsSection;
 use gtk::*;
@@ -18,8 +19,6 @@ use lact_client::schema::{
     DeviceStats, SystemInfo,
 };
 use performance_frame::PerformanceFrame;
-// use power_cap_frame::PowerCapFrame;
-use super::list_clamp;
 use std::collections::HashMap;
 use tracing::warn;
 
@@ -28,7 +27,6 @@ pub struct OcPage {
     pub container: ScrolledWindow,
     stats_section: GpuStatsSection,
     pub performance_frame: PerformanceFrame,
-    // power_cap_frame: PowerCapFrame,
     power_cap_section: PowerCapSection,
     pub power_states_frame: PowerStatesFrame,
     pub clocks_frame: ClocksFrame,
@@ -51,7 +49,17 @@ impl OcPage {
         if system_info.amdgpu_overdrive_enabled == Some(false) {
             let (warning_frame, button) = oc_warning_frame();
             enable_overclocking_button = Some(button);
-            vbox.append(&warning_frame);
+
+            #[cfg(feature = "libadwaita")]
+            vbox.append(
+                &libadwaita::Bin::builder()
+                    .css_classes(["card"])
+                    .child(&warning_frame)
+                    .build(),
+            );
+
+            #[cfg(not(feature = "libadwaita"))]
+            vbox.append(&Frame::builder().child(&warning_frame).build());
         }
 
         let stats_section = GpuStatsSection::new();
@@ -166,7 +174,7 @@ impl OcPage {
     }
 }
 
-fn oc_warning_frame() -> (libadwaita::Bin, Button) {
+fn oc_warning_frame() -> (Box, Button) {
     let vbox = Box::builder()
         .orientation(Orientation::Vertical)
         .spacing(6)
@@ -218,11 +226,5 @@ fn oc_warning_frame() -> (libadwaita::Bin, Button) {
 
     vbox.append(&enable_button);
 
-    (
-        libadwaita::Bin::builder()
-            .css_classes(["card"])
-            .child(&vbox)
-            .build(),
-        enable_button,
-    )
+    (vbox, enable_button)
 }

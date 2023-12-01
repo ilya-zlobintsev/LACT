@@ -1,13 +1,16 @@
 use crate::app::page_section::PageSection;
+use crate::app::root_stack::action_row;
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::amdgpu_sysfs;
 use lact_client::schema::amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable, ClocksTableGen};
-use libadwaita::prelude::ActionRowExt;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::debug;
+
+#[cfg(feature = "libadwaita")]
+use libadwaita::prelude::ActionRowExt;
 
 const VOLTAGE_OFFSET_RANGE: f64 = 250.0;
 
@@ -17,7 +20,13 @@ pub struct ClocksFrame {
     pub container: PageSection,
     max_values_box: Box,
     heading_listbox: ListBox,
+
+    #[cfg(feature = "libadwaita")]
     advanced_switch_row: libadwaita::SwitchRow,
+
+    #[cfg(not(feature = "libadwaita"))]
+    advanced_switch_row: Switch,
+
     min_values_box: Box,
     min_sclk_adjustment: (Adjustment, Rc<AtomicBool>),
     min_mclk_adjustment: (Adjustment, Rc<AtomicBool>),
@@ -39,18 +48,32 @@ impl ClocksFrame {
             .selection_mode(SelectionMode::None)
             .build();
 
-        heading_listbox.append(&libadwaita::ActionRow::builder()
-            .css_classes(["warning"])
-            .title("Warning!")
-            .subtitle("Changing these values may lead to system instability and potentially damage your hardware!")
-            .subtitle_lines(0)
-            .build());
+        let warning_row = action_row(
+            "Warning!",
+            Some("Changing these values may lead to system instability and potentially damage your hardware!"),
+            &Vec::<&Widget>::new(),
+            Some(&vec!["warning"]));
 
-        let advanced_switch_row = libadwaita::SwitchRow::builder()
-            .title("Advanced mode")
-            .active(false)
-            .build();
-        heading_listbox.append(&advanced_switch_row);
+        heading_listbox.append(&warning_row);
+
+        #[cfg(feature = "libadwaita")]
+        let advanced_switch_row = {
+            let row = libadwaita::SwitchRow::builder()
+                .title("Advanced mode")
+                .active(false)
+                .build();
+            heading_listbox.append(&row);
+            row
+        };
+
+        #[cfg(not(feature = "libadwaita"))]
+        let advanced_switch_row = {
+            let switch = Switch::builder().active(false).build();
+            let row = action_row("Advanced mode", None, &[&switch], None);
+
+            heading_listbox.append(&row);
+            switch
+        };
 
         container.append(&heading_listbox);
 
@@ -113,14 +136,14 @@ impl ClocksFrame {
             .halign(Align::Center)
             .css_classes(["destructive-action", "circular"])
             .build();
-        let reset_row = libadwaita::ActionRow::builder()
-            .title("Reset values")
-            .subtitle(
-                "Warning: this will reset all clock and voltage settings to their default values",
-            )
-            .subtitle_lines(0)
-            .build();
-        reset_row.add_suffix(&reset_button);
+
+        let reset_row = action_row(
+            "Reset values",
+            Some("Warning: this will reset all clock and voltage settings to their default values"),
+            &[&reset_button],
+            None,
+        );
+
         max_values_listbox.append(&reset_row);
 
         let clocks_data_unavailable_label = Label::builder()
@@ -370,10 +393,22 @@ fn extract_value_and_range(
 fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<AtomicBool>) {
     let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
 
+    #[cfg(feature = "libadwaita")]
     let value_selector = libadwaita::SpinRow::builder()
         .title(title)
         .adjustment(&adjustment)
         .build();
+
+    #[cfg(not(feature = "libadwaita"))]
+    let value_selector = {
+        let spin_btn = SpinButton::builder()
+            .adjustment(&adjustment)
+            .valign(Align::Center)
+            .build();
+        let row = action_row(title, None, &[&spin_btn], None);
+        row.set_child(Some(&spin_btn));
+        spin_btn
+    };
 
     let changed = Rc::new(AtomicBool::new(false));
 

@@ -1,24 +1,24 @@
 using Gtk 4.0;
 
 template $VulkanFeatureRow: Box {
-  focus-on-click: false;
-  hexpand: true;
-  hexpand-set: true;
-  margin-bottom: 12;
-  margin-end: 24;
-  margin-start: 24;
-  margin-top: 12;
-
-  Label name_label {
-    xalign: 0.0;
-    ellipsize: end;
+    focus-on-click: false;
     hexpand: true;
-    label: 'feature name';
-    selectable: true;
-  }
+    hexpand-set: true;
+    margin-bottom: 12;
+    margin-end: 24;
+    margin-start: 24;
+    margin-top: 12;
 
-  Image available_image {
-    halign: end;
-    icon-name: 'action-unavailable-symbolic';
-  }
+    Label name_label {
+        xalign: 0.0;
+        ellipsize: end;
+        hexpand: true;
+        label: 'feature name';
+        selectable: true;
+    }
+
+    Image available_image {
+        halign: end;
+        icon-name: 'action-unavailable-symbolic';
+    }
 }

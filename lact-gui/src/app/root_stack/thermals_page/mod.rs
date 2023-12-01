@@ -7,6 +7,8 @@ use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{default_fan_curve, DeviceStats, FanControlMode, FanCurveMap};
+
+#[cfg(feature = "libadwaita")]
 use libadwaita::prelude::*;
 
 #[derive(Debug)]
@@ -81,15 +83,18 @@ impl ThermalsPage {
 
         fan_control_mode_stack.add_titled(&fan_curve_frame.container, Some("curve"), "Curve");
 
-        fan_control_mode_stack.add_titled(
-            &libadwaita::Bin::builder()
-                .css_classes(["card"])
-                .valign(Align::Start)
-                .child(&fan_static_speed_frame)
-                .build(),
-            Some("static"),
-            "Static",
-        );
+        #[cfg(feature = "libadwaita")]
+        let static_speed_container = libadwaita::Bin::builder()
+            .css_classes(["card"])
+            .valign(Align::Start)
+            .child(&fan_static_speed_frame)
+            .build();
+        #[cfg(not(feature = "libadwaita"))]
+        let static_speed_container = Frame::builder()
+            .valign(Align::Start)
+            .child(&fan_static_speed_frame)
+            .build();
+        fan_control_mode_stack.add_titled(&static_speed_container, Some("static"), "Static");
 
         fan_control_section.append(&fan_control_mode_stack_switcher);
         fan_control_section.append(&fan_control_mode_stack);
