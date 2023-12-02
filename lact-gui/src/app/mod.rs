@@ -13,6 +13,7 @@ use crate::{info_dialog, APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use glib::clone;
 use gpu_selector::GpuSelector;
+use gtk::gio::ActionEntry;
 use gtk::glib::{timeout_future, ControlFlow};
 use gtk::{gio::ApplicationFlags, prelude::*, *};
 use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
@@ -77,6 +78,13 @@ impl App {
             .height_request(200)
             .icon_name(APP_ID)
             .build();
+
+        window.add_action_entries([ActionEntry::builder("quit")
+            .activate(clone!(@weak application => move |_, _, _| {
+                application.quit();
+            }))
+            .build()]);
+        application.set_accels_for_action("win.quit", &["<Primary>Q"]);
 
         let system_info_buf = daemon_client
             .get_system_info()
