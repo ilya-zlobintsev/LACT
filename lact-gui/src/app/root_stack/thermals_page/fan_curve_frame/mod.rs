@@ -11,7 +11,12 @@ use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct FanCurveFrame {
+    #[cfg(feature = "libadwaita")]
     pub container: Box,
+
+    #[cfg(not(feature = "libadwaita"))]
+    pub container: Frame,
+
     curve_container: ScrolledWindow,
     points: Rc<RefCell<Vec<PointAdjustment>>>,
 }
@@ -24,7 +29,7 @@ impl FanCurveFrame {
             .height_request(450)
             .build();
 
-        let hbox = Box::new(Orientation::Horizontal, 5);
+        let hbox = Box::new(Orientation::Horizontal, 6);
 
         let curve_container = ScrolledWindow::builder()
             .vscrollbar_policy(PolicyType::Never)
@@ -77,7 +82,15 @@ impl FanCurveFrame {
         let points = Rc::new(RefCell::new(Vec::new()));
 
         let curve_frame = Self {
+            #[cfg(feature = "libadwaita")]
             container: root_box,
+
+            #[cfg(not(feature = "libadwaita"))]
+            container: Frame::builder()
+                .css_classes(["view"])
+                .child(&root_box)
+                .build(),
+
             curve_container,
             points,
         };
