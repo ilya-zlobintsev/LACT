@@ -41,32 +41,10 @@ mod imp {
     };
     use std::cell::RefCell;
 
-    #[cfg(feature = "libadwaita")]
     #[derive(CompositeTemplate, Default, Properties)]
     #[properties(wrapper_type = super::PowerCapSection)]
-    #[template(file = "ui/oc_page/power_cap_section.blp")]
-    pub struct PowerCapSection {
-        #[property(get, set)]
-        pub current_value: RefCell<f64>,
-        #[property(get, set)]
-        pub max_value: RefCell<f64>,
-        #[property(get, set)]
-        pub min_value: RefCell<f64>,
-        #[property(get, set)]
-        pub default_value: RefCell<f64>,
-        #[property(get, set)]
-        pub value_text: RefCell<String>,
-
-        #[template_child]
-        pub adjustment: TemplateChild<OcAdjustment>,
-        #[template_child]
-        pub reset_button: TemplateChild<Button>,
-    }
-
-    #[cfg(not(feature = "libadwaita"))]
-    #[derive(CompositeTemplate, Default, Properties)]
-    #[properties(wrapper_type = super::PowerCapSection)]
-    #[template(file = "ui/oc_page/power_cap_section_gtk.blp")]
+    #[cfg_attr(feature = "libadwaita", template(file = "ui/oc_page/power_cap_section.blp"))]
+    #[cfg_attr(not(feature = "libadwaita"), template(file = "ui/oc_page/power_cap_section_gtk.blp"))]
     pub struct PowerCapSection {
         #[property(get, set)]
         pub current_value: RefCell<f64>,
