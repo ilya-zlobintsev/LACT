@@ -4,6 +4,9 @@ PREFIX ?= /usr/local
 
 build-release:
 	cargo build --release
+	
+build-release-libadwaita:
+	cargo build --release --features=adw
 
 install:
 	install -Dm755 target/release/lact $(DESTDIR)$(PREFIX)/bin/lact
