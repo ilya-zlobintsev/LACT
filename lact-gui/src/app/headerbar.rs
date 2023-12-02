@@ -62,10 +62,15 @@ impl Headerbar {
                     .split(':')
                     .collect::<Vec<&str>>(),
             )
+            .website("https://github.com/ilya-zlobintsev/LACT")
+            .issue_url("https://github.com/ilya-zlobintsev/LACT/issues")
             .build();
 
         let menu = gtk::gio::Menu::new();
-        menu.append_item(&gtk::gio::MenuItem::new(Some("About"), Some("win.about")));
+        menu.append_item(&gtk::gio::MenuItem::new(
+            Some("About LACT"),
+            Some("win.about"),
+        ));
 
         root_win.add_action_entries([ActionEntry::builder("about")
             .activate(clone!(@weak about_dialog => move |_, _, _| {
