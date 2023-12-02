@@ -46,29 +46,10 @@ mod imp {
     #[cfg(feature = "libadwaita")]
     use libadwaita::subclass::window::AdwWindowImpl;
 
-    #[cfg(feature = "libadwaita")]
     #[derive(CompositeTemplate, Properties, Default)]
     #[properties(wrapper_type = super::VulkanFeaturesWindow)]
-    #[template(file = "ui/vulkan_features_window.blp")]
-    pub struct VulkanFeaturesWindow {
-        #[property(get, set)]
-        model: RefCell<Option<gio::ListModel>>,
-        #[template_child]
-        features_factory: TemplateChild<SignalListItemFactory>,
-
-        #[template_child]
-        filter_model: TemplateChild<FilterListModel>,
-
-        #[template_child]
-        search_filter: TemplateChild<StringFilter>,
-        #[template_child]
-        search_entry: TemplateChild<SearchEntry>,
-    }
-
-    #[cfg(not(feature = "libadwaita"))]
-    #[derive(CompositeTemplate, Properties, Default)]
-    #[properties(wrapper_type = super::VulkanFeaturesWindow)]
-    #[template(file = "ui/vulkan_features_window_gtk.blp")]
+    #[cfg_attr(feature = "libadwaita", template(file = "ui/vulkan_features_window.blp"))]
+    #[cfg_attr(not(feature = "libadwaita"), template(file = "ui/vulkan_features_window_gtk.blp"))]
     pub struct VulkanFeaturesWindow {
         #[property(get, set)]
         model: RefCell<Option<gio::ListModel>>,
