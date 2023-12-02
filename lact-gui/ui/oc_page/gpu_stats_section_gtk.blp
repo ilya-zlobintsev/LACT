@@ -1,0 +1,97 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $GpuStatsSection: $PageSection {
+    name: "GPU statistics";
+    spacing: 12;
+
+    Frame {
+        styles ["view"]
+        Box {
+            orientation: vertical;
+            spacing: 12;
+
+            Box {
+                orientation: vertical;
+                margin-top: 12;
+                margin-start: 12;
+                margin-end: 12;
+                spacing: 6;
+
+                Label {
+                    label: "VRAM Usage";
+                    xalign: 0.0;
+                }
+
+                Overlay {
+                    LevelBar vram_usage_bar {
+                        hexpand: true;
+                        height-request: 18;
+                        value: bind template.vram-usage;
+                        orientation: horizontal;
+                    }
+
+                    [overlay]
+                    Label vram_usage_label {
+                        label: bind template.vram-usage-text;
+                    }
+                }
+            }
+
+            Separator {
+                orientation: horizontal;
+            }
+
+            Box {
+                orientation: horizontal;
+                margin-bottom: 12;
+                margin-start: 12;
+                margin-end: 12;
+                homogeneous: true;
+                spacing: 12;
+
+                Box {
+                    orientation: vertical;
+                    hexpand: true;
+                    spacing: 6;
+
+                    $InfoRow {
+                        name: "Core Clock:";
+                        value: bind template.core-clock;
+                    }
+
+                    $InfoRow {
+                        name: "Voltage:";
+                        value: bind template.voltage;
+                    }
+
+                    $InfoRow {
+                        name: "Temp (hotspot):";
+                        value: bind template.temperature;
+                    }
+                }
+
+                Box {
+                    orientation: vertical;
+                    hexpand: true;
+                    spacing: 6;
+
+                    $InfoRow {
+                        name: "Memory Clock:";
+                        value: bind template.vram-clock;
+                    }
+
+                    $InfoRow {
+                        name: "Usage:";
+                        value: bind template.gpu-usage;
+                    }
+
+                    $InfoRow {
+                        name: "Power Usage:";
+                        value: bind template.power-usage;
+                    }
+                }
+            }
+        }
+    }
+}

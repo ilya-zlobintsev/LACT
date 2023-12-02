@@ -84,7 +84,8 @@ mod imp {
 
     #[derive(CompositeTemplate, Default, Properties)]
     #[properties(wrapper_type = super::GpuStatsSection)]
-    #[template(file = "ui/oc_page/gpu_stats_section.blp")]
+    #[cfg_attr(feature = "libadwaita", template(file = "ui/oc_page/gpu_stats_section.blp"))]
+    #[cfg_attr(not(feature = "libadwaita"), template(file = "ui/oc_page/gpu_stats_section_gtk.blp"))]
     pub struct GpuStatsSection {
         #[property(get, set)]
         core_clock: RefCell<String>,
