@@ -9,8 +9,7 @@ jobs:
   build-packages:
     strategy:
       matrix:
-        target-os: [ debian-12, ubuntu-2204, fedora-38, fedora-39, arch ]
-        edition: [ default, libadwaita ]
+        target-os: [ debian-12, ubuntu-2204, fedora-38, fedora-39, fedora-39-libadwaita, arch, arch-libadwaita ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -22,7 +21,7 @@ jobs:
           sudo apt -y install /tmp/pkger.deb
           
       - name: Set libadwaita target
-        if: matrix.edition == 'libadwaita'
+        if: contains(matrix.edition, 'libadwaita')
         run: sed -i 's/\&\& make/\&\& make build-release-libadwaita/g' pkg/recipes/lact/recipe.yml
 
       - name: Build packages
