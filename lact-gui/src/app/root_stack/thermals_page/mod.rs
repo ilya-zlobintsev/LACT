@@ -91,6 +91,7 @@ impl ThermalsPage {
             .build();
         #[cfg(not(feature = "libadwaita"))]
         let static_speed_container = Frame::builder()
+            .css_classes(["view"])
             .valign(Align::Start)
             .child(&fan_static_speed_frame)
             .build();
