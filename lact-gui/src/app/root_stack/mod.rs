@@ -232,5 +232,5 @@ pub fn action_row(
         inner.append(*suf);
     });
 
-    ListBoxRow::builder().child(&inner).build()
+    ListBoxRow::builder().activatable(false).child(&inner).build()
 }
