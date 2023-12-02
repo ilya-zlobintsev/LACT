@@ -398,6 +398,8 @@ fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<Atom
         .title(title)
         .adjustment(&adjustment)
         .build();
+    #[cfg(feature = "libadwaita")]
+    listbox.append(&value_selector);
 
     #[cfg(not(feature = "libadwaita"))]
     let value_selector = {
@@ -406,7 +408,9 @@ fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<Atom
             .valign(Align::Center)
             .build();
         let row = action_row(title, None, &[&spin_btn], None);
-        row.set_child(Some(&spin_btn));
+
+        listbox.append(&row);
+
         spin_btn
     };
 
@@ -420,8 +424,6 @@ fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<Atom
             value_selector.set_sensitive(adjustment.upper() == 0.0);
         }
     ));
-
-    listbox.append(&value_selector);
 
     (adjustment, changed)
 }
