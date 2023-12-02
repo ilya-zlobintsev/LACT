@@ -8,16 +8,16 @@ use lact_client::schema::amdgpu_sysfs::gpu_handle::{
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 #[cfg(feature = "libadwaita")]
-use libadwaita::prelude::{ActionRowExt, ComboRowExt};
+use adw::prelude::{ActionRowExt, ComboRowExt};
 
 #[derive(Debug, Clone)]
 pub struct PerformanceFrame {
     pub container: PageSection,
 
     #[cfg(feature = "libadwaita")]
-    level_row: libadwaita::ComboRow,
+    level_row: adw::ComboRow,
     #[cfg(feature = "libadwaita")]
-    mode_row: libadwaita::ComboRow,
+    mode_row: adw::ComboRow,
 
     #[cfg(not(feature = "libadwaita"))]
     level_row: DropDown,
@@ -44,7 +44,7 @@ impl PerformanceFrame {
 
         #[cfg(feature = "libadwaita")]
         let level_row = {
-            let row = libadwaita::ComboRow::builder()
+            let row = adw::ComboRow::builder()
                 .model(&levels_model)
                 .title("Performance level")
                 .subtitle("")
@@ -84,7 +84,7 @@ impl PerformanceFrame {
 
         #[cfg(feature = "libadwaita")]
         let mode_row = {
-            let row = libadwaita::ComboRow::builder()
+            let row = adw::ComboRow::builder()
                 .model(&filler_model)
                 .title("Power level mode")
                 .subtitle("Set \"Performance level\" to \"Manual\" to use power states and modes")

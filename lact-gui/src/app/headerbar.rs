@@ -3,7 +3,7 @@ use super::{apply_box::ApplyBox, gpu_selector::GpuSelector};
 #[derive(Debug, Clone)]
 pub struct Headerbar {
     #[cfg(feature = "libadwaita")]
-    pub container: libadwaita::HeaderBar,
+    pub container: adw::HeaderBar,
 
     #[cfg(not(feature = "libadwaita"))]
     pub container: gtk::HeaderBar,
@@ -15,7 +15,7 @@ pub struct Headerbar {
 impl Headerbar {
     pub fn new() -> Self {
         #[cfg(feature = "libadwaita")]
-        let container = libadwaita::HeaderBar::builder().show_title(false).build();
+        let container = adw::HeaderBar::builder().show_title(false).build();
 
         #[cfg(not(feature = "libadwaita"))]
         let container = gtk::HeaderBar::builder()

@@ -52,7 +52,7 @@ impl OcPage {
 
             #[cfg(feature = "libadwaita")]
             vbox.append(
-                &libadwaita::Bin::builder()
+                &adw::Bin::builder()
                     .css_classes(["card"])
                     .child(&warning_frame)
                     .build(),

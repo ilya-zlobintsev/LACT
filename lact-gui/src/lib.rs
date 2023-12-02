@@ -18,7 +18,7 @@ pub fn run(args: GuiArgs) -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
     #[cfg(feature = "libadwaita")]
-    if let Err(err) = libadwaita::init() {
+    if let Err(err) = adw::init() {
         return Err(anyhow!("Cannot initialize Libadwaita: {err}"));
     }
 

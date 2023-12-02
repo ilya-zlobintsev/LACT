@@ -27,7 +27,7 @@ use std::time::Duration;
 use tracing::{debug, error, trace, warn};
 
 #[cfg(feature = "libadwaita")]
-use libadwaita::prelude::{AdwApplicationWindowExt, MessageDialogExt};
+use adw::prelude::{AdwApplicationWindowExt, MessageDialogExt};
 
 // In ms
 const STATS_POLL_INTERVAL: u64 = 250;
@@ -35,9 +35,9 @@ const STATS_POLL_INTERVAL: u64 = 250;
 #[derive(Clone)]
 pub struct App {
     #[cfg(feature = "libadwaita")]
-    application: libadwaita::Application,
+    application: adw::Application,
     #[cfg(feature = "libadwaita")]
-    pub window: libadwaita::ApplicationWindow,
+    pub window: adw::ApplicationWindow,
 
     #[cfg(not(feature = "libadwaita"))]
     application: Application,
@@ -53,13 +53,13 @@ pub struct App {
 impl App {
     pub fn new(daemon_client: DaemonClient) -> Self {
         #[cfg(feature = "libadwaita")]
-        let application = libadwaita::Application::new(Some(APP_ID), ApplicationFlags::default());
+        let application = adw::Application::new(Some(APP_ID), ApplicationFlags::default());
 
         #[cfg(not(feature = "libadwaita"))]
         let application = Application::new(Some(APP_ID), ApplicationFlags::default());
 
         #[cfg(feature = "libadwaita")]
-        let window = libadwaita::ApplicationWindow::builder()
+        let window = adw::ApplicationWindow::builder()
             .title("LACT")
             .default_width(820)
             .default_height(750)
@@ -94,10 +94,10 @@ impl App {
 
         #[cfg(feature = "libadwaita")]
         {
-            let root_view = libadwaita::ToolbarView::new();
+            let root_view = adw::ToolbarView::new();
             root_view.add_top_bar(&headerbar.container);
             root_view.add_bottom_bar(
-                &libadwaita::ViewSwitcherBar::builder()
+                &adw::ViewSwitcherBar::builder()
                     .reveal(true)
                     .stack(&root_stack.container)
                     .build(),
@@ -528,7 +528,7 @@ impl App {
     #[cfg(feature = "libadwaita")]
     fn enable_overclocking(&self) {
         let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>");
-        let dialog = libadwaita::MessageDialog::builder()
+        let dialog = adw::MessageDialog::builder()
             .heading("Enable Overclocking")
             .body_use_markup(true)
             .body(text)
@@ -541,8 +541,8 @@ impl App {
 
         dialog.add_response(res_cancel, "_Cancel");
         dialog.add_response(res_ok, "_Ok");
-        dialog.set_response_appearance(res_cancel, libadwaita::ResponseAppearance::Destructive);
-        dialog.set_response_appearance(res_ok, libadwaita::ResponseAppearance::Suggested);
+        dialog.set_response_appearance(res_cancel, adw::ResponseAppearance::Destructive);
+        dialog.set_response_appearance(res_ok, adw::ResponseAppearance::Suggested);
 
         dialog.connect_response(
             None,
@@ -608,7 +608,7 @@ impl App {
     #[cfg(feature = "libadwaita")]
     fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
         let text = confirmation_text(delay);
-        let dialog = libadwaita::MessageDialog::builder()
+        let dialog = adw::MessageDialog::builder()
             .heading("Confirm settings")
             .body(text)
             .modal(true)
@@ -620,8 +620,8 @@ impl App {
 
         dialog.add_response(res_no, "_No");
         dialog.add_response(res_yes, "_Yes");
-        dialog.set_response_appearance(res_no, libadwaita::ResponseAppearance::Destructive);
-        dialog.set_response_appearance(res_yes, libadwaita::ResponseAppearance::Suggested);
+        dialog.set_response_appearance(res_no, adw::ResponseAppearance::Destructive);
+        dialog.set_response_appearance(res_yes, adw::ResponseAppearance::Suggested);
         let confirmed = Rc::new(AtomicBool::new(false));
 
         glib::source::timeout_add_local(

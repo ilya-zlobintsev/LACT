@@ -7,7 +7,7 @@ use gtk::{gio, glib};
 #[cfg(feature = "libadwaita")]
 glib::wrapper! {
     pub struct VulkanFeaturesWindow(ObjectSubclass<imp::VulkanFeaturesWindow>)
-        @extends gtk::Box, gtk::Widget, gtk::Window, libadwaita::Window,
+        @extends gtk::Box, gtk::Widget, gtk::Window, adw::Window,
         @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
 }
 
@@ -44,12 +44,18 @@ mod imp {
     use std::cell::RefCell;
 
     #[cfg(feature = "libadwaita")]
-    use libadwaita::subclass::window::AdwWindowImpl;
+    use adw::subclass::window::AdwWindowImpl;
 
     #[derive(CompositeTemplate, Properties, Default)]
     #[properties(wrapper_type = super::VulkanFeaturesWindow)]
-    #[cfg_attr(feature = "libadwaita", template(file = "ui/vulkan_features_window.blp"))]
-    #[cfg_attr(not(feature = "libadwaita"), template(file = "ui/vulkan_features_window_gtk.blp"))]
+    #[cfg_attr(
+        feature = "libadwaita",
+        template(file = "ui/vulkan_features_window.blp")
+    )]
+    #[cfg_attr(
+        not(feature = "libadwaita"),
+        template(file = "ui/vulkan_features_window_gtk.blp")
+    )]
     pub struct VulkanFeaturesWindow {
         #[property(get, set)]
         model: RefCell<Option<gio::ListModel>>,
@@ -71,7 +77,7 @@ mod imp {
         type Type = super::VulkanFeaturesWindow;
 
         #[cfg(feature = "libadwaita")]
-        type ParentType = libadwaita::Window;
+        type ParentType = adw::Window;
 
         #[cfg(not(feature = "libadwaita"))]
         type ParentType = gtk::Window;

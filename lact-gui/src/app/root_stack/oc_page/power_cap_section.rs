@@ -43,8 +43,14 @@ mod imp {
 
     #[derive(CompositeTemplate, Default, Properties)]
     #[properties(wrapper_type = super::PowerCapSection)]
-    #[cfg_attr(feature = "libadwaita", template(file = "ui/oc_page/power_cap_section.blp"))]
-    #[cfg_attr(not(feature = "libadwaita"), template(file = "ui/oc_page/power_cap_section_gtk.blp"))]
+    #[cfg_attr(
+        feature = "libadwaita",
+        template(file = "ui/oc_page/power_cap_section.blp")
+    )]
+    #[cfg_attr(
+        not(feature = "libadwaita"),
+        template(file = "ui/oc_page/power_cap_section_gtk.blp")
+    )]
     pub struct PowerCapSection {
         #[property(get, set)]
         pub current_value: RefCell<f64>,

@@ -2,13 +2,13 @@ use gtk::prelude::*;
 use tracing::warn;
 
 #[cfg(feature = "libadwaita")]
-use libadwaita::prelude::MessageDialogExt;
+use adw::prelude::MessageDialogExt;
 
 #[cfg(feature = "libadwaita")]
 #[macro_export]
 macro_rules! info_dialog {
     ($parent:expr, $heading:expr, $body:expr, $response_id:expr, $response_txt:expr) => {{
-        let diag = libadwaita::MessageDialog::builder()
+        let diag = adw::MessageDialog::builder()
             .heading($heading)
             .body($body)
             .modal(true)

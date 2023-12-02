@@ -13,12 +13,12 @@ use traits::BoxExt;
 use traits::WidgetExt;
 
 #[cfg(feature = "libadwaita")]
-use libadwaita::prelude::ActionRowExt;
+use adw::prelude::ActionRowExt;
 
 #[derive(Debug, Clone)]
 pub struct RootStack {
     #[cfg(feature = "libadwaita")]
-    pub container: libadwaita::ViewStack,
+    pub container: adw::ViewStack,
     #[cfg(not(feature = "libadwaita"))]
     pub container: Stack,
 
@@ -34,7 +34,7 @@ impl RootStack {
         embedded_daemon: bool,
     ) -> Self {
         #[cfg(feature = "libadwaita")]
-        let container = libadwaita::ViewStack::builder()
+        let container = adw::ViewStack::builder()
             .vexpand(true)
             .hexpand(true)
             .build();
@@ -94,7 +94,7 @@ impl RootStack {
 #[derive(Debug, Clone)]
 pub struct LabelRow {
     #[cfg(feature = "libadwaita")]
-    pub container: libadwaita::ActionRow,
+    pub container: adw::ActionRow,
 
     #[cfg(not(feature = "libadwaita"))]
     pub container: ListBoxRow,
@@ -132,8 +132,8 @@ impl LabelRow {
 }
 
 #[cfg(feature = "libadwaita")]
-pub fn list_clamp(child: &impl IsA<Widget>) -> libadwaita::Clamp {
-    libadwaita::Clamp::builder()
+pub fn list_clamp(child: &impl IsA<Widget>) -> adw::Clamp {
+    adw::Clamp::builder()
         .maximum_size(600)
         .margin_top(24)
         .margin_bottom(24)
@@ -165,8 +165,8 @@ pub fn action_row(
     subtitle: Option<&str>,
     suffixes: &[&impl IsA<Widget>],
     css_classes: Option<&[&str]>,
-) -> libadwaita::ActionRow {
-    let ar = libadwaita::ActionRow::builder()
+) -> adw::ActionRow {
+    let ar = adw::ActionRow::builder()
         .subtitle_lines(0)
         .title(title)
         .build();
@@ -232,5 +232,8 @@ pub fn action_row(
         inner.append(*suf);
     });
 
-    ListBoxRow::builder().activatable(false).child(&inner).build()
+    ListBoxRow::builder()
+        .activatable(false)
+        .child(&inner)
+        .build()
 }

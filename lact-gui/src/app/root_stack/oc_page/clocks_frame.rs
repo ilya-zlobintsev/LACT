@@ -9,9 +9,6 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::debug;
 
-#[cfg(feature = "libadwaita")]
-use libadwaita::prelude::ActionRowExt;
-
 const VOLTAGE_OFFSET_RANGE: f64 = 250.0;
 
 // The AtomicBool stores if the value was changed
@@ -22,7 +19,7 @@ pub struct ClocksFrame {
     heading_listbox: ListBox,
 
     #[cfg(feature = "libadwaita")]
-    advanced_switch_row: libadwaita::SwitchRow,
+    advanced_switch_row: adw::SwitchRow,
 
     #[cfg(not(feature = "libadwaita"))]
     advanced_switch_row: Switch,
@@ -58,7 +55,7 @@ impl ClocksFrame {
 
         #[cfg(feature = "libadwaita")]
         let advanced_switch_row = {
-            let row = libadwaita::SwitchRow::builder()
+            let row = adw::SwitchRow::builder()
                 .title("Advanced mode")
                 .active(false)
                 .build();
@@ -394,7 +391,7 @@ fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<Atom
     let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
 
     #[cfg(feature = "libadwaita")]
-    let value_selector = libadwaita::SpinRow::builder()
+    let value_selector = adw::SpinRow::builder()
         .title(title)
         .adjustment(&adjustment)
         .build();

@@ -10,7 +10,7 @@ use lact_client::schema::VulkanInfo;
 use tracing::trace;
 
 #[cfg(feature = "libadwaita")]
-use libadwaita::prelude::ActionRowExt;
+use adw::prelude::ActionRowExt;
 
 #[derive(Debug, Clone)]
 pub struct VulkanInfoFrame {
@@ -45,7 +45,7 @@ impl VulkanInfoFrame {
 
         #[cfg(feature = "libadwaita")]
         {
-            let features_row = libadwaita::ActionRow::builder()
+            let features_row = adw::ActionRow::builder()
                 .activatable(true)
                 .title("Features")
                 .build();
@@ -55,7 +55,7 @@ impl VulkanInfoFrame {
             }));
             container.append(&features_row);
 
-            let extensions_row = libadwaita::ActionRow::builder()
+            let extensions_row = adw::ActionRow::builder()
                 .activatable(true)
                 .title("Extensions")
                 .build();
