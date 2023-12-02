@@ -3,28 +3,32 @@ using Gtk 4.0;
 template $PowerCapSection: $PageSection {
     name: "Power usage limit";
 
-    Box {
-        orientation: horizontal;
-        margin-top: 12;
-        margin-bottom: 12;
-        spacing: 6;
-        
-        Label value_label {
-            label: bind template.value-text;
-        }
-
-        Scale {
+    Frame {
+        Box {
             orientation: horizontal;
-            hexpand: true;
-            round-digits: 0;
-            draw-value: false;
-            adjustment: adjustment;
-        }
-        
-        Button reset_button {
-            styles ["circular", "flat"]
-            icon-name: "view-refresh-symbolic";
-            tooltip-text: "Reset to default";
+            margin-top: 12;
+            margin-bottom: 12;
+            margin-start: 12;
+            margin-end: 12;
+            spacing: 6;
+            
+            Label value_label {
+                label: bind template.value-text;
+            }
+
+            Scale {
+                orientation: horizontal;
+                hexpand: true;
+                round-digits: 0;
+                draw-value: false;
+                adjustment: adjustment;
+            }
+            
+            Button reset_button {
+                styles ["circular", "flat"]
+                icon-name: "view-refresh-symbolic";
+                tooltip-text: "Reset to default";
+            }
         }
     }
 }
