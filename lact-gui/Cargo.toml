@@ -7,7 +7,6 @@ edition = "2021"
 [features]
 default = ["gtk-tests"]
 gtk-tests = []
-adw = []
 
 [dependencies]
 lact-client = { path = "../lact-client" }
@@ -16,6 +15,9 @@ gtk = { version = "0.7", package = "gtk4", features = ["v4_6", "blueprint"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
+adw = { package = "libadwaita", version = "0.5.3", features = [
+    "v1_4",
+], optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

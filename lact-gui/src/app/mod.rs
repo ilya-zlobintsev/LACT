@@ -37,6 +37,10 @@ pub struct App {
 
 impl App {
     pub fn new(daemon_client: DaemonClient) -> Self {
+        #[cfg(feature = "adw")]
+        let application: Application =
+            adw::Application::new(Some(APP_ID), ApplicationFlags::default()).upcast();
+        #[cfg(not(feature = "adw"))]
         let application = Application::new(Some(APP_ID), ApplicationFlags::default());
 
         let header = Header::new();
