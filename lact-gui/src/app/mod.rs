@@ -90,7 +90,7 @@ impl App {
 
         let root_stack = RootStack::new(&window, system_info, daemon_client.embedded);
 
-        let headerbar = Headerbar::new();
+        let headerbar = Headerbar::new(&application, &window.clone().upcast::<ApplicationWindow>());
 
         #[cfg(feature = "adw")]
         {
