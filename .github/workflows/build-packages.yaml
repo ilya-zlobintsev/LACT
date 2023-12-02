@@ -21,7 +21,7 @@ jobs:
           sudo apt -y install /tmp/pkger.deb
           
       - name: Set libadwaita target
-        if: contains(matrix.edition, 'libadwaita')
+        if: contains(matrix.target-os, 'libadwaita')
         run: sed -i 's/\&\& make/\&\& make build-release-libadwaita/g' pkg/recipes/lact/recipe.yml
 
       - name: Build packages
