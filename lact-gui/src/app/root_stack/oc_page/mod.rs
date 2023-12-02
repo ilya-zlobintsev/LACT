@@ -50,7 +50,7 @@ impl OcPage {
             let (warning_frame, button) = oc_warning_frame();
             enable_overclocking_button = Some(button);
 
-            #[cfg(feature = "libadwaita")]
+            #[cfg(feature = "adw")]
             vbox.append(
                 &adw::Bin::builder()
                     .css_classes(["card"])
@@ -58,7 +58,7 @@ impl OcPage {
                     .build(),
             );
 
-            #[cfg(not(feature = "libadwaita"))]
+            #[cfg(not(feature = "adw"))]
             vbox.append(&Frame::builder().child(&warning_frame).build());
         }
 

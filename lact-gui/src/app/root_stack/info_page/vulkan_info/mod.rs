@@ -9,7 +9,7 @@ use gtk::*;
 use lact_client::schema::VulkanInfo;
 use tracing::trace;
 
-#[cfg(feature = "libadwaita")]
+#[cfg(feature = "adw")]
 use adw::prelude::ActionRowExt;
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ impl VulkanInfoFrame {
         container.append(&driver_name_row.container);
         container.append(&driver_version_row.container);
 
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         {
             let features_row = adw::ActionRow::builder()
                 .activatable(true)
@@ -66,7 +66,7 @@ impl VulkanInfoFrame {
             container.append(&extensions_row);
         }
 
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         {
             let features_btn = Button::builder().label("View").build();
             features_btn.connect_clicked(clone!(@strong features_model => move |_| {

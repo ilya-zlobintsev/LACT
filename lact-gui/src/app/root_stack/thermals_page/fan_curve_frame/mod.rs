@@ -11,10 +11,10 @@ use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct FanCurveFrame {
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     pub container: Box,
 
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     pub container: Frame,
 
     curve_container: ScrolledWindow,
@@ -82,10 +82,10 @@ impl FanCurveFrame {
         let points = Rc::new(RefCell::new(Vec::new()));
 
         let curve_frame = Self {
-            #[cfg(feature = "libadwaita")]
+            #[cfg(feature = "adw")]
             container: root_box,
 
-            #[cfg(not(feature = "libadwaita"))]
+            #[cfg(not(feature = "adw"))]
             container: Frame::builder()
                 .css_classes(["view"])
                 .child(&root_box)

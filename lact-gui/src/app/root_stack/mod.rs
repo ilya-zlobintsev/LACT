@@ -12,14 +12,14 @@ use thermals_page::ThermalsPage;
 use traits::BoxExt;
 use traits::WidgetExt;
 
-#[cfg(feature = "libadwaita")]
+#[cfg(feature = "adw")]
 use adw::prelude::ActionRowExt;
 
 #[derive(Debug, Clone)]
 pub struct RootStack {
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     pub container: adw::ViewStack,
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     pub container: Stack,
 
     pub info_page: InformationPage,
@@ -33,12 +33,12 @@ impl RootStack {
         system_info: SystemInfo,
         embedded_daemon: bool,
     ) -> Self {
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         let container = adw::ViewStack::builder()
             .vexpand(true)
             .hexpand(true)
             .build();
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         let container = Stack::builder().vexpand(true).hexpand(true).build();
 
         let info_page = InformationPage::new();
@@ -46,7 +46,7 @@ impl RootStack {
         let thermals_page = ThermalsPage::new(root_win);
         let software_page = software_page(system_info, embedded_daemon);
 
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         {
             container.add_titled_with_icon(
                 &info_page.container,
@@ -74,7 +74,7 @@ impl RootStack {
             );
         }
 
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         {
             container.add_titled(&info_page.container, Some("info_page"), "Information");
             container.add_titled(&oc_page.container, Some("oc_page"), "Overclock");
@@ -93,10 +93,10 @@ impl RootStack {
 
 #[derive(Debug, Clone)]
 pub struct LabelRow {
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     pub container: adw::ActionRow,
 
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     pub container: ListBoxRow,
 
     content_label: Label,
@@ -131,7 +131,7 @@ impl LabelRow {
     }
 }
 
-#[cfg(feature = "libadwaita")]
+#[cfg(feature = "adw")]
 pub fn list_clamp(child: &impl IsA<Widget>) -> adw::Clamp {
     adw::Clamp::builder()
         .maximum_size(600)
@@ -144,7 +144,7 @@ pub fn list_clamp(child: &impl IsA<Widget>) -> adw::Clamp {
         .build()
 }
 
-#[cfg(not(feature = "libadwaita"))]
+#[cfg(not(feature = "adw"))]
 pub fn list_clamp(child: &impl IsA<Widget>) -> Box {
     let container = Box::builder()
         .margin_top(24)
@@ -159,7 +159,7 @@ pub fn list_clamp(child: &impl IsA<Widget>) -> Box {
     container
 }
 
-#[cfg(feature = "libadwaita")]
+#[cfg(feature = "adw")]
 pub fn action_row(
     title: &str,
     subtitle: Option<&str>,
@@ -184,7 +184,7 @@ pub fn action_row(
     ar
 }
 
-#[cfg(not(feature = "libadwaita"))]
+#[cfg(not(feature = "adw"))]
 pub fn action_row(
     title: &str,
     subtitle: Option<&str>,

@@ -2,10 +2,10 @@ use super::{apply_box::ApplyBox, gpu_selector::GpuSelector};
 
 #[derive(Debug, Clone)]
 pub struct Headerbar {
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     pub container: adw::HeaderBar,
 
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     pub container: gtk::HeaderBar,
 
     pub gpu_selector: GpuSelector,
@@ -14,10 +14,10 @@ pub struct Headerbar {
 
 impl Headerbar {
     pub fn new() -> Self {
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         let container = adw::HeaderBar::builder().show_title(false).build();
 
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         let container = gtk::HeaderBar::builder()
             .title_widget(&gtk::Label::new(None))
             .build();

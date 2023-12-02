@@ -18,10 +18,10 @@ pub struct ClocksFrame {
     max_values_box: Box,
     heading_listbox: ListBox,
 
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     advanced_switch_row: adw::SwitchRow,
 
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     advanced_switch_row: Switch,
 
     min_values_box: Box,
@@ -53,7 +53,7 @@ impl ClocksFrame {
 
         heading_listbox.append(&warning_row);
 
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         let advanced_switch_row = {
             let row = adw::SwitchRow::builder()
                 .title("Advanced mode")
@@ -63,7 +63,7 @@ impl ClocksFrame {
             row
         };
 
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         let advanced_switch_row = {
             let switch = Switch::builder().active(false).build();
             let row = action_row("Advanced mode", None, &[&switch], None);
@@ -390,15 +390,15 @@ fn extract_value_and_range(
 fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<AtomicBool>) {
     let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
 
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     let value_selector = adw::SpinRow::builder()
         .title(title)
         .adjustment(&adjustment)
         .build();
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     listbox.append(&value_selector);
 
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     let value_selector = {
         let spin_btn = SpinButton::builder()
             .adjustment(&adjustment)

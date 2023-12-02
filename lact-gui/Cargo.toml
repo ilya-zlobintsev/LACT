@@ -7,7 +7,7 @@ edition = "2021"
 [features]
 default = ["gtk-tests"]
 gtk-tests = []
-libadwaita = ["dep:adw"]
+adw = ["dep:adw"]
 
 [dependencies]
 lact-client = { path = "../lact-client" }

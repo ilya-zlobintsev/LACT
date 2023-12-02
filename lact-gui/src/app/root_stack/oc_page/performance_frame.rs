@@ -7,23 +7,23 @@ use lact_client::schema::amdgpu_sysfs::gpu_handle::{
 };
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
-#[cfg(feature = "libadwaita")]
+#[cfg(feature = "adw")]
 use adw::prelude::{ActionRowExt, ComboRowExt};
 
 #[derive(Debug, Clone)]
 pub struct PerformanceFrame {
     pub container: PageSection,
 
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     level_row: adw::ComboRow,
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     mode_row: adw::ComboRow,
 
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     level_row: DropDown,
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     level_subtitle: Label,
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     mode_row: DropDown,
 
     modes_table: Rc<RefCell<Option<PowerProfileModesTable>>>,
@@ -42,7 +42,7 @@ impl PerformanceFrame {
             .into_iter()
             .collect();
 
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         let level_row = {
             let row = adw::ComboRow::builder()
                 .model(&levels_model)
@@ -55,9 +55,9 @@ impl PerformanceFrame {
             row
         };
 
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         let level_subtitle;
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         let level_row = {
             let dropdown = DropDown::builder()
                 .model(&levels_model)
@@ -82,7 +82,7 @@ impl PerformanceFrame {
 
         let filler_model: StringList = [""].into_iter().collect();
 
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         let mode_row = {
             let row = adw::ComboRow::builder()
                 .model(&filler_model)
@@ -95,7 +95,7 @@ impl PerformanceFrame {
             row
         };
 
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         let mode_row = {
             let dropdown = DropDown::builder()
                 .model(&filler_model)
@@ -117,7 +117,7 @@ impl PerformanceFrame {
         let frame = Self {
             container,
             level_row,
-            #[cfg(not(feature = "libadwaita"))]
+            #[cfg(not(feature = "adw"))]
             level_subtitle,
             mode_row,
             modes_table: Rc::new(RefCell::new(None)),
@@ -219,10 +219,10 @@ impl PerformanceFrame {
             _ => unreachable!(),
         };
 
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         self.level_row.set_subtitle(subtitle);
 
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         self.level_subtitle.set_text(subtitle);
 
         self.mode_row.set_sensitive(enable_mode_control);

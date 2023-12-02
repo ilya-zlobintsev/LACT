@@ -1,10 +1,10 @@
 use gtk::prelude::*;
 use tracing::warn;
 
-#[cfg(feature = "libadwaita")]
+#[cfg(feature = "adw")]
 use adw::prelude::MessageDialogExt;
 
-#[cfg(feature = "libadwaita")]
+#[cfg(feature = "adw")]
 #[macro_export]
 macro_rules! info_dialog {
     ($parent:expr, $heading:expr, $body:expr, $response_id:expr, $response_txt:expr) => {{
@@ -23,7 +23,7 @@ macro_rules! info_dialog {
     }};
 }
 
-#[cfg(not(feature = "libadwaita"))]
+#[cfg(not(feature = "adw"))]
 #[macro_export]
 macro_rules! info_dialog {
     ($parent:expr, $heading:expr, $body:expr, $response_id:expr, $response_txt:expr) => {{

@@ -8,7 +8,7 @@ use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{default_fan_curve, DeviceStats, FanControlMode, FanCurveMap};
 
-#[cfg(feature = "libadwaita")]
+#[cfg(feature = "adw")]
 use adw::prelude::*;
 
 #[derive(Debug)]
@@ -83,13 +83,13 @@ impl ThermalsPage {
 
         fan_control_mode_stack.add_titled(&fan_curve_frame.container, Some("curve"), "Curve");
 
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         let static_speed_container = adw::Bin::builder()
             .css_classes(["card"])
             .valign(Align::Start)
             .child(&fan_static_speed_frame)
             .build();
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         let static_speed_container = Frame::builder()
             .css_classes(["view"])
             .valign(Align::Start)

@@ -84,12 +84,9 @@ mod imp {
 
     #[derive(CompositeTemplate, Default, Properties)]
     #[properties(wrapper_type = super::GpuStatsSection)]
+    #[cfg_attr(feature = "adw", template(file = "ui/oc_page/gpu_stats_section.blp"))]
     #[cfg_attr(
-        feature = "libadwaita",
-        template(file = "ui/oc_page/gpu_stats_section.blp")
-    )]
-    #[cfg_attr(
-        not(feature = "libadwaita"),
+        not(feature = "adw"),
         template(file = "ui/oc_page/gpu_stats_section_gtk.blp")
     )]
     pub struct GpuStatsSection {

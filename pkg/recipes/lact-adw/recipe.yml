@@ -1,5 +1,5 @@
 metadata:
-  name: lact-libadwaita
+  name: lact-adw
   description: AMDGPU control utility (libadwaita GUI)
   arch: x86_64
   license: MIT
@@ -26,7 +26,7 @@ configure:
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
 build:
   steps:
-    - cmd: bash -c "source $HOME/.cargo/env && make build-libadwaita-release"
+    - cmd: bash -c "source $HOME/.cargo/env && make build-adw-release"
 install:
   steps:
     - cmd: bash -c "cd $PKGER_BLD_DIR && DESTDIR=$PKGER_OUT_DIR PREFIX=/usr make install"

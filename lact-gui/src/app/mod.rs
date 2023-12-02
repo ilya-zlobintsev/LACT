@@ -26,7 +26,7 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use tracing::{debug, error, trace, warn};
 
-#[cfg(feature = "libadwaita")]
+#[cfg(feature = "adw")]
 use adw::prelude::{AdwApplicationWindowExt, MessageDialogExt};
 
 // In ms
@@ -34,14 +34,14 @@ const STATS_POLL_INTERVAL: u64 = 250;
 
 #[derive(Clone)]
 pub struct App {
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     application: adw::Application,
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     pub window: adw::ApplicationWindow,
 
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     application: Application,
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     pub window: ApplicationWindow,
 
     pub gpu_selector: GpuSelector,
@@ -52,13 +52,13 @@ pub struct App {
 
 impl App {
     pub fn new(daemon_client: DaemonClient) -> Self {
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         let application = adw::Application::new(Some(APP_ID), ApplicationFlags::default());
 
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         let application = Application::new(Some(APP_ID), ApplicationFlags::default());
 
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         let window = adw::ApplicationWindow::builder()
             .title("LACT")
             .default_width(820)
@@ -68,7 +68,7 @@ impl App {
             .icon_name(APP_ID)
             .build();
 
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         let window = ApplicationWindow::builder()
             .title("LACT")
             .default_width(820)
@@ -92,7 +92,7 @@ impl App {
 
         let headerbar = Headerbar::new();
 
-        #[cfg(feature = "libadwaita")]
+        #[cfg(feature = "adw")]
         {
             let root_view = adw::ToolbarView::new();
             root_view.add_top_bar(&headerbar.container);
@@ -106,7 +106,7 @@ impl App {
             window.set_content(Some(&root_view));
         }
 
-        #[cfg(not(feature = "libadwaita"))]
+        #[cfg(not(feature = "adw"))]
         {
             let root_view = Box::builder().orientation(Orientation::Vertical).build();
             root_view.append(&root_stack.container);
@@ -245,10 +245,10 @@ impl App {
                         "close",
                         "_Close");
 
-                    #[cfg(feature = "libadwaita")]
+                    #[cfg(feature = "adw")]
                     diag.set_extra_child(Some(&hbox));
 
-                    #[cfg(not(feature = "libadwaita"))]
+                    #[cfg(not(feature = "adw"))]
                     {
                         hbox.set_margin_start(12);
                         hbox.set_margin_end(12);
@@ -525,7 +525,7 @@ impl App {
         Ok(())
     }
 
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     fn enable_overclocking(&self) {
         let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>");
         let dialog = adw::MessageDialog::builder()
@@ -570,7 +570,7 @@ impl App {
         dialog.present();
     }
 
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     fn enable_overclocking(&self) {
         let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>. Are you sure you want to do this?");
         let dialog = MessageDialog::builder()
@@ -605,7 +605,7 @@ impl App {
         }));
     }
 
-    #[cfg(feature = "libadwaita")]
+    #[cfg(feature = "adw")]
     fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
         let text = confirmation_text(delay);
         let dialog = adw::MessageDialog::builder()
@@ -668,7 +668,7 @@ impl App {
         dialog.present();
     }
 
-    #[cfg(not(feature = "libadwaita"))]
+    #[cfg(not(feature = "adw"))]
     fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
         let text = confirmation_text(delay);
         let dialog = MessageDialog::builder()
