@@ -15,8 +15,7 @@ const VOLTAGE_OFFSET_RANGE: f64 = 250.0;
 #[derive(Debug, Clone)]
 pub struct ClocksFrame {
     pub container: PageSection,
-    max_values_box: Box,
-    heading_listbox: ListBox,
+    listbox: ListBox,
 
     #[cfg(feature = "adw")]
     advanced_switch_row: adw::SwitchRow,
@@ -24,14 +23,13 @@ pub struct ClocksFrame {
     #[cfg(not(feature = "adw"))]
     advanced_switch_row: Switch,
 
-    min_values_box: Box,
-    min_sclk_adjustment: (Adjustment, Rc<AtomicBool>),
-    min_mclk_adjustment: (Adjustment, Rc<AtomicBool>),
-    min_voltage_adjustment: (Adjustment, Rc<AtomicBool>),
-    max_sclk_adjustment: (Adjustment, Rc<AtomicBool>),
-    max_mclk_adjustment: (Adjustment, Rc<AtomicBool>),
-    max_voltage_adjustment: (Adjustment, Rc<AtomicBool>),
-    voltage_offset_adjustment: (Adjustment, Rc<AtomicBool>),
+    min_sclk_adjustment: (Adjustment, Rc<AtomicBool>, Widget),
+    min_mclk_adjustment: (Adjustment, Rc<AtomicBool>, Widget),
+    min_voltage_adjustment: (Adjustment, Rc<AtomicBool>, Widget),
+    max_sclk_adjustment: (Adjustment, Rc<AtomicBool>, Widget),
+    max_mclk_adjustment: (Adjustment, Rc<AtomicBool>, Widget),
+    max_voltage_adjustment: (Adjustment, Rc<AtomicBool>, Widget),
+    voltage_offset_adjustment: (Adjustment, Rc<AtomicBool>, Widget),
     reset_button: Button,
     clocks_data_unavailable_label: Label,
 }
@@ -40,7 +38,7 @@ impl ClocksFrame {
     pub fn new() -> Self {
         let container = PageSection::new("Clockspeed and voltage");
 
-        let heading_listbox = ListBox::builder()
+        let listbox = ListBox::builder()
             .css_classes(["boxed-list"])
             .selection_mode(SelectionMode::None)
             .build();
@@ -51,7 +49,7 @@ impl ClocksFrame {
             &Vec::<&Widget>::new(),
             Some(&vec!["warning"]));
 
-        heading_listbox.append(&warning_row);
+        listbox.append(&warning_row);
 
         #[cfg(feature = "adw")]
         let advanced_switch_row = {
@@ -59,7 +57,7 @@ impl ClocksFrame {
                 .title("Advanced mode")
                 .active(false)
                 .build();
-            heading_listbox.append(&row);
+            listbox.append(&row);
             row
         };
 
@@ -68,57 +66,20 @@ impl ClocksFrame {
             let switch = Switch::builder().active(false).build();
             let row = action_row("Advanced mode", None, &[&switch], None);
 
-            heading_listbox.append(&row);
+            listbox.append(&row);
             switch
         };
 
-        container.append(&heading_listbox);
+        container.append(&listbox);
 
-        let min_values_box = Box::builder()
-            .orientation(Orientation::Vertical)
-            .spacing(12)
-            .build();
-        min_values_box.append(
-            &Label::builder()
-                .label("Minimum Values")
-                .xalign(0.0)
-                .css_classes(["title-4"])
-                .build(),
-        );
-        let min_values_listbox = ListBox::builder()
-            .css_classes(["boxed-list"])
-            .selection_mode(SelectionMode::None)
-            .build();
-        min_values_box.append(&min_values_listbox);
+        let min_sclk_adjustment = oc_adjustment("Minimum GPU Clock (MHz)", &listbox);
+        let min_mclk_adjustment = oc_adjustment("Minimum VRAM Clock (MHz)", &listbox);
+        let min_voltage_adjustment = oc_adjustment("Minimum GPU voltage (mV)", &listbox);
 
-        let min_sclk_adjustment = oc_adjustment("Minimum GPU Clock (MHz)", &min_values_listbox);
-        let min_mclk_adjustment = oc_adjustment("Minimum VRAM Clock (MHz)", &min_values_listbox);
-        let min_voltage_adjustment = oc_adjustment("Minimum GPU voltage (mV)", &min_values_listbox);
-
-        container.append(&min_values_box);
-
-        let max_values_box = Box::builder()
-            .orientation(Orientation::Vertical)
-            .spacing(12)
-            .build();
-        max_values_box.append(
-            &Label::builder()
-                .label("Maximum Values")
-                .xalign(0.0)
-                .css_classes(["title-4"])
-                .build(),
-        );
-        let max_values_listbox = ListBox::builder()
-            .css_classes(["boxed-list"])
-            .selection_mode(SelectionMode::None)
-            .build();
-        max_values_box.append(&max_values_listbox);
-
-        let max_sclk_adjustment = oc_adjustment("Maximum GPU Clock (MHz)", &max_values_listbox);
-        let max_voltage_adjustment = oc_adjustment("Maximum GPU voltage (mV)", &max_values_listbox);
-        let max_mclk_adjustment = oc_adjustment("Maximum VRAM Clock (MHz)", &max_values_listbox);
-        let voltage_offset_adjustment =
-            oc_adjustment("GPU voltage offset (mV)", &max_values_listbox);
+        let max_sclk_adjustment = oc_adjustment("Maximum GPU Clock (MHz)", &listbox);
+        let max_voltage_adjustment = oc_adjustment("Maximum GPU voltage (mV)", &listbox);
+        let max_mclk_adjustment = oc_adjustment("Maximum VRAM Clock (MHz)", &listbox);
+        let voltage_offset_adjustment = oc_adjustment("GPU voltage offset (mV)", &listbox);
 
         let reset_button = Button::builder()
             .label("Reset")
@@ -141,7 +102,7 @@ impl ClocksFrame {
             None,
         );
 
-        max_values_listbox.append(&reset_row);
+        listbox.append(&reset_row);
 
         let clocks_data_unavailable_label = Label::builder()
             .label("No clocks data available")
@@ -149,13 +110,11 @@ impl ClocksFrame {
             .halign(Align::Start)
             .build();
 
-        container.append(&max_values_box);
         container.append(&clocks_data_unavailable_label);
 
         let frame = Self {
             container,
-            max_values_box,
-            heading_listbox,
+            listbox,
             advanced_switch_row,
             min_sclk_adjustment,
             min_mclk_adjustment,
@@ -166,7 +125,6 @@ impl ClocksFrame {
             reset_button,
             clocks_data_unavailable_label,
             voltage_offset_adjustment,
-            min_values_box,
         };
 
         frame.set_configuration_mode(false);
@@ -308,14 +266,12 @@ impl ClocksFrame {
     }
 
     pub fn show(&self) {
-        self.max_values_box.show();
-        self.heading_listbox.show();
+        self.listbox.show();
         self.clocks_data_unavailable_label.hide();
     }
 
     pub fn hide(&self) {
-        self.max_values_box.hide();
-        self.heading_listbox.hide();
+        self.listbox.hide();
         self.clocks_data_unavailable_label.show();
     }
 
@@ -339,7 +295,7 @@ impl ClocksFrame {
     }
 
     pub fn get_settings(&self) -> ClocksSettings {
-        if self.max_values_box.is_visible() {
+        if self.listbox.is_visible() {
             let min_core_clock = get_adjustment_value(&self.min_sclk_adjustment);
             let min_memory_clock = get_adjustment_value(&self.min_mclk_adjustment);
             let min_voltage = get_adjustment_value(&self.min_voltage_adjustment);
@@ -368,7 +324,9 @@ impl ClocksFrame {
     }
 
     fn set_configuration_mode(&self, advanced: bool) {
-        self.min_values_box.set_visible(advanced);
+        self.min_sclk_adjustment.2.set_visible(advanced);
+        self.min_mclk_adjustment.2.set_visible(advanced);
+        self.min_voltage_adjustment.2.set_visible(advanced);
     }
 }
 
@@ -387,7 +345,7 @@ fn extract_value_and_range(
     Some((value, min, max))
 }
 
-fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<AtomicBool>) {
+fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<AtomicBool>, Widget) {
     let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
 
     #[cfg(feature = "adw")]
@@ -397,9 +355,11 @@ fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<Atom
         .build();
     #[cfg(feature = "adw")]
     listbox.append(&value_selector);
+    #[cfg(feature = "adw")]
+    let widget = value_selector.clone();
 
     #[cfg(not(feature = "adw"))]
-    let value_selector = {
+    let (widget, value_selector) = {
         let spin_btn = SpinButton::builder()
             .adjustment(&adjustment)
             .valign(Align::Center)
@@ -408,7 +368,7 @@ fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<Atom
 
         listbox.append(&row);
 
-        spin_btn
+        (row, spin_btn)
     };
 
     let changed = Rc::new(AtomicBool::new(false));
@@ -422,7 +382,7 @@ fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<Atom
         }
     ));
 
-    (adjustment, changed)
+    (adjustment, changed, widget.upcast::<Widget>())
 }
 
 #[derive(Debug, Default)]
@@ -436,7 +396,9 @@ pub struct ClocksSettings {
     pub voltage_offset: Option<i32>,
 }
 
-fn get_adjustment_value((adjustment, changed): &(Adjustment, Rc<AtomicBool>)) -> Option<i32> {
+fn get_adjustment_value(
+    (adjustment, changed, _): &(Adjustment, Rc<AtomicBool>, Widget),
+) -> Option<i32> {
     let changed = changed.load(Ordering::SeqCst);
 
     if changed {
@@ -451,7 +413,7 @@ fn get_adjustment_value((adjustment, changed): &(Adjustment, Rc<AtomicBool>)) ->
     }
 }
 
-fn emit_changed(adjustment: &(Adjustment, Rc<AtomicBool>)) {
+fn emit_changed(adjustment: &(Adjustment, Rc<AtomicBool>, Widget)) {
     adjustment.0.emit_by_name::<()>("changed", &[]);
     adjustment.1.store(false, Ordering::SeqCst);
 }
