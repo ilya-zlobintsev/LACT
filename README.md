@@ -93,6 +93,11 @@ Minimal build (no GUI!):
 cargo build --no-default-features -p lact
 ```
 
+Build GUI with libadwaita support:
+```
+make build-release-libadwaita
+```
+
 # API
 
 There is an API available over a unix socket. See [here](API.md) for more information.

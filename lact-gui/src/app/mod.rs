@@ -35,13 +35,11 @@ const STATS_POLL_INTERVAL: u64 = 250;
 
 #[derive(Clone)]
 pub struct App {
-    #[cfg(feature = "adw")]
-    application: adw::Application,
+    application: Application,
+
     #[cfg(feature = "adw")]
     pub window: adw::ApplicationWindow,
 
-    #[cfg(not(feature = "adw"))]
-    application: Application,
     #[cfg(not(feature = "adw"))]
     pub window: ApplicationWindow,
 
@@ -54,8 +52,8 @@ pub struct App {
 impl App {
     pub fn new(daemon_client: DaemonClient) -> Self {
         #[cfg(feature = "adw")]
-        let application = adw::Application::new(Some(APP_ID), ApplicationFlags::default());
-
+        let application: Application =
+            adw::Application::new(Some(APP_ID), ApplicationFlags::default()).upcast();
         #[cfg(not(feature = "adw"))]
         let application = Application::new(Some(APP_ID), ApplicationFlags::default());
 

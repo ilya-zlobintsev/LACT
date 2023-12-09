@@ -6,6 +6,7 @@ edition = "2021"
 [features]
 default = ["lact-gui", "drm"]
 drm = ["lact-daemon/drm"]
+adw = ["lact-gui/adw"]
 
 [dependencies]
 lact-daemon = { path = "../lact-daemon", default-features = false }
