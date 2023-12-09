@@ -9,6 +9,7 @@ metadata:
   source:
     - '../../..'
   provides: [ lact ]
+  conflicts: [ lact, lact-libadwaita ]
   depends:
     all: [ hwdata ]
     fedora-38+fedora-39: [ libdrm ]

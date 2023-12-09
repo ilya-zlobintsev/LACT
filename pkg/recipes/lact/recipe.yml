@@ -9,6 +9,7 @@ metadata:
   source:
     - '../../..'
   provides: [ lact ]
+  conflicts: [ lact-headless, lact-libadwaita ]
   depends:
     all: [ hwdata ]
     debian-12+ubuntu-2204: [ libgtk-4-1 ]
