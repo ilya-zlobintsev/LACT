@@ -324,9 +324,13 @@ impl ClocksFrame {
     }
 
     fn set_configuration_mode(&self, advanced: bool) {
-        self.min_sclk_adjustment.2.set_visible(advanced);
-        self.min_mclk_adjustment.2.set_visible(advanced);
-        self.min_voltage_adjustment.2.set_visible(advanced);
+        for (adj, _, w) in [
+            &self.min_sclk_adjustment,
+            &self.min_mclk_adjustment,
+            &self.min_voltage_adjustment,
+        ] {
+            w.set_visible(advanced && adj.upper() > 0.0)
+        }
     }
 }
 
@@ -366,10 +370,11 @@ fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<Atom
         changed.store(true, Ordering::SeqCst);
     }));
 
-    adjustment.connect_changed(clone!(@strong value_selector => move |adjustment| {
-            value_selector.set_sensitive(adjustment.upper() == 0.0);
-        }
-    ));
+    adjustment.connect_changed(clone!(@strong row => move |adjustment| {
+        let active = adjustment.upper() > 0.0;
+        row.set_visible(active);
+        row.set_sensitive(active);
+    }));
 
     (adjustment, changed, row.upcast::<Widget>())
 }
