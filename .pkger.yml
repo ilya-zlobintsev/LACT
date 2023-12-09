@@ -14,12 +14,8 @@ images:
     target: rpm
   - name: fedora-39
     target: rpm
-  - name: fedora-39-libadwaita
-    target: rpm
   - name: ubuntu-2204
     target: deb
   - name: arch
-    target: pkg
-  - name: arch-libadwaita
     target: pkg
 custom_simple_images: ~
