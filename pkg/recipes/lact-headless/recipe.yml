@@ -26,7 +26,7 @@ configure:
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
 build:
   steps:
-    - cmd: bash -c "source $HOME/.cargo/env && make build-release"
+    - cmd: bash -c "source $HOME/.cargo/env && make build-release-headless"
 install:
   steps:
     - cmd: bash -c "cd $PKGER_BLD_DIR && DESTDIR=$PKGER_OUT_DIR PREFIX=/usr make install"
