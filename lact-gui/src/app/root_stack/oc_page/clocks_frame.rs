@@ -348,28 +348,17 @@ fn extract_value_and_range(
 fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<AtomicBool>, Widget) {
     let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
 
-    #[cfg(feature = "adw")]
-    let value_selector = adw::SpinRow::builder()
-        .title(title)
+    let value_selector = Scale::builder()
         .adjustment(&adjustment)
+        .orientation(Orientation::Horizontal)
+        .hexpand(true)
+        .valign(Align::Center)
+        .value_pos(PositionType::Right)
+        .draw_value(true)
         .build();
-    #[cfg(feature = "adw")]
-    listbox.append(&value_selector);
-    #[cfg(feature = "adw")]
-    let widget = value_selector.clone();
+    let row = action_row(title, None, &[&value_selector], None);
 
-    #[cfg(not(feature = "adw"))]
-    let (widget, value_selector) = {
-        let spin_btn = SpinButton::builder()
-            .adjustment(&adjustment)
-            .valign(Align::Center)
-            .build();
-        let row = action_row(title, None, &[&spin_btn], None);
-
-        listbox.append(&row);
-
-        (row, spin_btn)
-    };
+    listbox.append(&row);
 
     let changed = Rc::new(AtomicBool::new(false));
 
@@ -382,7 +371,7 @@ fn oc_adjustment(title: &'static str, listbox: &ListBox) -> (Adjustment, Rc<Atom
         }
     ));
 
-    (adjustment, changed, widget.upcast::<Widget>())
+    (adjustment, changed, row.upcast::<Widget>())
 }
 
 #[derive(Debug, Default)]
