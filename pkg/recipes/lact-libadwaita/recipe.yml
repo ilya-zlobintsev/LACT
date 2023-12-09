@@ -1,5 +1,5 @@
 metadata:
-  name: lact
+  name: lact-libadwaita
   description: AMDGPU control utility
   arch: x86_64
   license: MIT
@@ -9,17 +9,15 @@ metadata:
   source:
     - '../../..'
   provides: [ lact ]
-  conflicts: [ lact-headless, lact-libadwaita ]
+  conflicts: [ lact, lact-headless ]
   depends:
     all: [ hwdata ]
-    debian-12+ubuntu-2204: [ libgtk-4-1 ]
-    fedora-38+fedora-39: [ gtk4, libdrm ]
-    arch: [ gtk4 ]
+    fedora-39: [ gtk4, libdrm, libadwaita ]
+    arch: [ gtk4, libadwaita ]
   build_depends:
     all: [ curl, make, dbus, clang ]
-    debian-12+ubuntu-2204: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev ]
-    fedora-38+fedora-39: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler ]
-    arch: [ gtk4, blueprint-compiler ]
+    fedora-39: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler, libadwaita-devel ]
+    arch: [ gtk4, blueprint-compiler, libadwaita ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs
@@ -33,7 +31,7 @@ configure:
       deb: true
 build:
   steps:
-    - cmd: bash -c "source $HOME/.cargo/env && make build-release"
+    - cmd: bash -c "source $HOME/.cargo/env && make build-release-libadwaita"
 install:
   steps:
     - cmd: bash -c "cd $PKGER_BLD_DIR && DESTDIR=$PKGER_OUT_DIR PREFIX=/usr make install"
