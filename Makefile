@@ -7,6 +7,9 @@ build-release:
 	
 build-release-libadwaita:
 	cargo build --release --features=adw
+	
+build-release-headless:
+	cargo build --release --no-default-features --features=drm
 
 install:
 	install -Dm755 target/release/lact $(DESTDIR)$(PREFIX)/bin/lact
