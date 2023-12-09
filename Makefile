@@ -3,13 +3,13 @@ DESTDIR ?= /
 PREFIX ?= /usr/local
 
 build-release:
-	cargo build --release
+	cargo build -p lact --release
 	
 build-release-libadwaita:
-	cargo build --release --features=adw
+	cargo build -p lact --release --features=adw
 	
 build-release-headless:
-	cargo build --release --no-default-features --features=drm
+	cargo build -p lact --release --no-default-features --features=drm
 
 install:
 	install -Dm755 target/release/lact $(DESTDIR)$(PREFIX)/bin/lact
