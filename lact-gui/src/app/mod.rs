@@ -119,14 +119,14 @@ impl App {
             let root_view = Box::builder().orientation(Orientation::Vertical).build();
             root_view.append(&root_stack.container);
             root_view.append(&Separator::new(Orientation::Horizontal));
-            root_view.append(
+            headerbar.container.set_title_widget(Some(
                 &StackSwitcher::builder()
                     .stack(&root_stack.container)
                     .halign(Align::Center)
                     .vexpand(false)
                     .hexpand(true)
                     .build(),
-            );
+            ));
             window.set_titlebar(Some(&headerbar.container));
             window.set_child(Some(&root_view));
         }
