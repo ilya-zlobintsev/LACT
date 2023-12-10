@@ -52,7 +52,7 @@ impl RootStack {
                 &info_page.container,
                 Some("info_page"),
                 "Information",
-                "info-symbolic",
+                "preferences-system-details-symbolic",
             );
             container.add_titled_with_icon(
                 &oc_page.container,
@@ -64,7 +64,7 @@ impl RootStack {
                 &thermals_page.container,
                 Some("thermals_page"),
                 "Thermals",
-                "temperature-symbolic",
+                "io.github.lact-linux.thermometer-symbolic",
             );
             container.add_titled_with_icon(
                 &software_page,

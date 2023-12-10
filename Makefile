@@ -17,6 +17,7 @@ install:
 	install -Dm644 res/io.github.lact-linux.desktop $(DESTDIR)$(PREFIX)/share/applications/io.github.lact-linux.desktop
 	install -Dm644 res/io.github.lact-linux.png $(DESTDIR)$(PREFIX)/share/pixmaps/io.github.lact-linux.png
 	install -Dm644 res/io.github.lact-linux.svg $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/io.github.lact-linux.svg
+	install -Dm644 res/io.github.lact-linux.thermometer-symbolic.svg $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/status/io.github.lact-linux.thermometer-symbolic.svg
 
 uninstall:
 	rm $(DESTDIR)$(PREFIX)/bin/lact
