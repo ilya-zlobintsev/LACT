@@ -1,12 +1,13 @@
 [package]
 name = "lact-gui"
 version = "0.5.1"
-authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
+authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>", "Gabriele Musco <gabmus@disroot.org>"]
 edition = "2021"
 
 [features]
 default = ["gtk-tests"]
 gtk-tests = []
+adw = ["dep:adw"]
 
 [dependencies]
 lact-client = { path = "../lact-client" }

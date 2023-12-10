@@ -1,26 +1,21 @@
 using Gtk 4.0;
 
-template $PowerStatesFrame: Box {
-    Expander expander {
-        label: "Power states";
+template $PowerStatesFrame: $PageSection {
+    name: "Power states";
+    spacing: 12;
 
-        Box {
-            margin-start: 10;
-            margin-end: 10;
-            margin-top: 10;
-            margin-bottom: 10;
-            spacing: 10;
-            orientation: horizontal;
+    Box {
+        orientation: horizontal;
+        spacing: 12;
 
-            $PowerStatesList core_states_list {
-                title: "GPU power states";
-                sensitive: bind template.configurable;
-            }
+        $PowerStatesList core_states_list {
+            title: "GPU power states";
+            sensitive: bind template.configurable;
+        }
 
-            $PowerStatesList vram_states_list {
-                title: "VRAM power states";
-                sensitive: bind template.configurable;
-            }
+        $PowerStatesList vram_states_list {
+            title: "VRAM power states";
+            sensitive: bind template.configurable;
         }
     }
 }

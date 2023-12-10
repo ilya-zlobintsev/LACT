@@ -1,16 +1,21 @@
-mod apply_revealer;
-mod header;
+mod apply_box;
+mod dialogs;
+mod gpu_selector;
+mod headerbar;
 mod info_row;
 mod page_section;
 mod root_stack;
 
-use crate::{APP_ID, GUI_VERSION};
+use self::apply_box::ApplyBox;
+use self::headerbar::Headerbar;
+use crate::app::dialogs::show_error;
+use crate::{info_dialog, APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
-use apply_revealer::ApplyRevealer;
 use glib::clone;
+use gpu_selector::GpuSelector;
+use gtk::gio::ActionEntry;
 use gtk::glib::{timeout_future, ControlFlow};
 use gtk::{gio::ApplicationFlags, prelude::*, *};
-use header::Header;
 use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
 use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
@@ -22,16 +27,25 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use tracing::{debug, error, trace, warn};
 
+#[cfg(feature = "adw")]
+use adw::prelude::{AdwApplicationWindowExt, MessageDialogExt};
+
 // In ms
 const STATS_POLL_INTERVAL: u64 = 250;
 
 #[derive(Clone)]
 pub struct App {
     application: Application,
+
+    #[cfg(feature = "adw")]
+    pub window: adw::ApplicationWindow,
+
+    #[cfg(not(feature = "adw"))]
     pub window: ApplicationWindow,
-    pub header: Header,
+
+    pub gpu_selector: GpuSelector,
     root_stack: RootStack,
-    apply_revealer: ApplyRevealer,
+    apply_box: ApplyBox,
     daemon_client: DaemonClient,
 }
 
@@ -43,15 +57,32 @@ impl App {
         #[cfg(not(feature = "adw"))]
         let application = Application::new(Some(APP_ID), ApplicationFlags::default());
 
-        let header = Header::new();
-        let window = ApplicationWindow::builder()
+        #[cfg(feature = "adw")]
+        let window = adw::ApplicationWindow::builder()
             .title("LACT")
-            .default_width(600)
-            .default_height(820)
+            .default_width(820)
+            .default_height(750)
+            .width_request(420)
+            .height_request(200)
             .icon_name(APP_ID)
             .build();
 
-        window.set_titlebar(Some(&header.container));
+        #[cfg(not(feature = "adw"))]
+        let window = ApplicationWindow::builder()
+            .title("LACT")
+            .default_width(820)
+            .default_height(750)
+            .width_request(420)
+            .height_request(200)
+            .icon_name(APP_ID)
+            .build();
+
+        window.add_action_entries([ActionEntry::builder("quit")
+            .activate(clone!(@weak application => move |_, _, _| {
+                application.quit();
+            }))
+            .build()]);
+        application.set_accels_for_action("win.quit", &["<Primary>Q"]);
 
         let system_info_buf = daemon_client
             .get_system_info()
@@ -63,26 +94,47 @@ impl App {
             show_error(&window, err);
         }
 
-        let root_stack = RootStack::new(system_info, daemon_client.embedded);
+        let root_stack = RootStack::new(&window, system_info, daemon_client.embedded);
 
-        header.set_switcher_stack(&root_stack.container);
+        let headerbar = Headerbar::new(&application, &window.clone().upcast::<ApplicationWindow>());
 
-        let root_box = Box::new(Orientation::Vertical, 5);
+        #[cfg(feature = "adw")]
+        {
+            let root_view = adw::ToolbarView::new();
+            root_view.add_top_bar(&headerbar.container);
+            root_view.add_bottom_bar(
+                &adw::ViewSwitcherBar::builder()
+                    .reveal(true)
+                    .stack(&root_stack.container)
+                    .build(),
+            );
+            root_view.set_content(Some(&root_stack.container));
+            window.set_content(Some(&root_view));
+        }
 
-        root_box.append(&root_stack.container);
-
-        let apply_revealer = ApplyRevealer::new();
-
-        root_box.append(&apply_revealer.container);
-
-        window.set_child(Some(&root_box));
+        #[cfg(not(feature = "adw"))]
+        {
+            let root_view = Box::builder().orientation(Orientation::Vertical).build();
+            root_view.append(&root_stack.container);
+            root_view.append(&Separator::new(Orientation::Horizontal));
+            headerbar.container.set_title_widget(Some(
+                &StackSwitcher::builder()
+                    .stack(&root_stack.container)
+                    .halign(Align::Center)
+                    .vexpand(false)
+                    .hexpand(true)
+                    .build(),
+            ));
+            window.set_titlebar(Some(&headerbar.container));
+            window.set_child(Some(&root_view));
+        }
 
         App {
             application,
             window,
-            header,
+            gpu_selector: headerbar.gpu_selector,
             root_stack,
-            apply_revealer,
+            apply_box: headerbar.apply_box,
             daemon_client,
         }
     }
@@ -94,7 +146,7 @@ impl App {
 
                 let current_gpu_id = Rc::new(RefCell::new(String::new()));
 
-                app.header.connect_gpu_selection_changed(clone!(@strong app, @strong current_gpu_id => move |gpu_id| {
+                app.gpu_selector.connect_gpu_selection_changed(clone!(@strong app, @strong current_gpu_id => move |gpu_id| {
                     debug!("GPU Selection changed");
                     app.set_info(&gpu_id);
                     *current_gpu_id.borrow_mut() = gpu_id;
@@ -106,7 +158,7 @@ impl App {
                     .list_devices()
                     .expect("Could not list devices");
                 let devices = devices_buf.inner().expect("Could not access devices");
-                app.header.set_devices(&devices);
+                app.gpu_selector.set_devices(&devices);
 
                 app.root_stack.oc_page.clocks_frame.connect_clocks_reset(clone!(@strong app, @strong current_gpu_id => move || {
                     debug!("Resetting clocks");
@@ -125,7 +177,7 @@ impl App {
                     }
                 }));
 
-                app.apply_revealer.connect_apply_button_clicked(
+                app.apply_box.connect_apply_button_clicked(
                     clone!(@strong app, @strong current_gpu_id => move || {
                         glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
                             if let Err(err) = app.apply_settings(current_gpu_id.clone()) {
@@ -139,7 +191,7 @@ impl App {
                         }));
                     }),
                 );
-                app.apply_revealer.connect_reset_button_clicked(clone!(@strong app, @strong current_gpu_id => move || {
+                app.apply_box.connect_reset_button_clicked(clone!(@strong app, @strong current_gpu_id => move || {
                     let gpu_id = current_gpu_id.borrow().clone();
                     app.set_initial(&gpu_id)
                 }));
@@ -159,44 +211,55 @@ impl App {
                         format!("Error info: {err:#}\n\n")
                     }).unwrap_or_default();
 
-                    let text = format!("Could not connect to daemon, running in embedded mode. \n\
-                        Please make sure the lactd service is running. \n\
-                        Using embedded mode, you will not be able to change any settings. \n\n\
-                        {error_text}\
-                        To enable the daemon, run the following command:");
+                    let enable_text = "sudo systemctl enable --now lactd";
 
-                    let text_label = Label::new(Some(&text));
                     let enable_label = Entry::builder()
-                        .text("sudo systemctl enable --now lactd")
+                        .text(enable_text)
+                        .css_classes(["card"])
                         .editable(false)
+                        .hexpand(true)
                         .build();
 
-                    let vbox = Box::builder()
-                        .orientation(Orientation::Vertical)
-                        .margin_top(10)
-                        .margin_bottom(10)
-                        .margin_start(10)
-                        .margin_end(10)
+                    let hbox = Box::builder()
+                        .orientation(Orientation::Horizontal)
+                        .spacing(6)
+                        .build();
+                    let copy_btn = Button::builder()
+                        .css_classes(["circular", "flat"])
+                        .tooltip_text("Copy")
+                        .icon_name("edit-copy-symbolic")
                         .build();
 
-                    let close_button = Button::builder().label("Close").build();
+                    copy_btn.connect_clicked(move |_| {
+                        match gdk::Display::default() {
+                            None => eprintln!("Failed to get default gdk display"),
+                            Some(d) => d.clipboard().set_text(&enable_text)
+                        }
+                    });
 
-                    vbox.append(&text_label);
-                    vbox.append(&enable_label);
-                    vbox.append(&close_button);
+                    hbox.append(&enable_label);
+                    hbox.append(&copy_btn);
 
-                    let diag = MessageDialog::builder()
-                        .title("Daemon info")
-                        .message_type(MessageType::Warning)
-                        .child(&vbox)
-                        .transient_for(&app.window)
-                        .build();
+                    let diag = info_dialog!(
+                        &app.window,
+                        "Could not connect to daemon",
+                        format!("Running in embedded mode.\n\
+                            Please make sure the lactd service is running.\n\
+                            Using embedded mode, you will not be able to change any settings.\n\n\
+                            {error_text}\
+                            To enable the daemon, run the following command:"),
+                        "close",
+                        "_Close");
 
-                    close_button.connect_clicked(clone!(@strong diag => move |_| diag.hide()));
+                    #[cfg(feature = "adw")]
+                    diag.set_extra_child(Some(&hbox));
 
-                    diag.run_async(|diag, _| {
-                        diag.hide();
-                    })
+                    #[cfg(not(feature = "adw"))]
+                    {
+                        hbox.set_margin_start(12);
+                        hbox.set_margin_end(12);
+                        diag.first_child().unwrap().first_child().unwrap().downcast::<Box>().unwrap().append(&hbox);
+                    }
                 }
             }));
 
@@ -280,9 +343,9 @@ impl App {
 
         // Show apply button on setting changes
         // This is done here because new widgets may appear after applying settings (like fan curve points) which should be connected
-        let show_revealer = clone!(@strong self.apply_revealer as apply_revealer => move || {
+        let show_revealer = clone!(@strong self.apply_box as apply_box => move || {
                 debug!("settings changed, showing apply button");
-                apply_revealer.show();
+                apply_box.show();
         });
 
         self.root_stack
@@ -293,7 +356,7 @@ impl App {
             .oc_page
             .connect_settings_changed(show_revealer);
 
-        self.apply_revealer.hide();
+        self.apply_box.hide();
     }
 
     fn start_stats_update_loop(&self, current_gpu_id: Rc<RefCell<String>>) {
@@ -468,6 +531,52 @@ impl App {
         Ok(())
     }
 
+    #[cfg(feature = "adw")]
+    fn enable_overclocking(&self) {
+        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>");
+        let dialog = adw::MessageDialog::builder()
+            .heading("Enable Overclocking")
+            .body_use_markup(true)
+            .body(text)
+            .modal(true)
+            .transient_for(&self.window)
+            .build();
+
+        let res_ok = "ok";
+        let res_cancel = "cancel";
+
+        dialog.add_response(res_cancel, "_Cancel");
+        dialog.add_response(res_ok, "_Ok");
+        dialog.set_response_appearance(res_cancel, adw::ResponseAppearance::Destructive);
+        dialog.set_response_appearance(res_ok, adw::ResponseAppearance::Suggested);
+
+        dialog.connect_response(
+            None,
+            clone!(@strong self as app => move |_, response| {
+                if response == res_ok {
+                    match app.daemon_client.enable_overdrive().and_then(|buffer| buffer.inner()) {
+                        Ok(_) => {
+                            info_dialog!(
+                                &app.window,
+                                "Success",
+                                concat!(
+                                    "Overclocking successfully enabled. ",
+                                    "A system reboot is required to apply the changes"),
+                                "ok",
+                                "_Ok");
+                        }
+                        Err(err) => {
+                            show_error(&app.window, err);
+                        }
+                    }
+                }
+            }),
+        );
+
+        dialog.present();
+    }
+
+    #[cfg(not(feature = "adw"))]
     fn enable_overclocking(&self) {
         let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>. Are you sure you want to do this?");
         let dialog = MessageDialog::builder()
@@ -502,6 +611,70 @@ impl App {
         }));
     }
 
+    #[cfg(feature = "adw")]
+    fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
+        let text = confirmation_text(delay);
+        let dialog = adw::MessageDialog::builder()
+            .heading("Confirm settings")
+            .body(text)
+            .modal(true)
+            .transient_for(&self.window)
+            .build();
+
+        let res_yes = "yes";
+        let res_no = "no";
+
+        dialog.add_response(res_no, "_No");
+        dialog.add_response(res_yes, "_Yes");
+        dialog.set_response_appearance(res_no, adw::ResponseAppearance::Destructive);
+        dialog.set_response_appearance(res_yes, adw::ResponseAppearance::Suggested);
+        let confirmed = Rc::new(AtomicBool::new(false));
+
+        glib::source::timeout_add_local(
+            Duration::from_secs(1),
+            clone!(@strong dialog, @strong self as app, @strong gpu_id, @strong confirmed => move || {
+                if confirmed.load(std::sync::atomic::Ordering::SeqCst) {
+                    return ControlFlow::Break;
+
+                }
+                delay -= 1;
+
+                let text = confirmation_text(delay);
+                dialog.set_body(&text);
+
+                if delay == 0 {
+                    dialog.hide();
+                    app.set_initial(&gpu_id);
+
+                    ControlFlow::Break
+                }  else {
+                    ControlFlow::Continue
+                }
+            }),
+        );
+
+        dialog.connect_response(
+            None,
+            clone!(@strong self as app => move |diag, response| {
+                confirmed.store(true, std::sync::atomic::Ordering::SeqCst);
+
+                let command = match response {
+                    res if res == res_yes => ConfirmCommand::Confirm,
+                    _ => ConfirmCommand::Revert,
+                };
+
+                diag.hide();
+
+                if let Err(err) = app.daemon_client.confirm_pending_config(command) {
+                    show_error(&app.window, err);
+                }
+                app.set_initial(&gpu_id);
+            }),
+        );
+        dialog.present();
+    }
+
+    #[cfg(not(feature = "adw"))]
     fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
         let text = confirmation_text(delay);
         let dialog = MessageDialog::builder()
@@ -556,21 +729,6 @@ impl App {
 
 enum GuiUpdateMsg {
     GpuStats(DeviceStats),
-}
-
-fn show_error(parent: &ApplicationWindow, err: anyhow::Error) {
-    let text = format!("{err:?}");
-    warn!("{}", text.trim());
-    let diag = MessageDialog::builder()
-        .title("Error")
-        .message_type(MessageType::Error)
-        .text(&text)
-        .buttons(ButtonsType::Close)
-        .transient_for(parent)
-        .build();
-    diag.run_async(|diag, _| {
-        diag.hide();
-    })
 }
 
 fn confirmation_text(seconds_left: u64) -> String {

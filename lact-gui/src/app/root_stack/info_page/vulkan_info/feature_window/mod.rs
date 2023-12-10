@@ -4,6 +4,14 @@ mod row;
 use glib::Object;
 use gtk::{gio, glib};
 
+#[cfg(feature = "adw")]
+glib::wrapper! {
+    pub struct VulkanFeaturesWindow(ObjectSubclass<imp::VulkanFeaturesWindow>)
+        @extends gtk::Box, gtk::Widget, gtk::Window, adw::Window,
+        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
+}
+
+#[cfg(not(feature = "adw"))]
 glib::wrapper! {
     pub struct VulkanFeaturesWindow(ObjectSubclass<imp::VulkanFeaturesWindow>)
         @extends gtk::Box, gtk::Widget, gtk::Window,
@@ -35,9 +43,16 @@ mod imp {
     };
     use std::cell::RefCell;
 
+    #[cfg(feature = "adw")]
+    use adw::subclass::window::AdwWindowImpl;
+
     #[derive(CompositeTemplate, Properties, Default)]
     #[properties(wrapper_type = super::VulkanFeaturesWindow)]
-    #[template(file = "ui/vulkan_features_window.blp")]
+    #[cfg_attr(feature = "adw", template(file = "ui/vulkan_features_window.blp"))]
+    #[cfg_attr(
+        not(feature = "adw"),
+        template(file = "ui/vulkan_features_window_gtk.blp")
+    )]
     pub struct VulkanFeaturesWindow {
         #[property(get, set)]
         model: RefCell<Option<gio::ListModel>>,
@@ -57,6 +72,11 @@ mod imp {
     impl ObjectSubclass for VulkanFeaturesWindow {
         const NAME: &'static str = "VulkanFeaturesWindow";
         type Type = super::VulkanFeaturesWindow;
+
+        #[cfg(feature = "adw")]
+        type ParentType = adw::Window;
+
+        #[cfg(not(feature = "adw"))]
         type ParentType = gtk::Window;
 
         fn class_init(class: &mut Self::Class) {
@@ -116,5 +136,9 @@ mod imp {
 
     impl WidgetImpl for VulkanFeaturesWindow {}
     impl WindowImpl for VulkanFeaturesWindow {}
+
+    #[cfg(feature = "adw")]
+    impl AdwWindowImpl for VulkanFeaturesWindow {}
+
     impl ApplicationWindowImpl for VulkanFeaturesWindow {}
 }

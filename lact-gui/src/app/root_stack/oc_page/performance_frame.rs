@@ -1,4 +1,4 @@
-use crate::app::page_section::PageSection;
+use crate::app::{page_section::PageSection, root_stack::action_row};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
@@ -7,14 +7,25 @@ use lact_client::schema::amdgpu_sysfs::gpu_handle::{
 };
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
-#[derive(Clone)]
+#[cfg(feature = "adw")]
+use adw::prelude::{ActionRowExt, ComboRowExt};
+
+#[derive(Debug, Clone)]
 pub struct PerformanceFrame {
     pub container: PageSection,
-    level_drop_down: DropDown,
-    mode_drop_down: DropDown,
-    description_label: Label,
-    manual_info_button: MenuButton,
-    mode_box: Box,
+
+    #[cfg(feature = "adw")]
+    level_row: adw::ComboRow,
+    #[cfg(feature = "adw")]
+    mode_row: adw::ComboRow,
+
+    #[cfg(not(feature = "adw"))]
+    level_row: DropDown,
+    #[cfg(not(feature = "adw"))]
+    level_subtitle: Label,
+    #[cfg(not(feature = "adw"))]
+    mode_row: DropDown,
+
     modes_table: Rc<RefCell<Option<PowerProfileModesTable>>>,
 }
 
@@ -22,68 +33,104 @@ impl PerformanceFrame {
     pub fn new() -> Self {
         let container = PageSection::new("Performance");
 
+        let listbox = ListBox::builder()
+            .css_classes(["boxed-list"])
+            .selection_mode(SelectionMode::None)
+            .build();
+
         let levels_model: StringList = ["Automatic", "Highest Clocks", "Lowest Clocks", "Manual"]
             .into_iter()
             .collect();
 
-        let level_box = Box::new(Orientation::Horizontal, 10);
+        #[cfg(feature = "adw")]
+        let level_row = {
+            let row = adw::ComboRow::builder()
+                .model(&levels_model)
+                .title("Performance level")
+                .subtitle("")
+                .subtitle_lines(0)
+                .sensitive(false)
+                .build();
+            listbox.append(&row);
+            row
+        };
 
-        let level_drop_down = DropDown::builder()
-            .model(&levels_model)
-            .sensitive(false)
-            .build();
-        let description_label = Label::builder().halign(Align::End).hexpand(true).build();
-        let perfromance_title_label = Label::builder().label("Performance level:").build();
+        #[cfg(not(feature = "adw"))]
+        let level_subtitle;
+        #[cfg(not(feature = "adw"))]
+        let level_row = {
+            let dropdown = DropDown::builder()
+                .model(&levels_model)
+                .sensitive(false)
+                .valign(Align::Center)
+                .build();
+            let row = action_row("Performance level", Some(""), &[&dropdown], None);
+            level_subtitle = row
+                .first_child()
+                .unwrap()
+                .first_child()
+                .unwrap()
+                .first_child()
+                .unwrap()
+                .next_sibling()
+                .unwrap()
+                .downcast::<Label>()
+                .unwrap();
+            listbox.append(&row);
+            dropdown
+        };
 
-        level_box.append(&perfromance_title_label);
-        level_box.append(&description_label);
-        level_box.append(&level_drop_down);
+        let filler_model: StringList = [""].into_iter().collect();
 
-        container.append(&level_box);
+        #[cfg(feature = "adw")]
+        let mode_row = {
+            let row = adw::ComboRow::builder()
+                .model(&filler_model)
+                .title("Power level mode")
+                .subtitle("Set \"Performance level\" to \"Manual\" to use power states and modes")
+                .subtitle_lines(0)
+                .sensitive(false)
+                .build();
+            listbox.append(&row);
+            row
+        };
 
-        let mode_box = Box::new(Orientation::Horizontal, 10);
+        #[cfg(not(feature = "adw"))]
+        let mode_row = {
+            let dropdown = DropDown::builder()
+                .model(&filler_model)
+                .sensitive(false)
+                .valign(Align::Center)
+                .build();
+            let row = action_row(
+                "Power level mode",
+                Some("Set \"Performance level\" to \"Manual\" to use power states and modes"),
+                &[&dropdown],
+                None,
+            );
+            listbox.append(&row);
+            dropdown
+        };
 
-        let mode_drop_down = DropDown::builder()
-            .sensitive(false)
-            .halign(Align::End)
-            .build();
-
-        let unavailable_label = Label::new(Some(
-            "Performance level has to be set to \"manual\" to use power states and modes",
-        ));
-        let mode_info_popover = Popover::builder().child(&unavailable_label).build();
-        let manual_info_button = MenuButton::builder()
-            .icon_name("dialog-information-symbolic")
-            .hexpand(true)
-            .halign(Align::End)
-            .popover(&mode_info_popover)
-            .build();
-
-        let mode_title_label = Label::new(Some("Power level mode:"));
-        mode_box.append(&mode_title_label);
-        mode_box.append(&manual_info_button);
-        mode_box.append(&mode_drop_down);
-
-        container.append(&mode_box);
+        container.append(&listbox);
 
         let frame = Self {
             container,
-            level_drop_down,
-            mode_drop_down,
-            description_label,
-            manual_info_button,
-            mode_box,
+            level_row,
+            #[cfg(not(feature = "adw"))]
+            level_subtitle,
+            mode_row,
             modes_table: Rc::new(RefCell::new(None)),
         };
 
         frame
-            .level_drop_down
+            .level_row
             .connect_selected_notify(clone!(@strong frame => move |_| {
                 frame.update_from_selection();
             }));
 
         frame
-            .mode_drop_down
+            .mode_row
             .connect_selected_notify(clone!(@strong frame => move |_| {
                 frame.update_from_selection();
             }));
@@ -92,18 +139,18 @@ impl PerformanceFrame {
     }
 
     pub fn set_active_level(&self, level: PerformanceLevel) {
-        self.level_drop_down.set_sensitive(true);
+        self.level_row.set_sensitive(true);
         match level {
-            PerformanceLevel::Auto => self.level_drop_down.set_selected(0),
-            PerformanceLevel::High => self.level_drop_down.set_selected(1),
-            PerformanceLevel::Low => self.level_drop_down.set_selected(2),
-            PerformanceLevel::Manual => self.level_drop_down.set_selected(3),
+            PerformanceLevel::Auto => self.level_row.set_selected(0),
+            PerformanceLevel::High => self.level_row.set_selected(1),
+            PerformanceLevel::Low => self.level_row.set_selected(2),
+            PerformanceLevel::Manual => self.level_row.set_selected(3),
         };
         self.update_from_selection();
     }
 
     pub fn set_power_profile_modes(&self, table: Option<PowerProfileModesTable>) {
-        self.mode_box.set_visible(table.is_some());
+        self.mode_row.set_visible(table.is_some());
 
         match &table {
             Some(table) => {
@@ -114,41 +161,42 @@ impl PerformanceFrame {
                     .position(|key| *key == table.active)
                     .expect("No active mode") as u32;
 
-                self.mode_drop_down.set_model(Some(&model));
-                self.mode_drop_down.set_selected(active_pos);
+                self.mode_row.set_model(Some(&model));
+                self.mode_row.set_selected(active_pos);
 
-                self.mode_drop_down.show();
+                // set mode_row sensitivity because it gets reset to sensitive
+                // after setting the model
+                self.update_from_selection();
+
+                self.mode_row.show();
             }
             None => {
-                self.mode_drop_down.hide();
+                self.mode_row.hide();
             }
         }
         self.modes_table.replace(table);
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        self.level_drop_down
+        self.level_row
             .connect_selected_notify(clone!(@strong f => move |_| f()));
-        self.mode_drop_down.connect_selected_notify(move |_| f());
+        self.mode_row.connect_selected_notify(move |_| f());
     }
 
     pub fn get_selected_performance_level(&self) -> PerformanceLevel {
-        let selected_item = self
-            .level_drop_down
-            .selected_item()
-            .expect("No selected item");
+        let selected_item = self.level_row.selected_item().expect("No selected item");
         let string_object = selected_item.downcast_ref::<StringObject>().unwrap();
         PerformanceLevel::from_str(string_object.string().as_str())
             .expect("Unrecognized selected performance level")
     }
 
     pub fn get_selected_power_profile_mode(&self) -> Option<u16> {
-        if self.mode_drop_down.is_sensitive() {
+        if self.mode_row.is_sensitive() {
             self.modes_table.borrow().as_ref().map(|table| {
                 let selected_index = table
                     .modes
                     .keys()
-                    .nth(self.mode_drop_down.selected() as usize)
+                    .nth(self.mode_row.selected() as usize)
                     .expect("Selected mode out of range");
                 *selected_index
             })
@@ -160,7 +208,7 @@ impl PerformanceFrame {
     fn update_from_selection(&self) {
         let mut enable_mode_control = false;
 
-        let text = match self.level_drop_down.selected() {
+        let subtitle = match self.level_row.selected() {
             0 => "Automatically adjust GPU and VRAM clocks. (Default)",
             1 => "Always use the highest clockspeeds for GPU and VRAM.",
             2 => "Always use the lowest clockspeeds for GPU and VRAM.",
@@ -170,11 +218,14 @@ impl PerformanceFrame {
             }
             _ => unreachable!(),
         };
-        self.description_label.set_text(text);
-        self.mode_drop_down.set_sensitive(enable_mode_control);
 
-        self.manual_info_button.set_visible(!enable_mode_control);
-        self.mode_drop_down.set_hexpand(enable_mode_control);
+        #[cfg(feature = "adw")]
+        self.level_row.set_subtitle(subtitle);
+
+        #[cfg(not(feature = "adw"))]
+        self.level_subtitle.set_text(subtitle);
+
+        self.mode_row.set_sensitive(enable_mode_control);
     }
 
     pub fn show(&self) {

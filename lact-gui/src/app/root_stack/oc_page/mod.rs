@@ -8,6 +8,7 @@ mod power_states;
 
 use self::power_cap_section::PowerCapSection;
 use self::power_states::power_states_frame::PowerStatesFrame;
+use super::list_clamp;
 use clocks_frame::ClocksFrame;
 use gpu_stats_section::GpuStatsSection;
 use gtk::*;
@@ -18,19 +19,14 @@ use lact_client::schema::{
     DeviceStats, SystemInfo,
 };
 use performance_frame::PerformanceFrame;
-// use power_cap_frame::PowerCapFrame;
 use std::collections::HashMap;
 use tracing::warn;
 
-const OVERCLOCKING_DISABLED_TEXT: &str = "Overclocking support is not enabled! \
-You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
-
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct OcPage {
     pub container: ScrolledWindow,
     stats_section: GpuStatsSection,
     pub performance_frame: PerformanceFrame,
-    // power_cap_frame: PowerCapFrame,
     power_cap_section: PowerCapSection,
     pub power_states_frame: PowerStatesFrame,
     pub clocks_frame: ClocksFrame,
@@ -45,9 +41,7 @@ impl OcPage {
 
         let vbox = Box::builder()
             .orientation(Orientation::Vertical)
-            .spacing(15)
-            .margin_start(20)
-            .margin_end(20)
+            .spacing(12)
             .build();
 
         let mut enable_overclocking_button = None;
@@ -55,7 +49,17 @@ impl OcPage {
         if system_info.amdgpu_overdrive_enabled == Some(false) {
             let (warning_frame, button) = oc_warning_frame();
             enable_overclocking_button = Some(button);
-            vbox.append(&warning_frame);
+
+            #[cfg(feature = "adw")]
+            vbox.append(
+                &adw::Bin::builder()
+                    .css_classes(["card"])
+                    .child(&warning_frame)
+                    .build(),
+            );
+
+            #[cfg(not(feature = "adw"))]
+            vbox.append(&Frame::builder().child(&warning_frame).build());
         }
 
         let stats_section = GpuStatsSection::new();
@@ -78,7 +82,7 @@ impl OcPage {
         vbox.append(&power_states_frame);
         vbox.append(&clocks_frame.container);
 
-        container.set_child(Some(&vbox));
+        container.set_child(Some(&list_clamp(&vbox)));
 
         Self {
             container,
@@ -170,36 +174,57 @@ impl OcPage {
     }
 }
 
-fn oc_warning_frame() -> (Frame, Button) {
-    let container = Frame::new(Some("Overclocking information"));
-
-    container.set_label_align(0.3);
-
+fn oc_warning_frame() -> (Box, Button) {
     let vbox = Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(5)
-        .margin_top(10)
-        .margin_bottom(10)
-        .margin_start(10)
-        .margin_end(10)
+        .spacing(6)
+        .margin_top(12)
+        .margin_bottom(12)
+        .margin_start(12)
+        .margin_end(12)
         .build();
 
-    let warning_label = Label::builder()
-        .use_markup(true)
-        .label(OVERCLOCKING_DISABLED_TEXT)
-        .wrap(true)
-        .wrap_mode(pango::WrapMode::Word)
+    let heading_box = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(6)
+        .hexpand(false)
+        .halign(Align::Start)
         .build();
+
+    heading_box.append(
+        &Image::builder()
+            .icon_name("dialog-warning-symbolic")
+            .css_classes(["warning"])
+            .build(),
+    );
+    heading_box.append(
+        &Label::builder()
+            .css_classes(["warning", "heading"])
+            .label("Warning")
+            .xalign(0.0)
+            .build(),
+    );
+
+    vbox.append(&heading_box);
+
+    vbox.append(
+        &Label::builder()
+            .label(concat!(
+                "Overclocking support is not enabled. You can still change ",
+                "basic settings, but clocks and voltage control will not be available",
+            ))
+            .wrap(true)
+            .xalign(0.0)
+            .wrap_mode(pango::WrapMode::Word)
+            .build(),
+    );
 
     let enable_button = Button::builder()
         .label("Enable Overclocking")
         .halign(Align::End)
         .build();
 
-    vbox.append(&warning_label);
     vbox.append(&enable_button);
 
-    container.set_child(Some(&vbox));
-
-    (container, enable_button)
+    (vbox, enable_button)
 }

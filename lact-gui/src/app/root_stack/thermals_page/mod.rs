@@ -1,15 +1,15 @@
 mod fan_curve_frame;
 
+use self::fan_curve_frame::FanCurveFrame;
+use super::{list_clamp, LabelRow};
+use crate::{app::page_section::PageSection, info_dialog};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{default_fan_curve, DeviceStats, FanControlMode, FanCurveMap};
 
-use crate::app::page_section::PageSection;
-
-use self::fan_curve_frame::FanCurveFrame;
-
-use super::{label_row, values_grid};
+#[cfg(feature = "adw")]
+use adw::prelude::*;
 
 #[derive(Debug)]
 pub struct ThermalsSettings {
@@ -19,11 +19,11 @@ pub struct ThermalsSettings {
     pub curve: Option<FanCurveMap>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ThermalsPage {
-    pub container: Box,
-    temperatures_label: Label,
-    fan_speed_label: Label,
+    pub container: ScrolledWindow,
+    temperatures_row: LabelRow,
+    fan_speed_row: LabelRow,
     fan_static_speed_adjustment: Adjustment,
     fan_curve_frame: FanCurveFrame,
     fan_control_mode_stack: Stack,
@@ -31,30 +31,38 @@ pub struct ThermalsPage {
 }
 
 impl ThermalsPage {
-    pub fn new() -> Self {
-        let container = Box::builder()
+    pub fn new(root_win: &impl IsA<Window>) -> Self {
+        let vbox = Box::builder()
             .orientation(Orientation::Vertical)
-            .spacing(15)
-            .margin_start(20)
-            .margin_end(20)
+            .spacing(12)
             .build();
 
         let stats_section = PageSection::new("Statistics");
-        let stats_grid = values_grid();
+        let stats_listbox = ListBox::builder()
+            .css_classes(["boxed-list"])
+            .selection_mode(SelectionMode::None)
+            .build();
 
-        let temperatures_label = label_row("Temperatures:", &stats_grid, 0, 0, false);
-        let fan_speed_label = label_row("Fan speed:", &stats_grid, 1, 0, false);
+        let temperatures_row = LabelRow::new("Temperatures");
 
-        stats_section.append(&stats_grid);
+        let fan_speed_row = LabelRow::new("Fan speed");
 
-        container.append(&stats_section);
+        stats_listbox.append(&temperatures_row.container);
+        stats_listbox.append(&fan_speed_row.container);
+
+        stats_section.append(&stats_listbox);
+
+        vbox.append(&stats_section);
 
         let fan_curve_frame = FanCurveFrame::new();
 
         let fan_static_speed_frame = Box::builder()
             .orientation(Orientation::Horizontal)
-            .spacing(5)
-            .valign(Align::Start)
+            .spacing(12)
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
             .build();
         let fan_static_speed_adjustment = static_speed_adj(&fan_static_speed_frame);
 
@@ -75,23 +83,42 @@ impl ThermalsPage {
 
         fan_control_mode_stack.add_titled(&fan_curve_frame.container, Some("curve"), "Curve");
 
-        fan_control_mode_stack.add_titled(&fan_static_speed_frame, Some("static"), "Static");
+        #[cfg(feature = "adw")]
+        let static_speed_container = adw::Bin::builder()
+            .css_classes(["card"])
+            .valign(Align::Start)
+            .child(&fan_static_speed_frame)
+            .build();
+        #[cfg(not(feature = "adw"))]
+        let static_speed_container = Frame::builder()
+            .css_classes(["view"])
+            .valign(Align::Start)
+            .child(&fan_static_speed_frame)
+            .build();
+        fan_control_mode_stack.add_titled(&static_speed_container, Some("static"), "Static");
 
         fan_control_section.append(&fan_control_mode_stack_switcher);
         fan_control_section.append(&fan_control_mode_stack);
 
-        container.append(&fan_control_section);
+        vbox.append(&fan_control_section);
 
-        fan_control_mode_stack.connect_visible_child_name_notify(|stack| {
-            if stack.visible_child_name() == Some("automatic".into()) {
-                show_fan_control_warning()
-            }
-        });
+        fan_control_mode_stack.connect_visible_child_name_notify(
+            clone!(@strong root_win => move |stack| {
+                if stack.visible_child_name() == Some("automatic".into()) {
+                    show_fan_control_warning(&root_win)
+                }
+            }),
+        );
+
+        let container = ScrolledWindow::builder()
+            .hscrollbar_policy(PolicyType::Never)
+            .child(&list_clamp(&vbox))
+            .build();
 
         Self {
             container,
-            temperatures_label,
-            fan_speed_label,
+            temperatures_row,
+            fan_speed_row,
             fan_static_speed_adjustment,
             fan_curve_frame,
             fan_control_mode_stack,
@@ -109,23 +136,23 @@ impl ThermalsPage {
         let temperatures_text = if temperatures.is_empty() {
             String::from("No sensors found")
         } else {
-            temperatures.join(", ")
+            temperatures.join(" | ")
         };
 
-        self.temperatures_label
-            .set_markup(&format!("<b>{temperatures_text}</b>",));
+        self.temperatures_row.set_content(&temperatures_text);
 
-        match stats.fan.speed_current {
-            Some(fan_speed_current) => self.fan_speed_label.set_markup(&format!(
-                "<b>{} RPM ({}%)</b>",
-                fan_speed_current,
-                (fan_speed_current as f64
-                    / stats.fan.speed_max.unwrap_or(fan_speed_current) as f64
-                    * 100.0)
-                    .round()
-            )),
-            None => self.fan_speed_label.set_text("No fan detected"),
-        }
+        self.fan_speed_row
+            .set_content(&match stats.fan.speed_current {
+                Some(fan_speed_current) => format!(
+                    "{} RPM ({}%)",
+                    fan_speed_current,
+                    (fan_speed_current as f64
+                        / stats.fan.speed_max.unwrap_or(fan_speed_current) as f64
+                        * 100.0)
+                        .round()
+                ),
+                None => "No fan detected".into(),
+            });
 
         if initial {
             self.fan_control_mode_stack_switcher.set_visible(true);
@@ -204,10 +231,7 @@ impl ThermalsPage {
 }
 
 fn static_speed_adj(parent_box: &Box) -> Adjustment {
-    let label = Label::builder()
-        .label("Speed (in %)")
-        .halign(Align::Start)
-        .build();
+    let label = Label::builder().label("Speed").halign(Align::Start).build();
 
     let adjustment = Adjustment::new(0.0, 0.0, 100.0, 0.1, 1.0, 0.0);
 
@@ -215,22 +239,20 @@ fn static_speed_adj(parent_box: &Box) -> Adjustment {
         .orientation(Orientation::Horizontal)
         .adjustment(&adjustment)
         .hexpand(true)
-        .margin_start(5)
-        .margin_end(5)
         .build();
 
     let value_selector = SpinButton::new(Some(&adjustment), 1.0, 1);
-    let value_label = Label::new(None);
+    let value_label = Label::builder().margin_start(12).margin_end(12).build();
 
     let popover = Popover::builder().child(&value_selector).build();
     let value_button = MenuButton::builder()
+        .css_classes(["circular"])
         .popover(&popover)
         .child(&value_label)
         .build();
 
     adjustment.connect_value_changed(clone!(@strong value_label => move |adjustment| {
-        let value = adjustment.value();
-        value_label.set_text(&format!("{value:.1}"));
+        value_label.set_text(&format!("{:.1}%", adjustment.value()));
     }));
 
     adjustment.set_value(50.0);
@@ -242,10 +264,15 @@ fn static_speed_adj(parent_box: &Box) -> Adjustment {
     adjustment
 }
 
-fn show_fan_control_warning() {
-    let diag = MessageDialog::new(None::<&Window>, DialogFlags::empty(), MessageType::Warning, ButtonsType::Ok,
-                        "Warning! Due to a driver bug, a reboot may be required for fan control to properly switch back to automatic.");
-    diag.run_async(|diag, _| {
-        diag.hide();
-    })
+fn show_fan_control_warning(root_win: &impl IsA<Window>) {
+    info_dialog!(
+        root_win,
+        "Warning",
+        concat!(
+            "Due to a driver bug, a reboot may be required for fan control ",
+            "to properly switch back to automatic"
+        ),
+        "ok",
+        "_Ok"
+    );
 }

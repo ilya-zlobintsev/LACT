@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 
-use gtk::{
-    glib::{self, subclass::types::ObjectSubclassIsExt, Object},
-    prelude::WidgetExt,
-};
+use crate::app::page_section::PageSection;
+use gtk::glib::{self, subclass::types::ObjectSubclassIsExt, Object};
 use lact_client::schema::{amdgpu_sysfs::gpu_handle::PowerLevelKind, DeviceStats, PowerStates};
 
 glib::wrapper! {
     pub struct PowerStatesFrame(ObjectSubclass<imp::PowerStatesFrame>)
-        @extends gtk::Widget,
+        @extends PageSection, gtk::Box, gtk::Widget,
         @implements gtk::Accessible, gtk::Buildable;
 }
 
@@ -19,11 +17,6 @@ impl PowerStatesFrame {
 
     pub fn set_power_states(&self, states: PowerStates) {
         let imp = self.imp();
-
-        imp.expander.set_sensitive(!states.is_empty());
-        if states.is_empty() {
-            imp.expander.set_expanded(false);
-        }
 
         imp.core_states_list.set_power_states(states.core, "MHz");
         imp.vram_states_list.set_power_states(states.vram, "MHz");
@@ -65,7 +58,10 @@ impl Default for PowerStatesFrame {
 }
 
 mod imp {
-    use crate::app::root_stack::oc_page::power_states::power_states_list::PowerStatesList;
+    use crate::app::{
+        page_section::PageSection,
+        root_stack::oc_page::power_states::power_states_list::PowerStatesList,
+    };
     use gtk::{
         glib::{self, subclass::InitializingObject, Properties, StaticTypeExt},
         prelude::ObjectExt,
@@ -73,7 +69,7 @@ mod imp {
             prelude::*,
             widget::{CompositeTemplateClass, WidgetImpl},
         },
-        CompositeTemplate, Expander,
+        CompositeTemplate,
     };
     use std::sync::atomic::AtomicBool;
 
@@ -81,8 +77,6 @@ mod imp {
     #[properties(wrapper_type = super::PowerStatesFrame)]
     #[template(file = "ui/oc_page/power_states_frame.blp")]
     pub struct PowerStatesFrame {
-        #[template_child]
-        pub expander: TemplateChild<Expander>,
         #[template_child]
         pub core_states_list: TemplateChild<PowerStatesList>,
         #[template_child]
@@ -96,7 +90,7 @@ mod imp {
     impl ObjectSubclass for PowerStatesFrame {
         const NAME: &'static str = "PowerStatesFrame";
         type Type = super::PowerStatesFrame;
-        type ParentType = gtk::Box;
+        type ParentType = PageSection;
 
         fn class_init(class: &mut Self::Class) {
             PowerStatesList::ensure_type();

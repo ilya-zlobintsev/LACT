@@ -19,7 +19,6 @@ mod imp {
     use glib::Properties;
     use gtk::{
         glib::{self, subclass::InitializingObject},
-        pango::AttrList,
         prelude::*,
         subclass::{
             prelude::*,
@@ -27,7 +26,7 @@ mod imp {
         },
         CompositeTemplate, Label, TemplateChild,
     };
-    use std::{cell::RefCell, str::FromStr};
+    use std::cell::RefCell;
 
     #[derive(CompositeTemplate, Default, Properties)]
     #[properties(wrapper_type = super::InfoRow)]
@@ -61,9 +60,6 @@ mod imp {
     impl ObjectImpl for InfoRow {
         fn constructed(&self) {
             self.parent_constructed();
-
-            let attr_list = AttrList::from_str("0 -1 weight bold").unwrap();
-            self.value_label.set_attributes(Some(&attr_list));
         }
     }
 

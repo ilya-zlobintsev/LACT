@@ -56,7 +56,7 @@ impl GpuStatsSection {
             .or(power_average);
 
         self.set_power_usage(format!(
-            "<b>{}/{}W</b>",
+            "{}/{}W",
             power_current.unwrap_or(0.0),
             power_cap_current.unwrap_or(0.0)
         ));
@@ -84,7 +84,11 @@ mod imp {
 
     #[derive(CompositeTemplate, Default, Properties)]
     #[properties(wrapper_type = super::GpuStatsSection)]
-    #[template(file = "ui/oc_page/gpu_stats_section.blp")]
+    #[cfg_attr(feature = "adw", template(file = "ui/oc_page/gpu_stats_section.blp"))]
+    #[cfg_attr(
+        not(feature = "adw"),
+        template(file = "ui/oc_page/gpu_stats_section_gtk.blp")
+    )]
     pub struct GpuStatsSection {
         #[property(get, set)]
         core_clock: RefCell<String>,

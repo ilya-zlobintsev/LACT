@@ -12,9 +12,10 @@ template $InfoRow: Box {
     }
 
     Label value_label {
+        styles ["heading"]
         label: bind template.value;
-        halign: end;
+        xalign: 1.0;
+        justify: right;
         selectable: true;
-        use-markup: true;
     }
 }
