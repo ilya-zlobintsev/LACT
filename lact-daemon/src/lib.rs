@@ -11,17 +11,18 @@ use anyhow::Context;
 use config::Config;
 use futures::future::select_all;
 use server::{handle_stream, handler::Handler, Server};
-use std::os::unix::net::UnixStream as StdUnixStream;
 use std::str::FromStr;
+use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
 use tokio::{
     runtime,
     signal::unix::{signal, SignalKind},
     task::LocalSet,
 };
-use tracing::{debug_span, info, Instrument, Level};
+use tracing::{debug, debug_span, info, warn, Instrument, Level};
 
 pub use server::system::MODULE_CONF_PATH;
 
+const MIN_SYSTEM_UPTIME_SECS: f32 = 10.0;
 const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
     SignalKind::terminate(),
     SignalKind::interrupt(),
@@ -43,6 +44,8 @@ pub fn run() -> anyhow::Result<()> {
 
         let max_level = Level::from_str(&config.daemon.log_level).context("Invalid log level")?;
         tracing_subscriber::fmt().with_max_level(max_level).init();
+
+        ensure_sufficient_uptime().await;
 
         LocalSet::new()
             .run_until(async move {
@@ -95,4 +98,33 @@ async fn listen_exit_signals(handler: Handler) {
     .instrument(debug_span!("shutdown_cleanup"))
     .await;
     std::process::exit(0);
+}
+
+async fn ensure_sufficient_uptime() {
+    match get_uptime() {
+        Ok(current_uptime) => {
+            debug!("current system uptime: {current_uptime:.1}s");
+
+            let diff = MIN_SYSTEM_UPTIME_SECS - current_uptime;
+            if diff > 0.0 {
+                info!("service started too early, waiting {diff:.1} seconds");
+
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                tokio::time::sleep(Duration::from_millis((diff * 1000.0) as u64)).await;
+            }
+        }
+        Err(err) => {
+            warn!("could not get system uptime: {err:#?}");
+        }
+    }
+}
+
+fn get_uptime() -> anyhow::Result<f32> {
+    let raw_uptime = std::fs::read_to_string("/proc/uptime").context("Could not read uptime")?;
+    raw_uptime
+        .split_whitespace()
+        .next()
+        .context("Could not parse the uptime file")?
+        .parse()
+        .context("Invalid uptime value")
 }
