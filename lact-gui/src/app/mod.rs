@@ -459,7 +459,7 @@ impl App {
             let delay = self
                 .daemon_client
                 .batch_set_clocks_value(&gpu_id, clocks_commands)
-                .context("Could not commit clocks settins")?;
+                .context("Could not commit clocks settings")?;
             self.ask_confirmation(gpu_id.clone(), delay);
         }
 
