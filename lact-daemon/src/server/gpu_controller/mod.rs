@@ -525,7 +525,12 @@ impl GpuController {
                 // Avoid writing settings to the clocks table except the user-specified ones
                 // There is an issue on some GPU models where the default values are actually outside of the allowed range
                 // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example
-                table.clear();
+
+                // Do not clear if there is a VDDC curve - if it's present settings cannot be reapplied without it,
+                // and GPU generations which have it do not suffer from the allowed range bug anyway
+                if table.vddc_curve.is_empty() {
+                    table.clear();
+                }
 
                 table.voltage_offset = clocks.voltage_offset;
             }
