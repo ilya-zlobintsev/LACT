@@ -561,7 +561,8 @@ impl GpuController {
 
             self.handle
                 .set_clocks_table(&table)
-                .context("Could not write clocks table")?;
+                .context("Could not write clocks table")
+                .with_context(|| format!("Clocks table commands: {:?}", table.get_commands()))?;
         }
 
         for (kind, states) in &config.power_states {
