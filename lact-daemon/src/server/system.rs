@@ -8,7 +8,7 @@ use std::{
 };
 
 const PP_OVERDRIVE_MASK: u64 = 0x4000;
-const PP_FEATURE_MASK_PATH: &str = "/sys/module/amdgpu/parameters/ppfeaturemask";
+pub const PP_FEATURE_MASK_PATH: &str = "/sys/module/amdgpu/parameters/ppfeaturemask";
 pub const MODULE_CONF_PATH: &str = "/etc/modprobe.d/99-amdgpu-overdrive.conf";
 
 pub fn info() -> anyhow::Result<SystemInfo<'static>> {
