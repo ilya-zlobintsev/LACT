@@ -60,7 +60,7 @@ pub async fn handle_stream(stream: UnixStream, handler: Handler) -> anyhow::Resu
         let response = match maybe_request {
             Ok(request) => match handle_request(request, &handler).await {
                 Ok(response) => response,
-                Err(error) => serde_json::to_vec(&Response::<()>::Error(format!("{error:#}")))?,
+                Err(error) => serde_json::to_vec(&Response::<()>::Error(format!("{error:?}")))?,
             },
             Err(error) => serde_json::to_vec(&Response::<()>::Error(format!(
                 "Failed to deserialize request: {error}"
