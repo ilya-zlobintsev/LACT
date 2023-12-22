@@ -135,9 +135,16 @@ The functionality of the CLI is quite limited. If you want to integrate LACT wit
 # Reporting issues
  
 When reporting issues, please include your system info and GPU model.
+
+If you're having an issue with changing the GPU's configuration, it's highly recommended to include a debug snapshot in the bug report.
+You can generate one using the option in the dropdown menu:
+
+![image](https://github.com/ilya-zlobintsev/LACT/assets/22796665/36dda5e3-981b-47e7-914e-6e29f30616b4)
+
+The snapshot is an archive which includes the SysFS that LACT uses to interact with the GPU.
  
-If there's a crash, run `lact gui` from the command line to get logs, or use `journalctl -u lactd` to see if the daemon crashed.
- 
+If there's a crash, run `lact gui` from the command line to get GUI logs, check daemon logs in `journalctl -u lactd` for errors, 
+and see `dmesg` for kernel logs that might include information about driver and system issues.
 
 # Alternatives
 
