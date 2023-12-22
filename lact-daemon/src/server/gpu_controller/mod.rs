@@ -2,7 +2,10 @@ pub mod fan_control;
 
 use self::fan_control::FanCurve;
 use super::vulkan::get_vulkan_info;
-use crate::{config, fork::run_forked};
+use crate::{
+    config::{self, ClocksConfiguration},
+    fork::run_forked,
+};
 use anyhow::{anyhow, Context};
 use lact_schema::{
     amdgpu_sysfs::{
@@ -518,44 +521,8 @@ impl GpuController {
         self.handle.reset_clocks_table().ok();
 
         if config.is_core_clocks_used() {
-            let clocks = config.clocks_configuration;
             let mut table = self.handle.get_clocks_table()?;
-
-            if let ClocksTableGen::Vega20(ref mut table) = table {
-                // Avoid writing settings to the clocks table except the user-specified ones
-                // There is an issue on some GPU models where the default values are actually outside of the allowed range
-                // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example
-
-                // Do not clear if there is a VDDC curve - if it's present settings cannot be reapplied without it,
-                // and GPU generations which have it do not suffer from the allowed range bug anyway
-                if table.vddc_curve.is_empty() {
-                    table.clear();
-                }
-
-                table.voltage_offset = clocks.voltage_offset;
-            }
-
-            if let Some(min_clockspeed) = clocks.min_core_clock {
-                table.set_min_sclk(min_clockspeed)?;
-            }
-
-            if let Some(min_clockspeed) = clocks.min_memory_clock {
-                table.set_min_mclk(min_clockspeed)?;
-            }
-
-            if let Some(min_voltage) = clocks.min_voltage {
-                table.set_min_voltage(min_voltage)?;
-            }
-
-            if let Some(clockspeed) = clocks.max_core_clock {
-                table.set_max_sclk(clockspeed)?;
-            }
-            if let Some(clockspeed) = clocks.max_memory_clock {
-                table.set_max_mclk(clockspeed)?;
-            }
-            if let Some(voltage) = clocks.max_voltage {
-                table.set_max_voltage(voltage)?;
-            }
+            config.clocks_configuration.apply_to_table(&mut table)?;
 
             debug!("writing clocks commands: {:#?}", table.get_commands()?);
 
@@ -592,4 +559,45 @@ fn get_drm_handle(handle: &GpuHandle) -> anyhow::Result<DrmHandle> {
     let (handle, _, _) = DrmHandle::init(drm_file.into_raw_fd())
         .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
     Ok(handle)
+}
+
+impl ClocksConfiguration {
+    fn apply_to_table(&self, table: &mut ClocksTableGen) -> anyhow::Result<()> {
+        if let ClocksTableGen::Vega20(ref mut table) = table {
+            // Avoid writing settings to the clocks table except the user-specified ones
+            // There is an issue on some GPU models where the default values are actually outside of the allowed range
+            // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example
+
+            if table.vddc_curve.is_empty() {
+                table.clear();
+            }
+
+            // Normalize the VDDC curve - make sure all of the values are within the allowed range
+            table.normalize_vddc_curve();
+
+            table.voltage_offset = self.voltage_offset;
+        }
+
+        if let Some(min_clockspeed) = self.min_core_clock {
+            table.set_min_sclk(min_clockspeed)?;
+        }
+        if let Some(min_clockspeed) = self.min_memory_clock {
+            table.set_min_mclk(min_clockspeed)?;
+        }
+        if let Some(min_voltage) = self.min_voltage {
+            table.set_min_voltage(min_voltage)?;
+        }
+
+        if let Some(clockspeed) = self.max_core_clock {
+            table.set_max_sclk(clockspeed)?;
+        }
+        if let Some(clockspeed) = self.max_memory_clock {
+            table.set_max_mclk(clockspeed)?;
+        }
+        if let Some(voltage) = self.max_voltage {
+            table.set_max_voltage(voltage)?;
+        }
+
+        Ok(())
+    }
 }

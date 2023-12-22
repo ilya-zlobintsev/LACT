@@ -559,12 +559,16 @@ enum GuiUpdateMsg {
 }
 
 fn show_error(parent: &ApplicationWindow, err: anyhow::Error) {
-    let text = format!("{err:?}");
-    warn!("{}", text.trim());
+    let text = format!("{err:?}")
+        .lines()
+        .map(str::trim)
+        .collect::<Vec<&str>>()
+        .join("\n");
+    warn!("{text}");
     let diag = MessageDialog::builder()
         .title("Error")
         .message_type(MessageType::Error)
-        .text(&text)
+        .text(text)
         .buttons(ButtonsType::Close)
         .transient_for(parent)
         .build();
