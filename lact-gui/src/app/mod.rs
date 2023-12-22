@@ -502,7 +502,7 @@ impl App {
                 vbox.append(&path_label);
 
                 let diag = MessageDialog::builder()
-                    .title("Error")
+                    .title("Snapshot generated")
                     .message_type(MessageType::Info)
                     .use_markup(true)
                     .text(format!("Debug snapshot saved at <b>{path}</b>"))
