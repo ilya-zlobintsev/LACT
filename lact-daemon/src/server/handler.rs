@@ -32,7 +32,11 @@ use tracing::{debug, error, info, trace, warn};
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
 const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 1;
 
-const SNAPSHOT_GLOBAL_FILES: &[&str] = &[PP_FEATURE_MASK_PATH, "/etc/lact/config.yaml"];
+const SNAPSHOT_GLOBAL_FILES: &[&str] = &[
+    PP_FEATURE_MASK_PATH,
+    "/etc/lact/config.yaml",
+    "/proc/version",
+];
 const SNAPSHOT_DEVICE_FILES: &[&str] = &[
     "uevent",
     "vendor",
