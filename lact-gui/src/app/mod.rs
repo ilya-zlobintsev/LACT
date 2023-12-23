@@ -13,7 +13,6 @@ use gtk::glib::{timeout_future, ControlFlow};
 use gtk::{gio::ApplicationFlags, prelude::*, *};
 use header::Header;
 use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
-use lact_client::schema::DeviceStats;
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
 use root_stack::RootStack;
@@ -306,24 +305,22 @@ impl App {
     }
 
     fn start_stats_update_loop(&self, current_gpu_id: Rc<RefCell<String>>) {
-        let context = glib::MainContext::default();
-
-        let _guard = context.acquire();
-
         // The loop that gets stats
-        let (sender, receiver) = glib::MainContext::channel(glib::Priority::default());
-
-        context.spawn_local(
-            clone!(@strong self.daemon_client as daemon_client => async move {
+        glib::spawn_future_local(
+            clone!(@strong self.daemon_client as daemon_client, @strong self.root_stack as root_stack => async move {
                 loop {
                     {
                         let gpu_id = current_gpu_id.borrow();
+                        trace!("fetching new stats using id {gpu_id}");
                         match daemon_client
                             .get_device_stats(&gpu_id)
                             .and_then(|stats| stats.inner())
                         {
                             Ok(stats) => {
-                                sender.send(GuiUpdateMsg::GpuStats(stats)).unwrap();
+                                trace!("new stats received, updating {stats:?}");
+                                root_stack.info_page.set_stats(&stats);
+                                root_stack.thermals_page.set_stats(&stats, false);
+                                root_stack.oc_page.set_stats(&stats, false);
                             }
                             Err(err) => {
                                 error!("Could not fetch stats: {err}");
@@ -332,24 +329,6 @@ impl App {
                     }
                     timeout_future(Duration::from_millis(STATS_POLL_INTERVAL)).await;
                 }
-            }),
-        );
-
-        // Receiving stats into the gui event loop
-
-        receiver.attach(
-            None,
-            clone!(@strong self.root_stack as root_stack => move |msg| {
-                match msg {
-                    GuiUpdateMsg::GpuStats(stats) => {
-                        trace!("new stats received, updating {stats:?}");
-                        root_stack.info_page.set_stats(&stats);
-                        root_stack.thermals_page.set_stats(&stats, false);
-                        root_stack.oc_page.set_stats(&stats, false);
-                    }
-                }
-
-                ControlFlow::Continue
             }),
         );
     }
@@ -609,10 +588,6 @@ impl App {
             app.set_initial(&gpu_id);
         }));
     }
-}
-
-enum GuiUpdateMsg {
-    GpuStats(DeviceStats),
 }
 
 fn show_error(parent: &ApplicationWindow, err: anyhow::Error) {

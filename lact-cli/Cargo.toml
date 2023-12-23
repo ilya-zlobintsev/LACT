@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 lact-client = { path = "../lact-client" }
 lact-schema = { path = "../lact-schema", features = ["args"] }
-anyhow = "1.0.75"
+anyhow = "1.0.76"
