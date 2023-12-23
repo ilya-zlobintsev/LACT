@@ -29,7 +29,12 @@ use std::{
     str::FromStr,
     time::Duration,
 };
-use tokio::{select, sync::Notify, task::JoinHandle, time::sleep};
+use tokio::{
+    select,
+    sync::Notify,
+    task::JoinHandle,
+    time::{sleep, timeout},
+};
 use tracing::{debug, error, trace, warn};
 #[cfg(feature = "libdrm_amdgpu_sys")]
 use {
@@ -39,6 +44,8 @@ use {
 };
 
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
+
+const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
 
 pub struct GpuController {
     pub(super) handle: GpuHandle,
@@ -493,7 +500,54 @@ impl GpuController {
 
         if let Some(cap) = config.power_cap {
             let hw_mon = self.first_hw_mon()?;
+
+            let current_usage = hw_mon
+                .get_power_input()
+                .or_else(|_| hw_mon.get_power_average())
+                .context("Could not get current power usage")?;
+
+            // When applying a power limit that's lower than the current power consumption,
+            // try to downclock the GPU first by forcing it into the lowest performance level.
+            // Workaround for behaviour described in https://github.com/ilya-zlobintsev/LACT/issues/207
+            let mut original_performance_level = None;
+            if current_usage > cap {
+                if let Ok(performance_level) = self.handle.get_power_force_performance_level() {
+                    if self
+                        .handle
+                        .set_power_force_performance_level(PerformanceLevel::Low)
+                        .is_ok()
+                    {
+                        debug!(
+                            "waiting for the GPU to clock down before applying a new power limit"
+                        );
+
+                        match timeout(
+                            Duration::from_secs(GPU_CLOCKDOWN_TIMEOUT_SECS),
+                            wait_until_lowest_clock_level(&self.handle),
+                        )
+                        .await
+                        {
+                            Ok(()) => {
+                                debug!("GPU clocked down successfully");
+                            }
+                            Err(_) => {
+                                warn!("GPU did not clock down after {GPU_CLOCKDOWN_TIMEOUT_SECS}");
+                            }
+                        }
+
+                        original_performance_level = Some(performance_level);
+                    }
+                }
+            }
+
             hw_mon.set_power_cap(cap)?;
+
+            // Reapply old power level
+            if let Some(level) = original_performance_level {
+                self.handle
+                    .set_power_force_performance_level(level)
+                    .context("Could not reapply original performance level")?;
+            }
         } else if let Ok(hw_mon) = self.first_hw_mon() {
             if let Ok(default_cap) = hw_mon.get_power_cap_default() {
                 hw_mon.set_power_cap(default_cap)?;
@@ -599,5 +653,23 @@ impl ClocksConfiguration {
         }
 
         Ok(())
+    }
+}
+
+async fn wait_until_lowest_clock_level(handle: &GpuHandle) {
+    loop {
+        match handle.get_core_clock_levels() {
+            Ok(levels) => {
+                if levels.active == Some(0) {
+                    break;
+                }
+
+                sleep(Duration::from_millis(250)).await;
+            }
+            Err(err) => {
+                warn!("could not get core clock levels: {err}");
+                break;
+            }
+        }
     }
 }
