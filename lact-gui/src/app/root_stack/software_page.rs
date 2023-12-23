@@ -1,6 +1,7 @@
 use crate::GUI_VERSION;
 use gtk::glib::{self, Object};
-use lact_client::schema::SystemInfo;
+use lact_client::schema::{SystemInfo, GIT_COMMIT};
+use std::fmt::Write;
 
 glib::wrapper! {
     pub struct SoftwarePage(ObjectSubclass<imp::SoftwarePage>)
@@ -14,13 +15,16 @@ impl SoftwarePage {
         if embedded {
             daemon_version.push_str("-embedded");
         }
+        if let Some(commit) = system_info.commit {
+            write!(daemon_version, " (commit {commit})").unwrap();
+        }
 
         let gui_profile = if cfg!(debug_assertions) {
             "debug"
         } else {
             "release"
         };
-        let gui_version = format!("{GUI_VERSION}-{gui_profile}");
+        let gui_version = format!("{GUI_VERSION}-{gui_profile} (commit {GIT_COMMIT})");
 
         Object::builder()
             .property("daemon-version", daemon_version)

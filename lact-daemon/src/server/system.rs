@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context};
-use lact_schema::SystemInfo;
+use lact_schema::{SystemInfo, GIT_COMMIT};
 use std::{
     fs::{self, File, Permissions},
     io::Write,
@@ -38,6 +38,7 @@ pub fn info() -> anyhow::Result<SystemInfo<'static>> {
         profile,
         kernel_version,
         amdgpu_overdrive_enabled,
+        commit: Some(GIT_COMMIT),
     })
 }
 
