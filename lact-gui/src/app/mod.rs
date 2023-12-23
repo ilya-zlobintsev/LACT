@@ -305,7 +305,7 @@ impl App {
     }
 
     fn start_stats_update_loop(&self, current_gpu_id: Rc<RefCell<String>>) {
-        // // The loop that gets stats
+        // The loop that gets stats
         glib::spawn_future_local(
             clone!(@strong self.daemon_client as daemon_client, @strong self.root_stack as root_stack => async move {
                 loop {
