@@ -1,20 +1,64 @@
-use super::gpu_controller::{fan_control::FanCurve, GpuController};
+use super::{
+    gpu_controller::{fan_control::FanCurve, GpuController},
+    system::PP_FEATURE_MASK_PATH,
+};
 use crate::config::{self, default_fan_static_speed, Config, FanControlSettings};
 use anyhow::{anyhow, Context};
 use lact_schema::{
-    amdgpu_sysfs::gpu_handle::{
-        power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
+    amdgpu_sysfs::{
+        gpu_handle::{
+            power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
+        },
+        sysfs::SysFS,
     },
     default_fan_curve,
     request::{ConfirmCommand, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PowerStates,
 };
-use std::{cell::RefCell, collections::BTreeMap, env, path::PathBuf, rc::Rc, time::Duration};
+use std::{
+    cell::RefCell,
+    collections::BTreeMap,
+    env,
+    fs::{File, Permissions},
+    io::{BufWriter, Cursor, Write},
+    os::unix::fs::{MetadataExt, PermissionsExt},
+    path::{Path, PathBuf},
+    rc::Rc,
+    time::Duration,
+};
 use tokio::{sync::oneshot, time::sleep};
 use tracing::{debug, error, info, trace, warn};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
 const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 1;
+
+const SNAPSHOT_GLOBAL_FILES: &[&str] = &[
+    PP_FEATURE_MASK_PATH,
+    "/etc/lact/config.yaml",
+    "/proc/version",
+];
+const SNAPSHOT_DEVICE_FILES: &[&str] = &[
+    "uevent",
+    "vendor",
+    "pp_cur_state",
+    "pp_dpm_mclk",
+    "pp_dpm_pcie",
+    "pp_dpm_sclk",
+    "pp_dpm_socclk",
+    "pp_features",
+    "pp_force_state",
+    "pp_mclk_od",
+    "pp_num_states",
+    "pp_od_clk_voltage",
+    "pp_power_profile_mode",
+    "pp_sclk_od",
+    "pp_table",
+    "vbios_version",
+    "gpu_busy_percent",
+    "current_link_speed",
+    "current_link_width",
+];
+const SNAPSHOT_HWMON_FILE_PREFIXES: &[&str] = &["fan", "pwm", "power", "temp", "freq", "in"];
 
 #[derive(Clone)]
 pub struct Handler {
@@ -99,10 +143,10 @@ impl<'a> Handler {
                 Ok(apply_timer)
             }
             Err(apply_err) => {
-                error!("could not apply settings: {apply_err:#}");
+                error!("could not apply settings: {apply_err:?}");
                 match controller.apply_config(&gpu_config).await {
                         Ok(()) => Err(apply_err.context("Could not apply settings")),
-                        Err(err) => Err(anyhow!("Could not apply settings, and could not reset to default settings: {err:#}")),
+                        Err(err) => Err(anyhow!("Could not apply settings, and could not reset to default settings: {err:?}")),
                     }
             }
         }
@@ -368,6 +412,62 @@ impl<'a> Handler {
         .await
     }
 
+    pub fn generate_snapshot(&self) -> anyhow::Result<String> {
+        let datetime = chrono::Local::now().format("%Y%m%d-%H%M%S");
+        let out_path = format!("/tmp/LACT-sysfs-snapshot-{datetime}.tar");
+
+        let out_file = File::create(&out_path)
+            .with_context(|| "Could not create output file at {out_path}")?;
+        let out_writer = BufWriter::new(out_file);
+
+        let mut archive = tar::Builder::new(out_writer);
+
+        for path in SNAPSHOT_GLOBAL_FILES {
+            let path = Path::new(path);
+            add_path_to_archive(&mut archive, path)?;
+        }
+
+        for controller in self.gpu_controllers.values() {
+            let controller_path = controller.handle.get_path();
+
+            for device_file in SNAPSHOT_DEVICE_FILES {
+                let full_path = controller_path.join(device_file);
+                add_path_to_archive(&mut archive, &full_path)?;
+            }
+
+            for hw_mon in &controller.handle.hw_monitors {
+                let hw_mon_path = hw_mon.get_path();
+                let hw_mon_entries =
+                    std::fs::read_dir(hw_mon_path).context("Could not read HwMon dir")?;
+
+                'entries: for entry in hw_mon_entries.flatten() {
+                    if !entry.metadata().is_ok_and(|metadata| metadata.is_file()) {
+                        continue;
+                    }
+
+                    if let Some(name) = entry.file_name().to_str() {
+                        for prefix in SNAPSHOT_HWMON_FILE_PREFIXES {
+                            if name.starts_with(prefix) {
+                                add_path_to_archive(&mut archive, &entry.path())?;
+                                continue 'entries;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut writer = archive.into_inner().context("Could not finish archive")?;
+        writer.flush().context("Could not flush output file")?;
+
+        writer
+            .into_inner()?
+            .set_permissions(Permissions::from_mode(0o775))
+            .context("Could not set permissions on output file")?;
+
+        Ok(out_path)
+    }
+
     pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
         if let Some(tx) = self
             .confirm_config_tx
@@ -445,4 +545,31 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, GpuController>> {
     }
 
     Ok(controllers)
+}
+
+fn add_path_to_archive(
+    archive: &mut tar::Builder<impl Write>,
+    full_path: &Path,
+) -> anyhow::Result<()> {
+    let archive_path = full_path
+        .strip_prefix("/")
+        .context("Path should always start at root")?;
+
+    if let Ok(metadata) = std::fs::metadata(full_path) {
+        debug!("adding {full_path:?} to snapshot");
+        let data = std::fs::read(full_path)
+            .with_context(|| format!("Could not read file at {full_path:?}"))?;
+
+        let mut header = tar::Header::new_gnu();
+        header.set_size(data.len().try_into().unwrap());
+        header.set_mode(metadata.mode());
+        header.set_uid(metadata.uid().into());
+        header.set_gid(metadata.gid().into());
+        header.set_cksum();
+
+        archive
+            .append_data(&mut header, archive_path, Cursor::new(data))
+            .context("Could not write data to archive")?;
+    }
+    Ok(())
 }

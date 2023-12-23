@@ -34,3 +34,5 @@ serde_with = { version = "3.4.0", default-features = false, features = [
 ] }
 zbus = { version = "3.14.1", default-features = false, features = ["tokio"] }
 libdrm_amdgpu_sys = { optional = true, version = "0.4.0" }
+tar = "0.4.40"
+chrono = "0.4.31"

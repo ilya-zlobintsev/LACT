@@ -60,7 +60,7 @@ pub async fn handle_stream(stream: UnixStream, handler: Handler) -> anyhow::Resu
         let response = match maybe_request {
             Ok(request) => match handle_request(request, &handler).await {
                 Ok(response) => response,
-                Err(error) => serde_json::to_vec(&Response::<()>::Error(format!("{error:#}")))?,
+                Err(error) => serde_json::to_vec(&Response::<()>::Error(format!("{error:?}")))?,
             },
             Err(error) => serde_json::to_vec(&Response::<()>::Error(format!(
                 "Failed to deserialize request: {error}"
@@ -118,6 +118,7 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
             ok_response(handler.set_enabled_power_states(id, kind, states).await?)
         }
         Request::EnableOverdrive => ok_response(system::enable_overdrive()?),
+        Request::GenerateSnapshot => ok_response(handler.generate_snapshot()?),
         Request::ConfirmPendingConfig(command) => {
             ok_response(handler.confirm_pending_config(command)?)
         }
