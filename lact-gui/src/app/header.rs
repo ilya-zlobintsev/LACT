@@ -13,16 +13,25 @@ pub struct Header {
 impl Header {
     pub fn new() -> Self {
         let container = HeaderBar::new();
-
-        container.set_title_widget(Some(&Box::default())); // Workaround to hide the title
-
         container.set_show_title_buttons(true);
+
+        let switcher = StackSwitcher::new();
+        container.set_title_widget(Some(&switcher));
 
         let gpu_selector = ComboBoxText::new();
         container.pack_start(&gpu_selector);
 
-        let switcher = StackSwitcher::new();
-        container.pack_start(&switcher);
+        let menu = gio::Menu::new();
+        menu.append(
+            Some("Generate debug snapshot"),
+            Some("app.generate-debug-snapshot"),
+        );
+
+        let menu_button = MenuButton::builder()
+            .icon_name("open-menu-symbolic")
+            .menu_model(&menu)
+            .build();
+        container.pack_end(&menu_button);
 
         Header {
             container,

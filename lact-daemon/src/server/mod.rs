@@ -118,6 +118,7 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
             ok_response(handler.set_enabled_power_states(id, kind, states).await?)
         }
         Request::EnableOverdrive => ok_response(system::enable_overdrive()?),
+        Request::GenerateSnapshot => ok_response(handler.generate_snapshot()?),
         Request::ConfirmPendingConfig(command) => {
             ok_response(handler.confirm_pending_config(command)?)
         }

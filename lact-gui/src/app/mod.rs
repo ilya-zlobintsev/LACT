@@ -8,6 +8,7 @@ use crate::{APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::ApplyRevealer;
 use glib::clone;
+use gtk::gio::ActionEntry;
 use gtk::glib::{timeout_future, ControlFlow};
 use gtk::{gio::ApplicationFlags, prelude::*, *};
 use header::Header;
@@ -149,6 +150,14 @@ impl App {
                         app.enable_overclocking();
                     }));
                 }
+
+                let snapshot_action = ActionEntry::builder("generate-debug-snapshot")
+                    .activate(clone!(@strong app => move |_, _, _| {
+                        app.generate_debug_snapshot();
+                    }))
+                    .build();
+
+                app.application.add_action_entries([snapshot_action]);
 
                 app.start_stats_update_loop(current_gpu_id);
 
@@ -466,6 +475,54 @@ impl App {
         self.set_initial(&gpu_id);
 
         Ok(())
+    }
+
+    fn generate_debug_snapshot(&self) {
+        match self
+            .daemon_client
+            .generate_debug_snapshot()
+            .and_then(|response| response.inner())
+        {
+            Ok(path) => {
+                let path_label = Label::builder()
+                    .use_markup(true)
+                    .label(format!("<b>{path}</b>"))
+                    .selectable(true)
+                    .build();
+
+                let vbox = Box::builder()
+                    .orientation(Orientation::Vertical)
+                    .margin_top(10)
+                    .margin_bottom(10)
+                    .margin_start(10)
+                    .margin_end(10)
+                    .build();
+
+                vbox.append(&Label::new(Some("Debug snapshot saved at:")));
+                vbox.append(&path_label);
+
+                let diag = MessageDialog::builder()
+                    .title("Snapshot generated")
+                    .message_type(MessageType::Info)
+                    .use_markup(true)
+                    .text(format!("Debug snapshot saved at <b>{path}</b>"))
+                    .buttons(ButtonsType::Ok)
+                    .transient_for(&self.window)
+                    .build();
+
+                let message_box = diag.message_area().downcast::<gtk::Box>().unwrap();
+                for child in message_box.observe_children().into_iter().flatten() {
+                    if let Ok(label) = child.downcast::<Label>() {
+                        label.set_selectable(true);
+                    }
+                }
+
+                diag.run_async(|diag, _| {
+                    diag.hide();
+                })
+            }
+            Err(err) => show_error(&self.window, err.context("Could not generate snapshot")),
+        }
     }
 
     fn enable_overclocking(&self) {
