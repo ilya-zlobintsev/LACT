@@ -58,6 +58,13 @@ const SNAPSHOT_DEVICE_FILES: &[&str] = &[
     "current_link_speed",
     "current_link_width",
 ];
+const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
+    "fan_curve",
+    "acoustic_limit_rpm_threshold",
+    "acoustic_target_rpm_threshold",
+    "fan_minimum_pwm",
+    "fan_target_temperature",
+];
 const SNAPSHOT_HWMON_FILE_PREFIXES: &[&str] = &["fan", "pwm", "power", "temp", "freq", "in"];
 
 #[derive(Clone)]
@@ -432,6 +439,12 @@ impl<'a> Handler {
 
             for device_file in SNAPSHOT_DEVICE_FILES {
                 let full_path = controller_path.join(device_file);
+                add_path_to_archive(&mut archive, &full_path)?;
+            }
+
+            let fan_ctrl_path = controller_path.join("gpu_od").join("fan_ctrl");
+            for fan_ctrl_file in SNAPSHOT_FAN_CTRL_FILES {
+                let full_path = fan_ctrl_path.join(fan_ctrl_file);
                 add_path_to_archive(&mut archive, &full_path)?;
             }
 
