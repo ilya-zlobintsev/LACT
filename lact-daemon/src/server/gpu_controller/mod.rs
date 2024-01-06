@@ -262,6 +262,10 @@ impl GpuController {
                 speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
                 speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
                 speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
+                auto_acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
+                auto_acoustic_target: self.handle.get_fan_acoustic_target().ok(),
+                auto_target_temp: self.handle.get_fan_target_temperature().ok(),
+                auto_minimum_pwm: self.handle.get_fan_minimum_pwm().ok(),
             },
             clockspeed: ClockspeedStats {
                 gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),

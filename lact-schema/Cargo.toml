@@ -7,7 +7,9 @@ edition = "2021"
 args = ["clap"]
 
 [dependencies]
-amdgpu-sysfs = { version = "0.12.7", features = ["serde"] }
+amdgpu-sysfs = { git = "https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs", branch = "rdna3-fan-control", features = [
+    "serde",
+] }
 serde = { version = "1.0", features = ["derive"] }
 indexmap = { version = "*", features = ["serde"] }
 clap = { version = "4.4.11", features = ["derive"], optional = true }

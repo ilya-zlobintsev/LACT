@@ -72,9 +72,7 @@ impl ThermalsPage {
             Some("automatic"),
             "Automatic",
         );
-
         fan_control_mode_stack.add_titled(&fan_curve_frame.container, Some("curve"), "Curve");
-
         fan_control_mode_stack.add_titled(&fan_static_speed_frame, Some("static"), "Static");
 
         fan_control_section.append(&fan_control_mode_stack_switcher);

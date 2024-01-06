@@ -12,6 +12,7 @@ pub use response::Response;
 
 use amdgpu_sysfs::{
     gpu_handle::{
+        fan_control::FanInfo,
         overdrive::{ClocksTable, ClocksTableGen},
         PerformanceLevel,
     },
@@ -195,6 +196,11 @@ pub struct FanStats {
     pub speed_current: Option<u32>,
     pub speed_max: Option<u32>,
     pub speed_min: Option<u32>,
+    // RDNA3+ params
+    pub auto_acoustic_limit: Option<FanInfo>,
+    pub auto_acoustic_target: Option<FanInfo>,
+    pub auto_target_temp: Option<FanInfo>,
+    pub auto_minimum_pwm: Option<FanInfo>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
