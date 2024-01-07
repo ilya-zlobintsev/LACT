@@ -72,19 +72,19 @@ impl PmfwFrame {
         PmfwOptions {
             acoustic_limit: self
                 .acoustic_limit
-                .get_changed_value(true)
+                .get_nonzero_value()
                 .map(|value| value as u32),
             acoustic_target: self
                 .acoustic_target
-                .get_changed_value(true)
+                .get_nonzero_value()
                 .map(|value| value as u32),
             minimum_pwm: self
                 .minimum_pwm
-                .get_changed_value(true)
+                .get_nonzero_value()
                 .map(|value| value as u32),
             target_temperature: self
                 .target_temperature
-                .get_changed_value(true)
+                .get_nonzero_value()
                 .map(|value| value as u32),
         }
     }
