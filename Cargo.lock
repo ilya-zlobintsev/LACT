@@ -42,7 +42,7 @@ dependencies = [
 [[package]]
 name = "amdgpu-sysfs"
 version = "0.12.8"
-source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs?branch=rdna3-fan-control#8aa862f3f72330dc22fcc3e1c7cadaaa8bf5f99d"
+source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs?branch=rdna3-fan-control#f1d810887e2c80f65792077c8e0fec5c18d6c522"
 dependencies = [
  "enum_dispatch",
  "serde",
