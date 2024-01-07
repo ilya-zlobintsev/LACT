@@ -29,6 +29,9 @@ pub enum Request<'a> {
         #[serde(default)]
         pmfw: PmfwOptions,
     },
+    ResetPmfw {
+        id: &'a str,
+    },
     SetPowerCap {
         id: &'a str,
         cap: Option<f64>,

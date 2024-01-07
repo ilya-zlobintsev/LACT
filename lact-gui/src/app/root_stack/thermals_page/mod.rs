@@ -208,6 +208,10 @@ impl ThermalsPage {
             None
         }
     }
+
+    pub fn connect_reset_pmfw<F: Fn() + 'static + Clone>(&self, f: F) {
+        self.pmfw_frame.connect_reset(f);
+    }
 }
 
 fn static_speed_adj(parent_box: &Box) -> Adjustment {

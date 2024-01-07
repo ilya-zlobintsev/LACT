@@ -1,7 +1,7 @@
 use gtk::{
     glib::clone,
-    prelude::{AdjustmentExt, GridExt, WidgetExt},
-    Align, Grid, Label, MenuButton, Orientation, Popover, Scale, SpinButton,
+    prelude::{AdjustmentExt, ButtonExt, GridExt, WidgetExt},
+    Align, Button, Grid, Label, MenuButton, Orientation, Popover, Scale, SpinButton,
 };
 use lact_client::schema::{amdgpu_sysfs::gpu_handle::fan_control::FanInfo, FanStats, PmfwOptions};
 
@@ -10,11 +10,11 @@ use crate::app::root_stack::oc_adjustment::OcAdjustment;
 #[derive(Clone)]
 pub struct PmfwFrame {
     pub container: Grid,
-    // Stores the container of the row and the value
     target_temperature: OcAdjustment,
     acoustic_limit: OcAdjustment,
     acoustic_target: OcAdjustment,
     minimum_pwm: OcAdjustment,
+    reset_button: Button,
 }
 
 impl PmfwFrame {
@@ -33,12 +33,16 @@ impl PmfwFrame {
         let acoustic_target = adjustment(&grid, "Acoustic target (RPM)", 2);
         let minimum_pwm = adjustment(&grid, "Minimum fan speed (%)", 3);
 
+        let reset_button = Button::builder().label("Reset").build();
+        grid.attach(&reset_button, 4, 1, 1, 1);
+
         Self {
             container: grid,
             target_temperature,
             acoustic_limit,
             acoustic_target,
             minimum_pwm,
+            reset_button,
         }
     }
 
@@ -66,6 +70,12 @@ impl PmfwFrame {
             .connect_value_changed(clone!(@strong f => move |_| {
                 f();
             }));
+    }
+
+    pub fn connect_reset<F: Fn() + 'static + Clone>(&self, f: F) {
+        self.reset_button.connect_clicked(move |_| {
+            f();
+        });
     }
 
     pub fn get_pmfw_options(&self) -> PmfwOptions {

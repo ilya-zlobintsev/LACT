@@ -140,6 +140,7 @@ impl DaemonClient {
         PowerProfileModesTable
     );
     request_with_id!(get_power_states, GetPowerStates, PowerStates);
+    request_with_id!(reset_pmfw, ResetPmfw, u64);
 
     pub fn set_performance_level(
         &self,

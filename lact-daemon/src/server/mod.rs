@@ -98,6 +98,7 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
                 .set_fan_control(id, enabled, mode, static_speed, curve, pmfw)
                 .await?,
         ),
+        Request::ResetPmfw { id } => ok_response(handler.reset_pmfw(id).await?),
         Request::SetPowerCap { id, cap } => ok_response(handler.set_power_cap(id, cap).await?),
         Request::SetPerformanceLevel {
             id,

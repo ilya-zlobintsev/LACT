@@ -125,6 +125,23 @@ impl App {
                     }
                 }));
 
+                app.root_stack.thermals_page.connect_reset_pmfw(clone!(@strong app, @strong current_gpu_id => move || {
+                    debug!("Resetting PMFW settings");
+                    let gpu_id = current_gpu_id.borrow().clone();
+
+                    match app.daemon_client.reset_pmfw(&gpu_id)
+                        .and_then(|buffer| buffer.inner())
+                        .and_then(|_|  app.daemon_client.confirm_pending_config(ConfirmCommand::Confirm))
+                    {
+                        Ok(()) => {
+                            app.set_initial(&gpu_id);
+                        }
+                        Err(err) => {
+                            show_error(&app.window, err);
+                        }
+                    }
+                }));
+
                 app.apply_revealer.connect_apply_button_clicked(
                     clone!(@strong app, @strong current_gpu_id => move || {
                         glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
