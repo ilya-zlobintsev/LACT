@@ -34,7 +34,7 @@ impl PmfwFrame {
         let minimum_pwm = adjustment(&grid, "Minimum fan speed (%)", 3);
 
         let reset_button = Button::builder().label("Reset").build();
-        grid.attach(&reset_button, 4, 1, 1, 1);
+        grid.attach(&reset_button, 5, 4, 1, 1);
 
         Self {
             container: grid,
