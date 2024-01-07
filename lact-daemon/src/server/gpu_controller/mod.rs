@@ -474,6 +474,30 @@ impl GpuController {
             .collect()
     }
 
+    pub fn reset_pmfw_settings(&self) {
+        let handle = &self.handle;
+        if self.handle.get_fan_target_temperature().is_ok() {
+            if let Err(err) = handle.reset_fan_target_temperature() {
+                warn!("Could not reset target temperature: {err:#}");
+            }
+        }
+        if self.handle.get_fan_acoustic_target() {
+            if let Err(err) = handle.reset_fan_acoustic_target() {
+                warn!("Could not reset acoustic target: {err:#}");
+            }
+        }
+        if self.handle.get_fan_acoustic_limit() {
+            if let Err(err) = handle.reset_fan_acoustic_limit() {
+                warn!("Could not reset acoustic limit: {err:#}");
+            }
+        }
+        if self.handle.get_fan_minimum_pwm() {
+            if let Err(err) = handle.reset_fan_minimum_pwm() {
+                warn!("Could not reset minimum pwm: {err:#}");
+            }
+        }
+    }
+
     pub async fn apply_config(&self, config: &config::Gpu) -> anyhow::Result<()> {
         if config.fan_control_enabled {
             if let Some(ref settings) = config.fan_control_settings {

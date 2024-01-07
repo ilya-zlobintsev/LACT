@@ -332,19 +332,7 @@ impl<'a> Handler {
 
     pub async fn reset_pmfw(&self, id: &str) -> anyhow::Result<u64> {
         info!("Resetting PMFW settings");
-        let handle = &self.controller_by_id(id)?.handle;
-        if let Err(err) = handle.reset_fan_target_temperature() {
-            warn!("Could not reset target temperature: {err:#}");
-        }
-        if let Err(err) = handle.reset_fan_acoustic_target() {
-            warn!("Could not reset acoustic target: {err:#}");
-        }
-        if let Err(err) = handle.reset_fan_acoustic_limit() {
-            warn!("Could not reset acoustic limit: {err:#}");
-        }
-        if let Err(err) = handle.reset_fan_minimum_pwm() {
-            warn!("Could not reset minimum pwm: {err:#}");
-        }
+        self.controller_by_id(id)?.reset_pmfw_settings();
 
         self.edit_gpu_config(id.to_owned(), |config| {
             config.pmfw_options = PmfwOptions::default();
@@ -534,6 +522,8 @@ impl<'a> Handler {
                     error!("could not reset the clocks table: {err}");
                 }
             }
+
+            controller.reset_pmfw_settings();
 
             if let Err(err) = controller.apply_config(&config::Gpu::default()).await {
                 error!("Could not reset settings for controller {id}: {err:#}");
