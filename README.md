@@ -46,7 +46,8 @@ There is a configuration file available in `/etc/lact/config.yaml`. Most of the 
 The overclocking functionality is disabled by default in the driver. There are two ways to enable it:
 - By using the "enable overclocking" option in the LACT GUI. This will create a file in `/etc/modprobe.d` that enables the required driver options. This is the easiest way and it should work for most people.
 
-  **Note:** you might need to regenerate the initramfs for the setting to be applied. On Arch-based systems, this means running `mkinitcpio -P`.
+  **Note:** This will attempt to automatically regenerate the initramfs to include the new settings. It does not cover all possible distro combinations. If you've enabled overclocking in LACT but it still doesn't work fter a reboot,
+  you might need to check your distro's configuration to make sure the initramfs was updated. Updating the kernel version is a guaranteed way to trigger an initramfs update.
 - Specifying a boot parameter. You can manually specify the `amdgpu.ppfeaturemask=0xffffffff` kernel parameter in your bootloader to enable overclocking. See the [ArchWiki](https://wiki.archlinux.org/title/AMDGPU#Boot_parameter) for more details.
 
 # Hardware support
