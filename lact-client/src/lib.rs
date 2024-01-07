@@ -127,7 +127,7 @@ impl DaemonClient {
     }
 
     request_plain!(get_system_info, SystemInfo, SystemInfo);
-    request_plain!(enable_overdrive, EnableOverdrive, ());
+    request_plain!(enable_overdrive, EnableOverdrive, String);
     request_plain!(generate_debug_snapshot, GenerateSnapshot, String);
     request_with_id!(get_device_info, DeviceInfo, DeviceInfo);
     request_with_id!(get_device_stats, DeviceStats, DeviceStats);

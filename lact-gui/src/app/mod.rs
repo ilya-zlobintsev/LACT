@@ -505,7 +505,7 @@ impl App {
     }
 
     fn enable_overclocking(&self) {
-        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>. Are you sure you want to do this?");
+        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this? (Note: the GUI may freeze for a bit)");
         let dialog = MessageDialog::builder()
             .title("Enable Overclocking")
             .use_markup(true)
@@ -518,10 +518,10 @@ impl App {
         dialog.run_async(clone!(@strong self as app => move |diag, response| {
             if response == ResponseType::Ok {
                 match app.daemon_client.enable_overdrive().and_then(|buffer| buffer.inner()) {
-                    Ok(_) => {
+                    Ok(msg) => {
                         let success_dialog = MessageDialog::builder()
                             .title("Success")
-                            .text("Overclocking successfully enabled. A system reboot is required to apply the changes")
+                            .text(format!("Overclocking successfully enabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
                             .message_type(MessageType::Info)
                             .buttons(ButtonsType::Ok)
                             .build();
