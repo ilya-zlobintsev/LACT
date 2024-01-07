@@ -481,17 +481,17 @@ impl GpuController {
                 warn!("Could not reset target temperature: {err:#}");
             }
         }
-        if self.handle.get_fan_acoustic_target() {
+        if self.handle.get_fan_acoustic_target().is_ok() {
             if let Err(err) = handle.reset_fan_acoustic_target() {
                 warn!("Could not reset acoustic target: {err:#}");
             }
         }
-        if self.handle.get_fan_acoustic_limit() {
+        if self.handle.get_fan_acoustic_limit().is_ok() {
             if let Err(err) = handle.reset_fan_acoustic_limit() {
                 warn!("Could not reset acoustic limit: {err:#}");
             }
         }
-        if self.handle.get_fan_minimum_pwm() {
+        if self.handle.get_fan_minimum_pwm().is_ok() {
             if let Err(err) = handle.reset_fan_minimum_pwm() {
                 warn!("Could not reset minimum pwm: {err:#}");
             }
