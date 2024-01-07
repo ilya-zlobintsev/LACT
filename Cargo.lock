@@ -1310,6 +1310,7 @@ dependencies = [
  "lact-schema",
  "libdrm_amdgpu_sys",
  "nix 0.27.1",
+ "os-release",
  "pciid-parser",
  "serde",
  "serde_json",
@@ -1585,6 +1586,15 @@ checksum = "9aa2b01e1d916879f73a53d01d1d6cee68adbb31d6d9177a8cfce093cced1d50"
 dependencies = [
  "futures-core",
  "pin-project-lite",
+]
+
+[[package]]
+name = "os-release"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82f29ae2f71b53ec19cc23385f8e4f3d90975195aa3d09171ba3bef7159bec27"
+dependencies = [
+ "lazy_static",
 ]
 
 [[package]]

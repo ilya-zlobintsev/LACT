@@ -248,3 +248,9 @@ pub struct PowerState<T> {
     pub enabled: bool,
     pub value: T,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitramfsType {
+    Debian,
+    Mkinitcpio,
+}

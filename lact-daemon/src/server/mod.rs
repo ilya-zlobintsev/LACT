@@ -14,8 +14,6 @@ use tokio::{
 };
 use tracing::{debug, error, instrument};
 
-pub use system::MODULE_CONF_PATH;
-
 pub struct Server {
     pub handler: Handler,
     listener: UnixListener,
