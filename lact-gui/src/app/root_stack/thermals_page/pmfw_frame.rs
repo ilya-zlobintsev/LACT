@@ -1,11 +1,10 @@
+use crate::app::root_stack::oc_adjustment::OcAdjustment;
 use gtk::{
     glib::clone,
     prelude::{AdjustmentExt, ButtonExt, GridExt, WidgetExt},
     Align, Button, Grid, Label, MenuButton, Orientation, Popover, Scale, SpinButton,
 };
-use lact_client::schema::{amdgpu_sysfs::gpu_handle::fan_control::FanInfo, FanStats, PmfwOptions};
-
-use crate::app::root_stack::oc_adjustment::OcAdjustment;
+use lact_client::schema::{amdgpu_sysfs::gpu_handle::fan_control::FanInfo, PmfwInfo, PmfwOptions};
 
 #[derive(Clone)]
 pub struct PmfwFrame {
@@ -33,7 +32,15 @@ impl PmfwFrame {
         let acoustic_target = adjustment(&grid, "Acoustic target (RPM)", 2);
         let minimum_pwm = adjustment(&grid, "Minimum fan speed (%)", 3);
 
-        let reset_button = Button::builder().label("Reset").build();
+        let reset_button = Button::builder()
+            .label("Reset")
+            .halign(Align::Fill)
+            .margin_top(5)
+            .margin_bottom(5)
+            .tooltip_text("Warning: this resets the fan firmware settings!")
+            .css_classes(["destructive-action"])
+            .visible(false)
+            .build();
         grid.attach(&reset_button, 5, 4, 1, 1);
 
         Self {
@@ -46,11 +53,14 @@ impl PmfwFrame {
         }
     }
 
-    pub fn set_stats_initial(&self, fan_stats: &FanStats) {
-        set_fan_info(&self.acoustic_limit, fan_stats.pmfw_acoustic_limit);
-        set_fan_info(&self.acoustic_target, fan_stats.pmfw_acoustic_target);
-        set_fan_info(&self.minimum_pwm, fan_stats.pmfw_minimum_pwm);
-        set_fan_info(&self.target_temperature, fan_stats.pmfw_target_temp);
+    pub fn set_info(&self, info: &PmfwInfo) {
+        set_fan_info(&self.acoustic_limit, info.acoustic_limit);
+        set_fan_info(&self.acoustic_target, info.acoustic_target);
+        set_fan_info(&self.minimum_pwm, info.minimum_pwm);
+        set_fan_info(&self.target_temperature, info.target_temp);
+
+        let settings_available = *info != PmfwInfo::default();
+        self.reset_button.set_visible(settings_available);
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {

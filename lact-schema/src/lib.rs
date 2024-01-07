@@ -198,10 +198,17 @@ pub struct FanStats {
     pub speed_max: Option<u32>,
     pub speed_min: Option<u32>,
     // RDNA3+ params
-    pub pmfw_acoustic_limit: Option<FanInfo>,
-    pub pmfw_acoustic_target: Option<FanInfo>,
-    pub pmfw_target_temp: Option<FanInfo>,
-    pub pmfw_minimum_pwm: Option<FanInfo>,
+    #[serde(default)]
+    pub pmfw_info: PmfwInfo,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PmfwInfo {
+    pub acoustic_limit: Option<FanInfo>,
+    pub acoustic_target: Option<FanInfo>,
+    pub target_temp: Option<FanInfo>,
+    pub minimum_pwm: Option<FanInfo>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]

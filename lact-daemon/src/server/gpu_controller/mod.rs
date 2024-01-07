@@ -18,7 +18,7 @@ use lact_schema::{
         sysfs::SysFS,
     },
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo, LinkInfo,
-    PciInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
+    PciInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use pciid_parser::Database;
 use std::{
@@ -262,10 +262,12 @@ impl GpuController {
                 speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
                 speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
                 speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
-                pmfw_acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
-                pmfw_acoustic_target: self.handle.get_fan_acoustic_target().ok(),
-                pmfw_target_temp: self.handle.get_fan_target_temperature().ok(),
-                pmfw_minimum_pwm: self.handle.get_fan_minimum_pwm().ok(),
+                pmfw_info: PmfwInfo {
+                    acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
+                    acoustic_target: self.handle.get_fan_acoustic_target().ok(),
+                    target_temp: self.handle.get_fan_target_temperature().ok(),
+                    minimum_pwm: self.handle.get_fan_minimum_pwm().ok(),
+                },
             },
             clockspeed: ClockspeedStats {
                 gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),

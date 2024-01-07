@@ -156,7 +156,7 @@ impl ThermalsPage {
                 self.fan_curve_frame.set_curve(&default_fan_curve());
             }
 
-            self.pmfw_frame.set_stats_initial(&stats.fan);
+            self.pmfw_frame.set_info(&stats.fan.pmfw_info);
         }
     }
 
