@@ -13,6 +13,9 @@ amdgpu-sysfs = { git = "https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs", bra
 serde = { version = "1.0", features = ["derive"] }
 indexmap = { version = "*", features = ["serde"] }
 clap = { version = "4.4.11", features = ["derive"], optional = true }
+serde_with = { version = "3.4.0", default-features = false, features = [
+    "macros",
+] }
 
 [dev-dependencies]
 serde_json = "1.0"

@@ -474,26 +474,26 @@ impl GpuController {
 
     pub async fn apply_config(&self, config: &config::Gpu) -> anyhow::Result<()> {
         let pmfw = &config.pmfw_options;
-        if let Some(acoustic_limit) = pmfw.acoustic_limit {
-            self.handle
-                .set_fan_acoustic_limit(acoustic_limit)
-                .context("Could not set acoustic limit")?;
-        }
-        if let Some(acoustic_target) = pmfw.acoustic_target {
-            self.handle
-                .set_fan_acoustic_target(acoustic_target)
-                .context("Could not set acoustic target")?;
-        }
+        // if let Some(acoustic_limit) = pmfw.acoustic_limit {
+        //     self.handle
+        //         .set_fan_acoustic_limit(acoustic_limit)
+        //         .context("Could not set acoustic limit")?;
+        // }
+        // if let Some(acoustic_target) = pmfw.acoustic_target {
+        //     self.handle
+        //         .set_fan_acoustic_target(acoustic_target)
+        //         .context("Could not set acoustic target")?;
+        // }
         if let Some(target_temperature) = pmfw.target_temperature {
             self.handle
                 .set_fan_target_temperature(target_temperature)
                 .context("Could not set target temperature")?;
         }
-        if let Some(minimum_pwm) = pmfw.minimum_pwm {
-            self.handle
-                .set_fan_minimum_pwm(minimum_pwm)
-                .context("Could not set minimum pwm")?;
-        }
+        // if let Some(minimum_pwm) = pmfw.minimum_pwm {
+        //     self.handle
+        //         .set_fan_minimum_pwm(minimum_pwm)
+        //         .context("Could not set minimum pwm")?;
+        // }
 
         /*if config.fan_control_enabled {
             if let Some(ref settings) = config.fan_control_settings {

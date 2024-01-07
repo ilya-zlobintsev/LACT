@@ -20,6 +20,7 @@ use amdgpu_sysfs::{
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
@@ -255,6 +256,7 @@ pub enum InitramfsType {
     Mkinitcpio,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PmfwOptions {
     pub acoustic_limit: Option<u32>,
