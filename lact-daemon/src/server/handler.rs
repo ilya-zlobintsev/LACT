@@ -13,7 +13,8 @@ use lact_schema::{
     },
     default_fan_curve,
     request::{ConfirmCommand, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PowerStates,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
+    PowerStates,
 };
 use std::{
     cell::RefCell,
@@ -263,6 +264,7 @@ impl<'a> Handler {
         mode: Option<FanControlMode>,
         static_speed: Option<f64>,
         curve: Option<FanCurveMap>,
+        pmfw: PmfwOptions,
     ) -> anyhow::Result<u64> {
         let settings = {
             let mut config_guard = self
@@ -323,6 +325,17 @@ impl<'a> Handler {
             if let Some(settings) = settings {
                 config.fan_control_settings = Some(settings);
             }
+            config.pmfw_options = pmfw;
+        })
+        .await
+    }
+
+    pub async fn reset_pmfw(&self, id: &str) -> anyhow::Result<u64> {
+        info!("Resetting PMFW settings");
+        self.controller_by_id(id)?.reset_pmfw_settings();
+
+        self.edit_gpu_config(id.to_owned(), |config| {
+            config.pmfw_options = PmfwOptions::default();
         })
         .await
     }
@@ -509,6 +522,8 @@ impl<'a> Handler {
                     error!("could not reset the clocks table: {err}");
                 }
             }
+
+            controller.reset_pmfw_settings();
 
             if let Err(err) = controller.apply_config(&config::Gpu::default()).await {
                 error!("Could not reset settings for controller {id}: {err:#}");

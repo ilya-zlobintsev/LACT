@@ -18,7 +18,7 @@ use lact_schema::{
         sysfs::SysFS,
     },
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo, LinkInfo,
-    PciInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
+    PciInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use pciid_parser::Database;
 use std::{
@@ -262,6 +262,12 @@ impl GpuController {
                 speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
                 speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
                 speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
+                pmfw_info: PmfwInfo {
+                    acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
+                    acoustic_target: self.handle.get_fan_acoustic_target().ok(),
+                    target_temp: self.handle.get_fan_target_temperature().ok(),
+                    minimum_pwm: self.handle.get_fan_minimum_pwm().ok(),
+                },
             },
             clockspeed: ClockspeedStats {
                 gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
@@ -468,6 +474,30 @@ impl GpuController {
             .collect()
     }
 
+    pub fn reset_pmfw_settings(&self) {
+        let handle = &self.handle;
+        if self.handle.get_fan_target_temperature().is_ok() {
+            if let Err(err) = handle.reset_fan_target_temperature() {
+                warn!("Could not reset target temperature: {err:#}");
+            }
+        }
+        if self.handle.get_fan_acoustic_target().is_ok() {
+            if let Err(err) = handle.reset_fan_acoustic_target() {
+                warn!("Could not reset acoustic target: {err:#}");
+            }
+        }
+        if self.handle.get_fan_acoustic_limit().is_ok() {
+            if let Err(err) = handle.reset_fan_acoustic_limit() {
+                warn!("Could not reset acoustic limit: {err:#}");
+            }
+        }
+        if self.handle.get_fan_minimum_pwm().is_ok() {
+            if let Err(err) = handle.reset_fan_minimum_pwm() {
+                warn!("Could not reset minimum pwm: {err:#}");
+            }
+        }
+    }
+
     pub async fn apply_config(&self, config: &config::Gpu) -> anyhow::Result<()> {
         if config.fan_control_enabled {
             if let Some(ref settings) = config.fan_control_settings {
@@ -596,6 +626,30 @@ impl GpuController {
             self.handle
                 .set_enabled_power_levels(*kind, states)
                 .with_context(|| format!("Could not set {kind:?} power states"))?;
+        }
+
+        if !config.fan_control_enabled {
+            let pmfw = &config.pmfw_options;
+            if let Some(acoustic_limit) = pmfw.acoustic_limit {
+                self.handle
+                    .set_fan_acoustic_limit(acoustic_limit)
+                    .context("Could not set acoustic limit")?;
+            }
+            if let Some(acoustic_target) = pmfw.acoustic_target {
+                self.handle
+                    .set_fan_acoustic_target(acoustic_target)
+                    .context("Could not set acoustic target")?;
+            }
+            if let Some(target_temperature) = pmfw.target_temperature {
+                self.handle
+                    .set_fan_target_temperature(target_temperature)
+                    .context("Could not set target temperature")?;
+            }
+            if let Some(minimum_pwm) = pmfw.minimum_pwm {
+                self.handle
+                    .set_fan_minimum_pwm(minimum_pwm)
+                    .context("Could not set minimum pwm")?;
+            }
         }
 
         Ok(())

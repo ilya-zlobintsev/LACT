@@ -4,7 +4,7 @@ use lact_schema::{
     amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind},
     default_fan_curve,
     request::SetClocksCommand,
-    FanControlMode,
+    FanControlMode, PmfwOptions,
 };
 use nix::unistd::getuid;
 use serde::{Deserialize, Serialize};
@@ -56,6 +56,8 @@ impl Default for Daemon {
 pub struct Gpu {
     pub fan_control_enabled: bool,
     pub fan_control_settings: Option<FanControlSettings>,
+    #[serde(default)]
+    pub pmfw_options: PmfwOptions,
     pub power_cap: Option<f64>,
     pub performance_level: Option<PerformanceLevel>,
     #[serde(default, flatten)]
@@ -179,9 +181,8 @@ fn default_apply_settings_timer() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use lact_schema::{FanControlMode, PmfwOptions};
     use std::collections::HashMap;
-
-    use lact_schema::FanControlMode;
 
     use super::{ClocksConfiguration, Config, Daemon, FanControlSettings, Gpu};
     use crate::server::gpu_controller::fan_control::FanCurve;
@@ -217,6 +218,7 @@ mod tests {
         let mut gpu = Gpu {
             fan_control_enabled: false,
             fan_control_settings: None,
+            pmfw_options: PmfwOptions::default(),
             power_cap: None,
             performance_level: None,
             clocks_configuration: ClocksConfiguration::default(),

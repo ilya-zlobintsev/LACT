@@ -12,6 +12,7 @@ pub use response::Response;
 
 use amdgpu_sysfs::{
     gpu_handle::{
+        fan_control::FanInfo,
         overdrive::{ClocksTable, ClocksTableGen},
         PerformanceLevel,
     },
@@ -19,6 +20,7 @@ use amdgpu_sysfs::{
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
@@ -195,6 +197,18 @@ pub struct FanStats {
     pub speed_current: Option<u32>,
     pub speed_max: Option<u32>,
     pub speed_min: Option<u32>,
+    // RDNA3+ params
+    #[serde(default)]
+    pub pmfw_info: PmfwInfo,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PmfwInfo {
+    pub acoustic_limit: Option<FanInfo>,
+    pub acoustic_target: Option<FanInfo>,
+    pub target_temp: Option<FanInfo>,
+    pub minimum_pwm: Option<FanInfo>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -247,4 +261,13 @@ pub struct PowerState<T> {
 pub enum InitramfsType {
     Debian,
     Mkinitcpio,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PmfwOptions {
+    pub acoustic_limit: Option<u32>,
+    pub acoustic_target: Option<u32>,
+    pub minimum_pwm: Option<u32>,
+    pub target_temperature: Option<u32>,
 }

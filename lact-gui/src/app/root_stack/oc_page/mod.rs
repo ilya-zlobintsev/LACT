@@ -1,6 +1,5 @@
 mod clocks_frame;
 mod gpu_stats_section;
-mod oc_adjustment;
 mod performance_frame;
 mod power_cap_section;
 // mod power_cap_frame;
