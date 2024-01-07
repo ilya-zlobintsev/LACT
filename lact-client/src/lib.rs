@@ -10,8 +10,8 @@ use schema::{
         power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
     },
     request::{ConfirmCommand, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PowerStates,
-    Request, Response, SystemInfo,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
+    PowerStates, Request, Response, SystemInfo,
 };
 use serde::Deserialize;
 use std::{
@@ -111,6 +111,7 @@ impl DaemonClient {
         mode: Option<FanControlMode>,
         static_speed: Option<f64>,
         curve: Option<FanCurveMap>,
+        pmfw: PmfwOptions,
     ) -> anyhow::Result<u64> {
         self.make_request(Request::SetFanControl {
             id,
@@ -118,6 +119,7 @@ impl DaemonClient {
             mode,
             static_speed,
             curve,
+            pmfw,
         })?
         .inner()
     }

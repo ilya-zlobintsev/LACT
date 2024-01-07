@@ -262,10 +262,10 @@ impl GpuController {
                 speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
                 speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
                 speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
-                auto_acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
-                auto_acoustic_target: self.handle.get_fan_acoustic_target().ok(),
-                auto_target_temp: self.handle.get_fan_target_temperature().ok(),
-                auto_minimum_pwm: self.handle.get_fan_minimum_pwm().ok(),
+                pmfw_acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
+                pmfw_acoustic_target: self.handle.get_fan_acoustic_target().ok(),
+                pmfw_target_temp: self.handle.get_fan_target_temperature().ok(),
+                pmfw_minimum_pwm: self.handle.get_fan_minimum_pwm().ok(),
             },
             clockspeed: ClockspeedStats {
                 gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
@@ -500,6 +500,28 @@ impl GpuController {
             }
         } else {
             self.stop_fan_control(true).await?;
+
+            let pmfw = &config.pmfw_options;
+            if let Some(acoustic_limit) = pmfw.acoustic_limit {
+                self.handle
+                    .set_fan_acoustic_limit(acoustic_limit)
+                    .context("Could not set acoustic limit")?;
+            }
+            if let Some(acoustic_target) = pmfw.acoustic_target {
+                self.handle
+                    .set_fan_acoustic_target(acoustic_target)
+                    .context("Could not set acoustic target")?;
+            }
+            if let Some(target_temperature) = pmfw.target_temperature {
+                self.handle
+                    .set_fan_target_temperature(target_temperature)
+                    .context("Could not set target temperature")?;
+            }
+            if let Some(minimum_pwm) = pmfw.minimum_pwm {
+                self.handle
+                    .set_fan_minimum_pwm(minimum_pwm)
+                    .context("Could not set minimum pwm")?;
+            }
         }
 
         if let Some(cap) = config.power_cap {

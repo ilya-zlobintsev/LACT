@@ -389,6 +389,7 @@ impl App {
                     thermals_settings.mode,
                     thermals_settings.static_speed,
                     thermals_settings.curve,
+                    thermals_settings.pmfw,
                 )
                 .context("Could not set fan control")?;
             self.daemon_client

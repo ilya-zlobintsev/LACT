@@ -197,10 +197,10 @@ pub struct FanStats {
     pub speed_max: Option<u32>,
     pub speed_min: Option<u32>,
     // RDNA3+ params
-    pub auto_acoustic_limit: Option<FanInfo>,
-    pub auto_acoustic_target: Option<FanInfo>,
-    pub auto_target_temp: Option<FanInfo>,
-    pub auto_minimum_pwm: Option<FanInfo>,
+    pub pmfw_acoustic_limit: Option<FanInfo>,
+    pub pmfw_acoustic_target: Option<FanInfo>,
+    pub pmfw_target_temp: Option<FanInfo>,
+    pub pmfw_minimum_pwm: Option<FanInfo>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -253,4 +253,12 @@ pub struct PowerState<T> {
 pub enum InitramfsType {
     Debian,
     Mkinitcpio,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PmfwOptions {
+    pub acoustic_limit: Option<u32>,
+    pub acoustic_target: Option<u32>,
+    pub minimum_pwm: Option<u32>,
+    pub target_temperature: Option<u32>,
 }

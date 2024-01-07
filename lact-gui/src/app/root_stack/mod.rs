@@ -1,4 +1,5 @@
 mod info_page;
+mod oc_adjustment;
 mod oc_page;
 mod software_page;
 mod thermals_page;

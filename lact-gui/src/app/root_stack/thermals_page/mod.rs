@@ -1,15 +1,16 @@
 mod fan_curve_frame;
+mod pmfw_frame;
 
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{default_fan_curve, DeviceStats, FanControlMode, FanCurveMap};
+use lact_client::schema::{
+    default_fan_curve, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
+};
 
-use crate::app::page_section::PageSection;
-
-use self::fan_curve_frame::FanCurveFrame;
-
+use self::{fan_curve_frame::FanCurveFrame, pmfw_frame::PmfwFrame};
 use super::{label_row, values_grid};
+use crate::app::page_section::PageSection;
 
 #[derive(Debug)]
 pub struct ThermalsSettings {
@@ -17,6 +18,7 @@ pub struct ThermalsSettings {
     pub mode: Option<FanControlMode>,
     pub static_speed: Option<f64>,
     pub curve: Option<FanCurveMap>,
+    pub pmfw: PmfwOptions,
 }
 
 #[derive(Clone)]
@@ -24,6 +26,7 @@ pub struct ThermalsPage {
     pub container: Box,
     temperatures_label: Label,
     fan_speed_label: Label,
+    pmfw_frame: PmfwFrame,
     fan_static_speed_adjustment: Adjustment,
     fan_curve_frame: FanCurveFrame,
     fan_control_mode_stack: Stack,
@@ -58,6 +61,8 @@ impl ThermalsPage {
             .build();
         let fan_static_speed_adjustment = static_speed_adj(&fan_static_speed_frame);
 
+        let pmfw_frame = PmfwFrame::new();
+
         let fan_control_section = PageSection::new("Fan control");
 
         let fan_control_mode_stack = Stack::builder().build();
@@ -67,11 +72,7 @@ impl ThermalsPage {
             .sensitive(false)
             .build();
 
-        fan_control_mode_stack.add_titled(
-            &Box::new(Orientation::Vertical, 15),
-            Some("automatic"),
-            "Automatic",
-        );
+        fan_control_mode_stack.add_titled(&pmfw_frame.container, Some("automatic"), "Automatic");
         fan_control_mode_stack.add_titled(&fan_curve_frame.container, Some("curve"), "Curve");
         fan_control_mode_stack.add_titled(&fan_static_speed_frame, Some("static"), "Static");
 
@@ -94,6 +95,7 @@ impl ThermalsPage {
             fan_curve_frame,
             fan_control_mode_stack,
             fan_control_mode_stack_switcher,
+            pmfw_frame,
         }
     }
 
@@ -153,6 +155,8 @@ impl ThermalsPage {
             if !stats.fan.control_enabled && self.fan_curve_frame.get_curve().is_empty() {
                 self.fan_curve_frame.set_curve(&default_fan_curve());
             }
+
+            self.pmfw_frame.set_stats_initial(&stats.fan);
         }
     }
 
@@ -166,6 +170,8 @@ impl ThermalsPage {
             .connect_value_changed(clone!(@strong f => move |_| {
                 f();
             }));
+
+        self.pmfw_frame.connect_settings_changed(f.clone());
 
         self.fan_curve_frame.connect_adjusted(move || {
             f();
@@ -189,11 +195,14 @@ impl ThermalsPage {
             let curve = self.fan_curve_frame.get_curve();
             let curve = if curve.is_empty() { None } else { Some(curve) };
 
+            let pmfw = self.pmfw_frame.get_pmfw_options();
+
             Some(ThermalsSettings {
                 manual_fan_control,
                 mode,
                 static_speed,
                 curve,
+                pmfw,
             })
         } else {
             None
