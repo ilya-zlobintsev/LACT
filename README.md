@@ -56,7 +56,7 @@ Tested GPU generations:
 - [X] Vega
 - [X] RDNA1 (RX 5000 series)
 - [X] RDNA2 (RX 6000 series)
-- [ ] RDNA3 (RX 7000 series) - overclocking is not available on stable kernel versions, and is [expected to land in Linux 6.7](https://gitlab.freedesktop.org/drm/amd/-/issues/2840#note_2079945)
+- [ ] RDNA3 (RX 7000 series) - basic support available. Fan control available via thermal target settings, but full custom curve support is currently missing. Requires Kernel 6.7+
 
 GPUs not listed here will still work, but might not have full functionality available.
 Monitoring/system info will be available everywhere. Integrated GPUs might also only have basic configuration available.
@@ -147,6 +147,9 @@ The snapshot is an archive which includes the SysFS that LACT uses to interact w
 If there's a crash, run `lact gui` from the command line to get GUI logs, check daemon logs in `journalctl -u lactd` for errors, 
 and see `dmesg` for kernel logs that might include information about driver and system issues.
 
-# Alternatives
+# Other tools
 
-If LACT doesn't do what you want, make sure to check out [CoreCtrl](https://gitlab.com/corectrl/corectrl).
+Here's a list of other useful tools for AMD GPUs on Linux:
+- [CoreCtrl](https://gitlab.com/corectrl/corectrl) - direct alternative to LACT, provides similar functionality in addition to CPU configuration with a Qt UI
+- [amdgpu_top](https://github.com/Umio-Yasuno/amdgpu_top) - tool for detailed real-time statistics on AMD GPUs
+- [Tuxclocker](https://github.com/Lurkki14/tuxclocker) - Qt overclocking tool, has support for AMD GPUs
