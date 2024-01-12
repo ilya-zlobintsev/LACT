@@ -585,19 +585,23 @@ fn add_path_to_archive(
 
     if let Ok(metadata) = std::fs::metadata(full_path) {
         debug!("adding {full_path:?} to snapshot");
-        let data = std::fs::read(full_path)
-            .with_context(|| format!("Could not read file at {full_path:?}"))?;
+        match std::fs::read(full_path) {
+            Ok(data) => {
+                let mut header = tar::Header::new_gnu();
+                header.set_size(data.len().try_into().unwrap());
+                header.set_mode(metadata.mode());
+                header.set_uid(metadata.uid().into());
+                header.set_gid(metadata.gid().into());
+                header.set_cksum();
 
-        let mut header = tar::Header::new_gnu();
-        header.set_size(data.len().try_into().unwrap());
-        header.set_mode(metadata.mode());
-        header.set_uid(metadata.uid().into());
-        header.set_gid(metadata.gid().into());
-        header.set_cksum();
-
-        archive
-            .append_data(&mut header, archive_path, Cursor::new(data))
-            .context("Could not write data to archive")?;
+                archive
+                    .append_data(&mut header, archive_path, Cursor::new(data))
+                    .context("Could not write data to archive")?;
+            }
+            Err(err) => {
+                warn!("file {full_path:?} exists, but could not be added to snapshot: {err}");
+            }
+        }
     }
     Ok(())
 }
