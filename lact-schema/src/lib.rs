@@ -261,6 +261,7 @@ pub struct PowerState<T> {
 pub enum InitramfsType {
     Debian,
     Mkinitcpio,
+    Dracut,
 }
 
 #[skip_serializing_none]

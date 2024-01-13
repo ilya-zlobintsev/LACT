@@ -88,6 +88,7 @@ fn regenerate_initramfs() -> anyhow::Result<InitramfsType> {
             let result = match initramfs_type {
                 InitramfsType::Debian => run_command("update-initramfs", &["-u"]),
                 InitramfsType::Mkinitcpio => run_command("mkinitcpio", &["-P"]),
+                InitramfsType::Dracut => run_command("dracut", &["--regenerate-all", "--force"]),
             };
             result.map(|()| initramfs_type)
         }
@@ -109,6 +110,13 @@ fn detect_initramfs_type(os_release: &OsRelease) -> Option<InitramfsType> {
             warn!(
                 "Arch-based system with no mkinitcpio detected, refusing to regenerate initramfs"
             );
+            None
+        }
+    } else if os_release.id == "fedora" {
+        if Command::new("dracut").arg("--version").output().is_ok() {
+            Some(InitramfsType::Dracut)
+        } else {
+            warn!("Fedora without dracut detected, refusing to regenerate initramfs");
             None
         }
     } else {
