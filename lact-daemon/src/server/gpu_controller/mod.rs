@@ -683,7 +683,10 @@ impl ClocksConfiguration {
             // Normalize the VDDC curve - make sure all of the values are within the allowed range
             table.normalize_vddc_curve();
 
-            table.voltage_offset = self.voltage_offset;
+            match self.voltage_offset {
+                Some(offset) => table.set_voltage_offset(offset)?,
+                None => table.voltage_offset = None,
+            }
         }
 
         if let Some(min_clockspeed) = self.min_core_clock {
