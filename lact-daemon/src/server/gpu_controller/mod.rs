@@ -217,6 +217,7 @@ impl GpuController {
             .and_then(|handle| handle.device_info().ok())
             .map(|drm_info| DrmInfo {
                 family_name: drm_info.get_family_name().to_string(),
+                family_id: drm_info.family_id(),
                 asic_name: drm_info.get_asic_name().to_string(),
                 chip_class: drm_info.get_chip_class().to_string(),
                 compute_units: drm_info.cu_active_number,

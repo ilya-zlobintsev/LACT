@@ -5,12 +5,18 @@ use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{
-    default_fan_curve, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
+    default_fan_curve, DeviceInfo, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
+    SystemInfo,
 };
+use lact_daemon::AMDGPU_FAMILY_GC_11_0_0;
+use tracing::debug;
 
 use self::{fan_curve_frame::FanCurveFrame, pmfw_frame::PmfwFrame};
 use super::{label_row, values_grid};
 use crate::app::page_section::PageSection;
+
+const PMFW_WARNING: &str =
+    "Warning: Overclocking support is disabled, fan control functionality is not available.";
 
 #[derive(Debug)]
 pub struct ThermalsSettings {
@@ -24,6 +30,7 @@ pub struct ThermalsSettings {
 #[derive(Clone)]
 pub struct ThermalsPage {
     pub container: Box,
+    pmfw_warning_label: Label,
     temperatures_label: Label,
     fan_speed_label: Label,
     pmfw_frame: PmfwFrame,
@@ -31,16 +38,24 @@ pub struct ThermalsPage {
     fan_curve_frame: FanCurveFrame,
     fan_control_mode_stack: Stack,
     fan_control_mode_stack_switcher: StackSwitcher,
+
+    overdrive_enabled: Option<bool>,
 }
 
 impl ThermalsPage {
-    pub fn new() -> Self {
+    pub fn new(system_info: &SystemInfo) -> Self {
         let container = Box::builder()
             .orientation(Orientation::Vertical)
             .spacing(15)
             .margin_start(20)
             .margin_end(20)
             .build();
+
+        let pmfw_warning_label = Label::builder()
+            .label(PMFW_WARNING)
+            .halign(Align::Start)
+            .build();
+        container.append(&pmfw_warning_label);
 
         let stats_section = PageSection::new("Statistics");
         let stats_grid = values_grid();
@@ -88,6 +103,7 @@ impl ThermalsPage {
         });
 
         Self {
+            pmfw_warning_label,
             container,
             temperatures_label,
             fan_speed_label,
@@ -96,7 +112,23 @@ impl ThermalsPage {
             fan_control_mode_stack,
             fan_control_mode_stack_switcher,
             pmfw_frame,
+            overdrive_enabled: system_info.amdgpu_overdrive_enabled,
         }
+    }
+
+    pub fn set_info(&self, info: &DeviceInfo) {
+        let pmfw_disabled = info.drm_info.as_ref().is_some_and(|info| {
+            debug!(
+                "family id: {}, overdrive enabled {:?}",
+                info.family_id, self.overdrive_enabled
+            );
+            (info.family_id >= AMDGPU_FAMILY_GC_11_0_0) && (self.overdrive_enabled != Some(true))
+        });
+        self.pmfw_warning_label.set_visible(pmfw_disabled);
+
+        let sensitive = self.fan_control_mode_stack_switcher.is_sensitive() && !pmfw_disabled;
+        self.fan_control_mode_stack_switcher
+            .set_sensitive(sensitive);
     }
 
     pub fn set_stats(&self, stats: &DeviceStats, initial: bool) {

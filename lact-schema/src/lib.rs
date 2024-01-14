@@ -98,6 +98,8 @@ pub struct DeviceInfo<'a> {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DrmInfo {
     pub family_name: String,
+    #[serde(default)]
+    pub family_id: u32,
     pub asic_name: String,
     pub chip_class: String,
     pub compute_units: u32,

@@ -242,6 +242,7 @@ impl App {
         self.root_stack.info_page.set_info(&info);
 
         self.set_initial(gpu_id);
+        self.root_stack.thermals_page.set_info(&info);
     }
 
     fn set_initial(&self, gpu_id: &str) {
