@@ -19,6 +19,15 @@ template $VulkanFeaturesWindow: Window {
       }
     }
   }
+
+  ShortcutController {
+    scope: global;
+
+    Shortcut {
+      trigger: "Escape|<Ctrl>w";
+      action: "action(window.close)";
+    }
+  }
 }
 
 SignalListItemFactory features_factory {}

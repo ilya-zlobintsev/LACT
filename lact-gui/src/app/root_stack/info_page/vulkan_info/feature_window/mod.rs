@@ -93,6 +93,11 @@ mod imp {
                 }),
             );
 
+            self.search_entry
+                .connect_stop_search(clone!(@weak obj as win => move |_search| {
+                    win.close();
+                }));
+
             self.features_factory.connect_setup(|_, list_item| {
                 let feature = VulkanFeature::default();
                 let row = VulkanFeatureRow::new(feature);
