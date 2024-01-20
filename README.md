@@ -56,7 +56,7 @@ Tested GPU generations:
 - [X] Vega
 - [X] RDNA1 (RX 5000 series)
 - [X] RDNA2 (RX 6000 series)
-- [ ] RDNA3 (RX 7000 series) - basic support available. Fan control available via thermal target settings, but full custom curve support is currently missing. Requires Kernel 6.7+
+- [X] RDNA3 (RX 7000 series) - Requires Kernel 6.7+
 
 GPUs not listed here will still work, but might not have full functionality available.
 Monitoring/system info will be available everywhere. Integrated GPUs might also only have basic configuration available.
