@@ -132,7 +132,7 @@ impl ClocksFrame {
     }
 
     pub fn set_table(&self, table: ClocksTableGen) -> anyhow::Result<()> {
-        debug!("using clocks table {table:?}");
+        println!("using clocks table {table:?}");
 
         // The upper value "0.0" is used to hide the adjustment when info is not available
 
