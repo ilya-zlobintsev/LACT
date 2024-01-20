@@ -1,5 +1,8 @@
 use anyhow::anyhow;
-use lact_schema::{amdgpu_sysfs::hw_mon::Temperature, default_fan_curve, FanCurveMap};
+use lact_schema::{
+    amdgpu_sysfs::{gpu_handle::fan_control::FanCurve as PmfwCurve, hw_mon::Temperature},
+    default_fan_curve, FanCurveMap,
+};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -39,6 +42,29 @@ impl FanCurve {
 
         (f32::from(u8::MAX) * percentage) as u8
     }
+
+    pub fn into_pmfw_curve(self, current_pmfw_curve: PmfwCurve) -> anyhow::Result<PmfwCurve> {
+        if current_pmfw_curve.points.len() != self.0.len() {
+            return Err(anyhow!(
+                "The GPU only supports {} curve points, given {}",
+                current_pmfw_curve.points.len(),
+                self.0.len()
+            ));
+        }
+        let points = self
+            .0
+            .into_iter()
+            .map(|(temp, ratio)| {
+                let pwm = (f32::from(u8::MAX) * ratio) as u8;
+                (temp, pwm)
+            })
+            .collect();
+
+        Ok(PmfwCurve {
+            points,
+            allowed_ranges: current_pmfw_curve.allowed_ranges,
+        })
+    }
 }
 
 impl FanCurve {
@@ -60,7 +86,7 @@ impl Default for FanCurve {
 
 #[cfg(test)]
 mod tests {
-    use super::FanCurve;
+    use super::{FanCurve, PmfwCurve};
     use lact_schema::amdgpu_sysfs::hw_mon::Temperature;
 
     fn simple_pwm(temp: f32) -> u8 {
@@ -147,9 +173,7 @@ mod tests {
             };
             curve.pwm_at_temp(temp)
         };
-        assert_eq!(pwm_at_temp(20.0), 0);
-        assert_eq!(pwm_at_temp(30.0), 0);
-        assert_eq!(pwm_at_temp(33.0), 15);
+        assert_eq!(pwm_at_temp(40.0), 51);
         assert_eq!(pwm_at_temp(60.0), 127);
         assert_eq!(pwm_at_temp(65.0), 159);
         assert_eq!(pwm_at_temp(70.0), 191);
@@ -157,5 +181,17 @@ mod tests {
         assert_eq!(pwm_at_temp(85.0), 255);
         assert_eq!(pwm_at_temp(100.0), 255);
         assert_eq!(pwm_at_temp(-5.0), 255);
+    }
+
+    #[test]
+    fn default_curve_to_pmfw() {
+        let curve = FanCurve::default();
+        let current_pmfw_curve = PmfwCurve {
+            points: Box::new([(0, 0); 5]),
+            allowed_ranges: None,
+        };
+        let pmfw_curve = curve.into_pmfw_curve(current_pmfw_curve).unwrap();
+        let expected_points = [(40, 51), (50, 89), (60, 127), (70, 191), (80, 255)];
+        assert_eq!(&expected_points, pmfw_curve.points.as_ref());
     }
 }

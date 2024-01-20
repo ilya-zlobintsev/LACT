@@ -11,6 +11,7 @@ use lact_schema::{
     amdgpu_sysfs::{
         error::Error,
         gpu_handle::{
+            fan_control::FanCurve as PmfwCurve,
             overdrive::{ClocksTable, ClocksTableGen},
             GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
         },
@@ -331,30 +332,77 @@ impl GpuController {
         // Stop existing task to set static speed
         self.stop_fan_control(false).await?;
 
-        let hw_mon = self
-            .handle
-            .hw_monitors
-            .first()
-            .cloned()
-            .context("This GPU has no monitor")?;
-
-        hw_mon
-            .set_fan_control_method(FanControlMethod::Manual)
-            .context("Could not set fan control method")?;
-
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        let static_speed_converted = (f64::from(u8::MAX) * static_speed) as u8;
+        let static_pwm = (f64::from(u8::MAX) * static_speed) as u8;
 
-        hw_mon
-            .set_fan_pwm(static_speed_converted)
-            .context("could not set fan speed")?;
+        // Use PMFW curve functionality for static speed when it is available
+        if let Ok(current_curve) = self.handle.get_fan_curve() {
+            let allowed_ranges = current_curve.allowed_ranges.ok_or_else(|| {
+                anyhow!("The GPU does not allow setting custom fan values (is overdrive enabled?)")
+            })?;
+            let temperature = allowed_ranges.temperature_range.end();
+            let points =
+                vec![(*temperature, static_pwm); current_curve.points.len()].into_boxed_slice();
+            let new_curve = PmfwCurve {
+                points,
+                allowed_ranges: Some(allowed_ranges),
+            };
 
-        debug!("set fan speed to {}", static_speed);
+            self.handle
+                .set_fan_curve(&new_curve)
+                .context("Could not set fan curve")?;
 
-        Ok(())
+            Ok(())
+        } else {
+            let hw_mon = self
+                .handle
+                .hw_monitors
+                .first()
+                .cloned()
+                .context("This GPU has no monitor")?;
+
+            hw_mon
+                .set_fan_control_method(FanControlMethod::Manual)
+                .context("Could not set fan control method")?;
+
+            hw_mon
+                .set_fan_pwm(static_pwm)
+                .context("could not set fan speed")?;
+
+            debug!("set fan speed to {}", static_speed);
+
+            Ok(())
+        }
     }
 
     async fn start_curve_fan_control(
+        &self,
+        curve: FanCurve,
+        temp_key: String,
+        interval: Duration,
+    ) -> anyhow::Result<()> {
+        // Use the PMFW curve functionality when it is available
+        // Otherwise, fall back to manual fan control via a task
+        match self.handle.get_fan_curve() {
+            Ok(current_curve) => {
+                let new_curve = curve
+                    .into_pmfw_curve(current_curve)
+                    .context("Invalid fan curve")?;
+
+                self.handle
+                    .set_fan_curve(&new_curve)
+                    .context("Could not set fan curve")?;
+
+                Ok(())
+            }
+            Err(_) => {
+                self.start_curve_fan_control_task(curve, temp_key, interval)
+                    .await
+            }
+        }
+    }
+
+    async fn start_curve_fan_control_task(
         &self,
         curve: FanCurve,
         temp_key: String,
@@ -500,35 +548,6 @@ impl GpuController {
     }
 
     pub async fn apply_config(&self, config: &config::Gpu) -> anyhow::Result<()> {
-        if config.fan_control_enabled {
-            if let Some(ref settings) = config.fan_control_settings {
-                match settings.mode {
-                    lact_schema::FanControlMode::Static => {
-                        self.set_static_fan_control(settings.static_speed).await?;
-                    }
-                    lact_schema::FanControlMode::Curve => {
-                        if settings.curve.0.is_empty() {
-                            return Err(anyhow!("Cannot use empty fan curve"));
-                        }
-
-                        let interval = Duration::from_millis(settings.interval_ms);
-                        self.start_curve_fan_control(
-                            settings.curve.clone(),
-                            settings.temperature_key.clone(),
-                            interval,
-                        )
-                        .await?;
-                    }
-                }
-            } else {
-                return Err(anyhow!(
-                    "Trying to enable fan control with no settings provided"
-                ));
-            }
-        } else {
-            self.stop_fan_control(true).await?;
-        }
-
         if let Some(cap) = config.power_cap {
             let hw_mon = self.first_hw_mon()?;
 
@@ -629,7 +648,34 @@ impl GpuController {
                 .with_context(|| format!("Could not set {kind:?} power states"))?;
         }
 
-        if !config.fan_control_enabled {
+        if config.fan_control_enabled {
+            if let Some(ref settings) = config.fan_control_settings {
+                match settings.mode {
+                    lact_schema::FanControlMode::Static => {
+                        self.set_static_fan_control(settings.static_speed).await?;
+                    }
+                    lact_schema::FanControlMode::Curve => {
+                        if settings.curve.0.is_empty() {
+                            return Err(anyhow!("Cannot use empty fan curve"));
+                        }
+
+                        let interval = Duration::from_millis(settings.interval_ms);
+                        self.start_curve_fan_control(
+                            settings.curve.clone(),
+                            settings.temperature_key.clone(),
+                            interval,
+                        )
+                        .await?;
+                    }
+                }
+            } else {
+                return Err(anyhow!(
+                    "Trying to enable fan control with no settings provided"
+                ));
+            }
+        } else {
+            self.stop_fan_control(true).await?;
+
             let pmfw = &config.pmfw_options;
             if let Some(acoustic_limit) = pmfw.acoustic_limit {
                 self.handle
