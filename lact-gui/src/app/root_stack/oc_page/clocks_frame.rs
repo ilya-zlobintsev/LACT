@@ -422,13 +422,17 @@ pub struct ClocksSettings {
 }
 
 fn get_adjustment_value(
-    (adjustment, _scale, changed): &(Adjustment, Scale, Rc<AtomicBool>),
+    (adjustment, scale, changed): &(Adjustment, Scale, Rc<AtomicBool>),
 ) -> Option<i32> {
     let changed = changed.load(Ordering::SeqCst);
 
     if changed {
         let value = adjustment.value();
-        Some(value as i32)
+        if scale.get_visible() {
+            Some(value as i32)
+        } else {
+            None
+        }
     } else {
         None
     }
