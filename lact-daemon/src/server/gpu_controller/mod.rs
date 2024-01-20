@@ -341,11 +341,9 @@ impl GpuController {
             let min_temperature = allowed_ranges.temperature_range.start();
             let max_temperature = allowed_ranges.temperature_range.end();
 
-            let min_pwm = f64::from(*allowed_ranges.speed_range.start());
-            let max_pwm = f64::from(*allowed_ranges.speed_range.end());
-            let custom_pwm = (max_pwm * static_speed) - (min_pwm * (1.0 - static_speed));
-            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-            let static_pwm = cmp::max(*allowed_ranges.speed_range.start(), custom_pwm as u8);
+            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+            let custom_pwm = (f64::from(*allowed_ranges.speed_range.end()) * static_speed) as u8;
+            let static_pwm = cmp::max(*allowed_ranges.speed_range.start(), custom_pwm);
 
             let mut points = vec![(*min_temperature, static_pwm)];
             for _ in 1..current_curve.points.len() {
