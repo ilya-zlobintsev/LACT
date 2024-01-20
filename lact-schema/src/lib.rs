@@ -27,7 +27,7 @@ use std::{
     str::FromStr,
 };
 
-pub const GIT_COMMIT: &str = env!("GIT_COMMIT");
+pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
