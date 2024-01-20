@@ -2,7 +2,7 @@ mod imp;
 
 use glib::Object;
 use gtk::{
-    glib::{self},
+    glib::{self, ObjectExt},
     subclass::prelude::*,
     traits::AdjustmentExt,
 };
@@ -57,9 +57,19 @@ impl OcAdjustment {
         }
     }
 
+    pub fn get_nonzero_value(&self) -> Option<f64> {
+        let value = self.value();
+        if value == 0.0 {
+            None
+        } else {
+            Some(value)
+        }
+    }
+
     pub fn set_initial_value(&self, value: f64) {
         let inner = self.imp();
         inner.obj().set_value(value);
+        inner.obj().emit_by_name::<()>("value_changed", &[]);
         inner.changed.store(false, Ordering::SeqCst);
     }
 }

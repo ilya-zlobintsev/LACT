@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::debug;
 
-const VOLTAGE_OFFSET_RANGE: f64 = 250.0;
+const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 const WARNING_TEXT: &str = "Warning: changing these values may lead to system instability and potentially damage your hardware!";
 
 // The AtomicBool stores if the value was changed
@@ -233,12 +233,18 @@ impl ClocksFrame {
 
         if let ClocksTableGen::Vega20(table) = table {
             if let Some(offset) = table.voltage_offset {
+                let (min_offset, max_offset) = table
+                    .od_range
+                    .voltage_offset
+                    .and_then(|range| range.into_full())
+                    .unwrap_or((-DEFAULT_VOLTAGE_OFFSET_RANGE, DEFAULT_VOLTAGE_OFFSET_RANGE));
+
                 self.voltage_offset_adjustment
                     .0
-                    .set_lower(VOLTAGE_OFFSET_RANGE * -1.0);
+                    .set_lower(min_offset as f64);
                 self.voltage_offset_adjustment
                     .0
-                    .set_upper(VOLTAGE_OFFSET_RANGE);
+                    .set_upper(max_offset as f64);
                 self.voltage_offset_adjustment.0.set_value(offset.into());
             } else {
                 self.voltage_offset_adjustment.0.set_upper(0.0);

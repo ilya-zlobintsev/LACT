@@ -13,7 +13,8 @@ use lact_schema::{
     },
     default_fan_curve,
     request::{ConfirmCommand, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PowerStates,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
+    PowerStates,
 };
 use std::{
     cell::RefCell,
@@ -57,6 +58,13 @@ const SNAPSHOT_DEVICE_FILES: &[&str] = &[
     "gpu_busy_percent",
     "current_link_speed",
     "current_link_width",
+];
+const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
+    "fan_curve",
+    "acoustic_limit_rpm_threshold",
+    "acoustic_target_rpm_threshold",
+    "fan_minimum_pwm",
+    "fan_target_temperature",
 ];
 const SNAPSHOT_HWMON_FILE_PREFIXES: &[&str] = &["fan", "pwm", "power", "temp", "freq", "in"];
 
@@ -256,6 +264,7 @@ impl<'a> Handler {
         mode: Option<FanControlMode>,
         static_speed: Option<f64>,
         curve: Option<FanCurveMap>,
+        pmfw: PmfwOptions,
     ) -> anyhow::Result<u64> {
         let settings = {
             let mut config_guard = self
@@ -316,6 +325,17 @@ impl<'a> Handler {
             if let Some(settings) = settings {
                 config.fan_control_settings = Some(settings);
             }
+            config.pmfw_options = pmfw;
+        })
+        .await
+    }
+
+    pub async fn reset_pmfw(&self, id: &str) -> anyhow::Result<u64> {
+        info!("Resetting PMFW settings");
+        self.controller_by_id(id)?.reset_pmfw_settings();
+
+        self.edit_gpu_config(id.to_owned(), |config| {
+            config.pmfw_options = PmfwOptions::default();
         })
         .await
     }
@@ -435,6 +455,12 @@ impl<'a> Handler {
                 add_path_to_archive(&mut archive, &full_path)?;
             }
 
+            let fan_ctrl_path = controller_path.join("gpu_od").join("fan_ctrl");
+            for fan_ctrl_file in SNAPSHOT_FAN_CTRL_FILES {
+                let full_path = fan_ctrl_path.join(fan_ctrl_file);
+                add_path_to_archive(&mut archive, &full_path)?;
+            }
+
             for hw_mon in &controller.handle.hw_monitors {
                 let hw_mon_path = hw_mon.get_path();
                 let hw_mon_entries =
@@ -497,6 +523,8 @@ impl<'a> Handler {
                 }
             }
 
+            controller.reset_pmfw_settings();
+
             if let Err(err) = controller.apply_config(&config::Gpu::default()).await {
                 error!("Could not reset settings for controller {id}: {err:#}");
             }
@@ -557,19 +585,23 @@ fn add_path_to_archive(
 
     if let Ok(metadata) = std::fs::metadata(full_path) {
         debug!("adding {full_path:?} to snapshot");
-        let data = std::fs::read(full_path)
-            .with_context(|| format!("Could not read file at {full_path:?}"))?;
+        match std::fs::read(full_path) {
+            Ok(data) => {
+                let mut header = tar::Header::new_gnu();
+                header.set_size(data.len().try_into().unwrap());
+                header.set_mode(metadata.mode());
+                header.set_uid(metadata.uid().into());
+                header.set_gid(metadata.gid().into());
+                header.set_cksum();
 
-        let mut header = tar::Header::new_gnu();
-        header.set_size(data.len().try_into().unwrap());
-        header.set_mode(metadata.mode());
-        header.set_uid(metadata.uid().into());
-        header.set_gid(metadata.gid().into());
-        header.set_cksum();
-
-        archive
-            .append_data(&mut header, archive_path, Cursor::new(data))
-            .context("Could not write data to archive")?;
+                archive
+                    .append_data(&mut header, archive_path, Cursor::new(data))
+                    .context("Could not write data to archive")?;
+            }
+            Err(err) => {
+                warn!("file {full_path:?} exists, but could not be added to snapshot: {err}");
+            }
+        }
     }
     Ok(())
 }

@@ -1,15 +1,22 @@
 mod fan_curve_frame;
+mod pmfw_frame;
 
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{default_fan_curve, DeviceStats, FanControlMode, FanCurveMap};
+use lact_client::schema::{
+    default_fan_curve, DeviceInfo, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
+    SystemInfo,
+};
+use lact_daemon::AMDGPU_FAMILY_GC_11_0_0;
+use tracing::debug;
 
+use self::{fan_curve_frame::FanCurveFrame, pmfw_frame::PmfwFrame};
+use super::{label_row, values_grid};
 use crate::app::page_section::PageSection;
 
-use self::fan_curve_frame::FanCurveFrame;
-
-use super::{label_row, values_grid};
+const PMFW_WARNING: &str =
+    "Warning: Overclocking support is disabled, fan control functionality is not available.";
 
 #[derive(Debug)]
 pub struct ThermalsSettings {
@@ -17,27 +24,38 @@ pub struct ThermalsSettings {
     pub mode: Option<FanControlMode>,
     pub static_speed: Option<f64>,
     pub curve: Option<FanCurveMap>,
+    pub pmfw: PmfwOptions,
 }
 
 #[derive(Clone)]
 pub struct ThermalsPage {
     pub container: Box,
+    pmfw_warning_label: Label,
     temperatures_label: Label,
     fan_speed_label: Label,
+    pmfw_frame: PmfwFrame,
     fan_static_speed_adjustment: Adjustment,
     fan_curve_frame: FanCurveFrame,
     fan_control_mode_stack: Stack,
     fan_control_mode_stack_switcher: StackSwitcher,
+
+    overdrive_enabled: Option<bool>,
 }
 
 impl ThermalsPage {
-    pub fn new() -> Self {
+    pub fn new(system_info: &SystemInfo) -> Self {
         let container = Box::builder()
             .orientation(Orientation::Vertical)
             .spacing(15)
             .margin_start(20)
             .margin_end(20)
             .build();
+
+        let pmfw_warning_label = Label::builder()
+            .label(PMFW_WARNING)
+            .halign(Align::Start)
+            .build();
+        container.append(&pmfw_warning_label);
 
         let stats_section = PageSection::new("Statistics");
         let stats_grid = values_grid();
@@ -58,6 +76,8 @@ impl ThermalsPage {
             .build();
         let fan_static_speed_adjustment = static_speed_adj(&fan_static_speed_frame);
 
+        let pmfw_frame = PmfwFrame::new();
+
         let fan_control_section = PageSection::new("Fan control");
 
         let fan_control_mode_stack = Stack::builder().build();
@@ -67,14 +87,8 @@ impl ThermalsPage {
             .sensitive(false)
             .build();
 
-        fan_control_mode_stack.add_titled(
-            &Box::new(Orientation::Vertical, 15),
-            Some("automatic"),
-            "Automatic",
-        );
-
+        fan_control_mode_stack.add_titled(&pmfw_frame.container, Some("automatic"), "Automatic");
         fan_control_mode_stack.add_titled(&fan_curve_frame.container, Some("curve"), "Curve");
-
         fan_control_mode_stack.add_titled(&fan_static_speed_frame, Some("static"), "Static");
 
         fan_control_section.append(&fan_control_mode_stack_switcher);
@@ -89,6 +103,7 @@ impl ThermalsPage {
         });
 
         Self {
+            pmfw_warning_label,
             container,
             temperatures_label,
             fan_speed_label,
@@ -96,7 +111,24 @@ impl ThermalsPage {
             fan_curve_frame,
             fan_control_mode_stack,
             fan_control_mode_stack_switcher,
+            pmfw_frame,
+            overdrive_enabled: system_info.amdgpu_overdrive_enabled,
         }
+    }
+
+    pub fn set_info(&self, info: &DeviceInfo) {
+        let pmfw_disabled = info.drm_info.as_ref().is_some_and(|info| {
+            debug!(
+                "family id: {}, overdrive enabled {:?}",
+                info.family_id, self.overdrive_enabled
+            );
+            (info.family_id >= AMDGPU_FAMILY_GC_11_0_0) && (self.overdrive_enabled != Some(true))
+        });
+        self.pmfw_warning_label.set_visible(pmfw_disabled);
+
+        let sensitive = self.fan_control_mode_stack_switcher.is_sensitive() && !pmfw_disabled;
+        self.fan_control_mode_stack_switcher
+            .set_sensitive(sensitive);
     }
 
     pub fn set_stats(&self, stats: &DeviceStats, initial: bool) {
@@ -155,6 +187,8 @@ impl ThermalsPage {
             if !stats.fan.control_enabled && self.fan_curve_frame.get_curve().is_empty() {
                 self.fan_curve_frame.set_curve(&default_fan_curve());
             }
+
+            self.pmfw_frame.set_info(&stats.fan.pmfw_info);
         }
     }
 
@@ -168,6 +202,8 @@ impl ThermalsPage {
             .connect_value_changed(clone!(@strong f => move |_| {
                 f();
             }));
+
+        self.pmfw_frame.connect_settings_changed(f.clone());
 
         self.fan_curve_frame.connect_adjusted(move || {
             f();
@@ -191,15 +227,22 @@ impl ThermalsPage {
             let curve = self.fan_curve_frame.get_curve();
             let curve = if curve.is_empty() { None } else { Some(curve) };
 
+            let pmfw = self.pmfw_frame.get_pmfw_options();
+
             Some(ThermalsSettings {
                 manual_fan_control,
                 mode,
                 static_speed,
                 curve,
+                pmfw,
             })
         } else {
             None
         }
+    }
+
+    pub fn connect_reset_pmfw<F: Fn() + 'static + Clone>(&self, f: F) {
+        self.pmfw_frame.connect_reset(f);
     }
 }
 

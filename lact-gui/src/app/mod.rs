@@ -126,6 +126,23 @@ impl App {
                     }
                 }));
 
+                app.root_stack.thermals_page.connect_reset_pmfw(clone!(@strong app, @strong current_gpu_id => move || {
+                    debug!("Resetting PMFW settings");
+                    let gpu_id = current_gpu_id.borrow().clone();
+
+                    match app.daemon_client.reset_pmfw(&gpu_id)
+                        .and_then(|buffer| buffer.inner())
+                        .and_then(|_|  app.daemon_client.confirm_pending_config(ConfirmCommand::Confirm))
+                    {
+                        Ok(()) => {
+                            app.set_initial(&gpu_id);
+                        }
+                        Err(err) => {
+                            show_error(&app.window, err);
+                        }
+                    }
+                }));
+
                 app.apply_revealer.connect_apply_button_clicked(
                     clone!(@strong app, @strong current_gpu_id => move || {
                         glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
@@ -226,6 +243,7 @@ impl App {
         self.root_stack.info_page.set_info(&info);
 
         self.set_initial(gpu_id);
+        self.root_stack.thermals_page.set_info(&info);
     }
 
     fn set_initial(&self, gpu_id: &str) {
@@ -390,6 +408,7 @@ impl App {
                     thermals_settings.mode,
                     thermals_settings.static_speed,
                     thermals_settings.curve,
+                    thermals_settings.pmfw,
                 )
                 .context("Could not set fan control")?;
             self.daemon_client
@@ -506,7 +525,7 @@ impl App {
     }
 
     fn enable_overclocking(&self) {
-        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b>. Are you sure you want to do this?");
+        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this? (Note: the GUI may freeze for a bit)");
         let dialog = MessageDialog::builder()
             .title("Enable Overclocking")
             .use_markup(true)
@@ -519,10 +538,10 @@ impl App {
         dialog.run_async(clone!(@strong self as app => move |diag, response| {
             if response == ResponseType::Ok {
                 match app.daemon_client.enable_overdrive().and_then(|buffer| buffer.inner()) {
-                    Ok(_) => {
+                    Ok(msg) => {
                         let success_dialog = MessageDialog::builder()
                             .title("Success")
-                            .text("Overclocking successfully enabled. A system reboot is required to apply the changes")
+                            .text(format!("Overclocking successfully enabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
                             .message_type(MessageType::Info)
                             .buttons(ButtonsType::Ok)
                             .build();
