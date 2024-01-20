@@ -16,7 +16,7 @@ metadata:
     fedora-38+fedora-39: [ libdrm ]
     arch: [ libdrm ]
   build_depends:
-    all: [ curl, make, dbus, clang ]
+    all: [ curl, make, dbus, clang, git ]
     debian-12+ubuntu-2204: [ pkg-config, build-essential, libdrm-dev ]
     fedora-38+fedora-39: [ gcc, libdrm-devel ]
     arch: [ libdrm ]

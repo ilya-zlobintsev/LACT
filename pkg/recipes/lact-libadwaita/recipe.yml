@@ -15,7 +15,7 @@ metadata:
     fedora-39: [ gtk4, libdrm, libadwaita ]
     arch: [ gtk4, libadwaita ]
   build_depends:
-    all: [ curl, make, dbus, clang ]
+    all: [ curl, make, dbus, clang, git ]
     fedora-39: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler, libadwaita-devel ]
     arch: [ gtk4, blueprint-compiler, libadwaita ]
   all_images: true
