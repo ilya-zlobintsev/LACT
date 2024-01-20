@@ -63,8 +63,8 @@ impl FanCurve {
             .0
             .into_iter()
             .map(|(temp, ratio)| {
-                let custom_pwm = (max_pwm * ratio) as u8;
-                let pwm = cmp::max(min_pwm, custom_pwm);
+                let custom_pwm = (max_pwm * ratio) - (f32::from(min_pwm) * (1.0 - ratio));
+                let pwm = cmp::max(min_pwm, custom_pwm as u8);
                 (temp, pwm)
             })
             .collect();
@@ -203,7 +203,8 @@ mod tests {
             }),
         };
         let pmfw_curve = curve.into_pmfw_curve(current_pmfw_curve).unwrap();
-        let expected_points = [(40, 20), (50, 35), (60, 50), (70, 75), (80, 100)];
+        // Normalized values
+        let expected_points = [(40, 20), (50, 22), (60, 40), (70, 70), (80, 100)];
         assert_eq!(&expected_points, pmfw_curve.points.as_ref());
     }
 }
