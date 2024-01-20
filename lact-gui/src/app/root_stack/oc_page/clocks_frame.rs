@@ -304,7 +304,7 @@ impl ClocksFrame {
     }
 
     pub fn get_settings(&self) -> ClocksSettings {
-        if self.tweaking_grid.is_visible() {
+        if self.tweaking_grid.get_visible() {
             let min_core_clock = get_adjustment_value(&self.min_sclk_adjustment);
             let min_memory_clock = get_adjustment_value(&self.min_mclk_adjustment);
             let min_voltage = get_adjustment_value(&self.min_voltage_adjustment);
@@ -312,10 +312,10 @@ impl ClocksFrame {
             let max_memory_clock = get_adjustment_value(&self.max_mclk_adjustment);
             let max_voltage = get_adjustment_value(&self.max_voltage_adjustment);
 
-            let voltage_offset = if self.voltage_offset_adjustment.0.upper() == 0.0 {
-                None
-            } else {
+            let voltage_offset = if self.voltage_offset_adjustment.1.get_visible() {
                 Some(self.voltage_offset_adjustment.0.value() as i32)
+            } else {
+                None
             };
 
             ClocksSettings {
@@ -397,9 +397,9 @@ fn oc_adjustment(
 
     scale.connect_visible_notify(
         clone!(@strong label, @strong value_label, @strong value_button => move |scale| {
-            label.set_visible(scale.is_visible());
-            value_button.set_visible(scale.is_visible());
-            value_label.set_visible(scale.is_visible());
+            label.set_visible(scale.get_visible());
+            value_button.set_visible(scale.get_visible());
+            value_label.set_visible(scale.get_visible());
         }),
     );
 
@@ -428,17 +428,14 @@ fn get_adjustment_value(
 
     if changed {
         let value = adjustment.value();
-        if value == 0.0 {
-            None
-        } else {
-            Some(value as i32)
-        }
+        Some(value as i32)
     } else {
         None
     }
 }
 
 fn emit_changed(adjustment: &(Adjustment, Scale, Rc<AtomicBool>)) {
-    adjustment.0.emit_by_name::<()>("changed", &[]);
+    adjustment.0.emit_by_name::<()>("value-changed", &[]);
+    adjustment.1.notify("visible");
     adjustment.2.store(false, Ordering::SeqCst);
 }
