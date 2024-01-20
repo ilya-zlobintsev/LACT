@@ -338,18 +338,24 @@ impl GpuController {
             let allowed_ranges = current_curve.allowed_ranges.ok_or_else(|| {
                 anyhow!("The GPU does not allow setting custom fan values (is overdrive enabled?)")
             })?;
-            let temperature = allowed_ranges.temperature_range.end();
+            let min_temperature = allowed_ranges.temperature_range.start();
+            let max_temperature = allowed_ranges.temperature_range.end();
 
             #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
             let custom_pwm = (f64::from(*allowed_ranges.speed_range.end()) * static_speed) as u8;
             let static_pwm = cmp::max(*allowed_ranges.speed_range.start(), custom_pwm);
 
-            let points =
-                vec![(*temperature, static_pwm); current_curve.points.len()].into_boxed_slice();
+            let mut points = vec![(*min_temperature, static_pwm)];
+            for _ in 1..current_curve.points.len() {
+                points.push((*max_temperature, static_pwm));
+            }
+
             let new_curve = PmfwCurve {
-                points,
+                points: points.into_boxed_slice(),
                 allowed_ranges: Some(allowed_ranges),
             };
+
+            debug!("setting static curve {new_curve:?}");
 
             self.handle
                 .set_fan_curve(&new_curve)
