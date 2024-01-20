@@ -486,6 +486,12 @@ impl GpuController {
         }
 
         if reset_mode {
+            if self.handle.get_fan_curve().is_ok() {
+                if let Err(err) = self.handle.reset_fan_curve() {
+                    warn!("could not reset fan curve: {err:#}");
+                }
+            }
+
             if let Some(hw_mon) = self.handle.hw_monitors.first().cloned() {
                 if let Ok(current_control) = hw_mon.get_fan_control_method() {
                     if !matches!(current_control, FanControlMethod::Auto) {
