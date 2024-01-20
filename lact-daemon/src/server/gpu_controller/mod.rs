@@ -25,6 +25,7 @@ use pciid_parser::Database;
 use std::{
     borrow::Cow,
     cell::RefCell,
+    cmp,
     path::{Path, PathBuf},
     rc::Rc,
     str::FromStr,
@@ -332,15 +333,17 @@ impl GpuController {
         // Stop existing task to set static speed
         self.stop_fan_control(false).await?;
 
-        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        let static_pwm = (f64::from(u8::MAX) * static_speed) as u8;
-
         // Use PMFW curve functionality for static speed when it is available
         if let Ok(current_curve) = self.handle.get_fan_curve() {
             let allowed_ranges = current_curve.allowed_ranges.ok_or_else(|| {
                 anyhow!("The GPU does not allow setting custom fan values (is overdrive enabled?)")
             })?;
             let temperature = allowed_ranges.temperature_range.end();
+
+            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+            let custom_pwm = (f64::from(*allowed_ranges.speed_range.end()) * static_speed) as u8;
+            let static_pwm = cmp::max(*allowed_ranges.speed_range.start(), custom_pwm);
+
             let points =
                 vec![(*temperature, static_pwm); current_curve.points.len()].into_boxed_slice();
             let new_curve = PmfwCurve {
@@ -365,6 +368,9 @@ impl GpuController {
                 .set_fan_control_method(FanControlMethod::Manual)
                 .context("Could not set fan control method")?;
 
+            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+            let static_pwm = (f64::from(u8::MAX) * static_speed) as u8;
+
             hw_mon
                 .set_fan_pwm(static_pwm)
                 .context("could not set fan speed")?;
@@ -388,6 +394,7 @@ impl GpuController {
                 let new_curve = curve
                     .into_pmfw_curve(current_curve)
                     .context("Invalid fan curve")?;
+                debug!("setting pmfw curve {new_curve:?}");
 
                 self.handle
                     .set_fan_curve(&new_curve)

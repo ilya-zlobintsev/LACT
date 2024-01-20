@@ -1,4 +1,6 @@
-use anyhow::anyhow;
+use std::cmp;
+
+use anyhow::{anyhow, Context};
 use lact_schema::{
     amdgpu_sysfs::{gpu_handle::fan_control::FanCurve as PmfwCurve, hw_mon::Temperature},
     default_fan_curve, FanCurveMap,
@@ -51,18 +53,25 @@ impl FanCurve {
                 self.0.len()
             ));
         }
+        let allowed_ranges = current_pmfw_curve
+            .allowed_ranges
+            .context("The GPU does not allow fan curve modifications")?;
+        let min_pwm = *allowed_ranges.speed_range.start();
+        let max_pwm = f32::from(*allowed_ranges.speed_range.end());
+
         let points = self
             .0
             .into_iter()
             .map(|(temp, ratio)| {
-                let pwm = (f32::from(u8::MAX) * ratio) as u8;
+                let custom_pwm = (max_pwm * ratio) as u8;
+                let pwm = cmp::max(min_pwm, custom_pwm);
                 (temp, pwm)
             })
             .collect();
 
         Ok(PmfwCurve {
             points,
-            allowed_ranges: current_pmfw_curve.allowed_ranges,
+            allowed_ranges: Some(allowed_ranges),
         })
     }
 }
@@ -87,7 +96,7 @@ impl Default for FanCurve {
 #[cfg(test)]
 mod tests {
     use super::{FanCurve, PmfwCurve};
-    use lact_schema::amdgpu_sysfs::hw_mon::Temperature;
+    use lact_schema::amdgpu_sysfs::{gpu_handle::fan_control::FanCurveRanges, hw_mon::Temperature};
 
     fn simple_pwm(temp: f32) -> u8 {
         let curve = FanCurve([(0, 0.0), (100, 1.0)].into());
@@ -188,10 +197,13 @@ mod tests {
         let curve = FanCurve::default();
         let current_pmfw_curve = PmfwCurve {
             points: Box::new([(0, 0); 5]),
-            allowed_ranges: None,
+            allowed_ranges: Some(FanCurveRanges {
+                temperature_range: 15..=90,
+                speed_range: 20..=100,
+            }),
         };
         let pmfw_curve = curve.into_pmfw_curve(current_pmfw_curve).unwrap();
-        let expected_points = [(40, 51), (50, 89), (60, 127), (70, 191), (80, 255)];
+        let expected_points = [(40, 20), (50, 35), (60, 50), (70, 75), (80, 100)];
         assert_eq!(&expected_points, pmfw_curve.points.as_ref());
     }
 }
