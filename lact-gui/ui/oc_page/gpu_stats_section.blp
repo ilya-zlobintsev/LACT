@@ -41,6 +41,11 @@ template $GpuStatsSection: $PageSection {
             }
 
             $InfoRow {
+                name: "GPU Core Clock (Current):";
+                value: bind template.current-core-clock;
+            }
+
+            $InfoRow {
                 name: "GPU Voltage:";
                 value: bind template.voltage;
             }

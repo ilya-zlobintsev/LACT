@@ -41,7 +41,7 @@ use tracing::{debug, error, trace, warn};
 #[cfg(feature = "libdrm_amdgpu_sys")]
 use {
     lact_schema::DrmMemoryInfo,
-    libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, GPU_INFO},
+    libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, GPU_INFO, MetricsInfo},
     std::{fs::File, os::fd::IntoRawFd},
 };
 
@@ -238,6 +238,20 @@ impl GpuController {
         None
     }
 
+    #[cfg(feature = "libdrm_amdgpu_sys")]
+    fn get_current_gfxclk(&self) -> Option<u64> {
+        self.drm_handle
+            .as_ref()
+            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
+            .and_then(|metrics| metrics.get_current_gfxclk())
+            .map(|clk| clk as u64)
+    }
+
+    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
+    fn get_current_gfxclk(&self) -> Option<u64> {
+        None
+    }
+
     fn get_link_info(&self) -> LinkInfo {
         LinkInfo {
             current_width: self.handle.get_current_link_width().ok(),
@@ -274,6 +288,7 @@ impl GpuController {
             },
             clockspeed: ClockspeedStats {
                 gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
+                current_gfxclk: self.get_current_gfxclk(),
                 vram_clockspeed: self.hw_mon_and_then(HwMon::get_vram_clockspeed),
             },
             voltage: VoltageStats {
