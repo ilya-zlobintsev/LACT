@@ -239,16 +239,15 @@ impl GpuController {
     }
 
     #[cfg(feature = "libdrm_amdgpu_sys")]
-    fn get_current_gfxclk(&self) -> Option<u64> {
+    fn get_current_gfxclk(&self) -> Option<u16> {
         self.drm_handle
             .as_ref()
             .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
             .and_then(|metrics| metrics.get_current_gfxclk())
-            .map(|clk| clk as u64)
     }
 
     #[cfg(not(feature = "libdrm_amdgpu_sys"))]
-    fn get_current_gfxclk(&self) -> Option<u64> {
+    fn get_current_gfxclk(&self) -> Option<u16> {
         None
     }
 

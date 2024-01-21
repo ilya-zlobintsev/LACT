@@ -208,7 +208,7 @@ pub struct PmfwInfo {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct ClockspeedStats {
     pub gpu_clockspeed: Option<u64>,
-    pub current_gfxclk: Option<u64>,
+    pub current_gfxclk: Option<u16>,
     pub vram_clockspeed: Option<u64>,
 }
 
