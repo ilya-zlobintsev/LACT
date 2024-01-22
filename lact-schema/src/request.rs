@@ -61,6 +61,7 @@ pub enum Request<'a> {
         states: Vec<u8>,
     },
     EnableOverdrive,
+    DisableOverdrive,
     GenerateSnapshot,
     ConfirmPendingConfig(ConfirmCommand),
 }

@@ -1,6 +1,6 @@
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::DeviceListEntry;
+use lact_client::schema::{DeviceListEntry, SystemInfo};
 use pango::EllipsizeMode;
 
 #[derive(Clone)]
@@ -11,7 +11,7 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn new() -> Self {
+    pub fn new(system_info: &SystemInfo) -> Self {
         let container = HeaderBar::new();
         container.set_show_title_buttons(true);
 
@@ -26,6 +26,13 @@ impl Header {
             Some("Generate debug snapshot"),
             Some("app.generate-debug-snapshot"),
         );
+
+        if system_info.amdgpu_overdrive_enabled == Some(true) {
+            menu.append(
+                Some("Disable overclocking support"),
+                Some("app.disable-overdrive"),
+            )
+        }
 
         let menu_button = MenuButton::builder()
             .icon_name("open-menu-symbolic")

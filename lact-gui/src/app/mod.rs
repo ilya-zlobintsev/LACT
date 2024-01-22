@@ -43,7 +43,12 @@ impl App {
         #[cfg(not(feature = "adw"))]
         let application = Application::new(Some(APP_ID), ApplicationFlags::default());
 
-        let header = Header::new();
+        let system_info_buf = daemon_client
+            .get_system_info()
+            .expect("Could not fetch system info");
+        let system_info = system_info_buf.inner().expect("Invalid system info buffer");
+
+        let header = Header::new(&system_info);
         let window = ApplicationWindow::builder()
             .title("LACT")
             .default_width(600)
@@ -51,17 +56,12 @@ impl App {
             .icon_name(APP_ID)
             .build();
 
-        window.set_titlebar(Some(&header.container));
-
-        let system_info_buf = daemon_client
-            .get_system_info()
-            .expect("Could not fetch system info");
-        let system_info = system_info_buf.inner().expect("Invalid system info buffer");
-
         if system_info.version != GUI_VERSION {
             let err = anyhow!("Version mismatch between GUI and daemon ({GUI_VERSION} vs {})! Make sure you have restarted the service if you have updated LACT.", system_info.version);
             show_error(&window, err);
         }
+
+        window.set_titlebar(Some(&header.container));
 
         let root_stack = RootStack::new(system_info, daemon_client.embedded);
 
@@ -173,7 +173,13 @@ impl App {
                     }))
                     .build();
 
-                app.application.add_action_entries([snapshot_action]);
+                let disable_overdive_action = ActionEntry::builder("disable-overdrive")
+                    .activate(clone!(@strong app => move |_, _, _| {
+                        app.disable_overclocking()
+                    }))
+                    .build();
+
+                app.application.add_action_entries([snapshot_action, disable_overdive_action]);
 
                 app.start_stats_update_loop(current_gpu_id);
 
@@ -554,6 +560,37 @@ impl App {
                 }
             }
             diag.hide();
+        }));
+    }
+
+    fn disable_overclocking(&self) {
+        let dialog = MessageDialog::builder()
+            .title("Disable Overclocking")
+            .use_markup(true)
+            .text("The overclocking functionality in the driver will now be turned off. (Note: the LACT window might hang)")
+            .message_type(MessageType::Info)
+            .buttons(ButtonsType::Ok)
+            .transient_for(&self.window)
+            .build();
+
+        dialog.run_async(clone!(@strong self as app => move |diag, _| {
+            diag.hide();
+            match app.daemon_client.disable_overdrive().and_then(|buffer| buffer.inner()) {
+                Ok(msg) => {
+                    let success_dialog = MessageDialog::builder()
+                        .title("Success")
+                        .text(format!("Overclocking successfully disabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
+                        .message_type(MessageType::Info)
+                        .buttons(ButtonsType::Ok)
+                        .build();
+                    success_dialog.run_async(move |diag, _| {
+                        diag.hide();
+                    });
+                }
+                Err(err) => {
+                    show_error(&app.window, err);
+                }
+            }
         }));
     }
 
