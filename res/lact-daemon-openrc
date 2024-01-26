@@ -7,7 +7,7 @@
 # # rc-service lact-daemon-openrc start
 
 supervisor=supervise-daemon
-command="/usr/bin/lact"
+command="lact"
 command_args="daemon"
 
 depend() {
