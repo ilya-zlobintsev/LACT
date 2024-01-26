@@ -29,6 +29,7 @@ impl GpuStatsSection {
 
         let clockspeed = stats.clockspeed;
         self.set_core_clock(format_clockspeed(clockspeed.gpu_clockspeed));
+        self.set_current_core_clock(format_current_gfxclk(clockspeed.current_gfxclk));
         self.set_vram_clock(format_clockspeed(clockspeed.vram_clockspeed));
 
         let voltage = format!("{}V", stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64);
@@ -89,6 +90,8 @@ mod imp {
         #[property(get, set)]
         core_clock: RefCell<String>,
         #[property(get, set)]
+        current_core_clock: RefCell<String>,
+        #[property(get, set)]
         vram_clock: RefCell<String>,
         #[property(get, set)]
         voltage: RefCell<String>,
@@ -129,4 +132,18 @@ mod imp {
 
 fn format_clockspeed(value: Option<u64>) -> String {
     format!("{}MHz", value.unwrap_or(0))
+}
+
+fn format_current_gfxclk(value: Option<u16>) -> String {
+    if let Some(v) = value {
+        // if the APU/GPU dose not acually support current_gfxclk,
+        // the value will be `u16::MAX (65535)`
+        if v == u16::MAX {
+            "N/A".to_string()
+        } else {
+            format!("{v}MHz")
+        }
+    } else {
+        "N/A".to_string()
+    }
 }
