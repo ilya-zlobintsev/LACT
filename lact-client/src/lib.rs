@@ -3,12 +3,12 @@ mod macros;
 
 pub use lact_schema as schema;
 
+use amdgpu_sysfs::gpu_handle::{
+    power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
+};
 use anyhow::{anyhow, Context};
 use nix::unistd::getuid;
 use schema::{
-    amdgpu_sysfs::gpu_handle::{
-        power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
-    },
     request::{ConfirmCommand, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
     PowerStates, Request, Response, SystemInfo,

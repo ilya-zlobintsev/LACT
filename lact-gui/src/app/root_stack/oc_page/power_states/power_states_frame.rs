@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use amdgpu_sysfs::gpu_handle::PowerLevelKind;
 use gtk::{
     glib::{self, subclass::types::ObjectSubclassIsExt, Object},
     prelude::WidgetExt,
 };
-use lact_client::schema::{amdgpu_sysfs::gpu_handle::PowerLevelKind, DeviceStats, PowerStates};
+use lact_client::schema::{DeviceStats, PowerStates};
 
 glib::wrapper! {
     pub struct PowerStatesFrame(ObjectSubclass<imp::PowerStatesFrame>)

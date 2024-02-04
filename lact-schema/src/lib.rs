@@ -6,7 +6,6 @@ mod response;
 #[cfg(test)]
 mod tests;
 
-pub use amdgpu_sysfs;
 pub use request::Request;
 pub use response::Response;
 

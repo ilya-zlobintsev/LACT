@@ -1,10 +1,11 @@
 use crate::app::root_stack::oc_adjustment::OcAdjustment;
+use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
 use gtk::{
     glib::clone,
     prelude::{AdjustmentExt, ButtonExt, GridExt, WidgetExt},
     Align, Button, Grid, Label, MenuButton, Orientation, Popover, Scale, SpinButton,
 };
-use lact_client::schema::{amdgpu_sysfs::gpu_handle::fan_control::FanInfo, PmfwInfo, PmfwOptions};
+use lact_client::schema::{PmfwInfo, PmfwOptions};
 
 #[derive(Clone)]
 pub struct PmfwFrame {

@@ -1,10 +1,8 @@
 use std::cmp;
 
+use amdgpu_sysfs::{gpu_handle::fan_control::FanCurve as PmfwCurve, hw_mon::Temperature};
 use anyhow::{anyhow, Context};
-use lact_schema::{
-    amdgpu_sysfs::{gpu_handle::fan_control::FanCurve as PmfwCurve, hw_mon::Temperature},
-    default_fan_curve, FanCurveMap,
-};
+use lact_schema::{default_fan_curve, FanCurveMap};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -96,7 +94,7 @@ impl Default for FanCurve {
 #[cfg(test)]
 mod tests {
     use super::{FanCurve, PmfwCurve};
-    use lact_schema::amdgpu_sysfs::{gpu_handle::fan_control::FanCurveRanges, hw_mon::Temperature};
+    use amdgpu_sysfs::{gpu_handle::fan_control::FanCurveRanges, hw_mon::Temperature};
 
     fn simple_pwm(temp: f32) -> u8 {
         let curve = FanCurve([(0, 0.0), (100, 1.0)].into());

@@ -1,9 +1,8 @@
 use crate::app::page_section::PageSection;
+use amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable, ClocksTableGen};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::amdgpu_sysfs;
-use lact_client::schema::amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable, ClocksTableGen};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::debug;

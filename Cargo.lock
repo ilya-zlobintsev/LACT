@@ -1288,6 +1288,7 @@ dependencies = [
 name = "lact-client"
 version = "0.5.2"
 dependencies = [
+ "amdgpu-sysfs",
  "anyhow",
  "lact-schema",
  "nix 0.27.1",
@@ -1300,6 +1301,7 @@ dependencies = [
 name = "lact-daemon"
 version = "0.5.2"
 dependencies = [
+ "amdgpu-sysfs",
  "anyhow",
  "bincode",
  "chrono",
@@ -1325,6 +1327,7 @@ dependencies = [
 name = "lact-gui"
 version = "0.5.2"
 dependencies = [
+ "amdgpu-sysfs",
  "anyhow",
  "gtk4",
  "lact-client",

@@ -3,14 +3,12 @@ use super::{
     system::PP_FEATURE_MASK_PATH,
 };
 use crate::config::{self, default_fan_static_speed, Config, FanControlSettings};
+use amdgpu_sysfs::{
+    gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind},
+    sysfs::SysFS,
+};
 use anyhow::{anyhow, Context};
 use lact_schema::{
-    amdgpu_sysfs::{
-        gpu_handle::{
-            power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
-        },
-        sysfs::SysFS,
-    },
     default_fan_curve,
     request::{ConfirmCommand, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,

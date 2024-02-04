@@ -6,18 +6,18 @@ use crate::{
     config::{self, ClocksConfiguration},
     fork::run_forked,
 };
+use amdgpu_sysfs::{
+    error::Error,
+    gpu_handle::{
+        fan_control::FanCurve as PmfwCurve,
+        overdrive::{ClocksTable, ClocksTableGen},
+        GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
+    },
+    hw_mon::{FanControlMethod, HwMon},
+    sysfs::SysFS,
+};
 use anyhow::{anyhow, Context};
 use lact_schema::{
-    amdgpu_sysfs::{
-        error::Error,
-        gpu_handle::{
-            fan_control::FanCurve as PmfwCurve,
-            overdrive::{ClocksTable, ClocksTableGen},
-            GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
-        },
-        hw_mon::{FanControlMethod, HwMon},
-        sysfs::SysFS,
-    },
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo, LinkInfo,
     PciInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
@@ -41,7 +41,7 @@ use tracing::{debug, error, trace, warn};
 #[cfg(feature = "libdrm_amdgpu_sys")]
 use {
     lact_schema::DrmMemoryInfo,
-    libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, GPU_INFO, MetricsInfo},
+    libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
     std::{fs::File, os::fd::IntoRawFd},
 };
 

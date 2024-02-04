@@ -1,10 +1,8 @@
 use crate::app::page_section::PageSection;
+use amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::amdgpu_sysfs::gpu_handle::{
-    power_profile_mode::PowerProfileModesTable, PerformanceLevel,
-};
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 #[derive(Clone)]

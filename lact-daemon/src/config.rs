@@ -1,11 +1,7 @@
 use crate::server::gpu_controller::fan_control::FanCurve;
+use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use anyhow::Context;
-use lact_schema::{
-    amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind},
-    default_fan_curve,
-    request::SetClocksCommand,
-    FanControlMode, PmfwOptions,
-};
+use lact_schema::{default_fan_curve, request::SetClocksCommand, FanControlMode, PmfwOptions};
 use nix::unistd::getuid;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
