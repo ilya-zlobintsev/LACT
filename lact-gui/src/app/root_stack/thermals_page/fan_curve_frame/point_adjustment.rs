@@ -1,8 +1,6 @@
 use glib::clone;
 use gtk::{
-    glib,
-    traits::{AdjustmentExt, BoxExt},
-    Adjustment, Box, Label, MenuButton, Orientation, Popover, Scale, SpinButton,
+    glib, prelude::*, Adjustment, Box, Label, MenuButton, Orientation, Popover, Scale, SpinButton,
 };
 
 #[derive(Clone)]

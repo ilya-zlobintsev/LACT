@@ -73,7 +73,7 @@ impl Default for GpuStatsSection {
 mod imp {
     use crate::app::{info_row::InfoRow, page_section::PageSection};
     use gtk::{
-        glib::{self, subclass::InitializingObject, Properties, StaticTypeExt},
+        glib::{self, subclass::InitializingObject, types::StaticTypeExt, Properties},
         prelude::ObjectExt,
         subclass::{
             prelude::*,
