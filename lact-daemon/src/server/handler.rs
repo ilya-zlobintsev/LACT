@@ -1,6 +1,6 @@
 use super::{
     gpu_controller::{fan_control::FanCurve, GpuController},
-    system::PP_FEATURE_MASK_PATH,
+    system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
 };
 use crate::config::{self, default_fan_static_speed, Config, FanControlSettings};
 use amdgpu_sysfs::{
@@ -14,6 +14,9 @@ use lact_schema::{
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
     PowerStates,
 };
+use libflate::gzip;
+use os_release::OS_RELEASE;
+use serde_json::json;
 use std::{
     cell::RefCell,
     collections::BTreeMap,
@@ -432,11 +435,12 @@ impl<'a> Handler {
 
     pub fn generate_snapshot(&self) -> anyhow::Result<String> {
         let datetime = chrono::Local::now().format("%Y%m%d-%H%M%S");
-        let out_path = format!("/tmp/LACT-sysfs-snapshot-{datetime}.tar");
+        let out_path = format!("/tmp/LACT-sysfs-snapshot-{datetime}.tar.gz");
 
         let out_file = File::create(&out_path)
             .with_context(|| "Could not create output file at {out_path}")?;
-        let out_writer = BufWriter::new(out_file);
+        let out_writer = gzip::Encoder::new(BufWriter::new(out_file))
+            .context("Could not create GZIP encoder")?;
 
         let mut archive = tar::Builder::new(out_writer);
 
@@ -481,10 +485,35 @@ impl<'a> Handler {
             }
         }
 
+        let system_info = system::info()
+            .ok()
+            .map(|info| serde_json::to_value(info).unwrap());
+        let initramfs_type = match OS_RELEASE.as_ref() {
+            Ok(os_release) => detect_initramfs_type(os_release)
+                .map(|initramfs_type| serde_json::to_value(initramfs_type).unwrap()),
+            Err(err) => Some(err.to_string().into()),
+        };
+
+        let info = json!({
+            "system_info": system_info,
+            "initramfs_type": initramfs_type,
+        });
+        let info_data = serde_json::to_vec_pretty(&info).unwrap();
+
+        let mut info_header = tar::Header::new_gnu();
+        info_header.set_size(info_data.len().try_into().unwrap());
+        info_header.set_mode(0o755);
+        info_header.set_cksum();
+
+        archive.append_data(&mut info_header, "info.json", Cursor::new(info_data))?;
+
         let mut writer = archive.into_inner().context("Could not finish archive")?;
         writer.flush().context("Could not flush output file")?;
 
         writer
+            .finish()
+            .into_result()
+            .context("Could not finish GZIP archive")?
             .into_inner()?
             .set_permissions(Permissions::from_mode(0o775))
             .context("Could not set permissions on output file")?;

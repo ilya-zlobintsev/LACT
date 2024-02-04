@@ -115,7 +115,7 @@ fn regenerate_initramfs() -> anyhow::Result<InitramfsType> {
     }
 }
 
-fn detect_initramfs_type(os_release: &OsRelease) -> Option<InitramfsType> {
+pub(crate) fn detect_initramfs_type(os_release: &OsRelease) -> Option<InitramfsType> {
     let id_like: Vec<_> = os_release.id_like.split_whitespace().collect();
 
     if os_release.id == "debian" || id_like.contains(&"debian") {
