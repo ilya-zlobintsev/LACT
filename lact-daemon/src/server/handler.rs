@@ -16,10 +16,11 @@ use lact_schema::{
 };
 use libflate::gzip;
 use os_release::OS_RELEASE;
+use pciid_parser::Database;
 use serde_json::json;
 use std::{
     cell::RefCell,
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     env,
     fs::{File, Permissions},
     io::{BufWriter, Cursor, Write},
@@ -567,6 +568,14 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, GpuController>> {
         Err(_) => PathBuf::from("/sys/class/drm"),
     };
 
+    let pci_db = Database::read().unwrap_or_else(|err| {
+        warn!("could not read PCI ID database: {err}, device information will be limited");
+        Database {
+            vendors: HashMap::new(),
+            classes: HashMap::new(),
+        }
+    });
+
     for entry in base_path
         .read_dir()
         .map_err(|error| anyhow!("Failed to read sysfs: {error}"))?
@@ -580,7 +589,7 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, GpuController>> {
         if name.starts_with("card") && !name.contains('-') {
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
-            match GpuController::new_from_path(device_path) {
+            match GpuController::new_from_path(device_path, &pci_db) {
                 Ok(controller) => match controller.get_id() {
                     Ok(id) => {
                         let path = controller.get_path();
