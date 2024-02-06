@@ -2,10 +2,7 @@ pub mod fan_control;
 
 use self::fan_control::FanCurve;
 use super::vulkan::get_vulkan_info;
-use crate::{
-    config::{self, ClocksConfiguration},
-    fork::run_forked,
-};
+use crate::config::{self, ClocksConfiguration};
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
@@ -58,7 +55,7 @@ pub struct GpuController {
 }
 
 impl GpuController {
-    pub fn new_from_path(sysfs_path: PathBuf) -> anyhow::Result<Self> {
+    pub fn new_from_path(sysfs_path: PathBuf, pci_db: &Database) -> anyhow::Result<Self> {
         let handle = GpuHandle::new_from_path(sysfs_path)
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
 
@@ -83,34 +80,22 @@ impl GpuController {
             });
 
             if let Some((subsys_vendor_id, subsys_model_id)) = handle.get_pci_subsys_id() {
-                let (new_device_info, new_subsystem_info) = unsafe {
-                    run_forked(|| {
-                        let pci_db = Database::read().map_err(|err| err.to_string())?;
-                        let pci_device_info = pci_db.get_device_info(
-                            vendor_id,
-                            model_id,
-                            subsys_vendor_id,
-                            subsys_model_id,
-                        );
+                let pci_device_info =
+                    pci_db.get_device_info(vendor_id, model_id, subsys_vendor_id, subsys_model_id);
 
-                        let device_pci_info = PciInfo {
-                            vendor_id: vendor_id.to_owned(),
-                            vendor: pci_device_info.vendor_name.map(str::to_owned),
-                            model_id: model_id.to_owned(),
-                            model: pci_device_info.device_name.map(str::to_owned),
-                        };
-                        let subsystem_pci_info = PciInfo {
-                            vendor_id: subsys_vendor_id.to_owned(),
-                            vendor: pci_device_info.subvendor_name.map(str::to_owned),
-                            model_id: subsys_model_id.to_owned(),
-                            model: pci_device_info.subdevice_name.map(str::to_owned),
-                        };
-                        Ok((device_pci_info, subsystem_pci_info))
-                    })?
-                };
-                device_pci_info = Some(new_device_info);
-                subsystem_pci_info = Some(new_subsystem_info);
-            }
+                device_pci_info = Some(PciInfo {
+                    vendor_id: vendor_id.to_owned(),
+                    vendor: pci_device_info.vendor_name.map(str::to_owned),
+                    model_id: model_id.to_owned(),
+                    model: pci_device_info.device_name.map(str::to_owned),
+                });
+                subsystem_pci_info = Some(PciInfo {
+                    vendor_id: subsys_vendor_id.to_owned(),
+                    vendor: pci_device_info.subvendor_name.map(str::to_owned),
+                    model_id: subsys_model_id.to_owned(),
+                    model: pci_device_info.subdevice_name.map(str::to_owned),
+                });
+            };
         }
 
         let pci_info = device_pci_info.and_then(|device_pci_info| {

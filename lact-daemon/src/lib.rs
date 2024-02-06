@@ -2,7 +2,6 @@
 #![allow(clippy::missing_panics_doc)]
 
 mod config;
-mod fork;
 mod server;
 mod socket;
 mod suspend;
