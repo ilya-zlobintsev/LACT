@@ -15,6 +15,7 @@ use lact_schema::{
     PowerStates,
 };
 use libflate::gzip;
+use nix::libc;
 use os_release::OS_RELEASE;
 use pciid_parser::Database;
 use serde_json::json;
@@ -101,6 +102,13 @@ impl<'a> Handler {
             confirm_config_tx: Rc::new(RefCell::new(None)),
         };
         handler.load_config().await;
+
+        // Eagerly release memory
+        // `load_controllers` allocates and deallocates the entire PCI ID database,
+        // this tells the os to release it right away, lowering measured memory usage (the actual usage is low regardless as it was already deallocated)
+        unsafe {
+            libc::malloc_trim(0);
+        }
 
         Ok(handler)
     }

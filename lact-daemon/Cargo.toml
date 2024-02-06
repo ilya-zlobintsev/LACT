@@ -17,7 +17,7 @@ serde = { workspace = true }
 serde_with = { workspace = true }
 serde_json = { workspace = true }
 tracing-subscriber = { workspace = true }
-nix = { workspace = true, features = ["user", "fs", "process"] }
+nix = { workspace = true, features = ["user", "fs"] }
 
 bincode = "1.3"
 pciid-parser = { version = "0.7", features = ["serde"] }
