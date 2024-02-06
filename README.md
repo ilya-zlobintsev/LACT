@@ -38,6 +38,16 @@ sudo systemctl enable --now lactd
 ```
 You can now use the GUI to change settings and view information.
 
+**Socket permissions setup:**
+
+By default, LACT uses either ether the `wheel` or `sudo` group (whichever is available) for the ownership of the unix socket that the GUI needs to connect to.
+
+On most configurations (such as the default setup on Arch-based, most Debian-based or Fedora systems) you do not need to do anything.
+
+However, some systems may have different user configuration. In particular, this has been reported to be a problem on OpenSUSE.
+
+To fix socket permissions in such configurations, edit `/etc/lact/config.yaml` and add your username or group as the first entry in `admin_groups` under `daemon`, and restart the service (`sudo systemctl restart lactd`).
+
 # Configuration
 
 There is a configuration file available in `/etc/lact/config.yaml`. Most of the settings are accessible through the GUI, but some of them may be useful to be edited manually (like `admin_groups` to specify who has access to the daemon)
