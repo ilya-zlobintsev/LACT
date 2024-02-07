@@ -9,12 +9,14 @@ jobs:
   build-packages:
     strategy:
       matrix:
-        target-os: [ debian-12, ubuntu-2204, fedora-38, fedora-39, arch ]
+        target-os: [ debian-12, ubuntu-2204, fedora-38, fedora-39, arch, opensuse-tumbleweed ]
         recipe: [ lact, lact-headless ]
         include:
           - target-os: fedora-39
             recipe: lact-libadwaita
           - target-os: arch
+            recipe: lact-libadwaita
+          - target-os: opensuse-tumbleweed
             recipe: lact-libadwaita
     runs-on: ubuntu-latest
     steps:
@@ -23,8 +25,8 @@ jobs:
 
       - name: Install pkger
         run: |
-          curl -L -o /tmp/pkger.deb https://github.com/vv9k/pkger/releases/download/0.11.0/pkger-0.11.0-0.amd64.deb
-          sudo apt -y install /tmp/pkger.deb
+          curl -L -o /usr/local/bin/pkger https://github.com/ilya-zlobintsev/pkger/releases/download/v0.11.1/pkger
+          chmod +x /usr/local/bin/pkger
           
       - name: Build packages
         run: pkger -c .pkger.yml build ${{ matrix.recipe }} -i ${{ matrix.target-os }}
