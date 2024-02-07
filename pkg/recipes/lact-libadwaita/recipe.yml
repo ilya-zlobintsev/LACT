@@ -19,7 +19,7 @@ metadata:
     all: [ curl, make, clang ]
     fedora-39: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler, libadwaita-devel, dbus ]
     arch: [ gtk4, blueprint-compiler, libadwaita, dbus ]
-    opensuse-tumbleweed: [ gtk4-devel, libdrm-devel, blueprint-compiler ]
+    opensuse-tumbleweed: [ gtk4-devel, libdrm-devel, blueprint-compiler, libadwaita-devel ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs
