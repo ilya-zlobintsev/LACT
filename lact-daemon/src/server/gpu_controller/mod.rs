@@ -39,7 +39,7 @@ use tracing::{debug, error, trace, warn};
 use {
     lact_schema::DrmMemoryInfo,
     libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
-    std::{fs::File, os::fd::IntoRawFd},
+    std::{fs::OpenOptions, os::fd::IntoRawFd},
 };
 
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
@@ -727,8 +727,11 @@ fn get_drm_handle(handle: &GpuHandle) -> anyhow::Result<DrmHandle> {
         .get_pci_slot_name()
         .context("Device has no PCI slot name")?;
     let path = format!("/dev/dri/by-path/pci-{slot_name}-render");
-    let drm_file =
-        File::open(&path).with_context(|| format!("Could not open drm file at {path}"))?;
+    let drm_file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&path)
+        .with_context(|| format!("Could not open drm file at {path}"))?;
     let (handle, _, _) = DrmHandle::init(drm_file.into_raw_fd())
         .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
     Ok(handle)
