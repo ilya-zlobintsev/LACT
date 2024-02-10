@@ -10,14 +10,20 @@ ssh: ~
 images:
   - name: debian-12
     target: deb
+    os: Debian
   - name: fedora-38
     target: rpm
+    os: Fedora
   - name: fedora-39
     target: rpm
+    os: Fedora
   - name: ubuntu-2204
     target: deb
+    os: Ubuntu
   - name: arch
     target: pkg
+    os: Arch Linux
   - name: opensuse-tumbleweed
     target: rpm
+    os: OpenSUSE
 custom_simple_images: ~
