@@ -29,7 +29,7 @@ jobs:
           chmod +x /usr/local/bin/pkger
           
       - name: Build packages
-        run: pkger -c .pkger.yml build ${{ matrix.recipe }} -i ${{ matrix.target-os }}
+        run: pkger -t -c .pkger.yml build ${{ matrix.recipe }} -i ${{ matrix.target-os }}
 
       - name: Copy release files
         run: |
