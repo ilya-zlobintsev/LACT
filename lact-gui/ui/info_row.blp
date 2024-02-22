@@ -14,7 +14,7 @@ template $InfoRow: Box {
     Label value_label {
         label: bind template.value;
         halign: end;
-        selectable: true;
+        selectable: bind template.selectable;
         use-markup: true;
     }
 }

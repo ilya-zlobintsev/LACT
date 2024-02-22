@@ -37,6 +37,8 @@ mod imp {
         name: RefCell<String>,
         #[property(get, set)]
         value: RefCell<String>,
+        #[property(get, set)]
+        selectable: RefCell<bool>,
 
         #[template_child]
         value_label: TemplateChild<Label>,
