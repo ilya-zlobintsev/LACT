@@ -19,6 +19,7 @@ use lact_schema::{
     PciInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use pciid_parser::Database;
+use std::collections::BTreeMap;
 use std::{
     borrow::Cow,
     cell::RefCell,
@@ -309,7 +310,36 @@ impl GpuController {
                 .get_pcie_clock_levels()
                 .ok()
                 .and_then(|levels| levels.active),
+            throttle_info: self.get_throttle_info(),
         }
+    }
+
+    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
+    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
+        None
+    }
+
+    #[cfg(feature = "libdrm_amdgpu_sys")]
+    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
+        use libdrm_amdgpu_sys::AMDGPU::ThrottlerType;
+
+        self.drm_handle
+            .as_ref()
+            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
+            .and_then(|metrics| metrics.get_throttle_status_info())
+            .map(|throttle| {
+                let mut result: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+                for bit in throttle.get_all_throttler() {
+                    let throttle_type = ThrottlerType::from(bit);
+                    result
+                        .entry(throttle_type.to_string())
+                        .or_default()
+                        .push(bit.to_string());
+                }
+
+                result
+            })
     }
 
     pub fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
