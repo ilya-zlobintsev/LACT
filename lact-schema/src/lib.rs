@@ -179,6 +179,7 @@ pub struct DeviceStats {
     pub core_power_state: Option<usize>,
     pub memory_power_state: Option<usize>,
     pub pcie_power_state: Option<usize>,
+    pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

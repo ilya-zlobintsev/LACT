@@ -61,6 +61,20 @@ impl GpuStatsSection {
             power_current.unwrap_or(0.0),
             power_cap_current.unwrap_or(0.0)
         ));
+
+        match &stats.throttle_info {
+            Some(throttle_info) => {
+                let type_text: Vec<String> = throttle_info
+                    .iter()
+                    .map(|(throttle_type, details)| {
+                        format!("{throttle_type} ({})", details.join(", "))
+                    })
+                    .collect();
+                let text = type_text.join(", ");
+                self.set_throttling(text);
+            }
+            None => self.set_throttling("Unknown"),
+        }
     }
 }
 
@@ -105,6 +119,8 @@ mod imp {
         vram_usage: RefCell<f64>,
         #[property(get, set)]
         vram_usage_text: RefCell<String>,
+        #[property(get, set)]
+        throttling: RefCell<String>,
     }
 
     #[glib::object_subclass]
