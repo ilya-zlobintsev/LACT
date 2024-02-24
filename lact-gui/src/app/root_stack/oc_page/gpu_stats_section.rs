@@ -64,14 +64,18 @@ impl GpuStatsSection {
 
         match &stats.throttle_info {
             Some(throttle_info) => {
-                let type_text: Vec<String> = throttle_info
-                    .iter()
-                    .map(|(throttle_type, details)| {
-                        format!("{throttle_type} ({})", details.join(", "))
-                    })
-                    .collect();
-                let text = type_text.join(", ");
-                self.set_throttling(text);
+                if throttle_info.is_empty() {
+                    self.set_throttling("No")
+                } else {
+                    let type_text: Vec<String> = throttle_info
+                        .iter()
+                        .map(|(throttle_type, details)| {
+                            format!("{throttle_type} ({})", details.join(", "))
+                        })
+                        .collect();
+                    let text = type_text.join(", ");
+                    self.set_throttling(text);
+                }
             }
             None => self.set_throttling("Unknown"),
         }
