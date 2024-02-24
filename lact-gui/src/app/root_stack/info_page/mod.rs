@@ -31,6 +31,8 @@ impl InformationPage {
         vbox.append(&hardware_info);
 
         let vulkan_container = PageSection::new("Vulkan Information");
+        vulkan_container.set_spacing(10);
+        vulkan_container.set_margin_start(15);
 
         let vulkan_info_frame = VulkanInfoFrame::new();
         vulkan_container.append(&vulkan_info_frame.container);
