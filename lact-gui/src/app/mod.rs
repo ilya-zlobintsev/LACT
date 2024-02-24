@@ -52,7 +52,7 @@ impl App {
         let window = ApplicationWindow::builder()
             .title("LACT")
             .default_width(600)
-            .default_height(820)
+            .default_height(830)
             .icon_name(APP_ID)
             .build();
 

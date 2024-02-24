@@ -30,6 +30,8 @@ impl VulkanInfoFrame {
         let extensions_model = gio::ListStore::new::<VulkanFeature>();
 
         let grid = values_grid();
+        grid.set_margin_start(0);
+        grid.set_margin_end(0);
 
         let device_name_label = label_row("Device name", &grid, 0, 0, true);
         let version_label = label_row("Vulkan version:", &grid, 1, 0, true);
