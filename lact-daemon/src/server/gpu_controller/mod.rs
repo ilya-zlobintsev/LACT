@@ -264,6 +264,7 @@ impl GpuController {
                 speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
                 speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
                 speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
+                pwm_current: self.hw_mon_and_then(HwMon::get_fan_pwm),
                 pmfw_info: PmfwInfo {
                     acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
                     acoustic_target: self.handle.get_fan_acoustic_target().ok(),

@@ -147,22 +147,33 @@ impl ThermalsPage {
         self.temperatures_label
             .set_markup(&format!("<b>{temperatures_text}</b>",));
 
-        match stats.fan.speed_current {
-            Some(fan_speed_current) => self.fan_speed_label.set_markup(&format!(
-                "<b>{} RPM ({}%)</b>",
-                fan_speed_current,
-                (fan_speed_current as f64
-                    / stats.fan.speed_max.unwrap_or(fan_speed_current) as f64
-                    * 100.0)
-                    .round()
-            )),
+        let fan_label = if let Some(current_rpm) = stats.fan.speed_current {
+            let text = match stats.fan.speed_max {
+                Some(max_rpm) => format!(
+                    "<b>{current_rpm} RPM ({}%)</b>",
+                    ((current_rpm as f64 / max_rpm as f64) * 100.0).round(),
+                ),
+                None => format!("<b>{current_rpm} RPM</b>"),
+            };
+            Some(text)
+        } else {
+            stats.fan.pwm_current.map(|current_pwm| {
+                format!(
+                    "<b>{}%</b>",
+                    ((current_pwm as f64 / u8::MAX as f64) * 100.0).round()
+                )
+            })
+        };
+
+        match &fan_label {
+            Some(label) => self.fan_speed_label.set_markup(label),
             None => self.fan_speed_label.set_text("No fan detected"),
         }
 
         if initial {
             self.fan_control_mode_stack_switcher.set_visible(true);
             self.fan_control_mode_stack_switcher
-                .set_sensitive(stats.fan.speed_current.is_some());
+                .set_sensitive(fan_label.is_some());
 
             let child_name = match stats.fan.control_mode {
                 Some(mode) if stats.fan.control_enabled => match mode {

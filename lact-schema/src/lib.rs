@@ -188,6 +188,7 @@ pub struct FanStats {
     pub control_mode: Option<FanControlMode>,
     pub static_speed: Option<f64>,
     pub curve: Option<FanCurveMap>,
+    pub pwm_current: Option<u8>,
     pub speed_current: Option<u32>,
     pub speed_max: Option<u32>,
     pub speed_min: Option<u32>,
