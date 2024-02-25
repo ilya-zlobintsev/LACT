@@ -4,8 +4,8 @@ output_dir: pkg/output
 images_dir: pkg/images
 log_dir: ~
 runtime_uri: ~
-gpg_key: ~
-gpg_name: ~
+gpg_key: /tmp/package-signing-key.gpg
+gpg_name: Ilya Zlobintsev
 ssh: ~
 images:
   - name: debian-12
