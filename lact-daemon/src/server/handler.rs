@@ -69,7 +69,8 @@ const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
     "fan_minimum_pwm",
     "fan_target_temperature",
 ];
-const SNAPSHOT_HWMON_FILE_PREFIXES: &[&str] = &["fan", "pwm", "power", "temp", "freq", "in"];
+const SNAPSHOT_HWMON_FILE_PREFIXES: &[&str] =
+    &["fan", "pwm", "power", "temp", "freq", "in", "name"];
 
 #[derive(Clone)]
 pub struct Handler {
