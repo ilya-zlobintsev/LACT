@@ -23,13 +23,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Import gpg key
+        run: |
+          echo -n "$GPG_KEY" | base64 -d > /tmp/package-signing-key.gpg
+          echo -n "$GPG_KEY" | base64 -d | gpg --import || true
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+
       - name: Install pkger
         run: |
           curl -L -o /usr/local/bin/pkger https://github.com/ilya-zlobintsev/pkger/releases/download/v0.11.1/pkger
           chmod +x /usr/local/bin/pkger
-          
-      - name: Build packages
+
+      - name: Build packages (with signing)
+        if: ${{ contains(matrix.target-os, 'fedora') }}
         run: pkger -t -c .pkger.yml build ${{ matrix.recipe }} -i ${{ matrix.target-os }}
+        env:
+          GPG_KEY_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
+
+      - name: Build packages (without signing)
+        if: ${{ !contains(matrix.target-os, 'fedora') }}
+        run: pkger -t -c .pkger.yml build --no-sign ${{ matrix.recipe }} -i ${{ matrix.target-os }}
 
       - name: Copy release files
         run: |
@@ -51,6 +65,10 @@ jobs:
               cd ..
           done
           popd
+
+      - name: Save gpg key
+        run: |
+          gpg --armor --export > $PWD/release-artifacts/lact.pubkey
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
