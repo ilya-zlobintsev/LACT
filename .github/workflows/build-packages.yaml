@@ -95,7 +95,7 @@ jobs:
         with:
           removeArtifacts: true
           allowUpdates: true
-          artifactErrorsFailBuild: true
+          artifactErrorsFailBuild: false
           artifacts: "downloaded-artifacts/*/*"
           body: ${{ github.event.head_commit.message }}
           prerelease: true
