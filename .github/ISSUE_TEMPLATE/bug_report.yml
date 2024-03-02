@@ -20,9 +20,17 @@ body:
     attributes:
       label: Bug description
       description: Describe what the problem is
+
+  - type: textarea
+    id: system-info
+    validations:
+      required: true
+    attributes:
+      label: System info
+      description: Information about your system
       value: |
-        System info:
         - LACT version:
         - GPU model:
         - Kernel version:
         - Distribution:
+      render: markdown
