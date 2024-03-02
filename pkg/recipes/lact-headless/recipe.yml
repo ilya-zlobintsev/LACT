@@ -7,7 +7,7 @@ metadata:
   maintainer: ilya-zlobintsev
   url: https://github.com/ilya-zlobintsev/lact
   source:
-    - '../../..'
+    - '../../../../LACT'
   provides: [ lact ]
   conflicts: [ lact, lact-libadwaita ]
   depends:
@@ -31,8 +31,8 @@ configure:
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
 build:
   steps:
-    - cmd: bash -c "source $HOME/.cargo/env && make build-release-headless"
+    - cmd: bash -c "source $HOME/.cargo/env && cd LACT && make build-release-headless"
 install:
   steps:
-    - cmd: bash -c "cd $PKGER_BLD_DIR && DESTDIR=$PKGER_OUT_DIR PREFIX=/usr make install"
+    - cmd: bash -c "cd $PKGER_BLD_DIR/LACT && DESTDIR=$PKGER_OUT_DIR PREFIX=/usr make install"
 
