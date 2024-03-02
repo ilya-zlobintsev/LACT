@@ -9,5 +9,19 @@ members = [
     "lact-daemon",
 ]
 
+[workspace.dependencies]
+amdgpu-sysfs = { version = "0.14.0", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_with = { version = "3.5.0", default-features = false, features = [
+    "macros",
+] }
+serde_json = "1.0.111"
+anyhow = "1.0.79"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+nix = { version = "0.27.1", default-features = false }
+
 [profile.release]
 strip = "symbols"
+opt-level = "s"
+lto = true

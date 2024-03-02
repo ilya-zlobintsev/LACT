@@ -2,9 +2,9 @@ mod imp;
 
 use glib::Object;
 use gtk::{
-    glib::{self, ObjectExt},
+    glib::{self},
+    prelude::*,
     subclass::prelude::*,
-    traits::AdjustmentExt,
 };
 use std::sync::atomic::Ordering;
 use tracing::debug;

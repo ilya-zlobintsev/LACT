@@ -7,15 +7,12 @@ mod power_states;
 
 use self::power_cap_section::PowerCapSection;
 use self::power_states::power_states_frame::PowerStatesFrame;
+use amdgpu_sysfs::gpu_handle::{overdrive::ClocksTableGen, PerformanceLevel, PowerLevelKind};
 use clocks_frame::ClocksFrame;
 use gpu_stats_section::GpuStatsSection;
 use gtk::*;
 use gtk::{glib::clone, prelude::*};
-use lact_client::schema::amdgpu_sysfs::gpu_handle::PowerLevelKind;
-use lact_client::schema::{
-    amdgpu_sysfs::gpu_handle::{overdrive::ClocksTableGen, PerformanceLevel},
-    DeviceStats, SystemInfo,
-};
+use lact_client::schema::{DeviceStats, SystemInfo};
 use performance_frame::PerformanceFrame;
 // use power_cap_frame::PowerCapFrame;
 use std::collections::HashMap;

@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use amdgpu_sysfs::gpu_handle::PowerLevelKind;
 use gtk::{
     glib::{self, subclass::types::ObjectSubclassIsExt, Object},
     prelude::WidgetExt,
 };
-use lact_client::schema::{amdgpu_sysfs::gpu_handle::PowerLevelKind, DeviceStats, PowerStates};
+use lact_client::schema::{DeviceStats, PowerStates};
 
 glib::wrapper! {
     pub struct PowerStatesFrame(ObjectSubclass<imp::PowerStatesFrame>)
@@ -67,7 +68,7 @@ impl Default for PowerStatesFrame {
 mod imp {
     use crate::app::root_stack::oc_page::power_states::power_states_list::PowerStatesList;
     use gtk::{
-        glib::{self, subclass::InitializingObject, Properties, StaticTypeExt},
+        glib::{self, subclass::InitializingObject, types::StaticTypeExt, Properties},
         prelude::ObjectExt,
         subclass::{
             prelude::*,

@@ -1,24 +1,27 @@
 use super::{
     gpu_controller::{fan_control::FanCurve, GpuController},
-    system::PP_FEATURE_MASK_PATH,
+    system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
 };
 use crate::config::{self, default_fan_static_speed, Config, FanControlSettings};
+use amdgpu_sysfs::{
+    gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind},
+    sysfs::SysFS,
+};
 use anyhow::{anyhow, Context};
 use lact_schema::{
-    amdgpu_sysfs::{
-        gpu_handle::{
-            power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
-        },
-        sysfs::SysFS,
-    },
     default_fan_curve,
     request::{ConfirmCommand, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
     PowerStates,
 };
+use libflate::gzip;
+use nix::libc;
+use os_release::OS_RELEASE;
+use pciid_parser::Database;
+use serde_json::json;
 use std::{
     cell::RefCell,
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     env,
     fs::{File, Permissions},
     io::{BufWriter, Cursor, Write},
@@ -66,7 +69,8 @@ const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
     "fan_minimum_pwm",
     "fan_target_temperature",
 ];
-const SNAPSHOT_HWMON_FILE_PREFIXES: &[&str] = &["fan", "pwm", "power", "temp", "freq", "in"];
+const SNAPSHOT_HWMON_FILE_PREFIXES: &[&str] =
+    &["fan", "pwm", "power", "temp", "freq", "in", "name"];
 
 #[derive(Clone)]
 pub struct Handler {
@@ -99,6 +103,13 @@ impl<'a> Handler {
             confirm_config_tx: Rc::new(RefCell::new(None)),
         };
         handler.load_config().await;
+
+        // Eagerly release memory
+        // `load_controllers` allocates and deallocates the entire PCI ID database,
+        // this tells the os to release it right away, lowering measured memory usage (the actual usage is low regardless as it was already deallocated)
+        unsafe {
+            libc::malloc_trim(0);
+        }
 
         Ok(handler)
     }
@@ -434,11 +445,12 @@ impl<'a> Handler {
 
     pub fn generate_snapshot(&self) -> anyhow::Result<String> {
         let datetime = chrono::Local::now().format("%Y%m%d-%H%M%S");
-        let out_path = format!("/tmp/LACT-sysfs-snapshot-{datetime}.tar");
+        let out_path = format!("/tmp/LACT-sysfs-snapshot-{datetime}.tar.gz");
 
         let out_file = File::create(&out_path)
             .with_context(|| "Could not create output file at {out_path}")?;
-        let out_writer = BufWriter::new(out_file);
+        let out_writer = gzip::Encoder::new(BufWriter::new(out_file))
+            .context("Could not create GZIP encoder")?;
 
         let mut archive = tar::Builder::new(out_writer);
 
@@ -483,10 +495,35 @@ impl<'a> Handler {
             }
         }
 
+        let system_info = system::info()
+            .ok()
+            .map(|info| serde_json::to_value(info).unwrap());
+        let initramfs_type = match OS_RELEASE.as_ref() {
+            Ok(os_release) => detect_initramfs_type(os_release)
+                .map(|initramfs_type| serde_json::to_value(initramfs_type).unwrap()),
+            Err(err) => Some(err.to_string().into()),
+        };
+
+        let info = json!({
+            "system_info": system_info,
+            "initramfs_type": initramfs_type,
+        });
+        let info_data = serde_json::to_vec_pretty(&info).unwrap();
+
+        let mut info_header = tar::Header::new_gnu();
+        info_header.set_size(info_data.len().try_into().unwrap());
+        info_header.set_mode(0o755);
+        info_header.set_cksum();
+
+        archive.append_data(&mut info_header, "info.json", Cursor::new(info_data))?;
+
         let mut writer = archive.into_inner().context("Could not finish archive")?;
         writer.flush().context("Could not flush output file")?;
 
         writer
+            .finish()
+            .into_result()
+            .context("Could not finish GZIP archive")?
             .into_inner()?
             .set_permissions(Permissions::from_mode(0o775))
             .context("Could not set permissions on output file")?;
@@ -540,6 +577,14 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, GpuController>> {
         Err(_) => PathBuf::from("/sys/class/drm"),
     };
 
+    let pci_db = Database::read().unwrap_or_else(|err| {
+        warn!("could not read PCI ID database: {err}, device information will be limited");
+        Database {
+            vendors: HashMap::new(),
+            classes: HashMap::new(),
+        }
+    });
+
     for entry in base_path
         .read_dir()
         .map_err(|error| anyhow!("Failed to read sysfs: {error}"))?
@@ -553,7 +598,7 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, GpuController>> {
         if name.starts_with("card") && !name.contains('-') {
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
-            match GpuController::new_from_path(device_path) {
+            match GpuController::new_from_path(device_path, &pci_db) {
                 Ok(controller) => match controller.get_id() {
                     Ok(id) => {
                         let path = controller.get_path();

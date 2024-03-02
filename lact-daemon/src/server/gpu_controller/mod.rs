@@ -2,28 +2,28 @@ pub mod fan_control;
 
 use self::fan_control::FanCurve;
 use super::vulkan::get_vulkan_info;
-use crate::{
-    config::{self, ClocksConfiguration},
-    fork::run_forked,
+use crate::config::{self, ClocksConfiguration};
+use amdgpu_sysfs::{
+    error::Error,
+    gpu_handle::{
+        fan_control::FanCurve as PmfwCurve,
+        overdrive::{ClocksTable, ClocksTableGen},
+        GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
+    },
+    hw_mon::{FanControlMethod, HwMon},
+    sysfs::SysFS,
 };
 use anyhow::{anyhow, Context};
 use lact_schema::{
-    amdgpu_sysfs::{
-        error::Error,
-        gpu_handle::{
-            overdrive::{ClocksTable, ClocksTableGen},
-            GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
-        },
-        hw_mon::{FanControlMethod, HwMon},
-        sysfs::SysFS,
-    },
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo, LinkInfo,
     PciInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use pciid_parser::Database;
+use std::collections::BTreeMap;
 use std::{
     borrow::Cow,
     cell::RefCell,
+    cmp,
     path::{Path, PathBuf},
     rc::Rc,
     str::FromStr,
@@ -39,8 +39,8 @@ use tracing::{debug, error, trace, warn};
 #[cfg(feature = "libdrm_amdgpu_sys")]
 use {
     lact_schema::DrmMemoryInfo,
-    libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, GPU_INFO},
-    std::{fs::File, os::fd::IntoRawFd},
+    libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
+    std::{fs::OpenOptions, os::fd::IntoRawFd},
 };
 
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
@@ -56,7 +56,7 @@ pub struct GpuController {
 }
 
 impl GpuController {
-    pub fn new_from_path(sysfs_path: PathBuf) -> anyhow::Result<Self> {
+    pub fn new_from_path(sysfs_path: PathBuf, pci_db: &Database) -> anyhow::Result<Self> {
         let handle = GpuHandle::new_from_path(sysfs_path)
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
 
@@ -81,34 +81,22 @@ impl GpuController {
             });
 
             if let Some((subsys_vendor_id, subsys_model_id)) = handle.get_pci_subsys_id() {
-                let (new_device_info, new_subsystem_info) = unsafe {
-                    run_forked(|| {
-                        let pci_db = Database::read().map_err(|err| err.to_string())?;
-                        let pci_device_info = pci_db.get_device_info(
-                            vendor_id,
-                            model_id,
-                            subsys_vendor_id,
-                            subsys_model_id,
-                        );
+                let pci_device_info =
+                    pci_db.get_device_info(vendor_id, model_id, subsys_vendor_id, subsys_model_id);
 
-                        let device_pci_info = PciInfo {
-                            vendor_id: vendor_id.to_owned(),
-                            vendor: pci_device_info.vendor_name.map(str::to_owned),
-                            model_id: model_id.to_owned(),
-                            model: pci_device_info.device_name.map(str::to_owned),
-                        };
-                        let subsystem_pci_info = PciInfo {
-                            vendor_id: subsys_vendor_id.to_owned(),
-                            vendor: pci_device_info.subvendor_name.map(str::to_owned),
-                            model_id: subsys_model_id.to_owned(),
-                            model: pci_device_info.subdevice_name.map(str::to_owned),
-                        };
-                        Ok((device_pci_info, subsystem_pci_info))
-                    })?
-                };
-                device_pci_info = Some(new_device_info);
-                subsystem_pci_info = Some(new_subsystem_info);
-            }
+                device_pci_info = Some(PciInfo {
+                    vendor_id: vendor_id.to_owned(),
+                    vendor: pci_device_info.vendor_name.map(str::to_owned),
+                    model_id: model_id.to_owned(),
+                    model: pci_device_info.device_name.map(str::to_owned),
+                });
+                subsystem_pci_info = Some(PciInfo {
+                    vendor_id: subsys_vendor_id.to_owned(),
+                    vendor: pci_device_info.subvendor_name.map(str::to_owned),
+                    model_id: subsys_model_id.to_owned(),
+                    model: pci_device_info.subdevice_name.map(str::to_owned),
+                });
+            };
         }
 
         let pci_info = device_pci_info.and_then(|device_pci_info| {
@@ -236,6 +224,19 @@ impl GpuController {
         None
     }
 
+    #[cfg(feature = "libdrm_amdgpu_sys")]
+    fn get_current_gfxclk(&self) -> Option<u16> {
+        self.drm_handle
+            .as_ref()
+            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
+            .and_then(|metrics| metrics.get_current_gfxclk())
+    }
+
+    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
+    fn get_current_gfxclk(&self) -> Option<u16> {
+        None
+    }
+
     fn get_link_info(&self) -> LinkInfo {
         LinkInfo {
             current_width: self.handle.get_current_link_width().ok(),
@@ -263,6 +264,7 @@ impl GpuController {
                 speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
                 speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
                 speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
+                pwm_current: self.hw_mon_and_then(HwMon::get_fan_pwm),
                 pmfw_info: PmfwInfo {
                     acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
                     acoustic_target: self.handle.get_fan_acoustic_target().ok(),
@@ -272,6 +274,7 @@ impl GpuController {
             },
             clockspeed: ClockspeedStats {
                 gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
+                current_gfxclk: self.get_current_gfxclk(),
                 vram_clockspeed: self.hw_mon_and_then(HwMon::get_vram_clockspeed),
             },
             voltage: VoltageStats {
@@ -308,7 +311,36 @@ impl GpuController {
                 .get_pcie_clock_levels()
                 .ok()
                 .and_then(|levels| levels.active),
+            throttle_info: self.get_throttle_info(),
         }
+    }
+
+    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
+    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
+        None
+    }
+
+    #[cfg(feature = "libdrm_amdgpu_sys")]
+    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
+        use libdrm_amdgpu_sys::AMDGPU::ThrottlerType;
+
+        self.drm_handle
+            .as_ref()
+            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
+            .and_then(|metrics| metrics.get_throttle_status_info())
+            .map(|throttle| {
+                let mut result: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+                for bit in throttle.get_all_throttler() {
+                    let throttle_type = ThrottlerType::from(bit);
+                    result
+                        .entry(throttle_type.to_string())
+                        .or_default()
+                        .push(bit.to_string());
+                }
+
+                result
+            })
     }
 
     pub fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
@@ -331,30 +363,89 @@ impl GpuController {
         // Stop existing task to set static speed
         self.stop_fan_control(false).await?;
 
-        let hw_mon = self
-            .handle
-            .hw_monitors
-            .first()
-            .cloned()
-            .context("This GPU has no monitor")?;
+        // Use PMFW curve functionality for static speed when it is available
+        if let Ok(current_curve) = self.handle.get_fan_curve() {
+            let allowed_ranges = current_curve.allowed_ranges.ok_or_else(|| {
+                anyhow!("The GPU does not allow setting custom fan values (is overdrive enabled?)")
+            })?;
+            let min_temperature = allowed_ranges.temperature_range.start();
+            let max_temperature = allowed_ranges.temperature_range.end();
 
-        hw_mon
-            .set_fan_control_method(FanControlMethod::Manual)
-            .context("Could not set fan control method")?;
+            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+            let custom_pwm = (f64::from(*allowed_ranges.speed_range.end()) * static_speed) as u8;
+            let static_pwm = cmp::max(*allowed_ranges.speed_range.start(), custom_pwm);
 
-        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-        let static_speed_converted = (f64::from(u8::MAX) * static_speed) as u8;
+            let mut points = vec![(*min_temperature, static_pwm)];
+            for _ in 1..current_curve.points.len() {
+                points.push((*max_temperature, static_pwm));
+            }
 
-        hw_mon
-            .set_fan_pwm(static_speed_converted)
-            .context("could not set fan speed")?;
+            let new_curve = PmfwCurve {
+                points: points.into_boxed_slice(),
+                allowed_ranges: Some(allowed_ranges),
+            };
 
-        debug!("set fan speed to {}", static_speed);
+            debug!("setting static curve {new_curve:?}");
 
-        Ok(())
+            self.handle
+                .set_fan_curve(&new_curve)
+                .context("Could not set fan curve")?;
+
+            Ok(())
+        } else {
+            let hw_mon = self
+                .handle
+                .hw_monitors
+                .first()
+                .cloned()
+                .context("This GPU has no monitor")?;
+
+            hw_mon
+                .set_fan_control_method(FanControlMethod::Manual)
+                .context("Could not set fan control method")?;
+
+            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+            let static_pwm = (f64::from(u8::MAX) * static_speed) as u8;
+
+            hw_mon
+                .set_fan_pwm(static_pwm)
+                .context("could not set fan speed")?;
+
+            debug!("set fan speed to {}", static_speed);
+
+            Ok(())
+        }
     }
 
     async fn start_curve_fan_control(
+        &self,
+        curve: FanCurve,
+        temp_key: String,
+        interval: Duration,
+    ) -> anyhow::Result<()> {
+        // Use the PMFW curve functionality when it is available
+        // Otherwise, fall back to manual fan control via a task
+        match self.handle.get_fan_curve() {
+            Ok(current_curve) => {
+                let new_curve = curve
+                    .into_pmfw_curve(current_curve)
+                    .context("Invalid fan curve")?;
+                debug!("setting pmfw curve {new_curve:?}");
+
+                self.handle
+                    .set_fan_curve(&new_curve)
+                    .context("Could not set fan curve")?;
+
+                Ok(())
+            }
+            Err(_) => {
+                self.start_curve_fan_control_task(curve, temp_key, interval)
+                    .await
+            }
+        }
+    }
+
+    async fn start_curve_fan_control_task(
         &self,
         curve: FanCurve,
         temp_key: String,
@@ -425,6 +516,12 @@ impl GpuController {
         }
 
         if reset_mode {
+            if self.handle.get_fan_curve().is_ok() {
+                if let Err(err) = self.handle.reset_fan_curve() {
+                    warn!("could not reset fan curve: {err:#}");
+                }
+            }
+
             if let Some(hw_mon) = self.handle.hw_monitors.first().cloned() {
                 if let Ok(current_control) = hw_mon.get_fan_control_method() {
                     if !matches!(current_control, FanControlMethod::Auto) {
@@ -500,35 +597,6 @@ impl GpuController {
     }
 
     pub async fn apply_config(&self, config: &config::Gpu) -> anyhow::Result<()> {
-        if config.fan_control_enabled {
-            if let Some(ref settings) = config.fan_control_settings {
-                match settings.mode {
-                    lact_schema::FanControlMode::Static => {
-                        self.set_static_fan_control(settings.static_speed).await?;
-                    }
-                    lact_schema::FanControlMode::Curve => {
-                        if settings.curve.0.is_empty() {
-                            return Err(anyhow!("Cannot use empty fan curve"));
-                        }
-
-                        let interval = Duration::from_millis(settings.interval_ms);
-                        self.start_curve_fan_control(
-                            settings.curve.clone(),
-                            settings.temperature_key.clone(),
-                            interval,
-                        )
-                        .await?;
-                    }
-                }
-            } else {
-                return Err(anyhow!(
-                    "Trying to enable fan control with no settings provided"
-                ));
-            }
-        } else {
-            self.stop_fan_control(true).await?;
-        }
-
         if let Some(cap) = config.power_cap {
             let hw_mon = self.first_hw_mon()?;
 
@@ -629,7 +697,34 @@ impl GpuController {
                 .with_context(|| format!("Could not set {kind:?} power states"))?;
         }
 
-        if !config.fan_control_enabled {
+        if config.fan_control_enabled {
+            if let Some(ref settings) = config.fan_control_settings {
+                match settings.mode {
+                    lact_schema::FanControlMode::Static => {
+                        self.set_static_fan_control(settings.static_speed).await?;
+                    }
+                    lact_schema::FanControlMode::Curve => {
+                        if settings.curve.0.is_empty() {
+                            return Err(anyhow!("Cannot use empty fan curve"));
+                        }
+
+                        let interval = Duration::from_millis(settings.interval_ms);
+                        self.start_curve_fan_control(
+                            settings.curve.clone(),
+                            settings.temperature_key.clone(),
+                            interval,
+                        )
+                        .await?;
+                    }
+                }
+            } else {
+                return Err(anyhow!(
+                    "Trying to enable fan control with no settings provided"
+                ));
+            }
+        } else {
+            self.stop_fan_control(true).await?;
+
             let pmfw = &config.pmfw_options;
             if let Some(acoustic_limit) = pmfw.acoustic_limit {
                 self.handle
@@ -663,8 +758,11 @@ fn get_drm_handle(handle: &GpuHandle) -> anyhow::Result<DrmHandle> {
         .get_pci_slot_name()
         .context("Device has no PCI slot name")?;
     let path = format!("/dev/dri/by-path/pci-{slot_name}-render");
-    let drm_file =
-        File::open(&path).with_context(|| format!("Could not open drm file at {path}"))?;
+    let drm_file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&path)
+        .with_context(|| format!("Could not open drm file at {path}"))?;
     let (handle, _, _) = DrmHandle::init(drm_file.into_raw_fd())
         .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
     Ok(handle)

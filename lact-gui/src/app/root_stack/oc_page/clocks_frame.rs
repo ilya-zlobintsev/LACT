@@ -1,9 +1,8 @@
 use crate::app::page_section::PageSection;
+use amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable, ClocksTableGen};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::amdgpu_sysfs;
-use lact_client::schema::amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable, ClocksTableGen};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::debug;
@@ -20,13 +19,13 @@ pub struct ClocksFrame {
     basic_togglebutton: ToggleButton,
     advanced_togglebutton: ToggleButton,
     min_values_grid: Grid,
-    min_sclk_adjustment: (Adjustment, Rc<AtomicBool>),
-    min_mclk_adjustment: (Adjustment, Rc<AtomicBool>),
-    min_voltage_adjustment: (Adjustment, Rc<AtomicBool>),
-    max_sclk_adjustment: (Adjustment, Rc<AtomicBool>),
-    max_mclk_adjustment: (Adjustment, Rc<AtomicBool>),
-    max_voltage_adjustment: (Adjustment, Rc<AtomicBool>),
-    voltage_offset_adjustment: (Adjustment, Rc<AtomicBool>),
+    min_sclk_adjustment: (Adjustment, Scale, Rc<AtomicBool>),
+    min_mclk_adjustment: (Adjustment, Scale, Rc<AtomicBool>),
+    min_voltage_adjustment: (Adjustment, Scale, Rc<AtomicBool>),
+    max_sclk_adjustment: (Adjustment, Scale, Rc<AtomicBool>),
+    max_mclk_adjustment: (Adjustment, Scale, Rc<AtomicBool>),
+    max_voltage_adjustment: (Adjustment, Scale, Rc<AtomicBool>),
+    voltage_offset_adjustment: (Adjustment, Scale, Rc<AtomicBool>),
     reset_button: Button,
     warning_label: Label,
     clocks_data_unavailable_label: Label,
@@ -134,8 +133,6 @@ impl ClocksFrame {
     pub fn set_table(&self, table: ClocksTableGen) -> anyhow::Result<()> {
         debug!("using clocks table {table:?}");
 
-        // The upper value "0.0" is used to hide the adjustment when info is not available
-
         if let Some((current_sclk_min, sclk_min, sclk_max)) =
             extract_value_and_range(&table, |table| {
                 (
@@ -149,8 +146,10 @@ impl ClocksFrame {
             self.min_sclk_adjustment
                 .0
                 .set_value(current_sclk_min.into());
+
+            self.min_sclk_adjustment.1.set_visible(true);
         } else {
-            self.min_sclk_adjustment.0.set_upper(0.0);
+            self.min_sclk_adjustment.1.set_visible(false);
         }
 
         if let Some((current_mclk_min, mclk_min, mclk_max)) =
@@ -166,8 +165,9 @@ impl ClocksFrame {
             self.min_mclk_adjustment
                 .0
                 .set_value(current_mclk_min.into());
+            self.min_mclk_adjustment.1.set_visible(true);
         } else {
-            self.min_mclk_adjustment.0.set_upper(0.0);
+            self.min_mclk_adjustment.1.set_visible(false);
         }
 
         if let Some((current_min_voltage, voltage_min, voltage_max)) =
@@ -185,8 +185,9 @@ impl ClocksFrame {
             self.min_voltage_adjustment
                 .0
                 .set_value(current_min_voltage.into());
+            self.min_voltage_adjustment.1.set_visible(true);
         } else {
-            self.min_voltage_adjustment.0.set_upper(0.0);
+            self.min_voltage_adjustment.1.set_visible(false);
         }
 
         if let Some((current_sclk_max, sclk_min, sclk_max)) =
@@ -199,8 +200,9 @@ impl ClocksFrame {
             self.max_sclk_adjustment
                 .0
                 .set_value(current_sclk_max.into());
+            self.max_sclk_adjustment.1.set_visible(true);
         } else {
-            self.max_sclk_adjustment.0.set_upper(0.0);
+            self.max_sclk_adjustment.1.set_visible(false);
         }
 
         if let Some((current_mclk_max, mclk_min, mclk_max)) =
@@ -213,8 +215,9 @@ impl ClocksFrame {
             self.max_mclk_adjustment
                 .0
                 .set_value(current_mclk_max.into());
+            self.max_mclk_adjustment.1.set_visible(true);
         } else {
-            self.max_mclk_adjustment.0.set_upper(0.0);
+            self.max_mclk_adjustment.1.set_visible(false);
         }
 
         if let Some((current_voltage_max, voltage_min, voltage_max)) =
@@ -227,8 +230,9 @@ impl ClocksFrame {
             self.max_voltage_adjustment
                 .0
                 .set_value(current_voltage_max.into());
+            self.max_voltage_adjustment.1.set_visible(true);
         } else {
-            self.max_voltage_adjustment.0.set_upper(0.0);
+            self.max_voltage_adjustment.1.set_visible(false);
         }
 
         if let ClocksTableGen::Vega20(table) = table {
@@ -246,11 +250,12 @@ impl ClocksFrame {
                     .0
                     .set_upper(max_offset as f64);
                 self.voltage_offset_adjustment.0.set_value(offset.into());
+                self.voltage_offset_adjustment.1.set_visible(true);
             } else {
-                self.voltage_offset_adjustment.0.set_upper(0.0);
+                self.voltage_offset_adjustment.1.set_visible(false);
             }
         } else {
-            self.voltage_offset_adjustment.0.set_upper(0.0);
+            self.voltage_offset_adjustment.1.set_visible(false);
         }
 
         emit_changed(&self.min_sclk_adjustment);
@@ -298,7 +303,7 @@ impl ClocksFrame {
     }
 
     pub fn get_settings(&self) -> ClocksSettings {
-        if self.tweaking_grid.is_visible() {
+        if self.tweaking_grid.get_visible() {
             let min_core_clock = get_adjustment_value(&self.min_sclk_adjustment);
             let min_memory_clock = get_adjustment_value(&self.min_mclk_adjustment);
             let min_voltage = get_adjustment_value(&self.min_voltage_adjustment);
@@ -306,10 +311,10 @@ impl ClocksFrame {
             let max_memory_clock = get_adjustment_value(&self.max_mclk_adjustment);
             let max_voltage = get_adjustment_value(&self.max_voltage_adjustment);
 
-            let voltage_offset = if self.voltage_offset_adjustment.0.upper() == 0.0 {
-                None
-            } else {
+            let voltage_offset = if self.voltage_offset_adjustment.1.get_visible() {
                 Some(self.voltage_offset_adjustment.0.value() as i32)
+            } else {
+                None
             };
 
             ClocksSettings {
@@ -349,7 +354,11 @@ fn extract_value_and_range(
     Some((value, min, max))
 }
 
-fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> (Adjustment, Rc<AtomicBool>) {
+fn oc_adjustment(
+    title: &'static str,
+    grid: &Grid,
+    row: i32,
+) -> (Adjustment, Scale, Rc<AtomicBool>) {
     let label = Label::builder().label(title).halign(Align::Start).build();
 
     let adjustment = Adjustment::new(0.0, 0.0, 0.0, 1.0, 10.0, 0.0);
@@ -385,30 +394,19 @@ fn oc_adjustment(title: &'static str, grid: &Grid, row: i32) -> (Adjustment, Rc<
         }),
     );
 
-    adjustment.connect_changed(
-        clone!(@strong label, @strong value_label, @strong scale, @strong value_button => move |adjustment| {
-            let value = adjustment.value();
-            value_label.set_text(&value.to_string());
-
-            if adjustment.upper() == 0.0 {
-                label.hide();
-                value_label.hide();
-                scale.hide();
-                value_button.hide();
-            } else {
-                label.show();
-                value_label.show();
-                scale.show();
-                value_button.show();
-            }
-        }
-    ));
+    scale.connect_visible_notify(
+        clone!(@strong label, @strong value_label, @strong value_button => move |scale| {
+            label.set_visible(scale.get_visible());
+            value_button.set_visible(scale.get_visible());
+            value_label.set_visible(scale.get_visible());
+        }),
+    );
 
     grid.attach(&label, 0, row, 1, 1);
     grid.attach(&scale, 1, row, 4, 1);
     grid.attach(&value_button, 6, row, 4, 1);
 
-    (adjustment, changed)
+    (adjustment, scale, changed)
 }
 
 #[derive(Debug, Default)]
@@ -422,22 +420,25 @@ pub struct ClocksSettings {
     pub voltage_offset: Option<i32>,
 }
 
-fn get_adjustment_value((adjustment, changed): &(Adjustment, Rc<AtomicBool>)) -> Option<i32> {
+fn get_adjustment_value(
+    (adjustment, scale, changed): &(Adjustment, Scale, Rc<AtomicBool>),
+) -> Option<i32> {
     let changed = changed.load(Ordering::SeqCst);
 
     if changed {
         let value = adjustment.value();
-        if value == 0.0 {
-            None
-        } else {
+        if scale.get_visible() {
             Some(value as i32)
+        } else {
+            None
         }
     } else {
         None
     }
 }
 
-fn emit_changed(adjustment: &(Adjustment, Rc<AtomicBool>)) {
-    adjustment.0.emit_by_name::<()>("changed", &[]);
-    adjustment.1.store(false, Ordering::SeqCst);
+fn emit_changed(adjustment: &(Adjustment, Scale, Rc<AtomicBool>)) {
+    adjustment.0.emit_by_name::<()>("value-changed", &[]);
+    adjustment.1.notify("visible");
+    adjustment.2.store(false, Ordering::SeqCst);
 }

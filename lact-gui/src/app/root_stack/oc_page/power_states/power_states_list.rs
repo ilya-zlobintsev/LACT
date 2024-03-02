@@ -1,7 +1,12 @@
 use crate::app::root_stack::oc_page::power_states::power_state_row::PowerStateRow;
 use gtk::{
     gio,
-    glib::{self, clone, subclass::types::ObjectSubclassIsExt, Cast, CastNone, Object},
+    glib::{
+        self, clone,
+        object::{Cast, CastNone},
+        subclass::types::ObjectSubclassIsExt,
+        Object,
+    },
     prelude::{ListBoxRowExt, WidgetExt},
     ListBoxRow, Widget,
 };

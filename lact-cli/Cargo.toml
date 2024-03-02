@@ -1,9 +1,9 @@
 [package]
 name = "lact-cli"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2021"
 
 [dependencies]
 lact-client = { path = "../lact-client" }
 lact-schema = { path = "../lact-schema", features = ["args"] }
-anyhow = "1.0.76"
+anyhow = "1.0.79"

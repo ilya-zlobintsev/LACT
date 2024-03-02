@@ -9,25 +9,41 @@ jobs:
   build-packages:
     strategy:
       matrix:
-        target-os: [ debian-12, ubuntu-2204, fedora-38, fedora-39, arch ]
+        target-os: [ debian-12, ubuntu-2204, fedora-38, fedora-39, arch, opensuse-tumbleweed ]
         recipe: [ lact, lact-headless ]
         include:
           - target-os: fedora-39
             recipe: lact-libadwaita
           - target-os: arch
             recipe: lact-libadwaita
+          - target-os: opensuse-tumbleweed
+            recipe: lact-libadwaita
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Import gpg key
+        run: |
+          echo -n "$GPG_KEY" | base64 -d > /tmp/package-signing-key.gpg
+          echo -n "$GPG_KEY" | base64 -d | gpg --import || true
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+
       - name: Install pkger
         run: |
-          curl -L -o /tmp/pkger.deb https://github.com/vv9k/pkger/releases/download/0.11.0/pkger-0.11.0-0.amd64.deb
-          sudo apt -y install /tmp/pkger.deb
-          
-      - name: Build packages
-        run: pkger -c .pkger.yml build ${{ matrix.recipe }} -i ${{ matrix.target-os }}
+          curl -L -o /usr/local/bin/pkger https://github.com/ilya-zlobintsev/pkger/releases/download/v0.11.1/pkger
+          chmod +x /usr/local/bin/pkger
+
+      - name: Build packages (with signing)
+        if: ${{ contains(matrix.target-os, 'fedora') }}
+        run: pkger -t -c .pkger.yml build ${{ matrix.recipe }} -i ${{ matrix.target-os }}
+        env:
+          GPG_KEY_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
+
+      - name: Build packages (without signing)
+        if: ${{ !contains(matrix.target-os, 'fedora') }}
+        run: pkger -t -c .pkger.yml build --no-sign ${{ matrix.recipe }} -i ${{ matrix.target-os }}
 
       - name: Copy release files
         run: |
@@ -49,6 +65,10 @@ jobs:
               cd ..
           done
           popd
+
+      - name: Save gpg key
+        run: |
+          gpg --armor --export > $PWD/release-artifacts/lact.pubkey
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
@@ -75,7 +95,7 @@ jobs:
         with:
           removeArtifacts: true
           allowUpdates: true
-          artifactErrorsFailBuild: true
+          artifactErrorsFailBuild: false
           artifacts: "downloaded-artifacts/*/*"
           body: ${{ github.event.head_commit.message }}
           prerelease: true

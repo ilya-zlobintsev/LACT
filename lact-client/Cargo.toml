@@ -1,12 +1,15 @@
 [package]
 name = "lact-client"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2021"
 
 [dependencies]
 lact-schema = { path = "../lact-schema" }
-anyhow = "1.0.76"
-nix = { version = "0.27.1", default-features = false }
-serde = "1.0.193"
-tracing = "0.1.40"
-serde_json = "1.0.108"
+
+amdgpu-sysfs = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+nix = { workspace = true }

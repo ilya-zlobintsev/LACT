@@ -5,6 +5,7 @@ use std::{
     fs::{self, File, Permissions},
     io::Write,
     os::unix::prelude::PermissionsExt,
+    path::Path,
     process::Command,
 };
 use tracing::{info, warn};
@@ -71,6 +72,22 @@ pub fn enable_overdrive() -> anyhow::Result<String> {
     Ok(message)
 }
 
+pub fn disable_overdrive() -> anyhow::Result<String> {
+    if Path::new(MODULE_CONF_PATH).exists() {
+        fs::remove_file(MODULE_CONF_PATH).context("Could not remove module config file")?;
+        match regenerate_initramfs() {
+            Ok(initramfs_type) => Ok(format!(
+                "Initramfs was successfully regenerated (detected type {initramfs_type:?})"
+            )),
+            Err(err) => Ok(format!("{err:#}")),
+        }
+    } else {
+        Err(anyhow!(
+            "Overclocking was not enabled through LACT (file at {MODULE_CONF_PATH} does not exist)"
+        ))
+    }
+}
+
 fn read_current_mask() -> anyhow::Result<u64> {
     let ppfeaturemask = fs::read_to_string(PP_FEATURE_MASK_PATH)?;
     let ppfeaturemask = ppfeaturemask
@@ -99,7 +116,7 @@ fn regenerate_initramfs() -> anyhow::Result<InitramfsType> {
     }
 }
 
-fn detect_initramfs_type(os_release: &OsRelease) -> Option<InitramfsType> {
+pub(crate) fn detect_initramfs_type(os_release: &OsRelease) -> Option<InitramfsType> {
     let id_like: Vec<_> = os_release.id_like.split_whitespace().collect();
 
     if os_release.id == "debian" || id_like.contains(&"debian") {

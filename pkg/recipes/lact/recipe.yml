@@ -3,7 +3,7 @@ metadata:
   description: AMDGPU control utility
   arch: x86_64
   license: MIT
-  version: 0.5.2
+  version: 0.5.3
   maintainer: ilya-zlobintsev
   url: https://github.com/ilya-zlobintsev/lact
   source:
@@ -15,11 +15,13 @@ metadata:
     debian-12+ubuntu-2204: [ libgtk-4-1 ]
     fedora-38+fedora-39: [ gtk4, libdrm ]
     arch: [ gtk4 ]
+    opensuse-tumbleweed: [ gtk4 ]
   build_depends:
-    all: [ curl, make, dbus, clang, git ]
-    debian-12+ubuntu-2204: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev ]
-    fedora-38+fedora-39: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler ]
-    arch: [ gtk4, blueprint-compiler ]
+    all: [ curl, make, clang, git ]
+    debian-12+ubuntu-2204: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus ]
+    fedora-38+fedora-39: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler, dbus ]
+    arch: [ gtk4, blueprint-compiler, dbus ]
+    opensuse-tumbleweed: [ gtk4-devel, libdrm-devel, blueprint-compiler ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs

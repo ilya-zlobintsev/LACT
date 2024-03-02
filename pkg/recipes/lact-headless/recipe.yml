@@ -3,7 +3,7 @@ metadata:
   description: AMDGPU control utility
   arch: x86_64
   license: MIT
-  version: 0.5.2
+  version: 0.5.3
   maintainer: ilya-zlobintsev
   url: https://github.com/ilya-zlobintsev/lact
   source:
@@ -15,11 +15,13 @@ metadata:
     debian-12+ubuntu-2204: [ libdrm-amdgpu1 ]
     fedora-38+fedora-39: [ libdrm ]
     arch: [ libdrm ]
+    opensuse-tumbleweed: [ libdrm ]
   build_depends:
-    all: [ curl, make, dbus, clang, git ]
-    debian-12+ubuntu-2204: [ pkg-config, build-essential, libdrm-dev ]
-    fedora-38+fedora-39: [ gcc, libdrm-devel ]
-    arch: [ libdrm ]
+    all: [ curl, make, clang, git ]
+    debian-12+ubuntu-2204: [ pkg-config, build-essential, libdrm-dev, dbus ]
+    fedora-38+fedora-39: [ gcc, libdrm-devel, dbus ]
+    arch: [ libdrm, dbus ]
+    opensuse-tumbleweed: [ libdrm-devel ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs

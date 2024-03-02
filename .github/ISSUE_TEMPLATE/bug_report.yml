@@ -1,0 +1,36 @@
+name: Bug report
+description: Something is not working correctly
+
+body:
+  - type: checkboxes
+    id: acknowledgments
+    attributes:
+      label: Checklist
+      description:
+      options:
+        - label: The problem is not listed in the [hardware support matrix](https://github.com/ilya-zlobintsev/LACT?tab=readme-ov-file#hardware-support) as a known limitation
+          required: true
+        - label: I've included a [debug snapshot](https://github.com/ilya-zlobintsev/LACT?tab=readme-ov-file#reporting-issues) if the issue is related to hardware configuration
+          required: true
+
+  - type: textarea
+    id: description
+    validations:
+      required: true
+    attributes:
+      label: Bug description
+      description: Describe what the problem is
+
+  - type: textarea
+    id: system-info
+    validations:
+      required: true
+    attributes:
+      label: System info
+      description: Information about your system
+      value: |
+        - LACT version:
+        - GPU model:
+        - Kernel version:
+        - Distribution:
+      render: markdown

@@ -11,15 +11,18 @@ template $SoftwarePage: Box {
     $InfoRow {
         name: "LACT Daemon:";
         value: bind template.daemon_version;
+        selectable: true;
     }
 
     $InfoRow {
         name: "LACT GUI:";
         value: bind template.gui_version;
+        selectable: true;
     }
 
     $InfoRow {
         name: "Kernel Version:";
         value: bind template.kernel_version;
+        selectable: true;
     }
 }

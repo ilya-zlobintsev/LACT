@@ -1,6 +1,6 @@
 [package]
 name = "lact-gui"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2021"
 
@@ -11,11 +11,14 @@ gtk-tests = []
 [dependencies]
 lact-client = { path = "../lact-client" }
 lact-daemon = { path = "../lact-daemon", default-features = false }
-gtk = { version = "0.7", package = "gtk4", features = ["v4_6", "blueprint"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-anyhow = "1.0"
-adw = { package = "libadwaita", version = "0.5.3", features = [
+
+amdgpu-sysfs = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+gtk = { version = "0.8", package = "gtk4", features = ["v4_6", "blueprint"] }
+adw = { package = "libadwaita", version = "0.6.0", features = [
     "v1_4",
 ], optional = true }
 

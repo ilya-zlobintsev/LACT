@@ -6,7 +6,6 @@ mod response;
 #[cfg(test)]
 mod tests;
 
-pub use amdgpu_sysfs;
 pub use request::Request;
 pub use response::Response;
 
@@ -52,15 +51,7 @@ impl FromStr for FanControlMode {
 pub type FanCurveMap = BTreeMap<i32, f32>;
 
 pub fn default_fan_curve() -> FanCurveMap {
-    [
-        (30, 0.0),
-        (40, 0.2),
-        (50, 0.35),
-        (60, 0.5),
-        (70, 0.75),
-        (80, 1.0),
-    ]
-    .into()
+    [(40, 0.2), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into()
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -191,6 +182,7 @@ pub struct DeviceStats {
     pub core_power_state: Option<usize>,
     pub memory_power_state: Option<usize>,
     pub pcie_power_state: Option<usize>,
+    pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -199,6 +191,7 @@ pub struct FanStats {
     pub control_mode: Option<FanControlMode>,
     pub static_speed: Option<f64>,
     pub curve: Option<FanCurveMap>,
+    pub pwm_current: Option<u8>,
     pub speed_current: Option<u32>,
     pub speed_max: Option<u32>,
     pub speed_min: Option<u32>,
@@ -219,6 +212,7 @@ pub struct PmfwInfo {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct ClockspeedStats {
     pub gpu_clockspeed: Option<u64>,
+    pub current_gfxclk: Option<u16>,
     pub vram_clockspeed: Option<u64>,
 }
 

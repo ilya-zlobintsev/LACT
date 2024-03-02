@@ -31,7 +31,7 @@ impl Default for PowerCapSection {
 mod imp {
     use crate::app::{page_section::PageSection, root_stack::oc_adjustment::OcAdjustment};
     use gtk::{
-        glib::{self, clone, subclass::InitializingObject, Properties, StaticTypeExt},
+        glib::{self, clone, subclass::InitializingObject, types::StaticTypeExt, Properties},
         prelude::{ButtonExt, ObjectExt},
         subclass::{
             prelude::*,

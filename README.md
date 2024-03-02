@@ -22,7 +22,11 @@ Current features:
 - Debian/Ubuntu/Derivatives: Download a .deb from [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
   It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't ship gtk4.
-- Fedora: an rpm is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+- Fedora: an RPM is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+- Gentoo: Available in [GURU](https://github.com/gentoo/guru/tree/master/sys-apps/lact).
+- OpenSUSE: an RPM is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+
+  Only tumbleweed is supported as leap does not have the required dependencies in the repos.
 - NixOS: There is a package available on the [unstable channel](https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=lact)
 - Otherwise, build from source.
 
@@ -37,9 +41,44 @@ sudo systemctl enable --now lactd
 ```
 You can now use the GUI to change settings and view information.
 
+# Hardware support
+
+LACT for the most part does not implement features on a per-generation basis, rather it exposes the functionality that is available in the driver for the current system.
+However the following table shows what functionality can be expected for a given generation.
+
+- **Supported** - the functionality is known to work
+- **Limited** - the functionality is known to work, but has certain limitations
+- **Untested** - the functionality has not been confirmed to work, but it should
+- **Unknown** - the functionality has not been confirmed to work, and it is unknown if it does
+- **Unsupported** - the functionality is known to not work
+
+| Generation                          | Clocks configuration | Power limit | Power states | Fan control | Notes                                             |
+|-------------------------------------|----------------------|-------------|--------------|-------------|---------------------------------------------------|
+| Southern Islands (HD 7000)          | Unsupported          | Unknown     | Unknown      | Untested    | Requires the `amdgpu.si_support=1` kernel option  |
+| Sea Islands (R7/R9 200)             | Unsupported          | Unknown     | Untested     | Untested    | Requires the `amdgpu.cik_support=1` kernel option |
+| Volcanic Islands (R7/R9 300)        | Unsupported          | Unknown     | Untested     | Untested    |                                                   |
+| Arctic Islands/Polaris (RX 400-500) | Supported            | Supported   | Supported    | Supported   |                                                   |
+| Vega                                | Supported            | Supported   | Supported    | Supported   |                                                   |
+| RDNA1 (RX 5000)                     | Supported            | Supported   | Supported    | Supported   |                                                   |
+| RDNA2 (RX 6000)                     | Supported            | Supported   | Supported    | Supported   |                                                   |
+| RDNA3 (RX 7000)                     | Supported            | Limited     | Supported    | Limited     | There is an unconfigurable temperature threshold below which the fan does not get turned on, even with a custom curve. The power cap is also sometimes lower than it should be. Requires kernel 6.7+. See [#255](https://github.com/ilya-zlobintsev/LACT/issues/255) for more info.   | 
+
+GPUs not listed here will still work, but might not have full functionality available.
+Monitoring/system info will be available everywhere. Integrated GPUs might also only have basic configuration available.
+
 # Configuration
 
 There is a configuration file available in `/etc/lact/config.yaml`. Most of the settings are accessible through the GUI, but some of them may be useful to be edited manually (like `admin_groups` to specify who has access to the daemon)
+
+**Socket permissions setup:**
+
+By default, LACT uses either ether the `wheel` or `sudo` group (whichever is available) for the ownership of the unix socket that the GUI needs to connect to.
+
+On most configurations (such as the default setup on Arch-based, most Debian-based or Fedora systems) you do not need to do anything.
+
+However, some systems may have different user configuration. In particular, this has been reported to be a problem on OpenSUSE.
+
+To fix socket permissions in such configurations, edit `/etc/lact/config.yaml` and add your username or group as the first entry in `admin_groups` under `daemon`, and restart the service (`sudo systemctl restart lactd`).
 
 # Overclocking
 
@@ -49,17 +88,6 @@ The overclocking functionality is disabled by default in the driver. There are t
   **Note:** This will attempt to automatically regenerate the initramfs to include the new settings. It does not cover all possible distro combinations. If you've enabled overclocking in LACT but it still doesn't work fter a reboot,
   you might need to check your distro's configuration to make sure the initramfs was updated. Updating the kernel version is a guaranteed way to trigger an initramfs update.
 - Specifying a boot parameter. You can manually specify the `amdgpu.ppfeaturemask=0xffffffff` kernel parameter in your bootloader to enable overclocking. See the [ArchWiki](https://wiki.archlinux.org/title/AMDGPU#Boot_parameter) for more details.
-
-# Hardware support
-Tested GPU generations:
-- [X] Polaris (RX 500 series)
-- [X] Vega
-- [X] RDNA1 (RX 5000 series)
-- [X] RDNA2 (RX 6000 series)
-- [ ] RDNA3 (RX 7000 series) - basic support available. Fan control available via thermal target settings, but full custom curve support is currently missing. Requires Kernel 6.7+
-
-GPUs not listed here will still work, but might not have full functionality available.
-Monitoring/system info will be available everywhere. Integrated GPUs might also only have basic configuration available.
 
 # Suspend/Resume
 

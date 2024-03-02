@@ -4,7 +4,7 @@ mod oc_page;
 mod software_page;
 mod thermals_page;
 
-use gtk::{prelude::IsA, traits::GridExt, *};
+use gtk::{prelude::*, *};
 
 use self::software_page::SoftwarePage;
 use info_page::InformationPage;

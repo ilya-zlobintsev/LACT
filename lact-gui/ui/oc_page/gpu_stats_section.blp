@@ -36,8 +36,13 @@ template $GpuStatsSection: $PageSection {
             spacing: 5;
 
             $InfoRow {
-                name: "GPU Core Clock:";
+                name: "GPU Core Clock (Average):";
                 value: bind template.core-clock;
+            }
+
+            $InfoRow {
+                name: "GPU Core Clock (Target):";
+                value: bind template.current-core-clock;
             }
 
             $InfoRow {
@@ -69,6 +74,11 @@ template $GpuStatsSection: $PageSection {
             $InfoRow {
                 name: "Power Usage:";
                 value: bind template.power-usage;
+            }
+
+            $InfoRow {
+                name: "Throttling:";
+                value: bind template.throttling;
             }
         }
     }
