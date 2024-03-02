@@ -18,6 +18,7 @@ body:
     validations:
       required: true
     attributes:
+      label: Bug description
       description: Describe what the problem is
       value: |
         System info:
@@ -25,4 +26,3 @@ body:
         - GPU model:
         - Kernel version:
         - Distribution:
-        
