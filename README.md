@@ -98,6 +98,7 @@ As some of the GPU settings may get reset when suspending the system, LACT will 
 Dependencies:
 - rust
 - gtk4
+- git
 - pkg-config
 - make
 - hwdata

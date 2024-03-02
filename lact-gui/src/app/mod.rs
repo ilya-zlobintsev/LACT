@@ -13,6 +13,7 @@ use gtk::glib::{timeout_future, ControlFlow};
 use gtk::{gio::ApplicationFlags, prelude::*, *};
 use header::Header;
 use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
+use lact_client::schema::GIT_COMMIT;
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
 use root_stack::RootStack;
@@ -56,8 +57,8 @@ impl App {
             .icon_name(APP_ID)
             .build();
 
-        if system_info.version != GUI_VERSION {
-            let err = anyhow!("Version mismatch between GUI and daemon ({GUI_VERSION} vs {})! Make sure you have restarted the service if you have updated LACT.", system_info.version);
+        if system_info.version != GUI_VERSION || system_info.commit != Some(GIT_COMMIT) {
+            let err = anyhow!("Version mismatch between GUI and daemon ({GUI_VERSION}-{GIT_COMMIT} vs {}-{})! Make sure you have restarted the service if you have updated LACT.", system_info.version, system_info.commit.unwrap_or_default());
             show_error(&window, err);
         }
 

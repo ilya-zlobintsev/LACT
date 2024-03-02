@@ -26,6 +26,8 @@ use std::{
     str::FromStr,
 };
 
+pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
+
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum FanControlMode {
@@ -58,6 +60,7 @@ pub struct Pong;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SystemInfo<'a> {
     pub version: &'a str,
+    pub commit: Option<&'a str>,
     pub profile: &'a str,
     pub kernel_version: String,
     pub amdgpu_overdrive_enabled: Option<bool>,

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context};
-use lact_schema::{InitramfsType, SystemInfo};
+use lact_schema::{InitramfsType, SystemInfo, GIT_COMMIT};
 use os_release::{OsRelease, OS_RELEASE};
 use std::{
     fs::{self, File, Permissions},
@@ -41,6 +41,7 @@ pub fn info() -> anyhow::Result<SystemInfo<'static>> {
         profile,
         kernel_version,
         amdgpu_overdrive_enabled,
+        commit: Some(GIT_COMMIT),
     })
 }
 

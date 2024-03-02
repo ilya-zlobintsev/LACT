@@ -7,7 +7,7 @@ metadata:
   maintainer: ilya-zlobintsev
   url: https://github.com/ilya-zlobintsev/lact
   source:
-    - '../../..'
+    - '../../../../LACT'
   provides: [ lact ]
   conflicts: [ lact-headless, lact-libadwaita ]
   depends:
@@ -17,7 +17,7 @@ metadata:
     arch: [ gtk4 ]
     opensuse-tumbleweed: [ gtk4 ]
   build_depends:
-    all: [ curl, make, clang ]
+    all: [ curl, make, clang, git ]
     debian-12+ubuntu-2204: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus ]
     fedora-38+fedora-39: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler, dbus ]
     arch: [ gtk4, blueprint-compiler, dbus ]
@@ -35,8 +35,8 @@ configure:
       deb: true
 build:
   steps:
-    - cmd: bash -c "source $HOME/.cargo/env && make build-release"
+    - cmd: bash -c "source $HOME/.cargo/env && cd LACT && make build-release"
 install:
   steps:
-    - cmd: bash -c "cd $PKGER_BLD_DIR && DESTDIR=$PKGER_OUT_DIR PREFIX=/usr make install"
+    - cmd: bash -c "cd $PKGER_BLD_DIR/LACT && DESTDIR=$PKGER_OUT_DIR PREFIX=/usr make install"
 
