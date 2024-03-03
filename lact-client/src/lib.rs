@@ -218,7 +218,10 @@ impl<'a, T: Deserialize<'a>> ResponseBuffer<T> {
             .context("Could not deserialize response from daemon")?;
         match response {
             Response::Ok(data) => Ok(data),
-            Response::Error(err) => Err(anyhow!("Got error from daemon: {err}")),
+            Response::Error(err) => {
+                Err(anyhow::Error::new(err)
+                    .context("Got error from daemon, end of client boundary"))
+            }
         }
     }
 }

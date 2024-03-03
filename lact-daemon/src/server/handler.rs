@@ -164,9 +164,11 @@ impl<'a> Handler {
             Err(apply_err) => {
                 error!("could not apply settings: {apply_err:?}");
                 match controller.apply_config(&gpu_config).await {
-                        Ok(()) => Err(apply_err.context("Could not apply settings")),
-                        Err(err) => Err(anyhow!("Could not apply settings, and could not reset to default settings: {err:?}")),
-                    }
+                    Ok(()) => Err(apply_err.context("Could not apply settings")),
+                    Err(err) => Err(apply_err.context(err.context(
+                        "Could not apply settings, and could not reset to default settings",
+                    ))),
+                }
             }
         }
     }

@@ -651,9 +651,9 @@ impl GpuController {
             }
         } else if let Ok(hw_mon) = self.first_hw_mon() {
             if let Ok(default_cap) = hw_mon.get_power_cap_default() {
-                hw_mon
-                    .set_power_cap(default_cap)
-                    .with_context(|| format!("Failed to set power cap to default cap: {default_cap}"))?;
+                hw_mon.set_power_cap(default_cap).with_context(|| {
+                    format!("Failed to set power cap to default cap: {default_cap}")
+                })?;
             }
         }
 

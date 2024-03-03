@@ -1,4 +1,5 @@
 use crate::{Pong, Request, Response};
+use anyhow::anyhow;
 use serde_json::json;
 
 #[test]
@@ -35,11 +36,24 @@ fn controllers_response() {
 #[test]
 fn error_response() {
     let expected_response = json!({
-        "status": "error",
-        "data": "my super error"
+        "data": {
+            "description": "third deeper context",
+            "source": {
+                "description": "second context",
+                "source": {
+                    "description": "first error",
+                    "source": null
+                }
+            }
+        },
+        "status": "error"
     });
 
-    let response = Response::<()>::Error("my super error".to_owned());
+    let error = anyhow!("first error")
+        .context("second context")
+        .context(anyhow!("third deeper context"));
+
+    let response = Response::<()>::from(error);
 
     assert_eq!(serde_json::to_value(response).unwrap(), expected_response);
 }
