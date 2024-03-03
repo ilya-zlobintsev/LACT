@@ -639,9 +639,13 @@ impl GpuController {
                 }
             }
 
-            hw_mon
-                .set_power_cap(cap)
-                .with_context(|| format!("Failed to set power cap: {cap}"))?;
+            // Due to possible driver bug, RX 7900 XTX really doesn't like when we set the same value again.
+            // But, also in general we want to avoid setting same value twice
+            if Ok(cap) != hw_mon.get_power_cap() {
+                hw_mon
+                    .set_power_cap(cap)
+                    .with_context(|| format!("Failed to set power cap: {cap}"))?;
+            }
 
             // Reapply old power level
             if let Some(level) = original_performance_level {
@@ -651,9 +655,13 @@ impl GpuController {
             }
         } else if let Ok(hw_mon) = self.first_hw_mon() {
             if let Ok(default_cap) = hw_mon.get_power_cap_default() {
-                hw_mon.set_power_cap(default_cap).with_context(|| {
-                    format!("Failed to set power cap to default cap: {default_cap}")
-                })?;
+                // Due to possible driver bug, RX 7900 XTX really doesn't like when we set the same value again.
+                // But, also in general we want to avoid setting same value twice
+                if Ok(default_cap) != hw_mon.get_power_cap() {
+                    hw_mon.set_power_cap(default_cap).with_context(|| {
+                        format!("Failed to set power cap to default cap: {default_cap}")
+                    })?;
+                }
             }
         }
 
