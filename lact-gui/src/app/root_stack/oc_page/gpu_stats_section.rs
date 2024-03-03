@@ -32,7 +32,7 @@ impl GpuStatsSection {
         self.set_current_core_clock(format_current_gfxclk(clockspeed.current_gfxclk));
         self.set_vram_clock(format_clockspeed(clockspeed.vram_clockspeed));
 
-        let voltage = format!("{}V", stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64);
+        let voltage = format!("{:.3} V", stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64);
         self.set_voltage(voltage);
 
         let temperature = stats
@@ -57,7 +57,7 @@ impl GpuStatsSection {
             .or(power_average);
 
         self.set_power_usage(format!(
-            "<b>{}/{}W</b>",
+            "<b>{}/{} W</b>",
             power_current.unwrap_or(0.0),
             power_cap_current.unwrap_or(0.0)
         ));
@@ -151,7 +151,7 @@ mod imp {
 }
 
 fn format_clockspeed(value: Option<u64>) -> String {
-    format!("{}MHz", value.unwrap_or(0))
+    format!("{:.3} GHz", value.unwrap_or(0) as f64 / 1000.0)
 }
 
 fn format_current_gfxclk(value: Option<u16>) -> String {
@@ -161,7 +161,7 @@ fn format_current_gfxclk(value: Option<u16>) -> String {
         if v == u16::MAX {
             "N/A".to_string()
         } else {
-            format!("{v}MHz")
+            format_clockspeed(Some(v as u64))
         }
     } else {
         "N/A".to_string()
