@@ -339,6 +339,7 @@ impl<'a> Handler {
             config.pmfw_options = pmfw;
         })
         .await
+        .context("Failed to edit GPU config")
     }
 
     pub async fn reset_pmfw(&self, id: &str) -> anyhow::Result<u64> {
@@ -349,6 +350,7 @@ impl<'a> Handler {
             config.pmfw_options = PmfwOptions::default();
         })
         .await
+        .context("Failed to edit GPU config and reset pmfw")
     }
 
     pub async fn set_power_cap(&'a self, id: &str, maybe_cap: Option<f64>) -> anyhow::Result<u64> {
@@ -356,6 +358,7 @@ impl<'a> Handler {
             gpu_config.power_cap = maybe_cap;
         })
         .await
+        .context("Failed to edit GPU config and set power cap")
     }
 
     pub fn get_power_states(&self, id: &str) -> anyhow::Result<PowerStates> {
@@ -382,6 +385,7 @@ impl<'a> Handler {
             }
         })
         .await
+        .context("Failed to edit GPU config and set performance level")
     }
 
     pub async fn set_clocks_value(
@@ -397,6 +401,7 @@ impl<'a> Handler {
             gpu_config.apply_clocks_command(&command);
         })
         .await
+        .context("Failed to edit GPU config and set clocks value")
     }
 
     pub async fn batch_set_clocks_value(
@@ -410,6 +415,7 @@ impl<'a> Handler {
             }
         })
         .await
+        .context("Failed to edit GPU config and batch set clocks")
     }
 
     pub fn get_power_profile_modes(&self, id: &str) -> anyhow::Result<PowerProfileModesTable> {
@@ -429,6 +435,7 @@ impl<'a> Handler {
             gpu_config.power_profile_mode_index = index;
         })
         .await
+        .context("Failed to edit GPU config and set power profile mode")
     }
 
     pub async fn set_enabled_power_states(
@@ -441,6 +448,7 @@ impl<'a> Handler {
             gpu.power_states.insert(kind, enabled_states);
         })
         .await
+        .context("Failed to edit GPU config and set enabled power states")
     }
 
     pub fn generate_snapshot(&self) -> anyhow::Result<String> {

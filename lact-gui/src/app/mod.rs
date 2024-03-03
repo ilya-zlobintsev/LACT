@@ -146,8 +146,10 @@ impl App {
                 app.apply_revealer.connect_apply_button_clicked(
                     clone!(@strong app, @strong current_gpu_id => move || {
                         glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
-                            if let Err(err) = app.apply_settings(current_gpu_id.clone()) {
-                                show_error(&app.window, err.context("Could not apply settings"));
+                            if let Err(err) = app.apply_settings(current_gpu_id.clone())
+                                .context("Could not apply settings (GUI)")
+                             {
+                                show_error(&app.window, err);
 
                                 glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
                                     let gpu_id = current_gpu_id.borrow().clone();
