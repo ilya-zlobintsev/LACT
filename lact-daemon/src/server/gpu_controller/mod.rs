@@ -596,6 +596,7 @@ impl GpuController {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub async fn apply_config(&self, config: &config::Gpu) -> anyhow::Result<()> {
         if let Some(cap) = config.power_cap {
             let hw_mon = self.first_hw_mon()?;
