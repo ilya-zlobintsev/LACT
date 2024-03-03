@@ -1387,9 +1387,11 @@ name = "lact-schema"
 version = "0.5.4"
 dependencies = [
  "amdgpu-sysfs",
+ "anyhow",
  "clap",
  "indexmap",
  "serde",
+ "serde-error",
  "serde_json",
  "serde_with",
  "vergen",
@@ -2060,6 +2062,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63261df402c67811e9ac6def069e4786148c4563f4b50fd4bf30aa370d626b02"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-error"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e988182713aeed6a619a88bca186f6d6407483485ffe44c869ee264f8eabd13f"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

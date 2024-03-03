@@ -639,7 +639,13 @@ impl GpuController {
                 }
             }
 
-            hw_mon.set_power_cap(cap)?;
+            // Due to possible driver bug, RX 7900 XTX really doesn't like when we set the same value again.
+            // But, also in general we want to avoid setting same value twice
+            if Ok(cap) != hw_mon.get_power_cap() {
+                hw_mon
+                    .set_power_cap(cap)
+                    .with_context(|| format!("Failed to set power cap: {cap}"))?;
+            }
 
             // Reapply old power level
             if let Some(level) = original_performance_level {
@@ -649,15 +655,24 @@ impl GpuController {
             }
         } else if let Ok(hw_mon) = self.first_hw_mon() {
             if let Ok(default_cap) = hw_mon.get_power_cap_default() {
-                hw_mon.set_power_cap(default_cap)?;
+                // Due to possible driver bug, RX 7900 XTX really doesn't like when we set the same value again.
+                // But, also in general we want to avoid setting same value twice
+                if Ok(default_cap) != hw_mon.get_power_cap() {
+                    hw_mon.set_power_cap(default_cap).with_context(|| {
+                        format!("Failed to set power cap to default cap: {default_cap}")
+                    })?;
+                }
             }
         }
 
         if let Some(level) = config.performance_level {
-            self.handle.set_power_force_performance_level(level)?;
+            self.handle
+                .set_power_force_performance_level(level)
+                .context("Failed to set power performance level")?;
         } else if self.handle.get_power_force_performance_level().is_ok() {
             self.handle
-                .set_power_force_performance_level(PerformanceLevel::Auto)?;
+                .set_power_force_performance_level(PerformanceLevel::Auto)
+                .context("Failed to set performance level to PerformanceLevel::Auto")?;
         }
 
         if let Some(mode_index) = config.power_profile_mode_index {
@@ -667,17 +682,30 @@ impl GpuController {
                 ));
             }
 
-            self.handle.set_active_power_profile_mode(mode_index)?;
+            self.handle
+                .set_active_power_profile_mode(mode_index)
+                .context("Failed to set active power profile mode")?;
         }
 
         // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
         self.handle.reset_clocks_table().ok();
 
         if config.is_core_clocks_used() {
-            let mut table = self.handle.get_clocks_table()?;
-            config.clocks_configuration.apply_to_table(&mut table)?;
+            let mut table = self
+                .handle
+                .get_clocks_table()
+                .context("Failed to get clocks table")?;
+            config
+                .clocks_configuration
+                .apply_to_table(&mut table)
+                .context("Failed to apply clocks configuration to table")?;
 
-            debug!("writing clocks commands: {:#?}", table.get_commands()?);
+            debug!(
+                "writing clocks commands: {:#?}",
+                table
+                    .get_commands()
+                    .context("Failed to get table commands")?
+            );
 
             self.handle
                 .set_clocks_table(&table)
@@ -701,7 +729,9 @@ impl GpuController {
             if let Some(ref settings) = config.fan_control_settings {
                 match settings.mode {
                     lact_schema::FanControlMode::Static => {
-                        self.set_static_fan_control(settings.static_speed).await?;
+                        self.set_static_fan_control(settings.static_speed)
+                            .await
+                            .context("Failed to set static fan control")?;
                     }
                     lact_schema::FanControlMode::Curve => {
                         if settings.curve.0.is_empty() {
@@ -714,7 +744,8 @@ impl GpuController {
                             settings.temperature_key.clone(),
                             interval,
                         )
-                        .await?;
+                        .await
+                        .context("Failed to set curve fan control")?;
                     }
                 }
             } else {
@@ -723,7 +754,9 @@ impl GpuController {
                 ));
             }
         } else {
-            self.stop_fan_control(true).await?;
+            self.stop_fan_control(true)
+                .await
+                .context("Failed to stop fan control")?;
 
             let pmfw = &config.pmfw_options;
             if let Some(acoustic_limit) = pmfw.acoustic_limit {
