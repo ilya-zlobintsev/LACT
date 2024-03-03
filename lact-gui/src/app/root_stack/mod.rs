@@ -18,6 +18,15 @@ pub struct RootStack {
     pub info_page: InformationPage,
     pub thermals_page: ThermalsPage,
     pub oc_page: OcPage,
+    software_page: SoftwarePage,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum StackVisiblePage {
+    Information,
+    OC,
+    Thermals,
+    Software,
 }
 
 impl RootStack {
@@ -49,7 +58,24 @@ impl RootStack {
             info_page,
             thermals_page,
             oc_page,
+            software_page,
         }
+    }
+
+    pub fn visible_child(&self) -> Option<StackVisiblePage> {
+        let visible_child = self.container.visible_child()?;
+
+        Some(if visible_child == self.info_page.container {
+            StackVisiblePage::Information
+        } else if visible_child == self.thermals_page.container {
+            StackVisiblePage::Thermals
+        } else if visible_child == self.oc_page.container {
+            StackVisiblePage::OC
+        } else if visible_child == self.software_page {
+            StackVisiblePage::Software
+        } else {
+            unreachable!()
+        })
     }
 }
 

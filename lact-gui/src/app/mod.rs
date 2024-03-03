@@ -16,7 +16,7 @@ use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
 use lact_client::schema::GIT_COMMIT;
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
-use root_stack::RootStack;
+use root_stack::{RootStack, StackVisiblePage};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
@@ -337,20 +337,22 @@ impl App {
             clone!(@strong self.daemon_client as daemon_client, @strong self.root_stack as root_stack => async move {
                 loop {
                     {
-                        let gpu_id = current_gpu_id.borrow();
-                        trace!("fetching new stats using id {gpu_id}");
-                        match daemon_client
-                            .get_device_stats(&gpu_id)
-                            .and_then(|stats| stats.inner())
-                        {
-                            Ok(stats) => {
-                                trace!("new stats received, updating {stats:?}");
-                                root_stack.info_page.set_stats(&stats);
-                                root_stack.thermals_page.set_stats(&stats, false);
-                                root_stack.oc_page.set_stats(&stats, false);
-                            }
-                            Err(err) => {
-                                error!("Could not fetch stats: {err}");
+                        if root_stack.visible_child() == Some(StackVisiblePage::OC) {
+                            let gpu_id = current_gpu_id.borrow();
+                            trace!("fetching new stats using id {gpu_id}");
+                            match daemon_client
+                                .get_device_stats(&gpu_id)
+                                .and_then(|stats| stats.inner())
+                            {
+                                Ok(stats) => {
+                                    trace!("new stats received, updating {stats:?}");
+                                    root_stack.info_page.set_stats(&stats);
+                                    root_stack.thermals_page.set_stats(&stats, false);
+                                    root_stack.oc_page.set_stats(&stats, false);
+                                }
+                                Err(err) => {
+                                    error!("Could not fetch stats: {err}");
+                                }
                             }
                         }
                     }
