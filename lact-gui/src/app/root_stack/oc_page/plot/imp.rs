@@ -4,7 +4,7 @@ use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use itertools::Itertools;
-use plotters::style::colors::full_palette::DEEPORANGE_300;
+use plotters::style::colors::full_palette::DEEPORANGE_100;
 use serde::Deserialize;
 use serde::Serialize;
 use std::cell::RefCell;
@@ -184,19 +184,6 @@ impl Plot {
             .draw()
             .context("Failed to draw mesh")?;
 
-        for (idx, (caption, data)) in (0..).zip(data.line_series_iter()) {
-            chart
-                .draw_series(LineSeries::new(
-                    data.iter().map(|(date_time, point)| (*date_time, *point)),
-                    &Palette99::pick(idx),
-                ))
-                .context("Failed to draw series")?
-                .label(caption)
-                .legend(move |(x, y)| {
-                    Rectangle::new([(x - 5, y - 5), (x, y + 5)], Palette99::pick(idx))
-                });
-        }
-
         // Draw the throttling histogram
         chart
             .draw_series(
@@ -216,13 +203,26 @@ impl Plot {
                     .map(|((start_time, end_time), _)| {
                         let mut bar = Rectangle::new(
                             [(start_time, 0f64), (end_time, maximum_value)],
-                            DEEPORANGE_300.mix(0.25).filled(),
+                            DEEPORANGE_100.filled(),
                         );
                         bar.set_margin(0, 0, 5, 5);
                         bar
                     }),
             )
             .context("Failed to draw throttling histogram")?;
+
+        for (idx, (caption, data)) in (0..).zip(data.line_series_iter()) {
+            chart
+                .draw_series(LineSeries::new(
+                    data.iter().map(|(date_time, point)| (*date_time, *point)),
+                    &Palette99::pick(idx),
+                ))
+                .context("Failed to draw series")?
+                .label(caption)
+                .legend(move |(x, y)| {
+                    Rectangle::new([(x - 5, y - 5), (x, y + 5)], Palette99::pick(idx))
+                });
+        }
 
         chart
             .configure_series_labels()
