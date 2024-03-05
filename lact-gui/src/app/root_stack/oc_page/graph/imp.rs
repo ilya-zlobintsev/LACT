@@ -10,6 +10,9 @@ use plotters::prelude::*;
 use plotters_cairo::CairoBackend;
 use tracing::error;
 
+use chrono::TimeDelta;
+use std::cmp::max;
+
 #[derive(Default, Properties)]
 #[properties(wrapper_type = super::Graph)]
 pub struct Graph {
@@ -99,7 +102,10 @@ impl Graph {
             .x_label_area_size(20)
             .y_label_area_size(30)
             .margin(10)
-            .build_cartesian_2d(start_date..end_date, 0f64..maximum_value)?;
+            .build_cartesian_2d(
+                start_date..max(end_date, start_date + TimeDelta::seconds(60)),
+                0f64..maximum_value,
+            )?;
 
         chart
             .configure_mesh()
