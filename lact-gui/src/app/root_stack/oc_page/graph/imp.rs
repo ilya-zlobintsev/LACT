@@ -104,7 +104,11 @@ impl Graph {
             .margin(10)
             .build_cartesian_2d(
                 start_date..max(end_date, start_date + TimeDelta::seconds(60)),
-                0f64..maximum_value,
+                if maximum_value > 100.0f64 {
+                    0f64..maximum_value
+                } else {
+                    0f64..100.0f64
+                },
             )?;
 
         chart
