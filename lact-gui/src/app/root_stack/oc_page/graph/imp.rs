@@ -126,6 +126,7 @@ impl Graph {
             .configure_series_labels()
             .margin(20)
             .legend_area_size(30)
+            .position(SeriesLabelPosition::LowerLeft)
             .background_style(WHITE.mix(0.8))
             .border_style(BLACK)
             .draw()
