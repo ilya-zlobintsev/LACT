@@ -214,20 +214,11 @@ impl Plot {
             .context("Failed to draw throttling histogram")?;
 
         for (idx, (caption, data)) in (0..).zip(data.line_series_iter()) {
-            let segments = cubic_spline_interpolation(
-                &data
-                    .iter()
-                    .map(|(key, value)| (*key, *value))
-                    .collect::<Vec<_>>()[..],
-            );
-
             chart
                 .draw_series(LineSeries::new(
-                    data.iter()
-                        .zip(segments.iter())
-                        // Group 2 points together
-                        .tuple_windows::<(_, _)>()
-                        .filter_map(|(((first_time, _), segment), ((second_time, _), _))| {
+                    cubic_spline_interpolation(data.iter())
+                        .into_iter()
+                        .filter_map(|((first_time, second_time), segment)| {
                             let mut current_date = *first_time;
 
                             let mut result = vec![];
