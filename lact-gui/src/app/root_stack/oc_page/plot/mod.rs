@@ -1,3 +1,4 @@
+mod cubic_spline;
 mod imp;
 use gtk::glib;
 

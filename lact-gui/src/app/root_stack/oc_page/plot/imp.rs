@@ -18,6 +18,8 @@ use tracing::error;
 use chrono::TimeDelta;
 use std::cmp::max;
 
+use super::cubic_spline::cubic_spline_interpolation;
+
 #[derive(Default, Properties)]
 #[properties(wrapper_type = super::Plot)]
 pub struct Plot {
@@ -212,10 +214,34 @@ impl Plot {
             .context("Failed to draw throttling histogram")?;
 
         for (idx, (caption, data)) in (0..).zip(data.line_series_iter()) {
+            let segments = cubic_spline_interpolation(
+                &data
+                    .iter()
+                    .map(|(key, value)| (*key, *value))
+                    .collect::<Vec<_>>()[..],
+            );
+
             chart
                 .draw_series(LineSeries::new(
-                    data.iter().map(|(date_time, point)| (*date_time, *point)),
-                    &Palette99::pick(idx),
+                    data.iter()
+                        .zip(segments.iter())
+                        // Group 2 points together
+                        .tuple_windows::<(_, _)>()
+                        .filter_map(|(((first_time, _), segment), ((second_time, _), _))| {
+                            let mut current_date = *first_time;
+
+                            let mut result = vec![];
+                            while current_date < *second_time {
+                                result.push((current_date, segment.evaluate(&current_date)));
+
+                                // Interpolate in intervals of one millisecond
+                                current_date += TimeDelta::milliseconds(1);
+                            }
+
+                            Some(result.into_iter())
+                        })
+                        .flatten(),
+                    Palette99::pick(idx),
                 ))
                 .context("Failed to draw series")?
                 .label(caption)
