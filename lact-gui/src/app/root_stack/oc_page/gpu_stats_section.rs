@@ -1,4 +1,6 @@
 use crate::app::page_section::PageSection;
+use crate::app::root_stack::oc_page::plot::PlotData;
+
 use gtk::glib::{self, Object};
 use lact_client::schema::{DeviceStats, PowerStats};
 
@@ -62,9 +64,12 @@ impl GpuStatsSection {
             power_cap_current.unwrap_or(0.0)
         ));
 
+        let mut plot = self.plot_values();
+
         match &stats.throttle_info {
             Some(throttle_info) => {
                 if throttle_info.is_empty() {
+                    plot.push_throttling("No", false);
                     self.set_throttling("No")
                 } else {
                     let type_text: Vec<String> = throttle_info
@@ -74,11 +79,30 @@ impl GpuStatsSection {
                         })
                         .collect();
                     let text = type_text.join(", ");
+                    plot.push_throttling(&text, true);
                     self.set_throttling(text);
                 }
             }
-            None => self.set_throttling("Unknown"),
-        }
+            None => {
+                plot.push_throttling("Unknown", false);
+                self.set_throttling("Unknown")
+            }
+        };
+
+        plot.push_line_series("Temperature", temperature as f64);
+        plot.push_line_series("GPU Usage", stats.busy_percent.unwrap_or_default() as f64);
+        plot.trim_data(60);
+
+        self.set_plot_values(&plot);
+    }
+
+    // TODO: Figure out better way to send data to plot widget
+    fn set_plot_values(&self, value: &PlotData) {
+        self.set_plot_values_json(serde_json::to_string(value).unwrap());
+    }
+
+    fn plot_values(&self) -> PlotData {
+        serde_json::from_str(&self.plot_values_json()).unwrap_or_default()
     }
 }
 
@@ -89,7 +113,9 @@ impl Default for GpuStatsSection {
 }
 
 mod imp {
-    use crate::app::{info_row::InfoRow, page_section::PageSection};
+    use crate::app::{
+        info_row::InfoRow, page_section::PageSection, root_stack::oc_page::plot::Plot,
+    };
     use gtk::{
         glib::{self, subclass::InitializingObject, types::StaticTypeExt, Properties},
         prelude::ObjectExt,
@@ -125,6 +151,8 @@ mod imp {
         vram_usage_text: RefCell<String>,
         #[property(get, set)]
         throttling: RefCell<String>,
+        #[property(get, set)]
+        plot_values_json: RefCell<String>,
     }
 
     #[glib::object_subclass]
@@ -135,6 +163,8 @@ mod imp {
 
         fn class_init(class: &mut Self::Class) {
             InfoRow::ensure_type();
+            Plot::ensure_type();
+
             class.bind_template();
         }
 
