@@ -1,4 +1,6 @@
 use crate::app::page_section::PageSection;
+use crate::app::root_stack::oc_page::graph::GraphData;
+
 use gtk::glib::{self, Object};
 use lact_client::schema::{DeviceStats, PowerStats};
 
@@ -78,7 +80,39 @@ impl GpuStatsSection {
                 }
             }
             None => self.set_throttling("Unknown"),
+        };
+
+        let mut graph = self.graph_values();
+        graph
+            .entry("Temperature".to_owned())
+            .or_default()
+            .insert(chrono::Local::now(), temperature as f64);
+
+        graph.entry("GPU Usage".to_owned()).or_default().insert(
+            chrono::Local::now(),
+            stats.busy_percent.unwrap_or_default() as f64,
+        );
+
+        // Limit data to 60 seconds
+        for data in graph.values_mut() {
+            let maximum_point = data
+                .last_key_value()
+                .map(|(date_time, _)| *date_time)
+                .unwrap_or_default();
+
+            data.retain(|time_point, _| (maximum_point - time_point).num_seconds() < 60);
         }
+
+        self.set_graph_values(&graph);
+    }
+
+    // TODO: Figure out better way to send data to graph widget
+    fn set_graph_values(&self, value: &GraphData) {
+        self.set_graph_values_json(serde_json::to_string(value).unwrap());
+    }
+
+    fn graph_values(&self) -> GraphData {
+        serde_json::from_str(&self.graph_values_json()).unwrap_or_default()
     }
 }
 
@@ -89,7 +123,9 @@ impl Default for GpuStatsSection {
 }
 
 mod imp {
-    use crate::app::{info_row::InfoRow, page_section::PageSection};
+    use crate::app::{
+        info_row::InfoRow, page_section::PageSection, root_stack::oc_page::graph::Graph,
+    };
     use gtk::{
         glib::{self, subclass::InitializingObject, types::StaticTypeExt, Properties},
         prelude::ObjectExt,
@@ -125,6 +161,8 @@ mod imp {
         vram_usage_text: RefCell<String>,
         #[property(get, set)]
         throttling: RefCell<String>,
+        #[property(get, set)]
+        graph_values_json: RefCell<String>,
     }
 
     #[glib::object_subclass]
@@ -135,6 +173,8 @@ mod imp {
 
         fn class_init(class: &mut Self::Class) {
             InfoRow::ensure_type();
+            Graph::ensure_type();
+
             class.bind_template();
         }
 

@@ -83,4 +83,15 @@ template $GpuStatsSection: $PageSection {
             }
         }
     }
+
+    Box {
+        orientation: horizontal;
+        spacing: 10;
+
+        $Graph graph {
+            hexpand: true;
+            height-request: 200;
+            values_json: bind template.graph_values_json;
+        }
+    }
 }
