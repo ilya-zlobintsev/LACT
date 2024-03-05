@@ -23,8 +23,9 @@ chrono = {version = "0.4", features = ["serde"] }
 gtk = { version = "0.7", package = "gtk4", features = ["v4_6", "blueprint"] }
 adw = { package = "libadwaita", version = "0.5.0", features = ["v1_4"], optional = true }
 
-plotters = { version = "0.3.5", default-features = false, features = ["datetime", "line_series", "ttf"] }
+plotters = { version = "0.3.5", default-features = false, features = ["datetime", "line_series", "ttf", "histogram", "full_palette"] }
 plotters-cairo = "0.5.0"
+itertools = "0.12.1"
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

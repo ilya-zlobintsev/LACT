@@ -3,10 +3,11 @@ use glib::Properties;
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+use itertools::Itertools;
+use plotters::style::colors::full_palette::DEEPORANGE_300;
 use serde::Deserialize;
 use serde::Serialize;
 use std::cell::RefCell;
-// use std::collections::btree_map::{Iter as BTreeMapIter, IterMut as BTreeMapIterMut};
 
 use std::collections::BTreeMap;
 
@@ -71,6 +72,7 @@ impl WidgetImpl for Plot {
 #[derive(Serialize, Deserialize, Default)]
 pub struct PlotData {
     line_series: BTreeMap<String, BTreeMap<chrono::DateTime<chrono::Local>, f64>>,
+    throttling: BTreeMap<chrono::DateTime<chrono::Local>, (String, bool)>,
 }
 
 impl PlotData {
@@ -81,16 +83,23 @@ impl PlotData {
             .insert(chrono::Local::now(), point);
     }
 
-    pub fn linear_iter(
+    pub fn push_throttling(&mut self, name: &str, point: bool) {
+        self.throttling
+            .insert(chrono::Local::now(), (name.to_owned(), point));
+    }
+
+    pub fn line_series_iter(
         &self,
     ) -> impl Iterator<Item = (&String, &BTreeMap<chrono::DateTime<chrono::Local>, f64>)> {
         self.line_series.iter()
     }
 
-    pub fn linear_iter_mut(
-        &mut self,
-    ) -> impl Iterator<Item = (&String, &mut BTreeMap<chrono::DateTime<chrono::Local>, f64>)> {
-        self.line_series.iter_mut()
+    pub fn throttling_iter(
+        &self,
+    ) -> impl Iterator<Item = (chrono::DateTime<chrono::Local>, &str, bool)> {
+        self.throttling
+            .iter()
+            .map(|(time, (name, point))| (*time, name.as_str(), *point))
     }
 
     pub fn trim_data(&mut self, last_seconds: u64) {
@@ -119,25 +128,29 @@ impl Plot {
             serde_json::from_str(&self.values_json.borrow()).expect("Failed to parse JSON");
 
         let start_date = data
-            .linear_iter()
+            .line_series_iter()
             .filter_map(|(_, data)| Some(data.first_key_value()?.0))
             .min()
             .cloned()
             .unwrap_or_default();
         let end_date = data
-            .linear_iter()
+            .line_series_iter()
             .map(|(_, value)| value)
             .filter_map(|data| Some(data.last_key_value()?.0))
             .max()
             .cloned()
             .unwrap_or_default();
 
-        let maximum_value = data
-            .linear_iter()
+        let mut maximum_value = data
+            .line_series_iter()
             .flat_map(|(_, data)| data.values())
             .max_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal))
             .cloned()
             .unwrap_or_default();
+
+        if maximum_value < 100.0f64 {
+            maximum_value = 100.0f64;
+        }
 
         root.fill(&WHITE)?;
 
@@ -147,11 +160,7 @@ impl Plot {
             .margin(10)
             .build_cartesian_2d(
                 start_date..max(end_date, start_date + TimeDelta::seconds(60)),
-                if maximum_value > 100.0f64 {
-                    0f64..maximum_value
-                } else {
-                    0f64..100.0f64
-                },
+                0f64..maximum_value,
             )?;
 
         chart
@@ -162,18 +171,45 @@ impl Plot {
             .draw()
             .context("Failed to draw mesh")?;
 
-        for (idx, (caption, data)) in (0..).zip(data.linear_iter()) {
+        for (idx, (caption, data)) in (0..).zip(data.line_series_iter()) {
             chart
                 .draw_series(LineSeries::new(
-                    data.iter().map(|(a, b)| (*a, *b)),
+                    data.iter().map(|(date_time, point)| (*date_time, *point)),
                     &Palette99::pick(idx),
                 ))
                 .context("Failed to draw series")?
                 .label(caption)
                 .legend(move |(x, y)| {
-                    Rectangle::new([(x - 2, y - 2), (x, y + 2)], Palette99::pick(idx))
+                    Rectangle::new([(x - 5, y - 5), (x, y + 5)], Palette99::pick(idx))
                 });
         }
+
+        // Draw the throttling histogram
+        chart
+            .draw_series(
+                data.throttling_iter()
+                    // Group segments of consecutive enabled/disabled throttlings
+                    .group_by(|(_, _, point)| *point)
+                    .into_iter()
+                    // Filter only when throttling is enabled
+                    .filter_map(|(point, group_iter)| point.then(move || group_iter))
+                    // Get last and first times
+                    .filter_map(|mut group_iter| {
+                        let first = group_iter.next()?;
+                        Some((first, group_iter.last().unwrap_or(first.clone())))
+                    })
+                    // Filter out redundant data
+                    .map(|((start, name, _), (end, _, _))| ((start, end), name))
+                    .map(|((start_time, end_time), _)| {
+                        let mut bar = Rectangle::new(
+                            [(start_time, 0f64), (end_time, maximum_value)],
+                            DEEPORANGE_300.mix(0.25).filled(),
+                        );
+                        bar.set_margin(0, 0, 5, 5);
+                        bar
+                    }),
+            )
+            .context("Failed to draw throttling histogram")?;
 
         chart
             .configure_series_labels()
