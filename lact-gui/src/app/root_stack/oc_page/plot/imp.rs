@@ -64,7 +64,8 @@ impl WidgetImpl for Plot {
 
         let bounds = gtk::graphene::Rect::new(0.0, 0.0, width as f32, height as f32);
         let cr = snapshot.append_cairo(&bounds);
-        let backend = CairoBackend::new(&cr, (width, height)).unwrap();
+        // Supersample the plot area
+        let backend = CairoBackend::new(&cr, (width * 2, height * 2)).unwrap();
         if let Err(err) = self.plot_pdf(backend) {
             error!("Failed to plot PDF chart: {err:?}")
         }
@@ -170,9 +171,9 @@ impl Plot {
         root.fill(&WHITE)?;
 
         let mut chart = ChartBuilder::on(&root)
-            .x_label_area_size(20)
-            .y_label_area_size(30)
-            .margin(10)
+            .x_label_area_size(40)
+            .y_label_area_size(80)
+            .margin(20)
             .build_cartesian_2d(
                 start_date..max(end_date, start_date + TimeDelta::seconds(60)),
                 0f64..maximum_value,
@@ -183,6 +184,7 @@ impl Plot {
             .x_label_formatter(&|date_time| date_time.format("%H:%M:%S").to_string())
             .x_labels(5)
             .y_labels(5)
+            .label_style(("sans-serif", 10.percent_height()))
             .draw()
             .context("Failed to draw mesh")?;
 
@@ -232,22 +234,23 @@ impl Plot {
                             Some(result.into_iter())
                         })
                         .flatten(),
-                    Palette99::pick(idx),
+                    Palette99::pick(idx).stroke_width(1),
                 ))
                 .context("Failed to draw series")?
                 .label(caption)
                 .legend(move |(x, y)| {
-                    Rectangle::new([(x - 5, y - 5), (x, y + 5)], Palette99::pick(idx))
+                    Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], Palette99::pick(idx))
                 });
         }
 
         chart
             .configure_series_labels()
-            .margin(20)
+            .margin(10)
             .legend_area_size(30)
+            .label_font(("sans-serif", 10.percent_height()))
             .position(SeriesLabelPosition::LowerLeft)
             .background_style(WHITE.mix(0.8))
-            .border_style(BLACK)
+            .border_style(TRANSPARENT)
             .draw()
             .context("Failed to draw series labels")?;
 
