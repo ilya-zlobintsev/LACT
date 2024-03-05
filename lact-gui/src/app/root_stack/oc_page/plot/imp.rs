@@ -114,6 +114,19 @@ impl PlotData {
                 ((maximum_point - time_point).num_seconds() as u64) < last_seconds
             });
         }
+
+        self.line_series.retain(|_, data| !data.is_empty());
+
+        // Limit data to N seconds
+        let maximum_point = self
+            .throttling
+            .last_key_value()
+            .map(|(date_time, _)| *date_time)
+            .unwrap_or_default();
+
+        self.throttling.retain(|time_point, _| {
+            ((maximum_point - time_point).num_seconds() as u64) < last_seconds
+        });
     }
 }
 
