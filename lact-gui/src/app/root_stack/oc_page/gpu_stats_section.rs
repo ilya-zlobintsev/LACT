@@ -83,25 +83,9 @@ impl GpuStatsSection {
         };
 
         let mut graph = self.graph_values();
-        graph
-            .entry("Temperature".to_owned())
-            .or_default()
-            .insert(chrono::Local::now(), temperature as f64);
-
-        graph.entry("GPU Usage".to_owned()).or_default().insert(
-            chrono::Local::now(),
-            stats.busy_percent.unwrap_or_default() as f64,
-        );
-
-        // Limit data to 60 seconds
-        for data in graph.values_mut() {
-            let maximum_point = data
-                .last_key_value()
-                .map(|(date_time, _)| *date_time)
-                .unwrap_or_default();
-
-            data.retain(|time_point, _| (maximum_point - time_point).num_seconds() < 60);
-        }
+        graph.push_line_series("Temperature", temperature as f64);
+        graph.push_line_series("GPU Usage", stats.busy_percent.unwrap_or_default() as f64);
+        graph.trim_data(60);
 
         self.set_graph_values(&graph);
     }
