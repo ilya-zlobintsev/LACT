@@ -3,7 +3,11 @@ use glib::Properties;
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+use serde::Deserialize;
+use serde::Serialize;
 use std::cell::RefCell;
+// use std::collections::btree_map::{Iter as BTreeMapIter, IterMut as BTreeMapIterMut};
+
 use std::collections::BTreeMap;
 
 use plotters::prelude::*;
@@ -64,7 +68,45 @@ impl WidgetImpl for Graph {
     }
 }
 
-pub type GraphData = BTreeMap<String, BTreeMap<chrono::DateTime<chrono::Local>, f64>>;
+#[derive(Serialize, Deserialize, Default)]
+pub struct GraphData {
+    line_series: BTreeMap<String, BTreeMap<chrono::DateTime<chrono::Local>, f64>>,
+}
+
+impl GraphData {
+    pub fn push_line_series(&mut self, name: &str, point: f64) {
+        self.line_series
+            .entry(name.to_owned())
+            .or_default()
+            .insert(chrono::Local::now(), point);
+    }
+
+    pub fn linear_iter(
+        &self,
+    ) -> impl Iterator<Item = (&String, &BTreeMap<chrono::DateTime<chrono::Local>, f64>)> {
+        self.line_series.iter()
+    }
+
+    pub fn linear_iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (&String, &mut BTreeMap<chrono::DateTime<chrono::Local>, f64>)> {
+        self.line_series.iter_mut()
+    }
+
+    pub fn trim_data(&mut self, last_seconds: u64) {
+        // Limit data to N seconds
+        for data in self.line_series.values_mut() {
+            let maximum_point = data
+                .last_key_value()
+                .map(|(date_time, _)| *date_time)
+                .unwrap_or_default();
+
+            data.retain(|time_point, _| {
+                ((maximum_point - time_point).num_seconds() as u64) < last_seconds
+            });
+        }
+    }
+}
 
 impl Graph {
     fn plot_pdf<'a, DB: DrawingBackend + 'a>(&self, backend: DB) -> anyhow::Result<()>
@@ -77,21 +119,22 @@ impl Graph {
             serde_json::from_str(&self.values_json.borrow()).expect("Failed to parse JSON");
 
         let start_date = data
-            .iter()
+            .linear_iter()
             .filter_map(|(_, data)| Some(data.first_key_value()?.0))
             .min()
             .cloned()
             .unwrap_or_default();
         let end_date = data
-            .iter()
-            .filter_map(|(_, data)| Some(data.last_key_value()?.0))
+            .linear_iter()
+            .map(|(_, value)| value)
+            .filter_map(|data| Some(data.last_key_value()?.0))
             .max()
             .cloned()
             .unwrap_or_default();
 
         let maximum_value = data
-            .values()
-            .flat_map(|data| data.values())
+            .linear_iter()
+            .flat_map(|(_, data)| data.values())
             .max_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal))
             .cloned()
             .unwrap_or_default();
@@ -119,7 +162,7 @@ impl Graph {
             .draw()
             .context("Failed to draw mesh")?;
 
-        for (idx, (caption, data)) in (0..).zip(data.iter()) {
+        for (idx, (caption, data)) in (0..).zip(data.linear_iter()) {
             chart
                 .draw_series(LineSeries::new(
                     data.iter().map(|(a, b)| (*a, *b)),
@@ -128,7 +171,7 @@ impl Graph {
                 .context("Failed to draw series")?
                 .label(caption)
                 .legend(move |(x, y)| {
-                    Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], Palette99::pick(idx))
+                    Rectangle::new([(x - 2, y - 2), (x, y + 2)], Palette99::pick(idx))
                 });
         }
 
