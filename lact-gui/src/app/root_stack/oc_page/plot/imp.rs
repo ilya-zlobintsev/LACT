@@ -18,20 +18,20 @@ use chrono::TimeDelta;
 use std::cmp::max;
 
 #[derive(Default, Properties)]
-#[properties(wrapper_type = super::Graph)]
-pub struct Graph {
+#[properties(wrapper_type = super::Plot)]
+pub struct Plot {
     #[property(get, set)]
     values_json: RefCell<String>,
 }
 
 #[glib::object_subclass]
-impl ObjectSubclass for Graph {
-    const NAME: &'static str = "Graph";
-    type Type = super::Graph;
+impl ObjectSubclass for Plot {
+    const NAME: &'static str = "Plot";
+    type Type = super::Plot;
     type ParentType = gtk::Widget;
 }
 
-impl ObjectImpl for Graph {
+impl ObjectImpl for Plot {
     fn properties() -> &'static [glib::ParamSpec] {
         Self::derived_properties()
     }
@@ -50,7 +50,7 @@ impl ObjectImpl for Graph {
     }
 }
 
-impl WidgetImpl for Graph {
+impl WidgetImpl for Plot {
     fn snapshot(&self, snapshot: &gtk::Snapshot) {
         let width = self.obj().width() as u32;
         let height = self.obj().height() as u32;
@@ -69,11 +69,11 @@ impl WidgetImpl for Graph {
 }
 
 #[derive(Serialize, Deserialize, Default)]
-pub struct GraphData {
+pub struct PlotData {
     line_series: BTreeMap<String, BTreeMap<chrono::DateTime<chrono::Local>, f64>>,
 }
 
-impl GraphData {
+impl PlotData {
     pub fn push_line_series(&mut self, name: &str, point: f64) {
         self.line_series
             .entry(name.to_owned())
@@ -108,14 +108,14 @@ impl GraphData {
     }
 }
 
-impl Graph {
+impl Plot {
     fn plot_pdf<'a, DB: DrawingBackend + 'a>(&self, backend: DB) -> anyhow::Result<()>
     where
         <DB as plotters::prelude::DrawingBackend>::ErrorType: 'static,
     {
         let root = backend.into_drawing_area();
 
-        let data: GraphData =
+        let data: PlotData =
             serde_json::from_str(&self.values_json.borrow()).expect("Failed to parse JSON");
 
         let start_date = data

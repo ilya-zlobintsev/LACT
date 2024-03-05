@@ -88,10 +88,10 @@ template $GpuStatsSection: $PageSection {
         orientation: horizontal;
         spacing: 10;
 
-        $Graph graph {
+        $Plot plot {
             hexpand: true;
             height-request: 200;
-            values_json: bind template.graph_values_json;
+            values_json: bind template.plot_values_json;
         }
     }
 }

@@ -1,5 +1,5 @@
 use crate::app::page_section::PageSection;
-use crate::app::root_stack::oc_page::graph::GraphData;
+use crate::app::root_stack::oc_page::plot::PlotData;
 
 use gtk::glib::{self, Object};
 use lact_client::schema::{DeviceStats, PowerStats};
@@ -82,21 +82,21 @@ impl GpuStatsSection {
             None => self.set_throttling("Unknown"),
         };
 
-        let mut graph = self.graph_values();
-        graph.push_line_series("Temperature", temperature as f64);
-        graph.push_line_series("GPU Usage", stats.busy_percent.unwrap_or_default() as f64);
-        graph.trim_data(60);
+        let mut plot = self.plot_values();
+        plot.push_line_series("Temperature", temperature as f64);
+        plot.push_line_series("GPU Usage", stats.busy_percent.unwrap_or_default() as f64);
+        plot.trim_data(60);
 
-        self.set_graph_values(&graph);
+        self.set_plot_values(&plot);
     }
 
-    // TODO: Figure out better way to send data to graph widget
-    fn set_graph_values(&self, value: &GraphData) {
-        self.set_graph_values_json(serde_json::to_string(value).unwrap());
+    // TODO: Figure out better way to send data to plot widget
+    fn set_plot_values(&self, value: &PlotData) {
+        self.set_plot_values_json(serde_json::to_string(value).unwrap());
     }
 
-    fn graph_values(&self) -> GraphData {
-        serde_json::from_str(&self.graph_values_json()).unwrap_or_default()
+    fn plot_values(&self) -> PlotData {
+        serde_json::from_str(&self.plot_values_json()).unwrap_or_default()
     }
 }
 
@@ -108,7 +108,7 @@ impl Default for GpuStatsSection {
 
 mod imp {
     use crate::app::{
-        info_row::InfoRow, page_section::PageSection, root_stack::oc_page::graph::Graph,
+        info_row::InfoRow, page_section::PageSection, root_stack::oc_page::plot::Plot,
     };
     use gtk::{
         glib::{self, subclass::InitializingObject, types::StaticTypeExt, Properties},
@@ -146,7 +146,7 @@ mod imp {
         #[property(get, set)]
         throttling: RefCell<String>,
         #[property(get, set)]
-        graph_values_json: RefCell<String>,
+        plot_values_json: RefCell<String>,
     }
 
     #[glib::object_subclass]
@@ -157,7 +157,7 @@ mod imp {
 
         fn class_init(class: &mut Self::Class) {
             InfoRow::ensure_type();
-            Graph::ensure_type();
+            Plot::ensure_type();
 
             class.bind_template();
         }
