@@ -12,9 +12,16 @@ template $HardwareInfoSection: $PageSection {
     }
 
     $InfoRow {
-        name: "GPU Manufacturer:";
-        value: bind template.gpu_manufacturer;
+        name: "Card Manufacturer:";
+        value: bind template.card_manufacturer;
         selectable: true;
+    }
+
+    $InfoRow {
+        name: "Card Model:";
+        value: bind template.card_model;
+        selectable: true;
+        info-text: "The card displayed here may be of a sibling model, e.g. XT vs XTX variety. This is normal, as such models often use the same device ID, and it is not possible to differentiate between them.";
     }
 
     $InfoRow {

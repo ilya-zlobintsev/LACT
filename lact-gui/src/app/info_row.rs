@@ -25,7 +25,7 @@ mod imp {
             prelude::*,
             widget::{CompositeTemplateClass, WidgetImpl},
         },
-        CompositeTemplate, Label, TemplateChild,
+        CompositeTemplate, Label, MenuButton, TemplateChild,
     };
     use std::{cell::RefCell, str::FromStr};
 
@@ -39,9 +39,13 @@ mod imp {
         value: RefCell<String>,
         #[property(get, set)]
         selectable: RefCell<bool>,
+        #[property(get, set)]
+        info_text: RefCell<String>,
 
         #[template_child]
         value_label: TemplateChild<Label>,
+        #[template_child]
+        info_menubutton: TemplateChild<MenuButton>,
     }
 
     #[glib::object_subclass]
@@ -66,6 +70,12 @@ mod imp {
 
             let attr_list = AttrList::from_str("0 -1 weight bold").unwrap();
             self.value_label.set_attributes(Some(&attr_list));
+
+            let obj = self.obj();
+            obj.bind_property("info-text", &self.info_menubutton.get(), "visible")
+                .transform_to(|_, text: String| Some(!text.is_empty()))
+                .sync_create()
+                .build();
         }
     }
 
