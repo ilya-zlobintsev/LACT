@@ -1,5 +1,6 @@
 use gtk::glib::{self, object::ObjectExt, subclass::object::DerivedObjectProperties, Object};
 use lact_client::schema::{DeviceInfo, DeviceStats};
+use std::fmt::Write;
 
 glib::wrapper! {
     pub struct HardwareInfoSection(ObjectSubclass<imp::HardwareInfoSection>)
@@ -16,24 +17,40 @@ impl HardwareInfoSection {
         self.reset();
 
         if let Some(pci_info) = &info.pci_info {
-            if let Some(name) = pci_info
+            let mut gpu_model = pci_info
+                .device_pci_info
+                .model
+                .as_deref()
+                .unwrap_or("Unknown")
+                .to_owned();
+            let _ = write!(
+                gpu_model,
+                " (0x{}:0x{})",
+                pci_info.device_pci_info.vendor_id, pci_info.device_pci_info.model_id
+            );
+            self.set_gpu_model(gpu_model);
+
+            let mut card_manufacturer = pci_info
+                .subsystem_pci_info
+                .vendor
+                .as_deref()
+                .unwrap_or("Unknown")
+                .to_owned();
+            let _ = write!(
+                card_manufacturer,
+                " (0x{})",
+                pci_info.subsystem_pci_info.vendor_id
+            );
+            self.set_card_manufacturer(card_manufacturer);
+
+            let mut card_model = pci_info
                 .subsystem_pci_info
                 .model
                 .as_deref()
-                .or(pci_info.device_pci_info.model.as_deref())
-            {
-                self.set_gpu_model(name);
-            }
-
-            if let Some(manufacturer_name) = info.pci_info.as_ref().and_then(|pci_info| {
-                pci_info
-                    .subsystem_pci_info
-                    .vendor
-                    .as_deref()
-                    .or(pci_info.device_pci_info.model.as_deref())
-            }) {
-                self.set_gpu_manufacturer(manufacturer_name);
-            }
+                .unwrap_or("Unknown")
+                .to_owned();
+            let _ = write!(card_model, " (0x{})", pci_info.subsystem_pci_info.model_id);
+            self.set_card_model(card_model);
         }
 
         if let Some(drm_info) = &info.drm_info {
@@ -117,7 +134,9 @@ mod imp {
         #[property(get, set)]
         gpu_model: RefCell<String>,
         #[property(get, set)]
-        gpu_manufacturer: RefCell<String>,
+        card_manufacturer: RefCell<String>,
+        #[property(get, set)]
+        card_model: RefCell<String>,
         #[property(get, set)]
         gpu_family: RefCell<String>,
         #[property(get, set)]

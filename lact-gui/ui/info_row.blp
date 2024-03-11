@@ -11,6 +11,20 @@ template $InfoRow: Box {
         hexpand: true;
     }
 
+    MenuButton info_menubutton {
+        icon-name: "dialog-information-symbolic";
+        margin-start: 5;
+        margin-end: 5;
+        popover: Popover {
+            Label {
+                label: bind template.info-text;
+                wrap: true;
+                wrap-mode: word;
+                max-width-chars: 55;
+            }
+        };
+    }
+
     Label value_label {
         label: bind template.value;
         halign: end;
