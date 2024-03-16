@@ -1392,9 +1392,9 @@ checksum = "9c198f91728a82281a64e1f4f9eeb25d82cb32a5de251c6bd1b5154d63a8e7bd"
 
 [[package]]
 name = "libdrm_amdgpu_sys"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f52800820eaea512331abeb04797f480eae5ed8967531aa37629aca797520b5"
+checksum = "10ae56b30464d68a6d7b5383ace9f5981ba945cbf708c49a13cb8def83ace61d"
 dependencies = [
  "libc",
 ]

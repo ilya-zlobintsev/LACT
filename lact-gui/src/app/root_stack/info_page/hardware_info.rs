@@ -1,5 +1,5 @@
 use gtk::glib::{self, object::ObjectExt, subclass::object::DerivedObjectProperties, Object};
-use lact_client::schema::{DeviceInfo, DeviceStats};
+use lact_client::schema::{DeviceInfo, DeviceStats, DrmInfo};
 use std::fmt::Write;
 
 glib::wrapper! {
@@ -17,17 +17,34 @@ impl HardwareInfoSection {
         self.reset();
 
         if let Some(pci_info) = &info.pci_info {
-            let mut gpu_model = pci_info
-                .device_pci_info
-                .model
-                .as_deref()
+            let mut gpu_model = info
+                .drm_info
+                .as_ref()
+                .and_then(|drm| drm.device_name.as_deref())
+                .or_else(|| pci_info.device_pci_info.model.as_deref())
                 .unwrap_or("Unknown")
                 .to_owned();
-            let _ = write!(
-                gpu_model,
-                " (0x{}:0x{})",
-                pci_info.device_pci_info.vendor_id, pci_info.device_pci_info.model_id
-            );
+
+            match &info.drm_info {
+                Some(DrmInfo {
+                    pci_revision_id: Some(pci_rev),
+                    ..
+                }) => {
+                    let _ = write!(
+                        gpu_model,
+                        " (0x{}:0x{}:0x{pci_rev:X})",
+                        pci_info.device_pci_info.vendor_id, pci_info.device_pci_info.model_id,
+                    );
+                }
+                _ => {
+                    let _ = write!(
+                        gpu_model,
+                        " (0x{}:0x{})",
+                        pci_info.device_pci_info.vendor_id, pci_info.device_pci_info.model_id
+                    );
+                }
+            }
+
             self.set_gpu_model(gpu_model);
 
             let mut card_manufacturer = pci_info
