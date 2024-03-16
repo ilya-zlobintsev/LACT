@@ -201,9 +201,10 @@ impl GpuController {
                     cpu_accessible_total: memory_info.cpu_accessible_vram.total_heap_size,
                 });
 
-        drm_handle
-            .and_then(|handle| handle.device_info().ok())
-            .map(|drm_info| DrmInfo {
+        match drm_handle {
+            Some(handle) => handle.device_info().ok().map(|drm_info| DrmInfo {
+                device_name: drm_info.find_device_name(),
+                pci_revision_id: Some(drm_info.pci_rev_id()),
                 family_name: drm_info.get_family_name().to_string(),
                 family_id: drm_info.family_id(),
                 asic_name: drm_info.get_asic_name().to_string(),
@@ -216,7 +217,9 @@ impl GpuController {
                 l2_cache: drm_info.calc_l2_cache_size(),
                 l3_cache_mb: drm_info.calc_l3_cache_size_mb(),
                 memory_info: drm_memory_info,
-            })
+            }),
+            None => None,
+        }
     }
 
     #[cfg(not(feature = "libdrm_amdgpu_sys"))]

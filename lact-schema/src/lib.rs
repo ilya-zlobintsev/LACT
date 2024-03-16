@@ -91,6 +91,8 @@ pub struct DeviceInfo<'a> {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DrmInfo {
+    pub device_name: Option<String>,
+    pub pci_revision_id: Option<u32>,
     pub family_name: String,
     #[serde(default)]
     pub family_id: u32,
