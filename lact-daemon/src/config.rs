@@ -3,10 +3,12 @@ use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use anyhow::Context;
 use lact_schema::{default_fan_curve, request::SetClocksCommand, FanControlMode, PmfwOptions};
 use nix::unistd::getuid;
+use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{collections::HashMap, env, fs, path::PathBuf};
-use tracing::debug;
+use tokio::sync::mpsc;
+use tracing::{debug, error};
 
 const FILE_NAME: &str = "config.yaml";
 const DEFAULT_ADMIN_GROUPS: [&str; 2] = ["wheel", "sudo"];
@@ -156,6 +158,55 @@ impl Config {
             Ok(config)
         }
     }
+}
+
+pub fn start_watcher() -> mpsc::UnboundedReceiver<Config> {
+    let (config_tx, config_rx) = mpsc::unbounded_channel();
+    let (event_tx, event_rx) = std::sync::mpsc::channel();
+
+    tokio::task::spawn_blocking(move || {
+        let mut watcher = RecommendedWatcher::new(event_tx, notify::Config::default())
+            .expect("Could not create config file watcher");
+
+        let config_path = get_path();
+        let watch_path = config_path
+            .parent()
+            .expect("Config path always has a parent");
+        watcher
+            .watch(watch_path, notify::RecursiveMode::Recursive)
+            .expect("Could not subscribe to config file changes");
+
+        for res in event_rx {
+            debug!("got config file event {res:?}");
+            match res {
+                Ok(event) => {
+                    use notify::EventKind;
+
+                    if !event.paths.contains(&config_path) {
+                        continue;
+                    }
+
+                    match event.kind {
+                        EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) => {
+                            match Config::load() {
+                                Ok(Some(new_config)) => config_tx.send(new_config).unwrap(),
+                                Ok(None) => error!("config was removed!"),
+                                Err(err) => {
+                                    error!("could not read config after it was changed: {err:#}");
+                                }
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+                Err(err) => error!("filesystem event error: {err}"),
+            }
+        }
+
+        debug!("registered config file event listener at path {watch_path:?}");
+    });
+
+    config_rx
 }
 
 fn get_path() -> PathBuf {

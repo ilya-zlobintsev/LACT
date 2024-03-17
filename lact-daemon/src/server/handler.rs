@@ -102,7 +102,7 @@ impl<'a> Handler {
             config: Rc::new(RefCell::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
         };
-        handler.load_config().await;
+        handler.apply_current_config().await;
 
         // Eagerly release memory
         // `load_controllers` allocates and deallocates the entire PCI ID database,
@@ -114,7 +114,7 @@ impl<'a> Handler {
         Ok(handler)
     }
 
-    pub async fn load_config(&self) {
+    pub async fn apply_current_config(&self) {
         let config = self.config.borrow().clone(); // Clone to avoid locking the RwLock on an await point
 
         for (id, gpu_config) in &config.gpus {

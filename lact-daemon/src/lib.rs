@@ -54,6 +54,7 @@ pub fn run() -> anyhow::Result<()> {
                 let server = Server::new(config).await?;
                 let handler = server.handler.clone();
 
+                tokio::task::spawn_local(listen_config_changes(handler.clone()));
                 tokio::task::spawn_local(listen_exit_signals(handler.clone()));
                 tokio::task::spawn_local(suspend::listen_events(handler));
                 server.run().await;
@@ -100,6 +101,16 @@ async fn listen_exit_signals(handler: Handler) {
     .instrument(debug_span!("shutdown_cleanup"))
     .await;
     std::process::exit(0);
+}
+
+async fn listen_config_changes(handler: Handler) {
+    let mut rx = config::start_watcher();
+    while let Some(new_config) = rx.recv().await {
+        info!("config file was changed, reloading");
+        handler.config.replace(new_config);
+        handler.apply_current_config().await;
+        info!("configuration reloaded");
+    }
 }
 
 async fn ensure_sufficient_uptime() {
