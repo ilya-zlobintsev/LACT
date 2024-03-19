@@ -19,7 +19,6 @@ use lact_schema::{
     PciInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use pciid_parser::Database;
-use std::collections::BTreeMap;
 use std::{
     borrow::Cow,
     cell::RefCell,
@@ -29,6 +28,7 @@ use std::{
     str::FromStr,
     time::Duration,
 };
+use std::{collections::BTreeMap, time::Instant};
 use tokio::{
     select,
     sync::Notify,
@@ -425,6 +425,7 @@ impl GpuController {
         curve: FanCurve,
         temp_key: String,
         interval: Duration,
+        spindown_delay_ms: Option<u64>,
     ) -> anyhow::Result<()> {
         // Use the PMFW curve functionality when it is available
         // Otherwise, fall back to manual fan control via a task
@@ -442,7 +443,7 @@ impl GpuController {
                 Ok(())
             }
             Err(_) => {
-                self.start_curve_fan_control_task(curve, temp_key, interval)
+                self.start_curve_fan_control_task(curve, temp_key, interval, spindown_delay_ms)
                     .await
             }
         }
@@ -453,6 +454,7 @@ impl GpuController {
         curve: FanCurve,
         temp_key: String,
         interval: Duration,
+        spindown_delay_ms: Option<u64>,
     ) -> anyhow::Result<()> {
         // Stop existing task to re-apply new curve
         self.stop_fan_control(false).await?;
@@ -476,6 +478,9 @@ impl GpuController {
         let task_notify = notify.clone();
 
         let handle = tokio::task::spawn_local(async move {
+            let mut last_pwm = (None, Instant::now());
+            let spindown_delay = Duration::from_millis(spindown_delay_ms.unwrap_or(0));
+
             loop {
                 select! {
                     () = sleep(interval) => (),
@@ -486,7 +491,23 @@ impl GpuController {
                 let temp = temps
                     .remove(&temp_key)
                     .expect("Could not get temperature by given key");
+
                 let target_pwm = curve.pwm_at_temp(temp);
+                let now = Instant::now();
+
+                if let (Some(previous_pwm), previous_timestamp) = last_pwm {
+                    let diff = now - previous_timestamp;
+                    if target_pwm < previous_pwm && diff < spindown_delay {
+                        debug!(
+                            "delaying fan spindown ({}ms left)",
+                            (spindown_delay - diff).as_millis()
+                        );
+                        continue;
+                    }
+                }
+
+                last_pwm = (Some(target_pwm), now);
+
                 trace!("fan control tick: setting pwm to {target_pwm}");
 
                 if let Err(err) = hw_mon.set_fan_pwm(target_pwm) {
@@ -747,6 +768,7 @@ impl GpuController {
                             settings.curve.clone(),
                             settings.temperature_key.clone(),
                             interval,
+                            settings.spindown_delay_ms,
                         )
                         .await
                         .context("Failed to set curve fan control")?;

@@ -109,6 +109,7 @@ pub struct FanControlSettings {
     pub temperature_key: String,
     pub interval_ms: u64,
     pub curve: FanCurve,
+    pub spindown_delay_ms: Option<u64>,
 }
 
 impl Default for FanControlSettings {
@@ -119,6 +120,7 @@ impl Default for FanControlSettings {
             temperature_key: "edge".to_owned(),
             interval_ms: 500,
             curve: FanCurve(default_fan_curve()),
+            spindown_delay_ms: None,
         }
     }
 }
@@ -248,6 +250,7 @@ mod tests {
                         interval_ms: 500,
                         mode: FanControlMode::Curve,
                         static_speed: 0.5,
+                        spindown_delay_ms: None,
                     }),
                     ..Default::default()
                 },
