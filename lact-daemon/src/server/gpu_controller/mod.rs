@@ -2,7 +2,7 @@ pub mod fan_control;
 
 use self::fan_control::FanCurve;
 use super::vulkan::get_vulkan_info;
-use crate::config::{self, ClocksConfiguration};
+use crate::config::{self, ClocksConfiguration, FanControlSettings};
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
@@ -423,9 +423,7 @@ impl GpuController {
     async fn start_curve_fan_control(
         &self,
         curve: FanCurve,
-        temp_key: String,
-        interval: Duration,
-        spindown_delay_ms: Option<u64>,
+        settings: FanControlSettings,
     ) -> anyhow::Result<()> {
         // Use the PMFW curve functionality when it is available
         // Otherwise, fall back to manual fan control via a task
@@ -442,19 +440,14 @@ impl GpuController {
 
                 Ok(())
             }
-            Err(_) => {
-                self.start_curve_fan_control_task(curve, temp_key, interval, spindown_delay_ms)
-                    .await
-            }
+            Err(_) => self.start_curve_fan_control_task(curve, settings).await,
         }
     }
 
     async fn start_curve_fan_control_task(
         &self,
         curve: FanCurve,
-        temp_key: String,
-        interval: Duration,
-        spindown_delay_ms: Option<u64>,
+        settings: FanControlSettings,
     ) -> anyhow::Result<()> {
         // Stop existing task to re-apply new curve
         self.stop_fan_control(false).await?;
@@ -479,7 +472,13 @@ impl GpuController {
 
         let handle = tokio::task::spawn_local(async move {
             let mut last_pwm = (None, Instant::now());
-            let spindown_delay = Duration::from_millis(spindown_delay_ms.unwrap_or(0));
+            let mut last_temp = 0.0;
+
+            let temp_key = settings.temperature_key.clone();
+            let interval = Duration::from_millis(settings.interval_ms);
+            let spindown_delay = Duration::from_millis(settings.spindown_delay_ms.unwrap_or(0));
+            #[allow(clippy::cast_precision_loss)]
+            let change_threshold = settings.change_threshold.unwrap_or(0) as f32;
 
             loop {
                 select! {
@@ -492,13 +491,20 @@ impl GpuController {
                     .remove(&temp_key)
                     .expect("Could not get temperature by given key");
 
+                let current_temp = temp.current.expect("Missing temp");
+
+                if (last_temp - current_temp).abs() < change_threshold {
+                    trace!("temperature changed from {last_temp}°C to {current_temp}°C, which is less than the {change_threshold}°C threshold, skipping speed adjustment");
+                    continue;
+                }
+
                 let target_pwm = curve.pwm_at_temp(temp);
                 let now = Instant::now();
 
                 if let (Some(previous_pwm), previous_timestamp) = last_pwm {
                     let diff = now - previous_timestamp;
                     if target_pwm < previous_pwm && diff < spindown_delay {
-                        debug!(
+                        trace!(
                             "delaying fan spindown ({}ms left)",
                             (spindown_delay - diff).as_millis()
                         );
@@ -507,6 +513,7 @@ impl GpuController {
                 }
 
                 last_pwm = (Some(target_pwm), now);
+                last_temp = current_temp;
 
                 trace!("fan control tick: setting pwm to {target_pwm}");
 
@@ -522,7 +529,7 @@ impl GpuController {
 
         debug!(
             "started fan control with interval {}ms",
-            interval.as_millis()
+            settings.interval_ms
         );
 
         Ok(())
@@ -763,15 +770,9 @@ impl GpuController {
                             return Err(anyhow!("Cannot use empty fan curve"));
                         }
 
-                        let interval = Duration::from_millis(settings.interval_ms);
-                        self.start_curve_fan_control(
-                            settings.curve.clone(),
-                            settings.temperature_key.clone(),
-                            interval,
-                            settings.spindown_delay_ms,
-                        )
-                        .await
-                        .context("Failed to set curve fan control")?;
+                        self.start_curve_fan_control(settings.curve.clone(), settings.clone())
+                            .await
+                            .context("Failed to set curve fan control")?;
                     }
                 }
             } else {

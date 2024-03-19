@@ -110,6 +110,7 @@ pub struct FanControlSettings {
     pub interval_ms: u64,
     pub curve: FanCurve,
     pub spindown_delay_ms: Option<u64>,
+    pub change_threshold: Option<u64>,
 }
 
 impl Default for FanControlSettings {
@@ -121,6 +122,7 @@ impl Default for FanControlSettings {
             interval_ms: 500,
             curve: FanCurve(default_fan_curve()),
             spindown_delay_ms: None,
+            change_threshold: None,
         }
     }
 }
@@ -230,11 +232,10 @@ fn default_apply_settings_timer() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use lact_schema::{FanControlMode, PmfwOptions};
-    use std::collections::HashMap;
-
     use super::{ClocksConfiguration, Config, Daemon, FanControlSettings, Gpu};
     use crate::server::gpu_controller::fan_control::FanCurve;
+    use lact_schema::{FanControlMode, PmfwOptions};
+    use std::collections::HashMap;
 
     #[test]
     fn serde_de_full() {
@@ -250,7 +251,8 @@ mod tests {
                         interval_ms: 500,
                         mode: FanControlMode::Curve,
                         static_speed: 0.5,
-                        spindown_delay_ms: None,
+                        spindown_delay_ms: Some(5000),
+                        change_threshold: Some(3),
                     }),
                     ..Default::default()
                 },
