@@ -13,7 +13,7 @@ use gtk::glib::{timeout_future, ControlFlow};
 use gtk::{gio::ApplicationFlags, prelude::*, *};
 use header::Header;
 use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
-use lact_client::schema::GIT_COMMIT;
+use lact_client::schema::{FanOptions, GIT_COMMIT};
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
 use root_stack::RootStack;
@@ -408,16 +408,19 @@ impl App {
 
         if let Some(thermals_settings) = self.root_stack.thermals_page.get_thermals_settings() {
             debug!("applying thermal settings: {thermals_settings:?}");
+            let opts = FanOptions {
+                id: &gpu_id,
+                enabled: thermals_settings.manual_fan_control,
+                mode: thermals_settings.mode,
+                static_speed: thermals_settings.static_speed,
+                curve: thermals_settings.curve,
+                pmfw: thermals_settings.pmfw,
+                spindown_delay_ms: thermals_settings.spindown_delay_ms,
+                change_threshold: thermals_settings.change_threshold,
+            };
 
             self.daemon_client
-                .set_fan_control(
-                    &gpu_id,
-                    thermals_settings.manual_fan_control,
-                    thermals_settings.mode,
-                    thermals_settings.static_speed,
-                    thermals_settings.curve,
-                    thermals_settings.pmfw,
-                )
+                .set_fan_control(opts)
                 .context("Could not set fan control")?;
             self.daemon_client
                 .confirm_pending_config(ConfirmCommand::Confirm)

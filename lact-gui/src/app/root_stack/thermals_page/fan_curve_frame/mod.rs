@@ -1,6 +1,7 @@
 mod point_adjustment;
 
 use self::point_adjustment::PointAdjustment;
+use crate::app::root_stack::oc_adjustment::OcAdjustment;
 use glib::clone;
 use gtk::graphene::Point;
 use gtk::gsk::Transform;
@@ -11,11 +12,17 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
+const DEFAULT_CHANGE_THRESHOLD: u64 = 2;
+const DEFAULT_SPINDOWN_DELAY_MS: u64 = 5000;
+
 #[derive(Clone)]
 pub struct FanCurveFrame {
     pub container: Box,
     curve_container: Frame,
     points: Rc<RefCell<Vec<PointAdjustment>>>,
+    spindown_delay_adj: OcAdjustment,
+    change_threshold_adj: OcAdjustment,
+    hysteresis_grid: Grid,
 }
 
 impl FanCurveFrame {
@@ -68,15 +75,55 @@ impl FanCurveFrame {
 
         let points = Rc::new(RefCell::new(Vec::new()));
 
+        let hysteresis_grid = Grid::new();
+        hysteresis_grid.set_margin_top(10);
+
+        let spindown_delay_adj = oc_adjustment_row(
+            &hysteresis_grid,
+            0,
+            "Spindown delay",
+            "How long the GPU needs to remain at a lower temperature point for before ramping down the fan",
+            " ms",
+            OcAdjustmentOptions {
+                default: DEFAULT_SPINDOWN_DELAY_MS as f64,
+                min: 0.0,
+                max: 30_000.0,
+                step: 10.0,
+                digits: 0,
+            },
+        );
+
+        let change_threshold_adj = oc_adjustment_row(
+            &hysteresis_grid,
+            1,
+            "Speed change threshold",
+            "Hysteresis",
+            "°C",
+            OcAdjustmentOptions {
+                default: DEFAULT_CHANGE_THRESHOLD as f64,
+                min: 0.0,
+                max: 10.0,
+                step: 1.0,
+                digits: 0,
+            },
+        );
+
+        root_box.append(&hysteresis_grid);
+
         let curve_frame = Self {
             container: root_box,
             curve_container,
             points,
+            spindown_delay_adj: spindown_delay_adj.clone(),
+            change_threshold_adj: change_threshold_adj.clone(),
+            hysteresis_grid,
         };
 
         default_button.connect_clicked(clone!(@strong curve_frame => move |_| {
             let curve = default_fan_curve();
             curve_frame.set_curve(&curve);
+            spindown_delay_adj.set_value(DEFAULT_SPINDOWN_DELAY_MS as f64);
+            change_threshold_adj.set_value(DEFAULT_CHANGE_THRESHOLD as f64);
         }));
 
         add_button.connect_clicked(clone!(@strong curve_frame  => move |_| {
@@ -148,6 +195,15 @@ impl FanCurveFrame {
     }
 
     pub fn connect_adjusted<F: Fn() + 'static + Clone>(&self, f: F) {
+        self.change_threshold_adj
+            .connect_value_changed(clone!(@strong f => move |_| {
+                f();
+            }));
+        self.spindown_delay_adj
+            .connect_value_changed(clone!(@strong f => move |_| {
+                f();
+            }));
+
         let closure = clone!(@strong f => move |_: &Adjustment| {
             f();
         });
@@ -157,6 +213,101 @@ impl FanCurveFrame {
             point.temperature.connect_value_changed(closure.clone());
         }
     }
+
+    pub fn set_change_threshold(&self, value: Option<u64>) {
+        self.change_threshold_adj
+            .set_initial_value(value.unwrap_or(0) as f64);
+    }
+
+    pub fn set_spindown_delay_ms(&self, value: Option<u64>) {
+        self.spindown_delay_adj
+            .set_initial_value(value.unwrap_or(0) as f64);
+    }
+
+    pub fn get_change_threshold(&self) -> Option<u64> {
+        self.change_threshold_adj
+            .get_changed_value(false)
+            .map(|value| value as u64)
+    }
+
+    pub fn get_spindown_delay_ms(&self) -> Option<u64> {
+        self.spindown_delay_adj
+            .get_changed_value(false)
+            .map(|value| value as u64)
+    }
+
+    pub fn set_hysteresis_settings_visibile(&self, visible: bool) {
+        self.hysteresis_grid.set_visible(visible);
+    }
+}
+
+struct OcAdjustmentOptions {
+    default: f64,
+    min: f64,
+    max: f64,
+    step: f64,
+    digits: i32,
+}
+
+fn oc_adjustment_row(
+    grid: &Grid,
+    row: i32,
+    label: &str,
+    tooltip: &str,
+    unit: &'static str,
+    opts: OcAdjustmentOptions,
+) -> OcAdjustment {
+    let label = Label::builder()
+        .label(label)
+        .halign(Align::Start)
+        .tooltip_text(tooltip)
+        .build();
+    let adjustment = OcAdjustment::new(
+        opts.default,
+        opts.min,
+        opts.max,
+        opts.step,
+        opts.step,
+        opts.step,
+    );
+
+    let scale = Scale::builder()
+        .orientation(Orientation::Horizontal)
+        .adjustment(&adjustment)
+        .hexpand(true)
+        .round_digits(opts.digits)
+        .digits(opts.digits)
+        .value_pos(PositionType::Right)
+        .margin_start(5)
+        .margin_end(5)
+        .build();
+
+    let value_selector = SpinButton::new(Some(&adjustment), opts.step, opts.digits as u32);
+
+    let value_label = Label::new(Some(&format!("{}{unit}", opts.default)));
+
+    let popover = Popover::builder().child(&value_selector).build();
+    let value_button = MenuButton::builder()
+        .popover(&popover)
+        .child(&value_label)
+        .build();
+
+    adjustment.connect_value_changed(clone!(@strong value_label => move |adjustment| {
+        let value = match opts.digits {
+            0 => adjustment.value().round(),
+            _ => {
+                let rounding = opts.digits as f64 * 10.0;
+                (adjustment.value() * rounding).round() / rounding
+            }
+        };
+        value_label.set_text(&format!("{value}{unit}"));
+    }));
+
+    grid.attach(&label, 0, row, 1, 1);
+    grid.attach(&scale, 1, row, 4, 1);
+    grid.attach(&value_button, 6, row, 4, 1);
+
+    adjustment
 }
 
 #[cfg(all(test, feature = "gtk-tests"))]

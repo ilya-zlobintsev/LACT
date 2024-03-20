@@ -197,6 +197,8 @@ pub struct FanStats {
     pub speed_current: Option<u32>,
     pub speed_max: Option<u32>,
     pub speed_min: Option<u32>,
+    pub spindown_delay_ms: Option<u64>,
+    pub change_threshold: Option<u64>,
     // RDNA3+ params
     #[serde(default)]
     pub pmfw_info: PmfwInfo,
@@ -272,4 +274,18 @@ pub struct PmfwOptions {
     pub acoustic_target: Option<u32>,
     pub minimum_pwm: Option<u32>,
     pub target_temperature: Option<u32>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct FanOptions<'a> {
+    pub id: &'a str,
+    pub enabled: bool,
+    pub mode: Option<FanControlMode>,
+    pub static_speed: Option<f64>,
+    pub curve: Option<FanCurveMap>,
+    #[serde(default)]
+    pub pmfw: PmfwOptions,
+    pub spindown_delay_ms: Option<u64>,
+    pub change_threshold: Option<u64>,
 }

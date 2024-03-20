@@ -250,20 +250,17 @@ impl GpuController {
     }
 
     pub fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
+        let fan_settings = gpu_config.and_then(|config| config.fan_control_settings.as_ref());
         DeviceStats {
             fan: FanStats {
                 control_enabled: gpu_config
                     .map(|config| config.fan_control_enabled)
                     .unwrap_or_default(),
-                control_mode: gpu_config
-                    .and_then(|config| config.fan_control_settings.as_ref())
-                    .map(|settings| settings.mode),
-                static_speed: gpu_config
-                    .and_then(|config| config.fan_control_settings.as_ref())
-                    .map(|settings| settings.static_speed),
-                curve: gpu_config
-                    .and_then(|config| config.fan_control_settings.as_ref())
-                    .map(|settings| settings.curve.0.clone()),
+                control_mode: fan_settings.map(|settings| settings.mode),
+                static_speed: fan_settings.map(|settings| settings.static_speed),
+                curve: fan_settings.map(|settings| settings.curve.0.clone()),
+                spindown_delay_ms: fan_settings.and_then(|settings| settings.spindown_delay_ms),
+                change_threshold: fan_settings.and_then(|settings| settings.change_threshold),
                 speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
                 speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
                 speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
@@ -470,6 +467,7 @@ impl GpuController {
         let notify = Rc::new(Notify::new());
         let task_notify = notify.clone();
 
+        debug!("spawning new fan control task");
         let handle = tokio::task::spawn_local(async move {
             let mut last_pwm = (None, Instant::now());
             let mut last_temp = 0.0;
