@@ -224,16 +224,12 @@ impl FanCurveFrame {
             .set_initial_value(value.unwrap_or(0) as f64);
     }
 
-    pub fn get_change_threshold(&self) -> Option<u64> {
-        self.change_threshold_adj
-            .get_changed_value(false)
-            .map(|value| value as u64)
+    pub fn get_change_threshold(&self) -> u64 {
+        self.change_threshold_adj.value() as u64
     }
 
-    pub fn get_spindown_delay_ms(&self) -> Option<u64> {
-        self.spindown_delay_adj
-            .get_changed_value(false)
-            .map(|value| value as u64)
+    pub fn get_spindown_delay_ms(&self) -> u64 {
+        self.spindown_delay_adj.value() as u64
     }
 
     pub fn set_hysteresis_settings_visibile(&self, visible: bool) {

@@ -257,8 +257,8 @@ impl ThermalsPage {
                 static_speed,
                 curve,
                 pmfw,
-                change_threshold: self.fan_curve_frame.get_change_threshold(),
-                spindown_delay_ms: self.fan_curve_frame.get_spindown_delay_ms(),
+                change_threshold: Some(self.fan_curve_frame.get_change_threshold()),
+                spindown_delay_ms: Some(self.fan_curve_frame.get_spindown_delay_ms()),
             })
         } else {
             None
