@@ -11,7 +11,7 @@ use anyhow::{anyhow, Context};
 use lact_schema::{
     default_fan_curve,
     request::{ConfirmCommand, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
     PowerStates,
 };
 use libflate::gzip;
@@ -270,40 +270,35 @@ impl<'a> Handler {
         self.controller_by_id(id)?.get_clocks_info()
     }
 
-    pub async fn set_fan_control(
-        &'a self,
-        id: &str,
-        enabled: bool,
-        mode: Option<FanControlMode>,
-        static_speed: Option<f64>,
-        curve: Option<FanCurveMap>,
-        pmfw: PmfwOptions,
-    ) -> anyhow::Result<u64> {
+    pub async fn set_fan_control(&'a self, opts: FanOptions<'_>) -> anyhow::Result<u64> {
         let settings = {
             let mut config_guard = self
                 .config
                 .try_borrow_mut()
                 .map_err(|err| anyhow!("{err}"))?;
-            let gpu_config = config_guard.gpus.entry(id.to_owned()).or_default();
+            let gpu_config = config_guard.gpus.entry(opts.id.to_owned()).or_default();
 
-            match mode {
+            match opts.mode {
                 Some(mode) => match mode {
                     FanControlMode::Static => {
-                        if matches!(static_speed, Some(speed) if !(0.0..=1.0).contains(&speed)) {
+                        if matches!(opts.static_speed, Some(speed) if !(0.0..=1.0).contains(&speed))
+                        {
                             return Err(anyhow!("static speed value out of range"));
                         }
 
                         if let Some(mut existing_settings) = gpu_config.fan_control_settings.clone()
                         {
                             existing_settings.mode = mode;
-                            if let Some(static_speed) = static_speed {
+                            if let Some(static_speed) = opts.static_speed {
                                 existing_settings.static_speed = static_speed;
                             }
                             Some(existing_settings)
                         } else {
                             Some(FanControlSettings {
                                 mode,
-                                static_speed: static_speed.unwrap_or_else(default_fan_static_speed),
+                                static_speed: opts
+                                    .static_speed
+                                    .unwrap_or_else(default_fan_static_speed),
                                 ..Default::default()
                             })
                         }
@@ -312,18 +307,27 @@ impl<'a> Handler {
                         if let Some(mut existing_settings) = gpu_config.fan_control_settings.clone()
                         {
                             existing_settings.mode = mode;
-                            if let Some(raw_curve) = curve {
+                            if let Some(change_threshold) = opts.change_threshold {
+                                existing_settings.change_threshold = Some(change_threshold);
+                            }
+                            if let Some(spindown_delay) = opts.spindown_delay_ms {
+                                existing_settings.spindown_delay_ms = Some(spindown_delay);
+                            }
+
+                            if let Some(raw_curve) = opts.curve {
                                 let curve = FanCurve(raw_curve);
                                 curve.validate()?;
                                 existing_settings.curve = curve;
                             }
                             Some(existing_settings)
                         } else {
-                            let curve = FanCurve(curve.unwrap_or_else(default_fan_curve));
+                            let curve = FanCurve(opts.curve.unwrap_or_else(default_fan_curve));
                             curve.validate()?;
                             Some(FanControlSettings {
                                 mode,
                                 curve,
+                                change_threshold: opts.change_threshold,
+                                spindown_delay_ms: opts.spindown_delay_ms,
                                 ..Default::default()
                             })
                         }
@@ -333,12 +337,12 @@ impl<'a> Handler {
             }
         };
 
-        self.edit_gpu_config(id.to_owned(), |config| {
-            config.fan_control_enabled = enabled;
+        self.edit_gpu_config(opts.id.to_owned(), |config| {
+            config.fan_control_enabled = opts.enabled;
             if let Some(settings) = settings {
                 config.fan_control_settings = Some(settings);
             }
-            config.pmfw_options = pmfw;
+            config.pmfw_options = opts.pmfw;
         })
         .await
         .context("Failed to edit GPU config")

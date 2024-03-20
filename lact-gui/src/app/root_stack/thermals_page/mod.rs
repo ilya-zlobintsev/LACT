@@ -5,7 +5,7 @@ use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{
-    default_fan_curve, DeviceInfo, DeviceStats, FanControlMode, FanCurveMap, PmfwOptions,
+    default_fan_curve, DeviceInfo, DeviceStats, FanControlMode, FanCurveMap, PmfwInfo, PmfwOptions,
     SystemInfo,
 };
 use lact_daemon::AMDGPU_FAMILY_GC_11_0_0;
@@ -25,6 +25,8 @@ pub struct ThermalsSettings {
     pub static_speed: Option<f64>,
     pub curve: Option<FanCurveMap>,
     pub pmfw: PmfwOptions,
+    pub spindown_delay_ms: Option<u64>,
+    pub change_threshold: Option<u64>,
 }
 
 #[derive(Clone)]
@@ -195,6 +197,15 @@ impl ThermalsPage {
                 self.fan_curve_frame.set_curve(curve);
             }
 
+            self.fan_curve_frame
+                .set_spindown_delay_ms(stats.fan.spindown_delay_ms);
+            self.fan_curve_frame
+                .set_change_threshold(stats.fan.change_threshold);
+
+            // Only show hysteresis settings when PMFW is not used
+            self.fan_curve_frame
+                .set_hysteresis_settings_visibile(stats.fan.pmfw_info == PmfwInfo::default());
+
             if !stats.fan.control_enabled && self.fan_curve_frame.get_curve().is_empty() {
                 self.fan_curve_frame.set_curve(&default_fan_curve());
             }
@@ -246,6 +257,8 @@ impl ThermalsPage {
                 static_speed,
                 curve,
                 pmfw,
+                change_threshold: Some(self.fan_curve_frame.get_change_threshold()),
+                spindown_delay_ms: Some(self.fan_curve_frame.get_spindown_delay_ms()),
             })
         } else {
             None

@@ -1,4 +1,4 @@
-use crate::{FanControlMode, FanCurveMap, PmfwOptions};
+use crate::FanOptions;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use serde::{Deserialize, Serialize};
 
@@ -20,15 +20,7 @@ pub enum Request<'a> {
     DevicePowerProfileModes {
         id: &'a str,
     },
-    SetFanControl {
-        id: &'a str,
-        enabled: bool,
-        mode: Option<FanControlMode>,
-        static_speed: Option<f64>,
-        curve: Option<FanCurveMap>,
-        #[serde(default)]
-        pmfw: PmfwOptions,
-    },
+    SetFanControl(FanOptions<'a>),
     ResetPmfw {
         id: &'a str,
     },

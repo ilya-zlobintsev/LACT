@@ -12,7 +12,7 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{UnixListener, UnixStream},
 };
-use tracing::{debug, error, instrument};
+use tracing::{error, instrument, trace};
 
 pub struct Server {
     pub handler: Handler,
@@ -52,7 +52,7 @@ pub async fn handle_stream(stream: UnixStream, handler: Handler) -> anyhow::Resu
 
     let mut buf = String::new();
     while stream.read_line(&mut buf).await? != 0 {
-        debug!("handling request: {}", buf.trim_end());
+        trace!("handling request: {}", buf.trim_end());
 
         let maybe_request = serde_json::from_str(&buf);
         let response = match maybe_request {
@@ -86,18 +86,7 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::DevicePowerProfileModes { id } => {
             ok_response(handler.get_power_profile_modes(id)?)
         }
-        Request::SetFanControl {
-            id,
-            enabled,
-            mode,
-            static_speed,
-            curve,
-            pmfw,
-        } => ok_response(
-            handler
-                .set_fan_control(id, enabled, mode, static_speed, curve, pmfw)
-                .await?,
-        ),
+        Request::SetFanControl(opts) => ok_response(handler.set_fan_control(opts).await?),
         Request::ResetPmfw { id } => ok_response(handler.reset_pmfw(id).await?),
         Request::SetPowerCap { id, cap } => ok_response(handler.set_power_cap(id, cap).await?),
         Request::SetPerformanceLevel {
@@ -127,7 +116,7 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
 }
 
 fn ok_response<T: Serialize + Debug>(data: T) -> anyhow::Result<Vec<u8>> {
-    debug!("responding with {data:?}");
+    trace!("responding with {data:?}");
     Ok(serde_json::to_vec(&Response::Ok(data))?)
 }
 
