@@ -106,6 +106,7 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::SetEnabledPowerStates { id, kind, states } => {
             ok_response(handler.set_enabled_power_states(id, kind, states).await?)
         }
+        Request::VbiosDump { id } => ok_response(handler.vbios_dump(id)?),
         Request::EnableOverdrive => ok_response(system::enable_overdrive()?),
         Request::DisableOverdrive => ok_response(system::disable_overdrive()?),
         Request::GenerateSnapshot => ok_response(handler.generate_snapshot()?),

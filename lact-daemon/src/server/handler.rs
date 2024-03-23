@@ -463,6 +463,10 @@ impl<'a> Handler {
         .context("Failed to edit GPU config and set enabled power states")
     }
 
+    pub fn vbios_dump(&self, id: &str) -> anyhow::Result<Vec<u8>> {
+        self.controller_by_id(id)?.vbios_dump()
+    }
+
     pub fn generate_snapshot(&self) -> anyhow::Result<String> {
         let datetime = chrono::Local::now().format("%Y%m%d-%H%M%S");
         let out_path = format!("/tmp/LACT-sysfs-snapshot-{datetime}.tar.gz");
