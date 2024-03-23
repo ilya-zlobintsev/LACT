@@ -28,7 +28,8 @@ use std::{
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     rc::Rc,
-    time::Duration,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
 };
 use tokio::{sync::oneshot, time::sleep};
 use tracing::{debug, error, info, trace, warn};
@@ -77,6 +78,7 @@ pub struct Handler {
     pub config: Rc<RefCell<Config>>,
     pub gpu_controllers: Rc<BTreeMap<String, GpuController>>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
+    pub config_last_applied: Arc<Mutex<Instant>>,
 }
 
 impl<'a> Handler {
@@ -101,6 +103,7 @@ impl<'a> Handler {
             gpu_controllers: Rc::new(controllers),
             config: Rc::new(RefCell::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
+            config_last_applied: Arc::new(Mutex::new(Instant::now())),
         };
         handler.apply_current_config().await;
 
@@ -116,6 +119,8 @@ impl<'a> Handler {
 
     pub async fn apply_current_config(&self) {
         let config = self.config.borrow().clone(); // Clone to avoid locking the RwLock on an await point
+
+        *self.config_last_applied.lock().unwrap() = Instant::now();
 
         for (id, gpu_config) in &config.gpus {
             if let Some(controller) = self.gpu_controllers.get(id) {
@@ -206,6 +211,7 @@ impl<'a> Handler {
                     match result {
                         Ok(ConfirmCommand::Confirm) => {
                             info!("saving updated config");
+                            *handler.config_last_applied.lock().unwrap() = Instant::now();
 
                             let mut config_guard = handler.config.borrow_mut();
                             config_guard.gpus.insert(id, new_config);

@@ -253,9 +253,7 @@ impl GpuController {
         let fan_settings = gpu_config.and_then(|config| config.fan_control_settings.as_ref());
         DeviceStats {
             fan: FanStats {
-                control_enabled: gpu_config
-                    .map(|config| config.fan_control_enabled)
-                    .unwrap_or_default(),
+                control_enabled: gpu_config.is_some_and(|config| config.fan_control_enabled),
                 control_mode: fan_settings.map(|settings| settings.mode),
                 static_speed: fan_settings.map(|settings| settings.static_speed),
                 curve: fan_settings.map(|settings| settings.curve.0.clone()),

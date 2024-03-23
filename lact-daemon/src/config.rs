@@ -6,7 +6,13 @@ use nix::unistd::getuid;
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use std::{collections::HashMap, env, fs, path::PathBuf};
+use std::{
+    collections::HashMap,
+    env, fs,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 use tokio::sync::mpsc;
 use tracing::{debug, error};
 
@@ -164,7 +170,7 @@ impl Config {
     }
 }
 
-pub fn start_watcher() -> mpsc::UnboundedReceiver<Config> {
+pub fn start_watcher(config_last_applied: Arc<Mutex<Instant>>) -> mpsc::UnboundedReceiver<Config> {
     let (config_tx, config_rx) = mpsc::unbounded_channel();
     let (event_tx, event_rx) = std::sync::mpsc::channel();
 
@@ -185,6 +191,12 @@ pub fn start_watcher() -> mpsc::UnboundedReceiver<Config> {
             match res {
                 Ok(event) => {
                     use notify::EventKind;
+
+                    let elapsed = config_last_applied.lock().unwrap().elapsed();
+                    if elapsed < Duration::from_millis(50) {
+                        debug!("config was applied very recently, skipping fs event");
+                        continue;
+                    }
 
                     if !event.paths.contains(&config_path) {
                         continue;

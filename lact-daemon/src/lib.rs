@@ -104,7 +104,7 @@ async fn listen_exit_signals(handler: Handler) {
 }
 
 async fn listen_config_changes(handler: Handler) {
-    let mut rx = config::start_watcher();
+    let mut rx = config::start_watcher(handler.config_last_applied.clone());
     while let Some(new_config) = rx.recv().await {
         info!("config file was changed, reloading");
         handler.config.replace(new_config);
