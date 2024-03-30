@@ -693,16 +693,6 @@ impl GpuController {
             }
         }
 
-        if let Some(level) = config.performance_level {
-            self.handle
-                .set_power_force_performance_level(level)
-                .context("Failed to set power performance level")?;
-        } else if self.handle.get_power_force_performance_level().is_ok() {
-            self.handle
-                .set_power_force_performance_level(PerformanceLevel::Auto)
-                .context("Failed to set performance level to PerformanceLevel::Auto")?;
-        }
-
         if let Some(mode_index) = config.power_profile_mode_index {
             if config.performance_level != Some(PerformanceLevel::Manual) {
                 return Err(anyhow!(
@@ -739,6 +729,21 @@ impl GpuController {
                 .set_clocks_table(&table)
                 .context("Could not write clocks table")
                 .with_context(|| format!("Clocks table commands: {:?}", table.get_commands()))?;
+        }
+
+        let current_performance_level = self.handle.get_power_force_performance_level();
+        if let Some(level) = config.performance_level {
+            if current_performance_level != Ok(level) {
+                self.handle
+                    .set_power_force_performance_level(level)
+                    .context("Failed to set power performance level")?;
+            }
+        } else if current_performance_level.is_ok()
+            && current_performance_level != Ok(PerformanceLevel::Auto)
+        {
+            self.handle
+                .set_power_force_performance_level(PerformanceLevel::Auto)
+                .context("Failed to set performance level to PerformanceLevel::Auto")?;
         }
 
         for (kind, states) in &config.power_states {
