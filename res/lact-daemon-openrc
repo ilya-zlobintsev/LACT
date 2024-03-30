@@ -1,4 +1,4 @@
-#!/usr/bin/openrc-run
+#!/sbin/openrc-run
 
 # This service allows running LACT with Artix Linux OpenRC.
 # Place it under /etc/init.d and make it executable.
