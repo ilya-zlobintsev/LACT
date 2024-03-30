@@ -708,6 +708,11 @@ impl GpuController {
         // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
         self.handle.reset_clocks_table().ok();
 
+        // Reset performance level to work around some GPU quirks (found to be an issue on RDNA2)
+        self.handle
+            .set_power_force_performance_level(PerformanceLevel::Auto)
+            .ok();
+
         if config.is_core_clocks_used() {
             let mut table = self
                 .handle
@@ -731,20 +736,12 @@ impl GpuController {
                 .with_context(|| format!("Clocks table commands: {:?}", table.get_commands()))?;
         }
 
-        let current_performance_level = self.handle.get_power_force_performance_level();
         if let Some(level) = config.performance_level {
-            if current_performance_level != Ok(level) {
-                self.handle
-                    .set_power_force_performance_level(level)
-                    .context("Failed to set power performance level")?;
-            }
-        } else if current_performance_level.is_ok()
-            && current_performance_level != Ok(PerformanceLevel::Auto)
-        {
             self.handle
-                .set_power_force_performance_level(PerformanceLevel::Auto)
-                .context("Failed to set performance level to PerformanceLevel::Auto")?;
+                .set_power_force_performance_level(level)
+                .context("Failed to set power performance level")?;
         }
+        // Else is not needed, it was previously reset to auto already
 
         for (kind, states) in &config.power_states {
             if config.performance_level != Some(PerformanceLevel::Manual) {
