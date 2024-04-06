@@ -1,0 +1,18 @@
+using Gtk 4.0;
+
+template $GraphsWindow: Window {
+  default-height: 300;
+  default-width: 600;
+
+  Box {
+      orientation: horizontal;
+      spacing: 10;
+
+      $Plot plot {
+          title: "Temperatures";
+          hexpand: true;
+          height-request: 300;
+          values_json: bind template.plot_values_json;
+      }
+  }
+}

@@ -24,13 +24,10 @@ impl CubicSplineSegment {
     }
 }
 
+pub type TimePeriod = (DateTime<Local>, DateTime<Local>);
+
 // Define a function to perform cubic spline interpolation
-pub fn cubic_spline_interpolation<'a, I>(
-    iter: I,
-) -> Vec<(
-    (&'a DateTime<Local>, &'a DateTime<Local>),
-    CubicSplineSegment,
-)>
+pub fn cubic_spline_interpolation<'a, I>(iter: I) -> Vec<(TimePeriod, CubicSplineSegment)>
 where
     I: IntoIterator<Item = (&'a DateTime<Local>, &'a f64)> + 'a,
 {
@@ -86,7 +83,7 @@ where
         .tuple_windows::<(_, _)>()
         // Get first time, second time and their corresponding interpolation segment
         .map(|(((first_time, _), segment), ((second_time, _), _))| {
-            ((*first_time, *second_time), segment)
+            ((**first_time, **second_time), segment)
         })
         .collect()
 }

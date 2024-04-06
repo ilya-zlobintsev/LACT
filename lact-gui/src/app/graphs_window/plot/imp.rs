@@ -4,15 +4,14 @@ use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use itertools::Itertools;
+use plotters::coord::combinators::WithKeyPoints;
+use plotters::prelude::*;
 use plotters::style::colors::full_palette::DEEPORANGE_100;
+use plotters_cairo::CairoBackend;
 use serde::Deserialize;
 use serde::Serialize;
 use std::cell::RefCell;
-
 use std::collections::BTreeMap;
-
-use plotters::prelude::*;
-use plotters_cairo::CairoBackend;
 use tracing::error;
 
 use chrono::TimeDelta;
@@ -20,9 +19,11 @@ use std::cmp::max;
 
 use super::cubic_spline::cubic_spline_interpolation;
 
-#[derive(Default, Properties)]
+#[derive(Properties, Default)]
 #[properties(wrapper_type = super::Plot)]
 pub struct Plot {
+    #[property(get, set)]
+    title: RefCell<String>,
     #[property(get, set)]
     values_json: RefCell<String>,
 }
@@ -174,17 +175,26 @@ impl Plot {
             .x_label_area_size(40)
             .y_label_area_size(80)
             .margin(20)
+            .caption(self.title.borrow().as_str(), ("sans-serif", 30))
             .build_cartesian_2d(
                 start_date..max(end_date, start_date + TimeDelta::seconds(60)),
                 0f64..maximum_value,
+                // (0f64..maximum_value)
+                //     .with_key_point_func(|n| {
+                //         (0..10)
+                //             .map(|x| maximum_value.round() / 10.0 * x as f64)
+                //             .collect()
+                //     })
+                //     .into_segmented(),
             )?;
 
         chart
             .configure_mesh()
             .x_label_formatter(&|date_time| date_time.format("%H:%M:%S").to_string())
+            .y_label_formatter(&|x| format!("{x}°C"))
             .x_labels(5)
             .y_labels(5)
-            .label_style(("sans-serif", 10.percent_height()))
+            .label_style(("sans-serif", 30))
             .draw()
             .context("Failed to draw mesh")?;
 
@@ -196,11 +206,11 @@ impl Plot {
                     .group_by(|(_, _, point)| *point)
                     .into_iter()
                     // Filter only when throttling is enabled
-                    .filter_map(|(point, group_iter)| point.then(move || group_iter))
+                    .filter_map(|(point, group_iter)| point.then_some(group_iter))
                     // Get last and first times
                     .filter_map(|mut group_iter| {
                         let first = group_iter.next()?;
-                        Some((first, group_iter.last().unwrap_or(first.clone())))
+                        Some((first, group_iter.last().unwrap_or(first)))
                     })
                     // Filter out redundant data
                     .map(|((start, name, _), (end, _, _))| ((start, end), name))
@@ -220,37 +230,36 @@ impl Plot {
                 .draw_series(LineSeries::new(
                     cubic_spline_interpolation(data.iter())
                         .into_iter()
-                        .filter_map(|((first_time, second_time), segment)| {
-                            let mut current_date = *first_time;
+                        .flat_map(|((first_time, second_time), segment)| {
+                            let mut current_date = first_time;
 
                             let mut result = vec![];
-                            while current_date < *second_time {
+                            while current_date < second_time {
                                 result.push((current_date, segment.evaluate(&current_date)));
 
                                 // Interpolate in intervals of one millisecond
                                 current_date += TimeDelta::milliseconds(1);
                             }
 
-                            Some(result.into_iter())
-                        })
-                        .flatten(),
+                            result
+                        }),
                     Palette99::pick(idx).stroke_width(1),
                 ))
                 .context("Failed to draw series")?
                 .label(caption)
                 .legend(move |(x, y)| {
+                    // Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], Palette9999::pick(idx))
                     Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], Palette99::pick(idx))
                 });
         }
 
         chart
             .configure_series_labels()
-            .margin(10)
-            .legend_area_size(30)
-            .label_font(("sans-serif", 10.percent_height()))
-            .position(SeriesLabelPosition::LowerLeft)
+            .margin(30)
+            .label_font(("sans-serif", 30))
+            .position(SeriesLabelPosition::LowerRight)
             .background_style(WHITE.mix(0.8))
-            .border_style(TRANSPARENT)
+            .border_style(BLACK)
             .draw()
             .context("Failed to draw series labels")?;
 

@@ -23,6 +23,10 @@ impl Header {
 
         let menu = gio::Menu::new();
         menu.append(
+            Some("Show historical graphs"),
+            Some("app.show-graphs-window"),
+        );
+        menu.append(
             Some("Generate debug snapshot"),
             Some("app.generate-debug-snapshot"),
         );

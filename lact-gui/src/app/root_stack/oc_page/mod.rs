@@ -3,7 +3,6 @@ mod gpu_stats_section;
 mod performance_frame;
 mod power_cap_section;
 // mod power_cap_frame;
-mod plot;
 mod power_states;
 
 use self::power_cap_section::PowerCapSection;

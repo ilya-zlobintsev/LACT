@@ -1,9 +1,11 @@
 mod apply_revealer;
+mod graphs_window;
 mod header;
 mod info_row;
 mod page_section;
 mod root_stack;
 
+use self::graphs_window::GraphsWindow;
 use crate::{create_connection, APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::ApplyRevealer;
@@ -34,6 +36,7 @@ pub struct App {
     root_stack: RootStack,
     apply_revealer: ApplyRevealer,
     daemon_client: DaemonClient,
+    graphs_window: GraphsWindow,
 }
 
 impl App {
@@ -78,6 +81,8 @@ impl App {
 
         window.set_child(Some(&root_box));
 
+        let graphs_window = GraphsWindow::new();
+
         App {
             application,
             window,
@@ -85,6 +90,7 @@ impl App {
             root_stack,
             apply_revealer,
             daemon_client,
+            graphs_window,
         }
     }
 
@@ -178,11 +184,17 @@ impl App {
 
                 let disable_overdive_action = ActionEntry::builder("disable-overdrive")
                     .activate(clone!(@strong app => move |_, _, _| {
-                        app.disable_overclocking()
+                        app.disable_overclocking();
                     }))
                     .build();
 
-                app.application.add_action_entries([snapshot_action, disable_overdive_action]);
+                let show_graphs_window_action = ActionEntry::builder("show-graphs-window")
+                    .activate(clone!(@strong app => move |_, _, _| {
+                        app.graphs_window.show();
+                    }))
+                    .build();
+
+                app.application.add_action_entries([snapshot_action, disable_overdive_action, show_graphs_window_action]);
 
                 app.start_stats_update_loop(current_gpu_id);
 
@@ -265,6 +277,7 @@ impl App {
         self.root_stack.oc_page.set_stats(&stats, true);
         self.root_stack.thermals_page.set_stats(&stats, true);
         self.root_stack.info_page.set_stats(&stats);
+        self.graphs_window.clear();
 
         let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(gpu_id) {
             Ok(clocks_buf) => match clocks_buf.inner() {
@@ -334,7 +347,7 @@ impl App {
     fn start_stats_update_loop(&self, current_gpu_id: Rc<RefCell<String>>) {
         // The loop that gets stats
         glib::spawn_future_local(
-            clone!(@strong self.daemon_client as daemon_client, @strong self.root_stack as root_stack => async move {
+            clone!(@strong self.daemon_client as daemon_client, @strong self.root_stack as root_stack, @strong self.graphs_window as graphs_window => async move {
                 loop {
                     {
                         let gpu_id = current_gpu_id.borrow();
@@ -348,6 +361,7 @@ impl App {
                                 root_stack.info_page.set_stats(&stats);
                                 root_stack.thermals_page.set_stats(&stats, false);
                                 root_stack.oc_page.set_stats(&stats, false);
+                                graphs_window.set_stats(&stats);
                             }
                             Err(err) => {
                                 error!("Could not fetch stats: {err}");
