@@ -9,6 +9,7 @@ use plotters::style::colors::full_palette::DEEPORANGE_100;
 use plotters_cairo::CairoBackend;
 use serde::Deserialize;
 use serde::Serialize;
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::cmp::max;
 use std::collections::BTreeMap;
@@ -23,6 +24,8 @@ pub struct Plot {
     values_json: RefCell<String>,
     #[property(get, set)]
     value_suffix: RefCell<String>,
+    #[property(get, set)]
+    y_label_area_size: Cell<u32>,
 }
 
 #[glib::object_subclass]
@@ -173,7 +176,7 @@ impl Plot {
 
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(40)
-            .y_label_area_size(80)
+            .y_label_area_size(self.y_label_area_size.get())
             .margin(20)
             .caption(self.title.borrow().as_str(), ("sans-serif", 30))
             .build_cartesian_2d(

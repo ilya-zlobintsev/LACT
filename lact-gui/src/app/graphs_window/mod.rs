@@ -19,12 +19,16 @@ impl GraphsWindow {
     }
 
     pub fn set_stats(&self, stats: &DeviceStats) {
-        let mut plot = self.plot_values();
+        let mut temperature_plot = self.temperature_plot_values();
+        let mut clockspeed_plot = self.clockspeed_plot_values();
 
+        let throttling_plots = [&mut temperature_plot, &mut clockspeed_plot];
         match &stats.throttle_info {
             Some(throttle_info) => {
                 if throttle_info.is_empty() {
-                    plot.push_throttling("No", false);
+                    for plot in throttling_plots {
+                        plot.push_throttling("No", false);
+                    }
                 } else {
                     let type_text: Vec<String> = throttle_info
                         .iter()
@@ -34,35 +38,59 @@ impl GraphsWindow {
                         .collect();
 
                     let text = type_text.join(", ");
-                    plot.push_throttling(&text, true);
+
+                    for plot in throttling_plots {
+                        plot.push_throttling(&text, true);
+                    }
                 }
             }
             None => {
-                plot.push_throttling("Unknown", false);
+                for plot in throttling_plots {
+                    plot.push_throttling("Unknown", false);
+                }
             }
         }
 
         for (name, value) in &stats.temps {
-            plot.push_line_series(name, value.current.unwrap_or(0.0) as f64);
+            temperature_plot.push_line_series(name, value.current.unwrap_or(0.0) as f64);
         }
 
-        // plot.push_line_series("GPU Usage", stats.busy_percent.unwrap_or_default() as f64);
-        plot.trim_data(GRAPH_WIDTH_SECONDS);
+        temperature_plot.trim_data(GRAPH_WIDTH_SECONDS);
 
-        self.set_plot_values(&plot);
+        if let Some(point) = stats.clockspeed.gpu_clockspeed {
+            clockspeed_plot.push_line_series("GPU (Avg)", point as f64);
+        }
+        if let Some(point) = stats.clockspeed.current_gfxclk {
+            clockspeed_plot.push_line_series("GPU (Trgt)", point as f64);
+        }
+        if let Some(point) = stats.clockspeed.vram_clockspeed {
+            clockspeed_plot.push_line_series("VRAM", point as f64);
+        }
+
+        self.set_temperature_plot_values(&temperature_plot);
+        self.set_clockspeed_plot_values(&clockspeed_plot);
     }
 
     pub fn clear(&self) {
-        self.set_plot_values(&PlotData::default());
+        self.set_temperature_plot_values(&PlotData::default());
+        self.set_clockspeed_plot_values(&PlotData::default());
     }
 
     // TODO: Figure out better way to send data to plot widget
-    fn set_plot_values(&self, value: &PlotData) {
-        self.set_plot_values_json(serde_json::to_string(value).unwrap());
+    fn set_temperature_plot_values(&self, value: &PlotData) {
+        self.set_temperature_plot_values_json(serde_json::to_string(value).unwrap());
     }
 
-    fn plot_values(&self) -> PlotData {
-        serde_json::from_str(&self.plot_values_json()).unwrap_or_default()
+    fn set_clockspeed_plot_values(&self, value: &PlotData) {
+        self.set_clockspeed_plot_values_json(serde_json::to_string(value).unwrap());
+    }
+
+    fn temperature_plot_values(&self) -> PlotData {
+        serde_json::from_str(&self.temperature_plot_values_json()).unwrap_or_default()
+    }
+
+    fn clockspeed_plot_values(&self) -> PlotData {
+        serde_json::from_str(&self.clockspeed_plot_values_json()).unwrap_or_default()
     }
 }
 
@@ -91,10 +119,14 @@ mod imp {
     #[template(file = "ui/graphs_window.blp")]
     pub struct GraphsWindow {
         #[template_child]
-        plot: TemplateChild<Plot>,
+        temperature_plot: TemplateChild<Plot>,
+        #[template_child]
+        clockspeed_plot: TemplateChild<Plot>,
 
         #[property(get, set)]
-        plot_values_json: RefCell<String>,
+        temperature_plot_values_json: RefCell<String>,
+        #[property(get, set)]
+        clockspeed_plot_values_json: RefCell<String>,
     }
 
     #[glib::object_subclass]

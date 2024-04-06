@@ -6,15 +6,39 @@ template $GraphsWindow: Window {
   title: "Historical data";
   hide-on-close: true;
 
-  Box {
-      orientation: horizontal;
-      spacing: 10;
+  Grid {
+      margin-top: 10;
+      margin-bottom: 10;
+      margin-start: 10;
+      margin-end: 10;
 
-      $Plot plot {
-          title: "Temperatures";
+      row-spacing: 20;
+      column-spacing: 20;
+
+      $Plot temperature_plot {
+          title: "Temperature";
           hexpand: true;
-          values-json: bind template.plot_values_json;
+          values-json: bind template.temperature-plot-values-json;
           value-suffix: "°C";
+          y-label-area-size: 80;
+
+          layout {
+             column: 0;
+             row: 0;
+         }
+      }
+
+      $Plot clockspeed_plot {
+          title: "Clockspeed";
+          hexpand: true;
+          values-json: bind template.clockspeed-plot-values-json;
+          value-suffix: "MHz";
+          y-label-area-size: 140;
+
+          layout {
+             column: 0;
+             row: 1;
+         }
       }
   }
 }
