@@ -6,15 +6,15 @@ use std::{
     io::Write,
     os::unix::prelude::PermissionsExt,
     path::Path,
-    process::Command,
 };
+use tokio::process::Command;
 use tracing::{info, warn};
 
 const PP_OVERDRIVE_MASK: u64 = 0x4000;
 pub const PP_FEATURE_MASK_PATH: &str = "/sys/module/amdgpu/parameters/ppfeaturemask";
 pub const MODULE_CONF_PATH: &str = "/etc/modprobe.d/99-amdgpu-overdrive.conf";
 
-pub fn info() -> anyhow::Result<SystemInfo<'static>> {
+pub async fn info() -> anyhow::Result<SystemInfo<'static>> {
     let version = env!("CARGO_PKG_VERSION");
     let profile = if cfg!(debug_assertions) {
         "debug"
@@ -24,6 +24,7 @@ pub fn info() -> anyhow::Result<SystemInfo<'static>> {
     let kernel_output = Command::new("uname")
         .arg("-r")
         .output()
+        .await
         .context("Could not read kernel version")?;
     let kernel_version = String::from_utf8(kernel_output.stdout)
         .context("Invalid kernel version output")?
@@ -45,7 +46,7 @@ pub fn info() -> anyhow::Result<SystemInfo<'static>> {
     })
 }
 
-pub fn enable_overdrive() -> anyhow::Result<String> {
+pub async fn enable_overdrive() -> anyhow::Result<String> {
     let current_mask = read_current_mask()?;
 
     let new_mask = current_mask | PP_OVERDRIVE_MASK;
@@ -62,7 +63,7 @@ pub fn enable_overdrive() -> anyhow::Result<String> {
     file.write_all(conf.as_bytes())
         .context("Could not write config")?;
 
-    let message = match regenerate_initramfs() {
+    let message = match regenerate_initramfs().await {
         Ok(initramfs_type) => {
             format!("Initramfs was successfully regenerated (detected type {initramfs_type:?})")
         }
@@ -72,10 +73,10 @@ pub fn enable_overdrive() -> anyhow::Result<String> {
     Ok(message)
 }
 
-pub fn disable_overdrive() -> anyhow::Result<String> {
+pub async fn disable_overdrive() -> anyhow::Result<String> {
     if Path::new(MODULE_CONF_PATH).exists() {
         fs::remove_file(MODULE_CONF_PATH).context("Could not remove module config file")?;
-        match regenerate_initramfs() {
+        match regenerate_initramfs().await {
             Ok(initramfs_type) => Ok(format!(
                 "Initramfs was successfully regenerated (detected type {initramfs_type:?})"
             )),
@@ -98,15 +99,17 @@ fn read_current_mask() -> anyhow::Result<u64> {
     u64::from_str_radix(ppfeaturemask, 16).context("Invalid ppfeaturemask")
 }
 
-fn regenerate_initramfs() -> anyhow::Result<InitramfsType> {
+async fn regenerate_initramfs() -> anyhow::Result<InitramfsType> {
     let os_release = OS_RELEASE.as_ref().context("Could not detect distro")?;
-    match detect_initramfs_type(os_release) {
+    match detect_initramfs_type(os_release).await {
         Some(initramfs_type) => {
             info!("Detected initramfs type {initramfs_type:?}, regenerating");
             let result = match initramfs_type {
-                InitramfsType::Debian => run_command("update-initramfs", &["-u"]),
-                InitramfsType::Mkinitcpio => run_command("mkinitcpio", &["-P"]),
-                InitramfsType::Dracut => run_command("dracut", &["--regenerate-all", "--force"]),
+                InitramfsType::Debian => run_command("update-initramfs", &["-u"]).await,
+                InitramfsType::Mkinitcpio => run_command("mkinitcpio", &["-P"]).await,
+                InitramfsType::Dracut => {
+                    run_command("dracut", &["--regenerate-all", "--force"]).await
+                }
             };
             result.map(|()| initramfs_type)
         }
@@ -116,13 +119,18 @@ fn regenerate_initramfs() -> anyhow::Result<InitramfsType> {
     }
 }
 
-pub(crate) fn detect_initramfs_type(os_release: &OsRelease) -> Option<InitramfsType> {
+pub(crate) async fn detect_initramfs_type(os_release: &OsRelease) -> Option<InitramfsType> {
     let id_like: Vec<_> = os_release.id_like.split_whitespace().collect();
 
     if os_release.id == "debian" || id_like.contains(&"debian") {
         Some(InitramfsType::Debian)
     } else if os_release.id == "arch" || id_like.contains(&"arch") {
-        if Command::new("mkinitcpio").arg("--version").output().is_ok() {
+        if Command::new("mkinitcpio")
+            .arg("--version")
+            .output()
+            .await
+            .is_ok()
+        {
             Some(InitramfsType::Mkinitcpio)
         } else {
             warn!(
@@ -131,7 +139,12 @@ pub(crate) fn detect_initramfs_type(os_release: &OsRelease) -> Option<InitramfsT
             None
         }
     } else if os_release.id == "fedora" {
-        if Command::new("dracut").arg("--version").output().is_ok() {
+        if Command::new("dracut")
+            .arg("--version")
+            .output()
+            .await
+            .is_ok()
+        {
             Some(InitramfsType::Dracut)
         } else {
             warn!("Fedora without dracut detected, refusing to regenerate initramfs");
@@ -142,11 +155,12 @@ pub(crate) fn detect_initramfs_type(os_release: &OsRelease) -> Option<InitramfsT
     }
 }
 
-fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<()> {
+async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<()> {
     info!("Running {exec} with args {args:?}");
     let output = Command::new(exec)
         .args(args)
         .output()
+        .await
         .context("Could not run command")?;
     if output.status.success() {
         Ok(())
@@ -163,8 +177,8 @@ mod tests {
     use lact_schema::InitramfsType;
     use os_release::OsRelease;
 
-    #[test]
-    fn detect_initramfs_debian() {
+    #[tokio::test]
+    async fn detect_initramfs_debian() {
         let data = r#"
 PRETTY_NAME="Debian GNU/Linux trixie/sid"
 NAME="Debian GNU/Linux"
@@ -177,12 +191,12 @@ BUG_REPORT_URL="https://bugs.debian.org/"
         let os_release: OsRelease = data.lines().map(str::to_owned).collect();
         assert_eq!(
             Some(InitramfsType::Debian),
-            detect_initramfs_type(&os_release)
+            detect_initramfs_type(&os_release).await
         );
     }
 
-    #[test]
-    fn detect_initramfs_mint() {
+    #[tokio::test]
+    async fn detect_initramfs_mint() {
         let data = r#"
 NAME="Linux Mint"
 VERSION="21.2 (Victoria)"
@@ -200,7 +214,7 @@ UBUNTU_CODENAME=jammy
         let os_release: OsRelease = data.lines().map(str::to_owned).collect();
         assert_eq!(
             Some(InitramfsType::Debian),
-            detect_initramfs_type(&os_release)
+            detect_initramfs_type(&os_release).await
         );
     }
 }

@@ -463,7 +463,7 @@ impl<'a> Handler {
         .context("Failed to edit GPU config and set enabled power states")
     }
 
-    pub fn generate_snapshot(&self) -> anyhow::Result<String> {
+    pub async fn generate_snapshot(&self) -> anyhow::Result<String> {
         let datetime = chrono::Local::now().format("%Y%m%d-%H%M%S");
         let out_path = format!("/tmp/LACT-sysfs-snapshot-{datetime}.tar.gz");
 
@@ -516,10 +516,12 @@ impl<'a> Handler {
         }
 
         let system_info = system::info()
+            .await
             .ok()
             .map(|info| serde_json::to_value(info).unwrap());
         let initramfs_type = match OS_RELEASE.as_ref() {
             Ok(os_release) => detect_initramfs_type(os_release)
+                .await
                 .map(|initramfs_type| serde_json::to_value(initramfs_type).unwrap()),
             Err(err) => Some(err.to_string().into()),
         };
