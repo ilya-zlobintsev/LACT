@@ -2,7 +2,10 @@ mod plot;
 
 use self::plot::PlotData;
 use glib::Object;
-use gtk::glib;
+use gtk::{
+    glib::{self, subclass::types::ObjectSubclassIsExt},
+    prelude::WidgetExt,
+};
 use lact_client::schema::DeviceStats;
 
 const GRAPH_WIDTH_SECONDS: u64 = 60;
@@ -19,8 +22,10 @@ impl GraphsWindow {
     }
 
     pub fn set_stats(&self, stats: &DeviceStats) {
-        let mut temperature_plot = self.temperature_plot_values();
-        let mut clockspeed_plot = self.clockspeed_plot_values();
+        let imp = self.imp();
+
+        let mut temperature_plot = imp.temperature_plot.data_mut();
+        let mut clockspeed_plot = imp.clockspeed_plot.data_mut();
 
         let throttling_plots = [&mut temperature_plot, &mut clockspeed_plot];
         match &stats.throttle_info {
@@ -67,30 +72,16 @@ impl GraphsWindow {
             clockspeed_plot.push_line_series("VRAM", point as f64);
         }
 
-        self.set_temperature_plot_values(&temperature_plot);
-        self.set_clockspeed_plot_values(&clockspeed_plot);
+        imp.temperature_plot.queue_draw();
+        imp.clockspeed_plot.queue_draw();
     }
 
     pub fn clear(&self) {
-        self.set_temperature_plot_values(&PlotData::default());
-        self.set_clockspeed_plot_values(&PlotData::default());
-    }
-
-    // TODO: Figure out better way to send data to plot widget
-    fn set_temperature_plot_values(&self, value: &PlotData) {
-        self.set_temperature_plot_values_json(serde_json::to_string(value).unwrap());
-    }
-
-    fn set_clockspeed_plot_values(&self, value: &PlotData) {
-        self.set_clockspeed_plot_values_json(serde_json::to_string(value).unwrap());
-    }
-
-    fn temperature_plot_values(&self) -> PlotData {
-        serde_json::from_str(&self.temperature_plot_values_json()).unwrap_or_default()
-    }
-
-    fn clockspeed_plot_values(&self) -> PlotData {
-        serde_json::from_str(&self.clockspeed_plot_values_json()).unwrap_or_default()
+        let imp = self.imp();
+        *imp.temperature_plot.data_mut() = PlotData::default();
+        *imp.clockspeed_plot.data_mut() = PlotData::default();
+        imp.temperature_plot.queue_draw();
+        imp.clockspeed_plot.queue_draw();
     }
 }
 
@@ -102,7 +93,6 @@ impl Default for GraphsWindow {
 
 mod imp {
     use super::plot::Plot;
-    use glib::Properties;
     use gtk::{
         glib::{self, subclass::InitializingObject},
         prelude::*,
@@ -112,21 +102,14 @@ mod imp {
         },
         CompositeTemplate,
     };
-    use std::cell::RefCell;
 
-    #[derive(CompositeTemplate, Default, Properties)]
-    #[properties(wrapper_type = super::GraphsWindow)]
+    #[derive(CompositeTemplate, Default)]
     #[template(file = "ui/graphs_window.blp")]
     pub struct GraphsWindow {
         #[template_child]
-        temperature_plot: TemplateChild<Plot>,
+        pub(super) temperature_plot: TemplateChild<Plot>,
         #[template_child]
-        clockspeed_plot: TemplateChild<Plot>,
-
-        #[property(get, set)]
-        temperature_plot_values_json: RefCell<String>,
-        #[property(get, set)]
-        clockspeed_plot_values_json: RefCell<String>,
+        pub(super) clockspeed_plot: TemplateChild<Plot>,
     }
 
     #[glib::object_subclass]
@@ -146,7 +129,6 @@ mod imp {
         }
     }
 
-    #[glib::derived_properties]
     impl ObjectImpl for GraphsWindow {}
 
     impl WidgetImpl for GraphsWindow {}

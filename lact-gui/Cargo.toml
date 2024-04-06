@@ -16,15 +16,21 @@ amdgpu-sysfs = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
 tracing-subscriber = { workspace = true }
-serde_json = { workspace = true }
-serde = { workspace = true }
-chrono = {version = "0.4", features = ["serde"] }
+chrono = { version = "0.4", features = ["serde"] }
 
-gtk = { version = "0.7", package = "gtk4", features = ["v4_6", "blueprint"] }
-adw = { package = "libadwaita", version = "0.5.0", features = ["v1_4"], optional = true }
+gtk = { version = "0.8", package = "gtk4", features = ["v4_6", "blueprint"] }
+adw = { package = "libadwaita", version = "0.6.0", features = [
+    "v1_4",
+], optional = true }
 
-plotters = { version = "0.3.5", default-features = false, features = ["datetime", "line_series", "ttf", "histogram", "full_palette"] }
-plotters-cairo = "0.5.0"
+plotters = { version = "0.3.5", default-features = false, features = [
+    "datetime",
+    "line_series",
+    "ttf",
+    "histogram",
+    "full_palette",
+] }
+plotters-cairo = { git = "https://github.com/plotters-rs/plotters-cairo" }
 itertools = "0.12.1"
 
 [dev-dependencies]

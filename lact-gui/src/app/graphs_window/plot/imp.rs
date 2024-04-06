@@ -7,8 +7,6 @@ use itertools::Itertools;
 use plotters::prelude::*;
 use plotters::style::colors::full_palette::DEEPORANGE_100;
 use plotters_cairo::CairoBackend;
-use serde::Deserialize;
-use serde::Serialize;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::cmp::max;
@@ -21,11 +19,10 @@ pub struct Plot {
     #[property(get, set)]
     title: RefCell<String>,
     #[property(get, set)]
-    values_json: RefCell<String>,
-    #[property(get, set)]
     value_suffix: RefCell<String>,
     #[property(get, set)]
     y_label_area_size: Cell<u32>,
+    pub(super) data: RefCell<PlotData>,
 }
 
 #[glib::object_subclass]
@@ -35,20 +32,8 @@ impl ObjectSubclass for Plot {
     type ParentType = gtk::Widget;
 }
 
+#[glib::derived_properties]
 impl ObjectImpl for Plot {
-    fn properties() -> &'static [glib::ParamSpec] {
-        Self::derived_properties()
-    }
-
-    fn set_property(&self, id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
-        Self::derived_set_property(self, id, value, pspec);
-        self.obj().queue_draw();
-    }
-
-    fn property(&self, id: usize, pspec: &glib::ParamSpec) -> glib::Value {
-        Self::derived_property(self, id, pspec)
-    }
-
     fn constructed(&self) {
         self.parent_constructed();
 
@@ -76,7 +61,7 @@ impl WidgetImpl for Plot {
     }
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Default)]
 pub struct PlotData {
     line_series: BTreeMap<String, BTreeMap<chrono::DateTime<chrono::Local>, f64>>,
     throttling: BTreeMap<chrono::DateTime<chrono::Local>, (String, bool)>,
@@ -144,8 +129,7 @@ impl Plot {
     {
         let root = backend.into_drawing_area();
 
-        let data: PlotData =
-            serde_json::from_str(&self.values_json.borrow()).expect("Failed to parse JSON");
+        let data = self.data.borrow();
 
         let start_date = data
             .line_series_iter()

@@ -18,7 +18,6 @@ template $GraphsWindow: Window {
       $Plot temperature_plot {
           title: "Temperature";
           hexpand: true;
-          values-json: bind template.temperature-plot-values-json;
           value-suffix: "°C";
           y-label-area-size: 80;
 
@@ -31,7 +30,6 @@ template $GraphsWindow: Window {
       $Plot clockspeed_plot {
           title: "Clockspeed";
           hexpand: true;
-          values-json: bind template.clockspeed-plot-values-json;
           value-suffix: "MHz";
           y-label-area-size: 140;
 
