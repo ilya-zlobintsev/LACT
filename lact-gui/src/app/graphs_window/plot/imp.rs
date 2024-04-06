@@ -1,23 +1,18 @@
+use super::cubic_spline::cubic_spline_interpolation;
 use anyhow::Context;
+use chrono::TimeDelta;
 use glib::Properties;
-use gtk::glib;
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
+use gtk::{glib, prelude::*, subclass::prelude::*};
 use itertools::Itertools;
-use plotters::coord::combinators::WithKeyPoints;
 use plotters::prelude::*;
 use plotters::style::colors::full_palette::DEEPORANGE_100;
 use plotters_cairo::CairoBackend;
 use serde::Deserialize;
 use serde::Serialize;
 use std::cell::RefCell;
+use std::cmp::max;
 use std::collections::BTreeMap;
 use tracing::error;
-
-use chrono::TimeDelta;
-use std::cmp::max;
-
-use super::cubic_spline::cubic_spline_interpolation;
 
 #[derive(Properties, Default)]
 #[properties(wrapper_type = super::Plot)]
@@ -26,6 +21,8 @@ pub struct Plot {
     title: RefCell<String>,
     #[property(get, set)]
     values_json: RefCell<String>,
+    #[property(get, set)]
+    value_suffix: RefCell<String>,
 }
 
 #[glib::object_subclass]
@@ -51,6 +48,9 @@ impl ObjectImpl for Plot {
 
     fn constructed(&self) {
         self.parent_constructed();
+
+        let obj = self.obj();
+        obj.set_height_request(250);
     }
 }
 
@@ -179,21 +179,14 @@ impl Plot {
             .build_cartesian_2d(
                 start_date..max(end_date, start_date + TimeDelta::seconds(60)),
                 0f64..maximum_value,
-                // (0f64..maximum_value)
-                //     .with_key_point_func(|n| {
-                //         (0..10)
-                //             .map(|x| maximum_value.round() / 10.0 * x as f64)
-                //             .collect()
-                //     })
-                //     .into_segmented(),
             )?;
 
         chart
             .configure_mesh()
             .x_label_formatter(&|date_time| date_time.format("%H:%M:%S").to_string())
-            .y_label_formatter(&|x| format!("{x}°C"))
+            .y_label_formatter(&|x| format!("{x}{}", self.value_suffix.borrow()))
             .x_labels(5)
-            .y_labels(5)
+            .y_labels(10)
             .label_style(("sans-serif", 30))
             .draw()
             .context("Failed to draw mesh")?;
@@ -248,7 +241,6 @@ impl Plot {
                 .context("Failed to draw series")?
                 .label(caption)
                 .legend(move |(x, y)| {
-                    // Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], Palette9999::pick(idx))
                     Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], Palette99::pick(idx))
                 });
         }

@@ -3,6 +3,8 @@ using Gtk 4.0;
 template $GraphsWindow: Window {
   default-height: 300;
   default-width: 600;
+  title: "Historical data";
+  hide-on-close: true;
 
   Box {
       orientation: horizontal;
@@ -11,8 +13,8 @@ template $GraphsWindow: Window {
       $Plot plot {
           title: "Temperatures";
           hexpand: true;
-          height-request: 300;
-          values_json: bind template.plot_values_json;
+          values-json: bind template.plot_values_json;
+          value-suffix: "°C";
       }
   }
 }
