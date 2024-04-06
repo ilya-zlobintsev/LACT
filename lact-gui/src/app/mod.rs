@@ -4,7 +4,7 @@ mod info_row;
 mod page_section;
 mod root_stack;
 
-use crate::{APP_ID, GUI_VERSION};
+use crate::{create_connection, APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::ApplyRevealer;
 use glib::clone;
@@ -536,7 +536,7 @@ impl App {
     }
 
     fn enable_overclocking(&self) {
-        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this? (Note: the GUI may freeze for a bit)");
+        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this?");
         let dialog = MessageDialog::builder()
             .title("Enable Overclocking")
             .use_markup(true)
@@ -548,11 +548,70 @@ impl App {
 
         dialog.run_async(clone!(@strong self as app => move |diag, response| {
             if response == ResponseType::Ok {
-                match app.daemon_client.enable_overdrive().and_then(|buffer| buffer.inner()) {
+                let handle = gio::spawn_blocking(|| {
+                    let (daemon_client, _) = create_connection().expect("Could not create new daemon connection");
+                    daemon_client.enable_overdrive().and_then(|buffer| buffer.inner())
+                });
+
+                let dialog = app.spinner_dialog("Turning overclocking on (this may take a while)");
+                dialog.show();
+
+                glib::spawn_future_local(async move {
+                    let result = handle.await.unwrap();
+                    dialog.hide();
+
+                    match result {
+                        Ok(msg) => {
+                            let success_dialog = MessageDialog::builder()
+                                .title("Success")
+                                .text(format!("Overclocking successfully enabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
+                                .message_type(MessageType::Info)
+                                .buttons(ButtonsType::Ok)
+                                .build();
+                            success_dialog.run_async(move |diag, _| {
+                                diag.hide();
+                            });
+                        }
+                        Err(err) => {
+                            show_error(&app.window, err);
+                        }
+                    }
+                });
+            }
+            diag.hide();
+        }));
+    }
+
+    fn disable_overclocking(&self) {
+        let dialog = MessageDialog::builder()
+            .title("Disable Overclocking")
+            .use_markup(true)
+            .text("The overclocking functionality in the driver will now be turned off.")
+            .message_type(MessageType::Info)
+            .buttons(ButtonsType::Ok)
+            .transient_for(&self.window)
+            .build();
+
+        dialog.run_async(clone!(@strong self as app => move |diag, _| {
+            diag.hide();
+
+            let handle = gio::spawn_blocking(|| {
+                let (daemon_client, _) = create_connection().expect("Could not create new daemon connection");
+                daemon_client.disable_overdrive().and_then(|buffer| buffer.inner())
+            });
+
+            let dialog = app.spinner_dialog("Turning overclocking off (this may take a while)");
+            dialog.show();
+
+            glib::spawn_future_local(async move {
+                let result = handle.await.unwrap();
+                dialog.hide();
+
+                match result {
                     Ok(msg) => {
                         let success_dialog = MessageDialog::builder()
                             .title("Success")
-                            .text(format!("Overclocking successfully enabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
+                            .text(format!("Overclocking successfully disabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
                             .message_type(MessageType::Info)
                             .buttons(ButtonsType::Ok)
                             .build();
@@ -564,39 +623,8 @@ impl App {
                         show_error(&app.window, err);
                     }
                 }
-            }
-            diag.hide();
-        }));
-    }
+            });
 
-    fn disable_overclocking(&self) {
-        let dialog = MessageDialog::builder()
-            .title("Disable Overclocking")
-            .use_markup(true)
-            .text("The overclocking functionality in the driver will now be turned off. (Note: the LACT window might hang)")
-            .message_type(MessageType::Info)
-            .buttons(ButtonsType::Ok)
-            .transient_for(&self.window)
-            .build();
-
-        dialog.run_async(clone!(@strong self as app => move |diag, _| {
-            diag.hide();
-            match app.daemon_client.disable_overdrive().and_then(|buffer| buffer.inner()) {
-                Ok(msg) => {
-                    let success_dialog = MessageDialog::builder()
-                        .title("Success")
-                        .text(format!("Overclocking successfully disabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
-                        .message_type(MessageType::Info)
-                        .buttons(ButtonsType::Ok)
-                        .build();
-                    success_dialog.run_async(move |diag, _| {
-                        diag.hide();
-                    });
-                }
-                Err(err) => {
-                    show_error(&app.window, err);
-                }
-            }
         }));
     }
 
@@ -649,6 +677,25 @@ impl App {
             }
             app.set_initial(&gpu_id);
         }));
+    }
+
+    fn spinner_dialog(&self, title: &str) -> MessageDialog {
+        let spinner = gtk::Spinner::new();
+        spinner.start();
+        spinner.set_margin_top(10);
+        spinner.set_margin_bottom(10);
+
+        let dialog = MessageDialog::builder()
+            .title(title)
+            .child(&spinner)
+            .message_type(MessageType::Info)
+            .transient_for(&self.window)
+            .build();
+
+        dialog.titlebar().unwrap().set_margin_start(15);
+        dialog.titlebar().unwrap().set_margin_end(15);
+
+        dialog
     }
 }
 

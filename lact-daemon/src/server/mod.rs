@@ -78,7 +78,7 @@ pub async fn handle_stream(stream: UnixStream, handler: Handler) -> anyhow::Resu
 async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyhow::Result<Vec<u8>> {
     match request {
         Request::Ping => ok_response(ping()),
-        Request::SystemInfo => ok_response(system::info()?),
+        Request::SystemInfo => ok_response(system::info().await?),
         Request::ListDevices => ok_response(handler.list_devices()),
         Request::DeviceInfo { id } => ok_response(handler.get_device_info(id)?),
         Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id)?),
@@ -106,9 +106,9 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::SetEnabledPowerStates { id, kind, states } => {
             ok_response(handler.set_enabled_power_states(id, kind, states).await?)
         }
-        Request::EnableOverdrive => ok_response(system::enable_overdrive()?),
-        Request::DisableOverdrive => ok_response(system::disable_overdrive()?),
-        Request::GenerateSnapshot => ok_response(handler.generate_snapshot()?),
+        Request::EnableOverdrive => ok_response(system::enable_overdrive().await?),
+        Request::DisableOverdrive => ok_response(system::disable_overdrive().await?),
+        Request::GenerateSnapshot => ok_response(handler.generate_snapshot().await?),
         Request::ConfirmPendingConfig(command) => {
             ok_response(handler.confirm_pending_config(command)?)
         }

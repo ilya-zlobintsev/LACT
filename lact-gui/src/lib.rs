@@ -4,7 +4,7 @@ use anyhow::{anyhow, Context};
 use app::App;
 use lact_client::{schema::args::GuiArgs, DaemonClient};
 use std::os::unix::net::UnixStream;
-use tracing::{error, info, metadata::LevelFilter};
+use tracing::{debug, error, info, metadata::LevelFilter};
 use tracing_subscriber::EnvFilter;
 
 const GUI_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -29,7 +29,10 @@ pub fn run(args: GuiArgs) -> anyhow::Result<()> {
 
 fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
     match DaemonClient::connect() {
-        Ok(connection) => Ok((connection, None)),
+        Ok(connection) => {
+            debug!("Established daemon connection");
+            Ok((connection, None))
+        }
         Err(err) => {
             info!("could not connect to socket: {err:#}");
             info!("using a local daemon");
