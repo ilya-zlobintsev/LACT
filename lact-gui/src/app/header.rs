@@ -23,7 +23,7 @@ impl Header {
 
         let menu = gio::Menu::new();
         menu.append(
-            Some("Show historical graphs"),
+            Some("Show historical charts"),
             Some("app.show-graphs-window"),
         );
         menu.append(

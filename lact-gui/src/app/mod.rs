@@ -106,6 +106,7 @@ impl App {
                     app.set_info(&gpu_id);
                     *current_gpu_id.borrow_mut() = gpu_id;
                     debug!("Updated current GPU id");
+                    app.graphs_window.clear();
                 }));
 
                 let devices_buf = app
@@ -277,7 +278,6 @@ impl App {
         self.root_stack.oc_page.set_stats(&stats, true);
         self.root_stack.thermals_page.set_stats(&stats, true);
         self.root_stack.info_page.set_stats(&stats);
-        self.graphs_window.clear();
 
         let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(gpu_id) {
             Ok(clocks_buf) => match clocks_buf.inner() {

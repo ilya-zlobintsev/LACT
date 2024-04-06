@@ -39,6 +39,8 @@ impl ObjectImpl for Plot {
 
         let obj = self.obj();
         obj.set_height_request(250);
+        obj.set_hexpand(true);
+        obj.set_vexpand(true);
     }
 }
 

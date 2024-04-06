@@ -60,8 +60,6 @@ impl GraphsWindow {
             temperature_plot.push_line_series(name, value.current.unwrap_or(0.0) as f64);
         }
 
-        temperature_plot.trim_data(GRAPH_WIDTH_SECONDS);
-
         if let Some(point) = stats.clockspeed.gpu_clockspeed {
             clockspeed_plot.push_line_series("GPU (Avg)", point as f64);
         }
@@ -71,6 +69,9 @@ impl GraphsWindow {
         if let Some(point) = stats.clockspeed.vram_clockspeed {
             clockspeed_plot.push_line_series("VRAM", point as f64);
         }
+
+        temperature_plot.trim_data(GRAPH_WIDTH_SECONDS);
+        clockspeed_plot.trim_data(GRAPH_WIDTH_SECONDS);
 
         imp.temperature_plot.queue_draw();
         imp.clockspeed_plot.queue_draw();
