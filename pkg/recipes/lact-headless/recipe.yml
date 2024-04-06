@@ -29,6 +29,8 @@ configure:
   steps:
     - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
+    - cmd: pacman -Syu --noconfirm
+      pkg: true
 build:
   steps:
     - cmd: bash -c "source $HOME/.cargo/env && cd LACT && make build-release-headless"

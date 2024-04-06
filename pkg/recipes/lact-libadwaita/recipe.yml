@@ -31,6 +31,8 @@ configure:
         curl -o /tmp/blueprint-compiler.deb http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb &&
         apt install -y /tmp/blueprint-compiler.deb
       deb: true
+    - cmd: pacman -Syu --noconfirm
+      pkg: true
 build:
   steps:
     - cmd: bash -c "source $HOME/.cargo/env && cd LACT && make build-release-libadwaita"
