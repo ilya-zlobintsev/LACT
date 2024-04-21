@@ -94,8 +94,10 @@ impl GraphsWindow {
         let imp = self.imp();
         *imp.temperature_plot.data_mut() = PlotData::default();
         *imp.clockspeed_plot.data_mut() = PlotData::default();
+        *imp.power_plot.data_mut() = PlotData::default();
         imp.temperature_plot.queue_draw();
         imp.clockspeed_plot.queue_draw();
+        imp.power_plot.queue_draw();
     }
 }
 
