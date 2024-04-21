@@ -9,10 +9,12 @@ jobs:
   build-packages:
     strategy:
       matrix:
-        target-os: [ debian-12, ubuntu-2204, fedora-38, fedora-39, arch, opensuse-tumbleweed ]
+        target-os: [ debian-12, ubuntu-2204, fedora-39, fedora-40, arch, opensuse-tumbleweed ]
         recipe: [ lact, lact-headless ]
         include:
           - target-os: fedora-39
+            recipe: lact-libadwaita
+          - target-os: fedora-40
             recipe: lact-libadwaita
           - target-os: arch
             recipe: lact-libadwaita
