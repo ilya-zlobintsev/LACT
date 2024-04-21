@@ -26,8 +26,9 @@ impl GraphsWindow {
 
         let mut temperature_plot = imp.temperature_plot.data_mut();
         let mut clockspeed_plot = imp.clockspeed_plot.data_mut();
+        let mut power_plot = imp.power_plot.data_mut();
 
-        let throttling_plots = [&mut temperature_plot, &mut clockspeed_plot];
+        let throttling_plots = [&mut temperature_plot, &mut clockspeed_plot, &mut power_plot];
         match &stats.throttle_info {
             Some(throttle_info) => {
                 if throttle_info.is_empty() {
@@ -60,6 +61,16 @@ impl GraphsWindow {
             temperature_plot.push_line_series(name, value.current.unwrap_or(0.0) as f64);
         }
 
+        if let Some(average) = stats.power.average {
+            power_plot.push_line_series("Average", average);
+        }
+        if let Some(current) = stats.power.current {
+            power_plot.push_line_series("Current", current);
+        }
+        if let Some(limit) = stats.power.cap_current {
+            power_plot.push_line_series("Limit", limit);
+        }
+
         if let Some(point) = stats.clockspeed.gpu_clockspeed {
             clockspeed_plot.push_line_series("GPU (Avg)", point as f64);
         }
@@ -72,9 +83,11 @@ impl GraphsWindow {
 
         temperature_plot.trim_data(GRAPH_WIDTH_SECONDS);
         clockspeed_plot.trim_data(GRAPH_WIDTH_SECONDS);
+        power_plot.trim_data(GRAPH_WIDTH_SECONDS);
 
         imp.temperature_plot.queue_draw();
         imp.clockspeed_plot.queue_draw();
+        imp.power_plot.queue_draw();
     }
 
     pub fn clear(&self) {
@@ -111,6 +124,8 @@ mod imp {
         pub(super) temperature_plot: TemplateChild<Plot>,
         #[template_child]
         pub(super) clockspeed_plot: TemplateChild<Plot>,
+        #[template_child]
+        pub(super) power_plot: TemplateChild<Plot>,
     }
 
     #[glib::object_subclass]

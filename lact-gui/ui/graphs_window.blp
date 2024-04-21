@@ -1,7 +1,7 @@
 using Gtk 4.0;
 
 template $GraphsWindow: Window {
-  default-height: 300;
+  default-height: 600;
   default-width: 600;
   title: "Historical data";
   hide-on-close: true;
@@ -36,6 +36,18 @@ template $GraphsWindow: Window {
           layout {
              column: 0;
              row: 1;
+         }
+      }
+
+      $Plot power_plot {
+          title: "Power usage";
+          hexpand: true;
+          value-suffix: "W";
+          y-label-area-size: 80;
+
+          layout {
+             column: 0;
+             row: 2;
          }
       }
   }
