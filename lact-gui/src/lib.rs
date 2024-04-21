@@ -1,4 +1,4 @@
-mod app;
+pub mod app;
 
 use anyhow::{anyhow, Context};
 use app::App;

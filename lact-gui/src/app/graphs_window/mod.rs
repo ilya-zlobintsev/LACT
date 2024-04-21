@@ -1,4 +1,4 @@
-mod plot;
+pub(crate) mod plot;
 
 use self::plot::PlotData;
 use glib::Object;

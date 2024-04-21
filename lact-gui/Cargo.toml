@@ -7,6 +7,7 @@ edition = "2021"
 [features]
 default = ["gtk-tests"]
 gtk-tests = []
+bench = []
 
 [dependencies]
 lact-client = { path = "../lact-client" }
@@ -34,4 +35,11 @@ chrono = "0.4"
 itertools = "0.12.1"
 
 [dev-dependencies]
+criterion = "0.5.1"
 pretty_assertions = "1.4.0"
+lact-gui = { path = ".", features = ["bench"] }
+lact-schema = { path = "../lact-schema", features = ["args"] }
+
+[[bench]]
+name = "gui"
+harness = false

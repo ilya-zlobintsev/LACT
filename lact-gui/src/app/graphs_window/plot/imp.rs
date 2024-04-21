@@ -72,10 +72,14 @@ pub struct PlotData {
 
 impl PlotData {
     pub fn push_line_series(&mut self, name: &str, point: f64) {
+        self.push_line_series_with_time(name, point, chrono::Local::now().naive_local());
+    }
+
+    pub fn push_line_series_with_time(&mut self, name: &str, point: f64, time: NaiveDateTime) {
         self.line_series
             .entry(name.to_owned())
             .or_default()
-            .insert(chrono::Local::now().naive_local(), point);
+            .insert(time, point);
     }
 
     pub fn push_throttling(&mut self, name: &str, point: bool) {
@@ -124,8 +128,9 @@ impl PlotData {
 }
 
 impl Plot {
-    fn plot_pdf<'a, DB: DrawingBackend + 'a>(&self, backend: DB) -> anyhow::Result<()>
+    pub fn plot_pdf<'a, DB>(&self, backend: DB) -> anyhow::Result<()>
     where
+        DB: DrawingBackend + 'a,
         <DB as plotters::prelude::DrawingBackend>::ErrorType: 'static,
     {
         let root = backend.into_drawing_area();

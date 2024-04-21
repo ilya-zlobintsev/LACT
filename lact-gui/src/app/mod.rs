@@ -5,6 +5,9 @@ mod info_row;
 mod page_section;
 mod root_stack;
 
+#[cfg(feature = "bench")]
+pub use graphs_window::plot::{Plot, PlotData};
+
 use self::graphs_window::GraphsWindow;
 use crate::{create_connection, APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
@@ -29,7 +32,7 @@ use tracing::{debug, error, trace, warn};
 const STATS_POLL_INTERVAL: u64 = 250;
 
 #[derive(Clone)]
-pub struct App {
+pub(crate) struct App {
     application: Application,
     pub window: ApplicationWindow,
     pub header: Header,
