@@ -1,5 +1,4 @@
-use chrono::offset::Local;
-use chrono::DateTime;
+use chrono::NaiveDateTime;
 use itertools::Itertools;
 
 #[derive(Clone, Copy)]
@@ -8,28 +7,28 @@ pub struct CubicSplineSegment {
     b: f64,
     c: f64,
     d: f64,
-    x: DateTime<Local>,
+    x: NaiveDateTime,
 }
 
 impl CubicSplineSegment {
     // Create a new cubic spline segment
-    fn new(a: f64, b: f64, c: f64, d: f64, x: DateTime<Local>) -> Self {
+    fn new(a: f64, b: f64, c: f64, d: f64, x: NaiveDateTime) -> Self {
         Self { a, b, c, d, x }
     }
 
     // Evaluate the cubic spline at a given point x
-    pub fn evaluate(&self, x: &DateTime<Local>) -> f64 {
+    pub fn evaluate(&self, x: &NaiveDateTime) -> f64 {
         let dx = (*x - self.x).num_milliseconds() as f64;
         self.a + self.b * dx + self.c * dx.powi(2) + self.d * dx.powi(3)
     }
 }
 
-pub type TimePeriod = (DateTime<Local>, DateTime<Local>);
+pub type TimePeriod = (NaiveDateTime, NaiveDateTime);
 
 // Define a function to perform cubic spline interpolation
 pub fn cubic_spline_interpolation<'a, I>(iter: I) -> Vec<(TimePeriod, CubicSplineSegment)>
 where
-    I: IntoIterator<Item = (&'a DateTime<Local>, &'a f64)> + 'a,
+    I: IntoIterator<Item = (&'a NaiveDateTime, &'a f64)> + 'a,
 {
     let data: Vec<_> = iter.into_iter().collect();
 

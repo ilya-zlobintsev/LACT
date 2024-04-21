@@ -1,5 +1,6 @@
 use super::cubic_spline::cubic_spline_interpolation;
 use anyhow::Context;
+use chrono::NaiveDateTime;
 use chrono::TimeDelta;
 use glib::Properties;
 use gtk::{glib, prelude::*, subclass::prelude::*};
@@ -65,8 +66,8 @@ impl WidgetImpl for Plot {
 
 #[derive(Default)]
 pub struct PlotData {
-    line_series: BTreeMap<String, BTreeMap<chrono::DateTime<chrono::Local>, f64>>,
-    throttling: BTreeMap<chrono::DateTime<chrono::Local>, (String, bool)>,
+    line_series: BTreeMap<String, BTreeMap<NaiveDateTime, f64>>,
+    throttling: BTreeMap<NaiveDateTime, (String, bool)>,
 }
 
 impl PlotData {
@@ -74,23 +75,21 @@ impl PlotData {
         self.line_series
             .entry(name.to_owned())
             .or_default()
-            .insert(chrono::Local::now(), point);
+            .insert(chrono::Local::now().naive_local(), point);
     }
 
     pub fn push_throttling(&mut self, name: &str, point: bool) {
         self.throttling
-            .insert(chrono::Local::now(), (name.to_owned(), point));
+            .insert(chrono::Local::now().naive_local(), (name.to_owned(), point));
     }
 
     pub fn line_series_iter(
         &self,
-    ) -> impl Iterator<Item = (&String, &BTreeMap<chrono::DateTime<chrono::Local>, f64>)> {
+    ) -> impl Iterator<Item = (&String, &BTreeMap<NaiveDateTime, f64>)> {
         self.line_series.iter()
     }
 
-    pub fn throttling_iter(
-        &self,
-    ) -> impl Iterator<Item = (chrono::DateTime<chrono::Local>, &str, bool)> {
+    pub fn throttling_iter(&self) -> impl Iterator<Item = (NaiveDateTime, &str, bool)> {
         self.throttling
             .iter()
             .map(|(time, (name, point))| (*time, name.as_str(), *point))
@@ -105,7 +104,7 @@ impl PlotData {
                 .unwrap_or_default();
 
             data.retain(|time_point, _| {
-                ((maximum_point - time_point).num_seconds() as u64) < last_seconds
+                ((maximum_point - *time_point).num_seconds() as u64) < last_seconds
             });
         }
 
@@ -119,7 +118,7 @@ impl PlotData {
             .unwrap_or_default();
 
         self.throttling.retain(|time_point, _| {
-            ((maximum_point - time_point).num_seconds() as u64) < last_seconds
+            ((maximum_point - *time_point).num_seconds() as u64) < last_seconds
         });
     }
 }
@@ -166,7 +165,9 @@ impl Plot {
             .margin(20)
             .caption(self.title.borrow().as_str(), ("sans-serif", 30))
             .build_cartesian_2d(
-                start_date..max(end_date, start_date + TimeDelta::seconds(60)),
+                RangedDateTime::from(
+                    start_date..max(end_date, start_date + TimeDelta::seconds(60)),
+                ),
                 0f64..maximum_value,
             )?;
 
