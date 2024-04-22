@@ -52,6 +52,9 @@ pub enum Request<'a> {
         kind: PowerLevelKind,
         states: Vec<u8>,
     },
+    VbiosDump {
+        id: &'a str,
+    },
     EnableOverdrive,
     DisableOverdrive,
     GenerateSnapshot,

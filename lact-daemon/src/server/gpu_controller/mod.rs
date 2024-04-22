@@ -28,7 +28,7 @@ use std::{
     str::FromStr,
     time::Duration,
 };
-use std::{collections::BTreeMap, time::Instant};
+use std::{collections::BTreeMap, fs, time::Instant};
 use tokio::{
     select,
     sync::Notify,
@@ -621,6 +621,18 @@ impl GpuController {
                 warn!("Could not reset minimum pwm: {err:#}");
             }
         }
+    }
+
+    pub fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
+        let debugfs = self.debugfs_path().context("DebugFS not found")?;
+        fs::read(debugfs.join("amdgpu_vbios")).context("Could not read VBIOS file")
+    }
+
+    fn debugfs_path(&self) -> Option<PathBuf> {
+        self.handle
+            .get_pci_slot_name()
+            .map(|slot_id| Path::new("/sys/kernel/debug/dri").join(slot_id))
+            .filter(|path| path.exists())
     }
 
     #[allow(clippy::too_many_lines)]

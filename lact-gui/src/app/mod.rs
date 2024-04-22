@@ -198,7 +198,14 @@ impl App {
                     }))
                     .build();
 
-                app.application.add_action_entries([snapshot_action, disable_overdive_action, show_graphs_window_action]);
+                let dump_vbios_action = ActionEntry::builder("dump-vbios")
+                    .activate(clone!(@strong app, @strong current_gpu_id => move |_, _, _| {
+                        let gpu_id = current_gpu_id.borrow();
+                        app.dump_vbios(&gpu_id);
+                    }))
+                    .build();
+
+                app.application.add_action_entries([snapshot_action, disable_overdive_action, show_graphs_window_action, dump_vbios_action]);
 
                 app.start_stats_update_loop(current_gpu_id);
 
@@ -643,6 +650,52 @@ impl App {
             });
 
         }));
+    }
+
+    fn dump_vbios(&self, gpu_id: &str) {
+        match self
+            .daemon_client
+            .dump_vbios(gpu_id)
+            .and_then(|response| response.inner())
+        {
+            Ok(vbios_data) => {
+                let file_chooser = FileChooserDialog::new(
+                    Some("Save VBIOS file"),
+                    Some(&self.window),
+                    FileChooserAction::Save,
+                    &[
+                        ("Save", ResponseType::Accept),
+                        ("Cancel", ResponseType::Cancel),
+                    ],
+                );
+
+                let file_name_suffix = gpu_id
+                    .split_once('-')
+                    .map(|(id, _)| id.replace(':', "_"))
+                    .unwrap_or_default();
+                file_chooser.set_current_name(&format!("{file_name_suffix}_vbios_dump.rom"));
+                file_chooser.run_async(
+                    clone!(@strong self.window as window => move |diag, _| {
+                        diag.close();
+
+                        if let Some(file) = diag.file() {
+                            match file.path() {
+                                Some(path) => {
+                                    if let Err(err) = std::fs::write(path, vbios_data).context("Could not save vbios file") {
+                                        show_error(&window, err);
+                                    }
+                                }
+                                None => show_error(
+                                    &window,
+                                    anyhow!("Selected file has an invalid path"),
+                                ),
+                            }
+                        }
+                    }),
+                );
+            }
+            Err(err) => show_error(&self.window, err),
+        }
     }
 
     fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
