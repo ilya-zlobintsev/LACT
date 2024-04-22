@@ -126,6 +126,7 @@ impl DaemonClient {
     );
     request_with_id!(get_power_states, GetPowerStates, PowerStates);
     request_with_id!(reset_pmfw, ResetPmfw, u64);
+    request_with_id!(dump_vbios, VbiosDump, Vec<u8>);
 
     pub fn set_performance_level(
         &self,

@@ -26,6 +26,7 @@ impl Header {
             Some("Show historical charts"),
             Some("app.show-graphs-window"),
         );
+        menu.append(Some("Dump VBIOS"), Some("app.dump-vbios"));
         menu.append(
             Some("Generate debug snapshot"),
             Some("app.generate-debug-snapshot"),
