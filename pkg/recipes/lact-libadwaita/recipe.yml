@@ -12,12 +12,12 @@ metadata:
   conflicts: [ lact, lact-headless ]
   depends:
     all: [ hwdata ]
-    fedora-39: [ gtk4, libdrm, libadwaita ]
+    fedora-39+fedora-40: [ gtk4, libdrm, libadwaita ]
     arch: [ gtk4, libadwaita ]
     opensuse-tumbleweed: [ libdrm, libadwaita ]
   build_depends:
     all: [ curl, make, clang, git ]
-    fedora-39: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler, libadwaita-devel, dbus ]
+    fedora-39+fedora-40: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler, libadwaita-devel, dbus ]
     arch: [ gtk4, blueprint-compiler, libadwaita, dbus ]
     opensuse-tumbleweed: [ libdrm-devel, blueprint-compiler, libadwaita-devel ]
   all_images: true
@@ -31,6 +31,8 @@ configure:
         curl -o /tmp/blueprint-compiler.deb http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb &&
         apt install -y /tmp/blueprint-compiler.deb
       deb: true
+    - cmd: pacman -Syu --noconfirm
+      pkg: true
 build:
   steps:
     - cmd: bash -c "source $HOME/.cargo/env && cd LACT && make build-release-libadwaita"

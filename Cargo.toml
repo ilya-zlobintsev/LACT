@@ -25,3 +25,7 @@ nix = { version = "0.28.0", default-features = false }
 strip = "symbols"
 opt-level = "s"
 lto = true
+
+[profile.bench]
+strip = false
+debug = true

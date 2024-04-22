@@ -1,10 +1,15 @@
 mod apply_revealer;
+mod graphs_window;
 mod header;
 mod info_row;
 mod page_section;
 mod root_stack;
 
-use crate::{APP_ID, GUI_VERSION};
+#[cfg(feature = "bench")]
+pub use graphs_window::plot::{Plot, PlotData};
+
+use self::graphs_window::GraphsWindow;
+use crate::{create_connection, APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::ApplyRevealer;
 use glib::clone;
@@ -27,13 +32,14 @@ use tracing::{debug, error, trace, warn};
 const STATS_POLL_INTERVAL: u64 = 250;
 
 #[derive(Clone)]
-pub struct App {
+pub(crate) struct App {
     application: Application,
     pub window: ApplicationWindow,
     pub header: Header,
     root_stack: RootStack,
     apply_revealer: ApplyRevealer,
     daemon_client: DaemonClient,
+    graphs_window: GraphsWindow,
 }
 
 impl App {
@@ -78,6 +84,8 @@ impl App {
 
         window.set_child(Some(&root_box));
 
+        let graphs_window = GraphsWindow::new();
+
         App {
             application,
             window,
@@ -85,6 +93,7 @@ impl App {
             root_stack,
             apply_revealer,
             daemon_client,
+            graphs_window,
         }
     }
 
@@ -100,6 +109,7 @@ impl App {
                     app.set_info(&gpu_id);
                     *current_gpu_id.borrow_mut() = gpu_id;
                     debug!("Updated current GPU id");
+                    app.graphs_window.clear();
                 }));
 
                 let devices_buf = app
@@ -178,11 +188,17 @@ impl App {
 
                 let disable_overdive_action = ActionEntry::builder("disable-overdrive")
                     .activate(clone!(@strong app => move |_, _, _| {
-                        app.disable_overclocking()
+                        app.disable_overclocking();
                     }))
                     .build();
 
-                app.application.add_action_entries([snapshot_action, disable_overdive_action]);
+                let show_graphs_window_action = ActionEntry::builder("show-graphs-window")
+                    .activate(clone!(@strong app => move |_, _, _| {
+                        app.graphs_window.show();
+                    }))
+                    .build();
+
+                app.application.add_action_entries([snapshot_action, disable_overdive_action, show_graphs_window_action]);
 
                 app.start_stats_update_loop(current_gpu_id);
 
@@ -334,7 +350,7 @@ impl App {
     fn start_stats_update_loop(&self, current_gpu_id: Rc<RefCell<String>>) {
         // The loop that gets stats
         glib::spawn_future_local(
-            clone!(@strong self.daemon_client as daemon_client, @strong self.root_stack as root_stack => async move {
+            clone!(@strong self.daemon_client as daemon_client, @strong self.root_stack as root_stack, @strong self.graphs_window as graphs_window => async move {
                 loop {
                     {
                         let gpu_id = current_gpu_id.borrow();
@@ -348,6 +364,7 @@ impl App {
                                 root_stack.info_page.set_stats(&stats);
                                 root_stack.thermals_page.set_stats(&stats, false);
                                 root_stack.oc_page.set_stats(&stats, false);
+                                graphs_window.set_stats(&stats);
                             }
                             Err(err) => {
                                 error!("Could not fetch stats: {err}");
@@ -536,7 +553,7 @@ impl App {
     }
 
     fn enable_overclocking(&self) {
-        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this? (Note: the GUI may freeze for a bit)");
+        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this?");
         let dialog = MessageDialog::builder()
             .title("Enable Overclocking")
             .use_markup(true)
@@ -548,11 +565,70 @@ impl App {
 
         dialog.run_async(clone!(@strong self as app => move |diag, response| {
             if response == ResponseType::Ok {
-                match app.daemon_client.enable_overdrive().and_then(|buffer| buffer.inner()) {
+                let handle = gio::spawn_blocking(|| {
+                    let (daemon_client, _) = create_connection().expect("Could not create new daemon connection");
+                    daemon_client.enable_overdrive().and_then(|buffer| buffer.inner())
+                });
+
+                let dialog = app.spinner_dialog("Turning overclocking on (this may take a while)");
+                dialog.show();
+
+                glib::spawn_future_local(async move {
+                    let result = handle.await.unwrap();
+                    dialog.hide();
+
+                    match result {
+                        Ok(msg) => {
+                            let success_dialog = MessageDialog::builder()
+                                .title("Success")
+                                .text(format!("Overclocking successfully enabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
+                                .message_type(MessageType::Info)
+                                .buttons(ButtonsType::Ok)
+                                .build();
+                            success_dialog.run_async(move |diag, _| {
+                                diag.hide();
+                            });
+                        }
+                        Err(err) => {
+                            show_error(&app.window, err);
+                        }
+                    }
+                });
+            }
+            diag.hide();
+        }));
+    }
+
+    fn disable_overclocking(&self) {
+        let dialog = MessageDialog::builder()
+            .title("Disable Overclocking")
+            .use_markup(true)
+            .text("The overclocking functionality in the driver will now be turned off.")
+            .message_type(MessageType::Info)
+            .buttons(ButtonsType::Ok)
+            .transient_for(&self.window)
+            .build();
+
+        dialog.run_async(clone!(@strong self as app => move |diag, _| {
+            diag.hide();
+
+            let handle = gio::spawn_blocking(|| {
+                let (daemon_client, _) = create_connection().expect("Could not create new daemon connection");
+                daemon_client.disable_overdrive().and_then(|buffer| buffer.inner())
+            });
+
+            let dialog = app.spinner_dialog("Turning overclocking off (this may take a while)");
+            dialog.show();
+
+            glib::spawn_future_local(async move {
+                let result = handle.await.unwrap();
+                dialog.hide();
+
+                match result {
                     Ok(msg) => {
                         let success_dialog = MessageDialog::builder()
                             .title("Success")
-                            .text(format!("Overclocking successfully enabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
+                            .text(format!("Overclocking successfully disabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
                             .message_type(MessageType::Info)
                             .buttons(ButtonsType::Ok)
                             .build();
@@ -564,39 +640,8 @@ impl App {
                         show_error(&app.window, err);
                     }
                 }
-            }
-            diag.hide();
-        }));
-    }
+            });
 
-    fn disable_overclocking(&self) {
-        let dialog = MessageDialog::builder()
-            .title("Disable Overclocking")
-            .use_markup(true)
-            .text("The overclocking functionality in the driver will now be turned off. (Note: the LACT window might hang)")
-            .message_type(MessageType::Info)
-            .buttons(ButtonsType::Ok)
-            .transient_for(&self.window)
-            .build();
-
-        dialog.run_async(clone!(@strong self as app => move |diag, _| {
-            diag.hide();
-            match app.daemon_client.disable_overdrive().and_then(|buffer| buffer.inner()) {
-                Ok(msg) => {
-                    let success_dialog = MessageDialog::builder()
-                        .title("Success")
-                        .text(format!("Overclocking successfully disabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
-                        .message_type(MessageType::Info)
-                        .buttons(ButtonsType::Ok)
-                        .build();
-                    success_dialog.run_async(move |diag, _| {
-                        diag.hide();
-                    });
-                }
-                Err(err) => {
-                    show_error(&app.window, err);
-                }
-            }
         }));
     }
 
@@ -649,6 +694,25 @@ impl App {
             }
             app.set_initial(&gpu_id);
         }));
+    }
+
+    fn spinner_dialog(&self, title: &str) -> MessageDialog {
+        let spinner = gtk::Spinner::new();
+        spinner.start();
+        spinner.set_margin_top(10);
+        spinner.set_margin_bottom(10);
+
+        let dialog = MessageDialog::builder()
+            .title(title)
+            .child(&spinner)
+            .message_type(MessageType::Info)
+            .transient_for(&self.window)
+            .build();
+
+        dialog.titlebar().unwrap().set_margin_start(15);
+        dialog.titlebar().unwrap().set_margin_end(15);
+
+        dialog
     }
 }
 
