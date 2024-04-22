@@ -8,7 +8,7 @@ use gtk::{
 };
 use lact_client::schema::DeviceStats;
 
-const GRAPH_WIDTH_SECONDS: u64 = 60;
+const GRAPH_WIDTH_SECONDS: i64 = 60;
 
 glib::wrapper! {
     pub struct GraphsWindow(ObjectSubclass<imp::GraphsWindow>)

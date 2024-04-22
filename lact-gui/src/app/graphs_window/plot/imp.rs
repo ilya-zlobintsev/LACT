@@ -1,7 +1,6 @@
 use super::cubic_spline::cubic_spline_interpolation;
 use anyhow::Context;
 use chrono::NaiveDateTime;
-use chrono::TimeDelta;
 use glib::Properties;
 use gtk::{glib, prelude::*, subclass::prelude::*};
 use itertools::Itertools;
@@ -65,9 +64,10 @@ impl WidgetImpl for Plot {
 }
 
 #[derive(Default)]
+#[cfg_attr(feature = "bench", derive(Clone))]
 pub struct PlotData {
-    line_series: BTreeMap<String, BTreeMap<NaiveDateTime, f64>>,
-    throttling: BTreeMap<NaiveDateTime, (String, bool)>,
+    line_series: BTreeMap<String, BTreeMap<i64, f64>>,
+    throttling: BTreeMap<i64, (String, bool)>,
 }
 
 impl PlotData {
@@ -79,27 +79,27 @@ impl PlotData {
         self.line_series
             .entry(name.to_owned())
             .or_default()
-            .insert(time, point);
+            .insert(time.timestamp_millis(), point);
     }
 
     pub fn push_throttling(&mut self, name: &str, point: bool) {
-        self.throttling
-            .insert(chrono::Local::now().naive_local(), (name.to_owned(), point));
+        self.throttling.insert(
+            chrono::Local::now().naive_local().timestamp_millis(),
+            (name.to_owned(), point),
+        );
     }
 
-    pub fn line_series_iter(
-        &self,
-    ) -> impl Iterator<Item = (&String, &BTreeMap<NaiveDateTime, f64>)> {
+    pub fn line_series_iter(&self) -> impl Iterator<Item = (&String, &BTreeMap<i64, f64>)> {
         self.line_series.iter()
     }
 
-    pub fn throttling_iter(&self) -> impl Iterator<Item = (NaiveDateTime, &str, bool)> {
+    pub fn throttling_iter(&self) -> impl Iterator<Item = (i64, &str, bool)> {
         self.throttling
             .iter()
             .map(|(time, (name, point))| (*time, name.as_str(), *point))
     }
 
-    pub fn trim_data(&mut self, last_seconds: u64) {
+    pub fn trim_data(&mut self, last_seconds: i64) {
         // Limit data to N seconds
         for data in self.line_series.values_mut() {
             let maximum_point = data
@@ -107,9 +107,7 @@ impl PlotData {
                 .map(|(date_time, _)| *date_time)
                 .unwrap_or_default();
 
-            data.retain(|time_point, _| {
-                ((maximum_point - *time_point).num_seconds() as u64) < last_seconds
-            });
+            data.retain(|time_point, _| ((maximum_point - *time_point) / 1000) < last_seconds);
         }
 
         self.line_series.retain(|_, data| !data.is_empty());
@@ -121,9 +119,8 @@ impl PlotData {
             .map(|(date_time, _)| *date_time)
             .unwrap_or_default();
 
-        self.throttling.retain(|time_point, _| {
-            ((maximum_point - *time_point).num_seconds() as u64) < last_seconds
-        });
+        self.throttling
+            .retain(|time_point, _| ((maximum_point - *time_point) / 1000) < last_seconds);
     }
 }
 
@@ -170,15 +167,16 @@ impl Plot {
             .margin(20)
             .caption(self.title.borrow().as_str(), ("sans-serif", 30))
             .build_cartesian_2d(
-                RangedDateTime::from(
-                    start_date..max(end_date, start_date + TimeDelta::seconds(60)),
-                ),
+                start_date..max(end_date, start_date + 60 * 1000),
                 0f64..maximum_value,
             )?;
 
         chart
             .configure_mesh()
-            .x_label_formatter(&|date_time| date_time.format("%H:%M:%S").to_string())
+            .x_label_formatter(&|date_time| {
+                let date_time = NaiveDateTime::from_timestamp_millis(*date_time).unwrap();
+                date_time.format("%H:%M:%S").to_string()
+            })
             .y_label_formatter(&|x| format!("{x}{}", self.value_suffix.borrow()))
             .x_labels(5)
             .y_labels(10)
@@ -219,17 +217,10 @@ impl Plot {
                     cubic_spline_interpolation(data.iter())
                         .into_iter()
                         .flat_map(|((first_time, second_time), segment)| {
-                            let mut current_date = first_time;
-
-                            let mut result = vec![];
-                            while current_date < second_time {
-                                result.push((current_date, segment.evaluate(&current_date)));
-
-                                // Interpolate in intervals of one millisecond
-                                current_date += TimeDelta::milliseconds(1);
-                            }
-
-                            result
+                            // Interpolate in intervals of one millisecond
+                            (first_time..second_time).map(move |current_date| {
+                                (current_date, segment.evaluate(current_date))
+                            })
                         }),
                     Palette99::pick(idx).stroke_width(1),
                 ))

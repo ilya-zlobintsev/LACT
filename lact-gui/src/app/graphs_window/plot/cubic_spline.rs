@@ -1,4 +1,3 @@
-use chrono::NaiveDateTime;
 use itertools::Itertools;
 
 #[derive(Clone, Copy)]
@@ -7,28 +6,28 @@ pub struct CubicSplineSegment {
     b: f64,
     c: f64,
     d: f64,
-    x: NaiveDateTime,
+    x: i64,
 }
 
 impl CubicSplineSegment {
     // Create a new cubic spline segment
-    fn new(a: f64, b: f64, c: f64, d: f64, x: NaiveDateTime) -> Self {
+    fn new(a: f64, b: f64, c: f64, d: f64, x: i64) -> Self {
         Self { a, b, c, d, x }
     }
 
     // Evaluate the cubic spline at a given point x
-    pub fn evaluate(&self, x: &NaiveDateTime) -> f64 {
-        let dx = (*x - self.x).num_milliseconds() as f64;
+    pub fn evaluate(&self, x: i64) -> f64 {
+        let dx = (x - self.x) as f64;
         self.a + self.b * dx + self.c * dx.powi(2) + self.d * dx.powi(3)
     }
 }
 
-pub type TimePeriod = (NaiveDateTime, NaiveDateTime);
+pub type TimePeriod = (i64, i64);
 
 // Define a function to perform cubic spline interpolation
 pub fn cubic_spline_interpolation<'a, I>(iter: I) -> Vec<(TimePeriod, CubicSplineSegment)>
 where
-    I: IntoIterator<Item = (&'a NaiveDateTime, &'a f64)> + 'a,
+    I: IntoIterator<Item = (&'a i64, &'a f64)> + 'a,
 {
     let data: Vec<_> = iter.into_iter().collect();
 
@@ -37,7 +36,7 @@ where
     // Compute differences between consecutive x values
     let mut dx = Vec::with_capacity(n - 1);
     for i in 1..n {
-        let x_diff = (*data[i].0 - *data[i - 1].0).num_milliseconds() as f64;
+        let x_diff = (*data[i].0 - *data[i - 1].0) as f64;
         dx.push(x_diff);
     }
 
