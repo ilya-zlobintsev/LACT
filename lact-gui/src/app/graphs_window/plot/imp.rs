@@ -66,8 +66,8 @@ impl WidgetImpl for Plot {
 #[derive(Default)]
 #[cfg_attr(feature = "bench", derive(Clone))]
 pub struct PlotData {
-    line_series: BTreeMap<String, BTreeMap<i64, f64>>,
-    throttling: BTreeMap<i64, (String, bool)>,
+    line_series: BTreeMap<String, Vec<(i64, f64)>>,
+    throttling: Vec<(i64, (String, bool))>,
 }
 
 impl PlotData {
@@ -79,17 +79,17 @@ impl PlotData {
         self.line_series
             .entry(name.to_owned())
             .or_default()
-            .insert(time.timestamp_millis(), point);
+            .push((time.timestamp_millis(), point));
     }
 
     pub fn push_throttling(&mut self, name: &str, point: bool) {
-        self.throttling.insert(
+        self.throttling.push((
             chrono::Local::now().naive_local().timestamp_millis(),
             (name.to_owned(), point),
-        );
+        ));
     }
 
-    pub fn line_series_iter(&self) -> impl Iterator<Item = (&String, &BTreeMap<i64, f64>)> {
+    pub fn line_series_iter(&self) -> impl Iterator<Item = (&String, &Vec<(i64, f64)>)> {
         self.line_series.iter()
     }
 
@@ -103,11 +103,11 @@ impl PlotData {
         // Limit data to N seconds
         for data in self.line_series.values_mut() {
             let maximum_point = data
-                .last_key_value()
+                .last()
                 .map(|(date_time, _)| *date_time)
                 .unwrap_or_default();
 
-            data.retain(|time_point, _| ((maximum_point - *time_point) / 1000) < last_seconds);
+            data.retain(|(time_point, _)| ((maximum_point - *time_point) / 1000) < last_seconds);
         }
 
         self.line_series.retain(|_, data| !data.is_empty());
@@ -115,12 +115,12 @@ impl PlotData {
         // Limit data to N seconds
         let maximum_point = self
             .throttling
-            .last_key_value()
+            .last()
             .map(|(date_time, _)| *date_time)
             .unwrap_or_default();
 
         self.throttling
-            .retain(|time_point, _| ((maximum_point - *time_point) / 1000) < last_seconds);
+            .retain(|(time_point, _)| ((maximum_point - *time_point) / 1000) < last_seconds);
     }
 }
 
@@ -136,21 +136,19 @@ impl Plot {
 
         let start_date = data
             .line_series_iter()
-            .filter_map(|(_, data)| Some(data.first_key_value()?.0))
+            .filter_map(|(_, data)| Some(data.first()?.0))
             .min()
-            .cloned()
             .unwrap_or_default();
         let end_date = data
             .line_series_iter()
             .map(|(_, value)| value)
-            .filter_map(|data| Some(data.last_key_value()?.0))
+            .filter_map(|data| Some(data.first()?.0))
             .max()
-            .cloned()
             .unwrap_or_default();
 
         let mut maximum_value = data
             .line_series_iter()
-            .flat_map(|(_, data)| data.values())
+            .flat_map(|(_, data)| data.iter().map(|(_, value)| value))
             .max_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal))
             .cloned()
             .unwrap_or_default();
