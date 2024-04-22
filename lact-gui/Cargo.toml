@@ -30,7 +30,7 @@ plotters = { version = "0.3.5", default-features = false, features = [
     "histogram",
     "full_palette",
 ] }
-plotters-cairo = { git = "https://github.com/plotters-rs/plotters-cairo" }
+plotters-cairo = "0.6.0"
 chrono = "0.4"
 itertools = "0.12.1"
 
