@@ -629,10 +629,22 @@ impl GpuController {
     }
 
     fn debugfs_path(&self) -> Option<PathBuf> {
-        self.handle
-            .get_pci_slot_name()
-            .map(|slot_id| Path::new("/sys/kernel/debug/dri").join(slot_id))
-            .filter(|path| path.exists())
+        let slot_id = self.handle.get_pci_slot_name()?;
+        let name_search_term = format!("dev={slot_id}");
+
+        for entry in fs::read_dir("/sys/kernel/debug/dri").ok()?.flatten() {
+            let debugfs_path = entry.path();
+            let name_file_path = debugfs_path.join("name");
+            if name_file_path.exists() {
+                if let Ok(contents) = fs::read_to_string(&name_file_path) {
+                    if contents.contains(&name_search_term) {
+                        return Some(debugfs_path);
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     #[allow(clippy::too_many_lines)]
