@@ -717,18 +717,6 @@ impl GpuController {
             }
         }
 
-        if let Some(mode_index) = config.power_profile_mode_index {
-            if config.performance_level != Some(PerformanceLevel::Manual) {
-                return Err(anyhow!(
-                    "Performance level has to be set to `manual` to use power profile modes"
-                ));
-            }
-
-            self.handle
-                .set_active_power_profile_mode(mode_index)
-                .context("Failed to set active power profile mode")?;
-        }
-
         // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
         self.handle.reset_clocks_table().ok();
 
@@ -766,6 +754,18 @@ impl GpuController {
                 .context("Failed to set power performance level")?;
         }
         // Else is not needed, it was previously reset to auto already
+
+        if let Some(mode_index) = config.power_profile_mode_index {
+            if config.performance_level != Some(PerformanceLevel::Manual) {
+                return Err(anyhow!(
+                    "Performance level has to be set to `manual` to use power profile modes"
+                ));
+            }
+
+            self.handle
+                .set_active_power_profile_mode(mode_index)
+                .context("Failed to set active power profile mode")?;
+        }
 
         for (kind, states) in &config.power_states {
             if config.performance_level != Some(PerformanceLevel::Manual) {
