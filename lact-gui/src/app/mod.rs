@@ -762,8 +762,10 @@ impl App {
             .transient_for(&self.window)
             .build();
 
-        dialog.titlebar().unwrap().set_margin_start(15);
-        dialog.titlebar().unwrap().set_margin_end(15);
+        if let Some(bar) = dialog.titlebar() {
+            bar.set_margin_start(15);
+            bar.set_margin_end(15);
+        }
 
         dialog
     }
