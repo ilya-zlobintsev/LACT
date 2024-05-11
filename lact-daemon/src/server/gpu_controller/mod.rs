@@ -35,7 +35,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, timeout},
 };
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 #[cfg(feature = "libdrm_amdgpu_sys")]
 use {
     lact_schema::DrmMemoryInfo,
@@ -470,6 +470,9 @@ impl GpuController {
             let mut last_pwm = (None, Instant::now());
             let mut last_temp = 0.0;
 
+            // If the fan speed could was able to be set at least once
+            let mut control_available = false;
+
             let temp_key = settings.temperature_key.clone();
             let interval = Duration::from_millis(settings.interval_ms);
             let spindown_delay = Duration::from_millis(settings.spindown_delay_ms.unwrap_or(0));
@@ -513,9 +516,17 @@ impl GpuController {
 
                 trace!("fan control tick: setting pwm to {target_pwm}");
 
-                if let Err(err) = hw_mon.set_fan_pwm(target_pwm) {
-                    error!("could not set fan speed: {err}, disabling fan control");
-                    break;
+                match hw_mon.set_fan_pwm(target_pwm) {
+                    Ok(()) => control_available = true,
+                    Err(err) => {
+                        error!("could not set fan speed: {err}");
+                        if control_available {
+                            info!("fan control was previously available, assuming the error is temporary");
+                        } else {
+                            info!("disabling fan control");
+                            break;
+                        }
+                    }
                 }
             }
             debug!("exited fan control task");
