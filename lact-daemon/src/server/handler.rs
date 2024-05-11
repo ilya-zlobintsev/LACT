@@ -122,14 +122,19 @@ impl<'a> Handler {
 
         *self.config_last_applied.lock().unwrap() = Instant::now();
 
-        for (id, gpu_config) in &config.gpus {
-            if let Some(controller) = self.gpu_controllers.get(id) {
-                if let Err(err) = controller.apply_config(gpu_config).await {
-                    error!("could not apply existing config for gpu {id}: {err}");
+        match config.gpus() {
+            Ok(gpus) => {
+                for (id, gpu_config) in gpus {
+                    if let Some(controller) = self.gpu_controllers.get(id) {
+                        if let Err(err) = controller.apply_config(gpu_config).await {
+                            error!("could not apply existing config for gpu {id}: {err}");
+                        }
+                    } else {
+                        info!("could not find GPU with id {id} defined in configuration");
+                    }
                 }
-            } else {
-                info!("could not find GPU with id {id} defined in configuration");
             }
+            Err(err) => error!("{err:#}"),
         }
     }
 
@@ -152,7 +157,7 @@ impl<'a> Handler {
         let (gpu_config, apply_timer) = {
             let config = self.config.try_borrow().map_err(|err| anyhow!("{err}"))?;
             let apply_timer = config.apply_settings_timer;
-            let gpu_config = config.gpus.get(&id).cloned().unwrap_or_default();
+            let gpu_config = config.gpus()?.get(&id).cloned().unwrap_or_default();
             (gpu_config, apply_timer)
         };
 
@@ -214,7 +219,12 @@ impl<'a> Handler {
                             *handler.config_last_applied.lock().unwrap() = Instant::now();
 
                             let mut config_guard = handler.config.borrow_mut();
-                            config_guard.gpus.insert(id, new_config);
+                            match config_guard.gpus_mut() {
+                                Ok(gpus) => {
+                                    gpus.insert(id, new_config);
+                                }
+                                Err(err) => error!("{err:#}"),
+                            }
 
                             if let Err(err) = config_guard.save() {
                                 error!("{err}");
@@ -268,7 +278,7 @@ impl<'a> Handler {
             .config
             .try_borrow()
             .map_err(|err| anyhow!("Could not read config: {err:?}"))?;
-        let gpu_config = config.gpus.get(id);
+        let gpu_config = config.gpus()?.get(id);
         Ok(self.controller_by_id(id)?.get_stats(gpu_config))
     }
 
@@ -282,7 +292,10 @@ impl<'a> Handler {
                 .config
                 .try_borrow_mut()
                 .map_err(|err| anyhow!("{err}"))?;
-            let gpu_config = config_guard.gpus.entry(opts.id.to_owned()).or_default();
+            let gpu_config = config_guard
+                .gpus_mut()?
+                .entry(opts.id.to_owned())
+                .or_default();
 
             match opts.mode {
                 Some(mode) => match mode {
@@ -378,7 +391,7 @@ impl<'a> Handler {
             .config
             .try_borrow()
             .map_err(|err| anyhow!("Could not read config: {err:?}"))?;
-        let gpu_config = config.gpus.get(id);
+        let gpu_config = config.gpus()?.get(id);
 
         let states = self.controller_by_id(id)?.get_power_states(gpu_config);
         Ok(states)

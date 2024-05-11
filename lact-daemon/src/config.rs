@@ -19,12 +19,18 @@ use tracing::{debug, error};
 const FILE_NAME: &str = "config.yaml";
 const DEFAULT_ADMIN_GROUPS: [&str; 2] = ["wheel", "sudo"];
 
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Config {
     pub daemon: Daemon,
     #[serde(default = "default_apply_settings_timer")]
     pub apply_settings_timer: u64,
-    pub gpus: HashMap<String, Gpu>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    gpus: HashMap<String, Gpu>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    profiles: HashMap<String, Profile>,
+    #[serde(default)]
+    pub current_profile: Option<String>,
 }
 
 impl Default for Config {
@@ -33,6 +39,8 @@ impl Default for Config {
             daemon: Daemon::default(),
             apply_settings_timer: default_apply_settings_timer(),
             gpus: HashMap::new(),
+            profiles: HashMap::new(),
+            current_profile: None,
         }
     }
 }
@@ -53,6 +61,12 @@ impl Default for Daemon {
             disable_clocks_cleanup: false,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct Profile {
+    #[serde(default)]
+    pub gpus: HashMap<String, Gpu>,
 }
 
 #[skip_serializing_none]
@@ -166,6 +180,34 @@ impl Config {
             let config = Config::default();
             config.save()?;
             Ok(config)
+        }
+    }
+
+    /// Gets the GPU configs according to the current profile. Returns an error if the current profile could not be found.
+    pub fn gpus(&self) -> anyhow::Result<&HashMap<String, Gpu>> {
+        match &self.current_profile {
+            Some(profile) => {
+                let profile = self
+                    .profiles
+                    .get(profile)
+                    .with_context(|| format!("Could not find profile '{profile}'"))?;
+                Ok(&profile.gpus)
+            }
+            None => Ok(&self.gpus),
+        }
+    }
+
+    /// Same as [`gpus`], but with a mutable reference
+    pub fn gpus_mut(&mut self) -> anyhow::Result<&mut HashMap<String, Gpu>> {
+        match &self.current_profile {
+            Some(profile) => {
+                let profile = self
+                    .profiles
+                    .get_mut(profile)
+                    .with_context(|| format!("Could not find profile '{profile}'"))?;
+                Ok(&mut profile.gpus)
+            }
+            None => Ok(&mut self.gpus),
         }
     }
 }
