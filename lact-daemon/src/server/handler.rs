@@ -23,7 +23,7 @@ use std::{
     cell::RefCell,
     collections::{BTreeMap, HashMap},
     env,
-    fs::{File, Permissions},
+    fs::{self, File, Permissions},
     io::{BufWriter, Cursor, Write},
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
@@ -86,12 +86,42 @@ impl<'a> Handler {
         let mut controllers = BTreeMap::new();
 
         // Sometimes LACT starts too early in the boot process, before the sysfs is initialized.
-        // For such scenarios there is a retry logic when no GPUs were found
+        // For such scenarios there is a retry logic when no GPUs were found,
+        // or if some of the PCI devices don't have a drm entry yet.
         for i in 1..=CONTROLLERS_LOAD_RETRY_ATTEMPTS {
             controllers = load_controllers()?;
 
+            let mut should_retry = false;
+            if let Ok(devices) = fs::read_dir("/sys/bus/pci/devices") {
+                for device in devices.flatten() {
+                    if let Ok(uevent) = fs::read_to_string(device.path().join("uevent")) {
+                        let uevent = uevent.replace('\0', "");
+                        if uevent.contains("amdgpu") || uevent.contains("radeon") {
+                            let slot_name = device
+                                .file_name()
+                                .into_string()
+                                .expect("pci file name should be valid unicode");
+
+                            if controllers.values().any(|controller| {
+                                controller.handle.get_pci_slot_name() == Some(&slot_name)
+                            }) {
+                                debug!("found intialized drm entry for device {:?}", device.path());
+                            } else {
+                                warn!("could not find drm entry for device {:?}", device.path());
+                                should_retry = true;
+                            }
+                        }
+                    }
+                }
+            }
+
             if controllers.is_empty() {
-                warn!("no GPUs were found, retrying in {CONTROLLERS_LOAD_RETRY_INTERVAL}s (attempt {i}/{CONTROLLERS_LOAD_RETRY_ATTEMPTS})");
+                warn!("no GPUs were found");
+                should_retry = true;
+            }
+
+            if should_retry {
+                info!("retrying in {CONTROLLERS_LOAD_RETRY_INTERVAL}s (attempt {i}/{CONTROLLERS_LOAD_RETRY_ATTEMPTS})");
                 sleep(Duration::from_secs(CONTROLLERS_LOAD_RETRY_INTERVAL)).await;
             } else {
                 break;
