@@ -33,7 +33,7 @@ tokio = { version = "1.35.1", features = [
 vulkano = { version = "0.34.1", default-features = false }
 futures = { version = "0.3.30", default-features = false }
 zbus = { version = "4.1.2", default-features = false, features = ["tokio"] }
-libdrm_amdgpu_sys = { optional = true, version = "0.6.0" }
+libdrm_amdgpu_sys = { optional = true, version = "0.7.3" }
 tar = "0.4.40"
 libflate = "2.0.0"
 chrono = "0.4.31"
