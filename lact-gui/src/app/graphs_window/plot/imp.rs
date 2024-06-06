@@ -304,7 +304,7 @@ impl Plot {
 
         chart
             .configure_series_labels()
-            .margin(30)
+            .margin(40)
             .label_font(("sans-serif", 30))
             .position(SeriesLabelPosition::LowerRight)
             .background_style(WHITE.mix(0.8))
