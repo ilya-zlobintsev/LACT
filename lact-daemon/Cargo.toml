@@ -18,8 +18,8 @@ serde_with = { workspace = true }
 serde_json = { workspace = true }
 tracing-subscriber = { workspace = true }
 nix = { workspace = true, features = ["user", "fs"] }
+chrono = { workspace = true }
 
-bincode = "1.3"
 pciid-parser = { version = "0.7", features = ["serde"] }
 serde_yaml = "0.9"
 tokio = { version = "1.35.1", features = [
@@ -36,6 +36,5 @@ zbus = { version = "4.1.2", default-features = false, features = ["tokio"] }
 libdrm_amdgpu_sys = { optional = true, version = "0.7.3" }
 tar = "0.4.40"
 libflate = "2.0.0"
-chrono = "0.4.31"
 os-release = "0.1.0"
 notify = { version = "6.1.1", default-features = false }
