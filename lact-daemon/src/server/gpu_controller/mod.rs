@@ -363,7 +363,7 @@ impl GpuController {
 
         // Use PMFW curve functionality for static speed when it is available
         if let Ok(current_curve) = self.handle.get_fan_curve() {
-            let allowed_ranges = current_curve.allowed_ranges.ok_or_else(|| {
+            let allowed_ranges = current_curve.allowed_ranges.clone().ok_or_else(|| {
                 anyhow!("The GPU does not allow setting custom fan values (is overdrive enabled?)")
             })?;
             let min_temperature = allowed_ranges.temperature_range.start();
@@ -383,11 +383,15 @@ impl GpuController {
                 allowed_ranges: Some(allowed_ranges),
             };
 
-            debug!("setting static curve {new_curve:?}");
+            if new_curve == current_curve {
+                debug!("fan curve unchanged");
+            } else {
+                debug!("setting static curve {new_curve:?}");
 
-            self.handle
-                .set_fan_curve(&new_curve)
-                .context("Could not set fan curve")?;
+                self.handle
+                    .set_fan_curve(&new_curve)
+                    .context("Could not set fan curve")?;
+            }
 
             Ok(())
         } else {
@@ -425,13 +429,18 @@ impl GpuController {
         match self.handle.get_fan_curve() {
             Ok(current_curve) => {
                 let new_curve = curve
-                    .into_pmfw_curve(current_curve)
+                    .into_pmfw_curve(current_curve.clone())
                     .context("Invalid fan curve")?;
-                debug!("setting pmfw curve {new_curve:?}");
 
-                self.handle
-                    .set_fan_curve(&new_curve)
-                    .context("Could not set fan curve")?;
+                if new_curve == current_curve {
+                    debug!("fan curve unchanged");
+                } else {
+                    debug!("setting pmfw curve {new_curve:?}");
+
+                    self.handle
+                        .set_fan_curve(&new_curve)
+                        .context("Could not set fan curve")?;
+                }
 
                 Ok(())
             }
@@ -820,24 +829,56 @@ impl GpuController {
 
             let pmfw = &config.pmfw_options;
             if let Some(acoustic_limit) = pmfw.acoustic_limit {
-                self.handle
-                    .set_fan_acoustic_limit(acoustic_limit)
-                    .context("Could not set acoustic limit")?;
+                if self
+                    .handle
+                    .get_fan_acoustic_limit()
+                    .context("Could not get acoustic limit")?
+                    .current
+                    != acoustic_limit
+                {
+                    self.handle
+                        .set_fan_acoustic_limit(acoustic_limit)
+                        .context("Could not set acoustic limit")?;
+                }
             }
             if let Some(acoustic_target) = pmfw.acoustic_target {
-                self.handle
-                    .set_fan_acoustic_target(acoustic_target)
-                    .context("Could not set acoustic target")?;
+                if self
+                    .handle
+                    .get_fan_acoustic_target()
+                    .context("Could not get acoustic target")?
+                    .current
+                    != acoustic_target
+                {
+                    self.handle
+                        .set_fan_acoustic_target(acoustic_target)
+                        .context("Could not set acoustic target")?;
+                }
             }
             if let Some(target_temperature) = pmfw.target_temperature {
-                self.handle
-                    .set_fan_target_temperature(target_temperature)
-                    .context("Could not set target temperature")?;
+                if self
+                    .handle
+                    .get_fan_target_temperature()
+                    .context("Could not get target temperature")?
+                    .current
+                    != target_temperature
+                {
+                    self.handle
+                        .set_fan_target_temperature(target_temperature)
+                        .context("Could not set target temperature")?;
+                }
             }
             if let Some(minimum_pwm) = pmfw.minimum_pwm {
-                self.handle
-                    .set_fan_minimum_pwm(minimum_pwm)
-                    .context("Could not set minimum pwm")?;
+                if self
+                    .handle
+                    .get_fan_minimum_pwm()
+                    .context("Could not get minimum pwm")?
+                    .current
+                    != minimum_pwm
+                {
+                    self.handle
+                        .set_fan_minimum_pwm(minimum_pwm)
+                        .context("Could not set minimum pwm")?;
+                }
             }
         }
 
