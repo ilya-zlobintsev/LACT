@@ -33,6 +33,12 @@ Current features:
 **Why is there no AppImage/Flatpak/other universal format?**
 See [here](./pkg/README.md).
 
+## Development builds
+
+To get latest fixes or features that have not yet been released in a stable version, there are packages built from the latest commit that you can install from the [test release](https://github.com/ilya-zlobintsev/LACT/releases/tag/test-build) or using the `lact-git` AUR package on Arch-based distros.
+
+Note: the date of the test release is not the date when the packages were built, the actual date is specified next to the attached package files.
+
 # Usage
 
 Enable and start the service (otherwise you won't be able to change any settings):
