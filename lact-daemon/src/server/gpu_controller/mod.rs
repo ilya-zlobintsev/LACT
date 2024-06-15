@@ -832,10 +832,6 @@ impl GpuController {
                 ));
             }
         } else {
-            self.stop_fan_control(true)
-                .await
-                .context("Failed to stop fan control")?;
-
             let pmfw = &config.pmfw_options;
             if let Some(acoustic_limit) = pmfw.acoustic_limit {
                 if self
@@ -897,6 +893,10 @@ impl GpuController {
                     commit_handles.push(commit_handle);
                 }
             }
+
+            self.stop_fan_control(true)
+                .await
+                .context("Failed to stop fan control")?;
         }
 
         for handle in commit_handles {
