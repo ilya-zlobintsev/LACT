@@ -8,7 +8,7 @@ use amdgpu_sysfs::{
     gpu_handle::{
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
-        GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
+        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
     },
     hw_mon::{FanControlMethod, HwMon},
     sysfs::SysFS,
@@ -357,7 +357,10 @@ impl GpuController {
         self.handle.hw_monitors.first().map(f)
     }
 
-    async fn set_static_fan_control(&self, static_speed: f64) -> anyhow::Result<()> {
+    async fn set_static_fan_control(
+        &self,
+        static_speed: f64,
+    ) -> anyhow::Result<Option<CommitHandle>> {
         // Stop existing task to set static speed
         self.stop_fan_control(false).await?;
 
@@ -383,17 +386,14 @@ impl GpuController {
                 allowed_ranges: Some(allowed_ranges),
             };
 
-            if new_curve == current_curve {
-                debug!("fan curve unchanged");
-            } else {
-                debug!("setting static curve {new_curve:?}");
+            debug!("setting static curve {new_curve:?}");
 
-                self.handle
-                    .set_fan_curve(&new_curve)
-                    .context("Could not set fan curve")?;
-            }
+            let commit_handle = self
+                .handle
+                .set_fan_curve(&new_curve)
+                .context("Could not set fan curve")?;
 
-            Ok(())
+            Ok(Some(commit_handle))
         } else {
             let hw_mon = self
                 .handle
@@ -415,7 +415,7 @@ impl GpuController {
 
             debug!("set fan speed to {}", static_speed);
 
-            Ok(())
+            Ok(None)
         }
     }
 
@@ -423,28 +423,25 @@ impl GpuController {
         &self,
         curve: FanCurve,
         settings: FanControlSettings,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Option<CommitHandle>> {
         // Use the PMFW curve functionality when it is available
         // Otherwise, fall back to manual fan control via a task
-        match self.handle.get_fan_curve() {
-            Ok(current_curve) => {
-                let new_curve = curve
-                    .into_pmfw_curve(current_curve.clone())
-                    .context("Invalid fan curve")?;
+        if let Ok(current_curve) = self.handle.get_fan_curve() {
+            let new_curve = curve
+                .into_pmfw_curve(current_curve.clone())
+                .context("Invalid fan curve")?;
 
-                if new_curve == current_curve {
-                    debug!("fan curve unchanged");
-                } else {
-                    debug!("setting pmfw curve {new_curve:?}");
+            debug!("setting pmfw curve {new_curve:?}");
 
-                    self.handle
-                        .set_fan_curve(&new_curve)
-                        .context("Could not set fan curve")?;
-                }
+            let commit_handle = self
+                .handle
+                .set_fan_curve(&new_curve)
+                .context("Could not set fan curve")?;
 
-                Ok(())
-            }
-            Err(_) => self.start_curve_fan_control_task(curve, settings).await,
+            Ok(Some(commit_handle))
+        } else {
+            self.start_curve_fan_control_task(curve, settings).await?;
+            Ok(None)
         }
     }
 
@@ -737,6 +734,8 @@ impl GpuController {
             }
         }
 
+        let mut commit_handles = Vec::new();
+
         // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
         self.handle.reset_clocks_table().ok();
 
@@ -762,10 +761,12 @@ impl GpuController {
                     .context("Failed to get table commands")?
             );
 
-            self.handle
+            let handle = self
+                .handle
                 .set_clocks_table(&table)
                 .context("Could not write clocks table")
                 .with_context(|| format!("Clocks table commands: {:?}", table.get_commands()))?;
+            commit_handles.push(handle);
         }
 
         if let Some(level) = config.performance_level {
@@ -803,18 +804,26 @@ impl GpuController {
             if let Some(ref settings) = config.fan_control_settings {
                 match settings.mode {
                     lact_schema::FanControlMode::Static => {
-                        self.set_static_fan_control(settings.static_speed)
+                        if let Some(commit_handle) = self
+                            .set_static_fan_control(settings.static_speed)
                             .await
-                            .context("Failed to set static fan control")?;
+                            .context("Failed to set static fan control")?
+                        {
+                            commit_handles.push(commit_handle);
+                        }
                     }
                     lact_schema::FanControlMode::Curve => {
                         if settings.curve.0.is_empty() {
                             return Err(anyhow!("Cannot use empty fan curve"));
                         }
 
-                        self.start_curve_fan_control(settings.curve.clone(), settings.clone())
+                        if let Some(commit_handle) = self
+                            .start_curve_fan_control(settings.curve.clone(), settings.clone())
                             .await
-                            .context("Failed to set curve fan control")?;
+                            .context("Failed to set curve fan control")?
+                        {
+                            commit_handles.push(commit_handle);
+                        }
                     }
                 }
             } else {
@@ -836,9 +845,11 @@ impl GpuController {
                     .current
                     != acoustic_limit
                 {
-                    self.handle
+                    let commit_handle = self
+                        .handle
                         .set_fan_acoustic_limit(acoustic_limit)
                         .context("Could not set acoustic limit")?;
+                    commit_handles.push(commit_handle);
                 }
             }
             if let Some(acoustic_target) = pmfw.acoustic_target {
@@ -849,9 +860,11 @@ impl GpuController {
                     .current
                     != acoustic_target
                 {
-                    self.handle
+                    let commit_handle = self
+                        .handle
                         .set_fan_acoustic_target(acoustic_target)
                         .context("Could not set acoustic target")?;
+                    commit_handles.push(commit_handle);
                 }
             }
             if let Some(target_temperature) = pmfw.target_temperature {
@@ -862,9 +875,11 @@ impl GpuController {
                     .current
                     != target_temperature
                 {
-                    self.handle
+                    let commit_handle = self
+                        .handle
                         .set_fan_target_temperature(target_temperature)
                         .context("Could not set target temperature")?;
+                    commit_handles.push(commit_handle);
                 }
             }
             if let Some(minimum_pwm) = pmfw.minimum_pwm {
@@ -875,11 +890,17 @@ impl GpuController {
                     .current
                     != minimum_pwm
                 {
-                    self.handle
+                    let commit_handle = self
+                        .handle
                         .set_fan_minimum_pwm(minimum_pwm)
                         .context("Could not set minimum pwm")?;
+                    commit_handles.push(commit_handle);
                 }
             }
+        }
+
+        for handle in commit_handles {
+            handle.commit()?;
         }
 
         Ok(())
