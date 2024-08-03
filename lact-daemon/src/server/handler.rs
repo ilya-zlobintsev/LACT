@@ -140,6 +140,7 @@ impl<'a> Handler {
         // Eagerly release memory
         // `load_controllers` allocates and deallocates the entire PCI ID database,
         // this tells the os to release it right away, lowering measured memory usage (the actual usage is low regardless as it was already deallocated)
+        #[cfg(target_env = "gnu")]
         unsafe {
             libc::malloc_trim(0);
         }
