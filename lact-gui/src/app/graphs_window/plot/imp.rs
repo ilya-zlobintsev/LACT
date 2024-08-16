@@ -88,7 +88,7 @@ impl PlotData {
         self.line_series
             .entry(name.to_owned())
             .or_default()
-            .push((time.timestamp_millis(), point));
+            .push((time.and_utc().timestamp_millis(), point));
     }
 
     pub fn push_secondary_line_series_with_time(
@@ -100,12 +100,15 @@ impl PlotData {
         self.secondary_line_series
             .entry(name.to_owned())
             .or_default()
-            .push((time.timestamp_millis(), point));
+            .push((time.and_utc().timestamp_millis(), point));
     }
 
     pub fn push_throttling(&mut self, name: &str, point: bool) {
         self.throttling.push((
-            chrono::Local::now().naive_local().timestamp_millis(),
+            chrono::Local::now()
+                .naive_local()
+                .and_utc()
+                .timestamp_millis(),
             (name.to_owned(), point),
         ));
     }
@@ -214,7 +217,7 @@ impl Plot {
         chart
             .configure_mesh()
             .x_label_formatter(&|date_time| {
-                let date_time = NaiveDateTime::from_timestamp_millis(*date_time).unwrap();
+                let date_time = chrono::DateTime::from_timestamp_millis(*date_time).unwrap();
                 date_time.format("%H:%M:%S").to_string()
             })
             .y_label_formatter(&|x| format!("{x}{}", self.value_suffix.borrow()))
@@ -237,7 +240,7 @@ impl Plot {
             .draw_series(
                 data.throttling_iter()
                     // Group segments of consecutive enabled/disabled throttlings
-                    .group_by(|(_, _, point)| *point)
+                    .chunk_by(|(_, _, point)| *point)
                     .into_iter()
                     // Filter only when throttling is enabled
                     .filter_map(|(point, group_iter)| point.then_some(group_iter))
