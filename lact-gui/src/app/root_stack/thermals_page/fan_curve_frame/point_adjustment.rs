@@ -34,7 +34,7 @@ impl PointAdjustment {
         temperature_selector.connect_input(|spin| {
             let text = spin.text();
             let temp = text.trim_end_matches("°C");
-            Some(Ok(temp.parse::<f64>().unwrap()))
+            Some(Ok(temp.parse::<f64>().unwrap_or_else(|_| spin.value())))
         });
         temperature_selector.connect_output(|spin| {
             let text = format!("{}°C", spin.value_as_int());
@@ -45,7 +45,10 @@ impl PointAdjustment {
         ratio_selector.connect_input(|spin| {
             let text = spin.text();
             let percentage = text.trim_end_matches('%');
-            Some(Ok(percentage.parse::<f64>().unwrap() / 100.0))
+            Some(Ok(percentage
+                .parse::<f64>()
+                .map(|value| value / 100.0)
+                .unwrap_or_else(|_| spin.value())))
         });
         ratio_selector.connect_output(|spin| {
             let value = spin.value();
