@@ -62,12 +62,16 @@ impl OcPage {
         let clocks_frame = ClocksFrame::new();
         let power_states_frame = PowerStatesFrame::new();
 
-        performance_level_frame.connect_settings_changed(
-            clone!(@strong performance_level_frame, @strong power_states_frame => move || {
+        performance_level_frame.connect_settings_changed(clone!(
+            #[strong]
+            performance_level_frame,
+            #[strong]
+            power_states_frame,
+            move || {
                 let level = performance_level_frame.get_selected_performance_level();
                 power_states_frame.set_configurable(level == PerformanceLevel::Manual);
-            }),
-        );
+            }
+        ));
 
         vbox.append(&power_cap_section);
         vbox.append(&performance_level_frame.container);
@@ -128,8 +132,11 @@ impl OcPage {
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         self.performance_frame.connect_settings_changed(f.clone());
-        self.power_cap_section
-            .connect_current_value_notify(clone!(@strong f => move |_| f()));
+        self.power_cap_section.connect_current_value_notify(clone!(
+            #[strong]
+            f,
+            move |_| f()
+        ));
         self.clocks_frame.connect_clocks_changed(f.clone());
         self.power_states_frame.connect_values_changed(f);
     }

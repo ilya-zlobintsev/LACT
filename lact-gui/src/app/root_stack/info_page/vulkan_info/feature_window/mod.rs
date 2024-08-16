@@ -83,20 +83,25 @@ mod imp {
                 PropertyExpression::new(VulkanFeature::static_type(), Expression::NONE, "name");
             self.search_filter.set_expression(Some(&expression));
 
-            self.search_entry.connect_search_changed(
-                clone!(@strong self.search_filter as filter => move |entry| {
+            self.search_entry.connect_search_changed(clone!(
+                #[strong(rename_to = filter)]
+                self.search_filter,
+                move |entry| {
                     if entry.text().is_empty() {
                         filter.set_search(None);
                     } else {
                         filter.set_search(Some(entry.text().as_str()));
                     }
-                }),
-            );
+                }
+            ));
 
-            self.search_entry
-                .connect_stop_search(clone!(@weak obj as win => move |_search| {
+            self.search_entry.connect_stop_search(clone!(
+                #[weak(rename_to = win)]
+                obj,
+                move |_search| {
                     win.close();
-                }));
+                }
+            ));
 
             self.features_factory.connect_setup(|_, list_item| {
                 let feature = VulkanFeature::default();

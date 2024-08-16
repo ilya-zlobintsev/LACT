@@ -74,17 +74,21 @@ impl PerformanceFrame {
             modes_table: Rc::new(RefCell::new(None)),
         };
 
-        frame
-            .level_drop_down
-            .connect_selected_notify(clone!(@strong frame => move |_| {
+        frame.level_drop_down.connect_selected_notify(clone!(
+            #[strong]
+            frame,
+            move |_| {
                 frame.update_from_selection();
-            }));
+            }
+        ));
 
-        frame
-            .mode_drop_down
-            .connect_selected_notify(clone!(@strong frame => move |_| {
+        frame.mode_drop_down.connect_selected_notify(clone!(
+            #[strong]
+            frame,
+            move |_| {
                 frame.update_from_selection();
-            }));
+            }
+        ));
 
         frame
     }
@@ -125,8 +129,11 @@ impl PerformanceFrame {
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        self.level_drop_down
-            .connect_selected_notify(clone!(@strong f => move |_| f()));
+        self.level_drop_down.connect_selected_notify(clone!(
+            #[strong]
+            f,
+            move |_| f()
+        ));
         self.mode_drop_down.connect_selected_notify(move |_| f());
     }
 

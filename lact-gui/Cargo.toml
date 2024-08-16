@@ -19,8 +19,8 @@ anyhow = { workspace = true }
 tracing-subscriber = { workspace = true }
 chrono = { workspace = true }
 
-gtk = { version = "0.8", package = "gtk4", features = ["v4_6", "blueprint"] }
-adw = { package = "libadwaita", version = "0.6.0", features = [
+gtk = { version = "0.9", package = "gtk4", features = ["v4_6", "blueprint"] }
+adw = { package = "libadwaita", version = "0.7.0", features = [
     "v1_4",
 ], optional = true }
 
@@ -31,7 +31,7 @@ plotters = { version = "0.3.5", default-features = false, features = [
     "histogram",
     "full_palette",
 ] }
-plotters-cairo = "0.6.0"
+plotters-cairo = "0.7.0"
 itertools = "0.13.0"
 
 [dev-dependencies]

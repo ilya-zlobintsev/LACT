@@ -65,22 +65,34 @@ impl PmfwFrame {
     }
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        self.acoustic_limit
-            .connect_value_changed(clone!(@strong f => move |_| {
+        self.acoustic_limit.connect_value_changed(clone!(
+            #[strong]
+            f,
+            move |_| {
                 f();
-            }));
-        self.acoustic_target
-            .connect_value_changed(clone!(@strong f => move |_| {
+            }
+        ));
+        self.acoustic_target.connect_value_changed(clone!(
+            #[strong]
+            f,
+            move |_| {
                 f();
-            }));
-        self.minimum_pwm
-            .connect_value_changed(clone!(@strong f => move |_| {
+            }
+        ));
+        self.minimum_pwm.connect_value_changed(clone!(
+            #[strong]
+            f,
+            move |_| {
                 f();
-            }));
-        self.target_temperature
-            .connect_value_changed(clone!(@strong f => move |_| {
+            }
+        ));
+        self.target_temperature.connect_value_changed(clone!(
+            #[strong]
+            f,
+            move |_| {
                 f();
-            }));
+            }
+        ));
     }
 
     pub fn connect_reset<F: Fn() + 'static + Clone>(&self, f: F) {
@@ -153,8 +165,16 @@ fn adjustment(parent_grid: &Grid, label: &str, row: i32) -> OcAdjustment {
         .child(&value_label)
         .build();
 
-    adjustment.connect_value_changed(
-        clone!(@strong value_label, @strong label, @strong scale, @strong value_button => move |adjustment| {
+    adjustment.connect_value_changed(clone!(
+        #[strong]
+        value_label,
+        #[strong]
+        label,
+        #[strong]
+        scale,
+        #[strong]
+        value_button,
+        move |adjustment| {
             let value = adjustment.value();
             value_label.set_text(&format!("{}", value as u32));
 
@@ -169,8 +189,8 @@ fn adjustment(parent_grid: &Grid, label: &str, row: i32) -> OcAdjustment {
                 scale.show();
                 value_button.show();
             }
-        }),
-    );
+        }
+    ));
 
     parent_grid.attach(&label, 0, row, 1, 1);
     parent_grid.attach(&scale, 1, row, 4, 1);

@@ -39,15 +39,23 @@ impl VulkanInfoFrame {
         let driver_version_label = label_row("Driver version:", &grid, 3, 0, true);
 
         let show_features_button = Button::builder().label("Show").halign(Align::End).build();
-        show_features_button.connect_clicked(clone!(@strong features_model => move |_| {
-            show_features_window("Vulkan features", features_model.clone());
-        }));
+        show_features_button.connect_clicked(clone!(
+            #[strong]
+            features_model,
+            move |_| {
+                show_features_window("Vulkan features", features_model.clone());
+            }
+        ));
         values_row("Features:", &grid, &show_features_button, 4, 0);
 
         let show_extensions_button = Button::builder().label("Show").halign(Align::End).build();
-        show_extensions_button.connect_clicked(clone!(@strong extensions_model => move |_| {
-            show_features_window("Vulkan extensions", extensions_model.clone());
-        }));
+        show_extensions_button.connect_clicked(clone!(
+            #[strong]
+            extensions_model,
+            move |_| {
+                show_features_window("Vulkan extensions", extensions_model.clone());
+            }
+        ));
         values_row("Extensions:", &grid, &show_extensions_button, 5, 0);
 
         container.append(&grid);

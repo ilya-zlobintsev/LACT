@@ -74,18 +74,26 @@ impl PointAdjustment {
         let text = format!("<b>{}%</b> at {temperature}°C", (ratio * 100.0).round());
         let temperature_label = Label::builder().label(text).use_markup(true).build();
 
-        temperature_adjustment.connect_value_changed(
-            clone!(@strong temperature_label, @strong ratio_adjustment => move |temperature_adjustment| {
+        temperature_adjustment.connect_value_changed(clone!(
+            #[strong]
+            temperature_label,
+            #[strong]
+            ratio_adjustment,
+            move |temperature_adjustment| {
                 let temperature = temperature_adjustment.value();
                 let ratio = (ratio_adjustment.value() * 100.0).round();
                 let text = format!("<b>{ratio}%</b> at {temperature}°C");
                 temperature_label.set_markup(&text);
-            }),
-        );
+            }
+        ));
 
-        ratio_adjustment.connect_value_changed(clone!(@strong temperature_adjustment => move |_| {
-            temperature_adjustment.emit_by_name::<()>("value-changed", &[]);
-        }));
+        ratio_adjustment.connect_value_changed(clone!(
+            #[strong]
+            temperature_adjustment,
+            move |_| {
+                temperature_adjustment.emit_by_name::<()>("value-changed", &[]);
+            }
+        ));
 
         let popover = Popover::builder().child(&popover_menu).build();
         let temperature_button = MenuButton::builder()

@@ -98,19 +98,27 @@ impl App {
     }
 
     pub fn run(self, connection_err: Option<anyhow::Error>) -> anyhow::Result<()> {
-        self.application
-            .connect_activate(clone!(@strong self as app => move |_| {
+        self.application.connect_activate(clone!(
+            #[strong(rename_to = app)]
+            self,
+            move |_| {
                 app.window.set_application(Some(&app.application));
 
                 let current_gpu_id = Rc::new(RefCell::new(String::new()));
 
-                app.header.connect_gpu_selection_changed(clone!(@strong app, @strong current_gpu_id => move |gpu_id| {
-                    debug!("GPU Selection changed");
-                    app.set_info(&gpu_id);
-                    *current_gpu_id.borrow_mut() = gpu_id;
-                    debug!("Updated current GPU id");
-                    app.graphs_window.clear();
-                }));
+                app.header.connect_gpu_selection_changed(clone!(
+                    #[strong]
+                    app,
+                    #[strong]
+                    current_gpu_id,
+                    move |gpu_id| {
+                        debug!("GPU Selection changed");
+                        app.set_info(&gpu_id);
+                        *current_gpu_id.borrow_mut() = gpu_id;
+                        debug!("Updated current GPU id");
+                        app.graphs_window.clear();
+                    }
+                ));
 
                 let devices_buf = app
                     .daemon_client
@@ -119,108 +127,184 @@ impl App {
                 let devices = devices_buf.inner().expect("Could not access devices");
                 app.header.set_devices(&devices);
 
-                app.root_stack.oc_page.clocks_frame.connect_clocks_reset(clone!(@strong app, @strong current_gpu_id => move || {
-                    debug!("Resetting clocks");
+                app.root_stack
+                    .oc_page
+                    .clocks_frame
+                    .connect_clocks_reset(clone!(
+                        #[strong]
+                        app,
+                        #[strong]
+                        current_gpu_id,
+                        move || {
+                            debug!("Resetting clocks");
 
-                    let gpu_id = current_gpu_id.borrow().clone();
+                            let gpu_id = current_gpu_id.borrow().clone();
 
-                    match app.daemon_client.set_clocks_value(&gpu_id, SetClocksCommand::Reset)
-                        .and_then(|_| app.daemon_client.confirm_pending_config(ConfirmCommand::Confirm))
-                    {
-                        Ok(()) => {
-                            app.set_initial(&gpu_id);
-                        }
-                        Err(err) => {
-                            show_error(&app.window, err);
-                        }
-                    }
-                }));
-
-                app.root_stack.thermals_page.connect_reset_pmfw(clone!(@strong app, @strong current_gpu_id => move || {
-                    debug!("Resetting PMFW settings");
-                    let gpu_id = current_gpu_id.borrow().clone();
-
-                    match app.daemon_client.reset_pmfw(&gpu_id)
-                        .and_then(|buffer| buffer.inner())
-                        .and_then(|_|  app.daemon_client.confirm_pending_config(ConfirmCommand::Confirm))
-                    {
-                        Ok(()) => {
-                            app.set_initial(&gpu_id);
-                        }
-                        Err(err) => {
-                            show_error(&app.window, err);
-                        }
-                    }
-                }));
-
-                app.apply_revealer.connect_apply_button_clicked(
-                    clone!(@strong app, @strong current_gpu_id => move || {
-                        glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
-                            if let Err(err) = app.apply_settings(current_gpu_id.clone())
-                                .context("Could not apply settings (GUI)")
-                             {
-                                show_error(&app.window, err);
-
-                                glib::idle_add_local_once(clone!(@strong app, @strong current_gpu_id => move || {
-                                    let gpu_id = current_gpu_id.borrow().clone();
-                                    app.set_initial(&gpu_id)
-                                }));
+                            match app
+                                .daemon_client
+                                .set_clocks_value(&gpu_id, SetClocksCommand::Reset)
+                                .and_then(|_| {
+                                    app.daemon_client
+                                        .confirm_pending_config(ConfirmCommand::Confirm)
+                                }) {
+                                Ok(()) => {
+                                    app.set_initial(&gpu_id);
+                                }
+                                Err(err) => {
+                                    show_error(&app.window, err);
+                                }
                             }
-                        }));
-                    }),
-                );
-                app.apply_revealer.connect_reset_button_clicked(clone!(@strong app, @strong current_gpu_id => move || {
-                    let gpu_id = current_gpu_id.borrow().clone();
-                    app.set_initial(&gpu_id)
-                }));
+                        }
+                    ));
+
+                app.root_stack.thermals_page.connect_reset_pmfw(clone!(
+                    #[strong]
+                    app,
+                    #[strong]
+                    current_gpu_id,
+                    move || {
+                        debug!("Resetting PMFW settings");
+                        let gpu_id = current_gpu_id.borrow().clone();
+
+                        match app
+                            .daemon_client
+                            .reset_pmfw(&gpu_id)
+                            .and_then(|buffer| buffer.inner())
+                            .and_then(|_| {
+                                app.daemon_client
+                                    .confirm_pending_config(ConfirmCommand::Confirm)
+                            }) {
+                            Ok(()) => {
+                                app.set_initial(&gpu_id);
+                            }
+                            Err(err) => {
+                                show_error(&app.window, err);
+                            }
+                        }
+                    }
+                ));
+
+                app.apply_revealer.connect_apply_button_clicked(clone!(
+                    #[strong]
+                    app,
+                    #[strong]
+                    current_gpu_id,
+                    move || {
+                        glib::idle_add_local_once(clone!(
+                            #[strong]
+                            app,
+                            #[strong]
+                            current_gpu_id,
+                            move || {
+                                if let Err(err) = app
+                                    .apply_settings(current_gpu_id.clone())
+                                    .context("Could not apply settings (GUI)")
+                                {
+                                    show_error(&app.window, err);
+
+                                    glib::idle_add_local_once(clone!(
+                                        #[strong]
+                                        app,
+                                        #[strong]
+                                        current_gpu_id,
+                                        move || {
+                                            let gpu_id = current_gpu_id.borrow().clone();
+                                            app.set_initial(&gpu_id)
+                                        }
+                                    ));
+                                }
+                            }
+                        ));
+                    }
+                ));
+                app.apply_revealer.connect_reset_button_clicked(clone!(
+                    #[strong]
+                    app,
+                    #[strong]
+                    current_gpu_id,
+                    move || {
+                        let gpu_id = current_gpu_id.borrow().clone();
+                        app.set_initial(&gpu_id)
+                    }
+                ));
 
                 if let Some(ref button) = app.root_stack.oc_page.enable_overclocking_button {
-                    button.connect_clicked(clone!(@strong app => move |_| {
-                        app.enable_overclocking();
-                    }));
+                    button.connect_clicked(clone!(
+                        #[strong]
+                        app,
+                        move |_| {
+                            app.enable_overclocking();
+                        }
+                    ));
                 }
 
                 let snapshot_action = ActionEntry::builder("generate-debug-snapshot")
-                    .activate(clone!(@strong app => move |_, _, _| {
-                        app.generate_debug_snapshot();
-                    }))
+                    .activate(clone!(
+                        #[strong]
+                        app,
+                        move |_, _, _| {
+                            app.generate_debug_snapshot();
+                        }
+                    ))
                     .build();
 
                 let disable_overdive_action = ActionEntry::builder("disable-overdrive")
-                    .activate(clone!(@strong app => move |_, _, _| {
-                        app.disable_overclocking();
-                    }))
+                    .activate(clone!(
+                        #[strong]
+                        app,
+                        move |_, _, _| {
+                            app.disable_overclocking();
+                        }
+                    ))
                     .build();
 
                 let show_graphs_window_action = ActionEntry::builder("show-graphs-window")
-                    .activate(clone!(@strong app => move |_, _, _| {
-                        app.graphs_window.show();
-                    }))
+                    .activate(clone!(
+                        #[strong]
+                        app,
+                        move |_, _, _| {
+                            app.graphs_window.show();
+                        }
+                    ))
                     .build();
 
                 let dump_vbios_action = ActionEntry::builder("dump-vbios")
-                    .activate(clone!(@strong app, @strong current_gpu_id => move |_, _, _| {
-                        let gpu_id = current_gpu_id.borrow();
-                        app.dump_vbios(&gpu_id);
-                    }))
+                    .activate(clone!(
+                        #[strong]
+                        app,
+                        #[strong]
+                        current_gpu_id,
+                        move |_, _, _| {
+                            let gpu_id = current_gpu_id.borrow();
+                            app.dump_vbios(&gpu_id);
+                        }
+                    ))
                     .build();
 
-                app.application.add_action_entries([snapshot_action, disable_overdive_action, show_graphs_window_action, dump_vbios_action]);
+                app.application.add_action_entries([
+                    snapshot_action,
+                    disable_overdive_action,
+                    show_graphs_window_action,
+                    dump_vbios_action,
+                ]);
 
                 app.start_stats_update_loop(current_gpu_id);
 
                 app.window.show();
 
                 if app.daemon_client.embedded {
-                    let error_text = connection_err.as_ref().map(|err| {
-                        format!("Error info: {err:#}\n\n")
-                    }).unwrap_or_default();
+                    let error_text = connection_err
+                        .as_ref()
+                        .map(|err| format!("Error info: {err:#}\n\n"))
+                        .unwrap_or_default();
 
-                    let text = format!("Could not connect to daemon, running in embedded mode. \n\
+                    let text = format!(
+                        "Could not connect to daemon, running in embedded mode. \n\
                         Please make sure the lactd service is running. \n\
                         Using embedded mode, you will not be able to change any settings. \n\n\
                         {error_text}\
-                        To enable the daemon, run the following command:");
+                        To enable the daemon, run the following command:"
+                    );
 
                     let text_label = Label::new(Some(&text));
                     let enable_label = Entry::builder()
@@ -249,13 +333,18 @@ impl App {
                         .transient_for(&app.window)
                         .build();
 
-                    close_button.connect_clicked(clone!(@strong diag => move |_| diag.hide()));
+                    close_button.connect_clicked(clone!(
+                        #[strong]
+                        diag,
+                        move |_| diag.hide()
+                    ));
 
                     diag.run_async(|diag, _| {
                         diag.hide();
                     })
                 }
-            }));
+            }
+        ));
 
         // Args are passed manually since they were already processed by clap before
         self.application.run_with_args::<String>(&[]);
@@ -338,10 +427,14 @@ impl App {
 
         // Show apply button on setting changes
         // This is done here because new widgets may appear after applying settings (like fan curve points) which should be connected
-        let show_revealer = clone!(@strong self.apply_revealer as apply_revealer => move || {
+        let show_revealer = clone!(
+            #[strong(rename_to = apply_revealer)]
+            self.apply_revealer,
+            move || {
                 debug!("settings changed, showing apply button");
                 apply_revealer.show();
-        });
+            }
+        );
 
         self.root_stack
             .thermals_page
@@ -356,8 +449,14 @@ impl App {
 
     fn start_stats_update_loop(&self, current_gpu_id: Rc<RefCell<String>>) {
         // The loop that gets stats
-        glib::spawn_future_local(
-            clone!(@strong self.daemon_client as daemon_client, @strong self.root_stack as root_stack, @strong self.graphs_window as graphs_window => async move {
+        glib::spawn_future_local(clone!(
+            #[strong(rename_to = daemon_client)]
+            self.daemon_client,
+            #[strong(rename_to = root_stack)]
+            self.root_stack,
+            #[strong(rename_to = graphs_window)]
+            self.graphs_window,
+            async move {
                 loop {
                     {
                         let gpu_id = current_gpu_id.borrow();
@@ -380,8 +479,8 @@ impl App {
                     }
                     timeout_future(Duration::from_millis(STATS_POLL_INTERVAL)).await;
                 }
-            }),
-        );
+            }
+        ));
     }
 
     fn apply_settings(&self, current_gpu_id: Rc<RefCell<String>>) -> anyhow::Result<()> {
@@ -570,7 +669,7 @@ impl App {
             .transient_for(&self.window)
             .build();
 
-        dialog.run_async(clone!(@strong self as app => move |diag, response| {
+        dialog.run_async(clone!(#[strong(rename_to = app)] self, move |diag, response| {
             if response == ResponseType::Ok {
                 let handle = gio::spawn_blocking(|| {
                     let (daemon_client, _) = create_connection().expect("Could not create new daemon connection");
@@ -616,7 +715,7 @@ impl App {
             .transient_for(&self.window)
             .build();
 
-        dialog.run_async(clone!(@strong self as app => move |diag, _| {
+        dialog.run_async(clone!(#[strong(rename_to = app)] self, move |diag, _| {
             diag.hide();
 
             let handle = gio::spawn_blocking(|| {
@@ -674,14 +773,18 @@ impl App {
                     .map(|(id, _)| id.replace(':', "_"))
                     .unwrap_or_default();
                 file_chooser.set_current_name(&format!("{file_name_suffix}_vbios_dump.rom"));
-                file_chooser.run_async(
-                    clone!(@strong self.window as window => move |diag, _| {
+                file_chooser.run_async(clone!(
+                    #[strong(rename_to = window)]
+                    self.window,
+                    move |diag, _| {
                         diag.close();
 
                         if let Some(file) = diag.file() {
                             match file.path() {
                                 Some(path) => {
-                                    if let Err(err) = std::fs::write(path, vbios_data).context("Could not save vbios file") {
+                                    if let Err(err) = std::fs::write(path, vbios_data)
+                                        .context("Could not save vbios file")
+                                    {
                                         show_error(&window, err);
                                     }
                                 }
@@ -691,8 +794,8 @@ impl App {
                                 ),
                             }
                         }
-                    }),
-                );
+                    }
+                ));
             }
             Err(err) => show_error(&self.window, err),
         }
@@ -711,42 +814,55 @@ impl App {
 
         glib::source::timeout_add_local(
             Duration::from_secs(1),
-            clone!(@strong dialog, @strong self as app, @strong gpu_id, @strong confirmed => move || {
-                if confirmed.load(std::sync::atomic::Ordering::SeqCst) {
-                    return ControlFlow::Break;
+            clone!(
+                #[strong]
+                dialog,
+                #[strong(rename_to = app)]
+                self,
+                #[strong]
+                gpu_id,
+                #[strong]
+                confirmed,
+                move || {
+                    if confirmed.load(std::sync::atomic::Ordering::SeqCst) {
+                        return ControlFlow::Break;
+                    }
+                    delay -= 1;
 
+                    let text = confirmation_text(delay);
+                    dialog.set_text(Some(&text));
+
+                    if delay == 0 {
+                        dialog.hide();
+                        app.set_initial(&gpu_id);
+
+                        ControlFlow::Break
+                    } else {
+                        ControlFlow::Continue
+                    }
                 }
-                delay -= 1;
-
-                let text = confirmation_text(delay);
-                dialog.set_text(Some(&text));
-
-                if delay == 0 {
-                    dialog.hide();
-                    app.set_initial(&gpu_id);
-
-                    ControlFlow::Break
-                }  else {
-                    ControlFlow::Continue
-                }
-            }),
+            ),
         );
 
-        dialog.run_async(clone!(@strong self as app => move |diag, response| {
-            confirmed.store(true, std::sync::atomic::Ordering::SeqCst);
+        dialog.run_async(clone!(
+            #[strong(rename_to = app)]
+            self,
+            move |diag, response| {
+                confirmed.store(true, std::sync::atomic::Ordering::SeqCst);
 
-            let command = match response {
-                ResponseType::Yes => ConfirmCommand::Confirm,
-                _ => ConfirmCommand::Revert,
-            };
+                let command = match response {
+                    ResponseType::Yes => ConfirmCommand::Confirm,
+                    _ => ConfirmCommand::Revert,
+                };
 
-            diag.hide();
+                diag.hide();
 
-            if let Err(err) = app.daemon_client.confirm_pending_config(command) {
-                show_error(&app.window, err);
+                if let Err(err) = app.daemon_client.confirm_pending_config(command) {
+                    show_error(&app.window, err);
+                }
+                app.set_initial(&gpu_id);
             }
-            app.set_initial(&gpu_id);
-        }));
+        ));
     }
 
     fn spinner_dialog(&self, title: &str) -> MessageDialog {

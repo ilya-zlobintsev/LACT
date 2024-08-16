@@ -116,16 +116,20 @@ impl ClocksFrame {
 
         frame.set_configuration_mode(false);
 
-        frame
-            .basic_togglebutton
-            .connect_clicked(clone!(@strong frame => move |button| {
+        frame.basic_togglebutton.connect_clicked(clone!(
+            #[strong]
+            frame,
+            move |button| {
                 frame.set_configuration_mode(!button.is_active());
-            }));
-        frame
-            .advanced_togglebutton
-            .connect_clicked(clone!(@strong frame => move |button| {
+            }
+        ));
+        frame.advanced_togglebutton.connect_clicked(clone!(
+            #[strong]
+            frame,
+            move |button| {
                 frame.set_configuration_mode(button.is_active());
-            }));
+            }
+        ));
 
         frame
     }
@@ -284,7 +288,11 @@ impl ClocksFrame {
     }
 
     pub fn connect_clocks_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        let f = clone!(@strong f => move |_: &Adjustment| f());
+        let f = clone!(
+            #[strong]
+            f,
+            move |_: &Adjustment| f()
+        );
         self.min_sclk_adjustment.0.connect_value_changed(f.clone());
         self.min_mclk_adjustment.0.connect_value_changed(f.clone());
         self.min_voltage_adjustment
@@ -385,22 +393,32 @@ fn oc_adjustment(
 
     let changed = Rc::new(AtomicBool::new(false));
 
-    adjustment.connect_value_changed(
-        clone!(@strong value_label, @strong changed => move |adjustment| {
+    adjustment.connect_value_changed(clone!(
+        #[strong]
+        value_label,
+        #[strong]
+        changed,
+        move |adjustment| {
             changed.store(true, Ordering::SeqCst);
 
             let value = adjustment.value();
             value_label.set_text(&value.to_string());
-        }),
-    );
+        }
+    ));
 
-    scale.connect_visible_notify(
-        clone!(@strong label, @strong value_label, @strong value_button => move |scale| {
+    scale.connect_visible_notify(clone!(
+        #[strong]
+        label,
+        #[strong]
+        value_label,
+        #[strong]
+        value_button,
+        move |scale| {
             label.set_visible(scale.get_visible());
             value_button.set_visible(scale.get_visible());
             value_label.set_visible(scale.get_visible());
-        }),
-    );
+        }
+    ));
 
     grid.attach(&label, 0, row, 1, 1);
     grid.attach(&scale, 1, row, 4, 1);
