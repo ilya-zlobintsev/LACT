@@ -783,9 +783,17 @@ impl GpuController {
                 ));
             }
 
-            self.handle
-                .set_active_power_profile_mode(mode_index)
-                .context("Failed to set active power profile mode")?;
+            if config.custom_power_profile_mode_hueristics.is_empty() {
+                self.handle
+                    .set_active_power_profile_mode(mode_index)
+                    .context("Failed to set active power profile mode")?;
+            } else {
+                self.handle
+                    .set_custom_power_profile_mode_heuristics(
+                        &config.custom_power_profile_mode_hueristics,
+                    )
+                    .context("Failed to set custom power profile mode heuristics")?;
+            }
         }
 
         for (kind, states) in &config.power_states {

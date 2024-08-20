@@ -99,9 +99,15 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::BatchSetClocksValue { id, commands } => {
             ok_response(handler.batch_set_clocks_value(id, commands).await?)
         }
-        Request::SetPowerProfileMode { id, index } => {
-            ok_response(handler.set_power_profile_mode(id, index).await?)
-        }
+        Request::SetPowerProfileMode {
+            id,
+            index,
+            custom_heuristics,
+        } => ok_response(
+            handler
+                .set_power_profile_mode(id, index, custom_heuristics)
+                .await?,
+        ),
         Request::GetPowerStates { id } => ok_response(handler.get_power_states(id)?),
         Request::SetEnabledPowerStates { id, kind, states } => {
             ok_response(handler.set_enabled_power_states(id, kind, states).await?)

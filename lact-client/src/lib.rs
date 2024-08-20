@@ -164,9 +164,18 @@ impl DaemonClient {
             .inner()
     }
 
-    pub fn set_power_profile_mode(&self, id: &str, index: Option<u16>) -> anyhow::Result<u64> {
-        self.make_request(Request::SetPowerProfileMode { id, index })?
-            .inner()
+    pub fn set_power_profile_mode(
+        &self,
+        id: &str,
+        index: Option<u16>,
+        custom_heuristics: Vec<Vec<Option<i32>>>,
+    ) -> anyhow::Result<u64> {
+        self.make_request(Request::SetPowerProfileMode {
+            id,
+            index,
+            custom_heuristics,
+        })?
+        .inner()
     }
 
     pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {

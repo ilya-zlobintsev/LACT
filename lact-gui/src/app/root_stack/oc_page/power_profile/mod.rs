@@ -1,1 +1,1 @@
-pub mod power_profile_component_grid;
+pub mod power_profile_heuristics_grid;

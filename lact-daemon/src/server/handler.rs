@@ -473,9 +473,11 @@ impl<'a> Handler {
         &self,
         id: &str,
         index: Option<u16>,
+        custom_heuristics: Vec<Vec<Option<i32>>>,
     ) -> anyhow::Result<u64> {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
             gpu_config.power_profile_mode_index = index;
+            gpu_config.custom_power_profile_mode_hueristics = custom_heuristics;
         })
         .await
         .context("Failed to edit GPU config and set power profile mode")

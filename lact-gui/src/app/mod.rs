@@ -502,7 +502,7 @@ impl App {
 
         // Reset the power profile mode for switching to/from manual performance level
         self.daemon_client
-            .set_power_profile_mode(&gpu_id, None)
+            .set_power_profile_mode(&gpu_id, None, vec![])
             .context("Could not set default power profile mode")?;
         self.daemon_client
             .confirm_pending_config(ConfirmCommand::Confirm)
@@ -521,8 +521,14 @@ impl App {
                 .oc_page
                 .performance_frame
                 .get_selected_power_profile_mode();
+            let custom_heuristics = self
+                .root_stack
+                .oc_page
+                .performance_frame
+                .get_power_profile_mode_custom_heuristics();
+
             self.daemon_client
-                .set_power_profile_mode(&gpu_id, mode_index)
+                .set_power_profile_mode(&gpu_id, mode_index, custom_heuristics)
                 .context("Could not set active power profile mode")?;
             self.daemon_client
                 .confirm_pending_config(ConfirmCommand::Confirm)
