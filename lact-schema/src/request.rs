@@ -43,6 +43,8 @@ pub enum Request<'a> {
     SetPowerProfileMode {
         id: &'a str,
         index: Option<u16>,
+        #[serde(default)]
+        custom_heuristics: Vec<Vec<Option<i32>>>,
     },
     GetPowerStates {
         id: &'a str,
