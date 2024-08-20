@@ -54,7 +54,7 @@ checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
 [[package]]
 name = "amdgpu-sysfs"
 version = "0.16.1"
-source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs?branch=feature/power-profile-heuristics-configuration#ed5f7fbedf52a19faa98c5d33ec47d7ea2d45d62"
+source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs?branch=feature/power-profile-heuristics-configuration#65787fe6c53926f9b096d25c66891cad0cad8818"
 dependencies = [
  "enum_dispatch",
  "serde",

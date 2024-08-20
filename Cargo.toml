@@ -10,6 +10,7 @@ members = [
 ]
 
 [workspace.dependencies]
+# amdgpu-sysfs = { path = "../amdgpu-sysfs-rs", features = ["serde"] }
 # amdgpu-sysfs = { version = "0.16.0", features = ["serde"] }
 amdgpu-sysfs = { git = "https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs", branch = "feature/power-profile-heuristics-configuration", features = [
     "serde",
