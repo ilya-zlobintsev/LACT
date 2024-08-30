@@ -675,40 +675,38 @@ impl App {
             .transient_for(&self.window)
             .build();
 
-        dialog.run_async(clone!(#[strong(rename_to = app)] self, move |diag, response| {
-            if response == ResponseType::Ok {
-                let handle = gio::spawn_blocking(|| {
-                    let (daemon_client, _) = create_connection().expect("Could not create new daemon connection");
-                    daemon_client.enable_overdrive().and_then(|buffer| buffer.inner())
-                });
+        dialog.run_async(clone!(
+            #[strong(rename_to = app)]
+            self,
+            move |diag, response| {
+                if response == ResponseType::Ok {
+                    let handle = gio::spawn_blocking(|| {
+                        let (daemon_client, _) =
+                            create_connection().expect("Could not create new daemon connection");
+                        daemon_client
+                            .enable_overdrive()
+                            .and_then(|buffer| buffer.inner())
+                    });
 
-                let dialog = app.spinner_dialog("Turning overclocking on (this may take a while)");
-                dialog.show();
+                    let dialog =
+                        app.spinner_dialog("Regenerating initramfs (this may take a while)");
+                    dialog.show();
 
-                glib::spawn_future_local(async move {
-                    let result = handle.await.unwrap();
-                    dialog.hide();
+                    glib::spawn_future_local(async move {
+                        let result = handle.await.unwrap();
+                        dialog.hide();
 
-                    match result {
-                        Ok(msg) => {
-                            let success_dialog = MessageDialog::builder()
-                                .title("Success")
-                                .text(format!("Overclocking successfully enabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
-                                .message_type(MessageType::Info)
-                                .buttons(ButtonsType::Ok)
-                                .build();
-                            success_dialog.run_async(move |diag, _| {
-                                diag.hide();
-                            });
+                        match result {
+                            Ok(msg) => oc_toggled_dialog(true, &msg),
+                            Err(err) => {
+                                show_error(&app.window, err);
+                            }
                         }
-                        Err(err) => {
-                            show_error(&app.window, err);
-                        }
-                    }
-                });
+                    });
+                }
+                diag.hide();
             }
-            diag.hide();
-        }));
+        ));
     }
 
     fn disable_overclocking(&self) {
@@ -721,40 +719,36 @@ impl App {
             .transient_for(&self.window)
             .build();
 
-        dialog.run_async(clone!(#[strong(rename_to = app)] self, move |diag, _| {
-            diag.hide();
+        dialog.run_async(clone!(
+            #[strong(rename_to = app)]
+            self,
+            move |diag, _| {
+                diag.hide();
 
-            let handle = gio::spawn_blocking(|| {
-                let (daemon_client, _) = create_connection().expect("Could not create new daemon connection");
-                daemon_client.disable_overdrive().and_then(|buffer| buffer.inner())
-            });
+                let handle = gio::spawn_blocking(|| {
+                    let (daemon_client, _) =
+                        create_connection().expect("Could not create new daemon connection");
+                    daemon_client
+                        .disable_overdrive()
+                        .and_then(|buffer| buffer.inner())
+                });
 
-            let dialog = app.spinner_dialog("Turning overclocking off (this may take a while)");
-            dialog.show();
+                let dialog = app.spinner_dialog("Regenerating initramfs (this may take a while)");
+                dialog.show();
 
-            glib::spawn_future_local(async move {
-                let result = handle.await.unwrap();
-                dialog.hide();
+                glib::spawn_future_local(async move {
+                    let result = handle.await.unwrap();
+                    dialog.hide();
 
-                match result {
-                    Ok(msg) => {
-                        let success_dialog = MessageDialog::builder()
-                            .title("Success")
-                            .text(format!("Overclocking successfully disabled. A system reboot is required to apply the changes.\nSystem message: {msg}"))
-                            .message_type(MessageType::Info)
-                            .buttons(ButtonsType::Ok)
-                            .build();
-                        success_dialog.run_async(move |diag, _| {
-                            diag.hide();
-                        });
+                    match result {
+                        Ok(msg) => oc_toggled_dialog(false, &msg),
+                        Err(err) => {
+                            show_error(&app.window, err);
+                        }
                     }
-                    Err(err) => {
-                        show_error(&app.window, err);
-                    }
-                }
-            });
-
-        }));
+                });
+            }
+        ));
     }
 
     fn dump_vbios(&self, gpu_id: &str) {
@@ -910,6 +904,47 @@ fn show_error(parent: &ApplicationWindow, err: anyhow::Error) {
     diag.run_async(|diag, _| {
         diag.hide();
     })
+}
+
+fn oc_toggled_dialog(enabled: bool, msg: &str) {
+    let enabled_text = if enabled { "enabled" } else { "disabled" };
+
+    let child = Box::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(5)
+        .margin_top(10)
+        .margin_bottom(10)
+        .margin_start(10)
+        .margin_end(10)
+        .build();
+    child.append(&Label::new(Some(&format!("Overclocking successfully {enabled_text}. A system reboot is required to apply the changes.\nSystem message:"))));
+
+    let msg_label = Label::builder()
+        .label(msg)
+        .valign(Align::Start)
+        .halign(Align::Start)
+        .build();
+    let msg_scrollable = ScrolledWindow::builder().child(&msg_label).build();
+    child.append(&msg_scrollable);
+
+    let ok_button = Button::builder().label("OK").build();
+    child.append(&ok_button);
+
+    let success_dialog = MessageDialog::builder()
+        .title("Success")
+        .child(&child)
+        .message_type(MessageType::Info)
+        .build();
+
+    ok_button.connect_clicked(clone!(
+        #[strong]
+        success_dialog,
+        move |_| success_dialog.hide(),
+    ));
+
+    success_dialog.run_async(move |diag, _| {
+        diag.hide();
+    });
 }
 
 fn confirmation_text(seconds_left: u64) -> String {
