@@ -50,7 +50,7 @@ impl PowerProfileHeuristicsGrid {
             let name = &table.value_names[i];
 
             let name_label = Label::builder()
-                .label(&format!("{name}:"))
+                .label(format!("{name}:"))
                 .hexpand(true)
                 .halign(gtk::Align::Start)
                 .build();

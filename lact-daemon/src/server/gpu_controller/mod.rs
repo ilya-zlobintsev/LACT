@@ -745,10 +745,11 @@ impl GpuController {
             .ok();
 
         if config.is_core_clocks_used() {
-            let mut table = self
+            let original_table = self
                 .handle
                 .get_clocks_table()
                 .context("Failed to get clocks table")?;
+            let mut table = original_table.clone();
             config
                 .clocks_configuration
                 .apply_to_table(&mut table)
@@ -757,7 +758,7 @@ impl GpuController {
             debug!(
                 "writing clocks commands: {:#?}",
                 table
-                    .get_commands()
+                    .get_commands(&original_table)
                     .context("Failed to get table commands")?
             );
 
@@ -765,7 +766,12 @@ impl GpuController {
                 .handle
                 .set_clocks_table(&table)
                 .context("Could not write clocks table")
-                .with_context(|| format!("Clocks table commands: {:?}", table.get_commands()))?;
+                .with_context(|| {
+                    format!(
+                        "Clocks table commands: {:?}",
+                        table.get_commands(&original_table)
+                    )
+                })?;
             commit_handles.push(handle);
         }
 
