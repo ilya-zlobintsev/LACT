@@ -277,6 +277,12 @@ pub struct PmfwOptions {
     pub target_temperature: Option<u32>,
 }
 
+impl PmfwOptions {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct FanOptions<'a> {

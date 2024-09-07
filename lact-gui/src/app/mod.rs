@@ -281,11 +281,25 @@ impl App {
                     ))
                     .build();
 
+                let reset_config_action = ActionEntry::builder("reset-config")
+                    .activate(clone!(
+                        #[strong]
+                        app,
+                        #[strong]
+                        current_gpu_id,
+                        move |_, _, _| {
+                            let gpu_id = current_gpu_id.borrow().clone();
+                            app.reset_config(gpu_id);
+                        }
+                    ))
+                    .build();
+
                 app.application.add_action_entries([
                     snapshot_action,
                     disable_overdive_action,
                     show_graphs_window_action,
                     dump_vbios_action,
+                    reset_config_action,
                 ]);
 
                 app.start_stats_update_loop(current_gpu_id);
@@ -616,7 +630,7 @@ impl App {
                 .daemon_client
                 .batch_set_clocks_value(&gpu_id, clocks_commands)
                 .context("Could not commit clocks settings")?;
-            self.ask_confirmation(gpu_id.clone(), delay);
+            self.ask_settings_confirmation(gpu_id.clone(), delay);
         }
 
         self.set_initial(&gpu_id);
@@ -809,7 +823,37 @@ impl App {
         }
     }
 
-    fn ask_confirmation(&self, gpu_id: String, mut delay: u64) {
+    fn reset_config(&self, gpu_id: String) {
+        let dialog = MessageDialog::builder()
+            .title("Reset configuration")
+            .text("Are you sure you want to reset all GPU configuration?")
+            .message_type(MessageType::Question)
+            .buttons(ButtonsType::YesNo)
+            .transient_for(&self.window)
+            .build();
+
+        dialog.run_async(clone!(
+            #[strong(rename_to = app)]
+            self,
+            move |diag, response| {
+                diag.hide();
+
+                if response == ResponseType::Yes {
+                    if let Err(err) = app
+                        .daemon_client
+                        .reset_config()
+                        .and_then(|response| response.inner())
+                    {
+                        show_error(&app.window, err);
+                    }
+
+                    app.set_initial(&gpu_id);
+                }
+            }
+        ));
+    }
+
+    fn ask_settings_confirmation(&self, gpu_id: String, mut delay: u64) {
         let text = confirmation_text(delay);
         let dialog = MessageDialog::builder()
             .title("Confirm settings")

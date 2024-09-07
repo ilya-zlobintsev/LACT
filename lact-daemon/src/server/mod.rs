@@ -119,6 +119,10 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::ConfirmPendingConfig(command) => {
             ok_response(handler.confirm_pending_config(command)?)
         }
+        Request::RestConfig => {
+            handler.reset_config().await;
+            ok_response(())
+        }
     }
 }
 

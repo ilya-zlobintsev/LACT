@@ -62,7 +62,7 @@ impl Default for Daemon {
 pub struct Gpu {
     pub fan_control_enabled: bool,
     pub fan_control_settings: Option<FanControlSettings>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "PmfwOptions::is_empty")]
     pub pmfw_options: PmfwOptions,
     pub power_cap: Option<f64>,
     pub performance_level: Option<PerformanceLevel>,
@@ -70,9 +70,9 @@ pub struct Gpu {
     pub clocks_configuration: ClocksConfiguration,
     pub power_profile_mode_index: Option<u16>,
     /// Outer vector is for power profile components, inner vector is for the heuristics within a component
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub custom_power_profile_mode_hueristics: Vec<Vec<Option<i32>>>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub power_states: HashMap<PowerLevelKind, Vec<u8>>,
 }
 

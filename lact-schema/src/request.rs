@@ -61,6 +61,7 @@ pub enum Request<'a> {
     DisableOverdrive,
     GenerateSnapshot,
     ConfirmPendingConfig(ConfirmCommand),
+    RestConfig,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]

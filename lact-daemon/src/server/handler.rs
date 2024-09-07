@@ -246,7 +246,7 @@ impl<'a> Handler {
                             config_guard.gpus.insert(id, new_config);
 
                             if let Err(err) = config_guard.save() {
-                                error!("{err}");
+                                error!("{err:#}");
                             }
 
                             *handler.config_last_saved.lock().unwrap() = Instant::now();
@@ -604,7 +604,21 @@ impl<'a> Handler {
         }
     }
 
-    pub async fn cleanup(self) {
+    pub async fn reset_config(&self) {
+        self.cleanup().await;
+
+        let mut config = self.config.borrow_mut();
+        config.gpus.clear();
+
+        *self.config_last_saved.lock().unwrap() = Instant::now();
+        if let Err(err) = config.save() {
+            error!("could not save config: {err:#}");
+        }
+
+        *self.config_last_saved.lock().unwrap() = Instant::now();
+    }
+
+    pub async fn cleanup(&self) {
         let disable_clocks_cleanup = self
             .config
             .try_borrow()

@@ -39,6 +39,8 @@ impl Header {
             )
         }
 
+        menu.append(Some("Reset all configuration"), Some("app.reset-config"));
+
         let menu_button = MenuButton::builder()
             .icon_name("open-menu-symbolic")
             .menu_model(&menu)
