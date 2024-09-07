@@ -18,6 +18,7 @@ impl AdjustmentRow {
         Object::builder()
             .property("title", title)
             .property("visible", true)
+            .property("value_ratio", 1.0)
             .build()
     }
 
@@ -64,18 +65,20 @@ mod imp {
             prelude::*,
             widget::{CompositeTemplateClass, WidgetImpl},
         },
-        CompositeTemplate, Label, MenuButton, Scale, TemplateChild,
+        CompositeTemplate, Label, MenuButton, Scale, SpinButton, TemplateChild,
     };
-    use std::cell::{Cell, RefCell};
+    use std::{cell::RefCell, rc::Rc};
 
     #[derive(CompositeTemplate, Default, Properties)]
     #[properties(wrapper_type = super::AdjustmentRow)]
     #[template(file = "ui/oc_page/clocks_frame/adjustment_row.blp")]
     pub struct AdjustmentRow {
         #[property(get, set)]
-        pub visible: Cell<bool>,
+        pub visible: Rc<RefCell<bool>>,
         #[property(get, set)]
-        pub title: RefCell<String>,
+        pub value_ratio: Rc<RefCell<f64>>,
+        #[property(get, set)]
+        pub title: Rc<RefCell<String>>,
 
         #[template_child]
         pub label: TemplateChild<Label>,
@@ -83,6 +86,8 @@ mod imp {
         pub scale: TemplateChild<Scale>,
         #[template_child]
         pub value_button: TemplateChild<MenuButton>,
+        #[template_child]
+        pub value_spinbutton: TemplateChild<SpinButton>,
         #[template_child]
         pub adjustment: TemplateChild<OcAdjustment>,
     }
@@ -111,8 +116,32 @@ mod imp {
             self.adjustment.connect_value_changed(clone!(
                 #[strong(rename_to = value_button)]
                 self.value_button,
+                #[strong(rename_to = value_ratio)]
+                self.value_ratio,
                 move |adj| {
-                    value_button.set_label(&adj.value().to_string());
+                    let ratio = *value_ratio.borrow();
+                    let text = (adj.value() * ratio).to_string();
+                    value_button.set_label(&text);
+                }
+            ));
+
+            self.value_spinbutton.connect_input(clone!(
+                #[strong(rename_to = value_ratio)]
+                self.value_ratio,
+                move |spin| {
+                    let text = spin.text();
+                    let value: f64 = text.parse().ok()?;
+                    Some(Ok(value / *value_ratio.borrow()))
+                }
+            ));
+
+            self.value_spinbutton.connect_output(clone!(
+                #[strong(rename_to = value_ratio)]
+                self.value_ratio,
+                move |spin| {
+                    let display_value = spin.value() * *value_ratio.borrow();
+                    spin.set_text(&display_value.to_string());
+                    glib::Propagation::Stop
                 }
             ));
         }

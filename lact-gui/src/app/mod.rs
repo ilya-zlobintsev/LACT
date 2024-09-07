@@ -361,6 +361,14 @@ impl App {
         trace!("setting info {info:?}");
 
         self.root_stack.info_page.set_info(&info);
+        self.root_stack.oc_page.set_info(&info);
+
+        let vram_clock_ratio = info
+            .drm_info
+            .as_ref()
+            .map(|info| info.vram_clock_ratio)
+            .unwrap_or(1.0);
+        self.graphs_window.set_vram_clock_ratio(vram_clock_ratio);
 
         self.set_initial(gpu_id);
         self.root_stack.thermals_page.set_info(&info);

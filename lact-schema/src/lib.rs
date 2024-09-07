@@ -100,6 +100,7 @@ pub struct DrmInfo {
     pub chip_class: String,
     pub compute_units: u32,
     pub vram_type: String,
+    pub vram_clock_ratio: f64,
     pub vram_bit_width: u32,
     pub vram_max_bw: String,
     pub l1_cache_per_cu: u32,

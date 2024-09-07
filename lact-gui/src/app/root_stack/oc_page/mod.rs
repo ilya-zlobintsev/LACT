@@ -12,7 +12,7 @@ use clocks_frame::ClocksFrame;
 use gpu_stats_section::GpuStatsSection;
 use gtk::*;
 use gtk::{glib::clone, prelude::*};
-use lact_client::schema::{DeviceStats, SystemInfo};
+use lact_client::schema::{DeviceInfo, DeviceStats, SystemInfo};
 use performance_frame::PerformanceFrame;
 // use power_cap_frame::PowerCapFrame;
 use std::collections::HashMap;
@@ -111,6 +111,17 @@ impl OcPage {
 
             self.set_performance_level(stats.performance_level);
         }
+    }
+
+    pub fn set_info(&self, info: &DeviceInfo) {
+        let vram_clock_ratio = info
+            .drm_info
+            .as_ref()
+            .map(|info| info.vram_clock_ratio)
+            .unwrap_or(1.0);
+
+        self.stats_section.set_vram_clock_ratio(vram_clock_ratio);
+        self.clocks_frame.set_vram_clock_ratio(vram_clock_ratio);
     }
 
     pub fn set_clocks_table(&self, table: Option<ClocksTableGen>) {

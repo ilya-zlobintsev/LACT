@@ -296,6 +296,11 @@ impl ClocksFrame {
         self.clocks_data_unavailable_label.show();
     }
 
+    pub fn set_vram_clock_ratio(&self, ratio: f64) {
+        self.min_mclk_adjustment.set_value_ratio(ratio);
+        self.max_mclk_adjustment.set_value_ratio(ratio);
+    }
+
     pub fn connect_clocks_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         let f = clone!(
             #[strong]
