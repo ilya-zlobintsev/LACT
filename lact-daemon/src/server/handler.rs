@@ -78,7 +78,7 @@ pub struct Handler {
     pub config: Rc<RefCell<Config>>,
     pub gpu_controllers: Rc<BTreeMap<String, GpuController>>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
-    pub config_last_applied: Arc<Mutex<Instant>>,
+    pub config_last_saved: Arc<Mutex<Instant>>,
 }
 
 impl<'a> Handler {
@@ -133,7 +133,7 @@ impl<'a> Handler {
             gpu_controllers: Rc::new(controllers),
             config: Rc::new(RefCell::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
-            config_last_applied: Arc::new(Mutex::new(Instant::now())),
+            config_last_saved: Arc::new(Mutex::new(Instant::now())),
         };
         handler.apply_current_config().await;
 
@@ -150,8 +150,6 @@ impl<'a> Handler {
 
     pub async fn apply_current_config(&self) {
         let config = self.config.borrow().clone(); // Clone to avoid locking the RwLock on an await point
-
-        *self.config_last_applied.lock().unwrap() = Instant::now();
 
         for (id, gpu_config) in &config.gpus {
             if let Some(controller) = self.gpu_controllers.get(id) {
@@ -242,7 +240,7 @@ impl<'a> Handler {
                     match result {
                         Ok(ConfirmCommand::Confirm) => {
                             info!("saving updated config");
-                            *handler.config_last_applied.lock().unwrap() = Instant::now();
+                            *handler.config_last_saved.lock().unwrap() = Instant::now();
 
                             let mut config_guard = handler.config.borrow_mut();
                             config_guard.gpus.insert(id, new_config);
@@ -250,6 +248,8 @@ impl<'a> Handler {
                             if let Err(err) = config_guard.save() {
                                 error!("{err}");
                             }
+
+                            *handler.config_last_saved.lock().unwrap() = Instant::now();
                         }
                         Ok(ConfirmCommand::Revert) | Err(_) => {
                             if let Err(err) = controller.apply_config(&previous_config).await {
