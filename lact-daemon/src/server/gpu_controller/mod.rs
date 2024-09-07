@@ -189,6 +189,8 @@ impl GpuController {
 
     #[cfg(feature = "libdrm_amdgpu_sys")]
     fn get_drm_info(&self) -> Option<DrmInfo> {
+        use libdrm_amdgpu_sys::AMDGPU::VRAM_TYPE;
+
         trace!("Reading DRM info");
         let drm_handle = self.drm_handle.as_ref();
 
@@ -211,6 +213,10 @@ impl GpuController {
                 chip_class: drm_info.get_chip_class().to_string(),
                 compute_units: drm_info.cu_active_number,
                 vram_type: drm_info.get_vram_type().to_string(),
+                vram_clock_ratio: match drm_info.get_vram_type() {
+                    VRAM_TYPE::GDDR6 => 2.0,
+                    _ => 1.0,
+                },
                 vram_bit_width: drm_info.vram_bit_width,
                 vram_max_bw: drm_info.peak_memory_bw_gb().to_string(),
                 l1_cache_per_cu: drm_info.get_l1_cache_size(),

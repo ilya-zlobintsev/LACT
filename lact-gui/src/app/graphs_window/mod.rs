@@ -18,7 +18,7 @@ glib::wrapper! {
 
 impl GraphsWindow {
     pub fn new() -> Self {
-        Object::builder().build()
+        Object::builder().property("vram_clock_ratio", 1.0).build()
     }
 
     pub fn set_stats(&self, stats: &DeviceStats) {
@@ -79,7 +79,7 @@ impl GraphsWindow {
             clockspeed_plot.push_line_series("GPU (Trgt)", point as f64);
         }
         if let Some(point) = stats.clockspeed.vram_clockspeed {
-            clockspeed_plot.push_line_series("VRAM", point as f64);
+            clockspeed_plot.push_line_series("VRAM", point as f64 * self.vram_clock_ratio());
         }
 
         if let Some(max_speed) = stats.fan.speed_max {
@@ -132,7 +132,7 @@ impl Default for GraphsWindow {
 mod imp {
     use super::plot::Plot;
     use gtk::{
-        glib::{self, subclass::InitializingObject},
+        glib::{self, subclass::InitializingObject, Properties},
         prelude::*,
         subclass::{
             prelude::*,
@@ -140,8 +140,10 @@ mod imp {
         },
         CompositeTemplate,
     };
+    use std::cell::Cell;
 
-    #[derive(CompositeTemplate, Default)]
+    #[derive(CompositeTemplate, Default, Properties)]
+    #[properties(wrapper_type = super::GraphsWindow)]
     #[template(file = "ui/graphs_window.blp")]
     pub struct GraphsWindow {
         #[template_child]
@@ -152,6 +154,9 @@ mod imp {
         pub(super) power_plot: TemplateChild<Plot>,
         #[template_child]
         pub(super) fan_plot: TemplateChild<Plot>,
+
+        #[property(get, set)]
+        pub vram_clock_ratio: Cell<f64>,
     }
 
     #[glib::object_subclass]
@@ -171,6 +176,7 @@ mod imp {
         }
     }
 
+    #[glib::derived_properties]
     impl ObjectImpl for GraphsWindow {}
 
     impl WidgetImpl for GraphsWindow {}

@@ -10,7 +10,7 @@ glib::wrapper! {
 
 impl GpuStatsSection {
     pub fn new() -> Self {
-        Object::builder().build()
+        Object::builder().property("vram_clock_ratio", 1.0).build()
     }
 
     pub fn set_stats(&self, stats: &DeviceStats) {
@@ -28,9 +28,12 @@ impl GpuStatsSection {
         ));
 
         let clockspeed = stats.clockspeed;
-        self.set_core_clock(format_clockspeed(clockspeed.gpu_clockspeed));
+        self.set_core_clock(format_clockspeed(clockspeed.gpu_clockspeed, 1.0));
         self.set_current_core_clock(format_current_gfxclk(clockspeed.current_gfxclk));
-        self.set_vram_clock(format_clockspeed(clockspeed.vram_clockspeed));
+        self.set_vram_clock(format_clockspeed(
+            clockspeed.vram_clockspeed,
+            self.vram_clock_ratio(),
+        ));
 
         let voltage = format!("{:.3} V", stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64);
         self.set_voltage(voltage);
@@ -99,7 +102,7 @@ mod imp {
         },
         CompositeTemplate,
     };
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
 
     #[derive(CompositeTemplate, Default, Properties)]
     #[properties(wrapper_type = super::GpuStatsSection)]
@@ -125,6 +128,9 @@ mod imp {
         vram_usage_text: RefCell<String>,
         #[property(get, set)]
         throttling: RefCell<String>,
+
+        #[property(get, set)]
+        vram_clock_ratio: Cell<f64>,
     }
 
     #[glib::object_subclass]
@@ -150,8 +156,8 @@ mod imp {
     impl BoxImpl for GpuStatsSection {}
 }
 
-fn format_clockspeed(value: Option<u64>) -> String {
-    format!("{:.3} GHz", value.unwrap_or(0) as f64 / 1000.0)
+fn format_clockspeed(value: Option<u64>, ratio: f64) -> String {
+    format!("{:.3} GHz", value.unwrap_or(0) as f64 / 1000.0 * ratio)
 }
 
 fn format_current_gfxclk(value: Option<u16>) -> String {
@@ -161,7 +167,7 @@ fn format_current_gfxclk(value: Option<u16>) -> String {
         if v == u16::MAX {
             "N/A".to_string()
         } else {
-            format_clockspeed(Some(v as u64))
+            format_clockspeed(Some(v as u64), 1.0)
         }
     } else {
         "N/A".to_string()
