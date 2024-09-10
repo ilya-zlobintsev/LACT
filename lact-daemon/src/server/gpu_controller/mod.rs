@@ -36,7 +36,6 @@ use tokio::{
     time::{sleep, timeout},
 };
 use tracing::{debug, error, info, trace, warn};
-#[cfg(feature = "libdrm_amdgpu_sys")]
 use {
     lact_schema::DrmMemoryInfo,
     libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
@@ -49,7 +48,6 @@ const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
 
 pub struct GpuController {
     pub(super) handle: GpuHandle,
-    #[cfg(feature = "libdrm_amdgpu_sys")]
     pub drm_handle: Option<DrmHandle>,
     pub pci_info: Option<GpuPciInfo>,
     pub fan_control_handle: RefCell<Option<FanControlHandle>>,
@@ -60,7 +58,6 @@ impl GpuController {
         let handle = GpuHandle::new_from_path(sysfs_path)
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
 
-        #[cfg(feature = "libdrm_amdgpu_sys")]
         let drm_handle = match get_drm_handle(&handle) {
             Ok(handle) => Some(handle),
             Err(err) => {
@@ -108,7 +105,6 @@ impl GpuController {
 
         Ok(Self {
             handle,
-            #[cfg(feature = "libdrm_amdgpu_sys")]
             drm_handle,
             pci_info,
             fan_control_handle: RefCell::new(None),
@@ -171,7 +167,6 @@ impl GpuController {
         }
     }
 
-    #[cfg(feature = "libdrm_amdgpu_sys")]
     fn get_full_vbios_version(&self) -> Option<String> {
         if let Some(drm_handle) = &self.drm_handle {
             if let Ok(vbios_info) = drm_handle.get_vbios_info() {
@@ -182,12 +177,6 @@ impl GpuController {
         self.handle.get_vbios_version().ok()
     }
 
-    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
-    fn get_full_vbios_version(&self) -> Option<String> {
-        self.handle.get_vbios_version().ok()
-    }
-
-    #[cfg(feature = "libdrm_amdgpu_sys")]
     fn get_drm_info(&self) -> Option<DrmInfo> {
         use libdrm_amdgpu_sys::AMDGPU::VRAM_TYPE;
 
@@ -228,22 +217,11 @@ impl GpuController {
         }
     }
 
-    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
-    fn get_drm_info(&self) -> Option<DrmInfo> {
-        None
-    }
-
-    #[cfg(feature = "libdrm_amdgpu_sys")]
     fn get_current_gfxclk(&self) -> Option<u16> {
         self.drm_handle
             .as_ref()
             .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
             .and_then(|metrics| metrics.get_current_gfxclk())
-    }
-
-    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
-    fn get_current_gfxclk(&self) -> Option<u16> {
-        None
     }
 
     fn get_link_info(&self) -> LinkInfo {
@@ -319,12 +297,6 @@ impl GpuController {
         }
     }
 
-    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
-    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
-        None
-    }
-
-    #[cfg(feature = "libdrm_amdgpu_sys")]
     fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
         use libdrm_amdgpu_sys::AMDGPU::ThrottlerType;
 
@@ -927,7 +899,6 @@ impl GpuController {
     }
 }
 
-#[cfg(feature = "libdrm_amdgpu_sys")]
 fn get_drm_handle(handle: &GpuHandle) -> anyhow::Result<DrmHandle> {
     let slot_name = handle
         .get_pci_slot_name()

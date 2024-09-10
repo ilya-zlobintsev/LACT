@@ -4,8 +4,7 @@ version = "0.5.6"
 edition = "2021"
 
 [features]
-default = ["lact-gui", "drm"]
-drm = ["lact-daemon/drm"]
+default = ["lact-gui"]
 adw = ["lact-gui/adw"]
 
 [dependencies]
