@@ -100,7 +100,7 @@ impl DaemonClient {
         })
     }
 
-    pub fn list_devices<'a>(&self) -> anyhow::Result<ResponseBuffer<Vec<DeviceListEntry<'a>>>> {
+    pub fn list_devices(&self) -> anyhow::Result<ResponseBuffer<Vec<DeviceListEntry>>> {
         self.make_request(Request::ListDevices)
     }
 

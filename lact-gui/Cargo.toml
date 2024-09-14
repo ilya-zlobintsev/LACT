@@ -8,10 +8,12 @@ edition = "2021"
 default = ["gtk-tests"]
 gtk-tests = []
 bench = []
+adw = ["dep:adw", "relm4/libadwaita"]
 
 [dependencies]
 lact-client = { path = "../lact-client" }
 lact-daemon = { path = "../lact-daemon", default-features = false }
+lact-schema = { path = "../lact-schema", features = ["args"] }
 
 amdgpu-sysfs = { workspace = true }
 tracing = { workspace = true }
@@ -23,6 +25,8 @@ gtk = { version = "0.9", package = "gtk4", features = ["v4_6", "blueprint"] }
 adw = { package = "libadwaita", version = "0.7.0", features = [
     "v1_4",
 ], optional = true }
+relm4 = "0.9.0"
+relm4-components = "0.9.0"
 
 plotters = { version = "0.3.5", default-features = false, features = [
     "datetime",
@@ -33,13 +37,11 @@ plotters = { version = "0.3.5", default-features = false, features = [
 ] }
 plotters-cairo = "0.7.0"
 itertools = "0.13.0"
-relm4 = "0.9.0"
 
 [dev-dependencies]
 criterion = "0.5.1"
 pretty_assertions = "1.4.0"
 lact-gui = { path = ".", features = ["bench"] }
-lact-schema = { path = "../lact-schema", features = ["args"] }
 
 [[bench]]
 name = "gui"

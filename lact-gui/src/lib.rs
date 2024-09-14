@@ -1,8 +1,10 @@
 pub mod app;
 
 use anyhow::{anyhow, Context};
-use app::App;
-use lact_client::{schema::args::GuiArgs, DaemonClient};
+use app::AppModel;
+use lact_client::DaemonClient;
+use lact_schema::args::GuiArgs;
+use relm4::RelmApp;
 use std::os::unix::net::UnixStream;
 use tracing::{debug, error, info, metadata::LevelFilter};
 use tracing_subscriber::EnvFilter;
@@ -22,9 +24,10 @@ pub fn run(args: GuiArgs) -> anyhow::Result<()> {
     }
 
     let (connection, connection_err) = create_connection()?;
-    let app = App::new(connection);
 
-    app.run(connection_err)
+    let app = RelmApp::new(APP_ID).with_args(vec![]);
+    app.run::<AppModel>((connection, connection_err));
+    Ok(())
 }
 
 fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {

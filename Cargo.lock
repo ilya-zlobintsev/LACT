@@ -1646,6 +1646,7 @@ dependencies = [
  "plotters-cairo",
  "pretty_assertions",
  "relm4",
+ "relm4-components",
  "tracing",
  "tracing-subscriber",
 ]
@@ -2338,11 +2339,23 @@ dependencies = [
  "fragile",
  "futures",
  "gtk4",
+ "libadwaita",
  "once_cell",
  "relm4-css",
  "relm4-macros",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "relm4-components"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb3d67f2982131c5e6047af4278d8fe750266767e57b58bc15f2e11e190eef36"
+dependencies = [
+ "once_cell",
+ "relm4",
+ "tracker",
 ]
 
 [[package]]
@@ -2867,6 +2880,26 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "tracker"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce5c98457ff700aaeefcd4a4a492096e78a2af1dd8523c66e94a3adb0fdbd415"
+dependencies = [
+ "tracker-macros",
+]
+
+[[package]]
+name = "tracker-macros"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc19eb2373ccf3d1999967c26c3d44534ff71ae5d8b9dacf78f4b13132229e48"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

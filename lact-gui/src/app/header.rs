@@ -1,9 +1,77 @@
+use super::AppMsg;
 use gtk::prelude::*;
 use gtk::*;
-use lact_client::schema::{DeviceListEntry, SystemInfo};
-use pango::EllipsizeMode;
+use lact_client::schema::DeviceListEntry;
+use relm4::{
+    Component, ComponentController, ComponentParts, ComponentSender, Controller, SimpleComponent,
+};
+use relm4_components::simple_combo_box::SimpleComboBox;
 
-#[derive(Clone)]
+pub struct Header {
+    gpu_selector: Controller<SimpleComboBox<DeviceListEntry>>,
+}
+
+#[relm4::component(pub)]
+impl SimpleComponent for Header {
+    type Init = (Vec<DeviceListEntry>, gtk::Stack);
+    type Input = ();
+    type Output = AppMsg;
+
+    view! {
+        gtk::HeaderBar {
+            set_show_title_buttons: true,
+
+            #[wrap(Some)]
+            set_title_widget = &StackSwitcher {
+                set_stack: Some(&stack),
+            },
+
+            #[local_ref]
+            pack_start = gpu_selector -> ComboBoxText,
+
+            pack_end = &gtk::MenuButton {
+                set_icon_name: "open-menu-symbolic",
+            }
+        }
+    }
+
+    fn init(
+        (variants, stack): Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let gpu_selector = SimpleComboBox::builder()
+            .launch(SimpleComboBox {
+                variants,
+                active_index: Some(0),
+            })
+            .forward(sender.output_sender(), AppMsg::GpuChanged);
+
+        // limits the length of gpu names in combobox
+        for cell in gpu_selector.widget().cells() {
+            cell.set_property("width-chars", 10);
+            cell.set_property("ellipsize", pango::EllipsizeMode::End);
+        }
+
+        let model = Self { gpu_selector };
+
+        let gpu_selector = model.gpu_selector.widget();
+        let widgets = view_output!();
+
+        ComponentParts { model, widgets }
+    }
+}
+
+impl Header {
+    pub fn selected_gpu_id(&self) -> Option<String> {
+        self.gpu_selector
+            .model()
+            .get_active_elem()
+            .map(|model| model.id.clone())
+    }
+}
+
+/*#[derive(Clone)]
 pub struct Header {
     pub container: HeaderBar,
     gpu_selector: ComboBoxText,
@@ -80,4 +148,4 @@ impl Header {
             }
         });
     }
-}
+}*/

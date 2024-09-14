@@ -23,6 +23,7 @@ use serde_with::skip_serializing_none;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
+    fmt,
     str::FromStr,
 };
 
@@ -67,9 +68,18 @@ pub struct SystemInfo<'a> {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct DeviceListEntry<'a> {
-    pub id: &'a str,
-    pub name: Option<&'a str>,
+pub struct DeviceListEntry {
+    pub id: String,
+    pub name: Option<String>,
+}
+
+impl fmt::Display for DeviceListEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.name {
+            Some(name) => name.fmt(f),
+            None => self.id.fmt(f),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
