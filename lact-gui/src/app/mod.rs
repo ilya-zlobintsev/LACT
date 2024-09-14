@@ -5,8 +5,6 @@ mod info_row;
 mod page_section;
 mod root_stack;
 
-use std::time::Duration;
-
 #[cfg(feature = "bench")]
 pub use graphs_window::plot::{Plot, PlotData};
 
@@ -15,15 +13,19 @@ use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use graphs_window::GraphsWindow;
 use gtk::{
-    glib::{self, clone},
-    prelude::{BoxExt, DialogExtManual, GtkWindowExt, OrientableExt},
-    ApplicationWindow, ButtonsType, MessageDialog, MessageType,
+    glib::{self, clone, ControlFlow},
+    prelude::{BoxExt, DialogExtManual, GtkWindowExt, OrientableExt, WidgetExt},
+    ApplicationWindow, ButtonsType, MessageDialog, MessageType, ResponseType,
 };
 use header::Header;
 use lact_client::DaemonClient;
-use lact_schema::{DeviceStats, GIT_COMMIT};
+use lact_schema::{
+    request::{ConfirmCommand, SetClocksCommand},
+    DeviceStats, FanOptions, GIT_COMMIT,
+};
 use relm4::{tokio, Component, ComponentController, ComponentParts, ComponentSender};
 use root_stack::RootStack;
+use std::{rc::Rc, sync::atomic::AtomicBool, time::Duration};
 use tracing::{debug, error, trace, warn};
 
 const STATS_POLL_INTERVAL_MS: u64 = 250;
@@ -112,7 +114,7 @@ impl Component for AppModel {
             sender.input(AppMsg::Error(err));
         }
 
-        sender.input(AppMsg::GpuChanged(0));
+        sender.input(AppMsg::ReloadData);
 
         ComponentParts { model, widgets }
     }
@@ -129,7 +131,7 @@ impl Component for AppModel {
             AppMsg::Error(err) => {
                 show_error(root, err);
             }
-            AppMsg::GpuChanged(_) => match self.current_gpu_id() {
+            AppMsg::ReloadData => match self.current_gpu_id() {
                 Some(new_gpu_id) => {
                     if let Err(err) = self.update_gpu_data(new_gpu_id, sender.clone()) {
                         show_error(root, err);
@@ -143,7 +145,14 @@ impl Component for AppModel {
                 self.root_stack.oc_page.set_stats(&stats, false);
                 self.graphs_window.set_stats(&stats);
             }
-            AppMsg::ApplyChanges => todo!(),
+            AppMsg::ApplyChanges => {
+                if let Some(gpu_id) = self.current_gpu_id() {
+                    if let Err(err) = self.apply_settings(gpu_id, root, &sender) {
+                        show_error(root, err.context("Could not apply settings"));
+                        sender.input(AppMsg::ReloadData);
+                    }
+                }
+            }
             AppMsg::RevertChanges => {
                 if let Some(gpu_id) = self.current_gpu_id() {
                     if let Err(err) = self.update_gpu_data(gpu_id, sender.clone()) {
@@ -281,12 +290,219 @@ impl AppModel {
 
         Ok(())
     }
+
+    fn apply_settings(
+        &self,
+        gpu_id: String,
+        root: &gtk::ApplicationWindow,
+        sender: &ComponentSender<Self>,
+    ) -> anyhow::Result<()> {
+        // TODO: Ask confirmation for everything, not just clocks
+
+        debug!("applying settings on gpu {gpu_id}");
+
+        if let Some(cap) = self.root_stack.oc_page.get_power_cap() {
+            self.daemon_client
+                .set_power_cap(&gpu_id, Some(cap))
+                .context("Failed to set power cap")?;
+
+            self.daemon_client
+                .confirm_pending_config(ConfirmCommand::Confirm)
+                .context("Could not commit config")?;
+        }
+
+        // Reset the power profile mode for switching to/from manual performance level
+        self.daemon_client
+            .set_power_profile_mode(&gpu_id, None, vec![])
+            .context("Could not set default power profile mode")?;
+        self.daemon_client
+            .confirm_pending_config(ConfirmCommand::Confirm)
+            .context("Could not commit config")?;
+
+        if let Some(level) = self.root_stack.oc_page.get_performance_level() {
+            self.daemon_client
+                .set_performance_level(&gpu_id, level)
+                .context("Failed to set power profile")?;
+            self.daemon_client
+                .confirm_pending_config(ConfirmCommand::Confirm)
+                .context("Could not commit config")?;
+
+            let mode_index = self
+                .root_stack
+                .oc_page
+                .performance_frame
+                .get_selected_power_profile_mode();
+            let custom_heuristics = self
+                .root_stack
+                .oc_page
+                .performance_frame
+                .get_power_profile_mode_custom_heuristics();
+
+            self.daemon_client
+                .set_power_profile_mode(&gpu_id, mode_index, custom_heuristics)
+                .context("Could not set active power profile mode")?;
+            self.daemon_client
+                .confirm_pending_config(ConfirmCommand::Confirm)
+                .context("Could not commit config")?;
+        }
+
+        if let Some(thermals_settings) = self.root_stack.thermals_page.get_thermals_settings() {
+            debug!("applying thermal settings: {thermals_settings:?}");
+            let opts = FanOptions {
+                id: &gpu_id,
+                enabled: thermals_settings.manual_fan_control,
+                mode: thermals_settings.mode,
+                static_speed: thermals_settings.static_speed,
+                curve: thermals_settings.curve,
+                pmfw: thermals_settings.pmfw,
+                spindown_delay_ms: thermals_settings.spindown_delay_ms,
+                change_threshold: thermals_settings.change_threshold,
+            };
+
+            self.daemon_client
+                .set_fan_control(opts)
+                .context("Could not set fan control")?;
+            self.daemon_client
+                .confirm_pending_config(ConfirmCommand::Confirm)
+                .context("Could not commit config")?;
+        }
+
+        let clocks_settings = self.root_stack.oc_page.clocks_frame.get_settings();
+        let mut clocks_commands = Vec::new();
+
+        debug!("applying clocks settings {clocks_settings:#?}");
+
+        if let Some(clock) = clocks_settings.min_core_clock {
+            clocks_commands.push(SetClocksCommand::MinCoreClock(clock));
+        }
+
+        if let Some(clock) = clocks_settings.min_memory_clock {
+            clocks_commands.push(SetClocksCommand::MinMemoryClock(clock));
+        }
+
+        if let Some(voltage) = clocks_settings.min_voltage {
+            clocks_commands.push(SetClocksCommand::MinVoltage(voltage));
+        }
+
+        if let Some(clock) = clocks_settings.max_core_clock {
+            clocks_commands.push(SetClocksCommand::MaxCoreClock(clock));
+        }
+
+        if let Some(clock) = clocks_settings.max_memory_clock {
+            clocks_commands.push(SetClocksCommand::MaxMemoryClock(clock));
+        }
+
+        if let Some(voltage) = clocks_settings.max_voltage {
+            clocks_commands.push(SetClocksCommand::MaxVoltage(voltage));
+        }
+
+        if let Some(offset) = clocks_settings.voltage_offset {
+            clocks_commands.push(SetClocksCommand::VoltageOffset(offset));
+        }
+
+        let enabled_power_states = self.root_stack.oc_page.get_enabled_power_states();
+
+        for (kind, states) in enabled_power_states {
+            if !states.is_empty() {
+                self.daemon_client
+                    .set_enabled_power_states(&gpu_id, kind, states)
+                    .context("Could not set power states")?;
+
+                self.daemon_client
+                    .confirm_pending_config(ConfirmCommand::Confirm)
+                    .context("Could not commit config")?;
+            }
+        }
+
+        if !clocks_commands.is_empty() {
+            let delay = self
+                .daemon_client
+                .batch_set_clocks_value(&gpu_id, clocks_commands)
+                .context("Could not commit clocks settings")?;
+            self.ask_settings_confirmation(delay, root, sender);
+        }
+
+        sender.input(AppMsg::ReloadData);
+
+        Ok(())
+    }
+
+    fn ask_settings_confirmation(
+        &self,
+        mut delay: u64,
+        window: &gtk::ApplicationWindow,
+        sender: &ComponentSender<AppModel>,
+    ) {
+        let text = confirmation_text(delay);
+        let dialog = MessageDialog::builder()
+            .title("Confirm settings")
+            .text(text)
+            .message_type(MessageType::Question)
+            .buttons(ButtonsType::YesNo)
+            .transient_for(window)
+            .build();
+        let confirmed = Rc::new(AtomicBool::new(false));
+
+        glib::source::timeout_add_local(
+            Duration::from_secs(1),
+            clone!(
+                #[strong]
+                dialog,
+                #[strong]
+                sender,
+                #[strong]
+                confirmed,
+                move || {
+                    if confirmed.load(std::sync::atomic::Ordering::SeqCst) {
+                        return ControlFlow::Break;
+                    }
+                    delay -= 1;
+
+                    let text = confirmation_text(delay);
+                    dialog.set_text(Some(&text));
+
+                    if delay == 0 {
+                        dialog.hide();
+                        sender.input(AppMsg::ReloadData);
+
+                        ControlFlow::Break
+                    } else {
+                        ControlFlow::Continue
+                    }
+                }
+            ),
+        );
+
+        dialog.run_async(clone!(
+            #[strong]
+            sender,
+            #[strong(rename_to = daemon_client)]
+            self.daemon_client,
+            #[strong]
+            window,
+            move |diag, response| {
+                confirmed.store(true, std::sync::atomic::Ordering::SeqCst);
+
+                let command = match response {
+                    ResponseType::Yes => ConfirmCommand::Confirm,
+                    _ => ConfirmCommand::Revert,
+                };
+
+                diag.close();
+
+                if let Err(err) = daemon_client.confirm_pending_config(command) {
+                    show_error(&window, err);
+                }
+                sender.input(AppMsg::ReloadData);
+            }
+        ));
+    }
 }
 
 #[derive(Debug)]
 pub enum AppMsg {
     Error(anyhow::Error),
-    GpuChanged(usize),
+    ReloadData,
     Stats(DeviceStats),
     ApplyChanges,
     RevertChanges,
@@ -335,4 +551,8 @@ fn start_stats_update_loop(
             }
         }
     })
+}
+
+fn confirmation_text(seconds_left: u64) -> String {
+    format!("Do you want to keep the new settings? (Reverting in {seconds_left} seconds)")
 }

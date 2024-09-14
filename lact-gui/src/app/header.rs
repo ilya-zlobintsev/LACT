@@ -45,7 +45,7 @@ impl SimpleComponent for Header {
                 variants,
                 active_index: Some(0),
             })
-            .forward(sender.output_sender(), AppMsg::GpuChanged);
+            .forward(sender.output_sender(), |_| AppMsg::ReloadData);
 
         // limits the length of gpu names in combobox
         for cell in gpu_selector.widget().cells() {
