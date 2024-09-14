@@ -27,7 +27,7 @@ Current features:
 - OpenSUSE: an RPM is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
   Only tumbleweed is supported as leap does not have the required dependencies in the repos.
-- NixOS: There is a package available on the [unstable channel](https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=lact)
+- NixOS: There is a package available in [nixpkgs](https://search.nixos.org/packages?channel=24.05&from=0&size=50&sort=relevance&type=packages&query=lact)
 - Otherwise, build from source.
 
 **Why is there no AppImage/Flatpak/other universal format?**
