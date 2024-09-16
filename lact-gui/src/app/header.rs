@@ -1,4 +1,4 @@
-use super::AppMsg;
+use super::{AppMsg, DebugSnapshot, DisableOverdrive, DumpVBios, ResetConfig, ShowGraphsWindow};
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::DeviceListEntry;
@@ -31,6 +31,23 @@ impl SimpleComponent for Header {
 
             pack_end = &gtk::MenuButton {
                 set_icon_name: "open-menu-symbolic",
+                set_menu_model: Some(&app_menu),
+            }
+        }
+    }
+
+    menu! {
+        app_menu: {
+            section! {
+                "Show historical charts" => ShowGraphsWindow,
+            },
+            section! {
+                "Generate debug snapshot" => DebugSnapshot,
+                "Dump VBIOS" => DumpVBios,
+            } ,
+            section! {
+                "Disable overclocking support" => DisableOverdrive,
+                "Reset all configuration" => ResetConfig,
             }
         }
     }

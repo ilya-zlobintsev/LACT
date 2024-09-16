@@ -1,10 +1,12 @@
 mod apply_revealer;
+mod confirmation_dialog;
 mod graphs_window;
 mod header;
 mod info_row;
 mod page_section;
 mod root_stack;
 
+use confirmation_dialog::{ConfirmationDialog, ConfirmationOptions};
 #[cfg(feature = "bench")]
 pub use graphs_window::plot::{Plot, PlotData};
 
@@ -14,8 +16,12 @@ use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use graphs_window::GraphsWindow;
 use gtk::{
     glib::{self, clone, ControlFlow},
-    prelude::{BoxExt, DialogExtManual, GtkWindowExt, OrientableExt, WidgetExt},
-    ApplicationWindow, ButtonsType, MessageDialog, MessageType, ResponseType,
+    prelude::{
+        BoxExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt, OrientableExt,
+        WidgetExt,
+    },
+    ApplicationWindow, ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog,
+    MessageType, ResponseType,
 };
 use header::Header;
 use lact_client::DaemonClient;
@@ -23,7 +29,10 @@ use lact_schema::{
     request::{ConfirmCommand, SetClocksCommand},
     DeviceStats, FanOptions, GIT_COMMIT,
 };
-use relm4::{tokio, Component, ComponentController, ComponentParts, ComponentSender};
+use relm4::{
+    actions::{RelmAction, RelmActionGroup},
+    tokio, Component, ComponentController, ComponentParts, ComponentSender,
+};
 use root_stack::RootStack;
 use std::{rc::Rc, sync::atomic::AtomicBool, time::Duration};
 use tracing::{debug, error, trace, warn};
@@ -72,6 +81,8 @@ impl Component for AppModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        register_actions(&sender);
+
         let system_info_buf = daemon_client
             .get_system_info()
             .expect("Could not fetch system info");
@@ -84,7 +95,7 @@ impl Component for AppModel {
 
         if system_info.version != GUI_VERSION || system_info.commit != Some(GIT_COMMIT) {
             let err = anyhow!("Version mismatch between GUI and daemon ({GUI_VERSION}-{GIT_COMMIT} vs {}-{})! Make sure you have restarted the service if you have updated LACT.", system_info.version, system_info.commit.unwrap_or_default());
-            sender.input(AppMsg::Error(err));
+            sender.input(AppMsg::Error(err.into()));
         }
 
         let root_stack = RootStack::new(system_info, daemon_client.embedded);
@@ -111,7 +122,7 @@ impl Component for AppModel {
         let widgets = view_output!();
 
         if let Some(err) = conn_err {
-            sender.input(AppMsg::Error(err));
+            sender.input(AppMsg::Error(err.into()));
         }
 
         sender.input(AppMsg::ReloadData);
@@ -129,15 +140,15 @@ impl Component for AppModel {
         trace!("update {msg:#?}");
         match msg {
             AppMsg::Error(err) => {
-                show_error(root, err);
+                show_error(root, &err);
             }
             AppMsg::ReloadData => match self.current_gpu_id() {
                 Some(new_gpu_id) => {
                     if let Err(err) = self.update_gpu_data(new_gpu_id, sender.clone()) {
-                        show_error(root, err);
+                        show_error(root, &err);
                     }
                 }
-                None => show_error(root, anyhow!("No GPUs detected")),
+                None => show_error(root, &anyhow!("No GPUs detected")),
             },
             AppMsg::Stats(stats) => {
                 self.root_stack.info_page.set_stats(&stats);
@@ -148,7 +159,7 @@ impl Component for AppModel {
             AppMsg::ApplyChanges => {
                 if let Some(gpu_id) = self.current_gpu_id() {
                     if let Err(err) = self.apply_settings(gpu_id, root, &sender) {
-                        show_error(root, err.context("Could not apply settings"));
+                        show_error(root, &err.context("Could not apply settings"));
                         sender.input(AppMsg::ReloadData);
                     }
                 }
@@ -156,9 +167,36 @@ impl Component for AppModel {
             AppMsg::RevertChanges => {
                 if let Some(gpu_id) = self.current_gpu_id() {
                     if let Err(err) = self.update_gpu_data(gpu_id, sender.clone()) {
-                        show_error(root, err);
+                        show_error(root, &err);
                     }
                 }
+            }
+            AppMsg::ShowGraphsWindow => {
+                self.graphs_window.show();
+            }
+            AppMsg::DumpVBios => {
+                if let Some(gpu_id) = self.current_gpu_id() {
+                    self.dump_vbios(&gpu_id, root);
+                }
+            }
+            AppMsg::DebugSnapshot => {
+                self.generate_debug_snapshot(root);
+            }
+            AppMsg::DisableOverdrive => todo!(),
+            AppMsg::ResetConfig => {
+                println!("Actually resetting config");
+            }
+            AppMsg::AskConfirmation(options, confirmed_msg) => {
+                let sender = sender.clone();
+
+                let mut controller = ConfirmationDialog::builder()
+                    .launch((options, root.clone()))
+                    .connect_receiver(move |_, response| {
+                        if let gtk::ResponseType::Ok | gtk::ResponseType::Yes = response {
+                            sender.input(*confirmed_msg.clone());
+                        }
+                    });
+                controller.detach_runtime();
             }
         }
 
@@ -491,36 +529,141 @@ impl AppModel {
                 diag.close();
 
                 if let Err(err) = daemon_client.confirm_pending_config(command) {
-                    show_error(&window, err);
+                    show_error(&window, &err);
                 }
                 sender.input(AppMsg::ReloadData);
             }
         ));
     }
+
+    fn dump_vbios(&self, gpu_id: &str, root: &gtk::ApplicationWindow) {
+        match self
+            .daemon_client
+            .dump_vbios(gpu_id)
+            .and_then(|response| response.inner())
+        {
+            Ok(vbios_data) => {
+                let file_chooser = FileChooserDialog::new(
+                    Some("Save VBIOS file"),
+                    Some(root),
+                    FileChooserAction::Save,
+                    &[
+                        ("Save", ResponseType::Accept),
+                        ("Cancel", ResponseType::Cancel),
+                    ],
+                );
+
+                let file_name_suffix = gpu_id
+                    .split_once('-')
+                    .map(|(id, _)| id.replace(':', "_"))
+                    .unwrap_or_default();
+                file_chooser.set_current_name(&format!("{file_name_suffix}_vbios_dump.rom"));
+                file_chooser.run_async(clone!(
+                    #[strong]
+                    root,
+                    move |diag, _| {
+                        diag.close();
+
+                        if let Some(file) = diag.file() {
+                            match file.path() {
+                                Some(path) => {
+                                    if let Err(err) = std::fs::write(path, vbios_data)
+                                        .context("Could not save vbios file")
+                                    {
+                                        show_error(&root, &err);
+                                    }
+                                }
+                                None => {
+                                    show_error(&root, &anyhow!("Selected file has an invalid path"))
+                                }
+                            }
+                        }
+                    }
+                ));
+            }
+            Err(err) => show_error(root, &err),
+        }
+    }
+
+    fn generate_debug_snapshot(&self, root: &gtk::ApplicationWindow) {
+        match self
+            .daemon_client
+            .generate_debug_snapshot()
+            .and_then(|response| response.inner())
+        {
+            Ok(path) => {
+                let path_label = gtk::Label::builder()
+                    .use_markup(true)
+                    .label(format!("<b>{path}</b>"))
+                    .selectable(true)
+                    .build();
+
+                let vbox = gtk::Box::builder()
+                    .orientation(gtk::Orientation::Vertical)
+                    .margin_top(10)
+                    .margin_bottom(10)
+                    .margin_start(10)
+                    .margin_end(10)
+                    .build();
+
+                vbox.append(&gtk::Label::new(Some("Debug snapshot saved at:")));
+                vbox.append(&path_label);
+
+                let diag = MessageDialog::builder()
+                    .title("Snapshot generated")
+                    .message_type(MessageType::Info)
+                    .use_markup(true)
+                    .text(format!("Debug snapshot saved at <b>{path}</b>"))
+                    .buttons(ButtonsType::Ok)
+                    .transient_for(root)
+                    .build();
+
+                let message_box = diag.message_area().downcast::<gtk::Box>().unwrap();
+                for child in message_box.observe_children().into_iter().flatten() {
+                    if let Ok(label) = child.downcast::<gtk::Label>() {
+                        label.set_selectable(true);
+                    }
+                }
+
+                diag.run_async(|diag, _| {
+                    diag.hide();
+                })
+            }
+            Err(err) => show_error(root, &err.context("Could not generate snapshot")),
+        }
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AppMsg {
-    Error(anyhow::Error),
+    Error(Rc<anyhow::Error>),
     ReloadData,
     Stats(DeviceStats),
     ApplyChanges,
     RevertChanges,
+    ShowGraphsWindow,
+    DumpVBios,
+    DebugSnapshot,
+    DisableOverdrive,
+    ResetConfig,
+    AskConfirmation(ConfirmationOptions, Box<AppMsg>),
 }
 
-fn show_error(parent: &ApplicationWindow, err: anyhow::Error) {
+fn show_error(parent: &ApplicationWindow, err: &anyhow::Error) {
     let text = format!("{err:?}")
         .lines()
         .map(str::trim)
         .collect::<Vec<&str>>()
         .join("\n");
     warn!("{text}");
+
     let diag = MessageDialog::builder()
         .title("Error")
         .message_type(MessageType::Error)
         .text(text)
         .buttons(ButtonsType::Close)
         .transient_for(parent)
+        .modal(true)
         .build();
     diag.run_async(|diag, _| {
         diag.close();
@@ -556,3 +699,46 @@ fn start_stats_update_loop(
 fn confirmation_text(seconds_left: u64) -> String {
     format!("Do you want to keep the new settings? (Reverting in {seconds_left} seconds)")
 }
+
+fn register_actions(sender: &ComponentSender<AppModel>) {
+    let mut group = RelmActionGroup::<AppActionGroup>::new();
+
+    macro_rules! actions {
+        ($(($action:ty, $msg:expr),)*) => {
+            $(
+                group.add_action(RelmAction::<$action>::new_stateless(clone!(
+                    #[strong]
+                    sender,
+                    move |_| sender.input($msg)
+                )));
+            )*
+        }
+    }
+
+    actions! {
+        (ShowGraphsWindow, AppMsg::ShowGraphsWindow),
+        (DumpVBios, AppMsg::DumpVBios),
+        (DebugSnapshot, AppMsg::DebugSnapshot),
+        (DisableOverdrive, AppMsg::DisableOverdrive),
+        (
+            ResetConfig,
+            AppMsg::AskConfirmation(
+                ConfirmationOptions {
+                    title: "Reset configuration",
+                    message: "Are you sure you want to reset all GPU configuration?",
+                    buttons_type: gtk::ButtonsType::YesNo,
+                },
+                AppMsg::ResetConfig.into()
+            )
+        ),
+    };
+
+    group.register_for_main_application();
+}
+
+relm4::new_action_group!(AppActionGroup, "app");
+relm4::new_stateless_action!(ShowGraphsWindow, AppActionGroup, "show-graphs-window");
+relm4::new_stateless_action!(DumpVBios, AppActionGroup, "dump-vbios");
+relm4::new_stateless_action!(DebugSnapshot, AppActionGroup, "generate-debug-snapshot");
+relm4::new_stateless_action!(DisableOverdrive, AppActionGroup, "disable-overdrive");
+relm4::new_stateless_action!(ResetConfig, AppActionGroup, "reset-config");
