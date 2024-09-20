@@ -3,16 +3,17 @@ mod confirmation_dialog;
 mod graphs_window;
 mod header;
 mod info_row;
+mod msg;
 mod page_section;
 mod root_stack;
 
-use confirmation_dialog::{ConfirmationDialog, ConfirmationOptions};
 #[cfg(feature = "bench")]
 pub use graphs_window::plot::{Plot, PlotData};
 
 use crate::{APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
+use confirmation_dialog::ConfirmationDialog;
 use graphs_window::GraphsWindow;
 use gtk::{
     glib::{self, clone, ControlFlow},
@@ -27,8 +28,9 @@ use header::Header;
 use lact_client::DaemonClient;
 use lact_schema::{
     request::{ConfirmCommand, SetClocksCommand},
-    DeviceStats, FanOptions, GIT_COMMIT,
+    FanOptions, GIT_COMMIT,
 };
+use msg::AppMsg;
 use relm4::{
     actions::{RelmAction, RelmActionGroup},
     tokio, Component, ComponentController, ComponentParts, ComponentSender,
@@ -138,53 +140,61 @@ impl Component for AppModel {
         root: &Self::Root,
     ) {
         trace!("update {msg:#?}");
+        if let Err(err) = self.handle_msg(msg, sender.clone(), root) {
+            show_error(root, &err);
+        }
+        self.update_view(widgets, sender);
+    }
+}
+
+impl AppModel {
+    fn handle_msg(
+        &mut self,
+        msg: AppMsg,
+        sender: ComponentSender<Self>,
+        root: &gtk::ApplicationWindow,
+    ) -> Result<(), Rc<anyhow::Error>> {
         match msg {
-            AppMsg::Error(err) => {
-                show_error(root, &err);
+            AppMsg::Error(err) => Err(err),
+            AppMsg::ReloadData => {
+                let gpu_id = self.current_gpu_id()?;
+                self.update_gpu_data(gpu_id, sender)?;
+                Ok(())
             }
-            AppMsg::ReloadData => match self.current_gpu_id() {
-                Some(new_gpu_id) => {
-                    if let Err(err) = self.update_gpu_data(new_gpu_id, sender.clone()) {
-                        show_error(root, &err);
-                    }
-                }
-                None => show_error(root, &anyhow!("No GPUs detected")),
-            },
             AppMsg::Stats(stats) => {
                 self.root_stack.info_page.set_stats(&stats);
                 self.root_stack.thermals_page.set_stats(&stats, false);
                 self.root_stack.oc_page.set_stats(&stats, false);
                 self.graphs_window.set_stats(&stats);
+                Ok(())
             }
-            AppMsg::ApplyChanges => {
-                if let Some(gpu_id) = self.current_gpu_id() {
-                    if let Err(err) = self.apply_settings(gpu_id, root, &sender) {
-                        show_error(root, &err.context("Could not apply settings"));
-                        sender.input(AppMsg::ReloadData);
-                    }
-                }
-            }
+            AppMsg::ApplyChanges => self
+                .apply_settings(self.current_gpu_id()?, root, &sender)
+                .map_err(|err| {
+                    sender.input(AppMsg::ReloadData);
+                    err.into()
+                }),
             AppMsg::RevertChanges => {
-                if let Some(gpu_id) = self.current_gpu_id() {
-                    if let Err(err) = self.update_gpu_data(gpu_id, sender.clone()) {
-                        show_error(root, &err);
-                    }
-                }
+                self.update_gpu_data(self.current_gpu_id()?, sender.clone())?;
+                Ok(())
             }
             AppMsg::ShowGraphsWindow => {
                 self.graphs_window.show();
+                Ok(())
             }
             AppMsg::DumpVBios => {
-                if let Some(gpu_id) = self.current_gpu_id() {
-                    self.dump_vbios(&gpu_id, root);
-                }
+                self.dump_vbios(&self.current_gpu_id()?, root);
+                Ok(())
             }
             AppMsg::DebugSnapshot => {
                 self.generate_debug_snapshot(root);
+                Ok(())
             }
             AppMsg::DisableOverdrive => todo!(),
             AppMsg::ResetConfig => {
-                println!("Actually resetting config");
+                self.daemon_client.reset_config()?;
+                sender.input(AppMsg::ReloadData);
+                Ok(())
             }
             AppMsg::AskConfirmation(options, confirmed_msg) => {
                 let sender = sender.clone();
@@ -197,16 +207,17 @@ impl Component for AppModel {
                         }
                     });
                 controller.detach_runtime();
+
+                Ok(())
             }
         }
-
-        self.update_view(widgets, sender);
     }
-}
 
-impl AppModel {
-    fn current_gpu_id(&self) -> Option<String> {
-        self.header.model().selected_gpu_id()
+    fn current_gpu_id(&self) -> anyhow::Result<String> {
+        self.header
+            .model()
+            .selected_gpu_id()
+            .context("No GPU selected")
     }
 
     fn update_gpu_data(
@@ -634,21 +645,6 @@ impl AppModel {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum AppMsg {
-    Error(Rc<anyhow::Error>),
-    ReloadData,
-    Stats(DeviceStats),
-    ApplyChanges,
-    RevertChanges,
-    ShowGraphsWindow,
-    DumpVBios,
-    DebugSnapshot,
-    DisableOverdrive,
-    ResetConfig,
-    AskConfirmation(ConfirmationOptions, Box<AppMsg>),
-}
-
 fn show_error(parent: &ApplicationWindow, err: &anyhow::Error) {
     let text = format!("{err:?}")
         .lines()
@@ -663,7 +659,6 @@ fn show_error(parent: &ApplicationWindow, err: &anyhow::Error) {
         .text(text)
         .buttons(ButtonsType::Close)
         .transient_for(parent)
-        .modal(true)
         .build();
     diag.run_async(|diag, _| {
         diag.close();
@@ -719,16 +714,22 @@ fn register_actions(sender: &ComponentSender<AppModel>) {
         (ShowGraphsWindow, AppMsg::ShowGraphsWindow),
         (DumpVBios, AppMsg::DumpVBios),
         (DebugSnapshot, AppMsg::DebugSnapshot),
-        (DisableOverdrive, AppMsg::DisableOverdrive),
+        (
+            DisableOverdrive,
+            AppMsg::ask_confirmation(
+                AppMsg::DisableOverdrive,
+                "Disable overclocking",
+                "This will disable overclocking support on next reboot.",
+                gtk::ButtonsType::OkCancel,
+            )
+        ),
         (
             ResetConfig,
-            AppMsg::AskConfirmation(
-                ConfirmationOptions {
-                    title: "Reset configuration",
-                    message: "Are you sure you want to reset all GPU configuration?",
-                    buttons_type: gtk::ButtonsType::YesNo,
-                },
-                AppMsg::ResetConfig.into()
+            AppMsg::ask_confirmation(
+                AppMsg::ResetConfig,
+                "Reset configuration",
+                "Are you sure you want to reset all GPU configuration?",
+                gtk::ButtonsType::YesNo,
             )
         ),
     };
