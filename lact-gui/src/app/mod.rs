@@ -96,8 +96,8 @@ impl Component for AppModel {
             .expect("Could not list devices");
         let devices = devices_buf.inner().expect("Could not access devices");
 
-        if system_info.version != GUI_VERSION || system_info.commit != Some(GIT_COMMIT) {
-            let err = anyhow!("Version mismatch between GUI and daemon ({GUI_VERSION}-{GIT_COMMIT} vs {}-{})! Make sure you have restarted the service if you have updated LACT.", system_info.version, system_info.commit.unwrap_or_default());
+        if system_info.version != GUI_VERSION || system_info.commit.as_deref() != Some(GIT_COMMIT) {
+            let err = anyhow!("Version mismatch between GUI and daemon ({GUI_VERSION}-{GIT_COMMIT} vs {}-{})! Make sure you have restarted the service if you have updated LACT.", system_info.version, system_info.commit.as_deref().unwrap_or_default());
             sender.input(AppMsg::Error(err.into()));
         }
 

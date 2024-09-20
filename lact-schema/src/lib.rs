@@ -59,10 +59,10 @@ pub fn default_fan_curve() -> FanCurveMap {
 pub struct Pong;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SystemInfo<'a> {
-    pub version: &'a str,
-    pub commit: Option<&'a str>,
-    pub profile: &'a str,
+pub struct SystemInfo {
+    pub version: String,
+    pub commit: Option<String>,
+    pub profile: String,
     pub kernel_version: String,
     pub amdgpu_overdrive_enabled: Option<bool>,
 }
