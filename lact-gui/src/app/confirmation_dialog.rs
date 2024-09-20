@@ -1,10 +1,10 @@
 use gtk::prelude::{DialogExt, GtkWindowExt, WidgetExt};
 use relm4::{ComponentParts, ComponentSender, SimpleComponent};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct ConfirmationOptions {
     pub title: &'static str,
-    pub message: &'static str,
+    pub message: String,
     pub buttons_type: gtk::ButtonsType,
 }
 

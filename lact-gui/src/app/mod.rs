@@ -10,7 +10,7 @@ mod root_stack;
 #[cfg(feature = "bench")]
 pub use graphs_window::plot::{Plot, PlotData};
 
-use crate::{APP_ID, GUI_VERSION};
+use crate::{create_connection, APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use confirmation_dialog::ConfirmationDialog;
@@ -26,6 +26,7 @@ use gtk::{
 };
 use header::Header;
 use lact_client::DaemonClient;
+use lact_daemon::MODULE_CONF_PATH;
 use lact_schema::{
     request::{ConfirmCommand, SetClocksCommand},
     FanOptions, GIT_COMMIT,
@@ -63,7 +64,7 @@ impl Component for AppModel {
         gtk::ApplicationWindow {
             set_title: Some("LACT"),
             set_default_width: 600,
-            set_default_height: 860,
+            set_default_height: 900,
             set_icon_name: Some(APP_ID),
             set_titlebar: Some(model.header.widget()),
 
@@ -109,6 +110,36 @@ impl Component for AppModel {
         let apply_revealer = ApplyRevealer::builder()
             .launch(())
             .forward(sender.input_sender(), |msg| msg);
+
+        root_stack.oc_page.clocks_frame.connect_clocks_reset(clone!(
+            #[strong]
+            sender,
+            move || {
+                sender.input(AppMsg::ResetClocks);
+            }
+        ));
+        root_stack.thermals_page.connect_reset_pmfw(clone!(
+            #[strong]
+            sender,
+            move || {
+                sender.input(AppMsg::ResetPmfw);
+            }
+        ));
+
+        if let Some(ref button) = root_stack.oc_page.enable_overclocking_button {
+            button.connect_clicked(clone!(
+                #[strong]
+                sender,
+                move |_| {
+                    sender.input(AppMsg::ask_confirmation(
+                        AppMsg::EnableOverdrive,
+                        "Enable Overclocking",
+                        format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this?"),
+                        gtk::ButtonsType::OkCancel,
+                    ));
+                }
+            ));
+        }
 
         let graphs_window = GraphsWindow::new();
 
@@ -188,6 +219,25 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
                 Ok(())
             }
+            AppMsg::ResetClocks => {
+                let gpu_id = self.current_gpu_id()?;
+                self.daemon_client
+                    .set_clocks_value(&gpu_id, SetClocksCommand::Reset)?;
+                self.daemon_client
+                    .confirm_pending_config(ConfirmCommand::Confirm)?;
+                sender.input(AppMsg::ReloadData { full: false });
+
+                Ok(())
+            }
+            AppMsg::ResetPmfw => {
+                let gpu_id = self.current_gpu_id()?;
+                self.daemon_client.reset_pmfw(&gpu_id)?;
+                self.daemon_client
+                    .confirm_pending_config(ConfirmCommand::Confirm)?;
+                sender.input(AppMsg::ReloadData { full: false });
+
+                Ok(())
+            }
             AppMsg::ShowGraphsWindow => {
                 self.graphs_window.show();
                 Ok(())
@@ -200,7 +250,14 @@ impl AppModel {
                 self.generate_debug_snapshot(root);
                 Ok(())
             }
-            AppMsg::DisableOverdrive => todo!(),
+            AppMsg::EnableOverdrive => {
+                toggle_overdrive(true, root.clone());
+                Ok(())
+            }
+            AppMsg::DisableOverdrive => {
+                toggle_overdrive(false, root.clone());
+                Ok(())
+            }
             AppMsg::ResetConfig => {
                 self.daemon_client.reset_config()?;
                 sender.input(AppMsg::ReloadData { full: true });
@@ -766,8 +823,101 @@ fn start_stats_update_loop(
     })
 }
 
+fn oc_toggled_dialog(enabled: bool, msg: &str) {
+    let enabled_text = if enabled { "enabled" } else { "disabled" };
+
+    let child = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(5)
+        .margin_top(10)
+        .margin_bottom(10)
+        .margin_start(10)
+        .margin_end(10)
+        .build();
+    child.append(&gtk::Label::new(Some(&format!("Overclocking {enabled_text}. A system reboot is required to apply the changes.\nSystem message:"))));
+
+    let msg_label = gtk::Label::builder()
+        .label(msg)
+        .valign(gtk::Align::Start)
+        .halign(gtk::Align::Start)
+        .build();
+    let msg_scrollable = gtk::ScrolledWindow::builder().child(&msg_label).build();
+    child.append(&msg_scrollable);
+
+    let ok_button = gtk::Button::builder().label("OK").build();
+    child.append(&ok_button);
+
+    let success_dialog = MessageDialog::builder()
+        .title("Overclock info")
+        .child(&child)
+        .message_type(MessageType::Info)
+        .build();
+
+    ok_button.connect_clicked(clone!(
+        #[strong]
+        success_dialog,
+        move |_| success_dialog.hide(),
+    ));
+
+    success_dialog.run_async(move |diag, _| {
+        diag.hide();
+    });
+}
+
 fn confirmation_text(seconds_left: u64) -> String {
     format!("Do you want to keep the new settings? (Reverting in {seconds_left} seconds)")
+}
+
+fn toggle_overdrive(enable: bool, root: ApplicationWindow) {
+    let handle = relm4::spawn_blocking(move || {
+        let (daemon_client, _) =
+            create_connection().expect("Could not create new daemon connection");
+        if enable {
+            daemon_client
+                .enable_overdrive()
+                .and_then(|buffer| buffer.inner())
+        } else {
+            daemon_client
+                .disable_overdrive()
+                .and_then(|buffer| buffer.inner())
+        }
+    });
+
+    let dialog = spinner_dialog(&root, "Regenerating initramfs (this may take a while)");
+    dialog.show();
+
+    relm4::spawn_local(async move {
+        let result = handle.await.unwrap();
+        dialog.hide();
+
+        match result {
+            Ok(msg) => oc_toggled_dialog(false, &msg),
+            Err(err) => {
+                show_error(&root, &err);
+            }
+        }
+    });
+}
+
+fn spinner_dialog(parent: &ApplicationWindow, title: &str) -> MessageDialog {
+    let spinner = gtk::Spinner::new();
+    spinner.start();
+    spinner.set_margin_top(10);
+    spinner.set_margin_bottom(10);
+
+    let dialog = MessageDialog::builder()
+        .title(title)
+        .child(&spinner)
+        .message_type(MessageType::Info)
+        .transient_for(parent)
+        .build();
+
+    if let Some(bar) = dialog.titlebar() {
+        bar.set_margin_start(15);
+        bar.set_margin_end(15);
+    }
+
+    dialog
 }
 
 fn register_actions(sender: &ComponentSender<AppModel>) {
@@ -793,7 +943,7 @@ fn register_actions(sender: &ComponentSender<AppModel>) {
             DisableOverdrive,
             AppMsg::ask_confirmation(
                 AppMsg::DisableOverdrive,
-                "Disable overclocking",
+                "Disable Overclocking",
                 "This will disable overclocking support on next reboot.",
                 gtk::ButtonsType::OkCancel,
             )
