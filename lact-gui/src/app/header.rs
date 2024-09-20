@@ -62,7 +62,9 @@ impl SimpleComponent for Header {
                 variants,
                 active_index: Some(0),
             })
-            .forward(sender.output_sender(), |_| AppMsg::ReloadData);
+            .forward(sender.output_sender(), |_| AppMsg::ReloadData {
+                full: true,
+            });
 
         // limits the length of gpu names in combobox
         for cell in gpu_selector.widget().cells() {

@@ -18,8 +18,8 @@ use graphs_window::GraphsWindow;
 use gtk::{
     glib::{self, clone, ControlFlow},
     prelude::{
-        BoxExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt, OrientableExt,
-        WidgetExt,
+        BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
+        OrientableExt, WidgetExt,
     },
     ApplicationWindow, ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog,
     MessageType, ResponseType,
@@ -36,7 +36,7 @@ use relm4::{
     tokio, Component, ComponentController, ComponentParts, ComponentSender,
 };
 use root_stack::RootStack;
-use std::{rc::Rc, sync::atomic::AtomicBool, time::Duration};
+use std::{cell::RefCell, rc::Rc, sync::atomic::AtomicBool, time::Duration};
 use tracing::{debug, error, trace, warn};
 
 const STATS_POLL_INTERVAL_MS: u64 = 250;
@@ -123,11 +123,17 @@ impl Component for AppModel {
 
         let widgets = view_output!();
 
-        if let Some(err) = conn_err {
-            sender.input(AppMsg::Error(err.into()));
-        }
+        let embedded = model.daemon_client.embedded;
+        let conn_err = RefCell::new(conn_err);
+        root.connect_visible_notify(move |root| {
+            if embedded {
+                if let Some(err) = conn_err.borrow_mut().take() {
+                    show_embedded_info(root, err);
+                }
+            }
+        });
 
-        sender.input(AppMsg::ReloadData);
+        sender.input(AppMsg::ReloadData { full: true });
 
         ComponentParts { model, widgets }
     }
@@ -156,9 +162,13 @@ impl AppModel {
     ) -> Result<(), Rc<anyhow::Error>> {
         match msg {
             AppMsg::Error(err) => Err(err),
-            AppMsg::ReloadData => {
+            AppMsg::ReloadData { full } => {
                 let gpu_id = self.current_gpu_id()?;
-                self.update_gpu_data(gpu_id, sender)?;
+                if full {
+                    self.update_gpu_data_full(gpu_id, sender)?;
+                } else {
+                    self.update_gpu_data(gpu_id, sender)?;
+                }
                 Ok(())
             }
             AppMsg::Stats(stats) => {
@@ -171,11 +181,11 @@ impl AppModel {
             AppMsg::ApplyChanges => self
                 .apply_settings(self.current_gpu_id()?, root, &sender)
                 .map_err(|err| {
-                    sender.input(AppMsg::ReloadData);
+                    sender.input(AppMsg::ReloadData { full: false });
                     err.into()
                 }),
             AppMsg::RevertChanges => {
-                self.update_gpu_data(self.current_gpu_id()?, sender.clone())?;
+                sender.input(AppMsg::ReloadData { full: false });
                 Ok(())
             }
             AppMsg::ShowGraphsWindow => {
@@ -193,7 +203,7 @@ impl AppModel {
             AppMsg::DisableOverdrive => todo!(),
             AppMsg::ResetConfig => {
                 self.daemon_client.reset_config()?;
-                sender.input(AppMsg::ReloadData);
+                sender.input(AppMsg::ReloadData { full: true });
                 Ok(())
             }
             AppMsg::AskConfirmation(options, confirmed_msg) => {
@@ -220,28 +230,16 @@ impl AppModel {
             .context("No GPU selected")
     }
 
-    fn update_gpu_data(
+    fn update_gpu_data_full(
         &mut self,
         gpu_id: String,
         sender: ComponentSender<AppModel>,
     ) -> anyhow::Result<()> {
-        if let Some(stats_task) = self.stats_task_handle.take() {
-            stats_task.abort();
-        }
-
-        debug!("setting initial info for gpu {gpu_id}");
-
-        let info_buf = self
-            .daemon_client
+        let daemon_client = self.daemon_client.clone();
+        let info_buf = daemon_client
             .get_device_info(&gpu_id)
             .context("Could not fetch info")?;
         let info = info_buf.inner()?;
-
-        let stats = self
-            .daemon_client
-            .get_device_stats(&gpu_id)
-            .context("Could not fetch stats")?
-            .inner()?;
 
         self.root_stack.info_page.set_info(&info);
         self.root_stack.oc_page.set_info(&info);
@@ -252,6 +250,30 @@ impl AppModel {
             .map(|info| info.vram_clock_ratio)
             .unwrap_or(1.0);
         self.graphs_window.set_vram_clock_ratio(vram_clock_ratio);
+
+        self.update_gpu_data(gpu_id, sender)?;
+
+        self.root_stack.thermals_page.set_info(&info);
+
+        Ok(())
+    }
+
+    fn update_gpu_data(
+        &mut self,
+        gpu_id: String,
+        sender: ComponentSender<AppModel>,
+    ) -> anyhow::Result<()> {
+        if let Some(stats_task) = self.stats_task_handle.take() {
+            stats_task.abort();
+        }
+
+        debug!("updating info for gpu {gpu_id}");
+
+        let stats = self
+            .daemon_client
+            .get_device_stats(&gpu_id)
+            .context("Could not fetch stats")?
+            .inner()?;
 
         self.root_stack.oc_page.set_stats(&stats, true);
         self.root_stack.thermals_page.set_stats(&stats, true);
@@ -303,8 +325,6 @@ impl AppModel {
             }
             Err(err) => warn!("could not get power states: {err:?}"),
         }
-
-        self.root_stack.thermals_page.set_info(&info);
 
         // Show apply button on setting changes
         // This is done here because new widgets may appear after applying settings (like fan curve points) which should be connected
@@ -471,7 +491,7 @@ impl AppModel {
             self.ask_settings_confirmation(delay, root, sender);
         }
 
-        sender.input(AppMsg::ReloadData);
+        sender.input(AppMsg::ReloadData { full: false });
 
         Ok(())
     }
@@ -512,7 +532,7 @@ impl AppModel {
 
                     if delay == 0 {
                         dialog.hide();
-                        sender.input(AppMsg::ReloadData);
+                        sender.input(AppMsg::ReloadData { full: false });
 
                         ControlFlow::Break
                     } else {
@@ -542,7 +562,7 @@ impl AppModel {
                 if let Err(err) = daemon_client.confirm_pending_config(command) {
                     show_error(&window, &err);
                 }
-                sender.input(AppMsg::ReloadData);
+                sender.input(AppMsg::ReloadData { full: false });
             }
         ));
     }
@@ -662,6 +682,58 @@ fn show_error(parent: &ApplicationWindow, err: &anyhow::Error) {
         .build();
     diag.run_async(|diag, _| {
         diag.close();
+    })
+}
+
+fn show_embedded_info(parent: &ApplicationWindow, err: anyhow::Error) {
+    let error_text = format!("Error info: {err:#}\n\n");
+
+    let text = format!(
+        "Could not connect to daemon, running in embedded mode. \n\
+                        Please make sure the lactd service is running. \n\
+                        Using embedded mode, you will not be able to change any settings. \n\n\
+                        {error_text}\
+                        To enable the daemon, run the following command:"
+    );
+
+    let text_label = gtk::Label::new(Some(&text));
+    let enable_label = gtk::Entry::builder()
+        .text("sudo systemctl enable --now lactd")
+        .editable(false)
+        .build();
+
+    let vbox = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .margin_top(10)
+        .margin_bottom(10)
+        .margin_start(10)
+        .margin_end(10)
+        .build();
+
+    let close_button = gtk::Button::builder().label("Close").build();
+
+    vbox.append(&text_label);
+    vbox.append(&enable_label);
+    vbox.append(&close_button);
+
+    let diag = gtk::MessageDialog::new(
+        Some(parent),
+        gtk::DialogFlags::MODAL,
+        gtk::MessageType::Question,
+        gtk::ButtonsType::Ok,
+        "",
+    );
+    diag.set_title(Some("Daemon info"));
+    diag.set_child(Some(&vbox));
+
+    close_button.connect_clicked(clone!(
+        #[strong]
+        diag,
+        move |_| diag.hide()
+    ));
+
+    diag.run_async(|diag, _| {
+        diag.hide();
     })
 }
 

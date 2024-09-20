@@ -5,7 +5,7 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub enum AppMsg {
     Error(Rc<anyhow::Error>),
-    ReloadData,
+    ReloadData { full: bool },
     Stats(DeviceStats),
     ApplyChanges,
     RevertChanges,
