@@ -592,20 +592,23 @@ impl AppModel {
                 file_chooser.run_async(clone!(
                     #[strong]
                     root,
-                    move |diag, _| {
+                    move |diag, response| {
                         diag.close();
 
-                        if let Some(file) = diag.file() {
-                            match file.path() {
-                                Some(path) => {
-                                    if let Err(err) = std::fs::write(path, vbios_data)
-                                        .context("Could not save vbios file")
-                                    {
-                                        show_error(&root, &err);
+                        if response == gtk::ResponseType::Accept {
+                            if let Some(file) = diag.file() {
+                                match file.path() {
+                                    Some(path) => {
+                                        if let Err(err) = std::fs::write(path, vbios_data)
+                                            .context("Could not save vbios file")
+                                        {
+                                            show_error(&root, &err);
+                                        }
                                     }
-                                }
-                                None => {
-                                    show_error(&root, &anyhow!("Selected file has an invalid path"))
+                                    None => show_error(
+                                        &root,
+                                        &anyhow!("Selected file has an invalid path"),
+                                    ),
                                 }
                             }
                         }
