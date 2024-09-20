@@ -13,6 +13,14 @@ impl InfoRow {
             .property("value", value)
             .build()
     }
+
+    pub fn new_selectable(name: &str, value: &str) -> Self {
+        Object::builder()
+            .property("name", name)
+            .property("value", value)
+            .property("selectable", true)
+            .build()
+    }
 }
 
 mod imp {

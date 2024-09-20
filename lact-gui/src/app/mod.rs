@@ -1,378 +1,302 @@
 mod apply_revealer;
+mod confirmation_dialog;
 mod graphs_window;
 mod header;
 mod info_row;
+mod msg;
 mod page_section;
 mod root_stack;
 
 #[cfg(feature = "bench")]
 pub use graphs_window::plot::{Plot, PlotData};
 
-use self::graphs_window::GraphsWindow;
 use crate::{create_connection, APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
-use apply_revealer::ApplyRevealer;
-use glib::clone;
-use gtk::gio::ActionEntry;
-use gtk::glib::{timeout_future, ControlFlow};
-use gtk::{gio::ApplicationFlags, prelude::*, *};
+use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
+use confirmation_dialog::ConfirmationDialog;
+use graphs_window::GraphsWindow;
+use gtk::{
+    glib::{self, clone, ControlFlow},
+    prelude::{
+        BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
+        OrientableExt, WidgetExt,
+    },
+    ApplicationWindow, ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog,
+    MessageType, ResponseType,
+};
 use header::Header;
-use lact_client::schema::request::{ConfirmCommand, SetClocksCommand};
-use lact_client::schema::{FanOptions, GIT_COMMIT};
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
+use lact_schema::{
+    request::{ConfirmCommand, SetClocksCommand},
+    FanOptions, GIT_COMMIT,
+};
+use msg::AppMsg;
+use relm4::{
+    actions::{RelmAction, RelmActionGroup},
+    tokio, Component, ComponentController, ComponentParts, ComponentSender,
+};
 use root_stack::RootStack;
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::atomic::AtomicBool;
-use std::time::Duration;
+use std::{cell::RefCell, rc::Rc, sync::atomic::AtomicBool, time::Duration};
 use tracing::{debug, error, trace, warn};
 
-// In ms
-const STATS_POLL_INTERVAL: u64 = 250;
+const STATS_POLL_INTERVAL_MS: u64 = 250;
 
-#[derive(Clone)]
-pub(crate) struct App {
-    application: Application,
-    pub window: ApplicationWindow,
-    pub header: Header,
-    root_stack: RootStack,
-    apply_revealer: ApplyRevealer,
+pub struct AppModel {
     daemon_client: DaemonClient,
     graphs_window: GraphsWindow,
+    root_stack: RootStack,
+    header: relm4::Controller<Header>,
+    apply_revealer: relm4::Controller<ApplyRevealer>,
+    stats_task_handle: Option<glib::JoinHandle<()>>,
 }
 
-impl App {
-    pub fn new(daemon_client: DaemonClient) -> Self {
-        #[cfg(feature = "adw")]
-        let application: Application =
-            adw::Application::new(Some(APP_ID), ApplicationFlags::default()).upcast();
-        #[cfg(not(feature = "adw"))]
-        let application = Application::new(Some(APP_ID), ApplicationFlags::default());
+#[relm4::component(pub)]
+impl Component for AppModel {
+    type Init = (DaemonClient, Option<anyhow::Error>);
+
+    type Input = AppMsg;
+    type Output = ();
+    type CommandOutput = ();
+
+    view! {
+        #[name = "root_window"]
+        gtk::ApplicationWindow {
+            set_title: Some("LACT"),
+            set_default_width: 600,
+            set_default_height: 900,
+            set_icon_name: Some(APP_ID),
+            set_titlebar: Some(model.header.widget()),
+
+            #[name = "root_box"]
+            gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+                set_spacing: 5,
+
+                model.root_stack.container.clone(),
+                model.apply_revealer.widget(),
+            }
+        }
+    }
+
+    fn init(
+        (daemon_client, conn_err): Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        register_actions(&sender);
 
         let system_info_buf = daemon_client
             .get_system_info()
             .expect("Could not fetch system info");
         let system_info = system_info_buf.inner().expect("Invalid system info buffer");
 
-        let header = Header::new(&system_info);
-        let window = ApplicationWindow::builder()
-            .title("LACT")
-            .default_width(600)
-            .default_height(860)
-            .icon_name(APP_ID)
-            .build();
+        let devices_buf = daemon_client
+            .list_devices()
+            .expect("Could not list devices");
+        let devices = devices_buf.inner().expect("Could not access devices");
 
-        if system_info.version != GUI_VERSION || system_info.commit != Some(GIT_COMMIT) {
-            let err = anyhow!("Version mismatch between GUI and daemon ({GUI_VERSION}-{GIT_COMMIT} vs {}-{})! Make sure you have restarted the service if you have updated LACT.", system_info.version, system_info.commit.unwrap_or_default());
-            show_error(&window, err);
+        if system_info.version != GUI_VERSION || system_info.commit.as_deref() != Some(GIT_COMMIT) {
+            let err = anyhow!("Version mismatch between GUI and daemon ({GUI_VERSION}-{GIT_COMMIT} vs {}-{})! Make sure you have restarted the service if you have updated LACT.", system_info.version, system_info.commit.as_deref().unwrap_or_default());
+            sender.input(AppMsg::Error(err.into()));
         }
-
-        window.set_titlebar(Some(&header.container));
 
         let root_stack = RootStack::new(system_info, daemon_client.embedded);
 
-        header.set_switcher_stack(&root_stack.container);
+        let header = Header::builder()
+            .launch((devices, root_stack.container.clone()))
+            .forward(sender.input_sender(), |msg| msg);
 
-        let root_box = Box::new(Orientation::Vertical, 5);
+        let apply_revealer = ApplyRevealer::builder()
+            .launch(())
+            .forward(sender.input_sender(), |msg| msg);
 
-        root_box.append(&root_stack.container);
-
-        let apply_revealer = ApplyRevealer::new();
-
-        root_box.append(&apply_revealer.container);
-
-        window.set_child(Some(&root_box));
-
-        let graphs_window = GraphsWindow::new();
-
-        App {
-            application,
-            window,
-            header,
-            root_stack,
-            apply_revealer,
-            daemon_client,
-            graphs_window,
-        }
-    }
-
-    pub fn run(self, connection_err: Option<anyhow::Error>) -> anyhow::Result<()> {
-        self.application.connect_activate(clone!(
-            #[strong(rename_to = app)]
-            self,
-            move |_| {
-                app.window.set_application(Some(&app.application));
-
-                let current_gpu_id = Rc::new(RefCell::new(String::new()));
-
-                app.header.connect_gpu_selection_changed(clone!(
-                    #[strong]
-                    app,
-                    #[strong]
-                    current_gpu_id,
-                    move |gpu_id| {
-                        debug!("GPU Selection changed");
-                        app.set_info(&gpu_id);
-                        *current_gpu_id.borrow_mut() = gpu_id;
-                        debug!("Updated current GPU id");
-                        app.graphs_window.clear();
-                    }
-                ));
-
-                let devices_buf = app
-                    .daemon_client
-                    .list_devices()
-                    .expect("Could not list devices");
-                let devices = devices_buf.inner().expect("Could not access devices");
-                app.header.set_devices(&devices);
-
-                app.root_stack
-                    .oc_page
-                    .clocks_frame
-                    .connect_clocks_reset(clone!(
-                        #[strong]
-                        app,
-                        #[strong]
-                        current_gpu_id,
-                        move || {
-                            debug!("Resetting clocks");
-
-                            let gpu_id = current_gpu_id.borrow().clone();
-
-                            match app
-                                .daemon_client
-                                .set_clocks_value(&gpu_id, SetClocksCommand::Reset)
-                                .and_then(|_| {
-                                    app.daemon_client
-                                        .confirm_pending_config(ConfirmCommand::Confirm)
-                                }) {
-                                Ok(()) => {
-                                    app.set_initial(&gpu_id);
-                                }
-                                Err(err) => {
-                                    show_error(&app.window, err);
-                                }
-                            }
-                        }
-                    ));
-
-                app.root_stack.thermals_page.connect_reset_pmfw(clone!(
-                    #[strong]
-                    app,
-                    #[strong]
-                    current_gpu_id,
-                    move || {
-                        debug!("Resetting PMFW settings");
-                        let gpu_id = current_gpu_id.borrow().clone();
-
-                        match app
-                            .daemon_client
-                            .reset_pmfw(&gpu_id)
-                            .and_then(|buffer| buffer.inner())
-                            .and_then(|_| {
-                                app.daemon_client
-                                    .confirm_pending_config(ConfirmCommand::Confirm)
-                            }) {
-                            Ok(()) => {
-                                app.set_initial(&gpu_id);
-                            }
-                            Err(err) => {
-                                show_error(&app.window, err);
-                            }
-                        }
-                    }
-                ));
-
-                app.apply_revealer.connect_apply_button_clicked(clone!(
-                    #[strong]
-                    app,
-                    #[strong]
-                    current_gpu_id,
-                    move || {
-                        glib::idle_add_local_once(clone!(
-                            #[strong]
-                            app,
-                            #[strong]
-                            current_gpu_id,
-                            move || {
-                                if let Err(err) = app
-                                    .apply_settings(current_gpu_id.clone())
-                                    .context("Could not apply settings (GUI)")
-                                {
-                                    show_error(&app.window, err);
-
-                                    glib::idle_add_local_once(clone!(
-                                        #[strong]
-                                        app,
-                                        #[strong]
-                                        current_gpu_id,
-                                        move || {
-                                            let gpu_id = current_gpu_id.borrow().clone();
-                                            app.set_initial(&gpu_id)
-                                        }
-                                    ));
-                                }
-                            }
-                        ));
-                    }
-                ));
-                app.apply_revealer.connect_reset_button_clicked(clone!(
-                    #[strong]
-                    app,
-                    #[strong]
-                    current_gpu_id,
-                    move || {
-                        let gpu_id = current_gpu_id.borrow().clone();
-                        app.set_initial(&gpu_id)
-                    }
-                ));
-
-                if let Some(ref button) = app.root_stack.oc_page.enable_overclocking_button {
-                    button.connect_clicked(clone!(
-                        #[strong]
-                        app,
-                        move |_| {
-                            app.enable_overclocking();
-                        }
-                    ));
-                }
-
-                let snapshot_action = ActionEntry::builder("generate-debug-snapshot")
-                    .activate(clone!(
-                        #[strong]
-                        app,
-                        move |_, _, _| {
-                            app.generate_debug_snapshot();
-                        }
-                    ))
-                    .build();
-
-                let disable_overdive_action = ActionEntry::builder("disable-overdrive")
-                    .activate(clone!(
-                        #[strong]
-                        app,
-                        move |_, _, _| {
-                            app.disable_overclocking();
-                        }
-                    ))
-                    .build();
-
-                let show_graphs_window_action = ActionEntry::builder("show-graphs-window")
-                    .activate(clone!(
-                        #[strong]
-                        app,
-                        move |_, _, _| {
-                            app.graphs_window.show();
-                        }
-                    ))
-                    .build();
-
-                let dump_vbios_action = ActionEntry::builder("dump-vbios")
-                    .activate(clone!(
-                        #[strong]
-                        app,
-                        #[strong]
-                        current_gpu_id,
-                        move |_, _, _| {
-                            let gpu_id = current_gpu_id.borrow();
-                            app.dump_vbios(&gpu_id);
-                        }
-                    ))
-                    .build();
-
-                let reset_config_action = ActionEntry::builder("reset-config")
-                    .activate(clone!(
-                        #[strong]
-                        app,
-                        #[strong]
-                        current_gpu_id,
-                        move |_, _, _| {
-                            let gpu_id = current_gpu_id.borrow().clone();
-                            app.reset_config(gpu_id);
-                        }
-                    ))
-                    .build();
-
-                app.application.add_action_entries([
-                    snapshot_action,
-                    disable_overdive_action,
-                    show_graphs_window_action,
-                    dump_vbios_action,
-                    reset_config_action,
-                ]);
-
-                app.start_stats_update_loop(current_gpu_id);
-
-                app.window.show();
-
-                if app.daemon_client.embedded {
-                    let error_text = connection_err
-                        .as_ref()
-                        .map(|err| format!("Error info: {err:#}\n\n"))
-                        .unwrap_or_default();
-
-                    let text = format!(
-                        "Could not connect to daemon, running in embedded mode. \n\
-                        Please make sure the lactd service is running. \n\
-                        Using embedded mode, you will not be able to change any settings. \n\n\
-                        {error_text}\
-                        To enable the daemon, run the following command:"
-                    );
-
-                    let text_label = Label::new(Some(&text));
-                    let enable_label = Entry::builder()
-                        .text("sudo systemctl enable --now lactd")
-                        .editable(false)
-                        .build();
-
-                    let vbox = Box::builder()
-                        .orientation(Orientation::Vertical)
-                        .margin_top(10)
-                        .margin_bottom(10)
-                        .margin_start(10)
-                        .margin_end(10)
-                        .build();
-
-                    let close_button = Button::builder().label("Close").build();
-
-                    vbox.append(&text_label);
-                    vbox.append(&enable_label);
-                    vbox.append(&close_button);
-
-                    let diag = MessageDialog::builder()
-                        .title("Daemon info")
-                        .message_type(MessageType::Warning)
-                        .child(&vbox)
-                        .transient_for(&app.window)
-                        .build();
-
-                    close_button.connect_clicked(clone!(
-                        #[strong]
-                        diag,
-                        move |_| diag.hide()
-                    ));
-
-                    diag.run_async(|diag, _| {
-                        diag.hide();
-                    })
-                }
+        root_stack.oc_page.clocks_frame.connect_clocks_reset(clone!(
+            #[strong]
+            sender,
+            move || {
+                sender.input(AppMsg::ResetClocks);
+            }
+        ));
+        root_stack.thermals_page.connect_reset_pmfw(clone!(
+            #[strong]
+            sender,
+            move || {
+                sender.input(AppMsg::ResetPmfw);
             }
         ));
 
-        // Args are passed manually since they were already processed by clap before
-        self.application.run_with_args::<String>(&[]);
-        Ok(())
+        if let Some(ref button) = root_stack.oc_page.enable_overclocking_button {
+            button.connect_clicked(clone!(
+                #[strong]
+                sender,
+                move |_| {
+                    sender.input(AppMsg::ask_confirmation(
+                        AppMsg::EnableOverdrive,
+                        "Enable Overclocking",
+                        format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this?"),
+                        gtk::ButtonsType::OkCancel,
+                    ));
+                }
+            ));
+        }
+
+        let graphs_window = GraphsWindow::new();
+
+        let model = AppModel {
+            daemon_client,
+            graphs_window,
+            root_stack,
+            apply_revealer,
+            header,
+            stats_task_handle: None,
+        };
+
+        let widgets = view_output!();
+
+        let embedded = model.daemon_client.embedded;
+        let conn_err = RefCell::new(conn_err);
+        root.connect_visible_notify(move |root| {
+            if embedded {
+                if let Some(err) = conn_err.borrow_mut().take() {
+                    show_embedded_info(root, err);
+                }
+            }
+        });
+
+        sender.input(AppMsg::ReloadData { full: true });
+
+        ComponentParts { model, widgets }
     }
 
-    fn set_info(&self, gpu_id: &str) {
-        let info_buf = self
-            .daemon_client
-            .get_device_info(gpu_id)
-            .expect("Could not fetch info");
-        let info = info_buf.inner().unwrap();
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: ComponentSender<Self>,
+        root: &Self::Root,
+    ) {
+        trace!("update {msg:#?}");
+        if let Err(err) = self.handle_msg(msg, sender.clone(), root) {
+            show_error(root, &err);
+        }
+        self.update_view(widgets, sender);
+    }
+}
 
-        trace!("setting info {info:?}");
+impl AppModel {
+    fn handle_msg(
+        &mut self,
+        msg: AppMsg,
+        sender: ComponentSender<Self>,
+        root: &gtk::ApplicationWindow,
+    ) -> Result<(), Rc<anyhow::Error>> {
+        match msg {
+            AppMsg::Error(err) => Err(err),
+            AppMsg::ReloadData { full } => {
+                let gpu_id = self.current_gpu_id()?;
+                if full {
+                    self.update_gpu_data_full(gpu_id, sender)?;
+                } else {
+                    self.update_gpu_data(gpu_id, sender)?;
+                }
+                Ok(())
+            }
+            AppMsg::Stats(stats) => {
+                self.root_stack.info_page.set_stats(&stats);
+                self.root_stack.thermals_page.set_stats(&stats, false);
+                self.root_stack.oc_page.set_stats(&stats, false);
+                self.graphs_window.set_stats(&stats);
+                Ok(())
+            }
+            AppMsg::ApplyChanges => self
+                .apply_settings(self.current_gpu_id()?, root, &sender)
+                .map_err(|err| {
+                    sender.input(AppMsg::ReloadData { full: false });
+                    err.into()
+                }),
+            AppMsg::RevertChanges => {
+                sender.input(AppMsg::ReloadData { full: false });
+                Ok(())
+            }
+            AppMsg::ResetClocks => {
+                let gpu_id = self.current_gpu_id()?;
+                self.daemon_client
+                    .set_clocks_value(&gpu_id, SetClocksCommand::Reset)?;
+                self.daemon_client
+                    .confirm_pending_config(ConfirmCommand::Confirm)?;
+                sender.input(AppMsg::ReloadData { full: false });
+
+                Ok(())
+            }
+            AppMsg::ResetPmfw => {
+                let gpu_id = self.current_gpu_id()?;
+                self.daemon_client.reset_pmfw(&gpu_id)?;
+                self.daemon_client
+                    .confirm_pending_config(ConfirmCommand::Confirm)?;
+                sender.input(AppMsg::ReloadData { full: false });
+
+                Ok(())
+            }
+            AppMsg::ShowGraphsWindow => {
+                self.graphs_window.show();
+                Ok(())
+            }
+            AppMsg::DumpVBios => {
+                self.dump_vbios(&self.current_gpu_id()?, root);
+                Ok(())
+            }
+            AppMsg::DebugSnapshot => {
+                self.generate_debug_snapshot(root);
+                Ok(())
+            }
+            AppMsg::EnableOverdrive => {
+                toggle_overdrive(true, root.clone());
+                Ok(())
+            }
+            AppMsg::DisableOverdrive => {
+                toggle_overdrive(false, root.clone());
+                Ok(())
+            }
+            AppMsg::ResetConfig => {
+                self.daemon_client.reset_config()?;
+                sender.input(AppMsg::ReloadData { full: true });
+                Ok(())
+            }
+            AppMsg::AskConfirmation(options, confirmed_msg) => {
+                let sender = sender.clone();
+
+                let mut controller = ConfirmationDialog::builder()
+                    .launch((options, root.clone()))
+                    .connect_receiver(move |_, response| {
+                        if let gtk::ResponseType::Ok | gtk::ResponseType::Yes = response {
+                            sender.input(*confirmed_msg.clone());
+                        }
+                    });
+                controller.detach_runtime();
+
+                Ok(())
+            }
+        }
+    }
+
+    fn current_gpu_id(&self) -> anyhow::Result<String> {
+        self.header
+            .model()
+            .selected_gpu_id()
+            .context("No GPU selected")
+    }
+
+    fn update_gpu_data_full(
+        &mut self,
+        gpu_id: String,
+        sender: ComponentSender<AppModel>,
+    ) -> anyhow::Result<()> {
+        let daemon_client = self.daemon_client.clone();
+        let info_buf = daemon_client
+            .get_device_info(&gpu_id)
+            .context("Could not fetch info")?;
+        let info = info_buf.inner()?;
 
         self.root_stack.info_page.set_info(&info);
         self.root_stack.oc_page.set_info(&info);
@@ -384,23 +308,35 @@ impl App {
             .unwrap_or(1.0);
         self.graphs_window.set_vram_clock_ratio(vram_clock_ratio);
 
-        self.set_initial(gpu_id);
+        self.update_gpu_data(gpu_id, sender)?;
+
         self.root_stack.thermals_page.set_info(&info);
+
+        Ok(())
     }
 
-    fn set_initial(&self, gpu_id: &str) {
-        debug!("setting initial stats for gpu {gpu_id}");
-        let stats_buf = self
+    fn update_gpu_data(
+        &mut self,
+        gpu_id: String,
+        sender: ComponentSender<AppModel>,
+    ) -> anyhow::Result<()> {
+        if let Some(stats_task) = self.stats_task_handle.take() {
+            stats_task.abort();
+        }
+
+        debug!("updating info for gpu {gpu_id}");
+
+        let stats = self
             .daemon_client
-            .get_device_stats(gpu_id)
-            .expect("Could not fetch stats");
-        let stats = stats_buf.inner().unwrap();
+            .get_device_stats(&gpu_id)
+            .context("Could not fetch stats")?
+            .inner()?;
 
         self.root_stack.oc_page.set_stats(&stats, true);
         self.root_stack.thermals_page.set_stats(&stats, true);
         self.root_stack.info_page.set_stats(&stats);
 
-        let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(gpu_id) {
+        let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(&gpu_id) {
             Ok(clocks_buf) => match clocks_buf.inner() {
                 Ok(info) => info.table,
                 Err(err) => {
@@ -415,7 +351,7 @@ impl App {
         };
         self.root_stack.oc_page.set_clocks_table(maybe_clocks_table);
 
-        let maybe_modes_table = match self.daemon_client.get_device_power_profile_modes(gpu_id) {
+        let maybe_modes_table = match self.daemon_client.get_device_power_profile_modes(&gpu_id) {
             Ok(buf) => match buf.inner() {
                 Ok(table) => Some(table),
                 Err(err) => {
@@ -435,7 +371,7 @@ impl App {
 
         match self
             .daemon_client
-            .get_power_states(gpu_id)
+            .get_power_states(&gpu_id)
             .and_then(|states| states.inner())
         {
             Ok(power_states) => {
@@ -450,11 +386,10 @@ impl App {
         // Show apply button on setting changes
         // This is done here because new widgets may appear after applying settings (like fan curve points) which should be connected
         let show_revealer = clone!(
-            #[strong(rename_to = apply_revealer)]
-            self.apply_revealer,
+            #[strong(rename_to = apply_sender)]
+            self.apply_revealer.sender(),
             move || {
-                debug!("settings changed, showing apply button");
-                apply_revealer.show();
+                apply_sender.send(ApplyRevealerMsg::Show).unwrap();
             }
         );
 
@@ -466,51 +401,31 @@ impl App {
             .oc_page
             .connect_settings_changed(show_revealer);
 
-        self.apply_revealer.hide();
-    }
+        self.apply_revealer
+            .sender()
+            .send(ApplyRevealerMsg::Hide)
+            .unwrap();
 
-    fn start_stats_update_loop(&self, current_gpu_id: Rc<RefCell<String>>) {
-        // The loop that gets stats
-        glib::spawn_future_local(clone!(
-            #[strong(rename_to = daemon_client)]
-            self.daemon_client,
-            #[strong(rename_to = root_stack)]
-            self.root_stack,
-            #[strong(rename_to = graphs_window)]
-            self.graphs_window,
-            async move {
-                loop {
-                    {
-                        let gpu_id = current_gpu_id.borrow();
-                        trace!("fetching new stats using id {gpu_id}");
-                        match daemon_client
-                            .get_device_stats(&gpu_id)
-                            .and_then(|stats| stats.inner())
-                        {
-                            Ok(stats) => {
-                                trace!("new stats received, updating {stats:?}");
-                                root_stack.info_page.set_stats(&stats);
-                                root_stack.thermals_page.set_stats(&stats, false);
-                                root_stack.oc_page.set_stats(&stats, false);
-                                graphs_window.set_stats(&stats);
-                            }
-                            Err(err) => {
-                                error!("Could not fetch stats: {err}");
-                            }
-                        }
-                    }
-                    timeout_future(Duration::from_millis(STATS_POLL_INTERVAL)).await;
-                }
-            }
+        self.graphs_window.clear();
+
+        self.stats_task_handle = Some(start_stats_update_loop(
+            gpu_id.to_owned(),
+            self.daemon_client.clone(),
+            sender,
         ));
+
+        Ok(())
     }
 
-    fn apply_settings(&self, current_gpu_id: Rc<RefCell<String>>) -> anyhow::Result<()> {
+    fn apply_settings(
+        &self,
+        gpu_id: String,
+        root: &gtk::ApplicationWindow,
+        sender: &ComponentSender<Self>,
+    ) -> anyhow::Result<()> {
         // TODO: Ask confirmation for everything, not just clocks
 
-        debug!("applying settings");
-        let gpu_id = current_gpu_id.borrow().clone();
-        debug!("using gpu {gpu_id}");
+        debug!("applying settings on gpu {gpu_id}");
 
         if let Some(cap) = self.root_stack.oc_page.get_power_cap() {
             self.daemon_client
@@ -630,237 +545,27 @@ impl App {
                 .daemon_client
                 .batch_set_clocks_value(&gpu_id, clocks_commands)
                 .context("Could not commit clocks settings")?;
-            self.ask_settings_confirmation(gpu_id.clone(), delay);
+            self.ask_settings_confirmation(delay, root, sender);
         }
 
-        self.set_initial(&gpu_id);
+        sender.input(AppMsg::ReloadData { full: false });
 
         Ok(())
     }
 
-    fn generate_debug_snapshot(&self) {
-        match self
-            .daemon_client
-            .generate_debug_snapshot()
-            .and_then(|response| response.inner())
-        {
-            Ok(path) => {
-                let path_label = Label::builder()
-                    .use_markup(true)
-                    .label(format!("<b>{path}</b>"))
-                    .selectable(true)
-                    .build();
-
-                let vbox = Box::builder()
-                    .orientation(Orientation::Vertical)
-                    .margin_top(10)
-                    .margin_bottom(10)
-                    .margin_start(10)
-                    .margin_end(10)
-                    .build();
-
-                vbox.append(&Label::new(Some("Debug snapshot saved at:")));
-                vbox.append(&path_label);
-
-                let diag = MessageDialog::builder()
-                    .title("Snapshot generated")
-                    .message_type(MessageType::Info)
-                    .use_markup(true)
-                    .text(format!("Debug snapshot saved at <b>{path}</b>"))
-                    .buttons(ButtonsType::Ok)
-                    .transient_for(&self.window)
-                    .build();
-
-                let message_box = diag.message_area().downcast::<gtk::Box>().unwrap();
-                for child in message_box.observe_children().into_iter().flatten() {
-                    if let Ok(label) = child.downcast::<Label>() {
-                        label.set_selectable(true);
-                    }
-                }
-
-                diag.run_async(|diag, _| {
-                    diag.hide();
-                })
-            }
-            Err(err) => show_error(&self.window, err.context("Could not generate snapshot")),
-        }
-    }
-
-    fn enable_overclocking(&self) {
-        let text = format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this?");
-        let dialog = MessageDialog::builder()
-            .title("Enable Overclocking")
-            .use_markup(true)
-            .text(text)
-            .message_type(MessageType::Question)
-            .buttons(ButtonsType::OkCancel)
-            .transient_for(&self.window)
-            .build();
-
-        dialog.run_async(clone!(
-            #[strong(rename_to = app)]
-            self,
-            move |diag, response| {
-                if response == ResponseType::Ok {
-                    let handle = gio::spawn_blocking(|| {
-                        let (daemon_client, _) =
-                            create_connection().expect("Could not create new daemon connection");
-                        daemon_client
-                            .enable_overdrive()
-                            .and_then(|buffer| buffer.inner())
-                    });
-
-                    let dialog =
-                        app.spinner_dialog("Regenerating initramfs (this may take a while)");
-                    dialog.show();
-
-                    glib::spawn_future_local(async move {
-                        let result = handle.await.unwrap();
-                        dialog.hide();
-
-                        match result {
-                            Ok(msg) => oc_toggled_dialog(true, &msg),
-                            Err(err) => {
-                                show_error(&app.window, err);
-                            }
-                        }
-                    });
-                }
-                diag.hide();
-            }
-        ));
-    }
-
-    fn disable_overclocking(&self) {
-        let dialog = MessageDialog::builder()
-            .title("Disable Overclocking")
-            .use_markup(true)
-            .text("The overclocking functionality in the driver will now be turned off.")
-            .message_type(MessageType::Info)
-            .buttons(ButtonsType::Ok)
-            .transient_for(&self.window)
-            .build();
-
-        dialog.run_async(clone!(
-            #[strong(rename_to = app)]
-            self,
-            move |diag, _| {
-                diag.hide();
-
-                let handle = gio::spawn_blocking(|| {
-                    let (daemon_client, _) =
-                        create_connection().expect("Could not create new daemon connection");
-                    daemon_client
-                        .disable_overdrive()
-                        .and_then(|buffer| buffer.inner())
-                });
-
-                let dialog = app.spinner_dialog("Regenerating initramfs (this may take a while)");
-                dialog.show();
-
-                glib::spawn_future_local(async move {
-                    let result = handle.await.unwrap();
-                    dialog.hide();
-
-                    match result {
-                        Ok(msg) => oc_toggled_dialog(false, &msg),
-                        Err(err) => {
-                            show_error(&app.window, err);
-                        }
-                    }
-                });
-            }
-        ));
-    }
-
-    fn dump_vbios(&self, gpu_id: &str) {
-        match self
-            .daemon_client
-            .dump_vbios(gpu_id)
-            .and_then(|response| response.inner())
-        {
-            Ok(vbios_data) => {
-                let file_chooser = FileChooserDialog::new(
-                    Some("Save VBIOS file"),
-                    Some(&self.window),
-                    FileChooserAction::Save,
-                    &[
-                        ("Save", ResponseType::Accept),
-                        ("Cancel", ResponseType::Cancel),
-                    ],
-                );
-
-                let file_name_suffix = gpu_id
-                    .split_once('-')
-                    .map(|(id, _)| id.replace(':', "_"))
-                    .unwrap_or_default();
-                file_chooser.set_current_name(&format!("{file_name_suffix}_vbios_dump.rom"));
-                file_chooser.run_async(clone!(
-                    #[strong(rename_to = window)]
-                    self.window,
-                    move |diag, _| {
-                        diag.close();
-
-                        if let Some(file) = diag.file() {
-                            match file.path() {
-                                Some(path) => {
-                                    if let Err(err) = std::fs::write(path, vbios_data)
-                                        .context("Could not save vbios file")
-                                    {
-                                        show_error(&window, err);
-                                    }
-                                }
-                                None => show_error(
-                                    &window,
-                                    anyhow!("Selected file has an invalid path"),
-                                ),
-                            }
-                        }
-                    }
-                ));
-            }
-            Err(err) => show_error(&self.window, err),
-        }
-    }
-
-    fn reset_config(&self, gpu_id: String) {
-        let dialog = MessageDialog::builder()
-            .title("Reset configuration")
-            .text("Are you sure you want to reset all GPU configuration?")
-            .message_type(MessageType::Question)
-            .buttons(ButtonsType::YesNo)
-            .transient_for(&self.window)
-            .build();
-
-        dialog.run_async(clone!(
-            #[strong(rename_to = app)]
-            self,
-            move |diag, response| {
-                diag.hide();
-
-                if response == ResponseType::Yes {
-                    if let Err(err) = app
-                        .daemon_client
-                        .reset_config()
-                        .and_then(|response| response.inner())
-                    {
-                        show_error(&app.window, err);
-                    }
-
-                    app.set_initial(&gpu_id);
-                }
-            }
-        ));
-    }
-
-    fn ask_settings_confirmation(&self, gpu_id: String, mut delay: u64) {
+    fn ask_settings_confirmation(
+        &self,
+        mut delay: u64,
+        window: &gtk::ApplicationWindow,
+        sender: &ComponentSender<AppModel>,
+    ) {
         let text = confirmation_text(delay);
         let dialog = MessageDialog::builder()
             .title("Confirm settings")
             .text(text)
             .message_type(MessageType::Question)
             .buttons(ButtonsType::YesNo)
-            .transient_for(&self.window)
+            .transient_for(window)
             .build();
         let confirmed = Rc::new(AtomicBool::new(false));
 
@@ -869,10 +574,8 @@ impl App {
             clone!(
                 #[strong]
                 dialog,
-                #[strong(rename_to = app)]
-                self,
                 #[strong]
-                gpu_id,
+                sender,
                 #[strong]
                 confirmed,
                 move || {
@@ -886,7 +589,7 @@ impl App {
 
                     if delay == 0 {
                         dialog.hide();
-                        app.set_initial(&gpu_id);
+                        sender.input(AppMsg::ReloadData { full: false });
 
                         ControlFlow::Break
                     } else {
@@ -897,8 +600,12 @@ impl App {
         );
 
         dialog.run_async(clone!(
-            #[strong(rename_to = app)]
-            self,
+            #[strong]
+            sender,
+            #[strong(rename_to = daemon_client)]
+            self.daemon_client,
+            #[strong]
+            window,
             move |diag, response| {
                 confirmed.store(true, std::sync::atomic::Ordering::SeqCst);
 
@@ -907,45 +614,125 @@ impl App {
                     _ => ConfirmCommand::Revert,
                 };
 
-                diag.hide();
+                diag.close();
 
-                if let Err(err) = app.daemon_client.confirm_pending_config(command) {
-                    show_error(&app.window, err);
+                if let Err(err) = daemon_client.confirm_pending_config(command) {
+                    show_error(&window, &err);
                 }
-                app.set_initial(&gpu_id);
+                sender.input(AppMsg::ReloadData { full: false });
             }
         ));
     }
 
-    fn spinner_dialog(&self, title: &str) -> MessageDialog {
-        let spinner = gtk::Spinner::new();
-        spinner.start();
-        spinner.set_margin_top(10);
-        spinner.set_margin_bottom(10);
+    fn dump_vbios(&self, gpu_id: &str, root: &gtk::ApplicationWindow) {
+        match self
+            .daemon_client
+            .dump_vbios(gpu_id)
+            .and_then(|response| response.inner())
+        {
+            Ok(vbios_data) => {
+                let file_chooser = FileChooserDialog::new(
+                    Some("Save VBIOS file"),
+                    Some(root),
+                    FileChooserAction::Save,
+                    &[
+                        ("Save", ResponseType::Accept),
+                        ("Cancel", ResponseType::Cancel),
+                    ],
+                );
 
-        let dialog = MessageDialog::builder()
-            .title(title)
-            .child(&spinner)
-            .message_type(MessageType::Info)
-            .transient_for(&self.window)
-            .build();
+                let file_name_suffix = gpu_id
+                    .split_once('-')
+                    .map(|(id, _)| id.replace(':', "_"))
+                    .unwrap_or_default();
+                file_chooser.set_current_name(&format!("{file_name_suffix}_vbios_dump.rom"));
+                file_chooser.run_async(clone!(
+                    #[strong]
+                    root,
+                    move |diag, response| {
+                        diag.close();
 
-        if let Some(bar) = dialog.titlebar() {
-            bar.set_margin_start(15);
-            bar.set_margin_end(15);
+                        if response == gtk::ResponseType::Accept {
+                            if let Some(file) = diag.file() {
+                                match file.path() {
+                                    Some(path) => {
+                                        if let Err(err) = std::fs::write(path, vbios_data)
+                                            .context("Could not save vbios file")
+                                        {
+                                            show_error(&root, &err);
+                                        }
+                                    }
+                                    None => show_error(
+                                        &root,
+                                        &anyhow!("Selected file has an invalid path"),
+                                    ),
+                                }
+                            }
+                        }
+                    }
+                ));
+            }
+            Err(err) => show_error(root, &err),
         }
+    }
 
-        dialog
+    fn generate_debug_snapshot(&self, root: &gtk::ApplicationWindow) {
+        match self
+            .daemon_client
+            .generate_debug_snapshot()
+            .and_then(|response| response.inner())
+        {
+            Ok(path) => {
+                let path_label = gtk::Label::builder()
+                    .use_markup(true)
+                    .label(format!("<b>{path}</b>"))
+                    .selectable(true)
+                    .build();
+
+                let vbox = gtk::Box::builder()
+                    .orientation(gtk::Orientation::Vertical)
+                    .margin_top(10)
+                    .margin_bottom(10)
+                    .margin_start(10)
+                    .margin_end(10)
+                    .build();
+
+                vbox.append(&gtk::Label::new(Some("Debug snapshot saved at:")));
+                vbox.append(&path_label);
+
+                let diag = MessageDialog::builder()
+                    .title("Snapshot generated")
+                    .message_type(MessageType::Info)
+                    .use_markup(true)
+                    .text(format!("Debug snapshot saved at <b>{path}</b>"))
+                    .buttons(ButtonsType::Ok)
+                    .transient_for(root)
+                    .build();
+
+                let message_box = diag.message_area().downcast::<gtk::Box>().unwrap();
+                for child in message_box.observe_children().into_iter().flatten() {
+                    if let Ok(label) = child.downcast::<gtk::Label>() {
+                        label.set_selectable(true);
+                    }
+                }
+
+                diag.run_async(|diag, _| {
+                    diag.hide();
+                })
+            }
+            Err(err) => show_error(root, &err.context("Could not generate snapshot")),
+        }
     }
 }
 
-fn show_error(parent: &ApplicationWindow, err: anyhow::Error) {
+fn show_error(parent: &ApplicationWindow, err: &anyhow::Error) {
     let text = format!("{err:?}")
         .lines()
         .map(str::trim)
         .collect::<Vec<&str>>()
         .join("\n");
     warn!("{text}");
+
     let diag = MessageDialog::builder()
         .title("Error")
         .message_type(MessageType::Error)
@@ -954,36 +741,114 @@ fn show_error(parent: &ApplicationWindow, err: anyhow::Error) {
         .transient_for(parent)
         .build();
     diag.run_async(|diag, _| {
+        diag.close();
+    })
+}
+
+fn show_embedded_info(parent: &ApplicationWindow, err: anyhow::Error) {
+    let error_text = format!("Error info: {err:#}\n\n");
+
+    let text = format!(
+        "Could not connect to daemon, running in embedded mode. \n\
+                        Please make sure the lactd service is running. \n\
+                        Using embedded mode, you will not be able to change any settings. \n\n\
+                        {error_text}\
+                        To enable the daemon, run the following command:"
+    );
+
+    let text_label = gtk::Label::new(Some(&text));
+    let enable_label = gtk::Entry::builder()
+        .text("sudo systemctl enable --now lactd")
+        .editable(false)
+        .build();
+
+    let vbox = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .margin_top(10)
+        .margin_bottom(10)
+        .margin_start(10)
+        .margin_end(10)
+        .build();
+
+    let close_button = gtk::Button::builder().label("Close").build();
+
+    vbox.append(&text_label);
+    vbox.append(&enable_label);
+    vbox.append(&close_button);
+
+    let diag = gtk::MessageDialog::new(
+        Some(parent),
+        gtk::DialogFlags::MODAL,
+        gtk::MessageType::Question,
+        gtk::ButtonsType::Ok,
+        "",
+    );
+    diag.set_title(Some("Daemon info"));
+    diag.set_child(Some(&vbox));
+
+    close_button.connect_clicked(clone!(
+        #[strong]
+        diag,
+        move |_| diag.hide()
+    ));
+
+    diag.run_async(|diag, _| {
         diag.hide();
+    })
+}
+
+fn start_stats_update_loop(
+    gpu_id: String,
+    daemon_client: DaemonClient,
+    sender: ComponentSender<AppModel>,
+) -> glib::JoinHandle<()> {
+    debug!("spawning new stats update task with {STATS_POLL_INTERVAL_MS}ms interval");
+    let duration = Duration::from_millis(STATS_POLL_INTERVAL_MS);
+    relm4::spawn_local(async move {
+        loop {
+            tokio::time::sleep(duration).await;
+
+            match daemon_client
+                .get_device_stats(&gpu_id)
+                .and_then(|buffer| buffer.inner())
+            {
+                Ok(stats) => {
+                    sender.input(AppMsg::Stats(stats));
+                }
+                Err(err) => {
+                    error!("could not fetch stats: {err:#}");
+                }
+            }
+        }
     })
 }
 
 fn oc_toggled_dialog(enabled: bool, msg: &str) {
     let enabled_text = if enabled { "enabled" } else { "disabled" };
 
-    let child = Box::builder()
-        .orientation(Orientation::Vertical)
+    let child = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
         .spacing(5)
         .margin_top(10)
         .margin_bottom(10)
         .margin_start(10)
         .margin_end(10)
         .build();
-    child.append(&Label::new(Some(&format!("Overclocking successfully {enabled_text}. A system reboot is required to apply the changes.\nSystem message:"))));
+    child.append(&gtk::Label::new(Some(&format!("Overclocking {enabled_text}. A system reboot is required to apply the changes.\nSystem message:"))));
 
-    let msg_label = Label::builder()
+    let msg_label = gtk::Label::builder()
         .label(msg)
-        .valign(Align::Start)
-        .halign(Align::Start)
+        .valign(gtk::Align::Start)
+        .halign(gtk::Align::Start)
         .build();
-    let msg_scrollable = ScrolledWindow::builder().child(&msg_label).build();
+    let msg_scrollable = gtk::ScrolledWindow::builder().child(&msg_label).build();
     child.append(&msg_scrollable);
 
-    let ok_button = Button::builder().label("OK").build();
+    let ok_button = gtk::Button::builder().label("OK").build();
     child.append(&ok_button);
 
     let success_dialog = MessageDialog::builder()
-        .title("Success")
+        .title("Overclock info")
         .child(&child)
         .message_type(MessageType::Info)
         .build();
@@ -1002,3 +867,104 @@ fn oc_toggled_dialog(enabled: bool, msg: &str) {
 fn confirmation_text(seconds_left: u64) -> String {
     format!("Do you want to keep the new settings? (Reverting in {seconds_left} seconds)")
 }
+
+fn toggle_overdrive(enable: bool, root: ApplicationWindow) {
+    let handle = relm4::spawn_blocking(move || {
+        let (daemon_client, _) =
+            create_connection().expect("Could not create new daemon connection");
+        if enable {
+            daemon_client
+                .enable_overdrive()
+                .and_then(|buffer| buffer.inner())
+        } else {
+            daemon_client
+                .disable_overdrive()
+                .and_then(|buffer| buffer.inner())
+        }
+    });
+
+    let dialog = spinner_dialog(&root, "Regenerating initramfs (this may take a while)");
+    dialog.show();
+
+    relm4::spawn_local(async move {
+        let result = handle.await.unwrap();
+        dialog.hide();
+
+        match result {
+            Ok(msg) => oc_toggled_dialog(false, &msg),
+            Err(err) => {
+                show_error(&root, &err);
+            }
+        }
+    });
+}
+
+fn spinner_dialog(parent: &ApplicationWindow, title: &str) -> MessageDialog {
+    let spinner = gtk::Spinner::new();
+    spinner.start();
+    spinner.set_margin_top(10);
+    spinner.set_margin_bottom(10);
+
+    let dialog = MessageDialog::builder()
+        .title(title)
+        .child(&spinner)
+        .message_type(MessageType::Info)
+        .transient_for(parent)
+        .build();
+
+    if let Some(bar) = dialog.titlebar() {
+        bar.set_margin_start(15);
+        bar.set_margin_end(15);
+    }
+
+    dialog
+}
+
+fn register_actions(sender: &ComponentSender<AppModel>) {
+    let mut group = RelmActionGroup::<AppActionGroup>::new();
+
+    macro_rules! actions {
+        ($(($action:ty, $msg:expr),)*) => {
+            $(
+                group.add_action(RelmAction::<$action>::new_stateless(clone!(
+                    #[strong]
+                    sender,
+                    move |_| sender.input($msg)
+                )));
+            )*
+        }
+    }
+
+    actions! {
+        (ShowGraphsWindow, AppMsg::ShowGraphsWindow),
+        (DumpVBios, AppMsg::DumpVBios),
+        (DebugSnapshot, AppMsg::DebugSnapshot),
+        (
+            DisableOverdrive,
+            AppMsg::ask_confirmation(
+                AppMsg::DisableOverdrive,
+                "Disable Overclocking",
+                "This will disable overclocking support on next reboot.",
+                gtk::ButtonsType::OkCancel,
+            )
+        ),
+        (
+            ResetConfig,
+            AppMsg::ask_confirmation(
+                AppMsg::ResetConfig,
+                "Reset configuration",
+                "Are you sure you want to reset all GPU configuration?",
+                gtk::ButtonsType::YesNo,
+            )
+        ),
+    };
+
+    group.register_for_main_application();
+}
+
+relm4::new_action_group!(AppActionGroup, "app");
+relm4::new_stateless_action!(ShowGraphsWindow, AppActionGroup, "show-graphs-window");
+relm4::new_stateless_action!(DumpVBios, AppActionGroup, "dump-vbios");
+relm4::new_stateless_action!(DebugSnapshot, AppActionGroup, "generate-debug-snapshot");
+relm4::new_stateless_action!(DisableOverdrive, AppActionGroup, "disable-overdrive");
+relm4::new_stateless_action!(ResetConfig, AppActionGroup, "reset-config");

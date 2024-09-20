@@ -277,15 +277,18 @@ impl<'a> Handler {
             .context("No controller with such id")?)
     }
 
-    pub fn list_devices(&'a self) -> Vec<DeviceListEntry<'a>> {
+    pub fn list_devices(&'a self) -> Vec<DeviceListEntry> {
         self.gpu_controllers
             .iter()
             .map(|(id, controller)| {
                 let name = controller
                     .pci_info
                     .as_ref()
-                    .and_then(|pci_info| pci_info.device_pci_info.model.as_deref());
-                DeviceListEntry { id, name }
+                    .and_then(|pci_info| pci_info.device_pci_info.model.clone());
+                DeviceListEntry {
+                    id: id.to_owned(),
+                    name,
+                }
             })
             .collect()
     }

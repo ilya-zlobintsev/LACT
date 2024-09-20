@@ -1,16 +1,39 @@
-use crate::GUI_VERSION;
-use gtk::glib::{self, Object};
+use crate::{app::info_row::InfoRow, GUI_VERSION};
+use gtk::prelude::*;
 use lact_client::schema::{SystemInfo, GIT_COMMIT};
+use relm4::{ComponentParts, ComponentSender, SimpleComponent};
 use std::fmt::Write;
 
-glib::wrapper! {
-    pub struct SoftwarePage(ObjectSubclass<imp::SoftwarePage>)
-        @extends gtk::Box, gtk::Widget,
-        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
-}
+pub struct SoftwarePage {}
 
-impl SoftwarePage {
-    pub fn new(system_info: SystemInfo, embedded: bool) -> Self {
+#[relm4::component(pub)]
+impl SimpleComponent for SoftwarePage {
+    type Init = (SystemInfo, bool);
+    type Input = ();
+    type Output = ();
+
+    view! {
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            set_spacing: 10,
+            set_margin_start: 5,
+            set_margin_end: 5,
+            set_margin_top: 5,
+            set_margin_bottom: 5,
+
+            append = &InfoRow::new_selectable("LACT Daemon:", &daemon_version),
+            append = &InfoRow::new_selectable("LACT GUI:", &gui_version),
+            append = &InfoRow::new_selectable("Kernel Version:", &system_info.kernel_version),
+        }
+    }
+
+    fn init(
+        (system_info, embedded): Self::Init,
+        root: Self::Root,
+        _sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let model = Self {};
+
         let mut daemon_version = format!("{}-{}", system_info.version, system_info.profile);
         if embedded {
             daemon_version.push_str("-embedded");
@@ -26,62 +49,8 @@ impl SoftwarePage {
         };
         let gui_version = format!("{GUI_VERSION}-{gui_profile} (commit {GIT_COMMIT})");
 
-        Object::builder()
-            .property("daemon-version", daemon_version)
-            .property("gui-version", gui_version)
-            .property("kernel-version", system_info.kernel_version)
-            .build()
+        let widgets = view_output!();
+
+        ComponentParts { model, widgets }
     }
-}
-
-mod imp {
-    #![allow(clippy::enum_variant_names)]
-    use crate::app::{info_row::InfoRow, page_section::PageSection};
-    use glib::Properties;
-    use gtk::{
-        glib::{self, subclass::InitializingObject},
-        prelude::*,
-        subclass::{
-            prelude::*,
-            widget::{CompositeTemplateClass, WidgetImpl},
-        },
-        CompositeTemplate,
-    };
-    use std::cell::RefCell;
-
-    #[derive(CompositeTemplate, Default, Properties)]
-    #[properties(wrapper_type = super::SoftwarePage)]
-    #[template(file = "ui/software_page.blp")]
-    pub struct SoftwarePage {
-        #[property(get, set)]
-        daemon_version: RefCell<String>,
-        #[property(get, set)]
-        gui_version: RefCell<String>,
-        #[property(get, set)]
-        kernel_version: RefCell<String>,
-    }
-
-    #[glib::object_subclass]
-    impl ObjectSubclass for SoftwarePage {
-        const NAME: &'static str = "SoftwarePage";
-        type Type = super::SoftwarePage;
-        type ParentType = gtk::Box;
-
-        fn class_init(class: &mut Self::Class) {
-            InfoRow::ensure_type();
-            PageSection::ensure_type();
-
-            class.bind_template();
-        }
-
-        fn instance_init(obj: &InitializingObject<Self>) {
-            obj.init_template();
-        }
-    }
-
-    #[glib::derived_properties]
-    impl ObjectImpl for SoftwarePage {}
-
-    impl WidgetImpl for SoftwarePage {}
-    impl BoxImpl for SoftwarePage {}
 }
