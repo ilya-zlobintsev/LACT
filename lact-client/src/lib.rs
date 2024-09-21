@@ -7,7 +7,7 @@ pub use lact_schema as schema;
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use connection::{tcp::TcpConnection, unix::UnixConnection, DaemonConnection};
 use nix::unistd::getuid;
 use schema::{
@@ -17,35 +17,37 @@ use schema::{
 };
 use serde::Deserialize;
 use std::{
-    cell::RefCell, marker::PhantomData, net::ToSocketAddrs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, time::Duration
+    future::Future, marker::PhantomData, os::unix::net::UnixStream, path::PathBuf, pin::Pin,
+    rc::Rc, time::Duration,
 };
+use tokio::{net::ToSocketAddrs, sync::Mutex};
 use tracing::{error, info};
 
 const RECONNECT_INTERVAL_MS: u64 = 250;
 
 #[derive(Clone)]
 pub struct DaemonClient {
-    stream: Rc<RefCell<Box<dyn DaemonConnection>>>,
+    stream: Rc<Mutex<Box<dyn DaemonConnection>>>,
     pub embedded: bool,
 }
 
 impl DaemonClient {
-    pub fn connect() -> anyhow::Result<Self> {
+    pub async fn connect() -> anyhow::Result<Self> {
         let path =
             get_socket_path().context("Could not connect to daemon: socket file not found")?;
-        let stream = UnixConnection::connect(&path)?;
+        let stream = UnixConnection::connect(&path).await?;
 
         Ok(Self {
-            stream: Rc::new(RefCell::new(stream)),
+            stream: Rc::new(Mutex::new(stream)),
             embedded: false,
         })
     }
 
-    pub fn connect_tcp(addr: impl ToSocketAddrs) -> anyhow::Result<Self> {
-        let stream = TcpConnection::connect(addr)?;
+    pub async fn connect_tcp(addr: impl ToSocketAddrs) -> anyhow::Result<Self> {
+        let stream = TcpConnection::connect(addr).await?;
 
         Ok(Self {
-            stream: Rc::new(RefCell::new(stream)),
+            stream: Rc::new(Mutex::new(stream)),
             embedded: false,
         })
     }
@@ -53,57 +55,60 @@ impl DaemonClient {
     pub fn from_stream(stream: UnixStream, embedded: bool) -> anyhow::Result<Self> {
         let connection = UnixConnection::try_from(stream)?;
         Ok(Self {
-            stream: Rc::new(RefCell::new(Box::new(connection))),
+            stream: Rc::new(Mutex::new(Box::new(connection))),
             embedded,
         })
     }
 
-    fn make_request<'a, T: Deserialize<'a>>(
-        &self,
-        request: Request,
-    ) -> anyhow::Result<ResponseBuffer<T>> {
-        let mut stream = self
-            .stream
-            .try_borrow_mut()
-            .map_err(|err| anyhow!("{err}"))?;
+    fn make_request<'a, 'r, T: Deserialize<'r>>(
+        &'a self,
+        request: Request<'a>,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<ResponseBuffer<T>>> + 'a>> {
+        Box::pin(async {
+            let mut stream = self.stream.lock().await;
 
-        let request_payload = serde_json::to_string(&request)?;
-        match stream.request(&request_payload) {
-            Ok(response_payload) => Ok(ResponseBuffer {
-                buf: response_payload,
-                _phantom: PhantomData,
-            }),
-            Err(err) => {
-                error!("Could not make request: {err}, reconnecting to socket");
+            let request_payload = serde_json::to_string(&request)?;
+            match stream.request(&request_payload).await {
+                Ok(response_payload) => Ok(ResponseBuffer {
+                    buf: response_payload,
+                    _phantom: PhantomData,
+                }),
+                Err(err) => {
+                    error!("Could not make request: {err}, reconnecting to socket");
 
-                loop {
-                    match stream.new_connection() {
-                        Ok(new_connection) => {
-                            info!("Established new socket connection");
-                            *stream = new_connection;
-                            drop(stream);
-                            return self.make_request(request);
-                        }
-                        Err(err) => {
-                            error!("Could not reconnect: {err:#}, retrying in {RECONNECT_INTERVAL_MS}ms");
-                            std::thread::sleep(Duration::from_millis(RECONNECT_INTERVAL_MS));
+                    loop {
+                        match stream.new_connection().await {
+                            Ok(new_connection) => {
+                                info!("Established new socket connection");
+                                *stream = new_connection;
+                                drop(stream);
+                                return self.make_request(request).await;
+                            }
+                            Err(err) => {
+                                error!("Could not reconnect: {err:#}, retrying in {RECONNECT_INTERVAL_MS}ms");
+                                std::thread::sleep(Duration::from_millis(RECONNECT_INTERVAL_MS));
+                            }
                         }
                     }
                 }
             }
-        }
+        })
     }
 
-    pub fn list_devices(&self) -> anyhow::Result<ResponseBuffer<Vec<DeviceListEntry>>> {
-        self.make_request(Request::ListDevices)
+    pub async fn list_devices(&self) -> anyhow::Result<ResponseBuffer<Vec<DeviceListEntry>>> {
+        self.make_request(Request::ListDevices).await
     }
 
-    pub fn set_fan_control(&self, cmd: FanOptions) -> anyhow::Result<u64> {
-        self.make_request(Request::SetFanControl(cmd))?.inner()
+    pub async fn set_fan_control(&self, cmd: FanOptions<'_>) -> anyhow::Result<u64> {
+        self.make_request(Request::SetFanControl(cmd))
+            .await?
+            .inner()
     }
 
-    pub fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<u64> {
-        self.make_request(Request::SetPowerCap { id, cap })?.inner()
+    pub async fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<u64> {
+        self.make_request(Request::SetPowerCap { id, cap })
+            .await?
+            .inner()
     }
 
     request_plain!(get_system_info, SystemInfo, SystemInfo);
@@ -123,7 +128,7 @@ impl DaemonClient {
     request_with_id!(reset_pmfw, ResetPmfw, u64);
     request_with_id!(dump_vbios, VbiosDump, Vec<u8>);
 
-    pub fn set_performance_level(
+    pub async fn set_performance_level(
         &self,
         id: &str,
         performance_level: PerformanceLevel,
@@ -131,35 +136,43 @@ impl DaemonClient {
         self.make_request(Request::SetPerformanceLevel {
             id,
             performance_level,
-        })?
+        })
+        .await?
         .inner()
     }
 
-    pub fn set_clocks_value(&self, id: &str, command: SetClocksCommand) -> anyhow::Result<u64> {
-        self.make_request(Request::SetClocksValue { id, command })?
+    pub async fn set_clocks_value(
+        &self,
+        id: &str,
+        command: SetClocksCommand,
+    ) -> anyhow::Result<u64> {
+        self.make_request(Request::SetClocksValue { id, command })
+            .await?
             .inner()
     }
 
-    pub fn batch_set_clocks_value(
+    pub async fn batch_set_clocks_value(
         &self,
         id: &str,
         commands: Vec<SetClocksCommand>,
     ) -> anyhow::Result<u64> {
-        self.make_request(Request::BatchSetClocksValue { id, commands })?
+        self.make_request(Request::BatchSetClocksValue { id, commands })
+            .await?
             .inner()
     }
 
-    pub fn set_enabled_power_states(
+    pub async fn set_enabled_power_states(
         &self,
         id: &str,
         kind: PowerLevelKind,
         states: Vec<u8>,
     ) -> anyhow::Result<u64> {
-        self.make_request(Request::SetEnabledPowerStates { id, kind, states })?
+        self.make_request(Request::SetEnabledPowerStates { id, kind, states })
+            .await?
             .inner()
     }
 
-    pub fn set_power_profile_mode(
+    pub async fn set_power_profile_mode(
         &self,
         id: &str,
         index: Option<u16>,
@@ -169,12 +182,14 @@ impl DaemonClient {
             id,
             index,
             custom_heuristics,
-        })?
+        })
+        .await?
         .inner()
     }
 
-    pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
-        self.make_request(Request::ConfirmPendingConfig(command))?
+    pub async fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
+        self.make_request(Request::ConfirmPendingConfig(command))
+            .await?
             .inner()
     }
 }

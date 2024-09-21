@@ -2,29 +2,29 @@ pub mod tcp;
 pub mod unix;
 
 use anyhow::anyhow;
-use std::io::{BufRead, BufReader, Read, Write};
+use futures::future::BoxFuture;
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 
 pub trait DaemonConnection {
-    fn request(&mut self, payload: &str) -> anyhow::Result<String>;
+    fn request<'a>(&'a mut self, payload: &'a str) -> BoxFuture<'a, anyhow::Result<String>>;
 
     /// Establish a new connection to the same service
-    fn new_connection(&self) -> anyhow::Result<Box<dyn DaemonConnection>>;
+    fn new_connection(&self) -> BoxFuture<'_, anyhow::Result<Box<dyn DaemonConnection>>>;
 }
 
-fn request(
-    reader: &mut BufReader<impl Read>,
-    writer: &mut impl Write,
+async fn request(
+    socket: &mut BufReader<impl AsyncRead + AsyncWrite + Unpin>,
     payload: &str,
 ) -> anyhow::Result<String> {
-    if !reader.buffer().is_empty() {
+    if !socket.buffer().is_empty() {
         return Err(anyhow!("Another request was not processed properly"));
     }
 
-    writer.write_all(payload.as_bytes())?;
-    writer.write_all(b"\n")?;
+    socket.write_all(payload.as_bytes()).await?;
+    socket.write_all(b"\n").await?;
 
     let mut response_payload = String::new();
-    reader.read_line(&mut response_payload)?;
+    socket.read_line(&mut response_payload).await?;
 
     Ok(response_payload)
 }

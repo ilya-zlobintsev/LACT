@@ -7,3 +7,6 @@ edition = "2021"
 lact-client = { path = "../lact-client" }
 lact-schema = { path = "../lact-schema", features = ["args"] }
 anyhow = "1.0.79"
+tokio = { workspace = true, features = [
+    "rt",
+] }

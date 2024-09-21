@@ -10,7 +10,7 @@ mod root_stack;
 #[cfg(feature = "bench")]
 pub use graphs_window::plot::{Plot, PlotData};
 
-use crate::{create_connection, APP_ID, GUI_VERSION};
+use crate::{APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use confirmation_dialog::ConfirmationDialog;
@@ -28,17 +28,19 @@ use header::Header;
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
 use lact_schema::{
+    args::GuiArgs,
     request::{ConfirmCommand, SetClocksCommand},
     FanOptions, GIT_COMMIT,
 };
 use msg::AppMsg;
 use relm4::{
     actions::{RelmAction, RelmActionGroup},
-    tokio, Component, ComponentController, ComponentParts, ComponentSender,
+    prelude::{AsyncComponent, AsyncComponentParts},
+    tokio, AsyncComponentSender, Component, ComponentController,
 };
 use root_stack::RootStack;
-use std::{cell::RefCell, rc::Rc, sync::atomic::AtomicBool, time::Duration};
-use tracing::{debug, error, trace, warn};
+use std::{os::unix::net::UnixStream, rc::Rc, sync::atomic::AtomicBool, time::Duration};
+use tracing::{debug, error, info, trace, warn};
 
 const STATS_POLL_INTERVAL_MS: u64 = 250;
 
@@ -51,9 +53,9 @@ pub struct AppModel {
     stats_task_handle: Option<glib::JoinHandle<()>>,
 }
 
-#[relm4::component(pub)]
-impl Component for AppModel {
-    type Init = (DaemonClient, Option<anyhow::Error>);
+#[relm4::component(pub, async)]
+impl AsyncComponent for AppModel {
+    type Init = GuiArgs;
 
     type Input = AppMsg;
     type Output = ();
@@ -79,20 +81,41 @@ impl Component for AppModel {
         }
     }
 
-    fn init(
-        (daemon_client, conn_err): Self::Init,
+    async fn init(
+        args: Self::Init,
         root: Self::Root,
-        sender: ComponentSender<Self>,
-    ) -> ComponentParts<Self> {
+        sender: AsyncComponentSender<Self>,
+    ) -> AsyncComponentParts<Self> {
+        let (daemon_client, conn_err) = match args.tcp_address {
+            Some(remote_addr) => {
+                info!("establishing connection to {remote_addr}");
+                match DaemonClient::connect_tcp(&remote_addr).await {
+                    Ok(conn) => (conn, None),
+                    Err(err) => {
+                        error!("TCP connection error: {err:#}");
+                        let (conn, _) = create_connection()
+                            .await
+                            .expect("Could not create fallback connection");
+                        (conn, Some(err))
+                    }
+                }
+            }
+            None => create_connection()
+                .await
+                .expect("Could not establish any daemon connection"),
+        };
+
         register_actions(&sender);
 
         let system_info_buf = daemon_client
             .get_system_info()
+            .await
             .expect("Could not fetch system info");
         let system_info = system_info_buf.inner().expect("Invalid system info buffer");
 
         let devices_buf = daemon_client
             .list_devices()
+            .await
             .expect("Could not list devices");
         let devices = devices_buf.inner().expect("Could not access devices");
 
@@ -154,30 +177,24 @@ impl Component for AppModel {
 
         let widgets = view_output!();
 
-        let embedded = model.daemon_client.embedded;
-        let conn_err = RefCell::new(conn_err);
-        root.connect_visible_notify(move |root| {
-            if embedded {
-                if let Some(err) = conn_err.borrow_mut().take() {
-                    show_embedded_info(root, err);
-                }
-            }
-        });
+        if let Some(err) = conn_err {
+            show_embedded_info(&root, err);
+        }
 
         sender.input(AppMsg::ReloadData { full: true });
 
-        ComponentParts { model, widgets }
+        AsyncComponentParts { model, widgets }
     }
 
-    fn update_with_view(
+    async fn update_with_view(
         &mut self,
         widgets: &mut Self::Widgets,
         msg: Self::Input,
-        sender: ComponentSender<Self>,
+        sender: AsyncComponentSender<Self>,
         root: &Self::Root,
     ) {
         trace!("update {msg:#?}");
-        if let Err(err) = self.handle_msg(msg, sender.clone(), root) {
+        if let Err(err) = self.handle_msg(msg, sender.clone(), root).await {
             show_error(root, &err);
         }
         self.update_view(widgets, sender);
@@ -185,10 +202,10 @@ impl Component for AppModel {
 }
 
 impl AppModel {
-    fn handle_msg(
+    async fn handle_msg(
         &mut self,
         msg: AppMsg,
-        sender: ComponentSender<Self>,
+        sender: AsyncComponentSender<Self>,
         root: &gtk::ApplicationWindow,
     ) -> Result<(), Rc<anyhow::Error>> {
         match msg {
@@ -196,9 +213,9 @@ impl AppModel {
             AppMsg::ReloadData { full } => {
                 let gpu_id = self.current_gpu_id()?;
                 if full {
-                    self.update_gpu_data_full(gpu_id, sender)?;
+                    self.update_gpu_data_full(gpu_id, sender).await?;
                 } else {
-                    self.update_gpu_data(gpu_id, sender)?;
+                    self.update_gpu_data(gpu_id, sender).await?;
                 }
                 Ok(())
             }
@@ -211,6 +228,7 @@ impl AppModel {
             }
             AppMsg::ApplyChanges => self
                 .apply_settings(self.current_gpu_id()?, root, &sender)
+                .await
                 .map_err(|err| {
                     sender.input(AppMsg::ReloadData { full: false });
                     err.into()
@@ -222,18 +240,21 @@ impl AppModel {
             AppMsg::ResetClocks => {
                 let gpu_id = self.current_gpu_id()?;
                 self.daemon_client
-                    .set_clocks_value(&gpu_id, SetClocksCommand::Reset)?;
+                    .set_clocks_value(&gpu_id, SetClocksCommand::Reset)
+                    .await?;
                 self.daemon_client
-                    .confirm_pending_config(ConfirmCommand::Confirm)?;
+                    .confirm_pending_config(ConfirmCommand::Confirm)
+                    .await?;
                 sender.input(AppMsg::ReloadData { full: false });
 
                 Ok(())
             }
             AppMsg::ResetPmfw => {
                 let gpu_id = self.current_gpu_id()?;
-                self.daemon_client.reset_pmfw(&gpu_id)?;
+                self.daemon_client.reset_pmfw(&gpu_id).await?;
                 self.daemon_client
-                    .confirm_pending_config(ConfirmCommand::Confirm)?;
+                    .confirm_pending_config(ConfirmCommand::Confirm)
+                    .await?;
                 sender.input(AppMsg::ReloadData { full: false });
 
                 Ok(())
@@ -243,23 +264,23 @@ impl AppModel {
                 Ok(())
             }
             AppMsg::DumpVBios => {
-                self.dump_vbios(&self.current_gpu_id()?, root);
+                self.dump_vbios(&self.current_gpu_id()?, root).await;
                 Ok(())
             }
             AppMsg::DebugSnapshot => {
-                self.generate_debug_snapshot(root);
+                self.generate_debug_snapshot(root).await;
                 Ok(())
             }
             AppMsg::EnableOverdrive => {
-                toggle_overdrive(true, root.clone());
+                toggle_overdrive(&self.daemon_client, true, root.clone()).await;
                 Ok(())
             }
             AppMsg::DisableOverdrive => {
-                toggle_overdrive(false, root.clone());
+                toggle_overdrive(&self.daemon_client, false, root.clone()).await;
                 Ok(())
             }
             AppMsg::ResetConfig => {
-                self.daemon_client.reset_config()?;
+                self.daemon_client.reset_config().await?;
                 sender.input(AppMsg::ReloadData { full: true });
                 Ok(())
             }
@@ -287,14 +308,15 @@ impl AppModel {
             .context("No GPU selected")
     }
 
-    fn update_gpu_data_full(
+    async fn update_gpu_data_full(
         &mut self,
         gpu_id: String,
-        sender: ComponentSender<AppModel>,
+        sender: AsyncComponentSender<AppModel>,
     ) -> anyhow::Result<()> {
         let daemon_client = self.daemon_client.clone();
         let info_buf = daemon_client
             .get_device_info(&gpu_id)
+            .await
             .context("Could not fetch info")?;
         let info = info_buf.inner()?;
 
@@ -308,17 +330,17 @@ impl AppModel {
             .unwrap_or(1.0);
         self.graphs_window.set_vram_clock_ratio(vram_clock_ratio);
 
-        self.update_gpu_data(gpu_id, sender)?;
+        self.update_gpu_data(gpu_id, sender).await?;
 
         self.root_stack.thermals_page.set_info(&info);
 
         Ok(())
     }
 
-    fn update_gpu_data(
+    async fn update_gpu_data(
         &mut self,
         gpu_id: String,
-        sender: ComponentSender<AppModel>,
+        sender: AsyncComponentSender<AppModel>,
     ) -> anyhow::Result<()> {
         if let Some(stats_task) = self.stats_task_handle.take() {
             stats_task.abort();
@@ -329,6 +351,7 @@ impl AppModel {
         let stats = self
             .daemon_client
             .get_device_stats(&gpu_id)
+            .await
             .context("Could not fetch stats")?
             .inner()?;
 
@@ -336,7 +359,7 @@ impl AppModel {
         self.root_stack.thermals_page.set_stats(&stats, true);
         self.root_stack.info_page.set_stats(&stats);
 
-        let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(&gpu_id) {
+        let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(&gpu_id).await {
             Ok(clocks_buf) => match clocks_buf.inner() {
                 Ok(info) => info.table,
                 Err(err) => {
@@ -351,7 +374,11 @@ impl AppModel {
         };
         self.root_stack.oc_page.set_clocks_table(maybe_clocks_table);
 
-        let maybe_modes_table = match self.daemon_client.get_device_power_profile_modes(&gpu_id) {
+        let maybe_modes_table = match self
+            .daemon_client
+            .get_device_power_profile_modes(&gpu_id)
+            .await
+        {
             Ok(buf) => match buf.inner() {
                 Ok(table) => Some(table),
                 Err(err) => {
@@ -372,6 +399,7 @@ impl AppModel {
         match self
             .daemon_client
             .get_power_states(&gpu_id)
+            .await
             .and_then(|states| states.inner())
         {
             Ok(power_states) => {
@@ -417,11 +445,11 @@ impl AppModel {
         Ok(())
     }
 
-    fn apply_settings(
+    async fn apply_settings(
         &self,
         gpu_id: String,
         root: &gtk::ApplicationWindow,
-        sender: &ComponentSender<Self>,
+        sender: &AsyncComponentSender<Self>,
     ) -> anyhow::Result<()> {
         // TODO: Ask confirmation for everything, not just clocks
 
@@ -430,27 +458,33 @@ impl AppModel {
         if let Some(cap) = self.root_stack.oc_page.get_power_cap() {
             self.daemon_client
                 .set_power_cap(&gpu_id, Some(cap))
+                .await
                 .context("Failed to set power cap")?;
 
             self.daemon_client
                 .confirm_pending_config(ConfirmCommand::Confirm)
+                .await
                 .context("Could not commit config")?;
         }
 
         // Reset the power profile mode for switching to/from manual performance level
         self.daemon_client
             .set_power_profile_mode(&gpu_id, None, vec![])
+            .await
             .context("Could not set default power profile mode")?;
         self.daemon_client
             .confirm_pending_config(ConfirmCommand::Confirm)
+            .await
             .context("Could not commit config")?;
 
         if let Some(level) = self.root_stack.oc_page.get_performance_level() {
             self.daemon_client
                 .set_performance_level(&gpu_id, level)
+                .await
                 .context("Failed to set power profile")?;
             self.daemon_client
                 .confirm_pending_config(ConfirmCommand::Confirm)
+                .await
                 .context("Could not commit config")?;
 
             let mode_index = self
@@ -466,9 +500,11 @@ impl AppModel {
 
             self.daemon_client
                 .set_power_profile_mode(&gpu_id, mode_index, custom_heuristics)
+                .await
                 .context("Could not set active power profile mode")?;
             self.daemon_client
                 .confirm_pending_config(ConfirmCommand::Confirm)
+                .await
                 .context("Could not commit config")?;
         }
 
@@ -487,9 +523,11 @@ impl AppModel {
 
             self.daemon_client
                 .set_fan_control(opts)
+                .await
                 .context("Could not set fan control")?;
             self.daemon_client
                 .confirm_pending_config(ConfirmCommand::Confirm)
+                .await
                 .context("Could not commit config")?;
         }
 
@@ -532,10 +570,12 @@ impl AppModel {
             if !states.is_empty() {
                 self.daemon_client
                     .set_enabled_power_states(&gpu_id, kind, states)
+                    .await
                     .context("Could not set power states")?;
 
                 self.daemon_client
                     .confirm_pending_config(ConfirmCommand::Confirm)
+                    .await
                     .context("Could not commit config")?;
             }
         }
@@ -544,8 +584,9 @@ impl AppModel {
             let delay = self
                 .daemon_client
                 .batch_set_clocks_value(&gpu_id, clocks_commands)
+                .await
                 .context("Could not commit clocks settings")?;
-            self.ask_settings_confirmation(delay, root, sender);
+            self.ask_settings_confirmation(delay, root, sender).await;
         }
 
         sender.input(AppMsg::ReloadData { full: false });
@@ -553,11 +594,11 @@ impl AppModel {
         Ok(())
     }
 
-    fn ask_settings_confirmation(
+    async fn ask_settings_confirmation(
         &self,
         mut delay: u64,
         window: &gtk::ApplicationWindow,
-        sender: &ComponentSender<AppModel>,
+        sender: &AsyncComponentSender<AppModel>,
     ) {
         let text = confirmation_text(delay);
         let dialog = MessageDialog::builder()
@@ -616,18 +657,21 @@ impl AppModel {
 
                 diag.close();
 
-                if let Err(err) = daemon_client.confirm_pending_config(command) {
-                    show_error(&window, &err);
-                }
-                sender.input(AppMsg::ReloadData { full: false });
+                relm4::spawn_local(async move {
+                    if let Err(err) = daemon_client.confirm_pending_config(command).await {
+                        show_error(&window, &err);
+                    }
+                    sender.input(AppMsg::ReloadData { full: false });
+                });
             }
         ));
     }
 
-    fn dump_vbios(&self, gpu_id: &str, root: &gtk::ApplicationWindow) {
+    async fn dump_vbios(&self, gpu_id: &str, root: &gtk::ApplicationWindow) {
         match self
             .daemon_client
             .dump_vbios(gpu_id)
+            .await
             .and_then(|response| response.inner())
         {
             Ok(vbios_data) => {
@@ -676,10 +720,11 @@ impl AppModel {
         }
     }
 
-    fn generate_debug_snapshot(&self, root: &gtk::ApplicationWindow) {
+    async fn generate_debug_snapshot(&self, root: &gtk::ApplicationWindow) {
         match self
             .daemon_client
             .generate_debug_snapshot()
+            .await
             .and_then(|response| response.inner())
         {
             Ok(path) => {
@@ -800,7 +845,7 @@ fn show_embedded_info(parent: &ApplicationWindow, err: anyhow::Error) {
 fn start_stats_update_loop(
     gpu_id: String,
     daemon_client: DaemonClient,
-    sender: ComponentSender<AppModel>,
+    sender: AsyncComponentSender<AppModel>,
 ) -> glib::JoinHandle<()> {
     debug!("spawning new stats update task with {STATS_POLL_INTERVAL_MS}ms interval");
     let duration = Duration::from_millis(STATS_POLL_INTERVAL_MS);
@@ -810,6 +855,7 @@ fn start_stats_update_loop(
 
             match daemon_client
                 .get_device_stats(&gpu_id)
+                .await
                 .and_then(|buffer| buffer.inner())
             {
                 Ok(stats) => {
@@ -868,35 +914,30 @@ fn confirmation_text(seconds_left: u64) -> String {
     format!("Do you want to keep the new settings? (Reverting in {seconds_left} seconds)")
 }
 
-fn toggle_overdrive(enable: bool, root: ApplicationWindow) {
-    let handle = relm4::spawn_blocking(move || {
-        let (daemon_client, _) =
-            create_connection().expect("Could not create new daemon connection");
-        if enable {
-            daemon_client
-                .enable_overdrive()
-                .and_then(|buffer| buffer.inner())
-        } else {
-            daemon_client
-                .disable_overdrive()
-                .and_then(|buffer| buffer.inner())
-        }
-    });
-
+async fn toggle_overdrive(daemon_client: &DaemonClient, enable: bool, root: ApplicationWindow) {
     let dialog = spinner_dialog(&root, "Regenerating initramfs (this may take a while)");
     dialog.show();
 
-    relm4::spawn_local(async move {
-        let result = handle.await.unwrap();
-        dialog.hide();
+    let result = if enable {
+        daemon_client
+            .enable_overdrive()
+            .await
+            .and_then(|buffer| buffer.inner())
+    } else {
+        daemon_client
+            .disable_overdrive()
+            .await
+            .and_then(|buffer| buffer.inner())
+    };
 
-        match result {
-            Ok(msg) => oc_toggled_dialog(false, &msg),
-            Err(err) => {
-                show_error(&root, &err);
-            }
+    dialog.hide();
+
+    match result {
+        Ok(msg) => oc_toggled_dialog(false, &msg),
+        Err(err) => {
+            show_error(&root, &err);
         }
-    });
+    }
 }
 
 fn spinner_dialog(parent: &ApplicationWindow, title: &str) -> MessageDialog {
@@ -920,7 +961,7 @@ fn spinner_dialog(parent: &ApplicationWindow, title: &str) -> MessageDialog {
     dialog
 }
 
-fn register_actions(sender: &ComponentSender<AppModel>) {
+fn register_actions(sender: &AsyncComponentSender<AppModel>) {
     let mut group = RelmActionGroup::<AppActionGroup>::new();
 
     macro_rules! actions {
@@ -968,3 +1009,27 @@ relm4::new_stateless_action!(DumpVBios, AppActionGroup, "dump-vbios");
 relm4::new_stateless_action!(DebugSnapshot, AppActionGroup, "generate-debug-snapshot");
 relm4::new_stateless_action!(DisableOverdrive, AppActionGroup, "disable-overdrive");
 relm4::new_stateless_action!(ResetConfig, AppActionGroup, "reset-config");
+
+async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
+    match DaemonClient::connect().await {
+        Ok(connection) => {
+            debug!("Established daemon connection");
+            Ok((connection, None))
+        }
+        Err(err) => {
+            info!("could not connect to socket: {err:#}");
+            info!("using a local daemon");
+
+            let (server_stream, client_stream) = UnixStream::pair()?;
+
+            std::thread::spawn(move || {
+                if let Err(err) = lact_daemon::run_embedded(server_stream) {
+                    error!("Builtin daemon error: {err}");
+                }
+            });
+
+            let client = DaemonClient::from_stream(client_stream, true)?;
+            Ok((client, Some(err)))
+        }
+    }
+}

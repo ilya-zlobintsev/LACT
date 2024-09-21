@@ -1585,6 +1585,7 @@ dependencies = [
  "anyhow",
  "lact-client",
  "lact-schema",
+ "tokio",
 ]
 
 [[package]]
@@ -1593,10 +1594,12 @@ version = "0.5.6"
 dependencies = [
  "amdgpu-sysfs",
  "anyhow",
+ "futures",
  "lact-schema",
  "nix",
  "serde",
  "serde_json",
+ "tokio",
  "tracing",
 ]
 
