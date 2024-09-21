@@ -22,6 +22,9 @@ pub enum Command {
 pub struct GuiArgs {
     #[arg(long)]
     pub log_level: Option<String>,
+    /// Remote TCP address to connect to
+    #[arg(long)]
+    pub tcp_address: Option<String>,
 }
 
 #[derive(Parser)]

@@ -23,7 +23,14 @@ pub fn run(args: GuiArgs) -> anyhow::Result<()> {
         return Err(anyhow!("Cannot initialize GTK: {err}"));
     }
 
-    let (connection, connection_err) = create_connection()?;
+    let (connection, connection_err) = match args.tcp_address {
+        Some(remote_addr) => {
+            info!("establishing connection to {remote_addr}");
+            let conn = DaemonClient::connect_tcp(&remote_addr)?;
+            (conn, None)
+        }
+        None => create_connection()?,
+    };
 
     let app = RelmApp::new(APP_ID).with_args(vec![]);
     app.run::<AppModel>((connection, connection_err));

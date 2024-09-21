@@ -8,7 +8,7 @@ use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
 use anyhow::{anyhow, Context};
-use connection::{unix::UnixConnection, DaemonConnection};
+use connection::{tcp::TcpConnection, unix::UnixConnection, DaemonConnection};
 use nix::unistd::getuid;
 use schema::{
     request::{ConfirmCommand, SetClocksCommand},
@@ -17,8 +17,7 @@ use schema::{
 };
 use serde::Deserialize;
 use std::{
-    cell::RefCell, marker::PhantomData, os::unix::net::UnixStream, path::PathBuf, rc::Rc,
-    time::Duration,
+    cell::RefCell, marker::PhantomData, net::ToSocketAddrs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, time::Duration
 };
 use tracing::{error, info};
 
@@ -35,6 +34,15 @@ impl DaemonClient {
         let path =
             get_socket_path().context("Could not connect to daemon: socket file not found")?;
         let stream = UnixConnection::connect(&path)?;
+
+        Ok(Self {
+            stream: Rc::new(RefCell::new(stream)),
+            embedded: false,
+        })
+    }
+
+    pub fn connect_tcp(addr: impl ToSocketAddrs) -> anyhow::Result<Self> {
+        let stream = TcpConnection::connect(addr)?;
 
         Ok(Self {
             stream: Rc::new(RefCell::new(stream)),

@@ -1,7 +1,7 @@
-use super::DaemonConnection;
-use anyhow::{anyhow, Context};
+use super::{request, DaemonConnection};
+use anyhow::Context;
 use std::{
-    io::{self, BufRead, BufReader, Write},
+    io::{self, BufReader},
     os::unix::net::UnixStream,
     path::Path,
 };
@@ -31,17 +31,7 @@ impl TryFrom<UnixStream> for UnixConnection {
 
 impl DaemonConnection for UnixConnection {
     fn request(&mut self, payload: &str) -> anyhow::Result<String> {
-        if !self.reader.buffer().is_empty() {
-            return Err(anyhow!("Another request was not processed properly"));
-        }
-
-        self.writer.write_all(payload.as_bytes())?;
-        self.writer.write_all(b"\n")?;
-
-        let mut response_payload = String::new();
-        self.reader.read_line(&mut response_payload)?;
-
-        Ok(response_payload)
+        request(&mut self.reader, &mut self.writer, payload)
     }
 
     fn new_connection(&self) -> anyhow::Result<Box<dyn DaemonConnection>> {
