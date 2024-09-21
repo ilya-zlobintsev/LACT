@@ -1,3 +1,4 @@
+mod connection;
 #[macro_use]
 mod macros;
 
@@ -7,6 +8,7 @@ use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
 use anyhow::{anyhow, Context};
+use connection::{unix::UnixConnection, DaemonConnection};
 use nix::unistd::getuid;
 use schema::{
     request::{ConfirmCommand, SetClocksCommand},
@@ -15,12 +17,7 @@ use schema::{
 };
 use serde::Deserialize;
 use std::{
-    cell::RefCell,
-    io::{BufRead, BufReader, Write},
-    marker::PhantomData,
-    os::unix::net::UnixStream,
-    path::{Path, PathBuf},
-    rc::Rc,
+    cell::RefCell, marker::PhantomData, os::unix::net::UnixStream, path::PathBuf, rc::Rc,
     time::Duration,
 };
 use tracing::{error, info};
@@ -29,7 +26,7 @@ const RECONNECT_INTERVAL_MS: u64 = 250;
 
 #[derive(Clone)]
 pub struct DaemonClient {
-    stream: Rc<RefCell<(BufReader<UnixStream>, UnixStream)>>,
+    stream: Rc<RefCell<Box<dyn DaemonConnection>>>,
     pub embedded: bool,
 }
 
@@ -37,19 +34,18 @@ impl DaemonClient {
     pub fn connect() -> anyhow::Result<Self> {
         let path =
             get_socket_path().context("Could not connect to daemon: socket file not found")?;
-        info!("connecting to service at {path:?}");
-        let stream_pair = connect_pair(&path)?;
+        let stream = UnixConnection::connect(&path)?;
 
         Ok(Self {
-            stream: Rc::new(RefCell::new(stream_pair)),
+            stream: Rc::new(RefCell::new(stream)),
             embedded: false,
         })
     }
 
     pub fn from_stream(stream: UnixStream, embedded: bool) -> anyhow::Result<Self> {
-        let reader = BufReader::new(stream.try_clone()?);
+        let connection = UnixConnection::try_from(stream)?;
         Ok(Self {
-            stream: Rc::new(RefCell::new((reader, stream))),
+            stream: Rc::new(RefCell::new(Box::new(connection))),
             embedded,
         })
     }
@@ -58,31 +54,26 @@ impl DaemonClient {
         &self,
         request: Request,
     ) -> anyhow::Result<ResponseBuffer<T>> {
-        let mut stream_guard = self
+        let mut stream = self
             .stream
             .try_borrow_mut()
             .map_err(|err| anyhow!("{err}"))?;
-        let (reader, writer) = &mut *stream_guard;
 
-        if !reader.buffer().is_empty() {
-            return Err(anyhow!("Another request was not processed properly"));
-        }
-
-        let response_payload = match process_request(&request, reader, writer) {
-            Ok(payload) => payload,
+        let request_payload = serde_json::to_string(&request)?;
+        match stream.request(&request_payload) {
+            Ok(response_payload) => Ok(ResponseBuffer {
+                buf: response_payload,
+                _phantom: PhantomData,
+            }),
             Err(err) => {
                 error!("Could not make request: {err}, reconnecting to socket");
-                let peer_addr = writer.peer_addr().context("Could not read peer address")?;
-                let path = peer_addr
-                    .as_pathname()
-                    .context("Connected socket addr is not a path")?;
 
                 loop {
-                    match connect_pair(path) {
+                    match stream.new_connection() {
                         Ok(new_connection) => {
                             info!("Established new socket connection");
-                            *stream_guard = new_connection;
-                            drop(stream_guard);
+                            *stream = new_connection;
+                            drop(stream);
                             return self.make_request(request);
                         }
                         Err(err) => {
@@ -92,12 +83,7 @@ impl DaemonClient {
                     }
                 }
             }
-        };
-
-        Ok(ResponseBuffer {
-            buf: response_payload,
-            _phantom: PhantomData,
-        })
+        }
     }
 
     pub fn list_devices(&self) -> anyhow::Result<ResponseBuffer<Vec<DeviceListEntry>>> {
@@ -219,25 +205,4 @@ impl<'a, T: Deserialize<'a>> ResponseBuffer<T> {
             }
         }
     }
-}
-
-fn connect_pair(path: &Path) -> anyhow::Result<(BufReader<UnixStream>, UnixStream)> {
-    let stream = UnixStream::connect(path).context("Could not connect to daemon")?;
-    let reader = BufReader::new(stream.try_clone()?);
-    Ok((reader, stream))
-}
-
-fn process_request(
-    request: &Request,
-    reader: &mut BufReader<UnixStream>,
-    writer: &mut UnixStream,
-) -> anyhow::Result<String> {
-    let request_payload = serde_json::to_string(request)?;
-    writer.write_all(request_payload.as_bytes())?;
-    writer.write_all(b"\n")?;
-
-    let mut response_payload = String::new();
-    reader.read_line(&mut response_payload)?;
-
-    Ok(response_payload)
 }
