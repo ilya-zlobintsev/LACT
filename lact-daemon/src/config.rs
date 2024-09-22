@@ -26,6 +26,7 @@ pub struct Config {
     pub daemon: Daemon,
     #[serde(default = "default_apply_settings_timer")]
     pub apply_settings_timer: u64,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub gpus: HashMap<String, Gpu>,
 }
 
@@ -39,6 +40,7 @@ impl Default for Config {
     }
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Daemon {
     pub log_level: String,
@@ -113,6 +115,7 @@ impl Gpu {
     }
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FanControlSettings {
     #[serde(default)]
