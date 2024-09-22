@@ -29,4 +29,10 @@ images:
   - name: opensuse-tumbleweed
     target: rpm
     os: OpenSUSE
+  - name: rhel-8
+    target: rpm
+    os: Red Hat
+  - name: rhel-9
+    target: rpm
+    os: Red Hat
 custom_simple_images: ~

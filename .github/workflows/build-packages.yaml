@@ -20,6 +20,10 @@ jobs:
             recipe: lact-libadwaita
           - target-os: opensuse-tumbleweed
             recipe: lact-libadwaita
+          - target-os: rhel-8
+            recipe: lact-headless
+          - target-os: rhel-9
+            recipe: lact-headless
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
