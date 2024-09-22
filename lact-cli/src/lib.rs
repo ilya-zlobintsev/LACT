@@ -3,17 +3,22 @@ use lact_client::DaemonClient;
 use lact_schema::args::{CliArgs, CliCommand};
 
 pub fn run(args: CliArgs) -> Result<()> {
-    let client = DaemonClient::connect()?;
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(async move {
+        let client = DaemonClient::connect().await?;
 
-    let f = match args.subcommand {
-        CliCommand::ListGpus => list_gpus,
-        CliCommand::Info => info,
-    };
-    f(&args, &client)
+        match args.subcommand {
+            CliCommand::ListGpus => list_gpus(&args, &client).await,
+            CliCommand::Info => info(&args, &client).await,
+        }
+    })
 }
 
-fn list_gpus(_: &CliArgs, client: &DaemonClient) -> Result<()> {
-    let buffer = client.list_devices()?;
+async fn list_gpus(_: &CliArgs, client: &DaemonClient) -> Result<()> {
+    let buffer = client.list_devices().await?;
     for entry in buffer.inner()? {
         let id = entry.id;
         if let Some(name) = entry.name {
@@ -25,9 +30,9 @@ fn list_gpus(_: &CliArgs, client: &DaemonClient) -> Result<()> {
     Ok(())
 }
 
-fn info(args: &CliArgs, client: &DaemonClient) -> Result<()> {
-    for id in extract_gpu_ids(args, client) {
-        let info_buffer = client.get_device_info(&id)?;
+async fn info(args: &CliArgs, client: &DaemonClient) -> Result<()> {
+    for id in extract_gpu_ids(args, client).await {
+        let info_buffer = client.get_device_info(&id).await?;
         let info = info_buffer.inner()?;
         let pci_info = info.pci_info.context("GPU reports no pci info")?;
 
@@ -46,11 +51,11 @@ fn info(args: &CliArgs, client: &DaemonClient) -> Result<()> {
     Ok(())
 }
 
-fn extract_gpu_ids(args: &CliArgs, client: &DaemonClient) -> Vec<String> {
+async fn extract_gpu_ids(args: &CliArgs, client: &DaemonClient) -> Vec<String> {
     match args.gpu_id {
         Some(ref id) => vec![id.clone()],
         None => {
-            let buffer = client.list_devices().expect("Could not list GPUs");
+            let buffer = client.list_devices().await.expect("Could not list GPUs");
             buffer
                 .inner()
                 .expect("Could not deserialize GPUs response")

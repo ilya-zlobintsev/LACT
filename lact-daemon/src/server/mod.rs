@@ -5,49 +5,100 @@ mod vulkan;
 
 use self::handler::Handler;
 use crate::{config::Config, socket};
+use anyhow::Context;
+use futures::future::join_all;
 use lact_schema::{Pong, Request, Response};
 use serde::Serialize;
 use std::fmt::Debug;
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::{UnixListener, UnixStream},
+    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
+    net::{TcpListener, UnixListener},
 };
-use tracing::{error, instrument, trace};
+use tracing::{error, info, instrument, trace};
 
 pub struct Server {
     pub handler: Handler,
-    listener: UnixListener,
+    unix_listener: UnixListener,
+    tcp_listener: Option<TcpListener>,
 }
 
 impl Server {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
-        let listener = socket::listen(&config.daemon.admin_groups)?;
+        let unix_listener = socket::listen(&config.daemon.admin_groups)?;
+
+        let tcp_listener = if let Some(address) = &config.daemon.tcp_listen_address {
+            let listener = TcpListener::bind(address)
+                .await
+                .with_context(|| format!("Could not bind to TCP address {address}"))?;
+            info!("TCP listening on {}", listener.local_addr()?);
+            Some(listener)
+        } else {
+            info!("TCP listener disabled");
+            None
+        };
+
         let handler = Handler::new(config).await?;
 
-        Ok(Self { handler, listener })
+        Ok(Self {
+            handler,
+            unix_listener,
+            tcp_listener,
+        })
     }
 
     pub async fn run(self) {
-        loop {
-            match self.listener.accept().await {
-                Ok((stream, _)) => {
-                    let handler = self.handler.clone();
-                    tokio::task::spawn_local(async move {
-                        if let Err(error) = handle_stream(stream, handler).await {
-                            error!("{error}");
-                        }
-                    });
-                }
-                Err(error) => {
-                    error!("failed to handle connection: {error}");
+        let mut tasks = vec![];
+
+        let unix_handler = self.handler.clone();
+        let unix_task = tokio::task::spawn_local(async move {
+            loop {
+                match self.unix_listener.accept().await {
+                    Ok((stream, _)) => {
+                        let handler = unix_handler.clone();
+                        tokio::task::spawn_local(async move {
+                            if let Err(error) = handle_stream(stream, handler).await {
+                                error!("{error}");
+                            }
+                        });
+                    }
+                    Err(error) => {
+                        error!("failed to handle connection: {error}");
+                    }
                 }
             }
+        });
+        tasks.push(unix_task);
+
+        if let Some(tcp_listener) = self.tcp_listener {
+            let tcp_task = tokio::task::spawn_local(async move {
+                loop {
+                    match tcp_listener.accept().await {
+                        Ok((stream, _)) => {
+                            let handler = self.handler.clone();
+                            tokio::task::spawn_local(async move {
+                                if let Err(error) = handle_stream(stream, handler).await {
+                                    error!("{error}");
+                                }
+                            });
+                        }
+                        Err(error) => {
+                            error!("failed to handle connection: {error}");
+                        }
+                    }
+                }
+            });
+            tasks.push(tcp_task);
         }
+
+        join_all(tasks).await;
     }
 }
 
 #[instrument(level = "debug", skip(stream, handler))]
-pub async fn handle_stream(stream: UnixStream, handler: Handler) -> anyhow::Result<()> {
+pub async fn handle_stream<T: AsyncRead + AsyncWrite + Unpin>(
+    stream: T,
+    handler: Handler,
+) -> anyhow::Result<()> {
     let mut stream = BufReader::new(stream);
 
     let mut buf = String::new();

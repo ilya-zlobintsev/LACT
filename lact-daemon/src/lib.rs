@@ -12,6 +12,7 @@ use futures::future::select_all;
 use server::{handle_stream, handler::Handler, Server};
 use std::str::FromStr;
 use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
+use tokio::net::UnixStream;
 use tokio::{
     runtime,
     signal::unix::{signal, SignalKind},
@@ -79,7 +80,7 @@ pub fn run_embedded(stream: StdUnixStream) -> anyhow::Result<()> {
             .run_until(async move {
                 let config = Config::default();
                 let handler = Handler::new(config).await?;
-                let stream = stream.try_into()?;
+                let stream = UnixStream::try_from(stream)?;
 
                 handle_stream(stream, handler).await
             })
