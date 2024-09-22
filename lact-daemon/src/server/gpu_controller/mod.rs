@@ -8,7 +8,7 @@ use amdgpu_sysfs::{
     gpu_handle::{
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
-        GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
+        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
     },
     hw_mon::{FanControlMethod, HwMon},
     sysfs::SysFS,
@@ -36,7 +36,6 @@ use tokio::{
     time::{sleep, timeout},
 };
 use tracing::{debug, error, info, trace, warn};
-#[cfg(feature = "libdrm_amdgpu_sys")]
 use {
     lact_schema::DrmMemoryInfo,
     libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
@@ -49,7 +48,6 @@ const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
 
 pub struct GpuController {
     pub(super) handle: GpuHandle,
-    #[cfg(feature = "libdrm_amdgpu_sys")]
     pub drm_handle: Option<DrmHandle>,
     pub pci_info: Option<GpuPciInfo>,
     pub fan_control_handle: RefCell<Option<FanControlHandle>>,
@@ -60,7 +58,6 @@ impl GpuController {
         let handle = GpuHandle::new_from_path(sysfs_path)
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
 
-        #[cfg(feature = "libdrm_amdgpu_sys")]
         let drm_handle = match get_drm_handle(&handle) {
             Ok(handle) => Some(handle),
             Err(err) => {
@@ -108,7 +105,6 @@ impl GpuController {
 
         Ok(Self {
             handle,
-            #[cfg(feature = "libdrm_amdgpu_sys")]
             drm_handle,
             pci_info,
             fan_control_handle: RefCell::new(None),
@@ -171,7 +167,6 @@ impl GpuController {
         }
     }
 
-    #[cfg(feature = "libdrm_amdgpu_sys")]
     fn get_full_vbios_version(&self) -> Option<String> {
         if let Some(drm_handle) = &self.drm_handle {
             if let Ok(vbios_info) = drm_handle.get_vbios_info() {
@@ -182,13 +177,9 @@ impl GpuController {
         self.handle.get_vbios_version().ok()
     }
 
-    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
-    fn get_full_vbios_version(&self) -> Option<String> {
-        self.handle.get_vbios_version().ok()
-    }
-
-    #[cfg(feature = "libdrm_amdgpu_sys")]
     fn get_drm_info(&self) -> Option<DrmInfo> {
+        use libdrm_amdgpu_sys::AMDGPU::VRAM_TYPE;
+
         trace!("Reading DRM info");
         let drm_handle = self.drm_handle.as_ref();
 
@@ -211,6 +202,10 @@ impl GpuController {
                 chip_class: drm_info.get_chip_class().to_string(),
                 compute_units: drm_info.cu_active_number,
                 vram_type: drm_info.get_vram_type().to_string(),
+                vram_clock_ratio: match drm_info.get_vram_type() {
+                    VRAM_TYPE::GDDR6 => 2.0,
+                    _ => 1.0,
+                },
                 vram_bit_width: drm_info.vram_bit_width,
                 vram_max_bw: drm_info.peak_memory_bw_gb().to_string(),
                 l1_cache_per_cu: drm_info.get_l1_cache_size(),
@@ -222,22 +217,11 @@ impl GpuController {
         }
     }
 
-    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
-    fn get_drm_info(&self) -> Option<DrmInfo> {
-        None
-    }
-
-    #[cfg(feature = "libdrm_amdgpu_sys")]
     fn get_current_gfxclk(&self) -> Option<u16> {
         self.drm_handle
             .as_ref()
             .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
             .and_then(|metrics| metrics.get_current_gfxclk())
-    }
-
-    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
-    fn get_current_gfxclk(&self) -> Option<u16> {
-        None
     }
 
     fn get_link_info(&self) -> LinkInfo {
@@ -313,12 +297,6 @@ impl GpuController {
         }
     }
 
-    #[cfg(not(feature = "libdrm_amdgpu_sys"))]
-    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
-        None
-    }
-
-    #[cfg(feature = "libdrm_amdgpu_sys")]
     fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
         use libdrm_amdgpu_sys::AMDGPU::ThrottlerType;
 
@@ -357,13 +335,16 @@ impl GpuController {
         self.handle.hw_monitors.first().map(f)
     }
 
-    async fn set_static_fan_control(&self, static_speed: f64) -> anyhow::Result<()> {
+    async fn set_static_fan_control(
+        &self,
+        static_speed: f64,
+    ) -> anyhow::Result<Option<CommitHandle>> {
         // Stop existing task to set static speed
         self.stop_fan_control(false).await?;
 
         // Use PMFW curve functionality for static speed when it is available
         if let Ok(current_curve) = self.handle.get_fan_curve() {
-            let allowed_ranges = current_curve.allowed_ranges.ok_or_else(|| {
+            let allowed_ranges = current_curve.allowed_ranges.clone().ok_or_else(|| {
                 anyhow!("The GPU does not allow setting custom fan values (is overdrive enabled?)")
             })?;
             let min_temperature = allowed_ranges.temperature_range.start();
@@ -385,11 +366,12 @@ impl GpuController {
 
             debug!("setting static curve {new_curve:?}");
 
-            self.handle
+            let commit_handle = self
+                .handle
                 .set_fan_curve(&new_curve)
                 .context("Could not set fan curve")?;
 
-            Ok(())
+            Ok(Some(commit_handle))
         } else {
             let hw_mon = self
                 .handle
@@ -411,7 +393,7 @@ impl GpuController {
 
             debug!("set fan speed to {}", static_speed);
 
-            Ok(())
+            Ok(None)
         }
     }
 
@@ -419,23 +401,25 @@ impl GpuController {
         &self,
         curve: FanCurve,
         settings: FanControlSettings,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Option<CommitHandle>> {
         // Use the PMFW curve functionality when it is available
         // Otherwise, fall back to manual fan control via a task
-        match self.handle.get_fan_curve() {
-            Ok(current_curve) => {
-                let new_curve = curve
-                    .into_pmfw_curve(current_curve)
-                    .context("Invalid fan curve")?;
-                debug!("setting pmfw curve {new_curve:?}");
+        if let Ok(current_curve) = self.handle.get_fan_curve() {
+            let new_curve = curve
+                .into_pmfw_curve(current_curve.clone())
+                .context("Invalid fan curve")?;
 
-                self.handle
-                    .set_fan_curve(&new_curve)
-                    .context("Could not set fan curve")?;
+            debug!("setting pmfw curve {new_curve:?}");
 
-                Ok(())
-            }
-            Err(_) => self.start_curve_fan_control_task(curve, settings).await,
+            let commit_handle = self
+                .handle
+                .set_fan_curve(&new_curve)
+                .context("Could not set fan curve")?;
+
+            Ok(Some(commit_handle))
+        } else {
+            self.start_curve_fan_control_task(curve, settings).await?;
+            Ok(None)
         }
     }
 
@@ -728,6 +712,8 @@ impl GpuController {
             }
         }
 
+        let mut commit_handles = Vec::new();
+
         // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
         self.handle.reset_clocks_table().ok();
 
@@ -737,10 +723,11 @@ impl GpuController {
             .ok();
 
         if config.is_core_clocks_used() {
-            let mut table = self
+            let original_table = self
                 .handle
                 .get_clocks_table()
                 .context("Failed to get clocks table")?;
+            let mut table = original_table.clone();
             config
                 .clocks_configuration
                 .apply_to_table(&mut table)
@@ -749,14 +736,21 @@ impl GpuController {
             debug!(
                 "writing clocks commands: {:#?}",
                 table
-                    .get_commands()
+                    .get_commands(&original_table)
                     .context("Failed to get table commands")?
             );
 
-            self.handle
+            let handle = self
+                .handle
                 .set_clocks_table(&table)
                 .context("Could not write clocks table")
-                .with_context(|| format!("Clocks table commands: {:?}", table.get_commands()))?;
+                .with_context(|| {
+                    format!(
+                        "Clocks table commands: {:?}",
+                        table.get_commands(&original_table)
+                    )
+                })?;
+            commit_handles.push(handle);
         }
 
         if let Some(level) = config.performance_level {
@@ -773,9 +767,17 @@ impl GpuController {
                 ));
             }
 
-            self.handle
-                .set_active_power_profile_mode(mode_index)
-                .context("Failed to set active power profile mode")?;
+            if config.custom_power_profile_mode_hueristics.is_empty() {
+                self.handle
+                    .set_active_power_profile_mode(mode_index)
+                    .context("Failed to set active power profile mode")?;
+            } else {
+                self.handle
+                    .set_custom_power_profile_mode_heuristics(
+                        &config.custom_power_profile_mode_hueristics,
+                    )
+                    .context("Failed to set custom power profile mode heuristics")?;
+            }
         }
 
         for (kind, states) in &config.power_states {
@@ -794,18 +796,26 @@ impl GpuController {
             if let Some(ref settings) = config.fan_control_settings {
                 match settings.mode {
                     lact_schema::FanControlMode::Static => {
-                        self.set_static_fan_control(settings.static_speed)
+                        if let Some(commit_handle) = self
+                            .set_static_fan_control(settings.static_speed)
                             .await
-                            .context("Failed to set static fan control")?;
+                            .context("Failed to set static fan control")?
+                        {
+                            commit_handles.push(commit_handle);
+                        }
                     }
                     lact_schema::FanControlMode::Curve => {
                         if settings.curve.0.is_empty() {
                             return Err(anyhow!("Cannot use empty fan curve"));
                         }
 
-                        self.start_curve_fan_control(settings.curve.clone(), settings.clone())
+                        if let Some(commit_handle) = self
+                            .start_curve_fan_control(settings.curve.clone(), settings.clone())
                             .await
-                            .context("Failed to set curve fan control")?;
+                            .context("Failed to set curve fan control")?
+                        {
+                            commit_handles.push(commit_handle);
+                        }
                     }
                 }
             } else {
@@ -814,38 +824,81 @@ impl GpuController {
                 ));
             }
         } else {
+            let pmfw = &config.pmfw_options;
+            if let Some(acoustic_limit) = pmfw.acoustic_limit {
+                if self
+                    .handle
+                    .get_fan_acoustic_limit()
+                    .context("Could not get acoustic limit")?
+                    .current
+                    != acoustic_limit
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_acoustic_limit(acoustic_limit)
+                        .context("Could not set acoustic limit")?;
+                    commit_handles.push(commit_handle);
+                }
+            }
+            if let Some(acoustic_target) = pmfw.acoustic_target {
+                if self
+                    .handle
+                    .get_fan_acoustic_target()
+                    .context("Could not get acoustic target")?
+                    .current
+                    != acoustic_target
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_acoustic_target(acoustic_target)
+                        .context("Could not set acoustic target")?;
+                    commit_handles.push(commit_handle);
+                }
+            }
+            if let Some(target_temperature) = pmfw.target_temperature {
+                if self
+                    .handle
+                    .get_fan_target_temperature()
+                    .context("Could not get target temperature")?
+                    .current
+                    != target_temperature
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_target_temperature(target_temperature)
+                        .context("Could not set target temperature")?;
+                    commit_handles.push(commit_handle);
+                }
+            }
+            if let Some(minimum_pwm) = pmfw.minimum_pwm {
+                if self
+                    .handle
+                    .get_fan_minimum_pwm()
+                    .context("Could not get minimum pwm")?
+                    .current
+                    != minimum_pwm
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_minimum_pwm(minimum_pwm)
+                        .context("Could not set minimum pwm")?;
+                    commit_handles.push(commit_handle);
+                }
+            }
+
             self.stop_fan_control(true)
                 .await
                 .context("Failed to stop fan control")?;
+        }
 
-            let pmfw = &config.pmfw_options;
-            if let Some(acoustic_limit) = pmfw.acoustic_limit {
-                self.handle
-                    .set_fan_acoustic_limit(acoustic_limit)
-                    .context("Could not set acoustic limit")?;
-            }
-            if let Some(acoustic_target) = pmfw.acoustic_target {
-                self.handle
-                    .set_fan_acoustic_target(acoustic_target)
-                    .context("Could not set acoustic target")?;
-            }
-            if let Some(target_temperature) = pmfw.target_temperature {
-                self.handle
-                    .set_fan_target_temperature(target_temperature)
-                    .context("Could not set target temperature")?;
-            }
-            if let Some(minimum_pwm) = pmfw.minimum_pwm {
-                self.handle
-                    .set_fan_minimum_pwm(minimum_pwm)
-                    .context("Could not set minimum pwm")?;
-            }
+        for handle in commit_handles {
+            handle.commit()?;
         }
 
         Ok(())
     }
 }
 
-#[cfg(feature = "libdrm_amdgpu_sys")]
 fn get_drm_handle(handle: &GpuHandle) -> anyhow::Result<DrmHandle> {
     let slot_name = handle
         .get_pci_slot_name()

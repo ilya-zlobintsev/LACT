@@ -27,11 +27,17 @@ Current features:
 - OpenSUSE: an RPM is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
   Only tumbleweed is supported as leap does not have the required dependencies in the repos.
-- NixOS: There is a package available on the [unstable channel](https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=lact)
+- NixOS: There is a package available in [nixpkgs](https://search.nixos.org/packages?channel=24.05&from=0&size=50&sort=relevance&type=packages&query=lact)
 - Otherwise, build from source.
 
 **Why is there no AppImage/Flatpak/other universal format?**
 See [here](./pkg/README.md).
+
+## Development builds
+
+To get latest fixes or features that have not yet been released in a stable version, there are packages built from the latest commit that you can install from the [test release](https://github.com/ilya-zlobintsev/LACT/releases/tag/test-build) or using the `lact-git` AUR package on Arch-based distros.
+
+Note: the date of the test release is not the date when the packages were built, the actual date is specified next to the attached package files.
 
 # Usage
 
@@ -110,17 +116,12 @@ Steps:
 - `make`
 - `sudo make install`
 
-It's also possible to build LACT without some of the features by using cargo feature flags.
-This can be useful if some dependency is not available on your system, or is too old.
+It's possible to change which features LACT gets built with. 
+To do so, replace the `make` command with the following variation:
 
-Build without DRM support (some GPU information will not be available):
+Headless build with no GUI:
 ```
-cargo build --no-default-features -p lact --features=lact-gui
-```
-
-Minimal build (no GUI!):
-```
-cargo build --no-default-features -p lact
+make build-release-headless
 ```
 
 Build GUI with libadwaita support:
@@ -130,7 +131,31 @@ make build-release-libadwaita
 
 # API
 
-There is an API available over a unix socket. See [here](API.md) for more information.
+There is an API available over a unix or TCP socket. See [here](API.md) for more information.
+
+# Remote management
+
+It's possible to have the LACT daemon running on one machine, and then manage it remotely from another.
+
+This is disabled by default, as the TCP connection **does not have any authentication or encryption mechanism!**
+Make sure to only use it in trusted networks and/or set up appropriate firewall rules.
+
+To enable it, edit `/etc/lact/config.yaml` and add `tcp_listen_address` with your desired address and in the `daemon` section.
+
+Example:
+```yaml
+daemon:
+  tcp_listen_address: 0.0.0.0:12853
+  log_level: info
+  admin_groups:
+  - wheel
+  - sudo
+  disable_clocks_cleanup: false
+```
+
+After this restart the service (`sudo systemctl restart lactd`).
+
+To connect to a remote instance with the GUI, run it with `lact gui --tcp-address 192.168.1.10:12853`.
 
 # CLI
 

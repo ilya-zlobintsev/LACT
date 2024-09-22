@@ -5,6 +5,7 @@ mod software_page;
 mod thermals_page;
 
 use gtk::{prelude::*, *};
+use relm4::{Component, ComponentController};
 
 use self::software_page::SoftwarePage;
 use info_page::InformationPage;
@@ -41,8 +42,11 @@ impl RootStack {
 
         container.add_titled(&thermals_page.container, Some("thermals_page"), "Thermals");
 
-        let software_page = SoftwarePage::new(system_info, embedded_daemon);
-        container.add_titled(&software_page, Some("software_page"), "Software");
+        let mut software_page = SoftwarePage::builder()
+            .launch((system_info, embedded_daemon))
+            .detach();
+        container.add_titled(software_page.widget(), Some("software_page"), "Software");
+        software_page.detach_runtime();
 
         Self {
             container,

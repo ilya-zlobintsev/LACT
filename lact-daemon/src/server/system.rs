@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, ensure, Context};
 use lact_schema::{InitramfsType, SystemInfo, GIT_COMMIT};
 use os_release::{OsRelease, OS_RELEASE};
 use std::{
@@ -6,21 +6,26 @@ use std::{
     io::Write,
     os::unix::prelude::PermissionsExt,
     path::Path,
+    sync::atomic::{AtomicBool, Ordering},
 };
 use tokio::process::Command;
 use tracing::{info, warn};
+
+static OC_TOGGLED: AtomicBool = AtomicBool::new(false);
 
 const PP_OVERDRIVE_MASK: u64 = 0x4000;
 pub const PP_FEATURE_MASK_PATH: &str = "/sys/module/amdgpu/parameters/ppfeaturemask";
 pub const MODULE_CONF_PATH: &str = "/etc/modprobe.d/99-amdgpu-overdrive.conf";
 
-pub async fn info() -> anyhow::Result<SystemInfo<'static>> {
-    let version = env!("CARGO_PKG_VERSION");
+pub async fn info() -> anyhow::Result<SystemInfo> {
+    let version = env!("CARGO_PKG_VERSION").to_owned();
     let profile = if cfg!(debug_assertions) {
         "debug"
     } else {
         "release"
-    };
+    }
+    .to_owned();
+
     let kernel_output = Command::new("uname")
         .arg("-r")
         .output()
@@ -42,11 +47,16 @@ pub async fn info() -> anyhow::Result<SystemInfo<'static>> {
         profile,
         kernel_version,
         amdgpu_overdrive_enabled,
-        commit: Some(GIT_COMMIT),
+        commit: Some(GIT_COMMIT.to_owned()),
     })
 }
 
 pub async fn enable_overdrive() -> anyhow::Result<String> {
+    ensure!(
+        !OC_TOGGLED.load(Ordering::SeqCst),
+        "Overdrive support was already toggled - please reboot to apply the changes"
+    );
+
     let current_mask = read_current_mask()?;
 
     let new_mask = current_mask | PP_OVERDRIVE_MASK;
@@ -65,6 +75,7 @@ pub async fn enable_overdrive() -> anyhow::Result<String> {
 
     let message = match regenerate_initramfs().await {
         Ok(initramfs_type) => {
+            OC_TOGGLED.store(true, Ordering::SeqCst);
             format!("Initramfs was successfully regenerated (detected type {initramfs_type:?})")
         }
         Err(err) => format!("{err:#}"),
@@ -74,12 +85,20 @@ pub async fn enable_overdrive() -> anyhow::Result<String> {
 }
 
 pub async fn disable_overdrive() -> anyhow::Result<String> {
+    ensure!(
+        !OC_TOGGLED.load(Ordering::SeqCst),
+        "Overdrive support was already toggled - please reboot to apply the changes"
+    );
+
     if Path::new(MODULE_CONF_PATH).exists() {
         fs::remove_file(MODULE_CONF_PATH).context("Could not remove module config file")?;
         match regenerate_initramfs().await {
-            Ok(initramfs_type) => Ok(format!(
-                "Initramfs was successfully regenerated (detected type {initramfs_type:?})"
-            )),
+            Ok(initramfs_type) => {
+                OC_TOGGLED.store(true, Ordering::SeqCst);
+                Ok(format!(
+                    "Initramfs was successfully regenerated (detected type {initramfs_type:?})"
+                ))
+            }
             Err(err) => Ok(format!("{err:#}")),
         }
     } else {

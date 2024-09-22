@@ -51,7 +51,11 @@ impl PowerStatesList {
 
     pub fn connect_values_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         for row in self.rows() {
-            row.connect_enabled_notify(clone!(@strong f => move |_| f()));
+            row.connect_enabled_notify(clone!(
+                #[strong]
+                f,
+                move |_| f()
+            ));
         }
     }
 

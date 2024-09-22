@@ -23,6 +23,7 @@ use serde_with::skip_serializing_none;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
+    fmt,
     str::FromStr,
 };
 
@@ -58,18 +59,27 @@ pub fn default_fan_curve() -> FanCurveMap {
 pub struct Pong;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SystemInfo<'a> {
-    pub version: &'a str,
-    pub commit: Option<&'a str>,
-    pub profile: &'a str,
+pub struct SystemInfo {
+    pub version: String,
+    pub commit: Option<String>,
+    pub profile: String,
     pub kernel_version: String,
     pub amdgpu_overdrive_enabled: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct DeviceListEntry<'a> {
-    pub id: &'a str,
-    pub name: Option<&'a str>,
+pub struct DeviceListEntry {
+    pub id: String,
+    pub name: Option<String>,
+}
+
+impl fmt::Display for DeviceListEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.name {
+            Some(name) => name.fmt(f),
+            None => self.id.fmt(f),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -100,6 +110,7 @@ pub struct DrmInfo {
     pub chip_class: String,
     pub compute_units: u32,
     pub vram_type: String,
+    pub vram_clock_ratio: f64,
     pub vram_bit_width: u32,
     pub vram_max_bw: String,
     pub l1_cache_per_cu: u32,
@@ -274,6 +285,12 @@ pub struct PmfwOptions {
     pub acoustic_target: Option<u32>,
     pub minimum_pwm: Option<u32>,
     pub target_temperature: Option<u32>,
+}
+
+impl PmfwOptions {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 #[skip_serializing_none]

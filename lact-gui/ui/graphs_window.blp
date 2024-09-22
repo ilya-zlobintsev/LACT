@@ -1,8 +1,8 @@
 using Gtk 4.0;
 
 template $GraphsWindow: Window {
-  default-height: 600;
-  default-width: 600;
+  default-height: 400;
+  default-width: 1200;
   title: "Historical data";
   hide-on-close: true;
 
@@ -27,6 +27,20 @@ template $GraphsWindow: Window {
          }
       }
 
+      $Plot fan_plot {
+          title: "Fan speed";
+          hexpand: true;
+          value-suffix: "RPM";
+          secondary-value-suffix: "%";
+          y-label-area-size: 140;
+          secondary-y-label-area-size: 80;
+
+          layout {
+             column: 0;
+             row: 1;
+         }
+      }
+
       $Plot clockspeed_plot {
           title: "Clockspeed";
           hexpand: true;
@@ -34,8 +48,8 @@ template $GraphsWindow: Window {
           y-label-area-size: 140;
 
           layout {
-             column: 0;
-             row: 1;
+             column: 1;
+             row: 0;
          }
       }
 
@@ -46,8 +60,8 @@ template $GraphsWindow: Window {
           y-label-area-size: 80;
 
           layout {
-             column: 0;
-             row: 2;
+             column: 1;
+             row: 1;
          }
       }
   }

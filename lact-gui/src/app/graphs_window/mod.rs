@@ -18,7 +18,7 @@ glib::wrapper! {
 
 impl GraphsWindow {
     pub fn new() -> Self {
-        Object::builder().build()
+        Object::builder().property("vram_clock_ratio", 1.0).build()
     }
 
     pub fn set_stats(&self, stats: &DeviceStats) {
@@ -27,6 +27,7 @@ impl GraphsWindow {
         let mut temperature_plot = imp.temperature_plot.data_mut();
         let mut clockspeed_plot = imp.clockspeed_plot.data_mut();
         let mut power_plot = imp.power_plot.data_mut();
+        let mut fan_plot = imp.fan_plot.data_mut();
 
         let throttling_plots = [&mut temperature_plot, &mut clockspeed_plot, &mut power_plot];
         match &stats.throttle_info {
@@ -78,16 +79,34 @@ impl GraphsWindow {
             clockspeed_plot.push_line_series("GPU (Trgt)", point as f64);
         }
         if let Some(point) = stats.clockspeed.vram_clockspeed {
-            clockspeed_plot.push_line_series("VRAM", point as f64);
+            clockspeed_plot.push_line_series("VRAM", point as f64 * self.vram_clock_ratio());
+        }
+
+        if let Some(max_speed) = stats.fan.speed_max {
+            fan_plot.push_line_series("Maximum", max_speed as f64);
+        }
+        if let Some(min_speed) = stats.fan.speed_min {
+            fan_plot.push_line_series("Minimum", min_speed as f64);
+        }
+
+        if let Some(current_speed) = stats.fan.speed_current {
+            fan_plot.push_line_series("Current", current_speed as f64);
+        }
+
+        if let Some(pwm) = stats.fan.pwm_current {
+            fan_plot
+                .push_secondary_line_series("Percentage", (pwm as f64 / u8::MAX as f64) * 100.0);
         }
 
         temperature_plot.trim_data(GRAPH_WIDTH_SECONDS);
         clockspeed_plot.trim_data(GRAPH_WIDTH_SECONDS);
         power_plot.trim_data(GRAPH_WIDTH_SECONDS);
+        fan_plot.trim_data(GRAPH_WIDTH_SECONDS);
 
         imp.temperature_plot.queue_draw();
         imp.clockspeed_plot.queue_draw();
         imp.power_plot.queue_draw();
+        imp.fan_plot.queue_draw();
     }
 
     pub fn clear(&self) {
@@ -95,9 +114,12 @@ impl GraphsWindow {
         *imp.temperature_plot.data_mut() = PlotData::default();
         *imp.clockspeed_plot.data_mut() = PlotData::default();
         *imp.power_plot.data_mut() = PlotData::default();
+        *imp.fan_plot.data_mut() = PlotData::default();
+
         imp.temperature_plot.queue_draw();
         imp.clockspeed_plot.queue_draw();
         imp.power_plot.queue_draw();
+        imp.fan_plot.queue_draw();
     }
 }
 
@@ -110,7 +132,7 @@ impl Default for GraphsWindow {
 mod imp {
     use super::plot::Plot;
     use gtk::{
-        glib::{self, subclass::InitializingObject},
+        glib::{self, subclass::InitializingObject, Properties},
         prelude::*,
         subclass::{
             prelude::*,
@@ -118,8 +140,10 @@ mod imp {
         },
         CompositeTemplate,
     };
+    use std::cell::Cell;
 
-    #[derive(CompositeTemplate, Default)]
+    #[derive(CompositeTemplate, Default, Properties)]
+    #[properties(wrapper_type = super::GraphsWindow)]
     #[template(file = "ui/graphs_window.blp")]
     pub struct GraphsWindow {
         #[template_child]
@@ -128,6 +152,11 @@ mod imp {
         pub(super) clockspeed_plot: TemplateChild<Plot>,
         #[template_child]
         pub(super) power_plot: TemplateChild<Plot>,
+        #[template_child]
+        pub(super) fan_plot: TemplateChild<Plot>,
+
+        #[property(get, set)]
+        pub vram_clock_ratio: Cell<f64>,
     }
 
     #[glib::object_subclass]
@@ -147,6 +176,7 @@ mod imp {
         }
     }
 
+    #[glib::derived_properties]
     impl ObjectImpl for GraphsWindow {}
 
     impl WidgetImpl for GraphsWindow {}

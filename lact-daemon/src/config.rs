@@ -13,11 +13,13 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc, time};
 use tracing::{debug, error};
 
 const FILE_NAME: &str = "config.yaml";
 const DEFAULT_ADMIN_GROUPS: [&str; 2] = ["wheel", "sudo"];
+/// Minimum amount of time between separate config reloads
+const CONFIG_RELOAD_INTERVAL_MILLIS: u64 = 50;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -45,12 +47,14 @@ impl Default for Config {
     }
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Daemon {
     pub log_level: String,
     pub admin_groups: Vec<String>,
     #[serde(default)]
     pub disable_clocks_cleanup: bool,
+    pub tcp_listen_address: Option<String>,
 }
 
 impl Default for Daemon {
@@ -59,6 +63,7 @@ impl Default for Daemon {
             log_level: "info".to_owned(),
             admin_groups: DEFAULT_ADMIN_GROUPS.map(str::to_owned).to_vec(),
             disable_clocks_cleanup: false,
+            tcp_listen_address: None,
         }
     }
 }
@@ -74,14 +79,17 @@ pub struct Profile {
 pub struct Gpu {
     pub fan_control_enabled: bool,
     pub fan_control_settings: Option<FanControlSettings>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "PmfwOptions::is_empty")]
     pub pmfw_options: PmfwOptions,
     pub power_cap: Option<f64>,
     pub performance_level: Option<PerformanceLevel>,
     #[serde(default, flatten)]
     pub clocks_configuration: ClocksConfiguration,
     pub power_profile_mode_index: Option<u16>,
-    #[serde(default)]
+    /// Outer vector is for power profile components, inner vector is for the heuristics within a component
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub custom_power_profile_mode_hueristics: Vec<Vec<Option<i32>>>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub power_states: HashMap<PowerLevelKind, Vec<u8>>,
 }
 
@@ -120,6 +128,7 @@ impl Gpu {
     }
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FanControlSettings {
     #[serde(default)]
@@ -210,15 +219,22 @@ impl Config {
             None => Ok(&mut self.gpus),
         }
     }
+
+    pub fn clear(&mut self) {
+        self.gpus.clear();
+        self.profiles.clear();
+        self.current_profile = None;
+    }
 }
 
-pub fn start_watcher(config_last_applied: Arc<Mutex<Instant>>) -> mpsc::UnboundedReceiver<Config> {
+pub fn start_watcher(config_last_saved: Arc<Mutex<Instant>>) -> mpsc::UnboundedReceiver<Config> {
     let (config_tx, config_rx) = mpsc::unbounded_channel();
-    let (event_tx, event_rx) = std::sync::mpsc::channel();
+    let (event_tx, mut event_rx) = mpsc::channel(64);
 
-    tokio::task::spawn_blocking(move || {
-        let mut watcher = RecommendedWatcher::new(event_tx, notify::Config::default())
-            .expect("Could not create config file watcher");
+    tokio::spawn(async move {
+        let mut watcher =
+            RecommendedWatcher::new(SenderEventHandler(event_tx), notify::Config::default())
+                .expect("Could not create config file watcher");
 
         let config_path = get_path();
         let watch_path = config_path
@@ -228,33 +244,56 @@ pub fn start_watcher(config_last_applied: Arc<Mutex<Instant>>) -> mpsc::Unbounde
             .watch(watch_path, notify::RecursiveMode::Recursive)
             .expect("Could not subscribe to config file changes");
 
-        for res in event_rx {
+        while let Some(res) = event_rx.recv().await {
             debug!("got config file event {res:?}");
             match res {
                 Ok(event) => {
                     use notify::EventKind;
 
-                    let elapsed = config_last_applied.lock().unwrap().elapsed();
-                    if elapsed < Duration::from_millis(50) {
-                        debug!("config was applied very recently, skipping fs event");
-                        continue;
-                    }
+                    if let EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) =
+                        event.kind
+                    {
+                        if config_last_saved.lock().unwrap().elapsed()
+                            < Duration::from_millis(CONFIG_RELOAD_INTERVAL_MILLIS)
+                        {
+                            debug!("ignoring fs event after self-inflicted config change");
+                            continue;
+                        }
 
-                    if !event.paths.contains(&config_path) {
-                        continue;
-                    }
+                        // Accumulate FS events, reload config only after a period has passed since the last event
+                        debug!(
+                            "waiting for {CONFIG_RELOAD_INTERVAL_MILLIS}ms before reloading config"
+                        );
+                        let timeout =
+                            time::sleep(Duration::from_millis(CONFIG_RELOAD_INTERVAL_MILLIS));
+                        tokio::pin!(timeout);
 
-                    match event.kind {
-                        EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) => {
-                            match Config::load() {
-                                Ok(Some(new_config)) => config_tx.send(new_config).unwrap(),
-                                Ok(None) => error!("config was removed!"),
-                                Err(err) => {
-                                    error!("could not read config after it was changed: {err:#}");
-                                }
+                        loop {
+                            tokio::select! {
+                               () = &mut timeout => {
+                                   break;
+                               }
+                               Some(res) = event_rx.recv() => {
+                                    match res {
+                                        Ok(event) => {
+                                            if let EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) = event.kind {
+                                                debug!("got another fs event, resetting reload timer");
+                                                timeout.as_mut().reset(time::Instant::now() + Duration::from_millis(CONFIG_RELOAD_INTERVAL_MILLIS));
+                                            }
+                                        }
+                                        Err(err) => error!("filesystem event error: {err}")
+                                    }
+                               }
                             }
                         }
-                        _ => (),
+
+                        match Config::load() {
+                            Ok(Some(new_config)) => config_tx.send(new_config).unwrap(),
+                            Ok(None) => error!("config was removed!"),
+                            Err(err) => {
+                                error!("could not read config after it was changed: {err:#}");
+                            }
+                        }
                     }
                 }
                 Err(err) => error!("filesystem event error: {err}"),
@@ -265,6 +304,14 @@ pub fn start_watcher(config_last_applied: Arc<Mutex<Instant>>) -> mpsc::Unbounde
     });
 
     config_rx
+}
+
+struct SenderEventHandler(mpsc::Sender<notify::Result<notify::Event>>);
+
+impl notify::EventHandler for SenderEventHandler {
+    fn handle_event(&mut self, event: notify::Result<notify::Event>) {
+        let _ = self.0.blocking_send(event);
+    }
 }
 
 fn get_path() -> PathBuf {
@@ -329,6 +376,7 @@ mod tests {
             performance_level: None,
             clocks_configuration: ClocksConfiguration::default(),
             power_profile_mode_index: None,
+            custom_power_profile_mode_hueristics: vec![],
             power_states: HashMap::new(),
         };
 

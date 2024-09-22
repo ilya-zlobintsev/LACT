@@ -34,7 +34,7 @@ impl PointAdjustment {
         temperature_selector.connect_input(|spin| {
             let text = spin.text();
             let temp = text.trim_end_matches("°C");
-            Some(Ok(temp.parse::<f64>().unwrap()))
+            Some(Ok(temp.parse::<f64>().unwrap_or_else(|_| spin.value())))
         });
         temperature_selector.connect_output(|spin| {
             let text = format!("{}°C", spin.value_as_int());
@@ -45,7 +45,10 @@ impl PointAdjustment {
         ratio_selector.connect_input(|spin| {
             let text = spin.text();
             let percentage = text.trim_end_matches('%');
-            Some(Ok(percentage.parse::<f64>().unwrap() / 100.0))
+            Some(Ok(percentage
+                .parse::<f64>()
+                .map(|value| value / 100.0)
+                .unwrap_or_else(|_| spin.value())))
         });
         ratio_selector.connect_output(|spin| {
             let value = spin.value();
@@ -71,18 +74,26 @@ impl PointAdjustment {
         let text = format!("<b>{}%</b> at {temperature}°C", (ratio * 100.0).round());
         let temperature_label = Label::builder().label(text).use_markup(true).build();
 
-        temperature_adjustment.connect_value_changed(
-            clone!(@strong temperature_label, @strong ratio_adjustment => move |temperature_adjustment| {
+        temperature_adjustment.connect_value_changed(clone!(
+            #[strong]
+            temperature_label,
+            #[strong]
+            ratio_adjustment,
+            move |temperature_adjustment| {
                 let temperature = temperature_adjustment.value();
                 let ratio = (ratio_adjustment.value() * 100.0).round();
                 let text = format!("<b>{ratio}%</b> at {temperature}°C");
                 temperature_label.set_markup(&text);
-            }),
-        );
+            }
+        ));
 
-        ratio_adjustment.connect_value_changed(clone!(@strong temperature_adjustment => move |_| {
-            temperature_adjustment.emit_by_name::<()>("value-changed", &[]);
-        }));
+        ratio_adjustment.connect_value_changed(clone!(
+            #[strong]
+            temperature_adjustment,
+            move |_| {
+                temperature_adjustment.emit_by_name::<()>("value-changed", &[]);
+            }
+        ));
 
         let popover = Popover::builder().child(&popover_menu).build();
         let temperature_button = MenuButton::builder()

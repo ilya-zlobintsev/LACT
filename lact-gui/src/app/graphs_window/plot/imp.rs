@@ -21,7 +21,11 @@ pub struct Plot {
     #[property(get, set)]
     value_suffix: RefCell<String>,
     #[property(get, set)]
+    secondary_value_suffix: RefCell<String>,
+    #[property(get, set)]
     y_label_area_size: Cell<u32>,
+    #[property(get, set)]
+    secondary_y_label_area_size: Cell<u32>,
     pub(super) data: RefCell<PlotData>,
 }
 
@@ -67,6 +71,7 @@ impl WidgetImpl for Plot {
 #[cfg_attr(feature = "bench", derive(Clone))]
 pub struct PlotData {
     line_series: BTreeMap<String, Vec<(i64, f64)>>,
+    secondary_line_series: BTreeMap<String, Vec<(i64, f64)>>,
     throttling: Vec<(i64, (String, bool))>,
 }
 
@@ -75,22 +80,45 @@ impl PlotData {
         self.push_line_series_with_time(name, point, chrono::Local::now().naive_local());
     }
 
+    pub fn push_secondary_line_series(&mut self, name: &str, point: f64) {
+        self.push_secondary_line_series_with_time(name, point, chrono::Local::now().naive_local());
+    }
+
     pub fn push_line_series_with_time(&mut self, name: &str, point: f64, time: NaiveDateTime) {
         self.line_series
             .entry(name.to_owned())
             .or_default()
-            .push((time.timestamp_millis(), point));
+            .push((time.and_utc().timestamp_millis(), point));
+    }
+
+    pub fn push_secondary_line_series_with_time(
+        &mut self,
+        name: &str,
+        point: f64,
+        time: NaiveDateTime,
+    ) {
+        self.secondary_line_series
+            .entry(name.to_owned())
+            .or_default()
+            .push((time.and_utc().timestamp_millis(), point));
     }
 
     pub fn push_throttling(&mut self, name: &str, point: bool) {
         self.throttling.push((
-            chrono::Local::now().naive_local().timestamp_millis(),
+            chrono::Local::now()
+                .naive_local()
+                .and_utc()
+                .timestamp_millis(),
             (name.to_owned(), point),
         ));
     }
 
     pub fn line_series_iter(&self) -> impl Iterator<Item = (&String, &Vec<(i64, f64)>)> {
         self.line_series.iter()
+    }
+
+    pub fn secondary_line_series_iter(&self) -> impl Iterator<Item = (&String, &Vec<(i64, f64)>)> {
+        self.secondary_line_series.iter()
     }
 
     pub fn throttling_iter(&self) -> impl Iterator<Item = (i64, &str, bool)> {
@@ -111,6 +139,18 @@ impl PlotData {
         }
 
         self.line_series.retain(|_, data| !data.is_empty());
+
+        for data in self.secondary_line_series.values_mut() {
+            let maximum_point = data
+                .last()
+                .map(|(date_time, _)| *date_time)
+                .unwrap_or_default();
+
+            data.retain(|(time_point, _)| ((maximum_point - *time_point) / 1000) < last_seconds);
+        }
+
+        self.secondary_line_series
+            .retain(|_, data| !data.is_empty());
 
         // Limit data to N seconds
         let maximum_point = self
@@ -162,21 +202,34 @@ impl Plot {
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(40)
             .y_label_area_size(self.y_label_area_size.get())
+            .right_y_label_area_size(self.secondary_y_label_area_size.get())
             .margin(20)
             .caption(self.title.borrow().as_str(), ("sans-serif", 30))
             .build_cartesian_2d(
                 start_date..max(end_date, start_date + 60 * 1000),
                 0f64..maximum_value,
-            )?;
+            )?
+            .set_secondary_coord(
+                start_date..max(end_date, start_date + 60 * 1000),
+                0.0..100.0,
+            );
 
         chart
             .configure_mesh()
             .x_label_formatter(&|date_time| {
-                let date_time = NaiveDateTime::from_timestamp_millis(*date_time).unwrap();
+                let date_time = chrono::DateTime::from_timestamp_millis(*date_time).unwrap();
                 date_time.format("%H:%M:%S").to_string()
             })
             .y_label_formatter(&|x| format!("{x}{}", self.value_suffix.borrow()))
             .x_labels(5)
+            .y_labels(10)
+            .label_style(("sans-serif", 30))
+            .draw()
+            .context("Failed to draw mesh")?;
+
+        chart
+            .configure_secondary_axes()
+            .y_label_formatter(&|x| format!("{x}{}", self.secondary_value_suffix.borrow()))
             .y_labels(10)
             .label_style(("sans-serif", 30))
             .draw()
@@ -187,7 +240,7 @@ impl Plot {
             .draw_series(
                 data.throttling_iter()
                     // Group segments of consecutive enabled/disabled throttlings
-                    .group_by(|(_, _, point)| *point)
+                    .chunk_by(|(_, _, point)| *point)
                     .into_iter()
                     // Filter only when throttling is enabled
                     .filter_map(|(point, group_iter)| point.then_some(group_iter))
@@ -229,9 +282,32 @@ impl Plot {
                 });
         }
 
+        for (idx, (caption, data)) in (0..).zip(data.secondary_line_series_iter()) {
+            chart
+                .draw_secondary_series(LineSeries::new(
+                    cubic_spline_interpolation(data.iter())
+                        .into_iter()
+                        .flat_map(|((first_time, second_time), segment)| {
+                            // Interpolate in intervals of one millisecond
+                            (first_time..second_time).map(move |current_date| {
+                                (current_date, segment.evaluate(current_date))
+                            })
+                        }),
+                    Palette99::pick(idx + 10).stroke_width(1), // Offset the pallete pick compared to the main graph
+                ))
+                .context("Failed to draw series")?
+                .label(caption)
+                .legend(move |(x, y)| {
+                    Rectangle::new(
+                        [(x - 10, y - 10), (x + 10, y + 10)],
+                        Palette99::pick(idx + 10),
+                    )
+                });
+        }
+
         chart
             .configure_series_labels()
-            .margin(30)
+            .margin(40)
             .label_font(("sans-serif", 30))
             .position(SeriesLabelPosition::LowerRight)
             .background_style(WHITE.mix(0.8))

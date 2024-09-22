@@ -119,20 +119,32 @@ impl FanCurveFrame {
             hysteresis_grid,
         };
 
-        default_button.connect_clicked(clone!(@strong curve_frame => move |_| {
-            let curve = default_fan_curve();
-            curve_frame.set_curve(&curve);
-            spindown_delay_adj.set_value(DEFAULT_SPINDOWN_DELAY_MS as f64);
-            change_threshold_adj.set_value(DEFAULT_CHANGE_THRESHOLD as f64);
-        }));
+        default_button.connect_clicked(clone!(
+            #[strong]
+            curve_frame,
+            move |_| {
+                let curve = default_fan_curve();
+                curve_frame.set_curve(&curve);
+                spindown_delay_adj.set_value(DEFAULT_SPINDOWN_DELAY_MS as f64);
+                change_threshold_adj.set_value(DEFAULT_CHANGE_THRESHOLD as f64);
+            }
+        ));
 
-        add_button.connect_clicked(clone!(@strong curve_frame  => move |_| {
-            curve_frame.add_point();
-        }));
+        add_button.connect_clicked(clone!(
+            #[strong]
+            curve_frame,
+            move |_| {
+                curve_frame.add_point();
+            }
+        ));
 
-        remove_button.connect_clicked(clone!(@strong curve_frame  => move |_| {
-            curve_frame.remove_point();
-        }));
+        remove_button.connect_clicked(clone!(
+            #[strong]
+            curve_frame,
+            move |_| {
+                curve_frame.remove_point();
+            }
+        ));
 
         curve_frame
     }
@@ -195,18 +207,28 @@ impl FanCurveFrame {
     }
 
     pub fn connect_adjusted<F: Fn() + 'static + Clone>(&self, f: F) {
-        self.change_threshold_adj
-            .connect_value_changed(clone!(@strong f => move |_| {
+        self.change_threshold_adj.connect_value_changed(clone!(
+            #[strong]
+            f,
+            move |_| {
                 f();
-            }));
-        self.spindown_delay_adj
-            .connect_value_changed(clone!(@strong f => move |_| {
+            }
+        ));
+        self.spindown_delay_adj.connect_value_changed(clone!(
+            #[strong]
+            f,
+            move |_| {
                 f();
-            }));
+            }
+        ));
 
-        let closure = clone!(@strong f => move |_: &Adjustment| {
-            f();
-        });
+        let closure = clone!(
+            #[strong]
+            f,
+            move |_: &Adjustment| {
+                f();
+            }
+        );
 
         for point in &*self.points.borrow() {
             point.ratio.connect_value_changed(closure.clone());
@@ -288,16 +310,20 @@ fn oc_adjustment_row(
         .child(&value_label)
         .build();
 
-    adjustment.connect_value_changed(clone!(@strong value_label => move |adjustment| {
-        let value = match opts.digits {
-            0 => adjustment.value().round(),
-            _ => {
-                let rounding = opts.digits as f64 * 10.0;
-                (adjustment.value() * rounding).round() / rounding
-            }
-        };
-        value_label.set_text(&format!("{value}{unit}"));
-    }));
+    adjustment.connect_value_changed(clone!(
+        #[strong]
+        value_label,
+        move |adjustment| {
+            let value = match opts.digits {
+                0 => adjustment.value().round(),
+                _ => {
+                    let rounding = opts.digits as f64 * 10.0;
+                    (adjustment.value() * rounding).round() / rounding
+                }
+            };
+            value_label.set_text(&format!("{value}{unit}"));
+        }
+    ));
 
     grid.attach(&label, 0, row, 1, 1);
     grid.attach(&scale, 1, row, 4, 1);

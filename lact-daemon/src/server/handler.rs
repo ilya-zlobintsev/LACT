@@ -23,7 +23,7 @@ use std::{
     cell::RefCell,
     collections::{BTreeMap, HashMap},
     env,
-    fs::{File, Permissions},
+    fs::{self, File, Permissions},
     io::{BufWriter, Cursor, Write},
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
@@ -78,7 +78,7 @@ pub struct Handler {
     pub config: Rc<RefCell<Config>>,
     pub gpu_controllers: Rc<BTreeMap<String, GpuController>>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
-    pub config_last_applied: Arc<Mutex<Instant>>,
+    pub config_last_saved: Arc<Mutex<Instant>>,
 }
 
 impl<'a> Handler {
@@ -86,12 +86,42 @@ impl<'a> Handler {
         let mut controllers = BTreeMap::new();
 
         // Sometimes LACT starts too early in the boot process, before the sysfs is initialized.
-        // For such scenarios there is a retry logic when no GPUs were found
+        // For such scenarios there is a retry logic when no GPUs were found,
+        // or if some of the PCI devices don't have a drm entry yet.
         for i in 1..=CONTROLLERS_LOAD_RETRY_ATTEMPTS {
             controllers = load_controllers()?;
 
+            let mut should_retry = false;
+            if let Ok(devices) = fs::read_dir("/sys/bus/pci/devices") {
+                for device in devices.flatten() {
+                    if let Ok(uevent) = fs::read_to_string(device.path().join("uevent")) {
+                        let uevent = uevent.replace('\0', "");
+                        if uevent.contains("amdgpu") || uevent.contains("radeon") {
+                            let slot_name = device
+                                .file_name()
+                                .into_string()
+                                .expect("pci file name should be valid unicode");
+
+                            if controllers.values().any(|controller| {
+                                controller.handle.get_pci_slot_name() == Some(&slot_name)
+                            }) {
+                                debug!("found intialized drm entry for device {:?}", device.path());
+                            } else {
+                                warn!("could not find drm entry for device {:?}", device.path());
+                                should_retry = true;
+                            }
+                        }
+                    }
+                }
+            }
+
             if controllers.is_empty() {
-                warn!("no GPUs were found, retrying in {CONTROLLERS_LOAD_RETRY_INTERVAL}s (attempt {i}/{CONTROLLERS_LOAD_RETRY_ATTEMPTS})");
+                warn!("no GPUs were found");
+                should_retry = true;
+            }
+
+            if should_retry {
+                info!("retrying in {CONTROLLERS_LOAD_RETRY_INTERVAL}s (attempt {i}/{CONTROLLERS_LOAD_RETRY_ATTEMPTS})");
                 sleep(Duration::from_secs(CONTROLLERS_LOAD_RETRY_INTERVAL)).await;
             } else {
                 break;
@@ -103,13 +133,14 @@ impl<'a> Handler {
             gpu_controllers: Rc::new(controllers),
             config: Rc::new(RefCell::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
-            config_last_applied: Arc::new(Mutex::new(Instant::now())),
+            config_last_saved: Arc::new(Mutex::new(Instant::now())),
         };
         handler.apply_current_config().await;
 
         // Eagerly release memory
         // `load_controllers` allocates and deallocates the entire PCI ID database,
         // this tells the os to release it right away, lowering measured memory usage (the actual usage is low regardless as it was already deallocated)
+        #[cfg(target_env = "gnu")]
         unsafe {
             libc::malloc_trim(0);
         }
@@ -119,8 +150,6 @@ impl<'a> Handler {
 
     pub async fn apply_current_config(&self) {
         let config = self.config.borrow().clone(); // Clone to avoid locking the RwLock on an await point
-
-        *self.config_last_applied.lock().unwrap() = Instant::now();
 
         match config.gpus() {
             Ok(gpus) => {
@@ -216,7 +245,7 @@ impl<'a> Handler {
                     match result {
                         Ok(ConfirmCommand::Confirm) => {
                             info!("saving updated config");
-                            *handler.config_last_applied.lock().unwrap() = Instant::now();
+                            *handler.config_last_saved.lock().unwrap() = Instant::now();
 
                             let mut config_guard = handler.config.borrow_mut();
                             match config_guard.gpus_mut() {
@@ -227,8 +256,10 @@ impl<'a> Handler {
                             }
 
                             if let Err(err) = config_guard.save() {
-                                error!("{err}");
+                                error!("{err:#}");
                             }
+
+                            *handler.config_last_saved.lock().unwrap() = Instant::now();
                         }
                         Ok(ConfirmCommand::Revert) | Err(_) => {
                             if let Err(err) = controller.apply_config(&previous_config).await {
@@ -256,15 +287,18 @@ impl<'a> Handler {
             .context("No controller with such id")?)
     }
 
-    pub fn list_devices(&'a self) -> Vec<DeviceListEntry<'a>> {
+    pub fn list_devices(&'a self) -> Vec<DeviceListEntry> {
         self.gpu_controllers
             .iter()
             .map(|(id, controller)| {
                 let name = controller
                     .pci_info
                     .as_ref()
-                    .and_then(|pci_info| pci_info.device_pci_info.model.as_deref());
-                DeviceListEntry { id, name }
+                    .and_then(|pci_info| pci_info.device_pci_info.model.clone());
+                DeviceListEntry {
+                    id: id.to_owned(),
+                    name,
+                }
             })
             .collect()
     }
@@ -455,9 +489,11 @@ impl<'a> Handler {
         &self,
         id: &str,
         index: Option<u16>,
+        custom_heuristics: Vec<Vec<Option<i32>>>,
     ) -> anyhow::Result<u64> {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
             gpu_config.power_profile_mode_index = index;
+            gpu_config.custom_power_profile_mode_hueristics = custom_heuristics;
         })
         .await
         .context("Failed to edit GPU config and set power profile mode")
@@ -584,7 +620,21 @@ impl<'a> Handler {
         }
     }
 
-    pub async fn cleanup(self) {
+    pub async fn reset_config(&self) {
+        self.cleanup().await;
+
+        let mut config = self.config.borrow_mut();
+        config.clear();
+
+        *self.config_last_saved.lock().unwrap() = Instant::now();
+        if let Err(err) = config.save() {
+            error!("could not save config: {err:#}");
+        }
+
+        *self.config_last_saved.lock().unwrap() = Instant::now();
+    }
+
+    pub async fn cleanup(&self) {
         let disable_clocks_cleanup = self
             .config
             .try_borrow()

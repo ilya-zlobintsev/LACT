@@ -20,10 +20,19 @@ images:
   - name: ubuntu-2204
     target: deb
     os: Ubuntu
+  - name: ubuntu-2404
+    target: deb
+    os: Ubuntu
   - name: arch
     target: pkg
     os: Arch Linux
   - name: opensuse-tumbleweed
     target: rpm
     os: OpenSUSE
+  - name: rhel-8
+    target: rpm
+    os: Red Hat
+  - name: rhel-9
+    target: rpm
+    os: Red Hat
 custom_simple_images: ~

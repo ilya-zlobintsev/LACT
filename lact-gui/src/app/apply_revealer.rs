@@ -1,50 +1,62 @@
-use gtk::prelude::*;
-use gtk::*;
+use gtk::prelude::{BoxExt, ButtonExt, OrientableExt, WidgetExt};
+use relm4::{ComponentParts, ComponentSender, SimpleComponent};
 
-#[derive(Clone)]
 pub struct ApplyRevealer {
-    pub container: Revealer,
-    apply_button: Button,
-    reset_button: Button,
+    shown: bool,
 }
 
-impl ApplyRevealer {
-    pub fn new() -> Self {
-        let container = Revealer::builder().transition_duration(150).build();
-        let vbox = Box::new(Orientation::Horizontal, 5);
+#[derive(Debug)]
+pub enum ApplyRevealerMsg {
+    Show,
+    Hide,
+}
 
-        let apply_button = Button::builder().label("Apply").hexpand(true).build();
-        let reset_button = Button::builder().label("Reset").build();
+#[relm4::component(pub)]
+impl SimpleComponent for ApplyRevealer {
+    type Init = ();
 
-        vbox.append(&apply_button);
-        vbox.append(&reset_button);
+    type Input = ApplyRevealerMsg;
+    type Output = super::AppMsg;
 
-        container.set_child(Some(&vbox));
+    view! {
+        gtk::Revealer {
+            #[watch]
+            set_reveal_child: model.shown,
 
-        Self {
-            container,
-            apply_button,
-            reset_button,
+            gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 5,
+
+                gtk::Button {
+                    set_label: "Apply",
+                    set_hexpand: true,
+                    connect_clicked[sender] => move |_| { sender.output(super::AppMsg::ApplyChanges).unwrap(); },
+                },
+
+                gtk::Button {
+                    set_label: "Revert",
+                    connect_clicked[sender] => move |_| { sender.output(super::AppMsg::RevertChanges).unwrap(); },
+                },
+            }
         }
     }
 
-    pub fn show(&self) {
-        self.container.set_reveal_child(true);
+    fn init(
+        _init: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let model = Self { shown: false };
+
+        let widgets = view_output!();
+
+        ComponentParts { widgets, model }
     }
 
-    pub fn hide(&self) {
-        self.container.set_reveal_child(false);
-    }
-
-    pub fn connect_apply_button_clicked<F: Fn() + 'static>(&self, f: F) {
-        self.apply_button.connect_clicked(move |_| {
-            f();
-        });
-    }
-
-    pub fn connect_reset_button_clicked<F: Fn() + 'static>(&self, f: F) {
-        self.reset_button.connect_clicked(move |_| {
-            f();
-        });
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
+        match msg {
+            ApplyRevealerMsg::Show => self.shown = true,
+            ApplyRevealerMsg::Hide => self.shown = false,
+        }
     }
 }

@@ -2,7 +2,7 @@ mod clocks_frame;
 mod gpu_stats_section;
 mod performance_frame;
 mod power_cap_section;
-// mod power_cap_frame;
+mod power_profile;
 mod power_states;
 
 use self::power_cap_section::PowerCapSection;
@@ -12,7 +12,7 @@ use clocks_frame::ClocksFrame;
 use gpu_stats_section::GpuStatsSection;
 use gtk::*;
 use gtk::{glib::clone, prelude::*};
-use lact_client::schema::{DeviceStats, SystemInfo};
+use lact_client::schema::{DeviceInfo, DeviceStats, SystemInfo};
 use performance_frame::PerformanceFrame;
 // use power_cap_frame::PowerCapFrame;
 use std::collections::HashMap;
@@ -62,12 +62,16 @@ impl OcPage {
         let clocks_frame = ClocksFrame::new();
         let power_states_frame = PowerStatesFrame::new();
 
-        performance_level_frame.connect_settings_changed(
-            clone!(@strong performance_level_frame, @strong power_states_frame => move || {
+        performance_level_frame.connect_settings_changed(clone!(
+            #[strong]
+            performance_level_frame,
+            #[strong]
+            power_states_frame,
+            move || {
                 let level = performance_level_frame.get_selected_performance_level();
                 power_states_frame.set_configurable(level == PerformanceLevel::Manual);
-            }),
-        );
+            }
+        ));
 
         vbox.append(&power_cap_section);
         vbox.append(&performance_level_frame.container);
@@ -109,6 +113,17 @@ impl OcPage {
         }
     }
 
+    pub fn set_info(&self, info: &DeviceInfo) {
+        let vram_clock_ratio = info
+            .drm_info
+            .as_ref()
+            .map(|info| info.vram_clock_ratio)
+            .unwrap_or(1.0);
+
+        self.stats_section.set_vram_clock_ratio(vram_clock_ratio);
+        self.clocks_frame.set_vram_clock_ratio(vram_clock_ratio);
+    }
+
     pub fn set_clocks_table(&self, table: Option<ClocksTableGen>) {
         match table {
             Some(table) => match self.clocks_frame.set_table(table) {
@@ -128,8 +143,11 @@ impl OcPage {
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         self.performance_frame.connect_settings_changed(f.clone());
-        self.power_cap_section
-            .connect_current_value_notify(clone!(@strong f => move |_| f()));
+        self.power_cap_section.connect_current_value_notify(clone!(
+            #[strong]
+            f,
+            move |_| f()
+        ));
         self.clocks_frame.connect_clocks_changed(f.clone());
         self.power_states_frame.connect_values_changed(f);
     }

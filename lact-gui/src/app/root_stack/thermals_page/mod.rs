@@ -216,14 +216,22 @@ impl ThermalsPage {
 
     pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
         self.fan_control_mode_stack
-            .connect_visible_child_name_notify(clone!(@strong f => move |_| {
-                f();
-            }));
+            .connect_visible_child_name_notify(clone!(
+                #[strong]
+                f,
+                move |_| {
+                    f();
+                }
+            ));
 
         self.fan_static_speed_adjustment
-            .connect_value_changed(clone!(@strong f => move |_| {
-                f();
-            }));
+            .connect_value_changed(clone!(
+                #[strong]
+                f,
+                move |_| {
+                    f();
+                }
+            ));
 
         self.pmfw_frame.connect_settings_changed(f.clone());
 
@@ -295,10 +303,14 @@ fn static_speed_adj(parent_box: &Box) -> Adjustment {
         .child(&value_label)
         .build();
 
-    adjustment.connect_value_changed(clone!(@strong value_label => move |adjustment| {
-        let value = adjustment.value();
-        value_label.set_text(&format!("{value:.1}"));
-    }));
+    adjustment.connect_value_changed(clone!(
+        #[strong]
+        value_label,
+        move |adjustment| {
+            let value = adjustment.value();
+            value_label.set_text(&format!("{value:.1}"));
+        }
+    ));
 
     adjustment.set_value(50.0);
 

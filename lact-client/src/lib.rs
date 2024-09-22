@@ -1,3 +1,4 @@
+mod connection;
 #[macro_use]
 mod macros;
 
@@ -6,7 +7,8 @@ pub use lact_schema as schema;
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
-use anyhow::{anyhow, Context};
+use anyhow::Context;
+use connection::{tcp::TcpConnection, unix::UnixConnection, DaemonConnection};
 use nix::unistd::getuid;
 use schema::{
     request::{ConfirmCommand, SetClocksCommand},
@@ -15,107 +17,105 @@ use schema::{
 };
 use serde::Deserialize;
 use std::{
-    cell::RefCell,
-    io::{BufRead, BufReader, Write},
-    marker::PhantomData,
-    os::unix::net::UnixStream,
-    path::{Path, PathBuf},
-    rc::Rc,
-    time::Duration,
+    future::Future, marker::PhantomData, os::unix::net::UnixStream, path::PathBuf, pin::Pin,
+    rc::Rc, time::Duration,
 };
+use tokio::{net::ToSocketAddrs, sync::Mutex};
 use tracing::{error, info};
 
 const RECONNECT_INTERVAL_MS: u64 = 250;
 
 #[derive(Clone)]
 pub struct DaemonClient {
-    stream: Rc<RefCell<(BufReader<UnixStream>, UnixStream)>>,
+    stream: Rc<Mutex<Box<dyn DaemonConnection>>>,
     pub embedded: bool,
 }
 
 impl DaemonClient {
-    pub fn connect() -> anyhow::Result<Self> {
+    pub async fn connect() -> anyhow::Result<Self> {
         let path =
             get_socket_path().context("Could not connect to daemon: socket file not found")?;
-        info!("connecting to service at {path:?}");
-        let stream_pair = connect_pair(&path)?;
+        let stream = UnixConnection::connect(&path).await?;
 
         Ok(Self {
-            stream: Rc::new(RefCell::new(stream_pair)),
+            stream: Rc::new(Mutex::new(stream)),
+            embedded: false,
+        })
+    }
+
+    pub async fn connect_tcp(addr: impl ToSocketAddrs) -> anyhow::Result<Self> {
+        let stream = TcpConnection::connect(addr).await?;
+
+        Ok(Self {
+            stream: Rc::new(Mutex::new(stream)),
             embedded: false,
         })
     }
 
     pub fn from_stream(stream: UnixStream, embedded: bool) -> anyhow::Result<Self> {
-        let reader = BufReader::new(stream.try_clone()?);
+        let connection = UnixConnection::try_from(stream)?;
         Ok(Self {
-            stream: Rc::new(RefCell::new((reader, stream))),
+            stream: Rc::new(Mutex::new(Box::new(connection))),
             embedded,
         })
     }
 
-    fn make_request<'a, T: Deserialize<'a>>(
-        &self,
-        request: Request,
-    ) -> anyhow::Result<ResponseBuffer<T>> {
-        let mut stream_guard = self
-            .stream
-            .try_borrow_mut()
-            .map_err(|err| anyhow!("{err}"))?;
-        let (reader, writer) = &mut *stream_guard;
+    fn make_request<'a, 'r, T: Deserialize<'r>>(
+        &'a self,
+        request: Request<'a>,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<ResponseBuffer<T>>> + 'a>> {
+        Box::pin(async {
+            let mut stream = self.stream.lock().await;
 
-        if !reader.buffer().is_empty() {
-            return Err(anyhow!("Another request was not processed properly"));
-        }
+            let request_payload = serde_json::to_string(&request)?;
+            match stream.request(&request_payload).await {
+                Ok(response_payload) => Ok(ResponseBuffer {
+                    buf: response_payload,
+                    _phantom: PhantomData,
+                }),
+                Err(err) => {
+                    error!("Could not make request: {err}, reconnecting to socket");
 
-        let response_payload = match process_request(&request, reader, writer) {
-            Ok(payload) => payload,
-            Err(err) => {
-                error!("Could not make request: {err}, reconnecting to socket");
-                let peer_addr = writer.peer_addr().context("Could not read peer address")?;
-                let path = peer_addr
-                    .as_pathname()
-                    .context("Connected socket addr is not a path")?;
-
-                loop {
-                    match connect_pair(path) {
-                        Ok(new_connection) => {
-                            info!("Established new socket connection");
-                            *stream_guard = new_connection;
-                            drop(stream_guard);
-                            return self.make_request(request);
-                        }
-                        Err(err) => {
-                            error!("Could not reconnect: {err:#}, retrying in {RECONNECT_INTERVAL_MS}ms");
-                            std::thread::sleep(Duration::from_millis(RECONNECT_INTERVAL_MS));
+                    loop {
+                        match stream.new_connection().await {
+                            Ok(new_connection) => {
+                                info!("Established new socket connection");
+                                *stream = new_connection;
+                                drop(stream);
+                                return self.make_request(request).await;
+                            }
+                            Err(err) => {
+                                error!("Could not reconnect: {err:#}, retrying in {RECONNECT_INTERVAL_MS}ms");
+                                std::thread::sleep(Duration::from_millis(RECONNECT_INTERVAL_MS));
+                            }
                         }
                     }
                 }
             }
-        };
-
-        Ok(ResponseBuffer {
-            buf: response_payload,
-            _phantom: PhantomData,
         })
     }
 
-    pub fn list_devices<'a>(&self) -> anyhow::Result<ResponseBuffer<Vec<DeviceListEntry<'a>>>> {
-        self.make_request(Request::ListDevices)
+    pub async fn list_devices(&self) -> anyhow::Result<ResponseBuffer<Vec<DeviceListEntry>>> {
+        self.make_request(Request::ListDevices).await
     }
 
-    pub fn set_fan_control(&self, cmd: FanOptions) -> anyhow::Result<u64> {
-        self.make_request(Request::SetFanControl(cmd))?.inner()
+    pub async fn set_fan_control(&self, cmd: FanOptions<'_>) -> anyhow::Result<u64> {
+        self.make_request(Request::SetFanControl(cmd))
+            .await?
+            .inner()
     }
 
-    pub fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<u64> {
-        self.make_request(Request::SetPowerCap { id, cap })?.inner()
+    pub async fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<u64> {
+        self.make_request(Request::SetPowerCap { id, cap })
+            .await?
+            .inner()
     }
 
     request_plain!(get_system_info, SystemInfo, SystemInfo);
     request_plain!(enable_overdrive, EnableOverdrive, String);
     request_plain!(disable_overdrive, DisableOverdrive, String);
     request_plain!(generate_debug_snapshot, GenerateSnapshot, String);
+    request_plain!(reset_config, RestConfig, ());
     request_with_id!(get_device_info, DeviceInfo, DeviceInfo);
     request_with_id!(get_device_stats, DeviceStats, DeviceStats);
     request_with_id!(get_device_clocks_info, DeviceClocksInfo, ClocksInfo);
@@ -128,7 +128,7 @@ impl DaemonClient {
     request_with_id!(reset_pmfw, ResetPmfw, u64);
     request_with_id!(dump_vbios, VbiosDump, Vec<u8>);
 
-    pub fn set_performance_level(
+    pub async fn set_performance_level(
         &self,
         id: &str,
         performance_level: PerformanceLevel,
@@ -136,41 +136,60 @@ impl DaemonClient {
         self.make_request(Request::SetPerformanceLevel {
             id,
             performance_level,
-        })?
+        })
+        .await?
         .inner()
     }
 
-    pub fn set_clocks_value(&self, id: &str, command: SetClocksCommand) -> anyhow::Result<u64> {
-        self.make_request(Request::SetClocksValue { id, command })?
+    pub async fn set_clocks_value(
+        &self,
+        id: &str,
+        command: SetClocksCommand,
+    ) -> anyhow::Result<u64> {
+        self.make_request(Request::SetClocksValue { id, command })
+            .await?
             .inner()
     }
 
-    pub fn batch_set_clocks_value(
+    pub async fn batch_set_clocks_value(
         &self,
         id: &str,
         commands: Vec<SetClocksCommand>,
     ) -> anyhow::Result<u64> {
-        self.make_request(Request::BatchSetClocksValue { id, commands })?
+        self.make_request(Request::BatchSetClocksValue { id, commands })
+            .await?
             .inner()
     }
 
-    pub fn set_enabled_power_states(
+    pub async fn set_enabled_power_states(
         &self,
         id: &str,
         kind: PowerLevelKind,
         states: Vec<u8>,
     ) -> anyhow::Result<u64> {
-        self.make_request(Request::SetEnabledPowerStates { id, kind, states })?
+        self.make_request(Request::SetEnabledPowerStates { id, kind, states })
+            .await?
             .inner()
     }
 
-    pub fn set_power_profile_mode(&self, id: &str, index: Option<u16>) -> anyhow::Result<u64> {
-        self.make_request(Request::SetPowerProfileMode { id, index })?
-            .inner()
+    pub async fn set_power_profile_mode(
+        &self,
+        id: &str,
+        index: Option<u16>,
+        custom_heuristics: Vec<Vec<Option<i32>>>,
+    ) -> anyhow::Result<u64> {
+        self.make_request(Request::SetPowerProfileMode {
+            id,
+            index,
+            custom_heuristics,
+        })
+        .await?
+        .inner()
     }
 
-    pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
-        self.make_request(Request::ConfirmPendingConfig(command))?
+    pub async fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
+        self.make_request(Request::ConfirmPendingConfig(command))
+            .await?
             .inner()
     }
 }
@@ -209,25 +228,4 @@ impl<'a, T: Deserialize<'a>> ResponseBuffer<T> {
             }
         }
     }
-}
-
-fn connect_pair(path: &Path) -> anyhow::Result<(BufReader<UnixStream>, UnixStream)> {
-    let stream = UnixStream::connect(path).context("Could not connect to daemon")?;
-    let reader = BufReader::new(stream.try_clone()?);
-    Ok((reader, stream))
-}
-
-fn process_request(
-    request: &Request,
-    reader: &mut BufReader<UnixStream>,
-    writer: &mut UnixStream,
-) -> anyhow::Result<String> {
-    let request_payload = serde_json::to_string(request)?;
-    writer.write_all(request_payload.as_bytes())?;
-    writer.write_all(b"\n")?;
-
-    let mut response_payload = String::new();
-    reader.read_line(&mut response_payload)?;
-
-    Ok(response_payload)
 }

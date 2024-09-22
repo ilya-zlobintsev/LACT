@@ -1,14 +1,15 @@
 mod feature_window;
 
-use self::feature_window::VulkanFeaturesWindow;
-
 use super::values_grid;
-use crate::app::root_stack::info_page::vulkan_info::feature_window::feature::VulkanFeature;
 use crate::app::root_stack::{label_row, values_row};
+use feature_window::{VulkanFeature, VulkanFeaturesWindow};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::VulkanInfo;
+use relm4::{Component, ComponentController};
+use std::cell::RefCell;
+use std::rc::Rc;
 use tracing::trace;
 
 #[derive(Clone)]
@@ -18,16 +19,16 @@ pub struct VulkanInfoFrame {
     version_label: Label,
     driver_name_label: Label,
     driver_version_label: Label,
-    features_model: gio::ListStore,
-    extensions_model: gio::ListStore,
+    features: Rc<RefCell<Vec<VulkanFeature>>>,
+    extensions: Rc<RefCell<Vec<VulkanFeature>>>,
 }
 
 impl VulkanInfoFrame {
     pub fn new() -> Self {
         let container = Box::new(Orientation::Vertical, 0);
 
-        let features_model = gio::ListStore::new::<VulkanFeature>();
-        let extensions_model = gio::ListStore::new::<VulkanFeature>();
+        let features: Rc<RefCell<Vec<VulkanFeature>>> = Rc::default();
+        let extensions: Rc<RefCell<Vec<VulkanFeature>>> = Rc::default();
 
         let grid = values_grid();
         grid.set_margin_start(0);
@@ -39,15 +40,23 @@ impl VulkanInfoFrame {
         let driver_version_label = label_row("Driver version:", &grid, 3, 0, true);
 
         let show_features_button = Button::builder().label("Show").halign(Align::End).build();
-        show_features_button.connect_clicked(clone!(@strong features_model => move |_| {
-            show_features_window("Vulkan features", features_model.clone());
-        }));
+        show_features_button.connect_clicked(clone!(
+            #[strong]
+            features,
+            move |_| {
+                show_features_window("Vulkan features", features.clone());
+            }
+        ));
         values_row("Features:", &grid, &show_features_button, 4, 0);
 
         let show_extensions_button = Button::builder().label("Show").halign(Align::End).build();
-        show_extensions_button.connect_clicked(clone!(@strong extensions_model => move |_| {
-            show_features_window("Vulkan extensions", extensions_model.clone());
-        }));
+        show_extensions_button.connect_clicked(clone!(
+            #[strong]
+            extensions,
+            move |_| {
+                show_features_window("Vulkan extensions", extensions.clone());
+            }
+        ));
         values_row("Extensions:", &grid, &show_extensions_button, 5, 0);
 
         container.append(&grid);
@@ -58,8 +67,8 @@ impl VulkanInfoFrame {
             version_label,
             driver_name_label,
             driver_version_label,
-            features_model,
-            extensions_model,
+            features,
+            extensions,
         }
     }
 
@@ -81,21 +90,35 @@ impl VulkanInfoFrame {
             vulkan_info.driver.info.as_deref().unwrap_or_default(),
         ));
 
-        self.features_model.remove_all();
+        let mut features = self.features.borrow_mut();
+        features.clear();
+
         for (name, supported) in &vulkan_info.features {
-            let feature = VulkanFeature::new(name.to_string(), *supported);
-            self.features_model.append(&feature);
+            let feature = VulkanFeature {
+                name: name.to_string(),
+                supported: *supported,
+            };
+            features.push(feature);
         }
 
-        self.extensions_model.remove_all();
+        let mut extensions = self.extensions.borrow_mut();
+        extensions.clear();
         for (name, supported) in &vulkan_info.extensions {
-            let extension = VulkanFeature::new(name.to_string(), *supported);
-            self.extensions_model.append(&extension);
+            let extension = VulkanFeature {
+                name: name.to_string(),
+                supported: *supported,
+            };
+            extensions.push(extension);
         }
     }
 }
 
-fn show_features_window(title: &str, model: gio::ListStore) {
-    let window = VulkanFeaturesWindow::new(title, model.into());
-    window.present();
+fn show_features_window(title: &str, values: Rc<RefCell<Vec<VulkanFeature>>>) {
+    let features = values.borrow().iter().cloned().collect();
+
+    let mut window_controller = VulkanFeaturesWindow::builder()
+        .launch((features, title.to_owned()))
+        .detach();
+    window_controller.detach_runtime();
+    window_controller.widget().present();
 }

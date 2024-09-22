@@ -1,10 +1,10 @@
 pub mod app;
 
-use anyhow::{anyhow, Context};
-use app::App;
-use lact_client::{schema::args::GuiArgs, DaemonClient};
-use std::os::unix::net::UnixStream;
-use tracing::{debug, error, info, metadata::LevelFilter};
+use anyhow::Context;
+use app::AppModel;
+use lact_schema::args::GuiArgs;
+use relm4::RelmApp;
+use tracing::metadata::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
 const GUI_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -13,40 +13,11 @@ const APP_ID: &str = "io.github.lact-linux";
 pub fn run(args: GuiArgs) -> anyhow::Result<()> {
     let env_filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
-        .parse(args.log_level.unwrap_or_default())
+        .parse(args.log_level.as_deref().unwrap_or_default())
         .context("Invalid log level")?;
     tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
-    if let Err(err) = gtk::init() {
-        return Err(anyhow!("Cannot initialize GTK: {err}"));
-    }
-
-    let (connection, connection_err) = create_connection()?;
-    let app = App::new(connection);
-
-    app.run(connection_err)
-}
-
-fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
-    match DaemonClient::connect() {
-        Ok(connection) => {
-            debug!("Established daemon connection");
-            Ok((connection, None))
-        }
-        Err(err) => {
-            info!("could not connect to socket: {err:#}");
-            info!("using a local daemon");
-
-            let (server_stream, client_stream) = UnixStream::pair()?;
-
-            std::thread::spawn(move || {
-                if let Err(err) = lact_daemon::run_embedded(server_stream) {
-                    error!("Builtin daemon error: {err}");
-                }
-            });
-
-            let client = DaemonClient::from_stream(client_stream, true)?;
-            Ok((client, Some(err)))
-        }
-    }
+    let app = RelmApp::new(APP_ID).with_args(vec![]);
+    app.run_async::<AppModel>(args);
+    Ok(())
 }
