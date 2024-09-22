@@ -17,10 +17,6 @@ pub fn run(args: GuiArgs) -> anyhow::Result<()> {
         .context("Invalid log level")?;
     tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
-    // if let Err(err) = gtk::init() {
-    //     return Err(anyhow!("Cannot initialize GTK: {err}"));
-    // }
-
     let app = RelmApp::new(APP_ID).with_args(vec![]);
     app.run_async::<AppModel>(args);
     Ok(())
