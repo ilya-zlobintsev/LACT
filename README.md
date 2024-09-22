@@ -116,12 +116,12 @@ Steps:
 - `make`
 - `sudo make install`
 
-It's also possible to build LACT without some of the features by using cargo feature flags.
-This can be useful if some dependency is not available on your system, or is too old.
+It's possible to change which features LACT gets built with. 
+To do so, replace the `make` command with the following variation:
 
-Minimal build (no GUI!):
+Headless build with no GUI:
 ```
-cargo build --no-default-features -p lact
+make build-release-headless
 ```
 
 Build GUI with libadwaita support:
@@ -131,7 +131,31 @@ make build-release-libadwaita
 
 # API
 
-There is an API available over a unix socket. See [here](API.md) for more information.
+There is an API available over a unix or TCP socket. See [here](API.md) for more information.
+
+# Remote management
+
+It's possible to have the LACT daemon running on one machine, and then manage it remotely from another.
+
+This is disabled by default, as the TCP connection **does not have any authentication or encryption mechanism!**
+Make sure to only use it in trusted networks and/or set up appropriate firewall rules.
+
+To enable it, edit `/etc/lact/config.yaml` and add `tcp_listen_address` with your desired address and in the `daemon` section.
+
+Example:
+```yaml
+daemon:
+  tcp_listen_address: 0.0.0.0:12853
+  log_level: info
+  admin_groups:
+  - wheel
+  - sudo
+  disable_clocks_cleanup: false
+```
+
+After this restart the service (`sudo systemctl restart lactd`).
+
+To connect to a remote instance with the GUI, run it with `lact gui --tcp-address 192.168.1.10:12853`.
 
 # CLI
 
