@@ -21,7 +21,6 @@ const DEFAULT_ADMIN_GROUPS: [&str; 2] = ["wheel", "sudo"];
 /// Minimum amount of time between separate config reloads
 const CONFIG_RELOAD_INTERVAL_MILLIS: u64 = 50;
 
-#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Config {
     pub daemon: Daemon,
@@ -30,7 +29,7 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     gpus: HashMap<String, Gpu>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    profiles: HashMap<String, Profile>,
+    pub profiles: HashMap<String, Profile>,
     #[serde(default)]
     pub current_profile: Option<String>,
 }
@@ -70,7 +69,7 @@ impl Default for Daemon {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Profile {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub gpus: HashMap<String, Gpu>,
 }
 
@@ -217,6 +216,20 @@ impl Config {
                 Ok(&mut profile.gpus)
             }
             None => Ok(&mut self.gpus),
+        }
+    }
+
+    /// Get a specific profile
+    pub fn profile(&self, profile: &str) -> anyhow::Result<&Profile> {
+        self.profiles
+            .get(profile)
+            .with_context(|| format!("Profile {profile} not found"))
+    }
+
+    /// Get the settings for "default" profile (aka no profile)
+    pub fn default_profile(&self) -> Profile {
+        Profile {
+            gpus: self.gpus.clone(),
         }
     }
 

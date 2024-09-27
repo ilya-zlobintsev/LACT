@@ -57,6 +57,17 @@ pub enum Request<'a> {
     VbiosDump {
         id: &'a str,
     },
+    ListProfiles,
+    SetProfile {
+        name: Option<String>,
+    },
+    CreateProfile {
+        name: String,
+        base: ProfileBase,
+    },
+    DeleteProfile {
+        name: String,
+    },
     EnableOverdrive,
     DisableOverdrive,
     GenerateSnapshot,
@@ -82,4 +93,12 @@ pub enum SetClocksCommand {
     MinVoltage(i32),
     VoltageOffset(i32),
     Reset,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProfileBase {
+    Empty,
+    Default,
+    Profile(String),
 }

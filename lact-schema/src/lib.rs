@@ -306,3 +306,9 @@ pub struct FanOptions<'a> {
     pub spindown_delay_ms: Option<u64>,
     pub change_threshold: Option<u64>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct ProfilesInfo {
+    pub profiles: Vec<String>,
+    pub current_profile: Option<String>,
+}

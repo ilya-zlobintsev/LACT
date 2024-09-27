@@ -17,6 +17,8 @@ pub enum AppMsg {
     EnableOverdrive,
     DisableOverdrive,
     ResetConfig,
+    ReloadProfiles,
+    SelectProfile(Option<String>),
     AskConfirmation(ConfirmationOptions, Box<AppMsg>),
 }
 

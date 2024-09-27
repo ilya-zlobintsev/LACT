@@ -24,7 +24,7 @@ use gtk::{
     ApplicationWindow, ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog,
     MessageType, ResponseType,
 };
-use header::Header;
+use header::{Header, HeaderMsg};
 use lact_client::DaemonClient;
 use lact_daemon::MODULE_CONF_PATH;
 use lact_schema::{
@@ -181,7 +181,7 @@ impl AsyncComponent for AppModel {
             show_embedded_info(&root, err);
         }
 
-        sender.input(AppMsg::ReloadData { full: true });
+        sender.input(AppMsg::ReloadProfiles);
 
         AsyncComponentParts { model, widgets }
     }
@@ -210,6 +210,10 @@ impl AppModel {
     ) -> Result<(), Rc<anyhow::Error>> {
         match msg {
             AppMsg::Error(err) => Err(err),
+            AppMsg::ReloadProfiles => {
+                self.reload_profiles().await?;
+                Ok(())
+            }
             AppMsg::ReloadData { full } => {
                 let gpu_id = self.current_gpu_id()?;
                 if full {
@@ -217,6 +221,11 @@ impl AppModel {
                 } else {
                     self.update_gpu_data(gpu_id, sender).await?;
                 }
+                Ok(())
+            }
+            AppMsg::SelectProfile(profile) => {
+                self.daemon_client.set_profile(profile).await?;
+                sender.input(AppMsg::ReloadData { full: false });
                 Ok(())
             }
             AppMsg::Stats(stats) => {
@@ -306,6 +315,12 @@ impl AppModel {
             .model()
             .selected_gpu_id()
             .context("No GPU selected")
+    }
+
+    async fn reload_profiles(&mut self) -> anyhow::Result<()> {
+        let profiles = self.daemon_client.list_profiles().await?.inner()?;
+        self.header.emit(HeaderMsg::Profiles(profiles));
+        Ok(())
     }
 
     async fn update_gpu_data_full(

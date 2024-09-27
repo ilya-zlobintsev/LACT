@@ -18,7 +18,7 @@ use tokio::{
     signal::unix::{signal, SignalKind},
     task::LocalSet,
 };
-use tracing::{debug, debug_span, info, warn, Instrument, Level};
+use tracing::{debug, debug_span, error, info, warn, Instrument, Level};
 
 /// RDNA3, minimum family that supports the new pmfw interface
 pub const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
@@ -109,8 +109,14 @@ async fn listen_config_changes(handler: Handler) {
     while let Some(new_config) = rx.recv().await {
         info!("config file was changed, reloading");
         handler.config.replace(new_config);
-        handler.apply_current_config().await;
-        info!("configuration reloaded");
+        match handler.apply_current_config().await {
+            Ok(()) => {
+                info!("configuration reloaded");
+            }
+            Err(err) => {
+                error!("could not apply new config: {err:#}");
+            }
+        }
     }
 }
 

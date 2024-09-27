@@ -12,8 +12,8 @@ use connection::{tcp::TcpConnection, unix::UnixConnection, DaemonConnection};
 use nix::unistd::getuid;
 use schema::{
     request::{ConfirmCommand, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanOptions, PowerStates, Request,
-    Response, SystemInfo,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanOptions, PowerStates, ProfilesInfo,
+    Request, Response, SystemInfo,
 };
 use serde::Deserialize;
 use std::{
@@ -116,6 +116,7 @@ impl DaemonClient {
     request_plain!(disable_overdrive, DisableOverdrive, String);
     request_plain!(generate_debug_snapshot, GenerateSnapshot, String);
     request_plain!(reset_config, RestConfig, ());
+    request_plain!(list_profiles, ListProfiles, ProfilesInfo);
     request_with_id!(get_device_info, DeviceInfo, DeviceInfo);
     request_with_id!(get_device_stats, DeviceStats, DeviceStats);
     request_with_id!(get_device_clocks_info, DeviceClocksInfo, ClocksInfo);
@@ -127,6 +128,12 @@ impl DaemonClient {
     request_with_id!(get_power_states, GetPowerStates, PowerStates);
     request_with_id!(reset_pmfw, ResetPmfw, u64);
     request_with_id!(dump_vbios, VbiosDump, Vec<u8>);
+
+    pub async fn set_profile(&self, name: Option<String>) -> anyhow::Result<()> {
+        self.make_request(Request::SetProfile { name })
+            .await?
+            .inner()
+    }
 
     pub async fn set_performance_level(
         &self,

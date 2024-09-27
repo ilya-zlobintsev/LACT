@@ -2,17 +2,17 @@ use super::{
     gpu_controller::{fan_control::FanCurve, GpuController},
     system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
 };
-use crate::config::{self, default_fan_static_speed, Config, FanControlSettings};
+use crate::config::{self, default_fan_static_speed, Config, FanControlSettings, Profile};
 use amdgpu_sysfs::{
     gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind},
     sysfs::SysFS,
 };
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use lact_schema::{
     default_fan_curve,
-    request::{ConfirmCommand, SetClocksCommand},
+    request::{ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
-    PowerStates,
+    PowerStates, ProfilesInfo,
 };
 use libflate::gzip;
 use nix::libc;
@@ -135,7 +135,9 @@ impl<'a> Handler {
             confirm_config_tx: Rc::new(RefCell::new(None)),
             config_last_saved: Arc::new(Mutex::new(Instant::now())),
         };
-        handler.apply_current_config().await;
+        if let Err(err) = handler.apply_current_config().await {
+            error!("could not apply config: {err:#}");
+        }
 
         // Eagerly release memory
         // `load_controllers` allocates and deallocates the entire PCI ID database,
@@ -148,23 +150,21 @@ impl<'a> Handler {
         Ok(handler)
     }
 
-    pub async fn apply_current_config(&self) {
+    pub async fn apply_current_config(&self) -> anyhow::Result<()> {
         let config = self.config.borrow().clone(); // Clone to avoid locking the RwLock on an await point
 
-        match config.gpus() {
-            Ok(gpus) => {
-                for (id, gpu_config) in gpus {
-                    if let Some(controller) = self.gpu_controllers.get(id) {
-                        if let Err(err) = controller.apply_config(gpu_config).await {
-                            error!("could not apply existing config for gpu {id}: {err}");
-                        }
-                    } else {
-                        info!("could not find GPU with id {id} defined in configuration");
-                    }
+        let gpus = config.gpus()?;
+        for (id, gpu_config) in gpus {
+            if let Some(controller) = self.gpu_controllers.get(id) {
+                if let Err(err) = controller.apply_config(gpu_config).await {
+                    error!("could not apply existing config for gpu {id}: {err}");
                 }
+            } else {
+                info!("could not find GPU with id {id} defined in configuration");
             }
-            Err(err) => error!("{err:#}"),
         }
+
+        Ok(())
     }
 
     async fn edit_gpu_config<F: FnOnce(&mut config::Gpu)>(
@@ -604,6 +604,53 @@ impl<'a> Handler {
             .context("Could not set permissions on output file")?;
 
         Ok(out_path)
+    }
+
+    pub fn list_profiles(&self) -> ProfilesInfo {
+        let config = self.config.borrow();
+        ProfilesInfo {
+            profiles: config.profiles.keys().cloned().collect(),
+            current_profile: config.current_profile.clone(),
+        }
+    }
+
+    pub async fn set_profile(&self, name: Option<String>) -> anyhow::Result<()> {
+        if let Some(name) = &name {
+            self.config.borrow().profile(name)?;
+        }
+
+        self.cleanup().await;
+        self.config.borrow_mut().current_profile = name;
+
+        self.apply_current_config().await?;
+        self.config.borrow_mut().save()?;
+
+        Ok(())
+    }
+
+    pub fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
+        let mut config = self.config.borrow_mut();
+        if config.profiles.contains_key(&name) {
+            bail!("Profile {name} already exists");
+        }
+
+        let profile = match base {
+            ProfileBase::Empty => Profile::default(),
+            ProfileBase::Default => config.default_profile(),
+            ProfileBase::Profile(name) => config.profile(&name)?.clone(),
+        };
+        config.profiles.insert(name, profile);
+        config.save()?;
+        Ok(())
+    }
+
+    pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
+        if self.config.borrow().current_profile.as_ref() == Some(&name) {
+            self.set_profile(None).await?;
+        }
+        self.config.borrow_mut().profiles.remove(&name);
+        self.config.borrow().save()?;
+        Ok(())
     }
 
     pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
