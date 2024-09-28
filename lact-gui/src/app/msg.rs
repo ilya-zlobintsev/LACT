@@ -1,5 +1,5 @@
 use super::confirmation_dialog::ConfirmationOptions;
-use lact_schema::DeviceStats;
+use lact_schema::{request::ProfileBase, DeviceStats};
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
@@ -17,6 +17,10 @@ pub enum AppMsg {
     EnableOverdrive,
     DisableOverdrive,
     ResetConfig,
+    ReloadProfiles,
+    SelectProfile(Option<String>),
+    CreateProfile(String, ProfileBase),
+    DeleteProfile(String),
     AskConfirmation(ConfirmationOptions, Box<AppMsg>),
 }
 

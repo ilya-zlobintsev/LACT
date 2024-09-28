@@ -1,6 +1,7 @@
 use crate::server::gpu_controller::fan_control::FanCurve;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use anyhow::Context;
+use indexmap::IndexMap;
 use lact_schema::{default_fan_curve, request::SetClocksCommand, FanControlMode, PmfwOptions};
 use nix::unistd::getuid;
 use notify::{RecommendedWatcher, Watcher};
@@ -27,7 +28,11 @@ pub struct Config {
     #[serde(default = "default_apply_settings_timer")]
     pub apply_settings_timer: u64,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub gpus: HashMap<String, Gpu>,
+    gpus: HashMap<String, Gpu>,
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub profiles: IndexMap<String, Profile>,
+    #[serde(default)]
+    pub current_profile: Option<String>,
 }
 
 impl Default for Config {
@@ -36,6 +41,8 @@ impl Default for Config {
             daemon: Daemon::default(),
             apply_settings_timer: default_apply_settings_timer(),
             gpus: HashMap::new(),
+            profiles: IndexMap::new(),
+            current_profile: None,
         }
     }
 }
@@ -59,6 +66,12 @@ impl Default for Daemon {
             tcp_listen_address: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct Profile {
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub gpus: HashMap<String, Gpu>,
 }
 
 #[skip_serializing_none]
@@ -177,6 +190,54 @@ impl Config {
             config.save()?;
             Ok(config)
         }
+    }
+
+    /// Gets the GPU configs according to the current profile. Returns an error if the current profile could not be found.
+    pub fn gpus(&self) -> anyhow::Result<&HashMap<String, Gpu>> {
+        match &self.current_profile {
+            Some(profile) => {
+                let profile = self
+                    .profiles
+                    .get(profile)
+                    .with_context(|| format!("Could not find profile '{profile}'"))?;
+                Ok(&profile.gpus)
+            }
+            None => Ok(&self.gpus),
+        }
+    }
+
+    /// Same as [`gpus`], but with a mutable reference
+    pub fn gpus_mut(&mut self) -> anyhow::Result<&mut HashMap<String, Gpu>> {
+        match &self.current_profile {
+            Some(profile) => {
+                let profile = self
+                    .profiles
+                    .get_mut(profile)
+                    .with_context(|| format!("Could not find profile '{profile}'"))?;
+                Ok(&mut profile.gpus)
+            }
+            None => Ok(&mut self.gpus),
+        }
+    }
+
+    /// Get a specific profile
+    pub fn profile(&self, profile: &str) -> anyhow::Result<&Profile> {
+        self.profiles
+            .get(profile)
+            .with_context(|| format!("Profile {profile} not found"))
+    }
+
+    /// Get the settings for "default" profile (aka no profile)
+    pub fn default_profile(&self) -> Profile {
+        Profile {
+            gpus: self.gpus.clone(),
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.gpus.clear();
+        self.profiles.clear();
+        self.current_profile = None;
     }
 }
 

@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::FanOptions;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use serde::{Deserialize, Serialize};
@@ -57,6 +59,17 @@ pub enum Request<'a> {
     VbiosDump {
         id: &'a str,
     },
+    ListProfiles,
+    SetProfile {
+        name: Option<String>,
+    },
+    CreateProfile {
+        name: String,
+        base: ProfileBase,
+    },
+    DeleteProfile {
+        name: String,
+    },
     EnableOverdrive,
     DisableOverdrive,
     GenerateSnapshot,
@@ -82,4 +95,23 @@ pub enum SetClocksCommand {
     MinVoltage(i32),
     VoltageOffset(i32),
     Reset,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum ProfileBase {
+    Empty,
+    Default,
+    Profile(String),
+}
+
+impl fmt::Display for ProfileBase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let text = match self {
+            ProfileBase::Empty => "Empty",
+            ProfileBase::Default => "Default",
+            ProfileBase::Profile(name) => name,
+        };
+        text.fmt(f)
+    }
 }

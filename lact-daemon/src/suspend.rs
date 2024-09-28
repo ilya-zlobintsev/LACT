@@ -10,7 +10,9 @@ pub async fn listen_events(handler: Handler) {
             Ok(mut stream) => {
                 while stream.next().await.is_some() {
                     info!("suspend/resume event detected, reloading config");
-                    handler.apply_current_config().await;
+                    if let Err(err) = handler.apply_current_config().await {
+                        error!("could not reapply config: {err:#}");
+                    }
                 }
             }
             Err(err) => error!("could not subscribe to suspend events: {err:#}"),
