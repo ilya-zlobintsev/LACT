@@ -1,4 +1,5 @@
 use super::confirmation_dialog::ConfirmationOptions;
+use lact_client::ConnectionStatusMsg;
 use lact_schema::{request::ProfileBase, DeviceStats};
 use std::rc::Rc;
 
@@ -21,6 +22,7 @@ pub enum AppMsg {
     SelectProfile(Option<String>),
     CreateProfile(String, ProfileBase),
     DeleteProfile(String),
+    ConnectionStatus(ConnectionStatusMsg),
     AskConfirmation(ConfirmationOptions, Box<AppMsg>),
 }
 

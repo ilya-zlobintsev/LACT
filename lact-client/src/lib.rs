@@ -3,7 +3,6 @@ mod connection;
 mod macros;
 
 pub use lact_schema as schema;
-use lact_schema::request::ProfileBase;
 
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
@@ -12,7 +11,7 @@ use anyhow::Context;
 use connection::{tcp::TcpConnection, unix::UnixConnection, DaemonConnection};
 use nix::unistd::getuid;
 use schema::{
-    request::{ConfirmCommand, SetClocksCommand},
+    request::{ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanOptions, PowerStates, ProfilesInfo,
     Request, Response, SystemInfo,
 };
@@ -21,14 +20,19 @@ use std::{
     future::Future, marker::PhantomData, os::unix::net::UnixStream, path::PathBuf, pin::Pin,
     rc::Rc, time::Duration,
 };
-use tokio::{net::ToSocketAddrs, sync::Mutex};
+use tokio::{
+    net::ToSocketAddrs,
+    sync::{broadcast, Mutex},
+};
 use tracing::{error, info};
 
+const STATUS_MSG_CHANNEL_SIZE: usize = 16;
 const RECONNECT_INTERVAL_MS: u64 = 250;
 
 #[derive(Clone)]
 pub struct DaemonClient {
     stream: Rc<Mutex<Box<dyn DaemonConnection>>>,
+    status_tx: broadcast::Sender<ConnectionStatusMsg>,
     pub embedded: bool,
 }
 
@@ -41,6 +45,7 @@ impl DaemonClient {
         Ok(Self {
             stream: Rc::new(Mutex::new(stream)),
             embedded: false,
+            status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
     }
 
@@ -50,6 +55,7 @@ impl DaemonClient {
         Ok(Self {
             stream: Rc::new(Mutex::new(stream)),
             embedded: false,
+            status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
     }
 
@@ -58,7 +64,12 @@ impl DaemonClient {
         Ok(Self {
             stream: Rc::new(Mutex::new(Box::new(connection))),
             embedded,
+            status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
+    }
+
+    pub fn status_receiver(&self) -> broadcast::Receiver<ConnectionStatusMsg> {
+        self.status_tx.subscribe()
     }
 
     fn make_request<'a, 'r, T: Deserialize<'r>>(
@@ -76,6 +87,7 @@ impl DaemonClient {
                 }),
                 Err(err) => {
                     error!("Could not make request: {err}, reconnecting to socket");
+                    let _ = self.status_tx.send(ConnectionStatusMsg::Disconnected);
 
                     loop {
                         match stream.new_connection().await {
@@ -83,11 +95,15 @@ impl DaemonClient {
                                 info!("Established new socket connection");
                                 *stream = new_connection;
                                 drop(stream);
+
+                                let _ = self.status_tx.send(ConnectionStatusMsg::Reconnected);
+
                                 return self.make_request(request).await;
                             }
                             Err(err) => {
                                 error!("Could not reconnect: {err:#}, retrying in {RECONNECT_INTERVAL_MS}ms");
-                                std::thread::sleep(Duration::from_millis(RECONNECT_INTERVAL_MS));
+                                tokio::time::sleep(Duration::from_millis(RECONNECT_INTERVAL_MS))
+                                    .await;
                             }
                         }
                     }
@@ -248,4 +264,10 @@ impl<'a, T: Deserialize<'a>> ResponseBuffer<T> {
             }
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ConnectionStatusMsg {
+    Disconnected,
+    Reconnected,
 }

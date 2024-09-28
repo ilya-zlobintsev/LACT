@@ -25,7 +25,7 @@ use gtk::{
     MessageType, ResponseType,
 };
 use header::{Header, HeaderMsg};
-use lact_client::DaemonClient;
+use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_daemon::MODULE_CONF_PATH;
 use lact_schema::{
     args::GuiArgs,
@@ -62,7 +62,7 @@ impl AsyncComponent for AppModel {
     type CommandOutput = ();
 
     view! {
-        #[name = "root_window"]
+        #[root]
         gtk::ApplicationWindow {
             set_title: Some("LACT"),
             set_default_width: 600,
@@ -78,6 +78,17 @@ impl AsyncComponent for AppModel {
                 model.root_stack.container.clone(),
                 model.apply_revealer.widget(),
             }
+        },
+
+        #[name = "reconnecting_dialog"]
+        gtk::MessageDialog::new(
+            Some(&root),
+            gtk::DialogFlags::MODAL,
+            gtk::MessageType::Error,
+            gtk::ButtonsType::None,
+            "Daemon connection lost, reconnecting...",
+        ) -> gtk::MessageDialog {
+            set_title: Some("Connection Lost"),
         }
     }
 
@@ -104,6 +115,19 @@ impl AsyncComponent for AppModel {
                 .await
                 .expect("Could not establish any daemon connection"),
         };
+
+        let mut conn_status_rx = daemon_client.status_receiver();
+        relm4::spawn_local(clone!(
+            #[strong]
+            sender,
+            async move {
+                loop {
+                    if let Ok(msg) = conn_status_rx.recv().await {
+                        sender.input(AppMsg::ConnectionStatus(msg));
+                    }
+                }
+            }
+        ));
 
         register_actions(&sender);
 
@@ -194,7 +218,7 @@ impl AsyncComponent for AppModel {
         root: &Self::Root,
     ) {
         trace!("update {msg:#?}");
-        if let Err(err) = self.handle_msg(msg, sender.clone(), root).await {
+        if let Err(err) = self.handle_msg(msg, sender.clone(), root, widgets).await {
             show_error(root, &err);
         }
         self.update_view(widgets, sender);
@@ -207,13 +231,13 @@ impl AppModel {
         msg: AppMsg,
         sender: AsyncComponentSender<Self>,
         root: &gtk::ApplicationWindow,
+        widgets: &AppModelWidgets,
     ) -> Result<(), Rc<anyhow::Error>> {
         match msg {
-            AppMsg::Error(err) => Err(err),
+            AppMsg::Error(err) => return Err(err),
             AppMsg::ReloadProfiles => {
                 self.reload_profiles().await?;
                 sender.input(AppMsg::ReloadData { full: false });
-                Ok(())
             }
             AppMsg::ReloadData { full } => {
                 let gpu_id = self.current_gpu_id()?;
@@ -222,12 +246,10 @@ impl AppModel {
                 } else {
                     self.update_gpu_data(gpu_id, sender).await?;
                 }
-                Ok(())
             }
             AppMsg::SelectProfile(profile) => {
                 self.daemon_client.set_profile(profile).await?;
                 sender.input(AppMsg::ReloadData { full: false });
-                Ok(())
             }
             AppMsg::CreateProfile(name, base) => {
                 self.daemon_client
@@ -235,30 +257,26 @@ impl AppModel {
                     .await?;
                 self.daemon_client.set_profile(Some(name)).await?;
                 sender.input(AppMsg::ReloadProfiles);
-                Ok(())
             }
             AppMsg::DeleteProfile(profile) => {
                 self.daemon_client.delete_profile(profile).await?;
                 sender.input(AppMsg::ReloadProfiles);
-                Ok(())
             }
             AppMsg::Stats(stats) => {
                 self.root_stack.info_page.set_stats(&stats);
                 self.root_stack.thermals_page.set_stats(&stats, false);
                 self.root_stack.oc_page.set_stats(&stats, false);
                 self.graphs_window.set_stats(&stats);
-                Ok(())
             }
-            AppMsg::ApplyChanges => self
-                .apply_settings(self.current_gpu_id()?, root, &sender)
-                .await
-                .map_err(|err| {
-                    sender.input(AppMsg::ReloadData { full: false });
-                    err.into()
-                }),
+            AppMsg::ApplyChanges => {
+                self.apply_settings(self.current_gpu_id()?, root, &sender)
+                    .await
+                    .inspect_err(|_| {
+                        sender.input(AppMsg::ReloadData { full: false });
+                    })?;
+            }
             AppMsg::RevertChanges => {
                 sender.input(AppMsg::ReloadData { full: false });
-                Ok(())
             }
             AppMsg::ResetClocks => {
                 let gpu_id = self.current_gpu_id()?;
@@ -269,8 +287,6 @@ impl AppModel {
                     .confirm_pending_config(ConfirmCommand::Confirm)
                     .await?;
                 sender.input(AppMsg::ReloadData { full: false });
-
-                Ok(())
             }
             AppMsg::ResetPmfw => {
                 let gpu_id = self.current_gpu_id()?;
@@ -279,34 +295,30 @@ impl AppModel {
                     .confirm_pending_config(ConfirmCommand::Confirm)
                     .await?;
                 sender.input(AppMsg::ReloadData { full: false });
-
-                Ok(())
             }
             AppMsg::ShowGraphsWindow => {
                 self.graphs_window.show();
-                Ok(())
             }
             AppMsg::DumpVBios => {
                 self.dump_vbios(&self.current_gpu_id()?, root).await;
-                Ok(())
             }
             AppMsg::DebugSnapshot => {
                 self.generate_debug_snapshot(root).await;
-                Ok(())
             }
             AppMsg::EnableOverdrive => {
                 toggle_overdrive(&self.daemon_client, true, root.clone()).await;
-                Ok(())
             }
             AppMsg::DisableOverdrive => {
                 toggle_overdrive(&self.daemon_client, false, root.clone()).await;
-                Ok(())
             }
             AppMsg::ResetConfig => {
                 self.daemon_client.reset_config().await?;
                 sender.input(AppMsg::ReloadData { full: true });
-                Ok(())
             }
+            AppMsg::ConnectionStatus(status) => match status {
+                ConnectionStatusMsg::Disconnected => widgets.reconnecting_dialog.present(),
+                ConnectionStatusMsg::Reconnected => widgets.reconnecting_dialog.hide(),
+            },
             AppMsg::AskConfirmation(options, confirmed_msg) => {
                 let sender = sender.clone();
 
@@ -318,10 +330,9 @@ impl AppModel {
                         }
                     });
                 controller.detach_runtime();
-
-                Ok(())
             }
         }
+        Ok(())
     }
 
     fn current_gpu_id(&self) -> anyhow::Result<String> {
