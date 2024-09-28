@@ -3,6 +3,7 @@ mod connection;
 mod macros;
 
 pub use lact_schema as schema;
+use lact_schema::request::ProfileBase;
 
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
@@ -131,6 +132,18 @@ impl DaemonClient {
 
     pub async fn set_profile(&self, name: Option<String>) -> anyhow::Result<()> {
         self.make_request(Request::SetProfile { name })
+            .await?
+            .inner()
+    }
+
+    pub async fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
+        self.make_request(Request::CreateProfile { name, base })
+            .await?
+            .inner()
+    }
+
+    pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
+        self.make_request(Request::DeleteProfile { name })
             .await?
             .inner()
     }

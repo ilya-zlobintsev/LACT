@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::FanOptions;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use serde::{Deserialize, Serialize};
@@ -95,10 +97,21 @@ pub enum SetClocksCommand {
     Reset,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ProfileBase {
     Empty,
     Default,
     Profile(String),
+}
+
+impl fmt::Display for ProfileBase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let text = match self {
+            ProfileBase::Empty => "Empty",
+            ProfileBase::Default => "Default",
+            ProfileBase::Profile(name) => name,
+        };
+        text.fmt(f)
+    }
 }

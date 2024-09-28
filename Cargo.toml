@@ -23,6 +23,7 @@ futures = { version = "0.3.30", default-features = false }
 tokio = { version = "1.35.1", default-features = false }
 nix = { version = "0.29.0", default-features = false }
 chrono = "0.4.31"
+indexmap = { version = "2.5.0", features = ["serde"] }
 
 [profile.release]
 strip = "symbols"

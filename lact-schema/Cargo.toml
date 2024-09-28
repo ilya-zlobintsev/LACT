@@ -10,10 +10,10 @@ args = ["clap"]
 amdgpu-sysfs = { workspace = true }
 serde = { workspace = true }
 serde_with = { workspace = true }
-serde-error = "=0.1.2"
 anyhow = { workspace = true }
+indexmap = { workspace = true }
 
-indexmap = { version = "*", features = ["serde"] }
+serde-error = "=0.1.2"
 clap = { version = "4.4.18", features = ["derive"], optional = true }
 
 [build-dependencies]

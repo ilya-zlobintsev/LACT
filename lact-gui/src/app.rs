@@ -212,6 +212,7 @@ impl AppModel {
             AppMsg::Error(err) => Err(err),
             AppMsg::ReloadProfiles => {
                 self.reload_profiles().await?;
+                sender.input(AppMsg::ReloadData { full: false });
                 Ok(())
             }
             AppMsg::ReloadData { full } => {
@@ -226,6 +227,19 @@ impl AppModel {
             AppMsg::SelectProfile(profile) => {
                 self.daemon_client.set_profile(profile).await?;
                 sender.input(AppMsg::ReloadData { full: false });
+                Ok(())
+            }
+            AppMsg::CreateProfile(name, base) => {
+                self.daemon_client
+                    .create_profile(name.clone(), base)
+                    .await?;
+                self.daemon_client.set_profile(Some(name)).await?;
+                sender.input(AppMsg::ReloadProfiles);
+                Ok(())
+            }
+            AppMsg::DeleteProfile(profile) => {
+                self.daemon_client.delete_profile(profile).await?;
+                sender.input(AppMsg::ReloadProfiles);
                 Ok(())
             }
             AppMsg::Stats(stats) => {
@@ -349,6 +363,8 @@ impl AppModel {
 
         self.root_stack.thermals_page.set_info(&info);
 
+        self.graphs_window.clear();
+
         Ok(())
     }
 
@@ -448,8 +464,6 @@ impl AppModel {
             .sender()
             .send(ApplyRevealerMsg::Hide)
             .unwrap();
-
-        self.graphs_window.clear();
 
         self.stats_task_handle = Some(start_stats_update_loop(
             gpu_id.to_owned(),

@@ -1,4 +1,4 @@
-use std::fmt;
+mod new_profile_dialog;
 
 use super::{AppMsg, DebugSnapshot, DisableOverdrive, DumpVBios, ResetConfig, ShowGraphsWindow};
 use glib::clone;
@@ -6,10 +6,12 @@ use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::DeviceListEntry;
 use lact_schema::ProfilesInfo;
+use new_profile_dialog::NewProfileDialog;
 use relm4::{
     typed_view::list::{RelmListItem, TypedListView},
-    ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent,
+    Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
 };
+use std::fmt;
 
 pub struct Header {
     gpu_selector: TypedListView<GpuListItem, gtk::SingleSelection>,
@@ -22,13 +24,16 @@ pub enum HeaderMsg {
     Profiles(ProfilesInfo),
     SelectProfile,
     SelectGpu,
+    CreateProfile,
+    DeleteProfile,
 }
 
 #[relm4::component(pub)]
-impl SimpleComponent for Header {
+impl Component for Header {
     type Init = (Vec<DeviceListEntry>, gtk::Stack);
     type Input = HeaderMsg;
     type Output = AppMsg;
+    type CommandOutput = ();
 
     view! {
         gtk::HeaderBar {
@@ -46,6 +51,7 @@ impl SimpleComponent for Header {
                 #[wrap(Some)]
                 set_popover = &gtk::Popover {
                     set_margin_all: 5,
+                    set_autohide: false,
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
@@ -53,6 +59,8 @@ impl SimpleComponent for Header {
 
                         gtk::Frame {
                             set_label: Some("GPU"),
+                            set_label_align: 0.05,
+                            set_margin_all: 5,
 
                             gtk::ScrolledWindow {
                                 set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
@@ -65,13 +73,39 @@ impl SimpleComponent for Header {
 
                         gtk::Frame {
                             set_label: Some("Settings Profile"),
+                            set_label_align: 0.05,
+                            set_margin_all: 5,
 
-                            gtk::ScrolledWindow {
-                                set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
-                                set_propagate_natural_height: true,
+                            gtk::Box {
+                                set_orientation: gtk::Orientation::Vertical,
+                                set_spacing: 5,
 
-                                #[local_ref]
-                                profile_selector -> gtk::ListView { }
+                                gtk::ScrolledWindow {
+                                    set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
+                                    set_propagate_natural_height: true,
+
+                                    #[local_ref]
+                                    profile_selector -> gtk::ListView { }
+                                },
+
+                                gtk::Box {
+                                    set_orientation: gtk::Orientation::Horizontal,
+                                    set_spacing: 5,
+
+                                    gtk::Button {
+                                        set_expand: true,
+                                        set_icon_name: "list-add-symbolic",
+                                        connect_clicked => HeaderMsg::CreateProfile,
+                                    },
+
+                                    gtk::Button {
+                                        set_expand: true,
+                                        set_icon_name: "list-remove-symbolic",
+                                        connect_clicked => HeaderMsg::DeleteProfile,
+                                        #[watch]
+                                        set_sensitive: model.profile_selector.selection_model.selected() != 0,
+                                    },
+                                }
                             }
                         },
                     }
@@ -82,7 +116,8 @@ impl SimpleComponent for Header {
                 set_icon_name: "open-menu-symbolic",
                 set_menu_model: Some(&app_menu),
             }
-        }
+        },
+
     }
 
     menu! {
@@ -124,9 +159,13 @@ impl SimpleComponent for Header {
         let profile_selector = TypedListView::<_, gtk::SingleSelection>::new();
         profile_selector
             .selection_model
-            .connect_selection_changed(move |_, _, _| {
-                sender.input(HeaderMsg::SelectProfile);
-            });
+            .connect_selection_changed(clone!(
+                #[strong]
+                sender,
+                move |_, _, _| {
+                    sender.input(HeaderMsg::SelectProfile);
+                }
+            ));
 
         let model = Self {
             gpu_selector,
@@ -161,15 +200,24 @@ impl SimpleComponent for Header {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: ComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
         match msg {
             HeaderMsg::Profiles(profiles_info) => {
                 let selected_index = match &profiles_info.current_profile {
-                    Some(profile) => profiles_info
-                        .profiles
-                        .iter()
-                        .position(|value| value == profile)
-                        .expect("Active profile is not in the list"),
+                    Some(profile) => {
+                        profiles_info
+                            .profiles
+                            .iter()
+                            .position(|value| value == profile)
+                            .expect("Active profile is not in the list")
+                            + 1
+                    }
                     None => 0,
                 };
 
@@ -187,21 +235,37 @@ impl SimpleComponent for Header {
             }
             HeaderMsg::SelectGpu => sender.output(AppMsg::ReloadData { full: true }).unwrap(),
             HeaderMsg::SelectProfile => {
-                let selected_index = self.profile_selector.selection_model.selected();
-                let item = self
-                    .profile_selector
-                    .get(selected_index)
-                    .expect("Invalid item selected");
-                let selected_profile = match &*item.borrow() {
-                    ProfileListItem::Default => None,
-                    ProfileListItem::Profile(name) => Some(name.clone()),
-                };
+                let selected_profile = self.selected_profile();
                 sender
                     .output(AppMsg::SelectProfile(selected_profile))
                     .unwrap();
             }
+            HeaderMsg::CreateProfile => {
+                let mut diag_controller = NewProfileDialog::builder()
+                    .launch(self.custom_profiles())
+                    .forward(sender.output_sender(), |(name, base)| {
+                        AppMsg::CreateProfile(name, base)
+                    });
+                diag_controller.detach_runtime();
+            }
+            HeaderMsg::DeleteProfile => {
+                if let Some(selected_profile) = self.selected_profile() {
+                    let msg =
+                        format!("Are you sure you want to delete profile \"{selected_profile}\"");
+                    sender
+                        .output(AppMsg::ask_confirmation(
+                            AppMsg::DeleteProfile(selected_profile),
+                            "Delete profile",
+                            &msg,
+                            gtk::ButtonsType::OkCancel,
+                        ))
+                        .unwrap();
+                }
+            }
         }
         self.update_label();
+
+        self.update_view(widgets, sender);
     }
 }
 
@@ -212,6 +276,31 @@ impl Header {
             .get(selected)
             .as_ref()
             .map(|item| item.borrow().0.id.clone())
+    }
+
+    fn custom_profiles(&self) -> Vec<String> {
+        let mut profiles = Vec::with_capacity(self.profile_selector.len() as usize);
+        for i in 0..self.profile_selector.len() {
+            let item = self.profile_selector.get(i).unwrap();
+            let item = item.borrow();
+            if let ProfileListItem::Profile(name) = &*item {
+                profiles.push(name.clone());
+            }
+        }
+        profiles
+    }
+
+    fn selected_profile(&self) -> Option<String> {
+        let selected_index = self.profile_selector.selection_model.selected();
+        let item = self
+            .profile_selector
+            .get(selected_index)
+            .expect("Invalid item selected");
+        let item = item.borrow().clone();
+        match item {
+            ProfileListItem::Default => None,
+            ProfileListItem::Profile(name) => Some(name),
+        }
     }
 
     fn update_label(&mut self) {
@@ -244,6 +333,7 @@ impl RelmListItem for GpuListItem {
     }
 }
 
+#[derive(Clone)]
 enum ProfileListItem {
     Default,
     Profile(String),

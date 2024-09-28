@@ -648,7 +648,7 @@ impl<'a> Handler {
         if self.config.borrow().current_profile.as_ref() == Some(&name) {
             self.set_profile(None).await?;
         }
-        self.config.borrow_mut().profiles.remove(&name);
+        self.config.borrow_mut().profiles.shift_remove(&name);
         self.config.borrow().save()?;
         Ok(())
     }

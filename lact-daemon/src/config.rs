@@ -1,6 +1,7 @@
 use crate::server::gpu_controller::fan_control::FanCurve;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use anyhow::Context;
+use indexmap::IndexMap;
 use lact_schema::{default_fan_curve, request::SetClocksCommand, FanControlMode, PmfwOptions};
 use nix::unistd::getuid;
 use notify::{RecommendedWatcher, Watcher};
@@ -28,8 +29,8 @@ pub struct Config {
     pub apply_settings_timer: u64,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     gpus: HashMap<String, Gpu>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub profiles: HashMap<String, Profile>,
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub profiles: IndexMap<String, Profile>,
     #[serde(default)]
     pub current_profile: Option<String>,
 }
@@ -40,7 +41,7 @@ impl Default for Config {
             daemon: Daemon::default(),
             apply_settings_timer: default_apply_settings_timer(),
             gpus: HashMap::new(),
-            profiles: HashMap::new(),
+            profiles: IndexMap::new(),
             current_profile: None,
         }
     }
