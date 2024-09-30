@@ -1,11 +1,11 @@
 use super::confirmation_dialog::ConfirmationOptions;
 use lact_client::ConnectionStatusMsg;
 use lact_schema::{request::ProfileBase, DeviceStats};
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum AppMsg {
-    Error(Rc<anyhow::Error>),
+    Error(Arc<anyhow::Error>),
     ReloadData { full: bool },
     Stats(DeviceStats),
     ApplyChanges,
@@ -22,6 +22,7 @@ pub enum AppMsg {
     SelectProfile(Option<String>),
     CreateProfile(String, ProfileBase),
     DeleteProfile(String),
+    MoveProfile(String, usize),
     ConnectionStatus(ConnectionStatusMsg),
     AskConfirmation(ConfirmationOptions, Box<AppMsg>),
 }

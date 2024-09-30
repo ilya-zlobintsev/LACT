@@ -70,6 +70,10 @@ pub enum Request<'a> {
     DeleteProfile {
         name: String,
     },
+    MoveProfile {
+        name: String,
+        new_position: usize,
+    },
     EnableOverdrive,
     DisableOverdrive,
     GenerateSnapshot,

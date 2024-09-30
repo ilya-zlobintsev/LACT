@@ -164,6 +164,12 @@ impl DaemonClient {
             .inner()
     }
 
+    pub async fn move_profile(&self, name: String, new_position: usize) -> anyhow::Result<()> {
+        self.make_request(Request::MoveProfile { name, new_position })
+            .await?
+            .inner()
+    }
+
     pub async fn set_performance_level(
         &self,
         id: &str,

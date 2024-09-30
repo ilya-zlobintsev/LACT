@@ -39,7 +39,12 @@ use relm4::{
     tokio, AsyncComponentSender, Component, ComponentController,
 };
 use root_stack::RootStack;
-use std::{os::unix::net::UnixStream, rc::Rc, sync::atomic::AtomicBool, time::Duration};
+use std::{
+    os::unix::net::UnixStream,
+    rc::Rc,
+    sync::{atomic::AtomicBool, Arc},
+    time::Duration,
+};
 use tracing::{debug, error, info, trace, warn};
 
 const STATS_POLL_INTERVAL_MS: u64 = 250;
@@ -232,7 +237,7 @@ impl AppModel {
         sender: AsyncComponentSender<Self>,
         root: &gtk::ApplicationWindow,
         widgets: &AppModelWidgets,
-    ) -> Result<(), Rc<anyhow::Error>> {
+    ) -> Result<(), Arc<anyhow::Error>> {
         match msg {
             AppMsg::Error(err) => return Err(err),
             AppMsg::ReloadProfiles => {
@@ -260,6 +265,10 @@ impl AppModel {
             }
             AppMsg::DeleteProfile(profile) => {
                 self.daemon_client.delete_profile(profile).await?;
+                sender.input(AppMsg::ReloadProfiles);
+            }
+            AppMsg::MoveProfile(name, new_position) => {
+                self.daemon_client.move_profile(name, new_position).await?;
                 sender.input(AppMsg::ReloadProfiles);
             }
             AppMsg::Stats(stats) => {

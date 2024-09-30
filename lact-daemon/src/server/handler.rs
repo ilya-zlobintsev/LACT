@@ -653,6 +653,24 @@ impl<'a> Handler {
         Ok(())
     }
 
+    pub fn move_profile(&self, name: &str, new_position: usize) -> anyhow::Result<()> {
+        let mut config = self.config.borrow_mut();
+
+        let current_index = config
+            .profiles
+            .get_index_of(name)
+            .with_context(|| format!("Profile {name} not found"))?;
+
+        if new_position >= config.profiles.len() {
+            bail!("Provided index is out of bounds");
+        }
+
+        config.profiles.swap_indices(current_index, new_position);
+
+        config.save()?;
+        Ok(())
+    }
+
     pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
         if let Some(tx) = self
             .confirm_config_tx
