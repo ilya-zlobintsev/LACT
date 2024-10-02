@@ -102,14 +102,18 @@ As some of the GPU settings may get reset when suspending the system, LACT will 
 # Building from source
 
 Dependencies:
-- rust
-- gtk4
+- rust 1.76+
+- gtk 4.6+
 - git
 - pkg-config
 - make
 - hwdata
 - libdrm
-- blueprint-compiler 0.10.0 or higher (Ubuntu 22.04 in particular ships an older version in the repos, you can manually download a [deb file](http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb) of a new version)
+- blueprint-compiler 0.10.0+ (Ubuntu 22.04 in particular ships an older version in the repos, you can manually download a [deb file](http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb) of a new version)
+
+Command to install all dependencies:
+- Fedora: `sudo dnf install rust cargo make git gtk4-devel libdrm-devel blueprint-compiler`
+- Arch: `sudo pacman -S --needed base-devel git make rust gtk4 hwdata blueprint-compiler`
 
 Steps:
 - `git clone https://github.com/ilya-zlobintsev/LACT && cd LACT`

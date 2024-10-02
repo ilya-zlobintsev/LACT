@@ -28,7 +28,7 @@ env:
 configure:
   steps:
     - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
-    - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
+    - cmd: sh /tmp/install_rust.sh -y --default-toolchain 1.76
     - cmd: pacman -Syu --noconfirm
       pkg: true
 build:
