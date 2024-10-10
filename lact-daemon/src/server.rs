@@ -165,7 +165,9 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         }
         Request::VbiosDump { id } => ok_response(handler.vbios_dump(id)?),
         Request::ListProfiles => ok_response(handler.list_profiles()),
-        Request::SetProfile { name } => ok_response(handler.set_profile(name).await?),
+        Request::SetProfile { name } => {
+            ok_response(handler.set_profile(name.map(Into::into), true).await?)
+        }
         Request::CreateProfile { name, base } => ok_response(handler.create_profile(name, base)?),
         Request::DeleteProfile { name } => ok_response(handler.delete_profile(name).await?),
         Request::MoveProfile { name, new_position } => {

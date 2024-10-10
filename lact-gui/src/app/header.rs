@@ -213,7 +213,7 @@ impl Component for Header {
                         profiles_info
                             .profiles
                             .iter()
-                            .position(|value| **value == *profile)
+                            .position(|value| value == profile)
                             .expect("Active profile is not in the list")
                     });
 

@@ -613,7 +613,7 @@ impl<'a> Handler {
         }
     }
 
-    pub async fn set_profile(&self, name: Option<String>) -> anyhow::Result<()> {
+    pub async fn set_profile(&self, name: Option<Rc<str>>, persist: bool) -> anyhow::Result<()> {
         if let Some(name) = &name {
             self.config.borrow().profile(name)?;
         }
@@ -622,7 +622,10 @@ impl<'a> Handler {
         self.config.borrow_mut().current_profile = name;
 
         self.apply_current_config().await?;
-        self.config.borrow_mut().save()?;
+
+        if persist {
+            self.config.borrow_mut().save()?;
+        }
 
         Ok(())
     }
@@ -644,8 +647,8 @@ impl<'a> Handler {
     }
 
     pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
-        if self.config.borrow().current_profile.as_ref() == Some(&name) {
-            self.set_profile(None).await?;
+        if self.config.borrow().current_profile.as_deref() == Some(&name) {
+            self.set_profile(None, true).await?;
         }
         self.config
             .borrow_mut()

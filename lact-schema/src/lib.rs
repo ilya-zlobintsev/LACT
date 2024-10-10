@@ -311,16 +311,17 @@ pub struct FanOptions<'a> {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct ProfilesInfo {
     pub profiles: Vec<Rc<str>>,
-    pub current_profile: Option<String>,
+    pub current_profile: Option<Rc<str>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum ProfileRule {
     Process(ProcessProfileRule),
     Gamemode(Option<ProcessProfileRule>),
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ProcessProfileRule {
     pub name: String,

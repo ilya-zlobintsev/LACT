@@ -6,7 +6,7 @@ use copes::solver::{PEvent, PID};
 use futures::StreamExt;
 use lact_schema::{ProcessProfileRule, ProfileRule};
 use process::ProcessInfo;
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc, time::Instant};
 use tokio::{select, sync::mpsc};
 use tracing::{error, info, trace, warn};
 
@@ -93,6 +93,8 @@ pub async fn run_watcher(handler: Handler) {
         }
     }
 
+    update_profile(&state, &handler).await;
+
     while let Some(event) = event_rx.recv().await {
         trace!("profile watcher event: {event:?}");
         match event {
@@ -120,7 +122,23 @@ pub async fn run_watcher(handler: Handler) {
             }
         }
 
-        evaluate_current_profile(&state, &handler.config.borrow());
+        update_profile(&state, &handler).await;
+    }
+}
+
+async fn update_profile(state: &WatcherState, handler: &Handler) {
+    let started_at = Instant::now();
+    let new_profile = evaluate_current_profile(state, &handler.config.borrow());
+    trace!("evaluated profile rules in {:?}", started_at.elapsed());
+    if handler.config.borrow().current_profile != new_profile {
+        match &new_profile {
+            Some(name) => info!("setting current profile to {name}"),
+            None => info!("setting default profile"),
+        }
+
+        if let Err(err) = handler.set_profile(new_profile, false).await {
+            error!("failed to apply profile: {err:#}");
+        }
     }
 }
 

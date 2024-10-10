@@ -35,7 +35,7 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub profiles: IndexMap<Rc<str>, Profile>,
     #[serde(default)]
-    pub current_profile: Option<String>,
+    pub current_profile: Option<Rc<str>>,
 }
 
 impl Default for Config {
@@ -71,6 +71,7 @@ impl Default for Daemon {
     }
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Profile {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -202,7 +203,7 @@ impl Config {
             Some(profile) => {
                 let profile = self
                     .profiles
-                    .get(profile.as_str())
+                    .get(profile)
                     .with_context(|| format!("Could not find profile '{profile}'"))?;
                 Ok(&profile.gpus)
             }
@@ -216,7 +217,7 @@ impl Config {
             Some(profile) => {
                 let profile = self
                     .profiles
-                    .get_mut(profile.as_str())
+                    .get_mut(profile)
                     .with_context(|| format!("Could not find profile '{profile}'"))?;
                 Ok(&mut profile.gpus)
             }
