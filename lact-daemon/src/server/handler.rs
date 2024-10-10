@@ -20,7 +20,7 @@ use os_release::OS_RELEASE;
 use pciid_parser::Database;
 use serde_json::json;
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap},
     env,
     fs::{self, File, Permissions},
@@ -28,7 +28,6 @@ use std::{
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     rc::Rc,
-    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 use tokio::{sync::oneshot, time::sleep};
@@ -78,7 +77,7 @@ pub struct Handler {
     pub config: Rc<RefCell<Config>>,
     pub gpu_controllers: Rc<BTreeMap<String, GpuController>>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
-    pub config_last_saved: Arc<Mutex<Instant>>,
+    pub config_last_saved: Rc<Cell<Instant>>,
 }
 
 impl<'a> Handler {
@@ -133,7 +132,7 @@ impl<'a> Handler {
             gpu_controllers: Rc::new(controllers),
             config: Rc::new(RefCell::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
-            config_last_saved: Arc::new(Mutex::new(Instant::now())),
+            config_last_saved: Rc::new(Cell::new(Instant::now())),
         };
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
@@ -245,7 +244,7 @@ impl<'a> Handler {
                     match result {
                         Ok(ConfirmCommand::Confirm) => {
                             info!("saving updated config");
-                            *handler.config_last_saved.lock().unwrap() = Instant::now();
+                            handler.config_last_saved.set(Instant::now());
 
                             let mut config_guard = handler.config.borrow_mut();
                             match config_guard.gpus_mut() {
@@ -259,7 +258,7 @@ impl<'a> Handler {
                                 error!("{err:#}");
                             }
 
-                            *handler.config_last_saved.lock().unwrap() = Instant::now();
+                            handler.config_last_saved.set(Instant::now());
                         }
                         Ok(ConfirmCommand::Revert) | Err(_) => {
                             if let Err(err) = controller.apply_config(&previous_config).await {
@@ -630,7 +629,7 @@ impl<'a> Handler {
 
     pub fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
         let mut config = self.config.borrow_mut();
-        if config.profiles.contains_key(&name) {
+        if config.profiles.contains_key(name.as_str()) {
             bail!("Profile {name} already exists");
         }
 
@@ -639,7 +638,7 @@ impl<'a> Handler {
             ProfileBase::Default => config.default_profile(),
             ProfileBase::Profile(name) => config.profile(&name)?.clone(),
         };
-        config.profiles.insert(name, profile);
+        config.profiles.insert(name.into(), profile);
         config.save()?;
         Ok(())
     }
@@ -648,7 +647,10 @@ impl<'a> Handler {
         if self.config.borrow().current_profile.as_ref() == Some(&name) {
             self.set_profile(None).await?;
         }
-        self.config.borrow_mut().profiles.shift_remove(&name);
+        self.config
+            .borrow_mut()
+            .profiles
+            .shift_remove(name.as_str());
         self.config.borrow().save()?;
         Ok(())
     }
@@ -691,12 +693,12 @@ impl<'a> Handler {
         let mut config = self.config.borrow_mut();
         config.clear();
 
-        *self.config_last_saved.lock().unwrap() = Instant::now();
+        self.config_last_saved.set(Instant::now());
         if let Err(err) = config.save() {
             error!("could not save config: {err:#}");
         }
 
-        *self.config_last_saved.lock().unwrap() = Instant::now();
+        self.config_last_saved.set(Instant::now());
     }
 
     pub async fn cleanup(&self) {

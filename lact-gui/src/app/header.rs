@@ -213,7 +213,7 @@ impl Component for Header {
                         profiles_info
                             .profiles
                             .iter()
-                            .position(|value| value == profile)
+                            .position(|value| **value == *profile)
                             .expect("Active profile is not in the list")
                     });
 
@@ -223,7 +223,7 @@ impl Component for Header {
                 let last = profiles_info.profiles.len().saturating_sub(1);
                 for (i, name) in profiles_info.profiles.into_iter().enumerate() {
                     profiles.push_back(ProfileRow::Profile {
-                        name,
+                        name: name.to_string(),
                         first: i == 0,
                         last: i == last,
                     });

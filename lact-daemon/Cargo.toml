@@ -12,7 +12,7 @@ lact-schema = { path = "../lact-schema" }
 amdgpu-sysfs = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
 serde_with = { workspace = true }
 serde_json = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -38,3 +38,8 @@ tar = "0.4.40"
 libflate = "2.0.0"
 os-release = "0.1.0"
 notify = { version = "6.1.1", default-features = false }
+regex = "1.11.0"
+copes = { git = "https://gitlab.com/corectrl/copes" }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

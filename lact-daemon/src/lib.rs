@@ -2,6 +2,7 @@
 #![allow(clippy::missing_panics_doc)]
 
 mod config;
+mod profiles;
 mod server;
 mod socket;
 mod suspend;
@@ -10,7 +11,6 @@ use anyhow::Context;
 use config::Config;
 use futures::future::select_all;
 use server::{handle_stream, handler::Handler, Server};
-use std::str::FromStr;
 use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
 use tokio::net::UnixStream;
 use tokio::{
@@ -18,7 +18,9 @@ use tokio::{
     signal::unix::{signal, SignalKind},
     task::LocalSet,
 };
-use tracing::{debug, debug_span, error, info, warn, Instrument, Level};
+use tracing::level_filters::LevelFilter;
+use tracing::{debug, debug_span, error, info, warn, Instrument};
+use tracing_subscriber::EnvFilter;
 
 /// RDNA3, minimum family that supports the new pmfw interface
 pub const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
@@ -45,8 +47,11 @@ pub fn run() -> anyhow::Result<()> {
     rt.block_on(async {
         let config = Config::load_or_create()?;
 
-        let max_level = Level::from_str(&config.daemon.log_level).context("Invalid log level")?;
-        tracing_subscriber::fmt().with_max_level(max_level).init();
+        let env_filter = EnvFilter::builder()
+            .with_default_directive(LevelFilter::INFO.into())
+            .parse(&config.daemon.log_level)
+            .context("Invalid log level")?;
+        tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
         ensure_sufficient_uptime().await;
 
@@ -55,9 +60,11 @@ pub fn run() -> anyhow::Result<()> {
                 let server = Server::new(config).await?;
                 let handler = server.handler.clone();
 
+                tokio::task::spawn_local(profiles::run_watcher(handler.clone()));
                 tokio::task::spawn_local(listen_config_changes(handler.clone()));
                 tokio::task::spawn_local(listen_exit_signals(handler.clone()));
                 tokio::task::spawn_local(suspend::listen_events(handler));
+
                 server.run().await;
                 Ok(())
             })

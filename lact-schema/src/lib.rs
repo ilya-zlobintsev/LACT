@@ -24,6 +24,7 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
     fmt,
+    rc::Rc,
     str::FromStr,
 };
 
@@ -309,6 +310,19 @@ pub struct FanOptions<'a> {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct ProfilesInfo {
-    pub profiles: Vec<String>,
+    pub profiles: Vec<Rc<str>>,
     pub current_profile: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type")]
+pub enum ProfileRule {
+    Process(ProcessProfileRule),
+    Gamemode(Option<ProcessProfileRule>),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ProcessProfileRule {
+    pub name: String,
+    pub args: Option<String>,
 }

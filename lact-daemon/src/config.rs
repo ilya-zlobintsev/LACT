@@ -2,16 +2,19 @@ use crate::server::gpu_controller::fan_control::FanCurve;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use anyhow::Context;
 use indexmap::IndexMap;
-use lact_schema::{default_fan_curve, request::SetClocksCommand, FanControlMode, PmfwOptions};
+use lact_schema::{
+    default_fan_curve, request::SetClocksCommand, FanControlMode, PmfwOptions, ProfileRule,
+};
 use nix::unistd::getuid;
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
+    cell::Cell,
     collections::HashMap,
     env, fs,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    rc::Rc,
     time::{Duration, Instant},
 };
 use tokio::{sync::mpsc, time};
@@ -30,7 +33,7 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     gpus: HashMap<String, Gpu>,
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub profiles: IndexMap<String, Profile>,
+    pub profiles: IndexMap<Rc<str>, Profile>,
     #[serde(default)]
     pub current_profile: Option<String>,
 }
@@ -72,6 +75,7 @@ impl Default for Daemon {
 pub struct Profile {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub gpus: HashMap<String, Gpu>,
+    pub rule: Option<ProfileRule>,
 }
 
 #[skip_serializing_none]
@@ -198,7 +202,7 @@ impl Config {
             Some(profile) => {
                 let profile = self
                     .profiles
-                    .get(profile)
+                    .get(profile.as_str())
                     .with_context(|| format!("Could not find profile '{profile}'"))?;
                 Ok(&profile.gpus)
             }
@@ -212,7 +216,7 @@ impl Config {
             Some(profile) => {
                 let profile = self
                     .profiles
-                    .get_mut(profile)
+                    .get_mut(profile.as_str())
                     .with_context(|| format!("Could not find profile '{profile}'"))?;
                 Ok(&mut profile.gpus)
             }
@@ -231,6 +235,7 @@ impl Config {
     pub fn default_profile(&self) -> Profile {
         Profile {
             gpus: self.gpus.clone(),
+            rule: None,
         }
     }
 
@@ -241,11 +246,11 @@ impl Config {
     }
 }
 
-pub fn start_watcher(config_last_saved: Arc<Mutex<Instant>>) -> mpsc::UnboundedReceiver<Config> {
+pub fn start_watcher(config_last_saved: Rc<Cell<Instant>>) -> mpsc::UnboundedReceiver<Config> {
     let (config_tx, config_rx) = mpsc::unbounded_channel();
     let (event_tx, mut event_rx) = mpsc::channel(64);
 
-    tokio::spawn(async move {
+    tokio::task::spawn_local(async move {
         let mut watcher =
             RecommendedWatcher::new(SenderEventHandler(event_tx), notify::Config::default())
                 .expect("Could not create config file watcher");
@@ -267,7 +272,7 @@ pub fn start_watcher(config_last_saved: Arc<Mutex<Instant>>) -> mpsc::UnboundedR
                     if let EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) =
                         event.kind
                     {
-                        if config_last_saved.lock().unwrap().elapsed()
+                        if config_last_saved.get().elapsed()
                             < Duration::from_millis(CONFIG_RELOAD_INTERVAL_MILLIS)
                         {
                             debug!("ignoring fs event after self-inflicted config change");
