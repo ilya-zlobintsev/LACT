@@ -4,15 +4,16 @@ mod process;
 use crate::{config::Config, server::handler::Handler};
 use copes::solver::{PEvent, PID};
 use futures::StreamExt;
+use indexmap::{IndexMap, IndexSet};
 use lact_schema::{ProcessProfileRule, ProfileRule};
 use process::ProcessInfo;
-use std::{collections::HashMap, rc::Rc, time::Instant};
+use std::{rc::Rc, time::Instant};
 use tokio::{select, sync::mpsc};
 use tracing::{error, info, trace, warn};
 
 struct WatcherState {
-    process_list: HashMap<PID, ProcessInfo>,
-    gamemode_games: HashMap<PID, ProcessInfo>,
+    process_list: IndexMap<PID, ProcessInfo>,
+    gamemode_games: IndexSet<PID>,
 }
 
 #[derive(Debug)]
@@ -26,7 +27,7 @@ pub async fn run_watcher(handler: Handler) {
 
     let mut state = WatcherState {
         process_list,
-        gamemode_games: HashMap::new(),
+        gamemode_games: IndexSet::new(),
     };
     info!("loaded {} processes", state.process_list.len());
 
@@ -38,12 +39,7 @@ pub async fn run_watcher(handler: Handler) {
         match proxy.list_games().await {
             Ok(games) => {
                 for (pid, _) in games {
-                    match process::get_pid_info(pid.into()) {
-                        Ok(data) => {
-                            state.gamemode_games.insert(pid.into(), data);
-                        }
-                        Err(err) => error!("could not get info for gamemode game {pid}: {err}"),
-                    }
+                    state.gamemode_games.insert(pid.into());
                 }
             }
             Err(err) => {
@@ -107,18 +103,13 @@ pub async fn run_watcher(handler: Handler) {
                 }
             },
             ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
-                state.process_list.remove(&pid);
+                state.process_list.shift_remove(&pid);
             }
-            ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => match process::get_pid_info(pid) {
-                Ok(data) => {
-                    state.gamemode_games.insert(pid, data);
-                }
-                Err(err) => {
-                    warn!("could not get info for process {pid}: {err}");
-                }
-            },
+            ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
+                state.gamemode_games.insert(pid);
+            }
             ProfileWatcherEvent::Gamemode(PEvent::Exit(pid)) => {
-                state.gamemode_games.remove(&pid);
+                state.gamemode_games.shift_remove(&pid);
             }
         }
 
@@ -130,6 +121,7 @@ async fn update_profile(state: &WatcherState, handler: &Handler) {
     let started_at = Instant::now();
     let new_profile = evaluate_current_profile(state, &handler.config.borrow());
     trace!("evaluated profile rules in {:?}", started_at.elapsed());
+
     if handler.config.borrow().current_profile != new_profile {
         match &new_profile {
             Some(name) => info!("setting current profile to {name}"),
@@ -145,29 +137,28 @@ async fn update_profile(state: &WatcherState, handler: &Handler) {
 /// Returns the new active profile
 fn evaluate_current_profile(state: &WatcherState, config: &Config) -> Option<Rc<str>> {
     // TODO: fast path to re-evaluate only a single event and not the whole state?
-    for (profile_name, profile) in &config.profiles {
-        if let Some(rule) = &profile.rule {
-            match rule {
-                ProfileRule::Process(rule) => {
-                    for process in state.process_list.values() {
-                        if process_rule_matches(rule, process) {
-                            return Some(profile_name.clone());
-                        }
-                    }
-                }
-                ProfileRule::Gamemode(rule) => {
-                    if !state.gamemode_games.is_empty() {
-                        match rule {
-                            Some(process_rule) => {
-                                for process in state.process_list.values() {
-                                    if process_rule_matches(process_rule, process) {
-                                        return Some(profile_name.clone());
-                                    }
-                                }
+    for pid in state.gamemode_games.iter().rev() {
+        for (profile_name, profile) in &config.profiles {
+            if let Some(ProfileRule::Gamemode(process_filter)) = &profile.rule {
+                match process_filter {
+                    Some(filter) => {
+                        if let Some(process) = state.process_list.get(pid) {
+                            if process_rule_matches(filter, process) {
+                                return Some(profile_name.clone());
                             }
-                            None => return Some(profile_name.clone()),
                         }
                     }
+                    None => return Some(profile_name.clone()),
+                }
+            }
+        }
+    }
+
+    for process in state.process_list.values().rev() {
+        for (profile_name, profile) in &config.profiles {
+            if let Some(ProfileRule::Process(rule)) = &profile.rule {
+                if process_rule_matches(rule, process) {
+                    return Some(profile_name.clone());
                 }
             }
         }
@@ -192,6 +183,7 @@ mod tests {
         profiles::evaluate_current_profile,
     };
     use copes::solver::PID;
+    use indexmap::{IndexMap, IndexSet};
     use lact_schema::{ProcessProfileRule, ProfileRule};
     use pretty_assertions::assert_eq;
     use std::{collections::HashMap, rc::Rc};
@@ -199,14 +191,14 @@ mod tests {
     #[test]
     fn evaluate_basic_profile() {
         let mut state = WatcherState {
-            process_list: HashMap::from([(
+            process_list: IndexMap::from([(
                 PID::from(1),
                 ProcessInfo {
                     name: "game1".to_owned(),
                     cmdline: String::new(),
                 },
             )]),
-            gamemode_games: HashMap::new(),
+            gamemode_games: IndexSet::new(),
         };
 
         let mut config = Config::default();

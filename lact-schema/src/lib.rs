@@ -314,8 +314,9 @@ pub struct ProfilesInfo {
     pub current_profile: Option<Rc<str>>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[serde(tag = "type", content = "filter", rename_all = "lowercase")]
 pub enum ProfileRule {
     Process(ProcessProfileRule),
     Gamemode(Option<ProcessProfileRule>),

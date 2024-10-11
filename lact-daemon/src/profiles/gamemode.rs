@@ -1,7 +1,8 @@
 use super::process::ProcessInfo;
 use copes::solver::PID;
+use indexmap::IndexMap;
 use nix::unistd::{geteuid, seteuid};
-use std::{collections::HashMap, env, fs, os::unix::fs::MetadataExt, path::PathBuf};
+use std::{env, fs, os::unix::fs::MetadataExt, path::PathBuf};
 use tracing::{debug, error, info};
 use zbus::{
     proxy,
@@ -42,7 +43,7 @@ pub trait GameModeGame {
 }
 
 pub async fn connect(
-    process_list: &HashMap<PID, ProcessInfo>,
+    process_list: &IndexMap<PID, ProcessInfo>,
 ) -> Option<(Connection, GameModeProxy<'static>)> {
     let mut address = None;
     let mut gamemode_uid = None;
