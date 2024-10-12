@@ -3,6 +3,7 @@ use copes::solver::PID;
 use indexmap::IndexMap;
 use nix::unistd::{geteuid, seteuid};
 use std::{env, fs, os::unix::fs::MetadataExt, path::PathBuf};
+use string_interner::{backend::StringBackend, StringInterner};
 use tracing::{error, info};
 use zbus::{
     proxy,
@@ -45,6 +46,7 @@ pub trait GameModeGame {
 
 pub async fn connect(
     process_list: &IndexMap<PID, ProcessInfo>,
+    interner: &StringInterner<StringBackend>,
 ) -> Option<(Connection, GameModeProxy<'static>)> {
     let mut address = None;
     let mut gamemode_uid = None;
@@ -53,7 +55,7 @@ pub async fn connect(
         address = Some(raw_address);
     } else if let Some((pid, _)) = process_list
         .iter()
-        .find(|(_, info)| info.name == PROCESS_NAME)
+        .find(|(_, info)| info.resolve_name(interner) == PROCESS_NAME)
     {
         let process_path = PathBuf::from(*pid);
         let metadata = process_path

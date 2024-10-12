@@ -1743,6 +1743,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "serde_yaml",
+ "string-interner",
  "tar",
  "tokio",
  "tracing",
@@ -2797,6 +2798,17 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "string-interner"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c6a0d765f5807e98a091107bae0a56ea3799f66a5de47b2c84c94a39c09974e"
+dependencies = [
+ "cfg-if",
+ "hashbrown",
+ "serde",
+]
 
 [[package]]
 name = "strsim"

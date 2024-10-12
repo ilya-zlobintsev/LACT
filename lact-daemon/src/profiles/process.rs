@@ -1,16 +1,29 @@
 use super::ProfileWatcherEvent;
 use copes::{io::connector::ProcessEventsConnector, solver::PID};
 use std::fs;
+use string_interner::{backend::StringBackend, symbol::SymbolU32, StringInterner};
 use tokio::sync::mpsc;
 use tracing::{debug, error};
 
 #[allow(clippy::module_name_repetitions)]
 pub struct ProcessInfo {
-    pub name: String,
-    pub cmdline: String,
+    pub name: SymbolU32,
+    pub cmdline: SymbolU32,
 }
 
-pub fn load_full_process_list() -> impl Iterator<Item = (PID, ProcessInfo)> {
+impl ProcessInfo {
+    pub fn resolve_name<'a>(&self, interner: &'a StringInterner<StringBackend>) -> &'a str {
+        interner.resolve(self.name).unwrap()
+    }
+
+    pub fn resolve_cmdline<'a>(&self, interner: &'a StringInterner<StringBackend>) -> &'a str {
+        interner.resolve(self.cmdline).unwrap()
+    }
+}
+
+pub fn load_full_process_list(
+    interner: &mut StringInterner<StringBackend>,
+) -> impl Iterator<Item = (PID, ProcessInfo)> + '_ {
     fs::read_dir("/proc")
         .inspect_err(|err| error!("could not read /proc: {err}"))
         .into_iter()
@@ -27,7 +40,7 @@ pub fn load_full_process_list() -> impl Iterator<Item = (PID, ProcessInfo)> {
         })
         .filter_map(|pid| {
             let pid = PID::from(pid);
-            let info = get_pid_info(pid).ok()?;
+            let info = get_pid_info(pid, interner).ok()?;
             Some((pid, info))
         })
 }
@@ -55,13 +68,16 @@ pub fn start_listener(event_tx: mpsc::Sender<ProfileWatcherEvent>) {
     }
 }
 
-pub fn get_pid_info(pid: PID) -> std::io::Result<ProcessInfo> {
+pub fn get_pid_info(
+    pid: PID,
+    interner: &mut StringInterner<StringBackend>,
+) -> std::io::Result<ProcessInfo> {
     let exe = copes::io::proc::exe_reader(pid)?;
     let cmdline = copes::io::proc::cmdline_reader(pid)?;
     let executed_file = copes::solver::get_process_executed_file(exe, &cmdline).to_string();
 
-    Ok(ProcessInfo {
-        name: executed_file.to_string(),
-        cmdline: cmdline.to_string(),
-    })
+    let name = interner.get_or_intern(executed_file);
+    let cmdline = interner.get_or_intern(cmdline.to_string());
+
+    Ok(ProcessInfo { name, cmdline })
 }
