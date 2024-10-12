@@ -91,29 +91,40 @@ pub async fn run_watcher(handler: Handler) {
 
     update_profile(&state, &handler).await;
 
-    while let Some(event) = event_rx.recv().await {
-        trace!("profile watcher event: {event:?}");
-        match event {
-            ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid) {
-                Ok(data) => {
-                    state.process_list.insert(pid, data);
-                }
-                Err(err) => {
-                    warn!("could not get info for process {pid}: {err}");
-                }
-            },
-            ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
-                state.process_list.shift_remove(&pid);
-            }
-            ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
-                state.gamemode_games.insert(pid);
-            }
-            ProfileWatcherEvent::Gamemode(PEvent::Exit(pid)) => {
-                state.gamemode_games.shift_remove(&pid);
-            }
-        }
+    loop {
+        select! {
+            () = handler.profile_watcher_stop_notify.notified() => break,
+            Some(event) = event_rx.recv() => {
+                trace!("profile watcher event: {event:?}");
+                match event {
+                    ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid) {
+                        Ok(info) => {
+                            if info.name == gamemode::PROCESS_NAME {
+                                info!("detected gamemode daemon, reloading profile watcher");
+                                tokio::task::spawn_local(run_watcher(handler));
+                                break;
+                            }
 
-        update_profile(&state, &handler).await;
+                            state.process_list.insert(pid, info);
+                        }
+                        Err(err) => {
+                            warn!("could not get info for process {pid}: {err}");
+                        }
+                    },
+                    ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
+                        state.process_list.shift_remove(&pid);
+                    }
+                    ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
+                        state.gamemode_games.insert(pid);
+                    }
+                    ProfileWatcherEvent::Gamemode(PEvent::Exit(pid)) => {
+                        state.gamemode_games.shift_remove(&pid);
+                    }
+                }
+
+                update_profile(&state, &handler).await;
+            },
+        }
     }
 }
 

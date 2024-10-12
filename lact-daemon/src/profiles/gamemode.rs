@@ -3,13 +3,14 @@ use copes::solver::PID;
 use indexmap::IndexMap;
 use nix::unistd::{geteuid, seteuid};
 use std::{env, fs, os::unix::fs::MetadataExt, path::PathBuf};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use zbus::{
     proxy,
     zvariant::{ObjectPath, OwnedObjectPath},
     Connection,
 };
 
+pub const PROCESS_NAME: &str = "gamemoded";
 const DBUS_ADDRESS_ENV: &str = "DBUS_SESSION_BUS_ADDRESS";
 
 #[proxy(
@@ -52,7 +53,7 @@ pub async fn connect(
         address = Some(raw_address);
     } else if let Some((pid, _)) = process_list
         .iter()
-        .find(|(_, info)| info.name == "gamemoded")
+        .find(|(_, info)| info.name == PROCESS_NAME)
     {
         let process_path = PathBuf::from(*pid);
         let metadata = process_path
@@ -126,7 +127,7 @@ pub async fn connect(
 
         Some((connection, proxy))
     } else {
-        debug!("gamemode daemon not found");
+        info!("gamemode daemon not found");
         None
     }
 }

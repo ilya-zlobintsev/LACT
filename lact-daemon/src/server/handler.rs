@@ -30,7 +30,10 @@ use std::{
     rc::Rc,
     time::{Duration, Instant},
 };
-use tokio::{sync::oneshot, time::sleep};
+use tokio::{
+    sync::{oneshot, Notify},
+    time::sleep,
+};
 use tracing::{debug, error, info, trace, warn};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
@@ -78,6 +81,7 @@ pub struct Handler {
     pub gpu_controllers: Rc<BTreeMap<String, GpuController>>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
     pub config_last_saved: Rc<Cell<Instant>>,
+    pub profile_watcher_stop_notify: Rc<Notify>,
 }
 
 impl<'a> Handler {
@@ -133,6 +137,7 @@ impl<'a> Handler {
             config: Rc::new(RefCell::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
             config_last_saved: Rc::new(Cell::new(Instant::now())),
+            profile_watcher_stop_notify: Rc::new(Notify::new()),
         };
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
