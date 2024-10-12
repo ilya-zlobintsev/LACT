@@ -30,8 +30,8 @@ pub struct Config {
     pub daemon: Daemon,
     #[serde(default = "default_apply_settings_timer")]
     pub apply_settings_timer: u64,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    gpus: HashMap<String, Gpu>,
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    gpus: IndexMap<String, Gpu>,
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub profiles: IndexMap<Rc<str>, Profile>,
     #[serde(default)]
@@ -43,7 +43,7 @@ impl Default for Config {
         Self {
             daemon: Daemon::default(),
             apply_settings_timer: default_apply_settings_timer(),
-            gpus: HashMap::new(),
+            gpus: IndexMap::new(),
             profiles: IndexMap::new(),
             current_profile: None,
         }
@@ -74,8 +74,8 @@ impl Default for Daemon {
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Profile {
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub gpus: HashMap<String, Gpu>,
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub gpus: IndexMap<String, Gpu>,
     pub rule: Option<ProfileRule>,
 }
 
@@ -198,7 +198,7 @@ impl Config {
     }
 
     /// Gets the GPU configs according to the current profile. Returns an error if the current profile could not be found.
-    pub fn gpus(&self) -> anyhow::Result<&HashMap<String, Gpu>> {
+    pub fn gpus(&self) -> anyhow::Result<&IndexMap<String, Gpu>> {
         match &self.current_profile {
             Some(profile) => {
                 let profile = self
@@ -212,7 +212,7 @@ impl Config {
     }
 
     /// Same as [`gpus`], but with a mutable reference
-    pub fn gpus_mut(&mut self) -> anyhow::Result<&mut HashMap<String, Gpu>> {
+    pub fn gpus_mut(&mut self) -> anyhow::Result<&mut IndexMap<String, Gpu>> {
         match &self.current_profile {
             Some(profile) => {
                 let profile = self

@@ -25,6 +25,7 @@ nix = { version = "0.29.0", default-features = false }
 chrono = "0.4.31"
 indexmap = { version = "2.5.0", features = ["serde"] }
 pretty_assertions = "1.4.0"
+divan = "0.1"
 
 [profile.release]
 strip = "symbols"

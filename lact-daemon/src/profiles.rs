@@ -197,7 +197,7 @@ mod tests {
     use indexmap::{IndexMap, IndexSet};
     use lact_schema::{ProcessProfileRule, ProfileRule};
     use pretty_assertions::assert_eq;
-    use std::{collections::HashMap, rc::Rc};
+    use std::rc::Rc;
 
     #[test]
     fn evaluate_basic_profile() {
@@ -216,7 +216,7 @@ mod tests {
         config.profiles.insert(
             "1".into(),
             Profile {
-                gpus: HashMap::new(),
+                gpus: IndexMap::new(),
                 rule: Some(ProfileRule::Process(ProcessProfileRule {
                     name: "game1".to_owned(),
                     args: None,
@@ -226,7 +226,7 @@ mod tests {
         config.profiles.insert(
             "2".into(),
             Profile {
-                gpus: HashMap::new(),
+                gpus: IndexMap::new(),
                 rule: Some(ProfileRule::Process(ProcessProfileRule {
                     name: "game2".to_owned(),
                     args: None,
@@ -252,5 +252,58 @@ mod tests {
             .name
             .clear();
         assert_eq!(None, evaluate_current_profile(&state, &config));
+    }
+}
+
+#[cfg(feature = "bench")]
+mod benches {
+    use super::{evaluate_current_profile, process::ProcessInfo, WatcherState};
+    use crate::config::{Config, Profile};
+    use copes::solver::PID;
+    use divan::Bencher;
+    use indexmap::{IndexMap, IndexSet};
+    use lact_schema::{ProcessProfileRule, ProfileRule};
+    use std::{hint::black_box, rc::Rc};
+
+    #[divan::bench(sample_size = 1000, min_time = 2)]
+    fn evaluate_profiles(bencher: Bencher) {
+        let process_list = (1..2000)
+            .map(|id| {
+                let name = format!("process-{id}");
+                let cmdline = format!("{name} arg1 arg2 --arg3");
+                (PID::from(id), ProcessInfo { name, cmdline })
+            })
+            .collect();
+
+        let state = WatcherState {
+            process_list,
+            gamemode_games: IndexSet::new(),
+        };
+
+        let mut config = Config::default();
+        config.profiles.insert(
+            "1".into(),
+            Profile {
+                gpus: IndexMap::new(),
+                rule: Some(ProfileRule::Process(ProcessProfileRule {
+                    name: "game-abc".to_owned(),
+                    args: None,
+                })),
+            },
+        );
+        config.profiles.insert(
+            "2".into(),
+            Profile {
+                gpus: IndexMap::new(),
+                rule: Some(ProfileRule::Process(ProcessProfileRule {
+                    name: "game-1034".to_owned(),
+                    args: Some("1234".to_owned()),
+                })),
+            },
+        );
+
+        bencher.bench_local(move || -> Option<Rc<str>> {
+            evaluate_current_profile(black_box(&state), black_box(&config))
+        });
     }
 }
