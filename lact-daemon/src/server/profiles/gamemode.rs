@@ -8,7 +8,6 @@ use tracing::{error, info};
 use zbus::{
     proxy,
     zvariant::{ObjectPath, OwnedObjectPath},
-    Connection,
 };
 
 pub const PROCESS_NAME: &str = "gamemoded";
@@ -47,7 +46,7 @@ pub trait GameModeGame {
 pub async fn connect(
     process_list: &IndexMap<PID, ProcessInfo>,
     interner: &StringInterner<StringBackend>,
-) -> Option<(Connection, GameModeProxy<'static>)> {
+) -> Option<GameModeProxy<'static>> {
     let mut address = None;
     let mut gamemode_uid = None;
 
@@ -127,7 +126,7 @@ pub async fn connect(
 
         info!("connected to gamemode daemon, games active: {client_count}");
 
-        Some((connection, proxy))
+        Some(proxy)
     } else {
         info!("gamemode daemon not found");
         None

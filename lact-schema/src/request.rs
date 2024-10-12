@@ -62,6 +62,8 @@ pub enum Request<'a> {
     ListProfiles,
     SetProfile {
         name: Option<String>,
+        #[serde(default)]
+        auto_switch: bool,
     },
     CreateProfile {
         name: String,

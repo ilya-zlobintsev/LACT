@@ -36,6 +36,8 @@ pub struct Config {
     pub profiles: IndexMap<Rc<str>, Profile>,
     #[serde(default)]
     pub current_profile: Option<Rc<str>>,
+    #[serde(default)]
+    pub auto_switch_profiles: bool,
 }
 
 impl Default for Config {
@@ -46,6 +48,7 @@ impl Default for Config {
             gpus: IndexMap::new(),
             profiles: IndexMap::new(),
             current_profile: None,
+            auto_switch_profiles: false,
         }
     }
 }

@@ -53,7 +53,15 @@ pub fn start_listener(event_tx: mpsc::Sender<ProfileWatcherEvent>) {
                 for result in iter {
                     match result {
                         Ok(event) => {
-                            let _ = event_tx.blocking_send(ProfileWatcherEvent::Process(event));
+                            if event_tx
+                                .blocking_send(ProfileWatcherEvent::Process(event))
+                                .is_err()
+                            {
+                                debug!(
+                                    "profile watcher channel closed, exiting process event listener"
+                                );
+                                break;
+                            }
                         }
                         Err(err) => {
                             debug!("process event error: {err}");

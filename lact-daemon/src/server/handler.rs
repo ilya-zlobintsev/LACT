@@ -2,7 +2,10 @@ use super::{
     gpu_controller::{fan_control::FanCurve, GpuController},
     system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
 };
-use crate::config::{self, default_fan_static_speed, Config, FanControlSettings, Profile};
+use crate::{
+    config::{self, default_fan_static_speed, Config, FanControlSettings, Profile},
+    server::profiles,
+};
 use amdgpu_sysfs::{
     gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind},
     sysfs::SysFS,
@@ -81,7 +84,7 @@ pub struct Handler {
     pub gpu_controllers: Rc<BTreeMap<String, GpuController>>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
     pub config_last_saved: Rc<Cell<Instant>>,
-    pub profile_watcher_stop_notify: Rc<Notify>,
+    pub profile_watcher_stop_notify: Rc<RefCell<Option<Rc<Notify>>>>,
 }
 
 impl<'a> Handler {
@@ -137,10 +140,14 @@ impl<'a> Handler {
             config: Rc::new(RefCell::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
             config_last_saved: Rc::new(Cell::new(Instant::now())),
-            profile_watcher_stop_notify: Rc::new(Notify::new()),
+            profile_watcher_stop_notify: Rc::new(RefCell::new(None)),
         };
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
+        }
+
+        if handler.config.borrow().auto_switch_profiles {
+            handler.start_profile_watcher();
         }
 
         // Eagerly release memory
@@ -169,6 +176,21 @@ impl<'a> Handler {
         }
 
         Ok(())
+    }
+
+    fn stop_profile_watcher(&self) {
+        if let Some(existing_stop_notify) = self.profile_watcher_stop_notify.borrow_mut().take() {
+            existing_stop_notify.notify_one();
+        }
+    }
+
+    pub fn start_profile_watcher(&self) {
+        self.stop_profile_watcher();
+
+        let new_notify = Rc::new(Notify::new());
+        *self.profile_watcher_stop_notify.borrow_mut() = Some(new_notify.clone());
+        tokio::task::spawn_local(profiles::run_watcher(self.clone(), new_notify));
+        info!("started new profile watcher");
     }
 
     async fn edit_gpu_config<F: FnOnce(&mut config::Gpu)>(
@@ -615,10 +637,29 @@ impl<'a> Handler {
         ProfilesInfo {
             profiles: config.profiles.keys().cloned().collect(),
             current_profile: config.current_profile.clone(),
+            auto_switch: config.auto_switch_profiles,
         }
     }
 
-    pub async fn set_profile(&self, name: Option<Rc<str>>, persist: bool) -> anyhow::Result<()> {
+    pub async fn set_profile(
+        &self,
+        name: Option<Rc<str>>,
+        auto_switch: bool,
+    ) -> anyhow::Result<()> {
+        if auto_switch {
+            self.start_profile_watcher();
+            self.config.borrow_mut().auto_switch_profiles = true;
+        } else {
+            self.set_current_profile(name).await?;
+            self.stop_profile_watcher();
+        }
+        self.config.borrow_mut().save()?;
+        self.config_last_saved.set(Instant::now());
+
+        Ok(())
+    }
+
+    pub(super) async fn set_current_profile(&self, name: Option<Rc<str>>) -> anyhow::Result<()> {
         if let Some(name) = &name {
             self.config.borrow().profile(name)?;
         }
@@ -626,13 +667,7 @@ impl<'a> Handler {
         self.cleanup().await;
         self.config.borrow_mut().current_profile = name;
 
-        self.apply_current_config().await?;
-
-        if persist {
-            self.config.borrow_mut().save()?;
-        }
-
-        Ok(())
+        self.apply_current_config().await
     }
 
     pub fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
@@ -652,14 +687,17 @@ impl<'a> Handler {
     }
 
     pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
-        if self.config.borrow().current_profile.as_deref() == Some(&name) {
-            self.set_profile(None, true).await?;
-        }
         self.config
             .borrow_mut()
             .profiles
             .shift_remove(name.as_str());
+        if self.config.borrow().current_profile.as_deref() == Some(&name) {
+            let auto_switch = self.config.borrow().auto_switch_profiles;
+            self.set_profile(None, auto_switch).await?;
+        }
+
         self.config.borrow().save()?;
+        self.config_last_saved.set(Instant::now());
         Ok(())
     }
 
@@ -678,6 +716,7 @@ impl<'a> Handler {
         config.profiles.swap_indices(current_index, new_position);
 
         config.save()?;
+        self.config_last_saved.set(Instant::now());
         Ok(())
     }
 

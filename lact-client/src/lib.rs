@@ -146,8 +146,8 @@ impl DaemonClient {
     request_with_id!(reset_pmfw, ResetPmfw, u64);
     request_with_id!(dump_vbios, VbiosDump, Vec<u8>);
 
-    pub async fn set_profile(&self, name: Option<String>) -> anyhow::Result<()> {
-        self.make_request(Request::SetProfile { name })
+    pub async fn set_profile(&self, name: Option<String>, auto_switch: bool) -> anyhow::Result<()> {
+        self.make_request(Request::SetProfile { name, auto_switch })
             .await?
             .inner()
     }

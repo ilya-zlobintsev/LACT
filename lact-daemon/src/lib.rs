@@ -2,7 +2,6 @@
 #![allow(clippy::missing_panics_doc)]
 
 mod config;
-mod profiles;
 mod server;
 mod socket;
 mod suspend;
@@ -60,7 +59,6 @@ pub fn run() -> anyhow::Result<()> {
                 let server = Server::new(config).await?;
                 let handler = server.handler.clone();
 
-                tokio::task::spawn_local(profiles::run_watcher(handler.clone()));
                 tokio::task::spawn_local(listen_config_changes(handler.clone()));
                 tokio::task::spawn_local(listen_exit_signals(handler.clone()));
                 tokio::task::spawn_local(suspend::listen_events(handler));

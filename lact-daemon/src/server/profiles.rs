@@ -10,7 +10,10 @@ use process::ProcessInfo;
 use rule::{CompiledProcessRule, CompiledRule};
 use std::{rc::Rc, time::Instant};
 use string_interner::{backend::StringBackend, StringInterner};
-use tokio::{select, sync::mpsc};
+use tokio::{
+    select,
+    sync::{mpsc, Notify},
+};
 use tracing::{error, info, trace, warn};
 
 struct WatcherState {
@@ -24,7 +27,7 @@ enum ProfileWatcherEvent {
     Gamemode(PEvent),
 }
 
-pub async fn run_watcher(handler: Handler) {
+pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
     let mut interner = StringInterner::default();
 
     let profile_rules = handler
@@ -50,8 +53,9 @@ pub async fn run_watcher(handler: Handler) {
 
     process::start_listener(event_tx.clone());
 
-    if let Some((_conn, proxy)) = gamemode::connect(&state.process_list, &interner).await {
-        match proxy.list_games().await {
+    let mut gamemode_task = None;
+    if let Some(gamemode_proxy) = gamemode::connect(&state.process_list, &interner).await {
+        match gamemode_proxy.list_games().await {
             Ok(games) => {
                 for (pid, _) in games {
                     state.gamemode_games.insert(pid.into());
@@ -63,13 +67,13 @@ pub async fn run_watcher(handler: Handler) {
         }
 
         match (
-            proxy.receive_game_registered().await,
-            proxy.receive_game_unregistered().await,
+            gamemode_proxy.receive_game_registered().await,
+            gamemode_proxy.receive_game_unregistered().await,
         ) {
             (Ok(mut registered_stream), Ok(mut unregistered_stream)) => {
                 let event_tx = event_tx.clone();
 
-                tokio::task::spawn_local(async move {
+                let handle = tokio::task::spawn_local(async move {
                     loop {
                         let mut event = None;
 
@@ -97,6 +101,7 @@ pub async fn run_watcher(handler: Handler) {
                         }
                     }
                 });
+                gamemode_task = Some(handle);
             }
             err_info => {
                 error!("Could not get gamemode event stream: {err_info:?}");
@@ -108,7 +113,7 @@ pub async fn run_watcher(handler: Handler) {
 
     loop {
         select! {
-            () = handler.profile_watcher_stop_notify.notified() => break,
+            () = stop_notify.notified() => break,
             Some(event) = event_rx.recv() => {
                 trace!("profile watcher event: {event:?}");
                 match event {
@@ -116,8 +121,7 @@ pub async fn run_watcher(handler: Handler) {
                         Ok(info) => {
                             if info.resolve_name(&interner) == gamemode::PROCESS_NAME {
                                 info!("detected gamemode daemon, reloading profile watcher");
-                                tokio::task::spawn_local(run_watcher(handler));
-                                break;
+                                handler.start_profile_watcher();
                             }
 
                             state.process_list.insert(pid, info);
@@ -141,6 +145,10 @@ pub async fn run_watcher(handler: Handler) {
             },
         }
     }
+
+    if let Some(handle) = gamemode_task {
+        handle.abort();
+    }
 }
 
 async fn update_profile(
@@ -159,7 +167,7 @@ async fn update_profile(
             None => info!("setting default profile"),
         }
 
-        if let Err(err) = handler.set_profile(new_profile, false).await {
+        if let Err(err) = handler.set_current_profile(new_profile).await {
             error!("failed to apply profile: {err:#}");
         }
     }
@@ -217,10 +225,11 @@ fn process_rule_matches(
 
 #[cfg(test)]
 mod tests {
-    use super::{process::ProcessInfo, WatcherState};
-    use crate::profiles::{
+    use super::{
         evaluate_current_profile,
+        process::ProcessInfo,
         rule::{CompiledProcessRule, CompiledRule},
+        WatcherState,
     };
     use copes::solver::PID;
     use indexmap::{IndexMap, IndexSet};

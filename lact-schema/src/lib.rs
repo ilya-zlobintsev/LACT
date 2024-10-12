@@ -312,6 +312,7 @@ pub struct FanOptions<'a> {
 pub struct ProfilesInfo {
     pub profiles: Vec<Rc<str>>,
     pub current_profile: Option<Rc<str>>,
+    pub auto_switch: bool,
 }
 
 #[skip_serializing_none]

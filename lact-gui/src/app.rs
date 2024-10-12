@@ -253,14 +253,14 @@ impl AppModel {
                 }
             }
             AppMsg::SelectProfile(profile) => {
-                self.daemon_client.set_profile(profile).await?;
+                self.daemon_client.set_profile(profile, false).await?;
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::CreateProfile(name, base) => {
                 self.daemon_client
                     .create_profile(name.clone(), base)
                     .await?;
-                self.daemon_client.set_profile(Some(name)).await?;
+                self.daemon_client.set_profile(Some(name), false).await?;
                 sender.input(AppMsg::ReloadProfiles);
             }
             AppMsg::DeleteProfile(profile) => {
