@@ -2,7 +2,7 @@ mod new_profile_dialog;
 mod profile_row;
 
 use super::{AppMsg, DebugSnapshot, DisableOverdrive, DumpVBios, ResetConfig, ShowGraphsWindow};
-use glib::clone;
+use glib::{clone, SignalHandlerId};
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::DeviceListEntry;
@@ -14,16 +14,20 @@ use relm4::{
     typed_view::list::{RelmListItem, TypedListView},
     Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
 };
+use tracing::trace;
 
 pub struct Header {
+    profiles_info: ProfilesInfo,
     gpu_selector: TypedListView<GpuListItem, gtk::SingleSelection>,
     profile_selector: FactoryVecDeque<ProfileRow>,
     selector_label: String,
+    select_profile_signal_handler: SignalHandlerId,
 }
 
 #[derive(Debug)]
 pub enum HeaderMsg {
     Profiles(ProfilesInfo),
+    AutoProfileSwitch(bool),
     SelectProfile,
     SelectGpu,
     CreateProfile,
@@ -81,6 +85,17 @@ impl Component for Header {
                                 set_orientation: gtk::Orientation::Vertical,
                                 set_spacing: 5,
 
+                                gtk::CheckButton {
+                                    set_label: Some("Switch automatically"),
+                                    set_margin_horizontal: 5,
+                                    #[watch]
+                                    #[block_signal(toggle_auto_profile_handler)]
+                                    set_active: model.profiles_info.auto_switch,
+                                    connect_toggled[sender] => move |button| {
+                                        sender.input(HeaderMsg::AutoProfileSwitch(button.is_active()));
+                                    } @ toggle_auto_profile_handler
+                                },
+
                                 gtk::ScrolledWindow {
                                     set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
                                     set_propagate_natural_height: true,
@@ -100,7 +115,7 @@ impl Component for Header {
                                         set_icon_name: "list-add",
                                         connect_clicked => HeaderMsg::CreateProfile,
                                     },
-                                }
+                                },
                             }
                         },
                     }
@@ -158,10 +173,11 @@ impl Component for Header {
                 ProfileRowOutput::MoveDown(profile, index) => move_profile_msg(profile, index, 1),
                 ProfileRowOutput::Delete(profile) => AppMsg::DeleteProfile(profile),
             });
-        profile_selector.widget().connect_row_selected(clone!(
+        let select_profile_signal_handler = profile_selector.widget().connect_row_selected(clone!(
             #[strong]
             sender,
             move |_, _| {
+                trace!("Profile signal fired");
                 let _ = sender.input_sender().send(HeaderMsg::SelectProfile);
             }
         ));
@@ -170,6 +186,8 @@ impl Component for Header {
             gpu_selector,
             profile_selector,
             selector_label: String::new(),
+            profiles_info: ProfilesInfo::default(),
+            select_profile_signal_handler,
         };
 
         let gpu_selector = &model.gpu_selector.view;
@@ -207,45 +225,28 @@ impl Component for Header {
         _root: &Self::Root,
     ) {
         match msg {
-            HeaderMsg::Profiles(profiles_info) => {
-                let selected_profile_index =
-                    profiles_info.current_profile.as_ref().map(|profile| {
-                        profiles_info
-                            .profiles
-                            .iter()
-                            .position(|value| value == profile)
-                            .expect("Active profile is not in the list")
-                    });
-
-                let mut profiles = self.profile_selector.guard();
-                profiles.clear();
-
-                let last = profiles_info.profiles.len().saturating_sub(1);
-                for (i, name) in profiles_info.profiles.into_iter().enumerate() {
-                    profiles.push_back(ProfileRow::Profile {
-                        name: name.to_string(),
-                        first: i == 0,
-                        last: i == last,
-                    });
-                }
-                profiles.push_back(ProfileRow::Default);
-                let selected_index = selected_profile_index.unwrap_or_else(|| profiles.len() - 1);
-                drop(profiles);
-
-                self.profile_selector.widget().select_row(Some(
-                    &self
-                        .profile_selector
-                        .widget()
-                        .row_at_index(selected_index as i32)
-                        .unwrap(),
-                ));
-            }
+            HeaderMsg::Profiles(profiles_info) => self.set_profiles_info(profiles_info),
             HeaderMsg::SelectGpu => sender.output(AppMsg::ReloadData { full: true }).unwrap(),
+            HeaderMsg::AutoProfileSwitch(auto_switch) => {
+                let msg = AppMsg::SelectProfile {
+                    profile: self.selected_profile().filter(|_| !auto_switch),
+                    auto_switch,
+                };
+                sender.output(msg).unwrap();
+            }
             HeaderMsg::SelectProfile => {
-                let selected_profile = self.selected_profile();
-                sender
-                    .output(AppMsg::SelectProfile(selected_profile))
-                    .unwrap();
+                let profile = self.selected_profile();
+
+                if self.profiles_info.current_profile.as_deref() != profile.as_deref() {
+                    sender
+                        .output(AppMsg::SelectProfile {
+                            profile,
+                            auto_switch: false,
+                        })
+                        .unwrap();
+                } else {
+                    trace!("ignoring profile select event");
+                }
             }
             HeaderMsg::CreateProfile => {
                 let mut diag_controller = NewProfileDialog::builder()
@@ -263,12 +264,61 @@ impl Component for Header {
 }
 
 impl Header {
+    fn set_profiles_info(&mut self, profiles_info: ProfilesInfo) {
+        // self.profile_selector
+        //     .widget()
+        //     .block_signal(&self.select_profile_signal_handler);
+
+        let selected_profile_index = profiles_info.current_profile.as_ref().map(|profile| {
+            profiles_info
+                .profiles
+                .iter()
+                .position(|value| value == profile)
+                .expect("Active profile is not in the list")
+        });
+
+        let mut profiles = self.profile_selector.guard();
+        profiles.clear();
+
+        let last = profiles_info.profiles.len().saturating_sub(1);
+        for (i, name) in profiles_info.profiles.iter().enumerate() {
+            profiles.push_back(ProfileRow::Profile {
+                name: name.to_string(),
+                first: i == 0,
+                last: i == last,
+            });
+        }
+        profiles.push_back(ProfileRow::Default);
+        let selected_index = selected_profile_index.unwrap_or_else(|| profiles.len() - 1);
+        drop(profiles);
+
+        trace!("selecting profile row");
+        self.profile_selector.widget().select_row(Some(
+            &self
+                .profile_selector
+                .widget()
+                .row_at_index(selected_index as i32)
+                .unwrap(),
+        ));
+
+        // trace!("unblocking signal");
+        // self.profile_selector
+        //     .widget()
+        //     .unblock_signal(&self.select_profile_signal_handler);
+
+        self.profiles_info = profiles_info;
+    }
+
     pub fn selected_gpu_id(&self) -> Option<String> {
         let selected = self.gpu_selector.selection_model.selected();
         self.gpu_selector
             .get(selected)
             .as_ref()
             .map(|item| item.borrow().0.id.clone())
+    }
+
+    pub fn auto_switch_profiles(&self) -> bool {
+        self.profiles_info.auto_switch
     }
 
     fn custom_profiles(&self) -> Vec<String> {

@@ -648,11 +648,11 @@ impl<'a> Handler {
     ) -> anyhow::Result<()> {
         if auto_switch {
             self.start_profile_watcher();
-            self.config.borrow_mut().auto_switch_profiles = true;
         } else {
             self.set_current_profile(name).await?;
             self.stop_profile_watcher();
         }
+        self.config.borrow_mut().auto_switch_profiles = auto_switch;
         self.config.borrow_mut().save()?;
         self.config_last_saved.set(Instant::now());
 

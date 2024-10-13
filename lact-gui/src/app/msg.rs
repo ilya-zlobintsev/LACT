@@ -6,7 +6,9 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub enum AppMsg {
     Error(Arc<anyhow::Error>),
-    ReloadData { full: bool },
+    ReloadData {
+        full: bool,
+    },
     Stats(DeviceStats),
     ApplyChanges,
     RevertChanges,
@@ -19,7 +21,10 @@ pub enum AppMsg {
     DisableOverdrive,
     ResetConfig,
     ReloadProfiles,
-    SelectProfile(Option<String>),
+    SelectProfile {
+        profile: Option<String>,
+        auto_switch: bool,
+    },
     CreateProfile(String, ProfileBase),
     DeleteProfile(String),
     MoveProfile(String, usize),
