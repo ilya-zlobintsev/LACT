@@ -769,6 +769,7 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>
                                                     id,
                                                     Box::new(controller) as Box<dyn GpuController>,
                                                 );
+                                                continue;
                                             }
                                             Err(err) => {
                                                 error!("could not get Nvidia GPU id: {err}");
