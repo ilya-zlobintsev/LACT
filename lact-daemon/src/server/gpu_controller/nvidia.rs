@@ -1,15 +1,23 @@
 use crate::{config, server::vulkan::get_vulkan_info};
 
 use super::GpuController;
-use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::HwMon};
+use amdgpu_sysfs::{
+    gpu_handle::power_profile_mode::PowerProfileModesTable,
+    hw_mon::{HwMon, Temperature},
+};
 use anyhow::anyhow;
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    ClocksInfo, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo, GpuPciInfo, LinkInfo, PowerStates,
+    ClocksInfo, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo, FanStats, GpuPciInfo, LinkInfo,
+    PmfwInfo, PowerStates, PowerStats, VramStats,
 };
-use nvml_wrapper::{Device, Nvml};
+use nvml_wrapper::{
+    enum_wrappers::device::{TemperatureSensor, TemperatureThreshold},
+    Device, Nvml,
+};
 use std::{
     borrow::Cow,
+    collections::HashMap,
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -116,8 +124,96 @@ impl GpuController for NvidiaGpuController {
         Some(self.pci_slot_id.clone())
     }
 
-    fn get_stats(&self, _gpu_config: Option<&config::Gpu>) -> DeviceStats {
-        DeviceStats::default()
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )]
+    fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
+        let device = self.device();
+
+        let mut temps = HashMap::new();
+
+        if let Ok(temp) = device.temperature(TemperatureSensor::Gpu) {
+            let crit = device
+                .temperature_threshold(TemperatureThreshold::Shutdown)
+                .map(|value| value as f32)
+                .ok();
+
+            temps.insert(
+                "GPU".to_owned(),
+                Temperature {
+                    current: Some(temp as f32),
+                    crit,
+                    crit_hyst: None,
+                },
+            );
+        };
+
+        let fan_settings = gpu_config.and_then(|config| config.fan_control_settings.as_ref());
+
+        let pwm_current = if device.num_fans().is_ok_and(|num| num > 0) {
+            device
+                .fan_speed(0)
+                .ok()
+                .map(|value| (f64::from(value) * 2.55) as u8)
+        } else {
+            None
+        };
+
+        let vram = device
+            .memory_info()
+            .map(|info| VramStats {
+                total: Some(info.total),
+                used: Some(info.used),
+            })
+            .unwrap_or_default();
+
+        DeviceStats {
+            temps,
+            fan: FanStats {
+                control_enabled: gpu_config.is_some_and(|config| config.fan_control_enabled),
+                control_mode: fan_settings.map(|settings| settings.mode),
+                static_speed: fan_settings.map(|settings| settings.static_speed),
+                curve: fan_settings.map(|settings| settings.curve.0.clone()),
+                spindown_delay_ms: fan_settings.and_then(|settings| settings.spindown_delay_ms),
+                change_threshold: fan_settings.and_then(|settings| settings.change_threshold),
+                speed_current: None,
+                speed_max: None,
+                speed_min: None,
+                pwm_current,
+                pmfw_info: PmfwInfo::default(),
+            },
+            power: PowerStats {
+                average: None,
+                current: device
+                    .power_usage()
+                    .map(|mw| f64::from(mw) / 1_000_000.0)
+                    .ok(),
+                cap_current: device
+                    .power_management_limit()
+                    .map(|mw| f64::from(mw) / 1_000_000.0)
+                    .ok(),
+                cap_max: device
+                    .power_management_limit_constraints()
+                    .map(|constraints| f64::from(constraints.max_limit) / 1_000_000.0)
+                    .ok(),
+                cap_min: device
+                    .power_management_limit_constraints()
+                    .map(|constraints| f64::from(constraints.max_limit) / 1_000_000.0)
+                    .ok(),
+                cap_default: device
+                    .power_management_limit_default()
+                    .map(|mw| f64::from(mw) / 1_000_000.0)
+                    .ok(),
+            },
+            busy_percent: device
+                .utilization_rates()
+                .map(|utilization| u8::try_from(utilization.gpu).expect("Invalid percentage"))
+                .ok(),
+            vram,
+            ..Default::default()
+        }
     }
 
     fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
