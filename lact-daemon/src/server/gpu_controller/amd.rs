@@ -47,10 +47,10 @@ use {
 const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
 
 pub struct AmdGpuController {
-    pub(super) handle: GpuHandle,
-    pub drm_handle: Option<DrmHandle>,
-    pub pci_info: Option<GpuPciInfo>,
-    pub fan_control_handle: RefCell<Option<FanControlHandle>>,
+    handle: GpuHandle,
+    drm_handle: Option<DrmHandle>,
+    pci_info: Option<GpuPciInfo>,
+    fan_control_handle: RefCell<Option<FanControlHandle>>,
 }
 
 impl AmdGpuController {
@@ -378,6 +378,113 @@ impl AmdGpuController {
             .first()
             .context("GPU has no hardware monitor")
     }
+
+    fn get_current_gfxclk(&self) -> Option<u16> {
+        self.drm_handle
+            .as_ref()
+            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
+            .and_then(|metrics| metrics.get_current_gfxclk())
+    }
+
+    fn get_full_vbios_version(&self) -> Option<String> {
+        if let Some(drm_handle) = &self.drm_handle {
+            if let Ok(vbios_info) = drm_handle.get_vbios_info() {
+                return Some(format!("{} [{}]", vbios_info.ver, vbios_info.date));
+            }
+        }
+
+        self.handle.get_vbios_version().ok()
+    }
+
+    fn get_drm_info(&self) -> Option<DrmInfo> {
+        use libdrm_amdgpu_sys::AMDGPU::VRAM_TYPE;
+
+        trace!("Reading DRM info");
+        let drm_handle = self.drm_handle.as_ref();
+
+        let drm_memory_info =
+            drm_handle
+                .and_then(|handle| handle.memory_info().ok())
+                .map(|memory_info| DrmMemoryInfo {
+                    resizeable_bar: memory_info.check_resizable_bar(),
+                    cpu_accessible_used: memory_info.cpu_accessible_vram.heap_usage,
+                    cpu_accessible_total: memory_info.cpu_accessible_vram.total_heap_size,
+                });
+
+        match drm_handle {
+            Some(handle) => handle.device_info().ok().map(|drm_info| DrmInfo {
+                device_name: drm_info.find_device_name(),
+                pci_revision_id: Some(drm_info.pci_rev_id()),
+                family_name: drm_info.get_family_name().to_string(),
+                family_id: drm_info.family_id(),
+                asic_name: drm_info.get_asic_name().to_string(),
+                chip_class: drm_info.get_chip_class().to_string(),
+                compute_units: drm_info.cu_active_number,
+                vram_type: drm_info.get_vram_type().to_string(),
+                vram_clock_ratio: match drm_info.get_vram_type() {
+                    VRAM_TYPE::GDDR6 => 2.0,
+                    _ => 1.0,
+                },
+                vram_bit_width: drm_info.vram_bit_width,
+                vram_max_bw: drm_info.peak_memory_bw_gb().to_string(),
+                l1_cache_per_cu: drm_info.get_l1_cache_size(),
+                l2_cache: drm_info.calc_l2_cache_size(),
+                l3_cache_mb: drm_info.calc_l3_cache_size_mb(),
+                memory_info: drm_memory_info,
+            }),
+            None => None,
+        }
+    }
+
+    fn get_link_info(&self) -> LinkInfo {
+        LinkInfo {
+            current_width: self.handle.get_current_link_width().ok(),
+            current_speed: self.handle.get_current_link_speed().ok(),
+            max_width: self.handle.get_max_link_width().ok(),
+            max_speed: self.handle.get_max_link_speed().ok(),
+        }
+    }
+
+    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
+        use libdrm_amdgpu_sys::AMDGPU::ThrottlerType;
+
+        self.drm_handle
+            .as_ref()
+            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
+            .and_then(|metrics| metrics.get_throttle_status_info())
+            .map(|throttle| {
+                let mut result: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+                for bit in throttle.get_all_throttler() {
+                    let throttle_type = ThrottlerType::from(bit);
+                    result
+                        .entry(throttle_type.to_string())
+                        .or_default()
+                        .push(bit.to_string());
+                }
+
+                result
+            })
+    }
+
+    fn debugfs_path(&self) -> Option<PathBuf> {
+        let slot_id = self.handle.get_pci_slot_name()?;
+        let name_search_term = format!("dev={slot_id}");
+
+        for entry in fs::read_dir("/sys/kernel/debug/dri").ok()?.flatten() {
+            let debugfs_path = entry.path();
+            let name_file_path = debugfs_path.join("name");
+            if name_file_path.exists() {
+                if let Ok(contents) = fs::read_to_string(&name_file_path) {
+                    if contents.contains(&name_search_term) {
+                        return Some(debugfs_path);
+                    }
+                }
+            }
+        }
+
+        None
+    }
 }
 
 impl GpuController for AmdGpuController {
@@ -438,74 +545,8 @@ impl GpuController for AmdGpuController {
         &self.handle.hw_monitors
     }
 
-    fn get_full_vbios_version(&self) -> Option<String> {
-        if let Some(drm_handle) = &self.drm_handle {
-            if let Ok(vbios_info) = drm_handle.get_vbios_info() {
-                return Some(format!("{} [{}]", vbios_info.ver, vbios_info.date));
-            }
-        }
-
-        self.handle.get_vbios_version().ok()
-    }
-
-    fn get_drm_info(&self) -> Option<DrmInfo> {
-        use libdrm_amdgpu_sys::AMDGPU::VRAM_TYPE;
-
-        trace!("Reading DRM info");
-        let drm_handle = self.drm_handle.as_ref();
-
-        let drm_memory_info =
-            drm_handle
-                .and_then(|handle| handle.memory_info().ok())
-                .map(|memory_info| DrmMemoryInfo {
-                    resizeable_bar: memory_info.check_resizable_bar(),
-                    cpu_accessible_used: memory_info.cpu_accessible_vram.heap_usage,
-                    cpu_accessible_total: memory_info.cpu_accessible_vram.total_heap_size,
-                });
-
-        match drm_handle {
-            Some(handle) => handle.device_info().ok().map(|drm_info| DrmInfo {
-                device_name: drm_info.find_device_name(),
-                pci_revision_id: Some(drm_info.pci_rev_id()),
-                family_name: drm_info.get_family_name().to_string(),
-                family_id: drm_info.family_id(),
-                asic_name: drm_info.get_asic_name().to_string(),
-                chip_class: drm_info.get_chip_class().to_string(),
-                compute_units: drm_info.cu_active_number,
-                vram_type: drm_info.get_vram_type().to_string(),
-                vram_clock_ratio: match drm_info.get_vram_type() {
-                    VRAM_TYPE::GDDR6 => 2.0,
-                    _ => 1.0,
-                },
-                vram_bit_width: drm_info.vram_bit_width,
-                vram_max_bw: drm_info.peak_memory_bw_gb().to_string(),
-                l1_cache_per_cu: drm_info.get_l1_cache_size(),
-                l2_cache: drm_info.calc_l2_cache_size(),
-                l3_cache_mb: drm_info.calc_l3_cache_size_mb(),
-                memory_info: drm_memory_info,
-            }),
-            None => None,
-        }
-    }
-
     fn get_pci_slot_name(&self) -> Option<String> {
         self.handle.get_pci_slot_name().map(str::to_owned)
-    }
-
-    fn get_current_gfxclk(&self) -> Option<u16> {
-        self.drm_handle
-            .as_ref()
-            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
-            .and_then(|metrics| metrics.get_current_gfxclk())
-    }
-
-    fn get_link_info(&self) -> LinkInfo {
-        LinkInfo {
-            current_width: self.handle.get_current_link_width().ok(),
-            current_speed: self.handle.get_current_link_speed().ok(),
-            max_width: self.handle.get_max_link_width().ok(),
-            max_speed: self.handle.get_max_link_speed().ok(),
-        }
     }
 
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
@@ -572,28 +613,6 @@ impl GpuController for AmdGpuController {
         }
     }
 
-    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
-        use libdrm_amdgpu_sys::AMDGPU::ThrottlerType;
-
-        self.drm_handle
-            .as_ref()
-            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
-            .and_then(|metrics| metrics.get_throttle_status_info())
-            .map(|throttle| {
-                let mut result: BTreeMap<String, Vec<String>> = BTreeMap::new();
-
-                for bit in throttle.get_all_throttler() {
-                    let throttle_type = ThrottlerType::from(bit);
-                    result
-                        .entry(throttle_type.to_string())
-                        .or_default()
-                        .push(bit.to_string());
-                }
-
-                result
-            })
-    }
-
     fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
         let clocks_table = self
             .handle
@@ -639,25 +658,6 @@ impl GpuController for AmdGpuController {
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
         let debugfs = self.debugfs_path().context("DebugFS not found")?;
         fs::read(debugfs.join("amdgpu_vbios")).context("Could not read VBIOS file")
-    }
-
-    fn debugfs_path(&self) -> Option<PathBuf> {
-        let slot_id = self.handle.get_pci_slot_name()?;
-        let name_search_term = format!("dev={slot_id}");
-
-        for entry in fs::read_dir("/sys/kernel/debug/dri").ok()?.flatten() {
-            let debugfs_path = entry.path();
-            let name_file_path = debugfs_path.join("name");
-            if name_file_path.exists() {
-                if let Ok(contents) = fs::read_to_string(&name_file_path) {
-                    if contents.contains(&name_search_term) {
-                        return Some(debugfs_path);
-                    }
-                }
-            }
-        }
-
-        None
     }
 
     #[allow(clippy::too_many_lines)]

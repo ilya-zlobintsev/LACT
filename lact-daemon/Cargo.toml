@@ -38,3 +38,4 @@ tar = "0.4.40"
 libflate = "2.0.0"
 os-release = "0.1.0"
 notify = { version = "6.1.1", default-features = false }
+nvml-wrapper = "0.10.0"

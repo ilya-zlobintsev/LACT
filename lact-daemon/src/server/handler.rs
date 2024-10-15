@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     config::{self, default_fan_static_speed, Config, FanControlSettings, Profile},
-    server::gpu_controller::AmdGpuController,
+    server::gpu_controller::{AmdGpuController, NvidiaGpuController},
 };
 use amdgpu_sysfs::{
     gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind},
@@ -19,6 +19,7 @@ use lact_schema::{
 };
 use libflate::gzip;
 use nix::libc;
+use nvml_wrapper::{error::NvmlError, Nvml};
 use os_release::OS_RELEASE;
 use pciid_parser::Database;
 use serde_json::json;
@@ -720,6 +721,17 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>
         }
     });
 
+    let nvml = match Nvml::init() {
+        Ok(nvml) => {
+            info!("NVML initialized");
+            Some(Rc::new(nvml))
+        }
+        Err(err) => {
+            info!("Nvidia support disabled, {err}");
+            None
+        }
+    };
+
     for entry in base_path
         .read_dir()
         .map_err(|error| anyhow!("Failed to read sysfs: {error}"))?
@@ -737,7 +749,45 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>
                 Ok(controller) => match controller.get_id() {
                     Ok(id) => {
                         let path = controller.get_path();
-                        debug!("initialized GPU controller {id} for path {path:?}",);
+
+                        if let Some(nvml) = nvml.clone() {
+                            if let Some(pci_slot_id) = controller.get_pci_slot_name() {
+                                match nvml.device_by_pci_bus_id(pci_slot_id.as_str()) {
+                                    Ok(_) => {
+                                        let controller = NvidiaGpuController {
+                                            nvml,
+                                            pci_slot_id,
+                                            pci_info: controller.get_pci_info().expect(
+                                                "Initialized NVML device without PCI info somehow",
+                                            ).clone(),
+                                            sysfs_path: path.to_owned(),
+                                        };
+                                        match controller.get_id() {
+                                            Ok(id) => {
+                                                info!("initialized Nvidia GPU controller {id} for path {path:?}");
+                                                controllers.insert(
+                                                    id,
+                                                    Box::new(controller) as Box<dyn GpuController>,
+                                                );
+                                            }
+                                            Err(err) => {
+                                                error!("could not get Nvidia GPU id: {err}");
+                                            }
+                                        }
+                                    }
+                                    Err(NvmlError::NotFound) => {
+                                        debug!("PCI slot {pci_slot_id} not found in NVML");
+                                    }
+                                    Err(err) => {
+                                        error!(
+                                            "could not initialize Nvidia GPU at {path:?}: {err}"
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        info!("initialized GPU controller {id} for path {path:?}");
                         controllers.insert(id, Box::new(controller) as Box<dyn GpuController>);
                     }
                     Err(err) => warn!("could not initialize controller: {err:#}"),

@@ -148,7 +148,7 @@ impl From<ClocksTableGen> for ClocksInfo {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct LinkInfo {
     pub current_width: Option<String>,
     pub current_speed: Option<String>,
@@ -182,7 +182,7 @@ pub struct PciInfo {
     pub model: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DeviceStats {
     pub fan: FanStats,
     pub clockspeed: ClockspeedStats,
@@ -198,7 +198,7 @@ pub struct DeviceStats {
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct FanStats {
     pub control_enabled: bool,
     pub control_mode: Option<FanControlMode>,
@@ -224,26 +224,26 @@ pub struct PmfwInfo {
     pub minimum_pwm: Option<FanInfo>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct ClockspeedStats {
     pub gpu_clockspeed: Option<u64>,
     pub current_gfxclk: Option<u16>,
     pub vram_clockspeed: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct VoltageStats {
     pub gpu: Option<u64>,
     pub northbridge: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct VramStats {
     pub total: Option<u64>,
     pub used: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct PowerStats {
     pub average: Option<f64>,
     pub current: Option<f64>,
@@ -253,7 +253,7 @@ pub struct PowerStats {
     pub cap_default: Option<f64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PowerStates {
     pub core: Vec<PowerState<u64>>,
     pub vram: Vec<PowerState<u64>>,
