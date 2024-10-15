@@ -93,7 +93,7 @@ pub struct DeviceInfo<'a> {
     #[serde(borrow)]
     pub pci_info: Option<Cow<'a, GpuPciInfo>>,
     pub vulkan_info: Option<VulkanInfo>,
-    pub driver: &'a str,
+    pub driver: String,
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,
     pub drm_info: Option<DrmInfo>,
@@ -103,19 +103,18 @@ pub struct DeviceInfo<'a> {
 pub struct DrmInfo {
     pub device_name: Option<String>,
     pub pci_revision_id: Option<u32>,
-    pub family_name: String,
-    #[serde(default)]
-    pub family_id: u32,
-    pub asic_name: String,
-    pub chip_class: String,
-    pub compute_units: u32,
-    pub vram_type: String,
+    pub family_name: Option<String>,
+    pub family_id: Option<u32>,
+    pub asic_name: Option<String>,
+    pub chip_class: Option<String>,
+    pub compute_units: Option<u32>,
+    pub vram_type: Option<String>,
     pub vram_clock_ratio: f64,
-    pub vram_bit_width: u32,
-    pub vram_max_bw: String,
-    pub l1_cache_per_cu: u32,
-    pub l2_cache: u32,
-    pub l3_cache_mb: u32,
+    pub vram_bit_width: Option<u32>,
+    pub vram_max_bw: Option<String>,
+    pub l1_cache_per_cu: Option<u32>,
+    pub l2_cache: Option<u32>,
+    pub l3_cache_mb: Option<u32>,
     pub memory_info: Option<DrmMemoryInfo>,
 }
 
@@ -123,7 +122,7 @@ pub struct DrmInfo {
 pub struct DrmMemoryInfo {
     pub cpu_accessible_used: u64,
     pub cpu_accessible_total: u64,
-    pub resizeable_bar: bool,
+    pub resizeable_bar: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]

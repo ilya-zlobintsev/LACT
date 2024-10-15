@@ -406,7 +406,7 @@ impl AmdGpuController {
             drm_handle
                 .and_then(|handle| handle.memory_info().ok())
                 .map(|memory_info| DrmMemoryInfo {
-                    resizeable_bar: memory_info.check_resizable_bar(),
+                    resizeable_bar: Some(memory_info.check_resizable_bar()),
                     cpu_accessible_used: memory_info.cpu_accessible_vram.heap_usage,
                     cpu_accessible_total: memory_info.cpu_accessible_vram.total_heap_size,
                 });
@@ -415,21 +415,21 @@ impl AmdGpuController {
             Some(handle) => handle.device_info().ok().map(|drm_info| DrmInfo {
                 device_name: drm_info.find_device_name(),
                 pci_revision_id: Some(drm_info.pci_rev_id()),
-                family_name: drm_info.get_family_name().to_string(),
-                family_id: drm_info.family_id(),
-                asic_name: drm_info.get_asic_name().to_string(),
-                chip_class: drm_info.get_chip_class().to_string(),
-                compute_units: drm_info.cu_active_number,
-                vram_type: drm_info.get_vram_type().to_string(),
+                family_name: Some(drm_info.get_family_name().to_string()),
+                family_id: Some(drm_info.family_id()),
+                asic_name: Some(drm_info.get_asic_name().to_string()),
+                chip_class: Some(drm_info.get_chip_class().to_string()),
+                compute_units: Some(drm_info.cu_active_number),
+                vram_type: Some(drm_info.get_vram_type().to_string()),
                 vram_clock_ratio: match drm_info.get_vram_type() {
                     VRAM_TYPE::GDDR6 => 2.0,
                     _ => 1.0,
                 },
-                vram_bit_width: drm_info.vram_bit_width,
-                vram_max_bw: drm_info.peak_memory_bw_gb().to_string(),
-                l1_cache_per_cu: drm_info.get_l1_cache_size(),
-                l2_cache: drm_info.calc_l2_cache_size(),
-                l3_cache_mb: drm_info.calc_l3_cache_size_mb(),
+                vram_bit_width: Some(drm_info.vram_bit_width),
+                vram_max_bw: Some(drm_info.peak_memory_bw_gb().to_string()),
+                l1_cache_per_cu: Some(drm_info.get_l1_cache_size()),
+                l2_cache: Some(drm_info.calc_l2_cache_size()),
+                l3_cache_mb: Some(drm_info.calc_l3_cache_size_mb()),
                 memory_info: drm_memory_info,
             }),
             None => None,
@@ -526,7 +526,7 @@ impl GpuController for AmdGpuController {
             }
         });
         let pci_info = self.pci_info.as_ref().map(Cow::Borrowed);
-        let driver = self.handle.get_driver();
+        let driver = self.handle.get_driver().to_owned();
         let vbios_version = self.get_full_vbios_version();
         let link_info = self.get_link_info();
         let drm_info = self.get_drm_info();

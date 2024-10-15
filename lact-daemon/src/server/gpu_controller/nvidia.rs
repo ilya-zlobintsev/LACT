@@ -1,17 +1,19 @@
-use crate::config;
+use crate::{config, server::vulkan::get_vulkan_info};
 
 use super::GpuController;
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::HwMon};
 use anyhow::anyhow;
 use futures::future::LocalBoxFuture;
-use lact_schema::{ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, LinkInfo, PowerStates};
+use lact_schema::{
+    ClocksInfo, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo, GpuPciInfo, LinkInfo, PowerStates,
+};
 use nvml_wrapper::{Device, Nvml};
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
     rc::Rc,
 };
-use tracing::error;
+use tracing::{error, warn};
 
 pub struct NvidiaGpuController {
     pub nvml: Rc<Nvml>,
@@ -56,16 +58,53 @@ impl GpuController for NvidiaGpuController {
     fn get_info(&self) -> DeviceInfo {
         let device = self.device();
 
+        let vulkan_info = match get_vulkan_info(
+            &self.pci_info.device_pci_info.vendor_id,
+            &self.pci_info.device_pci_info.model_id,
+        ) {
+            Ok(info) => Some(info),
+            Err(err) => {
+                warn!("could not load vulkan info: {err}");
+                None
+            }
+        };
+
         DeviceInfo {
             pci_info: Some(Cow::Borrowed(&self.pci_info)),
-            vulkan_info: None,
-            driver: "nvidia", // NVML should always be "nvidia"
+            vulkan_info,
+            driver: format!(
+                "nvidia {}",
+                self.nvml.sys_driver_version().unwrap_or_default()
+            ), // NVML should always be "nvidia"
             vbios_version: device
                 .vbios_version()
                 .map_err(|err| error!("could not get VBIOS version: {err}"))
                 .ok(),
             link_info: LinkInfo::default(),
-            drm_info: None,
+            drm_info: Some(DrmInfo {
+                device_name: device.name().ok(),
+                pci_revision_id: None,
+                family_name: device.architecture().map(|arch| arch.to_string()).ok(),
+                family_id: None,
+                asic_name: None,
+                chip_class: device.architecture().map(|arch| arch.to_string()).ok(),
+                compute_units: None,
+                vram_type: None,
+                vram_clock_ratio: 1.0,
+                vram_bit_width: device.current_pcie_link_width().ok(),
+                vram_max_bw: None,
+                l1_cache_per_cu: None,
+                l2_cache: None,
+                l3_cache_mb: None,
+                memory_info: device
+                    .bar1_memory_info()
+                    .map(|info| DrmMemoryInfo {
+                        cpu_accessible_used: info.used,
+                        cpu_accessible_total: info.total,
+                        resizeable_bar: None,
+                    })
+                    .ok(),
+            }),
         }
     }
 
