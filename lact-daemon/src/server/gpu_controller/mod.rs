@@ -47,21 +47,4 @@ pub trait GpuController {
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>>;
 
     fn hw_monitors(&self) -> &[HwMon];
-
-    /*fn get_full_vbios_version(&self) -> Option<String>;
-
-    fn get_drm_info(&self) -> Option<DrmInfo>;
-
-
-    fn get_link_info(&self) -> LinkInfo;
-
-
-    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>>;
-
-
-
-
-
-
-    fn debugfs_path(&self) -> Option<PathBuf>;*/
 }

@@ -579,9 +579,30 @@ impl<'a> Handler {
             Err(err) => Some(err.to_string().into()),
         };
 
+        let devices: BTreeMap<String, serde_json::Value> = self
+            .gpu_controllers
+            .iter()
+            .map(|(id, controller)| {
+                let config = self.config.try_borrow();
+                let gpu_config = config
+                    .as_ref()
+                    .ok()
+                    .and_then(|config| config.gpus().ok()?.get(id));
+
+                let data = json!({
+                    "pci_info": controller.get_pci_info(),
+                    "info": controller.get_info(),
+                    "stats": controller.get_stats(gpu_config),
+                    "clocks_info": controller.get_clocks_info().ok(),
+                });
+                (id.clone(), data)
+            })
+            .collect();
+
         let info = json!({
             "system_info": system_info,
             "initramfs_type": initramfs_type,
+            "devices": devices,
         });
         let info_data = serde_json::to_vec_pretty(&info).unwrap();
 
