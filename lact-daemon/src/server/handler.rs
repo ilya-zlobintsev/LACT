@@ -590,7 +590,7 @@ impl<'a> Handler {
                     .and_then(|config| config.gpus().ok()?.get(id));
 
                 let data = json!({
-                    "pci_info": controller.get_pci_info(),
+                    "pci_info": controller.pci_info,
                     "info": controller.get_info(),
                     "stats": controller.get_stats(gpu_config),
                     "clocks_info": controller.get_clocks_info().ok(),
