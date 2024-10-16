@@ -197,7 +197,7 @@ impl GpuController for NvidiaGpuController {
                     .ok(),
                 cap_min: device
                     .power_management_limit_constraints()
-                    .map(|constraints| f64::from(constraints.max_limit) / 1000.0)
+                    .map(|constraints| f64::from(constraints.min_limit) / 1000.0)
                     .ok(),
                 cap_default: device
                     .power_management_limit_default()

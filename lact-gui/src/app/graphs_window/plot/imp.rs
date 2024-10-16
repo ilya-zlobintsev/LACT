@@ -9,6 +9,7 @@ use plotters::style::colors::full_palette::DEEPORANGE_100;
 use plotters_cairo::CairoBackend;
 use std::cell::Cell;
 use std::cell::RefCell;
+use std::cmp;
 use std::cmp::max;
 use std::collections::BTreeMap;
 use tracing::error;
@@ -174,17 +175,31 @@ impl Plot {
 
         let data = self.data.borrow();
 
-        let start_date = data
+        let start_date_main = data
             .line_series_iter()
             .filter_map(|(_, data)| Some(data.first()?.0))
             .min()
             .unwrap_or_default();
-        let end_date = data
+        let start_date_secondary = data
+            .secondary_line_series_iter()
+            .filter_map(|(_, data)| Some(data.first()?.0))
+            .min()
+            .unwrap_or_default();
+        let end_date_main = data
             .line_series_iter()
             .map(|(_, value)| value)
             .filter_map(|data| Some(data.first()?.0))
             .max()
             .unwrap_or_default();
+        let end_date_secondary = data
+            .secondary_line_series_iter()
+            .map(|(_, value)| value)
+            .filter_map(|data| Some(data.first()?.0))
+            .max()
+            .unwrap_or_default();
+
+        let start_date = cmp::max(start_date_main, start_date_secondary);
+        let end_date = cmp::max(end_date_main, end_date_secondary);
 
         let mut maximum_value = data
             .line_series_iter()
