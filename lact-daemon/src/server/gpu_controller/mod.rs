@@ -25,7 +25,6 @@ use std::{
     cmp,
     path::{Path, PathBuf},
     rc::Rc,
-    str::FromStr,
     time::Duration,
 };
 use std::{collections::BTreeMap, fs, time::Instant};
@@ -45,6 +44,7 @@ use {
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 
 const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
+const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 
 pub struct GpuController {
     pub(super) handle: GpuHandle,
@@ -559,29 +559,33 @@ impl GpuController {
     }
 
     pub fn get_power_states(&self, gpu_config: Option<&config::Gpu>) -> PowerStates {
-        let core = self.get_power_states_kind(gpu_config, PowerLevelKind::CoreClock);
-        let vram = self.get_power_states_kind(gpu_config, PowerLevelKind::MemoryClock);
+        let core = self.get_power_states_kind(gpu_config, PowerLevelKind::CoreClock, 0);
+        let vram = self.get_power_states_kind(gpu_config, PowerLevelKind::MemoryClock, 0);
         PowerStates { core, vram }
     }
 
-    fn get_power_states_kind<T>(
+    fn get_power_states_kind(
         &self,
         gpu_config: Option<&config::Gpu>,
         kind: PowerLevelKind,
-    ) -> Vec<PowerState<T>>
-    where
-        T: FromStr,
-        <T as std::str::FromStr>::Err: std::fmt::Display,
-    {
+        attempt: u32,
+    ) -> Vec<PowerState<u64>> {
         let enabled_states = gpu_config.and_then(|gpu| gpu.power_states.get(&kind));
         let levels = self
             .handle
-            .get_clock_levels::<T>(kind)
+            .get_clock_levels(kind)
             .unwrap_or_else(|_| PowerLevels {
                 levels: Vec::new(),
                 active: None,
             })
             .levels;
+
+        if attempt < MAX_PSTATE_READ_ATTEMPTS
+            && levels.iter().any(|value| *value >= u64::from(u16::MAX))
+        {
+            debug!("GPU reported nonsensical p-state value, retrying");
+            return self.get_power_states_kind(gpu_config, kind, attempt + 1);
+        }
 
         levels
             .into_iter()
