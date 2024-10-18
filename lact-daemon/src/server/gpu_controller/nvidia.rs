@@ -5,11 +5,11 @@ use amdgpu_sysfs::{
     gpu_handle::power_profile_mode::PowerProfileModesTable,
     hw_mon::{HwMon, Temperature},
 };
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo, FanStats,
-    GpuPciInfo, LinkInfo, PmfwInfo, PowerStates, PowerStats, VramStats,
+    GpuPciInfo, LinkInfo, PmfwInfo, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
@@ -23,7 +23,7 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 pub struct NvidiaGpuController {
     pub nvml: Rc<Nvml>,
@@ -251,7 +251,11 @@ impl GpuController for NvidiaGpuController {
                     })
                     .collect()
             }),
-            ..Default::default()
+            voltage: VoltageStats::default(), // Voltage reporting is not supported
+            performance_level: None,
+            core_power_state: None,
+            memory_power_state: None,
+            pcie_power_state: None,
         }
     }
 
@@ -275,9 +279,41 @@ impl GpuController for NvidiaGpuController {
 
     fn apply_config<'a>(
         &'a self,
-        _config: &'a config::Gpu,
+        config: &'a config::Gpu,
     ) -> LocalBoxFuture<'a, anyhow::Result<()>> {
-        Box::pin(async { Ok(()) })
+        Box::pin(async {
+            let mut device = self.device();
+
+            if let Some(cap) = config.power_cap {
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                let cap = (cap * 1000.0) as u32;
+
+                let current_cap = device
+                    .power_management_limit()
+                    .context("Could not get current cap")?;
+
+                if current_cap != cap {
+                    debug!("setting power cap to {cap}");
+                    device
+                        .set_power_management_limit(cap)
+                        .context("Could not set power cap")?;
+                }
+            } else {
+                let current_cap = device.power_management_limit();
+                let default_cap = device.power_management_limit_default();
+
+                if let (Ok(current_cap), Ok(default_cap)) = (current_cap, default_cap) {
+                    if current_cap != default_cap {
+                        debug!("resetting power cap to {default_cap}");
+                        device
+                            .set_power_management_limit(default_cap)
+                            .context("Could not reset power cap")?;
+                    }
+                }
+            }
+
+            Ok(())
+        })
     }
 
     fn cleanup_clocks(&self) -> anyhow::Result<()> {
