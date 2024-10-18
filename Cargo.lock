@@ -1609,6 +1609,7 @@ version = "0.5.7"
 dependencies = [
  "amdgpu-sysfs",
  "anyhow",
+ "bitflags 2.6.0",
  "chrono",
  "futures",
  "indexmap",

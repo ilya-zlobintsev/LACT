@@ -1,6 +1,7 @@
 use crate::app::page_section::PageSection;
 use gtk::glib::{self, Object};
 use lact_client::schema::{DeviceStats, PowerStats};
+use std::fmt::Write;
 
 glib::wrapper! {
     pub struct GpuStatsSection(ObjectSubclass<imp::GpuStatsSection>)
@@ -38,12 +39,16 @@ impl GpuStatsSection {
         let voltage = format!("{:.3} V", stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64);
         self.set_voltage(voltage);
 
-        let temperature = stats
-            .temps
-            .get("junction")
-            .or_else(|| stats.temps.get("edge"))
-            .and_then(|temp| temp.current)
-            .unwrap_or(0.0);
+        let temperature = if stats.temps.len() == 1 {
+            stats.temps.values().next().unwrap().current
+        } else {
+            stats
+                .temps
+                .get("junction")
+                .or_else(|| stats.temps.get("edge"))
+                .and_then(|temp| temp.current)
+        }
+        .unwrap_or(0.0);
         self.set_temperature(format!("{temperature}°C"));
 
         self.set_gpu_usage(format!("{}%", stats.busy_percent.unwrap_or(0)));
@@ -73,7 +78,11 @@ impl GpuStatsSection {
                     let type_text: Vec<String> = throttle_info
                         .iter()
                         .map(|(throttle_type, details)| {
-                            format!("{throttle_type} ({})", details.join(", "))
+                            let mut out = throttle_type.to_string();
+                            if !details.is_empty() {
+                                let _ = write!(out, "({})", details.join(", "));
+                            }
+                            out
                         })
                         .collect();
                     let text = type_text.join(", ");

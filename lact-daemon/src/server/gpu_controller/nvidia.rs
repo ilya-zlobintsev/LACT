@@ -8,16 +8,18 @@ use amdgpu_sysfs::{
 use anyhow::anyhow;
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    ClocksInfo, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo, FanStats, GpuPciInfo, LinkInfo,
-    PmfwInfo, PowerStates, PowerStats, VramStats,
+    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo, FanStats,
+    GpuPciInfo, LinkInfo, PmfwInfo, PowerStates, PowerStats, VramStats,
 };
 use nvml_wrapper::{
-    enum_wrappers::device::{TemperatureSensor, TemperatureThreshold},
+    bitmasks::device::ThrottleReasons,
+    enum_wrappers::device::{Clock, TemperatureSensor, TemperatureThreshold},
     Device, Nvml,
 };
 use std::{
     borrow::Cow,
     collections::HashMap,
+    fmt::Write,
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -88,7 +90,31 @@ impl GpuController for NvidiaGpuController {
                 .vbios_version()
                 .map_err(|err| error!("could not get VBIOS version: {err}"))
                 .ok(),
-            link_info: LinkInfo::default(),
+            link_info: LinkInfo {
+                current_width: device.current_pcie_link_width().map(|v| v.to_string()).ok(),
+                current_speed: device
+                    .pcie_link_speed()
+                    .map(|v| {
+                        let mut output = format!("{} GT/s", v / 1000);
+                        if let Ok(gen) = device.current_pcie_link_gen() {
+                            let _ = write!(output, " PCIe gen {gen}");
+                        }
+                        output
+                    })
+                    .ok(),
+                max_width: device.max_pcie_link_width().map(|v| v.to_string()).ok(),
+                max_speed: device
+                    .max_pcie_link_speed()
+                    .ok()
+                    .and_then(|v| v.as_integer())
+                    .map(|v| {
+                        let mut output = format!("{} GT/s", v / 1000);
+                        if let Ok(gen) = device.current_pcie_link_gen() {
+                            let _ = write!(output, " PCIe gen {gen}");
+                        }
+                        output
+                    }),
+            },
             drm_info: Some(DrmInfo {
                 device_name: device.name().ok(),
                 pci_revision_id: None,
@@ -209,6 +235,22 @@ impl GpuController for NvidiaGpuController {
                 .map(|utilization| u8::try_from(utilization.gpu).expect("Invalid percentage"))
                 .ok(),
             vram,
+            clockspeed: ClockspeedStats {
+                gpu_clockspeed: device.clock_info(Clock::Graphics).map(Into::into).ok(),
+                vram_clockspeed: device.clock_info(Clock::Memory).map(Into::into).ok(),
+                current_gfxclk: None,
+            },
+            throttle_info: device.current_throttle_reasons().ok().map(|reasons| {
+                reasons
+                    .iter()
+                    .filter(|reason| *reason != ThrottleReasons::GPU_IDLE)
+                    .map(|reason| {
+                        let mut name = String::new();
+                        bitflags::parser::to_writer(&reason, &mut name).unwrap();
+                        (name, vec![])
+                    })
+                    .collect()
+            }),
             ..Default::default()
         }
     }
