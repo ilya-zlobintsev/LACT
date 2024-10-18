@@ -58,13 +58,17 @@ impl AmdGpuController {
         let handle = GpuHandle::new_from_path(sysfs_path)
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
 
-        let drm_handle = match get_drm_handle(&handle) {
-            Ok(handle) => Some(handle),
-            Err(err) => {
-                warn!("Could not get DRM handle: {err}");
-                None
+        let mut drm_handle = None;
+        if matches!(handle.get_driver(), "amdgpu" | "radeon") {
+            match get_drm_handle(&handle) {
+                Ok(handle) => {
+                    drm_handle = Some(handle);
+                }
+                Err(err) => {
+                    warn!("Could not get DRM handle: {err}");
+                }
             }
-        };
+        }
 
         let mut device_pci_info = None;
         let mut subsystem_pci_info = None;
