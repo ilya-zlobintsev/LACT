@@ -214,9 +214,16 @@ impl Plot {
 
         root.fill(&WHITE)?;
 
+        let y_label_area_size =
+            if data.line_series.is_empty() && !data.secondary_line_series.is_empty() {
+                0
+            } else {
+                self.y_label_area_size.get()
+            };
+
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(40)
-            .y_label_area_size(self.y_label_area_size.get())
+            .y_label_area_size(y_label_area_size)
             .right_y_label_area_size(self.secondary_y_label_area_size.get())
             .margin(20)
             .caption(self.title.borrow().as_str(), ("sans-serif", 30))
@@ -244,7 +251,7 @@ impl Plot {
 
         chart
             .configure_secondary_axes()
-            .y_label_formatter(&|x| format!("{x}{}", self.secondary_value_suffix.borrow()))
+            .y_label_formatter(&|x: &f64| format!("{x}{}", self.secondary_value_suffix.borrow()))
             .y_labels(10)
             .label_style(("sans-serif", 30))
             .draw()
