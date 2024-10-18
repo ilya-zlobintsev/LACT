@@ -71,23 +71,37 @@ impl HardwareInfoSection {
         }
 
         if let Some(drm_info) = &info.drm_info {
-            self.set_gpu_family(drm_info.family_name.clone());
-            self.set_asic_name(drm_info.asic_name.clone());
-            self.set_compute_units(drm_info.compute_units.to_string());
+            if let Some(family) = drm_info.family_name.as_deref() {
+                self.set_gpu_family(family);
+            }
+            if let Some(asic) = drm_info.asic_name.as_deref() {
+                self.set_asic_name(asic);
+            }
+            if let Some(units) = drm_info.compute_units {
+                self.set_compute_units(units.to_string());
+            }
+            if let Some(vram_type) = drm_info.vram_type.as_deref() {
+                self.set_vram_type(vram_type);
+            }
+            if let Some(max_bw) = &drm_info.vram_max_bw {
+                self.set_peak_vram_bandwidth(format!("{max_bw} GiB/s"));
+            }
 
-            self.set_vram_type(drm_info.vram_type.clone());
-            self.set_peak_vram_bandwidth(format!("{} GiB/s", drm_info.vram_max_bw));
-            self.set_l1_cache(format!("{} KiB", drm_info.l1_cache_per_cu / 1024));
-            self.set_l2_cache(format!("{} KiB", drm_info.l2_cache / 1024));
-            self.set_l3_cache(format!("{} MiB", drm_info.l3_cache_mb));
+            if let Some(l1) = drm_info.l1_cache_per_cu {
+                self.set_l1_cache(format!("{} KiB", l1 / 1024));
+            }
+            if let Some(l2) = drm_info.l2_cache {
+                self.set_l2_cache(format!("{} KiB", l2 / 1024));
+            }
+            if let Some(l3) = drm_info.l3_cache_mb {
+                self.set_l3_cache(format!("{l3} MiB"));
+            }
 
             if let Some(memory_info) = &drm_info.memory_info {
-                let rebar = if memory_info.resizeable_bar {
-                    "Enabled"
-                } else {
-                    "Disabled"
-                };
-                self.set_rebar(rebar);
+                if let Some(rebar) = memory_info.resizeable_bar {
+                    let rebar = if rebar { "Enabled" } else { "Disabled" };
+                    self.set_rebar(rebar);
+                }
 
                 self.set_cpu_accessible_vram(format!(
                     "{} MiB",
@@ -96,7 +110,7 @@ impl HardwareInfoSection {
             }
         }
 
-        self.set_driver_used(info.driver);
+        self.set_driver_used(info.driver.as_str());
 
         if let Some(vbios) = &info.vbios_version {
             self.set_vbios_version(vbios.clone());

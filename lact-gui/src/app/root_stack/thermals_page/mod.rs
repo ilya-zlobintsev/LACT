@@ -121,10 +121,11 @@ impl ThermalsPage {
     pub fn set_info(&self, info: &DeviceInfo) {
         let pmfw_disabled = info.drm_info.as_ref().is_some_and(|info| {
             debug!(
-                "family id: {}, overdrive enabled {:?}",
+                "family id: {:?}, overdrive enabled {:?}",
                 info.family_id, self.overdrive_enabled
             );
-            (info.family_id >= AMDGPU_FAMILY_GC_11_0_0) && (self.overdrive_enabled != Some(true))
+            (info.family_id.unwrap_or(0) >= AMDGPU_FAMILY_GC_11_0_0)
+                && (self.overdrive_enabled != Some(true))
         });
         self.pmfw_warning_label.set_visible(pmfw_disabled);
 
