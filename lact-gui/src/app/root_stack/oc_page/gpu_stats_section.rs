@@ -65,7 +65,7 @@ impl GpuStatsSection {
             .or(power_average);
 
         self.set_power_usage(format!(
-            "<b>{}/{} W</b>",
+            "<b>{:.1}/{} W</b>",
             power_current.unwrap_or(0.0),
             power_cap_current.unwrap_or(0.0)
         ));
