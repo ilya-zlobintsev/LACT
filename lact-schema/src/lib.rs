@@ -108,6 +108,7 @@ pub struct DrmInfo {
     pub asic_name: Option<String>,
     pub chip_class: Option<String>,
     pub compute_units: Option<u32>,
+    pub cuda_cores: Option<u32>,
     pub vram_type: Option<String>,
     pub vram_clock_ratio: f64,
     pub vram_bit_width: Option<u32>,

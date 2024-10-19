@@ -81,6 +81,9 @@ impl HardwareInfoSection {
             if let Some(units) = drm_info.compute_units {
                 self.set_compute_units(units.to_string());
             }
+            if let Some(cores) = drm_info.cuda_cores {
+                self.set_cuda_cores(cores.to_string());
+            }
             if let Some(vram_type) = drm_info.vram_type.as_deref() {
                 self.set_vram_type(vram_type);
             }
@@ -175,6 +178,8 @@ mod imp {
         asic_name: RefCell<String>,
         #[property(get, set)]
         compute_units: RefCell<String>,
+        #[property(get, set)]
+        cuda_cores: RefCell<String>,
         #[property(get, set)]
         vbios_version: RefCell<String>,
         #[property(get, set)]

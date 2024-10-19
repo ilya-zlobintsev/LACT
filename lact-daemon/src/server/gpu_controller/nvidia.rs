@@ -123,6 +123,7 @@ impl GpuController for NvidiaGpuController {
                 asic_name: None,
                 chip_class: device.architecture().map(|arch| arch.to_string()).ok(),
                 compute_units: None,
+                cuda_cores: device.num_cores().ok(),
                 vram_type: None,
                 vram_clock_ratio: 1.0,
                 vram_bit_width: device.current_pcie_link_width().ok(),
