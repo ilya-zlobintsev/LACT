@@ -1,10 +1,11 @@
+use crate::app::page_section::PageSection;
 use gtk::glib::{self, object::ObjectExt, subclass::object::DerivedObjectProperties, Object};
 use lact_client::schema::{DeviceInfo, DeviceStats, DrmInfo};
 use std::fmt::Write;
 
 glib::wrapper! {
     pub struct HardwareInfoSection(ObjectSubclass<imp::HardwareInfoSection>)
-        @extends gtk::Box, gtk::Widget,
+        @extends gtk::Box, gtk::Widget, PageSection,
         @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
 }
 
@@ -132,7 +133,7 @@ impl HardwareInfoSection {
     fn reset(&self) {
         let properties = imp::HardwareInfoSection::derived_properties();
         for property in properties {
-            self.set_property(property.name(), "Unknown");
+            self.set_property(property.name(), "");
         }
     }
 }
@@ -217,7 +218,20 @@ mod imp {
     }
 
     #[glib::derived_properties]
-    impl ObjectImpl for HardwareInfoSection {}
+    impl ObjectImpl for HardwareInfoSection {
+        fn constructed(&self) {
+            self.parent_constructed();
+            let obj = self.obj();
+
+            for child in obj.observe_children().into_iter().flatten() {
+                if let Ok(row) = child.downcast::<InfoRow>() {
+                    row.connect_value_notify(|row| {
+                        row.set_visible(!row.value().is_empty());
+                    });
+                }
+            }
+        }
+    }
 
     impl WidgetImpl for HardwareInfoSection {}
     impl BoxImpl for HardwareInfoSection {}
