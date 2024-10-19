@@ -217,7 +217,7 @@ impl AsyncComponent for AppModel {
         sender: AsyncComponentSender<Self>,
         root: &Self::Root,
     ) {
-        trace!("update {msg:#?}");
+        trace!("processing state update");
         if let Err(err) = self.handle_msg(msg, sender.clone(), root, widgets).await {
             show_error(root, &err);
         }

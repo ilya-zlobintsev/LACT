@@ -9,6 +9,7 @@ use plotters::style::colors::full_palette::DEEPORANGE_100;
 use plotters_cairo::CairoBackend;
 use std::cell::Cell;
 use std::cell::RefCell;
+use std::cmp;
 use std::cmp::max;
 use std::collections::BTreeMap;
 use tracing::error;
@@ -174,17 +175,31 @@ impl Plot {
 
         let data = self.data.borrow();
 
-        let start_date = data
+        let start_date_main = data
             .line_series_iter()
             .filter_map(|(_, data)| Some(data.first()?.0))
             .min()
             .unwrap_or_default();
-        let end_date = data
+        let start_date_secondary = data
+            .secondary_line_series_iter()
+            .filter_map(|(_, data)| Some(data.first()?.0))
+            .min()
+            .unwrap_or_default();
+        let end_date_main = data
             .line_series_iter()
             .map(|(_, value)| value)
             .filter_map(|data| Some(data.first()?.0))
             .max()
             .unwrap_or_default();
+        let end_date_secondary = data
+            .secondary_line_series_iter()
+            .map(|(_, value)| value)
+            .filter_map(|data| Some(data.first()?.0))
+            .max()
+            .unwrap_or_default();
+
+        let start_date = cmp::max(start_date_main, start_date_secondary);
+        let end_date = cmp::max(end_date_main, end_date_secondary);
 
         let mut maximum_value = data
             .line_series_iter()
@@ -199,9 +214,16 @@ impl Plot {
 
         root.fill(&WHITE)?;
 
+        let y_label_area_size =
+            if data.line_series.is_empty() && !data.secondary_line_series.is_empty() {
+                0
+            } else {
+                self.y_label_area_size.get()
+            };
+
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(40)
-            .y_label_area_size(self.y_label_area_size.get())
+            .y_label_area_size(y_label_area_size)
             .right_y_label_area_size(self.secondary_y_label_area_size.get())
             .margin(20)
             .caption(self.title.borrow().as_str(), ("sans-serif", 30))
@@ -229,7 +251,7 @@ impl Plot {
 
         chart
             .configure_secondary_axes()
-            .y_label_formatter(&|x| format!("{x}{}", self.secondary_value_suffix.borrow()))
+            .y_label_formatter(&|x: &f64| format!("{x}{}", self.secondary_value_suffix.borrow()))
             .y_labels(10)
             .label_style(("sans-serif", 30))
             .draw()

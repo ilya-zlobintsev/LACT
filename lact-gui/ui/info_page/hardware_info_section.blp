@@ -43,6 +43,12 @@ template $HardwareInfoSection: $PageSection {
     }
 
     $InfoRow {
+        name: "Cuda Cores:";
+        value: bind template.cuda_cores;
+        selectable: true;
+    }
+
+    $InfoRow {
         name: "VBIOS Version:";
         value: bind template.vbios_version;
         selectable: true;
