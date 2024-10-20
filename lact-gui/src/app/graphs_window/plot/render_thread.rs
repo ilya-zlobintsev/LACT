@@ -31,6 +31,8 @@ pub struct RenderRequest {
 
     pub width: u32,
     pub height: u32,
+
+    pub supersample_factor: u32,
 }
 
 // Tracks the status of the texture.
@@ -108,7 +110,10 @@ impl RenderThread {
                         let cairo_backend = CairoBackend::new(
                             &cairo_context,
                             // Supersample the rendering
-                            (render_request.width * 2, render_request.height * 2),
+                            (
+                                render_request.width * render_request.supersample_factor,
+                                render_request.height * render_request.supersample_factor,
+                            ),
                         )
                         .unwrap();
 
@@ -229,11 +234,14 @@ impl RenderRequest {
 
         // Set up the main chart with axes and labels.
         let mut chart = ChartBuilder::on(&root)
-            .x_label_area_size(40)
-            .y_label_area_size(self.y_label_area_size)
-            .right_y_label_area_size(self.secondary_y_label_area_size)
-            .margin(20)
-            .caption(self.title.as_str(), ("sans-serif", 30))
+            .x_label_area_size(40 * self.supersample_factor)
+            .y_label_area_size(self.y_label_area_size * self.supersample_factor)
+            .right_y_label_area_size(self.secondary_y_label_area_size * self.supersample_factor)
+            .margin(20 * self.supersample_factor)
+            .caption(
+                self.title.as_str(),
+                ("sans-serif", 30 * self.supersample_factor),
+            )
             .build_cartesian_2d(
                 start_date..max(end_date, start_date + 60 * 1000),
                 0f64..maximum_value,
@@ -253,7 +261,7 @@ impl RenderRequest {
             .y_label_formatter(&|x| format!("{x}{}", &self.value_suffix))
             .x_labels(5)
             .y_labels(10)
-            .label_style(("sans-serif", 30))
+            .label_style(("sans-serif", 30 * self.supersample_factor))
             .draw()
             .context("Failed to draw mesh")?;
 
@@ -262,7 +270,7 @@ impl RenderRequest {
             .configure_secondary_axes()
             .y_label_formatter(&|x| format!("{x}{}", self.secondary_value_suffix.as_str()))
             .y_labels(10)
-            .label_style(("sans-serif", 30))
+            .label_style(("sans-serif", 30 * self.supersample_factor))
             .draw()
             .context("Failed to draw mesh")?;
 
@@ -287,7 +295,7 @@ impl RenderRequest {
                             [(start_time, 0f64), (end_time, maximum_value)],
                             DEEPORANGE_100.filled(),
                         );
-                        bar.set_margin(0, 0, 5, 5); // Add margin to avoid overlap.
+                        bar.set_margin(0, 0, 5 * self.supersample_factor, 5 * self.supersample_factor); // Add margin to avoid overlap.
                         bar
                     }),
             )
@@ -305,12 +313,16 @@ impl RenderRequest {
                                 (current_date, segment.evaluate(current_date))
                             })
                         }),
-                    Palette99::pick(idx).stroke_width(1), // Pick a unique color for the series.
+                    Palette99::pick(idx).stroke_width(self.supersample_factor), // Pick a unique color for the series.
                 ))
                 .context("Failed to draw series")?
-                .label(caption) // Add label for the series.
+                .label(caption) // Add label for the series
                 .legend(move |(x, y)| {
-                    Rectangle::new([(x - 10, y - 10), (x + 10, y + 10)], Palette99::pick(idx))
+                    let offset = 10 * self.supersample_factor as i32;
+                    Rectangle::new(
+                        [(x - offset, y - offset), (x + offset, y + offset)],
+                        Palette99::pick(idx),
+                    )
                 });
         }
 
@@ -326,13 +338,14 @@ impl RenderRequest {
                                 (current_date, segment.evaluate(current_date))
                             })
                         }),
-                    Palette99::pick(idx + 10).stroke_width(1), // Use a different color offset for secondary series.
+                    Palette99::pick(idx + 10).stroke_width(self.supersample_factor), // Use a different color offset for secondary series.
                 ))
                 .context("Failed to draw series")?
                 .label(caption) // Add label for secondary series.
                 .legend(move |(x, y)| {
+                    let offset = 10 * self.supersample_factor as i32;
                     Rectangle::new(
-                        [(x - 10, y - 10), (x + 10, y + 10)],
+                        [(x - offset, y - offset), (x + offset, y + offset)],
                         Palette99::pick(idx + 10),
                     )
                 });
@@ -341,9 +354,10 @@ impl RenderRequest {
         // Configure and draw series labels (the legend).
         chart
             .configure_series_labels()
-            .margin(40)
-            .label_font(("sans-serif", 30))
+            .margin(40 * self.supersample_factor)
+            .label_font(("sans-serif", 30 * self.supersample_factor))
             .position(SeriesLabelPosition::LowerRight)
+            .legend_area_size(15 * self.supersample_factor as i32)
             .background_style(WHITE.mix(0.8))
             .border_style(BLACK)
             .draw()
