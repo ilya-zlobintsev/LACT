@@ -47,7 +47,6 @@ enum LastTexture {
 #[derive(Default)]
 struct RenderThreadState {
     request_condition_variable: std::sync::Condvar,
-    texture_condition_variable: std::sync::Condvar,
     last_texture: Mutex<LastTexture>,
     current_request: Mutex<Option<Request>>,
 }
@@ -84,7 +83,6 @@ impl RenderThread {
             move || loop {
                 let RenderThreadState {
                     request_condition_variable,
-                    texture_condition_variable,
                     last_texture,
                     current_request,
                 } = &*state;
@@ -139,7 +137,6 @@ impl RenderThread {
                                 *last_texture = LastTexture::Ready(result);
                             }
                         };
-                        texture_condition_variable.notify_all();
                     }
                     // Terminate the thread if a Terminate request is received.
                     Some(Request::Terminate) => break,
@@ -167,19 +164,10 @@ impl RenderThread {
         }
     }
 
-    /// Return the best effort texture.
+    /// Return the last texture.
     /// Requests that weren't processed in time or resulted in error are dropped.
-    /// This function will block until a any texture is ready (in invalid or valid state) or the thread is terminated.
-    pub fn get_best_effort_texture(&self) -> Option<MemoryTexture> {
-        match self
-            .state
-            .texture_condition_variable
-            .wait_while(self.state.last_texture.lock().unwrap(), |texture| {
-                *texture == LastTexture::Pending
-            })
-            .unwrap()
-            .deref()
-        {
+    pub fn get_last_texture(&self) -> Option<MemoryTexture> {
+        match self.state.last_texture.lock().unwrap().deref() {
             LastTexture::Ready(Some(texture)) => Some(texture.clone()),
             _ => None,
         }

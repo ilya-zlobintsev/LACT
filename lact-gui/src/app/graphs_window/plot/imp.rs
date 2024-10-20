@@ -69,7 +69,7 @@ impl WidgetImpl for Plot {
             });
         }
 
-        if let Some(texture) = self.render_thread.get_best_effort_texture() {
+        if let Some(texture) = self.render_thread.get_last_texture() {
             let bounds = gtk::graphene::Rect::new(0.0, 0.0, width as f32, height as f32);
             snapshot.append_texture(&texture, &bounds);
         }
