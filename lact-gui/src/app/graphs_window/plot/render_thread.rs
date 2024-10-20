@@ -313,7 +313,7 @@ impl RenderRequest {
                                 (current_date, segment.evaluate(current_date))
                             })
                         }),
-                    Palette99::pick(idx).stroke_width(self.supersample_factor), // Pick a unique color for the series.
+                    Palette99::pick(idx).stroke_width(2 * self.supersample_factor), // Pick a unique color for the series.
                 ))
                 .context("Failed to draw series")?
                 .label(caption) // Add label for the series
@@ -321,7 +321,7 @@ impl RenderRequest {
                     let offset = 10 * self.supersample_factor as i32;
                     Rectangle::new(
                         [(x - offset, y - offset), (x + offset, y + offset)],
-                        Palette99::pick(idx),
+                        Palette99::pick(idx).filled(),
                     )
                 });
         }
@@ -338,7 +338,7 @@ impl RenderRequest {
                                 (current_date, segment.evaluate(current_date))
                             })
                         }),
-                    Palette99::pick(idx + 10).stroke_width(self.supersample_factor), // Use a different color offset for secondary series.
+                    Palette99::pick(idx + 10).stroke_width(2 * self.supersample_factor), // Use a different color offset for secondary series.
                 ))
                 .context("Failed to draw series")?
                 .label(caption) // Add label for secondary series.
@@ -346,7 +346,7 @@ impl RenderRequest {
                     let offset = 10 * self.supersample_factor as i32;
                     Rectangle::new(
                         [(x - offset, y - offset), (x + offset, y + offset)],
-                        Palette99::pick(idx + 10),
+                        Palette99::pick(idx + 10).filled(),
                     )
                 });
         }

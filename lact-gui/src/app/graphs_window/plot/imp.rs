@@ -65,7 +65,7 @@ impl WidgetImpl for Plot {
                 secondary_value_suffix: self.secondary_value_suffix.borrow().clone(),
                 y_label_area_size: self.y_label_area_size.get(),
                 secondary_y_label_area_size: self.secondary_y_label_area_size.get(),
-                supersample_factor: 2,
+                supersample_factor: 4,
             });
         }
 
