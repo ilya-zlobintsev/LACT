@@ -12,6 +12,7 @@ use plotters_cairo::CairoBackend;
 use std::cmp::max;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
+use thread_priority::{ThreadBuilderExt, ThreadPriority};
 use tracing::error;
 
 enum Request {
@@ -78,72 +79,76 @@ impl RenderThread {
     pub fn new() -> Self {
         let state = Arc::new(RenderThreadState::default());
 
-        let thread_handle = std::thread::spawn({
-            let state = state.clone();
-            move || loop {
-                let RenderThreadState {
-                    request_condition_variable,
-                    last_texture,
-                    current_request,
-                } = &*state;
+        let thread_handle = std::thread::Builder::new()
+            .name("Plot-Renderer".to_owned())
+            // Render thread is very unimportant, skipping frames and rendering slowly is ok
+            .spawn_with_priority(ThreadPriority::Min, {
+                let state = state.clone();
+                move |_| loop {
+                    let RenderThreadState {
+                        request_condition_variable,
+                        last_texture,
+                        current_request,
+                    } = &*state;
 
-                // Wait until there is a new request (blocking if there is none).
-                let mut current_request = request_condition_variable
-                    .wait_while(current_request.lock().unwrap(), |pending_request| {
-                        pending_request.is_none()
-                    })
-                    .unwrap();
-
-                match current_request.take() {
-                    Some(Request::Render(render_request)) => {
-                        // Create a new ImageSurface for Cairo rendering.
-                        let mut surface = ImageSurface::create(
-                            cairo::Format::ARgb32,
-                            render_request.width as i32,
-                            render_request.height as i32,
-                        )
-                        .unwrap();
-                        let cairo_context = CairoContext::new(&surface).unwrap();
-
-                        let cairo_backend = CairoBackend::new(
-                            &cairo_context,
-                            // Supersample the rendering
-                            (
-                                render_request.width * render_request.supersample_factor,
-                                render_request.height * render_request.supersample_factor,
-                            ),
-                        )
+                    // Wait until there is a new request (blocking if there is none).
+                    let mut current_request = request_condition_variable
+                        .wait_while(current_request.lock().unwrap(), |pending_request| {
+                            pending_request.is_none()
+                        })
                         .unwrap();
 
-                        if let Err(err) = render_request.draw(cairo_backend) {
-                            error!("Failed to plot chart: {err:?}")
-                        }
+                    match current_request.take() {
+                        Some(Request::Render(render_request)) => {
+                            // Create a new ImageSurface for Cairo rendering.
+                            let mut surface = ImageSurface::create(
+                                cairo::Format::ARgb32,
+                                render_request.width as i32,
+                                render_request.height as i32,
+                            )
+                            .unwrap();
+                            let cairo_context = CairoContext::new(&surface).unwrap();
 
-                        match (
-                            surface.to_texture(),
-                            last_texture.lock().unwrap().deref_mut(),
-                        ) {
-                            // Successfully generated a new texture, but the old texture is also there
-                            (Some(texture), LastTexture::Ready(last_texture)) => {
-                                *last_texture = Some(texture);
+                            let cairo_backend = CairoBackend::new(
+                                &cairo_context,
+                                // Supersample the rendering
+                                (
+                                    render_request.width * render_request.supersample_factor,
+                                    render_request.height * render_request.supersample_factor,
+                                ),
+                            )
+                            .unwrap();
+
+                            if let Err(err) = render_request.draw(cairo_backend) {
+                                error!("Failed to plot chart: {err:?}")
                             }
-                            // If texture conversion failed, keep the old texture if it's present.
-                            (None, LastTexture::Ready(_)) => {
-                                error!("Failed to convert cairo surface to gdk texture, not overwriting old one");
+
+                            match (
+                                surface.to_texture(),
+                                last_texture.lock().unwrap().deref_mut(),
+                            ) {
+                                // Successfully generated a new texture, but the old texture is also there
+                                (Some(texture), LastTexture::Ready(last_texture)) => {
+                                    *last_texture = Some(texture);
+                                }
+                                // If texture conversion failed, keep the old texture if it's present.
+                                (None, LastTexture::Ready(_)) => {
+                                    error!("Failed to convert cairo surface to gdk texture, not overwriting old one");
+                                }
+                                // Update the last texture, if The old texture wasn't ever generated (LastTexture::Pending),
+                                // No matter the result of conversion
+                                (result, last_texture) => {
+                                    *last_texture = LastTexture::Ready(result);
+                                }
+                            };
                             }
-                            // Update the last texture, if The old texture wasn't ever generated (LastTexture::Pending),
-                            // No matter the result of conversion
-                            (result, last_texture) => {
-                                *last_texture = LastTexture::Ready(result);
-                            }
-                        };
+                        // Terminate the thread if a Terminate request is received.
+                        Some(Request::Terminate) => break,
+                        None => {}
                     }
-                    // Terminate the thread if a Terminate request is received.
-                    Some(Request::Terminate) => break,
-                    None => {}
                 }
-            }
-        });
+        })
+        .unwrap();
 
         Self {
             state,

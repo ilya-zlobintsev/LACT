@@ -39,5 +39,7 @@ plotters-cairo = "0.7.0"
 cairo-rs = { version = "0.20", default-features = false }
 itertools = "0.13.0"
 
+thread-priority = "1.1.0"
+
 [dev-dependencies]
 pretty_assertions = "1.4.0"
