@@ -32,4 +32,4 @@ lto = true
 
 [profile.bench]
 strip = false
-debug = true
+debug = 1
