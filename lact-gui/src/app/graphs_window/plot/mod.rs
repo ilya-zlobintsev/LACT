@@ -1,5 +1,7 @@
 mod cubic_spline;
 mod imp;
+mod render_thread;
+mod to_texture_ext;
 
 use std::cell::RefMut;
 
@@ -14,6 +16,7 @@ glib::wrapper! {
 
 impl Plot {
     pub fn data_mut(&self) -> RefMut<'_, PlotData> {
+        self.imp().dirty.set(true);
         self.imp().data.borrow_mut()
     }
 }
