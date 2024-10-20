@@ -36,19 +36,10 @@ pub struct RenderRequest {
     pub supersample_factor: u32,
 }
 
-// Tracks the status of the texture.
-// `Ready` means the texture is done, and `Pending` means a texture is still being processed.
-#[derive(PartialEq, Eq, Default)]
-enum LastTexture {
-    Ready(Option<MemoryTexture>),
-    #[default]
-    Pending,
-}
-
 #[derive(Default)]
 struct RenderThreadState {
     request_condition_variable: std::sync::Condvar,
-    last_texture: Mutex<LastTexture>,
+    last_texture: Mutex<Option<MemoryTexture>>,
     current_request: Mutex<Option<Request>>,
 }
 
@@ -128,17 +119,17 @@ impl RenderThread {
                                 last_texture.lock().unwrap().deref_mut(),
                             ) {
                                 // Successfully generated a new texture, but the old texture is also there
-                                (Some(texture), LastTexture::Ready(last_texture)) => {
-                                    *last_texture = Some(texture);
+                                (Some(texture), Some(last_texture)) => {
+                                    *last_texture = texture;
                                 }
                                 // If texture conversion failed, keep the old texture if it's present.
-                                (None, LastTexture::Ready(_)) => {
+                                (None, None) => {
                                     error!("Failed to convert cairo surface to gdk texture, not overwriting old one");
                                 }
-                                // Update the last texture, if The old texture wasn't ever generated (LastTexture::Pending),
+                                // Update the last texture, if The old texture wasn't ever generated (None),
                                 // No matter the result of conversion
                                 (result, last_texture) => {
-                                    *last_texture = LastTexture::Ready(result);
+                                    *last_texture = result;
                                 }
                             };
                             }
@@ -172,10 +163,7 @@ impl RenderThread {
     /// Return the last texture.
     /// Requests that weren't processed in time or resulted in error are dropped.
     pub fn get_last_texture(&self) -> Option<MemoryTexture> {
-        match self.state.last_texture.lock().unwrap().deref() {
-            LastTexture::Ready(Some(texture)) => Some(texture.clone()),
-            _ => None,
-        }
+        self.state.last_texture.lock().unwrap().deref().clone()
     }
 }
 
