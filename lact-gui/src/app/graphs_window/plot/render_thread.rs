@@ -278,13 +278,25 @@ impl RenderRequest {
                     })
                     // Map the time intervals to rectangles representing throttling intervals.
                     .map(|((start, name, _), (end, _, _))| ((start, end), name))
-                    .map(|((start_time, end_time), _)| {
-                        let mut bar = Rectangle::new(
+                    .map(|((start_time, end_time), _)| (start_time, end_time))
+                    // Sort by start_time to simplify merging.
+                    .sorted_by_key(|&(start_time, _)| start_time)
+                    // Merge overlapping or contiguous intervals.
+                    .coalesce(|(start1, end1), (start2, end2)| {
+                        if end1 >= start2 {
+                            // Merge intervals by taking the earliest start_time and the latest end_time.
+                            Ok((start1, std::cmp::max(end1, end2)))
+                        } else {
+                            // No overlap, keep the intervals separate.
+                            Err(((start1, end1), (start2, end2)))
+                        }
+                    })
+                    // Map the merged time intervals to rectangles.
+                    .map(|(start_time, end_time)| {
+                        Rectangle::new(
                             [(start_time, 0f64), (end_time, maximum_value)],
                             DEEPORANGE_100.filled(),
-                        );
-                        bar.set_margin(0, 0, 5 * self.supersample_factor, 5 * self.supersample_factor); // Add margin to avoid overlap.
-                        bar
+                        )
                     }),
             )
             .context("Failed to draw throttling histogram")?;
