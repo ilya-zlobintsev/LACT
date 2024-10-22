@@ -31,6 +31,15 @@ codegen-units = 1
 opt-level = "s"
 lto = true
 
+[profile.release.package.cairo-rs]
+opt-level = 3
+
+[profile.release.package.plotters-cairo]
+opt-level = 3
+
+[profile.release.package.plotters]
+opt-level = 3
+
 [profile.bench]
 strip = false
-debug = true
+debug = 1
