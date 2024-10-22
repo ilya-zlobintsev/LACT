@@ -1,6 +1,11 @@
 mod fan_curve_frame;
 mod pmfw_frame;
 
+use std::{
+    rc::Rc,
+    sync::atomic::{AtomicBool, Ordering},
+};
+
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
@@ -40,6 +45,7 @@ pub struct ThermalsPage {
     fan_curve_frame: FanCurveFrame,
     fan_control_mode_stack: Stack,
     fan_control_mode_stack_switcher: StackSwitcher,
+    is_amd: Rc<AtomicBool>,
 
     overdrive_enabled: Option<bool>,
 }
@@ -98,11 +104,19 @@ impl ThermalsPage {
 
         container.append(&fan_control_section);
 
-        fan_control_mode_stack.connect_visible_child_name_notify(|stack| {
-            if stack.visible_child_name() == Some("automatic".into()) {
-                show_fan_control_warning()
+        let is_amd = Rc::new(AtomicBool::new(false));
+
+        fan_control_mode_stack.connect_visible_child_name_notify(clone!(
+            #[strong]
+            is_amd,
+            move |stack| {
+                if stack.visible_child_name() == Some("automatic".into())
+                    && is_amd.load(Ordering::SeqCst)
+                {
+                    show_fan_control_warning()
+                }
             }
-        });
+        ));
 
         Self {
             pmfw_warning_label,
@@ -115,6 +129,7 @@ impl ThermalsPage {
             fan_control_mode_stack_switcher,
             pmfw_frame,
             overdrive_enabled: system_info.amdgpu_overdrive_enabled,
+            is_amd,
         }
     }
 
@@ -132,6 +147,11 @@ impl ThermalsPage {
         let sensitive = self.fan_control_mode_stack_switcher.is_sensitive() && !pmfw_disabled;
         self.fan_control_mode_stack_switcher
             .set_sensitive(sensitive);
+
+        self.is_amd.store(
+            matches!(info.driver.as_str(), "radeon" | "amdgpu"),
+            Ordering::SeqCst,
+        );
     }
 
     pub fn set_stats(&self, stats: &DeviceStats, initial: bool) {

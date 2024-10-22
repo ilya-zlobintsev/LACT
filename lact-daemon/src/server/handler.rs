@@ -782,6 +782,7 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>
                                                 "Initialized NVML device without PCI info somehow",
                                             ).clone(),
                                             sysfs_path: path.to_owned(),
+                                            fan_control_handle: RefCell::default(),
                                         };
                                         match controller.get_id() {
                                             Ok(id) => {
