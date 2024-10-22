@@ -55,7 +55,13 @@ impl WidgetImpl for Plot {
             return;
         }
 
-        if self.dirty.replace(false) {
+        let last_texture = self.render_thread.get_last_texture();
+        let size_changed = last_texture
+            .as_ref()
+            .map(|texture| (texture.width() as u32, texture.height() as u32) != (width, height))
+            .unwrap_or(true);
+
+        if self.dirty.replace(false) || size_changed {
             self.render_thread.replace_render_request(RenderRequest {
                 data: self.data.borrow().clone(),
                 width,
@@ -69,7 +75,8 @@ impl WidgetImpl for Plot {
             });
         }
 
-        if let Some(texture) = self.render_thread.get_last_texture() {
+        // Rendering is always behind at least by one frame, but it's not an issue
+        if let Some(texture) = last_texture {
             let bounds = gtk::graphene::Rect::new(0.0, 0.0, width as f32, height as f32);
             snapshot.append_texture(&texture, &bounds);
         }
