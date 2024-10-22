@@ -36,6 +36,9 @@ opt-level = 3
 [profile.release.package.plotters-cairo]
 opt-level = 3
 
+[profile.release.package.plotters]
+opt-level = 3
+
 [profile.bench]
 strip = false
 debug = 1
