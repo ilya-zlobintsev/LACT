@@ -27,6 +27,7 @@ indexmap = { version = "2.5.0", features = ["serde"] }
 
 [profile.release]
 strip = "symbols"
+codegen-units = 1
 opt-level = "s"
 lto = true
 
