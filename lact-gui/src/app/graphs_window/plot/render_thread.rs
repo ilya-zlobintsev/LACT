@@ -8,8 +8,9 @@ use gtk::gdk::MemoryTexture;
 use itertools::Itertools;
 use plotters::prelude::*;
 use plotters::style::colors::full_palette::DEEPORANGE_100;
+use plotters::style::RelativeSize;
 use plotters_cairo::CairoBackend;
-use std::cmp::max;
+use std::cmp::{max, min};
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 use thread_priority::{ThreadBuilderExt, ThreadPriority};
@@ -25,8 +26,8 @@ pub struct RenderRequest {
     pub title: String,
     pub value_suffix: String,
     pub secondary_value_suffix: String,
-    pub y_label_area_size: u32,
-    pub secondary_y_label_area_size: u32,
+    pub y_label_area_relative_size: f64,
+    pub secondary_y_label_relative_area_size: f64,
 
     pub data: PlotData,
 
@@ -94,11 +95,18 @@ impl RenderThread {
                             // Create a new ImageSurface for Cairo rendering.
                             let mut surface = ImageSurface::create(
                                 cairo::Format::ARgb32,
-                                render_request.width as i32,
-                                render_request.height as i32,
+                                (render_request.width * render_request.supersample_factor) as i32,
+                             (render_request.height * render_request.supersample_factor) as i32,
                             )
                             .unwrap();
+
                             let cairo_context = CairoContext::new(&surface).unwrap();
+
+                            // Don't use Cairo's default antialiasing, it makes the lines look too blurry
+                            // Supersampling is our 2D anti-aliasing solution.
+                            if render_request.supersample_factor > 1 {
+                                cairo_context.set_antialias(cairo::Antialias::None);
+                            }
 
                             let cairo_backend = CairoBackend::new(
                                 &cairo_context,
@@ -175,6 +183,10 @@ impl Default for RenderThread {
 }
 
 impl RenderRequest {
+    pub fn relative_size(&self, ratio: f64) -> f64 {
+        min(self.height, self.width) as f64 * ratio
+    }
+
     // Method to handle the actual drawing of the chart.
     pub fn draw<'a, DB>(&self, backend: DB) -> anyhow::Result<()>
     where
@@ -215,13 +227,15 @@ impl RenderRequest {
 
         // Set up the main chart with axes and labels.
         let mut chart = ChartBuilder::on(&root)
-            .x_label_area_size(40 * self.supersample_factor)
-            .y_label_area_size(self.y_label_area_size * self.supersample_factor)
-            .right_y_label_area_size(self.secondary_y_label_area_size * self.supersample_factor)
-            .margin(20 * self.supersample_factor)
+            .x_label_area_size(RelativeSize::Smaller(0.05))
+            .y_label_area_size(RelativeSize::Smaller(self.y_label_area_relative_size))
+            .right_y_label_area_size(RelativeSize::Smaller(
+                self.secondary_y_label_relative_area_size,
+            ))
+            .margin(RelativeSize::Smaller(0.045))
             .caption(
                 self.title.as_str(),
-                ("sans-serif", 30 * self.supersample_factor),
+                ("sans-serif", RelativeSize::Smaller(0.08)),
             )
             .build_cartesian_2d(
                 start_date..max(end_date, start_date + 60 * 1000),
@@ -242,7 +256,7 @@ impl RenderRequest {
             .y_label_formatter(&|x| format!("{x}{}", &self.value_suffix))
             .x_labels(5)
             .y_labels(10)
-            .label_style(("sans-serif", 30 * self.supersample_factor))
+            .label_style(("sans-serif", RelativeSize::Smaller(0.08)))
             .draw()
             .context("Failed to draw mesh")?;
 
@@ -251,7 +265,7 @@ impl RenderRequest {
             .configure_secondary_axes()
             .y_label_formatter(&|x| format!("{x}{}", self.secondary_value_suffix.as_str()))
             .y_labels(10)
-            .label_style(("sans-serif", 30 * self.supersample_factor))
+            .label_style(("sans-serif", RelativeSize::Smaller(0.08)))
             .draw()
             .context("Failed to draw mesh")?;
 
@@ -259,32 +273,23 @@ impl RenderRequest {
         chart
             .draw_series(
                 data.throttling_iter()
-                    // Group segments of consecutive enabled/disabled throttlings.
                     .chunk_by(|(_, _, point)| *point)
                     .into_iter()
-                    // Only consider intervals where throttling is enabled.
                     .filter_map(|(point, group_iter)| point.then_some(group_iter))
-                    // Get first and last times for the interval.
                     .filter_map(|mut group_iter| {
                         let first = group_iter.next()?;
                         Some((first, group_iter.last().unwrap_or(first)))
                     })
-                    // Map the time intervals to rectangles representing throttling intervals.
                     .map(|((start, name, _), (end, _, _))| ((start, end), name))
                     .map(|((start_time, end_time), _)| (start_time, end_time))
-                    // Sort by start_time to simplify merging.
                     .sorted_by_key(|&(start_time, _)| start_time)
-                    // Merge overlapping or contiguous intervals.
                     .coalesce(|(start1, end1), (start2, end2)| {
                         if end1 >= start2 {
-                            // Merge intervals by taking the earliest start_time and the latest end_time.
                             Ok((start1, std::cmp::max(end1, end2)))
                         } else {
-                            // No overlap, keep the intervals separate.
                             Err(((start1, end1), (start2, end2)))
                         }
                     })
-                    // Map the merged time intervals to rectangles.
                     .map(|(start_time, end_time)| {
                         Rectangle::new(
                             [(start_time, 0f64), (end_time, maximum_value)],
@@ -306,12 +311,12 @@ impl RenderRequest {
                                 (current_date, segment.evaluate(current_date))
                             })
                         }),
-                    Palette99::pick(idx).stroke_width(2 * self.supersample_factor), // Pick a unique color for the series.
+                    Palette99::pick(idx).stroke_width(8),
                 ))
                 .context("Failed to draw series")?
-                .label(caption) // Add label for the series
+                .label(caption)
                 .legend(move |(x, y)| {
-                    let offset = 10 * self.supersample_factor as i32;
+                    let offset = self.relative_size(0.04) as i32;
                     Rectangle::new(
                         [(x - offset, y - offset), (x + offset, y + offset)],
                         Palette99::pick(idx).filled(),
@@ -326,17 +331,16 @@ impl RenderRequest {
                     cubic_spline_interpolation(data.iter())
                         .into_iter()
                         .flat_map(|((first_time, second_time), segment)| {
-                            // Interpolate in intervals of one millisecond.
                             (first_time..second_time).map(move |current_date| {
                                 (current_date, segment.evaluate(current_date))
                             })
                         }),
-                    Palette99::pick(idx + 10).stroke_width(2 * self.supersample_factor), // Use a different color offset for secondary series.
+                    Palette99::pick(idx + 10).stroke_width(8),
                 ))
                 .context("Failed to draw series")?
-                .label(caption) // Add label for secondary series.
+                .label(caption)
                 .legend(move |(x, y)| {
-                    let offset = 10 * self.supersample_factor as i32;
+                    let offset = self.relative_size(0.04) as i32;
                     Rectangle::new(
                         [(x - offset, y - offset), (x + offset, y + offset)],
                         Palette99::pick(idx + 10).filled(),
@@ -347,10 +351,10 @@ impl RenderRequest {
         // Configure and draw series labels (the legend).
         chart
             .configure_series_labels()
-            .margin(40 * self.supersample_factor)
-            .label_font(("sans-serif", 30 * self.supersample_factor))
+            .margin(RelativeSize::Smaller(0.10))
+            .label_font(("sans-serif", RelativeSize::Smaller(0.08)))
             .position(SeriesLabelPosition::LowerRight)
-            .legend_area_size(15 * self.supersample_factor as i32)
+            .legend_area_size(RelativeSize::Smaller(0.045))
             .background_style(WHITE.mix(0.8))
             .border_style(BLACK)
             .draw()

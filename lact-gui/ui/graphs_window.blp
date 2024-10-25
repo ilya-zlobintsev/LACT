@@ -19,7 +19,7 @@ template $GraphsWindow: Window {
           title: "Temperature";
           hexpand: true;
           value-suffix: "°C";
-          y-label-area-size: 80;
+          y-label-area-relative-size: 0.15;
 
           layout {
              column: 0;
@@ -32,8 +32,8 @@ template $GraphsWindow: Window {
           hexpand: true;
           value-suffix: "RPM";
           secondary-value-suffix: "%";
-          y-label-area-size: 140;
-          secondary-y-label-area-size: 80;
+          y-label-area-relative-size: 0.25;
+          secondary-y-label-area-relative-size: 0.15;
 
           layout {
              column: 0;
@@ -45,7 +45,7 @@ template $GraphsWindow: Window {
           title: "Clockspeed";
           hexpand: true;
           value-suffix: "MHz";
-          y-label-area-size: 140;
+          y-label-area-relative-size: 0.25;
 
           layout {
              column: 1;
@@ -57,7 +57,7 @@ template $GraphsWindow: Window {
           title: "Power usage";
           hexpand: true;
           value-suffix: "W";
-          y-label-area-size: 80;
+          y-label-area-relative-size: 0.2;
 
           layout {
              column: 1;
