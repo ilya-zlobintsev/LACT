@@ -37,6 +37,8 @@ Both AMD and Nvidia functionality works on X11, Wayland or even headless session
 **Why is there no AppImage/Flatpak/other universal format?**
 See [here](./pkg/README.md).
 
+Note: Nvidia support requires the Nvidia proprietary driver with CUDA libraries installed.
+
 ## Development builds
 
 To get latest fixes or features that have not yet been released in a stable version, there are packages built from the latest commit that you can install from the [test release](https://github.com/ilya-zlobintsev/LACT/releases/tag/test-build) or using the `lact-git` AUR package on Arch-based distros.
