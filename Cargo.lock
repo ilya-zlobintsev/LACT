@@ -695,7 +695,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330c60081dcc4c72131f8eb70510f1ac07223e5d4163db481a04a0befcffa412"
 dependencies = [
- "libloading 0.8.5",
+ "libloading 0.7.4",
 ]
 
 [[package]]
@@ -1651,7 +1651,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -1829,7 +1829,7 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper"
 version = "0.10.0"
-source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#83b28ab768e5d4300e2fa2cf0116c360fcd64c9b"
+source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#8e9f9c5738e167d2ef1e776ac86f388f23ee6d12"
 dependencies = [
  "bitflags 2.6.0",
  "libloading 0.8.5",
@@ -1842,7 +1842,7 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper-sys"
 version = "0.8.0"
-source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#83b28ab768e5d4300e2fa2cf0116c360fcd64c9b"
+source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#8e9f9c5738e167d2ef1e776ac86f388f23ee6d12"
 dependencies = [
  "libloading 0.8.5",
 ]

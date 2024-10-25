@@ -1,6 +1,5 @@
 use gtk::glib::{self, Object};
 use lact_client::schema::PowerState;
-use std::fmt::Display;
 
 glib::wrapper! {
     pub struct PowerStateRow(ObjectSubclass<imp::PowerStateRow>)
@@ -9,8 +8,14 @@ glib::wrapper! {
 }
 
 impl PowerStateRow {
-    pub fn new<T: Display>(power_state: PowerState<T>, index: u8, value_suffix: &str) -> Self {
-        let title = format!("{}: {} {}", index, power_state.value, value_suffix);
+    pub fn new(power_state: PowerState, index: u8, value_suffix: &str) -> Self {
+        let index = power_state.index.unwrap_or(index);
+
+        let value_text = match power_state.min_value {
+            Some(min) if min != power_state.value => format!("{min}-{}", power_state.value),
+            _ => power_state.value.to_string(),
+        };
+        let title = format!("{index}: {value_text} {value_suffix}");
         Object::builder()
             .property("enabled", power_state.enabled)
             .property("title", title)

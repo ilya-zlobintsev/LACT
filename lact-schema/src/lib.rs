@@ -255,8 +255,8 @@ pub struct PowerStats {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PowerStates {
-    pub core: Vec<PowerState<u64>>,
-    pub vram: Vec<PowerState<u64>>,
+    pub core: Vec<PowerState>,
+    pub vram: Vec<PowerState>,
 }
 
 impl PowerStates {
@@ -266,9 +266,11 @@ impl PowerStates {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
-pub struct PowerState<T> {
+pub struct PowerState {
     pub enabled: bool,
-    pub value: T,
+    pub min_value: Option<u64>,
+    pub value: u64,
+    pub index: Option<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]

@@ -351,7 +351,7 @@ impl AmdGpuController {
         gpu_config: Option<&config::Gpu>,
         kind: PowerLevelKind,
         attempt: u32,
-    ) -> Vec<PowerState<u64>> {
+    ) -> Vec<PowerState> {
         let enabled_states = gpu_config.and_then(|gpu| gpu.power_states.get(&kind));
         let levels = self
             .handle
@@ -375,7 +375,12 @@ impl AmdGpuController {
             .map(|(i, value)| {
                 let i = u8::try_from(i).unwrap();
                 let enabled = enabled_states.map_or(true, |enabled| enabled.contains(&i));
-                PowerState { enabled, value }
+                PowerState {
+                    enabled,
+                    min_value: None,
+                    value,
+                    index: Some(i),
+                }
             })
             .collect()
     }

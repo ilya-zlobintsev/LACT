@@ -12,11 +12,12 @@ use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo, FanControlMode,
-    FanStats, GpuPciInfo, LinkInfo, PmfwInfo, PowerStates, PowerStats, VoltageStats, VramStats,
+    FanStats, GpuPciInfo, LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats,
+    VramStats,
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
-    enum_wrappers::device::{Clock, TemperatureSensor, TemperatureThreshold},
+    enum_wrappers::device::{Clock, ClockType, TemperatureSensor, TemperatureThreshold},
     Device, Nvml,
 };
 use std::{
@@ -182,6 +183,52 @@ impl NvidiaGpuController {
 
         Ok(())
     }
+
+    fn try_get_power_states(&self) -> anyhow::Result<PowerStates> {
+        let device = self.device();
+
+        let supported_states = device
+            .supported_performance_states()
+            .context("Could not get supported pstates")?;
+
+        let mut power_states = PowerStates::default();
+
+        for pstate in supported_states {
+            let (gpu_min, gpu_max) = device
+                .min_max_clock_of_pstate(ClockType::Graphics, pstate)
+                .context("Could not read GPU pstates")?;
+
+            power_states.core.push(PowerState {
+                enabled: true,
+                min_value: Some(u64::from(gpu_min)),
+                value: u64::from(gpu_max),
+                index: Some(
+                    pstate
+                        .as_c()
+                        .try_into()
+                        .expect("Power state always fits in u8"),
+                ),
+            });
+
+            let (mem_min, mem_max) = device
+                .min_max_clock_of_pstate(ClockType::Mem, pstate)
+                .context("Could not read memory pstates")?;
+
+            power_states.vram.push(PowerState {
+                enabled: true,
+                min_value: Some(u64::from(mem_min)),
+                value: u64::from(mem_max),
+                index: Some(
+                    pstate
+                        .as_c()
+                        .try_into()
+                        .expect("Power state always fits in u8"),
+                ),
+            });
+        }
+
+        Ok(power_states)
+    }
 }
 
 impl GpuController for NvidiaGpuController {
@@ -340,6 +387,11 @@ impl GpuController for NvidiaGpuController {
             })
             .unwrap_or_default();
 
+        let active_pstate = device
+            .performance_state()
+            .map(|pstate| pstate.as_c() as usize)
+            .ok();
+
         DeviceStats {
             temps,
             fan: FanStats {
@@ -398,8 +450,8 @@ impl GpuController for NvidiaGpuController {
             }),
             voltage: VoltageStats::default(), // Voltage reporting is not supported
             performance_level: None,
-            core_power_state: None,
-            memory_power_state: None,
+            core_power_state: active_pstate,
+            memory_power_state: active_pstate,
             pcie_power_state: None,
         }
     }
@@ -409,7 +461,10 @@ impl GpuController for NvidiaGpuController {
     }
 
     fn get_power_states(&self, _gpu_config: Option<&config::Gpu>) -> PowerStates {
-        PowerStates::default()
+        self.try_get_power_states().unwrap_or_else(|err| {
+            warn!("could not get pstates info: {err:#}");
+            PowerStates::default()
+        })
     }
 
     fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable> {
