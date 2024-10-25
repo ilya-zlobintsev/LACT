@@ -695,7 +695,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330c60081dcc4c72131f8eb70510f1ac07223e5d4163db481a04a0befcffa412"
 dependencies = [
- "libloading 0.8.5",
+ "libloading 0.7.4",
 ]
 
 [[package]]
@@ -1495,6 +1495,7 @@ version = "0.5.7"
 dependencies = [
  "amdgpu-sysfs",
  "anyhow",
+ "bitflags 2.6.0",
  "chrono",
  "futures",
  "indexmap",
@@ -1503,6 +1504,7 @@ dependencies = [
  "libflate",
  "nix",
  "notify",
+ "nvml-wrapper",
  "os-release",
  "pciid-parser",
  "serde",
@@ -1649,7 +1651,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -1822,6 +1824,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c7398b9c8b70908f6371f47ed36737907c87c52af34c268fed0bf0ceb92ead9"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "nvml-wrapper"
+version = "0.10.0"
+source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#8e9f9c5738e167d2ef1e776ac86f388f23ee6d12"
+dependencies = [
+ "bitflags 2.6.0",
+ "libloading 0.8.5",
+ "nvml-wrapper-sys",
+ "static_assertions",
+ "thiserror",
+ "wrapcenum-derive",
+]
+
+[[package]]
+name = "nvml-wrapper-sys"
+version = "0.8.0"
+source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#8e9f9c5738e167d2ef1e776ac86f388f23ee6d12"
+dependencies = [
+ "libloading 0.8.5",
 ]
 
 [[package]]
@@ -3163,6 +3186,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d129932f4644ac2396cb456385cbf9e63b5b30c6e8dc4820bdca4eb082037a5"
 dependencies = [
  "winapi",
+]
+
+[[package]]
+name = "wrapcenum-derive"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a76ff259533532054cfbaefb115c613203c73707017459206380f03b3b3f266e"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

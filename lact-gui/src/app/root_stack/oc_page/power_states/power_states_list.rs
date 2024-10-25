@@ -11,7 +11,6 @@ use gtk::{
     ListBoxRow, Widget,
 };
 use lact_client::schema::PowerState;
-use std::fmt::Display;
 
 glib::wrapper! {
     pub struct PowerStatesList(ObjectSubclass<imp::PowerStatesList>)
@@ -32,11 +31,7 @@ impl PowerStatesList {
             .collect()
     }
 
-    pub fn set_power_states<T: Display>(
-        &self,
-        power_states: Vec<PowerState<T>>,
-        value_suffix: &str,
-    ) {
+    pub fn set_power_states(&self, power_states: Vec<PowerState>, value_suffix: &str) {
         let store = gio::ListStore::new::<PowerStateRow>();
         for (i, state) in power_states.into_iter().enumerate() {
             let index = u8::try_from(i).expect("Power state index doesn't fit in u8?");

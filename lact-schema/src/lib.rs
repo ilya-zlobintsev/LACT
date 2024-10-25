@@ -93,7 +93,7 @@ pub struct DeviceInfo<'a> {
     #[serde(borrow)]
     pub pci_info: Option<Cow<'a, GpuPciInfo>>,
     pub vulkan_info: Option<VulkanInfo>,
-    pub driver: &'a str,
+    pub driver: String,
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,
     pub drm_info: Option<DrmInfo>,
@@ -103,19 +103,19 @@ pub struct DeviceInfo<'a> {
 pub struct DrmInfo {
     pub device_name: Option<String>,
     pub pci_revision_id: Option<u32>,
-    pub family_name: String,
-    #[serde(default)]
-    pub family_id: u32,
-    pub asic_name: String,
-    pub chip_class: String,
-    pub compute_units: u32,
-    pub vram_type: String,
+    pub family_name: Option<String>,
+    pub family_id: Option<u32>,
+    pub asic_name: Option<String>,
+    pub chip_class: Option<String>,
+    pub compute_units: Option<u32>,
+    pub cuda_cores: Option<u32>,
+    pub vram_type: Option<String>,
     pub vram_clock_ratio: f64,
-    pub vram_bit_width: u32,
-    pub vram_max_bw: String,
-    pub l1_cache_per_cu: u32,
-    pub l2_cache: u32,
-    pub l3_cache_mb: u32,
+    pub vram_bit_width: Option<u32>,
+    pub vram_max_bw: Option<String>,
+    pub l1_cache_per_cu: Option<u32>,
+    pub l2_cache: Option<u32>,
+    pub l3_cache_mb: Option<u32>,
     pub memory_info: Option<DrmMemoryInfo>,
 }
 
@@ -123,7 +123,7 @@ pub struct DrmInfo {
 pub struct DrmMemoryInfo {
     pub cpu_accessible_used: u64,
     pub cpu_accessible_total: u64,
-    pub resizeable_bar: bool,
+    pub resizeable_bar: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
@@ -148,7 +148,7 @@ impl From<ClocksTableGen> for ClocksInfo {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct LinkInfo {
     pub current_width: Option<String>,
     pub current_speed: Option<String>,
@@ -182,7 +182,7 @@ pub struct PciInfo {
     pub model: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DeviceStats {
     pub fan: FanStats,
     pub clockspeed: ClockspeedStats,
@@ -198,7 +198,7 @@ pub struct DeviceStats {
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct FanStats {
     pub control_enabled: bool,
     pub control_mode: Option<FanControlMode>,
@@ -224,26 +224,26 @@ pub struct PmfwInfo {
     pub minimum_pwm: Option<FanInfo>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct ClockspeedStats {
     pub gpu_clockspeed: Option<u64>,
     pub current_gfxclk: Option<u16>,
     pub vram_clockspeed: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct VoltageStats {
     pub gpu: Option<u64>,
     pub northbridge: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct VramStats {
     pub total: Option<u64>,
     pub used: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct PowerStats {
     pub average: Option<f64>,
     pub current: Option<f64>,
@@ -253,10 +253,10 @@ pub struct PowerStats {
     pub cap_default: Option<f64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PowerStates {
-    pub core: Vec<PowerState<u64>>,
-    pub vram: Vec<PowerState<u64>>,
+    pub core: Vec<PowerState>,
+    pub vram: Vec<PowerState>,
 }
 
 impl PowerStates {
@@ -266,9 +266,11 @@ impl PowerStates {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
-pub struct PowerState<T> {
+pub struct PowerState {
     pub enabled: bool,
-    pub value: T,
+    pub min_value: Option<u64>,
+    pub value: u64,
+    pub index: Option<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]

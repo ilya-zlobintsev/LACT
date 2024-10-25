@@ -2,7 +2,10 @@ use super::{
     gpu_controller::{fan_control::FanCurve, GpuController},
     system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
 };
-use crate::config::{self, default_fan_static_speed, Config, FanControlSettings, Profile};
+use crate::{
+    config::{self, default_fan_static_speed, Config, FanControlSettings, Profile},
+    server::gpu_controller::{AmdGpuController, NvidiaGpuController},
+};
 use amdgpu_sysfs::{
     gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind},
     sysfs::SysFS,
@@ -16,6 +19,7 @@ use lact_schema::{
 };
 use libflate::gzip;
 use nix::libc;
+use nvml_wrapper::{error::NvmlError, Nvml};
 use os_release::OS_RELEASE;
 use pciid_parser::Database;
 use serde_json::json;
@@ -76,7 +80,7 @@ const SNAPSHOT_HWMON_FILE_PREFIXES: &[&str] =
 #[derive(Clone)]
 pub struct Handler {
     pub config: Rc<RefCell<Config>>,
-    pub gpu_controllers: Rc<BTreeMap<String, GpuController>>,
+    pub gpu_controllers: Rc<BTreeMap<String, Box<dyn GpuController>>>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
     pub config_last_saved: Arc<Mutex<Instant>>,
 }
@@ -103,7 +107,7 @@ impl<'a> Handler {
                                 .expect("pci file name should be valid unicode");
 
                             if controllers.values().any(|controller| {
-                                controller.handle.get_pci_slot_name() == Some(&slot_name)
+                                controller.get_pci_slot_name().as_ref() == Some(&slot_name)
                             }) {
                                 debug!("found intialized drm entry for device {:?}", device.path());
                             } else {
@@ -279,12 +283,12 @@ impl<'a> Handler {
         Ok(())
     }
 
-    fn controller_by_id(&self, id: &str) -> anyhow::Result<&GpuController> {
+    fn controller_by_id(&self, id: &str) -> anyhow::Result<&dyn GpuController> {
         Ok(self
             .gpu_controllers
             .get(id)
-            .as_ref()
-            .context("No controller with such id")?)
+            .context("No controller with such id")?
+            .as_ref())
     }
 
     pub fn list_devices(&'a self) -> Vec<DeviceListEntry> {
@@ -292,8 +296,7 @@ impl<'a> Handler {
             .iter()
             .map(|(id, controller)| {
                 let name = controller
-                    .pci_info
-                    .as_ref()
+                    .get_pci_info()
                     .and_then(|pci_info| pci_info.device_pci_info.model.clone());
                 DeviceListEntry {
                     id: id.to_owned(),
@@ -453,7 +456,7 @@ impl<'a> Handler {
         command: SetClocksCommand,
     ) -> anyhow::Result<u64> {
         if let SetClocksCommand::Reset = command {
-            self.controller_by_id(id)?.handle.reset_clocks_table()?;
+            self.controller_by_id(id)?.cleanup_clocks()?;
         }
 
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
@@ -478,10 +481,7 @@ impl<'a> Handler {
     }
 
     pub fn get_power_profile_modes(&self, id: &str) -> anyhow::Result<PowerProfileModesTable> {
-        let modes_table = self
-            .controller_by_id(id)?
-            .handle
-            .get_power_profile_modes()?;
+        let modes_table = self.controller_by_id(id)?.get_power_profile_modes()?;
         Ok(modes_table)
     }
 
@@ -533,7 +533,7 @@ impl<'a> Handler {
         }
 
         for controller in self.gpu_controllers.values() {
-            let controller_path = controller.handle.get_path();
+            let controller_path = controller.get_path();
 
             for device_file in SNAPSHOT_DEVICE_FILES {
                 let full_path = controller_path.join(device_file);
@@ -546,7 +546,7 @@ impl<'a> Handler {
                 add_path_to_archive(&mut archive, &full_path)?;
             }
 
-            for hw_mon in &controller.handle.hw_monitors {
+            for hw_mon in controller.hw_monitors() {
                 let hw_mon_path = hw_mon.get_path();
                 let hw_mon_entries =
                     std::fs::read_dir(hw_mon_path).context("Could not read HwMon dir")?;
@@ -590,7 +590,7 @@ impl<'a> Handler {
                     .and_then(|config| config.gpus().ok()?.get(id));
 
                 let data = json!({
-                    "pci_info": controller.pci_info,
+                    "pci_info": controller.get_pci_info(),
                     "info": controller.get_info(),
                     "stats": controller.get_stats(gpu_config),
                     "clocks_info": controller.get_clocks_info().ok(),
@@ -710,9 +710,9 @@ impl<'a> Handler {
             .unwrap_or(false);
 
         for (id, controller) in &*self.gpu_controllers {
-            if !disable_clocks_cleanup && controller.handle.get_clocks_table().is_ok() {
+            if !disable_clocks_cleanup {
                 debug!("resetting clocks table");
-                if let Err(err) = controller.handle.reset_clocks_table() {
+                if let Err(err) = controller.cleanup_clocks() {
                     error!("could not reset the clocks table: {err}");
                 }
             }
@@ -726,7 +726,7 @@ impl<'a> Handler {
     }
 }
 
-fn load_controllers() -> anyhow::Result<BTreeMap<String, GpuController>> {
+fn load_controllers() -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>> {
     let mut controllers = BTreeMap::new();
 
     let base_path = match env::var("_LACT_DRM_SYSFS_PATH") {
@@ -742,6 +742,17 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, GpuController>> {
         }
     });
 
+    let nvml = match Nvml::init() {
+        Ok(nvml) => {
+            info!("NVML initialized");
+            Some(Rc::new(nvml))
+        }
+        Err(err) => {
+            info!("Nvidia support disabled, {err}");
+            None
+        }
+    };
+
     for entry in base_path
         .read_dir()
         .map_err(|error| anyhow!("Failed to read sysfs: {error}"))?
@@ -755,12 +766,52 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, GpuController>> {
         if name.starts_with("card") && !name.contains('-') {
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
-            match GpuController::new_from_path(device_path, &pci_db) {
+            match AmdGpuController::new_from_path(device_path, &pci_db) {
                 Ok(controller) => match controller.get_id() {
                     Ok(id) => {
                         let path = controller.get_path();
-                        debug!("initialized GPU controller {id} for path {path:?}",);
-                        controllers.insert(id, controller);
+
+                        if let Some(nvml) = nvml.clone() {
+                            if let Some(pci_slot_id) = controller.get_pci_slot_name() {
+                                match nvml.device_by_pci_bus_id(pci_slot_id.as_str()) {
+                                    Ok(_) => {
+                                        let controller = NvidiaGpuController {
+                                            nvml,
+                                            pci_slot_id,
+                                            pci_info: controller.get_pci_info().expect(
+                                                "Initialized NVML device without PCI info somehow",
+                                            ).clone(),
+                                            sysfs_path: path.to_owned(),
+                                            fan_control_handle: RefCell::default(),
+                                        };
+                                        match controller.get_id() {
+                                            Ok(id) => {
+                                                info!("initialized Nvidia GPU controller {id} for path {path:?}");
+                                                controllers.insert(
+                                                    id,
+                                                    Box::new(controller) as Box<dyn GpuController>,
+                                                );
+                                                continue;
+                                            }
+                                            Err(err) => {
+                                                error!("could not get Nvidia GPU id: {err}");
+                                            }
+                                        }
+                                    }
+                                    Err(NvmlError::NotFound) => {
+                                        debug!("PCI slot {pci_slot_id} not found in NVML");
+                                    }
+                                    Err(err) => {
+                                        error!(
+                                            "could not initialize Nvidia GPU at {path:?}: {err}"
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        info!("initialized GPU controller {id} for path {path:?}");
+                        controllers.insert(id, Box::new(controller) as Box<dyn GpuController>);
                     }
                     Err(err) => warn!("could not initialize controller: {err:#}"),
                 },

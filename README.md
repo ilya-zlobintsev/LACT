@@ -2,19 +2,23 @@
 
 <img src="res/io.github.lact-linux.png" alt="icon" width="100"/>
 
-This application allows you to control your AMD GPU on a Linux system.
+This application allows you to control your AMD or Nvidia GPU on a Linux system.
 
 | GPU info                                     | Overclocking                                 | Fan control                                 |
 |----------------------------------------------|----------------------------------------------|---------------------------------------------|
 |![image](https://i.imgur.com/gur90cK.png)|![image](https://i.imgur.com/BAL3MgC.png)|![image](https://i.imgur.com/VsAVdOR.png)|
+| Historical data |
+|![image](https://i.imgur.com/GOmKh1M.png)|
 
 Current features:
 
 - Viewing information about the GPU
-- Power/thermals monitoring
+- Power and thermals monitoring, power limit configuration
 - Fan curve control
-- Overclocking (GPU/VRAM clockspeed, voltage)
-- Power states configuration
+- Overclocking (GPU/VRAM clockspeed and voltage, currently AMD only)
+- Power states configuration (AMD only)
+
+Both AMD and Nvidia functionality works on X11, Wayland or even headless sessions.
 
 # Installation
 
@@ -33,6 +37,8 @@ Current features:
 **Why is there no AppImage/Flatpak/other universal format?**
 See [here](./pkg/README.md).
 
+Note: Nvidia support requires the Nvidia proprietary driver with CUDA libraries installed.
+
 ## Development builds
 
 To get latest fixes or features that have not yet been released in a stable version, there are packages built from the latest commit that you can install from the [test release](https://github.com/ilya-zlobintsev/LACT/releases/tag/test-build) or using the `lact-git` AUR package on Arch-based distros.
@@ -48,6 +54,8 @@ sudo systemctl enable --now lactd
 You can now use the GUI to change settings and view information.
 
 # Hardware support
+
+## AMD
 
 LACT for the most part does not implement features on a per-generation basis, rather it exposes the functionality that is available in the driver for the current system.
 However the following table shows what functionality can be expected for a given generation.
@@ -72,6 +80,10 @@ However the following table shows what functionality can be expected for a given
 GPUs not listed here will still work, but might not have full functionality available.
 Monitoring/system info will be available everywhere. Integrated GPUs might also only have basic configuration available.
 
+## Nvidia
+
+Anything Maxwell or newer should work, but generation support has not yet been tested thoroughly.
+
 # Configuration
 
 There is a configuration file available in `/etc/lact/config.yaml`. Most of the settings are accessible through the GUI, but some of them may be useful to be edited manually (like `admin_groups` to specify who has access to the daemon)
@@ -86,7 +98,7 @@ However, some systems may have different user configuration. In particular, this
 
 To fix socket permissions in such configurations, edit `/etc/lact/config.yaml` and add your username or group as the first entry in `admin_groups` under `daemon`, and restart the service (`sudo systemctl restart lactd`).
 
-# Overclocking
+# Overclocking (AMD)
 
 The overclocking functionality is disabled by default in the driver. There are two ways to enable it:
 - By using the "enable overclocking" option in the LACT GUI. This will create a file in `/etc/modprobe.d` that enables the required driver options. This is the easiest way and it should work for most people.

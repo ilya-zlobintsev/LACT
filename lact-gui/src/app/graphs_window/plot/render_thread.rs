@@ -198,17 +198,31 @@ impl RenderRequest {
         let data = &self.data;
 
         // Determine the start and end dates of the data series.
-        let start_date = data
+        let start_date_main = data
             .line_series_iter()
             .filter_map(|(_, data)| Some(data.first()?.0))
             .min()
             .unwrap_or_default();
-        let end_date = data
+        let start_date_secondary = data
+            .secondary_line_series_iter()
+            .filter_map(|(_, data)| Some(data.first()?.0))
+            .min()
+            .unwrap_or_default();
+        let end_date_main = data
             .line_series_iter()
             .map(|(_, value)| value)
             .filter_map(|data| Some(data.first()?.0))
             .max()
             .unwrap_or_default();
+        let end_date_secondary = data
+            .secondary_line_series_iter()
+            .map(|(_, value)| value)
+            .filter_map(|data| Some(data.first()?.0))
+            .max()
+            .unwrap_or_default();
+
+        let start_date = max(start_date_main, start_date_secondary);
+        let end_date = max(end_date_main, end_date_secondary);
 
         // Calculate the maximum value for the y-axis.
         let mut maximum_value = data
@@ -225,10 +239,17 @@ impl RenderRequest {
 
         root.fill(&WHITE)?; // Fill the background with white color.
 
+        let y_label_area_relative_size =
+            if data.line_series.is_empty() && !data.secondary_line_series.is_empty() {
+                0.0
+            } else {
+                self.y_label_area_relative_size
+            };
+
         // Set up the main chart with axes and labels.
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(RelativeSize::Smaller(0.05))
-            .y_label_area_size(RelativeSize::Smaller(self.y_label_area_relative_size))
+            .y_label_area_size(RelativeSize::Smaller(y_label_area_relative_size))
             .right_y_label_area_size(RelativeSize::Smaller(
                 self.secondary_y_label_relative_area_size,
             ))
@@ -263,7 +284,7 @@ impl RenderRequest {
         // Configure the secondary axes (for the secondary y-axis).
         chart
             .configure_secondary_axes()
-            .y_label_formatter(&|x| format!("{x}{}", self.secondary_value_suffix.as_str()))
+            .y_label_formatter(&|x: &f64| format!("{x}{}", self.secondary_value_suffix.as_str()))
             .y_labels(10)
             .label_style(("sans-serif", RelativeSize::Smaller(0.08)))
             .draw()

@@ -89,9 +89,9 @@ impl WidgetImpl for Plot {
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "bench", derive(Clone))]
 pub struct PlotData {
-    line_series: BTreeMap<String, Vec<(i64, f64)>>,
-    secondary_line_series: BTreeMap<String, Vec<(i64, f64)>>,
-    throttling: Vec<(i64, (String, bool))>,
+    pub(super) line_series: BTreeMap<String, Vec<(i64, f64)>>,
+    pub(super) secondary_line_series: BTreeMap<String, Vec<(i64, f64)>>,
+    pub(super) throttling: Vec<(i64, (String, bool))>,
 }
 
 impl PlotData {
