@@ -19,9 +19,9 @@ pub struct Plot {
     #[property(get, set)]
     secondary_value_suffix: RefCell<String>,
     #[property(get, set)]
-    y_label_area_size: Cell<u32>,
+    y_label_area_relative_size: Cell<f64>,
     #[property(get, set)]
-    secondary_y_label_area_size: Cell<u32>,
+    secondary_y_label_area_relative_size: Cell<f64>,
     pub(super) data: RefCell<PlotData>,
     pub(super) dirty: Cell<bool>,
     render_thread: RenderThread,
@@ -69,15 +69,18 @@ impl WidgetImpl for Plot {
                 title: self.title.borrow().clone(),
                 value_suffix: self.value_suffix.borrow().clone(),
                 secondary_value_suffix: self.secondary_value_suffix.borrow().clone(),
-                y_label_area_size: self.y_label_area_size.get(),
-                secondary_y_label_area_size: self.secondary_y_label_area_size.get(),
+                y_label_area_relative_size: self.y_label_area_relative_size.get(),
+                secondary_y_label_relative_area_size: self
+                    .secondary_y_label_area_relative_size
+                    .get(),
                 supersample_factor: 4,
             });
         }
 
-        // Rendering is always behind at least by one frame, but it's not an issue
+        // Rendering is always behind by at least one frame, but it's not an issue
         if let Some(texture) = last_texture {
             let bounds = gtk::graphene::Rect::new(0.0, 0.0, width as f32, height as f32);
+            // Uses by default Trillinear texture filtering, which is quite good at 4x supersampling
             snapshot.append_texture(&texture, &bounds);
         }
     }
@@ -179,5 +182,3 @@ impl PlotData {
             .retain(|(time_point, _)| ((maximum_point - *time_point) / 1000) < last_seconds);
     }
 }
-
-impl Plot {}
