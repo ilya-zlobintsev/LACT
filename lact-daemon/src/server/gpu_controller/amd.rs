@@ -582,6 +582,7 @@ impl GpuController for AmdGpuController {
                     acoustic_target: self.handle.get_fan_acoustic_target().ok(),
                     target_temp: self.handle.get_fan_target_temperature().ok(),
                     minimum_pwm: self.handle.get_fan_minimum_pwm().ok(),
+                    zero_rpm: self.handle.get_fan_zero_rpm().ok(),
                 },
             },
             clockspeed: ClockspeedStats {
@@ -927,6 +928,21 @@ impl GpuController for AmdGpuController {
                 self.stop_fan_control(true)
                     .await
                     .context("Failed to stop fan control")?;
+            }
+
+            // Unlike the other PMFW options, zero rpm should be functional with a custom curve
+            if let Some(zero_rpm) = config.pmfw_options.zero_rpm {
+                let current_zero_rpm = self
+                    .handle
+                    .get_fan_zero_rpm()
+                    .context("Could not get zero RPM mode")?;
+                if current_zero_rpm != zero_rpm {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_zero_rpm(zero_rpm)
+                        .context("Could not set zero RPM mode")?;
+                    commit_handles.push(commit_handle);
+                }
             }
 
             for handle in commit_handles {

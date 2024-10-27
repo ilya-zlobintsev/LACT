@@ -1,9 +1,9 @@
 use crate::app::root_stack::oc_adjustment::OcAdjustment;
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
 use gtk::{
-    glib::clone,
+    glib::{clone, Propagation},
     prelude::{AdjustmentExt, ButtonExt, GridExt, WidgetExt},
-    Align, Button, Grid, Label, MenuButton, Orientation, Popover, Scale, SpinButton,
+    Align, Button, Grid, Label, MenuButton, Orientation, Popover, Scale, SpinButton, Switch,
 };
 use lact_client::schema::{PmfwInfo, PmfwOptions};
 
@@ -14,6 +14,8 @@ pub struct PmfwFrame {
     acoustic_limit: OcAdjustment,
     acoustic_target: OcAdjustment,
     minimum_pwm: OcAdjustment,
+    zero_rpm_label: Label,
+    zero_rpm_switch: Switch,
     reset_button: Button,
 }
 
@@ -33,6 +35,15 @@ impl PmfwFrame {
         let acoustic_target = adjustment(&grid, "Acoustic target (RPM)", 2);
         let minimum_pwm = adjustment(&grid, "Minimum fan speed (%)", 3);
 
+        let zero_rpm_label = Label::builder()
+            .label("Zero RPM mode")
+            .halign(Align::Start)
+            .build();
+        let zero_rpm_switch = Switch::builder().halign(Align::End).build();
+
+        grid.attach(&zero_rpm_label, 0, 4, 1, 1);
+        grid.attach(&zero_rpm_switch, 5, 4, 1, 1);
+
         let reset_button = Button::builder()
             .label("Reset")
             .halign(Align::Fill)
@@ -42,7 +53,7 @@ impl PmfwFrame {
             .css_classes(["destructive-action"])
             .visible(false)
             .build();
-        grid.attach(&reset_button, 5, 4, 1, 1);
+        grid.attach(&reset_button, 5, 5, 1, 1);
 
         Self {
             container: grid,
@@ -50,6 +61,8 @@ impl PmfwFrame {
             acoustic_limit,
             acoustic_target,
             minimum_pwm,
+            zero_rpm_switch,
+            zero_rpm_label,
             reset_button,
         }
     }
@@ -60,7 +73,18 @@ impl PmfwFrame {
         set_fan_info(&self.minimum_pwm, info.minimum_pwm);
         set_fan_info(&self.target_temperature, info.target_temp);
 
+        if let Some(zero_rpm) = info.zero_rpm {
+            self.zero_rpm_switch.set_active(zero_rpm);
+
+            self.zero_rpm_switch.set_visible(true);
+            self.zero_rpm_label.set_visible(true);
+        } else {
+            self.zero_rpm_switch.set_visible(false);
+            self.zero_rpm_label.set_visible(false);
+        }
+
         let settings_available = *info != PmfwInfo::default();
+
         self.reset_button.set_visible(settings_available);
     }
 
@@ -93,6 +117,15 @@ impl PmfwFrame {
                 f();
             }
         ));
+
+        self.zero_rpm_switch.connect_state_set(clone!(
+            #[strong]
+            f,
+            move |_, _| {
+                f();
+                Propagation::Proceed
+            }
+        ));
     }
 
     pub fn connect_reset<F: Fn() + 'static + Clone>(&self, f: F) {
@@ -119,6 +152,13 @@ impl PmfwFrame {
                 .target_temperature
                 .get_nonzero_value()
                 .map(|value| value as u32),
+            zero_rpm: {
+                if self.zero_rpm_switch.is_visible() {
+                    Some(self.zero_rpm_switch.state())
+                } else {
+                    None
+                }
+            },
         }
     }
 }
