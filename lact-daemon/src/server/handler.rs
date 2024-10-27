@@ -35,7 +35,7 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use tokio::{sync::oneshot, time::sleep};
+use tokio::{process::Command, sync::oneshot, time::sleep};
 use tracing::{debug, error, info, trace, warn};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
@@ -566,6 +566,28 @@ impl<'a> Handler {
                     }
                 }
             }
+        }
+
+        let service_journal_output = Command::new("journalctl")
+            .args(["-u", "lactd", "-b"])
+            .output()
+            .await;
+
+        match service_journal_output {
+            Ok(output) => {
+                if !output.status.success() {
+                    warn!("service log output has status code {}", output.status);
+                }
+                let mut header = tar::Header::new_gnu();
+                header.set_size(output.stdout.len().try_into().unwrap());
+                header.set_mode(0o755);
+                header.set_cksum();
+
+                archive
+                    .append_data(&mut header, "lactd.log", Cursor::new(output.stdout))
+                    .context("Could not write data to archive")?;
+            }
+            Err(err) => warn!("could not read service log: {err}"),
         }
 
         let system_info = system::info()
