@@ -87,7 +87,6 @@ impl WidgetImpl for Plot {
 }
 
 #[derive(Default, Clone)]
-#[cfg_attr(feature = "bench", derive(Clone))]
 pub struct PlotData {
     pub(super) line_series: BTreeMap<String, Vec<(i64, f64)>>,
     pub(super) secondary_line_series: BTreeMap<String, Vec<(i64, f64)>>,

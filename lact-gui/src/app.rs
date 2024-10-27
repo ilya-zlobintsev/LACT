@@ -7,9 +7,6 @@ mod msg;
 mod page_section;
 mod root_stack;
 
-#[cfg(feature = "bench")]
-pub use graphs_window::plot::{Plot, PlotData};
-
 use crate::{APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
