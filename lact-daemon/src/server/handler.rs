@@ -39,7 +39,7 @@ use tokio::{process::Command, sync::oneshot, time::sleep};
 use tracing::{debug, error, info, trace, warn};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
-const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 1;
+const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 3;
 
 const SNAPSHOT_GLOBAL_FILES: &[&str] = &[
     PP_FEATURE_MASK_PATH,
