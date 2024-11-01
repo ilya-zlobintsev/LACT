@@ -627,7 +627,7 @@ impl GpuController for AmdGpuController {
         }
     }
 
-    fn get_clocks_info(&self, _gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
+    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
         let clocks_table = self
             .handle
             .get_clocks_table()
@@ -937,7 +937,7 @@ impl GpuController for AmdGpuController {
         })
     }
 
-    fn cleanup_clocks(&self, _gpu_config: Option<&config::Gpu>) -> anyhow::Result<()> {
+    fn cleanup_clocks(&self) -> anyhow::Result<()> {
         if self.handle.get_clocks_table().is_err() {
             return Ok(());
         }

@@ -320,9 +320,7 @@ impl<'a> Handler {
     }
 
     pub fn get_clocks_info(&'a self, id: &str) -> anyhow::Result<ClocksInfo> {
-        let config = self.config.borrow();
-        let gpu_config = config.gpus()?.get(id);
-        self.controller_by_id(id)?.get_clocks_info(gpu_config)
+        self.controller_by_id(id)?.get_clocks_info()
     }
 
     pub async fn set_fan_control(&'a self, opts: FanOptions<'_>) -> anyhow::Result<u64> {
@@ -458,9 +456,7 @@ impl<'a> Handler {
         command: SetClocksCommand,
     ) -> anyhow::Result<u64> {
         if let SetClocksCommand::Reset = command {
-            let config = self.config.borrow();
-            let gpu_config = config.gpus()?.get(id);
-            self.controller_by_id(id)?.cleanup_clocks(gpu_config)?;
+            self.controller_by_id(id)?.cleanup_clocks()?;
         }
 
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
@@ -619,7 +615,7 @@ impl<'a> Handler {
                     "pci_info": controller.get_pci_info(),
                     "info": controller.get_info(),
                     "stats": controller.get_stats(gpu_config),
-                    "clocks_info": controller.get_clocks_info(gpu_config).ok(),
+                    "clocks_info": controller.get_clocks_info().ok(),
                 });
                 (id.clone(), data)
             })
@@ -738,10 +734,7 @@ impl<'a> Handler {
         for (id, controller) in &*self.gpu_controllers {
             if !disable_clocks_cleanup {
                 debug!("resetting clocks table");
-                let config = self.config.borrow();
-                let gpu_config = config.gpus().ok().and_then(|gpus| gpus.get(id));
-
-                if let Err(err) = controller.cleanup_clocks(gpu_config) {
+                if let Err(err) = controller.cleanup_clocks() {
                     error!("could not reset the clocks table: {err}");
                 }
             }
@@ -804,15 +797,14 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>
                             if let Some(pci_slot_id) = controller.get_pci_slot_name() {
                                 match nvml.device_by_pci_bus_id(pci_slot_id.as_str()) {
                                     Ok(_) => {
-                                        let controller = NvidiaGpuController {
+                                        let controller = NvidiaGpuController::new(
                                             nvml,
                                             pci_slot_id,
-                                            pci_info: controller.get_pci_info().expect(
+                                             controller.get_pci_info().expect(
                                                 "Initialized NVML device without PCI info somehow",
                                             ).clone(),
-                                            sysfs_path: path.to_owned(),
-                                            fan_control_handle: RefCell::default(),
-                                        };
+                                             path.to_owned(),
+                                        );
                                         match controller.get_id() {
                                             Ok(id) => {
                                                 info!("initialized Nvidia GPU controller {id} for path {path:?}");
