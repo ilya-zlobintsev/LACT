@@ -797,15 +797,14 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>
                             if let Some(pci_slot_id) = controller.get_pci_slot_name() {
                                 match nvml.device_by_pci_bus_id(pci_slot_id.as_str()) {
                                     Ok(_) => {
-                                        let controller = NvidiaGpuController {
+                                        let controller = NvidiaGpuController::new(
                                             nvml,
                                             pci_slot_id,
-                                            pci_info: controller.get_pci_info().expect(
+                                             controller.get_pci_info().expect(
                                                 "Initialized NVML device without PCI info somehow",
                                             ).clone(),
-                                            sysfs_path: path.to_owned(),
-                                            fan_control_handle: RefCell::default(),
-                                        };
+                                             path.to_owned(),
+                                        );
                                         match controller.get_id() {
                                             Ok(id) => {
                                                 info!("initialized Nvidia GPU controller {id} for path {path:?}");

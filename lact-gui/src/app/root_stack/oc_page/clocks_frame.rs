@@ -3,10 +3,11 @@ mod adjustment_row;
 use crate::app::page_section::PageSection;
 use crate::app::root_stack::oc_adjustment::OcAdjustment;
 use adjustment_row::AdjustmentRow;
-use amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable, ClocksTableGen};
+use amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTable};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
+use lact_schema::{ClocksTable, NvidiaClockInfo, NvidiaClocksTable};
 use subclass::prelude::ObjectSubclassIsExt;
 use tracing::debug;
 
@@ -144,11 +145,38 @@ impl ClocksFrame {
         frame
     }
 
-    pub fn set_table(&self, table: ClocksTableGen) -> anyhow::Result<()> {
+    pub fn set_table(&self, table: ClocksTable) -> anyhow::Result<()> {
         debug!("using clocks table {table:?}");
 
+        let adjustments = [
+            &self.min_sclk_adjustment,
+            &self.min_mclk_adjustment,
+            &self.min_voltage_adjustment,
+            &self.max_sclk_adjustment,
+            &self.max_mclk_adjustment,
+            &self.max_voltage_adjustment,
+            &self.voltage_offset_adjustment,
+        ];
+
+        for adjustment in adjustments {
+            adjustment.set_visible(false);
+        }
+
+        match table {
+            ClocksTable::Amd(table) => self.set_amd_table(table),
+            ClocksTable::Nvidia(table) => self.set_nvidia_table(table),
+        }
+
+        for adjustment in adjustments {
+            adjustment.refresh();
+        }
+
+        Ok(())
+    }
+
+    fn set_amd_table(&self, table: AmdClocksTable) {
         if let Some((current_sclk_min, sclk_min, sclk_max)) =
-            extract_value_and_range(&table, |table| {
+            extract_value_and_range_amd(&table, |table| {
                 (
                     table.get_current_sclk_range().min,
                     table.get_min_sclk_range(),
@@ -161,12 +189,10 @@ impl ClocksFrame {
             min_sclk_adjustment.set_initial_value(current_sclk_min.into());
 
             self.min_sclk_adjustment.set_visible(true);
-        } else {
-            self.min_sclk_adjustment.set_visible(false);
         }
 
         if let Some((current_mclk_min, mclk_min, mclk_max)) =
-            extract_value_and_range(&table, |table| {
+            extract_value_and_range_amd(&table, |table| {
                 (
                     table.get_current_mclk_range().min,
                     table.get_min_mclk_range(),
@@ -179,12 +205,10 @@ impl ClocksFrame {
             min_mclk_adjustment.set_initial_value(current_mclk_min.into());
 
             self.min_mclk_adjustment.set_visible(true);
-        } else {
-            self.min_mclk_adjustment.set_visible(false);
         }
 
         if let Some((current_min_voltage, voltage_min, voltage_max)) =
-            extract_value_and_range(&table, |table| {
+            extract_value_and_range_amd(&table, |table| {
                 (
                     table
                         .get_current_voltage_range()
@@ -200,12 +224,10 @@ impl ClocksFrame {
             min_voltage_adjustment.set_value(current_min_voltage.into());
 
             self.min_voltage_adjustment.set_visible(true);
-        } else {
-            self.min_voltage_adjustment.set_visible(false);
         }
 
         if let Some((current_sclk_max, sclk_min, sclk_max)) =
-            extract_value_and_range(&table, |table| {
+            extract_value_and_range_amd(&table, |table| {
                 (table.get_max_sclk(), table.get_max_sclk_range())
             })
         {
@@ -216,12 +238,10 @@ impl ClocksFrame {
             max_sclk_adjustment.set_value(current_sclk_max.into());
 
             self.max_sclk_adjustment.set_visible(true);
-        } else {
-            self.max_sclk_adjustment.set_visible(false);
         }
 
         if let Some((current_mclk_max, mclk_min, mclk_max)) =
-            extract_value_and_range(&table, |table| {
+            extract_value_and_range_amd(&table, |table| {
                 (table.get_max_mclk(), table.get_max_mclk_range())
             })
         {
@@ -231,12 +251,10 @@ impl ClocksFrame {
             max_mclk_adjustment.set_value(current_mclk_max.into());
 
             self.max_mclk_adjustment.set_visible(true);
-        } else {
-            self.max_mclk_adjustment.set_visible(false);
         }
 
         if let Some((current_voltage_max, voltage_min, voltage_max)) =
-            extract_value_and_range(&table, |table| {
+            extract_value_and_range_amd(&table, |table| {
                 (table.get_max_sclk_voltage(), table.get_max_voltage_range())
             })
         {
@@ -246,11 +264,9 @@ impl ClocksFrame {
             max_voltage_adjustment.set_value(current_voltage_max.into());
 
             self.max_voltage_adjustment.set_visible(true);
-        } else {
-            self.max_voltage_adjustment.set_visible(false);
         }
 
-        if let ClocksTableGen::Vega20(table) = table {
+        if let AmdClocksTable::Vega20(table) = table {
             if let Some(offset) = table.voltage_offset {
                 let (min_offset, max_offset) = table
                     .od_range
@@ -264,22 +280,17 @@ impl ClocksFrame {
                 voltage_offset_adjustment.set_value(offset.into());
 
                 self.voltage_offset_adjustment.set_visible(true);
-            } else {
-                self.voltage_offset_adjustment.set_visible(false);
             }
-        } else {
-            self.voltage_offset_adjustment.set_visible(false);
         }
+    }
 
-        self.min_sclk_adjustment.refresh();
-        self.min_mclk_adjustment.refresh();
-        self.min_voltage_adjustment.refresh();
-        self.max_sclk_adjustment.refresh();
-        self.max_mclk_adjustment.refresh();
-        self.max_voltage_adjustment.refresh();
-        self.voltage_offset_adjustment.refresh();
-
-        Ok(())
+    fn set_nvidia_table(&self, table: NvidiaClocksTable) {
+        if let Some(gpc_info) = &table.gpc {
+            set_nvidia_clock_offset(gpc_info, &self.max_sclk_adjustment);
+        }
+        if let Some(mem_info) = &table.mem {
+            set_nvidia_clock_offset(mem_info, &self.max_mclk_adjustment);
+        }
     }
 
     pub fn show(&self) {
@@ -379,10 +390,10 @@ impl ClocksFrame {
     }
 }
 
-fn extract_value_and_range(
-    table: &ClocksTableGen,
+fn extract_value_and_range_amd(
+    table: &AmdClocksTable,
     f: fn(
-        &ClocksTableGen,
+        &AmdClocksTable,
     ) -> (
         Option<i32>,
         Option<amdgpu_sysfs::gpu_handle::overdrive::Range>,
@@ -403,4 +414,13 @@ pub struct ClocksSettings {
     pub max_memory_clock: Option<i32>,
     pub max_voltage: Option<i32>,
     pub voltage_offset: Option<i32>,
+}
+
+fn set_nvidia_clock_offset(clock_info: &NvidiaClockInfo, adjustment_row: &AdjustmentRow) {
+    let oc_adjustment = &adjustment_row.imp().adjustment;
+    oc_adjustment.set_lower((clock_info.max + clock_info.offset_range.0) as f64);
+    oc_adjustment.set_upper((clock_info.max + clock_info.offset_range.1) as f64);
+    oc_adjustment.set_value((clock_info.max + clock_info.offset) as f64);
+
+    adjustment_row.set_visible(true);
 }

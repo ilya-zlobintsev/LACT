@@ -7,12 +7,13 @@ mod power_states;
 
 use self::power_cap_section::PowerCapSection;
 use self::power_states::power_states_frame::PowerStatesFrame;
-use amdgpu_sysfs::gpu_handle::{overdrive::ClocksTableGen, PerformanceLevel, PowerLevelKind};
+use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use clocks_frame::ClocksFrame;
 use gpu_stats_section::GpuStatsSection;
 use gtk::*;
 use gtk::{glib::clone, prelude::*};
 use lact_client::schema::{DeviceInfo, DeviceStats, SystemInfo};
+use lact_schema::ClocksTable;
 use performance_frame::PerformanceFrame;
 // use power_cap_frame::PowerCapFrame;
 use std::collections::HashMap;
@@ -124,7 +125,7 @@ impl OcPage {
         self.clocks_frame.set_vram_clock_ratio(vram_clock_ratio);
     }
 
-    pub fn set_clocks_table(&self, table: Option<ClocksTableGen>) {
+    pub fn set_clocks_table(&self, table: Option<ClocksTable>) {
         match table {
             Some(table) => match self.clocks_frame.set_table(table) {
                 Ok(()) => {
