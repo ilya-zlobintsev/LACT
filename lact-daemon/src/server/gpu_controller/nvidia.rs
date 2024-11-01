@@ -11,13 +11,13 @@ use amdgpu_sysfs::{
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo, FanControlMode,
-    FanStats, GpuPciInfo, LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats,
-    VramStats,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo,
+    FanControlMode, FanStats, GpuPciInfo, LinkInfo, NvidiaClockInfo, NvidiaClocksTable, PmfwInfo,
+    PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
-    enum_wrappers::device::{Clock, ClockType, TemperatureSensor, TemperatureThreshold},
+    enum_wrappers::device::{Clock, TemperatureSensor, TemperatureThreshold},
     Device, Nvml,
 };
 use std::{
@@ -195,7 +195,7 @@ impl NvidiaGpuController {
 
         for pstate in supported_states {
             let (gpu_min, gpu_max) = device
-                .min_max_clock_of_pstate(ClockType::Graphics, pstate)
+                .min_max_clock_of_pstate(Clock::Graphics, pstate)
                 .context("Could not read GPU pstates")?;
 
             power_states.core.push(PowerState {
@@ -211,7 +211,7 @@ impl NvidiaGpuController {
             });
 
             let (mem_min, mem_max) = device
-                .min_max_clock_of_pstate(ClockType::Mem, pstate)
+                .min_max_clock_of_pstate(Clock::Memory, pstate)
                 .context("Could not read memory pstates")?;
 
             power_states.vram.push(PowerState {
@@ -456,8 +456,62 @@ impl GpuController for NvidiaGpuController {
         }
     }
 
-    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
-        Ok(ClocksInfo::default())
+    #[allow(clippy::cast_possible_wrap)]
+    fn get_clocks_info(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
+        let device = self.device();
+
+        let mut gpc = None;
+        let mut mem = None;
+
+        // Negative offset values are not correctly reported by NVML,
+        // so we have to use the config value instead of the actual readin when an unreasonable value appears.
+
+        if let Ok(max) = device.max_clock_info(Clock::Graphics) {
+            if let Ok(offset_range) = device.gpc_clk_min_max_vf_offset() {
+                if let Ok(mut offset) = device.gpc_clk_vf_offset() {
+                    if !(offset_range.0..offset_range.1).contains(&offset) {
+                        if let Some(config_offset) =
+                            gpu_config.and_then(|config| config.clocks_configuration.max_core_clock)
+                        {
+                            offset = config_offset - max as i32;
+                        }
+                    }
+
+                    gpc = Some(NvidiaClockInfo {
+                        max: max as i32,
+                        offset,
+                        offset_range,
+                    });
+                }
+            }
+        }
+
+        if let Ok(max) = device.max_clock_info(Clock::Memory) {
+            if let Ok(offset_range) = device.mem_clk_min_max_vf_offset() {
+                if let Ok(mut offset) = device.mem_clk_vf_offset() {
+                    if !(offset_range.0..offset_range.1).contains(&offset) {
+                        if let Some(config_offset) = gpu_config
+                            .and_then(|config| config.clocks_configuration.max_memory_clock)
+                        {
+                            offset = config_offset - max as i32;
+                        }
+                    }
+
+                    mem = Some(NvidiaClockInfo {
+                        max: max as i32,
+                        offset,
+                        offset_range,
+                    });
+                }
+            }
+        }
+
+        let table = NvidiaClocksTable { gpc, mem };
+
+        Ok(ClocksInfo {
+            table: Some(ClocksTable::Nvidia(table)),
+            ..Default::default()
+        })
     }
 
     fn get_power_states(&self, _gpu_config: Option<&config::Gpu>) -> PowerStates {
@@ -477,6 +531,7 @@ impl GpuController for NvidiaGpuController {
         Err(anyhow!("Not supported on Nvidia"))
     }
 
+    #[allow(clippy::cast_possible_wrap)]
     fn apply_config<'a>(
         &'a self,
         config: &'a config::Gpu,
@@ -510,6 +565,30 @@ impl GpuController for NvidiaGpuController {
                             .context("Could not reset power cap")?;
                     }
                 }
+            }
+
+            if let Some(max_gpu_clock) = config.clocks_configuration.max_core_clock {
+                let default_max_clock = device
+                    .max_clock_info(Clock::Graphics)
+                    .context("Could not read max graphics clock")?;
+                let offset = max_gpu_clock - default_max_clock as i32;
+                debug!("Using graphics clock offset {offset}");
+
+                device
+                    .set_gpc_clk_vf_offset(offset)
+                    .context("Could not set graphics clock offset")?;
+            }
+
+            if let Some(max_mem_clock) = config.clocks_configuration.max_memory_clock {
+                let default_max_clock = device
+                    .max_clock_info(Clock::Memory)
+                    .context("Could not read max memory clock")?;
+                let offset = max_mem_clock - default_max_clock as i32;
+                debug!("Using mem clock offset {offset}");
+
+                device
+                    .set_mem_clk_vf_offset(offset)
+                    .context("Could not set memory clock offset")?;
             }
 
             if config.fan_control_enabled {
@@ -548,7 +627,25 @@ impl GpuController for NvidiaGpuController {
         })
     }
 
-    fn cleanup_clocks(&self) -> anyhow::Result<()> {
+    fn cleanup_clocks(&self, _gpu_config: Option<&config::Gpu>) -> anyhow::Result<()> {
+        let device = self.device();
+
+        if let Ok(current_offset) = device.gpc_clk_vf_offset() {
+            if current_offset != 0 {
+                device
+                    .set_gpc_clk_vf_offset(0)
+                    .context("Could not reset graphics clock offset")?;
+            }
+        }
+
+        if let Ok(current_offset) = device.mem_clk_vf_offset() {
+            if current_offset != 0 {
+                device
+                    .set_mem_clk_vf_offset(0)
+                    .context("Could not reset memory clock offset")?;
+            }
+        }
+
         Ok(())
     }
 }

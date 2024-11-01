@@ -1,18 +1,20 @@
 #[cfg(feature = "args")]
 pub mod args;
+mod clocks_table;
 pub mod request;
 mod response;
 
 #[cfg(test)]
 mod tests;
 
+// pub use clocks_table::NvidiaClocksTable;
 pub use request::Request;
 pub use response::Response;
 
 use amdgpu_sysfs::{
     gpu_handle::{
         fan_control::FanInfo,
-        overdrive::{ClocksTable, ClocksTableGen},
+        overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTableGen},
         PerformanceLevel,
     },
     hw_mon::Temperature,
@@ -126,16 +128,38 @@ pub struct DrmMemoryInfo {
     pub resizeable_bar: Option<bool>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct ClocksInfo {
     pub max_sclk: Option<i32>,
     pub max_mclk: Option<i32>,
     pub max_voltage: Option<i32>,
-    pub table: Option<ClocksTableGen>,
+    pub table: Option<ClocksTable>,
 }
 
-impl From<ClocksTableGen> for ClocksInfo {
-    fn from(table: ClocksTableGen) -> Self {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum ClocksTable {
+    Amd(AmdClocksTableGen),
+    Nvidia(NvidiaClocksTable),
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+pub struct NvidiaClocksTable {
+    pub gpc: Option<NvidiaClockInfo>,
+    pub mem: Option<NvidiaClockInfo>,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+pub struct NvidiaClockInfo {
+    pub max: i32,
+    pub offset: i32,
+    pub offset_range: (i32, i32),
+}
+
+impl From<AmdClocksTableGen> for ClocksInfo {
+    fn from(table: AmdClocksTableGen) -> Self {
         let max_sclk = table.get_max_sclk();
         let max_mclk = table.get_max_mclk();
         let max_voltage = table.get_max_sclk_voltage();
@@ -143,7 +167,7 @@ impl From<ClocksTableGen> for ClocksInfo {
             max_sclk,
             max_mclk,
             max_voltage,
-            table: Some(table),
+            table: Some(ClocksTable::Amd(table)),
         }
     }
 }
