@@ -1,7 +1,7 @@
 mod adjustment_row;
 
 use crate::app::page_section::PageSection;
-use crate::app::root_stack::oc_adjustment::OcAdjustment;
+use crate::app::pages::oc_adjustment::OcAdjustment;
 use adjustment_row::AdjustmentRow;
 use amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTable};
 use glib::clone;

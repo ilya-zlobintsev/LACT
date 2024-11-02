@@ -1,7 +1,7 @@
 mod feature_window;
 
 use super::values_grid;
-use crate::app::root_stack::{label_row, values_row};
+use crate::app::pages::{label_row, values_row};
 use feature_window::{VulkanFeature, VulkanFeaturesWindow};
 use glib::clone;
 use gtk::prelude::*;
@@ -12,7 +12,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use tracing::trace;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VulkanInfoFrame {
     pub container: Box,
     device_name_label: Label,

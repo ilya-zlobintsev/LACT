@@ -10,7 +10,7 @@ use gtk::*;
 use lact_client::schema::{DeviceInfo, DeviceStats};
 use vulkan_info::VulkanInfoFrame;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct InformationPage {
     pub container: ScrolledWindow,
     hardware_info: HardwareInfoSection,

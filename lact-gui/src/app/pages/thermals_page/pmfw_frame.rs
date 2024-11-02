@@ -1,4 +1,4 @@
-use crate::app::root_stack::oc_adjustment::OcAdjustment;
+use crate::app::pages::oc_adjustment::OcAdjustment;
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
 use gtk::{
     glib::clone,

@@ -105,7 +105,7 @@ impl SimpleComponent for VulkanFeaturesWindow {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VulkanFeature {
     pub name: String,
     pub supported: bool,

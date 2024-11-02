@@ -56,7 +56,7 @@ impl AdjustmentRow {
 }
 
 mod imp {
-    use crate::app::root_stack::oc_adjustment::OcAdjustment;
+    use crate::app::pages::oc_adjustment::OcAdjustment;
     use glib::{clone, subclass::InitializingObject};
     use gtk::{
         glib::{self, Properties},
