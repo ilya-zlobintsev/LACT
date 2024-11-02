@@ -13,13 +13,13 @@ metadata:
   depends:
     all: [ hwdata ]
     debian-12+ubuntu-2204+ubuntu-2404: [ libdrm-amdgpu1, libdrm2 ]
-    fedora-39+fedora-40+rhel-8+rhel-9: [ libdrm ]
+    fedora-39+fedora-40+fedora-41+rhel-8+rhel-9: [ libdrm ]
     arch: [ libdrm ]
     opensuse-tumbleweed: [ libdrm ]
   build_depends:
     all: [ curl, make, clang, git ]
     debian-12+ubuntu-2204+ubuntu-2404: [ pkg-config, build-essential, libdrm-dev, dbus ]
-    fedora-39+fedora-40+rhel-8+rhel-9: [ gcc, libdrm-devel, dbus ]
+    fedora-39+fedora-40+fedora-41+rhel-8+rhel-9: [ gcc, libdrm-devel, dbus ]
     arch: [ libdrm, dbus ]
     opensuse-tumbleweed: [ libdrm-devel ]
   all_images: true

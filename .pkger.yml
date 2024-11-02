@@ -17,6 +17,9 @@ images:
   - name: fedora-40
     target: rpm
     os: Fedora
+  - name: fedora-41
+    target: rpm
+    os: Fedora
   - name: ubuntu-2204
     target: deb
     os: Ubuntu
