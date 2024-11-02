@@ -21,7 +21,6 @@ use nvml_wrapper::{
     Device, Nvml,
 };
 use std::{
-    borrow::Cow,
     cell::RefCell,
     collections::HashMap,
     fmt::Write,
@@ -292,7 +291,7 @@ impl GpuController for NvidiaGpuController {
         };
 
         DeviceInfo {
-            pci_info: Some(Cow::Borrowed(&self.pci_info)),
+            pci_info: Some(self.pci_info.clone()),
             vulkan_info,
             driver: format!(
                 "nvidia {}",

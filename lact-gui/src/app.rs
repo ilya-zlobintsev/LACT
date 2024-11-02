@@ -32,7 +32,7 @@ use lact_schema::{
 use msg::AppMsg;
 use pages::{
     info_page::InformationPage, oc_page::OcPage, software_page::SoftwarePage,
-    thermals_page::ThermalsPage,
+    thermals_page::ThermalsPage, PageUpdate,
 };
 use relm4::{
     actions::{RelmAction, RelmActionGroup},
@@ -48,7 +48,7 @@ pub struct AppModel {
     daemon_client: DaemonClient,
     graphs_window: GraphsWindow,
 
-    info_page: InformationPage,
+    info_page: relm4::Controller<InformationPage>,
     oc_page: OcPage,
     thermals_page: ThermalsPage,
     software_page: relm4::Controller<SoftwarePage>,
@@ -87,7 +87,7 @@ impl AsyncComponent for AppModel {
                     set_margin_start: 30,
                     set_margin_end: 30,
 
-                    add_titled[Some("info_page"), "Information"] = &model.info_page.container.clone(),
+                    add_titled[Some("info_page"), "Information"] = model.info_page.widget(),
                     add_titled[Some("oc_page"), "OC"] = &model.oc_page.container.clone(),
                     add_titled[Some("thermals_page"), "Thermals"] = &model.thermals_page.container.clone(),
                     add_titled[Some("software_page"), "Software"] = model.software_page.widget(),
@@ -165,9 +165,11 @@ impl AsyncComponent for AppModel {
             sender.input(AppMsg::Error(err.into()));
         }
 
-        let info_page = InformationPage::new();
+        let info_page = InformationPage::builder().launch(()).detach();
+
         let oc_page = OcPage::new(&system_info);
         let thermals_page = ThermalsPage::new(&system_info);
+
         let software_page = SoftwarePage::builder()
             .launch((system_info, daemon_client.embedded))
             .detach();
@@ -291,7 +293,8 @@ impl AppModel {
                 sender.input(AppMsg::ReloadProfiles);
             }
             AppMsg::Stats(stats) => {
-                self.info_page.set_stats(&stats);
+                self.info_page.emit(PageUpdate::Stats(stats.clone()));
+
                 self.thermals_page.set_stats(&stats, false);
                 self.oc_page.set_stats(&stats, false);
                 self.graphs_window.set_stats(&stats);
@@ -386,9 +389,10 @@ impl AppModel {
             .get_device_info(&gpu_id)
             .await
             .context("Could not fetch info")?;
-        let info = info_buf.inner()?;
+        let info = Rc::new(info_buf.inner()?);
 
-        self.info_page.set_info(&info);
+        self.info_page.emit(PageUpdate::Info(info.clone()));
+
         self.oc_page.set_info(&info);
 
         let vram_clock_ratio = info
@@ -424,10 +428,12 @@ impl AppModel {
             .await
             .context("Could not fetch stats")?
             .inner()?;
+        let stats = Rc::new(stats);
 
         self.oc_page.set_stats(&stats, true);
         self.thermals_page.set_stats(&stats, true);
-        self.info_page.set_stats(&stats);
+
+        self.info_page.emit(PageUpdate::Stats(stats));
 
         let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(&gpu_id).await {
             Ok(clocks_buf) => match clocks_buf.inner() {
@@ -920,7 +926,7 @@ fn start_stats_update_loop(
                 .and_then(|buffer| buffer.inner())
             {
                 Ok(stats) => {
-                    sender.input(AppMsg::Stats(stats));
+                    sender.input(AppMsg::Stats(Rc::new(stats)));
                 }
                 Err(err) => {
                     error!("could not fetch stats: {err:#}");

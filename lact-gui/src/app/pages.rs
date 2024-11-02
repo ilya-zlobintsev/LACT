@@ -4,7 +4,16 @@ pub mod oc_page;
 pub mod software_page;
 pub mod thermals_page;
 
+use std::rc::Rc;
+
 use gtk::{prelude::*, *};
+use lact_schema::{DeviceInfo, DeviceStats};
+
+#[derive(Debug)]
+pub enum PageUpdate {
+    Info(Rc<DeviceInfo>),
+    Stats(Rc<DeviceStats>),
+}
 
 fn values_row<W: IsA<Widget>>(
     title: &str,

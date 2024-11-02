@@ -22,7 +22,6 @@ use lact_schema::{
 };
 use pciid_parser::Database;
 use std::{
-    borrow::Cow,
     cell::RefCell,
     cmp,
     path::{Path, PathBuf},
@@ -539,7 +538,7 @@ impl GpuController for AmdGpuController {
                 }
             }
         });
-        let pci_info = self.pci_info.as_ref().map(Cow::Borrowed);
+        let pci_info = self.pci_info.clone();
         let driver = self.handle.get_driver().to_owned();
         let vbios_version = self.get_full_vbios_version();
         let link_info = self.get_link_info();
