@@ -306,7 +306,7 @@ impl<'a> Handler {
             .collect()
     }
 
-    pub fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo<'a>> {
+    pub fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo> {
         Ok(self.controller_by_id(id)?.get_info())
     }
 
