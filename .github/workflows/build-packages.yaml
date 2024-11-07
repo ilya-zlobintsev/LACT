@@ -3,6 +3,7 @@ name: Build packages
 on:
   push:
     branches: ['master']
+    tags: '*'
   pull_request:
 
 jobs:
