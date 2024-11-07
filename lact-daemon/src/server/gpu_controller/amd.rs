@@ -20,11 +20,13 @@ use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo, LinkInfo,
     PciInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
+use libdrm_amdgpu_sys::AMDGPU::ThrottlerBit;
 use pciid_parser::Database;
 use std::{
     borrow::Cow,
     cell::RefCell,
     cmp,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     rc::Rc,
     time::Duration,
@@ -467,17 +469,27 @@ impl AmdGpuController {
             .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
             .and_then(|metrics| metrics.get_throttle_status_info())
             .map(|throttle| {
-                let mut result: BTreeMap<String, Vec<String>> = BTreeMap::new();
+                let mut grouped_bits: HashMap<ThrottlerType, HashSet<u8>> = HashMap::new();
 
                 for bit in throttle.get_all_throttler() {
                     let throttle_type = ThrottlerType::from(bit);
-                    result
-                        .entry(throttle_type.to_string())
+                    grouped_bits
+                        .entry(throttle_type)
                         .or_default()
-                        .push(bit.to_string());
+                        .insert(bit as u8);
                 }
 
-                result
+                grouped_bits
+                    .into_iter()
+                    .map(|(throttle_type, bits)| {
+                        let mut names: Vec<String> = bits
+                            .into_iter()
+                            .map(|bit| ThrottlerBit::from(bit).to_string())
+                            .collect();
+                        names.sort_unstable();
+                        (throttle_type.to_string(), names)
+                    })
+                    .collect()
             })
     }
 

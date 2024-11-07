@@ -7,7 +7,6 @@ edition = "2021"
 [features]
 default = ["gtk-tests"]
 gtk-tests = []
-bench = []
 adw = ["dep:adw", "relm4/libadwaita"]
 
 [dependencies]
