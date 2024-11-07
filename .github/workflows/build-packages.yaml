@@ -93,10 +93,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Install yq (for Fedora spec generation)
+        run: sudo apt-get install -y yq
+
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
           path: downloaded-artifacts/
+
+      - name: Generate spec files for COPR submission
+        run: ./scripts/generate_spec.sh
 
       - name: Create release
         uses: ncipollo/release-action@v1.12.0
