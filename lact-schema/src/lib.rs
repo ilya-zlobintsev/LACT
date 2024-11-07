@@ -244,7 +244,8 @@ pub struct PmfwInfo {
     pub acoustic_target: Option<FanInfo>,
     pub target_temp: Option<FanInfo>,
     pub minimum_pwm: Option<FanInfo>,
-    pub zero_rpm: Option<bool>,
+    pub zero_rpm_enable: Option<bool>,
+    pub zero_rpm_temperature: Option<FanInfo>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
@@ -311,6 +312,7 @@ pub struct PmfwOptions {
     pub minimum_pwm: Option<u32>,
     pub target_temperature: Option<u32>,
     pub zero_rpm: Option<bool>,
+    pub zero_rpm_threshold: Option<u32>,
 }
 
 impl PmfwOptions {

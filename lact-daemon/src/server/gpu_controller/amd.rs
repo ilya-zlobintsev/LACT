@@ -594,7 +594,8 @@ impl GpuController for AmdGpuController {
                     acoustic_target: self.handle.get_fan_acoustic_target().ok(),
                     target_temp: self.handle.get_fan_target_temperature().ok(),
                     minimum_pwm: self.handle.get_fan_minimum_pwm().ok(),
-                    zero_rpm: self.handle.get_fan_zero_rpm().ok(),
+                    zero_rpm_enable: self.handle.get_fan_zero_rpm_enable().ok(),
+                    zero_rpm_temperature: self.handle.get_fan_zero_rpm_stop_temperature().ok(),
                 },
             },
             clockspeed: ClockspeedStats {
@@ -946,13 +947,27 @@ impl GpuController for AmdGpuController {
             if let Some(zero_rpm) = config.pmfw_options.zero_rpm {
                 let current_zero_rpm = self
                     .handle
-                    .get_fan_zero_rpm()
+                    .get_fan_zero_rpm_enable()
                     .context("Could not get zero RPM mode")?;
                 if current_zero_rpm != zero_rpm {
                     let commit_handle = self
                         .handle
-                        .set_fan_zero_rpm(zero_rpm)
+                        .set_fan_zero_rpm_enable(zero_rpm)
                         .context("Could not set zero RPM mode")?;
+                    commit_handles.push(commit_handle);
+                }
+            }
+
+            if let Some(zero_rpm_threshold) = config.pmfw_options.zero_rpm_threshold {
+                let current_threshold = self
+                    .handle
+                    .get_fan_zero_rpm_stop_temperature()
+                    .context("Could not get zero RPM temperature")?;
+                if current_threshold.current != zero_rpm_threshold {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
+                        .context("Could not set zero RPM temperature")?;
                     commit_handles.push(commit_handle);
                 }
             }

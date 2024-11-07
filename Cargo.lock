@@ -54,7 +54,7 @@ checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
 [[package]]
 name = "amdgpu-sysfs"
 version = "0.17.0"
-source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs.git?branch=pmfw-zero-rpm#79117bd68ba89b84ebfec6150388d7530708143d"
+source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs.git?branch=pmfw-zero-rpm#c5968a5c7a8a0e5f046cec438abd77101f064c17"
 dependencies = [
  "enum_dispatch",
  "serde",

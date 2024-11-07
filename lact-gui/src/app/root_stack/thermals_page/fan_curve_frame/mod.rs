@@ -288,9 +288,10 @@ impl FanCurveFrame {
     }
 
     pub fn set_pmfw(&self, pmfw_info: &PmfwInfo) {
-        self.zero_rpm_row.set_visible(pmfw_info.zero_rpm.is_some());
+        self.zero_rpm_row
+            .set_visible(pmfw_info.zero_rpm_enable.is_some());
 
-        if let Some(value) = pmfw_info.zero_rpm {
+        if let Some(value) = pmfw_info.zero_rpm_enable {
             self.zero_rpm_switch.set_state(value);
         }
     }

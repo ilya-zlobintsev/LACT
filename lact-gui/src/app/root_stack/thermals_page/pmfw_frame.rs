@@ -16,6 +16,7 @@ pub struct PmfwFrame {
     minimum_pwm: OcAdjustment,
     zero_rpm_label: Label,
     zero_rpm_switch: Switch,
+    zero_rpm_temperature: OcAdjustment,
     reset_button: Button,
 }
 
@@ -44,6 +45,8 @@ impl PmfwFrame {
         grid.attach(&zero_rpm_label, 0, 4, 1, 1);
         grid.attach(&zero_rpm_switch, 5, 4, 1, 1);
 
+        let zero_rpm_temperature = adjustment(&grid, "Zero RPM stop temperature (°C)", 5);
+
         let reset_button = Button::builder()
             .label("Reset")
             .halign(Align::Fill)
@@ -53,7 +56,7 @@ impl PmfwFrame {
             .css_classes(["destructive-action"])
             .visible(false)
             .build();
-        grid.attach(&reset_button, 5, 5, 1, 1);
+        grid.attach(&reset_button, 5, 6, 1, 1);
 
         Self {
             container: grid,
@@ -61,6 +64,7 @@ impl PmfwFrame {
             acoustic_limit,
             acoustic_target,
             minimum_pwm,
+            zero_rpm_temperature,
             zero_rpm_switch,
             zero_rpm_label,
             reset_button,
@@ -72,8 +76,9 @@ impl PmfwFrame {
         set_fan_info(&self.acoustic_target, info.acoustic_target);
         set_fan_info(&self.minimum_pwm, info.minimum_pwm);
         set_fan_info(&self.target_temperature, info.target_temp);
+        set_fan_info(&self.zero_rpm_temperature, info.zero_rpm_temperature);
 
-        if let Some(zero_rpm) = info.zero_rpm {
+        if let Some(zero_rpm) = info.zero_rpm_enable {
             self.zero_rpm_switch.set_active(zero_rpm);
 
             self.zero_rpm_switch.set_visible(true);
@@ -117,6 +122,13 @@ impl PmfwFrame {
                 f();
             }
         ));
+        self.zero_rpm_temperature.connect_value_changed(clone!(
+            #[strong]
+            f,
+            move |_| {
+                f();
+            }
+        ));
 
         self.zero_rpm_switch.connect_state_set(clone!(
             #[strong]
@@ -150,6 +162,10 @@ impl PmfwFrame {
                 .map(|value| value as u32),
             target_temperature: self
                 .target_temperature
+                .get_nonzero_value()
+                .map(|value| value as u32),
+            zero_rpm_threshold: self
+                .zero_rpm_temperature
                 .get_nonzero_value()
                 .map(|value| value as u32),
             zero_rpm: {
