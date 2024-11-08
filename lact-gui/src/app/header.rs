@@ -17,10 +17,12 @@ pub struct Header {
     gpu_selector: TypedListView<GpuListItem, gtk::SingleSelection>,
     profile_selector: TypedListView<ProfileListItem, gtk::SingleSelection>,
     selector_label: String,
+    stack: Option<Stack>,
 }
 
 #[derive(Debug)]
 pub enum HeaderMsg {
+    Stack(Stack),
     Profiles(ProfilesInfo),
     SelectProfile,
     SelectGpu,
@@ -30,7 +32,7 @@ pub enum HeaderMsg {
 
 #[relm4::component(pub)]
 impl Component for Header {
-    type Init = (Vec<DeviceListEntry>, gtk::Stack);
+    type Init = Vec<DeviceListEntry>;
     type Input = HeaderMsg;
     type Output = AppMsg;
     type CommandOutput = ();
@@ -41,7 +43,8 @@ impl Component for Header {
 
             #[wrap(Some)]
             set_title_widget = &StackSwitcher {
-                set_stack: Some(&stack),
+                #[watch]
+                set_stack: model.stack.as_ref(),
             },
 
             #[name = "menu_button"]
@@ -137,7 +140,7 @@ impl Component for Header {
     }
 
     fn init(
-        (variants, stack): Self::Init,
+        variants: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -171,6 +174,7 @@ impl Component for Header {
             gpu_selector,
             profile_selector,
             selector_label: String::new(),
+            stack: None,
         };
 
         let gpu_selector = &model.gpu_selector.view;
@@ -208,6 +212,9 @@ impl Component for Header {
         _root: &Self::Root,
     ) {
         match msg {
+            HeaderMsg::Stack(stack) => {
+                self.stack = Some(stack);
+            }
             HeaderMsg::Profiles(profiles_info) => {
                 let selected_index = match &profiles_info.current_profile {
                     Some(profile) => {

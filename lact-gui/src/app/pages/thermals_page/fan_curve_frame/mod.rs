@@ -1,7 +1,7 @@
 mod point_adjustment;
 
 use self::point_adjustment::PointAdjustment;
-use crate::app::root_stack::oc_adjustment::OcAdjustment;
+use crate::app::pages::oc_adjustment::OcAdjustment;
 use glib::{clone, Propagation};
 use gtk::graphene::Point;
 use gtk::gsk::Transform;

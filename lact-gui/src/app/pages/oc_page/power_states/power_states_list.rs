@@ -1,4 +1,4 @@
-use crate::app::root_stack::oc_page::power_states::power_state_row::PowerStateRow;
+use crate::app::pages::oc_page::power_states::power_state_row::PowerStateRow;
 use gtk::{
     gio,
     glib::{

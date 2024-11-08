@@ -66,7 +66,7 @@ impl Default for PowerStatesFrame {
 }
 
 mod imp {
-    use crate::app::root_stack::oc_page::power_states::power_states_list::PowerStatesList;
+    use crate::app::pages::oc_page::power_states::power_states_list::PowerStatesList;
     use gtk::{
         glib::{self, subclass::InitializingObject, types::StaticTypeExt, Properties},
         prelude::ObjectExt,

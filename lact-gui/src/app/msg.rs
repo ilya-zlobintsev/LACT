@@ -7,7 +7,7 @@ use std::rc::Rc;
 pub enum AppMsg {
     Error(Rc<anyhow::Error>),
     ReloadData { full: bool },
-    Stats(DeviceStats),
+    Stats(Rc<DeviceStats>),
     ApplyChanges,
     RevertChanges,
     ResetClocks,
