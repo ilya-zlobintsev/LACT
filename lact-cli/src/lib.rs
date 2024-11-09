@@ -13,6 +13,7 @@ pub fn run(args: CliArgs) -> Result<()> {
         match args.subcommand {
             CliCommand::ListGpus => list_gpus(&args, &client).await,
             CliCommand::Info => info(&args, &client).await,
+            CliCommand::Snapshot => snapshot(&client).await,
         }
     })
 }
@@ -64,4 +65,11 @@ async fn extract_gpu_ids(args: &CliArgs, client: &DaemonClient) -> Vec<String> {
                 .collect()
         }
     }
+}
+
+async fn snapshot(client: &DaemonClient) -> Result<()> {
+    let buffer = client.generate_debug_snapshot().await?;
+    let path = buffer.inner()?;
+    println!("Generated debug snapshot in {path}");
+    Ok(())
 }

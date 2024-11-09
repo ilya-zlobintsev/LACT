@@ -42,4 +42,6 @@ pub enum CliCommand {
     ListGpus,
     /// Show GPU info
     Info,
+    /// Generate debug snapshot
+    Snapshot,
 }
