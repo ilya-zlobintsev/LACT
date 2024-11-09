@@ -23,7 +23,7 @@ jobs:
         env:
           GH_RELEASE_NAME: ${{ github.event.release.name }}
           GH_RELEASE_TAG: ${{ github.event.release.tag_name }}
-          GH_REPO_URL: ${{ github.event.release.html_url }}
+          GH_REPO_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }}
       - name: Validate generated spec files
         run: |
           for spec_file in pkg/fedora-spec/*.spec; do
