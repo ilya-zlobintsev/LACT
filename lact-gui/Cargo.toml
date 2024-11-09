@@ -24,14 +24,11 @@ gtk = { version = "0.9", package = "gtk4", features = ["v4_6", "blueprint"] }
 adw = { package = "libadwaita", version = "0.7.0", features = [
     "v1_4",
 ], optional = true }
-relm4 = "0.9.0"
+relm4 = { version = "0.9.0", default-features = false }
 relm4-components = "0.9.0"
 
 plotters = { version = "0.3.5", default-features = false, features = [
-    "datetime",
     "line_series",
-    "ttf",
-    "histogram",
     "full_palette",
 ] }
 plotters-cairo = "0.7.0"
