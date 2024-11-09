@@ -52,5 +52,11 @@ jobs:
               head: `chore/update-spec-files-${process.env.RELEASE_TAG}`,
               base: 'master'
             });
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: result.data.number,
+              labels: ['copr-update']
+            });
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}

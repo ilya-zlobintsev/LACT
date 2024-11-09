@@ -1,0 +1,31 @@
+name: Trigger COPR Webhook on Labeled PR Merge
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  trigger-copr:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR Labels
+        id: check-labels
+        run: |
+          labels=$(jq -r '.pull_request.labels[].name' <<< "${{ toJson(github.event) }}")
+          echo "Labels on this PR: $labels"
+          if echo "$labels" | grep -q "copr-update"; then
+            echo "Label 'copr-update' found."
+            echo "::set-output name=trigger::true"
+          else
+            echo "Label 'copr-update' not found. Exiting."
+            echo "::set-output name=trigger::false"
+            exit 0
+          fi
+
+      - name: Trigger COPR Webhook
+        if: steps.check-labels.outputs.trigger == 'true'
+        run: |
+          curl -X POST ${{ secrets.COPR_WEBHOOK_URL }}
