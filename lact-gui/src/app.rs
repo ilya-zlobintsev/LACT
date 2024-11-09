@@ -598,38 +598,9 @@ impl AppModel {
                 .context("Could not commit config")?;
         }
 
-        let clocks_settings = self.oc_page.clocks_frame.get_settings();
-        let mut clocks_commands = Vec::new();
+        let clocks_commands = self.oc_page.clocks_frame.get_commands();
 
-        debug!("applying clocks settings {clocks_settings:#?}");
-
-        if let Some(clock) = clocks_settings.min_core_clock {
-            clocks_commands.push(SetClocksCommand::MinCoreClock(clock));
-        }
-
-        if let Some(clock) = clocks_settings.min_memory_clock {
-            clocks_commands.push(SetClocksCommand::MinMemoryClock(clock));
-        }
-
-        if let Some(voltage) = clocks_settings.min_voltage {
-            clocks_commands.push(SetClocksCommand::MinVoltage(voltage));
-        }
-
-        if let Some(clock) = clocks_settings.max_core_clock {
-            clocks_commands.push(SetClocksCommand::MaxCoreClock(clock));
-        }
-
-        if let Some(clock) = clocks_settings.max_memory_clock {
-            clocks_commands.push(SetClocksCommand::MaxMemoryClock(clock));
-        }
-
-        if let Some(voltage) = clocks_settings.max_voltage {
-            clocks_commands.push(SetClocksCommand::MaxVoltage(voltage));
-        }
-
-        if let Some(offset) = clocks_settings.voltage_offset {
-            clocks_commands.push(SetClocksCommand::VoltageOffset(offset));
-        }
+        debug!("applying clocks commands {clocks_commands:#?}");
 
         let enabled_power_states = self.oc_page.get_enabled_power_states();
 
