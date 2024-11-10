@@ -524,7 +524,7 @@ impl AmdGpuController {
     fn is_steam_deck(&self) -> bool {
         self.pci_info.as_ref().is_some_and(|info| {
             info.device_pci_info.vendor_id == VENDOR_AMD
-                && STEAM_DECK_IDS.contains(&info.device_pci_info.vendor_id.as_str())
+                && STEAM_DECK_IDS.contains(&info.device_pci_info.model_id.as_str())
         })
     }
 }
