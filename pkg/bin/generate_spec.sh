@@ -54,7 +54,8 @@ for RECIPE_PATH in "$RECIPES_DIR"/*/; do
   if [ -f "$SPEC_FILE" ]; then
     EXISTING_CHANGELOG=$(extract_changelog "$SPEC_FILE")
   fi
-
+  # For proper date formatting consistent with other builds.
+  export LC_ALL=c
   cat <<EOF >"$SPEC_FILE"
 Name:           $RECIPE_NAME
 Version:        $RECIPE_VERSION
@@ -73,20 +74,24 @@ Requires:       $PKG_DEPENDS
 $PKG_DESCRIPTION
 
 %prep
-%setup -q
+%setup -q -n LACT-%{version}
 
 %build
 make %{?_smp_mflags}
 
 %install
 rm -rf %{buildroot}
-make install DESTDIR=%{buildroot}
+make install PREFIX=/usr DESTDIR=%{buildroot}
 
 %files
 %defattr(-,root,root,-)
 %license LICENSE
 %doc README.md
 /usr/bin/$RECIPE_NAME
+/usr/lib/systemd/system/${RECIPE_NAME}d.service
+/usr/share/applications/io.github.$RECIPE_NAME-linux.desktop
+/usr/share/icons/hicolor/scalable/apps/io.github.$RECIPE_NAME-linux.svg
+/usr/share/pixmaps/io.github.$RECIPE_NAME-linux.png
 
 %changelog
 * $(date +"%a %b %d %Y") - $MAINTAINER - $GH_RELEASE_NAME - $GH_RELEASE_TAG
