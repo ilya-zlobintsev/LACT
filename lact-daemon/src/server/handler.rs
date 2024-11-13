@@ -73,6 +73,8 @@ const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
     "acoustic_target_rpm_threshold",
     "fan_minimum_pwm",
     "fan_target_temperature",
+    "fan_zero_rpm_enable",
+    "fan_zero_rpm_stop_temperature",
 ];
 const SNAPSHOT_HWMON_FILE_PREFIXES: &[&str] =
     &["fan", "pwm", "power", "temp", "freq", "in", "name"];

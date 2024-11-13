@@ -2,12 +2,13 @@ mod point_adjustment;
 
 use self::point_adjustment::PointAdjustment;
 use crate::app::pages::oc_adjustment::OcAdjustment;
-use glib::clone;
+use glib::{clone, Propagation};
 use gtk::graphene::Point;
 use gtk::gsk::Transform;
 use gtk::prelude::*;
 use gtk::*;
 use lact_client::schema::{default_fan_curve, FanCurveMap};
+use lact_schema::PmfwInfo;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -19,6 +20,8 @@ const DEFAULT_SPINDOWN_DELAY_MS: u64 = 5000;
 pub struct FanCurveFrame {
     pub container: Box,
     curve_container: Frame,
+    zero_rpm_switch: Switch,
+    zero_rpm_row: Box,
     points: Rc<RefCell<Vec<PointAdjustment>>>,
     spindown_delay_adj: OcAdjustment,
     change_threshold_adj: OcAdjustment,
@@ -110,10 +113,27 @@ impl FanCurveFrame {
 
         root_box.append(&hysteresis_grid);
 
+        let zero_rpm_label = Label::builder()
+            .label("Zero RPM mode")
+            .halign(Align::Start)
+            .build();
+        let zero_rpm_switch = Switch::builder().halign(Align::End).hexpand(true).build();
+        let zero_rpm_row = gtk::Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(5)
+            .hexpand(true)
+            .build();
+        zero_rpm_row.append(&zero_rpm_label);
+        zero_rpm_row.append(&zero_rpm_switch);
+
+        root_box.append(&zero_rpm_row);
+
         let curve_frame = Self {
             container: root_box,
             curve_container,
             points,
+            zero_rpm_row,
+            zero_rpm_switch,
             spindown_delay_adj: spindown_delay_adj.clone(),
             change_threshold_adj: change_threshold_adj.clone(),
             hysteresis_grid,
@@ -230,6 +250,15 @@ impl FanCurveFrame {
             }
         );
 
+        self.zero_rpm_switch.connect_state_set(clone!(
+            #[strong]
+            f,
+            move |_, _| {
+                f();
+                Propagation::Proceed
+            }
+        ));
+
         for point in &*self.points.borrow() {
             point.ratio.connect_value_changed(closure.clone());
             point.temperature.connect_value_changed(closure.clone());
@@ -256,6 +285,23 @@ impl FanCurveFrame {
 
     pub fn set_hysteresis_settings_visibile(&self, visible: bool) {
         self.hysteresis_grid.set_visible(visible);
+    }
+
+    pub fn set_pmfw(&self, pmfw_info: &PmfwInfo) {
+        self.zero_rpm_row
+            .set_visible(pmfw_info.zero_rpm_enable.is_some());
+
+        if let Some(value) = pmfw_info.zero_rpm_enable {
+            self.zero_rpm_switch.set_state(value);
+        }
+    }
+
+    pub fn get_zero_rpm(&self) -> Option<bool> {
+        if self.zero_rpm_row.is_visible() {
+            Some(self.zero_rpm_switch.state())
+        } else {
+            None
+        }
     }
 }
 

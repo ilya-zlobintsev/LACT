@@ -75,6 +75,8 @@ impl ThermalsPage {
 
         container.append(&stats_section);
 
+        let pmfw_frame = PmfwFrame::new();
+
         let fan_curve_frame = FanCurveFrame::new();
 
         let fan_static_speed_frame = Box::builder()
@@ -83,8 +85,6 @@ impl ThermalsPage {
             .valign(Align::Start)
             .build();
         let fan_static_speed_adjustment = static_speed_adj(&fan_static_speed_frame);
-
-        let pmfw_frame = PmfwFrame::new();
 
         let fan_control_section = PageSection::new("Fan control");
 
@@ -231,6 +231,7 @@ impl ThermalsPage {
                 self.fan_curve_frame.set_curve(&default_fan_curve());
             }
 
+            self.fan_curve_frame.set_pmfw(&stats.fan.pmfw_info);
             self.pmfw_frame.set_info(&stats.fan.pmfw_info);
         }
     }
@@ -263,6 +264,8 @@ impl ThermalsPage {
 
     pub fn get_thermals_settings(&self) -> Option<ThermalsSettings> {
         if self.fan_control_mode_stack_switcher.is_sensitive() {
+            let mut pmfw = self.pmfw_frame.get_pmfw_options();
+
             let name = self.fan_control_mode_stack.visible_child_name();
             let name = name
                 .as_ref()
@@ -270,15 +273,16 @@ impl ThermalsPage {
                 .expect("No name on the visible child");
             let (manual_fan_control, mode) = match name {
                 "automatic" => (false, None),
-                "curve" => (true, Some(FanControlMode::Curve)),
+                "curve" => {
+                    pmfw.zero_rpm = self.fan_curve_frame.get_zero_rpm();
+                    (true, Some(FanControlMode::Curve))
+                }
                 "static" => (true, Some(FanControlMode::Static)),
                 _ => unreachable!(),
             };
             let static_speed = Some(self.fan_static_speed_adjustment.value() / 100.0);
             let curve = self.fan_curve_frame.get_curve();
             let curve = if curve.is_empty() { None } else { Some(curve) };
-
-            let pmfw = self.pmfw_frame.get_pmfw_options();
 
             Some(ThermalsSettings {
                 manual_fan_control,
