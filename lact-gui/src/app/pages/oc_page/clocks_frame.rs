@@ -7,7 +7,7 @@ use amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable as _, ClocksTableGen as Am
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::{ClocksTable, NvidiaClockInfo, NvidiaClocksTable};
+use lact_schema::{request::SetClocksCommand, ClocksTable, NvidiaClockInfo, NvidiaClocksTable};
 use subclass::prelude::ObjectSubclassIsExt;
 use tracing::debug;
 
@@ -353,32 +353,35 @@ impl ClocksFrame {
         self.reset_button.connect_clicked(move |_| f());
     }
 
-    pub fn get_settings(&self) -> ClocksSettings {
+    pub fn get_commands(&self) -> Vec<SetClocksCommand> {
         if self.tweaking_grid.get_visible() {
-            let min_core_clock = self.min_sclk_adjustment.get_value();
-            let min_memory_clock = self.min_mclk_adjustment.get_value();
-            let min_voltage = self.min_voltage_adjustment.get_value();
-            let max_core_clock = self.max_sclk_adjustment.get_value();
-            let max_memory_clock = self.max_mclk_adjustment.get_value();
-            let max_voltage = self.max_voltage_adjustment.get_value();
+            type ClocksCommandFn = fn(i32) -> SetClocksCommand;
 
-            let voltage_offset = if self.voltage_offset_adjustment.get_visible() {
-                self.voltage_offset_adjustment.get_value()
-            } else {
-                None
-            };
+            let adjustments: &[(&AdjustmentRow, ClocksCommandFn)] = &[
+                (&self.min_sclk_adjustment, SetClocksCommand::MinCoreClock),
+                (&self.min_mclk_adjustment, SetClocksCommand::MinMemoryClock),
+                (&self.min_voltage_adjustment, SetClocksCommand::MinVoltage),
+                (&self.max_sclk_adjustment, SetClocksCommand::MaxCoreClock),
+                (&self.max_mclk_adjustment, SetClocksCommand::MaxMemoryClock),
+                (&self.max_voltage_adjustment, SetClocksCommand::MaxVoltage),
+            ];
+            let mut commands: Vec<SetClocksCommand> = adjustments
+                .iter()
+                .filter_map(|(row, f)| {
+                    let value = row.get_value()?;
+                    Some(f(value))
+                })
+                .collect();
 
-            ClocksSettings {
-                min_core_clock,
-                min_memory_clock,
-                min_voltage,
-                max_core_clock,
-                max_memory_clock,
-                max_voltage,
-                voltage_offset,
+            if self.voltage_offset_adjustment.get_visible() {
+                if let Some(offset) = self.voltage_offset_adjustment.get_value() {
+                    commands.push(SetClocksCommand::VoltageOffset(offset));
+                }
             }
+
+            commands
         } else {
-            ClocksSettings::default()
+            vec![]
         }
     }
 
@@ -403,17 +406,6 @@ fn extract_value_and_range_amd(
     let (value, range) = maybe_value.zip(maybe_range)?;
     let (min, max) = range.try_into().ok()?;
     Some((value, min, max))
-}
-
-#[derive(Debug, Default)]
-pub struct ClocksSettings {
-    pub min_core_clock: Option<i32>,
-    pub min_memory_clock: Option<i32>,
-    pub min_voltage: Option<i32>,
-    pub max_core_clock: Option<i32>,
-    pub max_memory_clock: Option<i32>,
-    pub max_voltage: Option<i32>,
-    pub voltage_offset: Option<i32>,
 }
 
 fn set_nvidia_clock_offset(clock_info: &NvidiaClockInfo, adjustment_row: &AdjustmentRow) {

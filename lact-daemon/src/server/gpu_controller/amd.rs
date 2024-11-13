@@ -46,6 +46,8 @@ use {
 
 const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
+const VENDOR_AMD: &str = "1002";
+const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
 
 pub struct AmdGpuController {
     handle: GpuHandle,
@@ -518,6 +520,13 @@ impl AmdGpuController {
 
         None
     }
+
+    fn is_steam_deck(&self) -> bool {
+        self.pci_info.as_ref().is_some_and(|info| {
+            info.device_pci_info.vendor_id == VENDOR_AMD
+                && STEAM_DECK_IDS.contains(&info.device_pci_info.model_id.as_str())
+        })
+    }
 }
 
 impl GpuController for AmdGpuController {
@@ -776,10 +785,17 @@ impl GpuController for AmdGpuController {
             // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
             self.handle.reset_clocks_table().ok();
 
-            // Reset performance level to work around some GPU quirks (found to be an issue on RDNA2)
-            self.handle
-                .set_power_force_performance_level(PerformanceLevel::Auto)
-                .ok();
+            if self.is_steam_deck() {
+                // Van Gogh/Sephiroth only allow clock settings to be used with manual performance mode
+                self.handle
+                    .set_power_force_performance_level(PerformanceLevel::Manual)
+                    .ok();
+            } else {
+                // Reset performance level to work around some GPU quirks (found to be an issue on RDNA2)
+                self.handle
+                    .set_power_force_performance_level(PerformanceLevel::Auto)
+                    .ok();
+            }
 
             if config.is_core_clocks_used() {
                 let original_table = self
