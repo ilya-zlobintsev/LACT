@@ -66,8 +66,7 @@ URL:            https://github.com/ilya-zlobintsev/LACT
 Source0:        $SOURCE_URL
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-ExclusiveArch:  x86_64
-BuildRequires:  $PKG_BUILD_DEPENDS
+BuildRequires:  rust cargo $PKG_BUILD_DEPENDS
 Requires:       $PKG_DEPENDS
 
 %description
