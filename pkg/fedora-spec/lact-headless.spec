@@ -17,7 +17,7 @@ AMDGPU control utility
 %setup -q -n LACT-%{version}
 
 %build
-make %{?_smp_mflags}
+make build-release-headless %{?_smp_mflags}
 
 %install
 rm -rf %{buildroot}
@@ -27,11 +27,11 @@ make install PREFIX=/usr DESTDIR=%{buildroot}
 %defattr(-,root,root,-)
 %license LICENSE
 %doc README.md
-/usr/bin/lact-headless
-/usr/lib/systemd/system/lact-headlessd.service
-/usr/share/applications/io.github.lact-headless-linux.desktop
-/usr/share/icons/hicolor/scalable/apps/io.github.lact-headless-linux.svg
-/usr/share/pixmaps/io.github.lact-headless-linux.png
+/usr/bin/lact
+/usr/lib/systemd/system/lactd.service
+/usr/share/applications/io.github.lact-linux.desktop
+/usr/share/icons/hicolor/scalable/apps/io.github.lact-linux.svg
+/usr/share/pixmaps/io.github.lact-linux.png
 
 %changelog
 * Thu Nov 14 2024 - ilya-zlobintsev -  - 

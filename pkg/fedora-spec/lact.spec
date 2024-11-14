@@ -17,7 +17,7 @@ AMDGPU control utility
 %setup -q -n LACT-%{version}
 
 %build
-make %{?_smp_mflags}
+make build-release %{?_smp_mflags}
 
 %install
 rm -rf %{buildroot}

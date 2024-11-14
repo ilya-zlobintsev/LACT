@@ -32,6 +32,9 @@ for RECIPE_PATH in "$RECIPES_DIR"/*/; do
   MAINTAINER=$(yq eval '.metadata.maintainer // "Unknown Maintainer"' "$RECIPE_FILE")
   SOURCE_URL="https://github.com/ilya-zlobintsev/LACT/archive/refs/tags/v${RECIPE_VERSION}.tar.gz"
 
+  MAKE_COMMAND_RAW=$(yq eval '.build.steps[0]' "$RECIPE_FILE" | grep -oP '(make.+)')
+  MAKE_COMMAND=${MAKE_COMMAND_RAW::-1}
+
   # Collect Fedora-specific dependencies safely
   PKG_DEPENDS=$(yq eval '.metadata.depends | with_entries(select(.key | contains("fedora"))) | .[] | join(" ")' "$RECIPE_FILE" | xargs)
   PKG_BUILD_DEPENDS=$(yq eval '.metadata.build_depends | with_entries(select(.key | contains("fedora"))) | .[] | join(" ")' "$RECIPE_FILE" | xargs)
@@ -76,7 +79,7 @@ $PKG_DESCRIPTION
 %setup -q -n LACT-%{version}
 
 %build
-make %{?_smp_mflags}
+$MAKE_COMMAND %{?_smp_mflags}
 
 %install
 rm -rf %{buildroot}
@@ -86,11 +89,11 @@ make install PREFIX=/usr DESTDIR=%{buildroot}
 %defattr(-,root,root,-)
 %license LICENSE
 %doc README.md
-/usr/bin/$RECIPE_NAME
-/usr/lib/systemd/system/${RECIPE_NAME}d.service
-/usr/share/applications/io.github.$RECIPE_NAME-linux.desktop
-/usr/share/icons/hicolor/scalable/apps/io.github.$RECIPE_NAME-linux.svg
-/usr/share/pixmaps/io.github.$RECIPE_NAME-linux.png
+/usr/bin/lact
+/usr/lib/systemd/system/lactd.service
+/usr/share/applications/io.github.lact-linux.desktop
+/usr/share/icons/hicolor/scalable/apps/io.github.lact-linux.svg
+/usr/share/pixmaps/io.github.lact-linux.png
 
 %changelog
 * $(date +"%a %b %d %Y") - $MAINTAINER - $GH_RELEASE_NAME - $GH_RELEASE_TAG
