@@ -26,7 +26,7 @@ Both AMD and Nvidia functionality works on X11, Wayland or even headless session
 - Debian/Ubuntu/Derivatives: Download a .deb from [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
   It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't ship gtk4.
-- Fedora: an RPM is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+- Fedora: use the [Copr repository](https://copr.fedorainfracloud.org/coprs/ilyaz/LACT/), or download an RPM from [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 - Gentoo: Available in [GURU](https://github.com/gentoo/guru/tree/master/sys-apps/lact).
 - OpenSUSE: an RPM is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
