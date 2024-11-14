@@ -13,6 +13,5 @@ jobs:
     if: github.event.pull_request.merged == true
     steps:
       - name: Trigger COPR Webhook
-        if: steps.check-labels.outputs.trigger == 'true'
         run: |
           curl -X POST ${{ secrets.COPR_WEBHOOK_URL }}
