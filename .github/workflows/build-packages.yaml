@@ -139,3 +139,4 @@ jobs:
           name: ${{ github.ref_name }}
           tag: ${{ github.ref_name }}
           body: ${{ github.ref_name }} changelog goes here
+          draft: true
