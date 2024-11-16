@@ -58,6 +58,7 @@ pub fn default_fan_curve() -> FanCurveMap {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Pong;
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SystemInfo {
     pub version: String,
@@ -67,6 +68,7 @@ pub struct SystemInfo {
     pub amdgpu_overdrive_enabled: Option<bool>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceListEntry {
     pub id: String,
@@ -88,6 +90,7 @@ pub struct GpuPciInfo {
     pub subsystem_pci_info: PciInfo,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceInfo {
     pub pci_info: Option<GpuPciInfo>,
@@ -98,6 +101,7 @@ pub struct DeviceInfo {
     pub drm_info: Option<DrmInfo>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DrmInfo {
     pub device_name: Option<String>,
@@ -118,6 +122,7 @@ pub struct DrmInfo {
     pub memory_info: Option<DrmMemoryInfo>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DrmMemoryInfo {
     pub cpu_accessible_used: u64,
@@ -169,6 +174,7 @@ impl From<AmdClocksTableGen> for ClocksInfo {
     }
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct LinkInfo {
     pub current_width: Option<String>,
@@ -187,6 +193,7 @@ pub struct VulkanInfo {
     pub extensions: IndexMap<Cow<'static, str>, bool>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VulkanDriverInfo {
     pub version: u32,
@@ -195,6 +202,7 @@ pub struct VulkanDriverInfo {
     pub driver_version: Option<String>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PciInfo {
     pub vendor_id: String,
@@ -203,6 +211,7 @@ pub struct PciInfo {
     pub model: Option<String>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DeviceStats {
     pub fan: FanStats,
@@ -219,6 +228,7 @@ pub struct DeviceStats {
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct FanStats {
     pub control_enabled: bool,
@@ -247,6 +257,7 @@ pub struct PmfwInfo {
     pub zero_rpm_temperature: Option<FanInfo>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct ClockspeedStats {
     pub gpu_clockspeed: Option<u64>,
@@ -254,18 +265,21 @@ pub struct ClockspeedStats {
     pub vram_clockspeed: Option<u64>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct VoltageStats {
     pub gpu: Option<u64>,
     pub northbridge: Option<u64>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct VramStats {
     pub total: Option<u64>,
     pub used: Option<u64>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct PowerStats {
     pub average: Option<f64>,
@@ -288,6 +302,7 @@ impl PowerStates {
     }
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct PowerState {
     pub enabled: bool,
