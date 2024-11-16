@@ -391,6 +391,11 @@ impl AppModel {
             .context("Could not fetch info")?;
         let info = Rc::new(info_buf.inner()?);
 
+        // Plain `nvidia` means that the nvidia driver is loaded, but it does not contain a version fetched from NVML
+        if info.driver == "nvidia" {
+            sender.input(AppMsg::Error(Rc::new(anyhow!("Nvidia driver detected, but the management library could not be loaded. Check lact service status for more information."))));
+        }
+
         self.info_page.emit(PageUpdate::Info(info.clone()));
 
         self.oc_page.set_info(&info);
