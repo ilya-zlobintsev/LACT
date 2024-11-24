@@ -9,7 +9,7 @@ pub enum AppMsg {
     ReloadData {
         full: bool,
     },
-    Stats(DeviceStats),
+    Stats(Arc<DeviceStats>),
     ApplyChanges,
     RevertChanges,
     ResetClocks,

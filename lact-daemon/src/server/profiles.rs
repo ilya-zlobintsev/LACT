@@ -162,9 +162,10 @@ async fn update_profile(
     trace!("evaluated profile rules in {:?}", started_at.elapsed());
 
     if handler.config.borrow().current_profile != new_profile {
-        match &new_profile {
-            Some(name) => info!("setting current profile to {name}"),
-            None => info!("setting default profile"),
+        if let Some(name) = &new_profile {
+            info!("setting current profile to {name}");
+        } else {
+            info!("setting default profile");
         }
 
         if let Err(err) = handler.set_current_profile(new_profile).await {

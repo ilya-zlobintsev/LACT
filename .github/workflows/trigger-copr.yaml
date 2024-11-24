@@ -1,0 +1,17 @@
+name: trigger-copr
+
+on:
+  pull_request:
+    types:
+      - closed
+    paths:
+      - "**.spec"
+
+jobs:
+  trigger-copr:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - name: Trigger COPR Webhook
+        run: |
+          curl -X POST ${{ secrets.COPR_WEBHOOK_URL }}

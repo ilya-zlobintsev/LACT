@@ -3,7 +3,7 @@ metadata:
   description: AMDGPU control utility
   arch: x86_64
   license: MIT
-  version: 0.5.7
+  version: 0.6.1
   maintainer: ilya-zlobintsev
   url: https://github.com/ilya-zlobintsev/lact
   source:
@@ -12,12 +12,12 @@ metadata:
   conflicts: [ lact, lact-headless ]
   depends:
     all: [ hwdata ]
-    fedora-39+fedora-40: [ gtk4, libdrm, libadwaita ]
+    fedora-39+fedora-40+fedora-41: [ gtk4, libdrm, libadwaita ]
     arch: [ gtk4, libadwaita ]
     opensuse-tumbleweed: [ libdrm, libadwaita ]
   build_depends:
     all: [ curl, make, clang, git ]
-    fedora-39+fedora-40: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler, libadwaita-devel, dbus ]
+    fedora-39+fedora-40+fedora-41: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler, libadwaita-devel, dbus ]
     arch: [ gtk4, blueprint-compiler, libadwaita, dbus ]
     opensuse-tumbleweed: [ libdrm-devel, blueprint-compiler, libadwaita-devel ]
   all_images: true
@@ -26,7 +26,7 @@ env:
 configure:
   steps:
     - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
-    - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
+    - cmd: sh /tmp/install_rust.sh -y --default-toolchain 1.78
     - cmd: >-
         curl -o /tmp/blueprint-compiler.deb http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb &&
         apt install -y /tmp/blueprint-compiler.deb

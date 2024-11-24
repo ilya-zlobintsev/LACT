@@ -3,18 +3,21 @@ name: Build packages
 on:
   push:
     branches: ['master']
+    tags: '*'
   pull_request:
 
 jobs:
   build-packages:
     strategy:
       matrix:
-        target-os: [ debian-12, ubuntu-2204, ubuntu-2404, fedora-39, fedora-40, arch, opensuse-tumbleweed ]
+        target-os: [ debian-12, ubuntu-2204, ubuntu-2404, fedora-39, fedora-40, fedora-41, arch, opensuse-tumbleweed ]
         recipe: [ lact, lact-headless ]
         include:
           - target-os: fedora-39
             recipe: lact-libadwaita
           - target-os: fedora-40
+            recipe: lact-libadwaita
+          - target-os: fedora-41
             recipe: lact-libadwaita
           - target-os: arch
             recipe: lact-libadwaita
@@ -42,7 +45,7 @@ jobs:
           chmod +x /usr/local/bin/pkger
 
       - name: Build packages (with signing)
-        if: ${{ contains(matrix.target-os, 'fedora') }}
+        if: ${{ contains(matrix.target-os, 'fedora') && env.GPG_KEY_PASSWORD != '' }}
         run: pkger -t -c .pkger.yml build ${{ matrix.recipe }} -i ${{ matrix.target-os }}
         env:
           GPG_KEY_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
@@ -82,7 +85,7 @@ jobs:
           name: ${{ matrix.target-os }}
           path: release-artifacts/*
 
-  create-release:
+  create-test-release:
     needs: build-packages
     runs-on: ubuntu-latest
     if: (github.event_name == 'push' && github.ref == 'refs/heads/master')
@@ -114,3 +117,26 @@ jobs:
           git push -f origin test-build
         shell: bash
 
+
+  create-stable-release:
+    needs: build-packages
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: downloaded-artifacts/
+
+      - name: Create release
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          artifacts: "downloaded-artifacts/*/*"
+          name: ${{ github.ref_name }}
+          tag: ${{ github.ref_name }}
+          body: ${{ github.ref_name }} changelog goes here
+          draft: true

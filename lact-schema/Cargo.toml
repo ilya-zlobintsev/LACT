@@ -1,6 +1,6 @@
 [package]
 name = "lact-schema"
-version = "0.5.7"
+version = "0.6.1"
 edition = "2021"
 
 [features]

@@ -8,7 +8,7 @@ body:
       label: Checklist
       description:
       options:
-        - label: The problem is not listed in the [hardware support matrix](https://github.com/ilya-zlobintsev/LACT?tab=readme-ov-file#hardware-support) as a known limitation
+        - label: The problem is not listed in the [hardware support matrix](https://github.com/ilya-zlobintsev/LACT?tab=readme-ov-file#hardware-support) as a known limitation. Examples of known driver-side issues are fans not turning on with a custom curve or inaccurate power limits on RDNA3.
           required: true
         - label: I've included a [debug snapshot](https://github.com/ilya-zlobintsev/LACT?tab=readme-ov-file#reporting-issues) if the issue is related to hardware configuration
           required: true

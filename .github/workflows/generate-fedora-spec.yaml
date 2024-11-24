@@ -1,0 +1,62 @@
+name: generate-fedora-spec
+
+on:
+  release:
+    types: ["published"]
+
+jobs:
+  generate-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install yq
+        run: |
+          sudo curl -L https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_linux_amd64 -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+      - name: Verify yq installation
+        run: yq --version
+      - name: Install rpmlint
+        run: sudo apt-get install -y rpmlint
+      - name: Generate spec files
+        run: ./pkg/bin/generate_spec.sh
+        env:
+          GH_RELEASE_NAME: ${{ github.event.release.name }}
+          GH_RELEASE_TAG: ${{ github.event.release.tag_name }}
+          GH_REPO_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }}
+      - name: Validate generated spec files
+        run: |
+          for spec_file in pkg/fedora-spec/*.spec; do
+            echo "Validating $spec_file"
+            rpmlint $spec_file || exit 1
+          done
+      - name: Create Branch and Commit Changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          branch_name="chore/update-spec-files-${{ github.event.release.tag_name }}"
+          git checkout -b $branch_name
+          git add pkg/fedora-spec/*.spec
+          git commit -m "chore: Update spec files for release ${{ github.event.release.tag_name }}"
+          git push origin $branch_name
+      - name: Create Pull Request
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { repo, owner } = context.repo;
+            const result = await github.rest.pulls.create({
+              owner,
+              repo,
+              title: `chore: Update spec files for release ${process.env.RELEASE_TAG}`,
+              body: `Automated PR to update spec files following release ${process.env.RELEASE_TAG}`,
+              head: `chore/update-spec-files-${process.env.RELEASE_TAG}`,
+              base: 'master'
+            });
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: result.data.number,
+              labels: ['copr-update']
+            });
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}

@@ -12,7 +12,7 @@ pub use response::Response;
 use amdgpu_sysfs::{
     gpu_handle::{
         fan_control::FanInfo,
-        overdrive::{ClocksTable, ClocksTableGen},
+        overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTableGen},
         PerformanceLevel,
     },
     hw_mon::Temperature,
@@ -59,6 +59,7 @@ pub fn default_fan_curve() -> FanCurveMap {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Pong;
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SystemInfo {
     pub version: String,
@@ -68,6 +69,7 @@ pub struct SystemInfo {
     pub amdgpu_overdrive_enabled: Option<bool>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceListEntry {
     pub id: String,
@@ -89,54 +91,78 @@ pub struct GpuPciInfo {
     pub subsystem_pci_info: PciInfo,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct DeviceInfo<'a> {
-    #[serde(borrow)]
-    pub pci_info: Option<Cow<'a, GpuPciInfo>>,
+pub struct DeviceInfo {
+    pub pci_info: Option<GpuPciInfo>,
     pub vulkan_info: Option<VulkanInfo>,
-    pub driver: &'a str,
+    pub driver: String,
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,
     pub drm_info: Option<DrmInfo>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DrmInfo {
     pub device_name: Option<String>,
     pub pci_revision_id: Option<u32>,
-    pub family_name: String,
-    #[serde(default)]
-    pub family_id: u32,
-    pub asic_name: String,
-    pub chip_class: String,
-    pub compute_units: u32,
-    pub vram_type: String,
+    pub family_name: Option<String>,
+    pub family_id: Option<u32>,
+    pub asic_name: Option<String>,
+    pub chip_class: Option<String>,
+    pub compute_units: Option<u32>,
+    pub cuda_cores: Option<u32>,
+    pub vram_type: Option<String>,
     pub vram_clock_ratio: f64,
-    pub vram_bit_width: u32,
-    pub vram_max_bw: String,
-    pub l1_cache_per_cu: u32,
-    pub l2_cache: u32,
-    pub l3_cache_mb: u32,
+    pub vram_bit_width: Option<u32>,
+    pub vram_max_bw: Option<String>,
+    pub l1_cache_per_cu: Option<u32>,
+    pub l2_cache: Option<u32>,
+    pub l3_cache_mb: Option<u32>,
     pub memory_info: Option<DrmMemoryInfo>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DrmMemoryInfo {
     pub cpu_accessible_used: u64,
     pub cpu_accessible_total: u64,
-    pub resizeable_bar: bool,
+    pub resizeable_bar: Option<bool>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct ClocksInfo {
     pub max_sclk: Option<i32>,
     pub max_mclk: Option<i32>,
     pub max_voltage: Option<i32>,
-    pub table: Option<ClocksTableGen>,
+    pub table: Option<ClocksTable>,
 }
 
-impl From<ClocksTableGen> for ClocksInfo {
-    fn from(table: ClocksTableGen) -> Self {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum ClocksTable {
+    Amd(AmdClocksTableGen),
+    Nvidia(NvidiaClocksTable),
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+pub struct NvidiaClocksTable {
+    pub gpc: Option<NvidiaClockInfo>,
+    pub mem: Option<NvidiaClockInfo>,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+pub struct NvidiaClockInfo {
+    pub max: i32,
+    pub offset: i32,
+    pub offset_range: (i32, i32),
+}
+
+impl From<AmdClocksTableGen> for ClocksInfo {
+    fn from(table: AmdClocksTableGen) -> Self {
         let max_sclk = table.get_max_sclk();
         let max_mclk = table.get_max_mclk();
         let max_voltage = table.get_max_sclk_voltage();
@@ -144,12 +170,13 @@ impl From<ClocksTableGen> for ClocksInfo {
             max_sclk,
             max_mclk,
             max_voltage,
-            table: Some(table),
+            table: Some(ClocksTable::Amd(table)),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct LinkInfo {
     pub current_width: Option<String>,
     pub current_speed: Option<String>,
@@ -167,6 +194,7 @@ pub struct VulkanInfo {
     pub extensions: IndexMap<Cow<'static, str>, bool>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VulkanDriverInfo {
     pub version: u32,
@@ -175,6 +203,7 @@ pub struct VulkanDriverInfo {
     pub driver_version: Option<String>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PciInfo {
     pub vendor_id: String,
@@ -183,7 +212,8 @@ pub struct PciInfo {
     pub model: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DeviceStats {
     pub fan: FanStats,
     pub clockspeed: ClockspeedStats,
@@ -199,7 +229,8 @@ pub struct DeviceStats {
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct FanStats {
     pub control_enabled: bool,
     pub control_mode: Option<FanControlMode>,
@@ -223,28 +254,34 @@ pub struct PmfwInfo {
     pub acoustic_target: Option<FanInfo>,
     pub target_temp: Option<FanInfo>,
     pub minimum_pwm: Option<FanInfo>,
+    pub zero_rpm_enable: Option<bool>,
+    pub zero_rpm_temperature: Option<FanInfo>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct ClockspeedStats {
     pub gpu_clockspeed: Option<u64>,
     pub current_gfxclk: Option<u16>,
     pub vram_clockspeed: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct VoltageStats {
     pub gpu: Option<u64>,
     pub northbridge: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct VramStats {
     pub total: Option<u64>,
     pub used: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct PowerStats {
     pub average: Option<f64>,
     pub current: Option<f64>,
@@ -254,10 +291,10 @@ pub struct PowerStats {
     pub cap_default: Option<f64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PowerStates {
-    pub core: Vec<PowerState<u64>>,
-    pub vram: Vec<PowerState<u64>>,
+    pub core: Vec<PowerState>,
+    pub vram: Vec<PowerState>,
 }
 
 impl PowerStates {
@@ -266,10 +303,13 @@ impl PowerStates {
     }
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
-pub struct PowerState<T> {
+pub struct PowerState {
     pub enabled: bool,
-    pub value: T,
+    pub min_value: Option<u64>,
+    pub value: u64,
+    pub index: Option<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -286,6 +326,8 @@ pub struct PmfwOptions {
     pub acoustic_target: Option<u32>,
     pub minimum_pwm: Option<u32>,
     pub target_temperature: Option<u32>,
+    pub zero_rpm: Option<bool>,
+    pub zero_rpm_threshold: Option<u32>,
 }
 
 impl PmfwOptions {

@@ -22,10 +22,12 @@ pub struct Header {
     profile_selector: FactoryVecDeque<ProfileRow>,
     selector_label: String,
     select_profile_signal_handler: SignalHandlerId,
+    stack: Option<Stack>,
 }
 
 #[derive(Debug)]
 pub enum HeaderMsg {
+    Stack(Stack),
     Profiles(ProfilesInfo),
     AutoProfileSwitch(bool),
     SelectProfile,
@@ -35,7 +37,7 @@ pub enum HeaderMsg {
 
 #[relm4::component(pub)]
 impl Component for Header {
-    type Init = (Vec<DeviceListEntry>, gtk::Stack);
+    type Init = Vec<DeviceListEntry>;
     type Input = HeaderMsg;
     type Output = AppMsg;
     type CommandOutput = ();
@@ -46,7 +48,8 @@ impl Component for Header {
 
             #[wrap(Some)]
             set_title_widget = &StackSwitcher {
-                set_stack: Some(&stack),
+                #[watch]
+                set_stack: model.stack.as_ref(),
             },
 
             #[name = "menu_button"]
@@ -147,7 +150,7 @@ impl Component for Header {
     }
 
     fn init(
-        (variants, stack): Self::Init,
+        variants: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -188,6 +191,7 @@ impl Component for Header {
             selector_label: String::new(),
             profiles_info: ProfilesInfo::default(),
             select_profile_signal_handler,
+            stack: None,
         };
 
         let gpu_selector = &model.gpu_selector.view;
@@ -226,6 +230,9 @@ impl Component for Header {
     ) {
         match msg {
             HeaderMsg::Profiles(profiles_info) => self.set_profiles_info(profiles_info),
+            HeaderMsg::Stack(stack) => {
+                self.stack = Some(stack);
+            }
             HeaderMsg::SelectGpu => sender.output(AppMsg::ReloadData { full: true }).unwrap(),
             HeaderMsg::AutoProfileSwitch(auto_switch) => {
                 let msg = AppMsg::SelectProfile {

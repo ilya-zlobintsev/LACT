@@ -10,7 +10,7 @@ members = [
 ]
 
 [workspace.dependencies]
-amdgpu-sysfs = { version = "0.17.0", features = ["serde"] }
+amdgpu-sysfs = { version = "0.17.3", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_with = { version = "3.5.0", default-features = false, features = [
     "macros",
@@ -29,9 +29,19 @@ divan = "0.1"
 
 [profile.release]
 strip = "symbols"
+codegen-units = 1
 opt-level = "s"
 lto = true
 
+[profile.release.package.cairo-rs]
+opt-level = 3
+
+[profile.release.package.plotters-cairo]
+opt-level = 3
+
+[profile.release.package.plotters]
+opt-level = 3
+
 [profile.bench]
 strip = false
-debug = true
+debug = 1

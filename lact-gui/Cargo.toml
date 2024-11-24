@@ -1,13 +1,12 @@
 [package]
 name = "lact-gui"
-version = "0.5.7"
+version = "0.6.1"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2021"
 
 [features]
 default = ["gtk-tests"]
 gtk-tests = []
-bench = []
 adw = ["dep:adw", "relm4/libadwaita"]
 
 [dependencies]
@@ -25,24 +24,18 @@ gtk = { version = "0.9", package = "gtk4", features = ["v4_6", "blueprint"] }
 adw = { package = "libadwaita", version = "0.7.0", features = [
     "v1_4",
 ], optional = true }
-relm4 = "0.9.0"
+relm4 = { version = "0.9.0", default-features = false }
 relm4-components = "0.9.0"
 
 plotters = { version = "0.3.5", default-features = false, features = [
-    "datetime",
     "line_series",
-    "ttf",
-    "histogram",
     "full_palette",
 ] }
 plotters-cairo = "0.7.0"
+cairo-rs = { version = "0.20", default-features = false }
 itertools = "0.13.0"
 
-[dev-dependencies]
-criterion = "0.5.1"
-lact-gui = { path = ".", features = ["bench"] }
-pretty_assertions = { workspace = true }
+thread-priority = "1.1.0"
 
-[[bench]]
-name = "gui"
-harness = false
+[dev-dependencies]
+pretty_assertions = "1.4.0"

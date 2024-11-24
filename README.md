@@ -2,19 +2,23 @@
 
 <img src="res/io.github.lact-linux.png" alt="icon" width="100"/>
 
-This application allows you to control your AMD GPU on a Linux system.
+This application allows you to control your AMD or Nvidia GPU on a Linux system.
 
 | GPU info                                     | Overclocking                                 | Fan control                                 |
 |----------------------------------------------|----------------------------------------------|---------------------------------------------|
 |![image](https://i.imgur.com/gur90cK.png)|![image](https://i.imgur.com/BAL3MgC.png)|![image](https://i.imgur.com/VsAVdOR.png)|
+| Historical data |
+|![image](https://i.imgur.com/GOmKh1M.png)|
 
 Current features:
 
 - Viewing information about the GPU
-- Power/thermals monitoring
+- Power and thermals monitoring, power limit configuration
 - Fan curve control
-- Overclocking (GPU/VRAM clockspeed, voltage)
-- Power states configuration
+- Overclocking (GPU/VRAM clockspeed and voltage, currently AMD only)
+- Power states configuration (AMD only)
+
+Both AMD and Nvidia functionality works on X11, Wayland or even headless sessions.
 
 # Installation
 
@@ -22,7 +26,7 @@ Current features:
 - Debian/Ubuntu/Derivatives: Download a .deb from [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
   It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't ship gtk4.
-- Fedora: an RPM is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+- Fedora: use the [Copr repository](https://copr.fedorainfracloud.org/coprs/ilyaz/LACT/), or download an RPM from [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 - Gentoo: Available in [GURU](https://github.com/gentoo/guru/tree/master/sys-apps/lact).
 - OpenSUSE: an RPM is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
@@ -32,6 +36,8 @@ Current features:
 
 **Why is there no AppImage/Flatpak/other universal format?**
 See [here](./pkg/README.md).
+
+Note: Nvidia support requires the Nvidia proprietary driver with CUDA libraries installed.
 
 ## Development builds
 
@@ -48,6 +54,8 @@ sudo systemctl enable --now lactd
 You can now use the GUI to change settings and view information.
 
 # Hardware support
+
+## AMD
 
 LACT for the most part does not implement features on a per-generation basis, rather it exposes the functionality that is available in the driver for the current system.
 However the following table shows what functionality can be expected for a given generation.
@@ -67,10 +75,14 @@ However the following table shows what functionality can be expected for a given
 | Vega                                | Supported            | Supported   | Supported    | Supported   |                                                   |
 | RDNA1 (RX 5000)                     | Supported            | Supported   | Supported    | Supported   |                                                   |
 | RDNA2 (RX 6000)                     | Supported            | Supported   | Supported    | Supported   |                                                   |
-| RDNA3 (RX 7000)                     | Supported            | Limited     | Supported    | Limited     | There is an unconfigurable temperature threshold below which the fan does not get turned on, even with a custom curve. The power cap is also sometimes lower than it should be. Requires kernel 6.7+. See [#255](https://github.com/ilya-zlobintsev/LACT/issues/255) for more info.   | 
+| RDNA3 (RX 7000)                     | Supported            | Limited     | Supported    | Limited     | Fan zero RPM mode is enabled by default even with a custom fan curve, and requires kernel 6.13 (`linux-next` when writing this) to be disabled. The power cap is sometimes reported lower than it should be. See [#255](https://github.com/ilya-zlobintsev/LACT/issues/255) for more info.   | 
 
 GPUs not listed here will still work, but might not have full functionality available.
 Monitoring/system info will be available everywhere. Integrated GPUs might also only have basic configuration available.
+
+## Nvidia
+
+Anything Maxwell or newer should work, but generation support has not yet been tested thoroughly.
 
 # Configuration
 
@@ -86,7 +98,7 @@ However, some systems may have different user configuration. In particular, this
 
 To fix socket permissions in such configurations, edit `/etc/lact/config.yaml` and add your username or group as the first entry in `admin_groups` under `daemon`, and restart the service (`sudo systemctl restart lactd`).
 
-# Overclocking
+# Overclocking (AMD)
 
 The overclocking functionality is disabled by default in the driver. There are two ways to enable it:
 - By using the "enable overclocking" option in the LACT GUI. This will create a file in `/etc/modprobe.d` that enables the required driver options. This is the easiest way and it should work for most people.
@@ -102,14 +114,18 @@ As some of the GPU settings may get reset when suspending the system, LACT will 
 # Building from source
 
 Dependencies:
-- rust
-- gtk4
+- rust 1.76+
+- gtk 4.6+
 - git
 - pkg-config
 - make
 - hwdata
 - libdrm
-- blueprint-compiler 0.10.0 or higher (Ubuntu 22.04 in particular ships an older version in the repos, you can manually download a [deb file](http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb) of a new version)
+- blueprint-compiler 0.10.0+ (Ubuntu 22.04 in particular ships an older version in the repos, you can manually download a [deb file](http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb) of a new version)
+
+Command to install all dependencies:
+- Fedora: `sudo dnf install rust cargo make git gtk4-devel libdrm-devel blueprint-compiler`
+- Arch: `sudo pacman -S --needed base-devel git make rust gtk4 hwdata blueprint-compiler`
 
 Steps:
 - `git clone https://github.com/ilya-zlobintsev/LACT && cd LACT`

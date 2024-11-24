@@ -26,7 +26,7 @@ pub const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 
 pub use server::system::MODULE_CONF_PATH;
 
-const MIN_SYSTEM_UPTIME_SECS: f32 = 10.0;
+const MIN_SYSTEM_UPTIME_SECS: f32 = 15.0;
 const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
     SignalKind::terminate(),
     SignalKind::interrupt(),

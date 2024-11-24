@@ -1,6 +1,6 @@
 [package]
 name = "lact-daemon"
-version = "0.5.7"
+version = "0.6.1"
 edition = "2021"
 
 [features]
@@ -31,6 +31,8 @@ futures = { workspace = true }
 indexmap = { workspace = true }
 divan = { workspace = true, optional = true }
 
+nvml-wrapper = { git = "https://github.com/ilya-zlobintsev/nvml-wrapper", branch = "lact" }
+bitflags = "2.6.0"
 pciid-parser = { version = "0.7", features = ["serde"] }
 serde_yaml = "0.9"
 vulkano = { version = "0.34.1", default-features = false }
