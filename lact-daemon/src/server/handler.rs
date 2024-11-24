@@ -251,8 +251,6 @@ impl<'a> Handler {
                     match result {
                         Ok(ConfirmCommand::Confirm) => {
                             info!("saving updated config");
-                            *handler.config_last_saved.lock().unwrap() = Instant::now();
-
                             let mut config_guard = handler.config.borrow_mut();
                             match config_guard.gpus_mut() {
                                 Ok(gpus) => {
@@ -261,11 +259,9 @@ impl<'a> Handler {
                                 Err(err) => error!("{err:#}"),
                             }
 
-                            if let Err(err) = config_guard.save() {
+                            if let Err(err) = config_guard.save(&handler.config_last_saved) {
                                 error!("{err:#}");
                             }
-
-                            *handler.config_last_saved.lock().unwrap() = Instant::now();
                         }
                         Ok(ConfirmCommand::Revert) | Err(_) => {
                             if let Err(err) = controller.apply_config(&previous_config).await {
@@ -668,7 +664,7 @@ impl<'a> Handler {
         self.config.borrow_mut().current_profile = name;
 
         self.apply_current_config().await?;
-        self.config.borrow_mut().save()?;
+        self.config.borrow_mut().save(&self.config_last_saved)?;
 
         Ok(())
     }
@@ -685,7 +681,7 @@ impl<'a> Handler {
             ProfileBase::Profile(name) => config.profile(&name)?.clone(),
         };
         config.profiles.insert(name, profile);
-        config.save()?;
+        config.save(&self.config_last_saved)?;
         Ok(())
     }
 
@@ -694,7 +690,7 @@ impl<'a> Handler {
             self.set_profile(None).await?;
         }
         self.config.borrow_mut().profiles.shift_remove(&name);
-        self.config.borrow().save()?;
+        self.config.borrow().save(&self.config_last_saved)?;
         Ok(())
     }
 
@@ -718,12 +714,9 @@ impl<'a> Handler {
         let mut config = self.config.borrow_mut();
         config.clear();
 
-        *self.config_last_saved.lock().unwrap() = Instant::now();
-        if let Err(err) = config.save() {
+        if let Err(err) = config.save(&self.config_last_saved) {
             error!("could not save config: {err:#}");
         }
-
-        *self.config_last_saved.lock().unwrap() = Instant::now();
     }
 
     pub async fn cleanup(&self) {

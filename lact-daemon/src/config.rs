@@ -21,6 +21,8 @@ const FILE_NAME: &str = "config.yaml";
 const DEFAULT_ADMIN_GROUPS: [&str; 2] = ["wheel", "sudo"];
 /// Minimum amount of time between separate config reloads
 const CONFIG_RELOAD_INTERVAL_MILLIS: u64 = 50;
+/// Period when config changes are ignored after LACT itself has edited the config
+const SELF_CONFIG_EDIT_PERIOD_MILLIS: u64 = 1000;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Config {
@@ -175,11 +177,16 @@ impl Config {
         }
     }
 
-    pub fn save(&self) -> anyhow::Result<()> {
+    pub fn save(&self, config_last_saved: &Mutex<Instant>) -> anyhow::Result<()> {
         let path = get_path();
         debug!("saving config to {path:?}");
         let raw_config = serde_yaml::to_string(self)?;
-        fs::write(path, raw_config).context("Could not write config")
+
+        let mut instant_guard = config_last_saved.lock().unwrap();
+        fs::write(path, raw_config).context("Could not write config")?;
+        *instant_guard = Instant::now();
+
+        Ok(())
     }
 
     pub fn load_or_create() -> anyhow::Result<Self> {
@@ -187,7 +194,7 @@ impl Config {
             Ok(config)
         } else {
             let config = Config::default();
-            config.save()?;
+            config.save(&Mutex::new(Instant::now()))?;
             Ok(config)
         }
     }
@@ -268,7 +275,7 @@ pub fn start_watcher(config_last_saved: Arc<Mutex<Instant>>) -> mpsc::UnboundedR
                         event.kind
                     {
                         if config_last_saved.lock().unwrap().elapsed()
-                            < Duration::from_millis(CONFIG_RELOAD_INTERVAL_MILLIS)
+                            < Duration::from_millis(SELF_CONFIG_EDIT_PERIOD_MILLIS)
                         {
                             debug!("ignoring fs event after self-inflicted config change");
                             continue;

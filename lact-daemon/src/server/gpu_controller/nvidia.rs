@@ -21,12 +21,11 @@ use nvml_wrapper::{
     Device, Nvml,
 };
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::HashMap,
     fmt::Write,
     path::{Path, PathBuf},
     rc::Rc,
-    sync::atomic::{AtomicI32, Ordering},
     time::{Duration, Instant},
 };
 use tokio::{select, sync::Notify, time::sleep};
@@ -39,8 +38,8 @@ pub struct NvidiaGpuController {
     pub sysfs_path: PathBuf,
     pub fan_control_handle: RefCell<Option<FanControlHandle>>,
 
-    last_applied_gpc_offset: Rc<AtomicI32>,
-    last_applied_mem_offset: Rc<AtomicI32>,
+    last_applied_gpc_offset: Cell<Option<i32>>,
+    last_applied_mem_offset: Cell<Option<i32>>,
 }
 
 impl NvidiaGpuController {
@@ -56,8 +55,8 @@ impl NvidiaGpuController {
             pci_info,
             sysfs_path,
             fan_control_handle: RefCell::new(None),
-            last_applied_gpc_offset: Rc::new(AtomicI32::new(0)),
-            last_applied_mem_offset: Rc::new(AtomicI32::new(0)),
+            last_applied_gpc_offset: Cell::new(None),
+            last_applied_mem_offset: Cell::new(None),
         }
     }
 
@@ -488,11 +487,11 @@ impl GpuController for NvidiaGpuController {
 
         if let Ok(max) = device.max_clock_info(Clock::Graphics) {
             if let Ok(offset_range) = device.gpc_clk_min_max_vf_offset() {
-                if let Ok(mut offset) = device.gpc_clk_vf_offset() {
-                    if !(offset_range.0..offset_range.1).contains(&offset) {
-                        offset = self.last_applied_gpc_offset.load(Ordering::SeqCst);
-                    }
-
+                if let Some(offset) = self
+                    .last_applied_gpc_offset
+                    .get()
+                    .or_else(|| device.gpc_clk_vf_offset().ok())
+                {
                     gpc = Some(NvidiaClockInfo {
                         max: max as i32,
                         offset,
@@ -504,11 +503,11 @@ impl GpuController for NvidiaGpuController {
 
         if let Ok(max) = device.max_clock_info(Clock::Memory) {
             if let Ok(offset_range) = device.mem_clk_min_max_vf_offset() {
-                if let Ok(mut offset) = device.mem_clk_vf_offset() {
-                    if !(offset_range.0..offset_range.1).contains(&offset) {
-                        offset = self.last_applied_mem_offset.load(Ordering::SeqCst);
-                    }
-
+                if let Some(offset) = self
+                    .last_applied_mem_offset
+                    .get()
+                    .or_else(|| device.mem_clk_vf_offset().ok())
+                {
                     mem = Some(NvidiaClockInfo {
                         max: max as i32,
                         offset,
@@ -586,13 +585,15 @@ impl GpuController for NvidiaGpuController {
                     .max_clock_info(Clock::Graphics)
                     .context("Could not read max graphics clock")?;
                 let offset = max_gpu_clock - default_max_clock as i32;
-                debug!("Using graphics clock offset {offset}");
+                debug!(
+                    "Using graphics clock offset {offset} (default max clock: {default_max_clock})"
+                );
 
                 device
                     .set_gpc_clk_vf_offset(offset)
                     .context("Could not set graphics clock offset")?;
 
-                self.last_applied_gpc_offset.store(offset, Ordering::SeqCst);
+                self.last_applied_gpc_offset.set(Some(offset));
             }
 
             if let Some(max_mem_clock) = config.clocks_configuration.max_memory_clock {
@@ -600,13 +601,13 @@ impl GpuController for NvidiaGpuController {
                     .max_clock_info(Clock::Memory)
                     .context("Could not read max memory clock")?;
                 let offset = max_mem_clock - default_max_clock as i32;
-                debug!("Using mem clock offset {offset}");
+                debug!("Using mem clock offset {offset} (default max clock: {default_max_clock})");
 
                 device
                     .set_mem_clk_vf_offset(offset)
                     .context("Could not set memory clock offset")?;
 
-                self.last_applied_mem_offset.store(offset, Ordering::SeqCst);
+                self.last_applied_mem_offset.set(Some(offset));
             }
 
             if config.fan_control_enabled {
@@ -654,7 +655,7 @@ impl GpuController for NvidiaGpuController {
                     .set_gpc_clk_vf_offset(0)
                     .context("Could not reset graphics clock offset")?;
 
-                self.last_applied_gpc_offset.store(0, Ordering::SeqCst);
+                self.last_applied_gpc_offset.set(None);
             }
         }
 
@@ -664,7 +665,7 @@ impl GpuController for NvidiaGpuController {
                     .set_mem_clk_vf_offset(0)
                     .context("Could not reset memory clock offset")?;
 
-                self.last_applied_mem_offset.store(0, Ordering::SeqCst);
+                self.last_applied_mem_offset.set(None);
             }
         }
 
