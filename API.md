@@ -25,6 +25,13 @@ Example response:
 {"status":"ok","data":[{"id":"1002:687F-1043:0555-0000:0b:00.0","name":"Vega 10 XL/XT [Radeon RX Vega 56/64]"}]}
 ```
 
+Here's an example of calling the API with arguments to change a profile:
+```
+echo '{"command": "set_profile", "args": {"name":"name-of-the-profile"}}' | ncat -U /run/lactd.sock
+```
+In this code, `name-of-the-profile` should be replaced with the name of a profile that you've already created in LACT.
+
+
 # Commands
 
 For the full list of available commands and responses, you can look at the source code of the schema: [requests](lact-schema/src/request.rs), [the basic response structure](lact-schema/src/response.rs) and [all possible types](lact-schema/src/lib.rs).
