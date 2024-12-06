@@ -236,7 +236,10 @@ impl Component for Header {
             HeaderMsg::SelectGpu => sender.output(AppMsg::ReloadData { full: true }).unwrap(),
             HeaderMsg::AutoProfileSwitch(auto_switch) => {
                 let msg = AppMsg::SelectProfile {
-                    profile: self.selected_profile().filter(|_| !auto_switch),
+                    profile: self
+                        .selected_profile()
+                        .filter(|_| !auto_switch)
+                        .map(str::to_owned),
                     auto_switch,
                 };
                 sender.output(msg).unwrap();
@@ -244,10 +247,10 @@ impl Component for Header {
             HeaderMsg::SelectProfile => {
                 let profile = self.selected_profile();
 
-                if self.profiles_info.current_profile.as_deref() != profile.as_deref() {
+                if self.profiles_info.current_profile.as_deref() != profile {
                     sender
                         .output(AppMsg::SelectProfile {
-                            profile,
+                            profile: profile.map(str::to_owned),
                             auto_switch: false,
                         })
                         .unwrap();
@@ -272,17 +275,13 @@ impl Component for Header {
 
 impl Header {
     fn set_profiles_info(&mut self, profiles_info: ProfilesInfo) {
+        if self.profiles_info == profiles_info {
+            return;
+        }
+
         // self.profile_selector
         //     .widget()
         //     .block_signal(&self.select_profile_signal_handler);
-
-        let selected_profile_index = profiles_info.current_profile.as_ref().map(|profile| {
-            profiles_info
-                .profiles
-                .iter()
-                .position(|value| value == profile)
-                .expect("Active profile is not in the list")
-        });
 
         let mut profiles = self.profile_selector.guard();
         profiles.clear();
@@ -296,17 +295,27 @@ impl Header {
             });
         }
         profiles.push_back(ProfileRow::Default);
-        let selected_index = selected_profile_index.unwrap_or_else(|| profiles.len() - 1);
+
+        let selected_profile_index = profiles_info.current_profile.as_ref().map(|profile| {
+            profiles_info
+                .profiles
+                .iter()
+                .position(|value| value == profile)
+                .expect("Active profile is not in the list")
+        });
+
+        let new_selected_index = selected_profile_index.unwrap_or_else(|| profiles.len() - 1);
         drop(profiles);
 
-        trace!("selecting profile row");
-        self.profile_selector.widget().select_row(Some(
-            &self
-                .profile_selector
-                .widget()
-                .row_at_index(selected_index as i32)
-                .unwrap(),
-        ));
+        let new_selected_row = self
+            .profile_selector
+            .widget()
+            .row_at_index(new_selected_index as i32)
+            .unwrap();
+
+        self.profile_selector
+            .widget()
+            .select_row(Some(&new_selected_row));
 
         // trace!("unblocking signal");
         // self.profile_selector
@@ -339,22 +348,20 @@ impl Header {
         profiles
     }
 
-    fn selected_profile(&self) -> Option<String> {
+    fn selected_profile(&self) -> Option<&str> {
         self.profile_selector
             .widget()
             .selected_row()
             .and_then(|row| self.profile_selector.get(row.index() as usize))
             .and_then(|item| match item {
                 ProfileRow::Default => None,
-                ProfileRow::Profile { name, .. } => Some(name.clone()),
+                ProfileRow::Profile { name, .. } => Some(name.as_str()),
             })
     }
 
     fn update_label(&mut self) {
         let gpu_index = self.gpu_selector.selection_model.selected();
-        let profile = self
-            .selected_profile()
-            .unwrap_or_else(|| "Default".to_owned());
+        let profile = self.selected_profile().unwrap_or("Default");
 
         self.selector_label = format!("GPU {gpu_index} | {profile}");
     }
