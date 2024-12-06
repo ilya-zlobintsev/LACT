@@ -1,15 +1,13 @@
 mod gamemode;
 mod process;
-mod rule;
 
 use crate::server::handler::Handler;
 use copes::solver::{PEvent, PID};
 use futures::StreamExt;
 use indexmap::{IndexMap, IndexSet};
+use lact_schema::{ProcessProfileRule, ProfileRule};
 use process::ProcessInfo;
-use rule::{CompiledProcessRule, CompiledRule};
 use std::{rc::Rc, time::Instant};
-use string_interner::{backend::StringBackend, StringInterner};
 use tokio::{
     select,
     sync::{mpsc, Notify},
@@ -28,8 +26,6 @@ enum ProfileWatcherEvent {
 }
 
 pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
-    let mut interner = StringInterner::default();
-
     let profile_rules = handler
         .config
         .borrow()
@@ -37,11 +33,11 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
         .iter()
         .filter_map(|(name, profile)| {
             let rule = profile.rule.as_ref()?;
-            Some((name.clone(), CompiledRule::new(rule, &mut interner)))
+            Some((name.clone(), rule.clone()))
         })
         .collect::<Vec<_>>();
 
-    let process_list = process::load_full_process_list(&mut interner).collect();
+    let process_list = process::load_full_process_list().collect();
 
     let mut state = WatcherState {
         process_list,
@@ -54,7 +50,7 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
     process::start_listener(event_tx.clone());
 
     let mut gamemode_task = None;
-    if let Some(gamemode_proxy) = gamemode::connect(&state.process_list, &interner).await {
+    if let Some(gamemode_proxy) = gamemode::connect(&state.process_list).await {
         match gamemode_proxy.list_games().await {
             Ok(games) => {
                 for (pid, _) in games {
@@ -109,7 +105,7 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
         }
     }
 
-    update_profile(&state, &handler, &profile_rules, &interner).await;
+    update_profile(&state, &handler, &profile_rules).await;
 
     loop {
         select! {
@@ -117,9 +113,9 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
             Some(event) = event_rx.recv() => {
                 trace!("profile watcher event: {event:?}");
                 match event {
-                    ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid, &mut interner) {
+                    ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid, ) {
                         Ok(info) => {
-                            if info.resolve_name(&interner) == gamemode::PROCESS_NAME {
+                            if info.name.as_ref() == gamemode::PROCESS_NAME {
                                 info!("detected gamemode daemon, reloading profile watcher");
                                 handler.start_profile_watcher();
                             }
@@ -141,7 +137,7 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
                     }
                 }
 
-                update_profile(&state, &handler, &profile_rules, &interner).await;
+                update_profile(&state, &handler, &profile_rules).await;
             },
         }
     }
@@ -154,11 +150,10 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
 async fn update_profile(
     state: &WatcherState,
     handler: &Handler,
-    profile_rules: &[(Rc<str>, CompiledRule)],
-    interner: &StringInterner<StringBackend>,
+    profile_rules: &[(Rc<str>, ProfileRule)],
 ) {
     let started_at = Instant::now();
-    let new_profile = evaluate_current_profile(state, profile_rules, interner);
+    let new_profile = evaluate_current_profile(state, profile_rules);
     trace!("evaluated profile rules in {:?}", started_at.elapsed());
 
     if handler.config.borrow().current_profile != new_profile {
@@ -177,17 +172,16 @@ async fn update_profile(
 /// Returns the new active profile
 fn evaluate_current_profile(
     state: &WatcherState,
-    profile_rules: &[(Rc<str>, CompiledRule)],
-    interner: &StringInterner<StringBackend>,
+    profile_rules: &[(Rc<str>, ProfileRule)],
 ) -> Option<Rc<str>> {
     // TODO: fast path to re-evaluate only a single event and not the whole state?
     for pid in state.gamemode_games.iter().rev() {
         for (profile_name, rule) in profile_rules {
-            if let CompiledRule::Gamemode(process_filter) = &rule {
+            if let ProfileRule::Gamemode(process_filter) = &rule {
                 match process_filter {
                     Some(filter) => {
                         if let Some(process) = state.process_list.get(pid) {
-                            if process_rule_matches(filter, process, interner) {
+                            if process_rule_matches(filter, process) {
                                 return Some(profile_name.clone());
                             }
                         }
@@ -200,8 +194,8 @@ fn evaluate_current_profile(
 
     for process in state.process_list.values().rev() {
         for (profile_name, rule) in profile_rules {
-            if let CompiledRule::Process(rule) = &rule {
-                if process_rule_matches(rule, process, interner) {
+            if let ProfileRule::Process(rule) = &rule {
+                if process_rule_matches(rule, process) {
                     return Some(profile_name.clone());
                 }
             }
@@ -212,42 +206,31 @@ fn evaluate_current_profile(
 }
 
 #[inline]
-fn process_rule_matches(
-    rule: &CompiledProcessRule,
-    process: &ProcessInfo,
-    interner: &StringInterner<StringBackend>,
-) -> bool {
-    process.name == rule.name
-        && rule.args.as_ref().map_or(true, |wanted_args| {
-            let wanted_args = interner.resolve(*wanted_args).unwrap();
-            process.resolve_cmdline(interner).contains(wanted_args)
-        })
+fn process_rule_matches(rule: &ProcessProfileRule, process: &ProcessInfo) -> bool {
+    process.name.as_ref() == rule.name
+        && rule
+            .args
+            .as_ref()
+            .map_or(true, |wanted_args| process.cmdline.contains(wanted_args))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        evaluate_current_profile,
-        process::ProcessInfo,
-        rule::{CompiledProcessRule, CompiledRule},
-        WatcherState,
-    };
+    use super::{evaluate_current_profile, process::ProcessInfo, WatcherState};
     use copes::solver::PID;
     use indexmap::{IndexMap, IndexSet};
+    use lact_schema::{ProcessProfileRule, ProfileRule};
     use pretty_assertions::assert_eq;
     use std::rc::Rc;
-    use string_interner::StringInterner;
 
     #[test]
     fn evaluate_basic_profile() {
-        let mut interner = StringInterner::default();
-
         let mut state = WatcherState {
             process_list: IndexMap::from([(
                 PID::from(1),
                 ProcessInfo {
-                    name: interner.get_or_intern("game1"),
-                    cmdline: interner.get_or_intern(""),
+                    name: "game1".into(),
+                    cmdline: "".into(),
                 },
             )]),
             gamemode_games: IndexSet::new(),
@@ -256,15 +239,15 @@ mod tests {
         let profile_rules = vec![
             (
                 "1".into(),
-                CompiledRule::Process(CompiledProcessRule {
-                    name: interner.get_or_intern("game1"),
+                ProfileRule::Process(ProcessProfileRule {
+                    name: "game1".into(),
                     args: None,
                 }),
             ),
             (
                 "2".into(),
-                CompiledRule::Process(CompiledProcessRule {
-                    name: interner.get_or_intern("game2"),
+                ProfileRule::Process(ProcessProfileRule {
+                    name: "game2".into(),
                     args: None,
                 }),
             ),
@@ -272,52 +255,36 @@ mod tests {
 
         assert_eq!(
             Some(Rc::from("1")),
-            evaluate_current_profile(&state, &profile_rules, &interner)
+            evaluate_current_profile(&state, &profile_rules)
         );
 
-        state.process_list.get_mut(&PID::from(1)).unwrap().name = interner.get_or_intern("game2");
+        state.process_list.get_mut(&PID::from(1)).unwrap().name = "game2".into();
         assert_eq!(
             Some(Rc::from("2")),
-            evaluate_current_profile(&state, &profile_rules, &interner)
+            evaluate_current_profile(&state, &profile_rules)
         );
 
-        state.process_list.get_mut(&PID::from(1)).unwrap().name = interner.get_or_intern("game3");
-        assert_eq!(
-            None,
-            evaluate_current_profile(&state, &profile_rules, &interner)
-        );
+        state.process_list.get_mut(&PID::from(1)).unwrap().name = "game3".into();
+        assert_eq!(None, evaluate_current_profile(&state, &profile_rules));
     }
 }
 
 #[cfg(feature = "bench")]
 mod benches {
-    use super::{
-        evaluate_current_profile,
-        process::ProcessInfo,
-        rule::{CompiledProcessRule, CompiledRule},
-        WatcherState,
-    };
+    use super::{evaluate_current_profile, process::ProcessInfo, WatcherState};
     use copes::solver::PID;
     use divan::Bencher;
     use indexmap::IndexSet;
+    use lact_schema::{ProcessProfileRule, ProfileRule};
     use std::{hint::black_box, rc::Rc};
-    use string_interner::StringInterner;
 
     #[divan::bench(sample_size = 1000, min_time = 2)]
     fn evaluate_profiles(bencher: Bencher) {
-        let mut interner = StringInterner::default();
-
         let process_list = (1..2000)
             .map(|id| {
-                let name = format!("process-{id}");
-                let cmdline = format!("{name} arg1 arg2 --arg3");
-                (
-                    PID::from(id),
-                    ProcessInfo {
-                        name: interner.get_or_intern(name),
-                        cmdline: interner.get_or_intern(cmdline),
-                    },
-                )
+                let name = format!("process-{id}").into();
+                let cmdline = format!("{name} arg1 arg2 --arg3").into();
+                (PID::from(id), ProcessInfo { name, cmdline })
             })
             .collect();
 
@@ -329,26 +296,22 @@ mod benches {
         let profile_rules = vec![
             (
                 "1".into(),
-                CompiledRule::Process(CompiledProcessRule {
-                    name: interner.get_or_intern("game-abc"),
+                ProfileRule::Process(ProcessProfileRule {
+                    name: "game-abc".to_owned(),
                     args: None,
                 }),
             ),
             (
                 "2".into(),
-                CompiledRule::Process(CompiledProcessRule {
-                    name: interner.get_or_intern("game-1034"),
+                ProfileRule::Process(ProcessProfileRule {
+                    name: "game-1034".to_owned(),
                     args: None,
                 }),
             ),
         ];
 
         bencher.bench_local(move || -> Option<Rc<str>> {
-            evaluate_current_profile(
-                black_box(&state),
-                black_box(&profile_rules),
-                black_box(&interner),
-            )
+            evaluate_current_profile(black_box(&state), black_box(&profile_rules))
         });
     }
 }
