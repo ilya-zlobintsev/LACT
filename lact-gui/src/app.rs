@@ -39,7 +39,12 @@ use relm4::{
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio, AsyncComponentSender, Component, ComponentController,
 };
-use std::{os::unix::net::UnixStream, rc::Rc, sync::atomic::AtomicBool, time::Duration};
+use std::{
+    os::unix::net::UnixStream,
+    rc::Rc,
+    sync::{atomic::AtomicBool, Arc},
+    time::Duration,
+};
 use tracing::{debug, error, info, trace, warn};
 
 const STATS_POLL_INTERVAL_MS: u64 = 250;
@@ -262,7 +267,7 @@ impl AppModel {
         sender: AsyncComponentSender<Self>,
         root: &gtk::ApplicationWindow,
         widgets: &AppModelWidgets,
-    ) -> Result<(), Rc<anyhow::Error>> {
+    ) -> Result<(), Arc<anyhow::Error>> {
         match msg {
             AppMsg::Error(err) => return Err(err),
             AppMsg::ReloadProfiles => {
@@ -277,19 +282,31 @@ impl AppModel {
                     self.update_gpu_data(gpu_id, sender).await?;
                 }
             }
-            AppMsg::SelectProfile(profile) => {
-                self.daemon_client.set_profile(profile).await?;
-                sender.input(AppMsg::ReloadData { full: false });
+            AppMsg::SelectProfile {
+                profile,
+                auto_switch,
+            } => {
+                self.daemon_client.set_profile(profile, auto_switch).await?;
+                sender.input(AppMsg::ReloadProfiles);
             }
             AppMsg::CreateProfile(name, base) => {
                 self.daemon_client
                     .create_profile(name.clone(), base)
                     .await?;
-                self.daemon_client.set_profile(Some(name)).await?;
+
+                let auto_switch = self.header.model().auto_switch_profiles();
+                self.daemon_client
+                    .set_profile(Some(name), auto_switch)
+                    .await?;
+
                 sender.input(AppMsg::ReloadProfiles);
             }
             AppMsg::DeleteProfile(profile) => {
                 self.daemon_client.delete_profile(profile).await?;
+                sender.input(AppMsg::ReloadProfiles);
+            }
+            AppMsg::MoveProfile(name, new_position) => {
+                self.daemon_client.move_profile(name, new_position).await?;
                 sender.input(AppMsg::ReloadProfiles);
             }
             AppMsg::Stats(stats) => {
@@ -389,11 +406,11 @@ impl AppModel {
             .get_device_info(&gpu_id)
             .await
             .context("Could not fetch info")?;
-        let info = Rc::new(info_buf.inner()?);
+        let info = Arc::new(info_buf.inner()?);
 
         // Plain `nvidia` means that the nvidia driver is loaded, but it does not contain a version fetched from NVML
         if info.driver == "nvidia" {
-            sender.input(AppMsg::Error(Rc::new(anyhow!("Nvidia driver detected, but the management library could not be loaded. Check lact service status for more information."))));
+            sender.input(AppMsg::Error(Arc::new(anyhow!("Nvidia driver detected, but the management library could not be loaded. Check lact service status for more information."))));
         }
 
         self.info_page.emit(PageUpdate::Info(info.clone()));
@@ -433,7 +450,7 @@ impl AppModel {
             .await
             .context("Could not fetch stats")?
             .inner()?;
-        let stats = Rc::new(stats);
+        let stats = Arc::new(stats);
 
         self.oc_page.set_stats(&stats, true);
         self.thermals_page.set_stats(&stats, true);
@@ -514,6 +531,7 @@ impl AppModel {
             gpu_id.to_owned(),
             self.daemon_client.clone(),
             sender,
+            self.header.sender().clone(),
         ));
 
         Ok(())
@@ -889,6 +907,7 @@ fn start_stats_update_loop(
     gpu_id: String,
     daemon_client: DaemonClient,
     sender: AsyncComponentSender<AppModel>,
+    header_sender: relm4::Sender<HeaderMsg>,
 ) -> glib::JoinHandle<()> {
     debug!("spawning new stats update task with {STATS_POLL_INTERVAL_MS}ms interval");
     let duration = Duration::from_millis(STATS_POLL_INTERVAL_MS);
@@ -902,10 +921,23 @@ fn start_stats_update_loop(
                 .and_then(|buffer| buffer.inner())
             {
                 Ok(stats) => {
-                    sender.input(AppMsg::Stats(Rc::new(stats)));
+                    sender.input(AppMsg::Stats(Arc::new(stats)));
                 }
                 Err(err) => {
                     error!("could not fetch stats: {err:#}");
+                }
+            }
+
+            match daemon_client
+                .list_profiles()
+                .await
+                .and_then(|buffer| buffer.inner())
+            {
+                Ok(profiles) => {
+                    let _ = header_sender.send(HeaderMsg::Profiles(profiles));
+                }
+                Err(err) => {
+                    error!("could not fetch profile info: {err:#}");
                 }
             }
         }

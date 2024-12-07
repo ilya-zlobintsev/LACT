@@ -4,15 +4,14 @@ pub mod oc_page;
 pub mod software_page;
 pub mod thermals_page;
 
-use std::rc::Rc;
-
 use gtk::{prelude::*, *};
 use lact_schema::{DeviceInfo, DeviceStats};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum PageUpdate {
-    Info(Rc<DeviceInfo>),
-    Stats(Rc<DeviceStats>),
+    Info(Arc<DeviceInfo>),
+    Stats(Arc<DeviceStats>),
 }
 
 fn values_row<W: IsA<Widget>>(

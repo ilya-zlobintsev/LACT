@@ -4,7 +4,10 @@ use super::{
 };
 use crate::{
     config::{self, default_fan_static_speed, Config, FanControlSettings, Profile},
-    server::gpu_controller::{AmdGpuController, NvidiaGpuController},
+    server::{
+        gpu_controller::{AmdGpuController, NvidiaGpuController},
+        profiles,
+    },
 };
 use amdgpu_sysfs::{
     gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind},
@@ -24,7 +27,7 @@ use os_release::OS_RELEASE;
 use pciid_parser::Database;
 use serde_json::json;
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap},
     env,
     fs::{self, File, Permissions},
@@ -32,10 +35,13 @@ use std::{
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     rc::Rc,
-    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use tokio::{process::Command, sync::oneshot, time::sleep};
+use tokio::{
+    process::Command,
+    sync::{oneshot, Notify},
+    time::sleep,
+};
 use tracing::{debug, error, info, trace, warn};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
@@ -84,7 +90,8 @@ pub struct Handler {
     pub config: Rc<RefCell<Config>>,
     pub gpu_controllers: Rc<BTreeMap<String, Box<dyn GpuController>>>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
-    pub config_last_saved: Arc<Mutex<Instant>>,
+    pub config_last_saved: Rc<Cell<Instant>>,
+    pub profile_watcher_stop_notify: Rc<RefCell<Option<Rc<Notify>>>>,
 }
 
 impl<'a> Handler {
@@ -139,10 +146,15 @@ impl<'a> Handler {
             gpu_controllers: Rc::new(controllers),
             config: Rc::new(RefCell::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
-            config_last_saved: Arc::new(Mutex::new(Instant::now())),
+            config_last_saved: Rc::new(Cell::new(Instant::now())),
+            profile_watcher_stop_notify: Rc::new(RefCell::new(None)),
         };
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
+        }
+
+        if handler.config.borrow().auto_switch_profiles {
+            handler.start_profile_watcher();
         }
 
         // Eagerly release memory
@@ -171,6 +183,21 @@ impl<'a> Handler {
         }
 
         Ok(())
+    }
+
+    fn stop_profile_watcher(&self) {
+        if let Some(existing_stop_notify) = self.profile_watcher_stop_notify.borrow_mut().take() {
+            existing_stop_notify.notify_one();
+        }
+    }
+
+    pub fn start_profile_watcher(&self) {
+        self.stop_profile_watcher();
+
+        let new_notify = Rc::new(Notify::new());
+        *self.profile_watcher_stop_notify.borrow_mut() = Some(new_notify.clone());
+        tokio::task::spawn_local(profiles::run_watcher(self.clone(), new_notify));
+        info!("started new profile watcher");
     }
 
     async fn edit_gpu_config<F: FnOnce(&mut config::Gpu)>(
@@ -251,6 +278,7 @@ impl<'a> Handler {
                     match result {
                         Ok(ConfirmCommand::Confirm) => {
                             info!("saving updated config");
+
                             let mut config_guard = handler.config.borrow_mut();
                             match config_guard.gpus_mut() {
                                 Ok(gpus) => {
@@ -652,10 +680,28 @@ impl<'a> Handler {
         ProfilesInfo {
             profiles: config.profiles.keys().cloned().collect(),
             current_profile: config.current_profile.clone(),
+            auto_switch: config.auto_switch_profiles,
         }
     }
 
-    pub async fn set_profile(&self, name: Option<String>) -> anyhow::Result<()> {
+    pub async fn set_profile(
+        &self,
+        name: Option<Rc<str>>,
+        auto_switch: bool,
+    ) -> anyhow::Result<()> {
+        if auto_switch {
+            self.start_profile_watcher();
+        } else {
+            self.set_current_profile(name).await?;
+            self.stop_profile_watcher();
+        }
+        self.config.borrow_mut().auto_switch_profiles = auto_switch;
+        self.config.borrow_mut().save(&self.config_last_saved)?;
+
+        Ok(())
+    }
+
+    pub(super) async fn set_current_profile(&self, name: Option<Rc<str>>) -> anyhow::Result<()> {
         if let Some(name) = &name {
             self.config.borrow().profile(name)?;
         }
@@ -671,7 +717,7 @@ impl<'a> Handler {
 
     pub fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
         let mut config = self.config.borrow_mut();
-        if config.profiles.contains_key(&name) {
+        if config.profiles.contains_key(name.as_str()) {
             bail!("Profile {name} already exists");
         }
 
@@ -680,17 +726,41 @@ impl<'a> Handler {
             ProfileBase::Default => config.default_profile(),
             ProfileBase::Profile(name) => config.profile(&name)?.clone(),
         };
-        config.profiles.insert(name, profile);
+        config.profiles.insert(name.into(), profile);
         config.save(&self.config_last_saved)?;
         Ok(())
     }
 
     pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
-        if self.config.borrow().current_profile.as_ref() == Some(&name) {
-            self.set_profile(None).await?;
+        self.config
+            .borrow_mut()
+            .profiles
+            .shift_remove(name.as_str());
+        if self.config.borrow().current_profile.as_deref() == Some(&name) {
+            let auto_switch = self.config.borrow().auto_switch_profiles;
+            self.set_profile(None, auto_switch).await?;
         }
-        self.config.borrow_mut().profiles.shift_remove(&name);
+
         self.config.borrow().save(&self.config_last_saved)?;
+
+        Ok(())
+    }
+
+    pub fn move_profile(&self, name: &str, new_position: usize) -> anyhow::Result<()> {
+        let mut config = self.config.borrow_mut();
+
+        let current_index = config
+            .profiles
+            .get_index_of(name)
+            .with_context(|| format!("Profile {name} not found"))?;
+
+        if new_position >= config.profiles.len() {
+            bail!("Provided index is out of bounds");
+        }
+
+        config.profiles.swap_indices(current_index, new_position);
+        config.save(&self.config_last_saved)?;
+
         Ok(())
     }
 
