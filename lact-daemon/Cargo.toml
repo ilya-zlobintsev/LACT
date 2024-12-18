@@ -40,3 +40,6 @@ tar = "0.4.40"
 libflate = "2.0.0"
 os-release = "0.1.0"
 notify = { version = "6.1.1", default-features = false }
+
+[dev-dependencies]
+insta = { version = "1.41.1", features = ["json"] }

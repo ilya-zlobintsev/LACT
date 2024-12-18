@@ -1,0 +1,8 @@
+NUM        MODE_NAME BUSY_SET_POINT FPS USE_RLC_BUSY MIN_ACTIVE_LEVEL
+  0 BOOTUP_DEFAULT*:             70  60          0              0
+  1 3D_FULL_SCREEN :             70  60          1              3
+  2   POWER_SAVING :             90  60          0              0
+  3          VIDEO :             70  60          0              0
+  4             VR :             70  90          0              0
+  5        COMPUTE :             30  60          0              6
+  6         CUSTOM :              0   0          0              0
