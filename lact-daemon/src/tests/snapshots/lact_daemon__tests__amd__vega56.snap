@@ -118,6 +118,115 @@ expression: device_info
       "vendor_id": "1043"
     }
   },
+  "power_profile_modes": {
+    "active": 0,
+    "modes": {
+      "0": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              70,
+              60,
+              0,
+              0
+            ]
+          }
+        ],
+        "name": "BOOTUP_DEFAULT"
+      },
+      "1": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              70,
+              60,
+              1,
+              3
+            ]
+          }
+        ],
+        "name": "3D_FULL_SCREEN"
+      },
+      "2": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              90,
+              60,
+              0,
+              0
+            ]
+          }
+        ],
+        "name": "POWER_SAVING"
+      },
+      "3": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              70,
+              60,
+              0,
+              0
+            ]
+          }
+        ],
+        "name": "VIDEO"
+      },
+      "4": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              70,
+              90,
+              0,
+              0
+            ]
+          }
+        ],
+        "name": "VR"
+      },
+      "5": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              30,
+              60,
+              0,
+              6
+            ]
+          }
+        ],
+        "name": "COMPUTE"
+      },
+      "6": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "name": "CUSTOM"
+      }
+    },
+    "value_names": [
+      "BUSY_SET_POINT",
+      "FPS",
+      "USE_RLC_BUSY",
+      "MIN_ACTIVE_LEVEL"
+    ]
+  },
   "stats": {
     "busy_percent": 0,
     "clockspeed": {

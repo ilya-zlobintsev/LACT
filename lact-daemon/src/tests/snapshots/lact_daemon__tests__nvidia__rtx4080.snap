@@ -37,6 +37,7 @@ expression: device_info
       "vendor_id": "1462"
     }
   },
+  "power_profile_modes": null,
   "stats": {
     "clockspeed": {},
     "fan": {

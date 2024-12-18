@@ -1,0 +1,96 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": null,
+  "info": {
+    "driver": "amdgpu",
+    "link_info": {
+      "current_speed": "16.0 GT/s PCIe",
+      "current_width": "8"
+    },
+    "pci_info": {
+      "device_pci_info": {
+        "model": "Navi 33 [Radeon RX 7600/7600 XT/7600M XT/7600S/7700S / PRO W7600]",
+        "model_id": "7480",
+        "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+        "vendor_id": "1002"
+      },
+      "subsystem_pci_info": {
+        "model_id": "0007",
+        "vendor": "Framework Computer Inc.",
+        "vendor_id": "F111"
+      }
+    },
+    "vbios_version": "113-BRT125778.001"
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "Navi 33 [Radeon RX 7600/7600 XT/7600M XT/7600S/7700S / PRO W7600]",
+      "model_id": "7480",
+      "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "vendor_id": "1002"
+    },
+    "subsystem_pci_info": {
+      "model_id": "0007",
+      "vendor": "Framework Computer Inc.",
+      "vendor_id": "F111"
+    }
+  },
+  "power_profile_modes": {
+    "active": 0,
+    "modes": {
+      "0": {
+        "components": [],
+        "name": "BOOTUP_DEFAULT"
+      }
+    },
+    "value_names": []
+  },
+  "stats": {
+    "busy_percent": 0,
+    "clockspeed": {
+      "gpu_clockspeed": 0,
+      "vram_clockspeed": 96
+    },
+    "core_power_state": 1,
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {},
+      "pwm_current": 76,
+      "speed_current": 0,
+      "speed_max": 4900,
+      "speed_min": 0
+    },
+    "memory_power_state": 0,
+    "power": {
+      "average": 1.0,
+      "cap_current": 100.0,
+      "cap_default": 100.0,
+      "cap_max": 120.0,
+      "cap_min": 100.0
+    },
+    "temps": {
+      "edge": {
+        "crit": 100.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 34.0
+      },
+      "junction": {
+        "crit": 100.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 34.0
+      },
+      "mem": {
+        "crit": 105.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 42.0
+      }
+    },
+    "voltage": {
+      "gpu": 18
+    },
+    "vram": {}
+  }
+}

@@ -74,6 +74,351 @@ expression: device_info
       "vendor_id": "1DA2"
     }
   },
+  "power_profile_modes": {
+    "active": 0,
+    "modes": {
+      "0": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              4587520,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3276800,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "BOOTUP_DEFAULT"
+      },
+      "1": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              0,
+              1600,
+              4,
+              650,
+              5242880,
+              -3276,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              655360,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              4,
+              850,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "3D_FULL_SCREEN"
+      },
+      "2": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              3,
+              0,
+              5898240,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3407872,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              3,
+              0,
+              1966080,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "POWER_SAVING"
+      },
+      "3": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              500,
+              4587520,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3473408,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              500,
+              1966080,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "VIDEO"
+      },
+      "4": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              4,
+              1000,
+              1,
+              0,
+              3276800,
+              0,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              655360,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "VR"
+      },
+      "5": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              4,
+              1000,
+              1,
+              0,
+              3932160,
+              0,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              655360,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              4,
+              850,
+              3,
+              0,
+              327680,
+              -65536,
+              -32768
+            ]
+          }
+        ],
+        "name": "COMPUTE"
+      },
+      "6": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              4587520,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3276800,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "CUSTOM"
+      }
+    },
+    "value_names": [
+      "FPS",
+      "MinFreqType",
+      "MinActiveFreqType",
+      "MinActiveFreq",
+      "BoosterFreqType",
+      "BoosterFreq",
+      "PD_Data_limit_c",
+      "PD_Data_error_coeff",
+      "PD_Data_error_rate_coeff"
+    ]
+  },
   "stats": {
     "busy_percent": 3,
     "clockspeed": {

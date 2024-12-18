@@ -114,6 +114,131 @@ expression: device_info
       "vendor_id": "1DA2"
     }
   },
+  "power_profile_modes": {
+    "active": 1,
+    "modes": {
+      "0": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "name": "BOOTUP_DEFAULT"
+      },
+      "1": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0,
+              100,
+              30,
+              10,
+              60,
+              25
+            ]
+          }
+        ],
+        "name": "3D_FULL_SCREEN"
+      },
+      "2": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              10,
+              0,
+              30,
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "name": "POWER_SAVING"
+      },
+      "3": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              null,
+              null,
+              null,
+              10,
+              16,
+              31
+            ]
+          }
+        ],
+        "name": "VIDEO"
+      },
+      "4": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0,
+              11,
+              50,
+              0,
+              100,
+              10
+            ]
+          }
+        ],
+        "name": "VR"
+      },
+      "5": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0,
+              5,
+              30,
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "name": "COMPUTE"
+      },
+      "6": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "name": "CUSTOM"
+      }
+    },
+    "value_names": [
+      "SCLK_UP_HYST",
+      "SCLK_DOWN_HYST",
+      "SCLK_ACTIVE_LEVEL",
+      "MCLK_UP_HYST",
+      "MCLK_DOWN_HYST",
+      "MCLK_ACTIVE_LEVEL"
+    ]
+  },
   "stats": {
     "busy_percent": 11,
     "clockspeed": {
