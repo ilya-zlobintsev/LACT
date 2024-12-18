@@ -678,7 +678,11 @@ impl<'a> Handler {
     pub fn list_profiles(&self) -> ProfilesInfo {
         let config = self.config.borrow();
         ProfilesInfo {
-            profiles: config.profiles.keys().cloned().collect(),
+            profiles: config
+                .profiles
+                .iter()
+                .map(|(name, profile)| (name.clone(), profile.rule.clone()))
+                .collect(),
             current_profile: config.current_profile.clone(),
             auto_switch: config.auto_switch_profiles,
         }
@@ -692,8 +696,8 @@ impl<'a> Handler {
         if auto_switch {
             self.start_profile_watcher();
         } else {
-            self.set_current_profile(name).await?;
             self.stop_profile_watcher();
+            self.set_current_profile(name).await?;
         }
         self.config.borrow_mut().auto_switch_profiles = auto_switch;
         self.config.borrow_mut().save(&self.config_last_saved)?;

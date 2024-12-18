@@ -352,7 +352,7 @@ pub struct FanOptions<'a> {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct ProfilesInfo {
-    pub profiles: Vec<Rc<str>>,
+    pub profiles: IndexMap<Rc<str>, Option<ProfileRule>>,
     pub current_profile: Option<Rc<str>>,
     pub auto_switch: bool,
 }
@@ -366,7 +366,7 @@ pub enum ProfileRule {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct ProcessProfileRule {
     pub name: String,
     pub args: Option<String>,
