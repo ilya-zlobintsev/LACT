@@ -10,23 +10,21 @@ env:
 jobs:
   build-test:
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v2
       - name: Update repos
         run: sudo apt update
       - name: Install dependencies
-        run: sudo apt install libgtk-4-dev pkg-config libvulkan-dev libdrm-dev
-      - name: Install blueprint-compiler
-        run: curl -o /tmp/blueprint-compiler.deb http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb && sudo apt install -y /tmp/blueprint-compiler.deb
+        run: sudo apt install -y libgtk-4-dev pkg-config libvulkan-dev libdrm-dev blueprint-compiler
       - name: Build
         run: cargo build
       - name: Run tests
         run: cargo test --verbose --no-default-features -p lact
 
   check-format:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     steps:
       - uses: actions/checkout@v2
