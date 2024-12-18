@@ -1,0 +1,279 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": {
+    "max_mclk": 920,
+    "max_sclk": 1590,
+    "max_voltage": 1200,
+    "table": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "mclk_levels": [
+            {
+              "clockspeed": 167,
+              "voltage": 800
+            },
+            {
+              "clockspeed": 500,
+              "voltage": 800
+            },
+            {
+              "clockspeed": 700,
+              "voltage": 900
+            },
+            {
+              "clockspeed": 920,
+              "voltage": 950
+            }
+          ],
+          "od_range": {
+            "mclk": {
+              "max": 1500,
+              "min": 167
+            },
+            "sclk": {
+              "max": 2400,
+              "min": 852
+            },
+            "vddc": {
+              "max": 1200,
+              "min": 800
+            }
+          },
+          "sclk_levels": [
+            {
+              "clockspeed": 852,
+              "voltage": 800
+            },
+            {
+              "clockspeed": 991,
+              "voltage": 900
+            },
+            {
+              "clockspeed": 1138,
+              "voltage": 950
+            },
+            {
+              "clockspeed": 1269,
+              "voltage": 1000
+            },
+            {
+              "clockspeed": 1312,
+              "voltage": 1050
+            },
+            {
+              "clockspeed": 1474,
+              "voltage": 1100
+            },
+            {
+              "clockspeed": 1538,
+              "voltage": 1150
+            },
+            {
+              "clockspeed": 1590,
+              "voltage": 1200
+            }
+          ]
+        },
+        "kind": "vega10"
+      }
+    }
+  },
+  "info": {
+    "driver": "amdgpu",
+    "link_info": {
+      "current_speed": "8.0 GT/s PCIe",
+      "current_width": "16",
+      "max_speed": "8.0 GT/s PCIe",
+      "max_width": "16"
+    },
+    "pci_info": {
+      "device_pci_info": {
+        "model": "Vega 10 XL/XT [Radeon RX Vega 56/64]",
+        "model_id": "687F",
+        "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+        "vendor_id": "1002"
+      },
+      "subsystem_pci_info": {
+        "model_id": "0555",
+        "vendor": "ASUSTeK Computer Inc.",
+        "vendor_id": "1043"
+      }
+    },
+    "vbios_version": "115-D050PIL-100"
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "Vega 10 XL/XT [Radeon RX Vega 56/64]",
+      "model_id": "687F",
+      "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "vendor_id": "1002"
+    },
+    "subsystem_pci_info": {
+      "model_id": "0555",
+      "vendor": "ASUSTeK Computer Inc.",
+      "vendor_id": "1043"
+    }
+  },
+  "power_profile_modes": {
+    "active": 0,
+    "modes": {
+      "0": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              70,
+              60,
+              0,
+              0
+            ]
+          }
+        ],
+        "name": "BOOTUP_DEFAULT"
+      },
+      "1": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              70,
+              60,
+              1,
+              3
+            ]
+          }
+        ],
+        "name": "3D_FULL_SCREEN"
+      },
+      "2": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              90,
+              60,
+              0,
+              0
+            ]
+          }
+        ],
+        "name": "POWER_SAVING"
+      },
+      "3": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              70,
+              60,
+              0,
+              0
+            ]
+          }
+        ],
+        "name": "VIDEO"
+      },
+      "4": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              70,
+              90,
+              0,
+              0
+            ]
+          }
+        ],
+        "name": "VR"
+      },
+      "5": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              30,
+              60,
+              0,
+              6
+            ]
+          }
+        ],
+        "name": "COMPUTE"
+      },
+      "6": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "name": "CUSTOM"
+      }
+    },
+    "value_names": [
+      "BUSY_SET_POINT",
+      "FPS",
+      "USE_RLC_BUSY",
+      "MIN_ACTIVE_LEVEL"
+    ]
+  },
+  "stats": {
+    "busy_percent": 0,
+    "clockspeed": {
+      "gpu_clockspeed": 26,
+      "vram_clockspeed": 167
+    },
+    "core_power_state": 0,
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {},
+      "pwm_current": 0,
+      "speed_current": 5,
+      "speed_max": 3500,
+      "speed_min": 0
+    },
+    "memory_power_state": 0,
+    "performance_level": "auto",
+    "power": {
+      "average": 8.0,
+      "cap_current": 260.0,
+      "cap_default": 260.0,
+      "cap_max": 390.0,
+      "cap_min": 0.0
+    },
+    "temps": {
+      "edge": {
+        "crit": 85.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 38.0
+      },
+      "junction": {
+        "crit": 105.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 38.0
+      },
+      "mem": {
+        "crit": 95.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 39.0
+      }
+    },
+    "voltage": {
+      "gpu": 762
+    },
+    "vram": {
+      "total": 8573157376,
+      "used": 16613376
+    }
+  }
+}

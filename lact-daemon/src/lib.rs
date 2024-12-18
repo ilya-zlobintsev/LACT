@@ -5,6 +5,8 @@ mod config;
 mod server;
 mod socket;
 mod suspend;
+#[cfg(test)]
+mod tests;
 
 use anyhow::Context;
 use config::Config;

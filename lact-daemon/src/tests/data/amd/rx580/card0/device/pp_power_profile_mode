@@ -1,0 +1,8 @@
+NUM        MODE_NAME     SCLK_UP_HYST   SCLK_DOWN_HYST SCLK_ACTIVE_LEVEL     MCLK_UP_HYST   MCLK_DOWN_HYST MCLK_ACTIVE_LEVEL
+  0   BOOTUP_DEFAULT:        -                -                -                -                -                -
+  1 3D_FULL_SCREEN *:        0              100               30               10               60               25
+  2     POWER_SAVING:       10                0               30                -                -                -
+  3            VIDEO:        -                -                -               10               16               31
+  4               VR:        0               11               50                0              100               10
+  5          COMPUTE:        0                5               30                -                -                -
+  6           CUSTOM:        -                -                -                -                -                -

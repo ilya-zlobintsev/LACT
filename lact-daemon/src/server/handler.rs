@@ -67,6 +67,8 @@ const SNAPSHOT_DEVICE_FILES: &[&str] = &[
     "current_link_speed",
     "current_link_width",
 ];
+/// Prefixes for entries that will be recursively included in the debug snapshot
+const SNAPSHOT_DEVICE_RECURSIVE_PATHS_PREFIXES: &[&str] = &["tile"];
 const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
     "fan_curve",
     "acoustic_limit_rpm_threshold",
@@ -89,13 +91,25 @@ pub struct Handler {
 
 impl<'a> Handler {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
+        let base_path = match env::var("_LACT_DRM_SYSFS_PATH") {
+            Ok(custom_path) => PathBuf::from(custom_path),
+            Err(_) => PathBuf::from("/sys/class/drm"),
+        };
+        Self::with_base_path(&base_path, config, false).await
+    }
+
+    pub(crate) async fn with_base_path(
+        base_path: &Path,
+        config: Config,
+        sysfs_only: bool,
+    ) -> anyhow::Result<Self> {
         let mut controllers = BTreeMap::new();
 
         // Sometimes LACT starts too early in the boot process, before the sysfs is initialized.
         // For such scenarios there is a retry logic when no GPUs were found,
         // or if some of the PCI devices don't have a drm entry yet.
         for i in 1..=CONTROLLERS_LOAD_RETRY_ATTEMPTS {
-            controllers = load_controllers()?;
+            controllers = load_controllers(base_path, sysfs_only)?;
 
             let mut should_retry = false;
             if let Ok(devices) = fs::read_dir("/sys/bus/pci/devices") {
@@ -538,6 +552,25 @@ impl<'a> Handler {
                 add_path_to_archive(&mut archive, &full_path)?;
             }
 
+            let device_files = fs::read_dir(controller.get_path())
+                .context("Could not read device dir")?
+                .flatten();
+
+            for device_entry in device_files {
+                if let Some(entry_name) = device_entry.file_name().to_str() {
+                    if SNAPSHOT_DEVICE_RECURSIVE_PATHS_PREFIXES
+                        .iter()
+                        .any(|prefix| entry_name.starts_with(prefix))
+                    {
+                        add_path_recursively(
+                            &mut archive,
+                            &device_entry.path(),
+                            controller.get_path(),
+                        )?;
+                    }
+                }
+            }
+
             let fan_ctrl_path = controller_path.join("gpu_od").join("fan_ctrl");
             for fan_ctrl_file in SNAPSHOT_FAN_CTRL_FILES {
                 let full_path = fan_ctrl_path.join(fan_ctrl_file);
@@ -547,7 +580,7 @@ impl<'a> Handler {
             for hw_mon in controller.hw_monitors() {
                 let hw_mon_path = hw_mon.get_path();
                 let hw_mon_entries =
-                    std::fs::read_dir(hw_mon_path).context("Could not read HwMon dir")?;
+                    fs::read_dir(hw_mon_path).context("Could not read HwMon dir")?;
 
                 'entries: for entry in hw_mon_entries.flatten() {
                     if !entry.metadata().is_ok_and(|metadata| metadata.is_file()) {
@@ -599,30 +632,10 @@ impl<'a> Handler {
             Err(err) => Some(err.to_string().into()),
         };
 
-        let devices: BTreeMap<String, serde_json::Value> = self
-            .gpu_controllers
-            .iter()
-            .map(|(id, controller)| {
-                let config = self.config.try_borrow();
-                let gpu_config = config
-                    .as_ref()
-                    .ok()
-                    .and_then(|config| config.gpus().ok()?.get(id));
-
-                let data = json!({
-                    "pci_info": controller.get_pci_info(),
-                    "info": controller.get_info(),
-                    "stats": controller.get_stats(gpu_config),
-                    "clocks_info": controller.get_clocks_info().ok(),
-                });
-                (id.clone(), data)
-            })
-            .collect();
-
         let info = json!({
             "system_info": system_info,
             "initramfs_type": initramfs_type,
-            "devices": devices,
+            "devices": self.generate_snapshot_device_info(),
         });
         let info_data = serde_json::to_vec_pretty(&info).unwrap();
 
@@ -645,6 +658,28 @@ impl<'a> Handler {
             .context("Could not set permissions on output file")?;
 
         Ok(out_path)
+    }
+
+    pub(crate) fn generate_snapshot_device_info(&self) -> BTreeMap<String, serde_json::Value> {
+        self.gpu_controllers
+            .iter()
+            .map(|(id, controller)| {
+                let config = self.config.try_borrow();
+                let gpu_config = config
+                    .as_ref()
+                    .ok()
+                    .and_then(|config| config.gpus().ok()?.get(id));
+
+                let data = json!({
+                    "pci_info": controller.get_pci_info(),
+                    "info": controller.get_info(),
+                    "stats": controller.get_stats(gpu_config),
+                    "clocks_info": controller.get_clocks_info().ok(),
+                    "power_profile_modes": controller.get_power_profile_modes().ok(),
+                });
+                (id.clone(), data)
+            })
+            .collect()
     }
 
     pub fn list_profiles(&self) -> ProfilesInfo {
@@ -743,13 +778,12 @@ impl<'a> Handler {
     }
 }
 
-fn load_controllers() -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>> {
+/// `sysfs_only` disables initialization of any external data sources, such as libdrm and nvml
+fn load_controllers(
+    base_path: &Path,
+    sysfs_only: bool,
+) -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>> {
     let mut controllers = BTreeMap::new();
-
-    let base_path = match env::var("_LACT_DRM_SYSFS_PATH") {
-        Ok(custom_path) => PathBuf::from(custom_path),
-        Err(_) => PathBuf::from("/sys/class/drm"),
-    };
 
     let pci_db = Database::read().unwrap_or_else(|err| {
         warn!("could not read PCI ID database: {err}, device information will be limited");
@@ -759,14 +793,18 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>
         }
     });
 
-    let nvml = match Nvml::init() {
-        Ok(nvml) => {
-            info!("NVML initialized");
-            Some(Rc::new(nvml))
-        }
-        Err(err) => {
-            info!("Nvidia support disabled, {err}");
-            None
+    let nvml = if sysfs_only {
+        None
+    } else {
+        match Nvml::init() {
+            Ok(nvml) => {
+                info!("NVML initialized");
+                Some(Rc::new(nvml))
+            }
+            Err(err) => {
+                info!("Nvidia support disabled, {err}");
+                None
+            }
         }
     };
 
@@ -783,7 +821,7 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>
         if name.starts_with("card") && !name.contains('-') {
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
-            match AmdGpuController::new_from_path(device_path, &pci_db) {
+            match AmdGpuController::new_from_path(device_path, &pci_db, sysfs_only) {
                 Ok(controller) => match controller.get_id() {
                     Ok(id) => {
                         let path = controller.get_path();
@@ -842,6 +880,40 @@ fn load_controllers() -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>
     }
 
     Ok(controllers)
+}
+
+fn add_path_recursively(
+    archive: &mut tar::Builder<impl Write>,
+    entry_path: &Path,
+    controller_path: &Path,
+) -> anyhow::Result<()> {
+    if let Ok(entries) = fs::read_dir(entry_path) {
+        for entry in entries.flatten() {
+            match entry.metadata() {
+                Ok(metadata) => {
+                    // Skip symlinks
+                    if metadata.is_symlink() {
+                        continue;
+                    }
+
+                    let full_path = controller_path.join(entry.path());
+                    if metadata.is_file() {
+                        add_path_to_archive(archive, &full_path)?;
+                    } else if metadata.is_dir() {
+                        add_path_recursively(archive, &full_path, controller_path)?;
+                    }
+                }
+                Err(err) => {
+                    warn!(
+                        "could not include file '{}' in snapshot: {err}",
+                        entry.path().display()
+                    );
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn add_path_to_archive(
