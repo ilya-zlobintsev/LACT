@@ -42,11 +42,734 @@ expression: device_info
     "active": 0,
     "modes": {
       "0": {
-        "components": [],
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              4
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              800
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              3
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          }
+        ],
         "name": "BOOTUP_DEFAULT"
+      },
+      "1": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              2
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              4
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              650
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          }
+        ],
+        "name": "3D_FULL_SCREEN"
+      },
+      "2": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              3
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          }
+        ],
+        "name": "POWER_SAVING"
+      },
+      "3": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              4
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          }
+        ],
+        "name": "VIDEO"
+      },
+      "4": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              4
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1000
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          }
+        ],
+        "name": "VR"
+      },
+      "5": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              4
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1000
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          }
+        ],
+        "name": "COMPUTE"
+      },
+      "6": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              4
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              800
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              3
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          }
+        ],
+        "name": "CUSTOM"
+      },
+      "7": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              2
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              4
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              650
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              3
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              1
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          },
+          {
+            "clock_type": null,
+            "values": [
+              0
+            ]
+          }
+        ],
+        "name": "WINDOW_3D"
       }
     },
-    "value_names": []
+    "value_names": [
+      "Gfx_ActiveHystLimit",
+      "Gfx_IdleHystLimit",
+      "Gfx_FPS",
+      "Gfx_MinActiveFreqType",
+      "Gfx_BoosterFreqType",
+      "Gfx_MinActiveFreq",
+      "Gfx_BoosterFreq",
+      "Fclk_ActiveHystLimit",
+      "Fclk_IdleHystLimit",
+      "Fclk_FPS",
+      "Fclk_MinActiveFreqType",
+      "Fclk_BoosterFreqType",
+      "Fclk_MinActiveFreq",
+      "Fclk_BoosterFreq"
+    ]
   },
   "stats": {
     "busy_percent": 0,
