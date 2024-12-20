@@ -545,6 +545,10 @@ impl AmdGpuController {
                 && STEAM_DECK_IDS.contains(&info.device_pci_info.model_id.as_str())
         })
     }
+
+    pub fn get_driver(&self) -> &str {
+        self.handle.get_driver()
+    }
 }
 
 impl GpuController for AmdGpuController {
@@ -572,19 +576,23 @@ impl GpuController for AmdGpuController {
         self.handle.get_path()
     }
 
-    fn get_info(&self) -> DeviceInfo {
-        let vulkan_info = self.pci_info.as_ref().and_then(|pci_info| {
-            match get_vulkan_info(
-                &pci_info.device_pci_info.vendor_id,
-                &pci_info.device_pci_info.model_id,
-            ) {
-                Ok(info) => Some(info),
-                Err(err) => {
-                    warn!("could not load vulkan info: {err}");
-                    None
+    fn get_info(&self, include_vulkan: bool) -> DeviceInfo {
+        let vulkan_info = if include_vulkan {
+            self.pci_info.as_ref().and_then(|pci_info| {
+                match get_vulkan_info(
+                    &pci_info.device_pci_info.vendor_id,
+                    &pci_info.device_pci_info.model_id,
+                ) {
+                    Ok(info) => Some(info),
+                    Err(err) => {
+                        warn!("could not load vulkan info: {err}");
+                        None
+                    }
                 }
-            }
-        });
+            })
+        } else {
+            None
+        };
         let pci_info = self.pci_info.clone();
         let driver = self.handle.get_driver().to_owned();
         let vbios_version = self.get_full_vbios_version();
@@ -599,10 +607,6 @@ impl GpuController for AmdGpuController {
             link_info,
             drm_info,
         }
-    }
-
-    fn hw_monitors(&self) -> &[HwMon] {
-        &self.handle.hw_monitors
     }
 
     fn get_pci_slot_name(&self) -> Option<String> {

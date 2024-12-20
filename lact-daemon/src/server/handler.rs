@@ -6,13 +6,12 @@ use super::{
 use crate::{
     config::{self, default_fan_static_speed, Config, FanControlSettings, Profile},
     server::{
-        gpu_controller::{AmdGpuController, NvidiaGpuController},
+        gpu_controller::{AmdGpuController, IntelGpuController, NvidiaGpuController},
         profiles,
     },
 };
-use amdgpu_sysfs::{
-    gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind},
-    sysfs::SysFS,
+use amdgpu_sysfs::gpu_handle::{
+    power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
 use anyhow::{anyhow, bail, Context};
 use lact_schema::{
@@ -85,8 +84,6 @@ const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
     "fan_zero_rpm_enable",
     "fan_zero_rpm_stop_temperature",
 ];
-const SNAPSHOT_HWMON_FILE_PREFIXES: &[&str] =
-    &["fan", "pwm", "power", "temp", "freq", "in", "name"];
 
 #[derive(Clone)]
 pub struct Handler {
@@ -355,7 +352,7 @@ impl<'a> Handler {
     }
 
     pub fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo> {
-        Ok(self.controller_by_id(id)?.get_info())
+        Ok(self.controller_by_id(id)?.get_info(true))
     }
 
     pub fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
@@ -607,31 +604,33 @@ impl<'a> Handler {
                 }
             }
 
+            let card_path = controller.get_path().parent().unwrap();
+            let card_files = fs::read_dir(card_path)
+                .context("Could not read device dir")?
+                .flatten();
+            for card_entry in card_files {
+                if let Ok(metadata) = card_entry.metadata() {
+                    if metadata.is_file() {
+                        let full_path = controller_path.join(card_entry.path());
+                        add_path_to_archive(&mut archive, &full_path)?;
+                    }
+                }
+            }
+
+            let gt_path = card_path.join("gt");
+            if gt_path.exists() {
+                add_path_recursively(&mut archive, &gt_path, card_path)?;
+            }
+
             let fan_ctrl_path = controller_path.join("gpu_od").join("fan_ctrl");
             for fan_ctrl_file in SNAPSHOT_FAN_CTRL_FILES {
                 let full_path = fan_ctrl_path.join(fan_ctrl_file);
                 add_path_to_archive(&mut archive, &full_path)?;
             }
 
-            for hw_mon in controller.hw_monitors() {
-                let hw_mon_path = hw_mon.get_path();
-                let hw_mon_entries =
-                    fs::read_dir(hw_mon_path).context("Could not read HwMon dir")?;
-
-                'entries: for entry in hw_mon_entries.flatten() {
-                    if !entry.metadata().is_ok_and(|metadata| metadata.is_file()) {
-                        continue;
-                    }
-
-                    if let Some(name) = entry.file_name().to_str() {
-                        for prefix in SNAPSHOT_HWMON_FILE_PREFIXES {
-                            if name.starts_with(prefix) {
-                                add_path_to_archive(&mut archive, &entry.path())?;
-                                continue 'entries;
-                            }
-                        }
-                    }
-                }
+            let hwmon_path = controller_path.join("hwmon");
+            if hwmon_path.exists() {
+                add_path_recursively(&mut archive, &hwmon_path, controller_path)?;
             }
         }
 
@@ -671,7 +670,7 @@ impl<'a> Handler {
         let info = json!({
             "system_info": system_info,
             "initramfs_type": initramfs_type,
-            "devices": self.generate_snapshot_device_info(),
+            "devices": self.generate_snapshot_device_info(true),
         });
         let info_data = serde_json::to_vec_pretty(&info).unwrap();
 
@@ -696,7 +695,10 @@ impl<'a> Handler {
         Ok(out_path)
     }
 
-    pub(crate) fn generate_snapshot_device_info(&self) -> BTreeMap<String, serde_json::Value> {
+    pub(crate) fn generate_snapshot_device_info(
+        &self,
+        include_vulkan: bool,
+    ) -> BTreeMap<String, serde_json::Value> {
         self.gpu_controllers
             .iter()
             .map(|(id, controller)| {
@@ -708,7 +710,7 @@ impl<'a> Handler {
 
                 let data = json!({
                     "pci_info": controller.get_pci_info(),
-                    "info": controller.get_info(),
+                    "info": controller.get_info(include_vulkan),
                     "stats": controller.get_stats(gpu_config),
                     "clocks_info": controller.get_clocks_info().ok(),
                     "power_profile_modes": controller.get_power_profile_modes().ok(),
@@ -965,6 +967,27 @@ fn load_controllers(
                     Ok(id) => {
                         let path = controller.get_path();
 
+                        if matches!(controller.get_driver(), "xe" | "i915") {
+                            match controller.get_pci_info() {
+                                Some(pci_info) => {
+                                    let controller = IntelGpuController::new(
+                                        path.to_owned(),
+                                        controller.get_driver().to_owned(),
+                                        controller.get_pci_slot_name(),
+                                        pci_info.clone(),
+                                    );
+                                    let id = controller.get_id().unwrap();
+                                    info!("initialized Intel controller {id} for path {path:?}");
+                                    controllers
+                                        .insert(id, Box::new(controller) as Box<dyn GpuController>);
+                                    continue;
+                                }
+                                None => {
+                                    error!("could not get PCI info for Intel GPU at {path:?}",);
+                                }
+                            }
+                        }
+
                         if let Some(nvml) = nvml.clone() {
                             if let Some(pci_slot_id) = controller.get_pci_slot_name() {
                                 match nvml.device_by_pci_bus_id(pci_slot_id.as_str()) {
@@ -1082,6 +1105,8 @@ fn add_path_to_archive(
                 warn!("file {full_path:?} exists, but could not be added to snapshot: {err}");
             }
         }
+    } else {
+        trace!("{full_path:?} does not exist, not adding to snapshot");
     }
     Ok(())
 }

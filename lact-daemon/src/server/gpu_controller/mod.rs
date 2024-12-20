@@ -1,14 +1,15 @@
 #![allow(clippy::module_name_repetitions)]
 mod amd;
 pub mod fan_control;
+mod intel;
 mod nvidia;
 
 pub use amd::AmdGpuController;
+pub use intel::IntelGpuController;
 pub use nvidia::NvidiaGpuController;
 
 use crate::config::{self};
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
-use amdgpu_sysfs::hw_mon::HwMon;
 use futures::future::LocalBoxFuture;
 use lact_schema::{ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PowerStates};
 use std::{path::Path, rc::Rc};
@@ -23,7 +24,7 @@ pub trait GpuController {
 
     fn get_path(&self) -> &Path;
 
-    fn get_info(&self) -> DeviceInfo;
+    fn get_info(&self, include_vulkan: bool) -> DeviceInfo;
 
     fn get_pci_slot_name(&self) -> Option<String>;
 
@@ -45,6 +46,4 @@ pub trait GpuController {
     fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable>;
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>>;
-
-    fn hw_monitors(&self) -> &[HwMon];
 }

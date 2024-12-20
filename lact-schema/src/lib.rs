@@ -104,7 +104,7 @@ pub struct DeviceInfo {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DrmInfo {
     pub device_name: Option<String>,
     pub pci_revision_id: Option<u32>,
@@ -263,6 +263,7 @@ pub struct PmfwInfo {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct ClockspeedStats {
     pub gpu_clockspeed: Option<u64>,
+    /// Target clock
     pub current_gfxclk: Option<u16>,
     pub vram_clockspeed: Option<u64>,
 }
