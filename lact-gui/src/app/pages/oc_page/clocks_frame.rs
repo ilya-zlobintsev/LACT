@@ -7,7 +7,9 @@ use amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable as _, ClocksTableGen as Am
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
-use lact_schema::{request::SetClocksCommand, ClocksTable, NvidiaClockInfo, NvidiaClocksTable};
+use lact_schema::{
+    request::SetClocksCommand, ClocksTable, IntelClocksTable, NvidiaClockInfo, NvidiaClocksTable,
+};
 use subclass::prelude::ObjectSubclassIsExt;
 use tracing::debug;
 
@@ -165,6 +167,7 @@ impl ClocksFrame {
         match table {
             ClocksTable::Amd(table) => self.set_amd_table(table),
             ClocksTable::Nvidia(table) => self.set_nvidia_table(table),
+            ClocksTable::Intel(table) => self.set_intel_table(table),
         }
 
         for adjustment in adjustments {
@@ -280,6 +283,42 @@ impl ClocksFrame {
                 voltage_offset_adjustment.set_value(offset.into());
 
                 self.voltage_offset_adjustment.set_visible(true);
+            }
+        }
+    }
+
+    fn set_intel_table(&self, table: IntelClocksTable) {
+        if let Some((current_gt_min, current_gt_max)) = table.gt_freq {
+            if let (Some(min_clock), Some(max_clock)) = (table.rpn_freq, table.rp0_freq) {
+                self.min_sclk_adjustment
+                    .imp()
+                    .adjustment
+                    .set_lower(min_clock as f64);
+                self.min_sclk_adjustment
+                    .imp()
+                    .adjustment
+                    .set_upper(max_clock as f64);
+                self.min_sclk_adjustment
+                    .imp()
+                    .adjustment
+                    .set_value(current_gt_min as f64);
+
+                self.min_sclk_adjustment.set_visible(true);
+
+                self.max_sclk_adjustment
+                    .imp()
+                    .adjustment
+                    .set_lower(min_clock as f64);
+                self.max_sclk_adjustment
+                    .imp()
+                    .adjustment
+                    .set_upper(max_clock as f64);
+                self.max_sclk_adjustment
+                    .imp()
+                    .adjustment
+                    .set_value(current_gt_max as f64);
+
+                self.max_sclk_adjustment.set_visible(true);
             }
         }
     }
