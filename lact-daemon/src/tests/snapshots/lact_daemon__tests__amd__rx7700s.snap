@@ -46,84 +46,19 @@ expression: device_info
           {
             "clock_type": null,
             "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              4
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              800
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              3
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
+              0,
+              0,
+              0,
+              1,
+              4,
+              0,
+              800,
+              0,
+              0,
+              0,
+              3,
+              1,
+              0,
               0
             ]
           }
@@ -135,84 +70,19 @@ expression: device_info
           {
             "clock_type": null,
             "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              2
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              4
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              650
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
+              0,
+              2,
+              0,
+              1,
+              4,
+              0,
+              650,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
               0
             ]
           }
@@ -224,84 +94,19 @@ expression: device_info
           {
             "clock_type": null,
             "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              3
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
+              0,
+              0,
+              0,
+              1,
+              3,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
               0
             ]
           }
@@ -313,84 +118,19 @@ expression: device_info
           {
             "clock_type": null,
             "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              4
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
+              0,
+              0,
+              0,
+              1,
+              4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
               0
             ]
           }
@@ -402,84 +142,19 @@ expression: device_info
           {
             "clock_type": null,
             "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              4
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1000
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
+              0,
+              1,
+              0,
+              4,
+              1,
+              1000,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
               0
             ]
           }
@@ -491,84 +166,19 @@ expression: device_info
           {
             "clock_type": null,
             "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              4
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1000
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
+              0,
+              1,
+              0,
+              4,
+              1,
+              1000,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
               0
             ]
           }
@@ -580,84 +190,19 @@ expression: device_info
           {
             "clock_type": null,
             "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              4
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              800
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              3
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
+              0,
+              0,
+              0,
+              1,
+              4,
+              0,
+              800,
+              0,
+              0,
+              0,
+              3,
+              1,
+              0,
               0
             ]
           }
@@ -669,84 +214,19 @@ expression: device_info
           {
             "clock_type": null,
             "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              2
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              4
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              650
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              3
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              1
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
-              0
-            ]
-          },
-          {
-            "clock_type": null,
-            "values": [
+              0,
+              2,
+              0,
+              1,
+              4,
+              0,
+              650,
+              0,
+              0,
+              0,
+              3,
+              1,
+              0,
               0
             ]
           }
@@ -787,6 +267,7 @@ expression: device_info
       "speed_min": 0
     },
     "memory_power_state": 0,
+    "performance_level": "auto",
     "power": {
       "average": 1.0,
       "cap_current": 100.0,
