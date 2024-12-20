@@ -146,6 +146,7 @@ pub struct ClocksInfo {
 pub enum ClocksTable {
     Amd(AmdClocksTableGen),
     Nvidia(NvidiaClocksTable),
+    Intel(IntelClocksTable),
 }
 
 #[skip_serializing_none]
@@ -153,6 +154,19 @@ pub enum ClocksTable {
 pub struct NvidiaClocksTable {
     pub gpc: Option<NvidiaClockInfo>,
     pub mem: Option<NvidiaClockInfo>,
+}
+
+/// Doc from `xe_gt_freq.c`
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, Eq)]
+pub struct IntelClocksTable {
+    pub gt_freq: Option<(u32, u32)>,
+    /// - rpn_freq: The Render Performance (RP) N level, which is the minimal one.
+    pub rpn_freq: Option<u32>,
+    /// - rpe_freq: The Render Performance (RP) E level, which is the efficient one.
+    pub rpe_freq: Option<u32>,
+    /// - rp0_freq: The Render Performance (RP) 0 level, which is the maximum one.
+    pub rp0_freq: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]

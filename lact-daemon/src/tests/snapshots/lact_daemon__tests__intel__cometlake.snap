@@ -3,7 +3,7 @@ source: lact-daemon/src/tests/mod.rs
 expression: device_info
 ---
 {
-  "clocks_info": null,
+  "clocks_info": {},
   "info": {
     "driver": "i915",
     "link_info": {},

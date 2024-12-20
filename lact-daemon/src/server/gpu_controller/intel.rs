@@ -1,10 +1,11 @@
 use super::GpuController;
 use crate::{config, server::vulkan::get_vulkan_info};
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, GpuPciInfo, LinkInfo, PowerStates,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, GpuPciInfo,
+    IntelClocksTable, LinkInfo, PowerStates,
 };
 use std::{
     fmt::Display,
@@ -14,15 +15,15 @@ use std::{
 };
 use tracing::{error, info, warn};
 
-enum DriverType {
-    Xe,
-    I915,
-}
+// enum DriverType {
+//     Xe,
+//     I915,
+// }
 
 pub struct IntelGpuController {
     sysfs_path: PathBuf,
     driver: String,
-    driver_type: DriverType,
+    // driver_type: DriverType,
     pci_slot_id: Option<String>,
     pci_info: GpuPciInfo,
     tile_gts: Vec<PathBuf>,
@@ -35,40 +36,37 @@ impl IntelGpuController {
         pci_slot_id: Option<String>,
         pci_info: GpuPciInfo,
     ) -> Self {
-        let driver_type = match driver.as_str() {
-            "xe" => DriverType::Xe,
-            "i915" => DriverType::I915,
-            _ => unreachable!(),
-        };
+        // let driver_type = match driver.as_str() {
+        //     "xe" => DriverType::Xe,
+        //     "i915" => DriverType::I915,
+        //     _ => unreachable!(),
+        // };
 
         let mut tile_gts = vec![];
 
-        if let DriverType::Xe = driver_type {
-            for entry in fs::read_dir(&sysfs_path).into_iter().flatten().flatten() {
-                if let Some(name) = entry.file_name().to_str() {
-                    if name.starts_with("tile") {
-                        for gt_entry in fs::read_dir(entry.path()).into_iter().flatten().flatten() {
-                            if let Some(gt_name) = gt_entry.file_name().to_str() {
-                                if gt_name.starts_with("gt") {
-                                    tile_gts.push(gt_entry.path());
-                                }
+        for entry in fs::read_dir(&sysfs_path).into_iter().flatten().flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.starts_with("tile") {
+                    for gt_entry in fs::read_dir(entry.path()).into_iter().flatten().flatten() {
+                        if let Some(gt_name) = gt_entry.file_name().to_str() {
+                            if gt_name.starts_with("gt") {
+                                tile_gts.push(gt_entry.path());
                             }
                         }
                     }
                 }
             }
-
-            info!(
-                "initialized {} gt at '{}'",
-                tile_gts.len(),
-                sysfs_path.display()
-            );
         }
+
+        info!(
+            "initialized {} gt at '{}'",
+            tile_gts.len(),
+            sysfs_path.display()
+        );
 
         Self {
             sysfs_path,
             driver,
-            driver_type,
             pci_slot_id,
             pci_info,
             tile_gts,
@@ -133,9 +131,20 @@ impl GpuController for IntelGpuController {
 
     fn apply_config<'a>(
         &'a self,
-        _config: &'a config::Gpu,
+        config: &'a config::Gpu,
     ) -> LocalBoxFuture<'a, anyhow::Result<()>> {
-        Box::pin(async { Ok(()) })
+        Box::pin(async {
+            if let Some(max_clock) = config.clocks_configuration.max_core_clock {
+                self.write_gt_file("freq0/max_freq", &max_clock.to_string())
+                    .context("Could not set max clock")?;
+            }
+            if let Some(min_clock) = config.clocks_configuration.min_core_clock {
+                self.write_gt_file("freq0/min_freq", &min_clock.to_string())
+                    .context("Could not set min clock")?;
+            }
+
+            Ok(())
+        })
     }
 
     fn get_stats(&self, _gpu_config: Option<&config::Gpu>) -> DeviceStats {
@@ -157,7 +166,25 @@ impl GpuController for IntelGpuController {
     }
 
     fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
-        Err(anyhow!("Not supported"))
+        let clocks_table = IntelClocksTable {
+            gt_freq: self
+                .read_gt_file("freq0/min_freq")
+                .zip(self.read_gt_file("freq0/max_freq")),
+            rp0_freq: self.read_gt_file("freq0/rp0_freq"),
+            rpe_freq: self.read_gt_file("freq0/rpe_freq"),
+            rpn_freq: self.read_gt_file("freq0/rpn_freq"),
+        };
+
+        let table = if clocks_table == IntelClocksTable::default() {
+            None
+        } else {
+            Some(ClocksTable::Intel(clocks_table))
+        };
+
+        Ok(ClocksInfo {
+            table,
+            ..Default::default()
+        })
     }
 
     fn get_power_states(&self, _gpu_config: Option<&config::Gpu>) -> PowerStates {
@@ -189,7 +216,9 @@ impl IntelGpuController {
         T: FromStr,
         T::Err: Display,
     {
-        if let Some(file_path) = self.first_tile_gt().map(|path| path.join(file_name)) {
+        if let Some(gt_path) = self.first_tile_gt() {
+            let file_path = gt_path.join(file_name);
+
             if file_path.exists() {
                 match fs::read_to_string(&file_path) {
                     Ok(contents) => match contents.trim().parse() {
@@ -209,5 +238,21 @@ impl IntelGpuController {
         }
 
         None
+    }
+
+    fn write_gt_file(&self, file_name: &str, contents: &str) -> anyhow::Result<()> {
+        if let Some(gt_path) = self.first_tile_gt() {
+            let file_path = gt_path.join(file_name);
+
+            if file_path.exists() {
+                fs::write(&file_path, contents)
+                    .with_context(|| format!("Could not write to '{}'", file_path.display()))?;
+                Ok(())
+            } else {
+                Err(anyhow!("File '{}' does not exist", file_path.display()))
+            }
+        } else {
+            Err(anyhow!("No GTs available"))
+        }
     }
 }
