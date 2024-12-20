@@ -4,10 +4,7 @@ use crate::{
 };
 
 use super::{fan_control::FanCurve, FanControlHandle, GpuController};
-use amdgpu_sysfs::{
-    gpu_handle::power_profile_mode::PowerProfileModesTable,
-    hw_mon::{HwMon, Temperature},
-};
+use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
@@ -32,11 +29,11 @@ use tokio::{select, sync::Notify, time::sleep};
 use tracing::{debug, error, trace, warn};
 
 pub struct NvidiaGpuController {
-    pub nvml: Rc<Nvml>,
-    pub pci_slot_id: String,
-    pub pci_info: GpuPciInfo,
-    pub sysfs_path: PathBuf,
-    pub fan_control_handle: RefCell<Option<FanControlHandle>>,
+    nvml: Rc<Nvml>,
+    pci_slot_id: String,
+    pci_info: GpuPciInfo,
+    sysfs_path: PathBuf,
+    fan_control_handle: RefCell<Option<FanControlHandle>>,
 
     last_applied_gpc_offset: Cell<Option<i32>>,
     last_applied_mem_offset: Cell<Option<i32>>,
@@ -275,18 +272,22 @@ impl GpuController for NvidiaGpuController {
         &self.sysfs_path
     }
 
-    fn get_info(&self) -> DeviceInfo {
+    fn get_info(&self, include_vulkan: bool) -> DeviceInfo {
         let device = self.device();
 
-        let vulkan_info = match get_vulkan_info(
-            &self.pci_info.device_pci_info.vendor_id,
-            &self.pci_info.device_pci_info.model_id,
-        ) {
-            Ok(info) => Some(info),
-            Err(err) => {
-                warn!("could not load vulkan info: {err}");
-                None
+        let vulkan_info = if include_vulkan {
+            match get_vulkan_info(
+                &self.pci_info.device_pci_info.vendor_id,
+                &self.pci_info.device_pci_info.model_id,
+            ) {
+                Ok(info) => Some(info),
+                Err(err) => {
+                    warn!("could not load vulkan info: {err}");
+                    None
+                }
             }
+        } else {
+            None
         };
 
         DeviceInfo {
@@ -351,10 +352,6 @@ impl GpuController for NvidiaGpuController {
                     .ok(),
             }),
         }
-    }
-
-    fn hw_monitors(&self) -> &[HwMon] {
-        &[]
     }
 
     fn get_pci_slot_name(&self) -> Option<String> {

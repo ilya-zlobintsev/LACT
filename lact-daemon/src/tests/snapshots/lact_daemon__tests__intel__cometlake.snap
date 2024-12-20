@@ -1,0 +1,49 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": null,
+  "info": {
+    "driver": "i915",
+    "link_info": {},
+    "pci_info": {
+      "device_pci_info": {
+        "model": "CometLake-U GT2 [UHD Graphics]",
+        "model_id": "9B41",
+        "vendor": "Intel Corporation",
+        "vendor_id": "8086"
+      },
+      "subsystem_pci_info": {
+        "model_id": "22B1",
+        "vendor": "Lenovo",
+        "vendor_id": "17AA"
+      }
+    }
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "CometLake-U GT2 [UHD Graphics]",
+      "model_id": "9B41",
+      "vendor": "Intel Corporation",
+      "vendor_id": "8086"
+    },
+    "subsystem_pci_info": {
+      "model_id": "22B1",
+      "vendor": "Lenovo",
+      "vendor_id": "17AA"
+    }
+  },
+  "power_profile_modes": null,
+  "stats": {
+    "clockspeed": {},
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {}
+    },
+    "power": {},
+    "temps": {},
+    "voltage": {},
+    "vram": {}
+  }
+}
