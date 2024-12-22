@@ -35,6 +35,8 @@ pub struct RenderRequest {
     pub height: u32,
 
     pub supersample_factor: u32,
+
+    pub time_period_seconds: i64,
 }
 
 #[derive(Default)]
@@ -259,11 +261,11 @@ impl RenderRequest {
                 ("sans-serif", RelativeSize::Smaller(0.08)),
             )
             .build_cartesian_2d(
-                start_date..max(end_date, start_date + 60 * 1000),
+                start_date..max(end_date, start_date + self.time_period_seconds * 1000),
                 0f64..maximum_value,
             )?
             .set_secondary_coord(
-                start_date..max(end_date, start_date + 60 * 1000),
+                start_date..max(end_date, start_date + self.time_period_seconds * 1000),
                 0.0..100.0,
             );
 
