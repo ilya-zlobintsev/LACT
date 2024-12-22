@@ -200,24 +200,24 @@ async fn update_profile(
     let new_profile = evaluate_current_profile(state, profile_rules);
     trace!("evaluated profile rules in {:?}", started_at.elapsed());
 
-    if handler.config.borrow().current_profile != new_profile {
+    if handler.config.borrow().current_profile.as_ref() != new_profile {
         if let Some(name) = &new_profile {
             info!("setting current profile to {name}");
         } else {
             info!("setting default profile");
         }
 
-        if let Err(err) = handler.set_current_profile(new_profile).await {
+        if let Err(err) = handler.set_current_profile(new_profile.cloned()).await {
             error!("failed to apply profile: {err:#}");
         }
     }
 }
 
 /// Returns the new active profile
-fn evaluate_current_profile(
-    state: &WatcherState,
-    profile_rules: &[(Rc<str>, ProfileRule)],
-) -> Option<Rc<str>> {
+fn evaluate_current_profile<'a>(
+    state: &'a WatcherState,
+    profile_rules: &'a [(Rc<str>, ProfileRule)],
+) -> Option<&'a Rc<str>> {
     // TODO: fast path to re-evaluate only a single event and not the whole state?
     for pid in state.gamemode_games.iter().rev() {
         for (profile_name, rule) in profile_rules {
@@ -226,11 +226,11 @@ fn evaluate_current_profile(
                     Some(filter) => {
                         if let Some(process) = state.process_list.get(pid) {
                             if process_rule_matches(filter, process) {
-                                return Some(profile_name.clone());
+                                return Some(profile_name);
                             }
                         }
                     }
-                    None => return Some(profile_name.clone()),
+                    None => return Some(profile_name),
                 }
             }
         }
@@ -240,7 +240,7 @@ fn evaluate_current_profile(
         for (profile_name, rule) in profile_rules {
             if let ProfileRule::Process(rule) = &rule {
                 if process_rule_matches(rule, process) {
-                    return Some(profile_name.clone());
+                    return Some(profile_name);
                 }
             }
         }
@@ -298,13 +298,13 @@ mod tests {
         ];
 
         assert_eq!(
-            Some(Rc::from("1")),
+            Some(&Rc::from("1")),
             evaluate_current_profile(&state, &profile_rules)
         );
 
         state.process_list.get_mut(&PID::from(1)).unwrap().name = "game2".into();
         assert_eq!(
-            Some(Rc::from("2")),
+            Some(&Rc::from("2")),
             evaluate_current_profile(&state, &profile_rules)
         );
 
@@ -320,7 +320,7 @@ mod benches {
     use divan::Bencher;
     use indexmap::IndexSet;
     use lact_schema::{ProcessProfileRule, ProfileRule};
-    use std::{hint::black_box, rc::Rc};
+    use std::hint::black_box;
 
     #[divan::bench(sample_size = 1000, min_time = 2)]
     fn evaluate_profiles(bencher: Bencher) {
@@ -354,8 +354,8 @@ mod benches {
             ),
         ];
 
-        bencher.bench_local(move || -> Option<Rc<str>> {
-            evaluate_current_profile(black_box(&state), black_box(&profile_rules))
+        bencher.bench_local(move || {
+            evaluate_current_profile(black_box(&state), black_box(&profile_rules));
         });
     }
 }

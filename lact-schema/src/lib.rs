@@ -349,11 +349,19 @@ pub struct FanOptions<'a> {
     pub change_threshold: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ProfilesInfo {
     pub profiles: IndexMap<String, Option<ProfileRule>>,
     pub current_profile: Option<String>,
     pub auto_switch: bool,
+}
+
+impl PartialEq for ProfilesInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.profiles.as_slice() == other.profiles.as_slice()
+            && self.current_profile == other.current_profile
+            && self.auto_switch == other.auto_switch
+    }
 }
 
 #[skip_serializing_none]

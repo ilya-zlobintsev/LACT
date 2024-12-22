@@ -95,7 +95,8 @@ impl FactoryComponent for ProfileRow {
                 },
             },
 
-            gtk::Button { set_icon_name: "list-remove",
+            gtk::Button {
+                set_icon_name: "list-remove",
                 set_sensitive: matches!(self, ProfileRow::Profile { .. }),
                 set_tooltip: "Delete Profile",
                 connect_clicked[profile = self.clone()] => move |_| {

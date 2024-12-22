@@ -53,7 +53,6 @@ impl Component for Header {
                 #[wrap(Some)]
                 set_popover = &gtk::Popover {
                     set_margin_all: 5,
-                    // set_autohide: false,
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
@@ -249,6 +248,8 @@ impl Component for Header {
                 }
             }
             HeaderMsg::CreateProfile => {
+                sender.input(HeaderMsg::ClosePopover);
+
                 let mut diag_controller = NewProfileDialog::builder()
                     .launch(self.custom_profiles())
                     .forward(sender.output_sender(), |(name, base)| {

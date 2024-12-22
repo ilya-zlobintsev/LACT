@@ -17,9 +17,9 @@ pub fn run(args: GuiArgs) -> anyhow::Result<()> {
         .context("Invalid log level")?;
     tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
-    let app = RelmApp::new(APP_ID)
+    RelmApp::new(APP_ID)
         .with_broker(&APP_BROKER)
-        .with_args(vec![]);
-    app.run_async::<AppModel>(args);
+        .with_args(vec![])
+        .run_async::<AppModel>(args);
     Ok(())
 }

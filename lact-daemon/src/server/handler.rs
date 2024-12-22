@@ -749,7 +749,6 @@ impl<'a> Handler {
         self.config.borrow_mut().current_profile = name;
 
         self.apply_current_config().await?;
-        self.config.borrow_mut().save(&self.config_last_saved)?;
 
         Ok(())
     }
