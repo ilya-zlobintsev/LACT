@@ -7,12 +7,19 @@ use futures::StreamExt;
 use indexmap::{IndexMap, IndexSet};
 use lact_schema::{ProcessProfileRule, ProfileRule};
 use process::ProcessInfo;
-use std::{rc::Rc, time::Instant};
+use std::{
+    rc::Rc,
+    time::{Duration, Instant},
+};
 use tokio::{
     select,
     sync::{mpsc, Notify},
+    time::sleep,
 };
 use tracing::{error, info, trace, warn};
+
+const PROFILE_WATCHER_MIN_DELAY_MS: u64 = 50;
+const PROFILE_WATCHER_MAX_DELAY_MS: u64 = 500;
 
 struct WatcherState {
     process_list: IndexMap<PID, ProcessInfo>,
@@ -111,29 +118,37 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
         select! {
             () = stop_notify.notified() => break,
             Some(event) = event_rx.recv() => {
-                trace!("profile watcher event: {event:?}");
-                match event {
-                    ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid, ) {
-                        Ok(info) => {
-                            if info.name.as_ref() == gamemode::PROCESS_NAME {
-                                info!("detected gamemode daemon, reloading profile watcher");
-                                handler.start_profile_watcher();
-                            }
+                handle_profile_event(&event, &mut state, &handler);
 
-                            state.process_list.insert(pid, info);
+                // It is very common during system usage that multiple processes start at the same time, or there are processes
+                // that start and exit right away.
+                // Due to this, it does not make sense to re-evaluate profile rules as soon as there is a process event.
+                // Instead, we accumulate multiple events that come in quick succession, and only evaluate the rules once.
+                //
+                // After getting an event we wait for a period of time (the minimum delay option).
+                // If there are no new events since, rules are evaluated. If there are,
+                // the timer is reset and the evaluation is delayed.
+                // There is also a maximum delay period (counted since the first event) to force
+                // a rule evaluation at some point in case the events don't stop coming in
+                // and resetting the minimum delay.
+                let min_timeout = sleep(Duration::from_millis(PROFILE_WATCHER_MIN_DELAY_MS));
+                let max_timeout = sleep(Duration::from_millis(PROFILE_WATCHER_MAX_DELAY_MS));
+                tokio::pin!(min_timeout, max_timeout);
+
+                loop {
+                    select! {
+                        () = &mut min_timeout => {
+                            break
+                        },
+                        () = &mut max_timeout => {
+                            trace!("profile update deadline reached");
+                            break
+                        },
+                        Some(event) = event_rx.recv() => {
+                            trace!("got another process event, delaying profile update");
+                            min_timeout.as_mut().reset(tokio::time::Instant::now() + Duration::from_millis(PROFILE_WATCHER_MIN_DELAY_MS));
+                            handle_profile_event(&event, &mut state, &handler);
                         }
-                        Err(err) => {
-                            warn!("could not get info for process {pid}: {err}");
-                        }
-                    },
-                    ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
-                        state.process_list.shift_remove(&pid);
-                    }
-                    ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
-                        state.gamemode_games.insert(pid);
-                    }
-                    ProfileWatcherEvent::Gamemode(PEvent::Exit(pid)) => {
-                        state.gamemode_games.shift_remove(&pid);
                     }
                 }
 
@@ -144,6 +159,35 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
 
     if let Some(handle) = gamemode_task {
         handle.abort();
+    }
+}
+
+fn handle_profile_event(event: &ProfileWatcherEvent, state: &mut WatcherState, handler: &Handler) {
+    trace!("profile watcher event: {event:?}");
+
+    match *event {
+        ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid) {
+            Ok(info) => {
+                if info.name.as_ref() == gamemode::PROCESS_NAME {
+                    info!("detected gamemode daemon, reloading profile watcher");
+                    handler.start_profile_watcher();
+                }
+
+                state.process_list.insert(pid, info);
+            }
+            Err(err) => {
+                warn!("could not get info for process {pid}: {err}");
+            }
+        },
+        ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
+            state.process_list.shift_remove(&pid);
+        }
+        ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
+            state.gamemode_games.insert(pid);
+        }
+        ProfileWatcherEvent::Gamemode(PEvent::Exit(pid)) => {
+            state.gamemode_games.shift_remove(&pid);
+        }
     }
 }
 
