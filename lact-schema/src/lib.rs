@@ -24,7 +24,6 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
     fmt,
-    rc::Rc,
     str::FromStr,
 };
 
@@ -352,8 +351,8 @@ pub struct FanOptions<'a> {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct ProfilesInfo {
-    pub profiles: IndexMap<Rc<str>, Option<ProfileRule>>,
-    pub current_profile: Option<Rc<str>>,
+    pub profiles: IndexMap<String, Option<ProfileRule>>,
+    pub current_profile: Option<String>,
     pub auto_switch: bool,
 }
 

@@ -72,7 +72,7 @@ impl relm4::Component for RuleWindow {
     fn init(
         (init, name): Self::Init,
         root: Self::Root,
-        sender: ComponentSender<Self>,
+        _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let rule = init.unwrap_or_else(|| ProfileRule::Process(ProcessProfileRule::default()));
 
@@ -94,7 +94,7 @@ impl relm4::Component for RuleWindow {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, root: &Self::Root) {
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>, _root: &Self::Root) {
         match msg {}
     }
 }

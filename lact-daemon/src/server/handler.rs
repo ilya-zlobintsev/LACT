@@ -716,9 +716,9 @@ impl<'a> Handler {
             profiles: config
                 .profiles
                 .iter()
-                .map(|(name, profile)| (name.clone(), profile.rule.clone()))
+                .map(|(name, profile)| (name.to_string(), profile.rule.clone()))
                 .collect(),
-            current_profile: config.current_profile.clone(),
+            current_profile: config.current_profile.as_ref().map(Rc::to_string),
             auto_switch: config.auto_switch_profiles,
         }
     }

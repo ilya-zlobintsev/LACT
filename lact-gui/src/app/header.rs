@@ -8,9 +8,9 @@ use gtk::*;
 use lact_client::schema::DeviceListEntry;
 use lact_schema::ProfilesInfo;
 use new_profile_dialog::NewProfileDialog;
-use profile_row::{ProfileRow, ProfileRowOutput};
+use profile_row::ProfileRow;
 use relm4::{
-    factory::{DynamicIndex, FactoryVecDeque},
+    factory::FactoryVecDeque,
     typed_view::list::{RelmListItem, TypedListView},
     Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
 };
@@ -20,17 +20,16 @@ pub struct Header {
     gpu_selector: TypedListView<GpuListItem, gtk::SingleSelection>,
     profile_selector: FactoryVecDeque<ProfileRow>,
     selector_label: String,
-    stack: Option<Stack>,
 }
 
 #[derive(Debug)]
 pub enum HeaderMsg {
-    Stack(Stack),
     Profiles(ProfilesInfo),
     AutoProfileSwitch(bool),
     SelectProfile,
     SelectGpu,
     CreateProfile,
+    ClosePopover,
 }
 
 #[relm4::component(pub)]
@@ -45,10 +44,7 @@ impl Component for Header {
             set_show_title_buttons: true,
 
             #[wrap(Some)]
-            set_title_widget = &StackSwitcher {
-                #[watch]
-                set_stack: model.stack.as_ref(),
-            },
+            set_title_widget: stack_switcher = &StackSwitcher {},
 
             #[name = "menu_button"]
             pack_start = &gtk::MenuButton {
@@ -169,11 +165,7 @@ impl Component for Header {
 
         let profile_selector = FactoryVecDeque::<ProfileRow>::builder()
             .launch_default()
-            .forward(sender.output_sender(), |msg| match msg {
-                ProfileRowOutput::MoveUp(profile, index) => move_profile_msg(profile, index, -1),
-                ProfileRowOutput::MoveDown(profile, index) => move_profile_msg(profile, index, 1),
-                ProfileRowOutput::Delete(profile) => AppMsg::DeleteProfile(profile),
-            });
+            .forward(sender.input_sender(), |msg| msg);
         profile_selector.widget().connect_row_selected(clone!(
             #[strong]
             sender,
@@ -187,7 +179,6 @@ impl Component for Header {
             profile_selector,
             selector_label: String::new(),
             profiles_info: ProfilesInfo::default(),
-            stack: None,
         };
 
         let gpu_selector = &model.gpu_selector.view;
@@ -225,10 +216,10 @@ impl Component for Header {
         _root: &Self::Root,
     ) {
         match msg {
-            HeaderMsg::Profiles(profiles_info) => self.set_profiles_info(profiles_info),
-            HeaderMsg::Stack(stack) => {
-                self.stack = Some(stack);
+            HeaderMsg::ClosePopover => {
+                widgets.menu_button.popdown();
             }
+            HeaderMsg::Profiles(profiles_info) => self.set_profiles_info(profiles_info),
             HeaderMsg::SelectGpu => sender.output(AppMsg::ReloadData { full: true }).unwrap(),
             HeaderMsg::AutoProfileSwitch(auto_switch) => {
                 let msg = AppMsg::SelectProfile {
@@ -379,10 +370,4 @@ impl RelmListItem for GpuListItem {
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
         widgets.set_label(self.0.name.as_deref().unwrap_or(&self.0.id));
     }
-}
-
-fn move_profile_msg(profile: ProfileRow, index: DynamicIndex, offset: i64) -> AppMsg {
-    let name = profile.name().expect("Default profile cannot be moved");
-    let new_index = (index.current_index() as i64).saturating_add(offset);
-    AppMsg::MoveProfile(name, new_index as usize)
 }

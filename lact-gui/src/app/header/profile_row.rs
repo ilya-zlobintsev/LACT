@@ -8,6 +8,10 @@ use relm4::{
 };
 use rule_window::RuleWindow;
 
+use crate::app::{msg::AppMsg, APP_BROKER};
+
+use super::HeaderMsg;
+
 #[derive(Clone, Debug)]
 pub enum ProfileRow {
     Default,
@@ -30,13 +34,6 @@ impl ProfileRow {
 }
 
 #[derive(Debug)]
-pub enum ProfileRowOutput {
-    MoveUp(ProfileRow, DynamicIndex),
-    MoveDown(ProfileRow, DynamicIndex),
-    Delete(String),
-}
-
-#[derive(Debug)]
 pub enum ProfileRowMsg {
     EditRule,
 }
@@ -45,7 +42,7 @@ pub enum ProfileRowMsg {
 impl FactoryComponent for ProfileRow {
     type Init = Self;
     type Input = ProfileRowMsg;
-    type Output = ProfileRowOutput;
+    type Output = HeaderMsg;
     type CommandOutput = ();
     type ParentWidget = gtk::ListBox;
 
@@ -80,8 +77,8 @@ impl FactoryComponent for ProfileRow {
                     _ => false,
 
                 },
-                connect_clicked[sender, index, profile = self.clone()] => move |_| {
-                    sender.output(ProfileRowOutput::MoveUp(profile.clone(), index.clone())).unwrap();
+                connect_clicked[index, profile = self.clone()] => move |_| {
+                    APP_BROKER.send(move_profile_msg(&profile, &index, -1));
                 },
             },
 
@@ -93,17 +90,17 @@ impl FactoryComponent for ProfileRow {
                     _ => false,
 
                 },
-                connect_clicked[sender, index, profile = self.clone()] => move |_| {
-                    sender.output(ProfileRowOutput::MoveDown(profile.clone(), index.clone())).unwrap();
+                connect_clicked[index, profile = self.clone()] => move |_| {
+                    APP_BROKER.send(move_profile_msg(&profile, &index, 1));
                 },
             },
 
             gtk::Button { set_icon_name: "list-remove",
                 set_sensitive: matches!(self, ProfileRow::Profile { .. }),
                 set_tooltip: "Delete Profile",
-                connect_clicked[sender, profile = self.clone()] => move |_| {
+                connect_clicked[profile = self.clone()] => move |_| {
                     if let ProfileRow::Profile { name, .. } = profile.clone() {
-                        sender.output(ProfileRowOutput::Delete(name)).unwrap();
+                        APP_BROKER.send(AppMsg::DeleteProfile(name));
                     }
                 },
             },
@@ -118,11 +115,13 @@ impl FactoryComponent for ProfileRow {
         &mut self,
         widgets: &mut Self::Widgets,
         msg: Self::Input,
-        _sender: FactorySender<Self>,
+        sender: FactorySender<Self>,
     ) {
         match msg {
             ProfileRowMsg::EditRule => {
                 if let Self::Profile { rule, name, .. } = self {
+                    sender.output(HeaderMsg::ClosePopover).unwrap();
+
                     let mut rule_window = RuleWindow::builder()
                         .transient_for(&widgets.name_label)
                         .launch((rule.clone(), name.clone()));
@@ -131,4 +130,10 @@ impl FactoryComponent for ProfileRow {
             }
         }
     }
+}
+
+fn move_profile_msg(profile: &ProfileRow, index: &DynamicIndex, offset: i64) -> AppMsg {
+    let name = profile.name().expect("Default profile cannot be moved");
+    let new_index = (index.current_index() as i64).saturating_add(offset);
+    AppMsg::MoveProfile(name, new_index as usize)
 }

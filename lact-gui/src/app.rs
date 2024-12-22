@@ -37,7 +37,7 @@ use pages::{
 use relm4::{
     actions::{RelmAction, RelmActionGroup},
     prelude::{AsyncComponent, AsyncComponentParts},
-    tokio, AsyncComponentSender, Component, ComponentController,
+    tokio, AsyncComponentSender, Component, ComponentController, MessageBroker,
 };
 use std::{
     os::unix::net::UnixStream,
@@ -46,6 +46,8 @@ use std::{
     time::Duration,
 };
 use tracing::{debug, error, info, trace, warn};
+
+pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 
 const STATS_POLL_INTERVAL_MS: u64 = 250;
 
@@ -239,7 +241,10 @@ impl AsyncComponent for AppModel {
 
         model
             .header
-            .emit(HeaderMsg::Stack(widgets.root_stack.clone()));
+            .widgets()
+            .stack_switcher
+            .set_stack(Some(&widgets.root_stack));
+
         sender.input(AppMsg::ReloadProfiles);
 
         AsyncComponentParts { model, widgets }
