@@ -62,6 +62,8 @@ pub enum Request<'a> {
     ListProfiles,
     SetProfile {
         name: Option<String>,
+        #[serde(default)]
+        auto_switch: bool,
     },
     CreateProfile {
         name: String,
@@ -69,6 +71,10 @@ pub enum Request<'a> {
     },
     DeleteProfile {
         name: String,
+    },
+    MoveProfile {
+        name: String,
+        new_position: usize,
     },
     EnableOverdrive,
     DisableOverdrive,

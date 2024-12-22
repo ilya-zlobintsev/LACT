@@ -1,5 +1,6 @@
 pub mod gpu_controller;
 pub mod handler;
+mod profiles;
 pub(crate) mod system;
 mod vulkan;
 
@@ -165,9 +166,16 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         }
         Request::VbiosDump { id } => ok_response(handler.vbios_dump(id)?),
         Request::ListProfiles => ok_response(handler.list_profiles()),
-        Request::SetProfile { name } => ok_response(handler.set_profile(name).await?),
+        Request::SetProfile { name, auto_switch } => ok_response(
+            handler
+                .set_profile(name.map(Into::into), auto_switch)
+                .await?,
+        ),
         Request::CreateProfile { name, base } => ok_response(handler.create_profile(name, base)?),
         Request::DeleteProfile { name } => ok_response(handler.delete_profile(name).await?),
+        Request::MoveProfile { name, new_position } => {
+            ok_response(handler.move_profile(&name, new_position)?)
+        }
         Request::EnableOverdrive => ok_response(system::enable_overdrive().await?),
         Request::DisableOverdrive => ok_response(system::disable_overdrive().await?),
         Request::GenerateSnapshot => ok_response(handler.generate_snapshot().await?),
