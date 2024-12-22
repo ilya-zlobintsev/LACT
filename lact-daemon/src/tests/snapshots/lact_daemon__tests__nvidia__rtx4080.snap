@@ -1,0 +1,52 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": null,
+  "info": {
+    "driver": "nvidia",
+    "link_info": {
+      "current_speed": "5.0 GT/s PCIe",
+      "current_width": "16"
+    },
+    "pci_info": {
+      "device_pci_info": {
+        "model": "AD103 [GeForce RTX 4080]",
+        "model_id": "2704",
+        "vendor": "NVIDIA Corporation",
+        "vendor_id": "10DE"
+      },
+      "subsystem_pci_info": {
+        "model_id": "5110",
+        "vendor": "Micro-Star International Co., Ltd. [MSI]",
+        "vendor_id": "1462"
+      }
+    }
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "AD103 [GeForce RTX 4080]",
+      "model_id": "2704",
+      "vendor": "NVIDIA Corporation",
+      "vendor_id": "10DE"
+    },
+    "subsystem_pci_info": {
+      "model_id": "5110",
+      "vendor": "Micro-Star International Co., Ltd. [MSI]",
+      "vendor_id": "1462"
+    }
+  },
+  "power_profile_modes": null,
+  "stats": {
+    "clockspeed": {},
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {}
+    },
+    "power": {},
+    "temps": {},
+    "voltage": {},
+    "vram": {}
+  }
+}

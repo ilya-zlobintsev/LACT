@@ -1,0 +1,470 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": {
+    "max_mclk": 1000,
+    "max_sclk": 2499,
+    "table": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "current_mclk_range": {
+            "max": 1000,
+            "min": 97
+          },
+          "current_sclk_range": {
+            "max": 2499,
+            "min": 500
+          },
+          "od_range": {
+            "curve_sclk_points": [],
+            "curve_voltage_points": [],
+            "mclk": {
+              "max": 1075,
+              "min": 674
+            },
+            "sclk": {
+              "max": 3000,
+              "min": 500
+            },
+            "voltage_offset": null
+          },
+          "vddc_curve": [],
+          "voltage_offset": -10
+        },
+        "kind": "vega20"
+      }
+    }
+  },
+  "info": {
+    "driver": "amdgpu",
+    "link_info": {
+      "current_speed": "16.0 GT/s PCIe",
+      "current_width": "16",
+      "max_speed": "16.0 GT/s PCIe",
+      "max_width": "16"
+    },
+    "pci_info": {
+      "device_pci_info": {
+        "model": "Navi 21 [Radeon RX 6800/6800 XT / 6900 XT]",
+        "model_id": "73BF",
+        "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+        "vendor_id": "1002"
+      },
+      "subsystem_pci_info": {
+        "model_id": "440E",
+        "vendor": "Sapphire Technology Limited",
+        "vendor_id": "1DA2"
+      }
+    },
+    "vbios_version": "113-D4121EXT-CO1"
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "Navi 21 [Radeon RX 6800/6800 XT / 6900 XT]",
+      "model_id": "73BF",
+      "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "vendor_id": "1002"
+    },
+    "subsystem_pci_info": {
+      "model_id": "440E",
+      "vendor": "Sapphire Technology Limited",
+      "vendor_id": "1DA2"
+    }
+  },
+  "power_profile_modes": {
+    "active": 0,
+    "modes": {
+      "0": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              4587520,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3276800,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "BOOTUP_DEFAULT"
+      },
+      "1": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              0,
+              1600,
+              4,
+              650,
+              5242880,
+              -3276,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              655360,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              4,
+              850,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "3D_FULL_SCREEN"
+      },
+      "2": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              3,
+              0,
+              5898240,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3407872,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              3,
+              0,
+              1966080,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "POWER_SAVING"
+      },
+      "3": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              500,
+              4587520,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3473408,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              500,
+              1966080,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "VIDEO"
+      },
+      "4": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              4,
+              1000,
+              1,
+              0,
+              3276800,
+              0,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              655360,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "VR"
+      },
+      "5": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              4,
+              1000,
+              1,
+              0,
+              3932160,
+              0,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              655360,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              4,
+              850,
+              3,
+              0,
+              327680,
+              -65536,
+              -32768
+            ]
+          }
+        ],
+        "name": "COMPUTE"
+      },
+      "6": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              4587520,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3276800,
+              -65536,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "CUSTOM"
+      }
+    },
+    "value_names": [
+      "FPS",
+      "MinFreqType",
+      "MinActiveFreqType",
+      "MinActiveFreq",
+      "BoosterFreqType",
+      "BoosterFreq",
+      "PD_Data_limit_c",
+      "PD_Data_error_coeff",
+      "PD_Data_error_rate_coeff"
+    ]
+  },
+  "stats": {
+    "busy_percent": 3,
+    "clockspeed": {
+      "gpu_clockspeed": 500,
+      "vram_clockspeed": 1000
+    },
+    "core_power_state": 0,
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {},
+      "pwm_current": 0,
+      "speed_current": 0,
+      "speed_max": 3400,
+      "speed_min": 0
+    },
+    "memory_power_state": 3,
+    "pcie_power_state": 1,
+    "performance_level": "auto",
+    "power": {
+      "average": 36.0,
+      "cap_current": 289.0,
+      "cap_default": 289.0,
+      "cap_max": 332.0,
+      "cap_min": 0.0
+    },
+    "temps": {
+      "edge": {
+        "crit": 100.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 56.0
+      },
+      "junction": {
+        "crit": 110.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 59.0
+      },
+      "mem": {
+        "crit": 100.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 54.0
+      }
+    },
+    "voltage": {},
+    "vram": {
+      "total": 17163091968,
+      "used": 668274688
+    }
+  }
+}

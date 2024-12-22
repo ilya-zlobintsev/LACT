@@ -7,11 +7,17 @@ use std::cell::RefMut;
 
 pub use imp::PlotData;
 
-use gtk::glib::{self, subclass::types::ObjectSubclassIsExt};
+use gtk::glib::{self, subclass::types::ObjectSubclassIsExt, Object};
 
 glib::wrapper! {
     pub struct Plot(ObjectSubclass<imp::Plot>)
         @extends gtk::Widget;
+}
+
+impl Default for Plot {
+    fn default() -> Self {
+        Object::builder().build()
+    }
 }
 
 impl Plot {

@@ -11,7 +11,7 @@ use crate::{APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use confirmation_dialog::ConfirmationDialog;
-use graphs_window::GraphsWindow;
+use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
     glib::{self, clone, ControlFlow},
     prelude::{
@@ -51,7 +51,7 @@ const STATS_POLL_INTERVAL_MS: u64 = 250;
 
 pub struct AppModel {
     daemon_client: DaemonClient,
-    graphs_window: GraphsWindow,
+    graphs_window: relm4::Controller<GraphsWindow>,
 
     info_page: relm4::Controller<InformationPage>,
     oc_page: OcPage,
@@ -217,7 +217,7 @@ impl AsyncComponent for AppModel {
             ));
         }
 
-        let graphs_window = GraphsWindow::new();
+        let graphs_window = GraphsWindow::builder().launch(()).detach();
 
         let model = AppModel {
             daemon_client,
@@ -314,7 +314,8 @@ impl AppModel {
 
                 self.thermals_page.set_stats(&stats, false);
                 self.oc_page.set_stats(&stats, false);
-                self.graphs_window.set_stats(&stats);
+
+                self.graphs_window.emit(GraphsWindowMsg::Stats(stats));
             }
             AppMsg::ApplyChanges => {
                 self.apply_settings(self.current_gpu_id()?, root, &sender)
@@ -345,7 +346,7 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ShowGraphsWindow => {
-                self.graphs_window.show();
+                self.graphs_window.emit(GraphsWindowMsg::Show);
             }
             AppMsg::DumpVBios => {
                 self.dump_vbios(&self.current_gpu_id()?, root).await;
@@ -422,13 +423,14 @@ impl AppModel {
             .as_ref()
             .map(|info| info.vram_clock_ratio)
             .unwrap_or(1.0);
-        self.graphs_window.set_vram_clock_ratio(vram_clock_ratio);
+        self.graphs_window
+            .emit(GraphsWindowMsg::VramClockRatio(vram_clock_ratio));
 
         self.update_gpu_data(gpu_id, sender).await?;
 
         self.thermals_page.set_info(&info);
 
-        self.graphs_window.clear();
+        self.graphs_window.emit(GraphsWindowMsg::Clear);
 
         Ok(())
     }

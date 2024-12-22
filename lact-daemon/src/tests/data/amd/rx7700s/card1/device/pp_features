@@ -1,0 +1,52 @@
+features high: 0x0001a33d low: 0xfbffffff
+No. Feature               Bit : State
+00. FW_DATA_READ         ( 0) : enabled
+01. DPM_GFXCLK           ( 1) : enabled
+02. DPM_GFX_POWER_OPTIMIZER ( 2) : enabled
+03. DPM_UCLK             ( 3) : enabled
+04. DPM_FCLK             ( 4) : enabled
+05. DPM_SOCCLK           ( 5) : enabled
+06. DPM_MP0CLK           ( 6) : enabled
+07. DPM_LINK             ( 7) : enabled
+08. DPM_DCN              ( 8) : enabled
+09. VMEMP_SCALING        ( 9) : enabled
+10. VDDIO_MEM_SCALING    (10) : enabled
+11. DS_GFXCLK            (11) : enabled
+12. DS_SOCCLK            (12) : enabled
+13. DS_FCLK              (13) : enabled
+14. DS_LCLK              (14) : enabled
+15. DS_DCFCLK            (15) : enabled
+16. DS_UCLK              (16) : enabled
+17. GFX_ULV              (17) : enabled
+18. FW_DSTATE            (18) : enabled
+19. GFXOFF               (19) : enabled
+20. BACO                 (20) : enabled
+21. MM_DPM               (21) : enabled
+22. SOC_MPCLK_DS         (22) : enabled
+23. BACO_MPCLK_DS        (23) : enabled
+24. THROTTLERS           (24) : enabled
+25. SMARTSHIFT           (25) : enabled
+26. GTHR                 (26) : disabled
+27. ACDC                 (27) : enabled
+28. VR0HOT               (28) : enabled
+29. FW_CTF               (29) : enabled
+30. FAN_CONTROL          (30) : enabled
+31. GFX_DCS              (31) : enabled
+32. GFX_READ_MARGIN      (32) : enabled
+33. LED_DISPLAY          (33) : disabled
+34. GFXCLK_SPREAD_SPECTRUM (34) : enabled
+35. OUT_OF_BAND_MONITOR  (35) : enabled
+36. OPTIMIZED_VMIN       (36) : enabled
+37. GFX_IMU              (37) : enabled
+38. BOOT_TIME_CAL        (38) : disabled
+39. GFX_PCC_DFLL         (39) : disabled
+40. SOC_CG               (40) : enabled
+41. DF_CSTATE            (41) : enabled
+42. GFX_EDC              (42) : disabled
+43. BOOT_POWER_OPT       (43) : disabled
+44. CLOCK_POWER_DOWN_BYPASS (44) : disabled
+45. DS_VCN               (45) : enabled
+46. BACO_CG              (46) : disabled
+47. MEM_TEMP_READ        (47) : enabled
+48. ATHUB_MMHUB_PG       (48) : enabled
+49. SOC_PCC              (49) : disabled

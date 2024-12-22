@@ -1,0 +1,282 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": {
+    "max_mclk": 1750,
+    "max_sclk": 1366,
+    "max_voltage": 1150,
+    "table": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "mclk_levels": [
+            {
+              "clockspeed": 300,
+              "voltage": 750
+            },
+            {
+              "clockspeed": 1000,
+              "voltage": 825
+            },
+            {
+              "clockspeed": 1750,
+              "voltage": 975
+            }
+          ],
+          "od_range": {
+            "mclk": {
+              "max": 2250,
+              "min": 300
+            },
+            "sclk": {
+              "max": 2000,
+              "min": 300
+            },
+            "vddc": {
+              "max": 1200,
+              "min": 750
+            }
+          },
+          "sclk_levels": [
+            {
+              "clockspeed": 300,
+              "voltage": 750
+            },
+            {
+              "clockspeed": 600,
+              "voltage": 769
+            },
+            {
+              "clockspeed": 900,
+              "voltage": 912
+            },
+            {
+              "clockspeed": 1145,
+              "voltage": 1125
+            },
+            {
+              "clockspeed": 1215,
+              "voltage": 1150
+            },
+            {
+              "clockspeed": 1257,
+              "voltage": 1150
+            },
+            {
+              "clockspeed": 1300,
+              "voltage": 1150
+            },
+            {
+              "clockspeed": 1366,
+              "voltage": 1150
+            }
+          ]
+        },
+        "kind": "vega10"
+      }
+    }
+  },
+  "info": {
+    "driver": "amdgpu",
+    "link_info": {
+      "max_speed": "8.0 GT/s PCIe",
+      "max_width": "16"
+    },
+    "pci_info": {
+      "device_pci_info": {
+        "model": "Ellesmere [Radeon RX 470/480/570/570X/580/580X/590]",
+        "model_id": "67DF",
+        "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+        "vendor_id": "1002"
+      },
+      "subsystem_pci_info": {
+        "model": "Radeon RX 580 Pulse 4GB",
+        "model_id": "E387",
+        "vendor": "Sapphire Technology Limited",
+        "vendor_id": "1DA2"
+      }
+    },
+    "vbios_version": "113-1E3871U-O4C"
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "Ellesmere [Radeon RX 470/480/570/570X/580/580X/590]",
+      "model_id": "67DF",
+      "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "vendor_id": "1002"
+    },
+    "subsystem_pci_info": {
+      "model": "Radeon RX 580 Pulse 4GB",
+      "model_id": "E387",
+      "vendor": "Sapphire Technology Limited",
+      "vendor_id": "1DA2"
+    }
+  },
+  "power_profile_modes": {
+    "active": 1,
+    "modes": {
+      "0": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "name": "BOOTUP_DEFAULT"
+      },
+      "1": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0,
+              100,
+              30,
+              10,
+              60,
+              25
+            ]
+          }
+        ],
+        "name": "3D_FULL_SCREEN"
+      },
+      "2": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              10,
+              0,
+              30,
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "name": "POWER_SAVING"
+      },
+      "3": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              null,
+              null,
+              null,
+              10,
+              16,
+              31
+            ]
+          }
+        ],
+        "name": "VIDEO"
+      },
+      "4": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0,
+              11,
+              50,
+              0,
+              100,
+              10
+            ]
+          }
+        ],
+        "name": "VR"
+      },
+      "5": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              0,
+              5,
+              30,
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "name": "COMPUTE"
+      },
+      "6": {
+        "components": [
+          {
+            "clock_type": null,
+            "values": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ]
+          }
+        ],
+        "name": "CUSTOM"
+      }
+    },
+    "value_names": [
+      "SCLK_UP_HYST",
+      "SCLK_DOWN_HYST",
+      "SCLK_ACTIVE_LEVEL",
+      "MCLK_UP_HYST",
+      "MCLK_DOWN_HYST",
+      "MCLK_ACTIVE_LEVEL"
+    ]
+  },
+  "stats": {
+    "busy_percent": 11,
+    "clockspeed": {
+      "gpu_clockspeed": 798,
+      "vram_clockspeed": 1750
+    },
+    "core_power_state": 2,
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {},
+      "pwm_current": 35,
+      "speed_current": 595,
+      "speed_max": 3200,
+      "speed_min": 0
+    },
+    "memory_power_state": 2,
+    "pcie_power_state": 1,
+    "performance_level": "auto",
+    "power": {
+      "average": 41.045,
+      "cap_current": 155.0,
+      "cap_default": 155.0,
+      "cap_max": 201.0,
+      "cap_min": 0.0
+    },
+    "temps": {
+      "edge": {
+        "crit": 94.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 44.0
+      }
+    },
+    "voltage": {
+      "gpu": 975
+    },
+    "vram": {
+      "total": 4294967296,
+      "used": 536870912
+    }
+  }
+}

@@ -57,12 +57,16 @@ pub struct AmdGpuController {
 }
 
 impl AmdGpuController {
-    pub fn new_from_path(sysfs_path: PathBuf, pci_db: &Database) -> anyhow::Result<Self> {
+    pub fn new_from_path(
+        sysfs_path: PathBuf,
+        pci_db: &Database,
+        skip_drm: bool,
+    ) -> anyhow::Result<Self> {
         let handle = GpuHandle::new_from_path(sysfs_path)
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
 
         let mut drm_handle = None;
-        if matches!(handle.get_driver(), "amdgpu" | "radeon") {
+        if matches!(handle.get_driver(), "amdgpu" | "radeon") && !skip_drm {
             match get_drm_handle(&handle) {
                 Ok(handle) => {
                     drm_handle = Some(handle);

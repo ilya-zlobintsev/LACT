@@ -25,6 +25,8 @@ pub struct Plot {
     pub(super) data: RefCell<PlotData>,
     pub(super) dirty: Cell<bool>,
     render_thread: RenderThread,
+    #[property(get, set)]
+    time_period_seconds: Cell<i64>,
 }
 
 #[glib::object_subclass]
@@ -74,6 +76,7 @@ impl WidgetImpl for Plot {
                     .secondary_y_label_area_relative_size
                     .get(),
                 supersample_factor: 4,
+                time_period_seconds: self.time_period_seconds.get(),
             });
         }
 

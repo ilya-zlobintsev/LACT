@@ -30,7 +30,7 @@ configure:
     - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain 1.78
     - cmd: >-
-        curl -o /tmp/blueprint-compiler.deb http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb &&
+        curl -o /tmp/blueprint-compiler.deb http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.14.0-1_all.deb &&
         apt install -y /tmp/blueprint-compiler.deb
       deb: true
     - cmd: pacman -Syu --noconfirm
