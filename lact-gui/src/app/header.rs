@@ -8,11 +8,12 @@ use gtk::*;
 use lact_client::schema::DeviceListEntry;
 use lact_schema::ProfilesInfo;
 use new_profile_dialog::NewProfileDialog;
-use profile_row::ProfileRow;
+use profile_row::{ProfileRow, ProfileRowType};
 use relm4::{
     factory::FactoryVecDeque,
     typed_view::list::{RelmListItem, TypedListView},
-    Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
+    Component, ComponentController, ComponentParts, ComponentSender, RelmIterChildrenExt,
+    RelmWidgetExt,
 };
 
 pub struct Header {
@@ -270,25 +271,35 @@ impl Header {
             return;
         }
 
+        let toplevel = self.profile_selector.widget().toplevel_window().unwrap();
+
         let mut profiles = self.profile_selector.guard();
         profiles.clear();
 
         let last = profiles_info.profiles.len().saturating_sub(1);
         for (i, (name, rule)) in profiles_info.profiles.iter().enumerate() {
-            profiles.push_back(ProfileRow::Profile {
+            let profile = ProfileRowType::Profile {
                 name: name.to_string(),
                 first: i == 0,
                 last: i == last,
                 auto: profiles_info.auto_switch,
                 rule: rule.clone(),
-            });
+            };
+            profiles.push_back((profile, toplevel.clone()));
         }
-        profiles.push_back(ProfileRow::Default);
+        profiles.push_back((ProfileRowType::Default, toplevel));
         drop(profiles);
 
         self.profiles_info = profiles_info;
 
         self.update_selected_profile();
+
+        if self.auto_switch_profiles() {
+            let profiles_listbox = self.profile_selector.widget();
+            for row in profiles_listbox.iter_children() {
+                row.remove_css_class("activatable");
+            }
+        }
     }
 
     fn update_selected_profile(&self) {
@@ -330,7 +341,7 @@ impl Header {
         let mut profiles = Vec::with_capacity(self.profile_selector.len());
         for i in 0..self.profile_selector.len() {
             let item = self.profile_selector.get(i).unwrap();
-            if let ProfileRow::Profile { name, .. } = item {
+            if let ProfileRowType::Profile { name, .. } = &item.row {
                 profiles.push(name.clone());
             }
         }
@@ -342,9 +353,9 @@ impl Header {
             .widget()
             .selected_row()
             .and_then(|row| self.profile_selector.get(row.index() as usize))
-            .and_then(|item| match item {
-                ProfileRow::Default => None,
-                ProfileRow::Profile { name, .. } => Some(name.as_str()),
+            .and_then(|item| match &item.row {
+                ProfileRowType::Default => None,
+                ProfileRowType::Profile { name, .. } => Some(name.as_str()),
             })
     }
 

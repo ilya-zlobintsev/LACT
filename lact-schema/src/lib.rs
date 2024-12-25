@@ -372,6 +372,12 @@ pub enum ProfileRule {
     Gamemode(Option<ProcessProfileRule>),
 }
 
+impl Default for ProfileRule {
+    fn default() -> Self {
+        Self::Process(ProcessProfileRule::default())
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct ProcessProfileRule {

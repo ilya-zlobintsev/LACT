@@ -1,25 +1,34 @@
 use gtk::{
     glib::GStr,
-    prelude::{EntryBufferExtManual, GtkWindowExt, OrientableExt, WidgetExt},
+    prelude::{
+        CheckButtonExt, EntryBufferExtManual, EntryExt, GridExt, GtkWindowExt, ObjectExt,
+        OrientableExt, WidgetExt,
+    },
 };
-use lact_schema::{ProcessProfileRule, ProfileRule};
+use lact_schema::ProfileRule;
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
 
 const PROCESS_PAGE: &str = "process";
 const GAMEMODE_PAGE: &str = "gamemode";
 
 pub struct RuleWindow {
+    profile_name: String,
     process_name_buffer: gtk::EntryBuffer,
     args_buffer: gtk::EntryBuffer,
     rule: ProfileRule,
 }
 
 #[derive(Debug)]
-pub enum RuleWindowMsg {}
+pub enum RuleWindowMsg {
+    Show {
+        profile_name: String,
+        rule: ProfileRule,
+    },
+}
 
 #[relm4::component(pub)]
 impl relm4::Component for RuleWindow {
-    type Init = (Option<ProfileRule>, String);
+    type Init = ();
     type Input = RuleWindowMsg;
     type Output = ();
     type CommandOutput = ();
@@ -33,7 +42,8 @@ impl relm4::Component for RuleWindow {
                 set_orientation: gtk::Orientation::Vertical,
 
                 gtk::Label {
-                    set_markup: &format!("<span font_desc='11'><b>Activate profile '{name}' when:</b></span>"),
+                    #[watch]
+                    set_markup: &format!("<span font_desc='11'><b>Activate profile '{}' when:</b></span>", model.profile_name),
                     set_halign: gtk::Align::Start,
                     set_margin_all: 10,
                 },
@@ -50,12 +60,77 @@ impl relm4::Component for RuleWindow {
 
                     #[name = "stack"]
                     gtk::Stack {
-                        add_titled[Some(PROCESS_PAGE), "A process is running"] = &gtk::Box {
+                        add_titled[Some(PROCESS_PAGE), "A process is running"] = &gtk::Grid {
+                            set_row_spacing: 5,
+                            set_column_spacing: 10,
+                            set_margin_all: 10,
 
+                            attach[0, 0, 1, 1] = &gtk::Label {
+                                set_label: "Process Name:",
+                                set_halign: gtk::Align::Start,
+                            },
+
+                            attach[2, 0, 1, 1] = &gtk::Entry {
+                                set_buffer: &model.process_name_buffer,
+                                set_hexpand: true,
+                                set_placeholder_text: Some("Cyberpunk2077.exe"),
+                            },
+
+                            attach[0, 1, 1, 1] = &gtk::Label {
+                                set_label: "With Arguments:",
+                                set_halign: gtk::Align::Start,
+                            },
+
+
+                            attach[1, 1, 1, 1]: filter_by_args_checkbutton = &gtk::CheckButton {
+                                #[watch]
+                                set_active: model.args_buffer.length() > 0,
+                            },
+
+                            attach[2, 1, 1, 1]: args_entry = &gtk::Entry {
+                                set_buffer: &model.args_buffer,
+                                set_hexpand: true,
+                                set_sensitive: false,
+                            },
                         },
 
-                        add_titled[Some(GAMEMODE_PAGE), "Gamemode is active"] = &gtk::Box {
+                        add_titled[Some(GAMEMODE_PAGE), "Gamemode is active"] = &gtk::Grid {
+                            set_row_spacing: 5,
+                            set_column_spacing: 10,
+                            set_margin_all: 10,
 
+                            attach[0, 0, 1, 1] = &gtk::Label {
+                                set_label: "With a specific process:",
+                                set_halign: gtk::Align::Start,
+                            },
+
+                            attach[1, 0, 1, 1]: gamemode_filter_by_process_checkbutton = &gtk::CheckButton {
+                                #[watch]
+                                set_active: model.process_name_buffer.length() > 0,
+                            },
+
+                            attach[2, 0, 1, 1]: gamemode_process_name_entry = &gtk::Entry {
+                                set_buffer: &model.process_name_buffer,
+                                set_hexpand: true,
+                                set_placeholder_text: Some("Cyberpunk2077.exe"),
+                                set_sensitive: false,
+                            },
+
+                            attach[0, 1, 1, 1] = &gtk::Label {
+                                set_label: "With Arguments:",
+                                set_halign: gtk::Align::Start,
+                            },
+
+                            attach[1, 1, 1, 1]: gamemode_filter_by_args_checkbutton = &gtk::CheckButton {
+                                #[watch]
+                                set_active: model.args_buffer.length() > 0,
+                            },
+
+                            attach[2, 1, 1, 1]: gamemode_args_entry = &gtk::Entry {
+                                set_buffer: &model.args_buffer,
+                                set_hexpand: true,
+                                set_sensitive: false,
+                            },
                         },
 
                         set_visible_child_name: match &model.rule {
@@ -70,31 +145,52 @@ impl relm4::Component for RuleWindow {
     }
 
     fn init(
-        (init, name): Self::Init,
+        (): Self::Init,
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let rule = init.unwrap_or_else(|| ProfileRule::Process(ProcessProfileRule::default()));
-
         let model = Self {
-            rule,
+            rule: ProfileRule::default(),
+            profile_name: String::new(),
             process_name_buffer: gtk::EntryBuffer::new(GStr::NONE),
             args_buffer: gtk::EntryBuffer::new(GStr::NONE),
         };
 
-        if let ProfileRule::Process(rule) | ProfileRule::Gamemode(Some(rule)) = &model.rule {
-            model.process_name_buffer.set_text(&rule.name);
-            model.args_buffer.set_text(&rule.name);
-        }
-
         let widgets = view_output!();
 
-        root.present();
+        widgets
+            .filter_by_args_checkbutton
+            .bind_property("active", &widgets.args_entry, "sensitive")
+            .bidirectional()
+            .build();
+
+        widgets
+            .gamemode_filter_by_process_checkbutton
+            .bind_property("active", &widgets.gamemode_process_name_entry, "sensitive")
+            .bidirectional()
+            .build();
+
+        widgets
+            .gamemode_filter_by_args_checkbutton
+            .bind_property("active", &widgets.gamemode_args_entry, "sensitive")
+            .bidirectional()
+            .build();
 
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>, _root: &Self::Root) {
-        match msg {}
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>, root: &Self::Root) {
+        match msg {
+            RuleWindowMsg::Show { profile_name, rule } => {
+                self.profile_name = profile_name;
+
+                if let ProfileRule::Process(rule) | ProfileRule::Gamemode(Some(rule)) = rule {
+                    self.process_name_buffer.set_text(&rule.name);
+                    self.args_buffer.set_text(&rule.name);
+                }
+
+                root.present();
+            }
+        }
     }
 }

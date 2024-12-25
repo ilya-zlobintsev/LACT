@@ -1,19 +1,22 @@
 mod rule_window;
 
+use super::HeaderMsg;
+use crate::app::{msg::AppMsg, APP_BROKER};
 use gtk::{pango, prelude::*};
 use lact_schema::ProfileRule;
 use relm4::{
     factory::{DynamicIndex, FactoryComponent},
     Component, ComponentController, FactorySender, RelmWidgetExt,
 };
-use rule_window::RuleWindow;
+use rule_window::{RuleWindow, RuleWindowMsg};
 
-use crate::app::{msg::AppMsg, APP_BROKER};
+pub struct ProfileRow {
+    pub(super) row: ProfileRowType,
+    rule_window: relm4::Controller<RuleWindow>,
+}
 
-use super::HeaderMsg;
-
-#[derive(Clone, Debug)]
-pub enum ProfileRow {
+#[derive(Debug, Clone)]
+pub enum ProfileRowType {
     Default,
     Profile {
         name: String,
@@ -24,11 +27,11 @@ pub enum ProfileRow {
     },
 }
 
-impl ProfileRow {
+impl ProfileRowType {
     pub fn name(&self) -> Option<String> {
         match self {
-            ProfileRow::Default => None,
-            ProfileRow::Profile { name, .. } => Some(name.clone()),
+            Self::Default => None,
+            Self::Profile { name, .. } => Some(name.clone()),
         }
     }
 }
@@ -40,7 +43,7 @@ pub enum ProfileRowMsg {
 
 #[relm4::factory(pub)]
 impl FactoryComponent for ProfileRow {
-    type Init = Self;
+    type Init = (ProfileRowType, gtk::Window);
     type Input = ProfileRowMsg;
     type Output = HeaderMsg;
     type CommandOutput = ();
@@ -50,9 +53,9 @@ impl FactoryComponent for ProfileRow {
         gtk::Box {
             #[name = "name_label"]
             gtk::Label {
-                set_label: match self {
-                    ProfileRow::Default => "Default",
-                    ProfileRow::Profile { name, .. } => name,
+                set_label: match &self.row {
+                    ProfileRowType::Default => "Default",
+                    ProfileRowType::Profile { name, .. } => name,
                 },
                 set_margin_all: 5,
                 set_halign: gtk::Align::Start,
@@ -65,19 +68,19 @@ impl FactoryComponent for ProfileRow {
             gtk::Button {
                 set_icon_name: "preferences-other-symbolic",
                 set_tooltip: "Edit Profile Rules",
-                set_sensitive: matches!(self, ProfileRow::Profile { auto: true, .. }),
+                set_sensitive: matches!(self.row, ProfileRowType::Profile { auto: true, .. }),
                 connect_clicked => ProfileRowMsg::EditRule,
             },
 
             gtk::Button {
                 set_icon_name: "go-up",
                 set_tooltip: "Move Up",
-                set_sensitive: match self {
-                    ProfileRow::Profile { first, .. } => !*first,
+                set_sensitive: match &self.row {
+                    ProfileRowType::Profile { first, .. } => !*first,
                     _ => false,
 
                 },
-                connect_clicked[index, profile = self.clone()] => move |_| {
+                connect_clicked[index, profile = self.row.clone()] => move |_| {
                     APP_BROKER.send(move_profile_msg(&profile, &index, -1));
                 },
             },
@@ -85,22 +88,22 @@ impl FactoryComponent for ProfileRow {
             gtk::Button {
                 set_icon_name: "go-down",
                 set_tooltip: "Move Down",
-                set_sensitive: match self {
-                    ProfileRow::Profile { last, .. } => !*last,
+                set_sensitive: match &self.row {
+                    ProfileRowType::Profile { last, .. } => !*last,
                     _ => false,
 
                 },
-                connect_clicked[index, profile = self.clone()] => move |_| {
+                connect_clicked[index, profile = self.row.clone()] => move |_| {
                     APP_BROKER.send(move_profile_msg(&profile, &index, 1));
                 },
             },
 
             gtk::Button {
                 set_icon_name: "list-remove",
-                set_sensitive: matches!(self, ProfileRow::Profile { .. }),
+                set_sensitive: matches!(self.row, ProfileRowType::Profile { .. }),
                 set_tooltip: "Delete Profile",
-                connect_clicked[profile = self.clone()] => move |_| {
-                    if let ProfileRow::Profile { name, .. } = profile.clone() {
+                connect_clicked[profile = self.row.clone()] => move |_| {
+                    if let ProfileRowType::Profile { name, .. } = profile.clone() {
                         APP_BROKER.send(AppMsg::DeleteProfile(name));
                     }
                 },
@@ -108,32 +111,41 @@ impl FactoryComponent for ProfileRow {
         }
     }
 
-    fn init_model(model: Self::Init, _index: &DynamicIndex, _sender: FactorySender<Self>) -> Self {
-        model
+    fn init_model(
+        (row, toplevel): Self::Init,
+        _index: &DynamicIndex,
+        _sender: FactorySender<Self>,
+    ) -> Self {
+        let rule_window = RuleWindow::builder()
+            .transient_for(&toplevel)
+            .launch(())
+            .detach();
+
+        Self { row, rule_window }
     }
 
-    fn update_with_view(
+    fn update(
         &mut self,
-        widgets: &mut Self::Widgets,
+        // _widgets: &mut Self::Widgets,
         msg: Self::Input,
         sender: FactorySender<Self>,
     ) {
         match msg {
             ProfileRowMsg::EditRule => {
-                if let Self::Profile { rule, name, .. } = self {
+                if let ProfileRowType::Profile { rule, name, .. } = &self.row {
                     sender.output(HeaderMsg::ClosePopover).unwrap();
 
-                    let mut rule_window = RuleWindow::builder()
-                        .transient_for(&widgets.name_label)
-                        .launch((rule.clone(), name.clone()));
-                    rule_window.detach_runtime();
+                    self.rule_window.emit(RuleWindowMsg::Show {
+                        profile_name: name.clone(),
+                        rule: rule.clone().unwrap_or_default(),
+                    });
                 }
             }
         }
     }
 }
 
-fn move_profile_msg(profile: &ProfileRow, index: &DynamicIndex, offset: i64) -> AppMsg {
+fn move_profile_msg(profile: &ProfileRowType, index: &DynamicIndex, offset: i64) -> AppMsg {
     let name = profile.name().expect("Default profile cannot be moved");
     let new_index = (index.current_index() as i64).saturating_add(offset);
     AppMsg::MoveProfile(name, new_index as usize)
