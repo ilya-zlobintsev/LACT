@@ -37,6 +37,7 @@ impl relm4::Component for RuleWindow {
         gtk::Dialog {
             set_default_size: (600, 300),
             set_title: Some("Profile activation rules"),
+            set_hide_on_close: true,
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,

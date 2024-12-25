@@ -1,18 +1,14 @@
-mod rule_window;
-
 use super::HeaderMsg;
 use crate::app::{msg::AppMsg, APP_BROKER};
 use gtk::{pango, prelude::*};
 use lact_schema::ProfileRule;
 use relm4::{
     factory::{DynamicIndex, FactoryComponent},
-    Component, ComponentController, FactorySender, RelmWidgetExt,
+    FactorySender, RelmWidgetExt,
 };
-use rule_window::{RuleWindow, RuleWindowMsg};
 
 pub struct ProfileRow {
     pub(super) row: ProfileRowType,
-    rule_window: relm4::Controller<RuleWindow>,
 }
 
 #[derive(Debug, Clone)]
@@ -36,15 +32,10 @@ impl ProfileRowType {
     }
 }
 
-#[derive(Debug)]
-pub enum ProfileRowMsg {
-    EditRule,
-}
-
 #[relm4::factory(pub)]
 impl FactoryComponent for ProfileRow {
-    type Init = (ProfileRowType, gtk::Window);
-    type Input = ProfileRowMsg;
+    type Init = ProfileRowType;
+    type Input = ();
     type Output = HeaderMsg;
     type CommandOutput = ();
     type ParentWidget = gtk::ListBox;
@@ -69,7 +60,9 @@ impl FactoryComponent for ProfileRow {
                 set_icon_name: "preferences-other-symbolic",
                 set_tooltip: "Edit Profile Rules",
                 set_sensitive: matches!(self.row, ProfileRowType::Profile { auto: true, .. }),
-                connect_clicked => ProfileRowMsg::EditRule,
+                connect_clicked[sender, index] => move |_| {
+                    sender.output(HeaderMsg::ShowProfileEditor(index.clone())).unwrap();
+                }
             },
 
             gtk::Button {
@@ -111,37 +104,8 @@ impl FactoryComponent for ProfileRow {
         }
     }
 
-    fn init_model(
-        (row, toplevel): Self::Init,
-        _index: &DynamicIndex,
-        _sender: FactorySender<Self>,
-    ) -> Self {
-        let rule_window = RuleWindow::builder()
-            .transient_for(&toplevel)
-            .launch(())
-            .detach();
-
-        Self { row, rule_window }
-    }
-
-    fn update(
-        &mut self,
-        // _widgets: &mut Self::Widgets,
-        msg: Self::Input,
-        sender: FactorySender<Self>,
-    ) {
-        match msg {
-            ProfileRowMsg::EditRule => {
-                if let ProfileRowType::Profile { rule, name, .. } = &self.row {
-                    sender.output(HeaderMsg::ClosePopover).unwrap();
-
-                    self.rule_window.emit(RuleWindowMsg::Show {
-                        profile_name: name.clone(),
-                        rule: rule.clone().unwrap_or_default(),
-                    });
-                }
-            }
-        }
+    fn init_model(row: Self::Init, _index: &DynamicIndex, _sender: FactorySender<Self>) -> Self {
+        Self { row }
     }
 }
 

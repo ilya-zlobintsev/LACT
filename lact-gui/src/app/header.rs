@@ -1,5 +1,6 @@
 mod new_profile_dialog;
 mod profile_row;
+mod rule_window;
 
 use super::{AppMsg, DebugSnapshot, DisableOverdrive, DumpVBios, ResetConfig, ShowGraphsWindow};
 use glib::clone;
@@ -11,22 +12,26 @@ use new_profile_dialog::NewProfileDialog;
 use profile_row::{ProfileRow, ProfileRowType};
 use relm4::{
     factory::FactoryVecDeque,
+    prelude::DynamicIndex,
     typed_view::list::{RelmListItem, TypedListView},
     Component, ComponentController, ComponentParts, ComponentSender, RelmIterChildrenExt,
     RelmWidgetExt,
 };
+use rule_window::{RuleWindow, RuleWindowMsg};
 
 pub struct Header {
     profiles_info: ProfilesInfo,
     gpu_selector: TypedListView<GpuListItem, gtk::SingleSelection>,
     profile_selector: FactoryVecDeque<ProfileRow>,
     selector_label: String,
+    rule_window: relm4::Controller<RuleWindow>,
 }
 
 #[derive(Debug)]
 pub enum HeaderMsg {
     Profiles(ProfilesInfo),
     AutoProfileSwitch(bool),
+    ShowProfileEditor(DynamicIndex),
     SelectProfile,
     SelectGpu,
     CreateProfile,
@@ -174,11 +179,17 @@ impl Component for Header {
             }
         ));
 
+        let rule_window = RuleWindow::builder()
+            .transient_for(&root)
+            .launch(())
+            .detach();
+
         let model = Self {
             gpu_selector,
             profile_selector,
             selector_label: String::new(),
             profiles_info: ProfilesInfo::default(),
+            rule_window,
         };
 
         let gpu_selector = &model.gpu_selector.view;
@@ -258,6 +269,21 @@ impl Component for Header {
                     });
                 diag_controller.detach_runtime();
             }
+            HeaderMsg::ShowProfileEditor(index) => {
+                sender.input(HeaderMsg::ClosePopover);
+
+                let profile = self
+                    .profile_selector
+                    .get(index.current_index())
+                    .expect("No profile with given index");
+
+                if let ProfileRowType::Profile { name, rule, .. } = &profile.row {
+                    self.rule_window.emit(RuleWindowMsg::Show {
+                        profile_name: name.clone(),
+                        rule: rule.clone().unwrap_or_default(),
+                    });
+                }
+            }
         }
         self.update_label();
 
@@ -271,8 +297,6 @@ impl Header {
             return;
         }
 
-        let toplevel = self.profile_selector.widget().toplevel_window().unwrap();
-
         let mut profiles = self.profile_selector.guard();
         profiles.clear();
 
@@ -285,9 +309,9 @@ impl Header {
                 auto: profiles_info.auto_switch,
                 rule: rule.clone(),
             };
-            profiles.push_back((profile, toplevel.clone()));
+            profiles.push_back(profile);
         }
-        profiles.push_back((ProfileRowType::Default, toplevel));
+        profiles.push_back(ProfileRowType::Default);
         drop(profiles);
 
         self.profiles_info = profiles_info;
