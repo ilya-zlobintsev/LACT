@@ -1,4 +1,4 @@
-pub mod app;
+mod app;
 
 use anyhow::Context;
 use app::{AppModel, APP_BROKER};

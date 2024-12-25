@@ -182,6 +182,16 @@ impl DaemonClient {
             .inner()
     }
 
+    pub async fn set_profile_rule(
+        &self,
+        name: String,
+        rule: Option<ProfileRule>,
+    ) -> anyhow::Result<()> {
+        self.make_request(Request::SetProfileRule { name, rule })
+            .await?
+            .inner()
+    }
+
     pub async fn set_performance_level(
         &self,
         id: &str,

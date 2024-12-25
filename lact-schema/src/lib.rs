@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     fmt,
     str::FromStr,
     sync::Arc,
@@ -394,7 +394,7 @@ pub type ProcessMap = IndexMap<i32, ProcessInfo>;
 pub struct ProfileWatcherState {
     pub process_list: ProcessMap,
     pub gamemode_games: IndexSet<i32>,
-    pub process_names_map: HashMap<Arc<str>, Vec<i32>>,
+    pub process_names_map: HashMap<Arc<str>, HashSet<i32>>,
 }
 
 #[allow(clippy::module_name_repetitions)]

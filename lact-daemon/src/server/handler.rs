@@ -1,5 +1,6 @@
 use super::{
     gpu_controller::{fan_control::FanCurve, GpuController},
+    profiles::ProfileWatcherCommand,
     system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
 };
 use crate::{
@@ -39,7 +40,7 @@ use std::{
 };
 use tokio::{
     process::Command,
-    sync::{oneshot, Notify},
+    sync::{mpsc, oneshot},
     time::sleep,
 };
 use tracing::{debug, error, info, trace, warn};
@@ -93,7 +94,7 @@ pub struct Handler {
     pub gpu_controllers: Rc<BTreeMap<String, Box<dyn GpuController>>>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
     pub config_last_saved: Rc<Cell<Instant>>,
-    pub profile_watcher_stop_notify: Rc<RefCell<Option<Rc<Notify>>>>,
+    pub profile_watcher_tx: Rc<RefCell<Option<mpsc::Sender<ProfileWatcherCommand>>>>,
     pub profile_watcher_state: Rc<RefCell<Option<ProfileWatcherState>>>,
 }
 
@@ -162,15 +163,19 @@ impl<'a> Handler {
             config: Rc::new(RefCell::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
             config_last_saved: Rc::new(Cell::new(Instant::now())),
-            profile_watcher_stop_notify: Rc::new(RefCell::new(None)),
+            profile_watcher_tx: Rc::new(RefCell::new(None)),
             profile_watcher_state: Rc::new(RefCell::new(None)),
         };
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
         }
 
+        if let Some(profile_name) = &handler.config.borrow().current_profile {
+            info!("using profile '{profile_name}'");
+        }
+
         if handler.config.borrow().auto_switch_profiles {
-            handler.start_profile_watcher();
+            handler.start_profile_watcher().await;
         }
 
         // Eagerly release memory
@@ -201,18 +206,19 @@ impl<'a> Handler {
         Ok(())
     }
 
-    fn stop_profile_watcher(&self) {
-        if let Some(existing_stop_notify) = self.profile_watcher_stop_notify.borrow_mut().take() {
-            existing_stop_notify.notify_one();
+    async fn stop_profile_watcher(&self) {
+        let tx = self.profile_watcher_tx.borrow_mut().take();
+        if let Some(existing_stop_notify) = tx {
+            let _ = existing_stop_notify.send(ProfileWatcherCommand::Stop).await;
         }
     }
 
-    pub fn start_profile_watcher(&self) {
-        self.stop_profile_watcher();
+    pub async fn start_profile_watcher(&self) {
+        self.stop_profile_watcher().await;
 
-        let new_notify = Rc::new(Notify::new());
-        *self.profile_watcher_stop_notify.borrow_mut() = Some(new_notify.clone());
-        tokio::task::spawn_local(profiles::run_watcher(self.clone(), new_notify));
+        let (profile_watcher_tx, profile_watcher_rx) = mpsc::channel(5);
+        *self.profile_watcher_tx.borrow_mut() = Some(profile_watcher_tx);
+        tokio::task::spawn_local(profiles::run_watcher(self.clone(), profile_watcher_rx));
         info!("started new profile watcher");
     }
 
@@ -738,9 +744,9 @@ impl<'a> Handler {
         auto_switch: bool,
     ) -> anyhow::Result<()> {
         if auto_switch {
-            self.start_profile_watcher();
+            self.start_profile_watcher().await;
         } else {
-            self.stop_profile_watcher();
+            self.stop_profile_watcher().await;
             self.set_current_profile(name).await?;
         }
         self.config.borrow_mut().auto_switch_profiles = auto_switch;
@@ -762,19 +768,27 @@ impl<'a> Handler {
         Ok(())
     }
 
-    pub fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
-        let mut config = self.config.borrow_mut();
-        if config.profiles.contains_key(name.as_str()) {
-            bail!("Profile {name} already exists");
+    pub async fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
+        {
+            let mut config = self.config.borrow_mut();
+            if config.profiles.contains_key(name.as_str()) {
+                bail!("Profile {name} already exists");
+            }
+
+            let profile = match base {
+                ProfileBase::Empty => Profile::default(),
+                ProfileBase::Default => config.default_profile(),
+                ProfileBase::Profile(name) => config.profile(&name)?.clone(),
+            };
+            config.profiles.insert(name.into(), profile);
+            config.save(&self.config_last_saved)?;
         }
 
-        let profile = match base {
-            ProfileBase::Empty => Profile::default(),
-            ProfileBase::Default => config.default_profile(),
-            ProfileBase::Profile(name) => config.profile(&name)?.clone(),
-        };
-        config.profiles.insert(name.into(), profile);
-        config.save(&self.config_last_saved)?;
+        let tx = self.profile_watcher_tx.borrow().clone();
+        if let Some(tx) = tx {
+            let _ = tx.send(ProfileWatcherCommand::Update).await;
+        }
+
         Ok(())
     }
 
@@ -790,23 +804,55 @@ impl<'a> Handler {
 
         self.config.borrow().save(&self.config_last_saved)?;
 
+        let tx = self.profile_watcher_tx.borrow().clone();
+        if let Some(tx) = tx {
+            let _ = tx.send(ProfileWatcherCommand::Update).await;
+        }
+
         Ok(())
     }
 
-    pub fn move_profile(&self, name: &str, new_position: usize) -> anyhow::Result<()> {
-        let mut config = self.config.borrow_mut();
+    pub async fn move_profile(&self, name: &str, new_position: usize) -> anyhow::Result<()> {
+        {
+            let mut config = self.config.borrow_mut();
 
-        let current_index = config
-            .profiles
-            .get_index_of(name)
-            .with_context(|| format!("Profile {name} not found"))?;
+            let current_index = config
+                .profiles
+                .get_index_of(name)
+                .with_context(|| format!("Profile {name} not found"))?;
 
-        if new_position >= config.profiles.len() {
-            bail!("Provided index is out of bounds");
+            if new_position >= config.profiles.len() {
+                bail!("Provided index is out of bounds");
+            }
+
+            config.profiles.swap_indices(current_index, new_position);
+            config.save(&self.config_last_saved)?;
         }
 
-        config.profiles.swap_indices(current_index, new_position);
-        config.save(&self.config_last_saved)?;
+        let tx = self.profile_watcher_tx.borrow().clone();
+        if let Some(tx) = tx {
+            let _ = tx.send(ProfileWatcherCommand::Update).await;
+        }
+
+        Ok(())
+    }
+
+    pub async fn set_profile_rule(
+        &self,
+        name: &str,
+        rule: Option<ProfileRule>,
+    ) -> anyhow::Result<()> {
+        self.config
+            .borrow_mut()
+            .profiles
+            .get_mut(name)
+            .with_context(|| format!("Profile {name} not found"))?
+            .rule = rule;
+
+        let tx = self.profile_watcher_tx.borrow().clone();
+        if let Some(tx) = tx {
+            let _ = tx.send(ProfileWatcherCommand::Update).await;
+        }
 
         Ok(())
     }

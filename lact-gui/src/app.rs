@@ -21,7 +21,9 @@ use gtk::{
     ApplicationWindow, ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog,
     MessageType, ResponseType,
 };
-use header::{Header, HeaderMsg};
+use header::{
+    profile_rule_window::ProfileRuleWindowMsg, Header, HeaderMsg, PROFILE_RULE_WINDOW_BROKER,
+};
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_daemon::MODULE_CONF_PATH;
 use lact_schema::{
@@ -395,6 +397,14 @@ impl AppModel {
                     });
                 controller.detach_runtime();
             }
+            AppMsg::EvaluateProfile(rule) => {
+                let matches = self.daemon_client.evaluate_profile_rule(rule).await?;
+                PROFILE_RULE_WINDOW_BROKER.send(ProfileRuleWindowMsg::EvaluationResult(matches));
+            }
+            AppMsg::SetProfileRule { name, rule } => {
+                self.daemon_client.set_profile_rule(name, rule).await?;
+                self.reload_profiles(false).await?;
+            }
         }
         Ok(())
     }
@@ -407,8 +417,14 @@ impl AppModel {
     }
 
     async fn reload_profiles(&mut self, include_state: bool) -> anyhow::Result<()> {
-        let profiles = self.daemon_client.list_profiles(include_state).await?;
+        let mut profiles = self.daemon_client.list_profiles(include_state).await?;
+
+        if let Some(state) = profiles.watcher_state.take() {
+            PROFILE_RULE_WINDOW_BROKER.send(ProfileRuleWindowMsg::WatcherState(state));
+        }
+
         self.header.emit(HeaderMsg::Profiles(Box::new(profiles)));
+
         Ok(())
     }
 

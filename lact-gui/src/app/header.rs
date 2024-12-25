@@ -1,6 +1,6 @@
 mod new_profile_dialog;
 mod profile_row;
-mod rule_window;
+pub mod profile_rule_window;
 
 use super::{AppMsg, DebugSnapshot, DisableOverdrive, DumpVBios, ResetConfig, ShowGraphsWindow};
 use glib::clone;
@@ -10,22 +10,24 @@ use lact_client::schema::DeviceListEntry;
 use lact_schema::ProfilesInfo;
 use new_profile_dialog::NewProfileDialog;
 use profile_row::{ProfileRow, ProfileRowType};
+use profile_rule_window::{ProfileRuleWindow, ProfileRuleWindowMsg};
 use relm4::{
     factory::FactoryVecDeque,
     prelude::DynamicIndex,
     typed_view::list::{RelmListItem, TypedListView},
-    Component, ComponentController, ComponentParts, ComponentSender, RelmIterChildrenExt,
-    RelmWidgetExt,
+    Component, ComponentController, ComponentParts, ComponentSender, MessageBroker,
+    RelmIterChildrenExt, RelmWidgetExt,
 };
-use rule_window::{RuleWindow, RuleWindowMsg};
 use tracing::debug;
+
+pub static PROFILE_RULE_WINDOW_BROKER: MessageBroker<ProfileRuleWindowMsg> = MessageBroker::new();
 
 pub struct Header {
     profiles_info: ProfilesInfo,
     gpu_selector: TypedListView<GpuListItem, gtk::SingleSelection>,
     profile_selector: FactoryVecDeque<ProfileRow>,
     selector_label: String,
-    rule_window: relm4::Controller<RuleWindow>,
+    rule_window: relm4::Controller<ProfileRuleWindow>,
 }
 
 #[derive(Debug)]
@@ -180,9 +182,9 @@ impl Component for Header {
             }
         ));
 
-        let rule_window = RuleWindow::builder()
+        let rule_window = ProfileRuleWindow::builder()
             .transient_for(&root)
-            .launch(())
+            .launch_with_broker((), &PROFILE_RULE_WINDOW_BROKER)
             .detach();
 
         let model = Self {
@@ -279,7 +281,7 @@ impl Component for Header {
                     .expect("No profile with given index");
 
                 if let ProfileRowType::Profile { name, rule, .. } = &profile.row {
-                    self.rule_window.emit(RuleWindowMsg::Show {
+                    self.rule_window.emit(ProfileRuleWindowMsg::Show {
                         profile_name: name.clone(),
                         rule: rule.clone().unwrap_or_default(),
                     });
@@ -294,7 +296,7 @@ impl Component for Header {
 
 impl Header {
     fn set_profiles_info(&mut self, profiles_info: ProfilesInfo) {
-        if profiles_info.watcher_state.is_none() && self.profiles_info == profiles_info {
+        if self.profiles_info == profiles_info {
             return;
         }
         debug!("setting new profiles info: {profiles_info:?}");
@@ -325,10 +327,6 @@ impl Header {
             for row in profiles_listbox.iter_children() {
                 row.remove_css_class("activatable");
             }
-        }
-
-        if let Some(state) = self.profiles_info.watcher_state.take() {
-            self.rule_window.emit(RuleWindowMsg::WatcherState(state));
         }
     }
 

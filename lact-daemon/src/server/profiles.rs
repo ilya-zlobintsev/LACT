@@ -9,12 +9,8 @@ use std::{
     rc::Rc,
     time::{Duration, Instant},
 };
-use tokio::{
-    select,
-    sync::{mpsc, Notify},
-    time::sleep,
-};
-use tracing::{error, info, trace, warn};
+use tokio::{select, sync::mpsc, time::sleep};
+use tracing::{debug, error, info, trace};
 
 const PROFILE_WATCHER_MIN_DELAY_MS: u64 = 50;
 const PROFILE_WATCHER_MAX_DELAY_MS: u64 = 500;
@@ -25,18 +21,13 @@ enum ProfileWatcherEvent {
     Gamemode(PEvent),
 }
 
-pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
-    let profile_rules = handler
-        .config
-        .borrow()
-        .profiles
-        .iter()
-        .filter_map(|(name, profile)| {
-            let rule = profile.rule.as_ref()?;
-            Some((name.clone(), rule.clone()))
-        })
-        .collect::<Vec<_>>();
+pub enum ProfileWatcherCommand {
+    Stop,
+    /// Manually force a re-evaluation of the rules, such as when the rules were edited
+    Update,
+}
 
+pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<ProfileWatcherCommand>) {
     let mut state = ProfileWatcherState::default();
     process::load_full_process_list(&mut state);
     info!("loaded {} processes", state.process_list.len());
@@ -73,6 +64,7 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
                             Some(registered_event) = registered_stream.next() => {
                                 match registered_event.args() {
                                     Ok(args) => {
+                                        debug!("gamemode activated for process {}", args.pid);
                                         event = Some(PEvent::Exec(args.pid.into()));
                                     }
                                     Err(err) => error!("could not get event args: {err}"),
@@ -81,6 +73,7 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
                             Some(unregistered_event) = unregistered_stream.next() => {
                                 match unregistered_event.args() {
                                     Ok(args) => {
+                                        debug!("gamemode exited for process {}", args.pid);
                                         event = Some(PEvent::Exit(args.pid.into()));
                                     }
                                     Err(err) => error!("could not get event args: {err}"),
@@ -103,13 +96,20 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
 
     *handler.profile_watcher_state.borrow_mut() = Some(state);
 
-    update_profile(&handler, &profile_rules).await;
+    update_profile(&handler).await;
 
     loop {
         select! {
-            () = stop_notify.notified() => break,
+            Some(cmd) = command_rx.recv() => {
+                match cmd {
+                    ProfileWatcherCommand::Stop => break,
+                    ProfileWatcherCommand::Update => {
+                        update_profile(&handler).await;
+                    }
+                }
+            }
             Some(event) = event_rx.recv() => {
-                handle_profile_event(&event, &handler);
+                handle_profile_event(&event, &handler).await;
 
                 // It is very common during system usage that multiple processes start at the same time, or there are processes
                 // that start and exit right away.
@@ -138,12 +138,12 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
                         Some(event) = event_rx.recv() => {
                             trace!("got another process event, delaying profile update");
                             min_timeout.as_mut().reset(tokio::time::Instant::now() + Duration::from_millis(PROFILE_WATCHER_MIN_DELAY_MS));
-                            handle_profile_event(&event, &handler);
+                            handle_profile_event(&event, &handler).await;
                         }
                     }
                 }
 
-                update_profile(&handler, &profile_rules).await;
+                update_profile(&handler).await;
             },
         }
     }
@@ -155,60 +155,73 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
     handler.profile_watcher_state.borrow_mut().take();
 }
 
-fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler) {
-    let mut state_guard = handler.profile_watcher_state.borrow_mut();
-    let state = state_guard
-        .as_mut()
-        .expect("Profile watcher active with no state");
-
+async fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler) {
     trace!("profile watcher event: {event:?}");
 
-    match *event {
-        ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid) {
-            Ok(info) => {
-                if info.name.as_ref() == gamemode::PROCESS_NAME {
-                    info!("detected gamemode daemon, reloading profile watcher");
-                    handler.start_profile_watcher();
+    let mut should_reload = false;
+    {
+        let mut state_guard = handler.profile_watcher_state.borrow_mut();
+        let Some(state) = state_guard.as_mut() else {
+            return;
+        };
+
+        match *event {
+            ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid) {
+                Ok(info) => {
+                    if info.name.as_ref() == gamemode::PROCESS_NAME {
+                        info!("detected gamemode daemon, reloading profile watcher");
+                        should_reload = true;
+                    }
+                    state.push_process(*pid.as_ref(), info);
                 }
-                state.push_process(*pid.as_ref(), info);
+                Err(err) => {
+                    debug!("could not get info for process {pid}: {err}");
+                }
+            },
+            ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
+                state.remove_process(*pid.as_ref());
             }
-            Err(err) => {
-                warn!("could not get info for process {pid}: {err}");
+            ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
+                state.gamemode_games.insert(*pid.as_ref());
             }
-        },
-        ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
-            state.remove_process(*pid.as_ref());
+            ProfileWatcherEvent::Gamemode(PEvent::Exit(pid)) => {
+                state.gamemode_games.shift_remove(pid.as_ref());
+            }
         }
-        ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
-            state.gamemode_games.insert(*pid.as_ref());
-        }
-        ProfileWatcherEvent::Gamemode(PEvent::Exit(pid)) => {
-            state.gamemode_games.shift_remove(pid.as_ref());
-        }
+    }
+
+    if should_reload {
+        handler.start_profile_watcher().await;
     }
 }
 
-async fn update_profile(handler: &Handler, profile_rules: &[(Rc<str>, ProfileRule)]) {
+async fn update_profile(handler: &Handler) {
     let new_profile = {
-        let state_guard = handler.profile_watcher_state.borrow();
-        let state = state_guard
-            .as_ref()
-            .expect("Profile watcher active with no state");
+        let config = handler.config.borrow();
+        let profile_rules = config
+            .profiles
+            .iter()
+            .filter_map(|(name, profile)| Some((name, profile.rule.as_ref()?)));
 
-        let started_at = Instant::now();
-        let new_profile = evaluate_current_profile(state, profile_rules);
-        trace!("evaluated profile rules in {:?}", started_at.elapsed());
-        new_profile
+        let state_guard = handler.profile_watcher_state.borrow();
+        if let Some(state) = state_guard.as_ref() {
+            let started_at = Instant::now();
+            let new_profile = evaluate_current_profile(state, profile_rules);
+            trace!("evaluated profile rules in {:?}", started_at.elapsed());
+            new_profile.cloned()
+        } else {
+            None
+        }
     };
 
-    if handler.config.borrow().current_profile.as_ref() != new_profile {
+    if handler.config.borrow().current_profile != new_profile {
         if let Some(name) = &new_profile {
-            info!("setting current profile to {name}");
+            info!("setting current profile to '{name}'");
         } else {
             info!("setting default profile");
         }
 
-        if let Err(err) = handler.set_current_profile(new_profile.cloned()).await {
+        if let Err(err) = handler.set_current_profile(new_profile).await {
             error!("failed to apply profile: {err:#}");
         }
     }
@@ -217,7 +230,7 @@ async fn update_profile(handler: &Handler, profile_rules: &[(Rc<str>, ProfileRul
 /// Returns the new active profile
 fn evaluate_current_profile<'a>(
     state: &ProfileWatcherState,
-    profile_rules: &'a [(Rc<str>, ProfileRule)],
+    profile_rules: impl Iterator<Item = (&'a Rc<str>, &'a ProfileRule)>,
 ) -> Option<&'a Rc<str>> {
     for (profile_name, rule) in profile_rules {
         if profile_rule_matches(state, rule) {
@@ -292,7 +305,7 @@ mod tests {
             },
         );
 
-        let profile_rules = vec![
+        let profile_rules = [
             (
                 "1".into(),
                 ProfileRule::Process(ProcessProfileRule {
@@ -311,7 +324,7 @@ mod tests {
 
         assert_eq!(
             Some(&Rc::from("1")),
-            evaluate_current_profile(&state, &profile_rules)
+            evaluate_current_profile(&state, profile_rules.iter().map(|(key, rule)| (key, rule)))
         );
 
         state.push_process(
@@ -323,7 +336,7 @@ mod tests {
         );
         assert_eq!(
             Some(&Rc::from("2")),
-            evaluate_current_profile(&state, &profile_rules)
+            evaluate_current_profile(&state, profile_rules.iter().map(|(key, rule)| (key, rule)))
         );
 
         state.push_process(
@@ -333,7 +346,10 @@ mod tests {
                 cmdline: "".into(),
             },
         );
-        assert_eq!(None, evaluate_current_profile(&state, &profile_rules));
+        assert_eq!(
+            None,
+            evaluate_current_profile(&state, profile_rules.iter().map(|(key, rule)| (key, rule)))
+        );
     }
 }
 
@@ -354,7 +370,7 @@ mod benches {
             state.push_process(pid, ProcessInfo { name, cmdline });
         }
 
-        let profile_rules = vec![
+        let profile_rules = [
             (
                 "1".into(),
                 ProfileRule::Process(ProcessProfileRule {
@@ -372,7 +388,10 @@ mod benches {
         ];
 
         bencher.bench_local(move || {
-            evaluate_current_profile(black_box(&state), black_box(&profile_rules));
+            evaluate_current_profile(
+                black_box(&state),
+                black_box(profile_rules.iter().map(|(key, rule)| (key, rule))),
+            );
         });
     }
 }

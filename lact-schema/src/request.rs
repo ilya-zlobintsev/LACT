@@ -82,6 +82,10 @@ pub enum Request<'a> {
     EvaluateProfileRule {
         rule: ProfileRule,
     },
+    SetProfileRule {
+        name: String,
+        rule: Option<ProfileRule>,
+    },
     EnableOverdrive,
     DisableOverdrive,
     GenerateSnapshot,

@@ -6,6 +6,7 @@ impl fmt::Debug for ProfileWatcherState {
         f.debug_struct("ProfileWatcherState")
             .field("process_list", &self.process_list.len())
             .field("gamemode_games", &self.gamemode_games.len())
+            .field("process_names_map", &self.process_names_map.len())
             .finish()
     }
 }
@@ -18,19 +19,20 @@ impl ProfileWatcherState {
             // In case we replaced a process with the same PID (this should normally never happen, but maybe we missed an exit event?)
             // the old name needs to be dropped as well.
             if let Entry::Occupied(mut entry) = self.process_names_map.entry(old_info.name) {
-                entry.get_mut().retain(|old_pid| *old_pid != pid);
+                entry.get_mut().remove(&pid);
                 if entry.get().is_empty() {
                     entry.remove();
                 }
             }
         }
 
-        self.process_names_map.entry(name).or_default().push(pid);
+        self.process_names_map.entry(name).or_default().insert(pid);
     }
 
     pub fn remove_process(&mut self, pid: i32) {
         if let Some(info) = self.process_list.shift_remove(&pid) {
-            if let Entry::Occupied(entry) = self.process_names_map.entry(info.name) {
+            if let Entry::Occupied(mut entry) = self.process_names_map.entry(info.name) {
+                entry.get_mut().remove(&pid);
                 if entry.get().is_empty() {
                     entry.remove();
                 }
