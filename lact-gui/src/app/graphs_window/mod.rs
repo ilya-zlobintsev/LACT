@@ -4,7 +4,7 @@ use gtk::prelude::*;
 use lact_schema::DeviceStats;
 use plot::{Plot, PlotData};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct GraphsWindow {
     time_period_seconds_adj: gtk::Adjustment,
@@ -13,7 +13,7 @@ pub struct GraphsWindow {
 
 #[derive(Debug)]
 pub enum GraphsWindowMsg {
-    Stats(Rc<DeviceStats>),
+    Stats(Arc<DeviceStats>),
     VramClockRatio(f64),
     Refresh,
     Show,

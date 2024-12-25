@@ -1,5 +1,6 @@
 #[cfg(feature = "args")]
 pub mod args;
+mod profiles;
 pub mod request;
 mod response;
 
@@ -17,14 +18,15 @@ use amdgpu_sysfs::{
     },
     hw_mon::Temperature,
 };
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     fmt,
     str::FromStr,
+    sync::Arc,
 };
 
 pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
@@ -349,8 +351,64 @@ pub struct FanOptions<'a> {
     pub change_threshold: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ProfilesInfo {
-    pub profiles: Vec<String>,
+    pub profiles: IndexMap<String, Option<ProfileRule>>,
     pub current_profile: Option<String>,
+    pub auto_switch: bool,
+    pub watcher_state: Option<ProfileWatcherState>,
+}
+
+impl PartialEq for ProfilesInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.profiles.as_slice() == other.profiles.as_slice()
+            && self.current_profile == other.current_profile
+            && self.auto_switch == other.auto_switch
+    }
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type", content = "filter", rename_all = "lowercase")]
+pub enum ProfileRule {
+    Process(ProcessProfileRule),
+    Gamemode(Option<ProcessProfileRule>),
+}
+
+impl Default for ProfileRule {
+    fn default() -> Self {
+        Self::Process(ProcessProfileRule::default())
+    }
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ProcessProfileRule {
+    pub name: Arc<str>,
+    pub args: Option<String>,
+}
+
+impl Default for ProcessProfileRule {
+    fn default() -> Self {
+        Self {
+            name: String::new().into(),
+            args: None,
+        }
+    }
+}
+
+pub type ProcessMap = IndexMap<i32, ProcessInfo>;
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct ProfileWatcherState {
+    pub process_list: ProcessMap,
+    pub gamemode_games: IndexSet<i32>,
+    pub process_names_map: HashMap<Arc<str>, HashSet<i32>>,
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProcessInfo {
+    pub name: Arc<str>,
+    pub cmdline: Box<str>,
 }

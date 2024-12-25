@@ -1,10 +1,14 @@
 use super::{
     gpu_controller::{fan_control::FanCurve, GpuController},
+    profiles::ProfileWatcherCommand,
     system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
 };
 use crate::{
     config::{self, default_fan_static_speed, Config, FanControlSettings, Profile},
-    server::gpu_controller::{AmdGpuController, NvidiaGpuController},
+    server::{
+        gpu_controller::{AmdGpuController, NvidiaGpuController},
+        profiles,
+    },
 };
 use amdgpu_sysfs::{
     gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind},
@@ -15,7 +19,7 @@ use lact_schema::{
     default_fan_curve,
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
-    PowerStates, ProfilesInfo,
+    PowerStates, ProfileRule, ProfileWatcherState, ProfilesInfo,
 };
 use libflate::gzip;
 use nix::libc;
@@ -24,7 +28,7 @@ use os_release::OS_RELEASE;
 use pciid_parser::Database;
 use serde_json::json;
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap},
     env,
     fs::{self, File, Permissions},
@@ -32,10 +36,13 @@ use std::{
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     rc::Rc,
-    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use tokio::{process::Command, sync::oneshot, time::sleep};
+use tokio::{
+    process::Command,
+    sync::{mpsc, oneshot},
+    time::sleep,
+};
 use tracing::{debug, error, info, trace, warn};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
@@ -86,7 +93,9 @@ pub struct Handler {
     pub config: Rc<RefCell<Config>>,
     pub gpu_controllers: Rc<BTreeMap<String, Box<dyn GpuController>>>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
-    pub config_last_saved: Arc<Mutex<Instant>>,
+    pub config_last_saved: Rc<Cell<Instant>>,
+    pub profile_watcher_tx: Rc<RefCell<Option<mpsc::Sender<ProfileWatcherCommand>>>>,
+    pub profile_watcher_state: Rc<RefCell<Option<ProfileWatcherState>>>,
 }
 
 impl<'a> Handler {
@@ -153,10 +162,20 @@ impl<'a> Handler {
             gpu_controllers: Rc::new(controllers),
             config: Rc::new(RefCell::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
-            config_last_saved: Arc::new(Mutex::new(Instant::now())),
+            config_last_saved: Rc::new(Cell::new(Instant::now())),
+            profile_watcher_tx: Rc::new(RefCell::new(None)),
+            profile_watcher_state: Rc::new(RefCell::new(None)),
         };
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
+        }
+
+        if let Some(profile_name) = &handler.config.borrow().current_profile {
+            info!("using profile '{profile_name}'");
+        }
+
+        if handler.config.borrow().auto_switch_profiles {
+            handler.start_profile_watcher().await;
         }
 
         // Eagerly release memory
@@ -185,6 +204,22 @@ impl<'a> Handler {
         }
 
         Ok(())
+    }
+
+    async fn stop_profile_watcher(&self) {
+        let tx = self.profile_watcher_tx.borrow_mut().take();
+        if let Some(existing_stop_notify) = tx {
+            let _ = existing_stop_notify.send(ProfileWatcherCommand::Stop).await;
+        }
+    }
+
+    pub async fn start_profile_watcher(&self) {
+        self.stop_profile_watcher().await;
+
+        let (profile_watcher_tx, profile_watcher_rx) = mpsc::channel(5);
+        *self.profile_watcher_tx.borrow_mut() = Some(profile_watcher_tx);
+        tokio::task::spawn_local(profiles::run_watcher(self.clone(), profile_watcher_rx));
+        info!("started new profile watcher");
     }
 
     async fn edit_gpu_config<F: FnOnce(&mut config::Gpu)>(
@@ -265,6 +300,7 @@ impl<'a> Handler {
                     match result {
                         Ok(ConfirmCommand::Confirm) => {
                             info!("saving updated config");
+
                             let mut config_guard = handler.config.borrow_mut();
                             match config_guard.gpus_mut() {
                                 Ok(gpus) => {
@@ -682,15 +718,44 @@ impl<'a> Handler {
             .collect()
     }
 
-    pub fn list_profiles(&self) -> ProfilesInfo {
+    pub fn list_profiles(&self, include_state: bool) -> ProfilesInfo {
+        let watcher_state = if include_state {
+            self.profile_watcher_state.borrow().as_ref().cloned()
+        } else {
+            None
+        };
+
         let config = self.config.borrow();
         ProfilesInfo {
-            profiles: config.profiles.keys().cloned().collect(),
-            current_profile: config.current_profile.clone(),
+            profiles: config
+                .profiles
+                .iter()
+                .map(|(name, profile)| (name.to_string(), profile.rule.clone()))
+                .collect(),
+            current_profile: config.current_profile.as_ref().map(Rc::to_string),
+            auto_switch: config.auto_switch_profiles,
+            watcher_state,
         }
     }
 
-    pub async fn set_profile(&self, name: Option<String>) -> anyhow::Result<()> {
+    pub async fn set_profile(
+        &self,
+        name: Option<Rc<str>>,
+        auto_switch: bool,
+    ) -> anyhow::Result<()> {
+        if auto_switch {
+            self.start_profile_watcher().await;
+        } else {
+            self.stop_profile_watcher().await;
+            self.set_current_profile(name).await?;
+        }
+        self.config.borrow_mut().auto_switch_profiles = auto_switch;
+        self.config.borrow_mut().save(&self.config_last_saved)?;
+
+        Ok(())
+    }
+
+    pub(super) async fn set_current_profile(&self, name: Option<Rc<str>>) -> anyhow::Result<()> {
         if let Some(name) = &name {
             self.config.borrow().profile(name)?;
         }
@@ -699,34 +764,106 @@ impl<'a> Handler {
         self.config.borrow_mut().current_profile = name;
 
         self.apply_current_config().await?;
-        self.config.borrow_mut().save(&self.config_last_saved)?;
 
         Ok(())
     }
 
-    pub fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
-        let mut config = self.config.borrow_mut();
-        if config.profiles.contains_key(&name) {
-            bail!("Profile {name} already exists");
+    pub async fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
+        {
+            let mut config = self.config.borrow_mut();
+            if config.profiles.contains_key(name.as_str()) {
+                bail!("Profile {name} already exists");
+            }
+
+            let profile = match base {
+                ProfileBase::Empty => Profile::default(),
+                ProfileBase::Default => config.default_profile(),
+                ProfileBase::Profile(name) => config.profile(&name)?.clone(),
+            };
+            config.profiles.insert(name.into(), profile);
+            config.save(&self.config_last_saved)?;
         }
 
-        let profile = match base {
-            ProfileBase::Empty => Profile::default(),
-            ProfileBase::Default => config.default_profile(),
-            ProfileBase::Profile(name) => config.profile(&name)?.clone(),
-        };
-        config.profiles.insert(name, profile);
-        config.save(&self.config_last_saved)?;
+        let tx = self.profile_watcher_tx.borrow().clone();
+        if let Some(tx) = tx {
+            let _ = tx.send(ProfileWatcherCommand::Update).await;
+        }
+
         Ok(())
     }
 
     pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
-        if self.config.borrow().current_profile.as_ref() == Some(&name) {
-            self.set_profile(None).await?;
+        if self.config.borrow().current_profile.as_deref() == Some(&name) {
+            self.set_current_profile(None).await?;
         }
-        self.config.borrow_mut().profiles.shift_remove(&name);
+        self.config
+            .borrow_mut()
+            .profiles
+            .shift_remove(name.as_str());
+
         self.config.borrow().save(&self.config_last_saved)?;
+
+        let tx = self.profile_watcher_tx.borrow().clone();
+        if let Some(tx) = tx {
+            let _ = tx.send(ProfileWatcherCommand::Update).await;
+        }
+
         Ok(())
+    }
+
+    pub async fn move_profile(&self, name: &str, new_position: usize) -> anyhow::Result<()> {
+        {
+            let mut config = self.config.borrow_mut();
+
+            let current_index = config
+                .profiles
+                .get_index_of(name)
+                .with_context(|| format!("Profile {name} not found"))?;
+
+            if new_position >= config.profiles.len() {
+                bail!("Provided index is out of bounds");
+            }
+
+            config.profiles.swap_indices(current_index, new_position);
+            config.save(&self.config_last_saved)?;
+        }
+
+        let tx = self.profile_watcher_tx.borrow().clone();
+        if let Some(tx) = tx {
+            let _ = tx.send(ProfileWatcherCommand::Update).await;
+        }
+
+        Ok(())
+    }
+
+    pub async fn set_profile_rule(
+        &self,
+        name: &str,
+        rule: Option<ProfileRule>,
+    ) -> anyhow::Result<()> {
+        self.config
+            .borrow_mut()
+            .profiles
+            .get_mut(name)
+            .with_context(|| format!("Profile {name} not found"))?
+            .rule = rule;
+
+        let tx = self.profile_watcher_tx.borrow().clone();
+        if let Some(tx) = tx {
+            let _ = tx.send(ProfileWatcherCommand::Update).await;
+        }
+
+        Ok(())
+    }
+
+    pub fn evaluate_profile_rule(&self, rule: &ProfileRule) -> anyhow::Result<bool> {
+        let profile_watcher_state_guard = self.profile_watcher_state.borrow();
+        match profile_watcher_state_guard.as_ref() {
+            Some(state) => Ok(profiles::profile_rule_matches(state, rule)),
+            None => Err(anyhow!(
+                "Automatic profile switching is not currently active"
+            )),
+        }
     }
 
     pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {

@@ -3,6 +3,7 @@ mod connection;
 mod macros;
 
 pub use lact_schema as schema;
+use lact_schema::ProfileRule;
 
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
@@ -133,7 +134,6 @@ impl DaemonClient {
     request_plain!(disable_overdrive, DisableOverdrive, String);
     request_plain!(generate_debug_snapshot, GenerateSnapshot, String);
     request_plain!(reset_config, RestConfig, ());
-    request_plain!(list_profiles, ListProfiles, ProfilesInfo);
     request_with_id!(get_device_info, DeviceInfo, DeviceInfo);
     request_with_id!(get_device_stats, DeviceStats, DeviceStats);
     request_with_id!(get_device_clocks_info, DeviceClocksInfo, ClocksInfo);
@@ -146,8 +146,14 @@ impl DaemonClient {
     request_with_id!(reset_pmfw, ResetPmfw, u64);
     request_with_id!(dump_vbios, VbiosDump, Vec<u8>);
 
-    pub async fn set_profile(&self, name: Option<String>) -> anyhow::Result<()> {
-        self.make_request(Request::SetProfile { name })
+    pub async fn list_profiles(&self, include_state: bool) -> anyhow::Result<ProfilesInfo> {
+        self.make_request(Request::ListProfiles { include_state })
+            .await?
+            .inner()
+    }
+
+    pub async fn set_profile(&self, name: Option<String>, auto_switch: bool) -> anyhow::Result<()> {
+        self.make_request(Request::SetProfile { name, auto_switch })
             .await?
             .inner()
     }
@@ -160,6 +166,28 @@ impl DaemonClient {
 
     pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
         self.make_request(Request::DeleteProfile { name })
+            .await?
+            .inner()
+    }
+
+    pub async fn move_profile(&self, name: String, new_position: usize) -> anyhow::Result<()> {
+        self.make_request(Request::MoveProfile { name, new_position })
+            .await?
+            .inner()
+    }
+
+    pub async fn evaluate_profile_rule(&self, rule: ProfileRule) -> anyhow::Result<bool> {
+        self.make_request(Request::EvaluateProfileRule { rule })
+            .await?
+            .inner()
+    }
+
+    pub async fn set_profile_rule(
+        &self,
+        name: String,
+        rule: Option<ProfileRule>,
+    ) -> anyhow::Result<()> {
+        self.make_request(Request::SetProfileRule { name, rule })
             .await?
             .inner()
     }

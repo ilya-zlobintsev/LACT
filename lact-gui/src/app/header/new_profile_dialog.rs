@@ -43,7 +43,7 @@ impl Component for NewProfileDialog {
                     set_spacing: 5,
 
                     gtk::Label {
-                        set_label: "Base profile:",
+                        set_label: "Copy settings from:",
                     },
 
                     #[local_ref]

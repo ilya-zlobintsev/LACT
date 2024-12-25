@@ -5,6 +5,7 @@ edition = "2021"
 
 [features]
 default = []
+bench = ["dep:divan"]
 
 [dependencies]
 lact-schema = { path = "../lact-schema" }
@@ -12,7 +13,7 @@ lact-schema = { path = "../lact-schema" }
 amdgpu-sysfs = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
 serde_with = { workspace = true }
 serde_json = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -28,6 +29,7 @@ tokio = { workspace = true, features = [
 ] }
 futures = { workspace = true }
 indexmap = { workspace = true }
+divan = { workspace = true, optional = true }
 
 nvml-wrapper = { git = "https://github.com/ilya-zlobintsev/nvml-wrapper", branch = "lact" }
 bitflags = "2.6.0"
@@ -40,6 +42,15 @@ tar = "0.4.40"
 libflate = "2.0.0"
 os-release = "0.1.0"
 notify = { version = "6.1.1", default-features = false }
+regex = "1.11.0"
+copes = { git = "https://gitlab.com/corectrl/copes" }
 
 [dev-dependencies]
+divan = { workspace = true }
+pretty_assertions = { workspace = true }
+lact-daemon = { path = ".", features = ["bench"] }
 insta = { version = "1.41.1", features = ["json"] }
+
+[[bench]]
+name = "daemon"
+harness = false

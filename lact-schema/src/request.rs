@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::FanOptions;
+use crate::{FanOptions, ProfileRule};
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use serde::{Deserialize, Serialize};
 
@@ -59,9 +59,14 @@ pub enum Request<'a> {
     VbiosDump {
         id: &'a str,
     },
-    ListProfiles,
+    ListProfiles {
+        #[serde(default)]
+        include_state: bool,
+    },
     SetProfile {
         name: Option<String>,
+        #[serde(default)]
+        auto_switch: bool,
     },
     CreateProfile {
         name: String,
@@ -69,6 +74,17 @@ pub enum Request<'a> {
     },
     DeleteProfile {
         name: String,
+    },
+    MoveProfile {
+        name: String,
+        new_position: usize,
+    },
+    EvaluateProfileRule {
+        rule: ProfileRule,
+    },
+    SetProfileRule {
+        name: String,
+        rule: Option<ProfileRule>,
     },
     EnableOverdrive,
     DisableOverdrive,

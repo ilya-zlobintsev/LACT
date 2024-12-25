@@ -1,13 +1,15 @@
 use super::confirmation_dialog::ConfirmationOptions;
 use lact_client::ConnectionStatusMsg;
-use lact_schema::{request::ProfileBase, DeviceStats};
-use std::rc::Rc;
+use lact_schema::{request::ProfileBase, DeviceStats, ProfileRule};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum AppMsg {
-    Error(Rc<anyhow::Error>),
-    ReloadData { full: bool },
-    Stats(Rc<DeviceStats>),
+    Error(Arc<anyhow::Error>),
+    ReloadData {
+        full: bool,
+    },
+    Stats(Arc<DeviceStats>),
     ApplyChanges,
     RevertChanges,
     ResetClocks,
@@ -18,10 +20,21 @@ pub enum AppMsg {
     EnableOverdrive,
     DisableOverdrive,
     ResetConfig,
-    ReloadProfiles,
-    SelectProfile(Option<String>),
+    ReloadProfiles {
+        include_state: bool,
+    },
+    SelectProfile {
+        profile: Option<String>,
+        auto_switch: bool,
+    },
     CreateProfile(String, ProfileBase),
     DeleteProfile(String),
+    MoveProfile(String, usize),
+    EvaluateProfile(ProfileRule),
+    SetProfileRule {
+        name: String,
+        rule: Option<ProfileRule>,
+    },
     ConnectionStatus(ConnectionStatusMsg),
     AskConfirmation(ConfirmationOptions, Box<AppMsg>),
 }
