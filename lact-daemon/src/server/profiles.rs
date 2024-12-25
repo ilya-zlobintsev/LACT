@@ -148,11 +148,11 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
         }
     }
 
+    handler.profile_watcher_state.borrow_mut().take();
+
     if let Some(handle) = gamemode_task {
         handle.abort();
     }
-
-    handler.profile_watcher_state.borrow_mut().take();
 }
 
 async fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler) {

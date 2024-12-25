@@ -793,14 +793,13 @@ impl<'a> Handler {
     }
 
     pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
+        if self.config.borrow().current_profile.as_deref() == Some(&name) {
+            self.set_current_profile(None).await?;
+        }
         self.config
             .borrow_mut()
             .profiles
             .shift_remove(name.as_str());
-        if self.config.borrow().current_profile.as_deref() == Some(&name) {
-            let auto_switch = self.config.borrow().auto_switch_profiles;
-            self.set_profile(None, auto_switch).await?;
-        }
 
         self.config.borrow().save(&self.config_last_saved)?;
 
