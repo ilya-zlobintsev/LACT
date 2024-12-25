@@ -388,10 +388,19 @@ pub struct ProcessProfileRule {
 
 pub type ProcessMap = IndexMap<i32, ProcessInfo>;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ProfileWatcherState {
     pub process_list: ProcessMap,
     pub gamemode_games: IndexSet<i32>,
+}
+
+impl fmt::Debug for ProfileWatcherState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ProfileWatcherState")
+            .field("process_list", &self.process_list.len())
+            .field("gamemode_games", &self.gamemode_games.len())
+            .finish()
+    }
 }
 
 #[allow(clippy::module_name_repetitions)]

@@ -18,6 +18,7 @@ use relm4::{
     RelmWidgetExt,
 };
 use rule_window::{RuleWindow, RuleWindowMsg};
+use tracing::debug;
 
 pub struct Header {
     profiles_info: ProfilesInfo,
@@ -293,9 +294,10 @@ impl Component for Header {
 
 impl Header {
     fn set_profiles_info(&mut self, profiles_info: ProfilesInfo) {
-        if self.profiles_info == profiles_info {
+        if profiles_info.watcher_state.is_none() && self.profiles_info == profiles_info {
             return;
         }
+        debug!("setting new profiles info: {profiles_info:?}");
 
         let mut profiles = self.profile_selector.guard();
         profiles.clear();
@@ -323,6 +325,10 @@ impl Header {
             for row in profiles_listbox.iter_children() {
                 row.remove_css_class("activatable");
             }
+        }
+
+        if let Some(state) = self.profiles_info.watcher_state.take() {
+            self.rule_window.emit(RuleWindowMsg::WatcherState(state));
         }
     }
 
