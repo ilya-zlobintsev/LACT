@@ -18,7 +18,7 @@ use lact_schema::{
     default_fan_curve,
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
-    PowerStates, ProfilesInfo,
+    PowerStates, ProfileWatcherState, ProfilesInfo,
 };
 use libflate::gzip;
 use nix::libc;
@@ -94,6 +94,7 @@ pub struct Handler {
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
     pub config_last_saved: Rc<Cell<Instant>>,
     pub profile_watcher_stop_notify: Rc<RefCell<Option<Rc<Notify>>>>,
+    pub profile_watcher_state: Rc<RefCell<Option<ProfileWatcherState>>>,
 }
 
 impl<'a> Handler {
@@ -162,6 +163,7 @@ impl<'a> Handler {
             confirm_config_tx: Rc::new(RefCell::new(None)),
             config_last_saved: Rc::new(Cell::new(Instant::now())),
             profile_watcher_stop_notify: Rc::new(RefCell::new(None)),
+            profile_watcher_state: Rc::new(RefCell::new(None)),
         };
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
@@ -710,7 +712,13 @@ impl<'a> Handler {
             .collect()
     }
 
-    pub fn list_profiles(&self) -> ProfilesInfo {
+    pub fn list_profiles(&self, include_state: bool) -> ProfilesInfo {
+        let watcher_state = if include_state {
+            self.profile_watcher_state.borrow().as_ref().cloned()
+        } else {
+            None
+        };
+
         let config = self.config.borrow();
         ProfilesInfo {
             profiles: config
@@ -720,6 +728,7 @@ impl<'a> Handler {
                 .collect(),
             current_profile: config.current_profile.as_ref().map(Rc::to_string),
             auto_switch: config.auto_switch_profiles,
+            watcher_state,
         }
     }
 

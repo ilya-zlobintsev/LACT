@@ -29,7 +29,7 @@ pub struct Header {
 
 #[derive(Debug)]
 pub enum HeaderMsg {
-    Profiles(ProfilesInfo),
+    Profiles(std::boxed::Box<ProfilesInfo>),
     AutoProfileSwitch(bool),
     ShowProfileEditor(DynamicIndex),
     SelectProfile,
@@ -230,7 +230,7 @@ impl Component for Header {
             HeaderMsg::ClosePopover => {
                 widgets.menu_button.popdown();
             }
-            HeaderMsg::Profiles(profiles_info) => self.set_profiles_info(profiles_info),
+            HeaderMsg::Profiles(profiles_info) => self.set_profiles_info(*profiles_info),
             HeaderMsg::SelectGpu => sender.output(AppMsg::ReloadData { full: true }).unwrap(),
             HeaderMsg::AutoProfileSwitch(auto_switch) => {
                 let msg = AppMsg::SelectProfile {

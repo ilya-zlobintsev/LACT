@@ -20,7 +20,9 @@ pub enum AppMsg {
     EnableOverdrive,
     DisableOverdrive,
     ResetConfig,
-    ReloadProfiles,
+    ReloadProfiles {
+        include_state: bool,
+    },
     SelectProfile {
         profile: Option<String>,
         auto_switch: bool,

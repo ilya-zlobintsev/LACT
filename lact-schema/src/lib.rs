@@ -17,7 +17,7 @@ use amdgpu_sysfs::{
     },
     hw_mon::Temperature,
 };
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
@@ -349,11 +349,12 @@ pub struct FanOptions<'a> {
     pub change_threshold: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ProfilesInfo {
     pub profiles: IndexMap<String, Option<ProfileRule>>,
     pub current_profile: Option<String>,
     pub auto_switch: bool,
+    pub watcher_state: Option<ProfileWatcherState>,
 }
 
 impl PartialEq for ProfilesInfo {
@@ -383,4 +384,19 @@ impl Default for ProfileRule {
 pub struct ProcessProfileRule {
     pub name: String,
     pub args: Option<String>,
+}
+
+pub type ProcessMap = IndexMap<i32, ProcessInfo>;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProfileWatcherState {
+    pub process_list: ProcessMap,
+    pub gamemode_games: IndexSet<i32>,
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProcessInfo {
+    pub name: Box<str>,
+    pub cmdline: Box<str>,
 }

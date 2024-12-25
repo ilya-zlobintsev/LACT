@@ -59,7 +59,10 @@ pub enum Request<'a> {
     VbiosDump {
         id: &'a str,
     },
-    ListProfiles,
+    ListProfiles {
+        #[serde(default)]
+        include_state: bool,
+    },
     SetProfile {
         name: Option<String>,
         #[serde(default)]

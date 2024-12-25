@@ -78,7 +78,7 @@ impl relm4::Component for RuleWindow {
                             },
 
                             attach[0, 1, 1, 1] = &gtk::Label {
-                                set_label: "With Arguments:",
+                                set_label: "Arguments Contain:",
                                 set_halign: gtk::Align::Start,
                             },
 
@@ -118,7 +118,7 @@ impl relm4::Component for RuleWindow {
                             },
 
                             attach[0, 1, 1, 1] = &gtk::Label {
-                                set_label: "With Arguments:",
+                                set_label: "Arguments Contain:",
                                 set_halign: gtk::Align::Start,
                             },
 

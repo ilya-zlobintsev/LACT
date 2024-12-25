@@ -1,6 +1,5 @@
-use super::process::ProcessInfo;
 use copes::solver::PID;
-use indexmap::IndexMap;
+use lact_schema::ProcessMap;
 use nix::unistd::{geteuid, seteuid};
 use std::{env, fs, os::unix::fs::MetadataExt, path::PathBuf};
 use tracing::{error, info};
@@ -42,7 +41,7 @@ pub trait GameModeGame {
     fn executable(&self) -> zbus::Result<String>;
 }
 
-pub async fn connect(process_list: &IndexMap<PID, ProcessInfo>) -> Option<GameModeProxy<'static>> {
+pub async fn connect(process_list: &ProcessMap) -> Option<GameModeProxy<'static>> {
     let mut address = None;
     let mut gamemode_uid = None;
 
@@ -52,7 +51,8 @@ pub async fn connect(process_list: &IndexMap<PID, ProcessInfo>) -> Option<GameMo
         .iter()
         .find(|(_, info)| info.name.as_ref() == PROCESS_NAME)
     {
-        let process_path = PathBuf::from(*pid);
+        let pid = PID::from(*pid);
+        let process_path = PathBuf::from(pid);
         let metadata = process_path
             .metadata()
             .map_err(|err| error!("could not read gamemode process metadata: {err}"))

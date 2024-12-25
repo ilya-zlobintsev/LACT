@@ -165,7 +165,9 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
             ok_response(handler.set_enabled_power_states(id, kind, states).await?)
         }
         Request::VbiosDump { id } => ok_response(handler.vbios_dump(id)?),
-        Request::ListProfiles => ok_response(handler.list_profiles()),
+        Request::ListProfiles { include_state } => {
+            ok_response(handler.list_profiles(include_state))
+        }
         Request::SetProfile { name, auto_switch } => ok_response(
             handler
                 .set_profile(name.map(Into::into), auto_switch)

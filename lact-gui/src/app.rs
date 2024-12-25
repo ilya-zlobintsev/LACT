@@ -245,7 +245,9 @@ impl AsyncComponent for AppModel {
             .stack_switcher
             .set_stack(Some(&widgets.root_stack));
 
-        sender.input(AppMsg::ReloadProfiles);
+        sender.input(AppMsg::ReloadProfiles {
+            include_state: false,
+        });
 
         AsyncComponentParts { model, widgets }
     }
@@ -275,8 +277,8 @@ impl AppModel {
     ) -> Result<(), Arc<anyhow::Error>> {
         match msg {
             AppMsg::Error(err) => return Err(err),
-            AppMsg::ReloadProfiles => {
-                self.reload_profiles().await?;
+            AppMsg::ReloadProfiles { include_state } => {
+                self.reload_profiles(include_state).await?;
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ReloadData { full } => {
@@ -292,7 +294,9 @@ impl AppModel {
                 auto_switch,
             } => {
                 self.daemon_client.set_profile(profile, auto_switch).await?;
-                sender.input(AppMsg::ReloadProfiles);
+                sender.input(AppMsg::ReloadProfiles {
+                    include_state: false,
+                });
             }
             AppMsg::CreateProfile(name, base) => {
                 self.daemon_client
@@ -304,15 +308,21 @@ impl AppModel {
                     .set_profile(Some(name), auto_switch)
                     .await?;
 
-                sender.input(AppMsg::ReloadProfiles);
+                sender.input(AppMsg::ReloadProfiles {
+                    include_state: false,
+                });
             }
             AppMsg::DeleteProfile(profile) => {
                 self.daemon_client.delete_profile(profile).await?;
-                sender.input(AppMsg::ReloadProfiles);
+                sender.input(AppMsg::ReloadProfiles {
+                    include_state: false,
+                });
             }
             AppMsg::MoveProfile(name, new_position) => {
                 self.daemon_client.move_profile(name, new_position).await?;
-                sender.input(AppMsg::ReloadProfiles);
+                sender.input(AppMsg::ReloadProfiles {
+                    include_state: false,
+                });
             }
             AppMsg::Stats(stats) => {
                 self.info_page.emit(PageUpdate::Stats(stats.clone()));
@@ -396,9 +406,9 @@ impl AppModel {
             .context("No GPU selected")
     }
 
-    async fn reload_profiles(&mut self) -> anyhow::Result<()> {
-        let profiles = self.daemon_client.list_profiles().await?.inner()?;
-        self.header.emit(HeaderMsg::Profiles(profiles));
+    async fn reload_profiles(&mut self, include_state: bool) -> anyhow::Result<()> {
+        let profiles = self.daemon_client.list_profiles(include_state).await?;
+        self.header.emit(HeaderMsg::Profiles(Box::new(profiles)));
         Ok(())
     }
 
@@ -935,13 +945,9 @@ fn start_stats_update_loop(
                 }
             }
 
-            match daemon_client
-                .list_profiles()
-                .await
-                .and_then(|buffer| buffer.inner())
-            {
+            match daemon_client.list_profiles(false).await {
                 Ok(profiles) => {
-                    let _ = header_sender.send(HeaderMsg::Profiles(profiles));
+                    let _ = header_sender.send(HeaderMsg::Profiles(Box::new(profiles)));
                 }
                 Err(err) => {
                     error!("could not fetch profile info: {err:#}");

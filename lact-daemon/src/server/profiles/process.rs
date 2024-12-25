@@ -1,16 +1,11 @@
 use super::ProfileWatcherEvent;
 use copes::{io::connector::ProcessEventsConnector, solver::PID};
+use lact_schema::ProcessInfo;
 use std::fs;
 use tokio::sync::mpsc;
 use tracing::{debug, error};
 
-#[allow(clippy::module_name_repetitions)]
-pub struct ProcessInfo {
-    pub name: Box<str>,
-    pub cmdline: Box<str>,
-}
-
-pub fn load_full_process_list() -> impl Iterator<Item = (PID, ProcessInfo)> {
+pub fn load_full_process_list() -> impl Iterator<Item = (i32, ProcessInfo)> {
     fs::read_dir("/proc")
         .inspect_err(|err| error!("could not read /proc: {err}"))
         .into_iter()
@@ -25,10 +20,10 @@ pub fn load_full_process_list() -> impl Iterator<Item = (PID, ProcessInfo)> {
                 None
             }
         })
-        .filter_map(|pid| {
-            let pid = PID::from(pid);
+        .filter_map(|raw_pid| {
+            let pid = PID::from(raw_pid);
             let info = get_pid_info(pid).ok()?;
-            Some((pid, info))
+            Some((raw_pid, info))
         })
 }
 
@@ -72,6 +67,9 @@ pub fn get_pid_info(pid: PID) -> std::io::Result<ProcessInfo> {
 
     Ok(ProcessInfo {
         name,
-        cmdline: cmdline.to_string().into(),
+        cmdline: cmdline
+            .to_string()
+            .trim_matches(|c| c == '[' || c == ']')
+            .into(),
     })
 }
