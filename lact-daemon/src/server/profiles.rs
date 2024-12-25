@@ -225,35 +225,39 @@ fn evaluate_current_profile<'a>(
     state: &ProfileWatcherState,
     profile_rules: &'a [(Rc<str>, ProfileRule)],
 ) -> Option<&'a Rc<str>> {
-    // TODO: fast path to re-evaluate only a single event and not the whole state?
-    for pid in state.gamemode_games.iter().rev() {
-        for (profile_name, rule) in profile_rules {
-            if let ProfileRule::Gamemode(process_filter) = &rule {
-                match process_filter {
-                    Some(filter) => {
-                        if let Some(process) = state.process_list.get(pid) {
-                            if process_rule_matches(filter, process) {
-                                return Some(profile_name);
-                            }
-                        }
-                    }
-                    None => return Some(profile_name),
-                }
-            }
-        }
-    }
-
-    for process in state.process_list.values().rev() {
-        for (profile_name, rule) in profile_rules {
-            if let ProfileRule::Process(rule) = &rule {
-                if process_rule_matches(rule, process) {
-                    return Some(profile_name);
-                }
-            }
+    for (profile_name, rule) in profile_rules {
+        if profile_rule_matches(state, rule) {
+            return Some(profile_name);
         }
     }
 
     None
+}
+
+#[inline]
+pub(crate) fn profile_rule_matches(state: &ProfileWatcherState, rule: &ProfileRule) -> bool {
+    for pid in state.gamemode_games.iter().rev() {
+        if let ProfileRule::Gamemode(process_filter) = &rule {
+            match process_filter {
+                Some(filter) => {
+                    if let Some(process) = state.process_list.get(pid) {
+                        if process_rule_matches(filter, process) {
+                            return true;
+                        }
+                    }
+                }
+                None => return true,
+            }
+        }
+    }
+    for process in state.process_list.values().rev() {
+        if let ProfileRule::Process(rule) = &rule {
+            if process_rule_matches(rule, process) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[inline]

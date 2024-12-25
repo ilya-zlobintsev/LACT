@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::FanOptions;
+use crate::{FanOptions, ProfileRule};
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use serde::{Deserialize, Serialize};
 
@@ -78,6 +78,9 @@ pub enum Request<'a> {
     MoveProfile {
         name: String,
         new_position: usize,
+    },
+    EvaluateProfileRule {
+        rule: ProfileRule,
     },
     EnableOverdrive,
     DisableOverdrive,

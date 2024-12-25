@@ -9,7 +9,7 @@ use gtk::{
 use lact_schema::{ProcessInfo, ProfileRule, ProfileWatcherState};
 use relm4::{
     typed_view::list::{RelmListItem, TypedListView},
-    view, Component, ComponentParts, ComponentSender, RelmWidgetExt,
+    view, ComponentParts, ComponentSender, RelmWidgetExt,
 };
 use tracing::debug;
 
@@ -175,7 +175,6 @@ impl relm4::Component for RuleWindow {
                         }
                     },
                 }
-
             }
         }
     }

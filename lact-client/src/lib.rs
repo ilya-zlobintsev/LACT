@@ -3,6 +3,7 @@ mod connection;
 mod macros;
 
 pub use lact_schema as schema;
+use lact_schema::ProfileRule;
 
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
@@ -171,6 +172,12 @@ impl DaemonClient {
 
     pub async fn move_profile(&self, name: String, new_position: usize) -> anyhow::Result<()> {
         self.make_request(Request::MoveProfile { name, new_position })
+            .await?
+            .inner()
+    }
+
+    pub async fn evaluate_profile_rule(&self, rule: ProfileRule) -> anyhow::Result<bool> {
+        self.make_request(Request::EvaluateProfileRule { rule })
             .await?
             .inner()
     }

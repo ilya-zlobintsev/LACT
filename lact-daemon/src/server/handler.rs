@@ -18,7 +18,7 @@ use lact_schema::{
     default_fan_curve,
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
-    PowerStates, ProfileWatcherState, ProfilesInfo,
+    PowerStates, ProfileRule, ProfileWatcherState, ProfilesInfo,
 };
 use libflate::gzip;
 use nix::libc;
@@ -809,6 +809,16 @@ impl<'a> Handler {
         config.save(&self.config_last_saved)?;
 
         Ok(())
+    }
+
+    pub fn evaluate_profile_rule(&self, rule: &ProfileRule) -> anyhow::Result<bool> {
+        let profile_watcher_state_guard = self.profile_watcher_state.borrow();
+        match profile_watcher_state_guard.as_ref() {
+            Some(state) => Ok(profiles::profile_rule_matches(state, rule)),
+            None => Err(anyhow!(
+                "Automatic profile switching is not currently active"
+            )),
+        }
     }
 
     pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
