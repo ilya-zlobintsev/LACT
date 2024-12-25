@@ -296,7 +296,7 @@ impl Component for Header {
 
 impl Header {
     fn set_profiles_info(&mut self, profiles_info: ProfilesInfo) {
-        if self.profiles_info == profiles_info {
+        if self.profiles_info == profiles_info && !self.profile_selector.is_empty() {
             return;
         }
         debug!("setting new profiles info: {profiles_info:?}");
