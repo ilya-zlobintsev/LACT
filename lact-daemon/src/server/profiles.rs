@@ -4,8 +4,7 @@ mod process;
 use crate::server::handler::Handler;
 use copes::solver::PEvent;
 use futures::StreamExt;
-use indexmap::IndexSet;
-use lact_schema::{ProcessInfo, ProcessProfileRule, ProfileRule, ProfileWatcherState};
+use lact_schema::{ProfileRule, ProfileWatcherState};
 use std::{
     rc::Rc,
     time::{Duration, Instant},
@@ -38,12 +37,8 @@ pub async fn run_watcher(handler: Handler, stop_notify: Rc<Notify>) {
         })
         .collect::<Vec<_>>();
 
-    let process_list = process::load_full_process_list().collect();
-
-    let mut state = ProfileWatcherState {
-        process_list,
-        gamemode_games: IndexSet::new(),
-    };
+    let mut state = ProfileWatcherState::default();
+    process::load_full_process_list(&mut state);
     info!("loaded {} processes", state.process_list.len());
 
     let (event_tx, mut event_rx) = mpsc::channel(128);
@@ -175,15 +170,14 @@ fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler) {
                     info!("detected gamemode daemon, reloading profile watcher");
                     handler.start_profile_watcher();
                 }
-
-                state.process_list.insert(*pid.as_ref(), info);
+                state.push_process(*pid.as_ref(), info);
             }
             Err(err) => {
                 warn!("could not get info for process {pid}: {err}");
             }
         },
         ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
-            state.process_list.shift_remove(pid.as_ref());
+            state.remove_process(*pid.as_ref());
         }
         ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
             state.gamemode_games.insert(*pid.as_ref());
@@ -236,59 +230,67 @@ fn evaluate_current_profile<'a>(
 
 #[inline]
 pub(crate) fn profile_rule_matches(state: &ProfileWatcherState, rule: &ProfileRule) -> bool {
-    for pid in state.gamemode_games.iter().rev() {
-        if let ProfileRule::Gamemode(process_filter) = &rule {
-            match process_filter {
-                Some(filter) => {
-                    if let Some(process) = state.process_list.get(pid) {
-                        if process_rule_matches(filter, process) {
-                            return true;
+    match rule {
+        ProfileRule::Process(process_rule) => {
+            if let Some(pids) = state.process_names_map.get(&process_rule.name) {
+                match &process_rule.args {
+                    Some(args_filter) => {
+                        for pid in pids {
+                            if let Some(process_info) = state.process_list.get(pid) {
+                                if process_info.cmdline.contains(args_filter) {
+                                    return true;
+                                }
+                            } else {
+                                error!("process {pid} not found in process map");
+                            }
+                        }
+                    }
+                    None => return true,
+                }
+            }
+        }
+        ProfileRule::Gamemode(None) => return !state.gamemode_games.is_empty(),
+        ProfileRule::Gamemode(Some(gamemode_rule)) => {
+            if let Some(pids) = state.process_names_map.get(&gamemode_rule.name) {
+                for pid in pids {
+                    if state.gamemode_games.contains(pid) {
+                        match &gamemode_rule.args {
+                            Some(args_filter) => {
+                                if let Some(process_info) = state.process_list.get(pid) {
+                                    if process_info.cmdline.contains(args_filter) {
+                                        return true;
+                                    }
+                                } else {
+                                    error!("process {pid} not found in process map");
+                                }
+                            }
+                            None => return true,
                         }
                     }
                 }
-                None => return true,
-            }
-        }
-    }
-    for process in state.process_list.values().rev() {
-        if let ProfileRule::Process(rule) = &rule {
-            if process_rule_matches(rule, process) {
-                return true;
             }
         }
     }
     false
 }
 
-#[inline]
-fn process_rule_matches(rule: &ProcessProfileRule, process: &ProcessInfo) -> bool {
-    process.name.as_ref() == rule.name
-        && rule
-            .args
-            .as_ref()
-            .map_or(true, |wanted_args| process.cmdline.contains(wanted_args))
-}
-
 #[cfg(test)]
 mod tests {
     use super::evaluate_current_profile;
-    use indexmap::{IndexMap, IndexSet};
     use lact_schema::{ProcessInfo, ProcessProfileRule, ProfileRule, ProfileWatcherState};
     use pretty_assertions::assert_eq;
     use std::rc::Rc;
 
     #[test]
     fn evaluate_basic_profile() {
-        let mut state = ProfileWatcherState {
-            process_list: IndexMap::from([(
-                1,
-                ProcessInfo {
-                    name: "game1".into(),
-                    cmdline: "".into(),
-                },
-            )]),
-            gamemode_games: IndexSet::new(),
-        };
+        let mut state = ProfileWatcherState::default();
+        state.push_process(
+            1,
+            ProcessInfo {
+                name: "game1".into(),
+                cmdline: "".into(),
+            },
+        );
 
         let profile_rules = vec![
             (
@@ -312,13 +314,25 @@ mod tests {
             evaluate_current_profile(&state, &profile_rules)
         );
 
-        state.process_list.get_mut(&1).unwrap().name = "game2".into();
+        state.push_process(
+            1,
+            ProcessInfo {
+                name: "game2".into(),
+                cmdline: "".into(),
+            },
+        );
         assert_eq!(
             Some(&Rc::from("2")),
             evaluate_current_profile(&state, &profile_rules)
         );
 
-        state.process_list.get_mut(&1).unwrap().name = "game3".into();
+        state.push_process(
+            1,
+            ProcessInfo {
+                name: "game3".into(),
+                cmdline: "".into(),
+            },
+        );
         assert_eq!(None, evaluate_current_profile(&state, &profile_rules));
     }
 }
@@ -327,37 +341,31 @@ mod tests {
 mod benches {
     use super::evaluate_current_profile;
     use divan::Bencher;
-    use indexmap::IndexSet;
     use lact_schema::{ProcessInfo, ProcessProfileRule, ProfileRule, ProfileWatcherState};
     use std::hint::black_box;
 
     #[divan::bench(sample_size = 1000, min_time = 2)]
     fn evaluate_profiles(bencher: Bencher) {
-        let process_list = (1..2000)
-            .map(|id| {
-                let name = format!("process-{id}").into();
-                let cmdline = format!("{name} arg1 arg2 --arg3").into();
-                (id, ProcessInfo { name, cmdline })
-            })
-            .collect();
+        let mut state = ProfileWatcherState::default();
 
-        let state = ProfileWatcherState {
-            process_list,
-            gamemode_games: IndexSet::new(),
-        };
+        for pid in 1..2000 {
+            let name = format!("process-{pid}").into();
+            let cmdline = format!("{name} arg1 arg2 --arg3").into();
+            state.push_process(pid, ProcessInfo { name, cmdline });
+        }
 
         let profile_rules = vec![
             (
                 "1".into(),
                 ProfileRule::Process(ProcessProfileRule {
-                    name: "game-abc".to_owned(),
+                    name: "game-abc".into(),
                     args: None,
                 }),
             ),
             (
                 "2".into(),
                 ProfileRule::Process(ProcessProfileRule {
-                    name: "game-1034".to_owned(),
+                    name: "game-1034".into(),
                     args: None,
                 }),
             ),

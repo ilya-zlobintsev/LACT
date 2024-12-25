@@ -1,5 +1,6 @@
 #[cfg(feature = "args")]
 pub mod args;
+mod profiles;
 pub mod request;
 mod response;
 
@@ -25,6 +26,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     fmt,
     str::FromStr,
+    sync::Arc,
 };
 
 pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
@@ -382,30 +384,22 @@ impl Default for ProfileRule {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct ProcessProfileRule {
-    pub name: String,
+    pub name: Arc<str>,
     pub args: Option<String>,
 }
 
 pub type ProcessMap = IndexMap<i32, ProcessInfo>;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ProfileWatcherState {
     pub process_list: ProcessMap,
     pub gamemode_games: IndexSet<i32>,
-}
-
-impl fmt::Debug for ProfileWatcherState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ProfileWatcherState")
-            .field("process_list", &self.process_list.len())
-            .field("gamemode_games", &self.gamemode_games.len())
-            .finish()
-    }
+    pub process_names_map: HashMap<Arc<str>, Vec<i32>>,
 }
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProcessInfo {
-    pub name: Box<str>,
+    pub name: Arc<str>,
     pub cmdline: Box<str>,
 }

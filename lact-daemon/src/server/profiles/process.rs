@@ -1,12 +1,12 @@
 use super::ProfileWatcherEvent;
 use copes::{io::connector::ProcessEventsConnector, solver::PID};
-use lact_schema::ProcessInfo;
+use lact_schema::{ProcessInfo, ProfileWatcherState};
 use std::fs;
 use tokio::sync::mpsc;
 use tracing::{debug, error};
 
-pub fn load_full_process_list() -> impl Iterator<Item = (i32, ProcessInfo)> {
-    fs::read_dir("/proc")
+pub fn load_full_process_list(state: &mut ProfileWatcherState) {
+    let process_entries = fs::read_dir("/proc")
         .inspect_err(|err| error!("could not read /proc: {err}"))
         .into_iter()
         .flatten()
@@ -19,12 +19,14 @@ pub fn load_full_process_list() -> impl Iterator<Item = (i32, ProcessInfo)> {
                 error!("could not read /proc entry: {err}");
                 None
             }
-        })
-        .filter_map(|raw_pid| {
-            let pid = PID::from(raw_pid);
-            let info = get_pid_info(pid).ok()?;
-            Some((raw_pid, info))
-        })
+        });
+
+    for raw_pid in process_entries {
+        let pid = PID::from(raw_pid);
+        if let Ok(info) = get_pid_info(pid) {
+            state.push_process(raw_pid, info);
+        }
+    }
 }
 
 pub fn start_listener(event_tx: mpsc::Sender<ProfileWatcherEvent>) {

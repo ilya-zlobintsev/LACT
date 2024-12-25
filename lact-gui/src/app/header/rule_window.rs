@@ -244,8 +244,8 @@ impl relm4::Component for RuleWindow {
                 self.profile_name = profile_name;
 
                 if let ProfileRule::Process(rule) | ProfileRule::Gamemode(Some(rule)) = rule {
-                    self.process_name_buffer.set_text(&rule.name);
-                    self.args_buffer.set_text(&rule.name);
+                    self.process_name_buffer.set_text(rule.name.as_ref());
+                    self.args_buffer.set_text(rule.name.as_ref());
                 }
 
                 widgets
