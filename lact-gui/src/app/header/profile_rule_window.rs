@@ -405,7 +405,7 @@ impl relm4::Component for ProfileRuleWindow {
 impl ProfileRuleWindow {
     fn get_rule(&self, widgets: &ProfileRuleWindowWidgets) -> ProfileRule {
         let process_name = self.process_name_buffer.text();
-        let process_args = self.process_name_buffer.text();
+        let process_args = self.args_buffer.text();
 
         match widgets.stack.visible_child_name().as_deref() {
             Some(PROCESS_PAGE) => {
