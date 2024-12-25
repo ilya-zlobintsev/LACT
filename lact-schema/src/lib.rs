@@ -382,10 +382,19 @@ impl Default for ProfileRule {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ProcessProfileRule {
     pub name: Arc<str>,
     pub args: Option<String>,
+}
+
+impl Default for ProcessProfileRule {
+    fn default() -> Self {
+        Self {
+            name: String::new().into(),
+            args: None,
+        }
+    }
 }
 
 pub type ProcessMap = IndexMap<i32, ProcessInfo>;
