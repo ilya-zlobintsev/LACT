@@ -84,6 +84,17 @@ mod imp {
                 .transform_to(|_, text: String| Some(!text.is_empty()))
                 .sync_create()
                 .build();
+
+            obj.bind_property("value", &self.info_menubutton.get(), "visible")
+                .transform_to(|_, text: String| {
+                    if text.starts_with("Unknown ") {
+                        Some(false)
+                    } else {
+                        None
+                    }
+                })
+                .sync_create()
+                .build();
         }
     }
 
