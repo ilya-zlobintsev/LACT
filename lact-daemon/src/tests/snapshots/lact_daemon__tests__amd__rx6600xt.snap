@@ -1,0 +1,431 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": null,
+  "info": {
+    "driver": "amdgpu",
+    "link_info": {
+      "current_speed": "16.0 GT/s PCIe",
+      "current_width": "16"
+    },
+    "pci_info": {
+      "device_pci_info": {
+        "model": "Navi 23 [Radeon RX 6600/6600 XT/6600M]",
+        "model_id": "73FF",
+        "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+        "vendor_id": "1002"
+      },
+      "subsystem_pci_info": {
+        "model_id": "6505",
+        "vendor": "XFX Limited",
+        "vendor_id": "1EAE"
+      }
+    },
+    "vbios_version": "113-23L86HMD2-D02"
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "Navi 23 [Radeon RX 6600/6600 XT/6600M]",
+      "model_id": "73FF",
+      "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "vendor_id": "1002"
+    },
+    "subsystem_pci_info": {
+      "model_id": "6505",
+      "vendor": "XFX Limited",
+      "vendor_id": "1EAE"
+    }
+  },
+  "power_profile_modes": {
+    "active": 0,
+    "modes": {
+      "0": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              4587520,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3276800,
+              -6553,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "BOOTUP_DEFAULT"
+      },
+      "1": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              650,
+              4587520,
+              -3276,
+              -65536
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              655360,
+              -6553,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              4,
+              850,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "3D_FULL_SCREEN"
+      },
+      "2": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              3,
+              0,
+              5898240,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3407872,
+              -6553,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              3,
+              0,
+              1966080,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "POWER_SAVING"
+      },
+      "3": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              500,
+              4587520,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3473408,
+              -6553,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              500,
+              1966080,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "VIDEO"
+      },
+      "4": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              4,
+              1000,
+              1,
+              0,
+              3932160,
+              0,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              655360,
+              -6553,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "VR"
+      },
+      "5": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              4,
+              1000,
+              1,
+              0,
+              3932160,
+              0,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              655360,
+              -6553,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              4,
+              850,
+              3,
+              0,
+              327680,
+              -65536,
+              -32768
+            ]
+          }
+        ],
+        "name": "COMPUTE"
+      },
+      "6": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              4587520,
+              -65536,
+              0
+            ]
+          },
+          {
+            "clock_type": "SOCCLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              0,
+              3276800,
+              -6553,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "MEMLK",
+            "values": [
+              0,
+              5,
+              1,
+              0,
+              4,
+              800,
+              327680,
+              -65536,
+              0
+            ]
+          }
+        ],
+        "name": "CUSTOM"
+      }
+    },
+    "value_names": [
+      "FPS",
+      "MinFreqType",
+      "MinActiveFreqType",
+      "MinActiveFreq",
+      "BoosterFreqType",
+      "BoosterFreq",
+      "PD_Data_limit_c",
+      "PD_Data_error_coeff",
+      "PD_Data_error_rate_coeff"
+    ]
+  },
+  "stats": {
+    "busy_percent": 0,
+    "clockspeed": {
+      "gpu_clockspeed": 0,
+      "vram_clockspeed": 96
+    },
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {},
+      "pwm_current": 0,
+      "speed_current": 0,
+      "speed_max": 3300,
+      "speed_min": 0
+    },
+    "memory_power_state": 0,
+    "pcie_power_state": 1,
+    "power": {
+      "average": 3.0,
+      "cap_current": 100.0,
+      "cap_default": 100.0,
+      "cap_max": 100.0,
+      "cap_min": 94.0
+    },
+    "temps": {
+      "edge": {
+        "crit": 100.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 35.0
+      },
+      "junction": {
+        "crit": 110.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 35.0
+      },
+      "mem": {
+        "crit": 100.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 36.0
+      }
+    },
+    "voltage": {
+      "gpu": 6
+    },
+    "vram": {}
+  }
+}

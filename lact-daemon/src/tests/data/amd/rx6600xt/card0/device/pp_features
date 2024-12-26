@@ -1,0 +1,45 @@
+features high: 0x00003343 low: 0xa36b6df9
+No. Feature               Bit : State
+00. DPM_PREFETCHER       ( 0) : enabled
+01. DPM_GFXCLK           ( 1) : disabled
+02. DPM_GFX_GPO          ( 2) : disabled
+03. DPM_UCLK             ( 3) : enabled
+04. DPM_FCLK             ( 4) : enabled
+05. DPM_SOCCLK           ( 5) : enabled
+06. DPM_MP0CLK           ( 6) : enabled
+07. DPM_LINK             ( 7) : enabled
+08. DPM_DCEFCLK          ( 8) : enabled
+09. DPM_XGMI             ( 9) : disabled
+10. MEM_VDDCI_SCALING    (10) : enabled
+11. MEM_MVDD_SCALING     (11) : enabled
+12. DS_GFXCLK            (12) : disabled
+13. DS_SOCCLK            (13) : enabled
+14. DS_FCLK              (14) : enabled
+15. DS_LCLK              (15) : disabled
+16. DS_DCEFCLK           (16) : enabled
+17. DS_UCLK              (17) : enabled
+18. GFX_ULV              (18) : disabled
+19. FW_DSTATE            (19) : enabled
+20. GFXOFF               (20) : disabled
+21. BACO                 (21) : enabled
+22. MM_DPM_PG            (22) : enabled
+23. PPT                  (24) : enabled
+24. TDC                  (25) : enabled
+25. APCC_PLUS            (26) : disabled
+26. GTHR                 (27) : disabled
+27. ACDC                 (28) : disabled
+28. VR0HOT               (29) : enabled
+29. VR1HOT               (30) : disabled
+30. FW_CTF               (31) : enabled
+31. FAN_CONTROL          (32) : enabled
+32. THERMAL              (33) : enabled
+33. GFX_DCS              (34) : disabled
+34. RM                   (35) : disabled
+35. LED_DISPLAY          (36) : disabled
+36. GFX_SS               (37) : disabled
+37. OUT_OF_BAND_MONITOR  (38) : enabled
+38. TEMP_DEPENDENT_VMIN  (39) : disabled
+39. MMHUB_PG             (40) : enabled
+40. ATHUB_PG             (41) : enabled
+41. APCC_DFLL            (42) : disabled
+42. RSMU_SMN_CG          (44) : enabled
