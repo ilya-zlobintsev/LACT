@@ -19,9 +19,7 @@ impl FanCurve {
         let current = temp.current.expect("No current temp");
 
         // This scenario is most likely unreachable as the kernel shuts down the GPU when it reaches critical temperature
-        if temp.crit.filter(|crit| current > *crit).is_some()
-            || temp.crit_hyst.filter(|hyst| current < *hyst).is_some()
-        {
+        if temp.crit.filter(|crit| current > *crit).is_some() {
             warn!("GPU temperature is beyond critical values! {current}°C");
             return u8::MAX;
         }
@@ -187,7 +185,6 @@ mod tests {
         assert_eq!(pwm_at_temp(79.0), 248);
         assert_eq!(pwm_at_temp(85.0), 255);
         assert_eq!(pwm_at_temp(100.0), 255);
-        assert_eq!(pwm_at_temp(-5.0), 255);
     }
 
     #[test]
