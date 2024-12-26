@@ -232,6 +232,16 @@ impl AmdGpuController {
             .first()
             .cloned()
             .context("This GPU has no monitor")?;
+
+        let temps = hw_mon.get_temps();
+        match temps.len() {
+            0 => return Err(anyhow!("GPU has no temperature reporting")),
+            1 => {
+                warn!("GPU has only one temperature sensor, 'temperature_key' setting will be ignored");
+            }
+            _ => (),
+        }
+
         hw_mon
             .set_fan_control_method(FanControlMethod::Manual)
             .context("Could not set fan control method")?;
@@ -265,9 +275,13 @@ impl AmdGpuController {
                 }
 
                 let mut temps = hw_mon.get_temps();
-                let temp = temps
-                    .remove(&temp_key)
-                    .expect("Could not get temperature by given key");
+                let temp = if temps.len() == 1 {
+                    temps.into_values().next().unwrap()
+                } else {
+                    temps
+                        .remove(&temp_key)
+                        .expect("Could not get temperature by given key")
+                };
 
                 let current_temp = temp.current.expect("Missing temp");
 

@@ -1,0 +1,61 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": null,
+  "info": {
+    "driver": "radeon",
+    "link_info": {
+      "current_speed": "8.0 GT/s PCIe",
+      "current_width": "1"
+    },
+    "pci_info": {
+      "device_pci_info": {
+        "model": "Pitcairn XT [Radeon HD 7870 GHz Edition]",
+        "model_id": "6818",
+        "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+        "vendor_id": "1002"
+      },
+      "subsystem_pci_info": {
+        "model_id": "E217",
+        "vendor": "PC Partner Limited / Sapphire Technology",
+        "vendor_id": "174B"
+      }
+    }
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "Pitcairn XT [Radeon HD 7870 GHz Edition]",
+      "model_id": "6818",
+      "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "vendor_id": "1002"
+    },
+    "subsystem_pci_info": {
+      "model_id": "E217",
+      "vendor": "PC Partner Limited / Sapphire Technology",
+      "vendor_id": "174B"
+    }
+  },
+  "power_profile_modes": null,
+  "stats": {
+    "clockspeed": {
+      "gpu_clockspeed": 300
+    },
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {},
+      "pwm_current": 51
+    },
+    "power": {},
+    "temps": {
+      "1": {
+        "crit": 120.0,
+        "crit_hyst": 90.0,
+        "current": 27.0
+      }
+    },
+    "voltage": {},
+    "vram": {}
+  }
+}
