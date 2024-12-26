@@ -2,6 +2,8 @@ mod new_profile_dialog;
 mod profile_row;
 pub mod profile_rule_window;
 
+use crate::app::APP_BROKER;
+
 use super::{AppMsg, DebugSnapshot, DisableOverdrive, DumpVBios, ResetConfig, ShowGraphsWindow};
 use glib::clone;
 use gtk::prelude::*;
@@ -300,6 +302,8 @@ impl Header {
             return;
         }
         debug!("setting new profiles info: {profiles_info:?}");
+
+        APP_BROKER.send(AppMsg::ReloadData { full: false });
 
         let mut profiles = self.profile_selector.guard();
         profiles.clear();
