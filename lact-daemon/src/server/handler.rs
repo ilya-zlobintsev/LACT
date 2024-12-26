@@ -848,6 +848,8 @@ impl<'a> Handler {
             .with_context(|| format!("Profile {name} not found"))?
             .rule = rule;
 
+        self.config.borrow().save(&self.config_last_saved)?;
+
         let tx = self.profile_watcher_tx.borrow().clone();
         if let Some(tx) = tx {
             let _ = tx.send(ProfileWatcherCommand::Update).await;
