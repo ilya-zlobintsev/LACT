@@ -44,12 +44,16 @@ use relm4::{
 use std::{
     os::unix::net::UnixStream,
     rc::Rc,
-    sync::{atomic::AtomicBool, Arc},
+    sync::{
+        atomic::{AtomicBool, AtomicU32, Ordering},
+        Arc,
+    },
     time::Duration,
 };
 use tracing::{debug, error, info, trace, warn};
 
 pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
+static ERROR_WINDOW_COUNT: AtomicU32 = AtomicU32::new(0);
 
 const STATS_POLL_INTERVAL_MS: u64 = 250;
 
@@ -398,8 +402,15 @@ impl AppModel {
                 controller.detach_runtime();
             }
             AppMsg::EvaluateProfile(rule) => {
-                let matches = self.daemon_client.evaluate_profile_rule(rule).await?;
-                PROFILE_RULE_WINDOW_BROKER.send(ProfileRuleWindowMsg::EvaluationResult(matches));
+                match self.daemon_client.evaluate_profile_rule(rule).await {
+                    Ok(matches) => {
+                        PROFILE_RULE_WINDOW_BROKER
+                            .send(ProfileRuleWindowMsg::EvaluationResult(matches));
+                    }
+                    Err(err) => {
+                        warn!("{err:#}");
+                    }
+                }
             }
             AppMsg::SetProfileRule { name, rule } => {
                 self.daemon_client.set_profile_rule(name, rule).await?;
@@ -872,6 +883,14 @@ fn show_error(parent: &ApplicationWindow, err: &anyhow::Error) {
         .join("\n");
     warn!("{text}");
 
+    let errors_count = ERROR_WINDOW_COUNT.load(Ordering::SeqCst);
+    if errors_count > 2 {
+        warn!("Not showing error window, too many already open");
+        return;
+    }
+
+    ERROR_WINDOW_COUNT.fetch_add(1, Ordering::SeqCst);
+
     let diag = MessageDialog::builder()
         .title("Error")
         .message_type(MessageType::Error)
@@ -881,6 +900,7 @@ fn show_error(parent: &ApplicationWindow, err: &anyhow::Error) {
         .build();
     diag.run_async(|diag, _| {
         diag.close();
+        ERROR_WINDOW_COUNT.fetch_sub(1, Ordering::SeqCst);
     })
 }
 
