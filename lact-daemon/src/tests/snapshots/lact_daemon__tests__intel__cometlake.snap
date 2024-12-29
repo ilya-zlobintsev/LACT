@@ -3,7 +3,20 @@ source: lact-daemon/src/tests/mod.rs
 expression: device_info
 ---
 {
-  "clocks_info": {},
+  "clocks_info": {
+    "table": {
+      "type": "intel",
+      "value": {
+        "gt_freq": [
+          300,
+          1150
+        ],
+        "rp0_freq": 1150,
+        "rpe_freq": 300,
+        "rpn_freq": 300
+      }
+    }
+  },
   "info": {
     "driver": "i915",
     "link_info": {},
