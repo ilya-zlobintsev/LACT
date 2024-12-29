@@ -13,7 +13,7 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 
 enum DriverType {
     Xe,
@@ -171,13 +171,25 @@ impl GpuController for IntelGpuController {
     }
 
     fn get_stats(&self, _gpu_config: Option<&config::Gpu>) -> DeviceStats {
-        let current_gfxclk = self.read_gt_file("freq0/cur_freq");
+        let current_gfxclk;
+        let gpu_clockspeed;
+
+        match self.driver_type {
+            DriverType::Xe => {
+                current_gfxclk = self.read_gt_file("freq0/cur_freq");
+                gpu_clockspeed = self
+                    .read_gt_file("freq0/act_freq")
+                    .filter(|freq| *freq != 0)
+                    .or_else(|| current_gfxclk.map(u64::from));
+            }
+            DriverType::I915 => {
+                current_gfxclk = self.read_file("../gt_cur_freq_mhz");
+                gpu_clockspeed = self.read_file("../gt_act_freq_mhz");
+            }
+        }
 
         let clockspeed = ClockspeedStats {
-            gpu_clockspeed: self
-                .read_gt_file("freq0/act_freq")
-                .filter(|freq| *freq != 0)
-                .or_else(|| current_gfxclk.map(u64::from)),
+            gpu_clockspeed,
             current_gfxclk,
             vram_clockspeed: None,
         };
@@ -244,12 +256,27 @@ impl IntelGpuController {
         self.tile_gts.first().map(PathBuf::as_ref)
     }
 
+    fn sysfs_file_path(&self, path: impl AsRef<Path>) -> PathBuf {
+        let path = path.as_ref();
+
+        match path.strip_prefix("../") {
+            Ok(path_relative_to_parent) => self
+                .get_path()
+                .parent()
+                .expect("Device path has no parent")
+                .join(path_relative_to_parent),
+            Err(_) => self.get_path().join(path),
+        }
+    }
+
     fn read_file<T>(&self, path: impl AsRef<Path>) -> Option<T>
     where
         T: FromStr,
         T::Err: Display,
     {
-        let file_path = self.get_path().join(path);
+        let file_path = self.sysfs_file_path(path);
+
+        trace!("Reading file from '{}'", file_path.display());
 
         if file_path.exists() {
             match fs::read_to_string(&file_path) {
@@ -271,7 +298,7 @@ impl IntelGpuController {
     }
 
     fn write_file(&self, path: impl AsRef<Path>, contents: &str) -> anyhow::Result<()> {
-        let file_path = self.get_path().join(path);
+        let file_path = self.sysfs_file_path(path);
 
         if file_path.exists() {
             fs::write(&file_path, contents)
