@@ -364,6 +364,7 @@ fn default_apply_settings_timer() -> u64 {
 mod tests {
     use super::{ClocksConfiguration, Config, Daemon, FanControlSettings, Gpu};
     use crate::server::gpu_controller::fan_control::FanCurve;
+    use insta::assert_yaml_snapshot;
     use lact_schema::{FanControlMode, PmfwOptions};
     use std::collections::HashMap;
 
@@ -393,6 +394,23 @@ mod tests {
         let data = serde_yaml::to_string(&config).unwrap();
         let deserialized_config: Config = serde_yaml::from_str(&data).unwrap();
         assert_eq!(config, deserialized_config);
+    }
+
+    #[test]
+    fn parse_doc() {
+        let doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../docs/CONFIG.md"));
+        let example_config_start = doc
+            .find("```yaml")
+            .expect("Could not find example config start")
+            + 7;
+        let example_config_end = doc[example_config_start..]
+            .find("```")
+            .expect("Could not find example config end")
+            + example_config_start;
+        let example_config = &doc[example_config_start..example_config_end];
+
+        let deserialized_config: Config = serde_yaml::from_str(&example_config).unwrap();
+        assert_yaml_snapshot!(deserialized_config);
     }
 
     #[test]
