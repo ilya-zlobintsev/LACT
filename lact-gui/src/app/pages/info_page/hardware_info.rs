@@ -112,6 +112,13 @@ impl HardwareInfoSection {
                     memory_info.cpu_accessible_total / 1024 / 1024
                 ));
             }
+
+            if let Some(units) = drm_info.intel.execution_units {
+                self.set_execution_units(units.to_string());
+            }
+            if let Some(subslices) = drm_info.intel.subslices {
+                self.set_subslices(subslices.to_string());
+            }
         }
 
         self.set_driver_used(info.driver.as_str());
@@ -178,6 +185,10 @@ mod imp {
         asic_name: RefCell<String>,
         #[property(get, set)]
         compute_units: RefCell<String>,
+        #[property(get, set)]
+        execution_units: RefCell<String>,
+        #[property(get, set)]
+        subslices: RefCell<String>,
         #[property(get, set)]
         cuda_cores: RefCell<String>,
         #[property(get, set)]
