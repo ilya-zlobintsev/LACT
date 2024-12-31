@@ -1500,6 +1500,7 @@ version = "0.6.1"
 dependencies = [
  "amdgpu-sysfs",
  "anyhow",
+ "bindgen",
  "bitflags 2.6.0",
  "chrono",
  "copes",
@@ -1620,9 +1621,9 @@ checksum = "18d287de67fe55fd7e1581fe933d965a5a9477b38e949cfa9f8574ef01506398"
 
 [[package]]
 name = "libdrm_amdgpu_sys"
-version = "0.7.5"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2291cc7b4cf0006ebe83f0c7f1eb6d4aea1fc2601be08ada31e4f34e4b61d099"
+checksum = "b138fce021c047c76625cd701e8efb2450d8677551f79d8b5574581b9533f107"
 dependencies = [
  "libc",
 ]
@@ -1668,7 +1669,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -3057,7 +3058,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

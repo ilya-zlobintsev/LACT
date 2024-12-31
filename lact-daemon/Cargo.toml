@@ -37,7 +37,9 @@ pciid-parser = { version = "0.7", features = ["serde"] }
 serde_yaml = "0.9"
 vulkano = { version = "0.34.1", default-features = false }
 zbus = { version = "4.1.2", default-features = false, features = ["tokio"] }
-libdrm_amdgpu_sys = "0.7.3"
+libdrm_amdgpu_sys = { version = "0.7.5", default-features = false, features = [
+    "std",
+] }
 tar = "0.4.40"
 libflate = "2.0.0"
 os-release = "0.1.0"
@@ -50,6 +52,9 @@ divan = { workspace = true }
 pretty_assertions = { workspace = true }
 lact-daemon = { path = ".", features = ["bench"] }
 insta = { version = "1.41.1", features = ["json"] }
+
+[build-dependencies]
+bindgen = "0.68"
 
 [[bench]]
 name = "daemon"

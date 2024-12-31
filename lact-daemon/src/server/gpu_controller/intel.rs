@@ -4,16 +4,22 @@ use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, GpuPciInfo,
-    IntelClocksTable, LinkInfo, PowerStates,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, GpuPciInfo,
+    IntelClocksTable, IntelDrmInfo, LinkInfo, PowerStates, VramStats,
 };
 use std::{
     fmt::Display,
     fs,
+    os::{fd::AsRawFd, raw::c_int},
     path::{Path, PathBuf},
     str::FromStr,
 };
 use tracing::{debug, error, info, trace, warn};
+
+#[allow(non_upper_case_globals, non_camel_case_types, non_snake_case, unused)]
+mod drm {
+    include!(concat!(env!("OUT_DIR"), "/intel_bindings.rs"));
+}
 
 enum DriverType {
     Xe,
@@ -24,18 +30,19 @@ pub struct IntelGpuController {
     sysfs_path: PathBuf,
     driver: String,
     driver_type: DriverType,
-    pci_slot_id: Option<String>,
+    pci_slot_id: String,
     pci_info: GpuPciInfo,
     tile_gts: Vec<PathBuf>,
+    drm_file: fs::File,
 }
 
 impl IntelGpuController {
     pub fn new(
         sysfs_path: PathBuf,
         driver: String,
-        pci_slot_id: Option<String>,
+        pci_slot_id: String,
         pci_info: GpuPciInfo,
-    ) -> Self {
+    ) -> anyhow::Result<Self> {
         let driver_type = match driver.as_str() {
             "xe" => DriverType::Xe,
             "i915" => DriverType::I915,
@@ -71,15 +78,22 @@ impl IntelGpuController {
                 sysfs_path.display()
             );
         }
+        let drm_path = format!("/dev/dri/by-path/pci-{pci_slot_id}-render");
+        let drm_file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(drm_path)
+            .context("Could not open DRM file")?;
 
-        Self {
+        Ok(Self {
             sysfs_path,
             driver,
             driver_type,
             pci_slot_id,
             pci_info,
             tile_gts,
-        }
+            drm_file,
+        })
     }
 }
 
@@ -96,7 +110,7 @@ impl GpuController for IntelGpuController {
             device_pci_info.model_id,
             subsystem_pci_info.vendor_id,
             subsystem_pci_info.model_id,
-            self.pci_slot_id.as_deref().unwrap_or("unknown-slot")
+            self.pci_slot_id,
         ))
     }
 
@@ -124,18 +138,26 @@ impl GpuController for IntelGpuController {
             None
         };
 
+        let drm_info = DrmInfo {
+            intel: IntelDrmInfo {
+                execution_units: self.drm_try(drm::drm_intel_get_eu_total),
+                subslices: self.drm_try(drm::drm_intel_get_subslice_total),
+            },
+            ..Default::default()
+        };
+
         DeviceInfo {
             pci_info: Some(self.pci_info.clone()),
             vulkan_info,
             driver: self.driver.clone(),
             vbios_version: None,
             link_info: LinkInfo::default(),
-            drm_info: None,
+            drm_info: Some(drm_info),
         }
     }
 
     fn get_pci_slot_name(&self) -> Option<String> {
-        self.pci_slot_id.clone()
+        Some(self.pci_slot_id.clone())
     }
 
     fn apply_config<'a>(
@@ -196,6 +218,12 @@ impl GpuController for IntelGpuController {
 
         DeviceStats {
             clockspeed,
+            vram: VramStats {
+                total: self
+                    .drm_try_2(drm::drm_intel_get_aperture_sizes)
+                    .map(|(_, total)| total as u64),
+                used: None,
+            },
             ..Default::default()
         }
     }
@@ -326,6 +354,34 @@ impl IntelGpuController {
             self.write_file(file_path, contents)
         } else {
             Err(anyhow!("No GTs available"))
+        }
+    }
+
+    fn drm_try<T: Default>(&self, f: unsafe extern "C" fn(c_int, *mut T) -> c_int) -> Option<T> {
+        unsafe {
+            let mut out = T::default();
+            let result = f(self.drm_file.as_raw_fd(), &mut out);
+            if result == 0 {
+                Some(out)
+            } else {
+                None
+            }
+        }
+    }
+
+    fn drm_try_2<T: Default, O: Default>(
+        &self,
+        f: unsafe extern "C" fn(c_int, *mut T, *mut O) -> c_int,
+    ) -> Option<(T, O)> {
+        unsafe {
+            let mut a = T::default();
+            let mut b = O::default();
+            let result = f(self.drm_file.as_raw_fd(), &mut a, &mut b);
+            if result == 0 {
+                Some((a, b))
+            } else {
+                None
+            }
         }
     }
 }

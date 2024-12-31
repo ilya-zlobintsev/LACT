@@ -968,19 +968,32 @@ fn load_controllers(
                         let path = controller.get_path();
 
                         if matches!(controller.get_driver(), "xe" | "i915") {
-                            match controller.get_pci_info() {
-                                Some(pci_info) => {
-                                    let controller = IntelGpuController::new(
+                            match controller
+                                .get_pci_info()
+                                .zip(controller.get_pci_slot_name())
+                            {
+                                Some((pci_info, pci_slot_id)) => {
+                                    match IntelGpuController::new(
                                         path.to_owned(),
                                         controller.get_driver().to_owned(),
-                                        controller.get_pci_slot_name(),
+                                        pci_slot_id,
                                         pci_info.clone(),
-                                    );
-                                    let id = controller.get_id().unwrap();
-                                    info!("initialized Intel controller {id} for path {path:?}");
-                                    controllers
-                                        .insert(id, Box::new(controller) as Box<dyn GpuController>);
-                                    continue;
+                                    ) {
+                                        Ok(controller) => {
+                                            let id = controller.get_id().unwrap();
+                                            info!("initialized Intel controller {id} for path {path:?}");
+                                            controllers.insert(
+                                                id,
+                                                Box::new(controller) as Box<dyn GpuController>,
+                                            );
+                                            continue;
+                                        }
+                                        Err(err) => {
+                                            error!(
+                                                "could not initialize Intel controller: {err:#}"
+                                            );
+                                        }
+                                    }
                                 }
                                 None => {
                                     error!("could not get PCI info for Intel GPU at {path:?}",);

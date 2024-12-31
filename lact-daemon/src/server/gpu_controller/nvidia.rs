@@ -9,8 +9,8 @@ use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo,
-    FanControlMode, FanStats, GpuPciInfo, LinkInfo, NvidiaClockInfo, NvidiaClocksTable, PmfwInfo,
-    PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
+    FanControlMode, FanStats, GpuPciInfo, IntelDrmInfo, LinkInfo, NvidiaClockInfo,
+    NvidiaClocksTable, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
@@ -350,6 +350,7 @@ impl GpuController for NvidiaGpuController {
                         resizeable_bar: None,
                     })
                     .ok(),
+                intel: IntelDrmInfo::default(),
             }),
         }
     }

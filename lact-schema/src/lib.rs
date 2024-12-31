@@ -122,6 +122,15 @@ pub struct DrmInfo {
     pub l2_cache: Option<u32>,
     pub l3_cache_mb: Option<u32>,
     pub memory_info: Option<DrmMemoryInfo>,
+    #[serde(flatten)]
+    pub intel: IntelDrmInfo,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct IntelDrmInfo {
+    pub execution_units: Option<u32>,
+    pub subslices: Option<u32>,
 }
 
 #[skip_serializing_none]

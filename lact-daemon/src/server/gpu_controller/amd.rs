@@ -17,8 +17,9 @@ use amdgpu_sysfs::{
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo, LinkInfo,
-    PciInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
+    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo,
+    IntelDrmInfo, LinkInfo, PciInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats,
+    VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{ThrottleStatus, ThrottlerBit};
 use pciid_parser::Database;
@@ -466,6 +467,7 @@ impl AmdGpuController {
                 l2_cache: Some(drm_info.calc_l2_cache_size()),
                 l3_cache_mb: Some(drm_info.calc_l3_cache_size_mb()),
                 memory_info: drm_memory_info,
+                intel: IntelDrmInfo::default(),
             }),
             None => None,
         }
