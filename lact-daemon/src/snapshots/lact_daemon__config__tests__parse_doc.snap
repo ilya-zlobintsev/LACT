@@ -1,6 +1,7 @@
 ---
 source: lact-daemon/src/config.rs
 expression: deserialized_config
+snapshot_kind: text
 ---
 daemon:
   log_level: info
@@ -43,6 +44,42 @@ gpus:
     max_voltage: 1200
     voltage_offset: 0
     power_profile_mode_index: 0
+    custom_power_profile_mode_hueristics:
+      - - 0
+        - 5
+        - 1
+        - 0
+        - 4
+        - 800
+        - 4587520
+        - -65536
+        - 0
+      - - 0
+        - 5
+        - 1
+        - 0
+        - 1
+        - 0
+        - 3276800
+        - -65536
+        - -6553
+      - - 0
+        - 5
+        - 1
+        - 0
+        - 4
+        - 800
+        - 327680
+        - -65536
+        - 0
+    power_states:
+      memory_clock:
+        - 0
+        - 1
+      core_clock:
+        - 0
+        - 2
+        - 3
 profiles:
   vkcube:
     rule:

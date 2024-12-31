@@ -109,10 +109,47 @@ gpus:
     # Setting this requires `performance_level` to be set to `manual`.
     power_profile_mode_index: 0
     # Custom heuristic values when using the custom AMD power profile mode.
-    # TODO
-    custom_power_profile_mode_hueristics: []
-    # TODO
-    power_states: {}
+    # The meaning of these values depends on the specific GPU model.
+    # Check the names of these values in the UI.
+    custom_power_profile_mode_hueristics:
+    - - 0
+      - 5
+      - 1
+      - 0
+      - 4
+      - 800
+      - 4587520
+      - -65536
+      - 0
+    - - 0
+      - 5
+      - 1
+      - 0
+      - 1
+      - 0
+      - 3276800
+      - -65536
+      - -6553
+    - - 0
+      - 5
+      - 1
+      - 0
+      - 4
+      - 800
+      - 327680
+      - -65536
+      - 0
+    # List of AMD power states which should be enabled
+    power_states:
+      # GPU power states
+      core_clock:
+        - 0
+        - 2
+        - 3
+      # VRAM power states
+      memory_clock:
+        - 0
+        - 1
     # Minimum GPU clockspeed in MHz.
     min_core_clock: 300
     # Minimum VRAM clockspeed in MHz.
