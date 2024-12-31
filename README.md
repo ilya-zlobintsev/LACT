@@ -88,6 +88,8 @@ Anything Maxwell or newer should work, but generation support has not yet been t
 
 There is a configuration file available in `/etc/lact/config.yaml`. Most of the settings are accessible through the GUI, but some of them may be useful to be edited manually (like `admin_groups` to specify who has access to the daemon)
 
+See [CONFIG.md](./docs/CONFIG.md) for more information.
+
 **Socket permissions setup:**
 
 By default, LACT uses either ether the `wheel` or `sudo` group (whichever is available) for the ownership of the unix socket that the GUI needs to connect to.

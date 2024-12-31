@@ -409,7 +409,7 @@ mod tests {
             + example_config_start;
         let example_config = &doc[example_config_start..example_config_end];
 
-        let deserialized_config: Config = serde_yaml::from_str(&example_config).unwrap();
+        let deserialized_config: Config = serde_yaml::from_str(example_config).unwrap();
         assert_yaml_snapshot!(deserialized_config);
     }
 

@@ -109,7 +109,7 @@ gpus:
     # Setting this requires `performance_level` to be set to `manual`.
     power_profile_mode_index: 0
     # Custom heuristic values when using the custom AMD power profile mode.
-    # The meaning of these values depends on the specific GPU model.
+    # The meaning of these values, their format and count depend on the specific GPU model.
     # Check the names of these values in the UI.
     custom_power_profile_mode_hueristics:
     - - 0
