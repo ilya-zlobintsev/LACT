@@ -24,7 +24,7 @@ pub trait GpuController {
 
     fn get_path(&self) -> &Path;
 
-    fn get_info(&self, include_vulkan: bool) -> DeviceInfo;
+    fn get_info(&self) -> DeviceInfo;
 
     fn get_pci_slot_name(&self) -> Option<String>;
 

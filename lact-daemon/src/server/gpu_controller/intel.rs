@@ -122,20 +122,16 @@ impl GpuController for IntelGpuController {
         &self.sysfs_path
     }
 
-    fn get_info(&self, include_vulkan: bool) -> DeviceInfo {
-        let vulkan_info = if include_vulkan {
-            match get_vulkan_info(
-                &self.pci_info.device_pci_info.vendor_id,
-                &self.pci_info.device_pci_info.model_id,
-            ) {
-                Ok(info) => Some(info),
-                Err(err) => {
-                    warn!("could not load vulkan info: {err}");
-                    None
-                }
+    fn get_info(&self) -> DeviceInfo {
+        let vulkan_info = match get_vulkan_info(
+            &self.pci_info.device_pci_info.vendor_id,
+            &self.pci_info.device_pci_info.model_id,
+        ) {
+            Ok(info) => Some(info),
+            Err(err) => {
+                warn!("could not load vulkan info: {err}");
+                None
             }
-        } else {
-            None
         };
 
         let drm_info = DrmInfo {
@@ -143,6 +139,7 @@ impl GpuController for IntelGpuController {
                 execution_units: self.drm_try(drm::drm_intel_get_eu_total),
                 subslices: self.drm_try(drm::drm_intel_get_subslice_total),
             },
+            vram_clock_ratio: 1.0,
             ..Default::default()
         };
 
@@ -357,7 +354,11 @@ impl IntelGpuController {
         }
     }
 
+    #[cfg_attr(test, allow(unreachable_code, unused_variables))]
     fn drm_try<T: Default>(&self, f: unsafe extern "C" fn(c_int, *mut T) -> c_int) -> Option<T> {
+        #[cfg(test)]
+        return None;
+
         unsafe {
             let mut out = T::default();
             let result = f(self.drm_file.as_raw_fd(), &mut out);
@@ -369,10 +370,14 @@ impl IntelGpuController {
         }
     }
 
+    #[cfg_attr(test, allow(unreachable_code, unused_variables))]
     fn drm_try_2<T: Default, O: Default>(
         &self,
         f: unsafe extern "C" fn(c_int, *mut T, *mut O) -> c_int,
     ) -> Option<(T, O)> {
+        #[cfg(test)]
+        return None;
+
         unsafe {
             let mut a = T::default();
             let mut b = O::default();

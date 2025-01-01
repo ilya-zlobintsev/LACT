@@ -17,11 +17,11 @@ async fn snapshot_everything() {
                 device_dir.file_name().to_string_lossy()
             );
 
-            let handler = Handler::with_base_path(&device_dir.path(), Config::default(), true)
+            let handler = Handler::with_base_path(&device_dir.path(), Config::default())
                 .await
                 .unwrap();
             let device_info = handler
-                .generate_snapshot_device_info(false)
+                .generate_snapshot_device_info()
                 .into_values()
                 .next()
                 .unwrap();

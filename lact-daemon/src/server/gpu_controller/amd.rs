@@ -42,7 +42,6 @@ use tracing::{debug, error, info, trace, warn};
 use {
     lact_schema::DrmMemoryInfo,
     libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
-    std::{fs::OpenOptions, os::fd::IntoRawFd},
 };
 
 const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
@@ -58,16 +57,14 @@ pub struct AmdGpuController {
 }
 
 impl AmdGpuController {
-    pub fn new_from_path(
-        sysfs_path: PathBuf,
-        pci_db: &Database,
-        skip_drm: bool,
-    ) -> anyhow::Result<Self> {
+    pub fn new_from_path(sysfs_path: PathBuf, pci_db: &Database) -> anyhow::Result<Self> {
         let handle = GpuHandle::new_from_path(sysfs_path)
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
 
+        #[allow(unused_mut)]
         let mut drm_handle = None;
-        if matches!(handle.get_driver(), "amdgpu" | "radeon") && !skip_drm {
+        #[cfg(not(test))]
+        if matches!(handle.get_driver(), "amdgpu" | "radeon") {
             match get_drm_handle(&handle) {
                 Ok(handle) => {
                     drm_handle = Some(handle);
@@ -578,23 +575,19 @@ impl GpuController for AmdGpuController {
         self.handle.get_path()
     }
 
-    fn get_info(&self, include_vulkan: bool) -> DeviceInfo {
-        let vulkan_info = if include_vulkan {
-            self.pci_info.as_ref().and_then(|pci_info| {
-                match get_vulkan_info(
-                    &pci_info.device_pci_info.vendor_id,
-                    &pci_info.device_pci_info.model_id,
-                ) {
-                    Ok(info) => Some(info),
-                    Err(err) => {
-                        warn!("could not load vulkan info: {err}");
-                        None
-                    }
+    fn get_info(&self) -> DeviceInfo {
+        let vulkan_info = self.pci_info.as_ref().and_then(|pci_info| {
+            match get_vulkan_info(
+                &pci_info.device_pci_info.vendor_id,
+                &pci_info.device_pci_info.model_id,
+            ) {
+                Ok(info) => Some(info),
+                Err(err) => {
+                    warn!("could not load vulkan info: {err}");
+                    None
                 }
-            })
-        } else {
-            None
-        };
+            }
+        });
         let pci_info = self.pci_info.clone();
         let driver = self.handle.get_driver().to_owned();
         let vbios_version = self.get_full_vbios_version();
@@ -1038,12 +1031,15 @@ impl GpuController for AmdGpuController {
     }
 }
 
+#[cfg(not(test))]
 fn get_drm_handle(handle: &GpuHandle) -> anyhow::Result<DrmHandle> {
+    use std::os::fd::IntoRawFd;
+
     let slot_name = handle
         .get_pci_slot_name()
         .context("Device has no PCI slot name")?;
     let path = format!("/dev/dri/by-path/pci-{slot_name}-render");
-    let drm_file = OpenOptions::new()
+    let drm_file = fs::OpenOptions::new()
         .read(true)
         .write(true)
         .open(&path)

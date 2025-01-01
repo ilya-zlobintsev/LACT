@@ -272,22 +272,18 @@ impl GpuController for NvidiaGpuController {
         &self.sysfs_path
     }
 
-    fn get_info(&self, include_vulkan: bool) -> DeviceInfo {
+    fn get_info(&self) -> DeviceInfo {
         let device = self.device();
 
-        let vulkan_info = if include_vulkan {
-            match get_vulkan_info(
-                &self.pci_info.device_pci_info.vendor_id,
-                &self.pci_info.device_pci_info.model_id,
-            ) {
-                Ok(info) => Some(info),
-                Err(err) => {
-                    warn!("could not load vulkan info: {err}");
-                    None
-                }
+        let vulkan_info = match get_vulkan_info(
+            &self.pci_info.device_pci_info.vendor_id,
+            &self.pci_info.device_pci_info.model_id,
+        ) {
+            Ok(info) => Some(info),
+            Err(err) => {
+                warn!("could not load vulkan info: {err}");
+                None
             }
-        } else {
-            None
         };
 
         DeviceInfo {

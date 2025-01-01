@@ -7,7 +7,11 @@ use vulkano::{
     VulkanLibrary,
 };
 
+#[cfg_attr(test, allow(unreachable_code, unused_variables))]
 pub fn get_vulkan_info<'a>(vendor_id: &'a str, device_id: &'a str) -> anyhow::Result<VulkanInfo> {
+    #[cfg(test)]
+    return Err(anyhow!("Not allowed in tests"));
+
     trace!("Reading vulkan info");
     let vendor_id = u32::from_str_radix(vendor_id, 16)?;
     let device_id = u32::from_str_radix(device_id, 16)?;

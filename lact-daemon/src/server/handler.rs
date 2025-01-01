@@ -101,21 +101,17 @@ impl<'a> Handler {
             Ok(custom_path) => PathBuf::from(custom_path),
             Err(_) => PathBuf::from("/sys/class/drm"),
         };
-        Self::with_base_path(&base_path, config, false).await
+        Self::with_base_path(&base_path, config).await
     }
 
-    pub(crate) async fn with_base_path(
-        base_path: &Path,
-        config: Config,
-        sysfs_only: bool,
-    ) -> anyhow::Result<Self> {
+    pub(crate) async fn with_base_path(base_path: &Path, config: Config) -> anyhow::Result<Self> {
         let mut controllers = BTreeMap::new();
 
         // Sometimes LACT starts too early in the boot process, before the sysfs is initialized.
         // For such scenarios there is a retry logic when no GPUs were found,
         // or if some of the PCI devices don't have a drm entry yet.
         for i in 1..=CONTROLLERS_LOAD_RETRY_ATTEMPTS {
-            controllers = load_controllers(base_path, sysfs_only)?;
+            controllers = load_controllers(base_path)?;
 
             let mut should_retry = false;
             if let Ok(devices) = fs::read_dir("/sys/bus/pci/devices") {
@@ -352,7 +348,7 @@ impl<'a> Handler {
     }
 
     pub fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo> {
-        Ok(self.controller_by_id(id)?.get_info(true))
+        Ok(self.controller_by_id(id)?.get_info())
     }
 
     pub fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
@@ -670,7 +666,7 @@ impl<'a> Handler {
         let info = json!({
             "system_info": system_info,
             "initramfs_type": initramfs_type,
-            "devices": self.generate_snapshot_device_info(true),
+            "devices": self.generate_snapshot_device_info(),
         });
         let info_data = serde_json::to_vec_pretty(&info).unwrap();
 
@@ -695,10 +691,7 @@ impl<'a> Handler {
         Ok(out_path)
     }
 
-    pub(crate) fn generate_snapshot_device_info(
-        &self,
-        include_vulkan: bool,
-    ) -> BTreeMap<String, serde_json::Value> {
+    pub(crate) fn generate_snapshot_device_info(&self) -> BTreeMap<String, serde_json::Value> {
         self.gpu_controllers
             .iter()
             .map(|(id, controller)| {
@@ -710,7 +703,7 @@ impl<'a> Handler {
 
                 let data = json!({
                     "pci_info": controller.get_pci_info(),
-                    "info": controller.get_info(include_vulkan),
+                    "info": controller.get_info(),
                     "stats": controller.get_stats(gpu_config),
                     "clocks_info": controller.get_clocks_info().ok(),
                     "power_profile_modes": controller.get_power_profile_modes().ok(),
@@ -920,10 +913,7 @@ impl<'a> Handler {
 }
 
 /// `sysfs_only` disables initialization of any external data sources, such as libdrm and nvml
-fn load_controllers(
-    base_path: &Path,
-    sysfs_only: bool,
-) -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>> {
+fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>> {
     let mut controllers = BTreeMap::new();
 
     let pci_db = Database::read().unwrap_or_else(|err| {
@@ -934,18 +924,17 @@ fn load_controllers(
         }
     });
 
-    let nvml = if sysfs_only {
-        None
-    } else {
-        match Nvml::init() {
-            Ok(nvml) => {
-                info!("NVML initialized");
-                Some(Rc::new(nvml))
-            }
-            Err(err) => {
-                info!("Nvidia support disabled, {err}");
-                None
-            }
+    #[cfg(test)]
+    let nvml: Option<Rc<Nvml>> = None;
+    #[cfg(not(test))]
+    let nvml = match Nvml::init() {
+        Ok(nvml) => {
+            info!("NVML initialized");
+            Some(Rc::new(nvml))
+        }
+        Err(err) => {
+            info!("Nvidia support disabled, {err}");
+            None
         }
     };
 
@@ -962,7 +951,7 @@ fn load_controllers(
         if name.starts_with("card") && !name.contains('-') {
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
-            match AmdGpuController::new_from_path(device_path, &pci_db, sysfs_only) {
+            match AmdGpuController::new_from_path(device_path, &pci_db) {
                 Ok(controller) => match controller.get_id() {
                     Ok(id) => {
                         let path = controller.get_path();

@@ -1,6 +1,7 @@
 ---
 source: lact-daemon/src/tests/mod.rs
 expression: device_info
+snapshot_kind: text
 ---
 {
   "clocks_info": {
@@ -19,6 +20,9 @@ expression: device_info
   },
   "info": {
     "driver": "xe",
+    "drm_info": {
+      "vram_clock_ratio": 1.0
+    },
     "link_info": {},
     "pci_info": {
       "device_pci_info": {
