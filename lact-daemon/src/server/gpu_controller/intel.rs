@@ -1,7 +1,10 @@
+mod drm;
+
 use super::GpuController;
 use crate::{config, server::vulkan::get_vulkan_info};
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::{anyhow, Context};
+use drm::bindings::i915;
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, GpuPciInfo,
@@ -16,21 +19,9 @@ use std::{
 };
 use tracing::{debug, error, info, trace, warn};
 
-#[allow(
-    non_upper_case_globals,
-    non_camel_case_types,
-    non_snake_case,
-    unused,
-    clippy::upper_case_acronyms,
-    clippy::unreadable_literal
-)]
-mod drm {
-    include!(concat!(env!("OUT_DIR"), "/intel_bindings.rs"));
-}
-
 enum DriverType {
-    Xe,
     I915,
+    Xe,
 }
 
 pub struct IntelGpuController {
@@ -146,9 +137,9 @@ impl GpuController for IntelGpuController {
         };
 
         let drm_info = DrmInfo {
-            intel: IntelDrmInfo {
-                execution_units: self.drm_try(drm::drm_intel_get_eu_total),
-                subslices: self.drm_try(drm::drm_intel_get_subslice_total),
+            intel: match self.driver_type {
+                DriverType::I915 => self.get_drm_info_i915(),
+                DriverType::Xe => self.get_drm_info_xe(),
             },
             vram_clock_ratio: 1.0,
             ..Default::default()
@@ -228,7 +219,7 @@ impl GpuController for IntelGpuController {
             clockspeed,
             vram: VramStats {
                 total: self
-                    .drm_try_2(drm::drm_intel_get_aperture_sizes)
+                    .drm_try_2(i915::drm_intel_get_aperture_sizes)
                     .map(|(_, total)| total as u64),
                 used: None,
             },
@@ -362,6 +353,20 @@ impl IntelGpuController {
             self.write_file(file_path, contents)
         } else {
             Err(anyhow!("No GTs available"))
+        }
+    }
+
+    fn get_drm_info_i915(&self) -> IntelDrmInfo {
+        IntelDrmInfo {
+            execution_units: self.drm_try(i915::drm_intel_get_eu_total),
+            subslices: self.drm_try(i915::drm_intel_get_subslice_total),
+        }
+    }
+
+    fn get_drm_info_xe(&self) -> IntelDrmInfo {
+        IntelDrmInfo {
+            execution_units: None,
+            subslices: None,
         }
     }
 
