@@ -16,7 +16,14 @@ use std::{
 };
 use tracing::{debug, error, info, trace, warn};
 
-#[allow(non_upper_case_globals, non_camel_case_types, non_snake_case, unused)]
+#[allow(
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case,
+    unused,
+    clippy::upper_case_acronyms,
+    clippy::unreadable_literal
+)]
 mod drm {
     include!(concat!(env!("OUT_DIR"), "/intel_bindings.rs"));
 }
