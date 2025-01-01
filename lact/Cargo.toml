@@ -8,7 +8,7 @@ default = ["lact-gui"]
 adw = ["lact-gui/adw"]
 
 [dependencies]
-lact-daemon = { path = "../lact-daemon", default-features = false }
+lact-daemon = { path = "../lact-daemon" }
 lact-schema = { path = "../lact-schema", features = ["args"] }
 lact-cli = { path = "../lact-cli" }
 lact-gui = { path = "../lact-gui", optional = true }

@@ -15,7 +15,7 @@ Current features:
 - Viewing information about the GPU
 - Power and thermals monitoring, power limit configuration
 - Fan curve control
-- Overclocking (GPU/VRAM clockspeed and voltage, currently AMD only)
+- Overclocking (GPU/VRAM clockspeed and voltage)
 - Power states configuration (AMD only)
 
 Both AMD and Nvidia functionality works on X11, Wayland or even headless sessions.
@@ -75,7 +75,7 @@ However the following table shows what functionality can be expected for a given
 | Vega                                | Supported            | Supported   | Supported    | Supported   |                                                   |
 | RDNA1 (RX 5000)                     | Supported            | Supported   | Supported    | Supported   |                                                   |
 | RDNA2 (RX 6000)                     | Supported            | Supported   | Supported    | Supported   |                                                   |
-| RDNA3 (RX 7000)                     | Supported            | Limited     | Supported    | Limited     | Fan zero RPM mode is enabled by default even with a custom fan curve, and requires kernel 6.13 (`linux-next` when writing this) to be disabled. The power cap is sometimes reported lower than it should be. See [#255](https://github.com/ilya-zlobintsev/LACT/issues/255) for more info.   | 
+| RDNA3 (RX 7000)                     | Supported            | Limited     | Supported    | Limited     | Fan zero RPM mode is enabled by default even with a custom fan curve, and requires kernel 6.13 to be disabled. The power cap is sometimes reported lower than it should be. See [#255](https://github.com/ilya-zlobintsev/LACT/issues/255) for more info.   | 
 
 GPUs not listed here will still work, but might not have full functionality available.
 Monitoring/system info will be available everywhere. Integrated GPUs might also only have basic configuration available.
@@ -87,6 +87,8 @@ Anything Maxwell or newer should work, but generation support has not yet been t
 # Configuration
 
 There is a configuration file available in `/etc/lact/config.yaml`. Most of the settings are accessible through the GUI, but some of them may be useful to be edited manually (like `admin_groups` to specify who has access to the daemon)
+
+See [CONFIG.md](./docs/CONFIG.md) for more information.
 
 **Socket permissions setup:**
 

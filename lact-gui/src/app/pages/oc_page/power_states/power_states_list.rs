@@ -31,9 +31,15 @@ impl PowerStatesList {
             .collect()
     }
 
-    pub fn set_power_states(&self, power_states: Vec<PowerState>, value_suffix: &str) {
+    pub fn set_power_states(
+        &self,
+        power_states: Vec<PowerState>,
+        value_suffix: &str,
+        value_ratio: f64,
+    ) {
         let store = gio::ListStore::new::<PowerStateRow>();
-        for (i, state) in power_states.into_iter().enumerate() {
+        for (i, mut state) in power_states.into_iter().enumerate() {
+            state.value = (state.value as f64 * value_ratio) as u64;
             let index = u8::try_from(i).expect("Power state index doesn't fit in u8?");
             let row = PowerStateRow::new(state, index, value_suffix);
             store.append(&row);

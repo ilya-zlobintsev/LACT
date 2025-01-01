@@ -121,6 +121,8 @@ impl OcPage {
             .map(|info| info.vram_clock_ratio)
             .unwrap_or(1.0);
 
+        self.power_states_frame
+            .set_vram_clock_ratio(vram_clock_ratio);
         self.stats_section.set_vram_clock_ratio(vram_clock_ratio);
         self.clocks_frame.set_vram_clock_ratio(vram_clock_ratio);
     }

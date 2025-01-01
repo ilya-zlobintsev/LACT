@@ -879,18 +879,6 @@ impl GpuController for AmdGpuController {
                 }
             }
 
-            for (kind, states) in &config.power_states {
-                if config.performance_level != Some(PerformanceLevel::Manual) {
-                    return Err(anyhow!(
-                        "Performance level has to be set to `manual` to configure power states"
-                    ));
-                }
-
-                self.handle
-                    .set_enabled_power_levels(*kind, states)
-                    .with_context(|| format!("Could not set {kind:?} power states"))?;
-            }
-
             if config.fan_control_enabled {
                 if let Some(ref settings) = config.fan_control_settings {
                     match settings.mode {
@@ -1021,6 +1009,18 @@ impl GpuController for AmdGpuController {
 
             for handle in commit_handles {
                 handle.commit()?;
+            }
+
+            for (kind, states) in &config.power_states {
+                if config.performance_level != Some(PerformanceLevel::Manual) {
+                    return Err(anyhow!(
+                        "Performance level has to be set to `manual` to configure power states"
+                    ));
+                }
+
+                self.handle
+                    .set_enabled_power_levels(*kind, states)
+                    .with_context(|| format!("Could not set {kind:?} power states"))?;
             }
 
             Ok(())

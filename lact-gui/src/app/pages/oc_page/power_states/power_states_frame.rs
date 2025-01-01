@@ -26,8 +26,10 @@ impl PowerStatesFrame {
             imp.expander.set_expanded(false);
         }
 
-        imp.core_states_list.set_power_states(states.core, "MHz");
-        imp.vram_states_list.set_power_states(states.vram, "MHz");
+        imp.core_states_list
+            .set_power_states(states.core, "MHz", 1.0);
+        imp.vram_states_list
+            .set_power_states(states.vram, "MHz", self.vram_clock_ratio());
     }
 
     pub fn connect_values_changed<F: Fn() + 'static + Clone>(&self, f: F) {
@@ -76,7 +78,7 @@ mod imp {
         },
         CompositeTemplate, Expander,
     };
-    use std::sync::atomic::AtomicBool;
+    use std::{cell::Cell, sync::atomic::AtomicBool};
 
     #[derive(CompositeTemplate, Default, Properties)]
     #[properties(wrapper_type = super::PowerStatesFrame)]
@@ -91,6 +93,8 @@ mod imp {
 
         #[property(get, set)]
         configurable: AtomicBool,
+        #[property(get, set)]
+        vram_clock_ratio: Cell<f64>,
     }
 
     #[glib::object_subclass]

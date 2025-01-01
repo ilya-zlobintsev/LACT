@@ -51,7 +51,7 @@ copes = { git = "https://gitlab.com/corectrl/copes" }
 divan = { workspace = true }
 pretty_assertions = { workspace = true }
 lact-daemon = { path = ".", features = ["bench"] }
-insta = { version = "1.41.1", features = ["json"] }
+insta = { version = "1.41.1", features = ["json", "yaml"] }
 
 [build-dependencies]
 bindgen = "0.68"
