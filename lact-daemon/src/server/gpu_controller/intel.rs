@@ -85,12 +85,16 @@ impl IntelGpuController {
                 sysfs_path.display()
             );
         }
-        let drm_path = format!("/dev/dri/by-path/pci-{pci_slot_id}-render");
-        let drm_file = fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(drm_path)
-            .context("Could not open DRM file")?;
+        let drm_file = if cfg!(not(test)) {
+            let drm_path = format!("/dev/dri/by-path/pci-{pci_slot_id}-render");
+            fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(drm_path)
+                .context("Could not open DRM file")?
+        } else {
+            fs::File::open("/dev/null").unwrap()
+        };
 
         Ok(Self {
             sysfs_path,
@@ -308,7 +312,7 @@ impl IntelGpuController {
     {
         let file_path = self.sysfs_file_path(path);
 
-        trace!("Reading file from '{}'", file_path.display());
+        trace!("reading file from '{}'", file_path.display());
 
         if file_path.exists() {
             match fs::read_to_string(&file_path) {
