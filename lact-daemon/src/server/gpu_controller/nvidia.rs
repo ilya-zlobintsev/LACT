@@ -3,14 +3,14 @@ use crate::{
     server::vulkan::get_vulkan_info,
 };
 
-use super::{fan_control::FanCurve, FanControlHandle, GpuController};
+use super::{fan_control::FanCurve, CommonControllerInfo, FanControlHandle, GpuController};
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo,
-    FanControlMode, FanStats, GpuPciInfo, IntelDrmInfo, LinkInfo, NvidiaClockInfo,
-    NvidiaClocksTable, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
+    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockInfo, NvidiaClocksTable, PmfwInfo,
+    PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
@@ -21,7 +21,6 @@ use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
     fmt::Write,
-    path::{Path, PathBuf},
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -30,9 +29,7 @@ use tracing::{debug, error, trace, warn};
 
 pub struct NvidiaGpuController {
     nvml: Rc<Nvml>,
-    pci_slot_id: String,
-    pci_info: GpuPciInfo,
-    sysfs_path: PathBuf,
+    common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
 
     last_applied_gpc_offset: Cell<Option<i32>>,
@@ -40,26 +37,26 @@ pub struct NvidiaGpuController {
 }
 
 impl NvidiaGpuController {
-    pub fn new(
-        nvml: Rc<Nvml>,
-        pci_slot_id: String,
-        pci_info: GpuPciInfo,
-        sysfs_path: PathBuf,
-    ) -> Self {
-        Self {
+    pub fn new(common: CommonControllerInfo, nvml: Rc<Nvml>) -> anyhow::Result<Self> {
+        nvml.device_by_pci_bus_id(common.pci_slot_name.as_str())
+            .with_context(|| {
+                format!(
+                    "Could not get PCI device '{}' from NVML",
+                    common.pci_slot_name
+                )
+            })?;
+        Ok(Self {
             nvml,
-            pci_slot_id,
-            pci_info,
-            sysfs_path,
+            common,
             fan_control_handle: RefCell::new(None),
             last_applied_gpc_offset: Cell::new(None),
             last_applied_mem_offset: Cell::new(None),
-        }
+        })
     }
 
     fn device(&self) -> Device<'_> {
         self.nvml
-            .device_by_pci_bus_id(self.pci_slot_id.as_str())
+            .device_by_pci_bus_id(self.common.pci_slot_name.as_str())
             .expect("Can no longer get device")
     }
 
@@ -90,7 +87,7 @@ impl NvidiaGpuController {
         let task_notify = notify.clone();
 
         let nvml = self.nvml.clone();
-        let pci_slot_id = self.pci_slot_id.clone();
+        let pci_slot_id = self.common.pci_slot_name.clone();
         debug!("spawning new fan control task");
 
         let handle = tokio::task::spawn_local(async move {
@@ -248,37 +245,12 @@ impl NvidiaGpuController {
 }
 
 impl GpuController for NvidiaGpuController {
-    fn get_id(&self) -> anyhow::Result<String> {
-        let GpuPciInfo {
-            device_pci_info,
-            subsystem_pci_info,
-        } = &self.pci_info;
-
-        Ok(format!(
-            "{}:{}-{}:{}-{}",
-            device_pci_info.vendor_id,
-            device_pci_info.model_id,
-            subsystem_pci_info.vendor_id,
-            subsystem_pci_info.model_id,
-            self.pci_slot_id
-        ))
-    }
-
-    fn get_pci_info(&self) -> Option<&GpuPciInfo> {
-        Some(&self.pci_info)
-    }
-
-    fn get_path(&self) -> &Path {
-        &self.sysfs_path
+    fn controller_info(&self) -> &CommonControllerInfo {
+        &self.common
     }
 
     fn get_info(&self) -> DeviceInfo {
-        let device = self.device();
-
-        let vulkan_info = match get_vulkan_info(
-            &self.pci_info.device_pci_info.vendor_id,
-            &self.pci_info.device_pci_info.model_id,
-        ) {
+        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
             Ok(info) => Some(info),
             Err(err) => {
                 warn!("could not load vulkan info: {err}");
@@ -286,8 +258,10 @@ impl GpuController for NvidiaGpuController {
             }
         };
 
+        let device = self.device();
+
         DeviceInfo {
-            pci_info: Some(self.pci_info.clone()),
+            pci_info: Some(self.common.pci_info.clone()),
             vulkan_info,
             driver: format!(
                 "nvidia {}",
@@ -349,10 +323,6 @@ impl GpuController for NvidiaGpuController {
                 intel: IntelDrmInfo::default(),
             }),
         }
-    }
-
-    fn get_pci_slot_name(&self) -> Option<String> {
-        Some(self.pci_slot_id.clone())
     }
 
     #[allow(

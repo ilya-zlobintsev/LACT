@@ -1,4 +1,4 @@
-use super::{fan_control::FanCurve, FanControlHandle, GpuController};
+use super::{fan_control::FanCurve, CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     config::{self, ClocksConfiguration, FanControlSettings},
     server::vulkan::get_vulkan_info,
@@ -12,22 +12,19 @@ use amdgpu_sysfs::{
         CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
     },
     hw_mon::{FanControlMethod, HwMon},
-    sysfs::SysFS,
 };
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, GpuPciInfo,
-    IntelDrmInfo, LinkInfo, PciInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats,
-    VramStats,
+    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
+    LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{ThrottleStatus, ThrottlerBit};
-use pciid_parser::Database;
 use std::{
     cell::RefCell,
     cmp,
     collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::PathBuf,
     rc::Rc,
     time::Duration,
 };
@@ -52,13 +49,13 @@ const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
 pub struct AmdGpuController {
     handle: GpuHandle,
     drm_handle: Option<DrmHandle>,
-    pci_info: Option<GpuPciInfo>,
+    common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
 }
 
 impl AmdGpuController {
-    pub fn new_from_path(sysfs_path: PathBuf, pci_db: &Database) -> anyhow::Result<Self> {
-        let handle = GpuHandle::new_from_path(sysfs_path)
+    pub fn new_from_path(common: CommonControllerInfo) -> anyhow::Result<Self> {
+        let handle = GpuHandle::new_from_path(common.sysfs_path.clone())
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
 
         #[allow(unused_mut)]
@@ -75,47 +72,10 @@ impl AmdGpuController {
             }
         }
 
-        let mut device_pci_info = None;
-        let mut subsystem_pci_info = None;
-
-        if let Some((vendor_id, model_id)) = handle.get_pci_id() {
-            device_pci_info = Some(PciInfo {
-                vendor_id: vendor_id.to_owned(),
-                vendor: None,
-                model_id: model_id.to_owned(),
-                model: None,
-            });
-
-            if let Some((subsys_vendor_id, subsys_model_id)) = handle.get_pci_subsys_id() {
-                let pci_device_info =
-                    pci_db.get_device_info(vendor_id, model_id, subsys_vendor_id, subsys_model_id);
-
-                device_pci_info = Some(PciInfo {
-                    vendor_id: vendor_id.to_owned(),
-                    vendor: pci_device_info.vendor_name.map(str::to_owned),
-                    model_id: model_id.to_owned(),
-                    model: pci_device_info.device_name.map(str::to_owned),
-                });
-                subsystem_pci_info = Some(PciInfo {
-                    vendor_id: subsys_vendor_id.to_owned(),
-                    vendor: pci_device_info.subvendor_name.map(str::to_owned),
-                    model_id: subsys_model_id.to_owned(),
-                    model: pci_device_info.subdevice_name.map(str::to_owned),
-                });
-            };
-        }
-
-        let pci_info = device_pci_info.and_then(|device_pci_info| {
-            Some(GpuPciInfo {
-                device_pci_info,
-                subsystem_pci_info: subsystem_pci_info?,
-            })
-        });
-
         Ok(Self {
             handle,
             drm_handle,
-            pci_info,
+            common,
             fan_control_handle: RefCell::new(None),
         })
     }
@@ -539,56 +499,25 @@ impl AmdGpuController {
     }
 
     fn is_steam_deck(&self) -> bool {
-        self.pci_info.as_ref().is_some_and(|info| {
-            info.device_pci_info.vendor_id == VENDOR_AMD
-                && STEAM_DECK_IDS.contains(&info.device_pci_info.model_id.as_str())
-        })
-    }
-
-    pub fn get_driver(&self) -> &str {
-        self.handle.get_driver()
+        self.common.pci_info.device_pci_info.vendor_id == VENDOR_AMD
+            && STEAM_DECK_IDS.contains(&self.common.pci_info.device_pci_info.model_id.as_str())
     }
 }
 
 impl GpuController for AmdGpuController {
-    fn get_id(&self) -> anyhow::Result<String> {
-        let handle = &self.handle;
-        let pci_id = handle.get_pci_id().context("Device has no vendor id")?;
-        let pci_subsys_id = handle
-            .get_pci_subsys_id()
-            .context("Device has no subsys id")?;
-        let pci_slot_name = handle
-            .get_pci_slot_name()
-            .context("Device has no pci slot")?;
-
-        Ok(format!(
-            "{}:{}-{}:{}-{}",
-            pci_id.0, pci_id.1, pci_subsys_id.0, pci_subsys_id.1, pci_slot_name
-        ))
-    }
-
-    fn get_pci_info(&self) -> Option<&GpuPciInfo> {
-        self.pci_info.as_ref()
-    }
-
-    fn get_path(&self) -> &Path {
-        self.handle.get_path()
+    fn controller_info(&self) -> &CommonControllerInfo {
+        &self.common
     }
 
     fn get_info(&self) -> DeviceInfo {
-        let vulkan_info = self.pci_info.as_ref().and_then(|pci_info| {
-            match get_vulkan_info(
-                &pci_info.device_pci_info.vendor_id,
-                &pci_info.device_pci_info.model_id,
-            ) {
-                Ok(info) => Some(info),
-                Err(err) => {
-                    warn!("could not load vulkan info: {err}");
-                    None
-                }
+        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
+            Ok(info) => Some(info),
+            Err(err) => {
+                warn!("could not load vulkan info: {err}");
+                None
             }
-        });
-        let pci_info = self.pci_info.clone();
+        };
+        let pci_info = Some(self.common.pci_info.clone());
         let driver = self.handle.get_driver().to_owned();
         let vbios_version = self.get_full_vbios_version();
         let link_info = self.get_link_info();
@@ -602,10 +531,6 @@ impl GpuController for AmdGpuController {
             link_info,
             drm_info,
         }
-    }
-
-    fn get_pci_slot_name(&self) -> Option<String> {
-        self.handle.get_pci_slot_name().map(str::to_owned)
     }
 
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {

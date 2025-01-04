@@ -1,14 +1,14 @@
 mod drm;
 
-use super::GpuController;
+use super::{CommonControllerInfo, GpuController};
 use crate::{config, server::vulkan::get_vulkan_info};
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::{anyhow, Context};
-use drm::{bindings, i915};
+use drm::bindings;
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, GpuPciInfo,
-    IntelClocksTable, IntelDrmInfo, LinkInfo, PowerStates, VramStats,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, IntelClocksTable,
+    IntelDrmInfo, LinkInfo, PowerStates, VramStats,
 };
 use std::{
     cell::Cell,
@@ -28,24 +28,16 @@ enum DriverType {
 }
 
 pub struct IntelGpuController {
-    sysfs_path: PathBuf,
-    driver: String,
     driver_type: DriverType,
-    pci_slot_id: String,
-    pci_info: GpuPciInfo,
+    common: CommonControllerInfo,
     tile_gts: Vec<PathBuf>,
     drm_file: fs::File,
     last_gpu_busy: Cell<Option<(Instant, u64)>>,
 }
 
 impl IntelGpuController {
-    pub fn new(
-        sysfs_path: PathBuf,
-        driver: String,
-        pci_slot_id: String,
-        pci_info: GpuPciInfo,
-    ) -> anyhow::Result<Self> {
-        let driver_type = match driver.as_str() {
+    pub fn new(common: CommonControllerInfo) -> anyhow::Result<Self> {
+        let driver_type = match common.driver.as_str() {
             "xe" => DriverType::Xe,
             "i915" => DriverType::I915,
             _ => unreachable!(),
@@ -53,7 +45,11 @@ impl IntelGpuController {
 
         let mut tile_gts = vec![];
 
-        for entry in fs::read_dir(&sysfs_path).into_iter().flatten().flatten() {
+        for entry in fs::read_dir(&common.sysfs_path)
+            .into_iter()
+            .flatten()
+            .flatten()
+        {
             if let Some(name) = entry.file_name().to_str() {
                 if name.starts_with("tile") {
                     for gt_entry in fs::read_dir(entry.path()).into_iter().flatten().flatten() {
@@ -61,7 +57,7 @@ impl IntelGpuController {
                             if gt_name.starts_with("gt") {
                                 let gt_path = gt_entry
                                     .path()
-                                    .strip_prefix(&sysfs_path)
+                                    .strip_prefix(&common.sysfs_path)
                                     .unwrap()
                                     .to_owned();
                                 debug!("initialized GT at '{}'", gt_path.display());
@@ -77,11 +73,11 @@ impl IntelGpuController {
             info!(
                 "initialized {} gt at '{}'",
                 tile_gts.len(),
-                sysfs_path.display()
+                common.sysfs_path.display()
             );
         }
         let drm_file = if cfg!(not(test)) {
-            let drm_path = format!("/dev/dri/by-path/pci-{pci_slot_id}-render");
+            let drm_path = format!("/dev/dri/by-path/pci-{}-render", common.pci_slot_name);
             fs::OpenOptions::new()
                 .read(true)
                 .write(true)
@@ -92,11 +88,8 @@ impl IntelGpuController {
         };
 
         Ok(Self {
-            sysfs_path,
-            driver,
+            common,
             driver_type,
-            pci_slot_id,
-            pci_info,
             tile_gts,
             drm_file,
             last_gpu_busy: Cell::new(None),
@@ -105,35 +98,12 @@ impl IntelGpuController {
 }
 
 impl GpuController for IntelGpuController {
-    fn get_id(&self) -> anyhow::Result<String> {
-        let GpuPciInfo {
-            device_pci_info,
-            subsystem_pci_info,
-        } = &self.pci_info;
-
-        Ok(format!(
-            "{}:{}-{}:{}-{}",
-            device_pci_info.vendor_id,
-            device_pci_info.model_id,
-            subsystem_pci_info.vendor_id,
-            subsystem_pci_info.model_id,
-            self.pci_slot_id,
-        ))
-    }
-
-    fn get_pci_info(&self) -> Option<&GpuPciInfo> {
-        Some(&self.pci_info)
-    }
-
-    fn get_path(&self) -> &Path {
-        &self.sysfs_path
+    fn controller_info(&self) -> &CommonControllerInfo {
+        &self.common
     }
 
     fn get_info(&self) -> DeviceInfo {
-        let vulkan_info = match get_vulkan_info(
-            &self.pci_info.device_pci_info.vendor_id,
-            &self.pci_info.device_pci_info.model_id,
-        ) {
+        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
             Ok(info) => Some(info),
             Err(err) => {
                 warn!("could not load vulkan info: {err}");
@@ -151,17 +121,13 @@ impl GpuController for IntelGpuController {
         };
 
         DeviceInfo {
-            pci_info: Some(self.pci_info.clone()),
+            pci_info: Some(self.common.pci_info.clone()),
             vulkan_info,
-            driver: self.driver.clone(),
+            driver: self.common.driver.clone(),
             vbios_version: None,
             link_info: LinkInfo::default(),
             drm_info: Some(drm_info),
         }
-    }
-
-    fn get_pci_slot_name(&self) -> Option<String> {
-        Some(self.pci_slot_id.clone())
     }
 
     fn apply_config<'a>(
@@ -285,11 +251,13 @@ impl GpuController for IntelGpuController {
 }
 
 impl IntelGpuController {
+    #[allow(clippy::unused_self)]
     fn debugfs_path(&self) -> PathBuf {
         #[cfg(test)]
         return PathBuf::from("/dev/null");
 
-        Path::new("/sys/kernel/debug/dri").join(&self.pci_slot_id)
+        #[cfg(not(test))]
+        Path::new("/sys/kernel/debug/dri").join(&self.common.pci_slot_name)
     }
 
     fn first_tile_gt(&self) -> Option<&Path> {
@@ -304,11 +272,12 @@ impl IntelGpuController {
 
         match path.strip_prefix("../") {
             Ok(path_relative_to_parent) => self
-                .get_path()
+                .common
+                .sysfs_path
                 .parent()
                 .expect("Device path has no parent")
                 .join(path_relative_to_parent),
-            Err(_) => self.get_path().join(path),
+            Err(_) => self.common.sysfs_path.join(path),
         }
     }
 
@@ -379,6 +348,7 @@ impl IntelGpuController {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn get_drm_info_xe(&self) -> IntelDrmInfo {
         IntelDrmInfo {
             execution_units: None,

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context};
-use lact_schema::{VulkanDriverInfo, VulkanInfo};
+use lact_schema::{GpuPciInfo, VulkanDriverInfo, VulkanInfo};
 use std::borrow::Cow;
 use tracing::trace;
 use vulkano::{
@@ -8,13 +8,13 @@ use vulkano::{
 };
 
 #[cfg_attr(test, allow(unreachable_code, unused_variables))]
-pub fn get_vulkan_info<'a>(vendor_id: &'a str, device_id: &'a str) -> anyhow::Result<VulkanInfo> {
+pub fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo> {
     #[cfg(test)]
     return Err(anyhow!("Not allowed in tests"));
 
     trace!("Reading vulkan info");
-    let vendor_id = u32::from_str_radix(vendor_id, 16)?;
-    let device_id = u32::from_str_radix(device_id, 16)?;
+    let vendor_id = u32::from_str_radix(&pci_info.device_pci_info.vendor_id, 16)?;
+    let device_id = u32::from_str_radix(&pci_info.device_pci_info.model_id, 16)?;
 
     let library = VulkanLibrary::new().context("Could not create vulkan library")?;
     let instance = Instance::new(library, InstanceCreateInfo::default())
