@@ -417,8 +417,6 @@ impl IntelGpuController {
                     let time_delta = timestamp - last_timestamp;
                     let gpu_busy_delta = gpu_busy - last_gpu_busy;
 
-                    println!("time delta: {time_delta:?}, busy delta: {gpu_busy_delta}");
-
                     let percentage =
                         (gpu_busy_delta as f64 / time_delta.as_millis() as f64) * 100.0;
                     return Some(percentage as u8);
