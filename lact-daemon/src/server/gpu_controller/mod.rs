@@ -8,7 +8,10 @@ use amd::AmdGpuController;
 use intel::IntelGpuController;
 use nvidia::NvidiaGpuController;
 
-use crate::config::{self};
+use crate::{
+    bindings::intel::IntelDrm,
+    config::{self},
+};
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::Context;
 use futures::future::LocalBoxFuture;
@@ -77,6 +80,7 @@ pub(crate) fn init_controller(
     pci_db: &pciid_parser::Database,
     nvml: &LazyCell<Option<Rc<Nvml>>>,
     amd_drm: &LazyCell<Option<LibDrmAmdgpu>>,
+    intel_drm: &LazyCell<Option<Rc<IntelDrm>>>,
 ) -> anyhow::Result<Box<dyn GpuController>> {
     let uevent_path = path.join("uevent");
     let uevent = fs::read_to_string(uevent_path).context("Could not read 'uevent'")?;
@@ -146,10 +150,16 @@ pub(crate) fn init_controller(
                 Err(err) => error!("could not initialize AMD controller: {err:#}"),
             }
         }
-        "i915" | "xe" => match IntelGpuController::new(common.clone()) {
-            Ok(controller) => return Ok(Box::new(controller)),
-            Err(err) => error!("could not initialize Intel controller: {err:#}"),
-        },
+        "i915" | "xe" => {
+            if let Some(drm) = intel_drm.as_ref().cloned() {
+                match IntelGpuController::new(common.clone(), drm) {
+                    Ok(controller) => return Ok(Box::new(controller)),
+                    Err(err) => error!("could not initialize Intel controller: {err:#}"),
+                }
+            } else {
+                error!("Intel DRM library missing, Intel controls will not be available");
+            }
+        }
         "nvidia" => {
             if let Some(nvml) = nvml.as_ref().cloned() {
                 match NvidiaGpuController::new(common.clone(), nvml) {
@@ -158,6 +168,8 @@ pub(crate) fn init_controller(
                     }
                     Err(err) => error!("could not initialize Nvidia controller: {err:#}"),
                 }
+            } else {
+                error!("NVML is missing, Nvidia controls will not be available");
             }
         }
         _ => {

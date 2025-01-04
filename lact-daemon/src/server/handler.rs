@@ -4,6 +4,7 @@ use super::{
     system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
 };
 use crate::{
+    bindings::intel::IntelDrm,
     config::{self, default_fan_static_speed, Config, FanControlSettings, Profile},
     server::{gpu_controller::init_controller, profiles},
 };
@@ -928,7 +929,7 @@ fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, Box<dyn
             Some(Rc::new(nvml))
         }
         Err(err) => {
-            error!("could not load Nvidia management library: {err}, Nvidia controls will not be available");
+            error!("could not load Nvidia management library: {err}");
             None
         }
     });
@@ -942,12 +943,28 @@ fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, Box<dyn
             Some(drm)
         }
         Err(err) => {
-            error!("failed to initialize AMDGPU DRM: {err}");
+            error!("failed to initialize AMDGPU DRM: {err}, some functionality will be missing");
             None
         }
     });
     #[cfg(test)]
     let amd_drm: LazyCell<Option<LibDrmAmdgpu>> = LazyCell::new(|| None);
+
+    #[cfg(not(test))]
+    let intel_drm: LazyCell<Option<Rc<IntelDrm>>> = unsafe {
+        LazyCell::new(|| match IntelDrm::new("libdrm_intel.so.1") {
+            Ok(drm) => {
+                info!("Intel DRM initialized");
+                Some(Rc::new(drm))
+            }
+            Err(err) => {
+                error!("failed to initialize Intel DRM: {err}");
+                None
+            }
+        })
+    };
+    #[cfg(test)]
+    let intel_drm: LazyCell<Option<Rc<IntelDrm>>> = LazyCell::new(|| None);
 
     for entry in base_path
         .read_dir()
@@ -963,7 +980,7 @@ fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, Box<dyn
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
 
-            match init_controller(device_path.clone(), &pci_db, &nvml, &amd_drm) {
+            match init_controller(device_path.clone(), &pci_db, &nvml, &amd_drm, &intel_drm) {
                 Ok(controller) => {
                     let info = controller.controller_info();
                     let id = info.build_id();

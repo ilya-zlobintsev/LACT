@@ -466,7 +466,7 @@ checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
 dependencies = [
  "glob",
  "libc",
- "libloading 0.8.5",
+ "libloading 0.8.6",
 ]
 
 [[package]]
@@ -1512,6 +1512,7 @@ dependencies = [
  "lact-schema",
  "libdrm_amdgpu_sys",
  "libflate",
+ "libloading 0.8.6",
  "nix",
  "notify",
  "nvml-wrapper",
@@ -1626,7 +1627,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "239a084aa81eb01317fe32f41a9ba7d284acf13f079523e3b9406339f4ba7c0c"
 dependencies = [
  "libc",
- "libloading 0.8.5",
+ "libloading 0.8.6",
 ]
 
 [[package]]
@@ -1665,9 +1666,9 @@ dependencies = [
 
 [[package]]
 name = "libloading"
-version = "0.8.5"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
+checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
  "windows-targets 0.52.6",
@@ -1873,7 +1874,7 @@ version = "0.10.0"
 source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#890581189516191428a8b8c7ba3b006adf03a3fc"
 dependencies = [
  "bitflags 2.6.0",
- "libloading 0.8.5",
+ "libloading 0.8.6",
  "nvml-wrapper-sys",
  "static_assertions",
  "thiserror",
@@ -1885,7 +1886,7 @@ name = "nvml-wrapper-sys"
 version = "0.8.0"
 source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#890581189516191428a8b8c7ba3b006adf03a3fc"
 dependencies = [
- "libloading 0.8.5",
+ "libloading 0.8.6",
 ]
 
 [[package]]
@@ -2929,7 +2930,7 @@ dependencies = [
  "half",
  "heck 0.4.1",
  "indexmap",
- "libloading 0.8.5",
+ "libloading 0.8.6",
  "objc",
  "once_cell",
  "parking_lot",

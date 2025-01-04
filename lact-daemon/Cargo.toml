@@ -46,6 +46,7 @@ os-release = "0.1.0"
 notify = { version = "6.1.1", default-features = false }
 regex = "1.11.0"
 copes = { git = "https://gitlab.com/corectrl/copes" }
+libloading = "0.8.6"
 
 [dev-dependencies]
 divan = { workspace = true }

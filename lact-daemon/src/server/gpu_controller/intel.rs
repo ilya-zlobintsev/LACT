@@ -1,10 +1,7 @@
-mod drm;
-
 use super::{CommonControllerInfo, GpuController};
-use crate::{config, server::vulkan::get_vulkan_info};
+use crate::{bindings::intel::IntelDrm, config, server::vulkan::get_vulkan_info};
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::{anyhow, Context};
-use drm::bindings;
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, IntelClocksTable,
@@ -17,6 +14,7 @@ use std::{
     io::{BufRead, BufReader},
     os::{fd::AsRawFd, raw::c_int},
     path::{Path, PathBuf},
+    rc::Rc,
     str::FromStr,
     time::Instant,
 };
@@ -32,11 +30,12 @@ pub struct IntelGpuController {
     common: CommonControllerInfo,
     tile_gts: Vec<PathBuf>,
     drm_file: fs::File,
+    drm: Rc<IntelDrm>,
     last_gpu_busy: Cell<Option<(Instant, u64)>>,
 }
 
 impl IntelGpuController {
-    pub fn new(common: CommonControllerInfo) -> anyhow::Result<Self> {
+    pub fn new(common: CommonControllerInfo, drm: Rc<IntelDrm>) -> anyhow::Result<Self> {
         let driver_type = match common.driver.as_str() {
             "xe" => DriverType::Xe,
             "i915" => DriverType::I915,
@@ -92,6 +91,7 @@ impl IntelGpuController {
             driver_type,
             tile_gts,
             drm_file,
+            drm,
             last_gpu_busy: Cell::new(None),
         })
     }
@@ -190,7 +190,7 @@ impl GpuController for IntelGpuController {
             clockspeed,
             vram: VramStats {
                 total: self
-                    .drm_try_2(bindings::i915::drm_intel_get_aperture_sizes)
+                    .drm_try_2(IntelDrm::drm_intel_get_aperture_sizes)
                     .map(|(_, total)| total as u64),
                 used: None,
             },
@@ -343,8 +343,8 @@ impl IntelGpuController {
 
     fn get_drm_info_i915(&self) -> IntelDrmInfo {
         IntelDrmInfo {
-            execution_units: self.drm_try(bindings::i915::drm_intel_get_eu_total),
-            subslices: self.drm_try(bindings::i915::drm_intel_get_subslice_total),
+            execution_units: self.drm_try(IntelDrm::drm_intel_get_eu_total),
+            subslices: self.drm_try(IntelDrm::drm_intel_get_subslice_total),
         }
     }
 
@@ -357,13 +357,13 @@ impl IntelGpuController {
     }
 
     #[cfg_attr(test, allow(unreachable_code, unused_variables))]
-    fn drm_try<T: Default>(&self, f: unsafe extern "C" fn(c_int, *mut T) -> c_int) -> Option<T> {
+    fn drm_try<T: Default>(&self, f: unsafe fn(&IntelDrm, c_int, *mut T) -> c_int) -> Option<T> {
         #[cfg(test)]
         return None;
 
         unsafe {
             let mut out = T::default();
-            let result = f(self.drm_file.as_raw_fd(), &mut out);
+            let result = f(&self.drm, self.drm_file.as_raw_fd(), &mut out);
             if result == 0 {
                 Some(out)
             } else {
@@ -375,7 +375,7 @@ impl IntelGpuController {
     #[cfg_attr(test, allow(unreachable_code, unused_variables))]
     fn drm_try_2<T: Default, O: Default>(
         &self,
-        f: unsafe extern "C" fn(c_int, *mut T, *mut O) -> c_int,
+        f: unsafe fn(&IntelDrm, c_int, *mut T, *mut O) -> c_int,
     ) -> Option<(T, O)> {
         #[cfg(test)]
         return None;
@@ -383,7 +383,7 @@ impl IntelGpuController {
         unsafe {
             let mut a = T::default();
             let mut b = O::default();
-            let result = f(self.drm_file.as_raw_fd(), &mut a, &mut b);
+            let result = f(&self.drm, self.drm_file.as_raw_fd(), &mut a, &mut b);
             if result == 0 {
                 Some((a, b))
             } else {
