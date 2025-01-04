@@ -939,7 +939,7 @@ fn load_controllers(
         match LibDrmAmdgpu::new() {
             Ok(libdrm_amdgpu) => {
                 info!("libdrm and libdrm_amdgpu initialized");
-                Some(Rc::new(libdrm_amdgpu))
+                Some(libdrm_amdgpu)
             }
             Err(err) => {
                 info!("AMDGPU support disabled, {err}");

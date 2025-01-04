@@ -62,7 +62,7 @@ impl AmdGpuController {
         sysfs_path: PathBuf,
         pci_db: &Database,
         skip_drm: bool,
-        libdrm_amdgpu: Option<Rc<LibDrmAmdgpu>>,
+        libdrm_amdgpu: Option<LibDrmAmdgpu>,
     ) -> anyhow::Result<Self> {
         let handle = GpuHandle::new_from_path(sysfs_path)
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
@@ -72,7 +72,7 @@ impl AmdGpuController {
             && !skip_drm
             && libdrm_amdgpu.is_some()
         {
-            match get_drm_handle(&handle, libdrm_amdgpu.clone().unwrap()) {
+            match get_drm_handle(&handle, libdrm_amdgpu.as_ref().unwrap()) {
                 Ok(handle) => {
                     drm_handle = Some(handle);
                 }
@@ -1037,10 +1037,7 @@ impl GpuController for AmdGpuController {
     }
 }
 
-fn get_drm_handle(
-    handle: &GpuHandle,
-    libdrm_amdgpu: Rc<LibDrmAmdgpu>,
-) -> anyhow::Result<DrmHandle> {
+fn get_drm_handle(handle: &GpuHandle, libdrm_amdgpu: &LibDrmAmdgpu) -> anyhow::Result<DrmHandle> {
     let slot_name = handle
         .get_pci_slot_name()
         .context("Device has no PCI slot name")?;
