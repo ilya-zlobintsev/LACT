@@ -7,16 +7,17 @@ mod nvidia;
 use amd::AmdGpuController;
 use intel::IntelGpuController;
 use nvidia::NvidiaGpuController;
-use tracing::{error, info, warn};
 
 use crate::config::{self};
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::Context;
 use futures::future::LocalBoxFuture;
 use lact_schema::{ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates};
+use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use nvml_wrapper::Nvml;
-use std::{cell::OnceCell, collections::HashMap, fs, path::PathBuf, rc::Rc};
+use std::{cell::LazyCell, collections::HashMap, fs, path::PathBuf, rc::Rc};
 use tokio::{sync::Notify, task::JoinHandle};
+use tracing::{error, warn};
 
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 
@@ -74,7 +75,8 @@ impl CommonControllerInfo {
 pub(crate) fn init_controller(
     path: PathBuf,
     pci_db: &pciid_parser::Database,
-    nvml: &OnceCell<Option<Rc<Nvml>>>,
+    nvml: &LazyCell<Option<Rc<Nvml>>>,
+    amd_drm: &LazyCell<Option<LibDrmAmdgpu>>,
 ) -> anyhow::Result<Box<dyn GpuController>> {
     let uevent_path = path.join("uevent");
     let uevent = fs::read_to_string(uevent_path).context("Could not read 'uevent'")?;
@@ -138,27 +140,19 @@ pub(crate) fn init_controller(
     };
 
     match common.driver.as_str() {
-        "amdgpu" | "radeon" => match AmdGpuController::new_from_path(common.clone()) {
-            Ok(controller) => return Ok(Box::new(controller)),
-            Err(err) => error!("could not initialize AMD controller: {err:#}"),
-        },
+        "amdgpu" | "radeon" => {
+            match AmdGpuController::new_from_path(common.clone(), amd_drm.as_ref()) {
+                Ok(controller) => return Ok(Box::new(controller)),
+                Err(err) => error!("could not initialize AMD controller: {err:#}"),
+            }
+        }
         "i915" | "xe" => match IntelGpuController::new(common.clone()) {
             Ok(controller) => return Ok(Box::new(controller)),
             Err(err) => error!("could not initialize Intel controller: {err:#}"),
         },
         "nvidia" => {
-            let nvml = nvml.get_or_init(|| match Nvml::init() {
-                Ok(nvml) => {
-                    info!("Nvidia management library loaded");
-                    Some(Rc::new(nvml))
-                }
-                Err(err) => {
-                    error!("could not load Nvidia management library: {err}, Nvidia controls will not be available");
-                    None
-                }
-            });
-            if let Some(nvml) = nvml {
-                match NvidiaGpuController::new(common.clone(), nvml.clone()) {
+            if let Some(nvml) = nvml.as_ref().cloned() {
+                match NvidiaGpuController::new(common.clone(), nvml) {
                     Ok(controller) => {
                         return Ok(Box::new(controller));
                     }
@@ -178,7 +172,8 @@ pub(crate) fn init_controller(
     // We use the AMD controller as the fallback even for non-AMD devices, it will at least
     // display basic device information from the SysFS
     Ok(Box::new(
-        AmdGpuController::new_from_path(common).context("Could initialize fallback controller")?,
+        AmdGpuController::new_from_path(common, amd_drm.as_ref())
+            .context("Could initialize fallback controller")?,
     ))
 }
 

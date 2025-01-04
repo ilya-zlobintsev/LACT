@@ -19,6 +19,7 @@ use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
     LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
+use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libdrm_amdgpu_sys::AMDGPU::{ThrottleStatus, ThrottlerBit};
 use std::{
     cell::RefCell,
@@ -54,15 +55,18 @@ pub struct AmdGpuController {
 }
 
 impl AmdGpuController {
-    pub fn new_from_path(common: CommonControllerInfo) -> anyhow::Result<Self> {
+    pub fn new_from_path(
+        common: CommonControllerInfo,
+        libdrm_amdgpu: Option<&LibDrmAmdgpu>,
+    ) -> anyhow::Result<Self> {
         let handle = GpuHandle::new_from_path(common.sysfs_path.clone())
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
 
         #[allow(unused_mut)]
         let mut drm_handle = None;
         #[cfg(not(test))]
-        if matches!(handle.get_driver(), "amdgpu" | "radeon") {
-            match get_drm_handle(&handle) {
+        if matches!(handle.get_driver(), "amdgpu" | "radeon") && libdrm_amdgpu.is_some() {
+            match get_drm_handle(&handle, libdrm_amdgpu.as_ref().unwrap()) {
                 Ok(handle) => {
                     drm_handle = Some(handle);
                 }
@@ -957,8 +961,8 @@ impl GpuController for AmdGpuController {
 }
 
 #[cfg(not(test))]
-fn get_drm_handle(handle: &GpuHandle) -> anyhow::Result<DrmHandle> {
-    use std::os::fd::IntoRawFd;
+fn get_drm_handle(handle: &GpuHandle, libdrm_amdgpu: &LibDrmAmdgpu) -> anyhow::Result<DrmHandle> {
+    use std::os::unix::io::IntoRawFd;
 
     let slot_name = handle
         .get_pci_slot_name()
@@ -969,7 +973,8 @@ fn get_drm_handle(handle: &GpuHandle) -> anyhow::Result<DrmHandle> {
         .write(true)
         .open(&path)
         .with_context(|| format!("Could not open drm file at {path}"))?;
-    let (handle, _, _) = DrmHandle::init(drm_file.into_raw_fd())
+    let (handle, _, _) = libdrm_amdgpu
+        .init_device_handle(drm_file.into_raw_fd())
         .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
     Ok(handle)
 }

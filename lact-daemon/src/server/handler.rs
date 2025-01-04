@@ -17,13 +17,15 @@ use lact_schema::{
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
     PowerStates, ProfileRule, ProfileWatcherState, ProfilesInfo,
 };
+use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
+use nvml_wrapper::Nvml;
 use os_release::OS_RELEASE;
 use pciid_parser::Database;
 use serde_json::json;
 use std::{
-    cell::{Cell, OnceCell, RefCell},
+    cell::{Cell, LazyCell, RefCell},
     collections::{BTreeMap, HashMap},
     env,
     fs::{self, File, Permissions},
@@ -919,7 +921,27 @@ fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, Box<dyn
         }
     });
 
-    let nvml = OnceCell::new();
+    let nvml: LazyCell<Option<Rc<Nvml>>> = LazyCell::new(|| match Nvml::init() {
+        Ok(nvml) => {
+            info!("Nvidia management library loaded");
+            Some(Rc::new(nvml))
+        }
+        Err(err) => {
+            error!("could not load Nvidia management library: {err}, Nvidia controls will not be available");
+            None
+        }
+    });
+
+    let amd_drm: LazyCell<Option<LibDrmAmdgpu>> = LazyCell::new(|| match LibDrmAmdgpu::new() {
+        Ok(drm) => {
+            info!("AMDGPU DRM initialized");
+            Some(drm)
+        }
+        Err(err) => {
+            error!("failed to initialize AMDGPU DRM: {err}");
+            None
+        }
+    });
 
     for entry in base_path
         .read_dir()
@@ -935,7 +957,7 @@ fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, Box<dyn
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
 
-            match init_controller(device_path.clone(), &pci_db, &nvml) {
+            match init_controller(device_path.clone(), &pci_db, &nvml, &amd_drm) {
                 Ok(controller) => {
                     let info = controller.controller_info();
                     let id = info.build_id();
