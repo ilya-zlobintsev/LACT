@@ -55,6 +55,7 @@ pub struct AmdGpuController {
 }
 
 impl AmdGpuController {
+    #[allow(unused_variables)]
     pub fn new_from_path(
         common: CommonControllerInfo,
         libdrm_amdgpu: Option<&LibDrmAmdgpu>,

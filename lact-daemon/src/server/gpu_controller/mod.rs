@@ -110,17 +110,17 @@ pub(crate) fn init_controller(
         })
         .unwrap_or_default();
 
-    let vendor_entry = pci_db.vendors.get_key_value(vendor_id);
+    let vendor = pci_db.vendors.get(&vendor_id.to_ascii_lowercase());
 
     let pci_info = GpuPciInfo {
         device_pci_info: PciInfo {
             vendor_id: vendor_id.to_owned(),
-            vendor: vendor_entry.map(|(vendor_name, _)| vendor_name.clone()),
+            vendor: vendor.map(|vendor| vendor.name.clone()),
             model_id: device_id.to_owned(),
-            model: vendor_entry.and_then(|(_, vendor)| {
+            model: vendor.and_then(|vendor| {
                 vendor
                     .devices
-                    .get(device_id)
+                    .get(&device_id.to_ascii_lowercase())
                     .map(|device| device.name.clone())
             }),
         },
