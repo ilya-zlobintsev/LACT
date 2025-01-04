@@ -21,6 +21,7 @@ use lact_schema::{
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
     PowerStates, ProfileRule, ProfileWatcherState, ProfilesInfo,
 };
+use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
 use nvml_wrapper::{error::NvmlError, Nvml};
@@ -932,6 +933,21 @@ fn load_controllers(
         }
     });
 
+    let libdrm_amdgpu = if sysfs_only {
+        None
+    } else {
+        match LibDrmAmdgpu::new() {
+            Ok(libdrm_amdgpu) => {
+                info!("libdrm and libdrm_amdgpu initialized");
+                Some(libdrm_amdgpu)
+            }
+            Err(err) => {
+                info!("AMDGPU support disabled, {err}");
+                None
+            }
+        }
+    };
+
     let nvml = if sysfs_only {
         None
     } else {
@@ -960,7 +976,12 @@ fn load_controllers(
         if name.starts_with("card") && !name.contains('-') {
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
-            match AmdGpuController::new_from_path(device_path, &pci_db, sysfs_only) {
+            match AmdGpuController::new_from_path(
+                device_path,
+                &pci_db,
+                sysfs_only,
+                libdrm_amdgpu.clone(),
+            ) {
                 Ok(controller) => match controller.get_id() {
                     Ok(id) => {
                         let path = controller.get_path();
