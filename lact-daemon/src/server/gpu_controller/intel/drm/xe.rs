@@ -1,5 +1,5 @@
 /*use super::bindings::xe::{drm_xe_device_query, DRM_XE_DEVICE_QUERY, DRM_XE_DEVICE_QUERY_ENGINES};
-use crate::server::gpu_controller::intel::bindings::xe::{
+use crate::server::gpu_controller::intel::drm::bindings::xe::{
     drm_xe_query_engines, DRM_COMMAND_BASE, DRM_IOCTL_BASE, DRM_XE_DEVICE_QUERY_HWCONFIG,
 };
 use nix::{errno::Errno, ioctl_readwrite};

@@ -5,7 +5,7 @@ fn main() {
     println!("cargo:rustc-link-lib=drm_amdgpu");
     println!("cargo:rustc-link-lib=drm_intel");
 
-    println!("cargo::rerun-if-changed=wrapper/");
+    println!("cargo::rerun-if-changed=wrapper");
 
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 

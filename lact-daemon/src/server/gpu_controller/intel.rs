@@ -4,18 +4,21 @@ use super::GpuController;
 use crate::{config, server::vulkan::get_vulkan_info};
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::{anyhow, Context};
-use drm::bindings::i915;
+use drm::{bindings, i915};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, GpuPciInfo,
     IntelClocksTable, IntelDrmInfo, LinkInfo, PowerStates, VramStats,
 };
 use std::{
+    cell::Cell,
     fmt::Display,
     fs,
+    io::{BufRead, BufReader},
     os::{fd::AsRawFd, raw::c_int},
     path::{Path, PathBuf},
     str::FromStr,
+    time::Instant,
 };
 use tracing::{debug, error, info, trace, warn};
 
@@ -32,6 +35,7 @@ pub struct IntelGpuController {
     pci_info: GpuPciInfo,
     tile_gts: Vec<PathBuf>,
     drm_file: fs::File,
+    last_gpu_busy: Cell<Option<(Instant, u64)>>,
 }
 
 impl IntelGpuController {
@@ -95,6 +99,7 @@ impl IntelGpuController {
             pci_info,
             tile_gts,
             drm_file,
+            last_gpu_busy: Cell::new(None),
         })
     }
 }
@@ -219,10 +224,11 @@ impl GpuController for IntelGpuController {
             clockspeed,
             vram: VramStats {
                 total: self
-                    .drm_try_2(i915::drm_intel_get_aperture_sizes)
+                    .drm_try_2(bindings::i915::drm_intel_get_aperture_sizes)
                     .map(|(_, total)| total as u64),
                 used: None,
             },
+            busy_percent: self.get_busy_percent(),
             ..Default::default()
         }
     }
@@ -279,10 +285,20 @@ impl GpuController for IntelGpuController {
 }
 
 impl IntelGpuController {
+    fn debugfs_path(&self) -> PathBuf {
+        #[cfg(test)]
+        return PathBuf::from("/dev/null");
+
+        Path::new("/sys/kernel/debug/dri").join(&self.pci_slot_id)
+    }
+
     fn first_tile_gt(&self) -> Option<&Path> {
         self.tile_gts.first().map(PathBuf::as_ref)
     }
 
+    /// Based on the input path, this has the following behaviour:
+    /// - Basic relative paths are resolved relative to the sysfs device
+    /// - Parent paths (starting with (../) are resolved on the sysfs card entry, without resolving device symlink
     fn sysfs_file_path(&self, path: impl AsRef<Path>) -> PathBuf {
         let path = path.as_ref();
 
@@ -358,8 +374,8 @@ impl IntelGpuController {
 
     fn get_drm_info_i915(&self) -> IntelDrmInfo {
         IntelDrmInfo {
-            execution_units: self.drm_try(i915::drm_intel_get_eu_total),
-            subslices: self.drm_try(i915::drm_intel_get_subslice_total),
+            execution_units: self.drm_try(bindings::i915::drm_intel_get_eu_total),
+            subslices: self.drm_try(bindings::i915::drm_intel_get_subslice_total),
         }
     }
 
@@ -404,5 +420,42 @@ impl IntelGpuController {
                 None
             }
         }
+    }
+
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_sign_loss,
+        clippy::cast_possible_truncation
+    )]
+    fn get_busy_percent(&self) -> Option<u8> {
+        let path = self.debugfs_path().join("gt0/rps_boost");
+        let file = fs::File::open(path).ok()?;
+        let mut lines = BufReader::new(file).lines();
+
+        while let Some(Ok(line)) = lines.next() {
+            if let Some(contents) = line.strip_prefix("GPU busy?") {
+                let raw_value = contents
+                    .split_ascii_whitespace()
+                    .last()?
+                    .strip_suffix("ms")?;
+                let gpu_busy: u64 = raw_value.parse().ok()?;
+                let timestamp = Instant::now();
+
+                if let Some((last_timestamp, last_gpu_busy)) =
+                    self.last_gpu_busy.replace(Some((timestamp, gpu_busy)))
+                {
+                    let time_delta = timestamp - last_timestamp;
+                    let gpu_busy_delta = gpu_busy - last_gpu_busy;
+
+                    println!("time delta: {time_delta:?}, busy delta: {gpu_busy_delta}");
+
+                    let percentage =
+                        (gpu_busy_delta as f64 / time_delta.as_millis() as f64) * 100.0;
+                    return Some(percentage as u8);
+                }
+            }
+        }
+
+        None
     }
 }
