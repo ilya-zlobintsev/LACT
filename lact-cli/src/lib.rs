@@ -19,8 +19,8 @@ pub fn run(args: CliArgs) -> Result<()> {
 }
 
 async fn list_gpus(_: &CliArgs, client: &DaemonClient) -> Result<()> {
-    let buffer = client.list_devices().await?;
-    for entry in buffer.inner()? {
+    let entries = client.list_devices().await?;
+    for entry in entries {
         let id = entry.id;
         if let Some(name) = entry.name {
             println!("{id} ({name})");
@@ -33,8 +33,7 @@ async fn list_gpus(_: &CliArgs, client: &DaemonClient) -> Result<()> {
 
 async fn info(args: &CliArgs, client: &DaemonClient) -> Result<()> {
     for id in extract_gpu_ids(args, client).await {
-        let info_buffer = client.get_device_info(&id).await?;
-        let info = info_buffer.inner()?;
+        let info = client.get_device_info(&id).await?;
         let pci_info = info.pci_info.context("GPU reports no pci info")?;
 
         if let Some(ref vendor) = pci_info.device_pci_info.vendor {
@@ -56,10 +55,8 @@ async fn extract_gpu_ids(args: &CliArgs, client: &DaemonClient) -> Vec<String> {
     match args.gpu_id {
         Some(ref id) => vec![id.clone()],
         None => {
-            let buffer = client.list_devices().await.expect("Could not list GPUs");
-            buffer
-                .inner()
-                .expect("Could not deserialize GPUs response")
+            let entries = client.list_devices().await.expect("Could not list GPUs");
+            entries
                 .into_iter()
                 .map(|entry| entry.id.to_owned())
                 .collect()
@@ -68,8 +65,7 @@ async fn extract_gpu_ids(args: &CliArgs, client: &DaemonClient) -> Vec<String> {
 }
 
 async fn snapshot(client: &DaemonClient) -> Result<()> {
-    let buffer = client.generate_debug_snapshot().await?;
-    let path = buffer.inner()?;
+    let path = client.generate_debug_snapshot().await?;
     println!("Generated debug snapshot in {path}");
     Ok(())
 }
