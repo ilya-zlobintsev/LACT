@@ -936,7 +936,6 @@ fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, Box<dyn
     #[cfg(test)]
     let nvml: LazyCell<Option<Rc<Nvml>>> = LazyCell::new(|| None);
 
-    #[cfg(not(test))]
     let amd_drm: LazyCell<Option<LibDrmAmdgpu>> = LazyCell::new(|| match LibDrmAmdgpu::new() {
         Ok(drm) => {
             info!("AMDGPU DRM initialized");
@@ -947,10 +946,7 @@ fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, Box<dyn
             None
         }
     });
-    #[cfg(test)]
-    let amd_drm: LazyCell<Option<LibDrmAmdgpu>> = LazyCell::new(|| None);
 
-    #[cfg(not(test))]
     let intel_drm: LazyCell<Option<Rc<IntelDrm>>> = unsafe {
         LazyCell::new(|| match IntelDrm::new("libdrm_intel.so.1") {
             Ok(drm) => {
@@ -963,8 +959,6 @@ fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, Box<dyn
             }
         })
     };
-    #[cfg(test)]
-    let intel_drm: LazyCell<Option<Rc<IntelDrm>>> = LazyCell::new(|| None);
 
     for entry in base_path
         .read_dir()

@@ -1,7 +1,6 @@
 ---
 source: lact-daemon/src/tests/mod.rs
 expression: device_info
-snapshot_kind: text
 ---
 {
   "clocks_info": {
