@@ -161,17 +161,15 @@ impl AsyncComponent for AppModel {
 
         register_actions(&sender);
 
-        let system_info_buf = daemon_client
+        let system_info = daemon_client
             .get_system_info()
             .await
             .expect("Could not fetch system info");
-        let system_info = system_info_buf.inner().expect("Invalid system info buffer");
 
-        let devices_buf = daemon_client
+        let devices = daemon_client
             .list_devices()
             .await
             .expect("Could not list devices");
-        let devices = devices_buf.inner().expect("Could not access devices");
 
         if system_info.version != GUI_VERSION || system_info.commit.as_deref() != Some(GIT_COMMIT) {
             let err = anyhow!("Version mismatch between GUI and daemon ({GUI_VERSION}-{GIT_COMMIT} vs {}-{})! If you have updated LACT, you need to restart the service with `sudo systemctl restart lactd`.", system_info.version, system_info.commit.as_deref().unwrap_or_default());
@@ -449,7 +447,7 @@ impl AppModel {
             .get_device_info(&gpu_id)
             .await
             .context("Could not fetch info")?;
-        let info = Arc::new(info_buf.inner()?);
+        let info = Arc::new(info_buf);
 
         // Plain `nvidia` means that the nvidia driver is loaded, but it does not contain a version fetched from NVML
         if info.driver == "nvidia" {
@@ -492,8 +490,7 @@ impl AppModel {
             .daemon_client
             .get_device_stats(&gpu_id)
             .await
-            .context("Could not fetch stats")?
-            .inner()?;
+            .context("Could not fetch stats")?;
         let stats = Arc::new(stats);
 
         self.oc_page.set_stats(&stats, true);
@@ -502,13 +499,7 @@ impl AppModel {
         self.info_page.emit(PageUpdate::Stats(stats));
 
         let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(&gpu_id).await {
-            Ok(clocks_buf) => match clocks_buf.inner() {
-                Ok(info) => info.table,
-                Err(err) => {
-                    debug!("could not extract clocks info: {err:?}");
-                    None
-                }
-            },
+            Ok(info) => info.table,
             Err(err) => {
                 debug!("could not fetch clocks info: {err:?}");
                 None
@@ -521,13 +512,7 @@ impl AppModel {
             .get_device_power_profile_modes(&gpu_id)
             .await
         {
-            Ok(buf) => match buf.inner() {
-                Ok(table) => Some(table),
-                Err(err) => {
-                    debug!("Could not extract profile modes table: {err:?}");
-                    None
-                }
-            },
+            Ok(buf) => Some(buf),
             Err(err) => {
                 debug!("Could not get profile modes table: {err:?}");
                 None
@@ -537,12 +522,7 @@ impl AppModel {
             .performance_frame
             .set_power_profile_modes(maybe_modes_table);
 
-        match self
-            .daemon_client
-            .get_power_states(&gpu_id)
-            .await
-            .and_then(|states| states.inner())
-        {
+        match self.daemon_client.get_power_states(&gpu_id).await {
             Ok(power_states) => {
                 self.oc_page
                     .power_states_frame
@@ -773,12 +753,7 @@ impl AppModel {
     }
 
     async fn dump_vbios(&self, gpu_id: &str, root: &gtk::ApplicationWindow) {
-        match self
-            .daemon_client
-            .dump_vbios(gpu_id)
-            .await
-            .and_then(|response| response.inner())
-        {
+        match self.daemon_client.dump_vbios(gpu_id).await {
             Ok(vbios_data) => {
                 let file_chooser = FileChooserDialog::new(
                     Some("Save VBIOS file"),
@@ -826,12 +801,7 @@ impl AppModel {
     }
 
     async fn generate_debug_snapshot(&self, root: &gtk::ApplicationWindow) {
-        match self
-            .daemon_client
-            .generate_debug_snapshot()
-            .await
-            .and_then(|response| response.inner())
-        {
+        match self.daemon_client.generate_debug_snapshot().await {
             Ok(path) => {
                 let path_label = gtk::Label::builder()
                     .use_markup(true)
@@ -968,11 +938,7 @@ fn start_stats_update_loop(
         loop {
             tokio::time::sleep(duration).await;
 
-            match daemon_client
-                .get_device_stats(&gpu_id)
-                .await
-                .and_then(|buffer| buffer.inner())
-            {
+            match daemon_client.get_device_stats(&gpu_id).await {
                 Ok(stats) => {
                     sender.input(AppMsg::Stats(Arc::new(stats)));
                 }
@@ -1043,15 +1009,9 @@ async fn toggle_overdrive(daemon_client: &DaemonClient, enable: bool, root: Appl
     dialog.show();
 
     let result = if enable {
-        daemon_client
-            .enable_overdrive()
-            .await
-            .and_then(|buffer| buffer.inner())
+        daemon_client.enable_overdrive().await
     } else {
-        daemon_client
-            .disable_overdrive()
-            .await
-            .and_then(|buffer| buffer.inner())
+        daemon_client.disable_overdrive().await
     };
 
     dialog.hide();

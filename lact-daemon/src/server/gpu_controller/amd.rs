@@ -1,4 +1,6 @@
-use super::{fan_control::FanCurve, CommonControllerInfo, FanControlHandle, GpuController};
+use super::{
+    fan_control::FanCurve, CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD,
+};
 use crate::{
     config::{self, ClocksConfiguration, FanControlSettings},
     server::vulkan::get_vulkan_info,
@@ -44,7 +46,6 @@ use {
 
 const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
-const VENDOR_AMD: &str = "1002";
 const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
 
 pub struct AmdGpuController {

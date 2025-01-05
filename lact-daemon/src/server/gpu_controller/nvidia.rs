@@ -14,7 +14,8 @@ use lact_schema::{
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
-    enum_wrappers::device::{Clock, TemperatureSensor, TemperatureThreshold},
+    enum_wrappers::device::{Brand, Clock, TemperatureSensor, TemperatureThreshold},
+    enums::device::DeviceArchitecture,
     Device, Nvml,
 };
 use std::{
@@ -242,6 +243,20 @@ impl NvidiaGpuController {
 
         Ok(power_states)
     }
+
+    // See https://github.com/ilya-zlobintsev/LACT/issues/418
+    fn vram_offset_ratio(&self) -> i32 {
+        let device = self.device();
+        if let (Ok(brand), Ok(architecture)) = (device.brand(), device.architecture()) {
+            let ratio = match (brand, architecture) {
+                (Brand::GeForce, DeviceArchitecture::Ada) => 2,
+                // TODO: check others
+                _ => 1,
+            };
+            return ratio;
+        }
+        1
+    }
 }
 
 impl GpuController for NvidiaGpuController {
@@ -459,6 +474,7 @@ impl GpuController for NvidiaGpuController {
                     gpc = Some(NvidiaClockInfo {
                         max: max as i32,
                         offset,
+                        offset_ratio: 1,
                         offset_range,
                     });
                 }
@@ -475,6 +491,7 @@ impl GpuController for NvidiaGpuController {
                     mem = Some(NvidiaClockInfo {
                         max: max as i32,
                         offset,
+                        offset_ratio: self.vram_offset_ratio(),
                         offset_range,
                     });
                 }
@@ -564,7 +581,7 @@ impl GpuController for NvidiaGpuController {
                 let default_max_clock = device
                     .max_clock_info(Clock::Memory)
                     .context("Could not read max memory clock")?;
-                let offset = max_mem_clock - default_max_clock as i32;
+                let offset = (max_mem_clock - default_max_clock as i32) * self.vram_offset_ratio();
                 debug!("Using mem clock offset {offset} (default max clock: {default_max_clock})");
 
                 device

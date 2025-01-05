@@ -13,6 +13,8 @@ use anyhow::Context;
 use config::Config;
 use futures::future::select_all;
 use server::{handle_stream, handler::Handler, Server};
+use std::cell::Cell;
+use std::time::Instant;
 use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
 use tokio::net::UnixStream;
 use tokio::{
@@ -47,13 +49,19 @@ pub fn run() -> anyhow::Result<()> {
         .build()
         .expect("Could not initialize tokio runtime");
     rt.block_on(async {
-        let config = Config::load_or_create()?;
+        let mut config = Config::load_or_create()?;
 
         let env_filter = EnvFilter::builder()
             .with_default_directive(LevelFilter::INFO.into())
             .parse(&config.daemon.log_level)
             .context("Invalid log level")?;
         tracing_subscriber::fmt().with_env_filter(env_filter).init();
+
+        let original_version = config.version;
+        config.migrate_versions();
+        if config.version != original_version {
+            config.save(&Cell::new(Instant::now()))?;
+        }
 
         ensure_sufficient_uptime().await;
 

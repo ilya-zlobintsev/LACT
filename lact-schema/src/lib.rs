@@ -182,6 +182,7 @@ pub struct IntelClocksTable {
 pub struct NvidiaClockInfo {
     pub max: i32,
     pub offset: i32,
+    pub offset_ratio: i32,
     pub offset_range: (i32, i32),
 }
 

@@ -1,4 +1,4 @@
-use crate::server::gpu_controller::fan_control::FanCurve;
+use crate::server::gpu_controller::{fan_control::FanCurve, VENDOR_NVIDIA};
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use anyhow::Context;
 use indexmap::IndexMap;
@@ -17,7 +17,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::{sync::mpsc, time};
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 const FILE_NAME: &str = "config.yaml";
 const DEFAULT_ADMIN_GROUPS: [&str; 2] = ["wheel", "sudo"];
@@ -28,6 +28,8 @@ const SELF_CONFIG_EDIT_PERIOD_MILLIS: u64 = 1000;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Config {
+    #[serde(default)]
+    pub version: u64,
     pub daemon: Daemon,
     #[serde(default = "default_apply_settings_timer")]
     pub apply_settings_timer: u64,
@@ -50,6 +52,7 @@ impl Default for Config {
             profiles: IndexMap::new(),
             current_profile: None,
             auto_switch_profiles: false,
+            version: 0,
         }
     }
 }
@@ -202,6 +205,36 @@ impl Config {
             let config = Config::default();
             config.save(&Cell::new(Instant::now()))?;
             Ok(config)
+        }
+    }
+
+    pub fn migrate_versions(&mut self) {
+        loop {
+            let next_version = self.version + 1;
+            match next_version {
+                0 => unreachable!(),
+                // Reset VRAM settings on Nvidia after new offset ratio logic
+                1 => {
+                    for (id, gpu) in &mut self.gpus {
+                        if id.starts_with(VENDOR_NVIDIA) {
+                            gpu.clocks_configuration.max_memory_clock = None;
+                            gpu.clocks_configuration.min_memory_clock = None;
+                        }
+                    }
+
+                    for profile in &mut self.profiles.values_mut() {
+                        for (id, gpu) in &mut profile.gpus {
+                            if id.starts_with(VENDOR_NVIDIA) {
+                                gpu.clocks_configuration.max_memory_clock = None;
+                                gpu.clocks_configuration.min_memory_clock = None;
+                            }
+                        }
+                    }
+                }
+                _ => break,
+            }
+            info!("migrated config version {} to {next_version}", self.version);
+            self.version = next_version;
         }
     }
 
@@ -429,5 +462,71 @@ mod tests {
         assert!(!gpu.is_core_clocks_used());
         gpu.clocks_configuration.voltage_offset = Some(10);
         assert!(gpu.is_core_clocks_used());
+    }
+
+    #[test]
+    fn migrate_versions() {
+        let mut config = Config {
+            version: 0,
+            daemon: Daemon::default(),
+            apply_settings_timer: 5,
+            gpus: IndexMap::from([
+                (
+                    "10DE:2704-1462:5110-0000:09:00.0".to_owned(),
+                    Gpu {
+                        clocks_configuration: ClocksConfiguration {
+                            max_core_clock: Some(3000),
+                            max_memory_clock: Some(10_000),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "1002:687F-1043:0555-0000:0b:00.0".to_owned(),
+                    Gpu {
+                        clocks_configuration: ClocksConfiguration {
+                            max_core_clock: Some(1500),
+                            max_memory_clock: Some(920),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                ),
+            ]),
+            profiles: IndexMap::new(),
+            current_profile: None,
+            auto_switch_profiles: false,
+        };
+
+        config.migrate_versions();
+
+        assert_eq!(
+            config
+                .gpus
+                .get("10DE:2704-1462:5110-0000:09:00.0")
+                .unwrap()
+                .clocks_configuration
+                .max_core_clock,
+            Some(3000)
+        );
+        assert_eq!(
+            config
+                .gpus
+                .get("10DE:2704-1462:5110-0000:09:00.0")
+                .unwrap()
+                .clocks_configuration
+                .max_memory_clock,
+            None,
+        );
+        assert_eq!(
+            config
+                .gpus
+                .get("1002:687F-1043:0555-0000:0b:00.0")
+                .unwrap()
+                .clocks_configuration
+                .max_memory_clock,
+            Some(920),
+        );
     }
 }

@@ -16,10 +16,9 @@ use schema::{
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanOptions, PowerStates, ProfilesInfo,
     Request, Response, SystemInfo,
 };
-use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use std::{
-    future::Future, marker::PhantomData, os::unix::net::UnixStream, path::PathBuf, pin::Pin,
-    rc::Rc, time::Duration,
+    future::Future, os::unix::net::UnixStream, path::PathBuf, pin::Pin, rc::Rc, time::Duration,
 };
 use tokio::{
     net::ToSocketAddrs,
@@ -73,19 +72,24 @@ impl DaemonClient {
         self.status_tx.subscribe()
     }
 
-    fn make_request<'a, 'r, T: Deserialize<'r>>(
+    fn make_request<'a, T: DeserializeOwned>(
         &'a self,
         request: Request<'a>,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<ResponseBuffer<T>>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<T>> + 'a>> {
         Box::pin(async {
             let mut stream = self.stream.lock().await;
 
             let request_payload = serde_json::to_string(&request)?;
             match stream.request(&request_payload).await {
-                Ok(response_payload) => Ok(ResponseBuffer {
-                    buf: response_payload,
-                    _phantom: PhantomData,
-                }),
+                Ok(response_payload) => {
+                    let response: Response<T> = serde_json::from_str(&response_payload)
+                        .context("Could not deserialize response from daemon")?;
+                    match response {
+                        Response::Ok(data) => Ok(data),
+                        Response::Error(err) => Err(anyhow::Error::new(err)
+                            .context("Got error from daemon, end of client boundary")),
+                    }
+                }
                 Err(err) => {
                     error!("Could not make request: {err}, reconnecting to socket");
                     let _ = self.status_tx.send(ConnectionStatusMsg::Disconnected);
@@ -113,20 +117,16 @@ impl DaemonClient {
         })
     }
 
-    pub async fn list_devices(&self) -> anyhow::Result<ResponseBuffer<Vec<DeviceListEntry>>> {
+    pub async fn list_devices(&self) -> anyhow::Result<Vec<DeviceListEntry>> {
         self.make_request(Request::ListDevices).await
     }
 
     pub async fn set_fan_control(&self, cmd: FanOptions<'_>) -> anyhow::Result<u64> {
-        self.make_request(Request::SetFanControl(cmd))
-            .await?
-            .inner()
+        self.make_request(Request::SetFanControl(cmd)).await
     }
 
     pub async fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<u64> {
-        self.make_request(Request::SetPowerCap { id, cap })
-            .await?
-            .inner()
+        self.make_request(Request::SetPowerCap { id, cap }).await
     }
 
     request_plain!(get_system_info, SystemInfo, SystemInfo);
@@ -148,38 +148,31 @@ impl DaemonClient {
 
     pub async fn list_profiles(&self, include_state: bool) -> anyhow::Result<ProfilesInfo> {
         self.make_request(Request::ListProfiles { include_state })
-            .await?
-            .inner()
+            .await
     }
 
     pub async fn set_profile(&self, name: Option<String>, auto_switch: bool) -> anyhow::Result<()> {
         self.make_request(Request::SetProfile { name, auto_switch })
-            .await?
-            .inner()
+            .await
     }
 
     pub async fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
         self.make_request(Request::CreateProfile { name, base })
-            .await?
-            .inner()
+            .await
     }
 
     pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
-        self.make_request(Request::DeleteProfile { name })
-            .await?
-            .inner()
+        self.make_request(Request::DeleteProfile { name }).await
     }
 
     pub async fn move_profile(&self, name: String, new_position: usize) -> anyhow::Result<()> {
         self.make_request(Request::MoveProfile { name, new_position })
-            .await?
-            .inner()
+            .await
     }
 
     pub async fn evaluate_profile_rule(&self, rule: ProfileRule) -> anyhow::Result<bool> {
         self.make_request(Request::EvaluateProfileRule { rule })
-            .await?
-            .inner()
+            .await
     }
 
     pub async fn set_profile_rule(
@@ -188,8 +181,7 @@ impl DaemonClient {
         rule: Option<ProfileRule>,
     ) -> anyhow::Result<()> {
         self.make_request(Request::SetProfileRule { name, rule })
-            .await?
-            .inner()
+            .await
     }
 
     pub async fn set_performance_level(
@@ -201,8 +193,7 @@ impl DaemonClient {
             id,
             performance_level,
         })
-        .await?
-        .inner()
+        .await
     }
 
     pub async fn set_clocks_value(
@@ -211,8 +202,7 @@ impl DaemonClient {
         command: SetClocksCommand,
     ) -> anyhow::Result<u64> {
         self.make_request(Request::SetClocksValue { id, command })
-            .await?
-            .inner()
+            .await
     }
 
     pub async fn batch_set_clocks_value(
@@ -221,8 +211,7 @@ impl DaemonClient {
         commands: Vec<SetClocksCommand>,
     ) -> anyhow::Result<u64> {
         self.make_request(Request::BatchSetClocksValue { id, commands })
-            .await?
-            .inner()
+            .await
     }
 
     pub async fn set_enabled_power_states(
@@ -232,8 +221,7 @@ impl DaemonClient {
         states: Vec<u8>,
     ) -> anyhow::Result<u64> {
         self.make_request(Request::SetEnabledPowerStates { id, kind, states })
-            .await?
-            .inner()
+            .await
     }
 
     pub async fn set_power_profile_mode(
@@ -247,14 +235,12 @@ impl DaemonClient {
             index,
             custom_heuristics,
         })
-        .await?
-        .inner()
+        .await
     }
 
     pub async fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
         self.make_request(Request::ConfirmPendingConfig(command))
-            .await?
-            .inner()
+            .await
     }
 }
 
@@ -272,25 +258,6 @@ fn get_socket_path() -> Option<PathBuf> {
         Some(user_path)
     } else {
         None
-    }
-}
-
-pub struct ResponseBuffer<T> {
-    buf: String,
-    _phantom: PhantomData<T>,
-}
-
-impl<'a, T: Deserialize<'a>> ResponseBuffer<T> {
-    pub fn inner(&'a self) -> anyhow::Result<T> {
-        let response: Response<T> = serde_json::from_str(&self.buf)
-            .context("Could not deserialize response from daemon")?;
-        match response {
-            Response::Ok(data) => Ok(data),
-            Response::Error(err) => {
-                Err(anyhow::Error::new(err)
-                    .context("Got error from daemon, end of client boundary"))
-            }
-        }
     }
 }
 

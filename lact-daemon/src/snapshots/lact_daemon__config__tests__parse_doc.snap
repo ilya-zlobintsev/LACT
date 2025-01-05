@@ -2,6 +2,7 @@
 source: lact-daemon/src/config.rs
 expression: deserialized_config
 ---
+version: 0
 daemon:
   log_level: info
   admin_groups:

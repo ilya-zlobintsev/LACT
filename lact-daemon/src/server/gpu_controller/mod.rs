@@ -8,6 +8,9 @@ use amd::AmdGpuController;
 use intel::IntelGpuController;
 use nvidia::NvidiaGpuController;
 
+pub const VENDOR_AMD: &str = "1002";
+pub const VENDOR_NVIDIA: &str = "10DE";
+
 use crate::{
     bindings::intel::IntelDrm,
     config::{self},
