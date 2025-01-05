@@ -3,6 +3,9 @@ mod amd;
 pub mod fan_control;
 mod nvidia;
 
+pub const VENDOR_AMD: &str = "1002";
+pub const VENDOR_NVIDIA: &str = "10DE";
+
 pub use amd::AmdGpuController;
 pub use nvidia::NvidiaGpuController;
 

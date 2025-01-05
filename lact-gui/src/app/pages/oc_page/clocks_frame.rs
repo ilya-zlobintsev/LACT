@@ -412,7 +412,8 @@ fn set_nvidia_clock_offset(clock_info: &NvidiaClockInfo, adjustment_row: &Adjust
     let oc_adjustment = &adjustment_row.imp().adjustment;
     oc_adjustment.set_lower((clock_info.max + clock_info.offset_range.0) as f64);
     oc_adjustment.set_upper((clock_info.max + clock_info.offset_range.1) as f64);
-    oc_adjustment.set_value((clock_info.max + clock_info.offset) as f64);
+    oc_adjustment
+        .set_value((clock_info.max + (clock_info.offset / clock_info.offset_ratio)) as f64);
 
     adjustment_row.set_visible(true);
 }
