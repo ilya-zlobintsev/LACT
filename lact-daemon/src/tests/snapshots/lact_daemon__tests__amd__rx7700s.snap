@@ -23,7 +23,17 @@ expression: device_info
         "vendor_id": "F111"
       }
     },
-    "vbios_version": "113-BRT125778.001"
+    "vbios_version": "113-BRT125778.001",
+    "vulkan_info": {
+      "api_version": "",
+      "device_name": "",
+      "driver": {
+        "version": 0
+      },
+      "enabled_layers": [],
+      "extensions": {},
+      "features": {}
+    }
   },
   "pci_info": {
     "device_pci_info": {

@@ -1,7 +1,6 @@
 ---
 source: lact-daemon/src/tests/mod.rs
 expression: device_info
-snapshot_kind: text
 ---
 {
   "clocks_info": {
@@ -36,6 +35,16 @@ snapshot_kind: text
         "vendor": "Lenovo",
         "vendor_id": "17AA"
       }
+    },
+    "vulkan_info": {
+      "api_version": "",
+      "device_name": "",
+      "driver": {
+        "version": 0
+      },
+      "enabled_layers": [],
+      "extensions": {},
+      "features": {}
     }
   },
   "pci_info": {

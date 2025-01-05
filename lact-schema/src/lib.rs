@@ -209,7 +209,7 @@ pub struct LinkInfo {
     pub max_speed: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct VulkanInfo {
     pub device_name: String,
     pub api_version: String,
@@ -220,7 +220,7 @@ pub struct VulkanInfo {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct VulkanDriverInfo {
     pub version: u32,
     pub name: Option<String>,

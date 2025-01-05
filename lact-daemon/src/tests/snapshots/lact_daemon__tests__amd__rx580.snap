@@ -98,7 +98,17 @@ expression: device_info
         "vendor_id": "1DA2"
       }
     },
-    "vbios_version": "113-1E3871U-O4C"
+    "vbios_version": "113-1E3871U-O4C",
+    "vulkan_info": {
+      "api_version": "",
+      "device_name": "",
+      "driver": {
+        "version": 0
+      },
+      "enabled_layers": [],
+      "extensions": {},
+      "features": {}
+    }
   },
   "pci_info": {
     "device_pci_info": {

@@ -35,6 +35,16 @@ expression: device_info
         "vendor": "Lenovo",
         "vendor_id": "17AA"
       }
+    },
+    "vulkan_info": {
+      "api_version": "",
+      "device_name": "",
+      "driver": {
+        "version": 0
+      },
+      "enabled_layers": [],
+      "extensions": {},
+      "features": {}
     }
   },
   "pci_info": {
