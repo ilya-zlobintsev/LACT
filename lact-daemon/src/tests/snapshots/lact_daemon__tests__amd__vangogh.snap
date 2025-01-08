@@ -1,0 +1,124 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": null,
+  "info": {
+    "driver": "amdgpu",
+    "link_info": {
+      "current_speed": "8.0 GT/s PCIe",
+      "current_width": "16"
+    },
+    "pci_info": {
+      "device_pci_info": {
+        "model": "VanGogh [AMD Custom GPU 0405]",
+        "model_id": "163F",
+        "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+        "vendor_id": "1002"
+      },
+      "subsystem_pci_info": {
+        "model_id": "0123",
+        "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+        "vendor_id": "1002"
+      }
+    },
+    "vbios_version": "113-AMDAerithJ-005",
+    "vulkan_info": {
+      "api_version": "",
+      "device_name": "",
+      "driver": {
+        "version": 0
+      },
+      "enabled_layers": [],
+      "extensions": {},
+      "features": {}
+    }
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "VanGogh [AMD Custom GPU 0405]",
+      "model_id": "163F",
+      "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "vendor_id": "1002"
+    },
+    "subsystem_pci_info": {
+      "model_id": "0123",
+      "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "vendor_id": "1002"
+    }
+  },
+  "power_profile_modes": null,
+  "power_states": {
+    "core": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 200
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 1100
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 1600
+      }
+    ],
+    "vram": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 400
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 600
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 687
+      },
+      {
+        "enabled": true,
+        "index": 3,
+        "value": 687
+      }
+    ]
+  },
+  "stats": {
+    "busy_percent": 0,
+    "clockspeed": {
+      "gpu_clockspeed": 200
+    },
+    "core_power_state": 0,
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {}
+    },
+    "power": {
+      "average": 3.218,
+      "cap_current": 15.0,
+      "cap_default": 15.0,
+      "cap_max": 29.0,
+      "cap_min": 0.0,
+      "current": 4.057
+    },
+    "temps": {
+      "edge": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 56.0
+      }
+    },
+    "voltage": {
+      "gpu": 15,
+      "northbridge": 669
+    },
+    "vram": {}
+  }
+}
