@@ -4,8 +4,8 @@ use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mo
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, IntelClocksTable,
-    IntelDrmInfo, LinkInfo, PowerStates, PowerStats, VoltageStats, VramStats,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats,
+    IntelClocksTable, IntelDrmInfo, LinkInfo, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use std::{
     cell::Cell,
@@ -218,6 +218,11 @@ impl GpuController for IntelGpuController {
             used: None,
         };
 
+        let fan = FanStats {
+            speed_current: self.read_hwmon_file("fan1_input"),
+            ..Default::default()
+        };
+
         DeviceStats {
             clockspeed,
             vram,
@@ -226,6 +231,7 @@ impl GpuController for IntelGpuController {
             temps: self.get_temperatures(),
             voltage,
             throttle_info: self.get_throttle_info(),
+            fan,
             ..Default::default()
         }
     }
