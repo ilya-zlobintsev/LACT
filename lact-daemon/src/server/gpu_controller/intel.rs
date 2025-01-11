@@ -1,14 +1,15 @@
 use super::{CommonControllerInfo, GpuController};
 use crate::{bindings::intel::IntelDrm, config, server::vulkan::get_vulkan_info};
-use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
+use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, IntelClocksTable,
-    IntelDrmInfo, LinkInfo, PowerStates, VramStats,
+    IntelDrmInfo, LinkInfo, PowerStates, PowerStats, VoltageStats, VramStats,
 };
 use std::{
     cell::Cell,
+    collections::{BTreeMap, HashMap},
     fmt::Display,
     fs,
     io::{BufRead, BufReader},
@@ -20,6 +21,7 @@ use std::{
 };
 use tracing::{debug, error, info, trace, warn};
 
+#[derive(Clone, Copy)]
 enum DriverType {
     I915,
     Xe,
@@ -29,9 +31,12 @@ pub struct IntelGpuController {
     driver_type: DriverType,
     common: CommonControllerInfo,
     tile_gts: Vec<PathBuf>,
+    hwmon_path: Option<PathBuf>,
     drm_file: fs::File,
     drm: Rc<IntelDrm>,
     last_gpu_busy: Cell<Option<(Instant, u64)>>,
+    last_energy_value: Cell<Option<(Instant, u64)>>,
+    initial_power_cap: Option<f64>,
 }
 
 impl IntelGpuController {
@@ -86,14 +91,29 @@ impl IntelGpuController {
             fs::File::open("/dev/null").unwrap()
         };
 
-        Ok(Self {
+        let hwmon_path = fs::read_dir(common.sysfs_path.join("hwmon"))
+            .ok()
+            .and_then(|mut read_dir| read_dir.next())
+            .and_then(Result::ok)
+            .map(|entry| entry.path());
+        debug!("Initialized hwmon: {hwmon_path:?}");
+
+        let mut controller = Self {
             common,
             driver_type,
             tile_gts,
+            hwmon_path,
             drm_file,
             drm,
             last_gpu_busy: Cell::new(None),
-        })
+            last_energy_value: Cell::new(None),
+            initial_power_cap: None,
+        };
+
+        let stats = controller.get_stats(None);
+        controller.initial_power_cap = stats.power.cap_current.filter(|cap| *cap != 0.0);
+
+        Ok(controller)
     }
 }
 
@@ -130,32 +150,25 @@ impl GpuController for IntelGpuController {
         }
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn apply_config<'a>(
         &'a self,
         config: &'a config::Gpu,
     ) -> LocalBoxFuture<'a, anyhow::Result<()>> {
         Box::pin(async {
-            match self.driver_type {
-                DriverType::Xe => {
-                    if let Some(max_clock) = config.clocks_configuration.max_core_clock {
-                        self.write_gt_file("freq0/max_freq", &max_clock.to_string())
-                            .context("Could not set max clock")?;
-                    }
-                    if let Some(min_clock) = config.clocks_configuration.min_core_clock {
-                        self.write_gt_file("freq0/min_freq", &min_clock.to_string())
-                            .context("Could not set min clock")?;
-                    }
-                }
-                DriverType::I915 => {
-                    if let Some(max_clock) = config.clocks_configuration.max_core_clock {
-                        self.write_file("../gt_max_freq_mhz", &max_clock.to_string())
-                            .context("Could not set max clock")?;
-                    }
-                    if let Some(min_clock) = config.clocks_configuration.min_core_clock {
-                        self.write_file("../gt_min_freq_mhz", &min_clock.to_string())
-                            .context("Could not set min clock")?;
-                    }
-                }
+            if let Some(max_clock) = config.clocks_configuration.max_core_clock {
+                self.write_freq(FrequencyType::Max, max_clock)
+                    .context("Could not set max clock")?;
+            }
+
+            if let Some(min_clock) = config.clocks_configuration.min_core_clock {
+                self.write_freq(FrequencyType::Min, min_clock)
+                    .context("Could not set min clock")?;
+            }
+
+            if let Some(cap) = config.power_cap {
+                self.write_hwmon_file("power1_max", &((cap * 1_000_000.0) as u64).to_string())
+                    .context("Could not set power cap")?;
             }
 
             Ok(())
@@ -163,22 +176,11 @@ impl GpuController for IntelGpuController {
     }
 
     fn get_stats(&self, _gpu_config: Option<&config::Gpu>) -> DeviceStats {
-        let current_gfxclk;
-        let gpu_clockspeed;
-
-        match self.driver_type {
-            DriverType::Xe => {
-                current_gfxclk = self.read_gt_file("freq0/cur_freq");
-                gpu_clockspeed = self
-                    .read_gt_file("freq0/act_freq")
-                    .filter(|freq| *freq != 0)
-                    .or_else(|| current_gfxclk.map(u64::from));
-            }
-            DriverType::I915 => {
-                current_gfxclk = self.read_file("../gt_cur_freq_mhz");
-                gpu_clockspeed = self.read_file("../gt_act_freq_mhz");
-            }
-        }
+        let current_gfxclk = self.read_freq(FrequencyType::Cur);
+        let gpu_clockspeed = self
+            .read_freq(FrequencyType::Act)
+            .filter(|value| *value != 0)
+            .or(current_gfxclk);
 
         let clockspeed = ClockspeedStats {
             gpu_clockspeed,
@@ -186,37 +188,56 @@ impl GpuController for IntelGpuController {
             vram_clockspeed: None,
         };
 
+        let cap_current = self
+            .read_hwmon_file("power1_max")
+            .map(|value: f64| value / 1_000_000.0)
+            .map(|cap| if cap == 0.0 { 100.0 } else { cap }); // Placeholder max value
+
+        let power = PowerStats {
+            average: None,
+            current: self.get_power_usage(),
+            cap_current,
+            cap_min: Some(0.0),
+            cap_max: self
+                .read_hwmon_file::<f64>("power1_rated_max")
+                .filter(|max| *max != 0.0)
+                .map(|cap| cap / 1_000_000.0)
+                .or_else(|| cap_current.map(|current| current * 2.0)),
+            cap_default: self.initial_power_cap,
+        };
+
+        let voltage = VoltageStats {
+            gpu: self.read_hwmon_file("in0_input"),
+            northbridge: None,
+        };
+
+        let vram = VramStats {
+            total: self
+                .drm_try_2(IntelDrm::drm_intel_get_aperture_sizes)
+                .map(|(_, total)| total as u64),
+            used: None,
+        };
+
         DeviceStats {
             clockspeed,
-            vram: VramStats {
-                total: self
-                    .drm_try_2(IntelDrm::drm_intel_get_aperture_sizes)
-                    .map(|(_, total)| total as u64),
-                used: None,
-            },
+            vram,
             busy_percent: self.get_busy_percent(),
+            power,
+            temps: self.get_temperatures(),
+            voltage,
+            throttle_info: self.get_throttle_info(),
             ..Default::default()
         }
     }
 
     fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
-        let clocks_table = match self.driver_type {
-            DriverType::Xe => IntelClocksTable {
-                gt_freq: self
-                    .read_gt_file("freq0/min_freq")
-                    .zip(self.read_gt_file("freq0/max_freq")),
-                rp0_freq: self.read_gt_file("freq0/rp0_freq"),
-                rpe_freq: self.read_gt_file("freq0/rpe_freq"),
-                rpn_freq: self.read_gt_file("freq0/rpn_freq"),
-            },
-            DriverType::I915 => IntelClocksTable {
-                gt_freq: self
-                    .read_file("../gt_min_freq_mhz")
-                    .zip(self.read_file("../gt_max_freq_mhz")),
-                rpn_freq: self.read_file("../gt_RPn_freq_mhz"),
-                rpe_freq: self.read_file("../gt_RP1_freq_mhz"),
-                rp0_freq: self.read_file("../gt_RP0_freq_mhz"),
-            },
+        let clocks_table = IntelClocksTable {
+            gt_freq: self
+                .read_freq(FrequencyType::Min)
+                .zip(self.read_freq(FrequencyType::Max)),
+            rp0_freq: self.read_freq(FrequencyType::Rp0),
+            rpe_freq: self.read_freq(FrequencyType::Rpe),
+            rpn_freq: self.read_freq(FrequencyType::Rpn),
         };
 
         let table = if clocks_table == IntelClocksTable::default() {
@@ -237,7 +258,20 @@ impl GpuController for IntelGpuController {
 
     fn reset_pmfw_settings(&self) {}
 
+    #[allow(clippy::cast_possible_truncation)]
     fn cleanup_clocks(&self) -> anyhow::Result<()> {
+        if let Some(rp0) = self.read_freq(FrequencyType::Rp0) {
+            if let Err(err) = self.write_freq(FrequencyType::Max, rp0 as i32) {
+                warn!("could not reset max clock: {err:#}");
+            }
+        }
+
+        if let Some(rpn) = self.read_freq(FrequencyType::Rpn) {
+            if let Err(err) = self.write_freq(FrequencyType::Min, rpn as i32) {
+                warn!("could not reset min clock: {err:#}");
+            }
+        }
+
         Ok(())
     }
 
@@ -264,29 +298,12 @@ impl IntelGpuController {
         self.tile_gts.first().map(PathBuf::as_ref)
     }
 
-    /// Based on the input path, this has the following behaviour:
-    /// - Basic relative paths are resolved relative to the sysfs device
-    /// - Parent paths (starting with (../) are resolved on the sysfs card entry, without resolving device symlink
-    fn sysfs_file_path(&self, path: impl AsRef<Path>) -> PathBuf {
-        let path = path.as_ref();
-
-        match path.strip_prefix("../") {
-            Ok(path_relative_to_parent) => self
-                .common
-                .sysfs_path
-                .parent()
-                .expect("Device path has no parent")
-                .join(path_relative_to_parent),
-            Err(_) => self.common.sysfs_path.join(path),
-        }
-    }
-
     fn read_file<T>(&self, path: impl AsRef<Path>) -> Option<T>
     where
         T: FromStr,
         T::Err: Display,
     {
-        let file_path = self.sysfs_file_path(path);
+        let file_path = self.common.sysfs_path.join(path);
 
         trace!("reading file from '{}'", file_path.display());
 
@@ -310,7 +327,7 @@ impl IntelGpuController {
     }
 
     fn write_file(&self, path: impl AsRef<Path>, contents: &str) -> anyhow::Result<()> {
-        let file_path = self.sysfs_file_path(path);
+        let file_path = self.common.sysfs_path.join(path);
 
         if file_path.exists() {
             fs::write(&file_path, contents)
@@ -321,23 +338,24 @@ impl IntelGpuController {
         }
     }
 
-    fn read_gt_file<T>(&self, file_name: &str) -> Option<T>
+    fn read_hwmon_file<T>(&self, file_name: &str) -> Option<T>
     where
         T: FromStr,
         T::Err: Display,
     {
-        self.first_tile_gt().and_then(|gt_path| {
-            let file_path = gt_path.join(file_name);
+        self.hwmon_path.as_ref().and_then(|hwmon_path| {
+            let file_path = hwmon_path.join(file_name);
             self.read_file(file_path)
         })
     }
 
-    fn write_gt_file(&self, file_name: &str, contents: &str) -> anyhow::Result<()> {
-        if let Some(gt_path) = self.first_tile_gt() {
-            let file_path = gt_path.join(file_name);
+    fn write_hwmon_file(&self, file_name: &str, contents: &str) -> anyhow::Result<()> {
+        debug!("writing value '{contents}' to '{file_name}'");
+        if let Some(hwmon_path) = &self.hwmon_path {
+            let file_path = hwmon_path.join(file_name);
             self.write_file(file_path, contents)
         } else {
-            Err(anyhow!("No GTs available"))
+            Err(anyhow!("No hwmon available"))
         }
     }
 
@@ -426,4 +444,128 @@ impl IntelGpuController {
 
         None
     }
+
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+    fn get_power_usage(&self) -> Option<f64> {
+        self.read_hwmon_file::<u64>("power1_input")
+            .or_else(|| {
+                let energy = self.read_hwmon_file("energy1_input")?;
+                let timestamp = Instant::now();
+
+                match self.last_energy_value.replace(Some((timestamp, energy))) {
+                    Some((last_timestamp, last_energy)) => {
+                        let time_delta = timestamp - last_timestamp;
+                        let energy_delta = energy - last_energy;
+
+                        Some(energy_delta / time_delta.as_millis() as u64 * 1000)
+                    }
+                    None => None,
+                }
+            })
+            .map(|value| value as f64 / 1_000_000.0)
+    }
+
+    fn get_temperatures(&self) -> HashMap<String, Temperature> {
+        self.read_hwmon_file::<f32>("temp1_input")
+            .into_iter()
+            .map(|temp| {
+                let key = "gpu".to_owned();
+                let temperature = Temperature {
+                    current: Some(temp / 1000.0),
+                    crit: None,
+                    crit_hyst: None,
+                };
+                (key, temperature)
+            })
+            .collect()
+    }
+
+    fn read_freq(&self, freq: FrequencyType) -> Option<u64> {
+        self.freq_path(freq).and_then(|path| self.read_file(&path))
+    }
+
+    fn write_freq(&self, freq: FrequencyType, value: i32) -> anyhow::Result<()> {
+        let path = self.freq_path(freq).context("Frequency info not found")?;
+        self.write_file(path, &value.to_string())
+            .context("Could not write frequency")?;
+        Ok(())
+    }
+
+    fn freq_path(&self, freq: FrequencyType) -> Option<PathBuf> {
+        let path = &self.common.sysfs_path;
+
+        match self.driver_type {
+            DriverType::I915 => {
+                let card_path = path.parent().expect("Device has no parent path");
+
+                let infix = match freq {
+                    FrequencyType::Cur => "cur",
+                    FrequencyType::Act => "act",
+                    FrequencyType::Min => "min",
+                    FrequencyType::Max => "max",
+                    FrequencyType::Rp0 => "RP0",
+                    FrequencyType::Rpe => "RP1",
+                    FrequencyType::Rpn => "RPn",
+                };
+                Some(card_path.join(format!("gt_{infix}_freq_mhz")))
+            }
+            DriverType::Xe => self.first_tile_gt().map(|gt_path| {
+                let prefix = match freq {
+                    FrequencyType::Cur => "cur",
+                    FrequencyType::Act => "act",
+                    FrequencyType::Min => "min",
+                    FrequencyType::Max => "max",
+                    FrequencyType::Rp0 => "rp0",
+                    FrequencyType::Rpe => "rpe",
+                    FrequencyType::Rpn => "rpn",
+                };
+                gt_path.join("freq0").join(format!("{prefix}_freq"))
+            }),
+        }
+    }
+
+    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
+        match self.driver_type {
+            DriverType::I915 => {
+                let mut reasons = BTreeMap::new();
+
+                let card_path = self
+                    .common
+                    .sysfs_path
+                    .parent()
+                    .expect("Device has no parent path");
+                let gt_path = card_path.join("gt").join("gt0");
+                let gt_files = fs::read_dir(gt_path).ok()?;
+                for file in gt_files.flatten() {
+                    if let Some(name) = file.file_name().to_str() {
+                        if let Some(reason) = name.strip_prefix("throttle_reason_") {
+                            if reason == "status" {
+                                continue;
+                            }
+
+                            if let Some(value) = self.read_file::<i32>(file.path()) {
+                                if value != 0 {
+                                    reasons.insert(reason.to_owned(), vec![]);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Some(reasons)
+            }
+            DriverType::Xe => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum FrequencyType {
+    Cur,
+    Act,
+    Min,
+    Max,
+    Rp0,
+    Rpe,
+    Rpn,
 }

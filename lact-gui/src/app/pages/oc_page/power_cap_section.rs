@@ -89,6 +89,10 @@ mod imp {
                 let text = format!("{}/{} W", section.current_value(), section.max_value());
                 section.set_value_text(text);
             });
+            obj.connect_max_value_notify(move |section| {
+                let text = format!("{}/{} W", section.current_value(), section.max_value());
+                section.set_value_text(text);
+            });
 
             self.reset_button.connect_clicked(clone!(
                 #[strong]

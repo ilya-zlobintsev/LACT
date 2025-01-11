@@ -70,7 +70,9 @@ expression: device_info
       "control_enabled": false,
       "pmfw_info": {}
     },
-    "power": {},
+    "power": {
+      "cap_min": 0.0
+    },
     "temps": {},
     "voltage": {},
     "vram": {}

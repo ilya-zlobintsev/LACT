@@ -169,14 +169,14 @@ fn format_clockspeed(value: Option<u64>, ratio: f64) -> String {
     format!("{:.3} GHz", value.unwrap_or(0) as f64 / 1000.0 * ratio)
 }
 
-fn format_current_gfxclk(value: Option<u16>) -> String {
+fn format_current_gfxclk(value: Option<u64>) -> String {
     if let Some(v) = value {
         // if the APU/GPU dose not acually support current_gfxclk,
         // the value will be `u16::MAX (65535)`
-        if v == u16::MAX {
+        if v >= u16::MAX as u64 || v == 0 {
             "N/A".to_string()
         } else {
-            format_clockspeed(Some(v as u64), 1.0)
+            format_clockspeed(Some(v), 1.0)
         }
     } else {
         "N/A".to_string()

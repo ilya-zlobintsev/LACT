@@ -377,11 +377,12 @@ impl AmdGpuController {
             .context("GPU has no hardware monitor")
     }
 
-    fn get_current_gfxclk(&self) -> Option<u16> {
+    fn get_current_gfxclk(&self) -> Option<u64> {
         self.drm_handle
             .as_ref()
             .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
             .and_then(|metrics| metrics.get_current_gfxclk())
+            .map(u64::from)
     }
 
     fn get_full_vbios_version(&self) -> Option<String> {
