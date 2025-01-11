@@ -1519,7 +1519,6 @@ dependencies = [
  "os-release",
  "pciid-parser",
  "pretty_assertions",
- "regex",
  "serde",
  "serde_json",
  "serde_with",

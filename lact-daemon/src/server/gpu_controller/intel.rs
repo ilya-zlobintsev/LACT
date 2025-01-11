@@ -167,7 +167,7 @@ impl GpuController for IntelGpuController {
             }
 
             if let Some(cap) = config.power_cap {
-                self.write_hwmon_file("power1_max", &((cap * 1_000_000.0) as u64).to_string())
+                self.write_hwmon_file("power", "_max", &((cap * 1_000_000.0) as u64).to_string())
                     .context("Could not set power cap")?;
             }
 
@@ -189,7 +189,7 @@ impl GpuController for IntelGpuController {
         };
 
         let cap_current = self
-            .read_hwmon_file("power1_max")
+            .read_hwmon_file("power", "_max")
             .map(|value: f64| value / 1_000_000.0)
             .map(|cap| if cap == 0.0 { 100.0 } else { cap }); // Placeholder max value
 
@@ -199,7 +199,7 @@ impl GpuController for IntelGpuController {
             cap_current,
             cap_min: Some(0.0),
             cap_max: self
-                .read_hwmon_file::<f64>("power1_rated_max")
+                .read_hwmon_file::<f64>("power", "_rated_max")
                 .filter(|max| *max != 0.0)
                 .map(|cap| cap / 1_000_000.0)
                 .or_else(|| cap_current.map(|current| current * 2.0)),
@@ -207,7 +207,7 @@ impl GpuController for IntelGpuController {
         };
 
         let voltage = VoltageStats {
-            gpu: self.read_hwmon_file("in0_input"),
+            gpu: self.read_hwmon_file("in", "_input"),
             northbridge: None,
         };
 
@@ -219,7 +219,7 @@ impl GpuController for IntelGpuController {
         };
 
         let fan = FanStats {
-            speed_current: self.read_hwmon_file("fan1_input"),
+            speed_current: self.read_hwmon_file("fan", "_input"),
             ..Default::default()
         };
 
@@ -344,22 +344,43 @@ impl IntelGpuController {
         }
     }
 
-    fn read_hwmon_file<T>(&self, file_name: &str) -> Option<T>
+    fn read_hwmon_file<T>(&self, file_prefix: &str, file_suffix: &str) -> Option<T>
     where
         T: FromStr,
         T::Err: Display,
     {
         self.hwmon_path.as_ref().and_then(|hwmon_path| {
-            let file_path = hwmon_path.join(file_name);
-            self.read_file(file_path)
+            let entries = fs::read_dir(hwmon_path).ok()?;
+            for entry in entries.flatten() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.starts_with(file_prefix) && name.ends_with(file_suffix) {
+                        return self.read_file(entry.path());
+                    }
+                }
+            }
+            None
         })
     }
 
-    fn write_hwmon_file(&self, file_name: &str, contents: &str) -> anyhow::Result<()> {
-        debug!("writing value '{contents}' to '{file_name}'");
+    fn write_hwmon_file(
+        &self,
+        file_prefix: &str,
+        file_suffix: &str,
+        contents: &str,
+    ) -> anyhow::Result<()> {
+        debug!("writing value '{contents}' to '{file_prefix}*{file_suffix}'");
+
         if let Some(hwmon_path) = &self.hwmon_path {
-            let file_path = hwmon_path.join(file_name);
-            self.write_file(file_path, contents)
+            let entries = fs::read_dir(hwmon_path)?;
+            for entry in entries.flatten() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.starts_with(file_prefix) && name.ends_with(file_suffix) {
+                        return self.write_file(entry.path(), contents);
+                    }
+                }
+            }
+
+            Err(anyhow!("File not found"))
         } else {
             Err(anyhow!("No hwmon available"))
         }
@@ -453,9 +474,9 @@ impl IntelGpuController {
 
     #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
     fn get_power_usage(&self) -> Option<f64> {
-        self.read_hwmon_file::<u64>("power1_input")
+        self.read_hwmon_file::<u64>("power", "_input")
             .or_else(|| {
-                let energy = self.read_hwmon_file("energy1_input")?;
+                let energy = self.read_hwmon_file("energy", "_input")?;
                 let timestamp = Instant::now();
 
                 match self.last_energy_value.replace(Some((timestamp, energy))) {
@@ -472,7 +493,7 @@ impl IntelGpuController {
     }
 
     fn get_temperatures(&self) -> HashMap<String, Temperature> {
-        self.read_hwmon_file::<f32>("temp1_input")
+        self.read_hwmon_file::<f32>("temp", "_input")
             .into_iter()
             .map(|temp| {
                 let key = "gpu".to_owned();
@@ -531,10 +552,10 @@ impl IntelGpuController {
     }
 
     fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
+        let mut reasons = BTreeMap::new();
+
         match self.driver_type {
             DriverType::I915 => {
-                let mut reasons = BTreeMap::new();
-
                 let card_path = self
                     .common
                     .sysfs_path
@@ -557,11 +578,27 @@ impl IntelGpuController {
                         }
                     }
                 }
-
-                Some(reasons)
             }
-            DriverType::Xe => None,
+            DriverType::Xe => {
+                if let Some(tile) = self.first_tile_gt() {
+                    let path = self.common.sysfs_path.join(tile).join("freq0/throttle");
+
+                    let throttle_files = fs::read_dir(path).ok()?;
+                    for file in throttle_files.flatten() {
+                        if let Some(name) = file.file_name().to_str() {
+                            if let Some(reason) = name.strip_prefix("reason_") {
+                                if let Some(value) = self.read_file::<i32>(file.path()) {
+                                    if value != 0 {
+                                        reasons.insert(reason.to_owned(), vec![]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
+        Some(reasons)
     }
 }
 

@@ -8,12 +8,12 @@ expression: device_info
       "type": "intel",
       "value": {
         "gt_freq": [
-          1100,
-          1300
+          600,
+          2450
         ],
-        "rp0_freq": 1300,
+        "rp0_freq": 2450,
         "rpe_freq": 600,
-        "rpn_freq": 100
+        "rpn_freq": 300
       }
     }
   },
@@ -25,15 +25,15 @@ expression: device_info
     "link_info": {},
     "pci_info": {
       "device_pci_info": {
-        "model": "TigerLake-LP GT2 [Iris Xe Graphics]",
-        "model_id": "9A49",
+        "model": "DG2 [Arc A380]",
+        "model_id": "56A5",
         "vendor": "Intel Corporation",
         "vendor_id": "8086"
       },
       "subsystem_pci_info": {
-        "model_id": "3F19",
-        "vendor": "Lenovo",
-        "vendor_id": "17AA"
+        "model_id": "6004",
+        "vendor": "ASRock Incorporation",
+        "vendor_id": "1849"
       }
     },
     "vulkan_info": {
@@ -49,33 +49,39 @@ expression: device_info
   },
   "pci_info": {
     "device_pci_info": {
-      "model": "TigerLake-LP GT2 [Iris Xe Graphics]",
-      "model_id": "9A49",
+      "model": "DG2 [Arc A380]",
+      "model_id": "56A5",
       "vendor": "Intel Corporation",
       "vendor_id": "8086"
     },
     "subsystem_pci_info": {
-      "model_id": "3F19",
-      "vendor": "Lenovo",
-      "vendor_id": "17AA"
+      "model_id": "6004",
+      "vendor": "ASRock Incorporation",
+      "vendor_id": "1849"
     }
   },
   "power_profile_modes": null,
   "stats": {
     "clockspeed": {
-      "current_gfxclk": 1100,
-      "gpu_clockspeed": 1100
+      "current_gfxclk": 600,
+      "gpu_clockspeed": 600
     },
     "fan": {
       "control_enabled": false,
       "pmfw_info": {}
     },
     "power": {
-      "cap_min": 0.0
+      "cap_current": 55.0,
+      "cap_default": 55.0,
+      "cap_max": 110.0,
+      "cap_min": 0.0,
+      "current": 0.0
     },
     "temps": {},
     "throttle_info": {},
-    "voltage": {},
+    "voltage": {
+      "gpu": 638
+    },
     "vram": {}
   }
 }

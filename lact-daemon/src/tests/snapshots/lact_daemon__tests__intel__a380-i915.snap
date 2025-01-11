@@ -68,7 +68,8 @@ expression: device_info
     },
     "fan": {
       "control_enabled": false,
-      "pmfw_info": {}
+      "pmfw_info": {},
+      "speed_current": 0
     },
     "power": {
       "cap_current": 55.0,
@@ -84,6 +85,7 @@ expression: device_info
         "current": 55.0
       }
     },
+    "throttle_info": {},
     "voltage": {
       "gpu": 603
     },
