@@ -293,34 +293,36 @@ impl RenderRequest {
             .context("Failed to draw mesh")?;
 
         // Draw the throttling histogram as a series of bars.
-        chart
-            .draw_series(
-                data.throttling_iter()
-                    .chunk_by(|(_, _, point)| *point)
-                    .into_iter()
-                    .filter_map(|(point, group_iter)| point.then_some(group_iter))
-                    .filter_map(|mut group_iter| {
-                        let first = group_iter.next()?;
-                        Some((first, group_iter.last().unwrap_or(first)))
-                    })
-                    .map(|((start, name, _), (end, _, _))| ((start, end), name))
-                    .map(|((start_time, end_time), _)| (start_time, end_time))
-                    .sorted_by_key(|&(start_time, _)| start_time)
-                    .coalesce(|(start1, end1), (start2, end2)| {
-                        if end1 >= start2 {
-                            Ok((start1, std::cmp::max(end1, end2)))
-                        } else {
-                            Err(((start1, end1), (start2, end2)))
-                        }
-                    })
-                    .map(|(start_time, end_time)| {
-                        Rectangle::new(
-                            [(start_time, 0f64), (end_time, maximum_value)],
-                            DEEPORANGE_100.filled(),
-                        )
-                    }),
-            )
-            .context("Failed to draw throttling histogram")?;
+        if !data.is_empty() {
+            chart
+                .draw_series(
+                    data.throttling_iter()
+                        .chunk_by(|(_, _, point)| *point)
+                        .into_iter()
+                        .filter_map(|(point, group_iter)| point.then_some(group_iter))
+                        .filter_map(|mut group_iter| {
+                            let first = group_iter.next()?;
+                            Some((first, group_iter.last().unwrap_or(first)))
+                        })
+                        .map(|((start, name, _), (end, _, _))| ((start, end), name))
+                        .map(|((start_time, end_time), _)| (start_time, end_time))
+                        .sorted_by_key(|&(start_time, _)| start_time)
+                        .coalesce(|(start1, end1), (start2, end2)| {
+                            if end1 >= start2 {
+                                Ok((start1, std::cmp::max(end1, end2)))
+                            } else {
+                                Err(((start1, end1), (start2, end2)))
+                            }
+                        })
+                        .map(|(start_time, end_time)| {
+                            Rectangle::new(
+                                [(start_time, 0f64), (end_time, maximum_value)],
+                                DEEPORANGE_100.filled(),
+                            )
+                        }),
+                )
+                .context("Failed to draw throttling histogram")?;
+        }
 
         // Draw the main line series using cubic spline interpolation.
         for (idx, (caption, data)) in (0..).zip(data.line_series_iter()) {
