@@ -104,7 +104,7 @@ pub struct DeviceInfo {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DrmInfo {
     pub device_name: Option<String>,
     pub pci_revision_id: Option<u32>,
@@ -122,6 +122,15 @@ pub struct DrmInfo {
     pub l2_cache: Option<u32>,
     pub l3_cache_mb: Option<u32>,
     pub memory_info: Option<DrmMemoryInfo>,
+    #[serde(flatten)]
+    pub intel: IntelDrmInfo,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct IntelDrmInfo {
+    pub execution_units: Option<u32>,
+    pub subslices: Option<u32>,
 }
 
 #[skip_serializing_none]
@@ -146,6 +155,7 @@ pub struct ClocksInfo {
 pub enum ClocksTable {
     Amd(AmdClocksTableGen),
     Nvidia(NvidiaClocksTable),
+    Intel(IntelClocksTable),
 }
 
 #[skip_serializing_none]
@@ -153,6 +163,19 @@ pub enum ClocksTable {
 pub struct NvidiaClocksTable {
     pub gpc: Option<NvidiaClockInfo>,
     pub mem: Option<NvidiaClockInfo>,
+}
+
+/// Doc from `xe_gt_freq.c`
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, Eq)]
+pub struct IntelClocksTable {
+    pub gt_freq: Option<(u64, u64)>,
+    /// - rpn_freq: The Render Performance (RP) N level, which is the minimal one.
+    pub rpn_freq: Option<u64>,
+    /// - rpe_freq: The Render Performance (RP) E level, which is the efficient one.
+    pub rpe_freq: Option<u64>,
+    /// - rp0_freq: The Render Performance (RP) 0 level, which is the maximum one.
+    pub rp0_freq: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
@@ -186,7 +209,7 @@ pub struct LinkInfo {
     pub max_speed: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct VulkanInfo {
     pub device_name: String,
     pub api_version: String,
@@ -197,7 +220,7 @@ pub struct VulkanInfo {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct VulkanDriverInfo {
     pub version: u32,
     pub name: Option<String>,
@@ -264,7 +287,8 @@ pub struct PmfwInfo {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct ClockspeedStats {
     pub gpu_clockspeed: Option<u64>,
-    pub current_gfxclk: Option<u16>,
+    /// Target clock
+    pub current_gfxclk: Option<u64>,
     pub vram_clockspeed: Option<u64>,
 }
 

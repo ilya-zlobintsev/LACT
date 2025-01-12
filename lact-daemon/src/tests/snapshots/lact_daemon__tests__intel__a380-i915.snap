@@ -1,0 +1,115 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": {
+    "table": {
+      "type": "intel",
+      "value": {
+        "gt_freq": [
+          300,
+          2450
+        ],
+        "rp0_freq": 2450,
+        "rpe_freq": 600,
+        "rpn_freq": 300
+      }
+    }
+  },
+  "info": {
+    "driver": "i915",
+    "drm_info": {
+      "vram_clock_ratio": 1.0
+    },
+    "link_info": {},
+    "pci_info": {
+      "device_pci_info": {
+        "model": "DG2 [Arc A380]",
+        "model_id": "56A5",
+        "vendor": "Intel Corporation",
+        "vendor_id": "8086"
+      },
+      "subsystem_pci_info": {
+        "model_id": "6004",
+        "vendor": "ASRock Incorporation",
+        "vendor_id": "1849"
+      }
+    },
+    "vulkan_info": {
+      "api_version": "",
+      "device_name": "",
+      "driver": {
+        "version": 0
+      },
+      "enabled_layers": [],
+      "extensions": {},
+      "features": {}
+    }
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "DG2 [Arc A380]",
+      "model_id": "56A5",
+      "vendor": "Intel Corporation",
+      "vendor_id": "8086"
+    },
+    "subsystem_pci_info": {
+      "model_id": "6004",
+      "vendor": "ASRock Incorporation",
+      "vendor_id": "1849"
+    }
+  },
+  "power_profile_modes": null,
+  "power_states": {
+    "core": [
+      {
+        "enabled": true,
+        "value": 300
+      },
+      {
+        "enabled": true,
+        "value": 600
+      },
+      {
+        "enabled": true,
+        "value": 2450
+      },
+      {
+        "enabled": true,
+        "value": 2450
+      }
+    ],
+    "vram": []
+  },
+  "stats": {
+    "clockspeed": {
+      "current_gfxclk": 600,
+      "gpu_clockspeed": 600
+    },
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {},
+      "speed_current": 0
+    },
+    "power": {
+      "cap_current": 55.0,
+      "cap_default": 55.0,
+      "cap_max": 110.0,
+      "cap_min": 0.0,
+      "current": 0.0
+    },
+    "temps": {
+      "gpu": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 55.0
+      }
+    },
+    "throttle_info": {},
+    "voltage": {
+      "gpu": 603
+    },
+    "vram": {}
+  }
+}

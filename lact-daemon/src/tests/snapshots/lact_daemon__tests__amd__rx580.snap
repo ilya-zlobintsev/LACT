@@ -98,7 +98,17 @@ expression: device_info
         "vendor_id": "1DA2"
       }
     },
-    "vbios_version": "113-1E3871U-O4C"
+    "vbios_version": "113-1E3871U-O4C",
+    "vulkan_info": {
+      "api_version": "",
+      "device_name": "",
+      "driver": {
+        "version": 0
+      },
+      "enabled_layers": [],
+      "extensions": {},
+      "features": {}
+    }
   },
   "pci_info": {
     "device_pci_info": {
@@ -237,6 +247,67 @@ expression: device_info
       "MCLK_UP_HYST",
       "MCLK_DOWN_HYST",
       "MCLK_ACTIVE_LEVEL"
+    ]
+  },
+  "power_states": {
+    "core": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 300
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 600
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 900
+      },
+      {
+        "enabled": true,
+        "index": 3,
+        "value": 1145
+      },
+      {
+        "enabled": true,
+        "index": 4,
+        "value": 1215
+      },
+      {
+        "enabled": true,
+        "index": 5,
+        "value": 1257
+      },
+      {
+        "enabled": true,
+        "index": 6,
+        "value": 1300
+      },
+      {
+        "enabled": true,
+        "index": 7,
+        "value": 1366
+      }
+    ],
+    "vram": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 300
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 1000
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 1750
+      }
     ]
   },
   "stats": {

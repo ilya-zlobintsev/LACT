@@ -105,7 +105,7 @@ impl PlotData {
         self.push_secondary_line_series_with_time(name, point, chrono::Local::now().naive_local());
     }
 
-    pub fn push_line_series_with_time(&mut self, name: &str, point: f64, time: NaiveDateTime) {
+    fn push_line_series_with_time(&mut self, name: &str, point: f64, time: NaiveDateTime) {
         self.line_series
             .entry(name.to_owned())
             .or_default()
@@ -182,5 +182,9 @@ impl PlotData {
 
         self.throttling
             .retain(|(time_point, _)| ((maximum_point - *time_point) / 1000) < last_seconds);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.line_series.is_empty() && self.secondary_line_series.is_empty()
     }
 }

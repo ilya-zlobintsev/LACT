@@ -23,7 +23,17 @@ expression: device_info
         "vendor_id": "1458"
       }
     },
-    "vbios_version": "xxx-xxx-xxx"
+    "vbios_version": "xxx-xxx-xxx",
+    "vulkan_info": {
+      "api_version": "",
+      "device_name": "",
+      "driver": {
+        "version": 0
+      },
+      "enabled_layers": [],
+      "extensions": {},
+      "features": {}
+    }
   },
   "pci_info": {
     "device_pci_info": {
@@ -39,6 +49,10 @@ expression: device_info
     }
   },
   "power_profile_modes": null,
+  "power_states": {
+    "core": [],
+    "vram": []
+  },
   "stats": {
     "clockspeed": {
       "gpu_clockspeed": 300,

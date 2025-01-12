@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
     cell::Cell,
-    collections::HashMap,
     env, fs,
     path::PathBuf,
     rc::Rc,
@@ -102,8 +101,8 @@ pub struct Gpu {
     /// Outer vector is for power profile components, inner vector is for the heuristics within a component
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub custom_power_profile_mode_hueristics: Vec<Vec<Option<i32>>>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub power_states: HashMap<PowerLevelKind, Vec<u8>>,
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub power_states: IndexMap<PowerLevelKind, Vec<u8>>,
 }
 
 #[skip_serializing_none]
@@ -400,7 +399,6 @@ mod tests {
     use indexmap::IndexMap;
     use insta::assert_yaml_snapshot;
     use lact_schema::{FanControlMode, PmfwOptions};
-    use std::collections::HashMap;
 
     #[test]
     fn serde_de_full() {
@@ -458,7 +456,7 @@ mod tests {
             clocks_configuration: ClocksConfiguration::default(),
             power_profile_mode_index: None,
             custom_power_profile_mode_hueristics: vec![],
-            power_states: HashMap::new(),
+            power_states: IndexMap::new(),
         };
 
         assert!(!gpu.is_core_clocks_used());

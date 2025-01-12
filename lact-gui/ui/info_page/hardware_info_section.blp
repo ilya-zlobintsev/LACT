@@ -43,6 +43,18 @@ template $HardwareInfoSection: $PageSection {
     }
 
     $InfoRow {
+        name: "Execution Units:";
+        value: bind template.execution_units;
+        selectable: true;
+    }
+
+    $InfoRow {
+        name: "Subslices:";
+        value: bind template.subslices;
+        selectable: true;
+    }
+
+    $InfoRow {
         name: "Cuda Cores:";
         value: bind template.cuda_cores;
         selectable: true;

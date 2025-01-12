@@ -1,6 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::missing_panics_doc)]
 
+mod bindings;
 mod config;
 mod server;
 mod socket;

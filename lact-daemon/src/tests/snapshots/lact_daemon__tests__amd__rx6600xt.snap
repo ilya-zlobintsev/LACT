@@ -23,7 +23,17 @@ expression: device_info
         "vendor_id": "1EAE"
       }
     },
-    "vbios_version": "113-23L86HMD2-D02"
+    "vbios_version": "113-23L86HMD2-D02",
+    "vulkan_info": {
+      "api_version": "",
+      "device_name": "",
+      "driver": {
+        "version": 0
+      },
+      "enabled_layers": [],
+      "extensions": {},
+      "features": {}
+    }
   },
   "pci_info": {
     "device_pci_info": {
@@ -381,6 +391,42 @@ expression: device_info
       "PD_Data_limit_c",
       "PD_Data_error_coeff",
       "PD_Data_error_rate_coeff"
+    ]
+  },
+  "power_states": {
+    "core": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 0
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 0
+      }
+    ],
+    "vram": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 96
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 541
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 675
+      },
+      {
+        "enabled": true,
+        "index": 3,
+        "value": 875
+      }
     ]
   },
   "stats": {

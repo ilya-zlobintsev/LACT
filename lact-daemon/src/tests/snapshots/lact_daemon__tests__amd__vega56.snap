@@ -103,7 +103,17 @@ expression: device_info
         "vendor_id": "1043"
       }
     },
-    "vbios_version": "115-D050PIL-100"
+    "vbios_version": "115-D050PIL-100",
+    "vulkan_info": {
+      "api_version": "",
+      "device_name": "",
+      "driver": {
+        "version": 0
+      },
+      "enabled_layers": [],
+      "extensions": {},
+      "features": {}
+    }
   },
   "pci_info": {
     "device_pci_info": {
@@ -225,6 +235,72 @@ expression: device_info
       "FPS",
       "USE_RLC_BUSY",
       "MIN_ACTIVE_LEVEL"
+    ]
+  },
+  "power_states": {
+    "core": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 852
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 991
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 1138
+      },
+      {
+        "enabled": true,
+        "index": 3,
+        "value": 1269
+      },
+      {
+        "enabled": true,
+        "index": 4,
+        "value": 1312
+      },
+      {
+        "enabled": true,
+        "index": 5,
+        "value": 1474
+      },
+      {
+        "enabled": true,
+        "index": 6,
+        "value": 1538
+      },
+      {
+        "enabled": true,
+        "index": 7,
+        "value": 1590
+      }
+    ],
+    "vram": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 167
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 500
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 700
+      },
+      {
+        "enabled": true,
+        "index": 3,
+        "value": 920
+      }
     ]
   },
   "stats": {

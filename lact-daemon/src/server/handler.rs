@@ -4,15 +4,12 @@ use super::{
     system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
 };
 use crate::{
+    bindings::intel::IntelDrm,
     config::{self, default_fan_static_speed, Config, FanControlSettings, Profile},
-    server::{
-        gpu_controller::{AmdGpuController, NvidiaGpuController},
-        profiles,
-    },
+    server::{gpu_controller::init_controller, profiles},
 };
-use amdgpu_sysfs::{
-    gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind},
-    sysfs::SysFS,
+use amdgpu_sysfs::gpu_handle::{
+    power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
 use anyhow::{anyhow, bail, Context};
 use lact_schema::{
@@ -24,12 +21,12 @@ use lact_schema::{
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
-use nvml_wrapper::{error::NvmlError, Nvml};
+use nvml_wrapper::Nvml;
 use os_release::OS_RELEASE;
 use pciid_parser::Database;
 use serde_json::json;
 use std::{
-    cell::{Cell, RefCell},
+    cell::{Cell, LazyCell, RefCell},
     collections::{BTreeMap, HashMap},
     env,
     fs::{self, File, Permissions},
@@ -86,8 +83,6 @@ const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
     "fan_zero_rpm_enable",
     "fan_zero_rpm_stop_temperature",
 ];
-const SNAPSHOT_HWMON_FILE_PREFIXES: &[&str] =
-    &["fan", "pwm", "power", "temp", "freq", "in", "name"];
 
 #[derive(Clone)]
 pub struct Handler {
@@ -105,21 +100,17 @@ impl<'a> Handler {
             Ok(custom_path) => PathBuf::from(custom_path),
             Err(_) => PathBuf::from("/sys/class/drm"),
         };
-        Self::with_base_path(&base_path, config, false).await
+        Self::with_base_path(&base_path, config).await
     }
 
-    pub(crate) async fn with_base_path(
-        base_path: &Path,
-        config: Config,
-        sysfs_only: bool,
-    ) -> anyhow::Result<Self> {
+    pub(crate) async fn with_base_path(base_path: &Path, config: Config) -> anyhow::Result<Self> {
         let mut controllers = BTreeMap::new();
 
         // Sometimes LACT starts too early in the boot process, before the sysfs is initialized.
         // For such scenarios there is a retry logic when no GPUs were found,
         // or if some of the PCI devices don't have a drm entry yet.
         for i in 1..=CONTROLLERS_LOAD_RETRY_ATTEMPTS {
-            controllers = load_controllers(base_path, sysfs_only)?;
+            controllers = load_controllers(base_path)?;
 
             let mut should_retry = false;
             if let Ok(devices) = fs::read_dir("/sys/bus/pci/devices") {
@@ -133,7 +124,7 @@ impl<'a> Handler {
                                 .expect("pci file name should be valid unicode");
 
                             if controllers.values().any(|controller| {
-                                controller.get_pci_slot_name().as_ref() == Some(&slot_name)
+                                controller.controller_info().pci_slot_name == slot_name
                             }) {
                                 debug!("found intialized drm entry for device {:?}", device.path());
                             } else {
@@ -200,7 +191,7 @@ impl<'a> Handler {
                     error!("could not apply existing config for gpu {id}: {err}");
                 }
             } else {
-                info!("could not find GPU with id {id} defined in configuration");
+                warn!("could not find GPU with id {id} defined in configuration");
             }
         }
 
@@ -345,8 +336,11 @@ impl<'a> Handler {
             .iter()
             .map(|(id, controller)| {
                 let name = controller
-                    .get_pci_info()
-                    .and_then(|pci_info| pci_info.device_pci_info.model.clone());
+                    .controller_info()
+                    .pci_info
+                    .device_pci_info
+                    .model
+                    .clone();
                 DeviceListEntry {
                     id: id.to_owned(),
                     name,
@@ -582,14 +576,14 @@ impl<'a> Handler {
         }
 
         for controller in self.gpu_controllers.values() {
-            let controller_path = controller.get_path();
+            let controller_path = &controller.controller_info().sysfs_path;
 
             for device_file in SNAPSHOT_DEVICE_FILES {
                 let full_path = controller_path.join(device_file);
                 add_path_to_archive(&mut archive, &full_path)?;
             }
 
-            let device_files = fs::read_dir(controller.get_path())
+            let device_files = fs::read_dir(controller_path)
                 .context("Could not read device dir")?
                 .flatten();
 
@@ -599,13 +593,27 @@ impl<'a> Handler {
                         .iter()
                         .any(|prefix| entry_name.starts_with(prefix))
                     {
-                        add_path_recursively(
-                            &mut archive,
-                            &device_entry.path(),
-                            controller.get_path(),
-                        )?;
+                        add_path_recursively(&mut archive, &device_entry.path(), controller_path)?;
                     }
                 }
+            }
+
+            let card_path = controller_path.parent().unwrap();
+            let card_files = fs::read_dir(card_path)
+                .context("Could not read device dir")?
+                .flatten();
+            for card_entry in card_files {
+                if let Ok(metadata) = card_entry.metadata() {
+                    if metadata.is_file() {
+                        let full_path = controller_path.join(card_entry.path());
+                        add_path_to_archive(&mut archive, &full_path)?;
+                    }
+                }
+            }
+
+            let gt_path = card_path.join("gt");
+            if gt_path.exists() {
+                add_path_recursively(&mut archive, &gt_path, card_path)?;
             }
 
             let fan_ctrl_path = controller_path.join("gpu_od").join("fan_ctrl");
@@ -614,25 +622,9 @@ impl<'a> Handler {
                 add_path_to_archive(&mut archive, &full_path)?;
             }
 
-            for hw_mon in controller.hw_monitors() {
-                let hw_mon_path = hw_mon.get_path();
-                let hw_mon_entries =
-                    fs::read_dir(hw_mon_path).context("Could not read HwMon dir")?;
-
-                'entries: for entry in hw_mon_entries.flatten() {
-                    if !entry.metadata().is_ok_and(|metadata| metadata.is_file()) {
-                        continue;
-                    }
-
-                    if let Some(name) = entry.file_name().to_str() {
-                        for prefix in SNAPSHOT_HWMON_FILE_PREFIXES {
-                            if name.starts_with(prefix) {
-                                add_path_to_archive(&mut archive, &entry.path())?;
-                                continue 'entries;
-                            }
-                        }
-                    }
-                }
+            let hwmon_path = controller_path.join("hwmon");
+            if hwmon_path.exists() {
+                add_path_recursively(&mut archive, &hwmon_path, controller_path)?;
             }
         }
 
@@ -708,11 +700,12 @@ impl<'a> Handler {
                     .and_then(|config| config.gpus().ok()?.get(id));
 
                 let data = json!({
-                    "pci_info": controller.get_pci_info(),
+                    "pci_info": controller.controller_info().pci_info.clone(),
                     "info": controller.get_info(),
                     "stats": controller.get_stats(gpu_config),
                     "clocks_info": controller.get_clocks_info().ok(),
                     "power_profile_modes": controller.get_power_profile_modes().ok(),
+                    "power_states": controller.get_power_states(gpu_config),
                 });
                 (id.clone(), data)
             })
@@ -919,10 +912,7 @@ impl<'a> Handler {
 }
 
 /// `sysfs_only` disables initialization of any external data sources, such as libdrm and nvml
-fn load_controllers(
-    base_path: &Path,
-    sysfs_only: bool,
-) -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>> {
+fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>> {
     let mut controllers = BTreeMap::new();
 
     let pci_db = Database::read().unwrap_or_else(|err| {
@@ -933,34 +923,42 @@ fn load_controllers(
         }
     });
 
-    let libdrm_amdgpu = if sysfs_only {
-        None
-    } else {
-        match LibDrmAmdgpu::new() {
-            Ok(libdrm_amdgpu) => {
-                info!("libdrm and libdrm_amdgpu initialized");
-                Some(libdrm_amdgpu)
-            }
-            Err(err) => {
-                info!("AMDGPU support disabled, {err}");
-                None
-            }
+    #[cfg(not(test))]
+    let nvml: LazyCell<Option<Rc<Nvml>>> = LazyCell::new(|| match Nvml::init() {
+        Ok(nvml) => {
+            info!("Nvidia management library loaded");
+            Some(Rc::new(nvml))
         }
-    };
+        Err(err) => {
+            error!("could not load Nvidia management library: {err}");
+            None
+        }
+    });
+    #[cfg(test)]
+    let nvml: LazyCell<Option<Rc<Nvml>>> = LazyCell::new(|| None);
 
-    let nvml = if sysfs_only {
-        None
-    } else {
-        match Nvml::init() {
-            Ok(nvml) => {
-                info!("NVML initialized");
-                Some(Rc::new(nvml))
+    let amd_drm: LazyCell<Option<LibDrmAmdgpu>> = LazyCell::new(|| match LibDrmAmdgpu::new() {
+        Ok(drm) => {
+            info!("AMDGPU DRM initialized");
+            Some(drm)
+        }
+        Err(err) => {
+            error!("failed to initialize AMDGPU DRM: {err}, some functionality will be missing");
+            None
+        }
+    });
+
+    let intel_drm: LazyCell<Option<Rc<IntelDrm>>> = unsafe {
+        LazyCell::new(|| match IntelDrm::new("libdrm_intel.so.1") {
+            Ok(drm) => {
+                info!("Intel DRM initialized");
+                Some(Rc::new(drm))
             }
             Err(err) => {
-                info!("Nvidia support disabled, {err}");
+                error!("failed to initialize Intel DRM: {err}");
                 None
             }
-        }
+        })
     };
 
     for entry in base_path
@@ -976,63 +974,24 @@ fn load_controllers(
         if name.starts_with("card") && !name.contains('-') {
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
-            match AmdGpuController::new_from_path(
-                device_path,
-                &pci_db,
-                sysfs_only,
-                libdrm_amdgpu.clone(),
-            ) {
-                Ok(controller) => match controller.get_id() {
-                    Ok(id) => {
-                        let path = controller.get_path();
 
-                        if let Some(nvml) = nvml.clone() {
-                            if let Some(pci_slot_id) = controller.get_pci_slot_name() {
-                                match nvml.device_by_pci_bus_id(pci_slot_id.as_str()) {
-                                    Ok(_) => {
-                                        let controller = NvidiaGpuController::new(
-                                            nvml,
-                                            pci_slot_id,
-                                             controller.get_pci_info().expect(
-                                                "Initialized NVML device without PCI info somehow",
-                                            ).clone(),
-                                             path.to_owned(),
-                                        );
-                                        match controller.get_id() {
-                                            Ok(id) => {
-                                                info!("initialized Nvidia GPU controller {id} for path {path:?}");
-                                                controllers.insert(
-                                                    id,
-                                                    Box::new(controller) as Box<dyn GpuController>,
-                                                );
-                                                continue;
-                                            }
-                                            Err(err) => {
-                                                error!("could not get Nvidia GPU id: {err}");
-                                            }
-                                        }
-                                    }
-                                    Err(NvmlError::NotFound) => {
-                                        debug!("PCI slot {pci_slot_id} not found in NVML");
-                                    }
-                                    Err(err) => {
-                                        error!(
-                                            "could not initialize Nvidia GPU at {path:?}: {err}"
-                                        );
-                                    }
-                                }
-                            }
-                        }
+            match init_controller(device_path.clone(), &pci_db, &nvml, &amd_drm, &intel_drm) {
+                Ok(controller) => {
+                    let info = controller.controller_info();
+                    let id = info.build_id();
 
-                        info!("initialized GPU controller {id} for path {path:?}");
-                        controllers.insert(id, Box::new(controller) as Box<dyn GpuController>);
-                    }
-                    Err(err) => warn!("could not initialize controller: {err:#}"),
-                },
-                Err(error) => {
-                    warn!(
-                        "failed to initialize controller at {:?}, {error}",
-                        entry.path()
+                    info!(
+                        "initialized {} controller for GPU {id} at '{}'",
+                        info.driver,
+                        info.sysfs_path.display()
+                    );
+
+                    controllers.insert(id, controller);
+                }
+                Err(err) => {
+                    error!(
+                        "could not initialize GPU controller at '{}': {err:#}",
+                        device_path.display()
                     );
                 }
             }
@@ -1103,6 +1062,8 @@ fn add_path_to_archive(
                 warn!("file {full_path:?} exists, but could not be added to snapshot: {err}");
             }
         }
+    } else {
+        trace!("{full_path:?} does not exist, not adding to snapshot");
     }
     Ok(())
 }

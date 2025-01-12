@@ -73,13 +73,13 @@ gpus:
         - -65536
         - 0
     power_states:
-      memory_clock:
-        - 0
-        - 1
       core_clock:
         - 0
         - 2
         - 3
+      memory_clock:
+        - 0
+        - 1
 profiles:
   vkcube:
     rule:
