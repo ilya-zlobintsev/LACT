@@ -49,6 +49,10 @@ expression: device_info
     }
   },
   "power_profile_modes": null,
+  "power_states": {
+    "core": [],
+    "vram": []
+  },
   "stats": {
     "clockspeed": {
       "gpu_clockspeed": 300,

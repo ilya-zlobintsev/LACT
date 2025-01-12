@@ -393,6 +393,42 @@ expression: device_info
       "PD_Data_error_rate_coeff"
     ]
   },
+  "power_states": {
+    "core": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 0
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 0
+      }
+    ],
+    "vram": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 96
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 541
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 675
+      },
+      {
+        "enabled": true,
+        "index": 3,
+        "value": 875
+      }
+    ]
+  },
   "stats": {
     "busy_percent": 0,
     "clockspeed": {

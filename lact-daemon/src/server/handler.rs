@@ -705,6 +705,7 @@ impl<'a> Handler {
                     "stats": controller.get_stats(gpu_config),
                     "clocks_info": controller.get_clocks_info().ok(),
                     "power_profile_modes": controller.get_power_profile_modes().ok(),
+                    "power_states": controller.get_power_states(gpu_config),
                 });
                 (id.clone(), data)
             })

@@ -5,12 +5,13 @@ use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats,
-    IntelClocksTable, IntelDrmInfo, LinkInfo, PowerStates, PowerStats, VoltageStats, VramStats,
+    IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState, PowerStates, PowerStats, VoltageStats,
+    VramStats,
 };
 use std::{
     cell::Cell,
     collections::{BTreeMap, HashMap},
-    fmt::Display,
+    fmt::{self, Display},
     fs,
     io::{BufRead, BufReader},
     os::{fd::AsRawFd, raw::c_int},
@@ -259,7 +260,25 @@ impl GpuController for IntelGpuController {
     }
 
     fn get_power_states(&self, _gpu_config: Option<&config::Gpu>) -> PowerStates {
-        PowerStates::default()
+        let core = [
+            FrequencyType::Rpn,
+            FrequencyType::Rpe,
+            FrequencyType::Rp0,
+            FrequencyType::Boost,
+        ]
+        .into_iter()
+        .filter_map(|freq_type| {
+            let value = self.read_freq(freq_type)?;
+            Some(PowerState {
+                enabled: true,
+                min_value: None,
+                value,
+                index: None,
+            })
+        })
+        .collect();
+
+        PowerStates { core, vram: vec![] }
     }
 
     fn reset_pmfw_settings(&self) {}
@@ -528,6 +547,7 @@ impl IntelGpuController {
                 let infix = match freq {
                     FrequencyType::Cur => "cur",
                     FrequencyType::Act => "act",
+                    FrequencyType::Boost => "boost",
                     FrequencyType::Min => "min",
                     FrequencyType::Max => "max",
                     FrequencyType::Rp0 => "RP0",
@@ -536,18 +556,22 @@ impl IntelGpuController {
                 };
                 Some(card_path.join(format!("gt_{infix}_freq_mhz")))
             }
-            DriverType::Xe => self.first_tile_gt().map(|gt_path| {
-                let prefix = match freq {
-                    FrequencyType::Cur => "cur",
-                    FrequencyType::Act => "act",
-                    FrequencyType::Min => "min",
-                    FrequencyType::Max => "max",
-                    FrequencyType::Rp0 => "rp0",
-                    FrequencyType::Rpe => "rpe",
-                    FrequencyType::Rpn => "rpn",
-                };
-                gt_path.join("freq0").join(format!("{prefix}_freq"))
-            }),
+            DriverType::Xe => match self.first_tile_gt() {
+                Some(gt_path) => {
+                    let prefix = match freq {
+                        FrequencyType::Cur => "cur",
+                        FrequencyType::Act => "act",
+                        FrequencyType::Boost => return None,
+                        FrequencyType::Min => "min",
+                        FrequencyType::Max => "max",
+                        FrequencyType::Rp0 => "rp0",
+                        FrequencyType::Rpe => "rpe",
+                        FrequencyType::Rpn => "rpn",
+                    };
+                    Some(gt_path.join("freq0").join(format!("{prefix}_freq")))
+                }
+                None => None,
+            },
         }
     }
 
@@ -606,9 +630,26 @@ impl IntelGpuController {
 enum FrequencyType {
     Cur,
     Act,
+    Boost,
     Min,
     Max,
     Rp0,
     Rpe,
     Rpn,
+}
+
+impl fmt::Display for FrequencyType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            FrequencyType::Cur => "Current",
+            FrequencyType::Act => "Actual",
+            FrequencyType::Boost => "Boost",
+            FrequencyType::Min => "Minimum",
+            FrequencyType::Max => "Maximum",
+            FrequencyType::Rp0 => "Maximum (RP0)",
+            FrequencyType::Rpe => "Efficient (RPe)",
+            FrequencyType::Rpn => "Minimum (RPn)",
+        };
+        s.fmt(f)
+    }
 }

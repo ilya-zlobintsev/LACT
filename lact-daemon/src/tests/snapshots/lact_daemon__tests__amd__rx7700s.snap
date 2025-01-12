@@ -261,6 +261,47 @@ expression: device_info
       "Fclk_BoosterFreq"
     ]
   },
+  "power_states": {
+    "core": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 255
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 0
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 2208
+      }
+    ],
+    "vram": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 96
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 456
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 772
+      },
+      {
+        "enabled": true,
+        "index": 3,
+        "value": 1124
+      }
+    ]
+  },
   "stats": {
     "busy_percent": 0,
     "clockspeed": {

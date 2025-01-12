@@ -61,6 +61,23 @@ expression: device_info
     }
   },
   "power_profile_modes": null,
+  "power_states": {
+    "core": [
+      {
+        "enabled": true,
+        "value": 100
+      },
+      {
+        "enabled": true,
+        "value": 600
+      },
+      {
+        "enabled": true,
+        "value": 1300
+      }
+    ],
+    "vram": []
+  },
   "stats": {
     "clockspeed": {
       "current_gfxclk": 1100,
