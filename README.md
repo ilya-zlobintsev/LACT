@@ -1,8 +1,8 @@
-# Linux AMDGPU Control Application
+# Linux GPU Control Application
 
 <img src="res/io.github.lact-linux.png" alt="icon" width="100"/>
 
-This application allows you to control your AMD or Nvidia GPU on a Linux system.
+This application allows you to control your AMD, Nvidia or Intel GPU on a Linux system.
 
 | GPU info                                     | Overclocking                                 | Fan control                                 |
 |----------------------------------------------|----------------------------------------------|---------------------------------------------|
@@ -14,11 +14,11 @@ Current features:
 
 - Viewing information about the GPU
 - Power and thermals monitoring, power limit configuration
-- Fan curve control
+- Fan curve control (AMD and Nvidia)
 - Overclocking (GPU/VRAM clockspeed and voltage)
 - Power states configuration (AMD only)
 
-Both AMD and Nvidia functionality works on X11, Wayland or even headless sessions.
+All of the functionality works regardless of the desktop session (there is no dependency on X11 extensions).
 
 # Installation
 
@@ -75,7 +75,7 @@ However the following table shows what functionality can be expected for a given
 | Vega                                | Supported            | Supported   | Supported    | Supported   |                                                   |
 | RDNA1 (RX 5000)                     | Supported            | Supported   | Supported    | Supported   |                                                   |
 | RDNA2 (RX 6000)                     | Supported            | Supported   | Supported    | Supported   |                                                   |
-| RDNA3 (RX 7000)                     | Supported            | Limited     | Supported    | Limited     | Fan zero RPM mode is enabled by default even with a custom fan curve, and requires kernel 6.13 to be disabled. The power cap is sometimes reported lower than it should be. See [#255](https://github.com/ilya-zlobintsev/LACT/issues/255) for more info.   | 
+| RDNA3 (RX 7000)                     | Supported            | Supported   | Supported    | Supported   | Fan zero RPM mode is enabled by default even with a custom fan curve, and requires kernel 6.13 to be disabled. The power cap is sometimes reported lower than it should be. See [#255](https://github.com/ilya-zlobintsev/LACT/issues/255) for more info.   | 
 
 GPUs not listed here will still work, but might not have full functionality available.
 Monitoring/system info will be available everywhere. Integrated GPUs might also only have basic configuration available.
@@ -83,6 +83,14 @@ Monitoring/system info will be available everywhere. Integrated GPUs might also 
 ## Nvidia
 
 Anything Maxwell or newer should work, but generation support has not yet been tested thoroughly.
+
+## Intel
+
+Functionality status on Intel GPUs:
+- Clocks configuration - works on most devices, but there is no support for overclocking (clocks can only be adjusted within the default limits)
+- Power limit - works on ARC dGPUs. The maximum power limit might not be reported by the GPU, so the UI will change depending on the current limit
+- Monitoring - most values are shown on devices where they are applicable, dGPU temperature and fan speed reading might need a recent kernel version
+- Fan control - not supported by the driver
 
 # Configuration
 
@@ -103,11 +111,11 @@ To fix socket permissions in such configurations, edit `/etc/lact/config.yaml` a
 # Overclocking (AMD)
 
 The overclocking functionality is disabled by default in the driver. There are two ways to enable it:
-- By using the "enable overclocking" option in the LACT GUI. This will create a file in `/etc/modprobe.d` that enables the required driver options. This is the easiest way and it should work for most people.
+- By using the "enable overclocking" option in the LACT GUI. This will create a file in `/etc/modprobe.d` that enables the required driver options. This is the easiest way and it should work for most people running standard distributions.
 
-  **Note:** This will attempt to automatically regenerate the initramfs to include the new settings. It does not cover all possible distro combinations. If you've enabled overclocking in LACT but it still doesn't work fter a reboot,
+  **Note:** This will attempt to automatically regenerate the initramfs to include the new settings. It does not cover all possible distro combinations. If you've enabled overclocking in LACT but it still doesn't work after a reboot,
   you might need to check your distro's configuration to make sure the initramfs was updated. Updating the kernel version is a guaranteed way to trigger an initramfs update.
-- Specifying a boot parameter. You can manually specify the `amdgpu.ppfeaturemask=0xffffffff` kernel parameter in your bootloader to enable overclocking. See the [ArchWiki](https://wiki.archlinux.org/title/AMDGPU#Boot_parameter) for more details.
+- Specifying a boot parameter. This might be needed if your distro is not supported by the auto-enable functionality. You can manually specify the `amdgpu.ppfeaturemask=0xffffffff` kernel parameter in your bootloader to enable overclocking. See the [ArchWiki](https://wiki.archlinux.org/title/AMDGPU#Boot_parameter) for more details.
 
 # Suspend/Resume
 
@@ -120,10 +128,11 @@ Dependencies:
 - gtk 4.6+
 - git
 - pkg-config
+- clang
 - make
 - hwdata
 - libdrm
-- blueprint-compiler 0.10.0+ (Ubuntu 22.04 in particular ships an older version in the repos, you can manually download a [deb file](http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb) of a new version)
+- blueprint-compiler 0.10.0+ (Ubuntu 22.04 in particular ships an older version in the repos, you can manually download a [deb file](http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.14.0-1_all.deb) of a new version)
 
 Command to install all dependencies:
 - Fedora: `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel blueprint-compiler`
