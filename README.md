@@ -158,7 +158,7 @@ make build-release-libadwaita
 
 # API
 
-There is an API available over a unix or TCP socket. See [here](API.md) for more information.
+There is an API available over a unix or TCP socket. See [here](docs/API.md) for more information.
 
 # Remote management
 
