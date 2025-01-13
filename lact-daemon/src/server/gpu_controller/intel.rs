@@ -1,5 +1,14 @@
+mod drm;
+
 use super::{CommonControllerInfo, GpuController};
-use crate::{bindings::intel::IntelDrm, config, server::vulkan::get_vulkan_info};
+use crate::{
+    bindings::intel::{
+        drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE,
+        drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM, IntelDrm,
+    },
+    config,
+    server::vulkan::get_vulkan_info,
+};
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
@@ -116,200 +125,7 @@ impl IntelGpuController {
 
         Ok(controller)
     }
-}
 
-impl GpuController for IntelGpuController {
-    fn controller_info(&self) -> &CommonControllerInfo {
-        &self.common
-    }
-
-    fn get_info(&self) -> DeviceInfo {
-        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
-            Ok(info) => Some(info),
-            Err(err) => {
-                warn!("could not load vulkan info: {err}");
-                None
-            }
-        };
-
-        let drm_info = DrmInfo {
-            intel: match self.driver_type {
-                DriverType::I915 => self.get_drm_info_i915(),
-                DriverType::Xe => self.get_drm_info_xe(),
-            },
-            vram_clock_ratio: 1.0,
-            ..Default::default()
-        };
-
-        DeviceInfo {
-            pci_info: Some(self.common.pci_info.clone()),
-            vulkan_info,
-            driver: self.common.driver.clone(),
-            vbios_version: None,
-            link_info: LinkInfo::default(),
-            drm_info: Some(drm_info),
-        }
-    }
-
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    fn apply_config<'a>(
-        &'a self,
-        config: &'a config::Gpu,
-    ) -> LocalBoxFuture<'a, anyhow::Result<()>> {
-        Box::pin(async {
-            if let Some(max_clock) = config.clocks_configuration.max_core_clock {
-                self.write_freq(FrequencyType::Max, max_clock)
-                    .context("Could not set max clock")?;
-            }
-
-            if let Some(min_clock) = config.clocks_configuration.min_core_clock {
-                self.write_freq(FrequencyType::Min, min_clock)
-                    .context("Could not set min clock")?;
-            }
-
-            if let Some(cap) = config.power_cap {
-                self.write_hwmon_file("power", "_max", &((cap * 1_000_000.0) as u64).to_string())
-                    .context("Could not set power cap")?;
-            }
-
-            Ok(())
-        })
-    }
-
-    fn get_stats(&self, _gpu_config: Option<&config::Gpu>) -> DeviceStats {
-        let current_gfxclk = self.read_freq(FrequencyType::Cur);
-        let gpu_clockspeed = self
-            .read_freq(FrequencyType::Act)
-            .filter(|value| *value != 0)
-            .or(current_gfxclk);
-
-        let clockspeed = ClockspeedStats {
-            gpu_clockspeed,
-            current_gfxclk,
-            vram_clockspeed: None,
-        };
-
-        let cap_current = self
-            .read_hwmon_file("power", "_max")
-            .map(|value: f64| value / 1_000_000.0)
-            .map(|cap| if cap == 0.0 { 100.0 } else { cap }); // Placeholder max value
-
-        let power = PowerStats {
-            average: None,
-            current: self.get_power_usage(),
-            cap_current,
-            cap_min: Some(0.0),
-            cap_max: self
-                .read_hwmon_file::<f64>("power", "_rated_max")
-                .filter(|max| *max != 0.0)
-                .map(|cap| cap / 1_000_000.0)
-                .or_else(|| cap_current.map(|current| current * 2.0)),
-            cap_default: self.initial_power_cap,
-        };
-
-        let voltage = VoltageStats {
-            gpu: self.read_hwmon_file("in", "_input"),
-            northbridge: None,
-        };
-
-        let vram = VramStats {
-            total: self
-                .drm_try_2(IntelDrm::drm_intel_get_aperture_sizes)
-                .map(|(_, total)| total as u64),
-            used: None,
-        };
-
-        let fan = FanStats {
-            speed_current: self.read_hwmon_file("fan", "_input"),
-            ..Default::default()
-        };
-
-        DeviceStats {
-            clockspeed,
-            vram,
-            busy_percent: self.get_busy_percent(),
-            power,
-            temps: self.get_temperatures(),
-            voltage,
-            throttle_info: self.get_throttle_info(),
-            fan,
-            ..Default::default()
-        }
-    }
-
-    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
-        let clocks_table = IntelClocksTable {
-            gt_freq: self
-                .read_freq(FrequencyType::Min)
-                .zip(self.read_freq(FrequencyType::Max)),
-            rp0_freq: self.read_freq(FrequencyType::Rp0),
-            rpe_freq: self.read_freq(FrequencyType::Rpe),
-            rpn_freq: self.read_freq(FrequencyType::Rpn),
-        };
-
-        let table = if clocks_table == IntelClocksTable::default() {
-            None
-        } else {
-            Some(ClocksTable::Intel(clocks_table))
-        };
-
-        Ok(ClocksInfo {
-            table,
-            ..Default::default()
-        })
-    }
-
-    fn get_power_states(&self, _gpu_config: Option<&config::Gpu>) -> PowerStates {
-        let core = [
-            FrequencyType::Rpn,
-            FrequencyType::Rpe,
-            FrequencyType::Rp0,
-            FrequencyType::Boost,
-        ]
-        .into_iter()
-        .filter_map(|freq_type| {
-            let value = self.read_freq(freq_type)?;
-            Some(PowerState {
-                enabled: true,
-                min_value: None,
-                value,
-                index: None,
-            })
-        })
-        .collect();
-
-        PowerStates { core, vram: vec![] }
-    }
-
-    fn reset_pmfw_settings(&self) {}
-
-    #[allow(clippy::cast_possible_truncation)]
-    fn cleanup_clocks(&self) -> anyhow::Result<()> {
-        if let Some(rp0) = self.read_freq(FrequencyType::Rp0) {
-            if let Err(err) = self.write_freq(FrequencyType::Max, rp0 as i32) {
-                warn!("could not reset max clock: {err:#}");
-            }
-        }
-
-        if let Some(rpn) = self.read_freq(FrequencyType::Rpn) {
-            if let Err(err) = self.write_freq(FrequencyType::Min, rpn as i32) {
-                warn!("could not reset min clock: {err:#}");
-            }
-        }
-
-        Ok(())
-    }
-
-    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable> {
-        Err(anyhow!("Not supported"))
-    }
-
-    fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
-        Err(anyhow!("Not supported"))
-    }
-}
-
-impl IntelGpuController {
     #[allow(clippy::unused_self)]
     fn debugfs_path(&self) -> PathBuf {
         #[cfg(test)]
@@ -430,26 +246,6 @@ impl IntelGpuController {
             let result = f(&self.drm, self.drm_file.as_raw_fd(), &mut out);
             if result == 0 {
                 Some(out)
-            } else {
-                None
-            }
-        }
-    }
-
-    #[cfg_attr(test, allow(unreachable_code, unused_variables))]
-    fn drm_try_2<T: Default, O: Default>(
-        &self,
-        f: unsafe fn(&IntelDrm, c_int, *mut T, *mut O) -> c_int,
-    ) -> Option<(T, O)> {
-        #[cfg(test)]
-        return None;
-
-        unsafe {
-            let mut a = T::default();
-            let mut b = O::default();
-            let result = f(&self.drm, self.drm_file.as_raw_fd(), &mut a, &mut b);
-            if result == 0 {
-                Some((a, b))
             } else {
                 None
             }
@@ -623,6 +419,250 @@ impl IntelGpuController {
             }
         }
         Some(reasons)
+    }
+
+    fn get_vram_stats(&self) -> VramStats {
+        let mut total = None;
+        let mut used = None;
+
+        match self.driver_type {
+            DriverType::I915 => {
+                if let Ok(Some(query)) = drm::i915::query_memory_regions(&self.drm_file) {
+                    let mut i915_total = 0;
+                    let mut i915_unallocated = 0;
+
+                    unsafe {
+                        let regions = query.regions.as_slice(query.num_regions as usize);
+                        for region_info in regions {
+                            if u32::from(region_info.region.memory_class)
+                                == drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE
+                            {
+                                i915_total += region_info.probed_size;
+                                i915_unallocated += region_info.unallocated_size;
+                            }
+                        }
+                    }
+
+                    if i915_total > 0 {
+                        total = Some(i915_total);
+                    }
+                    if i915_total > 0 {
+                        used = Some(i915_total - i915_unallocated);
+                    }
+                }
+            }
+            DriverType::Xe => {
+                if let Ok(Some(query)) = drm::xe::query_mem_regions(&self.drm_file) {
+                    let mut xe_total = 0;
+                    let mut xe_used = 0;
+
+                    unsafe {
+                        let regions = query.mem_regions.as_slice(query.num_mem_regions as usize);
+                        for region_info in regions {
+                            if u32::from(region_info.mem_class)
+                                == drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM
+                            {
+                                xe_total += region_info.total_size;
+                                xe_used += region_info.used;
+                            }
+                        }
+                    }
+
+                    if xe_used > 0 {
+                        total = Some(xe_total);
+                    }
+                    if xe_used > 0 {
+                        used = Some(xe_used);
+                    }
+                }
+            }
+        }
+
+        VramStats { total, used }
+    }
+}
+
+impl GpuController for IntelGpuController {
+    fn controller_info(&self) -> &CommonControllerInfo {
+        &self.common
+    }
+
+    fn get_info(&self) -> DeviceInfo {
+        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
+            Ok(info) => Some(info),
+            Err(err) => {
+                warn!("could not load vulkan info: {err}");
+                None
+            }
+        };
+
+        let drm_info = DrmInfo {
+            intel: match self.driver_type {
+                DriverType::I915 => self.get_drm_info_i915(),
+                DriverType::Xe => self.get_drm_info_xe(),
+            },
+            vram_clock_ratio: 1.0,
+            ..Default::default()
+        };
+
+        DeviceInfo {
+            pci_info: Some(self.common.pci_info.clone()),
+            vulkan_info,
+            driver: self.common.driver.clone(),
+            vbios_version: None,
+            link_info: LinkInfo::default(),
+            drm_info: Some(drm_info),
+        }
+    }
+
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    fn apply_config<'a>(
+        &'a self,
+        config: &'a config::Gpu,
+    ) -> LocalBoxFuture<'a, anyhow::Result<()>> {
+        Box::pin(async {
+            if let Some(max_clock) = config.clocks_configuration.max_core_clock {
+                self.write_freq(FrequencyType::Max, max_clock)
+                    .context("Could not set max clock")?;
+            }
+
+            if let Some(min_clock) = config.clocks_configuration.min_core_clock {
+                self.write_freq(FrequencyType::Min, min_clock)
+                    .context("Could not set min clock")?;
+            }
+
+            if let Some(cap) = config.power_cap {
+                self.write_hwmon_file("power", "_max", &((cap * 1_000_000.0) as u64).to_string())
+                    .context("Could not set power cap")?;
+            }
+
+            Ok(())
+        })
+    }
+
+    fn get_stats(&self, _gpu_config: Option<&config::Gpu>) -> DeviceStats {
+        let current_gfxclk = self.read_freq(FrequencyType::Cur);
+        let gpu_clockspeed = self
+            .read_freq(FrequencyType::Act)
+            .filter(|value| *value != 0)
+            .or(current_gfxclk);
+
+        let clockspeed = ClockspeedStats {
+            gpu_clockspeed,
+            current_gfxclk,
+            vram_clockspeed: None,
+        };
+
+        let cap_current = self
+            .read_hwmon_file("power", "_max")
+            .map(|value: f64| value / 1_000_000.0)
+            .map(|cap| if cap == 0.0 { 100.0 } else { cap }); // Placeholder max value
+
+        let power = PowerStats {
+            average: None,
+            current: self.get_power_usage(),
+            cap_current,
+            cap_min: Some(0.0),
+            cap_max: self
+                .read_hwmon_file::<f64>("power", "_rated_max")
+                .filter(|max| *max != 0.0)
+                .map(|cap| cap / 1_000_000.0)
+                .or_else(|| cap_current.map(|current| current * 2.0)),
+            cap_default: self.initial_power_cap,
+        };
+
+        let voltage = VoltageStats {
+            gpu: self.read_hwmon_file("in", "_input"),
+            northbridge: None,
+        };
+
+        let fan = FanStats {
+            speed_current: self.read_hwmon_file("fan", "_input"),
+            ..Default::default()
+        };
+
+        DeviceStats {
+            clockspeed,
+            vram: self.get_vram_stats(),
+            busy_percent: self.get_busy_percent(),
+            power,
+            temps: self.get_temperatures(),
+            voltage,
+            throttle_info: self.get_throttle_info(),
+            fan,
+            ..Default::default()
+        }
+    }
+
+    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
+        let clocks_table = IntelClocksTable {
+            gt_freq: self
+                .read_freq(FrequencyType::Min)
+                .zip(self.read_freq(FrequencyType::Max)),
+            rp0_freq: self.read_freq(FrequencyType::Rp0),
+            rpe_freq: self.read_freq(FrequencyType::Rpe),
+            rpn_freq: self.read_freq(FrequencyType::Rpn),
+        };
+
+        let table = if clocks_table == IntelClocksTable::default() {
+            None
+        } else {
+            Some(ClocksTable::Intel(clocks_table))
+        };
+
+        Ok(ClocksInfo {
+            table,
+            ..Default::default()
+        })
+    }
+
+    fn get_power_states(&self, _gpu_config: Option<&config::Gpu>) -> PowerStates {
+        let core = [
+            FrequencyType::Rpn,
+            FrequencyType::Rpe,
+            FrequencyType::Rp0,
+            FrequencyType::Boost,
+        ]
+        .into_iter()
+        .filter_map(|freq_type| {
+            let value = self.read_freq(freq_type)?;
+            Some(PowerState {
+                enabled: true,
+                min_value: None,
+                value,
+                index: None,
+            })
+        })
+        .collect();
+
+        PowerStates { core, vram: vec![] }
+    }
+
+    fn reset_pmfw_settings(&self) {}
+
+    #[allow(clippy::cast_possible_truncation)]
+    fn cleanup_clocks(&self) -> anyhow::Result<()> {
+        if let Some(rp0) = self.read_freq(FrequencyType::Rp0) {
+            if let Err(err) = self.write_freq(FrequencyType::Max, rp0 as i32) {
+                warn!("could not reset max clock: {err:#}");
+            }
+        }
+
+        if let Some(rpn) = self.read_freq(FrequencyType::Rpn) {
+            if let Err(err) = self.write_freq(FrequencyType::Min, rpn as i32) {
+                warn!("could not reset min clock: {err:#}");
+            }
+        }
+
+        Ok(())
+    }
+
+    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable> {
+        Err(anyhow!("Not supported"))
+    }
+
+    fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
+        Err(anyhow!("Not supported"))
     }
 }
 
