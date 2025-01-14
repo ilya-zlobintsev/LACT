@@ -16,9 +16,10 @@ static OC_TOGGLED: AtomicBool = AtomicBool::new(false);
 const PP_OVERDRIVE_MASK: u64 = 0x4000;
 pub const PP_FEATURE_MASK_PATH: &str = "/sys/module/amdgpu/parameters/ppfeaturemask";
 pub const MODULE_CONF_PATH: &str = "/etc/modprobe.d/99-amdgpu-overdrive.conf";
+pub const DAEMON_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub async fn info() -> anyhow::Result<SystemInfo> {
-    let version = env!("CARGO_PKG_VERSION").to_owned();
+    let version = DAEMON_VERSION.to_owned();
     let profile = if cfg!(debug_assertions) {
         "debug"
     } else {

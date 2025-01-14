@@ -6,7 +6,7 @@ use super::{
 use crate::{
     bindings::intel::IntelDrm,
     config::{self, default_fan_static_speed, Config, FanControlSettings, Profile},
-    server::{gpu_controller::init_controller, profiles},
+    server::{gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
 };
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
@@ -561,7 +561,7 @@ impl<'a> Handler {
 
     pub async fn generate_snapshot(&self) -> anyhow::Result<String> {
         let datetime = chrono::Local::now().format("%Y%m%d-%H%M%S");
-        let out_path = format!("/tmp/LACT-sysfs-snapshot-{datetime}.tar.gz");
+        let out_path = format!("/tmp/LACT-v{DAEMON_VERSION}-snapshot-{datetime}.tar.gz");
 
         let out_file = File::create(&out_path)
             .with_context(|| "Could not create output file at {out_path}")?;
