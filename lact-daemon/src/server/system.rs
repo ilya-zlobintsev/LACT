@@ -134,7 +134,7 @@ async fn regenerate_initramfs() -> anyhow::Result<InitramfsType> {
             result.map(|()| initramfs_type)
         }
         None => Err(anyhow!(
-            "Could not determine initramfs type, manual initramfs regeneration may be required"
+            "Distro is not in the known configuration list, manually setting the overclocking option might be required. See the overclocking section on LACT's GitHub page for more information."
         )),
     }
 }
