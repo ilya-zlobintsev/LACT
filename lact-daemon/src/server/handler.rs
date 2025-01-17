@@ -1,5 +1,5 @@
 use super::{
-    gpu_controller::{fan_control::FanCurve, GpuController},
+    gpu_controller::{fan_control::FanCurve, DynGpuController, GpuController},
     profiles::ProfileWatcherCommand,
     system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
 };
@@ -38,7 +38,7 @@ use std::{
 };
 use tokio::{
     process::Command,
-    sync::{mpsc, oneshot},
+    sync::{mpsc, oneshot, RwLock, RwLockReadGuard},
     time::sleep,
 };
 use tracing::{debug, error, info, trace, warn};
@@ -86,8 +86,8 @@ const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
 
 #[derive(Clone)]
 pub struct Handler {
-    pub config: Rc<RefCell<Config>>,
-    pub gpu_controllers: Rc<BTreeMap<String, Box<dyn GpuController>>>,
+    pub config: Rc<RwLock<Config>>,
+    pub gpu_controllers: Rc<RwLock<BTreeMap<String, DynGpuController>>>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
     pub config_last_saved: Rc<Cell<Instant>>,
     pub profile_watcher_tx: Rc<RefCell<Option<mpsc::Sender<ProfileWatcherCommand>>>>,
@@ -151,8 +151,8 @@ impl<'a> Handler {
         info!("initialized {} GPUs", controllers.len());
 
         let handler = Self {
-            gpu_controllers: Rc::new(controllers),
-            config: Rc::new(RefCell::new(config)),
+            gpu_controllers: Rc::new(RwLock::new(controllers)),
+            config: Rc::new(RwLock::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
             config_last_saved: Rc::new(Cell::new(Instant::now())),
             profile_watcher_tx: Rc::new(RefCell::new(None)),
@@ -162,11 +162,11 @@ impl<'a> Handler {
             error!("could not apply config: {err:#}");
         }
 
-        if let Some(profile_name) = &handler.config.borrow().current_profile {
+        if let Some(profile_name) = &handler.config.read().await.current_profile {
             info!("using profile '{profile_name}'");
         }
 
-        if handler.config.borrow().auto_switch_profiles {
+        if handler.config.read().await.auto_switch_profiles {
             handler.start_profile_watcher().await;
         }
 
@@ -182,11 +182,12 @@ impl<'a> Handler {
     }
 
     pub async fn apply_current_config(&self) -> anyhow::Result<()> {
-        let config = self.config.borrow().clone(); // Clone to avoid locking the RwLock on an await point
+        let config = self.config.read().await;
 
         let gpus = config.gpus()?;
+        let controllers = self.gpu_controllers.read().await;
         for (id, gpu_config) in gpus {
-            if let Some(controller) = self.gpu_controllers.get(id) {
+            if let Some(controller) = controllers.get(id) {
                 if let Err(err) = controller.apply_config(gpu_config).await {
                     error!("could not apply existing config for gpu {id}: {err}");
                 }
@@ -231,7 +232,7 @@ impl<'a> Handler {
         }
 
         let (gpu_config, apply_timer) = {
-            let config = self.config.try_borrow().map_err(|err| anyhow!("{err}"))?;
+            let config = self.config.read().await;
             let apply_timer = config.apply_settings_timer;
             let gpu_config = config.gpus()?.get(&id).cloned().unwrap_or_default();
             (gpu_config, apply_timer)
@@ -240,7 +241,7 @@ impl<'a> Handler {
         let mut new_config = gpu_config.clone();
         f(&mut new_config);
 
-        let controller = self.controller_by_id(&id)?;
+        let controller = self.controller_by_id(&id).await?;
 
         match controller.apply_config(&new_config).await {
             Ok(()) => {
@@ -278,6 +279,7 @@ impl<'a> Handler {
         tokio::task::spawn_local(async move {
             let controller = handler
                 .controller_by_id(&id)
+                .await
                 .expect("GPU controller disappeared");
 
             tokio::select! {
@@ -293,7 +295,7 @@ impl<'a> Handler {
                         Ok(ConfirmCommand::Confirm) => {
                             info!("saving updated config");
 
-                            let mut config_guard = handler.config.borrow_mut();
+                            let mut config_guard = handler.config.write().await;
                             match config_guard.gpus_mut() {
                                 Ok(gpus) => {
                                     gpus.insert(id, new_config);
@@ -323,16 +325,19 @@ impl<'a> Handler {
         Ok(())
     }
 
-    fn controller_by_id(&self, id: &str) -> anyhow::Result<&dyn GpuController> {
-        Ok(self
-            .gpu_controllers
-            .get(id)
-            .context("No controller with such id")?
-            .as_ref())
+    async fn controller_by_id(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<RwLockReadGuard<'_, dyn GpuController>> {
+        let guard = self.gpu_controllers.read().await;
+        RwLockReadGuard::try_map(guard, |controllers| controllers.get(id).map(Box::as_ref))
+            .map_err(|_| anyhow!("Controller '{id}' not found"))
     }
 
-    pub fn list_devices(&'a self) -> Vec<DeviceListEntry> {
+    pub async fn list_devices(&'a self) -> Vec<DeviceListEntry> {
         self.gpu_controllers
+            .read()
+            .await
             .iter()
             .map(|(id, controller)| {
                 let name = controller
@@ -349,29 +354,23 @@ impl<'a> Handler {
             .collect()
     }
 
-    pub fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo> {
-        Ok(self.controller_by_id(id)?.get_info())
+    pub async fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo> {
+        Ok(self.controller_by_id(id).await?.get_info())
     }
 
-    pub fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
-        let config = self
-            .config
-            .try_borrow()
-            .map_err(|err| anyhow!("Could not read config: {err:?}"))?;
+    pub async fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
+        let config = self.config.read().await;
         let gpu_config = config.gpus()?.get(id);
-        Ok(self.controller_by_id(id)?.get_stats(gpu_config))
+        Ok(self.controller_by_id(id).await?.get_stats(gpu_config))
     }
 
-    pub fn get_clocks_info(&'a self, id: &str) -> anyhow::Result<ClocksInfo> {
-        self.controller_by_id(id)?.get_clocks_info()
+    pub async fn get_clocks_info(&'a self, id: &str) -> anyhow::Result<ClocksInfo> {
+        self.controller_by_id(id).await?.get_clocks_info()
     }
 
     pub async fn set_fan_control(&'a self, opts: FanOptions<'_>) -> anyhow::Result<u64> {
         let settings = {
-            let mut config_guard = self
-                .config
-                .try_borrow_mut()
-                .map_err(|err| anyhow!("{err}"))?;
+            let mut config_guard = self.config.write().await;
             let gpu_config = config_guard
                 .gpus_mut()?
                 .entry(opts.id.to_owned())
@@ -449,7 +448,7 @@ impl<'a> Handler {
 
     pub async fn reset_pmfw(&self, id: &str) -> anyhow::Result<u64> {
         info!("Resetting PMFW settings");
-        self.controller_by_id(id)?.reset_pmfw_settings();
+        self.controller_by_id(id).await?.reset_pmfw_settings();
 
         self.edit_gpu_config(id.to_owned(), |config| {
             config.pmfw_options = PmfwOptions::default();
@@ -466,14 +465,14 @@ impl<'a> Handler {
         .context("Failed to edit GPU config and set power cap")
     }
 
-    pub fn get_power_states(&self, id: &str) -> anyhow::Result<PowerStates> {
-        let config = self
-            .config
-            .try_borrow()
-            .map_err(|err| anyhow!("Could not read config: {err:?}"))?;
+    pub async fn get_power_states(&self, id: &str) -> anyhow::Result<PowerStates> {
+        let config = self.config.read().await;
         let gpu_config = config.gpus()?.get(id);
 
-        let states = self.controller_by_id(id)?.get_power_states(gpu_config);
+        let states = self
+            .controller_by_id(id)
+            .await?
+            .get_power_states(gpu_config);
         Ok(states)
     }
 
@@ -499,7 +498,7 @@ impl<'a> Handler {
         command: SetClocksCommand,
     ) -> anyhow::Result<u64> {
         if let SetClocksCommand::Reset = command {
-            self.controller_by_id(id)?.cleanup_clocks()?;
+            self.controller_by_id(id).await?.cleanup_clocks()?;
         }
 
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
@@ -523,8 +522,11 @@ impl<'a> Handler {
         .context("Failed to edit GPU config and batch set clocks")
     }
 
-    pub fn get_power_profile_modes(&self, id: &str) -> anyhow::Result<PowerProfileModesTable> {
-        let modes_table = self.controller_by_id(id)?.get_power_profile_modes()?;
+    pub async fn get_power_profile_modes(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<PowerProfileModesTable> {
+        let modes_table = self.controller_by_id(id).await?.get_power_profile_modes()?;
         Ok(modes_table)
     }
 
@@ -555,8 +557,8 @@ impl<'a> Handler {
         .context("Failed to edit GPU config and set enabled power states")
     }
 
-    pub fn vbios_dump(&self, id: &str) -> anyhow::Result<Vec<u8>> {
-        self.controller_by_id(id)?.vbios_dump()
+    pub async fn vbios_dump(&self, id: &str) -> anyhow::Result<Vec<u8>> {
+        self.controller_by_id(id).await?.vbios_dump()
     }
 
     pub async fn generate_snapshot(&self) -> anyhow::Result<String> {
@@ -575,7 +577,8 @@ impl<'a> Handler {
             add_path_to_archive(&mut archive, path)?;
         }
 
-        for controller in self.gpu_controllers.values() {
+        let controllers = self.gpu_controllers.read().await;
+        for controller in controllers.values() {
             let controller_path = &controller.controller_info().sysfs_path;
 
             for device_file in SNAPSHOT_DEVICE_FILES {
@@ -664,7 +667,7 @@ impl<'a> Handler {
         let info = json!({
             "system_info": system_info,
             "initramfs_type": initramfs_type,
-            "devices": self.generate_snapshot_device_info(),
+            "devices": self.generate_snapshot_device_info().await,
         });
         let info_data = serde_json::to_vec_pretty(&info).unwrap();
 
@@ -689,37 +692,40 @@ impl<'a> Handler {
         Ok(out_path)
     }
 
-    pub(crate) fn generate_snapshot_device_info(&self) -> BTreeMap<String, serde_json::Value> {
-        self.gpu_controllers
-            .iter()
-            .map(|(id, controller)| {
-                let config = self.config.try_borrow();
-                let gpu_config = config
-                    .as_ref()
-                    .ok()
-                    .and_then(|config| config.gpus().ok()?.get(id));
+    pub(crate) async fn generate_snapshot_device_info(
+        &self,
+    ) -> BTreeMap<String, serde_json::Value> {
+        let controllers = self.gpu_controllers.read().await;
+        let config = self.config.read().await;
 
-                let data = json!({
-                    "pci_info": controller.controller_info().pci_info.clone(),
-                    "info": controller.get_info(),
-                    "stats": controller.get_stats(gpu_config),
-                    "clocks_info": controller.get_clocks_info().ok(),
-                    "power_profile_modes": controller.get_power_profile_modes().ok(),
-                    "power_states": controller.get_power_states(gpu_config),
-                });
-                (id.clone(), data)
-            })
-            .collect()
+        let mut map = BTreeMap::new();
+
+        for (id, controller) in controllers.iter() {
+            let gpu_config = config.gpus().ok().and_then(|gpus| gpus.get(id));
+
+            let data = json!({
+                "pci_info": controller.controller_info().pci_info.clone(),
+                "info": controller.get_info(),
+                "stats": controller.get_stats(gpu_config),
+                "clocks_info": controller.get_clocks_info().ok(),
+                "power_profile_modes": controller.get_power_profile_modes().ok(),
+                "power_states": controller.get_power_states(gpu_config),
+            });
+
+            map.insert(id.clone(), data);
+        }
+
+        map
     }
 
-    pub fn list_profiles(&self, include_state: bool) -> ProfilesInfo {
+    pub async fn list_profiles(&self, include_state: bool) -> ProfilesInfo {
         let watcher_state = if include_state {
             self.profile_watcher_state.borrow().as_ref().cloned()
         } else {
             None
         };
 
-        let config = self.config.borrow();
+        let config = self.config.read().await;
         ProfilesInfo {
             profiles: config
                 .profiles
@@ -743,19 +749,21 @@ impl<'a> Handler {
             self.stop_profile_watcher().await;
             self.set_current_profile(name).await?;
         }
-        self.config.borrow_mut().auto_switch_profiles = auto_switch;
-        self.config.borrow_mut().save(&self.config_last_saved)?;
+
+        let mut config = self.config.write().await;
+        config.auto_switch_profiles = auto_switch;
+        config.save(&self.config_last_saved)?;
 
         Ok(())
     }
 
     pub(super) async fn set_current_profile(&self, name: Option<Rc<str>>) -> anyhow::Result<()> {
         if let Some(name) = &name {
-            self.config.borrow().profile(name)?;
+            self.config.read().await.profile(name)?;
         }
 
         self.cleanup().await;
-        self.config.borrow_mut().current_profile = name;
+        self.config.write().await.current_profile = name;
 
         self.apply_current_config().await?;
 
@@ -764,7 +772,7 @@ impl<'a> Handler {
 
     pub async fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
         {
-            let mut config = self.config.borrow_mut();
+            let mut config = self.config.write().await;
             if config.profiles.contains_key(name.as_str()) {
                 bail!("Profile {name} already exists");
             }
@@ -787,15 +795,16 @@ impl<'a> Handler {
     }
 
     pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
-        if self.config.borrow().current_profile.as_deref() == Some(&name) {
+        if self.config.read().await.current_profile.as_deref() == Some(&name) {
             self.set_current_profile(None).await?;
         }
         self.config
-            .borrow_mut()
+            .write()
+            .await
             .profiles
             .shift_remove(name.as_str());
 
-        self.config.borrow().save(&self.config_last_saved)?;
+        self.config.write().await.save(&self.config_last_saved)?;
 
         let tx = self.profile_watcher_tx.borrow().clone();
         if let Some(tx) = tx {
@@ -807,7 +816,7 @@ impl<'a> Handler {
 
     pub async fn move_profile(&self, name: &str, new_position: usize) -> anyhow::Result<()> {
         {
-            let mut config = self.config.borrow_mut();
+            let mut config = self.config.write().await;
 
             let current_index = config
                 .profiles
@@ -836,13 +845,14 @@ impl<'a> Handler {
         rule: Option<ProfileRule>,
     ) -> anyhow::Result<()> {
         self.config
-            .borrow_mut()
+            .write()
+            .await
             .profiles
             .get_mut(name)
             .with_context(|| format!("Profile {name} not found"))?
             .rule = rule;
 
-        self.config.borrow().save(&self.config_last_saved)?;
+        self.config.read().await.save(&self.config_last_saved)?;
 
         let tx = self.profile_watcher_tx.borrow().clone();
         if let Some(tx) = tx {
@@ -879,7 +889,7 @@ impl<'a> Handler {
     pub async fn reset_config(&self) {
         self.cleanup().await;
 
-        let mut config = self.config.borrow_mut();
+        let mut config = self.config.write().await;
         config.clear();
 
         if let Err(err) = config.save(&self.config_last_saved) {
@@ -888,13 +898,10 @@ impl<'a> Handler {
     }
 
     pub async fn cleanup(&self) {
-        let disable_clocks_cleanup = self
-            .config
-            .try_borrow()
-            .map(|config| config.daemon.disable_clocks_cleanup)
-            .unwrap_or(false);
+        let disable_clocks_cleanup = self.config.read().await.daemon.disable_clocks_cleanup;
 
-        for (id, controller) in &*self.gpu_controllers {
+        let controllers = self.gpu_controllers.read().await;
+        for (id, controller) in controllers.iter() {
             if !disable_clocks_cleanup {
                 debug!("resetting clocks table");
                 if let Err(err) = controller.cleanup_clocks() {
@@ -912,7 +919,7 @@ impl<'a> Handler {
 }
 
 /// `sysfs_only` disables initialization of any external data sources, such as libdrm and nvml
-fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, Box<dyn GpuController>>> {
+fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
     let mut controllers = BTreeMap::new();
 
     let pci_db = Database::read().unwrap_or_else(|err| {

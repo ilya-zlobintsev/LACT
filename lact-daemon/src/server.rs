@@ -131,12 +131,12 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
     match request {
         Request::Ping => ok_response(ping()),
         Request::SystemInfo => ok_response(system::info().await?),
-        Request::ListDevices => ok_response(handler.list_devices()),
-        Request::DeviceInfo { id } => ok_response(handler.get_device_info(id)?),
-        Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id)?),
-        Request::DeviceClocksInfo { id } => ok_response(handler.get_clocks_info(id)?),
+        Request::ListDevices => ok_response(handler.list_devices().await),
+        Request::DeviceInfo { id } => ok_response(handler.get_device_info(id).await?),
+        Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id).await?),
+        Request::DeviceClocksInfo { id } => ok_response(handler.get_clocks_info(id).await?),
         Request::DevicePowerProfileModes { id } => {
-            ok_response(handler.get_power_profile_modes(id)?)
+            ok_response(handler.get_power_profile_modes(id).await?)
         }
         Request::SetFanControl(opts) => ok_response(handler.set_fan_control(opts).await?),
         Request::ResetPmfw { id } => ok_response(handler.reset_pmfw(id).await?),
@@ -160,13 +160,13 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
                 .set_power_profile_mode(id, index, custom_heuristics)
                 .await?,
         ),
-        Request::GetPowerStates { id } => ok_response(handler.get_power_states(id)?),
+        Request::GetPowerStates { id } => ok_response(handler.get_power_states(id).await?),
         Request::SetEnabledPowerStates { id, kind, states } => {
             ok_response(handler.set_enabled_power_states(id, kind, states).await?)
         }
-        Request::VbiosDump { id } => ok_response(handler.vbios_dump(id)?),
+        Request::VbiosDump { id } => ok_response(handler.vbios_dump(id).await?),
         Request::ListProfiles { include_state } => {
-            ok_response(handler.list_profiles(include_state))
+            ok_response(handler.list_profiles(include_state).await)
         }
         Request::SetProfile { name, auto_switch } => ok_response(
             handler
