@@ -96,10 +96,7 @@ pub struct Handler {
 
 impl<'a> Handler {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
-        let base_path = match env::var("_LACT_DRM_SYSFS_PATH") {
-            Ok(custom_path) => PathBuf::from(custom_path),
-            Err(_) => PathBuf::from("/sys/class/drm"),
-        };
+        let base_path = drm_base_path();
         Self::with_base_path(&base_path, config).await
     }
 
@@ -197,6 +194,23 @@ impl<'a> Handler {
         }
 
         Ok(())
+    }
+
+    pub async fn reload_gpus(&self) {
+        let base_path = drm_base_path();
+        match load_controllers(&base_path) {
+            Ok(new_controllers) => {
+                info!("GPU list reloaded with {} devices", new_controllers.len());
+                *self.gpu_controllers.write().await = new_controllers;
+
+                if let Err(err) = self.apply_current_config().await {
+                    error!("could not reapply config: {err:#}");
+                }
+            }
+            Err(err) => {
+                error!("could not load GPU controllers: {err:#}");
+            }
+        }
     }
 
     async fn stop_profile_watcher(&self) {
@@ -1073,4 +1087,11 @@ fn add_path_to_archive(
         trace!("{full_path:?} does not exist, not adding to snapshot");
     }
     Ok(())
+}
+
+fn drm_base_path() -> PathBuf {
+    match env::var("_LACT_DRM_SYSFS_PATH") {
+        Ok(custom_path) => PathBuf::from(custom_path),
+        Err(_) => PathBuf::from("/sys/class/drm"),
+    }
 }

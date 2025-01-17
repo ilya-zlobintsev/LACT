@@ -12,11 +12,14 @@ mod tests;
 use anyhow::Context;
 use config::Config;
 use futures::future::select_all;
+use server::system;
 use server::{handle_stream, handler::Handler, Server};
 use std::cell::Cell;
+use std::sync::Arc;
 use std::time::Instant;
 use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
 use tokio::net::UnixStream;
+use tokio::sync::Notify;
 use tokio::{
     runtime,
     signal::unix::{signal, SignalKind},
@@ -72,6 +75,7 @@ pub fn run() -> anyhow::Result<()> {
 
                 tokio::task::spawn_local(listen_config_changes(handler.clone()));
                 tokio::task::spawn_local(listen_exit_signals(handler.clone()));
+                tokio::task::spawn_local(listen_device_events(handler.clone()));
                 tokio::task::spawn_local(suspend::listen_events(handler));
 
                 server.run().await;
@@ -133,6 +137,22 @@ async fn listen_config_changes(handler: Handler) {
                 error!("could not apply new config: {err:#}");
             }
         }
+    }
+}
+
+async fn listen_device_events(handler: Handler) {
+    let notify = Arc::new(Notify::new());
+    let task_notify = notify.clone();
+    tokio::task::spawn_blocking(move || {
+        if let Err(err) = system::listen_netlink_kernel_event(&task_notify) {
+            error!("kernel event listener error: {err:#}");
+        }
+    });
+
+    loop {
+        notify.notified().await;
+        info!("got kernel drm subsystem event, reloading GPUs");
+        handler.reload_gpus().await;
     }
 }
 
