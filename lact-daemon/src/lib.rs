@@ -20,6 +20,7 @@ use std::time::Instant;
 use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
 use tokio::net::UnixStream;
 use tokio::sync::Notify;
+use tokio::time::timeout;
 use tokio::{
     runtime,
     signal::unix::{signal, SignalKind},
@@ -35,6 +36,7 @@ pub const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 pub use server::system::MODULE_CONF_PATH;
 
 const MIN_SYSTEM_UPTIME_SECS: f32 = 15.0;
+const DRM_EVENT_TIMEOUT_PERIOD_MS: u64 = 100;
 const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
     SignalKind::terminate(),
     SignalKind::interrupt(),
@@ -151,6 +153,16 @@ async fn listen_device_events(handler: Handler) {
 
     loop {
         notify.notified().await;
+
+        // Wait until the timeout has passed with no new events coming in
+        while timeout(
+            Duration::from_millis(DRM_EVENT_TIMEOUT_PERIOD_MS),
+            notify.notified(),
+        )
+        .await
+        .is_ok()
+        {}
+
         info!("got kernel drm subsystem event, reloading GPUs");
         handler.reload_gpus().await;
     }
