@@ -22,6 +22,7 @@ async fn snapshot_everything() {
                 .unwrap();
             let device_info = handler
                 .generate_snapshot_device_info()
+                .await
                 .into_values()
                 .next()
                 .unwrap();

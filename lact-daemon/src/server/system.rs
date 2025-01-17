@@ -1,15 +1,19 @@
 use anyhow::{anyhow, ensure, Context};
 use lact_schema::{InitramfsType, SystemInfo, GIT_COMMIT};
+use nix::sys::socket::{
+    bind, recv, socket, AddressFamily, MsgFlags, NetlinkAddr, SockFlag, SockProtocol, SockType,
+};
 use os_release::{OsRelease, OS_RELEASE};
 use std::{
     fs::{self, File, Permissions},
     io::Write,
-    os::unix::prelude::PermissionsExt,
+    os::{fd::AsRawFd, unix::prelude::PermissionsExt},
     path::Path,
+    process,
     sync::atomic::{AtomicBool, Ordering},
 };
-use tokio::process::Command;
-use tracing::{info, warn};
+use tokio::{process::Command, sync::Notify};
+use tracing::{error, info, warn};
 
 static OC_TOGGLED: AtomicBool = AtomicBool::new(false);
 
@@ -188,6 +192,54 @@ async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<()> {
         let stdout = String::from_utf8(output.stdout).context("stdout is not valid UTF-8")?;
         let stderr = String::from_utf8(output.stderr).context("stderr is not valid UTF-8")?;
         Err(anyhow!("Command exited with error: {stdout}\n{stderr}"))
+    }
+}
+
+pub(crate) fn listen_netlink_kernel_event(notify: &Notify) -> anyhow::Result<()> {
+    let socket = socket(
+        AddressFamily::Netlink,
+        SockType::Raw,
+        SockFlag::empty(),
+        SockProtocol::NetlinkKObjectUEvent,
+    )
+    .context("Could not setup netlink socket")?;
+
+    let sa = NetlinkAddr::new(process::id(), 1);
+    bind(socket.as_raw_fd(), &sa).context("Could not bind netlink socket")?;
+
+    let mut buf = Vec::new();
+    loop {
+        // Read only the size using the peek and truncate flags first
+        let msg_size = recv(
+            socket.as_raw_fd(),
+            &mut [],
+            MsgFlags::MSG_PEEK | MsgFlags::MSG_TRUNC,
+        )
+        .context("Could not read netlink message")?;
+        buf.clear();
+        buf.resize(msg_size, 0);
+
+        // Read the actual message into the buffer
+        recv(socket.as_raw_fd(), &mut buf, MsgFlags::empty())
+            .context("Could not read netlink message")?;
+
+        for raw_line in buf.split(|c| *c == b'\0') {
+            match std::str::from_utf8(raw_line) {
+                Ok(line) => {
+                    if let Some(subsystem) = line.strip_prefix("SUBSYSTEM=") {
+                        if subsystem == "drm" {
+                            notify.notify_one();
+                        }
+                    }
+                }
+                Err(_) => {
+                    error!(
+                        "Got invalid unicode in uevent line {}",
+                        String::from_utf8_lossy(raw_line)
+                    );
+                }
+            }
+        }
     }
 }
 

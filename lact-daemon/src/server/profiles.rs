@@ -220,7 +220,7 @@ async fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler) {
 
 async fn update_profile(handler: &Handler) {
     let new_profile = {
-        let config = handler.config.borrow();
+        let config = handler.config.read().await;
         let profile_rules = config
             .profiles
             .iter()
@@ -237,7 +237,7 @@ async fn update_profile(handler: &Handler) {
         }
     };
 
-    if handler.config.borrow().current_profile != new_profile {
+    if handler.config.read().await.current_profile != new_profile {
         if let Some(name) = &new_profile {
             info!("setting current profile to '{name}'");
         } else {

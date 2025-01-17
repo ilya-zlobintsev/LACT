@@ -12,11 +12,15 @@ mod tests;
 use anyhow::Context;
 use config::Config;
 use futures::future::select_all;
+use server::system;
 use server::{handle_stream, handler::Handler, Server};
 use std::cell::Cell;
+use std::sync::Arc;
 use std::time::Instant;
 use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
 use tokio::net::UnixStream;
+use tokio::sync::Notify;
+use tokio::time::timeout;
 use tokio::{
     runtime,
     signal::unix::{signal, SignalKind},
@@ -32,6 +36,7 @@ pub const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 pub use server::system::MODULE_CONF_PATH;
 
 const MIN_SYSTEM_UPTIME_SECS: f32 = 15.0;
+const DRM_EVENT_TIMEOUT_PERIOD_MS: u64 = 100;
 const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
     SignalKind::terminate(),
     SignalKind::interrupt(),
@@ -72,6 +77,7 @@ pub fn run() -> anyhow::Result<()> {
 
                 tokio::task::spawn_local(listen_config_changes(handler.clone()));
                 tokio::task::spawn_local(listen_exit_signals(handler.clone()));
+                tokio::task::spawn_local(listen_device_events(handler.clone()));
                 tokio::task::spawn_local(suspend::listen_events(handler));
 
                 server.run().await;
@@ -124,7 +130,7 @@ async fn listen_config_changes(handler: Handler) {
     let mut rx = config::start_watcher(handler.config_last_saved.clone());
     while let Some(new_config) = rx.recv().await {
         info!("config file was changed, reloading");
-        handler.config.replace(new_config);
+        *handler.config.write().await = new_config;
         match handler.apply_current_config().await {
             Ok(()) => {
                 info!("configuration reloaded");
@@ -133,6 +139,32 @@ async fn listen_config_changes(handler: Handler) {
                 error!("could not apply new config: {err:#}");
             }
         }
+    }
+}
+
+async fn listen_device_events(handler: Handler) {
+    let notify = Arc::new(Notify::new());
+    let task_notify = notify.clone();
+    tokio::task::spawn_blocking(move || {
+        if let Err(err) = system::listen_netlink_kernel_event(&task_notify) {
+            error!("kernel event listener error: {err:#}");
+        }
+    });
+
+    loop {
+        notify.notified().await;
+
+        // Wait until the timeout has passed with no new events coming in
+        while timeout(
+            Duration::from_millis(DRM_EVENT_TIMEOUT_PERIOD_MS),
+            notify.notified(),
+        )
+        .await
+        .is_ok()
+        {}
+
+        info!("got kernel drm subsystem event, reloading GPUs");
+        handler.reload_gpus().await;
     }
 }
 
