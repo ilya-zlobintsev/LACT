@@ -179,8 +179,6 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
 }
 
 async fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler) {
-    trace!("profile watcher event: {event:?}");
-
     let mut should_reload = false;
     {
         let mut state_guard = handler.profile_watcher_state.borrow_mut();
@@ -191,6 +189,7 @@ async fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler) {
         match *event {
             ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid) {
                 Ok(info) => {
+                    trace!("process {pid} ({}) started", info.name);
                     if info.name.as_ref() == gamemode::PROCESS_NAME {
                         info!("detected gamemode daemon, reloading profile watcher");
                         should_reload = true;
@@ -202,6 +201,7 @@ async fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler) {
                 }
             },
             ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
+                trace!("process {pid} exited");
                 state.remove_process(*pid.as_ref());
             }
             ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
