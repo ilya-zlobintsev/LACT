@@ -13,9 +13,9 @@ use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mo
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats,
-    IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState, PowerStates, PowerStats, VoltageStats,
-    VramStats,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo,
+    FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState, PowerStates, PowerStats,
+    VoltageStats, VramStats,
 };
 use std::{
     cell::Cell,
@@ -421,15 +421,17 @@ impl IntelGpuController {
         Some(reasons)
     }
 
-    fn get_vram_stats(&self) -> VramStats {
-        let mut total = None;
-        let mut used = None;
+    fn get_vram_info(&self) -> IntelVramInfo {
+        let mut total = 0;
+        let mut used = 0;
+        let mut cpu_accessible_total = 0;
+        let mut cpu_accessible_used = 0;
 
         match self.driver_type {
             DriverType::I915 => {
                 if let Ok(Some(query)) = drm::i915::query_memory_regions(&self.drm_file) {
-                    let mut i915_total = 0;
                     let mut i915_unallocated = 0;
+                    let mut cpu_unallocated = 0;
 
                     unsafe {
                         let regions = query.regions.as_slice(query.num_regions as usize);
@@ -437,48 +439,57 @@ impl IntelGpuController {
                             if u32::from(region_info.region.memory_class)
                                 == drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE
                             {
-                                i915_total += region_info.probed_size;
+                                total += region_info.probed_size;
                                 i915_unallocated += region_info.unallocated_size;
+
+                                let cpu_region_info = region_info.__bindgen_anon_1.__bindgen_anon_1;
+                                if cpu_region_info.probed_cpu_visible_size > 0 {
+                                    cpu_accessible_total += cpu_region_info.probed_cpu_visible_size;
+                                    cpu_unallocated += cpu_region_info.unallocated_cpu_visible_size;
+                                }
                             }
                         }
                     }
 
-                    if i915_total > 0 {
-                        total = Some(i915_total);
+                    if total > 0 {
+                        used = total - i915_unallocated;
                     }
-                    if i915_total > 0 {
-                        used = Some(i915_total - i915_unallocated);
+
+                    if cpu_accessible_total > 0 {
+                        cpu_accessible_used = cpu_accessible_total - cpu_unallocated;
                     }
                 }
             }
             DriverType::Xe => {
                 if let Ok(Some(query)) = drm::xe::query_mem_regions(&self.drm_file) {
-                    let mut xe_total = 0;
-                    let mut xe_used = 0;
-
                     unsafe {
                         let regions = query.mem_regions.as_slice(query.num_mem_regions as usize);
                         for region_info in regions {
                             if u32::from(region_info.mem_class)
                                 == drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM
                             {
-                                xe_total += region_info.total_size;
-                                xe_used += region_info.used;
+                                total += region_info.total_size;
+                                used += region_info.used;
+
+                                if region_info.cpu_visible_size > 0 {
+                                    cpu_accessible_total += region_info.cpu_visible_size;
+                                }
                             }
                         }
-                    }
-
-                    if xe_used > 0 {
-                        total = Some(xe_total);
-                    }
-                    if xe_used > 0 {
-                        used = Some(xe_used);
                     }
                 }
             }
         }
 
-        VramStats { total, used }
+        IntelVramInfo {
+            total,
+            used,
+            mem_info: DrmMemoryInfo {
+                cpu_accessible_used,
+                cpu_accessible_total,
+                resizeable_bar: Some(cpu_accessible_total == total),
+            },
+        }
     }
 }
 
@@ -496,12 +507,15 @@ impl GpuController for IntelGpuController {
             }
         };
 
+        let vram_info = self.get_vram_info();
+
         let drm_info = DrmInfo {
             intel: match self.driver_type {
                 DriverType::I915 => self.get_drm_info_i915(),
                 DriverType::Xe => self.get_drm_info_xe(),
             },
             vram_clock_ratio: 1.0,
+            memory_info: Some(vram_info.mem_info),
             ..Default::default()
         };
 
@@ -581,9 +595,21 @@ impl GpuController for IntelGpuController {
             ..Default::default()
         };
 
+        let vram_info = self.get_vram_info();
+        let vram = VramStats {
+            total: match vram_info.total {
+                0 => None,
+                total => Some(total),
+            },
+            used: match vram_info.used {
+                0 => None,
+                used => Some(used),
+            },
+        };
+
         DeviceStats {
             clockspeed,
-            vram: self.get_vram_stats(),
+            vram,
             busy_percent: self.get_busy_percent(),
             power,
             temps: self.get_temperatures(),
@@ -692,4 +718,10 @@ impl fmt::Display for FrequencyType {
         };
         s.fmt(f)
     }
+}
+
+struct IntelVramInfo {
+    total: u64,
+    used: u64,
+    mem_info: DrmMemoryInfo,
 }

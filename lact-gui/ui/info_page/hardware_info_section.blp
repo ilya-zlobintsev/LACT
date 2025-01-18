@@ -79,6 +79,12 @@ template $HardwareInfoSection: $PageSection {
     }
 
     $InfoRow {
+        name: "CPU Accessible VRAM:";
+        value: bind template.cpu_accessible_vram;
+        selectable: true;
+    }
+
+    $InfoRow {
         name: "VRAM Type:";
         value: bind template.vram_type;
         selectable: true;
@@ -111,12 +117,6 @@ template $HardwareInfoSection: $PageSection {
     $InfoRow {
         name: "Resizeable BAR:";
         value: bind template.rebar;
-        selectable: true;
-    }
-
-    $InfoRow {
-        name: "CPU Accessible VRAM:";
-        value: bind template.cpu_accessible_vram;
         selectable: true;
     }
 
