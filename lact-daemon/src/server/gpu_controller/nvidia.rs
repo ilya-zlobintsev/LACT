@@ -329,10 +329,13 @@ impl GpuController for NvidiaGpuController {
                 l3_cache_mb: None,
                 memory_info: device
                     .bar1_memory_info()
-                    .map(|info| DrmMemoryInfo {
-                        cpu_accessible_used: info.used,
-                        cpu_accessible_total: info.total,
-                        resizeable_bar: None,
+                    .map(|bar_info| DrmMemoryInfo {
+                        cpu_accessible_used: bar_info.used,
+                        cpu_accessible_total: bar_info.total,
+                        resizeable_bar: device
+                            .memory_info()
+                            .ok()
+                            .map(|memory_info| bar_info.total >= memory_info.total),
                     })
                     .ok(),
                 intel: IntelDrmInfo::default(),
