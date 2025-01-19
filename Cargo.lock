@@ -1621,9 +1621,9 @@ checksum = "18d287de67fe55fd7e1581fe933d965a5a9477b38e949cfa9f8574ef01506398"
 
 [[package]]
 name = "libdrm_amdgpu_sys"
-version = "0.8.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "239a084aa81eb01317fe32f41a9ba7d284acf13f079523e3b9406339f4ba7c0c"
+checksum = "218fd4e69cfba27f7851d40f9a48759137fa86e5bcc935fe7d65904ac2938e43"
 dependencies = [
  "libc",
  "libloading 0.8.6",
@@ -1670,7 +1670,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
