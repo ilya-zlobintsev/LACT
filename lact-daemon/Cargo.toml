@@ -36,14 +36,14 @@ bitflags = "2.6.0"
 pciid-parser = { version = "0.7", features = ["serde"] }
 serde_yaml = "0.9"
 vulkano = { version = "0.34.1", default-features = false }
-zbus = { version = "4.1.2", default-features = false, features = ["tokio"] }
+zbus = { version = "5.3.1", default-features = false, features = ["tokio"] }
 libdrm_amdgpu_sys = { version = "0.8.1", default-features = false, features = [
     "dynamic_loading",
 ] }
 tar = "0.4.40"
 libflate = "2.0.0"
 os-release = "0.1.0"
-notify = { version = "6.1.1", default-features = false }
+notify = { version = "8.0.0", default-features = false }
 copes = { git = "https://gitlab.com/corectrl/copes" }
 libloading = "0.8.6"
 
