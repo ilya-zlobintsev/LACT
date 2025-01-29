@@ -13,7 +13,7 @@ use amdgpu_sysfs::gpu_handle::{
 use clocks_frame::ClocksFrame;
 use gpu_stats_section::GpuStatsSection;
 use gtk::{
-    glib::clone,
+    glib::object::ObjectExt,
     pango,
     prelude::{BoxExt, ButtonExt, FrameExt, OrientableExt, WidgetExt},
 };
@@ -23,7 +23,7 @@ use performance_frame::PerformanceFrame;
 use power_cap_section::PowerCapSection;
 use power_states::power_states_frame::PowerStatesFrame;
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::Cell, collections::HashMap, rc::Rc};
 use tracing::warn;
 
 const OVERCLOCKING_DISABLED_TEXT: &str = "Overclocking support is not enabled! \
@@ -35,6 +35,8 @@ pub struct OcPage {
     power_cap_section: PowerCapSection,
     pub power_states_frame: PowerStatesFrame,
     pub clocks_frame: ClocksFrame,
+    // TODO: refactor this out when child components use senders
+    signals_blocked: Rc<Cell<bool>>,
 }
 
 #[derive(Debug)]
@@ -45,10 +47,11 @@ pub enum OcPageMsg {
 }
 
 #[relm4::component(pub)]
-impl relm4::SimpleComponent for OcPage {
+impl relm4::Component for OcPage {
     type Init = Rc<SystemInfo>;
     type Input = OcPageMsg;
     type Output = AppMsg;
+    type CommandOutput = ();
 
     view! {
         gtk::ScrolledWindow {
@@ -91,9 +94,17 @@ impl relm4::SimpleComponent for OcPage {
                 },
 
                 model.stats_section.clone(),
-                model.power_cap_section.clone(),
+
+                model.power_cap_section.clone() {
+                    connect_current_value_notify[sender] => move |_| {
+                        sender.output(AppMsg::SettingsChanged).unwrap();
+                    } @power_cap_notify,
+                },
+
                 model.performance_frame.container.clone(),
+
                 model.power_states_frame.clone(),
+
                 model.clocks_frame.container.clone(),
             }
         }
@@ -110,6 +121,7 @@ impl relm4::SimpleComponent for OcPage {
             power_cap_section: PowerCapSection::new(),
             power_states_frame: PowerStatesFrame::new(),
             clocks_frame: ClocksFrame::new(),
+            signals_blocked: Rc::new(Cell::new(false)),
         };
 
         let widgets = view_output!();
@@ -121,13 +133,24 @@ impl relm4::SimpleComponent for OcPage {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: ComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
+        self.signals_blocked.set(true);
         match msg {
             OcPageMsg::Update { update, initial } => match update {
                 PageUpdate::Stats(stats) => {
                     self.stats_section.set_stats(&stats);
                     self.power_states_frame.set_stats(&stats);
+
                     if initial {
+                        self.power_cap_section
+                            .block_signal(&widgets.power_cap_notify);
+
                         self.power_cap_section
                             .set_max_value(stats.power.cap_max.unwrap_or_default());
                         self.power_cap_section
@@ -149,6 +172,9 @@ impl relm4::SimpleComponent for OcPage {
                             }
                             None => self.performance_frame.hide(),
                         }
+
+                        self.power_cap_section
+                            .unblock_signal(&widgets.power_cap_notify);
                     }
                 }
                 PageUpdate::Info(info) => {
@@ -183,17 +209,17 @@ impl relm4::SimpleComponent for OcPage {
             }
         }
 
+        self.signals_blocked.set(false);
+
+        let signals_blocked = self.signals_blocked.clone();
         let f = move || {
-            sender
-                .output(AppMsg::SettingsChanged)
-                .expect("Channel closed")
+            if !signals_blocked.get() {
+                sender
+                    .output(AppMsg::SettingsChanged)
+                    .expect("Channel closed")
+            }
         };
         self.performance_frame.connect_settings_changed(f.clone());
-        self.power_cap_section.connect_current_value_notify(clone!(
-            #[strong]
-            f,
-            move |_| f()
-        ));
         self.clocks_frame.connect_clocks_changed(f.clone());
         self.power_states_frame.connect_values_changed(f);
     }
