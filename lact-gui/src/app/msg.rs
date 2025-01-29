@@ -12,6 +12,7 @@ pub enum AppMsg {
     Stats(Arc<DeviceStats>),
     ApplyChanges,
     RevertChanges,
+    SettingsChanged,
     ResetClocks,
     ResetPmfw,
     ShowGraphsWindow,

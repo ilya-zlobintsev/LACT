@@ -2,13 +2,13 @@ use crate::{app::info_row::InfoRow, GUI_VERSION};
 use gtk::prelude::*;
 use lact_client::schema::{SystemInfo, GIT_COMMIT};
 use relm4::{ComponentParts, ComponentSender, SimpleComponent};
-use std::fmt::Write;
+use std::{fmt::Write, rc::Rc};
 
 pub struct SoftwarePage {}
 
 #[relm4::component(pub)]
 impl SimpleComponent for SoftwarePage {
-    type Init = (SystemInfo, bool);
+    type Init = (Rc<SystemInfo>, bool);
     type Input = ();
     type Output = ();
 
@@ -38,7 +38,7 @@ impl SimpleComponent for SoftwarePage {
         if embedded {
             daemon_version.push_str("-embedded");
         }
-        if let Some(commit) = system_info.commit {
+        if let Some(commit) = &system_info.commit {
             write!(daemon_version, " (commit {commit})").unwrap();
         }
 
