@@ -18,7 +18,7 @@ use gtk::{
     prelude::{BoxExt, ButtonExt, FrameExt, OrientableExt, WidgetExt},
 };
 use lact_daemon::MODULE_CONF_PATH;
-use lact_schema::{ClocksTable, SystemInfo};
+use lact_schema::{request::SetClocksCommand, ClocksTable, PowerStates, SystemInfo};
 use performance_frame::PerformanceFrame;
 use power_cap_section::PowerCapSection;
 use power_states::power_states_frame::PowerStatesFrame;
@@ -33,8 +33,8 @@ pub struct OcPage {
     stats_section: GpuStatsSection,
     pub performance_frame: PerformanceFrame,
     power_cap_section: PowerCapSection,
-    pub power_states_frame: PowerStatesFrame,
-    pub clocks_frame: ClocksFrame,
+    power_states_frame: PowerStatesFrame,
+    clocks_frame: ClocksFrame,
     // TODO: refactor this out when child components use senders
     signals_blocked: Rc<Cell<bool>>,
 }
@@ -44,6 +44,7 @@ pub enum OcPageMsg {
     Update { update: PageUpdate, initial: bool },
     ClocksTable(Option<ClocksTable>),
     ProfileModesTable(Option<PowerProfileModesTable>),
+    PowerStates(PowerStates),
 }
 
 #[relm4::component(pub)]
@@ -207,6 +208,9 @@ impl relm4::Component for OcPage {
             OcPageMsg::ProfileModesTable(modes_table) => {
                 self.performance_frame.set_power_profile_modes(modes_table);
             }
+            OcPageMsg::PowerStates(states) => {
+                self.power_states_frame.set_power_states(states);
+            }
         }
 
         self.signals_blocked.set(false);
@@ -237,6 +241,10 @@ impl OcPage {
 
     pub fn get_power_cap(&self) -> Option<f64> {
         self.power_cap_section.get_user_cap()
+    }
+
+    pub fn get_clocks_commands(&self) -> Vec<SetClocksCommand> {
+        self.clocks_frame.get_commands()
     }
 
     pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {

@@ -521,10 +521,7 @@ impl AppModel {
 
         match self.daemon_client.get_power_states(&gpu_id).await {
             Ok(power_states) => {
-                self.oc_page
-                    .model()
-                    .power_states_frame
-                    .set_power_states(power_states);
+                self.oc_page.emit(OcPageMsg::PowerStates(power_states));
             }
             Err(err) => warn!("could not get power states: {err:?}"),
         }
@@ -645,7 +642,7 @@ impl AppModel {
                 .context("Could not commit config")?;
         }
 
-        let clocks_commands = self.oc_page.model().clocks_frame.get_commands();
+        let clocks_commands = self.oc_page.model().get_clocks_commands();
 
         debug!("applying clocks commands {clocks_commands:#?}");
 
