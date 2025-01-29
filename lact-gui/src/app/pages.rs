@@ -8,7 +8,7 @@ use gtk::{prelude::*, *};
 use lact_schema::{DeviceInfo, DeviceStats};
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PageUpdate {
     Info(Arc<DeviceInfo>),
     Stats(Arc<DeviceStats>),
