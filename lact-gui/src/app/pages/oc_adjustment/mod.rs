@@ -15,6 +15,12 @@ glib::wrapper! {
         @implements gtk::Accessible, gtk::Actionable, gtk::Buildable, gtk::ConstraintTarget;
 }
 
+impl Default for OcAdjustment {
+    fn default() -> Self {
+        Object::builder().build()
+    }
+}
+
 impl OcAdjustment {
     pub fn new(
         value: f64,
@@ -24,7 +30,7 @@ impl OcAdjustment {
         page_increment: f64,
         page_size: f64,
     ) -> Self {
-        let oc_adjustment: Self = Object::builder().build();
+        let oc_adjustment = Self::default();
 
         let adjustment = oc_adjustment.imp().obj();
         adjustment.set_lower(lower);
