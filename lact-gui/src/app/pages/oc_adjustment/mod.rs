@@ -11,7 +11,7 @@ use tracing::debug;
 
 glib::wrapper! {
     pub struct OcAdjustment(ObjectSubclass<imp::OcAdjustment>)
-        @extends gtk::Adjustment, gtk::Widget,
+        @extends gtk::Adjustment,
         @implements gtk::Accessible, gtk::Actionable, gtk::Buildable, gtk::ConstraintTarget;
 }
 
