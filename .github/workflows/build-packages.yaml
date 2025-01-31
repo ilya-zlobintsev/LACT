@@ -80,9 +80,9 @@ jobs:
           gpg --armor --export > $PWD/release-artifacts/lact.pubkey
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target-os }}
+          name: ${{ matrix.target-os }}-${{ matrix.recipe }}
           path: release-artifacts/*
 
   create-test-release:
@@ -95,7 +95,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: downloaded-artifacts/
 

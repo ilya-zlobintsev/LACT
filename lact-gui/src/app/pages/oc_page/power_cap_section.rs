@@ -1,109 +1,136 @@
-use crate::app::page_section::PageSection;
-use gtk::glib::{self, subclass::types::ObjectSubclassIsExt, Object};
+use crate::{
+    app::{
+        msg::AppMsg,
+        page_section::PageSection,
+        pages::{oc_adjustment::OcAdjustment, PageUpdate},
+    },
+    APP_BROKER,
+};
+use gtk::{
+    glib::object::ObjectExt,
+    prelude::{AdjustmentExt, BoxExt, ButtonExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
+};
+use lact_schema::PowerStats;
+use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
+use std::fmt::Write;
 
-glib::wrapper! {
-    pub struct PowerCapSection(ObjectSubclass<imp::PowerCapSection>)
-        @extends PageSection, gtk::Box, gtk::Widget,
-        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
+#[derive(Default)]
+pub struct PowerCapSection {
+    power: PowerStats,
+    adjustment: OcAdjustment,
+    value_text: String,
+}
+
+#[derive(Debug)]
+pub enum PowerCapMsg {
+    Update(PageUpdate),
+    RefreshText,
+    Reset,
+}
+
+#[relm4::component(pub)]
+impl relm4::Component for PowerCapSection {
+    type Init = ();
+    type Input = PowerCapMsg;
+    type Output = ();
+    type CommandOutput = ();
+
+    view! {
+        #[root]
+        PageSection::new("Power usage limit") {
+            append = &gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+
+                gtk::Label {
+                    #[watch]
+                    set_label: &model.value_text,
+                },
+
+                gtk::Scale {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_hexpand: true,
+                    set_round_digits: 0,
+                    set_margin_horizontal: 5,
+                    set_draw_value: false,
+                    set_adjustment: adjustment,
+                },
+
+                gtk::Button {
+                    set_label: "Default",
+                    connect_clicked => PowerCapMsg::Reset,
+                },
+            }
+        },
+
+        #[local_ref]
+        adjustment -> OcAdjustment {
+            connect_value_notify => move |_| {
+                APP_BROKER.send(AppMsg::SettingsChanged);
+            } @ value_notify,
+            connect_value_notify => PowerCapMsg::RefreshText,
+            connect_upper_notify => PowerCapMsg::RefreshText,
+        },
+    }
+
+    fn init(
+        _init: Self::Init,
+        root: Self::Root,
+        _sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let model = Self::default();
+        let adjustment = &model.adjustment;
+
+        let widgets = view_output!();
+
+        ComponentParts { model, widgets }
+    }
+
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: ComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
+        match msg {
+            PowerCapMsg::Update(PageUpdate::Stats(stats)) => {
+                // The signal blocking has to be manual,
+                // because relm's signal block macro feature doesn't seem to work with non-widget objects
+                self.adjustment.block_signal(&widgets.value_notify);
+                let power = stats.power;
+
+                self.adjustment.set_upper(power.cap_max.unwrap_or_default());
+                self.adjustment.set_lower(power.cap_min.unwrap_or_default());
+                self.adjustment
+                    .set_initial_value(power.cap_current.unwrap_or_default());
+
+                self.adjustment.unblock_signal(&widgets.value_notify);
+
+                self.power = power;
+            }
+            PowerCapMsg::Update(PageUpdate::Info(_)) => (),
+            PowerCapMsg::RefreshText => {
+                self.value_text.clear();
+                write!(
+                    self.value_text,
+                    "{}/{} W",
+                    self.adjustment.value(),
+                    self.adjustment.upper()
+                )
+                .unwrap();
+            }
+            PowerCapMsg::Reset => {
+                self.adjustment
+                    .set_value(self.power.cap_default.unwrap_or_default());
+            }
+        }
+
+        self.update_view(widgets, sender);
+    }
 }
 
 impl PowerCapSection {
-    pub fn new() -> Self {
-        Object::builder().build()
-    }
-
     pub fn get_user_cap(&self) -> Option<f64> {
-        let imp = self.imp();
-        imp.adjustment.get_changed_value(true)
+        self.adjustment.get_changed_value(true)
     }
-
-    pub fn set_initial_value(&self, value: f64) {
-        self.imp().adjustment.set_initial_value(value);
-    }
-}
-
-impl Default for PowerCapSection {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-mod imp {
-    use crate::app::{page_section::PageSection, pages::oc_adjustment::OcAdjustment};
-    use gtk::{
-        glib::{self, clone, subclass::InitializingObject, types::StaticTypeExt, Properties},
-        prelude::{ButtonExt, ObjectExt},
-        subclass::{
-            prelude::*,
-            widget::{CompositeTemplateClass, WidgetImpl},
-        },
-        Button, CompositeTemplate,
-    };
-    use std::cell::RefCell;
-
-    #[derive(CompositeTemplate, Default, Properties)]
-    #[properties(wrapper_type = super::PowerCapSection)]
-    #[template(file = "ui/oc_page/power_cap_section.blp")]
-    pub struct PowerCapSection {
-        #[property(get, set)]
-        pub current_value: RefCell<f64>,
-        #[property(get, set)]
-        pub max_value: RefCell<f64>,
-        #[property(get, set)]
-        pub min_value: RefCell<f64>,
-        #[property(get, set)]
-        pub default_value: RefCell<f64>,
-        #[property(get, set)]
-        pub value_text: RefCell<String>,
-
-        #[template_child]
-        pub adjustment: TemplateChild<OcAdjustment>,
-        #[template_child]
-        pub reset_button: TemplateChild<Button>,
-    }
-
-    #[glib::object_subclass]
-    impl ObjectSubclass for PowerCapSection {
-        const NAME: &'static str = "PowerCapSection";
-        type Type = super::PowerCapSection;
-        type ParentType = PageSection;
-
-        fn class_init(class: &mut Self::Class) {
-            OcAdjustment::ensure_type();
-            class.bind_template();
-        }
-
-        fn instance_init(obj: &InitializingObject<Self>) {
-            obj.init_template();
-        }
-    }
-
-    #[glib::derived_properties]
-    impl ObjectImpl for PowerCapSection {
-        fn constructed(&self) {
-            self.parent_constructed();
-
-            let obj = self.obj();
-
-            obj.connect_current_value_notify(move |section| {
-                let text = format!("{}/{} W", section.current_value(), section.max_value());
-                section.set_value_text(text);
-            });
-            obj.connect_max_value_notify(move |section| {
-                let text = format!("{}/{} W", section.current_value(), section.max_value());
-                section.set_value_text(text);
-            });
-
-            self.reset_button.connect_clicked(clone!(
-                #[strong]
-                obj,
-                move |_| {
-                    obj.set_current_value(obj.default_value());
-                }
-            ));
-        }
-    }
-
-    impl WidgetImpl for PowerCapSection {}
-    impl BoxImpl for PowerCapSection {}
 }
