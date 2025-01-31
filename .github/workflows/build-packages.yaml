@@ -82,7 +82,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target-os }}
+          name: ${{ matrix.target-os }}-${{ matrix.recipe }}
           path: release-artifacts/*
 
   create-test-release:
