@@ -1,151 +1,126 @@
-use gtk::{
-    glib::{self, Object},
-    prelude::WidgetExt,
-    prelude::{GridExt, ObjectExt},
-    subclass::prelude::ObjectSubclassIsExt,
-    Grid,
+use crate::{
+    app::{msg::AppMsg, pages::oc_adjustment::OcAdjustment},
+    APP_BROKER,
 };
-use std::sync::atomic::Ordering;
+use gtk::{
+    glib::{object::ObjectExt, SignalHandlerId},
+    prelude::{AdjustmentExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
+};
+use lact_schema::request::ClockspeedType;
+use relm4::{prelude::FactoryComponent, RelmWidgetExt};
 
-glib::wrapper! {
-    pub struct AdjustmentRow(ObjectSubclass<imp::AdjustmentRow>)
-        @extends gtk::Widget,
-        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
+pub struct ClockAdjustmentRow {
+    clock_type: ClockspeedType,
+    value_ratio: f64,
+    change_signal: SignalHandlerId,
+    adjustment: OcAdjustment,
 }
 
-impl AdjustmentRow {
-    pub fn new(title: &str) -> Self {
-        Object::builder()
-            .property("title", title)
-            .property("visible", true)
-            .property("value_ratio", 1.0)
-            .build()
+pub struct ClocksData {
+    pub current: i32,
+    pub min: i32,
+    pub max: i32,
+}
+
+#[derive(Debug)]
+pub enum ClockAdjustmentRowMsg {
+    ValueRatio(f64),
+}
+
+#[relm4::factory(pub)]
+impl FactoryComponent for ClockAdjustmentRow {
+    type ParentWidget = gtk::Box;
+    type CommandOutput = ();
+    type Init = ClocksData;
+    type Input = ClockAdjustmentRowMsg;
+    type Output = ();
+    type Index = ClockspeedType;
+
+    view! {
+        gtk::Box {
+            gtk::Label {
+                set_width_request: 185,
+                set_xalign: 0.0,
+                set_label: match self.clock_type {
+                    ClockspeedType::MaxCoreClock => "Maximum GPU Clock (MHz)",
+                    ClockspeedType::MaxMemoryClock => "Maximum VRAM Clock (MHz)",
+                    ClockspeedType::MaxVoltage => "Maximum GPU voltage (mV)",
+                    ClockspeedType::MinCoreClock => "Minimum GPU Clock (MHz)",
+                    ClockspeedType::MinMemoryClock => "Minimum VRAM Clock (MHz)",
+                    ClockspeedType::MinVoltage => "Minimum GPU voltage (mV)",
+                    ClockspeedType::VoltageOffset => "GPU voltage offset (mV)",
+                    ClockspeedType::Reset => unreachable!(),
+                },
+            },
+
+            gtk::Scale {
+                set_adjustment: &self.adjustment,
+                set_orientation: gtk::Orientation::Horizontal,
+                set_hexpand: true,
+                set_digits: 0,
+                set_round_digits: 0,
+                set_value_pos: gtk::PositionType::Right,
+                set_margin_horizontal: 5,
+            },
+
+            gtk::SpinButton {
+                set_adjustment: &self.adjustment,
+                set_width_request: 120,
+            },
+        }
     }
 
-    pub fn new_and_attach(title: &str, grid: &Grid, row: i32) -> Self {
-        let adj_row = Self::new(title);
-        adj_row.attach_to_grid(grid, row);
-        adj_row
+    fn init_model(
+        data: Self::Init,
+        clock_type: &Self::Index,
+        _sender: relm4::FactorySender<Self>,
+    ) -> Self {
+        let adjustment = OcAdjustment::new(
+            data.current as f64,
+            data.min as f64,
+            data.max as f64,
+            1.0,
+            10.0,
+            1.0,
+        );
+
+        let change_signal = adjustment.connect_value_changed(move |_| {
+            APP_BROKER.send(AppMsg::SettingsChanged);
+        });
+
+        Self {
+            clock_type: *clock_type,
+            adjustment,
+            change_signal,
+            value_ratio: 1.0,
+        }
     }
 
-    pub fn get_value(&self) -> Option<i32> {
-        self.imp()
-            .adjustment
+    fn update(&mut self, msg: Self::Input, _sender: relm4::FactorySender<Self>) {
+        match msg {
+            ClockAdjustmentRowMsg::ValueRatio(ratio) => {
+                self.adjustment.block_signal(&self.change_signal);
+
+                let raw_current = self.adjustment.value() / self.value_ratio;
+                let raw_min = self.adjustment.lower() / self.value_ratio;
+                let raw_max = self.adjustment.upper() / self.value_ratio;
+
+                self.adjustment.set_lower(raw_min * ratio);
+                self.adjustment.set_upper(raw_max * ratio);
+                self.adjustment.set_initial_value(raw_current * ratio);
+
+                self.value_ratio = ratio;
+
+                self.adjustment.unblock_signal(&self.change_signal);
+            }
+        }
+    }
+}
+
+impl ClockAdjustmentRow {
+    pub fn get_configured_value(&self) -> Option<i32> {
+        self.adjustment
             .get_changed_value(false)
-            .map(|value| value as i32)
+            .map(|value| (value / self.value_ratio) as i32)
     }
-
-    pub fn attach_to_grid(&self, grid: &Grid, row: i32) {
-        let obj = self.imp();
-
-        obj.label.unparent();
-        obj.scale.unparent();
-        obj.value_button.unparent();
-
-        grid.attach(&obj.label.get(), 0, row, 1, 1);
-        grid.attach(&obj.scale.get(), 1, row, 4, 1);
-        grid.attach(&obj.value_button.get(), 6, row, 4, 1);
-    }
-
-    pub fn refresh(&self) {
-        let obj = self.imp();
-        obj.adjustment.emit_by_name::<()>("value-changed", &[]);
-        self.notify("visible");
-        obj.adjustment.imp().changed.store(false, Ordering::SeqCst);
-    }
-}
-
-mod imp {
-    use crate::app::pages::oc_adjustment::OcAdjustment;
-    use glib::{clone, subclass::InitializingObject};
-    use gtk::{
-        glib::{self, Properties},
-        prelude::*,
-        subclass::{
-            prelude::*,
-            widget::{CompositeTemplateClass, WidgetImpl},
-        },
-        CompositeTemplate, Label, MenuButton, Scale, SpinButton, TemplateChild,
-    };
-    use std::{cell::RefCell, rc::Rc};
-
-    #[derive(CompositeTemplate, Default, Properties)]
-    #[properties(wrapper_type = super::AdjustmentRow)]
-    #[template(file = "ui/oc_page/clocks_frame/adjustment_row.blp")]
-    pub struct AdjustmentRow {
-        #[property(get, set)]
-        pub visible: Rc<RefCell<bool>>,
-        #[property(get, set)]
-        pub value_ratio: Rc<RefCell<f64>>,
-        #[property(get, set)]
-        pub title: Rc<RefCell<String>>,
-
-        #[template_child]
-        pub label: TemplateChild<Label>,
-        #[template_child]
-        pub scale: TemplateChild<Scale>,
-        #[template_child]
-        pub value_button: TemplateChild<MenuButton>,
-        #[template_child]
-        pub value_spinbutton: TemplateChild<SpinButton>,
-        #[template_child]
-        pub adjustment: TemplateChild<OcAdjustment>,
-    }
-
-    #[glib::object_subclass]
-    impl ObjectSubclass for AdjustmentRow {
-        const NAME: &'static str = "AdjustmentRow";
-        type Type = super::AdjustmentRow;
-        type ParentType = gtk::Widget;
-
-        fn class_init(class: &mut Self::Class) {
-            OcAdjustment::ensure_type();
-            class.bind_template();
-        }
-
-        fn instance_init(obj: &InitializingObject<Self>) {
-            obj.init_template();
-        }
-    }
-
-    #[glib::derived_properties]
-    impl ObjectImpl for AdjustmentRow {
-        fn constructed(&self) {
-            self.parent_constructed();
-
-            self.adjustment.connect_value_changed(clone!(
-                #[strong(rename_to = value_button)]
-                self.value_button,
-                #[strong(rename_to = value_ratio)]
-                self.value_ratio,
-                move |adj| {
-                    let ratio = *value_ratio.borrow();
-                    let text = (adj.value() * ratio).to_string();
-                    value_button.set_label(&text);
-                }
-            ));
-
-            self.value_spinbutton.connect_input(clone!(
-                #[strong(rename_to = value_ratio)]
-                self.value_ratio,
-                move |spin| {
-                    let text = spin.text();
-                    let value: f64 = text.parse().ok()?;
-                    Some(Ok(value / *value_ratio.borrow()))
-                }
-            ));
-
-            self.value_spinbutton.connect_output(clone!(
-                #[strong(rename_to = value_ratio)]
-                self.value_ratio,
-                move |spin| {
-                    let display_value = spin.value() * *value_ratio.borrow();
-                    spin.set_text(&display_value.to_string());
-                    glib::Propagation::Stop
-                }
-            ));
-        }
-    }
-
-    impl WidgetImpl for AdjustmentRow {}
 }

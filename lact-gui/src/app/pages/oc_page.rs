@@ -10,7 +10,7 @@ use crate::app::msg::AppMsg;
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
-use clocks_frame::ClocksFrame;
+use clocks_frame::{ClocksFrame, ClocksFrameMsg};
 use gpu_stats_section::GpuStatsSection;
 use gtk::{
     pango,
@@ -23,7 +23,6 @@ use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::PowerStatesFrame;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::{cell::Cell, collections::HashMap, rc::Rc};
-use tracing::warn;
 
 const OVERCLOCKING_DISABLED_TEXT: &str = "Overclocking support is not enabled! \
 You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
@@ -33,7 +32,7 @@ pub struct OcPage {
     pub performance_frame: PerformanceFrame,
     power_cap_section: relm4::Controller<PowerCapSection>,
     power_states_frame: PowerStatesFrame,
-    clocks_frame: ClocksFrame,
+    clocks_frame: relm4::Controller<ClocksFrame>,
     // TODO: refactor this out when child components use senders
     signals_blocked: Rc<Cell<bool>>,
 }
@@ -94,14 +93,10 @@ impl relm4::Component for OcPage {
                 },
 
                 model.stats_section.clone(),
-
                 model.power_cap_section.widget(),
-
                 model.performance_frame.container.clone(),
-
                 model.power_states_frame.clone(),
-
-                model.clocks_frame.container.clone(),
+                model.clocks_frame.widget(),
             }
         }
     }
@@ -112,21 +107,18 @@ impl relm4::Component for OcPage {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let power_cap_section = PowerCapSection::builder().launch(()).detach();
+        let clocks_frame = ClocksFrame::builder().launch(()).detach();
 
         let model = Self {
             stats_section: GpuStatsSection::new(),
             performance_frame: PerformanceFrame::new(),
             power_cap_section,
             power_states_frame: PowerStatesFrame::new(),
-            clocks_frame: ClocksFrame::new(),
+            clocks_frame,
             signals_blocked: Rc::new(Cell::new(false)),
         };
 
         let widgets = view_output!();
-
-        model.clocks_frame.connect_clocks_reset(move || {
-            sender.output(AppMsg::ResetClocks).expect("Channel closed")
-        });
 
         ComponentParts { model, widgets }
     }
@@ -165,32 +157,18 @@ impl relm4::Component for OcPage {
                     }
                 }
                 PageUpdate::Info(info) => {
-                    let vram_clock_ratio = info
-                        .drm_info
-                        .as_ref()
-                        .map(|info| info.vram_clock_ratio)
-                        .unwrap_or(1.0);
+                    let vram_clock_ratio = info.vram_clock_ratio();
 
                     self.power_states_frame
                         .set_vram_clock_ratio(vram_clock_ratio);
                     self.stats_section.set_vram_clock_ratio(vram_clock_ratio);
-                    self.clocks_frame.set_vram_clock_ratio(vram_clock_ratio);
+                    self.clocks_frame
+                        .emit(ClocksFrameMsg::VramRatio(vram_clock_ratio));
                 }
             },
-            OcPageMsg::ClocksTable(table) => match table {
-                Some(table) => match self.clocks_frame.set_table(table) {
-                    Ok(()) => {
-                        self.clocks_frame.show();
-                    }
-                    Err(err) => {
-                        warn!("got invalid clocks table: {err:?}");
-                        self.clocks_frame.hide();
-                    }
-                },
-                None => {
-                    self.clocks_frame.hide();
-                }
-            },
+            OcPageMsg::ClocksTable(table) => {
+                self.clocks_frame.emit(ClocksFrameMsg::Clocks(table));
+            }
             OcPageMsg::ProfileModesTable(modes_table) => {
                 self.performance_frame.set_power_profile_modes(modes_table);
             }
@@ -211,7 +189,6 @@ impl relm4::Component for OcPage {
             }
         };
         self.performance_frame.connect_settings_changed(f.clone());
-        self.clocks_frame.connect_clocks_changed(f.clone());
         self.power_states_frame.connect_values_changed(f);
 
         self.update_view(widgets, sender);
@@ -233,7 +210,7 @@ impl OcPage {
     }
 
     pub fn get_clocks_commands(&self) -> Vec<SetClocksCommand> {
-        self.clocks_frame.get_commands()
+        self.clocks_frame.model().get_commands()
     }
 
     pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {

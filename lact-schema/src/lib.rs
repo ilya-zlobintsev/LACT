@@ -103,6 +103,15 @@ pub struct DeviceInfo {
     pub drm_info: Option<DrmInfo>,
 }
 
+impl DeviceInfo {
+    pub fn vram_clock_ratio(&self) -> f64 {
+        self.drm_info
+            .as_ref()
+            .map(|info| info.vram_clock_ratio)
+            .unwrap_or(1.0)
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DrmInfo {

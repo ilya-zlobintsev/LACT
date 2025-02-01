@@ -3,7 +3,9 @@ use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use anyhow::Context;
 use indexmap::IndexMap;
 use lact_schema::{
-    default_fan_curve, request::SetClocksCommand, FanControlMode, PmfwOptions, ProfileRule,
+    default_fan_curve,
+    request::{ClockspeedType, SetClocksCommand},
+    FanControlMode, PmfwOptions, ProfileRule,
 };
 use nix::unistd::getuid;
 use notify::{RecommendedWatcher, Watcher};
@@ -124,15 +126,16 @@ impl Gpu {
 
     pub fn apply_clocks_command(&mut self, command: &SetClocksCommand) {
         let clocks = &mut self.clocks_configuration;
-        match command {
-            SetClocksCommand::MaxCoreClock(clock) => clocks.max_core_clock = Some(*clock),
-            SetClocksCommand::MaxMemoryClock(clock) => clocks.max_memory_clock = Some(*clock),
-            SetClocksCommand::MaxVoltage(voltage) => clocks.max_voltage = Some(*voltage),
-            SetClocksCommand::MinCoreClock(clock) => clocks.min_core_clock = Some(*clock),
-            SetClocksCommand::MinMemoryClock(clock) => clocks.min_memory_clock = Some(*clock),
-            SetClocksCommand::MinVoltage(voltage) => clocks.min_voltage = Some(*voltage),
-            SetClocksCommand::VoltageOffset(offset) => clocks.voltage_offset = Some(*offset),
-            SetClocksCommand::Reset => {
+        let value = command.value;
+        match command.r#type {
+            ClockspeedType::MaxCoreClock => clocks.max_core_clock = value,
+            ClockspeedType::MaxMemoryClock => clocks.max_memory_clock = value,
+            ClockspeedType::MaxVoltage => clocks.max_voltage = value,
+            ClockspeedType::MinCoreClock => clocks.min_core_clock = value,
+            ClockspeedType::MinMemoryClock => clocks.min_memory_clock = value,
+            ClockspeedType::MinVoltage => clocks.min_voltage = value,
+            ClockspeedType::VoltageOffset => clocks.voltage_offset = value,
+            ClockspeedType::Reset => {
                 *clocks = ClocksConfiguration::default();
                 assert!(!self.is_core_clocks_used());
             }
