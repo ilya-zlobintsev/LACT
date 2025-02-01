@@ -216,7 +216,7 @@ impl ClocksFrame {
                     },
                 );
                 self.clocks.insert(
-                    ClockspeedType::MaxCoreClock,
+                    ClockspeedType::MinCoreClock,
                     ClocksData {
                         current: current_gt_min as i32,
                         min: min_clock as i32,
