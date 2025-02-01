@@ -14,7 +14,7 @@ use amdgpu_sysfs::gpu_handle::{
 use anyhow::{anyhow, bail, Context};
 use lact_schema::{
     default_fan_curve,
-    request::{ConfirmCommand, ProfileBase, SetClocksCommand},
+    request::{ClockspeedType, ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
     PowerStates, ProfileRule, ProfileWatcherState, ProfilesInfo,
 };
@@ -511,7 +511,7 @@ impl<'a> Handler {
         id: &str,
         command: SetClocksCommand,
     ) -> anyhow::Result<u64> {
-        if let SetClocksCommand::Reset = command {
+        if let ClockspeedType::Reset = command.r#type {
             self.controller_by_id(id).await?.cleanup_clocks()?;
         }
 

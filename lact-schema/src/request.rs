@@ -101,15 +101,30 @@ pub enum ConfirmCommand {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
-#[serde(tag = "type", content = "value", rename_all = "snake_case")]
-pub enum SetClocksCommand {
-    MaxCoreClock(i32),
-    MaxMemoryClock(i32),
-    MaxVoltage(i32),
-    MinCoreClock(i32),
-    MinMemoryClock(i32),
-    MinVoltage(i32),
-    VoltageOffset(i32),
+pub struct SetClocksCommand {
+    pub r#type: ClockspeedType,
+    pub value: Option<i32>,
+}
+
+impl SetClocksCommand {
+    pub fn reset() -> Self {
+        Self {
+            r#type: ClockspeedType::Reset,
+            value: None,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum ClockspeedType {
+    MaxCoreClock,
+    MaxMemoryClock,
+    MaxVoltage,
+    MinCoreClock,
+    MinMemoryClock,
+    MinVoltage,
+    VoltageOffset,
     Reset,
 }
 

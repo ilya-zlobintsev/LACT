@@ -339,7 +339,7 @@ impl AppModel {
             AppMsg::ResetClocks => {
                 let gpu_id = self.current_gpu_id()?;
                 self.daemon_client
-                    .set_clocks_value(&gpu_id, SetClocksCommand::Reset)
+                    .set_clocks_value(&gpu_id, SetClocksCommand::reset())
                     .await?;
                 self.daemon_client
                     .confirm_pending_config(ConfirmCommand::Confirm)
