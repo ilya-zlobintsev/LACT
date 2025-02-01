@@ -20,6 +20,11 @@ expression: device_info
   "info": {
     "driver": "i915",
     "drm_info": {
+      "memory_info": {
+        "cpu_accessible_total": 0,
+        "cpu_accessible_used": 0,
+        "resizeable_bar": true
+      },
       "vram_clock_ratio": 1.0
     },
     "link_info": {},

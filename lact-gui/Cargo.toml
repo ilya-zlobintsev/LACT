@@ -1,6 +1,6 @@
 [package]
 name = "lact-gui"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2021"
 
@@ -21,7 +21,7 @@ tracing-subscriber = { workspace = true }
 chrono = { workspace = true }
 
 gtk = { version = "0.9", package = "gtk4", features = ["v4_6", "blueprint"] }
-adw = { package = "libadwaita", version = "0.7.0", features = [
+adw = { package = "libadwaita", version = "0.7.1", features = [
     "v1_4",
 ], optional = true }
 relm4 = { version = "0.9.0", default-features = false }

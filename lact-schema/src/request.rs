@@ -146,3 +146,26 @@ impl fmt::Display for ProfileBase {
         text.fmt(f)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        request::{ClockspeedType, SetClocksCommand},
+        Request,
+    };
+
+    #[test]
+    fn deserialize_requests() {
+        assert_eq!(
+            Request::SetClocksValue {
+                id: "asd",
+                command: SetClocksCommand {
+                    r#type: ClockspeedType::MaxCoreClock,
+                    value: Some(2000)
+                }
+            },
+            serde_json::from_str(r#"{"command": "set_clocks_value", "args": {"id": "asd", "command": {"type": "max_core_clock", "value": 2000}}}"#)
+                .unwrap()
+        );
+    }
+}
