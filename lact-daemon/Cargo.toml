@@ -33,7 +33,7 @@ divan = { workspace = true, optional = true }
 
 nvml-wrapper = { git = "https://github.com/ilya-zlobintsev/nvml-wrapper", branch = "lact" }
 bitflags = "2.6.0"
-pciid-parser = { version = "0.7", features = ["serde"] }
+pciid-parser = { version = "0.8", features = ["serde"] }
 serde_yaml = "0.9"
 vulkano = { version = "0.34.1", default-features = false }
 zbus = { version = "5.3.1", default-features = false, features = ["tokio"] }

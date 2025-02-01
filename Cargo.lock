@@ -1806,9 +1806,9 @@ dependencies = [
 
 [[package]]
 name = "pciid-parser"
-version = "0.7.2"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e889f5dad24e8b842a0417e1df0fa250f4e300d1eb88b81d48a9db5bfff6e035"
+checksum = "0008e816fcdaf229cdd540e9b6ca2dc4a10d65c31624abb546c6420a02846e61"
 dependencies = [
  "serde",
 ]

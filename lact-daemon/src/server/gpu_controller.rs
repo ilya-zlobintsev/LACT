@@ -113,12 +113,17 @@ pub(crate) fn init_controller(
         .unwrap_or_default();
 
     let subsystem_info = subsystem_entry
-        .map(|(subsys_vendor_id, subsys_device_id)| {
-            pci_db.get_device_info(vendor_id, device_id, subsys_vendor_id, subsys_device_id)
+        .and_then(|(subsys_vendor_id, subsys_device_id)| {
+            Some(pci_db.get_device_info(
+                u16::from_str_radix(vendor_id, 16).ok()?,
+                u16::from_str_radix(device_id, 16).ok()?,
+                u16::from_str_radix(subsys_vendor_id, 16).ok()?,
+                u16::from_str_radix(subsys_device_id, 16).ok()?,
+            ))
         })
         .unwrap_or_default();
 
-    let vendor = pci_db.vendors.get(&vendor_id.to_ascii_lowercase());
+    let vendor = pci_db.vendors.get(&u16::from_str_radix(vendor_id, 16)?);
 
     let pci_info = GpuPciInfo {
         device_pci_info: PciInfo {
@@ -128,7 +133,7 @@ pub(crate) fn init_controller(
             model: vendor.and_then(|vendor| {
                 vendor
                     .devices
-                    .get(&device_id.to_ascii_lowercase())
+                    .get(&u16::from_str_radix(device_id, 16).ok()?)
                     .map(|device| device.name.clone())
             }),
         },
