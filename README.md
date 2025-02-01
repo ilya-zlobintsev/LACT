@@ -22,7 +22,7 @@ All of the functionality works regardless of the desktop session (there is no de
 
 # Installation
 
-- Arch Linux: Install the [AUR Package](https://aur.archlinux.org/packages/lact/) (or the -git version)
+- Arch Linux: Install the package from official repositories: `pacman -S lact` (or `lact-git` from AUR for development builds).
 - Debian/Ubuntu/Derivatives: Download a .deb from [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
   It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't ship gtk4.
