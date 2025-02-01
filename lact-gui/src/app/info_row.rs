@@ -23,6 +23,12 @@ impl InfoRow {
     }
 }
 
+impl Default for InfoRow {
+    fn default() -> Self {
+        Object::builder().build()
+    }
+}
+
 mod imp {
     use glib::Properties;
     use gtk::{

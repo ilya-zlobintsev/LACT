@@ -28,7 +28,7 @@ const OVERCLOCKING_DISABLED_TEXT: &str = "Overclocking support is not enabled! \
 You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
 
 pub struct OcPage {
-    stats_section: GpuStatsSection,
+    stats_section: relm4::Controller<GpuStatsSection>,
     pub performance_frame: PerformanceFrame,
     power_cap_section: relm4::Controller<PowerCapSection>,
     power_states_frame: PowerStatesFrame,
@@ -92,7 +92,7 @@ impl relm4::Component for OcPage {
                     },
                 },
 
-                model.stats_section.clone(),
+                model.stats_section.widget(),
                 model.power_cap_section.widget(),
                 model.performance_frame.container.clone(),
                 model.power_states_frame.clone(),
@@ -106,11 +106,12 @@ impl relm4::Component for OcPage {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let stats_section = GpuStatsSection::builder().launch(()).detach();
         let power_cap_section = PowerCapSection::builder().launch(()).detach();
         let clocks_frame = ClocksFrame::builder().launch(()).detach();
 
         let model = Self {
-            stats_section: GpuStatsSection::new(),
+            stats_section,
             performance_frame: PerformanceFrame::new(),
             power_cap_section,
             power_states_frame: PowerStatesFrame::new(),
@@ -132,40 +133,41 @@ impl relm4::Component for OcPage {
     ) {
         self.signals_blocked.set(true);
         match msg {
-            OcPageMsg::Update { update, initial } => match &update {
-                PageUpdate::Stats(stats) => {
-                    self.stats_section.set_stats(stats);
-                    self.power_states_frame.set_stats(stats);
+            OcPageMsg::Update { update, initial } => {
+                self.stats_section.emit(update.clone());
+                match &update {
+                    PageUpdate::Stats(stats) => {
+                        self.power_states_frame.set_stats(stats);
 
-                    if initial {
-                        self.power_cap_section
-                            .emit(PowerCapMsg::Update(update.clone()));
+                        if initial {
+                            self.power_cap_section
+                                .emit(PowerCapMsg::Update(update.clone()));
 
-                        if stats.power.cap_current.is_some() {
-                            self.power_cap_section.widget().set_visible(true);
-                        } else {
-                            self.power_cap_section.widget().set_visible(false);
-                        }
-
-                        match stats.performance_level {
-                            Some(profile) => {
-                                self.performance_frame.show();
-                                self.performance_frame.set_active_level(profile);
+                            if stats.power.cap_current.is_some() {
+                                self.power_cap_section.widget().set_visible(true);
+                            } else {
+                                self.power_cap_section.widget().set_visible(false);
                             }
-                            None => self.performance_frame.hide(),
+
+                            match stats.performance_level {
+                                Some(profile) => {
+                                    self.performance_frame.show();
+                                    self.performance_frame.set_active_level(profile);
+                                }
+                                None => self.performance_frame.hide(),
+                            }
                         }
                     }
-                }
-                PageUpdate::Info(info) => {
-                    let vram_clock_ratio = info.vram_clock_ratio();
+                    PageUpdate::Info(info) => {
+                        let vram_clock_ratio = info.vram_clock_ratio();
 
-                    self.power_states_frame
-                        .set_vram_clock_ratio(vram_clock_ratio);
-                    self.stats_section.set_vram_clock_ratio(vram_clock_ratio);
-                    self.clocks_frame
-                        .emit(ClocksFrameMsg::VramRatio(vram_clock_ratio));
+                        self.power_states_frame
+                            .set_vram_clock_ratio(vram_clock_ratio);
+                        self.clocks_frame
+                            .emit(ClocksFrameMsg::VramRatio(vram_clock_ratio));
+                    }
                 }
-            },
+            }
             OcPageMsg::ClocksTable(table) => {
                 self.clocks_frame.emit(ClocksFrameMsg::Clocks(table));
             }

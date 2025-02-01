@@ -1,168 +1,209 @@
-use crate::app::page_section::PageSection;
-use gtk::glib::{self, Object};
-use lact_client::schema::{DeviceStats, PowerStats};
-use std::fmt::Write;
+use crate::app::{info_row::InfoRow, page_section::PageSection, pages::PageUpdate};
+use gtk::prelude::{ActionableExt, BoxExt, ButtonExt, OrientableExt, WidgetExt};
+use lact_schema::{DeviceStats, PowerStats};
+use relm4::{ComponentParts, ComponentSender};
+use std::{fmt::Write, sync::Arc};
 
-glib::wrapper! {
-    pub struct GpuStatsSection(ObjectSubclass<imp::GpuStatsSection>)
-        @extends PageSection, gtk::Box, gtk::Widget,
-        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
+pub struct GpuStatsSection {
+    stats: Arc<DeviceStats>,
+    vram_clock_ratio: f64,
 }
 
-impl GpuStatsSection {
-    pub fn new() -> Self {
-        Object::builder().property("vram_clock_ratio", 1.0).build()
-    }
+#[relm4::component(pub)]
+impl relm4::SimpleComponent for GpuStatsSection {
+    type Init = ();
+    type Input = PageUpdate;
+    type Output = ();
 
-    pub fn set_stats(&self, stats: &DeviceStats) {
-        let vram_usage =
-            if let (Some(used_vram), Some(total_vram)) = (stats.vram.used, stats.vram.total) {
-                used_vram as f64 / total_vram as f64
-            } else {
-                0.0
-            };
-        self.set_vram_usage(vram_usage);
-        self.set_vram_usage_text(format!(
-            "{}/{} MiB",
-            stats.vram.used.unwrap_or(0) / 1024 / 1024,
-            stats.vram.total.unwrap_or(0) / 1024 / 1024,
-        ));
+    view! {
+        PageSection::new("Statistics") {
+            set_spacing: 10,
 
-        let clockspeed = stats.clockspeed;
-        self.set_core_clock(format_clockspeed(clockspeed.gpu_clockspeed, 1.0));
-        self.set_current_core_clock(format_current_gfxclk(clockspeed.current_gfxclk));
-        self.set_vram_clock(format_clockspeed(
-            clockspeed.vram_clockspeed,
-            self.vram_clock_ratio(),
-        ));
+            append = &gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 5,
 
-        let voltage = format!("{:.3} V", stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64);
-        self.set_voltage(voltage);
+                gtk::Label {
+                    set_label: "VRAM Usage:",
+                },
 
-        let temperature = if stats.temps.len() == 1 {
-            stats.temps.values().next().unwrap().current
-        } else {
-            stats
-                .temps
-                .get("junction")
-                .or_else(|| stats.temps.get("edge"))
-                .and_then(|temp| temp.current)
-        }
-        .unwrap_or(0.0);
-        self.set_temperature(format!("{temperature}°C"));
+                gtk::Overlay {
+                    gtk::LevelBar {
+                        set_hexpand: true,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        #[watch]
+                        set_value: model
+                            .stats
+                            .vram
+                            .used
+                            .zip(model.stats.vram.total)
+                            .map(|(used, total)| used as f64 / total as f64)
+                            .unwrap_or(0.0),
+                    },
 
-        self.set_gpu_usage(format!("{}%", stats.busy_percent.unwrap_or(0)));
+                    add_overlay = &gtk::Label {
+                        #[watch]
+                        set_label: &format!(
+                            "{}/{} MiB",
+                            model.stats.vram.used.unwrap_or(0) / 1024 / 1024,
+                            model.stats.vram.total.unwrap_or(0) / 1024 / 1024,
+                        ),
+                    }
+                },
+            },
 
-        let PowerStats {
-            average: power_average,
-            current: power_current,
-            cap_current: power_cap_current,
-            ..
-        } = stats.power;
+            append = &gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 10,
+                set_homogeneous: true,
 
-        let power_current = power_current
-            .filter(|value| *value != 0.0)
-            .or(power_average);
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_hexpand: true,
+                    set_spacing: 5,
 
-        self.set_power_usage(format!(
-            "<b>{:.1}/{} W</b>",
-            power_current.unwrap_or(0.0),
-            power_cap_current.unwrap_or(0.0)
-        ));
+                    InfoRow {
+                        set_name: "GPU Core Clock (Average):",
+                        #[watch]
+                        set_value: format_clockspeed(model.stats.clockspeed.gpu_clockspeed, 1.0),
+                    },
 
-        match &stats.throttle_info {
-            Some(throttle_info) => {
-                if throttle_info.is_empty() {
-                    self.set_throttling("No")
-                } else {
-                    let type_text: Vec<String> = throttle_info
-                        .iter()
-                        .map(|(throttle_type, details)| {
-                            let mut out = throttle_type.to_string();
-                            if !details.is_empty() {
-                                let _ = write!(out, "({})", details.join(", "));
+                    InfoRow {
+                        set_name: "GPU Core Clock (Target):",
+                        #[watch]
+                        set_value: format_current_gfxclk(model.stats.clockspeed.current_gfxclk),
+                    },
+
+                    InfoRow {
+                        set_name: "GPU Voltage:",
+                        #[watch]
+                        set_value: format!("{:.3} V", model.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64),
+                    },
+
+                    InfoRow {
+                        set_name: "GPU Temperature (hotspot):",
+                        #[watch]
+                        set_value: {
+                            let temperature = if model.stats.temps.len() == 1 {
+                                model.stats.temps.values().next().unwrap().current
+                            } else {
+                                model.stats
+                                    .temps
+                                    .get("junction")
+                                    .or_else(|| model.stats.temps.get("edge"))
+                                    .and_then(|temp| temp.current)
                             }
-                            out
-                        })
-                        .collect();
-                    let text = type_text.join(", ");
-                    self.set_throttling(text);
+                            .unwrap_or(0.0);
+                            format!("{temperature}°C")
+                        },
+                    },
+                },
+
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_hexpand: true,
+                    set_spacing: 5,
+
+                    InfoRow {
+                        set_name: "GPU Memory Clock:",
+                        #[watch]
+                        set_value: format_clockspeed(
+                            model.stats.clockspeed.vram_clockspeed,
+                            model.vram_clock_ratio,
+                        ),
+                    },
+
+                    InfoRow {
+                        set_name: "GPU Usage:",
+                        #[watch]
+                        set_value: format!("{}%", model.stats.busy_percent.unwrap_or(0)),
+                    },
+
+                    InfoRow {
+                        set_name: "Power Usage:",
+                        #[watch]
+                        set_value: {
+                            let PowerStats {
+                                average: power_average,
+                                current: power_current,
+                                cap_current: power_cap_current,
+                                ..
+                            } = model.stats.power;
+
+                            let power_current = power_current
+                                .filter(|value| *value != 0.0)
+                                .or(power_average);
+
+                            format!(
+                                "<b>{:.1}/{} W</b>",
+                                power_current.unwrap_or(0.0),
+                                power_cap_current.unwrap_or(0.0)
+                            )
+                        }
+                    },
+
+                    InfoRow {
+                        set_name: "Throttling:",
+                        #[watch]
+                        set_value: {
+                            match &model.stats.throttle_info {
+                                Some(throttle_info) => {
+                                    if throttle_info.is_empty() {
+                                        "No".to_owned()
+                                    } else {
+                                        let type_text: Vec<String> = throttle_info
+                                            .iter()
+                                            .map(|(throttle_type, details)| {
+                                                let mut out = throttle_type.to_string();
+                                                if !details.is_empty() {
+                                                    let _ = write!(out, "({})", details.join(", "));
+                                                }
+                                                out
+                                            })
+                                            .collect();
+
+                                        type_text.join(", ")
+                                    }
+                                }
+                                None => "Unknown".to_owned(),
+                            }
+                        }
+                    }
                 }
+            },
+
+            append = &gtk::Button {
+                set_label: "Show historical charts",
+                set_action_name: Some("app.show-graphs-window"),
+            },
+        }
+    }
+
+    fn init(
+        _init: Self::Init,
+        root: Self::Root,
+        _sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let model = Self {
+            stats: Arc::new(DeviceStats::default()),
+            vram_clock_ratio: 1.0,
+        };
+
+        let widgets = view_output!();
+
+        ComponentParts { widgets, model }
+    }
+
+    fn update(&mut self, msg: Self::Input, _sender: relm4::ComponentSender<Self>) {
+        match msg {
+            PageUpdate::Info(info) => {
+                self.vram_clock_ratio = info.vram_clock_ratio();
             }
-            None => self.set_throttling("Unknown"),
+            PageUpdate::Stats(stats) => {
+                self.stats = stats;
+            }
         }
     }
-}
-
-impl Default for GpuStatsSection {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-mod imp {
-    use crate::app::{info_row::InfoRow, page_section::PageSection};
-    use gtk::{
-        glib::{self, subclass::InitializingObject, types::StaticTypeExt, Properties},
-        prelude::ObjectExt,
-        subclass::{
-            prelude::*,
-            widget::{CompositeTemplateClass, WidgetImpl},
-        },
-        CompositeTemplate,
-    };
-    use std::cell::{Cell, RefCell};
-
-    #[derive(CompositeTemplate, Default, Properties)]
-    #[properties(wrapper_type = super::GpuStatsSection)]
-    #[template(file = "ui/oc_page/gpu_stats_section.blp")]
-    pub struct GpuStatsSection {
-        #[property(get, set)]
-        core_clock: RefCell<String>,
-        #[property(get, set)]
-        current_core_clock: RefCell<String>,
-        #[property(get, set)]
-        vram_clock: RefCell<String>,
-        #[property(get, set)]
-        voltage: RefCell<String>,
-        #[property(get, set)]
-        temperature: RefCell<String>,
-        #[property(get, set)]
-        gpu_usage: RefCell<String>,
-        #[property(get, set)]
-        power_usage: RefCell<String>,
-        #[property(get, set)]
-        vram_usage: RefCell<f64>,
-        #[property(get, set)]
-        vram_usage_text: RefCell<String>,
-        #[property(get, set)]
-        throttling: RefCell<String>,
-
-        #[property(get, set)]
-        vram_clock_ratio: Cell<f64>,
-    }
-
-    #[glib::object_subclass]
-    impl ObjectSubclass for GpuStatsSection {
-        const NAME: &'static str = "GpuStatsSection";
-        type Type = super::GpuStatsSection;
-        type ParentType = PageSection;
-
-        fn class_init(class: &mut Self::Class) {
-            InfoRow::ensure_type();
-            class.bind_template();
-        }
-
-        fn instance_init(obj: &InitializingObject<Self>) {
-            obj.init_template();
-        }
-    }
-
-    #[glib::derived_properties]
-    impl ObjectImpl for GpuStatsSection {}
-
-    impl WidgetImpl for GpuStatsSection {}
-    impl BoxImpl for GpuStatsSection {}
 }
 
 fn format_clockspeed(value: Option<u64>, ratio: f64) -> String {
