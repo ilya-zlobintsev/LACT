@@ -117,6 +117,18 @@ The overclocking functionality is disabled by default in the driver. There are t
   you might need to check your distro's configuration to make sure the initramfs was updated. Updating the kernel version is a guaranteed way to trigger an initramfs update.
 - Specifying a boot parameter. This might be needed if your distro is not supported by the auto-enable functionality. You can manually specify the `amdgpu.ppfeaturemask=0xffffffff` kernel parameter in your bootloader to enable overclocking. See the [ArchWiki](https://wiki.archlinux.org/title/AMDGPU#Boot_parameter) for more details.
 
+## Power profiles daemon note!
+
+If you are using `power-profiles-daemon` (which is installed by default on many distributions), by default it will override the amdgpu performance level setting according to its own profile.
+
+To avoid this, create a file at `/etc/systemd/system/power-profiles-daemon.service.d/override.conf` with the following contents:
+```
+[Service]
+ExecStart=
+ExecStart=/usr/libexec/power-profiles-daemon --block-action=amdgpu_dpm
+```
+See https://github.com/ilya-zlobintsev/LACT/issues/370 for more information.
+
 # Suspend/Resume
 
 As some of the GPU settings may get reset when suspending the system, LACT will reload them on system resume. This may not work on distributions which don't use systemd, as it relies on the `org.freedesktop.login2` DBus interface.
