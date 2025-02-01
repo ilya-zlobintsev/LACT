@@ -21,8 +21,8 @@ use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
     LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
-use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libdrm_amdgpu_sys::AMDGPU::{ThrottleStatus, ThrottlerBit};
+use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE};
 use std::{
     cell::RefCell,
     cmp,
@@ -377,6 +377,21 @@ impl AmdGpuController {
             .context("GPU has no hardware monitor")
     }
 
+    fn get_clockspeed(&self) -> ClockspeedStats {
+        let vram_clockspeed = self
+            .drm_handle
+            .as_ref()
+            .and_then(|handle| handle.sensor_info(SENSOR_TYPE::GFX_MCLK).ok())
+            .map(u64::from)
+            .or_else(|| self.hw_mon_and_then(HwMon::get_vram_clockspeed));
+
+        ClockspeedStats {
+            gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
+            current_gfxclk: self.get_current_gfxclk(),
+            vram_clockspeed,
+        }
+    }
+
     fn get_current_gfxclk(&self) -> Option<u64> {
         self.drm_handle
             .as_ref()
@@ -563,11 +578,7 @@ impl GpuController for AmdGpuController {
                     zero_rpm_temperature: self.handle.get_fan_zero_rpm_stop_temperature().ok(),
                 },
             },
-            clockspeed: ClockspeedStats {
-                gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
-                current_gfxclk: self.get_current_gfxclk(),
-                vram_clockspeed: self.hw_mon_and_then(HwMon::get_vram_clockspeed),
-            },
+            clockspeed: self.get_clockspeed(),
             voltage: VoltageStats {
                 gpu: self.hw_mon_and_then(HwMon::get_gpu_voltage),
                 northbridge: self.hw_mon_and_then(HwMon::get_northbridge_voltage),
