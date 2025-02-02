@@ -12,7 +12,7 @@ use gtk::{
 };
 use lact_schema::{
     request::{ClockspeedType, SetClocksCommand},
-    ClocksTable, IntelClocksTable, NvidiaClockInfo, NvidiaClocksTable,
+    ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
 };
 use relm4::{factory::FactoryHashMap, ComponentParts, ComponentSender, RelmWidgetExt};
 
@@ -190,16 +190,16 @@ impl ClocksFrame {
     }
 
     fn set_nvidia_table(&mut self, table: NvidiaClocksTable) {
-        if let Some(gpc_info) = &table.gpc {
+        for (pstate, offset) in table.gpu_offsets {
             self.clocks.insert(
-                ClockspeedType::MaxCoreClock,
-                nvidia_clock_offset_to_data(gpc_info),
+                ClockspeedType::GpuClockOffset(pstate),
+                nvidia_clock_offset_to_data(&offset),
             );
         }
-        if let Some(mem_info) = &table.mem {
+        for (pstate, offset) in table.mem_offsets {
             self.clocks.insert(
-                ClockspeedType::MaxMemoryClock,
-                nvidia_clock_offset_to_data(mem_info),
+                ClockspeedType::MemClockOffset(pstate),
+                nvidia_clock_offset_to_data(&offset),
             );
         }
     }
@@ -241,10 +241,10 @@ impl ClocksFrame {
     }
 }
 
-fn nvidia_clock_offset_to_data(clock_info: &NvidiaClockInfo) -> ClocksData {
+fn nvidia_clock_offset_to_data(clock_info: &NvidiaClockOffset) -> ClocksData {
     ClocksData {
-        current: clock_info.max + (clock_info.offset / clock_info.offset_ratio),
-        min: clock_info.max + clock_info.offset_range.0,
-        max: clock_info.max + clock_info.offset_range.1,
+        current: clock_info.current,
+        min: clock_info.min,
+        max: clock_info.max,
     }
 }

@@ -108,7 +108,7 @@ pub struct Gpu {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct ClocksConfiguration {
     pub min_core_clock: Option<i32>,
     pub min_memory_clock: Option<i32>,
@@ -116,6 +116,10 @@ pub struct ClocksConfiguration {
     pub max_core_clock: Option<i32>,
     pub max_memory_clock: Option<i32>,
     pub max_voltage: Option<i32>,
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub gpu_clock_offsets: IndexMap<u32, i32>,
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub mem_clock_offsets: IndexMap<u32, i32>,
     pub voltage_offset: Option<i32>,
 }
 
@@ -135,6 +139,22 @@ impl Gpu {
             ClockspeedType::MinMemoryClock => clocks.min_memory_clock = value,
             ClockspeedType::MinVoltage => clocks.min_voltage = value,
             ClockspeedType::VoltageOffset => clocks.voltage_offset = value,
+            ClockspeedType::GpuClockOffset(pstate) => match value {
+                Some(value) => {
+                    clocks.gpu_clock_offsets.insert(pstate, value);
+                }
+                None => {
+                    clocks.gpu_clock_offsets.shift_remove(&pstate);
+                }
+            },
+            ClockspeedType::MemClockOffset(pstate) => match value {
+                Some(value) => {
+                    clocks.mem_clock_offsets.insert(pstate, value);
+                }
+                None => {
+                    clocks.mem_clock_offsets.shift_remove(&pstate);
+                }
+            },
             ClockspeedType::Reset => {
                 *clocks = ClocksConfiguration::default();
                 assert!(!self.is_core_clocks_used());
@@ -230,6 +250,23 @@ impl Config {
                             if id.starts_with(VENDOR_NVIDIA) {
                                 gpu.clocks_configuration.max_memory_clock = None;
                                 gpu.clocks_configuration.min_memory_clock = None;
+                            }
+                        }
+                    }
+                }
+                2 => {
+                    for (id, gpu) in &mut self.gpus {
+                        if id.starts_with(VENDOR_NVIDIA) {
+                            gpu.clocks_configuration.max_core_clock = None;
+                            gpu.clocks_configuration.max_memory_clock = None;
+                        }
+                    }
+
+                    for profile in &mut self.profiles.values_mut() {
+                        for (id, gpu) in &mut profile.gpus {
+                            if id.starts_with(VENDOR_NVIDIA) {
+                                gpu.clocks_configuration.max_core_clock = None;
+                                gpu.clocks_configuration.max_memory_clock = None;
                             }
                         }
                     }
