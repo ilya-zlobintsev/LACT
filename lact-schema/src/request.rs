@@ -125,6 +125,8 @@ pub enum ClockspeedType {
     MinMemoryClock,
     MinVoltage,
     VoltageOffset,
+    GpuClockOffset(u32),
+    MemClockOffset(u32),
     Reset,
 }
 

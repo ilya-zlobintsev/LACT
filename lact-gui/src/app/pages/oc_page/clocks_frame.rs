@@ -8,13 +8,16 @@ use adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
 use amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTable};
 use gtk::{
     pango,
-    prelude::{BoxExt, ButtonExt, OrientableExt, WidgetExt},
+    prelude::{BoxExt, ButtonExt, CheckButtonExt, OrientableExt, WidgetExt},
 };
 use lact_schema::{
     request::{ClockspeedType, SetClocksCommand},
-    ClocksTable, IntelClocksTable, NvidiaClockInfo, NvidiaClocksTable,
+    ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
 };
-use relm4::{factory::FactoryHashMap, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{
+    binding::BoolBinding, factory::FactoryHashMap, ComponentParts, ComponentSender, RelmObjectExt,
+    RelmWidgetExt,
+};
 
 // This is only used on RDNA1 in practice
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
@@ -23,12 +26,15 @@ const WARNING_TEXT: &str = "Warning: changing these values may lead to system in
 pub struct ClocksFrame {
     clocks: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
     vram_clock_ratio: f64,
+    show_nvidia_pstate_info: bool,
+    show_all_pstates: BoolBinding,
 }
 
 #[derive(Debug)]
 pub enum ClocksFrameMsg {
     Clocks(Option<ClocksTable>),
     VramRatio(f64),
+    TogglePStatesVisibility,
 }
 
 #[relm4::component(pub)]
@@ -43,12 +49,36 @@ impl relm4::SimpleComponent for ClocksFrame {
                 set_label: WARNING_TEXT,
                 set_wrap_mode: pango::WrapMode::Word,
                 set_halign: gtk::Align::Start,
-                set_margin_vertical: 5,
+                set_margin_horizontal: 5,
+            },
+
+            append = &gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+                set_spacing: 5,
+
+                #[watch]
+                set_visible: model.show_nvidia_pstate_info,
+
+                append = &gtk::CheckButton {
+                    set_label: Some("Show all P-States"),
+                    add_binding["active"]: &model.show_all_pstates,
+                },
+
+                append = &gtk::Label {
+                    add_binding["visible"]: &model.show_all_pstates,
+
+                    set_margin_horizontal: 5,
+                    set_markup: "<b>The following values are clock offsets for each P-State, going from highest to lowest.</b>",
+                    set_wrap_mode: pango::WrapMode::Word,
+                    set_halign: gtk::Align::Start,
+                },
+
             },
 
             append = model.clocks.widget() {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
+                set_margin_horizontal: 5,
             },
 
             append = &gtk::Label {
@@ -62,7 +92,7 @@ impl relm4::SimpleComponent for ClocksFrame {
             append = &gtk::Button {
                 set_label: "Reset",
                 set_halign: gtk::Align::End,
-                set_width_request: 75,
+                set_margin_horizontal: 5,
                 set_tooltip_text: Some("Warning: this resets all clock settings to defaults!"),
                 set_css_classes: &["destructive-action"],
                 #[watch]
@@ -78,14 +108,20 @@ impl relm4::SimpleComponent for ClocksFrame {
     fn init(
         _init: Self::Init,
         root: Self::Root,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let clocks = FactoryHashMap::builder().launch_default().detach();
 
         let model = Self {
             clocks,
             vram_clock_ratio: 1.0,
+            show_nvidia_pstate_info: false,
+            show_all_pstates: BoolBinding::new(false),
         };
+
+        model
+            .show_all_pstates
+            .connect_value_notify(move |_| sender.input(ClocksFrameMsg::TogglePStatesVisibility));
 
         let widgets = view_output!();
 
@@ -96,6 +132,8 @@ impl relm4::SimpleComponent for ClocksFrame {
         match msg {
             ClocksFrameMsg::Clocks(clocks_table) => {
                 self.clocks.clear();
+                self.show_nvidia_pstate_info = false;
+                self.show_all_pstates.set_value(false);
 
                 if let Some(table) = clocks_table {
                     match table {
@@ -104,9 +142,30 @@ impl relm4::SimpleComponent for ClocksFrame {
                         ClocksTable::Intel(table) => self.set_intel_table(table),
                     }
                 }
+
+                // Make sure the width of all the labels is the same
+                let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+                let input_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+
+                for clockspeed_type in self.clocks.keys() {
+                    self.clocks.send(
+                        clockspeed_type,
+                        ClockAdjustmentRowMsg::AddSizeGroup {
+                            label_group: label_size_group.clone(),
+                            input_group: input_size_group.clone(),
+                        },
+                    );
+                }
             }
             ClocksFrameMsg::VramRatio(vram_ratio) => {
                 self.vram_clock_ratio = vram_ratio;
+            }
+            ClocksFrameMsg::TogglePStatesVisibility => {
+                let show = self.show_all_pstates.value();
+                for key in self.clocks.keys() {
+                    self.clocks
+                        .send(key, ClockAdjustmentRowMsg::ShowSecondaryPStates(show));
+                }
             }
         }
         self.update_vram_clock_ratio();
@@ -190,16 +249,18 @@ impl ClocksFrame {
     }
 
     fn set_nvidia_table(&mut self, table: NvidiaClocksTable) {
-        if let Some(gpc_info) = &table.gpc {
+        self.show_nvidia_pstate_info = true;
+
+        for (pstate, offset) in table.gpu_offsets {
             self.clocks.insert(
-                ClockspeedType::MaxCoreClock,
-                nvidia_clock_offset_to_data(gpc_info),
+                ClockspeedType::GpuClockOffset(pstate),
+                nvidia_clock_offset_to_data(&offset),
             );
         }
-        if let Some(mem_info) = &table.mem {
+        for (pstate, offset) in table.mem_offsets {
             self.clocks.insert(
-                ClockspeedType::MaxMemoryClock,
-                nvidia_clock_offset_to_data(mem_info),
+                ClockspeedType::MemClockOffset(pstate),
+                nvidia_clock_offset_to_data(&offset),
             );
         }
     }
@@ -241,10 +302,10 @@ impl ClocksFrame {
     }
 }
 
-fn nvidia_clock_offset_to_data(clock_info: &NvidiaClockInfo) -> ClocksData {
+fn nvidia_clock_offset_to_data(clock_info: &NvidiaClockOffset) -> ClocksData {
     ClocksData {
-        current: clock_info.max + (clock_info.offset / clock_info.offset_ratio),
-        min: clock_info.max + clock_info.offset_range.0,
-        max: clock_info.max + clock_info.offset_range.1,
+        current: clock_info.current,
+        min: clock_info.min,
+        max: clock_info.max,
     }
 }
