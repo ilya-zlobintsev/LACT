@@ -1,8 +1,9 @@
 %global forgeurl https://github.com/ilya-zlobintsev/LACT
-%global tag v0.7.0
+#%global tag v0.7.0
 
 Name:           lact
 Version:        0.7.0
+%forgemeta
 Release:        1
 Summary:        AMDGPU control utility
 License:        MIT
