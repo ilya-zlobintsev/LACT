@@ -17,7 +17,7 @@ AMDGPU control utility
 %setup -q -n LACT-%{version}
 
 %build
-make build-release-headless %{?_smp_mflags}
+VERGEN_GIT_SHA=b818f39 make build-release-headless %{?_smp_mflags}
 
 %install
 rm -rf %{buildroot}
