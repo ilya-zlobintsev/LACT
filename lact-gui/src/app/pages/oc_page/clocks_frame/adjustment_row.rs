@@ -25,6 +25,11 @@ pub struct ClocksData {
 #[derive(Debug)]
 pub enum ClockAdjustmentRowMsg {
     ValueRatio(f64),
+    ShowSecondaryPStates(bool),
+    AddSizeGroup {
+        label_group: gtk::SizeGroup,
+        input_group: gtk::SizeGroup,
+    },
 }
 
 #[relm4::factory(pub)]
@@ -37,11 +42,13 @@ impl FactoryComponent for ClockAdjustmentRow {
     type Index = ClockspeedType;
 
     view! {
+        #[name = "root_box"]
         gtk::Box {
+            #[name = "title_label"]
             gtk::Label {
-                set_width_request: 185,
                 set_xalign: 0.0,
-                set_label: &match self.clock_type {
+                #[watch]
+                set_markup: &match self.clock_type {
                     ClockspeedType::MaxCoreClock => "Maximum GPU Clock (MHz)".to_owned(),
                     ClockspeedType::MaxMemoryClock => "Maximum VRAM Clock (MHz)".to_owned(),
                     ClockspeedType::MaxVoltage => "Maximum GPU voltage (mV)".to_owned(),
@@ -49,10 +56,10 @@ impl FactoryComponent for ClockAdjustmentRow {
                     ClockspeedType::MinMemoryClock => "Minimum VRAM Clock (MHz)".to_owned(),
                     ClockspeedType::MinVoltage => "Minimum GPU voltage (mV)".to_owned(),
                     ClockspeedType::VoltageOffset => "GPU voltage offset (mV)".to_owned(),
-                    ClockspeedType::GpuClockOffset(pstate) => format!("GPU Clock offset at P-State {pstate} (MHz)"),
-                    ClockspeedType::MemClockOffset(pstate) => format!("VRAM Clock offset at P-State {pstate} (MHz)"),
+                    ClockspeedType::GpuClockOffset(pstate) => format!("GPU P-State {pstate} Clock Offset (MHz)"),
+                    ClockspeedType::MemClockOffset(pstate) => format!("VRAM P-State {pstate} Clock Offset (MHz)"),
                     ClockspeedType::Reset => unreachable!(),
-                },
+                }
             },
 
             gtk::Scale {
@@ -65,9 +72,9 @@ impl FactoryComponent for ClockAdjustmentRow {
                 set_margin_horizontal: 5,
             },
 
+            #[name = "input_button"]
             gtk::SpinButton {
                 set_adjustment: &self.adjustment,
-                set_width_request: 120,
             },
         }
     }
@@ -98,7 +105,12 @@ impl FactoryComponent for ClockAdjustmentRow {
         }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: relm4::FactorySender<Self>) {
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: relm4::FactorySender<Self>,
+    ) {
         match msg {
             ClockAdjustmentRowMsg::ValueRatio(ratio) => {
                 self.adjustment.block_signal(&self.change_signal);
@@ -115,7 +127,20 @@ impl FactoryComponent for ClockAdjustmentRow {
 
                 self.adjustment.unblock_signal(&self.change_signal);
             }
+            ClockAdjustmentRowMsg::AddSizeGroup {
+                label_group,
+                input_group,
+            } => {
+                label_group.add_widget(&widgets.title_label);
+                input_group.add_widget(&widgets.input_button);
+            }
+            ClockAdjustmentRowMsg::ShowSecondaryPStates(show_secondary) => {
+                let show_current = show_secondary || !clock_type_is_secondary(&self.clock_type);
+                widgets.root_box.set_visible(show_current);
+            }
         }
+
+        self.update_view(widgets, sender);
     }
 }
 
@@ -124,5 +149,13 @@ impl ClockAdjustmentRow {
         self.adjustment
             .get_changed_value(false)
             .map(|value| (value / self.value_ratio) as i32)
+    }
+}
+
+fn clock_type_is_secondary(clock_type: &ClockspeedType) -> bool {
+    match clock_type {
+        ClockspeedType::GpuClockOffset(pstate) => *pstate > 0,
+        ClockspeedType::MemClockOffset(pstate) => *pstate > 0,
+        _ => false,
     }
 }
