@@ -548,7 +548,7 @@ mod tests {
                 .unwrap()
                 .clocks_configuration
                 .max_core_clock,
-            Some(3000)
+            None,
         );
         assert_eq!(
             config

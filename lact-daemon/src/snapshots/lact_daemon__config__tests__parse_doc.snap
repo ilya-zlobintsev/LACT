@@ -42,6 +42,10 @@ gpus:
     max_core_clock: 1630
     max_memory_clock: 800
     max_voltage: 1200
+    gpu_clock_offsets:
+      0: -100
+    mem_clock_offsets:
+      0: 200
     voltage_offset: 0
     power_profile_mode_index: 0
     custom_power_profile_mode_hueristics:
