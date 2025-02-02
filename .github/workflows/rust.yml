@@ -21,7 +21,7 @@ jobs:
       - name: Build
         run: cargo build
       - name: Run tests
-        run: cargo test --verbose --no-default-features -p lact
+        run: cargo test --verbose
 
   check-format:
     runs-on: ubuntu-24.04
