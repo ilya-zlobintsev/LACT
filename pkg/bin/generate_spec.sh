@@ -30,6 +30,8 @@ for RECIPE_PATH in "$RECIPES_DIR"/*/; do
   PKG_LICENSE=$(yq eval '.metadata.license // "UNKNOWN"' "$RECIPE_FILE")
   PKG_DESCRIPTION=$(yq eval '.metadata.description // "No description available."' "$RECIPE_FILE")
   MAINTAINER=$(yq eval '.metadata.maintainer // "Unknown Maintainer"' "$RECIPE_FILE")
+  SOURCE_URL="https://github.com/ilya-zlobintsev/LACT/archive/refs/tags/v${RECIPE_VERSION}.tar.gz"
+
   MAKE_COMMAND_RAW=$(yq eval '.build.steps[0]' "$RECIPE_FILE" | grep -oP '(make.+)')
   MAKE_COMMAND=${MAKE_COMMAND_RAW::-1}
 
@@ -58,16 +60,13 @@ for RECIPE_PATH in "$RECIPES_DIR"/*/; do
   # For proper date formatting consistent with other builds.
   export LC_ALL=c
   cat <<EOF >"$SPEC_FILE"
-%global forgeurl https://github.com/ilya-zlobintsev/LACT
-%global tag v$RECIPE_VERSION
-
 Name:           $RECIPE_NAME
 Version:        $RECIPE_VERSION
 Release:        $RECIPE_RELEASE
 Summary:        $PKG_DESCRIPTION
 License:        $PKG_LICENSE
-URL:            %{forgeurl}
-Source0:        %{forgesource}
+URL:            https://github.com/ilya-zlobintsev/LACT
+Source0:        $SOURCE_URL
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires:  rust cargo $PKG_BUILD_DEPENDS
@@ -77,7 +76,7 @@ Requires:       $PKG_DEPENDS
 $PKG_DESCRIPTION
 
 %prep
-%forgesetup
+%setup -q -n LACT-%{version}
 
 %build
 $MAKE_COMMAND %{?_smp_mflags}
