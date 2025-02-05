@@ -67,14 +67,12 @@ impl AmdGpuController {
         #[allow(unused_mut)]
         let mut drm_handle = None;
         #[cfg(not(test))]
-        if matches!(handle.get_driver(), "amdgpu" | "radeon") && libdrm_amdgpu.is_some() {
-            match get_drm_handle(&handle, libdrm_amdgpu.as_ref().unwrap()) {
-                Ok(handle) => {
-                    drm_handle = Some(handle);
-                }
-                Err(err) => {
-                    warn!("Could not get DRM handle: {err}");
-                }
+        if let Some(libdrm_amdgpu) = libdrm_amdgpu {
+            if handle.get_driver() == "amdgpu" {
+                drm_handle = Some(
+                    get_drm_handle(&handle, libdrm_amdgpu)
+                        .context("Could not get AMD DRM handle")?,
+                );
             }
         }
 

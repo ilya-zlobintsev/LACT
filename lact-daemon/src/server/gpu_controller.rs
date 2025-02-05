@@ -193,7 +193,7 @@ pub(crate) fn init_controller(
     // We use the AMD controller as the fallback even for non-AMD devices, it will at least
     // display basic device information from the SysFS
     Ok(Box::new(
-        AmdGpuController::new_from_path(common, amd_drm.as_ref())
+        AmdGpuController::new_from_path(common, None)
             .context("Could initialize fallback controller")?,
     ))
 }
