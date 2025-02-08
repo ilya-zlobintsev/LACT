@@ -26,6 +26,15 @@ impl PowerStatesFrame {
             imp.expander.set_expanded(false);
         }
 
+        if states
+            .core
+            .iter()
+            .chain(states.vram.iter())
+            .any(|state| !state.enabled)
+        {
+            self.set_configurable(true);
+        }
+
         imp.core_states_list
             .set_power_states(states.core, "MHz", 1.0);
         imp.vram_states_list
@@ -48,9 +57,17 @@ impl PowerStatesFrame {
     }
 
     pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
-        let imp = self.imp();
-        let core_states = imp.core_states_list.get_enabled_power_states();
-        let vram_states = imp.vram_states_list.get_enabled_power_states();
+        let core_states;
+        let vram_states;
+
+        if self.configurable() {
+            let imp = self.imp();
+            core_states = imp.core_states_list.get_enabled_power_states();
+            vram_states = imp.vram_states_list.get_enabled_power_states();
+        } else {
+            core_states = vec![];
+            vram_states = vec![];
+        }
 
         [
             (PowerLevelKind::CoreClock, core_states),
@@ -93,6 +110,8 @@ mod imp {
 
         #[property(get, set)]
         configurable: AtomicBool,
+        #[property(get, set)]
+        toggleable: AtomicBool,
         #[property(get, set)]
         vram_clock_ratio: Cell<f64>,
     }

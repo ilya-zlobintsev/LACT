@@ -43,6 +43,7 @@ pub enum OcPageMsg {
     ClocksTable(Option<ClocksTable>),
     ProfileModesTable(Option<PowerProfileModesTable>),
     PowerStates(PowerStates),
+    PerformanceLevelChanged,
 }
 
 #[relm4::component(pub)]
@@ -156,6 +157,7 @@ impl relm4::Component for OcPage {
                                 }
                                 None => self.performance_frame.hide(),
                             }
+                            sender.input(OcPageMsg::PerformanceLevelChanged);
                         }
                     }
                     PageUpdate::Info(info) => {
@@ -177,6 +179,14 @@ impl relm4::Component for OcPage {
             OcPageMsg::PowerStates(states) => {
                 self.power_states_frame.set_power_states(states);
             }
+            OcPageMsg::PerformanceLevelChanged => {
+                if let Some(PerformanceLevel::Manual) = self.get_performance_level() {
+                    self.power_states_frame.set_toggleable(true);
+                } else {
+                    self.power_states_frame.set_toggleable(false);
+                    self.power_states_frame.set_configurable(false);
+                }
+            }
         }
 
         self.signals_blocked.set(false);
@@ -191,7 +201,17 @@ impl relm4::Component for OcPage {
             }
         };
         self.performance_frame.connect_settings_changed(f.clone());
-        self.power_states_frame.connect_values_changed(f);
+
+        self.power_states_frame.connect_values_changed(f.clone());
+
+        {
+            let sender = sender.clone();
+            self.performance_frame.connect_settings_changed(move || {
+                sender.input(OcPageMsg::PerformanceLevelChanged);
+            });
+        }
+        self.power_states_frame
+            .connect_configurable_notify(move |_| f());
 
         self.update_view(widgets, sender);
     }
@@ -216,10 +236,6 @@ impl OcPage {
     }
 
     pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
-        if self.performance_frame.get_selected_performance_level() == PerformanceLevel::Manual {
-            self.power_states_frame.get_enabled_power_states()
-        } else {
-            HashMap::new()
-        }
+        self.power_states_frame.get_enabled_power_states()
     }
 }

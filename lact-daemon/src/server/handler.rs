@@ -565,7 +565,11 @@ impl<'a> Handler {
         enabled_states: Vec<u8>,
     ) -> anyhow::Result<u64> {
         self.edit_gpu_config(id.to_owned(), |gpu| {
-            gpu.power_states.insert(kind, enabled_states);
+            if enabled_states.is_empty() {
+                gpu.power_states.shift_remove(&kind);
+            } else {
+                gpu.power_states.insert(kind, enabled_states);
+            }
         })
         .await
         .context("Failed to edit GPU config and set enabled power states")
