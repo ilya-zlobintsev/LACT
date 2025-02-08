@@ -180,16 +180,11 @@ impl relm4::Component for OcPage {
                 self.power_states_frame.set_power_states(states);
             }
             OcPageMsg::PerformanceLevelChanged => {
-                if let Some(level) = self.get_performance_level() {
-                    match level {
-                        PerformanceLevel::Manual => {
-                            self.power_states_frame.set_toggleable(true);
-                        }
-                        _ => {
-                            self.power_states_frame.set_toggleable(false);
-                            self.power_states_frame.set_configurable(false);
-                        }
-                    }
+                if let Some(PerformanceLevel::Manual) = self.get_performance_level() {
+                    self.power_states_frame.set_toggleable(true);
+                } else {
+                    self.power_states_frame.set_toggleable(false);
+                    self.power_states_frame.set_configurable(false);
                 }
             }
         }
