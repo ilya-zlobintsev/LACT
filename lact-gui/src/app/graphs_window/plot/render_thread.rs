@@ -94,62 +94,15 @@ impl RenderThread {
 
                     match current_request.take() {
                         Some(Request::Render(render_request)) => {
-                            // Create a new ImageSurface for Cairo rendering.
-                            let mut surface = ImageSurface::create(
-                                cairo::Format::ARgb32,
-                                (render_request.width * render_request.supersample_factor) as i32,
-                             (render_request.height * render_request.supersample_factor) as i32,
-                            )
-                            .unwrap();
-
-                            let cairo_context = CairoContext::new(&surface).unwrap();
-
-                            // Don't use Cairo's default antialiasing, it makes the lines look too blurry
-                            // Supersampling is our 2D anti-aliasing solution.
-                            if render_request.supersample_factor > 1 {
-                                cairo_context.set_antialias(cairo::Antialias::None);
-                            }
-
-                            let cairo_backend = CairoBackend::new(
-                                &cairo_context,
-                                // Supersample the rendering
-                                (
-                                    render_request.width * render_request.supersample_factor,
-                                    render_request.height * render_request.supersample_factor,
-                                ),
-                            )
-                            .unwrap();
-
-                            if let Err(err) = render_request.draw(cairo_backend) {
-                                error!("Failed to plot chart: {err:?}")
-                            }
-
-                            match (
-                                surface.to_texture(),
-                                last_texture.lock().unwrap().deref_mut(),
-                            ) {
-                                // Successfully generated a new texture, but the old texture is also there
-                                (Some(texture), Some(last_texture)) => {
-                                    *last_texture = texture;
-                                }
-                                // If texture conversion failed, keep the old texture if it's present.
-                                (None, None) => {
-                                    error!("Failed to convert cairo surface to gdk texture, not overwriting old one");
-                                }
-                                // Update the last texture, if The old texture wasn't ever generated (None),
-                                // No matter the result of conversion
-                                (result, last_texture) => {
-                                    *last_texture = result;
-                                }
-                            };
-                            }
+                            process_request(render_request, last_texture);
+                        }
                         // Terminate the thread if a Terminate request is received.
                         Some(Request::Terminate) => break,
                         None => {}
                     }
                 }
-        })
-        .unwrap();
+            })
+            .unwrap();
 
         Self {
             state,
@@ -175,6 +128,57 @@ impl RenderThread {
     pub fn get_last_texture(&self) -> Option<MemoryTexture> {
         self.state.last_texture.lock().unwrap().deref().clone()
     }
+}
+
+fn process_request(render_request: RenderRequest, last_texture: &Mutex<Option<MemoryTexture>>) {
+    // Create a new ImageSurface for Cairo rendering.
+    let mut surface = ImageSurface::create(
+        cairo::Format::ARgb32,
+        (render_request.width * render_request.supersample_factor) as i32,
+        (render_request.height * render_request.supersample_factor) as i32,
+    )
+    .unwrap();
+
+    let cairo_context = CairoContext::new(&surface).unwrap();
+
+    // Don't use Cairo's default antialiasing, it makes the lines look too blurry
+    // Supersampling is our 2D anti-aliasing solution.
+    if render_request.supersample_factor > 1 {
+        cairo_context.set_antialias(cairo::Antialias::None);
+    }
+
+    let cairo_backend = CairoBackend::new(
+        &cairo_context,
+        // Supersample the rendering
+        (
+            render_request.width * render_request.supersample_factor,
+            render_request.height * render_request.supersample_factor,
+        ),
+    )
+    .unwrap();
+
+    if let Err(err) = render_request.draw(cairo_backend) {
+        error!("Failed to plot chart: {err:?}")
+    }
+
+    match (
+        surface.to_texture(),
+        last_texture.lock().unwrap().deref_mut(),
+    ) {
+        // Successfully generated a new texture, but the old texture is also there
+        (Some(texture), Some(last_texture)) => {
+            *last_texture = texture;
+        }
+        // If texture conversion failed, keep the old texture if it's present.
+        (None, None) => {
+            error!("Failed to convert cairo surface to gdk texture, not overwriting old one");
+        }
+        // Update the last texture, if The old texture wasn't ever generated (None),
+        // No matter the result of conversion
+        (result, last_texture) => {
+            *last_texture = result;
+        }
+    };
 }
 
 // Implement the default constructor for RenderThread using the `new` method.
@@ -387,5 +391,58 @@ impl RenderRequest {
 
         root.present()?; // Present the final image.
         Ok(())
+    }
+}
+
+#[cfg(feature = "bench")]
+mod benches {
+    use super::{process_request, RenderRequest};
+    use crate::app::graphs_window::plot::PlotData;
+    use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+    use divan::{counter::ItemsCount, Bencher};
+    use std::sync::Mutex;
+
+    #[divan::bench]
+    fn render_plot(bencher: Bencher) {
+        let last_texture = &Mutex::new(None);
+
+        bencher
+            .with_inputs(sample_plot_data)
+            .input_counter(|_| ItemsCount::new(1usize))
+            .bench_values(|data| {
+                let request = RenderRequest {
+                    title: "bench render".into(),
+                    value_suffix: "%".into(),
+                    secondary_value_suffix: "".into(),
+                    y_label_area_relative_size: 1.0,
+                    secondary_y_label_relative_area_size: 1.0,
+                    data,
+                    width: 1920,
+                    height: 1080,
+                    supersample_factor: 4,
+                    time_period_seconds: 60,
+                };
+
+                process_request(request, last_texture)
+            });
+    }
+
+    fn sample_plot_data() -> PlotData {
+        let mut data = PlotData::default();
+
+        // Simulate 1 minute plot with 4 values per second
+        for sec in 0..60 {
+            for milli in [0, 250, 500, 750] {
+                let datetime = NaiveDateTime::new(
+                    NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(),
+                    NaiveTime::from_hms_milli_opt(0, 0, sec, milli).unwrap(),
+                );
+
+                data.push_line_series_with_time("GPU", 100.0, datetime);
+                data.push_secondary_line_series_with_time("GPU Secondary", 10.0, datetime);
+            }
+        }
+
+        data
     }
 }

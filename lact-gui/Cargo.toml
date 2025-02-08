@@ -8,6 +8,7 @@ edition = "2021"
 default = ["gtk-tests"]
 gtk-tests = []
 adw = ["dep:adw", "relm4/libadwaita"]
+bench = ["dep:divan"]
 
 [dependencies]
 lact-client = { path = "../lact-client" }
@@ -36,6 +37,8 @@ cairo-rs = { version = "0.20", default-features = false }
 itertools = "0.13.0"
 
 thread-priority = "1.1.0"
+
+divan = { workspace = true, optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

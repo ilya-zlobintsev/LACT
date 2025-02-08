@@ -105,14 +105,19 @@ impl PlotData {
         self.push_secondary_line_series_with_time(name, point, chrono::Local::now().naive_local());
     }
 
-    fn push_line_series_with_time(&mut self, name: &str, point: f64, time: NaiveDateTime) {
+    pub(super) fn push_line_series_with_time(
+        &mut self,
+        name: &str,
+        point: f64,
+        time: NaiveDateTime,
+    ) {
         self.line_series
             .entry(name.to_owned())
             .or_default()
             .push((time.and_utc().timestamp_millis(), point));
     }
 
-    pub fn push_secondary_line_series_with_time(
+    pub(super) fn push_secondary_line_series_with_time(
         &mut self,
         name: &str,
         point: f64,

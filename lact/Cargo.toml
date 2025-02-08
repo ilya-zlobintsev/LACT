@@ -13,3 +13,12 @@ lact-schema = { path = "../lact-schema", features = ["args"] }
 lact-cli = { path = "../lact-cli" }
 lact-gui = { path = "../lact-gui", optional = true }
 anyhow = { workspace = true }
+
+[dev-dependencies]
+divan = { workspace = true }
+lact-daemon = { path = "../lact-daemon", features = ["bench"] }
+lact-gui = { path = "../lact-gui", features = ["bench"] }
+
+[[bench]]
+name = "bench"
+harness = false
