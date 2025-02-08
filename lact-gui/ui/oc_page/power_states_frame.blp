@@ -21,7 +21,7 @@ template $PowerStatesFrame: Box {
 
             CheckButton {
                 label: "Enable power state configuration";
-                sensitive: bind template.toggleable;
+                sensitive: bind template.toggleable bidirectional;
                 active: bind template.configurable bidirectional;
             }
 

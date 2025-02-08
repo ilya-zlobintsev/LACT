@@ -157,6 +157,7 @@ impl relm4::Component for OcPage {
                                 }
                                 None => self.performance_frame.hide(),
                             }
+                            sender.input(OcPageMsg::PerformanceLevelChanged);
                         }
                     }
                     PageUpdate::Info(info) => {
