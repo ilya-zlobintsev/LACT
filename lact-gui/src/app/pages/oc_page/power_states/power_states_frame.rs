@@ -26,6 +26,15 @@ impl PowerStatesFrame {
             imp.expander.set_expanded(false);
         }
 
+        if states
+            .core
+            .iter()
+            .chain(states.vram.iter())
+            .any(|state| !state.enabled)
+        {
+            self.set_configurable(true);
+        }
+
         imp.core_states_list
             .set_power_states(states.core, "MHz", 1.0);
         imp.vram_states_list
