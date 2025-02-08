@@ -207,7 +207,7 @@ impl relm4::Component for OcPage {
         };
         self.performance_frame.connect_settings_changed(f.clone());
 
-        self.power_states_frame.connect_values_changed(f);
+        self.power_states_frame.connect_values_changed(f.clone());
 
         {
             let sender = sender.clone();
@@ -215,6 +215,8 @@ impl relm4::Component for OcPage {
                 sender.input(OcPageMsg::PerformanceLevelChanged);
             });
         }
+        self.power_states_frame
+            .connect_configurable_notify(move |_| f());
 
         self.update_view(widgets, sender);
     }
