@@ -649,17 +649,15 @@ impl AppModel {
         let enabled_power_states = self.oc_page.model().get_enabled_power_states();
 
         for (kind, states) in enabled_power_states {
-            if !states.is_empty() {
-                self.daemon_client
-                    .set_enabled_power_states(&gpu_id, kind, states)
-                    .await
-                    .context("Could not set power states")?;
+            self.daemon_client
+                .set_enabled_power_states(&gpu_id, kind, states)
+                .await
+                .context("Could not set power states")?;
 
-                self.daemon_client
-                    .confirm_pending_config(ConfirmCommand::Confirm)
-                    .await
-                    .context("Could not commit config")?;
-            }
+            self.daemon_client
+                .confirm_pending_config(ConfirmCommand::Confirm)
+                .await
+                .context("Could not commit config")?;
         }
 
         if !clocks_commands.is_empty() {
