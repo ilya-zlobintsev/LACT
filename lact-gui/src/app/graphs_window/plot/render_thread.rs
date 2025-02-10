@@ -130,7 +130,10 @@ impl RenderThread {
     }
 }
 
-fn process_request(render_request: RenderRequest, last_texture: &Mutex<Option<MemoryTexture>>) {
+pub(super) fn process_request(
+    render_request: RenderRequest,
+    last_texture: &Mutex<Option<MemoryTexture>>,
+) {
     // Create a new ImageSurface for Cairo rendering.
     let mut surface = ImageSurface::create(
         cairo::Format::ARgb32,
@@ -391,58 +394,5 @@ impl RenderRequest {
 
         root.present()?; // Present the final image.
         Ok(())
-    }
-}
-
-#[cfg(feature = "bench")]
-mod benches {
-    use super::{process_request, RenderRequest};
-    use crate::app::graphs_window::plot::PlotData;
-    use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
-    use divan::{counter::ItemsCount, Bencher};
-    use std::sync::Mutex;
-
-    #[divan::bench]
-    fn render_plot(bencher: Bencher) {
-        let last_texture = &Mutex::new(None);
-
-        bencher
-            .with_inputs(sample_plot_data)
-            .input_counter(|_| ItemsCount::new(1usize))
-            .bench_values(|data| {
-                let request = RenderRequest {
-                    title: "bench render".into(),
-                    value_suffix: "%".into(),
-                    secondary_value_suffix: "".into(),
-                    y_label_area_relative_size: 1.0,
-                    secondary_y_label_relative_area_size: 1.0,
-                    data,
-                    width: 1920,
-                    height: 1080,
-                    supersample_factor: 4,
-                    time_period_seconds: 60,
-                };
-
-                process_request(request, last_texture)
-            });
-    }
-
-    fn sample_plot_data() -> PlotData {
-        let mut data = PlotData::default();
-
-        // Simulate 1 minute plot with 4 values per second
-        for sec in 0..60 {
-            for milli in [0, 250, 500, 750] {
-                let datetime = NaiveDateTime::new(
-                    NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(),
-                    NaiveTime::from_hms_milli_opt(0, 0, sec, milli).unwrap(),
-                );
-
-                data.push_line_series_with_time("GPU", 100.0, datetime);
-                data.push_secondary_line_series_with_time("GPU Secondary", 10.0, datetime);
-            }
-        }
-
-        data
     }
 }
