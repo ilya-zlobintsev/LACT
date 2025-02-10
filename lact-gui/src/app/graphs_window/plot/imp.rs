@@ -9,6 +9,8 @@ use std::collections::BTreeMap;
 
 use super::render_thread::{RenderRequest, RenderThread};
 
+const SUPERSAMPLE_FACTOR: u32 = 1;
+
 #[derive(Properties, Default)]
 #[properties(wrapper_type = super::Plot)]
 pub struct Plot {
@@ -75,7 +77,7 @@ impl WidgetImpl for Plot {
                 secondary_y_label_relative_area_size: self
                     .secondary_y_label_area_relative_size
                     .get(),
-                supersample_factor: 4,
+                supersample_factor: SUPERSAMPLE_FACTOR,
                 time_period_seconds: self.time_period_seconds.get(),
             });
         }
@@ -204,6 +206,8 @@ mod benches {
     use divan::{counter::ItemsCount, Bencher};
     use std::sync::Mutex;
 
+    use super::SUPERSAMPLE_FACTOR;
+
     #[divan::bench]
     fn render_plot(bencher: Bencher) {
         let last_texture = &Mutex::new(None);
@@ -221,7 +225,7 @@ mod benches {
                     data,
                     width: 1920,
                     height: 1080,
-                    supersample_factor: 4,
+                    supersample_factor: SUPERSAMPLE_FACTOR,
                     time_period_seconds: 60,
                 };
 

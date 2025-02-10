@@ -343,12 +343,12 @@ impl RenderRequest {
                                 (current_date, segment.evaluate(current_date))
                             })
                         }),
-                    Palette99::pick(idx).stroke_width(8),
+                    Palette99::pick(idx).stroke_width(2),
                 ))
                 .context("Failed to draw series")?
                 .label(caption)
                 .legend(move |(x, y)| {
-                    let offset = self.relative_size(0.04) as i32;
+                    let offset = self.relative_size(0.02) as i32;
                     Rectangle::new(
                         [(x - offset, y - offset), (x + offset, y + offset)],
                         Palette99::pick(idx).filled(),
@@ -367,12 +367,12 @@ impl RenderRequest {
                                 (current_date, segment.evaluate(current_date))
                             })
                         }),
-                    Palette99::pick(idx + 10).stroke_width(8),
+                    Palette99::pick(idx + 10).stroke_width(2),
                 ))
                 .context("Failed to draw series")?
                 .label(caption)
                 .legend(move |(x, y)| {
-                    let offset = self.relative_size(0.04) as i32;
+                    let offset = self.relative_size(0.02) as i32;
                     Rectangle::new(
                         [(x - offset, y - offset), (x + offset, y + offset)],
                         Palette99::pick(idx + 10).filled(),
