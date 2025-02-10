@@ -38,12 +38,13 @@ impl relm4::Component for GraphsWindow {
                 set_margin_all: 10,
                 set_row_spacing: 20,
                 set_column_spacing: 20,
+                set_column_homogeneous: true,
 
                 attach[0, 0, 1, 1]: temperature_plot = &Plot {
                     set_title: "Temperature",
                     set_hexpand: true,
                     set_value_suffix: "°C",
-                    set_y_label_area_relative_size: 0.15,
+                    set_y_label_area_relative_size: 0.2,
                     #[watch]
                     set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
                 },
@@ -52,7 +53,7 @@ impl relm4::Component for GraphsWindow {
                     set_title: "Fan speed",
                     set_hexpand: true,
                     set_value_suffix: "RPM",
-                    set_y_label_area_relative_size: 0.25,
+                    set_y_label_area_relative_size: 0.3,
                     set_secondary_y_label_area_relative_size: 0.15,
                     #[watch]
                     set_time_period_seconds: model.time_period_seconds_adj.value() as i64,

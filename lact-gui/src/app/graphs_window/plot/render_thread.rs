@@ -94,62 +94,15 @@ impl RenderThread {
 
                     match current_request.take() {
                         Some(Request::Render(render_request)) => {
-                            // Create a new ImageSurface for Cairo rendering.
-                            let mut surface = ImageSurface::create(
-                                cairo::Format::ARgb32,
-                                (render_request.width * render_request.supersample_factor) as i32,
-                             (render_request.height * render_request.supersample_factor) as i32,
-                            )
-                            .unwrap();
-
-                            let cairo_context = CairoContext::new(&surface).unwrap();
-
-                            // Don't use Cairo's default antialiasing, it makes the lines look too blurry
-                            // Supersampling is our 2D anti-aliasing solution.
-                            if render_request.supersample_factor > 1 {
-                                cairo_context.set_antialias(cairo::Antialias::None);
-                            }
-
-                            let cairo_backend = CairoBackend::new(
-                                &cairo_context,
-                                // Supersample the rendering
-                                (
-                                    render_request.width * render_request.supersample_factor,
-                                    render_request.height * render_request.supersample_factor,
-                                ),
-                            )
-                            .unwrap();
-
-                            if let Err(err) = render_request.draw(cairo_backend) {
-                                error!("Failed to plot chart: {err:?}")
-                            }
-
-                            match (
-                                surface.to_texture(),
-                                last_texture.lock().unwrap().deref_mut(),
-                            ) {
-                                // Successfully generated a new texture, but the old texture is also there
-                                (Some(texture), Some(last_texture)) => {
-                                    *last_texture = texture;
-                                }
-                                // If texture conversion failed, keep the old texture if it's present.
-                                (None, None) => {
-                                    error!("Failed to convert cairo surface to gdk texture, not overwriting old one");
-                                }
-                                // Update the last texture, if The old texture wasn't ever generated (None),
-                                // No matter the result of conversion
-                                (result, last_texture) => {
-                                    *last_texture = result;
-                                }
-                            };
-                            }
+                            process_request(render_request, last_texture);
+                        }
                         // Terminate the thread if a Terminate request is received.
                         Some(Request::Terminate) => break,
                         None => {}
                     }
                 }
-        })
-        .unwrap();
+            })
+            .unwrap();
 
         Self {
             state,
@@ -175,6 +128,60 @@ impl RenderThread {
     pub fn get_last_texture(&self) -> Option<MemoryTexture> {
         self.state.last_texture.lock().unwrap().deref().clone()
     }
+}
+
+pub(super) fn process_request(
+    render_request: RenderRequest,
+    last_texture: &Mutex<Option<MemoryTexture>>,
+) {
+    // Create a new ImageSurface for Cairo rendering.
+    let mut surface = ImageSurface::create(
+        cairo::Format::ARgb32,
+        (render_request.width * render_request.supersample_factor) as i32,
+        (render_request.height * render_request.supersample_factor) as i32,
+    )
+    .unwrap();
+
+    let cairo_context = CairoContext::new(&surface).unwrap();
+
+    // Don't use Cairo's default antialiasing, it makes the lines look too blurry
+    // Supersampling is our 2D anti-aliasing solution.
+    if render_request.supersample_factor > 1 {
+        cairo_context.set_antialias(cairo::Antialias::None);
+    }
+
+    let cairo_backend = CairoBackend::new(
+        &cairo_context,
+        // Supersample the rendering
+        (
+            render_request.width * render_request.supersample_factor,
+            render_request.height * render_request.supersample_factor,
+        ),
+    )
+    .unwrap();
+
+    if let Err(err) = render_request.draw(cairo_backend) {
+        error!("Failed to plot chart: {err:?}")
+    }
+
+    match (
+        surface.to_texture(),
+        last_texture.lock().unwrap().deref_mut(),
+    ) {
+        // Successfully generated a new texture, but the old texture is also there
+        (Some(texture), Some(last_texture)) => {
+            *last_texture = texture;
+        }
+        // If texture conversion failed, keep the old texture if it's present.
+        (None, None) => {
+            error!("Failed to convert cairo surface to gdk texture, not overwriting old one");
+        }
+        // Update the last texture, if The old texture wasn't ever generated (None),
+        // No matter the result of conversion
+        (result, last_texture) => {
+            *last_texture = result;
+        }
+    };
 }
 
 // Implement the default constructor for RenderThread using the `new` method.
@@ -336,12 +343,12 @@ impl RenderRequest {
                                 (current_date, segment.evaluate(current_date))
                             })
                         }),
-                    Palette99::pick(idx).stroke_width(8),
+                    Palette99::pick(idx).stroke_width(2),
                 ))
                 .context("Failed to draw series")?
                 .label(caption)
                 .legend(move |(x, y)| {
-                    let offset = self.relative_size(0.04) as i32;
+                    let offset = self.relative_size(0.02) as i32;
                     Rectangle::new(
                         [(x - offset, y - offset), (x + offset, y + offset)],
                         Palette99::pick(idx).filled(),
@@ -360,12 +367,12 @@ impl RenderRequest {
                                 (current_date, segment.evaluate(current_date))
                             })
                         }),
-                    Palette99::pick(idx + 10).stroke_width(8),
+                    Palette99::pick(idx + 10).stroke_width(2),
                 ))
                 .context("Failed to draw series")?
                 .label(caption)
                 .legend(move |(x, y)| {
-                    let offset = self.relative_size(0.04) as i32;
+                    let offset = self.relative_size(0.02) as i32;
                     Rectangle::new(
                         [(x - offset, y - offset), (x + offset, y + offset)],
                         Palette99::pick(idx + 10).filled(),

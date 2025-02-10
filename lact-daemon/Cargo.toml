@@ -48,14 +48,8 @@ copes = { git = "https://gitlab.com/corectrl/copes" }
 libloading = "0.8.6"
 
 [dev-dependencies]
-divan = { workspace = true }
 pretty_assertions = { workspace = true }
-lact-daemon = { path = ".", features = ["bench"] }
 insta = { version = "1.41.1", features = ["json", "yaml"] }
 
 [build-dependencies]
 bindgen = "0.68"
-
-[[bench]]
-name = "daemon"
-harness = false

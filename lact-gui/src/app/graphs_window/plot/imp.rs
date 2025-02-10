@@ -9,6 +9,8 @@ use std::collections::BTreeMap;
 
 use super::render_thread::{RenderRequest, RenderThread};
 
+const SUPERSAMPLE_FACTOR: u32 = 1;
+
 #[derive(Properties, Default)]
 #[properties(wrapper_type = super::Plot)]
 pub struct Plot {
@@ -75,7 +77,7 @@ impl WidgetImpl for Plot {
                 secondary_y_label_relative_area_size: self
                     .secondary_y_label_area_relative_size
                     .get(),
-                supersample_factor: 4,
+                supersample_factor: SUPERSAMPLE_FACTOR,
                 time_period_seconds: self.time_period_seconds.get(),
             });
         }
@@ -105,14 +107,19 @@ impl PlotData {
         self.push_secondary_line_series_with_time(name, point, chrono::Local::now().naive_local());
     }
 
-    fn push_line_series_with_time(&mut self, name: &str, point: f64, time: NaiveDateTime) {
+    pub(super) fn push_line_series_with_time(
+        &mut self,
+        name: &str,
+        point: f64,
+        time: NaiveDateTime,
+    ) {
         self.line_series
             .entry(name.to_owned())
             .or_default()
             .push((time.and_utc().timestamp_millis(), point));
     }
 
-    pub fn push_secondary_line_series_with_time(
+    pub(super) fn push_secondary_line_series_with_time(
         &mut self,
         name: &str,
         point: f64,
@@ -186,5 +193,62 @@ impl PlotData {
 
     pub fn is_empty(&self) -> bool {
         self.line_series.is_empty() && self.secondary_line_series.is_empty()
+    }
+}
+
+#[cfg(feature = "bench")]
+mod benches {
+    use crate::app::graphs_window::plot::{
+        render_thread::{process_request, RenderRequest},
+        PlotData,
+    };
+    use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+    use divan::{counter::ItemsCount, Bencher};
+    use std::sync::Mutex;
+
+    use super::SUPERSAMPLE_FACTOR;
+
+    #[divan::bench]
+    fn render_plot(bencher: Bencher) {
+        let last_texture = &Mutex::new(None);
+
+        bencher
+            .with_inputs(sample_plot_data)
+            .input_counter(|_| ItemsCount::new(1usize))
+            .bench_values(|data| {
+                let request = RenderRequest {
+                    title: "bench render".into(),
+                    value_suffix: "%".into(),
+                    secondary_value_suffix: "".into(),
+                    y_label_area_relative_size: 1.0,
+                    secondary_y_label_relative_area_size: 1.0,
+                    data,
+                    width: 1920,
+                    height: 1080,
+                    supersample_factor: SUPERSAMPLE_FACTOR,
+                    time_period_seconds: 60,
+                };
+
+                process_request(request, last_texture)
+            });
+    }
+
+    fn sample_plot_data() -> PlotData {
+        let mut data = PlotData::default();
+
+        // Simulate 1 minute plot with 4 values per second
+        for sec in 0..60 {
+            for milli in [0, 250, 500, 750] {
+                let datetime = NaiveDateTime::new(
+                    NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(),
+                    NaiveTime::from_hms_milli_opt(0, 0, sec, milli).unwrap(),
+                );
+
+                data.push_line_series_with_time("GPU", 100.0, datetime);
+                data.push_secondary_line_series_with_time("GPU Secondary", 10.0, datetime);
+            }
+        }
+
+        data
     }
 }

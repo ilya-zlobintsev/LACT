@@ -1282,6 +1282,7 @@ name = "lact"
 version = "0.7.1"
 dependencies = [
  "anyhow",
+ "divan",
  "lact-cli",
  "lact-daemon",
  "lact-gui",
@@ -1327,7 +1328,6 @@ dependencies = [
  "futures",
  "indexmap",
  "insta",
- "lact-daemon",
  "lact-schema",
  "libdrm_amdgpu_sys",
  "libflate",
@@ -1358,6 +1358,7 @@ dependencies = [
  "anyhow",
  "cairo-rs",
  "chrono",
+ "divan",
  "gtk4",
  "itertools",
  "lact-client",
