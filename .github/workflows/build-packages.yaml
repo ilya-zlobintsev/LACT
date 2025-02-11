@@ -45,13 +45,13 @@ jobs:
           chmod +x /usr/local/bin/pkger
 
       - name: Build packages (with signing)
-        if: ${{ (contains(matrix.target-os, 'fedora') || contains(matrix.target-os, 'rhel') || contains(matrix.target-os, 'opensuse')) && env.GPG_KEY_PASSWORD != '' }}
+        if: ${{ contains(matrix.target-os, 'fedora') && env.GPG_KEY_PASSWORD != '' }}
         run: pkger -t -c .pkger.yml build ${{ matrix.recipe }} -i ${{ matrix.target-os }}
         env:
           GPG_KEY_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
 
       - name: Build packages (without signing)
-        if: ${{ !(contains(matrix.target-os, 'fedora') || contains(matrix.target-os, 'rhel') || contains(matrix.target-os, 'opensuse')) }}
+        if: ${{ !contains(matrix.target-os, 'fedora') }}
         run: pkger -t -c .pkger.yml build --no-sign ${{ matrix.recipe }} -i ${{ matrix.target-os }}
 
       - name: Copy release files
