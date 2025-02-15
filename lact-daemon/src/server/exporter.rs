@@ -51,7 +51,7 @@ async fn collect_metrics(handler: &Handler, registry: &Registry) {
     for (id, controller) in gpu_controllers.iter() {
         let gpu_config = config.gpus().ok().and_then(|gpus| gpus.get(id));
 
-        let info = controller.get_info();
+        let info = controller.get_info(true);
         let stats = controller.get_stats(gpu_config);
 
         let mut device_name = String::new();
