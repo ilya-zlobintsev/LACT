@@ -134,7 +134,7 @@ async fn collect_metrics(handler: &Handler, registry: &Registry) {
             .or(stats.power.current.filter(|value| *value != 0.0))
         {
             gpu_gauge! {
-                "lact_gpu_power_current",
+                "lact_gpu_power_usage",
                 "Current power consumption",
                 power_current,
             };
