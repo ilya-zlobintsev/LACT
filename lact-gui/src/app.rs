@@ -83,34 +83,34 @@ impl AsyncComponent for AppModel {
 
     view! {
         #[root]
-        gtk::ApplicationWindow {
-            set_title: Some("LACT"),
-            set_default_width: 600,
-            set_default_height: 900,
-            set_icon_name: Some(APP_ID),
-            set_titlebar: Some(model.header.widget()),
+        gtk::ApplicationWindow::builder()
+            .titlebar(&gtk::HeaderBar::new())
+            .default_height(900)
+            .default_width(60)
+            .icon_name(APP_ID)
+            .title("LACT")
+            .build() {
+                #[name = "root_box"]
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 5,
 
-            #[name = "root_box"]
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
+                    #[name = "root_stack"]
+                    gtk::Stack {
+                        set_vexpand: true,
+                        set_margin_top: 15,
+                        set_margin_start: 30,
+                        set_margin_end: 30,
 
-                #[name = "root_stack"]
-                gtk::Stack {
-                    set_vexpand: true,
-                    set_margin_top: 15,
-                    set_margin_start: 30,
-                    set_margin_end: 30,
+                        add_titled[Some("info_page"), "Information"] = model.info_page.widget(),
+                        add_titled[Some("oc_page"), "OC"] = model.oc_page.widget(),
+                        add_titled[Some("thermals_page"), "Thermals"] = &model.thermals_page.container.clone(),
+                        add_titled[Some("software_page"), "Software"] = model.software_page.widget(),
+                    },
 
-                    add_titled[Some("info_page"), "Information"] = model.info_page.widget(),
-                    add_titled[Some("oc_page"), "OC"] = model.oc_page.widget(),
-                    add_titled[Some("thermals_page"), "Thermals"] = &model.thermals_page.container.clone(),
-                    add_titled[Some("software_page"), "Software"] = model.software_page.widget(),
-                },
-
-                model.apply_revealer.widget(),
-            }
-        },
+                    model.apply_revealer.widget(),
+                }
+            },
 
         #[name = "reconnecting_dialog"]
         gtk::MessageDialog::new(
@@ -191,6 +191,13 @@ impl AsyncComponent for AppModel {
             .detach();
 
         let header = Header::builder()
+            .update_root(|headerbar| {
+                *headerbar = root
+                    .titlebar()
+                    .unwrap()
+                    .downcast::<gtk::HeaderBar>()
+                    .unwrap();
+            })
             .launch(devices)
             .forward(sender.input_sender(), |msg| msg);
 
