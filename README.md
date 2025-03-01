@@ -82,7 +82,8 @@ Monitoring/system info will be available everywhere. Integrated GPUs might also 
 
 ## Nvidia
 
-Anything Maxwell or newer should work, but generation support has not yet been tested thoroughly.
+Anything Maxwell (900 series) or newer should generally work. 
+A recent driver version is highly recommended, as older versions have shown to have issues with certain configuration options such as clockspeed settings.
 
 ## Intel
 
