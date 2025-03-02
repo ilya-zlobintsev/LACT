@@ -1,0 +1,12 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: write_commands
+---
+[
+    "card1/device/pp_od_clk_voltage: r\n",
+    "card1/device/pp_od_clk_voltage: s 1 2000\n",
+    "card1/device/pp_od_clk_voltage: vc 0 800 736\n",
+    "card1/device/pp_od_clk_voltage: vc 1 1200 779\n",
+    "card1/device/pp_od_clk_voltage: vc 2 2000 1102\n",
+    "card1/device/pp_od_clk_voltage: c\n",
+]

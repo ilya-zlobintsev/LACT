@@ -1,0 +1,18 @@
+fan_control_enabled: false
+fan_control_settings:
+  mode: static
+  static_speed: 1.0
+  temperature_key: edge
+  interval_ms: 500
+  curve:
+    40: 0.2
+    50: 0.35
+    60: 0.5
+    70: 0.75
+    80: 1.0
+  spindown_delay_ms: 0
+  change_threshold: 0
+performance_level: auto
+max_core_clock: 1630
+max_memory_clock: 920
+max_voltage: 1200
