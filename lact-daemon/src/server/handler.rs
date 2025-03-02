@@ -97,17 +97,23 @@ pub struct Handler {
 impl<'a> Handler {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
         let base_path = drm_base_path();
-        Self::with_base_path(&base_path, config).await
+        let pci_db = read_pci_db();
+
+        Self::with_base_path(&base_path, config, &pci_db).await
     }
 
-    pub(crate) async fn with_base_path(base_path: &Path, config: Config) -> anyhow::Result<Self> {
+    pub(crate) async fn with_base_path(
+        base_path: &Path,
+        config: Config,
+        pci_db: &Database,
+    ) -> anyhow::Result<Self> {
         let mut controllers = BTreeMap::new();
 
         // Sometimes LACT starts too early in the boot process, before the sysfs is initialized.
         // For such scenarios there is a retry logic when no GPUs were found,
         // or if some of the PCI devices don't have a drm entry yet.
         for i in 1..=CONTROLLERS_LOAD_RETRY_ATTEMPTS {
-            controllers = load_controllers(base_path)?;
+            controllers = load_controllers(base_path, pci_db)?;
 
             let mut should_retry = false;
             if let Ok(devices) = fs::read_dir("/sys/bus/pci/devices") {
@@ -198,7 +204,8 @@ impl<'a> Handler {
 
     pub async fn reload_gpus(&self) {
         let base_path = drm_base_path();
-        match load_controllers(&base_path) {
+        let pci_db = read_pci_db();
+        match load_controllers(&base_path, &pci_db) {
             Ok(new_controllers) => {
                 info!("GPU list reloaded with {} devices", new_controllers.len());
                 *self.gpu_controllers.write().await = new_controllers;
@@ -936,17 +943,22 @@ impl<'a> Handler {
     }
 }
 
-/// `sysfs_only` disables initialization of any external data sources, such as libdrm and nvml
-fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
-    let mut controllers = BTreeMap::new();
-
-    let pci_db = Database::read().unwrap_or_else(|err| {
+fn read_pci_db() -> Database {
+    Database::read().unwrap_or_else(|err| {
         warn!("could not read PCI ID database: {err}, device information will be limited");
         Database {
             vendors: HashMap::new(),
             classes: HashMap::new(),
         }
-    });
+    })
+}
+
+/// `sysfs_only` disables initialization of any external data sources, such as libdrm and nvml
+fn load_controllers(
+    base_path: &Path,
+    pci_db: &Database,
+) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
+    let mut controllers = BTreeMap::new();
 
     #[cfg(not(test))]
     let nvml: LazyCell<Option<Rc<Nvml>>> = LazyCell::new(|| match Nvml::init() {
@@ -1000,7 +1012,7 @@ fn load_controllers(base_path: &Path) -> anyhow::Result<BTreeMap<String, DynGpuC
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
 
-            match init_controller(device_path.clone(), &pci_db, &nvml, &amd_drm, &intel_drm) {
+            match init_controller(device_path.clone(), pci_db, &nvml, &amd_drm, &intel_drm) {
                 Ok(controller) => {
                     let info = controller.controller_info();
                     let id = info.build_id();

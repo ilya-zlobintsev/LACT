@@ -1,0 +1,45 @@
+features high: 0x00000423 low: 0xa7dfafbb
+No. Feature               Bit : State
+00. DPM_PREFETCHER       ( 0) : enabled
+01. DPM_GFXCLK           ( 1) : enabled
+02. DPM_GFX_PACE         ( 2) : disabled
+03. DPM_UCLK             ( 3) : enabled
+04. DPM_SOCCLK           ( 4) : enabled
+05. DPM_MP0CLK           ( 5) : enabled
+06. DPM_LINK             ( 6) : disabled
+07. DPM_DCEFCLK          ( 7) : enabled
+08. MEM_VDDCI_SCALING    ( 8) : enabled
+09. MEM_MVDD_SCALING     ( 9) : enabled
+10. DS_GFXCLK            (10) : enabled
+11. DS_SOCCLK            (11) : enabled
+12. DS_LCLK              (12) : disabled
+13. DS_DCEFCLK           (13) : enabled
+14. DS_UCLK              (14) : disabled
+15. GFX_ULV              (15) : enabled
+16. FW_DSTATE            (16) : enabled
+17. GFXOFF               (17) : enabled
+18. BACO                 (18) : enabled
+19. VCN_PG               (19) : enabled
+20. JPEG_PG              (20) : enabled
+21. USB_PG               (21) : disabled
+22. RSMU_SMN_CG          (22) : enabled
+23. PPT                  (23) : enabled
+24. TDC                  (24) : enabled
+25. GFX_EDC              (25) : enabled
+26. APCC_PLUS            (26) : enabled
+27. GTHR                 (27) : disabled
+28. ACDC                 (28) : disabled
+29. VR0HOT               (29) : enabled
+30. VR1HOT               (30) : disabled
+31. FW_CTF               (31) : enabled
+32. FAN_CONTROL          (32) : enabled
+33. THERMAL              (33) : enabled
+34. GFX_DCS              (34) : disabled
+35. RM                   (35) : disabled
+36. LED_DISPLAY          (36) : disabled
+37. GFX_SS               (37) : enabled
+38. OUT_OF_BAND_MONITOR  (38) : disabled
+39. TEMP_DEPENDENT_VMIN  (39) : disabled
+40. MMHUB_PG             (40) : disabled
+41. ATHUB_PG             (41) : disabled
+42. APCC_DFLL            (42) : enabled

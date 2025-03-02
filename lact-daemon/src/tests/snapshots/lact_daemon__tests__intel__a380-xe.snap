@@ -96,8 +96,7 @@ expression: device_info
       "cap_current": 55.0,
       "cap_default": 55.0,
       "cap_max": 110.0,
-      "cap_min": 0.0,
-      "current": 0.0
+      "cap_min": 0.0
     },
     "temps": {},
     "throttle_info": {},

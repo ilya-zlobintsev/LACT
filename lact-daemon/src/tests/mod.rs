@@ -8,6 +8,7 @@ async fn snapshot_everything() {
     tracing_subscriber::fmt().init();
 
     let test_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/data");
+    let pci_db = pciid_parser::Database::read().unwrap();
 
     for vendor_dir in fs::read_dir(test_data_dir).unwrap().flatten() {
         for device_dir in fs::read_dir(vendor_dir.path()).unwrap().flatten() {
@@ -17,7 +18,7 @@ async fn snapshot_everything() {
                 device_dir.file_name().to_string_lossy()
             );
 
-            let handler = Handler::with_base_path(&device_dir.path(), Config::default())
+            let handler = Handler::with_base_path(&device_dir.path(), Config::default(), &pci_db)
                 .await
                 .unwrap();
             let device_info = handler

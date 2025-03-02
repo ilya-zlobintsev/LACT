@@ -310,7 +310,9 @@ impl IntelGpuController {
                         let time_delta = timestamp - last_timestamp;
                         let energy_delta = energy - last_energy;
 
-                        Some(energy_delta / time_delta.as_millis() as u64 * 1000)
+                        energy_delta
+                            .checked_div(time_delta.as_millis() as u64)
+                            .map(|value| value * 1000)
                     }
                     None => None,
                 }
