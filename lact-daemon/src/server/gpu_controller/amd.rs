@@ -1020,10 +1020,7 @@ impl ClocksConfiguration {
             // Avoid writing settings to the clocks table except the user-specified ones
             // There is an issue on some GPU models where the default values are actually outside of the allowed range
             // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example
-
-            if table.vddc_curve.is_empty() {
-                table.clear();
-            }
+            table.clear();
 
             // Normalize the VDDC curve - make sure all of the values are within the allowed range
             table.normalize_vddc_curve();
