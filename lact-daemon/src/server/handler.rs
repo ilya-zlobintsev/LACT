@@ -71,6 +71,7 @@ const SNAPSHOT_DEVICE_FILES: &[&str] = &[
     "gpu_busy_percent",
     "current_link_speed",
     "current_link_width",
+    "power_dpm_force_performance_level",
 ];
 /// Prefixes for entries that will be recursively included in the debug snapshot
 const SNAPSHOT_DEVICE_RECURSIVE_PATHS_PREFIXES: &[&str] = &["tile"];
