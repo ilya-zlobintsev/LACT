@@ -1,13 +1,11 @@
 use chrono::NaiveDateTime;
 use glib::Properties;
-
 use gtk::{glib, prelude::*, subclass::prelude::*};
-
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 
-use super::render_thread::{RenderRequest, RenderThread};
+use super::render_thread::{PlotColorScheme, RenderRequest, RenderThread};
 
 const SUPERSAMPLE_FACTOR: u32 = 1;
 
@@ -21,9 +19,9 @@ pub struct Plot {
     #[property(get, set)]
     secondary_value_suffix: RefCell<String>,
     #[property(get, set)]
-    y_label_area_relative_size: Cell<f64>,
+    y_label_area_size: Cell<u32>,
     #[property(get, set)]
-    secondary_y_label_area_relative_size: Cell<f64>,
+    secondary_y_label_area_size: Cell<u32>,
     pub(super) data: RefCell<PlotData>,
     pub(super) dirty: Cell<bool>,
     render_thread: RenderThread,
@@ -55,6 +53,9 @@ impl WidgetImpl for Plot {
         let width = self.obj().width() as u32;
         let height = self.obj().height() as u32;
 
+        let style_context = self.obj().style_context();
+        let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
+
         if width == 0 || height == 0 {
             return;
         }
@@ -70,13 +71,12 @@ impl WidgetImpl for Plot {
                 data: self.data.borrow().clone(),
                 width,
                 height,
+                colors,
                 title: self.title.borrow().clone(),
                 value_suffix: self.value_suffix.borrow().clone(),
                 secondary_value_suffix: self.secondary_value_suffix.borrow().clone(),
-                y_label_area_relative_size: self.y_label_area_relative_size.get(),
-                secondary_y_label_relative_area_size: self
-                    .secondary_y_label_area_relative_size
-                    .get(),
+                y_label_area_size: self.y_label_area_size.get(),
+                secondary_y_label_area_size: self.secondary_y_label_area_size.get(),
                 supersample_factor: SUPERSAMPLE_FACTOR,
                 time_period_seconds: self.time_period_seconds.get(),
             });
@@ -199,7 +199,7 @@ impl PlotData {
 #[cfg(feature = "bench")]
 mod benches {
     use crate::app::graphs_window::plot::{
-        render_thread::{process_request, RenderRequest},
+        render_thread::{process_request, PlotColorScheme, RenderRequest},
         PlotData,
     };
     use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
@@ -220,8 +220,9 @@ mod benches {
                     title: "bench render".into(),
                     value_suffix: "%".into(),
                     secondary_value_suffix: "".into(),
-                    y_label_area_relative_size: 1.0,
-                    secondary_y_label_relative_area_size: 1.0,
+                    y_label_area_size: 30,
+                    secondary_y_label_area_size: 30,
+                    colors: PlotColorScheme::default(),
                     data,
                     width: 1920,
                     height: 1080,
