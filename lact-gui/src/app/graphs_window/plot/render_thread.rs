@@ -3,7 +3,6 @@ use super::to_texture_ext::ToTextureExt;
 use super::PlotData;
 use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
-
 use gtk::gdk::MemoryTexture;
 use gtk::prelude::StyleContextExt;
 use gtk::StyleContext;
@@ -47,6 +46,7 @@ pub struct PlotColorScheme {
     pub text: RGBAColor,
     pub border: RGBAColor,
     pub border_secondary: RGBAColor,
+    pub throttling: RGBAColor,
 }
 
 impl Default for PlotColorScheme {
@@ -56,6 +56,7 @@ impl Default for PlotColorScheme {
             text: BLACK.into(),
             border: BLACK.mix(0.8),
             border_secondary: BLACK.mix(0.5),
+            throttling: DEEPORANGE_100.into(),
         }
     }
 }
@@ -69,12 +70,15 @@ impl PlotColorScheme {
         let text = lookup_color(ctx, &["theme_text_color"])?;
         let border = lookup_color(ctx, &["borders"])?;
         let border_secondary = lookup_color(ctx, &["unfocused_borders"])?;
+        let mut throttling = lookup_color(ctx, &["theme_unfocused_fg_color"])?;
+        throttling.3 = 0.5;
 
         Some(PlotColorScheme {
             background,
             text,
             border,
             border_secondary,
+            throttling,
         })
     }
 }
@@ -376,7 +380,7 @@ impl RenderRequest {
                         .map(|(start_time, end_time)| {
                             Rectangle::new(
                                 [(start_time, 0f64), (end_time, maximum_value)],
-                                DEEPORANGE_100.filled(),
+                                self.colors.throttling.filled(),
                             )
                         }),
                 )
