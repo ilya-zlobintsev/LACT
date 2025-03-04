@@ -779,34 +779,37 @@ impl GpuController for AmdGpuController {
             }
 
             if config.is_core_clocks_used() {
-                let original_table = self
-                    .handle
-                    .get_clocks_table()
-                    .context("Failed to get clocks table")?;
-                let mut table = original_table.clone();
-                config
-                    .clocks_configuration
-                    .apply_to_table(&mut table)
-                    .context("Failed to apply clocks configuration to table")?;
+                match self.handle.get_clocks_table() {
+                    Ok(original_table) => {
+                        let mut table = original_table.clone();
+                        config
+                            .clocks_configuration
+                            .apply_to_table(&mut table)
+                            .context("Failed to apply clocks configuration to table")?;
 
-                debug!(
-                    "writing clocks commands: {:#?}",
-                    table
-                        .get_commands(&original_table)
-                        .context("Failed to get table commands")?
-                );
+                        debug!(
+                            "writing clocks commands: {:#?}",
+                            table
+                                .get_commands(&original_table)
+                                .context("Failed to get table commands")?
+                        );
 
-                let handle = self
-                    .handle
-                    .set_clocks_table(&table)
-                    .context("Could not write clocks table")
-                    .with_context(|| {
-                        format!(
-                            "Clocks table commands: {:?}",
-                            table.get_commands(&original_table)
-                        )
-                    })?;
-                commit_handles.push(handle);
+                        let handle = self
+                            .handle
+                            .set_clocks_table(&table)
+                            .context("Could not write clocks table")
+                            .with_context(|| {
+                                format!(
+                                    "Clocks table commands: {:?}",
+                                    table.get_commands(&original_table)
+                                )
+                            })?;
+                        commit_handles.push(handle);
+                    }
+                    Err(err) => {
+                        error!("custom clock settings are present but will be ignored, but could not get clocks table: {err}");
+                    }
+                }
             }
 
             if let Some(level) = config.performance_level {
