@@ -1,11 +1,12 @@
-use chrono::NaiveDateTime;
+use super::config::PlotConfig;
+use super::render_thread::{PlotColorScheme, RenderRequest, RenderThread};
+use crate::app::graphs_window::stat::StatsData;
 use glib::Properties;
 use gtk::{glib, prelude::*, subclass::prelude::*};
 use std::cell::Cell;
 use std::cell::RefCell;
-use std::collections::BTreeMap;
-
-use super::render_thread::{PlotColorScheme, RenderRequest, RenderThread};
+use std::sync::Arc;
+use std::sync::RwLock;
 
 const SUPERSAMPLE_FACTOR: u32 = 1;
 
@@ -22,11 +23,13 @@ pub struct Plot {
     y_label_area_size: Cell<u32>,
     #[property(get, set)]
     secondary_y_label_area_size: Cell<u32>,
-    pub(super) data: RefCell<PlotData>,
-    pub(super) dirty: Cell<bool>,
+    #[property(set)]
+    dirty: Cell<bool>,
     render_thread: RenderThread,
     #[property(get, set)]
     time_period_seconds: Cell<i64>,
+    pub config: RefCell<PlotConfig>,
+    pub data: RefCell<Arc<RwLock<StatsData>>>,
 }
 
 #[glib::object_subclass]
@@ -69,6 +72,7 @@ impl WidgetImpl for Plot {
         if self.dirty.replace(false) || size_changed {
             self.render_thread.replace_render_request(RenderRequest {
                 data: self.data.borrow().clone(),
+                config: self.config.borrow().clone(),
                 width,
                 height,
                 colors,
@@ -91,7 +95,7 @@ impl WidgetImpl for Plot {
     }
 }
 
-#[derive(Default, Clone)]
+/*#[derive(Default, Clone)]
 pub struct PlotData {
     pub(super) line_series: BTreeMap<String, Vec<(i64, f64)>>,
     pub(super) secondary_line_series: BTreeMap<String, Vec<(i64, f64)>>,
@@ -194,9 +198,9 @@ impl PlotData {
     pub fn is_empty(&self) -> bool {
         self.line_series.is_empty() && self.secondary_line_series.is_empty()
     }
-}
+}*/
 
-#[cfg(feature = "bench")]
+/*#[cfg(feature = "bench")]
 mod benches {
     use crate::app::graphs_window::plot::{
         render_thread::{process_request, PlotColorScheme, RenderRequest},
@@ -252,4 +256,4 @@ mod benches {
 
         data
     }
-}
+}*/

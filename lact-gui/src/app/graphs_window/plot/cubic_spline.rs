@@ -25,12 +25,7 @@ impl CubicSplineSegment {
 pub type TimePeriod = (i64, i64);
 
 // Define a function to perform cubic spline interpolation
-pub fn cubic_spline_interpolation<'a, I>(iter: I) -> Vec<(TimePeriod, CubicSplineSegment)>
-where
-    I: IntoIterator<Item = &'a (i64, f64)> + 'a,
-{
-    let data: Vec<_> = iter.into_iter().collect();
-
+pub fn cubic_spline_interpolation(data: &[(i64, f64)]) -> Vec<(TimePeriod, CubicSplineSegment)> {
     let n = data.len();
 
     // Compute differences between consecutive x values
@@ -41,7 +36,7 @@ where
     }
 
     // Compute differences between consecutive y values
-    let dy: Vec<f64> = data.iter().map(|&(_, y)| *y).collect();
+    let dy: Vec<f64> = data.iter().map(|&(_, y)| y).collect();
 
     // Compute second derivatives using Thomas algorithm
     let mut d = vec![0.0; n];

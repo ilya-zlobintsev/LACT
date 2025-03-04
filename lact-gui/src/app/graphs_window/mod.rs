@@ -1,14 +1,17 @@
 pub(crate) mod plot;
+mod stat;
 
 use gtk::prelude::*;
 use lact_schema::DeviceStats;
-use plot::{Plot, PlotData};
+use plot::{config::PlotConfig, Plot};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
-use std::sync::Arc;
+use stat::{StatType, StatsData};
+use std::sync::{Arc, RwLock};
 
 pub struct GraphsWindow {
     time_period_seconds_adj: gtk::Adjustment,
     vram_clock_ratio: f64,
+    stats_data: Arc<RwLock<StatsData>>,
 }
 
 #[derive(Debug)]
@@ -47,6 +50,8 @@ impl relm4::Component for GraphsWindow {
                     set_y_label_area_size: 60,
                     #[watch]
                     set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
+
+                    set_data: model.stats_data.clone(),
                 },
 
                 attach[0, 1, 1, 1]: fan_plot = &Plot {
@@ -58,6 +63,13 @@ impl relm4::Component for GraphsWindow {
                     set_secondary_y_label_area_size: 60,
                     #[watch]
                     set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
+
+                    set_config: PlotConfig {
+                        left_stats: vec![StatType::FanRpm],
+                        right_stats: vec![StatType::FanPwm],
+                    },
+
+                    set_data: model.stats_data.clone(),
                 },
 
                 attach[1, 0, 1, 1]: clockspeed_plot = &Plot {
@@ -67,6 +79,8 @@ impl relm4::Component for GraphsWindow {
                     set_y_label_area_size: 95,
                     #[watch]
                     set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
+
+                    set_data: model.stats_data.clone(),
                 },
 
                 attach[1, 1, 1, 1]: power_plot = &Plot {
@@ -76,6 +90,8 @@ impl relm4::Component for GraphsWindow {
                     set_y_label_area_size: 65,
                     #[watch]
                     set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
+
+                    set_data: model.stats_data.clone(),
                 },
 
                 attach[1, 2, 1, 1] = &gtk::Box {
@@ -109,6 +125,7 @@ impl relm4::Component for GraphsWindow {
         let model = Self {
             time_period_seconds_adj,
             vram_clock_ratio: 1.0,
+            stats_data: Arc::default(),
         };
 
         let widgets = view_output!();
@@ -132,7 +149,7 @@ impl relm4::Component for GraphsWindow {
                 self.vram_clock_ratio = ratio;
             }
             GraphsWindowMsg::Stats(stats) => {
-                let mut temperature_plot = widgets.temperature_plot.data_mut();
+                /*let mut temperature_plot = widgets.temperature_plot.data_mut();
                 let mut clockspeed_plot = widgets.clockspeed_plot.data_mut();
                 let mut power_plot = widgets.power_plot.data_mut();
                 let mut fan_plot = widgets.fan_plot.data_mut();
@@ -207,22 +224,18 @@ impl relm4::Component for GraphsWindow {
                         "Percentage",
                         (pwm as f64 / u8::MAX as f64) * 100.0,
                     );
-                }
+                }*/
+
+                let mut data = self.stats_data.write().unwrap();
+                data.update(&stats);
 
                 let time_period_seconds = self.time_period_seconds_adj.value() as i64;
-                temperature_plot.trim_data(time_period_seconds);
-                clockspeed_plot.trim_data(time_period_seconds);
-                power_plot.trim_data(time_period_seconds);
-                fan_plot.trim_data(time_period_seconds);
+                data.trim(time_period_seconds);
 
                 Self::queue_plots_draw(widgets);
             }
             GraphsWindowMsg::Clear => {
-                *widgets.temperature_plot.data_mut() = PlotData::default();
-                *widgets.clockspeed_plot.data_mut() = PlotData::default();
-                *widgets.power_plot.data_mut() = PlotData::default();
-                *widgets.fan_plot.data_mut() = PlotData::default();
-
+                self.stats_data.write().unwrap().clear();
                 Self::queue_plots_draw(widgets);
             }
         }
@@ -233,9 +246,15 @@ impl relm4::Component for GraphsWindow {
 
 impl GraphsWindow {
     fn queue_plots_draw(widgets: &<Self as relm4::Component>::Widgets) {
-        widgets.temperature_plot.queue_draw();
-        widgets.clockspeed_plot.queue_draw();
-        widgets.power_plot.queue_draw();
-        widgets.fan_plot.queue_draw();
+        let plots = [
+            &widgets.temperature_plot,
+            &widgets.clockspeed_plot,
+            &widgets.power_plot,
+            &widgets.fan_plot,
+        ];
+        for plot in plots {
+            plot.set_dirty(true);
+            plot.queue_draw();
+        }
     }
 }
