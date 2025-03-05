@@ -35,7 +35,7 @@ All of the functionality works regardless of the desktop session (there is no de
 - Otherwise, build from source.
 
 **Why is there no AppImage/Flatpak/other universal format?**
-See [here](./pkg/README.md).
+See [here](./pkg/README.md#why-is-there-no-appimageflatpakdocker).
 
 Note: Nvidia support requires the Nvidia proprietary driver with CUDA libraries installed.
 
