@@ -45,6 +45,7 @@ pub struct IntelGpuController {
     drm_file: fs::File,
     drm: Rc<IntelDrm>,
     last_gpu_busy: Cell<Option<(Instant, u64)>>,
+    #[allow(dead_code)]
     last_energy_value: Cell<Option<(Instant, u64)>>,
     initial_power_cap: Option<f64>,
 }

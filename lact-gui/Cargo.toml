@@ -34,7 +34,7 @@ plotters = { version = "0.3.5", default-features = false, features = [
 ] }
 plotters-cairo = "0.7.0"
 cairo-rs = { version = "0.20", default-features = false }
-itertools = "0.13.0"
+itertools = "0.14.0"
 
 thread-priority = "1.1.0"
 
