@@ -17,7 +17,7 @@ jobs:
       - name: Update repos
         run: sudo apt update
       - name: Install dependencies
-        run: sudo apt install -y libgtk-4-dev pkg-config libvulkan-dev libdrm-dev blueprint-compiler curl
+        run: sudo apt install -y libgtk-4-dev pkg-config libvulkan-dev libdrm-dev blueprint-compiler curl fuse3 libfuse-dev
       - name: Update pci.ids
         run: sudo curl -o /usr/share/hwdata/pci.ids https://pci-ids.ucw.cz/v2.2/pci.ids
       - name: Build
