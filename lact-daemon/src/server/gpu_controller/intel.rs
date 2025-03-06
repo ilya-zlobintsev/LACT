@@ -316,10 +316,15 @@ impl IntelGpuController {
     fn get_power_usage(&self) -> Option<f64> {
         self.read_hwmon_file::<u64>("power", "_input")
             .or_else(|| {
-                let energy = self.read_hwmon_file("energy", "_input")?;
+                let energy = self.read_hwmon_file::<u64>("energy", "_input")?;
                 let timestamp = Instant::now();
 
-                match self.last_energy_value.replace(Some((timestamp, energy))) {
+                #[cfg(not(test))]
+                let last_value = self.last_energy_value.replace(Some((timestamp, energy)));
+                #[cfg(test)]
+                let last_value: Option<(Instant, u64)> = None;
+
+                match last_value {
                     Some((last_timestamp, last_energy)) => {
                         let time_delta = timestamp - last_timestamp;
                         let energy_delta = energy - last_energy;
