@@ -1,0 +1,8 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: write_commands
+---
+[
+    "card1/gt_max_freq_mhz: 2100",
+    "card1/device/hwmon/hwmon1/power1_max: 60000000",
+]

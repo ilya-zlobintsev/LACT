@@ -217,16 +217,30 @@ impl IntelGpuController {
         debug!("writing value '{contents}' to '{file_prefix}*{file_suffix}'");
 
         if let Some(hwmon_path) = &self.hwmon_path {
+            let mut files = Vec::with_capacity(1);
+
             let entries = fs::read_dir(hwmon_path)?;
             for entry in entries.flatten() {
                 if let Some(name) = entry.file_name().to_str() {
                     if name.starts_with(file_prefix) && name.ends_with(file_suffix) {
-                        return self.write_file(entry.path(), contents);
+                        if let Some(infix) = name
+                            .strip_prefix(file_prefix)
+                            .and_then(|name| name.strip_suffix(file_suffix))
+                        {
+                            if !infix.contains('_') {
+                                files.push(entry.path());
+                            }
+                        }
                     }
                 }
             }
+            files.sort_unstable();
 
-            Err(anyhow!("File not found"))
+            if let Some(entry) = files.first() {
+                self.write_file(entry, contents)
+            } else {
+                Err(anyhow!("File not found"))
+            }
         } else {
             Err(anyhow!("No hwmon available"))
         }
