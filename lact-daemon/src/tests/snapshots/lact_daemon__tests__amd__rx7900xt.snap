@@ -393,7 +393,10 @@ expression: device_info
   },
   "stats": {
     "busy_percent": 3,
-    "clockspeed": {},
+    "clockspeed": {
+      "gpu_clockspeed": 31,
+      "vram_clockspeed": 1249
+    },
     "core_power_state": 1,
     "fan": {
       "control_enabled": false,
@@ -426,12 +429,41 @@ expression: device_info
           ],
           "current": 83
         }
-      }
+      },
+      "pwm_current": 0,
+      "speed_current": 0,
+      "speed_max": 3200,
+      "speed_min": 0
     },
     "memory_power_state": 3,
-    "power": {},
-    "temps": {},
-    "voltage": {},
+    "performance_level": "auto",
+    "power": {
+      "average": 68.0,
+      "cap_current": 290.0,
+      "cap_default": 290.0,
+      "cap_max": 333.0,
+      "cap_min": 261.0
+    },
+    "temps": {
+      "edge": {
+        "crit": 100.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 53.0
+      },
+      "junction": {
+        "crit": 110.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 61.0
+      },
+      "mem": {
+        "crit": 108.0,
+        "crit_hyst": -273.1499938964844,
+        "current": 68.0
+      }
+    },
+    "voltage": {
+      "gpu": 686
+    },
     "vram": {}
   }
 }

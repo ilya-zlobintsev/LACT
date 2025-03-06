@@ -29,7 +29,7 @@ impl relm4::Component for GraphsWindow {
 
     view! {
         gtk::Window {
-            set_default_height: 400,
+            set_default_height: 650,
             set_default_width: 1200,
             set_title: Some("Historical data"),
             set_hide_on_close: true,
@@ -38,12 +38,13 @@ impl relm4::Component for GraphsWindow {
                 set_margin_all: 10,
                 set_row_spacing: 20,
                 set_column_spacing: 20,
+                set_column_homogeneous: true,
 
                 attach[0, 0, 1, 1]: temperature_plot = &Plot {
                     set_title: "Temperature",
                     set_hexpand: true,
                     set_value_suffix: "°C",
-                    set_y_label_area_relative_size: 0.15,
+                    set_y_label_area_size: 60,
                     #[watch]
                     set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
                 },
@@ -52,8 +53,9 @@ impl relm4::Component for GraphsWindow {
                     set_title: "Fan speed",
                     set_hexpand: true,
                     set_value_suffix: "RPM",
-                    set_y_label_area_relative_size: 0.25,
-                    set_secondary_y_label_area_relative_size: 0.15,
+                    set_secondary_value_suffix: "%",
+                    set_y_label_area_size: 90,
+                    set_secondary_y_label_area_size: 60,
                     #[watch]
                     set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
                 },
@@ -62,7 +64,7 @@ impl relm4::Component for GraphsWindow {
                     set_title: "Clockspeed",
                     set_hexpand: true,
                     set_value_suffix: "MHz",
-                    set_y_label_area_relative_size: 0.3,
+                    set_y_label_area_size: 95,
                     #[watch]
                     set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
                 },
@@ -71,7 +73,7 @@ impl relm4::Component for GraphsWindow {
                     set_title: "Power usage",
                     set_hexpand: true,
                     set_value_suffix: "W",
-                    set_y_label_area_relative_size: 0.2,
+                    set_y_label_area_size: 65,
                     #[watch]
                     set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
                 },

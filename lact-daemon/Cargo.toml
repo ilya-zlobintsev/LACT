@@ -1,6 +1,6 @@
 [package]
 name = "lact-daemon"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 
 [features]
@@ -48,14 +48,10 @@ copes = { git = "https://gitlab.com/corectrl/copes" }
 libloading = "0.8.6"
 
 [dev-dependencies]
-divan = { workspace = true }
 pretty_assertions = { workspace = true }
-lact-daemon = { path = ".", features = ["bench"] }
 insta = { version = "1.41.1", features = ["json", "yaml"] }
+tempfile = "3.17.1"
+easy_fuser = { version = "0.4.0", features = ["parallel"] }
 
 [build-dependencies]
 bindgen = "0.68"
-
-[[bench]]
-name = "daemon"
-harness = false

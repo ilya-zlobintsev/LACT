@@ -4,6 +4,8 @@ use lact_schema::{DeviceStats, PowerStats};
 use relm4::{ComponentParts, ComponentSender};
 use std::{fmt::Write, sync::Arc};
 
+const TEMP_KEYS: &[&str] = &["junction", "edge"];
+
 pub struct GpuStatsSection {
     stats: Arc<DeviceStats>,
     vram_clock_ratio: f64,
@@ -81,17 +83,26 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     },
 
                     InfoRow {
-                        set_name: "GPU Temperature (hotspot):",
+                        #[watch]
+                        set_name: {
+                            if model.stats.temps.len() == 1 {
+                                "GPU Temperature:".to_owned()
+                            } else {
+                                let key = TEMP_KEYS.iter().copied().find(|key| {
+                                    model.stats.temps.contains_key(*key)
+                                })
+                                .unwrap_or_else(|| model.stats.temps.keys().next().map(|s| s.as_str()).unwrap_or_default());
+                                format!("GPU Temperature ({key}):")
+                            }
+                        },
                         #[watch]
                         set_value: {
                             let temperature = if model.stats.temps.len() == 1 {
                                 model.stats.temps.values().next().unwrap().current
                             } else {
-                                model.stats
-                                    .temps
-                                    .get("junction")
-                                    .or_else(|| model.stats.temps.get("edge"))
-                                    .and_then(|temp| temp.current)
+                                TEMP_KEYS.iter().find_map(|key| {
+                                    model.stats.temps.get(*key).and_then(|temp| temp.current)
+                                })
                             }
                             .unwrap_or(0.0);
                             format!("{temperature}°C")

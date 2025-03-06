@@ -184,16 +184,27 @@ impl IntelGpuController {
         T: FromStr,
         T::Err: Display,
     {
+        let mut files = Vec::with_capacity(1);
         self.hwmon_path.as_ref().and_then(|hwmon_path| {
             let entries = fs::read_dir(hwmon_path).ok()?;
             for entry in entries.flatten() {
                 if let Some(name) = entry.file_name().to_str() {
-                    if name.starts_with(file_prefix) && name.ends_with(file_suffix) {
-                        return self.read_file(entry.path());
+                    if let Some(infix) = name
+                        .strip_prefix(file_prefix)
+                        .and_then(|name| name.strip_suffix(file_suffix))
+                    {
+                        if !infix.contains('_') {
+                            files.push(entry.path());
+                        }
                     }
                 }
             }
-            None
+            files.sort_unstable();
+
+            files
+                .into_iter()
+                .next()
+                .and_then(|path| self.read_file(path))
         })
     }
 
@@ -299,7 +310,9 @@ impl IntelGpuController {
                         let time_delta = timestamp - last_timestamp;
                         let energy_delta = energy - last_energy;
 
-                        Some(energy_delta / time_delta.as_millis() as u64 * 1000)
+                        energy_delta
+                            .checked_div(time_delta.as_millis() as u64)
+                            .map(|value| value * 1000)
                     }
                     None => None,
                 }

@@ -206,7 +206,7 @@ impl ClocksFrame {
             ),
             (
                 ClockspeedType::MinCoreClock,
-                table.get_current_mclk_range().min,
+                table.get_current_sclk_range().min,
                 table.get_min_sclk_range(),
             ),
             (

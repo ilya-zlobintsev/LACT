@@ -5,21 +5,39 @@ template $PowerStatesFrame: Box {
         label: "Power states";
 
         Box {
+            orientation: vertical;
             margin-start: 10;
             margin-end: 10;
             margin-top: 10;
             margin-bottom: 10;
-            spacing: 10;
-            orientation: horizontal;
+            spacing: 5;
 
-            $PowerStatesList core_states_list {
-                title: "GPU power states";
-                sensitive: bind template.configurable;
+            Label {
+                label: "Note: performance level must be set to 'manual' to toggle power states";
+                margin-start: 10;
+                margin-end: 10;
+                halign: start;
             }
 
-            $PowerStatesList vram_states_list {
-                title: "VRAM power states";
-                sensitive: bind template.configurable;
+            CheckButton {
+                label: "Enable power state configuration";
+                sensitive: bind template.toggleable bidirectional;
+                active: bind template.configurable bidirectional;
+            }
+
+            Box {
+                spacing: 10;
+                orientation: horizontal;
+
+                $PowerStatesList core_states_list {
+                    title: "GPU power states";
+                    sensitive: bind template.configurable;
+                }
+
+                $PowerStatesList vram_states_list {
+                    title: "VRAM power states";
+                    sensitive: bind template.configurable;
+                }
             }
         }
     }

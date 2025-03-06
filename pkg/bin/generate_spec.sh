@@ -32,6 +32,8 @@ for RECIPE_PATH in "$RECIPES_DIR"/*/; do
   MAINTAINER=$(yq eval '.metadata.maintainer // "Unknown Maintainer"' "$RECIPE_FILE")
   SOURCE_URL="https://github.com/ilya-zlobintsev/LACT/archive/refs/tags/v${RECIPE_VERSION}.tar.gz"
 
+  LACT_COMMIT_HASH=$(git rev-parse --short v$RECIPE_VERSION)
+
   MAKE_COMMAND_RAW=$(yq eval '.build.steps[0]' "$RECIPE_FILE" | grep -oP '(make.+)')
   MAKE_COMMAND=${MAKE_COMMAND_RAW::-1}
 
@@ -83,7 +85,7 @@ $MAKE_COMMAND %{?_smp_mflags}
 
 %install
 rm -rf %{buildroot}
-make install PREFIX=/usr DESTDIR=%{buildroot}
+VERGEN_GIT_SHA=$LACT_COMMIT_HASH make install PREFIX=/usr DESTDIR=%{buildroot}
 
 %files
 %defattr(-,root,root,-)

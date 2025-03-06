@@ -26,6 +26,7 @@ chrono = "0.4.31"
 indexmap = { version = "2.5.0", features = ["serde"] }
 pretty_assertions = "1.4.0"
 divan = "0.1"
+gtk = { version = "0.9", package = "gtk4" }
 
 [profile.release]
 strip = "symbols"
@@ -45,3 +46,5 @@ opt-level = 3
 [profile.bench]
 strip = false
 debug = 1
+lto = "thin"
+codegen-units = 256

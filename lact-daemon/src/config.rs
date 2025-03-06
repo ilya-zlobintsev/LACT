@@ -91,6 +91,7 @@ pub struct Profile {
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Gpu {
+    #[serde(default)]
     pub fan_control_enabled: bool,
     pub fan_control_settings: Option<FanControlSettings>,
     #[serde(default, skip_serializing_if = "PmfwOptions::is_empty")]

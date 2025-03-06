@@ -1,0 +1,29 @@
+PROFILE_INDEX(NAME) CLOCK_TYPE(NAME) FPS MinFreqType MinActiveFreqType MinActiveFreq BoosterFreqType BoosterFreq PD_Data_limit_c PD_Data_error_coeff PD_Data_error_rate_coeff
+ 0 BOOTUP_DEFAULT :
+                    0(       GFXCLK)       0       5       1       0       4     800 4587520  -65536       0
+                    1(       SOCCLK)       0       5       1       0       1       0 3276800   -6553   -6553
+                    2(       MEMCLK)       0       5       1       0       4     800  327680  -65536       0
+ 1 3D_FULL_SCREEN*:
+                    0(       GFXCLK)       0       5       1       0       4     650 4587520   -3276  -65536
+                    1(       SOCCLK)       0       5       1       0       1       0  655360   -6553   -6553
+                    2(       MEMCLK)       0       5       4     850       4     800  327680  -65536       0
+ 2   POWER_SAVING :
+                    0(       GFXCLK)       0       5       1       0       3       0 5898240  -65536       0
+                    1(       SOCCLK)       0       5       1       0       1       0 3407872   -6553   -6553
+                    2(       MEMCLK)       0       5       1       0       3       0 1966080  -65536       0
+ 3          VIDEO :
+                    0(       GFXCLK)       0       5       1       0       4     500 4587520  -65536       0
+                    1(       SOCCLK)       0       5       1       0       1       0 3473408   -6553   -6553
+                    2(       MEMCLK)       0       5       1       0       4     500 1966080  -65536       0
+ 4             VR :
+                    0(       GFXCLK)       0       5       4    1000       1       0 3932160       0       0
+                    1(       SOCCLK)       0       5       1       0       1       0  655360   -6553   -6553
+                    2(       MEMCLK)       0       5       1       0       4     800  327680  -65536       0
+ 5        COMPUTE :
+                    0(       GFXCLK)       0       5       4    1000       1       0 3932160       0       0
+                    1(       SOCCLK)       0       5       1       0       1       0  655360   -6553   -6553
+                    2(       MEMCLK)       0       5       4     850       3       0  327680  -65536  -32768
+ 6         CUSTOM :
+                    0(       GFXCLK)       0       5       1       0       4     800 4587520  -65536       0
+                    1(       SOCCLK)       0       5       1       0       1       0 3276800   -6553   -6553
+                    2(       MEMCLK)       0       5       1       0       4     800  327680  -65536       0

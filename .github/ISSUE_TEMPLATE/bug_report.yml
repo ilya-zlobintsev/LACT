@@ -12,6 +12,8 @@ body:
           required: true
         - label: I've included a [debug snapshot](https://github.com/ilya-zlobintsev/LACT?tab=readme-ov-file#reporting-issues) if the issue is related to hardware configuration
           required: true
+        - label: I've checked that the issue still happens in the latest [development build](https://github.com/ilya-zlobintsev/lact?tab=readme-ov-file#development-builds).
+          required: true
 
   - type: textarea
     id: description
