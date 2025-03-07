@@ -45,6 +45,7 @@ pub struct IntelGpuController {
     drm_file: fs::File,
     drm: Rc<IntelDrm>,
     last_gpu_busy: Cell<Option<(Instant, u64)>>,
+    #[allow(dead_code)]
     last_energy_value: Cell<Option<(Instant, u64)>>,
     initial_power_cap: Option<f64>,
 }
@@ -217,16 +218,30 @@ impl IntelGpuController {
         debug!("writing value '{contents}' to '{file_prefix}*{file_suffix}'");
 
         if let Some(hwmon_path) = &self.hwmon_path {
+            let mut files = Vec::with_capacity(1);
+
             let entries = fs::read_dir(hwmon_path)?;
             for entry in entries.flatten() {
                 if let Some(name) = entry.file_name().to_str() {
                     if name.starts_with(file_prefix) && name.ends_with(file_suffix) {
-                        return self.write_file(entry.path(), contents);
+                        if let Some(infix) = name
+                            .strip_prefix(file_prefix)
+                            .and_then(|name| name.strip_suffix(file_suffix))
+                        {
+                            if !infix.contains('_') {
+                                files.push(entry.path());
+                            }
+                        }
                     }
                 }
             }
+            files.sort_unstable();
 
-            Err(anyhow!("File not found"))
+            if let Some(entry) = files.first() {
+                self.write_file(entry, contents)
+            } else {
+                Err(anyhow!("File not found"))
+            }
         } else {
             Err(anyhow!("No hwmon available"))
         }
@@ -302,10 +317,15 @@ impl IntelGpuController {
     fn get_power_usage(&self) -> Option<f64> {
         self.read_hwmon_file::<u64>("power", "_input")
             .or_else(|| {
-                let energy = self.read_hwmon_file("energy", "_input")?;
+                let energy = self.read_hwmon_file::<u64>("energy", "_input")?;
                 let timestamp = Instant::now();
 
-                match self.last_energy_value.replace(Some((timestamp, energy))) {
+                #[cfg(not(test))]
+                let last_value = self.last_energy_value.replace(Some((timestamp, energy)));
+                #[cfg(test)]
+                let last_value: Option<(Instant, u64)> = None;
+
+                match last_value {
                     Some((last_timestamp, last_energy)) => {
                         let time_delta = timestamp - last_timestamp;
                         let energy_delta = energy - last_energy;
