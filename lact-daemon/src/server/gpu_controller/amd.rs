@@ -807,7 +807,7 @@ impl GpuController for AmdGpuController {
                         commit_handles.push(handle);
                     }
                     Err(err) => {
-                        error!("custom clock settings are present but will be ignored, but could not get clocks table: {err}");
+                        error!("custom clock settings are present but will be ignored, could not get clocks table: {err}");
                     }
                 }
             }
@@ -1031,6 +1031,18 @@ impl ClocksConfiguration {
             match self.voltage_offset {
                 Some(offset) => table.set_voltage_offset(offset)?,
                 None => table.voltage_offset = None,
+            }
+
+            for (num, offset) in &self.gpu_clock_offsets {
+                match num {
+                    0 => {
+                        table.current_sclk_offset_range.min = Some(*offset);
+                    }
+                    1 => {
+                        table.current_sclk_offset_range.max = Some(*offset);
+                    }
+                    _ => return Err(anyhow!("Invalid GPU clock offset pstate index: {num}")),
+                }
             }
         }
 

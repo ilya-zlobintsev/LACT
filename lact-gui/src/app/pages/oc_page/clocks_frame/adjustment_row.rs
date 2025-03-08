@@ -11,6 +11,7 @@ use relm4::{prelude::FactoryComponent, RelmWidgetExt};
 
 pub struct ClockAdjustmentRow {
     clock_type: ClockspeedType,
+    custom_title: Option<&'static str>,
     value_ratio: f64,
     change_signal: SignalHandlerId,
     adjustment: OcAdjustment,
@@ -20,6 +21,18 @@ pub struct ClocksData {
     pub current: i32,
     pub min: i32,
     pub max: i32,
+    pub custom_title: Option<&'static str>,
+}
+
+impl ClocksData {
+    pub fn new(current: i32, min: i32, max: i32) -> Self {
+        Self {
+            current,
+            min,
+            max,
+            custom_title: None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -48,17 +61,22 @@ impl FactoryComponent for ClockAdjustmentRow {
             gtk::Label {
                 set_xalign: 0.0,
                 #[watch]
-                set_markup: &match self.clock_type {
-                    ClockspeedType::MaxCoreClock => "Maximum GPU Clock (MHz)".to_owned(),
-                    ClockspeedType::MaxMemoryClock => "Maximum VRAM Clock (MHz)".to_owned(),
-                    ClockspeedType::MaxVoltage => "Maximum GPU voltage (mV)".to_owned(),
-                    ClockspeedType::MinCoreClock => "Minimum GPU Clock (MHz)".to_owned(),
-                    ClockspeedType::MinMemoryClock => "Minimum VRAM Clock (MHz)".to_owned(),
-                    ClockspeedType::MinVoltage => "Minimum GPU voltage (mV)".to_owned(),
-                    ClockspeedType::VoltageOffset => "GPU voltage offset (mV)".to_owned(),
-                    ClockspeedType::GpuClockOffset(pstate) => format!("GPU P-State {pstate} Clock Offset (MHz)"),
-                    ClockspeedType::MemClockOffset(pstate) => format!("VRAM P-State {pstate} Clock Offset (MHz)"),
-                    ClockspeedType::Reset => unreachable!(),
+                set_markup: &match self.custom_title {
+                    Some(title) => title.to_owned(),
+                    None => {
+                        match self.clock_type {
+                            ClockspeedType::MaxCoreClock => "Maximum GPU Clock (MHz)".to_owned(),
+                            ClockspeedType::MaxMemoryClock => "Maximum VRAM Clock (MHz)".to_owned(),
+                            ClockspeedType::MaxVoltage => "Maximum GPU voltage (mV)".to_owned(),
+                            ClockspeedType::MinCoreClock => "Minimum GPU Clock (MHz)".to_owned(),
+                            ClockspeedType::MinMemoryClock => "Minimum VRAM Clock (MHz)".to_owned(),
+                            ClockspeedType::MinVoltage => "Minimum GPU voltage (mV)".to_owned(),
+                            ClockspeedType::VoltageOffset => "GPU voltage offset (mV)".to_owned(),
+                            ClockspeedType::GpuClockOffset(pstate) => format!("GPU P-State {pstate} Clock Offset (MHz)"),
+                            ClockspeedType::MemClockOffset(pstate) => format!("VRAM P-State {pstate} Clock Offset (MHz)"),
+                            ClockspeedType::Reset => unreachable!(),
+                        }
+                    }
                 }
             },
 
@@ -99,6 +117,7 @@ impl FactoryComponent for ClockAdjustmentRow {
 
         Self {
             clock_type: *clock_type,
+            custom_title: data.custom_title,
             adjustment,
             change_signal,
             value_ratio: 1.0,

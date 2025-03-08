@@ -188,6 +188,40 @@ impl ClocksFrame {
     }
 
     fn set_amd_table(&mut self, table: AmdClocksTable) {
+        if let AmdClocksTable::Vega20(table) = &table {
+            if let Some((sclk_offset_min, sclk_offset_max)) = table
+                .od_range
+                .sclk_offset
+                .and_then(|range| range.into_full())
+            {
+                self.show_all_pstates.set_value(true);
+
+                if let Some(current_sclk_offset_max) = table.current_sclk_offset_range.max {
+                    self.clocks.insert(
+                        ClockspeedType::GpuClockOffset(0),
+                        ClocksData {
+                            current: current_sclk_offset_max,
+                            min: sclk_offset_min,
+                            max: sclk_offset_max,
+                            custom_title: Some("Maximum GPU Clock Offset (MHz)"),
+                        },
+                    );
+                }
+
+                if let Some(current_sclk_offset_min) = table.current_sclk_offset_range.min {
+                    self.clocks.insert(
+                        ClockspeedType::GpuClockOffset(1),
+                        ClocksData {
+                            current: current_sclk_offset_min,
+                            min: sclk_offset_min,
+                            max: sclk_offset_max,
+                            custom_title: Some("Minimum GPU Clock Offset (MHz)"),
+                        },
+                    );
+                }
+            }
+        }
+
         let clocks_types = [
             (
                 ClockspeedType::MaxCoreClock,
@@ -227,7 +261,7 @@ impl ClocksFrame {
             if let Some(current) = current_value {
                 if let Some((min, max)) = range.and_then(|range| range.into_full()) {
                     self.clocks
-                        .insert(clockspeed_type, ClocksData { current, min, max });
+                        .insert(clockspeed_type, ClocksData::new(current, min, max));
                 }
             }
         }
@@ -242,7 +276,7 @@ impl ClocksFrame {
 
                 self.clocks.insert(
                     ClockspeedType::VoltageOffset,
-                    ClocksData { current, min, max },
+                    ClocksData::new(current, min, max),
                 );
             }
         }
@@ -270,19 +304,11 @@ impl ClocksFrame {
             if let (Some(min_clock), Some(max_clock)) = (table.rpn_freq, table.rp0_freq) {
                 self.clocks.insert(
                     ClockspeedType::MaxCoreClock,
-                    ClocksData {
-                        current: current_gt_max as i32,
-                        min: min_clock as i32,
-                        max: max_clock as i32,
-                    },
+                    ClocksData::new(current_gt_max as i32, min_clock as i32, max_clock as i32),
                 );
                 self.clocks.insert(
                     ClockspeedType::MinCoreClock,
-                    ClocksData {
-                        current: current_gt_min as i32,
-                        min: min_clock as i32,
-                        max: max_clock as i32,
-                    },
+                    ClocksData::new(current_gt_min as i32, min_clock as i32, max_clock as i32),
                 );
             }
         }
@@ -307,5 +333,6 @@ fn nvidia_clock_offset_to_data(clock_info: &NvidiaClockOffset) -> ClocksData {
         current: clock_info.current,
         min: clock_info.min,
         max: clock_info.max,
+        custom_title: None,
     }
 }
