@@ -323,7 +323,6 @@ impl AppModel {
             }
             AppMsg::Stats(stats) => {
                 let update = PageUpdate::Stats(stats.clone());
-                self.info_page.emit(update.clone());
                 self.oc_page.emit(OcPageMsg::Update {
                     update,
                     initial: false,
