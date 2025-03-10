@@ -1723,7 +1723,7 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper"
 version = "0.10.0"
-source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#890581189516191428a8b8c7ba3b006adf03a3fc"
+source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#6600783f600851b5bcca10d6941b7a8bd9d07ec2"
 dependencies = [
  "bitflags 2.9.0",
  "libloading",
@@ -1736,7 +1736,7 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper-sys"
 version = "0.8.0"
-source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#890581189516191428a8b8c7ba3b006adf03a3fc"
+source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#6600783f600851b5bcca10d6941b7a8bd9d07ec2"
 dependencies = [
  "libloading",
 ]
