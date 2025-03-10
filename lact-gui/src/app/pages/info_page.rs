@@ -5,11 +5,11 @@ use self::hardware_info::HardwareInfoSection;
 use super::{values_grid, PageUpdate};
 use crate::app::page_section::PageSection;
 use gtk::prelude::*;
-use relm4::{Component, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use vulkan_info::VulkanInfoFrame;
 
 pub struct InformationPage {
-    hardware_info: HardwareInfoSection,
+    hardware_info: relm4::Controller<HardwareInfoSection>,
     vulkan_info: VulkanInfoFrame,
 }
 
@@ -29,7 +29,7 @@ impl Component for InformationPage {
                 set_spacing: 15,
                 set_margin_horizontal: 20,
 
-                model.hardware_info.clone(),
+                model.hardware_info.widget(),
 
                 #[name = "vulkan_section"]
                 PageSection::new("Vulkan Information") -> PageSection {
@@ -55,7 +55,7 @@ impl Component for InformationPage {
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let hardware_info = HardwareInfoSection::new();
+        let hardware_info = HardwareInfoSection::builder().launch(()).detach();
         let vulkan_info = VulkanInfoFrame::new();
 
         let model = Self {
@@ -75,10 +75,10 @@ impl Component for InformationPage {
         _sender: ComponentSender<Self>,
         _root: &Self::Root,
     ) {
+        self.hardware_info.emit(msg.clone());
+
         match msg {
             PageUpdate::Info(gpu_info) => {
-                self.hardware_info.set_info(&gpu_info);
-
                 if let Some(vulkan_info) = &gpu_info.vulkan_info {
                     self.vulkan_info.set_info(vulkan_info);
                     self.vulkan_info.container.show();
@@ -88,9 +88,7 @@ impl Component for InformationPage {
                     widgets.vulkan_unavailable_label.show();
                 }
             }
-            PageUpdate::Stats(stats) => {
-                self.hardware_info.set_stats(&stats);
-            }
+            PageUpdate::Stats(_stats) => {}
         }
     }
 }
