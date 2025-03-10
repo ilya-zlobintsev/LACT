@@ -1033,7 +1033,7 @@ impl ClocksConfiguration {
                 None => table.voltage_offset = None,
             }
 
-            for (num, offset) in &self.gpu_clock_offsets {
+            /*for (num, offset) in &self.gpu_clock_offsets {
                 match num {
                     0 => {
                         table.current_sclk_offset_range.min = Some(*offset);
@@ -1043,7 +1043,7 @@ impl ClocksConfiguration {
                     }
                     _ => return Err(anyhow!("Invalid GPU clock offset pstate index: {num}")),
                 }
-            }
+            }*/
         }
 
         if let Some(min_clockspeed) = self.min_core_clock {

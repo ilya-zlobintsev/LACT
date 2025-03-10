@@ -188,7 +188,7 @@ impl ClocksFrame {
     }
 
     fn set_amd_table(&mut self, table: AmdClocksTable) {
-        if let AmdClocksTable::Vega20(table) = &table {
+        /*if let AmdClocksTable::Vega20(table) = &table {
             if let Some((sclk_offset_min, sclk_offset_max)) = table
                 .od_range
                 .sclk_offset
@@ -220,7 +220,7 @@ impl ClocksFrame {
                     );
                 }
             }
-        }
+        }*/
 
         let clocks_types = [
             (
