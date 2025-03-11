@@ -443,7 +443,7 @@ impl GpuController for NvidiaGpuController {
     }
 
     #[allow(clippy::cast_possible_wrap)]
-    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
+    fn get_clocks_info(&self, _gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
         let device = self.device();
 
         let mut gpu_offsets = IndexMap::new();

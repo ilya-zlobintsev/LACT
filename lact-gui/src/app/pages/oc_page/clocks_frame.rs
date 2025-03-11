@@ -188,7 +188,7 @@ impl ClocksFrame {
     }
 
     fn set_amd_table(&mut self, table: AmdClocksTable) {
-        /*if let AmdClocksTable::Vega20(table) = &table {
+        if let AmdClocksTable::Vega20(table) = &table {
             if let Some((sclk_offset_min, sclk_offset_max)) = table
                 .od_range
                 .sclk_offset
@@ -198,29 +198,17 @@ impl ClocksFrame {
 
                 if let Some(current_sclk_offset_max) = table.current_sclk_offset_range.max {
                     self.clocks.insert(
-                        ClockspeedType::GpuClockOffset(0),
+                        ClockspeedType::GpuClockOffset(1),
                         ClocksData {
                             current: current_sclk_offset_max,
                             min: sclk_offset_min,
                             max: sclk_offset_max,
-                            custom_title: Some("Maximum GPU Clock Offset (MHz)"),
-                        },
-                    );
-                }
-
-                if let Some(current_sclk_offset_min) = table.current_sclk_offset_range.min {
-                    self.clocks.insert(
-                        ClockspeedType::GpuClockOffset(1),
-                        ClocksData {
-                            current: current_sclk_offset_min,
-                            min: sclk_offset_min,
-                            max: sclk_offset_max,
-                            custom_title: Some("Minimum GPU Clock Offset (MHz)"),
+                            custom_title: Some("GPU Clock Offset (MHz)"),
                         },
                     );
                 }
             }
-        }*/
+        }
 
         let clocks_types = [
             (

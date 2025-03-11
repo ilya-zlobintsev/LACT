@@ -14,8 +14,8 @@ expression: device_info
             "min": 97
           },
           "current_sclk_offset_range": {
-            "max": 1000,
-            "min": -500
+            "max": null,
+            "min": null
           },
           "current_sclk_range": {
             "max": null,

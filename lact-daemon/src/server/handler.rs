@@ -387,7 +387,9 @@ impl<'a> Handler {
     }
 
     pub async fn get_clocks_info(&'a self, id: &str) -> anyhow::Result<ClocksInfo> {
-        self.controller_by_id(id).await?.get_clocks_info()
+        let config = self.config.read().await;
+        let gpu_config = config.gpus()?.get(id);
+        self.controller_by_id(id).await?.get_clocks_info(gpu_config)
     }
 
     pub async fn set_fan_control(&'a self, opts: FanOptions<'_>) -> anyhow::Result<u64> {
@@ -733,7 +735,7 @@ impl<'a> Handler {
                 "pci_info": controller.controller_info().pci_info.clone(),
                 "info": controller.get_info(),
                 "stats": controller.get_stats(gpu_config),
-                "clocks_info": controller.get_clocks_info().ok(),
+                "clocks_info": controller.get_clocks_info(gpu_config).ok(),
                 "power_profile_modes": controller.get_power_profile_modes().ok(),
                 "power_states": controller.get_power_states(gpu_config),
             });

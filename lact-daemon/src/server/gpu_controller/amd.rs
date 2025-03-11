@@ -638,11 +638,32 @@ impl GpuController for AmdGpuController {
         }
     }
 
-    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
-        let clocks_table = self
+    fn get_clocks_info(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
+        let mut clocks_table = self
             .handle
             .get_clocks_table()
             .context("Clocks table not available")?;
+
+        // RDNA4 workaround
+        if let ClocksTableGen::Vega20(table) = &mut clocks_table {
+            table.current_sclk_offset_range.min = None;
+
+            if table.current_sclk_offset_range.max.take().is_some() {
+                // The values present in the clocks table for the current slck offset are rubbish,
+                // we should report the configured value if there is one
+                let offset = gpu_config
+                    .and_then(|config| {
+                        config
+                            .clocks_configuration
+                            .gpu_clock_offsets
+                            .get(&1)
+                            .copied()
+                    })
+                    .unwrap_or(0);
+                table.current_sclk_offset_range.max = Some(offset);
+            }
+        }
+
         Ok(clocks_table.into())
     }
 
@@ -1033,17 +1054,10 @@ impl ClocksConfiguration {
                 None => table.voltage_offset = None,
             }
 
-            /*for (num, offset) in &self.gpu_clock_offsets {
-                match num {
-                    0 => {
-                        table.current_sclk_offset_range.min = Some(*offset);
-                    }
-                    1 => {
-                        table.current_sclk_offset_range.max = Some(*offset);
-                    }
-                    _ => return Err(anyhow!("Invalid GPU clock offset pstate index: {num}")),
-                }
-            }*/
+            // Only the `max` setting can actually be set
+            if let Some(offset) = self.gpu_clock_offsets.get(&1) {
+                table.current_sclk_offset_range.max = Some(*offset);
+            }
         }
 
         if let Some(min_clockspeed) = self.min_core_clock {
