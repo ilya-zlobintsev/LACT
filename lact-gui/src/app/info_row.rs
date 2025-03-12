@@ -32,20 +32,17 @@ impl Default for InfoRow {
 mod imp {
     use glib::Properties;
     use gtk::{
-        glib::{self, subclass::InitializingObject},
-        pango::AttrList,
+        glib,
+        pango::{self, AttrList},
         prelude::*,
-        subclass::{
-            prelude::*,
-            widget::{CompositeTemplateClass, WidgetImpl},
-        },
-        CompositeTemplate, Label, MenuButton, TemplateChild,
+        subclass::{prelude::*, widget::WidgetImpl},
+        Label,
     };
+    use relm4::{view, RelmWidgetExt};
     use std::{cell::RefCell, str::FromStr};
 
-    #[derive(CompositeTemplate, Default, Properties)]
+    #[derive(Default, Properties)]
     #[properties(wrapper_type = super::InfoRow)]
-    #[template(file = "ui/info_row.blp")]
     pub struct InfoRow {
         #[property(get, set)]
         name: RefCell<String>,
@@ -55,11 +52,6 @@ mod imp {
         selectable: RefCell<bool>,
         #[property(get, set)]
         info_text: RefCell<String>,
-
-        #[template_child]
-        value_label: TemplateChild<Label>,
-        #[template_child]
-        info_menubutton: TemplateChild<MenuButton>,
     }
 
     #[glib::object_subclass]
@@ -67,14 +59,6 @@ mod imp {
         const NAME: &'static str = "InfoRow";
         type Type = super::InfoRow;
         type ParentType = gtk::Box;
-
-        fn class_init(class: &mut Self::Class) {
-            class.bind_template();
-        }
-
-        fn instance_init(obj: &InitializingObject<Self>) {
-            obj.init_template();
-        }
     }
 
     #[glib::derived_properties]
@@ -82,16 +66,65 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
-            let attr_list = AttrList::from_str("0 -1 weight bold").unwrap();
-            self.value_label.set_attributes(Some(&attr_list));
-
             let obj = self.obj();
-            obj.bind_property("info-text", &self.info_menubutton.get(), "visible")
+
+            view! {
+                #[local_ref]
+                obj {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_hexpand: true,
+
+                    append: name_label = &gtk::Label {
+                        set_halign: gtk::Align::Start,
+                        set_hexpand: true,
+                    },
+
+                    append: info_menubutton = &gtk::MenuButton {
+                        set_icon_name: "dialog-information-symbolic",
+                        set_margin_horizontal: 5,
+
+                        #[wrap(Some)]
+                        set_popover = &gtk::Popover {
+                            #[name(info_text_popover)]
+                            Label {
+                                set_wrap: true,
+                                set_wrap_mode: pango::WrapMode::Word,
+                                set_max_width_chars: 55,
+                            }
+                        },
+                    },
+
+                    append: value_label = &gtk::Label {
+                        set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
+                        set_halign: gtk::Align::End,
+                        set_use_markup: true,
+                        set_ellipsize: pango::EllipsizeMode::End,
+                    }
+                }
+            }
+
+            obj.bind_property("name", &name_label, "label")
+                .sync_create()
+                .build();
+
+            obj.bind_property("info-text", &info_menubutton, "visible")
                 .transform_to(|_, text: String| Some(!text.is_empty()))
                 .sync_create()
                 .build();
 
-            obj.bind_property("value", &self.info_menubutton.get(), "visible")
+            obj.bind_property("info-text", &info_text_popover, "label")
+                .sync_create()
+                .build();
+
+            obj.bind_property("value", &value_label, "label")
+                .sync_create()
+                .build();
+
+            obj.bind_property("selectable", &value_label, "selectable")
+                .sync_create()
+                .build();
+
+            obj.bind_property("value", &info_menubutton, "visible")
                 .transform_to(|_, text: String| {
                     if text.starts_with("Unknown ") {
                         Some(false)
