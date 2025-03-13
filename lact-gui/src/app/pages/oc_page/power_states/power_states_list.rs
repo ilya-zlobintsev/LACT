@@ -18,11 +18,13 @@ glib::wrapper! {
         @implements gtk::Accessible, gtk::Buildable;
 }
 
-impl PowerStatesList {
-    pub fn new(title: &str) -> Self {
-        Object::builder().property("title", title).build()
+impl Default for PowerStatesList {
+    fn default() -> Self {
+        Object::new()
     }
+}
 
+impl PowerStatesList {
     pub fn get_enabled_power_states(&self) -> Vec<u8> {
         self.rows()
             .iter()
