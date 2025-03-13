@@ -7,6 +7,7 @@ use crate::{
 use adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
 use amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTable};
 use gtk::{
+    glib::object::ObjectExt,
     pango,
     prelude::{BoxExt, ButtonExt, CheckButtonExt, OrientableExt, WidgetExt},
 };
@@ -40,10 +41,11 @@ pub enum ClocksFrameMsg {
 }
 
 #[relm4::component(pub)]
-impl relm4::SimpleComponent for ClocksFrame {
+impl relm4::Component for ClocksFrame {
     type Init = ();
     type Input = ClocksFrameMsg;
     type Output = ();
+    type CommandOutput = ();
 
     view! {
         PageSection::new("Clockspeed and voltage") {
@@ -72,20 +74,20 @@ impl relm4::SimpleComponent for ClocksFrame {
                     },
 
 
-                    append = &gtk::CheckButton {
+                    append: gpu_locked_clocks_togglebutton = &gtk::CheckButton {
                         set_label: Some("Enable GPU Locked Clocks"),
                         add_binding["active"]: &model.enable_gpu_locked_clocks,
                         connect_toggled => move |_| {
                             APP_BROKER.send(AppMsg::SettingsChanged);
-                        }
+                        } @ gpu_locked_clock_signal,
                     },
 
-                    append = &gtk::CheckButton {
+                    append: vram_locked_clocks_togglebutton = &gtk::CheckButton {
                         set_label: Some("Enable VRAM Locked Clocks"),
                         add_binding["active"]: &model.enable_vram_locked_clocks,
                         connect_toggled => move |_| {
                             APP_BROKER.send(AppMsg::SettingsChanged);
-                        }
+                        } @ vram_locked_clock_signal,
                     },
                 },
 
@@ -145,7 +147,6 @@ impl relm4::SimpleComponent for ClocksFrame {
             enable_vram_locked_clocks: BoolBinding::new(false),
         };
 
-        // TODO: block these signals when setting clocks
         for binding in [
             &model.show_all_pstates,
             &model.enable_gpu_locked_clocks,
@@ -162,9 +163,22 @@ impl relm4::SimpleComponent for ClocksFrame {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: ComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
         match msg {
             ClocksFrameMsg::Clocks(clocks_table) => {
+                widgets
+                    .gpu_locked_clocks_togglebutton
+                    .block_signal(&widgets.gpu_locked_clock_signal);
+                widgets
+                    .vram_locked_clocks_togglebutton
+                    .block_signal(&widgets.vram_locked_clock_signal);
+
                 self.clocks.clear();
                 self.show_all_pstates.set_value(false);
                 self.enable_gpu_locked_clocks.set_value(false);
@@ -192,6 +206,13 @@ impl relm4::SimpleComponent for ClocksFrame {
                         },
                     );
                 }
+
+                widgets
+                    .gpu_locked_clocks_togglebutton
+                    .unblock_signal(&widgets.gpu_locked_clock_signal);
+                widgets
+                    .vram_locked_clocks_togglebutton
+                    .unblock_signal(&widgets.vram_locked_clock_signal);
             }
             ClocksFrameMsg::VramRatio(vram_ratio) => {
                 self.vram_clock_ratio = vram_ratio;
@@ -220,6 +241,8 @@ impl relm4::SimpleComponent for ClocksFrame {
             }
         }
         self.update_vram_clock_ratio();
+
+        self.update_view(widgets, sender);
     }
 }
 
