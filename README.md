@@ -104,11 +104,10 @@ Dependencies:
 - make
 - hwdata
 - libdrm
-- blueprint-compiler 0.10.0+ (Ubuntu 22.04 in particular ships an older version in the repos, you can manually download a [deb file](http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.14.0-1_all.deb) of a new version)
 
 Command to install all dependencies:
-- Fedora: `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel blueprint-compiler vulkan-tools`
-- Arch: `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata blueprint-compiler vulkan-tools`
+- Fedora: `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel vulkan-tools`
+- Arch: `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata vulkan-tools`
 
 Steps:
 - `git clone https://github.com/ilya-zlobintsev/LACT && cd LACT`
