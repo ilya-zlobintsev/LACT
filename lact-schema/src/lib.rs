@@ -167,12 +167,21 @@ pub enum ClocksTable {
     Intel(IntelClocksTable),
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct NvidiaClocksTable {
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub gpu_offsets: IndexMap<u32, NvidiaClockOffset>,
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub mem_offsets: IndexMap<u32, NvidiaClockOffset>,
+    #[serde(default)]
+    pub gpu_locked_clocks: Option<(u32, u32)>,
+    #[serde(default)]
+    pub vram_locked_clocks: Option<(u32, u32)>,
+    #[serde(default)]
+    pub gpu_clock_range: Option<(u32, u32)>,
+    #[serde(default)]
+    pub vram_clock_range: Option<(u32, u32)>,
 }
 
 /// Doc from `xe_gt_freq.c`
