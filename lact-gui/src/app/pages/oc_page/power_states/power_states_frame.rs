@@ -9,7 +9,7 @@ use lact_client::schema::{DeviceStats, PowerStates};
 
 glib::wrapper! {
     pub struct PowerStatesFrame(ObjectSubclass<imp::PowerStatesFrame>)
-        @extends gtk::Widget,
+        @extends gtk::Widget, gtk::Box,
         @implements gtk::Accessible, gtk::Buildable;
 }
 
@@ -87,26 +87,20 @@ impl Default for PowerStatesFrame {
 mod imp {
     use crate::app::pages::oc_page::power_states::power_states_list::PowerStatesList;
     use gtk::{
-        glib::{self, subclass::InitializingObject, types::StaticTypeExt, Properties},
-        prelude::ObjectExt,
-        subclass::{
-            prelude::*,
-            widget::{CompositeTemplateClass, WidgetImpl},
-        },
-        CompositeTemplate, Expander,
+        glib::{self, Properties},
+        prelude::{BoxExt, CheckButtonExt, ObjectExt, OrientableExt, WidgetExt},
+        subclass::{prelude::*, widget::WidgetImpl},
+        Expander,
     };
+    use relm4::{view, RelmWidgetExt};
     use std::{cell::Cell, sync::atomic::AtomicBool};
 
-    #[derive(CompositeTemplate, Default, Properties)]
+    #[derive(Default, Properties)]
     #[properties(wrapper_type = super::PowerStatesFrame)]
-    #[template(file = "ui/oc_page/power_states_frame.blp")]
     pub struct PowerStatesFrame {
-        #[template_child]
-        pub expander: TemplateChild<Expander>,
-        #[template_child]
-        pub core_states_list: TemplateChild<PowerStatesList>,
-        #[template_child]
-        pub vram_states_list: TemplateChild<PowerStatesList>,
+        pub expander: Expander,
+        pub core_states_list: PowerStatesList,
+        pub vram_states_list: PowerStatesList,
 
         #[property(get, set)]
         configurable: AtomicBool,
@@ -121,19 +115,75 @@ mod imp {
         const NAME: &'static str = "PowerStatesFrame";
         type Type = super::PowerStatesFrame;
         type ParentType = gtk::Box;
-
-        fn class_init(class: &mut Self::Class) {
-            PowerStatesList::ensure_type();
-            class.bind_template();
-        }
-
-        fn instance_init(obj: &InitializingObject<Self>) {
-            obj.init_template();
-        }
     }
 
     #[glib::derived_properties]
-    impl ObjectImpl for PowerStatesFrame {}
+    impl ObjectImpl for PowerStatesFrame {
+        fn constructed(&self) {
+            self.parent_constructed();
+            let obj = &*self.obj();
+            let expander = &self.expander;
+            let core_states_list = &self.core_states_list;
+            let vram_states_list = &self.vram_states_list;
+
+            view! {
+                #[local_ref]
+                obj {
+                    #[local_ref]
+                    append = expander {
+                        set_label: Some("Power states"),
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_margin_all: 10,
+                            set_spacing: 5,
+
+                            gtk::Label {
+                                set_label: "Note: performance level must be set to 'manual' to toggle power states",
+                                set_margin_horizontal: 10,
+                                set_halign: gtk::Align::Start,
+                            },
+
+                            #[name = "enable_checkbutton"]
+                            gtk::CheckButton {
+                                set_label: Some("Enable power state configuration"),
+                            },
+
+                            gtk::Box {
+                                set_spacing: 10,
+                                set_orientation: gtk::Orientation::Horizontal,
+
+                                #[local_ref]
+                                append = core_states_list {
+                                    set_title: "GPU power states",
+                                },
+
+                                #[local_ref]
+                                append = vram_states_list {
+                                    set_title: "VRAM power states",
+                                },
+                            }
+                        }
+                    }
+                }
+            };
+
+            obj.bind_property("toggleable", &enable_checkbutton, "sensitive")
+                .sync_create()
+                .build();
+            obj.bind_property("configurable", &enable_checkbutton, "active")
+                .bidirectional()
+                .sync_create()
+                .build();
+
+            obj.bind_property("configurable", core_states_list, "sensitive")
+                .sync_create()
+                .build();
+            obj.bind_property("configurable", vram_states_list, "sensitive")
+                .sync_create()
+                .build();
+        }
+    }
 
     impl WidgetImpl for PowerStatesFrame {}
     impl BoxImpl for PowerStatesFrame {}
