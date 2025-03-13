@@ -531,35 +531,37 @@ impl GpuController for IntelGpuController {
         &self.common
     }
 
-    fn get_info(&self) -> DeviceInfo {
-        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
-            Ok(info) => Some(info),
-            Err(err) => {
-                warn!("could not load vulkan info: {err}");
-                None
+    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
+        Box::pin(async move {
+            let vulkan_info = match get_vulkan_info(&self.common.pci_info).await {
+                Ok(info) => Some(info),
+                Err(err) => {
+                    warn!("could not load vulkan info: {err}");
+                    None
+                }
+            };
+
+            let vram_info = self.get_vram_info();
+
+            let drm_info = DrmInfo {
+                intel: match self.driver_type {
+                    DriverType::I915 => self.get_drm_info_i915(),
+                    DriverType::Xe => self.get_drm_info_xe(),
+                },
+                vram_clock_ratio: 1.0,
+                memory_info: Some(vram_info.mem_info),
+                ..Default::default()
+            };
+
+            DeviceInfo {
+                pci_info: Some(self.common.pci_info.clone()),
+                vulkan_info,
+                driver: self.common.driver.clone(),
+                vbios_version: None,
+                link_info: LinkInfo::default(),
+                drm_info: Some(drm_info),
             }
-        };
-
-        let vram_info = self.get_vram_info();
-
-        let drm_info = DrmInfo {
-            intel: match self.driver_type {
-                DriverType::I915 => self.get_drm_info_i915(),
-                DriverType::Xe => self.get_drm_info_xe(),
-            },
-            vram_clock_ratio: 1.0,
-            memory_info: Some(vram_info.mem_info),
-            ..Default::default()
-        };
-
-        DeviceInfo {
-            pci_info: Some(self.common.pci_info.clone()),
-            vulkan_info,
-            driver: self.common.driver.clone(),
-            vbios_version: None,
-            link_info: LinkInfo::default(),
-            drm_info: Some(drm_info),
-        }
+        })
     }
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]

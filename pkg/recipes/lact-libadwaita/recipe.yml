@@ -11,7 +11,7 @@ metadata:
   provides: [ lact ]
   conflicts: [ lact, lact-headless ]
   depends:
-    all: [ hwdata ]
+    all: [ hwdata, vulkan-tools ]
     fedora-39+fedora-40+fedora-41: [ gtk4, libdrm, libadwaita ]
     arch: [ gtk4, libadwaita ]
     opensuse-tumbleweed: [ libdrm, libadwaita ]
