@@ -156,13 +156,11 @@ mod imp {
                                 #[local_ref]
                                 append = core_states_list {
                                     set_title: "GPU power states",
-                                    // set_sensitive: bind template.configurable;
                                 },
 
                                 #[local_ref]
                                 append = vram_states_list {
                                     set_title: "VRAM power states",
-                                    // sensitive: bind template.configurable;
                                 },
                             }
                         }
