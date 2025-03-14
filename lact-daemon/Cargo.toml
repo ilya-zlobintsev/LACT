@@ -35,7 +35,6 @@ nvml-wrapper = { git = "https://github.com/ilya-zlobintsev/nvml-wrapper", branch
 bitflags = "2.6.0"
 pciid-parser = { version = "0.8", features = ["serde"] }
 serde_yaml = "0.9"
-vulkano = { version = "0.35.0", default-features = false }
 zbus = { version = "5.3.1", default-features = false, features = ["tokio"] }
 libdrm_amdgpu_sys = { version = "0.8.1", default-features = false, features = [
     "dynamic_loading",
@@ -55,3 +54,4 @@ easy_fuser = { version = "0.4.0", features = ["parallel"] }
 
 [build-dependencies]
 bindgen = "0.68"
+serde_json = { workspace = true }

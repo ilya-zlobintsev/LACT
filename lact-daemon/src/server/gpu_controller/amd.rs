@@ -552,28 +552,30 @@ impl GpuController for AmdGpuController {
         &self.common
     }
 
-    fn get_info(&self) -> DeviceInfo {
-        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
-            Ok(info) => Some(info),
-            Err(err) => {
-                warn!("could not load vulkan info: {err}");
-                None
-            }
-        };
-        let pci_info = Some(self.common.pci_info.clone());
-        let driver = self.handle.get_driver().to_owned();
-        let vbios_version = self.get_full_vbios_version();
-        let link_info = self.get_link_info();
-        let drm_info = self.get_drm_info();
+    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
+        Box::pin(async move {
+            let vulkan_info = match get_vulkan_info(&self.common.pci_info).await {
+                Ok(info) => Some(info),
+                Err(err) => {
+                    warn!("could not load vulkan info: {err}");
+                    None
+                }
+            };
+            let pci_info = Some(self.common.pci_info.clone());
+            let driver = self.handle.get_driver().to_owned();
+            let vbios_version = self.get_full_vbios_version();
+            let link_info = self.get_link_info();
+            let drm_info = self.get_drm_info();
 
-        DeviceInfo {
-            pci_info,
-            vulkan_info,
-            driver,
-            vbios_version,
-            link_info,
-            drm_info,
-        }
+            DeviceInfo {
+                pci_info,
+                vulkan_info,
+                driver,
+                vbios_version,
+                link_info,
+                drm_info,
+            }
+        })
     }
 
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {

@@ -256,83 +256,85 @@ impl GpuController for NvidiaGpuController {
         &self.common
     }
 
-    fn get_info(&self) -> DeviceInfo {
-        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
-            Ok(info) => Some(info),
-            Err(err) => {
-                warn!("could not load vulkan info: {err}");
-                None
+    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
+        Box::pin(async move {
+            let vulkan_info = match get_vulkan_info(&self.common.pci_info).await {
+                Ok(info) => Some(info),
+                Err(err) => {
+                    warn!("could not load vulkan info: {err}");
+                    None
+                }
+            };
+
+            let device = self.device();
+
+            DeviceInfo {
+                pci_info: Some(self.common.pci_info.clone()),
+                vulkan_info,
+                driver: format!(
+                    "nvidia {}",
+                    self.nvml.sys_driver_version().unwrap_or_default()
+                ), // NVML should always be "nvidia"
+                vbios_version: device
+                    .vbios_version()
+                    .map_err(|err| error!("could not get VBIOS version: {err}"))
+                    .ok(),
+                link_info: LinkInfo {
+                    current_width: device.current_pcie_link_width().map(|v| v.to_string()).ok(),
+                    current_speed: device
+                        .pcie_link_speed()
+                        .map(|v| {
+                            let mut output = format!("{} GT/s", v / 1000);
+                            if let Ok(gen) = device.current_pcie_link_gen() {
+                                let _ = write!(output, " PCIe gen {gen}");
+                            }
+                            output
+                        })
+                        .ok(),
+                    max_width: device.max_pcie_link_width().map(|v| v.to_string()).ok(),
+                    max_speed: device
+                        .max_pcie_link_speed()
+                        .ok()
+                        .and_then(|v| v.as_integer())
+                        .map(|v| {
+                            let mut output = format!("{} GT/s", v / 1000);
+                            if let Ok(gen) = device.current_pcie_link_gen() {
+                                let _ = write!(output, " PCIe gen {gen}");
+                            }
+                            output
+                        }),
+                },
+                drm_info: Some(DrmInfo {
+                    device_name: device.name().ok(),
+                    pci_revision_id: None,
+                    family_name: device.architecture().map(|arch| arch.to_string()).ok(),
+                    family_id: None,
+                    asic_name: None,
+                    chip_class: device.architecture().map(|arch| arch.to_string()).ok(),
+                    compute_units: None,
+                    cuda_cores: device.num_cores().ok(),
+                    vram_type: None,
+                    vram_clock_ratio: 1.0,
+                    vram_bit_width: device.current_pcie_link_width().ok(),
+                    vram_max_bw: None,
+                    l1_cache_per_cu: None,
+                    l2_cache: None,
+                    l3_cache_mb: None,
+                    memory_info: device
+                        .bar1_memory_info()
+                        .map(|bar_info| DrmMemoryInfo {
+                            cpu_accessible_used: bar_info.used,
+                            cpu_accessible_total: bar_info.total,
+                            resizeable_bar: device
+                                .memory_info()
+                                .ok()
+                                .map(|memory_info| bar_info.total >= memory_info.total),
+                        })
+                        .ok(),
+                    intel: IntelDrmInfo::default(),
+                }),
             }
-        };
-
-        let device = self.device();
-
-        DeviceInfo {
-            pci_info: Some(self.common.pci_info.clone()),
-            vulkan_info,
-            driver: format!(
-                "nvidia {}",
-                self.nvml.sys_driver_version().unwrap_or_default()
-            ), // NVML should always be "nvidia"
-            vbios_version: device
-                .vbios_version()
-                .map_err(|err| error!("could not get VBIOS version: {err}"))
-                .ok(),
-            link_info: LinkInfo {
-                current_width: device.current_pcie_link_width().map(|v| v.to_string()).ok(),
-                current_speed: device
-                    .pcie_link_speed()
-                    .map(|v| {
-                        let mut output = format!("{} GT/s", v / 1000);
-                        if let Ok(gen) = device.current_pcie_link_gen() {
-                            let _ = write!(output, " PCIe gen {gen}");
-                        }
-                        output
-                    })
-                    .ok(),
-                max_width: device.max_pcie_link_width().map(|v| v.to_string()).ok(),
-                max_speed: device
-                    .max_pcie_link_speed()
-                    .ok()
-                    .and_then(|v| v.as_integer())
-                    .map(|v| {
-                        let mut output = format!("{} GT/s", v / 1000);
-                        if let Ok(gen) = device.current_pcie_link_gen() {
-                            let _ = write!(output, " PCIe gen {gen}");
-                        }
-                        output
-                    }),
-            },
-            drm_info: Some(DrmInfo {
-                device_name: device.name().ok(),
-                pci_revision_id: None,
-                family_name: device.architecture().map(|arch| arch.to_string()).ok(),
-                family_id: None,
-                asic_name: None,
-                chip_class: device.architecture().map(|arch| arch.to_string()).ok(),
-                compute_units: None,
-                cuda_cores: device.num_cores().ok(),
-                vram_type: None,
-                vram_clock_ratio: 1.0,
-                vram_bit_width: device.current_pcie_link_width().ok(),
-                vram_max_bw: None,
-                l1_cache_per_cu: None,
-                l2_cache: None,
-                l3_cache_mb: None,
-                memory_info: device
-                    .bar1_memory_info()
-                    .map(|bar_info| DrmMemoryInfo {
-                        cpu_accessible_used: bar_info.used,
-                        cpu_accessible_total: bar_info.total,
-                        resizeable_bar: device
-                            .memory_info()
-                            .ok()
-                            .map(|memory_info| bar_info.total >= memory_info.total),
-                    })
-                    .ok(),
-                intel: IntelDrmInfo::default(),
-            }),
-        }
+        })
     }
 
     #[allow(

@@ -31,7 +31,7 @@ type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 pub trait GpuController {
     fn controller_info(&self) -> &CommonControllerInfo;
 
-    fn get_info(&self) -> DeviceInfo;
+    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo>;
 
     fn apply_config<'a>(
         &'a self,
