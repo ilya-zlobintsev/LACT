@@ -1,3 +1,5 @@
+mod driver;
+
 use crate::{
     config::{self, FanControlSettings},
     server::vulkan::get_vulkan_info,
@@ -6,6 +8,7 @@ use crate::{
 use super::{fan_control::FanCurve, CommonControllerInfo, FanControlHandle, GpuController};
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, bail, Context};
+use driver::DriverHandle;
 use futures::future::LocalBoxFuture;
 use indexmap::IndexMap;
 use lact_schema::{
@@ -35,6 +38,8 @@ pub struct NvidiaGpuController {
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
 
+    driver_handle: Option<DriverHandle>,
+
     // Store last applied offsets as a workaround when the driver doesn't tell us the current offset
     last_applied_offsets: RefCell<HashMap<Clock, HashMap<PerformanceState, i32>>>,
     last_applied_gpu_locked_clocks: RefCell<Option<(u32, u32)>>,
@@ -43,7 +48,8 @@ pub struct NvidiaGpuController {
 
 impl NvidiaGpuController {
     pub fn new(common: CommonControllerInfo, nvml: Rc<Nvml>) -> anyhow::Result<Self> {
-        nvml.device_by_pci_bus_id(common.pci_slot_name.as_str())
+        let device = nvml
+            .device_by_pci_bus_id(common.pci_slot_name.as_str())
             .with_context(|| {
                 format!(
                     "Could not get PCI device '{}' from NVML",
@@ -51,9 +57,23 @@ impl NvidiaGpuController {
                 )
             })?;
 
+        let minor_number = device.minor_number()?;
+
+        let driver_handle = match DriverHandle::open(minor_number) {
+            Ok(handle) => {
+                debug!("opened Nvidia driver handle");
+                Some(handle)
+            }
+            Err(err) => {
+                error!("could not get Nvidia driver handle: {err:#}");
+                None
+            }
+        };
+
         Ok(Self {
             nvml,
             common,
+            driver_handle,
             fan_control_handle: RefCell::new(None),
             last_applied_offsets: RefCell::new(HashMap::new()),
             last_applied_gpu_locked_clocks: RefCell::new(None),
@@ -320,6 +340,10 @@ impl GpuController for NvidiaGpuController {
                     l1_cache_per_cu: None,
                     l2_cache: None,
                     l3_cache_mb: None,
+                    rop_info: self
+                        .driver_handle
+                        .as_ref()
+                        .and_then(|handle| handle.get_rop_info().ok()),
                     memory_info: device
                         .bar1_memory_info()
                         .map(|bar_info| DrmMemoryInfo {

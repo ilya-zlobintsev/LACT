@@ -129,9 +129,17 @@ pub struct DrmInfo {
     pub l1_cache_per_cu: Option<u32>,
     pub l2_cache: Option<u32>,
     pub l3_cache_mb: Option<u32>,
+    pub rop_info: Option<NvidiaRopInfo>,
     pub memory_info: Option<DrmMemoryInfo>,
     #[serde(flatten)]
     pub intel: IntelDrmInfo,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NvidiaRopInfo {
+    pub unit_count: u32,
+    pub operations_factor: u32,
+    pub operations_count: u32,
 }
 
 #[skip_serializing_none]

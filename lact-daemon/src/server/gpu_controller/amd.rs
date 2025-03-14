@@ -467,6 +467,7 @@ impl AmdGpuController {
                 l2_cache: Some(drm_info.calc_l2_cache_size()),
                 l3_cache_mb: Some(drm_info.calc_l3_cache_size_mb()),
                 memory_info: drm_memory_info,
+                rop_info: None,
                 intel: IntelDrmInfo::default(),
             }),
             None => None,
