@@ -106,8 +106,8 @@ Dependencies:
 - libdrm
 
 Command to install all dependencies:
-- Fedora: `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel`
-- Arch: `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata`
+- Fedora: `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel vulkan-tools`
+- Arch: `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata vulkan-tools`
 
 Steps:
 - `git clone https://github.com/ilya-zlobintsev/LACT && cd LACT`

@@ -22,7 +22,6 @@ use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
-    borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
     fmt,
     str::FromStr,
@@ -224,8 +223,8 @@ pub struct VulkanInfo {
     pub api_version: String,
     pub driver: VulkanDriverInfo,
     pub enabled_layers: Vec<String>,
-    pub features: IndexMap<Cow<'static, str>, bool>,
-    pub extensions: IndexMap<Cow<'static, str>, bool>,
+    pub features: IndexMap<String, bool>,
+    pub extensions: IndexMap<String, bool>,
 }
 
 #[skip_serializing_none]
