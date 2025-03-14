@@ -17,7 +17,7 @@ metadata:
     arch: [ gtk4 ]
     opensuse-tumbleweed: [ gtk4 ]
   build_depends:
-    all: [ curl, make, clang, git ]
+    all: [ curl, make, clang, git, vulkan-tools ]
     debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus ]
     fedora-39+fedora-40+fedora-41: [ gtk4-devel, gcc, libdrm-devel, dbus ]
     arch: [ gtk4, dbus ]

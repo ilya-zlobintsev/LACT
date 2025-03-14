@@ -16,7 +16,7 @@ metadata:
     arch: [ gtk4, libadwaita ]
     opensuse-tumbleweed: [ libdrm, libadwaita ]
   build_depends:
-    all: [ curl, make, clang, git ]
+    all: [ curl, make, clang, git, vulkan-tools ]
     fedora-39+fedora-40+fedora-41: [ gtk4-devel, gcc, libdrm-devel, libadwaita-devel, dbus ]
     arch: [ gtk4, libadwaita, dbus ]
     opensuse-tumbleweed: [ libdrm-devel, libadwaita-devel ]
