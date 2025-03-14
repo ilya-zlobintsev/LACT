@@ -5,7 +5,7 @@ use crate::{
 
 use super::{fan_control::FanCurve, CommonControllerInfo, FanControlHandle, GpuController};
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use futures::future::LocalBoxFuture;
 use indexmap::IndexMap;
 use lact_schema::{
@@ -16,10 +16,12 @@ use lact_schema::{
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
+    enums::device::GpuLockedClocksSetting,
     Device, Nvml,
 };
 use std::{
     cell::RefCell,
+    cmp,
     collections::HashMap,
     fmt::Write,
     rc::Rc,
@@ -35,6 +37,8 @@ pub struct NvidiaGpuController {
 
     // Store last applied offsets as a workaround when the driver doesn't tell us the current offset
     last_applied_offsets: RefCell<HashMap<Clock, HashMap<PerformanceState, i32>>>,
+    last_applied_gpu_locked_clocks: RefCell<Option<(u32, u32)>>,
+    last_applied_vram_locked_clocks: RefCell<Option<(u32, u32)>>,
 }
 
 impl NvidiaGpuController {
@@ -46,11 +50,14 @@ impl NvidiaGpuController {
                     common.pci_slot_name
                 )
             })?;
+
         Ok(Self {
             nvml,
             common,
             fan_control_handle: RefCell::new(None),
             last_applied_offsets: RefCell::new(HashMap::new()),
+            last_applied_gpu_locked_clocks: RefCell::new(None),
+            last_applied_vram_locked_clocks: RefCell::new(None),
         })
     }
 
@@ -450,17 +457,19 @@ impl GpuController for NvidiaGpuController {
 
         let mut gpu_offsets = IndexMap::new();
         let mut mem_offsets = IndexMap::new();
+        let mut gpu_clock_range = None;
+        let mut vram_clock_range = None;
 
         let supported_pstates = device.supported_performance_states()?;
 
-        let clock_types = [
-            (Clock::Graphics, &mut gpu_offsets),
-            (Clock::Memory, &mut mem_offsets),
+        let mut clock_types = [
+            (Clock::Graphics, &mut gpu_offsets, &mut gpu_clock_range),
+            (Clock::Memory, &mut mem_offsets, &mut vram_clock_range),
         ];
 
-        for (clock_type, offsets) in clock_types {
-            for pstate in supported_pstates.iter().rev() {
-                if let Ok(offset) = device.clock_offset(clock_type, *pstate) {
+        for pstate in supported_pstates.iter().rev() {
+            for (clock_type, offsets, clock_range) in &mut clock_types {
+                if let Ok(offset) = device.clock_offset(*clock_type, *pstate) {
                     let mut offset = NvidiaClockOffset {
                         current: offset.clock_offset_mhz,
                         min: offset.min_clock_offset_mhz,
@@ -471,7 +480,7 @@ impl GpuController for NvidiaGpuController {
                     // In these scenarios we must store them manually for reporting.
                     if offset.current == 0 {
                         if let Some(applied_offsets) =
-                            self.last_applied_offsets.borrow().get(&clock_type)
+                            self.last_applied_offsets.borrow().get(clock_type)
                         {
                             if let Some(applied_offset) = applied_offsets.get(pstate) {
                                 offset.current = *applied_offset;
@@ -481,12 +490,31 @@ impl GpuController for NvidiaGpuController {
 
                     offsets.insert(pstate.as_c(), offset);
                 }
+
+                // Find min and max clockspeeds from any pstate
+                if let Ok((pstate_min, pstate_max)) =
+                    device.min_max_clock_of_pstate(*clock_type, *pstate)
+                {
+                    match clock_range {
+                        Some((current_min, current_max)) => {
+                            *current_min = cmp::min(*current_min, pstate_min);
+                            *current_max = cmp::max(*current_max, pstate_max);
+                        }
+                        None => {
+                            **clock_range = Some((pstate_min, pstate_max));
+                        }
+                    }
+                }
             }
         }
 
         let table = NvidiaClocksTable {
             gpu_offsets,
             mem_offsets,
+            gpu_locked_clocks: *self.last_applied_gpu_locked_clocks.borrow(),
+            vram_locked_clocks: *self.last_applied_vram_locked_clocks.borrow(),
+            gpu_clock_range,
+            vram_clock_range,
         };
 
         Ok(ClocksInfo {
@@ -512,7 +540,7 @@ impl GpuController for NvidiaGpuController {
         Err(anyhow!("Not supported on Nvidia"))
     }
 
-    #[allow(clippy::cast_possible_wrap)]
+    #[allow(clippy::cast_possible_wrap, clippy::cast_sign_loss)]
     fn apply_config<'a>(
         &'a self,
         config: &'a config::Gpu,
@@ -550,7 +578,38 @@ impl GpuController for NvidiaGpuController {
 
             self.cleanup_clocks()?;
 
-            for (pstate, offset) in &config.clocks_configuration.gpu_clock_offsets {
+            let clocks = &config.clocks_configuration;
+
+            match (clocks.min_core_clock, clocks.max_core_clock) {
+                (Some(min), Some(max)) => {
+                    debug!("applying GPU locked clocks: {min}..{max}");
+                    device
+                        .set_gpu_locked_clocks(GpuLockedClocksSetting::Numeric {
+                            min_clock_mhz: min as u32,
+                            max_clock_mhz: max as u32,
+                        })
+                        .context("Could not apply GPU locked clocks")?;
+                    self.last_applied_gpu_locked_clocks
+                        .replace(Some((min as u32, max as u32)));
+                }
+                (None, None) => (),
+                _ => bail!("Min and max GPU clock must be set together"),
+            }
+
+            match (clocks.min_memory_clock, clocks.max_memory_clock) {
+                (Some(min), Some(max)) => {
+                    debug!("applying VRAM locked clocks: {min}..{max}");
+                    device
+                        .set_mem_locked_clocks(min as u32, max as u32)
+                        .context("Could not apply VRAM locked clocks")?;
+                    self.last_applied_vram_locked_clocks
+                        .replace(Some((min as u32, max as u32)));
+                }
+                (None, None) => (),
+                _ => bail!("Min and max VRAM clock must be set together"),
+            }
+
+            for (pstate, offset) in &clocks.gpu_clock_offsets {
                 let pstate = PerformanceState::try_from(*pstate)
                     .map_err(|_| anyhow!("Invalid pstate '{pstate}'"))?;
                 debug!("applying offset {offset} for GPU pstate {pstate:?}");
@@ -567,7 +626,7 @@ impl GpuController for NvidiaGpuController {
                     .insert(pstate, *offset);
             }
 
-            for (pstate, offset) in &config.clocks_configuration.mem_clock_offsets {
+            for (pstate, offset) in &clocks.mem_clock_offsets {
                 let pstate = PerformanceState::try_from(*pstate)
                     .map_err(|_| anyhow!("Invalid pstate '{pstate}'"))?;
                 debug!("applying offset {offset} for VRAM pstate {pstate:?}");
@@ -621,7 +680,7 @@ impl GpuController for NvidiaGpuController {
     }
 
     fn cleanup_clocks(&self) -> anyhow::Result<()> {
-        let device = self.device();
+        let mut device = self.device();
 
         if let Ok(supported_pstates) = device.supported_performance_states() {
             for pstate in supported_pstates {
@@ -651,6 +710,20 @@ impl GpuController for NvidiaGpuController {
                     }
                 }
             }
+        }
+
+        if self.last_applied_gpu_locked_clocks.borrow().is_some() {
+            device
+                .reset_gpu_locked_clocks()
+                .context("Could not reset locked GPU clocks")?;
+            self.last_applied_gpu_locked_clocks.take();
+        }
+
+        if self.last_applied_vram_locked_clocks.borrow().is_some() {
+            device
+                .reset_mem_locked_clocks()
+                .context("Could not reset locked GPU clocks")?;
+            self.last_applied_vram_locked_clocks.take();
         }
 
         Ok(())
