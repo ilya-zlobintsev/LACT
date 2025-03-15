@@ -117,6 +117,7 @@ impl<'a> Handler {
             controllers = load_controllers(base_path, pci_db)?;
 
             let mut should_retry = false;
+            #[cfg(not(test))]
             if let Ok(devices) = fs::read_dir("/sys/bus/pci/devices") {
                 for device in devices.flatten() {
                     if let Ok(uevent) = fs::read_to_string(device.path().join("uevent")) {
