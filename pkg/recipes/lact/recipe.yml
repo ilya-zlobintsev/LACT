@@ -11,17 +11,17 @@ metadata:
   provides: [ lact ]
   conflicts: [ lact-headless, lact-libadwaita ]
   depends:
-    all: [ hwdata ]
+    all: [ hwdata, vulkan-tools ]
     debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-1, libdrm2, libdrm-amdgpu1 ]
     fedora-39+fedora-40+fedora-41: [ gtk4, libdrm ]
     arch: [ gtk4 ]
     opensuse-tumbleweed: [ gtk4 ]
   build_depends:
-    all: [ curl, make, clang, git ]
+    all: [ curl, make, clang, git, vulkan-tools ]
     debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus ]
-    fedora-39+fedora-40+fedora-41: [ gtk4-devel, gcc, libdrm-devel, blueprint-compiler, dbus ]
-    arch: [ gtk4, blueprint-compiler, dbus ]
-    opensuse-tumbleweed: [ gtk4-devel, libdrm-devel, blueprint-compiler ]
+    fedora-39+fedora-40+fedora-41: [ gtk4-devel, gcc, libdrm-devel, dbus ]
+    arch: [ gtk4, dbus ]
+    opensuse-tumbleweed: [ gtk4-devel, libdrm-devel ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs
@@ -30,10 +30,6 @@ configure:
     - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
     - cmd: sh /tmp/install_rust.sh -y
     - cmd: bash -c "source $HOME/.cargo/env && rustup toolchain install 1.82.0"
-    - cmd: >-
-        curl -o /tmp/blueprint-compiler.deb http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.14.0-1_all.deb &&
-        apt install -y /tmp/blueprint-compiler.deb
-      deb: true
     - cmd: pacman -Syu --noconfirm
       pkg: true
 build:

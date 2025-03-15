@@ -3,8 +3,8 @@ use lact_client::schema::PowerState;
 
 glib::wrapper! {
     pub struct PowerStateRow(ObjectSubclass<imp::PowerStateRow>)
-        @extends gtk::Widget,
-        @implements gtk::Accessible, gtk::Buildable;
+        @extends gtk::Widget, gtk::Box,
+        @implements gtk::Accessible, gtk::Buildable, gtk::Orientable;
 }
 
 impl PowerStateRow {
@@ -26,22 +26,18 @@ impl PowerStateRow {
 
 mod imp {
     use gtk::{
-        glib::{self, subclass::InitializingObject, Properties},
-        prelude::ObjectExt,
-        subclass::{
-            prelude::*,
-            widget::{CompositeTemplateClass, WidgetImpl},
-        },
-        CompositeTemplate,
+        glib::{self, Properties},
+        prelude::{BoxExt, ObjectExt, OrientableExt, WidgetExt},
+        subclass::{prelude::*, widget::WidgetImpl},
     };
+    use relm4::view;
     use std::{
         cell::RefCell,
         sync::atomic::{AtomicBool, AtomicU8},
     };
 
-    #[derive(CompositeTemplate, Default, Properties)]
+    #[derive(Default, Properties)]
     #[properties(wrapper_type = super::PowerStateRow)]
-    #[template(file = "ui/oc_page/power_state_row.blp")]
     pub struct PowerStateRow {
         #[property(get, set)]
         title: RefCell<String>,
@@ -58,18 +54,44 @@ mod imp {
         const NAME: &'static str = "PowerStateRow";
         type Type = super::PowerStateRow;
         type ParentType = gtk::Box;
-
-        fn class_init(class: &mut Self::Class) {
-            class.bind_template();
-        }
-
-        fn instance_init(obj: &InitializingObject<Self>) {
-            obj.init_template();
-        }
     }
 
     #[glib::derived_properties]
-    impl ObjectImpl for PowerStateRow {}
+    impl ObjectImpl for PowerStateRow {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let obj = &*self.obj();
+
+            view! {
+                #[local_ref]
+                obj {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 5,
+
+                    append: enabled_checkbutton = &gtk::CheckButton {
+                        set_hexpand: true,
+                    },
+
+                    append: image = &gtk::Image {
+                        set_icon_name: Some("pan-start-symbolic"),
+                    },
+                }
+            };
+
+            obj.bind_property("enabled", &enabled_checkbutton, "active")
+                .bidirectional()
+                .sync_create()
+                .build();
+            obj.bind_property("title", &enabled_checkbutton, "label")
+                .bidirectional()
+                .sync_create()
+                .build();
+            obj.bind_property("active", &image, "visible")
+                .sync_create()
+                .build();
+        }
+    }
 
     impl WidgetImpl for PowerStateRow {}
     impl BoxImpl for PowerStateRow {}

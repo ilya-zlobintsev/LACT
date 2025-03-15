@@ -17,7 +17,7 @@ use crate::{
 };
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::Context;
-use futures::future::LocalBoxFuture;
+use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates};
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use nvml_wrapper::Nvml;
@@ -31,7 +31,7 @@ type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 pub trait GpuController {
     fn controller_info(&self) -> &CommonControllerInfo;
 
-    fn get_info(&self) -> DeviceInfo;
+    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo>;
 
     fn apply_config<'a>(
         &'a self,
@@ -46,7 +46,11 @@ pub trait GpuController {
 
     fn reset_pmfw_settings(&self);
 
-    fn cleanup_clocks(&self) -> anyhow::Result<()>;
+    fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
+        async {}.boxed_local()
+    }
+
+    fn reset_clocks(&self) -> anyhow::Result<()>;
 
     fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable>;
 

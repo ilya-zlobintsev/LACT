@@ -15,6 +15,7 @@ pub struct ClockAdjustmentRow {
     value_ratio: f64,
     change_signal: SignalHandlerId,
     adjustment: OcAdjustment,
+    pub(super) is_secondary: bool,
 }
 
 pub struct ClocksData {
@@ -30,6 +31,7 @@ impl ClocksData {
             current,
             min,
             max,
+            is_secondary: false,
             custom_title: None,
         }
     }
@@ -38,7 +40,7 @@ impl ClocksData {
 #[derive(Debug)]
 pub enum ClockAdjustmentRowMsg {
     ValueRatio(f64),
-    ShowSecondaryPStates(bool),
+    SetVisible(bool),
     AddSizeGroup {
         label_group: gtk::SizeGroup,
         input_group: gtk::SizeGroup,
@@ -121,6 +123,7 @@ impl FactoryComponent for ClockAdjustmentRow {
             adjustment,
             change_signal,
             value_ratio: 1.0,
+            is_secondary: data.is_secondary,
         }
     }
 
@@ -153,9 +156,8 @@ impl FactoryComponent for ClockAdjustmentRow {
                 label_group.add_widget(&widgets.title_label);
                 input_group.add_widget(&widgets.input_button);
             }
-            ClockAdjustmentRowMsg::ShowSecondaryPStates(show_secondary) => {
-                let show_current = show_secondary || !clock_type_is_secondary(&self.clock_type);
-                widgets.root_box.set_visible(show_current);
+            ClockAdjustmentRowMsg::SetVisible(visible) => {
+                widgets.root_box.set_visible(visible);
             }
         }
 
@@ -169,12 +171,8 @@ impl ClockAdjustmentRow {
             .get_changed_value(false)
             .map(|value| (value / self.value_ratio) as i32)
     }
-}
 
-fn clock_type_is_secondary(clock_type: &ClockspeedType) -> bool {
-    match clock_type {
-        ClockspeedType::GpuClockOffset(pstate) => *pstate > 0,
-        ClockspeedType::MemClockOffset(pstate) => *pstate > 0,
-        _ => false,
+    pub fn get_raw_value(&self) -> i32 {
+        (self.adjustment.value() / self.value_ratio) as i32
     }
 }

@@ -16,7 +16,7 @@ use amdgpu_sysfs::{
     hw_mon::{FanControlMethod, HwMon},
 };
 use anyhow::{anyhow, Context};
-use futures::future::LocalBoxFuture;
+use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
     LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
@@ -266,7 +266,6 @@ impl AmdGpuController {
                     error!("could not get temperature sensor {temp_key} from {} sensors (assuming error is temporary, attempt {retries}/{FAN_CONTROL_RETRIES})", temps.len());
                     continue;
                 };
-                retries = 0;
 
                 let current_temp = temp.current.expect("Missing temp");
 
@@ -299,15 +298,40 @@ impl AmdGpuController {
                     Err(err) => {
                         error!("could not set fan speed: {err}");
                         if control_available {
-                            info!("fan control was previously available, assuming the error is temporary");
+                            retries += 1;
+
+                            if retries == FAN_CONTROL_RETRIES {
+                                error!("could not set fan speed after {retries} attempts, exiting fan control (reached max attempts)");
+                                break;
+                            }
+
+                            info!("fan control was previously available, assuming the error is temporary (attempt {retries}/{FAN_CONTROL_RETRIES})");
+
+                            if !matches!(
+                                hw_mon.get_fan_control_method(),
+                                Ok(FanControlMethod::Manual),
+                            ) {
+                                info!("fan control method was changed externally, setting back to manual");
+                                if let Err(err) =
+                                    hw_mon.set_fan_control_method(FanControlMethod::Manual)
+                                {
+                                    error!("could not set fan control back to manual: {err}");
+                                    break;
+                                }
+                            }
                         } else {
                             info!("disabling fan control");
                             break;
                         }
                     }
                 }
+                retries = 0;
             }
             debug!("exited fan control task");
+
+            if let Err(err) = hw_mon.set_fan_control_method(FanControlMethod::Auto) {
+                error!("could not reset fan control back to auto: {err}");
+            }
         });
 
         *notify_guard = Some((notify, handle));
@@ -455,8 +479,10 @@ impl AmdGpuController {
                 asic_name: Some(drm_info.get_asic_name().to_string()),
                 chip_class: Some(drm_info.get_chip_class().to_string()),
                 compute_units: Some(drm_info.cu_active_number),
+                streaming_multiprocessors: None,
                 cuda_cores: None,
                 vram_type: Some(drm_info.get_vram_type().to_string()),
+                vram_vendor: self.handle.get_vram_vendor().ok(),
                 vram_clock_ratio: match drm_info.get_vram_type() {
                     VRAM_TYPE::GDDR6 => 2.0,
                     _ => 1.0,
@@ -467,6 +493,7 @@ impl AmdGpuController {
                 l2_cache: Some(drm_info.calc_l2_cache_size()),
                 l3_cache_mb: Some(drm_info.calc_l3_cache_size_mb()),
                 memory_info: drm_memory_info,
+                rop_info: None,
                 intel: IntelDrmInfo::default(),
             }),
             None => None,
@@ -552,28 +579,30 @@ impl GpuController for AmdGpuController {
         &self.common
     }
 
-    fn get_info(&self) -> DeviceInfo {
-        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
-            Ok(info) => Some(info),
-            Err(err) => {
-                warn!("could not load vulkan info: {err}");
-                None
-            }
-        };
-        let pci_info = Some(self.common.pci_info.clone());
-        let driver = self.handle.get_driver().to_owned();
-        let vbios_version = self.get_full_vbios_version();
-        let link_info = self.get_link_info();
-        let drm_info = self.get_drm_info();
+    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
+        Box::pin(async move {
+            let vulkan_info = match get_vulkan_info(&self.common.pci_info).await {
+                Ok(info) => Some(info),
+                Err(err) => {
+                    warn!("could not load vulkan info: {err}");
+                    None
+                }
+            };
+            let pci_info = Some(self.common.pci_info.clone());
+            let driver = self.handle.get_driver().to_owned();
+            let vbios_version = self.get_full_vbios_version();
+            let link_info = self.get_link_info();
+            let drm_info = self.get_drm_info();
 
-        DeviceInfo {
-            pci_info,
-            vulkan_info,
-            driver,
-            vbios_version,
-            link_info,
-            drm_info,
-        }
+            DeviceInfo {
+                pci_info,
+                vulkan_info,
+                driver,
+                vbios_version,
+                link_info,
+                drm_info,
+            }
+        })
     }
 
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
@@ -1008,7 +1037,7 @@ impl GpuController for AmdGpuController {
         })
     }
 
-    fn cleanup_clocks(&self) -> anyhow::Result<()> {
+    fn reset_clocks(&self) -> anyhow::Result<()> {
         if self.handle.get_clocks_table().is_err() {
             return Ok(());
         }
@@ -1016,6 +1045,18 @@ impl GpuController for AmdGpuController {
         self.handle.reset_clocks_table()?;
 
         Ok(())
+    }
+
+    fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
+        async {
+            if let Some((fan_notify, fan_handle)) = self.fan_control_handle.take() {
+                debug!("sending stop notification to old fan control task");
+                fan_notify.notify_one();
+                fan_handle.await.unwrap();
+                debug!("finished controller cleanup");
+            }
+        }
+        .boxed_local()
     }
 }
 

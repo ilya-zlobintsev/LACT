@@ -55,7 +55,7 @@ You can now use the GUI to change settings and view information.
 
 # Hardware support
 
-See [HARDWARE.md](./docs/HARDWARE.md)
+See the [Wiki page](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Support)
 
 # Configuration
 
@@ -75,12 +75,7 @@ To fix socket permissions in such configurations, edit `/etc/lact/config.yaml` a
 
 # Overclocking (AMD)
 
-The overclocking functionality is disabled by default in the driver. There are two ways to enable it:
-- By using the "enable overclocking" option in the LACT GUI. This will create a file in `/etc/modprobe.d` that enables the required driver options. This is the easiest way and it should work for most people running standard distributions.
-
-  **Note:** This will attempt to automatically regenerate the initramfs to include the new settings. It does not cover all possible distro combinations. If you've enabled overclocking in LACT but it still doesn't work after a reboot,
-  you might need to check your distro's configuration to make sure the initramfs was updated. Updating the kernel version is a guaranteed way to trigger an initramfs update.
-- Specifying a boot parameter. This might be needed if your distro is not supported by the auto-enable functionality. You can manually specify the `amdgpu.ppfeaturemask=0xffffffff` kernel parameter in your bootloader to enable overclocking. See the [ArchWiki](https://wiki.archlinux.org/title/AMDGPU#Boot_parameter) for more details.
+Some functionality requires enabling an option in the amdgpu driver, see the [wiki page](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)) for more information.
 
 ## Power profiles daemon note!
 
@@ -109,11 +104,10 @@ Dependencies:
 - make
 - hwdata
 - libdrm
-- blueprint-compiler 0.10.0+ (Ubuntu 22.04 in particular ships an older version in the repos, you can manually download a [deb file](http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.14.0-1_all.deb) of a new version)
 
 Command to install all dependencies:
-- Fedora: `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel blueprint-compiler`
-- Arch: `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata blueprint-compiler`
+- Fedora: `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel vulkan-tools`
+- Arch: `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata vulkan-tools`
 
 Steps:
 - `git clone https://github.com/ilya-zlobintsev/LACT && cd LACT`
