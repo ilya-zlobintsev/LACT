@@ -8,7 +8,18 @@ use std::{
 
 use crate::bindings::nvidia::{
     NvHandle, NV0080_ALLOC_PARAMETERS, NV01_DEVICE_0, NV2080_ALLOC_PARAMETERS,
-    NV2080_CTRL_CMD_GR_GET_ROP_INFO, NV2080_CTRL_GR_GET_ROP_INFO_PARAMS, NV20_SUBDEVICE_0,
+    NV2080_CTRL_CMD_FB_GET_INFO, NV2080_CTRL_CMD_GR_GET_ROP_INFO, NV2080_CTRL_FB_GET_INFO_PARAMS,
+    NV2080_CTRL_FB_INFO, NV2080_CTRL_FB_INFO_INDEX_RAM_TYPE, NV2080_CTRL_FB_INFO_RAM_TYPE_DDR1,
+    NV2080_CTRL_FB_INFO_RAM_TYPE_DDR2, NV2080_CTRL_FB_INFO_RAM_TYPE_DDR3,
+    NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR2, NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR3,
+    NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR4, NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR5,
+    NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR5X, NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR6,
+    NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR6X, NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR7,
+    NV2080_CTRL_FB_INFO_RAM_TYPE_HBM1, NV2080_CTRL_FB_INFO_RAM_TYPE_HBM2,
+    NV2080_CTRL_FB_INFO_RAM_TYPE_HBM3, NV2080_CTRL_FB_INFO_RAM_TYPE_LPDDR2,
+    NV2080_CTRL_FB_INFO_RAM_TYPE_LPDDR4, NV2080_CTRL_FB_INFO_RAM_TYPE_LPDDR5,
+    NV2080_CTRL_FB_INFO_RAM_TYPE_SDDR4, NV2080_CTRL_FB_INFO_RAM_TYPE_SDRAM,
+    NV2080_CTRL_FB_INFO_RAM_TYPE_UNKNOWN, NV2080_CTRL_GR_GET_ROP_INFO_PARAMS, NV20_SUBDEVICE_0,
     NVOS21_PARAMETERS, NVOS54_PARAMETERS, NVOS64_PARAMETERS, NV_ESC_REGISTER_FD, NV_ESC_RM_ALLOC,
     NV_ESC_RM_CONTROL, NV_IOCTL_MAGIC,
 };
@@ -114,24 +125,7 @@ impl DriverHandle {
     pub fn get_rop_info(&self) -> anyhow::Result<NvidiaRopInfo> {
         unsafe {
             let mut params: NV2080_CTRL_GR_GET_ROP_INFO_PARAMS = mem::zeroed();
-
-            let mut request = NVOS54_PARAMETERS {
-                hClient: self.client_handle,
-                hObject: self.subdevice_handle,
-                cmd: NV2080_CTRL_CMD_GR_GET_ROP_INFO,
-                flags: 0,
-                params: ptr::from_mut(&mut params).cast(),
-                paramsSize: mem::size_of::<NV2080_CTRL_GR_GET_ROP_INFO_PARAMS>()
-                    .try_into()
-                    .unwrap(),
-                status: 0,
-            };
-
-            rm_control_nvos54(self.nvidiactl_fd.as_raw_fd(), &mut request)?;
-
-            if request.status != 0 {
-                bail!("ROP request failed with status {}", request.status);
-            }
+            self.query_rm_control(NV2080_CTRL_CMD_GR_GET_ROP_INFO, &mut params)?;
 
             Ok(NvidiaRopInfo {
                 unit_count: params.ropUnitCount,
@@ -139,6 +133,81 @@ impl DriverHandle {
                 operations_count: params.ropOperationsCount,
             })
         }
+    }
+
+    pub fn get_ram_type(&self) -> anyhow::Result<&'static str> {
+        let value = self.get_fb_info(NV2080_CTRL_FB_INFO_INDEX_RAM_TYPE)?;
+        let name = match value {
+            NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR2 => "GDDR2",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR3 => "GDDR3",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR4 => "GDDR4",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR5 => "GDDR5",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR5X => "GDDR5X",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR6 => "GDDR6",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR6X => "GDDR6x",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_GDDR7 => "GDDR7",
+
+            NV2080_CTRL_FB_INFO_RAM_TYPE_HBM1 => "HBM1",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_HBM2 => "HBM2",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_HBM3 => "HBM3",
+
+            NV2080_CTRL_FB_INFO_RAM_TYPE_DDR1 => "DDR1",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_DDR2 => "DDR2",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_DDR3 => "DDR3",
+
+            NV2080_CTRL_FB_INFO_RAM_TYPE_LPDDR2 => "LPDDR2",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_LPDDR4 => "LPDDR4",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_LPDDR5 => "LPDDR5",
+
+            NV2080_CTRL_FB_INFO_RAM_TYPE_SDDR4 => "SDDR4",
+            NV2080_CTRL_FB_INFO_RAM_TYPE_SDRAM => "SDRAM",
+
+            NV2080_CTRL_FB_INFO_RAM_TYPE_UNKNOWN => "Unknown",
+            _ => "Unrecognized",
+        };
+        Ok(name)
+    }
+
+    fn get_fb_info(&self, stat_index: u32) -> anyhow::Result<u32> {
+        // let mut info_list = [NV2080_CTRL_FB_INFO { index: 0, data: 0 }; 57];
+        // info_list[0] = NV2080_CTRL_FB_INFO {
+        //     index: stat_index,
+        //     data: 0,
+        // };
+
+        let mut info_list = vec![NV2080_CTRL_FB_INFO {
+            index: stat_index,
+            data: 0,
+        }];
+        let mut params = NV2080_CTRL_FB_GET_INFO_PARAMS {
+            fbInfoListSize: u32::try_from(info_list.len()).unwrap(),
+            fbInfoList: info_list.as_mut_ptr().cast(),
+        };
+
+        self.query_rm_control(NV2080_CTRL_CMD_FB_GET_INFO, &mut params)?;
+
+        Ok(info_list[0].data)
+    }
+
+    fn query_rm_control<T: Copy>(&self, cmd: u32, params: &mut T) -> anyhow::Result<()> {
+        let mut request = NVOS54_PARAMETERS {
+            hClient: self.client_handle,
+            hObject: self.subdevice_handle,
+            cmd,
+            flags: 0,
+            params: ptr::from_mut(params).cast(),
+            paramsSize: mem::size_of::<T>().try_into().unwrap(),
+            status: 0,
+        };
+        unsafe {
+            rm_control_nvos54(self.nvidiactl_fd.as_raw_fd(), &mut request)?;
+        }
+
+        if request.status != 0 {
+            bail!("Nvidia request failed with status {}", request.status);
+        }
+
+        Ok(())
     }
 }
 

@@ -287,6 +287,7 @@ impl GpuController for NvidiaGpuController {
             };
 
             let device = self.device();
+            let driver_handle = self.driver_handle.as_ref();
 
             DeviceInfo {
                 pci_info: Some(self.common.pci_info.clone()),
@@ -333,15 +334,16 @@ impl GpuController for NvidiaGpuController {
                     chip_class: device.architecture().map(|arch| arch.to_string()).ok(),
                     compute_units: None,
                     cuda_cores: device.num_cores().ok(),
-                    vram_type: None,
+                    vram_type: driver_handle
+                        .and_then(|handle| handle.get_ram_type().ok())
+                        .map(str::to_owned),
                     vram_clock_ratio: 1.0,
                     vram_bit_width: device.current_pcie_link_width().ok(),
                     vram_max_bw: None,
                     l1_cache_per_cu: None,
                     l2_cache: None,
                     l3_cache_mb: None,
-                    rop_info: self
-                        .driver_handle
+                    rop_info: driver_handle
                         .as_ref()
                         .and_then(|handle| handle.get_rop_info().ok()),
                     memory_info: device
