@@ -341,7 +341,7 @@ impl GpuController for NvidiaGpuController {
                     vram_bit_width: device.current_pcie_link_width().ok(),
                     vram_max_bw: None,
                     l1_cache_per_cu: None,
-                    l2_cache: None,
+                    l2_cache: driver_handle.and_then(|handle| handle.get_l2_cache_size().ok()),
                     l3_cache_mb: None,
                     rop_info: driver_handle
                         .as_ref()
