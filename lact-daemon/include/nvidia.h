@@ -1,0 +1,7 @@
+#include "nvidia/kernel-open/common/inc/nv-ioctl-numbers.h"
+#include "nvidia/src/common/sdk/nvidia/inc/class/cl0080.h"
+#include "nvidia/src/common/sdk/nvidia/inc/class/cl2080.h"
+#include "nvidia/src/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gr.h"
+#include "nvidia/src/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080fb.h"
+#include "nvidia/src/common/sdk/nvidia/inc/nvos.h"
+#include "nvidia/src/nvidia/arch/nvalloc/unix/include/nv_escape.h"

@@ -158,7 +158,23 @@ impl HardwareInfoSection {
                         "Cuda Cores",
                         drm_info.cuda_cores.map(|count| count.to_string()),
                     ),
+                    (
+                        "Streaming Multiprocessors",
+                        drm_info
+                            .streaming_multiprocessors
+                            .map(|count| count.to_string()),
+                    ),
+                    (
+                        "ROP Count",
+                        drm_info.rop_info.as_ref().map(|rop| {
+                            format!(
+                                "{} ({} * {})",
+                                rop.operations_count, rop.unit_count, rop.operations_factor
+                            )
+                        }),
+                    ),
                     ("VRAM Type", drm_info.vram_type.clone()),
+                    ("VRAM Manufacturer", drm_info.vram_vendor.clone()),
                     ("Theoretical VRAM Bandwidth", drm_info.vram_max_bw.clone()),
                     (
                         "L1 Cache (Per CU)",

@@ -5,13 +5,14 @@ use std::{
 };
 
 fn main() {
+    println!("cargo::rerun-if-changed=include/");
+
     gen_intel_bindings();
+    gen_nvidia_bindings();
     gen_vulkan_constants();
 }
 
 fn gen_intel_bindings() {
-    println!("cargo::rerun-if-changed=include/");
-
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     bindgen::builder()
@@ -22,6 +23,20 @@ fn gen_intel_bindings() {
         .generate()
         .expect("Unable to generate intel bindings")
         .write_to_file(out_path.join("intel_bindings.rs"))
+        .expect("Couldn't write bindings!");
+}
+
+fn gen_nvidia_bindings() {
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+
+    bindgen::builder()
+        .header("include/nvidia.h")
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .generate_comments(false)
+        .clang_arg("-Iinclude/nvidia/src/common/sdk/nvidia/inc")
+        .generate()
+        .expect("Unable to generate nvidia bindings")
+        .write_to_file(out_path.join("nvidia_bindings.rs"))
         .expect("Couldn't write bindings!");
 }
 

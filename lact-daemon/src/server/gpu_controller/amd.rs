@@ -455,8 +455,10 @@ impl AmdGpuController {
                 asic_name: Some(drm_info.get_asic_name().to_string()),
                 chip_class: Some(drm_info.get_chip_class().to_string()),
                 compute_units: Some(drm_info.cu_active_number),
+                streaming_multiprocessors: None,
                 cuda_cores: None,
                 vram_type: Some(drm_info.get_vram_type().to_string()),
+                vram_vendor: None,
                 vram_clock_ratio: match drm_info.get_vram_type() {
                     VRAM_TYPE::GDDR6 => 2.0,
                     _ => 1.0,
@@ -467,6 +469,7 @@ impl AmdGpuController {
                 l2_cache: Some(drm_info.calc_l2_cache_size()),
                 l3_cache_mb: Some(drm_info.calc_l3_cache_size_mb()),
                 memory_info: drm_memory_info,
+                rop_info: None,
                 intel: IntelDrmInfo::default(),
             }),
             None => None,

@@ -121,17 +121,27 @@ pub struct DrmInfo {
     pub asic_name: Option<String>,
     pub chip_class: Option<String>,
     pub compute_units: Option<u32>,
+    pub streaming_multiprocessors: Option<u32>,
     pub cuda_cores: Option<u32>,
     pub vram_type: Option<String>,
+    pub vram_vendor: Option<String>,
     pub vram_clock_ratio: f64,
     pub vram_bit_width: Option<u32>,
     pub vram_max_bw: Option<String>,
     pub l1_cache_per_cu: Option<u32>,
     pub l2_cache: Option<u32>,
     pub l3_cache_mb: Option<u32>,
+    pub rop_info: Option<NvidiaRopInfo>,
     pub memory_info: Option<DrmMemoryInfo>,
     #[serde(flatten)]
     pub intel: IntelDrmInfo,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NvidiaRopInfo {
+    pub unit_count: u32,
+    pub operations_factor: u32,
+    pub operations_count: u32,
 }
 
 #[skip_serializing_none]
