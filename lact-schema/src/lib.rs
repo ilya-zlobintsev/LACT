@@ -125,6 +125,7 @@ pub struct DrmInfo {
     pub tensor_cores: Option<u32>,
     pub cuda_cores: Option<u32>,
     pub vram_type: Option<String>,
+    pub vram_vendor: Option<String>,
     pub vram_clock_ratio: f64,
     pub vram_bit_width: Option<u32>,
     pub vram_max_bw: Option<String>,

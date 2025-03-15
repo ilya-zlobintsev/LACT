@@ -178,6 +178,7 @@ impl HardwareInfoSection {
                         }),
                     ),
                     ("VRAM Type", drm_info.vram_type.clone()),
+                    ("VRAM Manufacturer", drm_info.vram_vendor.clone()),
                     ("Theoretical VRAM Bandwidth", drm_info.vram_max_bw.clone()),
                     (
                         "L1 Cache (Per CU)",
