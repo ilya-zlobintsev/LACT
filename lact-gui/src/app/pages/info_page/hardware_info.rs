@@ -159,6 +159,16 @@ impl HardwareInfoSection {
                         drm_info.cuda_cores.map(|count| count.to_string()),
                     ),
                     (
+                        "Streaming Multiprocessors",
+                        drm_info
+                            .streaming_multiprocessors
+                            .map(|count| count.to_string()),
+                    ),
+                    (
+                        "Tensor Cores",
+                        drm_info.tensor_cores.map(|count| count.to_string()),
+                    ),
+                    (
                         "ROP Count",
                         drm_info.rop_info.as_ref().map(|rop| {
                             format!(

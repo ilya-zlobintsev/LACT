@@ -455,6 +455,8 @@ impl AmdGpuController {
                 asic_name: Some(drm_info.get_asic_name().to_string()),
                 chip_class: Some(drm_info.get_chip_class().to_string()),
                 compute_units: Some(drm_info.cu_active_number),
+                streaming_multiprocessors: None,
+                tensor_cores: None,
                 cuda_cores: None,
                 vram_type: Some(drm_info.get_vram_type().to_string()),
                 vram_clock_ratio: match drm_info.get_vram_type() {

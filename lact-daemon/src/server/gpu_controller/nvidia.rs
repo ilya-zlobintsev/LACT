@@ -333,6 +333,10 @@ impl GpuController for NvidiaGpuController {
                     asic_name: None,
                     chip_class: device.architecture().map(|arch| arch.to_string()).ok(),
                     compute_units: None,
+                    streaming_multiprocessors: driver_handle
+                        .and_then(|handle| handle.get_sm_count().ok()),
+                    tensor_cores: driver_handle
+                        .and_then(|handle| handle.get_tensor_core_count().ok()),
                     cuda_cores: device.num_cores().ok(),
                     vram_type: driver_handle
                         .and_then(|handle| handle.get_ram_type().ok())
