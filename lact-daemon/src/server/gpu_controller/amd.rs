@@ -16,7 +16,7 @@ use amdgpu_sysfs::{
     hw_mon::{FanControlMethod, HwMon},
 };
 use anyhow::{anyhow, Context};
-use futures::future::LocalBoxFuture;
+use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
     LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
@@ -266,7 +266,6 @@ impl AmdGpuController {
                     error!("could not get temperature sensor {temp_key} from {} sensors (assuming error is temporary, attempt {retries}/{FAN_CONTROL_RETRIES})", temps.len());
                     continue;
                 };
-                retries = 0;
 
                 let current_temp = temp.current.expect("Missing temp");
 
@@ -299,15 +298,40 @@ impl AmdGpuController {
                     Err(err) => {
                         error!("could not set fan speed: {err}");
                         if control_available {
-                            info!("fan control was previously available, assuming the error is temporary");
+                            retries += 1;
+
+                            if retries == FAN_CONTROL_RETRIES {
+                                error!("could not set fan speed after {retries} attempts, exiting fan control (reached max attempts)");
+                                break;
+                            }
+
+                            info!("fan control was previously available, assuming the error is temporary (attempt {retries}/{FAN_CONTROL_RETRIES})");
+
+                            if !matches!(
+                                hw_mon.get_fan_control_method(),
+                                Ok(FanControlMethod::Manual),
+                            ) {
+                                info!("fan control method was changed externally, setting back to manual");
+                                if let Err(err) =
+                                    hw_mon.set_fan_control_method(FanControlMethod::Manual)
+                                {
+                                    error!("could not set fan control back to manual: {err}");
+                                    break;
+                                }
+                            }
                         } else {
                             info!("disabling fan control");
                             break;
                         }
                     }
                 }
+                retries = 0;
             }
             debug!("exited fan control task");
+
+            if let Err(err) = hw_mon.set_fan_control_method(FanControlMethod::Auto) {
+                error!("could not reset fan control back to auto: {err}");
+            }
         });
 
         *notify_guard = Some((notify, handle));
@@ -992,7 +1016,7 @@ impl GpuController for AmdGpuController {
         })
     }
 
-    fn cleanup_clocks(&self) -> anyhow::Result<()> {
+    fn reset_clocks(&self) -> anyhow::Result<()> {
         if self.handle.get_clocks_table().is_err() {
             return Ok(());
         }
@@ -1000,6 +1024,18 @@ impl GpuController for AmdGpuController {
         self.handle.reset_clocks_table()?;
 
         Ok(())
+    }
+
+    fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
+        async {
+            if let Some((fan_notify, fan_handle)) = self.fan_control_handle.take() {
+                debug!("sending stop notification to old fan control task");
+                fan_notify.notify_one();
+                fan_handle.await.unwrap();
+                debug!("finished controller cleanup");
+            }
+        }
+        .boxed_local()
     }
 }
 
