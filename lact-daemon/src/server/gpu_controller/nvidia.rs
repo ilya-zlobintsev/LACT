@@ -9,7 +9,7 @@ use super::{fan_control::FanCurve, CommonControllerInfo, FanControlHandle, GpuCo
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, bail, Context};
 use driver::DriverHandle;
-use futures::future::LocalBoxFuture;
+use futures::{future::LocalBoxFuture, FutureExt};
 use indexmap::IndexMap;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo,
@@ -607,7 +607,7 @@ impl GpuController for NvidiaGpuController {
                 }
             }
 
-            self.cleanup_clocks()?;
+            self.reset_clocks()?;
 
             let clocks = &config.clocks_configuration;
 
@@ -710,7 +710,7 @@ impl GpuController for NvidiaGpuController {
         })
     }
 
-    fn cleanup_clocks(&self) -> anyhow::Result<()> {
+    fn reset_clocks(&self) -> anyhow::Result<()> {
         let mut device = self.device();
 
         if let Ok(supported_pstates) = device.supported_performance_states() {
@@ -758,5 +758,17 @@ impl GpuController for NvidiaGpuController {
         }
 
         Ok(())
+    }
+
+    fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
+        async {
+            if let Some((fan_notify, fan_handle)) = self.fan_control_handle.take() {
+                debug!("sending stop notification to old fan control task");
+                fan_notify.notify_one();
+                fan_handle.await.unwrap();
+                debug!("finished controller cleanup");
+            }
+        }
+        .boxed_local()
     }
 }

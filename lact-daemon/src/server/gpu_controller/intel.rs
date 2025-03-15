@@ -702,7 +702,7 @@ impl GpuController for IntelGpuController {
     fn reset_pmfw_settings(&self) {}
 
     #[allow(clippy::cast_possible_truncation)]
-    fn cleanup_clocks(&self) -> anyhow::Result<()> {
+    fn reset_clocks(&self) -> anyhow::Result<()> {
         if let Some(rp0) = self.read_freq(FrequencyType::Rp0) {
             if let Err(err) = self.write_freq(FrequencyType::Max, rp0 as i32) {
                 warn!("could not reset max clock: {err:#}");

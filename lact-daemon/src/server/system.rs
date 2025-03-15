@@ -13,7 +13,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 use tokio::{process::Command, sync::Notify};
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 static OC_TOGGLED: AtomicBool = AtomicBool::new(false);
 
@@ -230,7 +230,6 @@ pub(crate) fn listen_netlink_kernel_event(notify: &Notify) -> anyhow::Result<()>
                         continue;
                     }
 
-                    debug!("kernel event line: '{line}'");
                     if let Some(subsystem) = line.strip_prefix("SUBSYSTEM=") {
                         if subsystem == "drm" {
                             notify.notify_one();
