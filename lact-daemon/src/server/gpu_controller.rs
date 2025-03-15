@@ -40,7 +40,7 @@ pub trait GpuController {
 
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats;
 
-    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo>;
+    fn get_clocks_info(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo>;
 
     fn get_power_states(&self, gpu_config: Option<&config::Gpu>) -> PowerStates;
 

@@ -655,7 +655,7 @@ impl GpuController for IntelGpuController {
         }
     }
 
-    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
+    fn get_clocks_info(&self, _gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
         let clocks_table = IntelClocksTable {
             gt_freq: self
                 .read_freq(FrequencyType::Min)

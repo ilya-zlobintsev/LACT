@@ -667,11 +667,32 @@ impl GpuController for AmdGpuController {
         }
     }
 
-    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
-        let clocks_table = self
+    fn get_clocks_info(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
+        let mut clocks_table = self
             .handle
             .get_clocks_table()
             .context("Clocks table not available")?;
+
+        if let ClocksTableGen::Vega20(table) = &mut clocks_table {
+            // Workaround for RDNA4 not reporting current SCLK offset in the original format:
+            // https://github.com/ilya-zlobintsev/LACT/issues/485#issuecomment-2712502906
+            if table.rdna4_sclk_offset_workaround {
+                // The values present in the old clocks table format for the current slck offset are rubbish,
+                // we should report the configured value instead
+                let offset = gpu_config
+                    .and_then(|config| {
+                        config
+                            .clocks_configuration
+                            .gpu_clock_offsets
+                            .get(&0)
+                            .copied()
+                    })
+                    .unwrap_or(0);
+
+                table.sclk_offset = Some(offset);
+            }
+        }
+
         Ok(clocks_table.into())
     }
 
@@ -836,7 +857,7 @@ impl GpuController for AmdGpuController {
                         commit_handles.push(handle);
                     }
                     Err(err) => {
-                        error!("custom clock settings are present but will be ignored, but could not get clocks table: {err}");
+                        error!("custom clock settings are present but will be ignored, could not get clocks table: {err}");
                     }
                 }
             }
@@ -1072,6 +1093,10 @@ impl ClocksConfiguration {
             match self.voltage_offset {
                 Some(offset) => table.set_voltage_offset(offset)?,
                 None => table.voltage_offset = None,
+            }
+
+            if let Some(offset) = self.gpu_clock_offsets.get(&0) {
+                table.sclk_offset = Some(*offset);
             }
         }
 
