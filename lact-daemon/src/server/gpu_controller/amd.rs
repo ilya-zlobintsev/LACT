@@ -458,7 +458,7 @@ impl AmdGpuController {
                 streaming_multiprocessors: None,
                 cuda_cores: None,
                 vram_type: Some(drm_info.get_vram_type().to_string()),
-                vram_vendor: None,
+                vram_vendor: self.handle.get_vram_vendor().ok(),
                 vram_clock_ratio: match drm_info.get_vram_type() {
                     VRAM_TYPE::GDDR6 => 2.0,
                     _ => 1.0,
