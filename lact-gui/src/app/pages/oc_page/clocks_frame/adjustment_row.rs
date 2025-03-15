@@ -23,6 +23,7 @@ pub struct ClocksData {
     pub min: i32,
     pub max: i32,
     pub custom_title: Option<&'static str>,
+    pub is_secondary: bool,
 }
 
 impl ClocksData {

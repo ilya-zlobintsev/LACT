@@ -673,23 +673,23 @@ impl GpuController for AmdGpuController {
             .get_clocks_table()
             .context("Clocks table not available")?;
 
-        // RDNA4 workaround
         if let ClocksTableGen::Vega20(table) = &mut clocks_table {
-            table.current_sclk_offset_range.min = None;
-
-            if table.current_sclk_offset_range.max.take().is_some() {
-                // The values present in the clocks table for the current slck offset are rubbish,
-                // we should report the configured value if there is one
+            // Workaround for RDNA4 not reporting current SCLK offset in the original format:
+            // https://github.com/ilya-zlobintsev/LACT/issues/485#issuecomment-2712502906
+            if table.rdna4_sclk_offset_workaround {
+                // The values present in the old clocks table format for the current slck offset are rubbish,
+                // we should report the configured value instead
                 let offset = gpu_config
                     .and_then(|config| {
                         config
                             .clocks_configuration
                             .gpu_clock_offsets
-                            .get(&1)
+                            .get(&0)
                             .copied()
                     })
                     .unwrap_or(0);
-                table.current_sclk_offset_range.max = Some(offset);
+
+                table.sclk_offset = Some(offset);
             }
         }
 
@@ -1095,9 +1095,8 @@ impl ClocksConfiguration {
                 None => table.voltage_offset = None,
             }
 
-            // Only the `max` setting can actually be set
-            if let Some(offset) = self.gpu_clock_offsets.get(&1) {
-                table.current_sclk_offset_range.max = Some(*offset);
+            if let Some(offset) = self.gpu_clock_offsets.get(&0) {
+                table.sclk_offset = Some(*offset);
             }
         }
 

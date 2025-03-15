@@ -15,10 +15,6 @@ expression: device_info
             "max": 875,
             "min": null
           },
-          "current_sclk_offset_range": {
-            "max": null,
-            "min": null
-          },
           "current_sclk_range": {
             "max": 1900,
             "min": 1351
@@ -63,6 +59,8 @@ expression: device_info
             "sclk_offset": null,
             "voltage_offset": null
           },
+          "rdna4_sclk_offset_workaround": false,
+          "sclk_offset": null,
           "vddc_curve": [
             {
               "clockspeed": 1351,

@@ -270,14 +270,15 @@ impl ClocksFrame {
             {
                 self.show_all_pstates.set_value(true);
 
-                if let Some(current_sclk_offset_max) = table.current_sclk_offset_range.max {
+                if let Some(sclk_offset) = table.sclk_offset {
                     self.clocks.insert(
-                        ClockspeedType::GpuClockOffset(1),
+                        ClockspeedType::GpuClockOffset(0),
                         ClocksData {
-                            current: current_sclk_offset_max,
+                            current: sclk_offset,
                             min: sclk_offset_min,
                             max: sclk_offset_max,
-                            custom_title: Some("GPU Clock Offset (MHz)"),
+                            custom_title: Some("Maximum GPU Clock Offset (MHz)"),
+                            is_secondary: false,
                         },
                     );
                 }

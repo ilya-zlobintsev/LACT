@@ -13,10 +13,6 @@ expression: device_info
             "max": 1259,
             "min": 97
           },
-          "current_sclk_offset_range": {
-            "max": null,
-            "min": null
-          },
           "current_sclk_range": {
             "max": null,
             "min": null
@@ -38,6 +34,8 @@ expression: device_info
               "min": -200
             }
           },
+          "rdna4_sclk_offset_workaround": true,
+          "sclk_offset": 0,
           "vddc_curve": [],
           "voltage_offset": 0
         },

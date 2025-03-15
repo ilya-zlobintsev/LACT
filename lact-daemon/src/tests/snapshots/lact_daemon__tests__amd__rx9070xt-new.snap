@@ -4,38 +4,40 @@ expression: device_info
 ---
 {
   "clocks_info": {
-    "max_mclk": 1000,
-    "max_sclk": 2499,
+    "max_mclk": 1259,
     "table": {
       "type": "amd",
       "value": {
         "data": {
           "current_mclk_range": {
-            "max": 1000,
+            "max": 1259,
             "min": 97
           },
           "current_sclk_range": {
-            "max": 2499,
-            "min": 500
+            "max": null,
+            "min": null
           },
           "od_range": {
             "curve_sclk_points": [],
             "curve_voltage_points": [],
             "mclk": {
-              "max": 1075,
-              "min": 674
+              "max": 1500,
+              "min": 97
             },
-            "sclk": {
-              "max": 3000,
-              "min": 500
+            "sclk": null,
+            "sclk_offset": {
+              "max": 1000,
+              "min": -500
             },
-            "sclk_offset": null,
-            "voltage_offset": null
+            "voltage_offset": {
+              "max": 0,
+              "min": -200
+            }
           },
           "rdna4_sclk_offset_workaround": false,
-          "sclk_offset": null,
+          "sclk_offset": 0,
           "vddc_curve": [],
-          "voltage_offset": -10
+          "voltage_offset": 0
         },
         "kind": "vega20"
       }
@@ -44,25 +46,23 @@ expression: device_info
   "info": {
     "driver": "amdgpu",
     "link_info": {
-      "current_speed": "16.0 GT/s PCIe",
-      "current_width": "16",
-      "max_speed": "16.0 GT/s PCIe",
-      "max_width": "16"
+      "current_speed": "32.0 GT/s PCIe",
+      "current_width": "16"
     },
     "pci_info": {
       "device_pci_info": {
-        "model": "Navi 21 [Radeon RX 6800/6800 XT / 6900 XT]",
-        "model_id": "73BF",
+        "model": "Navi 48 [RX 9070/9070 XT]",
+        "model_id": "7550",
         "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
-        "model_id": "440E",
-        "vendor": "Sapphire Technology Limited",
-        "vendor_id": "1DA2"
+        "model_id": "2435",
+        "vendor": "Tul Corporation / PowerColor",
+        "vendor_id": "148C"
       }
     },
-    "vbios_version": "113-D4121EXT-CO1",
+    "vbios_version": "113-EXT108779-100",
     "vulkan_info": {
       "api_version": "",
       "device_name": "",
@@ -76,19 +76,19 @@ expression: device_info
   },
   "pci_info": {
     "device_pci_info": {
-      "model": "Navi 21 [Radeon RX 6800/6800 XT / 6900 XT]",
-      "model_id": "73BF",
+      "model": "Navi 48 [RX 9070/9070 XT]",
+      "model_id": "7550",
       "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
-      "model_id": "440E",
-      "vendor": "Sapphire Technology Limited",
-      "vendor_id": "1DA2"
+      "model_id": "2435",
+      "vendor": "Tul Corporation / PowerColor",
+      "vendor_id": "148C"
     }
   },
   "power_profile_modes": {
-    "active": 0,
+    "active": 1,
     "modes": {
       "0": {
         "components": [
@@ -96,7 +96,6 @@ expression: device_info
             "clock_type": "GFXCLK",
             "values": [
               0,
-              5,
               1,
               0,
               4,
@@ -107,31 +106,16 @@ expression: device_info
             ]
           },
           {
-            "clock_type": "SOCCLK",
+            "clock_type": "FCLK",
             "values": [
               0,
-              5,
-              1,
+              3,
               0,
               1,
               0,
-              3276800,
-              -65536,
+              5898240,
+              -6553,
               -6553
-            ]
-          },
-          {
-            "clock_type": "MEMLK",
-            "values": [
-              0,
-              5,
-              1,
-              0,
-              4,
-              800,
-              327680,
-              -65536,
-              0
             ]
           }
         ],
@@ -143,42 +127,26 @@ expression: device_info
             "clock_type": "GFXCLK",
             "values": [
               0,
-              5,
-              0,
-              1600,
-              4,
-              650,
-              5242880,
-              -3276,
-              0
-            ]
-          },
-          {
-            "clock_type": "SOCCLK",
-            "values": [
-              0,
-              5,
               1,
               0,
               1,
               0,
-              655360,
-              -65536,
+              5570560,
+              -655,
               -6553
             ]
           },
           {
-            "clock_type": "MEMLK",
+            "clock_type": "FCLK",
             "values": [
               0,
-              5,
-              4,
-              850,
-              4,
-              800,
-              327680,
-              -65536,
-              0
+              1,
+              0,
+              1,
+              0,
+              5898240,
+              -6553,
+              -6553
             ]
           }
         ],
@@ -190,7 +158,6 @@ expression: device_info
             "clock_type": "GFXCLK",
             "values": [
               0,
-              5,
               1,
               0,
               3,
@@ -201,31 +168,16 @@ expression: device_info
             ]
           },
           {
-            "clock_type": "SOCCLK",
+            "clock_type": "FCLK",
             "values": [
               0,
-              5,
               1,
               0,
               1,
               0,
-              3407872,
+              5898240,
               -65536,
               -6553
-            ]
-          },
-          {
-            "clock_type": "MEMLK",
-            "values": [
-              0,
-              5,
-              1,
-              0,
-              3,
-              0,
-              1966080,
-              -65536,
-              0
             ]
           }
         ],
@@ -237,7 +189,6 @@ expression: device_info
             "clock_type": "GFXCLK",
             "values": [
               0,
-              5,
               1,
               0,
               4,
@@ -248,31 +199,16 @@ expression: device_info
             ]
           },
           {
-            "clock_type": "SOCCLK",
+            "clock_type": "FCLK",
             "values": [
               0,
-              5,
               1,
               0,
               1,
               0,
-              3473408,
-              -65536,
+              5898240,
+              -6553,
               -6553
-            ]
-          },
-          {
-            "clock_type": "MEMLK",
-            "values": [
-              0,
-              5,
-              1,
-              0,
-              4,
-              500,
-              1966080,
-              -65536,
-              0
             ]
           }
         ],
@@ -284,42 +220,26 @@ expression: device_info
             "clock_type": "GFXCLK",
             "values": [
               0,
-              5,
               4,
-              1000,
+              600,
               1,
               0,
-              3276800,
-              0,
+              4587520,
+              -16384,
               0
             ]
           },
           {
-            "clock_type": "SOCCLK",
+            "clock_type": "FCLK",
             "values": [
               0,
-              5,
               1,
               0,
               1,
               0,
-              655360,
-              -65536,
+              5898240,
+              -6553,
               -6553
-            ]
-          },
-          {
-            "clock_type": "MEMLK",
-            "values": [
-              0,
-              5,
-              1,
-              0,
-              4,
-              800,
-              327680,
-              -65536,
-              0
             ]
           }
         ],
@@ -331,42 +251,26 @@ expression: device_info
             "clock_type": "GFXCLK",
             "values": [
               0,
-              5,
               4,
-              1000,
+              600,
               1,
               0,
-              3932160,
-              0,
+              4587520,
+              -16384,
               0
             ]
           },
           {
-            "clock_type": "SOCCLK",
+            "clock_type": "FCLK",
             "values": [
               0,
-              5,
               1,
               0,
               1,
               0,
-              655360,
-              -65536,
+              5898240,
+              -6553,
               -6553
-            ]
-          },
-          {
-            "clock_type": "MEMLK",
-            "values": [
-              0,
-              5,
-              4,
-              850,
-              3,
-              0,
-              327680,
-              -65536,
-              -32768
             ]
           }
         ],
@@ -378,7 +282,6 @@ expression: device_info
             "clock_type": "GFXCLK",
             "values": [
               0,
-              5,
               1,
               0,
               4,
@@ -389,40 +292,55 @@ expression: device_info
             ]
           },
           {
-            "clock_type": "SOCCLK",
+            "clock_type": "FCLK",
             "values": [
               0,
-              5,
-              1,
+              3,
               0,
               1,
               0,
-              3276800,
-              -65536,
+              5898240,
+              -6553,
               -6553
-            ]
-          },
-          {
-            "clock_type": "MEMLK",
-            "values": [
-              0,
-              5,
-              1,
-              0,
-              4,
-              800,
-              327680,
-              -65536,
-              0
             ]
           }
         ],
         "name": "CUSTOM"
+      },
+      "7": {
+        "components": [
+          {
+            "clock_type": "GFXCLK",
+            "values": [
+              0,
+              1,
+              0,
+              1,
+              0,
+              5570560,
+              -655,
+              -6553
+            ]
+          },
+          {
+            "clock_type": "FCLK",
+            "values": [
+              0,
+              3,
+              0,
+              1,
+              0,
+              5898240,
+              -6553,
+              -6553
+            ]
+          }
+        ],
+        "name": "WINDOW_3D"
       }
     },
     "value_names": [
       "FPS",
-      "MinFreqType",
       "MinActiveFreqType",
       "MinActiveFreq",
       "BoosterFreqType",
@@ -442,7 +360,12 @@ expression: device_info
       {
         "enabled": true,
         "index": 1,
-        "value": 2660
+        "value": 0
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 2520
       }
     ],
     "vram": [
@@ -459,61 +382,94 @@ expression: device_info
       {
         "enabled": true,
         "index": 2,
-        "value": 673
+        "value": 772
       },
       {
         "enabled": true,
         "index": 3,
-        "value": 1000
+        "value": 875
+      },
+      {
+        "enabled": true,
+        "index": 4,
+        "value": 1124
+      },
+      {
+        "enabled": true,
+        "index": 5,
+        "value": 1258
       }
     ]
   },
   "stats": {
-    "busy_percent": 3,
+    "busy_percent": 9,
     "clockspeed": {
-      "gpu_clockspeed": 500,
-      "vram_clockspeed": 1000
+      "gpu_clockspeed": 59,
+      "vram_clockspeed": 96
     },
-    "core_power_state": 0,
+    "core_power_state": 1,
     "fan": {
       "control_enabled": false,
-      "pmfw_info": {},
-      "pwm_current": 0,
-      "speed_current": 0,
-      "speed_max": 3400,
-      "speed_min": 0
+      "pmfw_info": {
+        "acoustic_limit": {
+          "allowed_range": [
+            500,
+            3650
+          ],
+          "current": 3300
+        },
+        "acoustic_target": {
+          "allowed_range": [
+            500,
+            3650
+          ],
+          "current": 1300
+        },
+        "minimum_pwm": {
+          "allowed_range": [
+            30,
+            100
+          ],
+          "current": 30
+        },
+        "target_temp": {
+          "allowed_range": [
+            25,
+            105
+          ],
+          "current": 90
+        }
+      }
     },
-    "memory_power_state": 3,
-    "pcie_power_state": 1,
+    "memory_power_state": 0,
     "performance_level": "auto",
     "power": {
-      "average": 36.0,
-      "cap_current": 289.0,
-      "cap_default": 289.0,
-      "cap_max": 332.0,
+      "average": 19.0,
+      "cap_current": 330.0,
+      "cap_default": 330.0,
+      "cap_max": 340.0,
       "cap_min": 0.0
     },
     "temps": {
       "edge": {
-        "crit": 100.0,
+        "crit": 110.0,
         "crit_hyst": -273.1499938964844,
-        "current": 56.0
+        "current": 39.0
       },
       "junction": {
         "crit": 110.0,
         "crit_hyst": -273.1499938964844,
-        "current": 59.0
+        "current": 42.0
       },
       "mem": {
-        "crit": 100.0,
+        "crit": 108.0,
         "crit_hyst": -273.1499938964844,
-        "current": 54.0
+        "current": 62.0
       }
     },
-    "voltage": {},
-    "vram": {
-      "total": 17163091968,
-      "used": 668274688
-    }
+    "voltage": {
+      "gpu": 696
+    },
+    "vram": {}
   }
 }
