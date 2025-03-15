@@ -335,8 +335,6 @@ impl GpuController for NvidiaGpuController {
                     compute_units: None,
                     streaming_multiprocessors: driver_handle
                         .and_then(|handle| handle.get_sm_count().ok()),
-                    tensor_cores: driver_handle
-                        .and_then(|handle| handle.get_tensor_core_count().ok()),
                     cuda_cores: device.num_cores().ok(),
                     vram_type: driver_handle
                         .and_then(|handle| handle.get_ram_type().ok())

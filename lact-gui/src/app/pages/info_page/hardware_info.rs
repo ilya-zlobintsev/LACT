@@ -165,10 +165,6 @@ impl HardwareInfoSection {
                             .map(|count| count.to_string()),
                     ),
                     (
-                        "Tensor Cores",
-                        drm_info.tensor_cores.map(|count| count.to_string()),
-                    ),
-                    (
                         "ROP Count",
                         drm_info.rop_info.as_ref().map(|rop| {
                             format!(

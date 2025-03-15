@@ -30,9 +30,8 @@ use crate::bindings::nvidia::{
     NV2080_CTRL_FB_INFO_RAM_TYPE_LPDDR4, NV2080_CTRL_FB_INFO_RAM_TYPE_LPDDR5,
     NV2080_CTRL_FB_INFO_RAM_TYPE_SDDR4, NV2080_CTRL_FB_INFO_RAM_TYPE_SDRAM,
     NV2080_CTRL_FB_INFO_RAM_TYPE_UNKNOWN, NV2080_CTRL_GR_GET_GLOBAL_SM_ORDER_PARAMS,
-    NV2080_CTRL_GR_GET_ROP_INFO_PARAMS, NV2080_CTRL_GR_INFO_INDEX_TENSOR_CORE_COUNT,
-    NV20_SUBDEVICE_0, NVOS21_PARAMETERS, NVOS54_PARAMETERS, NVOS64_PARAMETERS, NV_ESC_REGISTER_FD,
-    NV_ESC_RM_ALLOC, NV_ESC_RM_CONTROL, NV_IOCTL_MAGIC,
+    NV2080_CTRL_GR_GET_ROP_INFO_PARAMS, NV20_SUBDEVICE_0, NVOS21_PARAMETERS, NVOS54_PARAMETERS,
+    NVOS64_PARAMETERS, NV_ESC_REGISTER_FD, NV_ESC_RM_ALLOC, NV_ESC_RM_CONTROL, NV_IOCTL_MAGIC,
 };
 use anyhow::{bail, Context};
 use lact_schema::NvidiaRopInfo;
@@ -152,10 +151,6 @@ impl DriverHandle {
             self.query_rm_control(NV2080_CTRL_CMD_GR_GET_GLOBAL_SM_ORDER, &mut params)?;
             Ok(u32::from(params.numSm))
         }
-    }
-
-    pub fn get_tensor_core_count(&self) -> anyhow::Result<u32> {
-        self.get_fb_info(NV2080_CTRL_GR_INFO_INDEX_TENSOR_CORE_COUNT)
     }
 
     pub fn get_ram_type(&self) -> anyhow::Result<&'static str> {
