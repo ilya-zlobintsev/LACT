@@ -2,7 +2,8 @@ use anyhow::{anyhow, bail, Context};
 use indexmap::{map::Entry, IndexMap};
 use lact_schema::{GpuPciInfo, VulkanDriverInfo, VulkanInfo};
 use serde::Deserialize;
-use std::{fs, path::Path};
+use std::fs;
+use tempfile::tempdir;
 use tokio::process::Command;
 use tracing::trace;
 
@@ -12,6 +13,8 @@ include!(concat!(env!("OUT_DIR"), "/vulkan_constants.rs"));
 pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo> {
     #[cfg(test)]
     return Ok(VulkanInfo::default());
+
+    let workdir = tempdir().context("Could not create temp folder")?;
 
     trace!("Reading vulkan info");
     let vendor_id = u32::from_str_radix(&pci_info.device_pci_info.vendor_id, 16)?;
@@ -43,7 +46,7 @@ pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo
         {
             let output = Command::new("vulkaninfo")
                 .arg(format!("--json={i}"))
-                .current_dir("/tmp")
+                .current_dir(workdir.path())
                 .output()
                 .await
                 .context("Could not read vulkan info for device")?;
@@ -56,7 +59,7 @@ pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo
                 );
             }
 
-            let file_path = Path::new("/tmp").join(entry.file_name());
+            let file_path = workdir.path().join(entry.file_name());
             let manifest = fs::read_to_string(&file_path).with_context(|| {
                 format!("Could not read info file from '{}'", file_path.display())
             })?;
