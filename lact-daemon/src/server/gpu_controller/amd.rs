@@ -14,6 +14,7 @@ use amdgpu_sysfs::{
         CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
     },
     hw_mon::{FanControlMethod, HwMon},
+    sysfs::SysFS,
 };
 use anyhow::{anyhow, Context};
 use futures::{future::LocalBoxFuture, FutureExt};
@@ -21,7 +22,7 @@ use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
     LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
-use libdrm_amdgpu_sys::AMDGPU::{ThrottleStatus, ThrottlerBit};
+use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottleStatus, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE};
 use std::{
     cell::RefCell,
@@ -612,6 +613,9 @@ impl GpuController for AmdGpuController {
     }
 
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
+        let metrics = GpuMetrics::get_from_sysfs_path(self.handle.get_path()).ok();
+        let metrics = metrics.as_ref();
+
         let fan_settings = gpu_config.and_then(|config| config.fan_control_settings.as_ref());
         DeviceStats {
             fan: FanStats {
@@ -621,10 +625,18 @@ impl GpuController for AmdGpuController {
                 curve: fan_settings.map(|settings| settings.curve.0.clone()),
                 spindown_delay_ms: fan_settings.and_then(|settings| settings.spindown_delay_ms),
                 change_threshold: fan_settings.and_then(|settings| settings.change_threshold),
-                speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
+                speed_current: self.hw_mon_and_then(HwMon::get_fan_current).or_else(|| {
+                    metrics
+                        .and_then(MetricsInfo::get_current_fan_speed)
+                        .map(u32::from)
+                }),
                 speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
                 speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
-                pwm_current: self.hw_mon_and_then(HwMon::get_fan_pwm),
+                pwm_current: self.hw_mon_and_then(HwMon::get_fan_pwm).or_else(|| {
+                    metrics
+                        .and_then(MetricsInfo::get_fan_pwm)
+                        .and_then(|pwm| u8::try_from(pwm).ok())
+                }),
                 pmfw_info: PmfwInfo {
                     acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
                     acoustic_target: self.handle.get_fan_acoustic_target().ok(),
