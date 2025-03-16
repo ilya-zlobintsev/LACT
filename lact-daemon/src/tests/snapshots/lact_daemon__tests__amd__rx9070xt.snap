@@ -439,7 +439,8 @@ expression: device_info
           ],
           "current": 90
         }
-      }
+      },
+      "speed_current": 0
     },
     "memory_power_state": 0,
     "performance_level": "auto",
