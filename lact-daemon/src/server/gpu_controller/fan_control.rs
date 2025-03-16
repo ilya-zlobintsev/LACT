@@ -60,7 +60,7 @@ impl FanCurve {
             .into_iter()
             .map(|(temp, ratio)| {
                 let custom_percent = (ratio * 100.0) as u8;
-            
+
                 if !(min_temp..=max_temp).contains(&temp) {
                     bail!("Temperature {temp}℃ is outside of the allowed range {min_temp}℃ to {max_temp}℃");
                 }
@@ -213,8 +213,10 @@ mod tests {
 
     #[test]
     fn curve_outside_of_limits_to_pmfw() {
-        let curve_invalid_temp = FanCurve([(20, 0.4), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into());
-        let curve_invalid_speed = FanCurve([(40, 0.1), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into());
+        let curve_invalid_temp =
+            FanCurve([(20, 0.4), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into());
+        let curve_invalid_speed =
+            FanCurve([(40, 0.1), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into());
 
         let current_pmfw_curve = PmfwCurve {
             points: Box::new([(0, 0); 5]),
@@ -224,12 +226,18 @@ mod tests {
             }),
         };
         assert_eq!(
-            anyhow!("Temperature 20℃ is outside of the allowed range 25℃ to 100℃").to_string(), 
-            curve_invalid_temp.into_pmfw_curve(current_pmfw_curve.clone()).unwrap_err().to_string()
+            anyhow!("Temperature 20℃ is outside of the allowed range 25℃ to 100℃").to_string(),
+            curve_invalid_temp
+                .into_pmfw_curve(current_pmfw_curve.clone())
+                .unwrap_err()
+                .to_string()
         );
         assert_eq!(
-            anyhow!("Speed 10% is outside of the allowed range 30% to 100%").to_string(), 
-            curve_invalid_speed.into_pmfw_curve(current_pmfw_curve).unwrap_err().to_string()
+            anyhow!("Speed 10% is outside of the allowed range 30% to 100%").to_string(),
+            curve_invalid_speed
+                .into_pmfw_curve(current_pmfw_curve)
+                .unwrap_err()
+                .to_string()
         );
     }
 }
