@@ -102,6 +102,12 @@ impl AmdGpuController {
 
         // Use PMFW curve functionality for static speed when it is available
         if let Ok(current_curve) = self.handle.get_fan_curve() {
+            if let Ok(true) = self.handle.get_fan_zero_rpm_enable() {
+                if let Err(err) = self.handle.set_fan_zero_rpm_enable(false) {
+                    error!("could not disable zero RPM mode for static fan control: {err}");
+                }
+            }
+
             let allowed_ranges = current_curve.allowed_ranges.clone().ok_or_else(|| {
                 anyhow!("The GPU does not allow setting custom fan values (is overdrive enabled?)")
             })?;
