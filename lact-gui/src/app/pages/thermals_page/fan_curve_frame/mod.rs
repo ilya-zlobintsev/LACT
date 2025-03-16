@@ -292,13 +292,13 @@ impl FanCurveFrame {
             .set_visible(pmfw_info.zero_rpm_enable.is_some());
 
         if let Some(value) = pmfw_info.zero_rpm_enable {
-            self.zero_rpm_switch.set_state(value);
+            self.zero_rpm_switch.set_active(value);
         }
     }
 
     pub fn get_zero_rpm(&self) -> Option<bool> {
         if self.zero_rpm_row.is_visible() {
-            Some(self.zero_rpm_switch.state())
+            Some(self.zero_rpm_switch.is_active())
         } else {
             None
         }
