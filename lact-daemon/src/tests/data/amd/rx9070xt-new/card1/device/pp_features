@@ -1,0 +1,55 @@
+features high: 0x048cf19e low: 0x38fffcfb
+No. Feature               Bit : State
+00. FW_DATA_READ         ( 0) : enabled
+01. DPM_GFXCLK           ( 1) : enabled
+02. DPM_GFX_POWER_OPTIMIZER ( 2) : disabled
+03. DPM_UCLK             ( 3) : enabled
+04. DPM_FCLK             ( 4) : enabled
+05. DPM_SOCCLK           ( 5) : enabled
+06. DPM_LINK             ( 6) : enabled
+07. DPM_DCN              ( 7) : enabled
+08. VMEMP_SCALING        ( 8) : disabled
+09. VDDIO_MEM_SCALING    ( 9) : disabled
+10. DS_GFXCLK            (10) : enabled
+11. DS_SOCCLK            (11) : enabled
+12. DS_FCLK              (12) : enabled
+13. DS_LCLK              (13) : enabled
+14. DS_DCFCLK            (14) : enabled
+15. DS_UCLK              (15) : enabled
+16. GFX_ULV              (16) : enabled
+17. FW_DSTATE            (17) : enabled
+18. GFXOFF               (18) : enabled
+19. BACO                 (19) : enabled
+20. MM_DPM               (20) : enabled
+21. SOC_MPCLK_DS         (21) : enabled
+22. BACO_MPCLK_DS        (22) : enabled
+23. THROTTLERS           (23) : enabled
+24. SMARTSHIFT           (24) : disabled
+25. GTHR                 (25) : disabled
+26. ACDC                 (26) : disabled
+27. VR0HOT               (27) : enabled
+28. FW_CTF               (28) : enabled
+29. FAN_CONTROL          (29) : enabled
+30. GFX_DCS              (30) : disabled
+31. GFX_READ_MARGIN      (31) : disabled
+32. LED_DISPLAY          (32) : disabled
+33. GFXCLK_SPREAD_SPECTRUM (33) : enabled
+34. OUT_OF_BAND_MONITOR  (34) : enabled
+35. OPTIMIZED_VMIN       (35) : enabled
+36. GFX_IMU              (36) : enabled
+37. BOOT_TIME_CAL        (37) : disabled
+38. GFX_PCC_DFLL         (38) : disabled
+39. SOC_CG               (39) : enabled
+40. DF_CSTATE            (40) : enabled
+41. GFX_EDC              (41) : disabled
+42. BOOT_POWER_OPT       (42) : disabled
+43. CLOCK_POWER_DOWN_BYPASS (43) : disabled
+44. DS_VCN               (44) : enabled
+45. BACO_CG              (45) : enabled
+46. MEM_TEMP_READ        (46) : enabled
+47. ATHUB_MMHUB_PG       (47) : enabled
+48. SOC_PCC              (48) : disabled
+49. EDC_PWRBRK           (49) : disabled
+50. SOC_EDC_XVMIN        (50) : enabled
+51. GFX_PSM_DIDT         (51) : enabled
+52. APT_ALL_ENABLE       (52) : disabled

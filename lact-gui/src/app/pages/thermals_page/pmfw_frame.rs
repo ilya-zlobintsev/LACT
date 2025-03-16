@@ -16,7 +16,7 @@ pub struct PmfwFrame {
     minimum_pwm: OcAdjustment,
     zero_rpm_label: Label,
     zero_rpm_switch: Switch,
-    zero_rpm_temperature: OcAdjustment,
+    pub zero_rpm_temperature: OcAdjustment,
     reset_button: Button,
 }
 
@@ -179,7 +179,7 @@ impl PmfwFrame {
     }
 }
 
-fn set_fan_info(adjustment: &OcAdjustment, info: Option<FanInfo>) {
+pub(super) fn set_fan_info(adjustment: &OcAdjustment, info: Option<FanInfo>) {
     match info {
         Some(info) => {
             if let Some((min, max)) = info.allowed_range {
@@ -200,19 +200,28 @@ fn set_fan_info(adjustment: &OcAdjustment, info: Option<FanInfo>) {
 }
 
 fn adjustment(parent_grid: &Grid, label: &str, row: i32) -> OcAdjustment {
-    let label = Label::builder().label(label).halign(Align::Start).build();
-
     let adjustment = OcAdjustment::new(0.0, 0.0, 100.0, 1.0, 1.0, 0.0);
+    attach_adjustment(parent_grid, label, row, &adjustment);
+    adjustment
+}
+
+pub(super) fn attach_adjustment(
+    parent_grid: &Grid,
+    label: &str,
+    row: i32,
+    adjustment: &OcAdjustment,
+) {
+    let label = Label::builder().label(label).halign(Align::Start).build();
 
     let scale = Scale::builder()
         .orientation(Orientation::Horizontal)
-        .adjustment(&adjustment)
+        .adjustment(adjustment)
         .hexpand(true)
         .margin_start(5)
         .margin_end(5)
         .build();
 
-    let value_selector = SpinButton::new(Some(&adjustment), 1.0, 0);
+    let value_selector = SpinButton::new(Some(adjustment), 1.0, 0);
     let value_label = Label::new(None);
 
     let popover = Popover::builder().child(&value_selector).build();
@@ -251,6 +260,4 @@ fn adjustment(parent_grid: &Grid, label: &str, row: i32) -> OcAdjustment {
     parent_grid.attach(&label, 0, row, 1, 1);
     parent_grid.attach(&scale, 1, row, 4, 1);
     parent_grid.attach(&value_button, 5, row, 1, 1);
-
-    adjustment
 }

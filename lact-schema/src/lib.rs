@@ -53,7 +53,7 @@ impl FromStr for FanControlMode {
 pub type FanCurveMap = BTreeMap<i32, f32>;
 
 pub fn default_fan_curve() -> FanCurveMap {
-    [(40, 0.2), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into()
+    [(40, 0.3), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into()
 }
 
 #[derive(Serialize, Deserialize, Debug)]

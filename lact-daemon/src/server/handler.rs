@@ -72,6 +72,8 @@ const SNAPSHOT_DEVICE_FILES: &[&str] = &[
     "current_link_speed",
     "current_link_width",
     "power_dpm_force_performance_level",
+    "mem_info_vram_vendor",
+    "gpu_metrics",
 ];
 /// Prefixes for entries that will be recursively included in the debug snapshot
 const SNAPSHOT_DEVICE_RECURSIVE_PATHS_PREFIXES: &[&str] = &["tile"];
@@ -393,7 +395,9 @@ impl<'a> Handler {
     }
 
     pub async fn get_clocks_info(&'a self, id: &str) -> anyhow::Result<ClocksInfo> {
-        self.controller_by_id(id).await?.get_clocks_info()
+        let config = self.config.read().await;
+        let gpu_config = config.gpus()?.get(id);
+        self.controller_by_id(id).await?.get_clocks_info(gpu_config)
     }
 
     pub async fn set_fan_control(&'a self, opts: FanOptions<'_>) -> anyhow::Result<u64> {
@@ -739,7 +743,7 @@ impl<'a> Handler {
                 "pci_info": controller.controller_info().pci_info.clone(),
                 "info": controller.get_info().await,
                 "stats": controller.get_stats(gpu_config),
-                "clocks_info": controller.get_clocks_info().ok(),
+                "clocks_info": controller.get_clocks_info(gpu_config).ok(),
                 "power_profile_modes": controller.get_power_profile_modes().ok(),
                 "power_states": controller.get_power_states(gpu_config),
             });

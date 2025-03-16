@@ -1,7 +1,5 @@
-use std::cmp;
-
 use amdgpu_sysfs::{gpu_handle::fan_control::FanCurve as PmfwCurve, hw_mon::Temperature};
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use lact_schema::{default_fan_curve, FanCurveMap};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -52,18 +50,28 @@ impl FanCurve {
         let allowed_ranges = current_pmfw_curve
             .allowed_ranges
             .context("The GPU does not allow fan curve modifications")?;
-        let min_pwm = *allowed_ranges.speed_range.start();
-        let max_pwm = f32::from(*allowed_ranges.speed_range.end());
+        let min_percent = *allowed_ranges.speed_range.start();
+        let max_percent = *allowed_ranges.speed_range.end();
+        let min_temp = *allowed_ranges.temperature_range.start();
+        let max_temp = *allowed_ranges.temperature_range.end();
 
         let points = self
             .0
             .into_iter()
             .map(|(temp, ratio)| {
-                let custom_pwm = (max_pwm * ratio) as u8;
-                let pwm = cmp::max(min_pwm, custom_pwm);
-                (temp, pwm)
+                let custom_percent = (ratio * 100.0) as u8;
+
+                if !(min_temp..=max_temp).contains(&temp) {
+                    bail!("Temperature {temp}℃ is outside of the allowed range {min_temp}℃ to {max_temp}℃");
+                }
+
+                if !(min_percent..=max_percent).contains(&custom_percent) {
+                    bail!("Speed {custom_percent}% is outside of the allowed range {min_percent}% to {max_percent}%");
+                }
+
+                Ok((temp, custom_percent))
             })
-            .collect();
+            .collect::<anyhow::Result<_>>()?;
 
         Ok(PmfwCurve {
             points,
@@ -93,6 +101,7 @@ impl Default for FanCurve {
 mod tests {
     use super::{FanCurve, PmfwCurve};
     use amdgpu_sysfs::{gpu_handle::fan_control::FanCurveRanges, hw_mon::Temperature};
+    use anyhow::anyhow;
 
     fn simple_pwm(temp: f32) -> u8 {
         let curve = FanCurve([(0, 0.0), (100, 1.0)].into());
@@ -178,7 +187,7 @@ mod tests {
             };
             curve.pwm_at_temp(temp)
         };
-        assert_eq!(pwm_at_temp(40.0), 51);
+        assert_eq!(pwm_at_temp(40.0), 76);
         assert_eq!(pwm_at_temp(60.0), 127);
         assert_eq!(pwm_at_temp(65.0), 159);
         assert_eq!(pwm_at_temp(70.0), 191);
@@ -193,12 +202,42 @@ mod tests {
         let current_pmfw_curve = PmfwCurve {
             points: Box::new([(0, 0); 5]),
             allowed_ranges: Some(FanCurveRanges {
-                temperature_range: 15..=90,
-                speed_range: 20..=100,
+                temperature_range: 25..=100,
+                speed_range: 30..=100,
             }),
         };
         let pmfw_curve = curve.into_pmfw_curve(current_pmfw_curve).unwrap();
-        let expected_points = [(40, 20), (50, 35), (60, 50), (70, 75), (80, 100)];
+        let expected_points = [(40, 30), (50, 35), (60, 50), (70, 75), (80, 100)];
         assert_eq!(&expected_points, pmfw_curve.points.as_ref());
+    }
+
+    #[test]
+    fn curve_outside_of_limits_to_pmfw() {
+        let curve_invalid_temp =
+            FanCurve([(20, 0.4), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into());
+        let curve_invalid_speed =
+            FanCurve([(40, 0.1), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into());
+
+        let current_pmfw_curve = PmfwCurve {
+            points: Box::new([(0, 0); 5]),
+            allowed_ranges: Some(FanCurveRanges {
+                temperature_range: 25..=100,
+                speed_range: 30..=100,
+            }),
+        };
+        assert_eq!(
+            anyhow!("Temperature 20℃ is outside of the allowed range 25℃ to 100℃").to_string(),
+            curve_invalid_temp
+                .into_pmfw_curve(current_pmfw_curve.clone())
+                .unwrap_err()
+                .to_string()
+        );
+        assert_eq!(
+            anyhow!("Speed 10% is outside of the allowed range 30% to 100%").to_string(),
+            curve_invalid_speed
+                .into_pmfw_curve(current_pmfw_curve)
+                .unwrap_err()
+                .to_string()
+        );
     }
 }

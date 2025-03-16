@@ -52,9 +52,9 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "amdgpu-sysfs"
-version = "0.17.6"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de10979b9af9925095db62d98f9450918aa20e046ff97e34c8f0d8925f009fb4"
+checksum = "1782ebeee4fce08bfb079e56c92c322f6c13ab04eec3e7391583da96853638ed"
 dependencies = [
  "enum_dispatch",
  "serde",
@@ -1655,7 +1655,7 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper"
 version = "0.10.0"
-source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#6600783f600851b5bcca10d6941b7a8bd9d07ec2"
+source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#890581189516191428a8b8c7ba3b006adf03a3fc"
 dependencies = [
  "bitflags 2.9.0",
  "libloading",
@@ -1668,7 +1668,7 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper-sys"
 version = "0.8.0"
-source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#6600783f600851b5bcca10d6941b7a8bd9d07ec2"
+source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#890581189516191428a8b8c7ba3b006adf03a3fc"
 dependencies = [
  "libloading",
 ]

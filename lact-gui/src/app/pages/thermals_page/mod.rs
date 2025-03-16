@@ -77,7 +77,7 @@ impl ThermalsPage {
 
         let pmfw_frame = PmfwFrame::new();
 
-        let fan_curve_frame = FanCurveFrame::new();
+        let fan_curve_frame = FanCurveFrame::new(pmfw_frame.zero_rpm_temperature.clone());
 
         let fan_static_speed_frame = Box::builder()
             .orientation(Orientation::Horizontal)

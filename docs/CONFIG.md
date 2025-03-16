@@ -166,7 +166,7 @@ gpus:
     # Voltage offset value in mV for RDNA and newer AMD GPUs.
     voltage_offset: 0
     
-    # GPU and VRAM clockspeed offset values, per-pstate. Only applicable on Nvidia.
+    # GPU and VRAM clockspeed offset values, per-pstate. Applicable on Nvidia and on AMD RDNA4.
     gpu_clock_offsets:
       0: -100
     mem_clock_offsets:

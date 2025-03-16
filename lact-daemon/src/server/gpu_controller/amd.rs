@@ -14,6 +14,7 @@ use amdgpu_sysfs::{
         CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
     },
     hw_mon::{FanControlMethod, HwMon},
+    sysfs::SysFS,
 };
 use anyhow::{anyhow, Context};
 use futures::{future::LocalBoxFuture, FutureExt};
@@ -21,7 +22,7 @@ use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
     LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
-use libdrm_amdgpu_sys::AMDGPU::{ThrottleStatus, ThrottlerBit};
+use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottleStatus, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE};
 use std::{
     cell::RefCell,
@@ -102,6 +103,12 @@ impl AmdGpuController {
 
         // Use PMFW curve functionality for static speed when it is available
         if let Ok(current_curve) = self.handle.get_fan_curve() {
+            if let Ok(true) = self.handle.get_fan_zero_rpm_enable() {
+                if let Err(err) = self.handle.set_fan_zero_rpm_enable(false) {
+                    error!("could not disable zero RPM mode for static fan control: {err}");
+                }
+            }
+
             let allowed_ranges = current_curve.allowed_ranges.clone().ok_or_else(|| {
                 anyhow!("The GPU does not allow setting custom fan values (is overdrive enabled?)")
             })?;
@@ -606,6 +613,9 @@ impl GpuController for AmdGpuController {
     }
 
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
+        let metrics = GpuMetrics::get_from_sysfs_path(self.handle.get_path()).ok();
+        let metrics = metrics.as_ref();
+
         let fan_settings = gpu_config.and_then(|config| config.fan_control_settings.as_ref());
         DeviceStats {
             fan: FanStats {
@@ -615,10 +625,18 @@ impl GpuController for AmdGpuController {
                 curve: fan_settings.map(|settings| settings.curve.0.clone()),
                 spindown_delay_ms: fan_settings.and_then(|settings| settings.spindown_delay_ms),
                 change_threshold: fan_settings.and_then(|settings| settings.change_threshold),
-                speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
+                speed_current: self.hw_mon_and_then(HwMon::get_fan_current).or_else(|| {
+                    metrics
+                        .and_then(MetricsInfo::get_current_fan_speed)
+                        .map(u32::from)
+                }),
                 speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
                 speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
-                pwm_current: self.hw_mon_and_then(HwMon::get_fan_pwm),
+                pwm_current: self.hw_mon_and_then(HwMon::get_fan_pwm).or_else(|| {
+                    metrics
+                        .and_then(MetricsInfo::get_fan_pwm)
+                        .and_then(|pwm| u8::try_from(pwm).ok())
+                }),
                 pmfw_info: PmfwInfo {
                     acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
                     acoustic_target: self.handle.get_fan_acoustic_target().ok(),
@@ -667,11 +685,32 @@ impl GpuController for AmdGpuController {
         }
     }
 
-    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
-        let clocks_table = self
+    fn get_clocks_info(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
+        let mut clocks_table = self
             .handle
             .get_clocks_table()
             .context("Clocks table not available")?;
+
+        if let ClocksTableGen::Vega20(table) = &mut clocks_table {
+            // Workaround for RDNA4 not reporting current SCLK offset in the original format:
+            // https://github.com/ilya-zlobintsev/LACT/issues/485#issuecomment-2712502906
+            if table.rdna4_sclk_offset_workaround {
+                // The values present in the old clocks table format for the current slck offset are rubbish,
+                // we should report the configured value instead
+                let offset = gpu_config
+                    .and_then(|config| {
+                        config
+                            .clocks_configuration
+                            .gpu_clock_offsets
+                            .get(&0)
+                            .copied()
+                    })
+                    .unwrap_or(0);
+
+                table.sclk_offset = Some(offset);
+            }
+        }
+
         Ok(clocks_table.into())
     }
 
@@ -836,7 +875,7 @@ impl GpuController for AmdGpuController {
                         commit_handles.push(handle);
                     }
                     Err(err) => {
-                        error!("custom clock settings are present but will be ignored, but could not get clocks table: {err}");
+                        error!("custom clock settings are present but will be ignored, could not get clocks table: {err}");
                     }
                 }
             }
@@ -969,30 +1008,36 @@ impl GpuController for AmdGpuController {
 
             // Unlike the other PMFW options, zero rpm should be functional with a custom curve
             if let Some(zero_rpm) = config.pmfw_options.zero_rpm {
-                let current_zero_rpm = self
-                    .handle
-                    .get_fan_zero_rpm_enable()
-                    .context("Could not get zero RPM mode")?;
-                if current_zero_rpm != zero_rpm {
-                    let commit_handle = self
-                        .handle
-                        .set_fan_zero_rpm_enable(zero_rpm)
-                        .context("Could not set zero RPM mode")?;
-                    commit_handles.push(commit_handle);
+                match self.handle.get_fan_zero_rpm_enable() {
+                    Ok(current_zero_rpm) => {
+                        if current_zero_rpm != zero_rpm {
+                            let commit_handle = self
+                                .handle
+                                .set_fan_zero_rpm_enable(zero_rpm)
+                                .context("Could not set zero RPM mode")?;
+                            commit_handles.push(commit_handle);
+                        }
+                    }
+                    Err(err) => {
+                        error!("zero RPM is present in the config, but not available on the GPU: {err}");
+                    }
                 }
             }
 
             if let Some(zero_rpm_threshold) = config.pmfw_options.zero_rpm_threshold {
-                let current_threshold = self
-                    .handle
-                    .get_fan_zero_rpm_stop_temperature()
-                    .context("Could not get zero RPM temperature")?;
-                if current_threshold.current != zero_rpm_threshold {
-                    let commit_handle = self
-                        .handle
-                        .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
-                        .context("Could not set zero RPM temperature")?;
-                    commit_handles.push(commit_handle);
+                match self.handle.get_fan_zero_rpm_stop_temperature() {
+                    Ok(current_threshold) => {
+                        if current_threshold.current != zero_rpm_threshold {
+                            let commit_handle = self
+                                .handle
+                                .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
+                                .context("Could not set zero RPM temperature")?;
+                            commit_handles.push(commit_handle);
+                        }
+                    }
+                    Err(err) => {
+                        error!("zero RPM threshold is present in the config, but not available on the GPU: {err}");
+                    }
                 }
             }
 
@@ -1072,6 +1117,10 @@ impl ClocksConfiguration {
             match self.voltage_offset {
                 Some(offset) => table.set_voltage_offset(offset)?,
                 None => table.voltage_offset = None,
+            }
+
+            if let Some(offset) = self.gpu_clock_offsets.get(&0) {
+                table.sclk_offset = Some(*offset);
             }
         }
 

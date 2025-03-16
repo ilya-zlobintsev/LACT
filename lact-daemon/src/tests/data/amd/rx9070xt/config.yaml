@@ -1,0 +1,4 @@
+power_cap: 280.0
+voltage_offset: -50
+gpu_clock_offsets:
+  0: 200
