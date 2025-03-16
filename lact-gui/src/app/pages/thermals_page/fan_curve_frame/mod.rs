@@ -13,6 +13,8 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
+use super::pmfw_frame;
+
 const DEFAULT_CHANGE_THRESHOLD: u64 = 2;
 const DEFAULT_SPINDOWN_DELAY_MS: u64 = 5000;
 
@@ -20,8 +22,9 @@ const DEFAULT_SPINDOWN_DELAY_MS: u64 = 5000;
 pub struct FanCurveFrame {
     pub container: Box,
     curve_container: Frame,
+    zero_rpm_grid: Grid,
     zero_rpm_switch: Switch,
-    zero_rpm_row: Box,
+    zero_rpm_temperature: OcAdjustment,
     points: Rc<RefCell<Vec<PointAdjustment>>>,
     spindown_delay_adj: OcAdjustment,
     change_threshold_adj: OcAdjustment,
@@ -29,7 +32,7 @@ pub struct FanCurveFrame {
 }
 
 impl FanCurveFrame {
-    pub fn new() -> Self {
+    pub fn new(zero_rpm_temperature: OcAdjustment) -> Self {
         let root_box = Box::new(Orientation::Vertical, 5);
 
         let hbox = Box::new(Orientation::Horizontal, 5);
@@ -113,29 +116,35 @@ impl FanCurveFrame {
 
         root_box.append(&hysteresis_grid);
 
+        let zero_rpm_grid = Grid::new();
+
         let zero_rpm_label = Label::builder()
             .label("Zero RPM mode")
             .halign(Align::Start)
             .build();
-        let zero_rpm_switch = Switch::builder().halign(Align::End).hexpand(true).build();
-        let zero_rpm_row = gtk::Box::builder()
-            .orientation(Orientation::Horizontal)
-            .spacing(5)
-            .hexpand(true)
-            .build();
-        zero_rpm_row.append(&zero_rpm_label);
-        zero_rpm_row.append(&zero_rpm_switch);
+        let zero_rpm_switch = Switch::builder().halign(Align::End).build();
 
-        root_box.append(&zero_rpm_row);
+        zero_rpm_grid.attach(&zero_rpm_label, 0, 0, 1, 1);
+        zero_rpm_grid.attach(&zero_rpm_switch, 5, 0, 1, 1);
+
+        pmfw_frame::attach_adjustment(
+            &zero_rpm_grid,
+            "Zero RPM stop temperature (°C)",
+            1,
+            &zero_rpm_temperature,
+        );
+
+        root_box.append(&zero_rpm_grid);
 
         let curve_frame = Self {
             container: root_box,
             curve_container,
             points,
-            zero_rpm_row,
+            zero_rpm_grid,
             zero_rpm_switch,
             spindown_delay_adj: spindown_delay_adj.clone(),
             change_threshold_adj: change_threshold_adj.clone(),
+            zero_rpm_temperature,
             hysteresis_grid,
         };
 
@@ -288,16 +297,18 @@ impl FanCurveFrame {
     }
 
     pub fn set_pmfw(&self, pmfw_info: &PmfwInfo) {
-        self.zero_rpm_row
+        self.zero_rpm_grid
             .set_visible(pmfw_info.zero_rpm_enable.is_some());
 
         if let Some(value) = pmfw_info.zero_rpm_enable {
             self.zero_rpm_switch.set_active(value);
         }
+
+        pmfw_frame::set_fan_info(&self.zero_rpm_temperature, pmfw_info.zero_rpm_temperature);
     }
 
     pub fn get_zero_rpm(&self) -> Option<bool> {
-        if self.zero_rpm_row.is_visible() {
+        if self.zero_rpm_grid.is_visible() {
             Some(self.zero_rpm_switch.is_active())
         } else {
             None
