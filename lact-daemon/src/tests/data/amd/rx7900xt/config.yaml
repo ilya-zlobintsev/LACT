@@ -5,11 +5,11 @@ fan_control_settings:
   temperature_key: edge
   interval_ms: 500
   curve:
-    40: 0.14352942
+    40: 0.15
     50: 0.17411764
     60: 0.22352941
     70: 0.29
-    86: 0.5
+    86: 0.6
   spindown_delay_ms: 0
   change_threshold: 0
 pmfw_options:
