@@ -187,7 +187,7 @@ mod tests {
             };
             curve.pwm_at_temp(temp)
         };
-        assert_eq!(pwm_at_temp(40.0), 51);
+        assert_eq!(pwm_at_temp(40.0), 76);
         assert_eq!(pwm_at_temp(60.0), 127);
         assert_eq!(pwm_at_temp(65.0), 159);
         assert_eq!(pwm_at_temp(70.0), 191);
@@ -202,12 +202,12 @@ mod tests {
         let current_pmfw_curve = PmfwCurve {
             points: Box::new([(0, 0); 5]),
             allowed_ranges: Some(FanCurveRanges {
-                temperature_range: 15..=90,
-                speed_range: 20..=100,
+                temperature_range: 25..=100,
+                speed_range: 30..=100,
             }),
         };
         let pmfw_curve = curve.into_pmfw_curve(current_pmfw_curve).unwrap();
-        let expected_points = [(40, 20), (50, 35), (60, 50), (70, 75), (80, 100)];
+        let expected_points = [(40, 30), (50, 35), (60, 50), (70, 75), (80, 100)];
         assert_eq!(&expected_points, pmfw_curve.points.as_ref());
     }
 
