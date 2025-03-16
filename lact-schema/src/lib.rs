@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    fmt,
+    fmt::{self, Write},
     str::FromStr,
     sync::Arc,
 };
@@ -108,6 +108,159 @@ impl DeviceInfo {
             .as_ref()
             .map(|info| info.vram_clock_ratio)
             .unwrap_or(1.0)
+    }
+
+    pub fn info_elements(&self, stats: Option<&DeviceStats>) -> Vec<(&str, Option<String>)> {
+        let pci_info = self.pci_info.as_ref();
+
+        let mut gpu_model = self
+            .drm_info
+            .as_ref()
+            .and_then(|drm| drm.device_name.as_deref())
+            .or_else(|| pci_info.and_then(|pci_info| pci_info.device_pci_info.model.as_deref()))
+            .unwrap_or("Unknown")
+            .to_owned();
+
+        let mut card_manufacturer = pci_info
+            .and_then(|info| info.subsystem_pci_info.vendor.as_deref())
+            .unwrap_or("Unknown")
+            .to_owned();
+
+        let mut card_model = pci_info
+            .and_then(|info| info.subsystem_pci_info.model.as_deref())
+            .unwrap_or("Unknown")
+            .to_owned();
+
+        if let Some(pci_info) = &self.pci_info {
+            match self.drm_info {
+                Some(DrmInfo {
+                    pci_revision_id: Some(pci_rev),
+                    ..
+                }) => {
+                    let _ = write!(
+                        gpu_model,
+                        " (0x{}:0x{}:0x{pci_rev:X})",
+                        pci_info.device_pci_info.vendor_id, pci_info.device_pci_info.model_id,
+                    );
+                }
+                _ => {
+                    let _ = write!(
+                        gpu_model,
+                        " (0x{}:0x{})",
+                        pci_info.device_pci_info.vendor_id, pci_info.device_pci_info.model_id
+                    );
+                }
+            }
+
+            let _ = write!(
+                card_manufacturer,
+                " (0x{})",
+                pci_info.subsystem_pci_info.vendor_id
+            );
+
+            let _ = write!(card_model, " (0x{})", pci_info.subsystem_pci_info.model_id);
+        };
+
+        let mut elements = vec![
+            ("GPU Model", Some(gpu_model)),
+            ("Card Manufacturer", Some(card_manufacturer)),
+            ("Card Model", Some(card_model)),
+            ("Driver Used", Some(self.driver.clone())),
+            ("VBIOS Version", self.vbios_version.clone()),
+        ];
+
+        if let Some(stats) = stats {
+            elements.push((
+                "VRAM Size",
+                stats
+                    .vram
+                    .total
+                    .map(|size| format!("{} MiB", size / 1024 / 1024)),
+            ));
+        }
+
+        if let Some(drm_info) = &self.drm_info {
+            elements.extend([
+                ("GPU Family", drm_info.family_name.clone()),
+                ("ASIC Name", drm_info.asic_name.clone()),
+                (
+                    "Compute Units",
+                    drm_info.compute_units.map(|count| count.to_string()),
+                ),
+                (
+                    "Execution Units",
+                    drm_info
+                        .intel
+                        .execution_units
+                        .map(|count| count.to_string()),
+                ),
+                (
+                    "Subslices",
+                    drm_info
+                        .intel
+                        .execution_units
+                        .map(|count| count.to_string()),
+                ),
+                (
+                    "Cuda Cores",
+                    drm_info.cuda_cores.map(|count| count.to_string()),
+                ),
+                (
+                    "SM Count",
+                    drm_info
+                        .streaming_multiprocessors
+                        .map(|count| count.to_string()),
+                ),
+                (
+                    "ROP Count",
+                    drm_info.rop_info.as_ref().map(|rop| {
+                        format!(
+                            "{} ({} * {})",
+                            rop.operations_count, rop.unit_count, rop.operations_factor
+                        )
+                    }),
+                ),
+                ("VRAM Type", drm_info.vram_type.clone()),
+                ("VRAM Manufacturer", drm_info.vram_vendor.clone()),
+                ("Theoretical VRAM Bandwidth", drm_info.vram_max_bw.clone()),
+                (
+                    "L1 Cache (Per CU)",
+                    drm_info
+                        .l1_cache_per_cu
+                        .map(|cache| format!("{} KiB", cache / 1024)),
+                ),
+                (
+                    "L2 Cache",
+                    drm_info
+                        .l2_cache
+                        .map(|cache| format!("{} KiB", cache / 1024)),
+                ),
+                (
+                    "L3 Cache",
+                    drm_info.l3_cache_mb.map(|cache| format!("{cache} MiB")),
+                ),
+            ]);
+
+            if let Some(memory_info) = &drm_info.memory_info {
+                if let Some(rebar) = memory_info.resizeable_bar {
+                    let rebar = if rebar { "Enabled" } else { "Disabled" };
+                    elements.push(("Resizeable bar", Some(rebar.to_owned())));
+                }
+
+                elements.push((
+                    "CPU Accessible VRAM",
+                    Some((memory_info.cpu_accessible_total / 1024 / 1024).to_string()),
+                ));
+            }
+        }
+
+        if let (Some(link_speed), Some(link_width)) =
+            (&self.link_info.current_speed, &self.link_info.current_width)
+        {
+            elements.push(("Link Speed", Some(format!("{link_speed} x{link_width}"))));
+        }
+
+        elements
     }
 }
 

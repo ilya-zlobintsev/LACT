@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use lact_client::DaemonClient;
 use lact_schema::args::{CliArgs, CliCommand};
 
@@ -33,20 +33,19 @@ async fn list_gpus(_: &CliArgs, client: &DaemonClient) -> Result<()> {
 
 async fn info(args: &CliArgs, client: &DaemonClient) -> Result<()> {
     for id in extract_gpu_ids(args, client).await {
-        let info = client.get_device_info(&id).await?;
-        let pci_info = info.pci_info.context("GPU reports no pci info")?;
+        let gpu_line = format!("GPU {id}:");
+        println!("{gpu_line}");
+        println!("{}", "=".repeat(gpu_line.len()));
 
-        if let Some(ref vendor) = pci_info.device_pci_info.vendor {
-            println!("GPU Vendor: {vendor}");
+        let info = client.get_device_info(&id).await?;
+        let stats = client.get_device_stats(&id).await?;
+
+        let elements = info.info_elements(Some(&stats));
+        for (name, value) in elements {
+            if let Some(value) = value {
+                println!("{name}: {value}");
+            }
         }
-        if let Some(ref model) = pci_info.device_pci_info.model {
-            println!("GPU Model: {model}");
-        }
-        println!("Driver in use: {}", info.driver);
-        if let Some(ref vbios_version) = info.vbios_version {
-            println!("VBIOS version: {vbios_version}");
-        }
-        println!("Link: {:?}", info.link_info);
     }
     Ok(())
 }
