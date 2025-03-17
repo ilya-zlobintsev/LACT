@@ -151,17 +151,18 @@ gpus:
         - 0
         - 1
     
-    # Minimum GPU clockspeed in MHz. Applicable to AMD and Intel.
+    ## Min/Max clock and voltage settings. On Nvidia, min and max values always have to be set together.
+    # Minimum GPU clockspeed in MHz.
     min_core_clock: 300
-    # Minimum VRAM clockspeed in MHz. Applicable to AMD only.
+    # Minimum VRAM clockspeed in MHz.
     min_memory_clock: 500
     # Minimum GPU voltage in mV. Applicable to AMD only.
     min_voltage: 900
-    # Maximum GPU clockspeed in MHz. Applicable to AMD and Intel.
+    # Maximum GPU clockspeed in MHz.
     max_core_clock: 1630
-    # Maximum VRAM clockspeed in MHz. Applicable to AMD only.
+    # Maximum VRAM clockspeed in MHz.
     max_memory_clock: 800
-    # Maximum GPU voltage in mV.
+    # Maximum GPU voltage in mV. Applicable to Vega and earlier AMD GPUs.
     max_voltage: 1200
     # Voltage offset value in mV for RDNA and newer AMD GPUs.
     voltage_offset: 0
