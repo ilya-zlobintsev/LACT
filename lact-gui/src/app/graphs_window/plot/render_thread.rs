@@ -9,6 +9,7 @@ use gtk::StyleContext;
 use itertools::Itertools;
 use plotters::prelude::*;
 use plotters::style::colors::full_palette::DEEPORANGE_100;
+use plotters::style::text_anchor::Pos;
 use plotters_cairo::CairoBackend;
 use std::cmp::max;
 use std::ops::{Deref, DerefMut};
@@ -434,6 +435,41 @@ impl RenderRequest {
                         Palette99::pick(idx + 10).filled(),
                     )
                 });
+        }
+
+        // Draw max points
+        for (idx, (_, data)) in data.line_series_iter().enumerate() {
+            let max = data.iter().copied().reduce(|point_1, point_2| {
+                if point_1.1 > point_2.1 {
+                    point_1
+                } else {
+                    point_2
+                }
+            });
+            chart.draw_series(PointSeries::of_element(
+                max,
+                5,
+                Palette99::pick(idx).filled(),
+                &|coord, size, style| {
+                    let text = format!("{:}{}", (coord.1 * 10.0).round() / 10.0, self.value_suffix);
+                    let text_style = TextStyle {
+                        font: ("sans-serif", 18).into(),
+                        color: self.colors.text.to_backend_color(),
+                        pos: Pos::default(),
+                    };
+                    let text_offset =
+                        root.estimate_text_size(
+                            text.trim_end_matches(|c: char| !c.is_numeric()),
+                            &text_style,
+                        )
+                        .unwrap()
+                        .0 / 2;
+
+                    EmptyElement::at(coord)
+                        + Circle::new((0, 0), size, style)
+                        + Text::new(text, (-(text_offset as i32), 15), text_style)
+                },
+            ))?;
         }
 
         // Configure and draw series labels (the legend).

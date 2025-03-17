@@ -30,6 +30,7 @@ relm4-components = "0.9.0"
 
 plotters = { version = "0.3.5", default-features = false, features = [
     "line_series",
+    "point_series",
     "full_palette",
 ] }
 plotters-cairo = "0.7.0"
