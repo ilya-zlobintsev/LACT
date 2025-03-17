@@ -441,7 +441,7 @@ impl RenderRequest {
             .configure_series_labels()
             .margin(20)
             .label_font(("sans-serif", 16, &self.colors.text))
-            .position(SeriesLabelPosition::LowerRight)
+            .position(SeriesLabelPosition::UpperLeft)
             .background_style(self.colors.background.mix(0.8))
             .border_style(self.colors.border)
             .draw()
