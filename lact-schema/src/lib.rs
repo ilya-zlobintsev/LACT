@@ -28,7 +28,7 @@ use std::{
     sync::Arc,
 };
 
-pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
+pub const GIT_COMMIT: &str = env!("GIT_COMMIT");
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]

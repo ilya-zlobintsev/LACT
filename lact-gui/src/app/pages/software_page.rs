@@ -39,7 +39,7 @@ impl SimpleComponent for SoftwarePage {
             daemon_version.push_str("-embedded");
         }
         if let Some(commit) = &system_info.commit {
-            write!(daemon_version, " (commit {commit})").unwrap();
+            write!(daemon_version, " (revision {commit})").unwrap();
         }
 
         let gui_profile = if cfg!(debug_assertions) {
@@ -47,7 +47,7 @@ impl SimpleComponent for SoftwarePage {
         } else {
             "release"
         };
-        let gui_version = format!("{GUI_VERSION}-{gui_profile} (commit {GIT_COMMIT})");
+        let gui_version = format!("{GUI_VERSION}-{gui_profile} (revision {GIT_COMMIT})");
 
         let widgets = view_output!();
 
