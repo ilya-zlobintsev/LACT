@@ -1,6 +1,8 @@
 use std::{env, process::Command};
 
 fn main() {
+    println!("cargo::rerun-if-changed=../.git/");
+
     let commit = env::var("LACT_GIT_COMMIT")
         .ok()
         .filter(|s| !s.is_empty())
@@ -10,7 +12,7 @@ fn main() {
         .or_else(|| run_git_command(&["rev-parse", "--short", "HEAD"]));
 
     println!(
-        "cargo:rustc-env=GIT_COMMIT={}",
+        "cargo::rustc-env=GIT_COMMIT={}",
         commit.unwrap_or_else(|| "unknown".to_owned())
     );
 }
