@@ -85,7 +85,7 @@ $MAKE_COMMAND %{?_smp_mflags}
 
 %install
 rm -rf %{buildroot}
-VERGEN_GIT_SHA=$LACT_COMMIT_HASH make install PREFIX=/usr DESTDIR=%{buildroot}
+LACT_GIT_COMMIT=$LACT_COMMIT_HASH make install PREFIX=/usr DESTDIR=%{buildroot}
 
 %files
 %defattr(-,root,root,-)
