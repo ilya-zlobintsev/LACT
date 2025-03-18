@@ -51,42 +51,20 @@ const SNAPSHOT_GLOBAL_FILES: &[&str] = &[
     "/etc/lact/config.yaml",
     "/proc/version",
 ];
-const SNAPSHOT_DEVICE_FILES: &[&str] = &[
-    "uevent",
-    "vendor",
-    "pp_cur_state",
-    "pp_dpm_mclk",
-    "pp_dpm_pcie",
-    "pp_dpm_sclk",
-    "pp_dpm_socclk",
-    "pp_features",
-    "pp_force_state",
-    "pp_mclk_od",
-    "pp_num_states",
-    "pp_od_clk_voltage",
-    "pp_power_profile_mode",
-    "pp_sclk_od",
-    "pp_table",
-    "vbios_version",
-    "gpu_busy_percent",
-    "current_link_speed",
-    "current_link_width",
-    "power_dpm_force_performance_level",
-    "mem_info_vram_vendor",
-    "gpu_metrics",
+const SNAPSHOT_BLACKLISTED_FILE_PREFIXES: &[&str] = &[
+    "serial_number",
+    "i2c-",
+    "new_device",
+    "delete_device",
+    "autosuspend_delay_ms",
+    "resource",
+    "rom",
+    // These are write-only files, reading from them always returns a permission error
+    "remove",
+    "reset",
+    "rescan",
+    "fb",
 ];
-/// Prefixes for entries that will be recursively included in the debug snapshot
-const SNAPSHOT_DEVICE_RECURSIVE_PATHS_PREFIXES: &[&str] = &["tile"];
-const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
-    "fan_curve",
-    "acoustic_limit_rpm_threshold",
-    "acoustic_target_rpm_threshold",
-    "fan_minimum_pwm",
-    "fan_target_temperature",
-    "fan_zero_rpm_enable",
-    "fan_zero_rpm_stop_temperature",
-];
-
 #[derive(Clone)]
 pub struct Handler {
     pub config: Rc<RwLock<Config>>,
@@ -610,60 +588,18 @@ impl<'a> Handler {
 
         for path in SNAPSHOT_GLOBAL_FILES {
             let path = Path::new(path);
-            add_path_to_archive(&mut archive, path)?;
+            add_file_to_archive(&mut archive, path)?;
         }
 
         let controllers = self.gpu_controllers.read().await;
         for controller in controllers.values() {
             let controller_path = &controller.controller_info().sysfs_path;
 
-            for device_file in SNAPSHOT_DEVICE_FILES {
-                let full_path = controller_path.join(device_file);
-                add_path_to_archive(&mut archive, &full_path)?;
-            }
-
-            let device_files = fs::read_dir(controller_path)
-                .context("Could not read device dir")?
-                .flatten();
-
-            for device_entry in device_files {
-                if let Some(entry_name) = device_entry.file_name().to_str() {
-                    if SNAPSHOT_DEVICE_RECURSIVE_PATHS_PREFIXES
-                        .iter()
-                        .any(|prefix| entry_name.starts_with(prefix))
-                    {
-                        add_path_recursively(&mut archive, &device_entry.path(), controller_path)?;
-                    }
-                }
-            }
-
-            let card_path = controller_path.parent().unwrap();
-            let card_files = fs::read_dir(card_path)
-                .context("Could not read device dir")?
-                .flatten();
-            for card_entry in card_files {
-                if let Ok(metadata) = card_entry.metadata() {
-                    if metadata.is_file() {
-                        let full_path = controller_path.join(card_entry.path());
-                        add_path_to_archive(&mut archive, &full_path)?;
-                    }
-                }
-            }
-
-            let gt_path = card_path.join("gt");
-            if gt_path.exists() {
-                add_path_recursively(&mut archive, &gt_path, card_path)?;
-            }
-
-            let fan_ctrl_path = controller_path.join("gpu_od").join("fan_ctrl");
-            for fan_ctrl_file in SNAPSHOT_FAN_CTRL_FILES {
-                let full_path = fan_ctrl_path.join(fan_ctrl_file);
-                add_path_to_archive(&mut archive, &full_path)?;
-            }
-
-            let hwmon_path = controller_path.join("hwmon");
-            if hwmon_path.exists() {
-                add_path_recursively(&mut archive, &hwmon_path, controller_path)?;
+            // Add controller path itself
+            add_path_recursively(&mut archive, controller_path)?;
+            // Add the parent path
+            if let Some(card_path) = controller_path.parent() {
+                add_path_recursively(&mut archive, card_path)?;
             }
         }
 
@@ -1070,25 +1006,27 @@ fn load_controllers(
     Ok(controllers)
 }
 
-fn add_path_recursively(
-    archive: &mut tar::Builder<impl Write>,
-    entry_path: &Path,
-    controller_path: &Path,
-) -> anyhow::Result<()> {
-    if let Ok(entries) = fs::read_dir(entry_path) {
+fn add_path_recursively(archive: &mut tar::Builder<impl Write>, path: &Path) -> anyhow::Result<()> {
+    if let Ok(entries) = fs::read_dir(path) {
         for entry in entries.flatten() {
+            let full_path = path.join(entry.path());
+
             match entry.metadata() {
                 Ok(metadata) => {
-                    // Skip symlinks
-                    if metadata.is_symlink() {
+                    if entry.file_name().to_str().is_some_and(|name| {
+                        SNAPSHOT_BLACKLISTED_FILE_PREFIXES
+                            .iter()
+                            .any(|blacklisted_prefix| name.starts_with(blacklisted_prefix))
+                    }) {
                         continue;
                     }
 
-                    let full_path = controller_path.join(entry.path());
-                    if metadata.is_file() {
-                        add_path_to_archive(archive, &full_path)?;
+                    if metadata.is_symlink() {
+                        add_symlink_to_archive(archive, &full_path)?;
+                    } else if metadata.is_file() {
+                        add_file_to_archive(archive, &full_path)?;
                     } else if metadata.is_dir() {
-                        add_path_recursively(archive, &full_path, controller_path)?;
+                        add_path_recursively(archive, &full_path)?;
                     }
                 }
                 Err(err) => {
@@ -1104,14 +1042,10 @@ fn add_path_recursively(
     Ok(())
 }
 
-fn add_path_to_archive(
+fn add_file_to_archive(
     archive: &mut tar::Builder<impl Write>,
     full_path: &Path,
 ) -> anyhow::Result<()> {
-    let archive_path = full_path
-        .strip_prefix("/")
-        .context("Path should always start at root")?;
-
     if let Ok(metadata) = std::fs::metadata(full_path) {
         debug!("adding {full_path:?} to snapshot");
         match std::fs::read(full_path) {
@@ -1123,6 +1057,10 @@ fn add_path_to_archive(
                 header.set_gid(metadata.gid().into());
                 header.set_cksum();
 
+                let archive_path = full_path
+                    .strip_prefix("/")
+                    .context("Path should always start at root")?;
+
                 archive
                     .append_data(&mut header, archive_path, Cursor::new(data))
                     .context("Could not write data to archive")?;
@@ -1133,6 +1071,32 @@ fn add_path_to_archive(
         }
     } else {
         trace!("{full_path:?} does not exist, not adding to snapshot");
+    }
+    Ok(())
+}
+
+fn add_symlink_to_archive(
+    archive: &mut tar::Builder<impl Write>,
+    from_path: &Path,
+) -> anyhow::Result<()> {
+    if let Ok(metadata) = std::fs::symlink_metadata(from_path) {
+        let mut header = tar::Header::new_gnu();
+        header.set_mode(metadata.mode());
+        header.set_uid(metadata.uid().into());
+        header.set_gid(metadata.gid().into());
+        header.set_cksum();
+
+        if let Ok(to_path) = fs::canonicalize(from_path) {
+            let archive_path = from_path
+                .strip_prefix("/")
+                .context("Path should always start at root")?;
+
+            archive
+                .append_link(&mut header, archive_path, to_path)
+                .context("Could not write symlink to archive")?;
+        }
+    } else {
+        trace!("{from_path:?} does not exist, not adding to snapshot");
     }
     Ok(())
 }

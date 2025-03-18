@@ -536,7 +536,7 @@ impl GpuController for IntelGpuController {
             let vulkan_info = match get_vulkan_info(&self.common.pci_info).await {
                 Ok(info) => Some(info),
                 Err(err) => {
-                    warn!("could not load vulkan info: {err}");
+                    warn!("could not load vulkan info: {err:#}");
                     None
                 }
             };
