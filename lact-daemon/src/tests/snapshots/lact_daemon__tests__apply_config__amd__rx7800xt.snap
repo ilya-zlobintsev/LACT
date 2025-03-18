@@ -1,0 +1,20 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: write_commands
+---
+[
+    "card1/device/hwmon/hwmon4/power1_cap: 240000000",
+    "card1/device/pp_od_clk_voltage: r\n",
+    "card1/device/power_dpm_force_performance_level: auto",
+    "card1/device/pp_od_clk_voltage: s 1 2660\n",
+    "card1/device/pp_od_clk_voltage: m 1 1300\n",
+    "card1/device/pp_od_clk_voltage: vo -100\n",
+    "card1/device/power_dpm_force_performance_level: manual",
+    "card1/device/pp_power_profile_mode: 5\n",
+    "card1/device/gpu_od/fan_ctrl/fan_target_temperature: 82\n",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: r\n",
+    "card1/device/gpu_od/fan_ctrl/fan_zero_rpm_enable: 0\n",
+    "card1/device/pp_od_clk_voltage: c\n",
+    "card1/device/gpu_od/fan_ctrl/fan_target_temperature: c\n",
+    "card1/device/gpu_od/fan_ctrl/fan_zero_rpm_enable: c\n",
+]

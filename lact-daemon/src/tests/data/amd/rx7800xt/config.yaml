@@ -1,0 +1,14 @@
+fan_control_enabled: false
+pmfw_options:
+  acoustic_limit: 3000
+  acoustic_target: 1200
+  minimum_pwm: 35
+  target_temperature: 82
+  zero_rpm: false
+  zero_rpm_threshold: 50
+performance_level: manual
+max_core_clock: 2660
+max_memory_clock: 1300
+voltage_offset: -100
+power_profile_mode_index: 5
+power_cap: 240.0
