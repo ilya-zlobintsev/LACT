@@ -162,7 +162,7 @@ pub(crate) async fn detect_initramfs_type(os_release: &OsRelease) -> Option<Init
             );
             None
         }
-    } else if os_release.id == "fedora" {
+    } else if os_release.id == "fedora" || id_like.contains(&"fedora") {
         if Command::new("dracut")
             .arg("--version")
             .output()
