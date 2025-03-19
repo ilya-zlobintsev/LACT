@@ -24,7 +24,7 @@ use power_states::power_states_frame::PowerStatesFrame;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::{cell::Cell, collections::HashMap, rc::Rc};
 
-const OVERCLOCKING_DISABLED_TEXT: &str = "Overclocking support is not enabled! \
+const OVERCLOCKING_DISABLED_TEXT: &str = "AMD Overclocking support is not enabled! \
 You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
 
 pub struct OcPage {
@@ -78,13 +78,13 @@ impl relm4::Component for OcPage {
                         },
 
                         gtk::Button {
-                            set_label: "Enable Overclocking",
+                            set_label: "Enable AMD Overclocking",
                             set_halign: gtk::Align::End,
 
                             connect_clicked[sender] => move |_| {
                                 sender.output(AppMsg::ask_confirmation(
                                     AppMsg::EnableOverdrive,
-                                    "Enable Overclocking",
+                                    "Enable AMD Overclocking",
                                     format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this?"),
                                     gtk::ButtonsType::OkCancel,
                                 )).expect("Channel closed");
