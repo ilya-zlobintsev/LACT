@@ -374,7 +374,7 @@ impl GpuController for NvidiaGpuController {
         clippy::cast_sign_loss
     )]
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
-        let device = self.device();
+        let mut device = self.device();
 
         let mut temps = HashMap::new();
 
