@@ -439,12 +439,14 @@ pub struct DeviceStats {
 pub struct FanStats {
     pub control_enabled: bool,
     pub control_mode: Option<FanControlMode>,
-    pub static_speed: Option<f64>,
+    pub static_speed: Option<f32>,
     pub curve: Option<FanCurveMap>,
     pub pwm_current: Option<u8>,
     pub speed_current: Option<u32>,
     pub speed_max: Option<u32>,
     pub speed_min: Option<u32>,
+    pub pwm_max: Option<u32>,
+    pub pwm_min: Option<u32>,
     pub spindown_delay_ms: Option<u64>,
     pub change_threshold: Option<u64>,
     // RDNA3+ params
@@ -548,7 +550,7 @@ pub struct FanOptions<'a> {
     pub id: &'a str,
     pub enabled: bool,
     pub mode: Option<FanControlMode>,
-    pub static_speed: Option<f64>,
+    pub static_speed: Option<f32>,
     pub curve: Option<FanCurveMap>,
     #[serde(default)]
     pub pmfw: PmfwOptions,

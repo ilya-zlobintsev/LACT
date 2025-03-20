@@ -11,6 +11,7 @@ use lact_client::schema::{default_fan_curve, FanCurveMap};
 use lact_schema::PmfwInfo;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::ops::RangeInclusive;
 use std::rc::Rc;
 
 use super::pmfw_frame;
@@ -26,6 +27,7 @@ pub struct FanCurveFrame {
     zero_rpm_switch: Switch,
     zero_rpm_temperature: OcAdjustment,
     points: Rc<RefCell<Vec<PointAdjustment>>>,
+    speed_range: Rc<RefCell<RangeInclusive<f32>>>,
     spindown_delay_adj: OcAdjustment,
     change_threshold_adj: OcAdjustment,
     hysteresis_grid: Grid,
@@ -141,6 +143,7 @@ impl FanCurveFrame {
             curve_container,
             points,
             zero_rpm_grid,
+            speed_range: Rc::new(RefCell::new(0.0..=1.0)),
             zero_rpm_switch,
             spindown_delay_adj: spindown_delay_adj.clone(),
             change_threshold_adj: change_threshold_adj.clone(),
@@ -153,7 +156,8 @@ impl FanCurveFrame {
             curve_frame,
             move |_| {
                 let curve = default_fan_curve();
-                curve_frame.set_curve(&curve);
+                let speed_range = curve_frame.speed_range.borrow().clone();
+                curve_frame.set_curve(&curve, speed_range);
                 spindown_delay_adj.set_value(DEFAULT_SPINDOWN_DELAY_MS as f64);
                 change_threshold_adj.set_value(DEFAULT_CHANGE_THRESHOLD as f64);
             }
@@ -179,20 +183,22 @@ impl FanCurveFrame {
     }
 
     fn add_point(&self) {
+        let speed_range = self.speed_range.borrow().clone();
         let mut curve = self.get_curve();
         if let Some((temperature, ratio)) = curve.iter().last() {
             curve.insert(temperature + 5, *ratio);
-            self.set_curve(&curve);
+            self.set_curve(&curve, speed_range);
         } else {
             curve.insert(50, 0.5);
-            self.set_curve(&curve);
+            self.set_curve(&curve, speed_range);
         }
     }
 
     fn remove_point(&self) {
         let mut curve = self.get_curve();
         curve.pop_last();
-        self.set_curve(&curve);
+        let speed_range = self.speed_range.borrow().clone();
+        self.set_curve(&curve, speed_range);
     }
 
     fn notify_changed(&self) {
@@ -201,7 +207,7 @@ impl FanCurveFrame {
         }
     }
 
-    pub fn set_curve(&self, curve: &FanCurveMap) {
+    pub fn set_curve(&self, curve: &FanCurveMap, speed_range: RangeInclusive<f32>) {
         // Notify that the values were changed when the entire curve is overwritten, e.g. when resetting to default
         self.notify_changed();
 
@@ -214,11 +220,13 @@ impl FanCurveFrame {
         let mut adjustments = Vec::with_capacity(curve.len());
 
         for (temperature, ratio) in curve {
-            let adjustment = PointAdjustment::new(&points_container, *ratio, *temperature);
+            let adjustment =
+                PointAdjustment::new(&points_container, *ratio, *temperature, speed_range.clone());
             adjustments.push(adjustment);
         }
 
         self.points.replace(adjustments);
+        self.speed_range.replace(speed_range);
         self.curve_container.set_child(Some(&points_container));
     }
 
@@ -229,6 +237,7 @@ impl FanCurveFrame {
         for point in &*points {
             let temperature = point.temperature.value() as i32;
             let ratio = point.ratio.value() as f32;
+            let ratio = (ratio * 100.0).round() / 100.0;
             curve.insert(temperature, ratio);
         }
 

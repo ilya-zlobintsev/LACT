@@ -1,4 +1,4 @@
-use crate::server::gpu_controller::{fan_control::FanCurve, VENDOR_NVIDIA};
+use crate::server::gpu_controller::{fan_control::FanCurve, GpuController, VENDOR_NVIDIA};
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use anyhow::Context;
 use indexmap::IndexMap;
@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
     cell::Cell,
-    env, fs,
+    collections::BTreeMap,
+    env, fs, iter,
     path::PathBuf,
     rc::Rc,
     time::{Duration, Instant},
@@ -170,7 +171,7 @@ pub struct FanControlSettings {
     #[serde(default)]
     pub mode: FanControlMode,
     #[serde(default = "default_fan_static_speed")]
-    pub static_speed: f64,
+    pub static_speed: f32,
     pub temperature_key: String,
     pub interval_ms: u64,
     pub curve: FanCurve,
@@ -192,7 +193,7 @@ impl Default for FanControlSettings {
     }
 }
 
-pub fn default_fan_static_speed() -> f64 {
+pub fn default_fan_static_speed() -> f32 {
     0.5
 }
 
@@ -232,42 +233,69 @@ impl Config {
         }
     }
 
-    pub fn migrate_versions(&mut self) {
+    #[allow(clippy::cast_precision_loss)]
+    pub fn migrate_versions(&mut self, gpu_controllers: &BTreeMap<String, Box<dyn GpuController>>) {
         loop {
             let next_version = self.version + 1;
+
+            let gpu_configs = self.gpus.iter_mut().chain(
+                self.profiles
+                    .values_mut()
+                    .flat_map(|profile| profile.gpus.iter_mut()),
+            );
+
             match next_version {
                 0 => unreachable!(),
                 // Reset VRAM settings on Nvidia after new offset ratio logic
                 1 => {
-                    for (id, gpu) in &mut self.gpus {
+                    for (id, gpu) in gpu_configs {
                         if id.starts_with(VENDOR_NVIDIA) {
                             gpu.clocks_configuration.max_memory_clock = None;
                             gpu.clocks_configuration.min_memory_clock = None;
                         }
                     }
-
-                    for profile in &mut self.profiles.values_mut() {
-                        for (id, gpu) in &mut profile.gpus {
-                            if id.starts_with(VENDOR_NVIDIA) {
-                                gpu.clocks_configuration.max_memory_clock = None;
-                                gpu.clocks_configuration.min_memory_clock = None;
-                            }
-                        }
-                    }
                 }
                 2 => {
-                    for (id, gpu) in &mut self.gpus {
+                    for (id, gpu) in gpu_configs {
                         if id.starts_with(VENDOR_NVIDIA) {
                             gpu.clocks_configuration.max_core_clock = None;
                             gpu.clocks_configuration.max_memory_clock = None;
                         }
                     }
+                }
+                3 => {
+                    for (id, gpu) in gpu_configs {
+                        if let Some(controller) = gpu_controllers.get(id) {
+                            let stats = controller.get_stats(Some(gpu));
 
-                    for profile in &mut self.profiles.values_mut() {
-                        for (id, gpu) in &mut profile.gpus {
-                            if id.starts_with(VENDOR_NVIDIA) {
-                                gpu.clocks_configuration.max_core_clock = None;
-                                gpu.clocks_configuration.max_memory_clock = None;
+                            if let Some(fan_settings) = &mut gpu.fan_control_settings {
+                                if let (Some(pwm_min), Some(pwm_max)) =
+                                    (stats.fan.pwm_min, stats.fan.pwm_max)
+                                {
+                                    let ratio_min = (pwm_min as f32) / f32::from(u8::MAX);
+                                    let ratio_max = (pwm_max as f32) / f32::from(u8::MAX);
+
+                                    for value in fan_settings
+                                        .curve
+                                        .0
+                                        .values_mut()
+                                        .chain(iter::once(&mut (fan_settings.static_speed)))
+                                    {
+                                        let mut updated_value = None;
+                                        if *value < ratio_min {
+                                            updated_value = Some(ratio_min);
+                                        }
+                                        if *value > ratio_max {
+                                            updated_value = Some(ratio_max);
+                                        }
+
+                                        if let Some(new_value) = updated_value {
+                                            let new_value = (new_value * 100.0).round() / 100.0;
+                                            info!("updated fan curve speed point {}% to {}% to be within the allowed range", *value * 100.0, new_value * 100.0);
+                                            *value = new_value;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -435,6 +463,8 @@ fn default_apply_settings_timer() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::{ClocksConfiguration, Config, Daemon, FanControlSettings, Gpu};
     use crate::server::gpu_controller::fan_control::FanCurve;
     use indexmap::IndexMap;
@@ -540,7 +570,7 @@ mod tests {
             auto_switch_profiles: false,
         };
 
-        config.migrate_versions();
+        config.migrate_versions(&BTreeMap::new());
 
         assert_eq!(
             config

@@ -96,7 +96,7 @@ impl AmdGpuController {
 
     async fn set_static_fan_control(
         &self,
-        static_speed: f64,
+        static_speed: f32,
     ) -> anyhow::Result<Option<CommitHandle>> {
         // Stop existing task to set static speed
         self.stop_fan_control(false).await?;
@@ -116,7 +116,7 @@ impl AmdGpuController {
             let max_temperature = allowed_ranges.temperature_range.end();
 
             #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-            let custom_pwm = (f64::from(*allowed_ranges.speed_range.end()) * static_speed) as u8;
+            let custom_pwm = (f32::from(*allowed_ranges.speed_range.end()) * static_speed) as u8;
             let static_pwm = cmp::max(*allowed_ranges.speed_range.start(), custom_pwm);
 
             let mut points = vec![(*min_temperature, static_pwm)];
@@ -150,7 +150,7 @@ impl AmdGpuController {
                 .context("Could not set fan control method")?;
 
             #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-            let static_pwm = (f64::from(u8::MAX) * static_speed) as u8;
+            let static_pwm = (f32::from(u8::MAX) * static_speed) as u8;
 
             hw_mon
                 .set_fan_pwm(static_pwm)
@@ -612,9 +612,25 @@ impl GpuController for AmdGpuController {
         })
     }
 
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
         let metrics = GpuMetrics::get_from_sysfs_path(self.handle.get_path()).ok();
         let metrics = metrics.as_ref();
+
+        let pmfw_curve = self.handle.get_fan_curve().ok();
+        let pmfw_curve_range = pmfw_curve
+            .as_ref()
+            .and_then(|curve| curve.allowed_ranges.as_ref())
+            .map(|range| &range.speed_range);
+
+        let pwm_max = pmfw_curve_range
+            .map(|range| *range.end())
+            .map(|percent| (f64::from(percent) * 2.55) as u32)
+            .or_else(|| self.hw_mon_and_then(HwMon::get_fan_max_pwm).map(u32::from));
+        let pwm_min = pmfw_curve_range
+            .map(|range| *range.start())
+            .map(|percent| (f64::from(percent) * 2.55) as u32)
+            .or_else(|| self.hw_mon_and_then(HwMon::get_fan_min_pwm).map(u32::from));
 
         let fan_settings = gpu_config.and_then(|config| config.fan_control_settings.as_ref());
         DeviceStats {
@@ -637,6 +653,8 @@ impl GpuController for AmdGpuController {
                         .and_then(MetricsInfo::get_fan_pwm)
                         .and_then(|pwm| u8::try_from(pwm).ok())
                 }),
+                pwm_max,
+                pwm_min,
                 pmfw_info: PmfwInfo {
                     acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
                     acoustic_target: self.handle.get_fan_acoustic_target().ok(),

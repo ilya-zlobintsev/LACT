@@ -27,7 +27,7 @@ const PMFW_WARNING: &str =
 pub struct ThermalsSettings {
     pub manual_fan_control: bool,
     pub mode: Option<FanControlMode>,
-    pub static_speed: Option<f64>,
+    pub static_speed: Option<f32>,
     pub curve: Option<FanCurveMap>,
     pub pmfw: PmfwOptions,
     pub spindown_delay_ms: Option<u64>,
@@ -209,13 +209,29 @@ impl ThermalsPage {
             self.fan_control_mode_stack
                 .set_visible_child_name(child_name);
 
+            let fan_speed_range = stats
+                .fan
+                .pwm_min
+                .zip(stats.fan.pwm_max)
+                .map(|(min, max)| {
+                    let min = min as f32 / f32::from(u8::MAX);
+                    let max = max as f32 / f32::from(u8::MAX);
+                    min..=max
+                })
+                .unwrap_or(0.0..=1.0);
+
             if let Some(static_speed) = &stats.fan.static_speed {
                 self.fan_static_speed_adjustment
-                    .set_value(*static_speed * 100.0);
+                    .set_lower((*fan_speed_range.start() as f64 * 100.0).round());
+                self.fan_static_speed_adjustment
+                    .set_upper((*fan_speed_range.end() as f64 * 100.0).round());
+                self.fan_static_speed_adjustment
+                    .set_value((*static_speed * 100.0).into());
             }
 
             if let Some(curve) = &stats.fan.curve {
-                self.fan_curve_frame.set_curve(curve);
+                self.fan_curve_frame
+                    .set_curve(curve, fan_speed_range.clone());
             }
 
             self.fan_curve_frame
@@ -228,7 +244,8 @@ impl ThermalsPage {
                 .set_hysteresis_settings_visibile(stats.fan.pmfw_info == PmfwInfo::default());
 
             if !stats.fan.control_enabled && self.fan_curve_frame.get_curve().is_empty() {
-                self.fan_curve_frame.set_curve(&default_fan_curve());
+                self.fan_curve_frame
+                    .set_curve(&default_fan_curve(), fan_speed_range);
             }
 
             self.fan_curve_frame.set_pmfw(&stats.fan.pmfw_info);
@@ -280,7 +297,8 @@ impl ThermalsPage {
                 "static" => (true, Some(FanControlMode::Static)),
                 _ => unreachable!(),
             };
-            let static_speed = Some(self.fan_static_speed_adjustment.value() / 100.0);
+            let static_speed =
+                Some(self.fan_static_speed_adjustment.value() / 100.0).map(|val| val as f32);
             let curve = self.fan_curve_frame.get_curve();
             let curve = if curve.is_empty() { None } else { Some(curve) };
 

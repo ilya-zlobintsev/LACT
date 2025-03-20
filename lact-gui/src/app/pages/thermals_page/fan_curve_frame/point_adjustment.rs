@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use glib::clone;
 use gtk::{
     glib, prelude::*, Adjustment, Box, Grid, Label, MenuButton, Orientation, Popover, Scale,
@@ -11,7 +13,12 @@ pub struct PointAdjustment {
 }
 
 impl PointAdjustment {
-    pub fn new(parent: &Box, ratio: f32, temperature: i32) -> Self {
+    pub fn new(
+        parent: &Box,
+        ratio: f32,
+        temperature: i32,
+        speed_range: RangeInclusive<f32>,
+    ) -> Self {
         let container = Box::new(Orientation::Vertical, 5);
         container.set_margin_top(10);
 
@@ -90,10 +97,19 @@ impl PointAdjustment {
         ratio_adjustment.connect_value_changed(clone!(
             #[strong]
             temperature_adjustment,
-            move |_| {
+            move |adj| {
+                let value = adj.value() as f32;
+                if value < *speed_range.start() {
+                    adj.set_value((*speed_range.start()).into());
+                }
+                if value > *speed_range.end() {
+                    adj.set_value((*speed_range.end()).into());
+                }
+
                 temperature_adjustment.emit_by_name::<()>("value-changed", &[]);
             }
         ));
+        ratio_adjustment.emit_by_name::<()>("value-changed", &[]);
 
         let popover = Popover::builder().child(&popover_menu).build();
         let temperature_button = MenuButton::builder()
