@@ -96,7 +96,7 @@ impl AmdGpuController {
 
     async fn set_static_fan_control(
         &self,
-        static_speed: f64,
+        static_speed: f32,
     ) -> anyhow::Result<Option<CommitHandle>> {
         // Stop existing task to set static speed
         self.stop_fan_control(false).await?;
@@ -116,7 +116,7 @@ impl AmdGpuController {
             let max_temperature = allowed_ranges.temperature_range.end();
 
             #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-            let custom_pwm = (f64::from(*allowed_ranges.speed_range.end()) * static_speed) as u8;
+            let custom_pwm = (f32::from(*allowed_ranges.speed_range.end()) * static_speed) as u8;
             let static_pwm = cmp::max(*allowed_ranges.speed_range.start(), custom_pwm);
 
             let mut points = vec![(*min_temperature, static_pwm)];
@@ -150,7 +150,7 @@ impl AmdGpuController {
                 .context("Could not set fan control method")?;
 
             #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-            let static_pwm = (f64::from(u8::MAX) * static_speed) as u8;
+            let static_pwm = (f32::from(u8::MAX) * static_speed) as u8;
 
             hw_mon
                 .set_fan_pwm(static_pwm)

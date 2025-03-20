@@ -14,7 +14,7 @@ use serde_with::skip_serializing_none;
 use std::{
     cell::Cell,
     collections::BTreeMap,
-    env, fs,
+    env, fs, iter,
     path::PathBuf,
     rc::Rc,
     time::{Duration, Instant},
@@ -171,7 +171,7 @@ pub struct FanControlSettings {
     #[serde(default)]
     pub mode: FanControlMode,
     #[serde(default = "default_fan_static_speed")]
-    pub static_speed: f64,
+    pub static_speed: f32,
     pub temperature_key: String,
     pub interval_ms: u64,
     pub curve: FanCurve,
@@ -193,7 +193,7 @@ impl Default for FanControlSettings {
     }
 }
 
-pub fn default_fan_static_speed() -> f64 {
+pub fn default_fan_static_speed() -> f32 {
     0.5
 }
 
@@ -275,7 +275,12 @@ impl Config {
                                     let ratio_min = (pwm_min as f32) / f32::from(u8::MAX);
                                     let ratio_max = (pwm_max as f32) / f32::from(u8::MAX);
 
-                                    for value in fan_settings.curve.0.values_mut() {
+                                    for value in fan_settings
+                                        .curve
+                                        .0
+                                        .values_mut()
+                                        .chain(iter::once(&mut (fan_settings.static_speed)))
+                                    {
                                         let mut updated_value = None;
                                         if *value < ratio_min {
                                             updated_value = Some(ratio_min);
