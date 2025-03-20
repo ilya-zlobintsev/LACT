@@ -433,8 +433,8 @@ impl GpuController for NvidiaGpuController {
                 speed_max: fan_range.map(|range| range.1),
                 speed_min: fan_range.map(|range| range.0),
                 pwm_current,
-                pwm_max: fan_range.map(|(_, max)| (f64::from(max) * 2.55) as u32),
-                pwm_min: fan_range.map(|(min, _)| (f64::from(min) * 2.55) as u32),
+                pwm_max: fan_range.map(|(_, max)| (f64::from(max) * 2.55).round() as u32),
+                pwm_min: fan_range.map(|(min, _)| (f64::from(min) * 2.55).round() as u32),
                 pmfw_info: PmfwInfo::default(),
             },
             power: PowerStats {

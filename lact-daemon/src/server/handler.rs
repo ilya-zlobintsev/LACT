@@ -107,7 +107,7 @@ impl<'a> Handler {
 
     pub(crate) async fn with_base_path(
         base_path: &Path,
-        config: Config,
+        mut config: Config,
         pci_db: &Database,
     ) -> anyhow::Result<Self> {
         let mut controllers = BTreeMap::new();
@@ -156,6 +156,12 @@ impl<'a> Handler {
             }
         }
         info!("initialized {} GPUs", controllers.len());
+
+        let original_config_version = config.version;
+        config.migrate_versions(&controllers);
+        if config.version != original_config_version {
+            config.save(&Cell::new(Instant::now()))?;
+        }
 
         let handler = Self {
             gpu_controllers: Rc::new(RwLock::new(controllers)),
