@@ -418,6 +418,8 @@ impl GpuController for NvidiaGpuController {
             .map(|pstate| pstate.as_c() as usize)
             .ok();
 
+        let fan_range = device.min_max_fan_speed().ok();
+
         DeviceStats {
             temps,
             fan: FanStats {
@@ -428,9 +430,11 @@ impl GpuController for NvidiaGpuController {
                 spindown_delay_ms: fan_settings.and_then(|settings| settings.spindown_delay_ms),
                 change_threshold: fan_settings.and_then(|settings| settings.change_threshold),
                 speed_current: None,
-                speed_max: None,
-                speed_min: None,
+                speed_max: fan_range.map(|range| range.1),
+                speed_min: fan_range.map(|range| range.0),
                 pwm_current,
+                pwm_max: fan_range.map(|(_, max)| (f64::from(max) * 2.55) as u32),
+                pwm_min: fan_range.map(|(min, _)| (f64::from(min) * 2.55) as u32),
                 pmfw_info: PmfwInfo::default(),
             },
             power: PowerStats {
@@ -695,7 +699,19 @@ impl GpuController for NvidiaGpuController {
                                 .context("Could not reset fan speed to default")?;
                         }
                     }
+
                     FanControlMode::Curve => {
+                        let (min_speed, max_speed) = device
+                            .min_max_fan_speed()
+                            .context("Could not get fan speed range")?;
+
+                        for point in settings.curve.0.values() {
+                            #[allow(clippy::cast_possible_truncation)]
+                            if !(min_speed..=max_speed).contains(&((*point * 100.0) as u32)) {
+                                bail!("Fan speed {}% outside of the allowed range {min_speed}% to {max_speed}%", point*100.0);
+                            }
+                        }
+
                         self.start_curve_fan_control_task(settings.curve.clone(), settings.clone())
                             .await?;
                     }

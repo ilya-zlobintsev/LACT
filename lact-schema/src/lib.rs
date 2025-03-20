@@ -445,6 +445,8 @@ pub struct FanStats {
     pub speed_current: Option<u32>,
     pub speed_max: Option<u32>,
     pub speed_min: Option<u32>,
+    pub pwm_max: Option<u32>,
+    pub pwm_min: Option<u32>,
     pub spindown_delay_ms: Option<u64>,
     pub change_threshold: Option<u64>,
     // RDNA3+ params

@@ -434,6 +434,8 @@ expression: device_info
         }
       },
       "pwm_current": 0,
+      "pwm_max": 254,
+      "pwm_min": 38,
       "speed_current": 0,
       "speed_max": 3200,
       "speed_min": 0

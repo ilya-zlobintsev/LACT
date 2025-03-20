@@ -214,8 +214,19 @@ impl ThermalsPage {
                     .set_value(*static_speed * 100.0);
             }
 
+            let fan_speed_range = stats
+                .fan
+                .pwm_min
+                .zip(stats.fan.pwm_max)
+                .map(|(min, max)| {
+                    let min = min as f32 / f32::from(u8::MAX);
+                    let max = max as f32 / f32::from(u8::MAX);
+                    min..=max
+                })
+                .unwrap_or(0.0..=1.0);
             if let Some(curve) = &stats.fan.curve {
-                self.fan_curve_frame.set_curve(curve);
+                self.fan_curve_frame
+                    .set_curve(curve, fan_speed_range.clone());
             }
 
             self.fan_curve_frame
@@ -228,7 +239,8 @@ impl ThermalsPage {
                 .set_hysteresis_settings_visibile(stats.fan.pmfw_info == PmfwInfo::default());
 
             if !stats.fan.control_enabled && self.fan_curve_frame.get_curve().is_empty() {
-                self.fan_curve_frame.set_curve(&default_fan_curve());
+                self.fan_curve_frame
+                    .set_curve(&default_fan_curve(), fan_speed_range);
             }
 
             self.fan_curve_frame.set_pmfw(&stats.fan.pmfw_info);
