@@ -58,6 +58,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "PowerColor RX 7800 XT Hellhound",
         "model_id": "2427",
         "vendor": "Tul Corporation / PowerColor",
         "vendor_id": "148C"
@@ -83,6 +84,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "PowerColor RX 7800 XT Hellhound",
       "model_id": "2427",
       "vendor": "Tul Corporation / PowerColor",
       "vendor_id": "148C"

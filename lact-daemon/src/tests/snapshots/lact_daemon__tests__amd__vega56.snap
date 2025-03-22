@@ -98,6 +98,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "ASUS ROG Strix RX VEGA 56",
         "model_id": "0555",
         "vendor": "ASUSTeK Computer Inc.",
         "vendor_id": "1043"
@@ -123,6 +124,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "ASUS ROG Strix RX VEGA 56",
       "model_id": "0555",
       "vendor": "ASUSTeK Computer Inc.",
       "vendor_id": "1043"

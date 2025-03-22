@@ -67,7 +67,7 @@ impl HardwareInfoSection {
             for (name, value) in info.info_elements(self.device_stats.as_deref()) {
                 if let Some(value) = value {
                     let note = if name == "Card Model" && !value.starts_with("Unknown ") {
-                        Some("The card displayed here may be of a sibling model, e.g. XT vs XTX variety. This is normal, as such models often use the same device ID, and it is not possible to differentiate between them.)")
+                        Some("The card displayed here may be of a sibling model, e.g. XT vs XTX variety. This is normal, as such models often use the same device ID, and it is not possible to differentiate between them.")
                     } else {
                         None
                     };

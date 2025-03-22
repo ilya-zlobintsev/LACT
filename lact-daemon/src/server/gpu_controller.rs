@@ -129,7 +129,7 @@ pub(crate) fn init_controller(
 
     let vendor = pci_db.vendors.get(&u16::from_str_radix(vendor_id, 16)?);
 
-    let pci_info = GpuPciInfo {
+    let mut pci_info = GpuPciInfo {
         device_pci_info: PciInfo {
             vendor_id: vendor_id.to_owned(),
             vendor: vendor.map(|vendor| vendor.name.clone()),
@@ -148,6 +148,8 @@ pub(crate) fn init_controller(
             model: subsystem_info.subdevice_name.map(str::to_owned),
         },
     };
+    pci_info.subsystem_pci_info.model =
+        get_embedded_device_name(&pci_info).or(pci_info.subsystem_pci_info.model);
 
     let common = CommonControllerInfo {
         sysfs_path: path,
@@ -206,4 +208,23 @@ fn parse_uevent(data: &str) -> HashMap<&str, &str> {
     data.lines()
         .filter_map(|line| line.split_once('='))
         .collect()
+}
+
+fn get_embedded_device_name(pci_info: &GpuPciInfo) -> Option<String> {
+    const EXTRA_IDS: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../res/device_ids.json"
+    ));
+    let extra_ids: serde_json::Value =
+        serde_json::from_str(EXTRA_IDS).expect("Could not parse embedded db");
+
+    extra_ids
+        .get(pci_info.device_pci_info.vendor_id.to_ascii_lowercase())
+        .and_then(|vendor| vendor.get(pci_info.device_pci_info.model_id.to_ascii_lowercase()))
+        .and_then(|device| device.get(pci_info.subsystem_pci_info.vendor_id.to_ascii_lowercase()))
+        .and_then(|subsys_vendor| {
+            subsys_vendor.get(pci_info.subsystem_pci_info.model_id.to_ascii_lowercase())
+        })
+        .and_then(|subsys_device| subsys_device.as_str())
+        .map(str::to_owned)
 }

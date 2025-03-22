@@ -36,6 +36,7 @@ expression: device_info
         "vendor_id": "8086"
       },
       "subsystem_pci_info": {
+        "model": "ASRock Challenger ITX Arc A380",
         "model_id": "6004",
         "vendor": "ASRock Incorporation",
         "vendor_id": "1849"
@@ -60,6 +61,7 @@ expression: device_info
       "vendor_id": "8086"
     },
     "subsystem_pci_info": {
+      "model": "ASRock Challenger ITX Arc A380",
       "model_id": "6004",
       "vendor": "ASRock Incorporation",
       "vendor_id": "1849"

@@ -1,0 +1,866 @@
+{
+  "_comment": "This file is used for name display purposes only. A GPU being present or not present here has no impact on functionality.",
+  "1002": {
+    "7550": {
+      "148c": {
+        "2435": "PowerColor Hellhound/Reaper/Red Devil RX 9070 XT",
+        "2436": "PowerColor Hellhound/Reaper/Red Devil RX 9070"
+      },
+      "1da2": {
+        "e489": "Sapphire NITRO+ RX 9070 XT",
+        "e490": "Sapphire Pulse RX 9070 XT",
+        "3490": "Sapphire Pure RX 9070 XT",
+        "2490": "Sapphire Pulse RX 9070",
+        "4499": "Sapphire Pure RX 9070"
+      },
+      "1849": {
+        "5401": "ASRock RX 9070 XT Taichi",
+        "5411": "ASRock RX 9070 XT Taichi",
+        "5405": "ASRock RX 9070 Steel Legend",
+        "5406": "ASRock RX 9070 Challenger"
+      },
+      "1043": {
+        "0613": "ASUS TUF Gaming RX 9070 XT",
+        "7550": "ASUS PRIME RX 9070 XT",
+        "0614": "ASUS TUF Gaming RX 9070",
+        "0618": "ASUS PRIME RX 9070"
+      },
+      "1eae": {
+        "8810": "XFX Swift White RX 9070 XT",
+        "8811": "XFX Mercury/Swift RX 9070 XT",
+        "8710": "XFX Swift RX 9070"
+      },
+      "1efe": {
+        "0031": "VASTARMOR RX 9070 XT Super Alloy"
+      },
+      "1458": {
+        "2424": "GIGABYTE RX 9070 XT Gaming OC"
+      }
+    },
+    "744c": {
+      "1da2": {
+        "475e": "Sapphire Pulse RX 7900 GRE",
+        "e475": "Sapphire Nitro+ RX 7900 GRE",
+        "475b": "Sapphire Pure RX 7900 GRE",
+        "471e": "Sapphire Pulse RX 7900 XT",
+        "e471": "Sapphire Nitro+ RX 7900 XTX Vapor-X"
+      },
+      "1849": {
+        "5318": "ASRock RX 7900 GRE Steel Legend",
+        "5317": "ASRock RX 7900 XT Phantom Gaming White",
+        "5302": "ASRock RX 7900 XTX Taichi"
+      },
+      "1eae": {
+        "790a": "XFX RX 7900 GRE"
+      },
+      "1ed3": {
+        "7891": "YESTON RX 7900 XTX Sakura Sugar"
+      },
+      "1002": {
+        "0e3b": "AMD RX 7900 XTX (MBA)"
+      },
+      "1043": {
+        "05ed": "ASUS TUF Gaming RX 7900 XT OC",
+        "0506": "ASUS TUF Gaming RX 7900 XTX OC"
+      }
+    },
+    "73bf": {
+      "1da2": {
+        "e438": "Sapphire Nitro+ RX 6800 XT",
+        "440e": "Sapphire Nitro+ OC RX 6900 XT",
+        "e440": "Sapphire Toxic RX 6900 XT"
+      },
+      "1002": {
+        "0e3a": "Radeon RX 6900 XT (Reference)"
+      },
+      "1462": {
+        "3952": "MSI RX 6900 XT Gaming X Trio",
+        "3951": "MSI RX 6800 XT Gaming X Trio"
+      },
+      "1458": {
+        "232c": "GIGABYTE RX 6900 XT Gaming OC"
+      },
+      "148c": {
+        "2407": "PowerColor RX 6800 Red Dragon",
+        "2406": "PowerColor RX 6800 XT Red Devil"
+      },
+      "1849": {
+        "5201": "ASRock RX 6800 XT Taichi X"
+      },
+      "1eae": {
+        "6701": "XFX RX 6800 XT Speedster Merc 319 Black",
+        "6901": "XFX RX 6900 XT Speedster Merc 319 Black"
+      },
+      "1043": {
+        "04fa": "ASUS TUF Gaming RX 6900 XT OC",
+        "04f0": "ASUS RX 6800 XT Strix OC",
+        "04f4": "ASUS RX 6800 Strix OC",
+        "04f2": "ASUS TUF Gaming RX 6800 XT OC"
+      }
+    },
+    "747e": {
+      "1da2": {
+        "475c": "Sapphire RX 7700 XT Pure",
+        "d475": "Sapphire Nitro+ RX 7800 XT",
+        "475f": "Sapphire Pulse RX 7700 XT"
+      },
+      "1458": {
+        "2413": "GIGABYTE RX 7800 XT Gaming OC"
+      },
+      "148c": {
+        "2427": "PowerColor RX 7800 XT Hellhound"
+      },
+      "1849": {
+        "5327": "ASRock RX 7800 XT Steel Legend",
+        "5324": "ASRock Phantom Gaming RX 7800 XT"
+      },
+      "1eae": {
+        "7801": "XFX RX 7800 XT Merc 319",
+        "780a": "XFX RX 7700 XT Qick 319"
+      },
+      "1043": {
+        "0512": "ASUS TUF Gaming RX 7700 XT",
+        "05fd": "ASUS TUF Gaming RX 7800 XT"
+      }
+    },
+    "7480": {
+      "1da2": {
+        "e482": "Sapphire Pulse RX 7600 XT",
+        "e448": "Sapphire Pulse RX 7600 OC"
+      },
+      "148c": {
+        "2430": "PowerColor RX 7600 XT Hellhound",
+        "2421": "PowerColor RX 7600 Hellhound"
+      },
+      "1849": {
+        "5331": "ASRock RX 7600 XT Steel Legend",
+        "5311": "ASRock Phantom Gaming RX 7600"
+      },
+      "1eae": {
+        "7605": "XFX RX 7600 XT Qick 309"
+      },
+      "1043": {
+        "05f1": "ASUS RX 7600 Strix OC"
+      }
+    },
+    "73df": {
+      "1da2": {
+        "e445": "Sapphire Nitro+ RX 6700 XT"
+      },
+      "1462": {
+        "3990": "MSI RX 6750 XT Gaming X Trio",
+        "3981": "MSI RX 6700 XT Gaming X"
+      },
+      "1458": {
+        "232d": "GIGABYTE RX 6700 XT Gaming OC"
+      },
+      "148c": {
+        "2409": "PowerColor RX 6700 XT Red Devil"
+      },
+      "1849": {
+        "5206": "ASRock RX 6700 XT Phantom Gaming D"
+      },
+      "1eae": {
+        "6601": "XFX RX 6700 XT Merc 319 Black"
+      },
+      "1043": {
+        "05c7": "ASUS RX 6700 XT Strix OC",
+        "05e5": "ASUS RX 6750 XT Strix OC"
+      }
+    },
+    "73ff": {
+      "1da2": {
+        "448e": "Sapphire RX 6600 XT Pulse OC"
+      },
+      "1462": {
+        "5020": "MSI RX 6600 XT Gaming X"
+      },
+      "1849": {
+        "5220": "ASRock RX 6600 XT Phantom Gaming D"
+      },
+      "1eae": {
+        "6501": "XFX RX 6600 XT Speedster Merc 308"
+      },
+      "1043": {
+        "05d1": "ASUS RX 6600 XT Strix OC"
+      },
+      "1458": {
+        "2334": "GIGABYTE RX 6600 Eagle"
+      }
+    },
+    "7340": {
+      "1da2": {
+        "e421": "Sapphire Pulse RX 5500 XT"
+      },
+      "1462": {
+        "3820": "MSI RX 5500 XT Gaming X"
+      }
+    },
+    "73a5": {
+      "1da2": {
+        "440d": "Sapphire Nitro+ Pure RX 6950 XT"
+      },
+      "1462": {
+        "3955": "MSI RX 6950 XT Gaming X Trio"
+      },
+      "1458": {
+        "2409": "GIGABYTE RX 6950 XT Gaming OC"
+      },
+      "1849": {
+        "5230": "ASRock RX 6950 XT OC Formula"
+      }
+    },
+    "73ef": {
+      "1462": {
+        "5026": "MSI RX 6650 XT Gaming X"
+      }
+    },
+    "687f": {
+      "1462": {
+        "3681": "MSI RX Vega 56 AIR BOOST"
+      },
+      "1043": {
+        "0555": "ASUS ROG Strix RX VEGA 56"
+      }
+    },
+    "67df": {
+      "1462": {
+        "3411": "MSI RX 470 Gaming X"
+      }
+    },
+    "73af": {
+      "1849": {
+        "5213": "ASRock RX 6900 XT OC Formula"
+      }
+    },
+    "743f": {
+      "1043": {
+        "05d9": "ASUS RX 6500 XT TUF Gaming"
+      },
+      "1da2": {
+        "e457": "Sapphire Pulse RX 6500 XT"
+      }
+    },
+    "679a": {
+      "1458": {
+        "229a": "GIGABYTE R9 280 WindForce 3X"
+      }
+    },
+    "6818": {
+      "174b": {
+        "e217": "Sapphire HD 7870"
+      }
+    }
+  },
+  "10de": {
+    "2b85": {
+      "10de": {
+        "2057": "NVIDIA GeForce RTX 5090 Founders Edition"
+      },
+      "1043": {
+        "89e3": "ASUS RTX 5090 ASTRAL OC"
+      },
+      "1458": {
+        "416f": "GIGABYTE RTX 5090 Gaming OC"
+      },
+      "1462": {
+        "5300": "MSI RTX 5090 Suprim Liquid SOC",
+        "5301": "MSI RTX 5090 Suprim SOC"
+      },
+      "19da": {
+        "1761": "Zotac RTX 5090 SOLID"
+      },
+      "1569": {
+        "f318": "Palit RTX 5090 GameRock"
+      }
+    },
+    "2c02": {
+      "10de": {
+        "2095": "NVIDIA GeForce RTX 5080 Founders Edition"
+      },
+      "1043": {
+        "89de": "ASUS RTX 5080 ASTRAL OC"
+      },
+      "1458": {
+        "4176": "GIGABYTE RTX 5080 Gaming OC"
+      },
+      "1462": {
+        "5314": "MSI RTX 5080 Vanguard SOC",
+        "5313": "MSI RTX 5080 Suprim SOC"
+      },
+      "7377": {
+        "1201": "Colorful RTX 5080 Vulcan OC"
+      },
+      "19da": {
+        "1762": "Zotac RTX 5080 AMP Extreme Infinity"
+      },
+      "1569": {
+        "f320": "Palit RTX 5080 GameRock OC"
+      },
+      "10b0": {
+        "f323": "Gainward RTX 5080 Phoenix GS"
+      }
+    },
+    "2f04": {
+      "10de": {
+        "205a": "NVIDIA GeForce RTX 5070 Founders Edition"
+      }
+    },
+    "2702": {
+      "10de": {
+        "18cb": "NVIDIA RTX 4080 SUPER Founders Edition"
+      },
+      "1043": {
+        "8966": "ASUS ROG Strix RTX 4080 SUPER OC",
+        "8962": "ASUS TUF Gaming RTX 4080 SUPER OC"
+      },
+      "1458": {
+        "4140": "GIGABYTE RTX 4080 SUPER Gaming OC"
+      },
+      "1462": {
+        "511c": "MSI RTX 4080 SUPER Expert"
+      },
+      "19da": {
+        "3688": "Zotac RTX 4080 SUPER AMP Extreme Airo"
+      },
+      "196e": {
+        "141a": "PNY RTX 4080 SUPER Verto OC"
+      },
+      "1771": {
+        "10de": "Inno3D RTX 4080 SUPER X3"
+      }
+    },
+    "2783": {
+      "10de": {
+        "18fe": "NVIDIA RTX 4070 SUPER Founders Edition"
+      },
+      "1043": {
+        "8952": "ASUS TUF Gaming RTX 4070 SUPER OC",
+        "896f": "ASUS RTX 4070 SUPER Dual"
+      },
+      "1458": {
+        "4137": "GIGABYTE RTX 4070 SUPER Aorus Master"
+      },
+      "19da": {
+        "5710": "Zotac RTX 4070 SUPER Trinity"
+      },
+      "196e": {
+        "1423": "PNY RTX 4070 SUPER Verto"
+      },
+      "1569": {
+        "f304": "Palit RTX 4070 SUPER JetStream"
+      },
+      "10b0": {
+        "f303": "Gainward RTX 4070 SUPER Ghost"
+      },
+      "1771": {
+        "18ca": "Inno3D RTX 4070 SUPER Twin X2"
+      }
+    },
+    "2684": {
+      "10de": {
+        "165b": "NVIDIA RTX 4090 Founders Edition"
+      },
+      "1043": {
+        "8934": "ASUS RTX 4090 MATRIX Platinum",
+        "889c": "ASUS RTX 4090 Strix OC"
+      },
+      "1458": {
+        "40bf": "GIGABYTE RTX 4090 Gaming OC"
+      },
+      "1462": {
+        "5104": "MSI RTX 4090 Suprim Liquid X",
+        "5102": "MSI RTX 4090 Suprim X",
+        "5103": "MSI RTX 4090 Gaming X Trio"
+      },
+      "7377": {
+        "1200": "Colorful RTX 4090 Vulcan OC-V"
+      },
+      "19da": {
+        "4675": "Zotac RTX 4090 AMP Extreme Airo"
+      },
+      "1569": {
+        "f296": "Palit RTX 4090 GameRock OC"
+      }
+    },
+    "2704": {
+      "10de": {
+        "167a": "NVIDIA RTX 4080 Founders Edition"
+      },
+      "1043": {
+        "889f": "ASUS RTX 4080 ROG Strix OC",
+        "88d3": "ASUS RTX 4080 Noctua OC"
+      },
+      "1462": {
+        "5110": "MSI RTX 4080 Suprim X",
+        "5111": "MSI RTX 4080 Gaming X Trio"
+      },
+      "7377": {
+        "1500": "Colorful RTX 4080 Ultra OC"
+      },
+      "19da": {
+        "1688": "Zotac RTX 4080 AMP Extreme Airo"
+      },
+      "196e": {
+        "13b0": "PNY RTX 4080 Verto XLR8 OC"
+      },
+      "10b0": {
+        "f297": "Gainward RTX 4080 phantom GS",
+        "f299": "Gainward RTX 4080 Phoenix GS"
+      }
+    },
+    "2786": {
+      "10de": {
+        "17ff": "NVIDIA RTX 4070 Founders Edition"
+      },
+      "1043": {
+        "88e1": "ASUS RTX 4070 DUAL",
+        "88df": "ASUS TUF Gaming RTX 4070 OC"
+      },
+      "1462": {
+        "5137": "MSI RTX 4070 Ventus 3X",
+        "5136": "MSI RTX 4070 Gaming Trio X"
+      },
+      "19da": {
+        "2696": "Zotac RTX 4070 AMP Airo"
+      },
+      "196e": {
+        "13cc": "PNY RTX 4070 XLR8"
+      },
+      "1569": {
+        "f304": "Palit RTX 4070 JetStream"
+      },
+      "10b0": {
+        "f303": "Gainward RTX 4070 Ghost"
+      }
+    },
+    "2803": {
+      "10de": {
+        "16e3": "NVIDIA RTX 4060 Ti Founders Edition"
+      },
+      "1043": {
+        "8938": "ASUS RTX 4060 Ti DUAL OC M.2",
+        "88f8": "ASUS RTX 4060 Ti DUAL OC",
+        "88f6": "ASUS RTX 4060 Ti TUF OC"
+      },
+      "1462": {
+        "5151": "MSI RTX 4060 Ti Gaming X Trio"
+      },
+      "7377": {
+        "1541": "Colorful iGame RTX 4060 Ti Ultra"
+      },
+      "196e": {
+        "13de": "PNY RTX 4060 Ti Verto",
+        "13dc": "PNY RTX 4060 Ti XLR8"
+      },
+      "1569": {
+        "f306": "Palit RTX 4060 Ti Dual OC"
+      }
+    },
+    "2203": {
+      "10de": {
+        "1618": "NVIDIA RTX 3090 Ti Founders Edition"
+      },
+      "1043": {
+        "8870": "ASUS RTX 3090 Ti ROG Strix LC"
+      },
+      "1462": {
+        "5090": "MSI RTX 3090 Ti Suprim X"
+      },
+      "3842": {
+        "4985": "EVGA RTX 3090 Ti FTW3 Ultra"
+      },
+      "19da": {
+        "4666": "Zotac RTX 3090 Ti AMP Extreme Holo"
+      }
+    },
+    "2482": {
+      "10de": {
+        "14b2": "NVIDIA RTX 3070 Ti Founders Edition"
+      },
+      "1458": {
+        "408f": "GIGABYTE RTX 3070 Ti Gaming OC"
+      },
+      "1462": {
+        "5051": "MSI RTX 3070 Ti Suprim X"
+      },
+      "19da": {
+        "1655": "Zotac RTX 3070 Ti AMP Extreme Holo",
+        "1653": "Zotac RTX 3070 Ti AMP Holo"
+      },
+      "1569": {
+        "f278": "Palit RTX 3070 Ti GameRock OC"
+      }
+    },
+    "2208": {
+      "10de": {
+        "1535": "NVIDIA RTX 3080 Ti Founders Edition"
+      },
+      "1043": {
+        "8809": "ASUS RTX 3080 Ti Strix LC"
+      },
+      "1462": {
+        "3897": "MSI RTX 3080 Ti Suprim X"
+      },
+      "3842": {
+        "3967": "EVGA RTX 3080 Ti FTW3 Ultra"
+      },
+      "19da": {
+        "2612": "Zotac RTX 3080 Ti AMP HoloBlack"
+      },
+      "1569": {
+        "2208": "Palit RTX 3080 Ti Gaming Pro"
+      },
+      "10b0": {
+        "f293": "Gainward RTX 3080 Ti Phantom GS"
+      }
+    },
+    "2486": {
+      "10de": {
+        "147a": "NVIDIA RTX 3060 Ti Founders Edition"
+      },
+      "1043": {
+        "87ba": "ASUS RTX 3060 Ti Strix OC"
+      },
+      "1458": {
+        "405a": "GIGABYTE RTX 3060 Ti Gaming OC",
+        "405e": "GIGABYTE RTX 3060 Ti Gaming OC Pro"
+      },
+      "1462": {
+        "3903": "MSI RTX 3060 Ti Gaming X Trio"
+      },
+      "3842": {
+        "3667": "EVGA RTX 3060 Ti FTW3 Ultra Gaming"
+      },
+      "19da": {
+        "1630": "Zotac RTX 3060 Ti Twin Edge"
+      },
+      "1569": {
+        "2486": "Palit RTX 3060 Ti Gaming Pro OC"
+      }
+    },
+    "2484": {
+      "10de": {
+        "146b": "NVIDIA RTX 3070 Founders Edition"
+      },
+      "1043": {
+        "87c1": "ASUS RTX 3070 TUF Gaming OC"
+      },
+      "1458": {
+        "404c": "GIGABYTE RTX 3070 Gaming OC"
+      },
+      "1462": {
+        "3903": "MSI RTX 3070 Gamming X Trio"
+      },
+      "3842": {
+        "3767": "EVGA RTX 3070 FTW3 Ultra"
+      },
+      "19da": {
+        "2617": "Zotac RTX 3070 Twin Edge OC"
+      },
+      "196e": {
+        "13e6": "PNY RTX 3070 XLR8 Revel Epic-X RGB"
+      },
+      "1569": {
+        "2484": "Palit RTX 3070 JetStream OC"
+      }
+    },
+    "2206": {
+      "10de": {
+        "1467": "NVIDIA RTX 3080 Founders Edition"
+      },
+      "1043": {
+        "87b0": "ASUS RTX 3080 TUF Gaming OC"
+      },
+      "1462": {
+        "3897": "MSI RTX 3080 Suprim X 10G",
+        "3892": "MSI RTX 3080 Gamming X Trio 10G"
+      },
+      "3842": {
+        "3897": "EVGA RTX 3080 FTW3 Ultra 10G"
+      },
+      "7377": {
+        "120b": "Colorful iGame RTX 3080 Vulcan OC 10G"
+      },
+      "19da": {
+        "3612": "Zotac RTX 3080 AMP Holo 10G",
+        "1612": "Zotac RTX 3080 Trinity 10G"
+      },
+      "1569": {
+        "2206": "Palit RTX 3080 Gaming Pro OC 10G"
+      }
+    },
+    "2c05": {
+      "1043": {
+        "89f4": "ASUS RTX 5070 Ti TUF OC"
+      },
+      "1462": {
+        "5310": "MSI RTX 5070 Ti Ventus 3X OC",
+        "5315": "MSI RTX 5070 Ti Gaming Trio OC+",
+        "5314": "MSI RTX 5070 Ti Vanguard SOC"
+      },
+      "1569": {
+        "f320": "Palit RTX 5070 Ti GameRock OC"
+      }
+    },
+    "2705": {
+      "1043": {
+        "896d": "ASUS ROG Strix RTX 4070 Ti SUPER OC"
+      },
+      "1458": {
+        "413c": "GIGABYTE RTX 4070 Ti SUPER Gaming OC"
+      },
+      "1462": {
+        "513d": "MSI RTX 4070 Ti SUPER Ventus 3X"
+      },
+      "19da": {
+        "4710": "Zotac RTX 4070 Ti SUPER Trinity"
+      },
+      "196e": {
+        "141f": "PNY RTX 4070 Ti SUPER Verto OC",
+        "141c": "PNY RTX 4070 Ti SUPER XLR8 Gaming"
+      },
+      "1569": {
+        "f304": "Palit RTX 4070 Ti SUPER JetStream"
+      },
+      "10b0": {
+        "f299": "Gainward RTX 4070 Ti SUPER Phoenix GS"
+      },
+      "1771": {
+        "10de": "Inno3D RTX 4070 Ti SUPER Twin X2"
+      }
+    },
+    "2782": {
+      "1043": {
+        "88a3": "ASUS TUF Gaming RTX 4070 Ti OC"
+      },
+      "1458": {
+        "40c6": "GIGABYTE RTX 4070 Ti Gaming OC"
+      },
+      "1462": {
+        "13b2": "MSI RTX 4070 Ti Suprim X",
+        "5132": "MSI RTX 4070 Ti Gaming X"
+      },
+      "19da": {
+        "1698": "Zotac RTX 4070 Ti AMP Extreme Airo"
+      },
+      "196e": {
+        "13b2": "PNY RTX 4070 Ti OC"
+      },
+      "1569": {
+        "f298": "Palit RTX 4070 Ti GamingPro OC"
+      }
+    },
+    "2882": {
+      "1043": {
+        "8908": "ASUS ROG Strix RTX 4060 OC",
+        "8903": "ASUS RTX 4060 DUAL OC"
+      },
+      "1458": {
+        "4107": "GIGABYTE RTX 4060 WindForce OC",
+        "4109": "GIGABYTE RTX 4060 Gaming OC"
+      },
+      "1462": {
+        "5160": "MSI RTX 4060 Gaming X"
+      },
+      "19da": {
+        "1726": "Zotac RTX 4060 Spider-Man"
+      },
+      "196e": {
+        "13e6": "PNY RTX 4060 XLR8"
+      },
+      "1569": {
+        "f311": "Palit RTX 4060 Dual"
+      }
+    },
+    "2216": {
+      "1043": {
+        "8888": "ASUS RTX 3080 Noctua OC 10G"
+      }
+    },
+    "220a": {
+      "1043": {
+        "886b": "ASUS RTX 3080 ROG Strix OC"
+      },
+      "1462": {
+        "3897": "MSI RTX 3080 Suprim X"
+      }
+    },
+    "2507": {
+      "1043": {
+        "8872": "ASUS RTX 3050 Strix OC"
+      },
+      "1458": {
+        "40aa": "GIGABYTE RTX 3050 Gaming OC"
+      },
+      "1462": {
+        "c979": "MSI RTX 3050 Gaming X"
+      },
+      "3842": {
+        "3551": "EVGA RTX 3050 XC Black"
+      },
+      "19da": {
+        "c630": "Zotac RTX 3050 Twin Edge OC"
+      }
+    },
+    "2488": {
+      "1043": {
+        "885e": "ASUS RTX 3070 Noctua OC"
+      }
+    },
+    "2204": {
+      "1043": {
+        "87af": "ASUS RTX 3090 Strix OC"
+      },
+      "1458": {
+        "4045": "GIGABYTE RTX 3090 Eagle OC"
+      },
+      "1462": {
+        "3882": "MSI RTX 3090 Suprim X",
+        "3884": "MSI RTX 3090 Gamming X Trio"
+      },
+      "3842": {
+        "3978": "EVGA RTX 3090 XC3 ULTRA HYBRID GAMING",
+        "3987": "EVGA RTX 3090 FTW3 Ultra"
+      },
+      "19da": {
+        "1619": "Zotac RTX 3090 AMP Extreme Holo",
+        "1613": "Zotac RTX 3090 Trinity"
+      }
+    },
+    "1e87": {
+      "1043": {
+        "865f": "ASUS ROG Strix RTX 2080 OC"
+      }
+    },
+    "1b80": {
+      "1043": {
+        "8594": "ASUS ROG Strix GTX 1080 OC",
+        "859b": "ASUS GTX 1080 TURBO"
+      }
+    },
+    "1e84": {
+      "1458": {
+        "3ff6": "GIGABYTE Aorus RTX 2070 Super"
+      },
+      "3842": {
+        "2072": "EVGA RTX 2070 Super KO"
+      }
+    },
+    "1199": {
+      "1458": {
+        "d001": "GIGABYTE BRIX GTX 760"
+      }
+    },
+    "2709": {
+      "1462": {
+        "5137": "MSI RTX 4070 Ventus 3X E OC"
+      }
+    },
+    "2503": {
+      "1462": {
+        "3903": "MSI RTX 3060 Gaming X Trio"
+      },
+      "3842": {
+        "3657": "EVGA RTX 3060 XC"
+      },
+      "19da": {
+        "4617": "Zotac RTX 3060 AMP"
+      }
+    },
+    "1f02": {
+      "1462": {
+        "3731": "MSI RTX 2070 Ventus"
+      }
+    },
+    "1c82": {
+      "1462": {
+        "3351": "MSI GTX 1050 Ti Gaming X",
+        "3352": "MSI GTX 1050 Ti Gaming"
+      }
+    },
+    "11c0": {
+      "1462": {
+        "2880": "MSI GTX 660 Hawk"
+      }
+    },
+    "2489": {
+      "3842": {
+        "4567": "EVGA RTX 3060 Ti FTW3 Ultra Gaming"
+      }
+    },
+    "1b81": {
+      "3842": {
+        "6276": "EVGA GTX 1070 FTW"
+      }
+    },
+    "1c03": {
+      "3842": {
+        "6163": "EVGA GTX 1060 Superclocked"
+      }
+    },
+    "2685": {
+      "19da": {
+        "3711": "Zotac RTX 4090 D PGF"
+      }
+    },
+    "2b02": {
+      "1569": {
+        "f322": "Palit RTX 5080 GamingPro OCB"
+      }
+    }
+  },
+  "8086": {
+    "e20b": {
+      "8086": {
+        "1100": "Intel Arc B580 Limited Edition"
+      },
+      "1849": {
+        "6020": "ASRock Arc B580 Steel Legend"
+      },
+      "172f": {
+        "4215": "Sparkle Arc B580 Titan OC"
+      }
+    },
+    "56a0": {
+      "8086": {
+        "1020": "Intel Arc A770 Limited Edition"
+      },
+      "172f": {
+        "3937": "Sparkle Arc A770 Titan OC"
+      }
+    },
+    "56a1": {
+      "8086": {
+        "1021": "Intel Arc A750 Limited Edition"
+      },
+      "172f": {
+        "3934": "Sparkle Arc A750 Titan OC"
+      }
+    },
+    "e20c": {
+      "1849": {
+        "6022": "ASRock Arc B570 Challenger OC"
+      },
+      "172f": {
+        "4216": "Sparkle Arc B570 Guardian OC"
+      }
+    },
+    "56a5": {
+      "1849": {
+        "6004": "ASRock Challenger ITX Arc A380"
+      },
+      "172f": {
+        "4017": "Sparkle Arc A380 Genie"
+      }
+    },
+    "56a2": {
+      "1849": {
+        "6003": "ASRock Challenger Arc A580"
+      },
+      "172f": {
+        "3964": "Sparkle Arc A580 ORC OC"
+      }
+    }
+  }
+}

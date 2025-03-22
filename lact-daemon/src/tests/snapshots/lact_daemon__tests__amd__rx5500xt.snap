@@ -95,6 +95,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "MSI RX 5500 XT Gaming X",
         "model_id": "3820",
         "vendor": "Micro-Star International Co., Ltd. [MSI]",
         "vendor_id": "1462"
@@ -120,6 +121,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "MSI RX 5500 XT Gaming X",
       "model_id": "3820",
       "vendor": "Micro-Star International Co., Ltd. [MSI]",
       "vendor_id": "1462"

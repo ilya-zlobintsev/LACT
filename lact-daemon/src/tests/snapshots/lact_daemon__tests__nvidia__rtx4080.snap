@@ -18,6 +18,7 @@ expression: device_info
         "vendor_id": "10DE"
       },
       "subsystem_pci_info": {
+        "model": "MSI RTX 4080 Suprim X",
         "model_id": "5110",
         "vendor": "Micro-Star International Co., Ltd. [MSI]",
         "vendor_id": "1462"
@@ -42,6 +43,7 @@ expression: device_info
       "vendor_id": "10DE"
     },
     "subsystem_pci_info": {
+      "model": "MSI RTX 4080 Suprim X",
       "model_id": "5110",
       "vendor": "Micro-Star International Co., Ltd. [MSI]",
       "vendor_id": "1462"

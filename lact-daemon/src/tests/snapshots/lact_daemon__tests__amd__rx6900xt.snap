@@ -57,6 +57,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "Sapphire Nitro+ OC RX 6900 XT",
         "model_id": "440E",
         "vendor": "Sapphire Technology Limited",
         "vendor_id": "1DA2"
@@ -82,6 +83,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "Sapphire Nitro+ OC RX 6900 XT",
       "model_id": "440E",
       "vendor": "Sapphire Technology Limited",
       "vendor_id": "1DA2"

@@ -18,6 +18,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "Sapphire HD 7870",
         "model_id": "E217",
         "vendor": "PC Partner Limited / Sapphire Technology",
         "vendor_id": "174B"
@@ -42,6 +43,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "Sapphire HD 7870",
       "model_id": "E217",
       "vendor": "PC Partner Limited / Sapphire Technology",
       "vendor_id": "174B"

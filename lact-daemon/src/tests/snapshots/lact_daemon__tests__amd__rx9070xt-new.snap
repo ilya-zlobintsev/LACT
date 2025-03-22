@@ -57,6 +57,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "PowerColor Hellhound/Reaper/Red Devil RX 9070 XT",
         "model_id": "2435",
         "vendor": "Tul Corporation / PowerColor",
         "vendor_id": "148C"
@@ -82,6 +83,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "PowerColor Hellhound/Reaper/Red Devil RX 9070 XT",
       "model_id": "2435",
       "vendor": "Tul Corporation / PowerColor",
       "vendor_id": "148C"

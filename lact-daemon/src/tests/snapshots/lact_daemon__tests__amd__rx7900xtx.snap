@@ -58,7 +58,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
-        "model": "NITRO+ RX 7900 XTX Vapor-X",
+        "model": "Sapphire Nitro+ RX 7900 XTX Vapor-X",
         "model_id": "E471",
         "vendor": "Sapphire Technology Limited",
         "vendor_id": "1DA2"
@@ -84,7 +84,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
-      "model": "NITRO+ RX 7900 XTX Vapor-X",
+      "model": "Sapphire Nitro+ RX 7900 XTX Vapor-X",
       "model_id": "E471",
       "vendor": "Sapphire Technology Limited",
       "vendor_id": "1DA2"

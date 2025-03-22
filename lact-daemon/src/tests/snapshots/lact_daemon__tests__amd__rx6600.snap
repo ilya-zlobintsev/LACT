@@ -55,6 +55,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "GIGABYTE RX 6600 Eagle",
         "model_id": "2334",
         "vendor": "Gigabyte Technology Co., Ltd",
         "vendor_id": "1458"
@@ -80,6 +81,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "GIGABYTE RX 6600 Eagle",
       "model_id": "2334",
       "vendor": "Gigabyte Technology Co., Ltd",
       "vendor_id": "1458"
