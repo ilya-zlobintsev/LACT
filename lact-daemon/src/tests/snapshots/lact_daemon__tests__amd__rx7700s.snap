@@ -313,6 +313,8 @@ expression: device_info
       "control_enabled": false,
       "pmfw_info": {},
       "pwm_current": 76,
+      "pwm_max": 255,
+      "pwm_min": 0,
       "speed_current": 0,
       "speed_max": 4900,
       "speed_min": 0

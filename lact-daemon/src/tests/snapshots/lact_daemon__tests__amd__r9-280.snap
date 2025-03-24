@@ -18,6 +18,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "GIGABYTE R9 280 WindForce 3X",
         "model_id": "229A",
         "vendor": "Gigabyte Technology Co., Ltd",
         "vendor_id": "1458"
@@ -43,6 +44,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "GIGABYTE R9 280 WindForce 3X",
       "model_id": "229A",
       "vendor": "Gigabyte Technology Co., Ltd",
       "vendor_id": "1458"
@@ -61,7 +63,9 @@ expression: device_info
     "fan": {
       "control_enabled": false,
       "pmfw_info": {},
-      "pwm_current": 139
+      "pwm_current": 139,
+      "pwm_max": 255,
+      "pwm_min": 0
     },
     "power": {},
     "temps": {

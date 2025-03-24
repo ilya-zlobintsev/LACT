@@ -14,15 +14,17 @@ use lact_client::schema::PowerState;
 
 glib::wrapper! {
     pub struct PowerStatesList(ObjectSubclass<imp::PowerStatesList>)
-        @extends gtk::Widget,
+        @extends gtk::Frame, gtk::Widget,
         @implements gtk::Accessible, gtk::Buildable;
 }
 
-impl PowerStatesList {
-    pub fn new(title: &str) -> Self {
-        Object::builder().property("title", title).build()
+impl Default for PowerStatesList {
+    fn default() -> Self {
+        Object::new()
     }
+}
 
+impl PowerStatesList {
     pub fn get_enabled_power_states(&self) -> Vec<u8> {
         self.rows()
             .iter()
@@ -91,25 +93,20 @@ impl PowerStatesList {
 
 mod imp {
     use gtk::{
-        glib::{self, subclass::InitializingObject, Properties},
-        prelude::ObjectExt,
-        subclass::{
-            prelude::*,
-            widget::{CompositeTemplateClass, WidgetImpl},
-        },
-        CompositeTemplate, ListBox,
+        glib::{self, Properties},
+        prelude::{FrameExt, ObjectExt, WidgetExt},
+        subclass::{prelude::*, widget::WidgetImpl},
+        ListBox,
     };
+    use relm4::view;
     use std::cell::RefCell;
 
-    #[derive(CompositeTemplate, Default, Properties)]
+    #[derive(Default, Properties)]
     #[properties(wrapper_type = super::PowerStatesList)]
-    #[template(file = "ui/oc_page/power_states_list.blp")]
     pub struct PowerStatesList {
         #[property(get, set)]
-        title: RefCell<String>,
-
-        #[template_child]
-        pub states_listbox: TemplateChild<ListBox>,
+        pub title: RefCell<String>,
+        pub states_listbox: ListBox,
     }
 
     #[glib::object_subclass]
@@ -117,18 +114,32 @@ mod imp {
         const NAME: &'static str = "PowerStatesList";
         type Type = super::PowerStatesList;
         type ParentType = gtk::Frame;
-
-        fn class_init(class: &mut Self::Class) {
-            class.bind_template();
-        }
-
-        fn instance_init(obj: &InitializingObject<Self>) {
-            obj.init_template();
-        }
     }
 
     #[glib::derived_properties]
-    impl ObjectImpl for PowerStatesList {}
+    impl ObjectImpl for PowerStatesList {
+        fn constructed(&self) {
+            self.parent_constructed();
+            let frame = &*self.obj();
+
+            view! {
+                #[local_ref]
+                frame {
+                    set_hexpand: true,
+
+                    #[wrap(Some)]
+                    set_label_widget: title_label = &gtk::Label {},
+
+                    set_child: Some(&self.states_listbox),
+                }
+            };
+
+            frame
+                .bind_property("title", &title_label, "label")
+                .sync_create()
+                .build();
+        }
+    }
 
     impl WidgetImpl for PowerStatesList {}
     impl FrameImpl for PowerStatesList {}

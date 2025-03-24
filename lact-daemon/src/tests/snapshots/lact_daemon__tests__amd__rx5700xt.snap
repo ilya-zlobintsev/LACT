@@ -56,8 +56,11 @@ expression: device_info
               "max": 2150,
               "min": 800
             },
+            "sclk_offset": null,
             "voltage_offset": null
           },
+          "rdna4_sclk_offset_workaround": false,
+          "sclk_offset": null,
           "vddc_curve": [
             {
               "clockspeed": 1351,
@@ -515,6 +518,8 @@ expression: device_info
       "control_enabled": false,
       "pmfw_info": {},
       "pwm_current": 65,
+      "pwm_max": 255,
+      "pwm_min": 0,
       "speed_current": 29,
       "speed_max": 3400,
       "speed_min": 0

@@ -14,14 +14,15 @@ use amdgpu_sysfs::{
         CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
     },
     hw_mon::{FanControlMethod, HwMon},
+    sysfs::SysFS,
 };
 use anyhow::{anyhow, Context};
-use futures::future::LocalBoxFuture;
+use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
     LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
-use libdrm_amdgpu_sys::AMDGPU::{ThrottleStatus, ThrottlerBit};
+use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottleStatus, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE};
 use std::{
     cell::RefCell,
@@ -95,13 +96,19 @@ impl AmdGpuController {
 
     async fn set_static_fan_control(
         &self,
-        static_speed: f64,
+        static_speed: f32,
     ) -> anyhow::Result<Option<CommitHandle>> {
         // Stop existing task to set static speed
         self.stop_fan_control(false).await?;
 
         // Use PMFW curve functionality for static speed when it is available
         if let Ok(current_curve) = self.handle.get_fan_curve() {
+            if let Ok(true) = self.handle.get_fan_zero_rpm_enable() {
+                if let Err(err) = self.handle.set_fan_zero_rpm_enable(false) {
+                    error!("could not disable zero RPM mode for static fan control: {err}");
+                }
+            }
+
             let allowed_ranges = current_curve.allowed_ranges.clone().ok_or_else(|| {
                 anyhow!("The GPU does not allow setting custom fan values (is overdrive enabled?)")
             })?;
@@ -109,7 +116,7 @@ impl AmdGpuController {
             let max_temperature = allowed_ranges.temperature_range.end();
 
             #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-            let custom_pwm = (f64::from(*allowed_ranges.speed_range.end()) * static_speed) as u8;
+            let custom_pwm = (f32::from(*allowed_ranges.speed_range.end()) * static_speed) as u8;
             let static_pwm = cmp::max(*allowed_ranges.speed_range.start(), custom_pwm);
 
             let mut points = vec![(*min_temperature, static_pwm)];
@@ -143,7 +150,7 @@ impl AmdGpuController {
                 .context("Could not set fan control method")?;
 
             #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-            let static_pwm = (f64::from(u8::MAX) * static_speed) as u8;
+            let static_pwm = (f32::from(u8::MAX) * static_speed) as u8;
 
             hw_mon
                 .set_fan_pwm(static_pwm)
@@ -266,7 +273,6 @@ impl AmdGpuController {
                     error!("could not get temperature sensor {temp_key} from {} sensors (assuming error is temporary, attempt {retries}/{FAN_CONTROL_RETRIES})", temps.len());
                     continue;
                 };
-                retries = 0;
 
                 let current_temp = temp.current.expect("Missing temp");
 
@@ -299,15 +305,40 @@ impl AmdGpuController {
                     Err(err) => {
                         error!("could not set fan speed: {err}");
                         if control_available {
-                            info!("fan control was previously available, assuming the error is temporary");
+                            retries += 1;
+
+                            if retries == FAN_CONTROL_RETRIES {
+                                error!("could not set fan speed after {retries} attempts, exiting fan control (reached max attempts)");
+                                break;
+                            }
+
+                            info!("fan control was previously available, assuming the error is temporary (attempt {retries}/{FAN_CONTROL_RETRIES})");
+
+                            if !matches!(
+                                hw_mon.get_fan_control_method(),
+                                Ok(FanControlMethod::Manual),
+                            ) {
+                                info!("fan control method was changed externally, setting back to manual");
+                                if let Err(err) =
+                                    hw_mon.set_fan_control_method(FanControlMethod::Manual)
+                                {
+                                    error!("could not set fan control back to manual: {err}");
+                                    break;
+                                }
+                            }
                         } else {
                             info!("disabling fan control");
                             break;
                         }
                     }
                 }
+                retries = 0;
             }
             debug!("exited fan control task");
+
+            if let Err(err) = hw_mon.set_fan_control_method(FanControlMethod::Auto) {
+                error!("could not reset fan control back to auto: {err}");
+            }
         });
 
         *notify_guard = Some((notify, handle));
@@ -455,8 +486,10 @@ impl AmdGpuController {
                 asic_name: Some(drm_info.get_asic_name().to_string()),
                 chip_class: Some(drm_info.get_chip_class().to_string()),
                 compute_units: Some(drm_info.cu_active_number),
+                streaming_multiprocessors: None,
                 cuda_cores: None,
                 vram_type: Some(drm_info.get_vram_type().to_string()),
+                vram_vendor: self.handle.get_vram_vendor().ok(),
                 vram_clock_ratio: match drm_info.get_vram_type() {
                     VRAM_TYPE::GDDR6 => 2.0,
                     _ => 1.0,
@@ -467,6 +500,7 @@ impl AmdGpuController {
                 l2_cache: Some(drm_info.calc_l2_cache_size()),
                 l3_cache_mb: Some(drm_info.calc_l3_cache_size_mb()),
                 memory_info: drm_memory_info,
+                rop_info: None,
                 intel: IntelDrmInfo::default(),
             }),
             None => None,
@@ -552,31 +586,52 @@ impl GpuController for AmdGpuController {
         &self.common
     }
 
-    fn get_info(&self) -> DeviceInfo {
-        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
-            Ok(info) => Some(info),
-            Err(err) => {
-                warn!("could not load vulkan info: {err}");
-                None
-            }
-        };
-        let pci_info = Some(self.common.pci_info.clone());
-        let driver = self.handle.get_driver().to_owned();
-        let vbios_version = self.get_full_vbios_version();
-        let link_info = self.get_link_info();
-        let drm_info = self.get_drm_info();
+    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
+        Box::pin(async move {
+            let vulkan_info = match get_vulkan_info(&self.common.pci_info).await {
+                Ok(info) => Some(info),
+                Err(err) => {
+                    warn!("could not load vulkan info: {err}");
+                    None
+                }
+            };
+            let pci_info = Some(self.common.pci_info.clone());
+            let driver = self.handle.get_driver().to_owned();
+            let vbios_version = self.get_full_vbios_version();
+            let link_info = self.get_link_info();
+            let drm_info = self.get_drm_info();
 
-        DeviceInfo {
-            pci_info,
-            vulkan_info,
-            driver,
-            vbios_version,
-            link_info,
-            drm_info,
-        }
+            DeviceInfo {
+                pci_info,
+                vulkan_info,
+                driver,
+                vbios_version,
+                link_info,
+                drm_info,
+            }
+        })
     }
 
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
+        let metrics = GpuMetrics::get_from_sysfs_path(self.handle.get_path()).ok();
+        let metrics = metrics.as_ref();
+
+        let pmfw_curve = self.handle.get_fan_curve().ok();
+        let pmfw_curve_range = pmfw_curve
+            .as_ref()
+            .and_then(|curve| curve.allowed_ranges.as_ref())
+            .map(|range| &range.speed_range);
+
+        let pwm_max = pmfw_curve_range
+            .map(|range| *range.end())
+            .map(|percent| (f64::from(percent) * 2.55) as u32)
+            .or_else(|| self.hw_mon_and_then(HwMon::get_fan_max_pwm).map(u32::from));
+        let pwm_min = pmfw_curve_range
+            .map(|range| *range.start())
+            .map(|percent| (f64::from(percent) * 2.55) as u32)
+            .or_else(|| self.hw_mon_and_then(HwMon::get_fan_min_pwm).map(u32::from));
+
         let fan_settings = gpu_config.and_then(|config| config.fan_control_settings.as_ref());
         DeviceStats {
             fan: FanStats {
@@ -586,10 +641,20 @@ impl GpuController for AmdGpuController {
                 curve: fan_settings.map(|settings| settings.curve.0.clone()),
                 spindown_delay_ms: fan_settings.and_then(|settings| settings.spindown_delay_ms),
                 change_threshold: fan_settings.and_then(|settings| settings.change_threshold),
-                speed_current: self.hw_mon_and_then(HwMon::get_fan_current),
+                speed_current: self.hw_mon_and_then(HwMon::get_fan_current).or_else(|| {
+                    metrics
+                        .and_then(MetricsInfo::get_current_fan_speed)
+                        .map(u32::from)
+                }),
                 speed_max: self.hw_mon_and_then(HwMon::get_fan_max),
                 speed_min: self.hw_mon_and_then(HwMon::get_fan_min),
-                pwm_current: self.hw_mon_and_then(HwMon::get_fan_pwm),
+                pwm_current: self.hw_mon_and_then(HwMon::get_fan_pwm).or_else(|| {
+                    metrics
+                        .and_then(MetricsInfo::get_fan_pwm)
+                        .and_then(|pwm| u8::try_from(pwm).ok())
+                }),
+                pwm_max,
+                pwm_min,
                 pmfw_info: PmfwInfo {
                     acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
                     acoustic_target: self.handle.get_fan_acoustic_target().ok(),
@@ -638,11 +703,32 @@ impl GpuController for AmdGpuController {
         }
     }
 
-    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
-        let clocks_table = self
+    fn get_clocks_info(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
+        let mut clocks_table = self
             .handle
             .get_clocks_table()
             .context("Clocks table not available")?;
+
+        if let ClocksTableGen::Vega20(table) = &mut clocks_table {
+            // Workaround for RDNA4 not reporting current SCLK offset in the original format:
+            // https://github.com/ilya-zlobintsev/LACT/issues/485#issuecomment-2712502906
+            if table.rdna4_sclk_offset_workaround {
+                // The values present in the old clocks table format for the current slck offset are rubbish,
+                // we should report the configured value instead
+                let offset = gpu_config
+                    .and_then(|config| {
+                        config
+                            .clocks_configuration
+                            .gpu_clock_offsets
+                            .get(&0)
+                            .copied()
+                    })
+                    .unwrap_or(0);
+
+                table.sclk_offset = Some(offset);
+            }
+        }
+
         Ok(clocks_table.into())
     }
 
@@ -807,7 +893,7 @@ impl GpuController for AmdGpuController {
                         commit_handles.push(handle);
                     }
                     Err(err) => {
-                        error!("custom clock settings are present but will be ignored, but could not get clocks table: {err}");
+                        error!("custom clock settings are present but will be ignored, could not get clocks table: {err}");
                     }
                 }
             }
@@ -940,30 +1026,36 @@ impl GpuController for AmdGpuController {
 
             // Unlike the other PMFW options, zero rpm should be functional with a custom curve
             if let Some(zero_rpm) = config.pmfw_options.zero_rpm {
-                let current_zero_rpm = self
-                    .handle
-                    .get_fan_zero_rpm_enable()
-                    .context("Could not get zero RPM mode")?;
-                if current_zero_rpm != zero_rpm {
-                    let commit_handle = self
-                        .handle
-                        .set_fan_zero_rpm_enable(zero_rpm)
-                        .context("Could not set zero RPM mode")?;
-                    commit_handles.push(commit_handle);
+                match self.handle.get_fan_zero_rpm_enable() {
+                    Ok(current_zero_rpm) => {
+                        if current_zero_rpm != zero_rpm {
+                            let commit_handle = self
+                                .handle
+                                .set_fan_zero_rpm_enable(zero_rpm)
+                                .context("Could not set zero RPM mode")?;
+                            commit_handles.push(commit_handle);
+                        }
+                    }
+                    Err(err) => {
+                        error!("zero RPM is present in the config, but not available on the GPU: {err}");
+                    }
                 }
             }
 
             if let Some(zero_rpm_threshold) = config.pmfw_options.zero_rpm_threshold {
-                let current_threshold = self
-                    .handle
-                    .get_fan_zero_rpm_stop_temperature()
-                    .context("Could not get zero RPM temperature")?;
-                if current_threshold.current != zero_rpm_threshold {
-                    let commit_handle = self
-                        .handle
-                        .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
-                        .context("Could not set zero RPM temperature")?;
-                    commit_handles.push(commit_handle);
+                match self.handle.get_fan_zero_rpm_stop_temperature() {
+                    Ok(current_threshold) => {
+                        if current_threshold.current != zero_rpm_threshold {
+                            let commit_handle = self
+                                .handle
+                                .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
+                                .context("Could not set zero RPM temperature")?;
+                            commit_handles.push(commit_handle);
+                        }
+                    }
+                    Err(err) => {
+                        error!("zero RPM threshold is present in the config, but not available on the GPU: {err}");
+                    }
                 }
             }
 
@@ -987,7 +1079,7 @@ impl GpuController for AmdGpuController {
         })
     }
 
-    fn cleanup_clocks(&self) -> anyhow::Result<()> {
+    fn reset_clocks(&self) -> anyhow::Result<()> {
         if self.handle.get_clocks_table().is_err() {
             return Ok(());
         }
@@ -995,6 +1087,18 @@ impl GpuController for AmdGpuController {
         self.handle.reset_clocks_table()?;
 
         Ok(())
+    }
+
+    fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
+        async {
+            if let Some((fan_notify, fan_handle)) = self.fan_control_handle.take() {
+                debug!("sending stop notification to old fan control task");
+                fan_notify.notify_one();
+                fan_handle.await.unwrap();
+                debug!("finished controller cleanup");
+            }
+        }
+        .boxed_local()
     }
 }
 
@@ -1031,6 +1135,10 @@ impl ClocksConfiguration {
             match self.voltage_offset {
                 Some(offset) => table.set_voltage_offset(offset)?,
                 None => table.voltage_offset = None,
+            }
+
+            if let Some(offset) = self.gpu_clock_offsets.get(&0) {
+                table.sclk_offset = Some(*offset);
             }
         }
 

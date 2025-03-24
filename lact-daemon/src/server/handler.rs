@@ -72,6 +72,8 @@ const SNAPSHOT_DEVICE_FILES: &[&str] = &[
     "current_link_speed",
     "current_link_width",
     "power_dpm_force_performance_level",
+    "mem_info_vram_vendor",
+    "gpu_metrics",
 ];
 /// Prefixes for entries that will be recursively included in the debug snapshot
 const SNAPSHOT_DEVICE_RECURSIVE_PATHS_PREFIXES: &[&str] = &["tile"];
@@ -105,7 +107,7 @@ impl<'a> Handler {
 
     pub(crate) async fn with_base_path(
         base_path: &Path,
-        config: Config,
+        mut config: Config,
         pci_db: &Database,
     ) -> anyhow::Result<Self> {
         let mut controllers = BTreeMap::new();
@@ -117,6 +119,7 @@ impl<'a> Handler {
             controllers = load_controllers(base_path, pci_db)?;
 
             let mut should_retry = false;
+            #[cfg(not(test))]
             if let Ok(devices) = fs::read_dir("/sys/bus/pci/devices") {
                 for device in devices.flatten() {
                     if let Ok(uevent) = fs::read_to_string(device.path().join("uevent")) {
@@ -154,6 +157,12 @@ impl<'a> Handler {
         }
         info!("initialized {} GPUs", controllers.len());
 
+        let original_config_version = config.version;
+        config.migrate_versions(&controllers);
+        if config.version != original_config_version {
+            config.save(&Cell::new(Instant::now()))?;
+        }
+
         let handler = Self {
             gpu_controllers: Rc::new(RwLock::new(controllers)),
             config: Rc::new(RwLock::new(config)),
@@ -187,32 +196,37 @@ impl<'a> Handler {
 
     pub async fn apply_current_config(&self) -> anyhow::Result<()> {
         let config = self.config.read().await;
-
-        let gpus = config.gpus()?;
         let controllers = self.gpu_controllers.read().await;
-        for (id, gpu_config) in gpus {
-            if let Some(controller) = controllers.get(id) {
-                if let Err(err) = controller.apply_config(gpu_config).await {
-                    error!("could not apply existing config for gpu {id}: {err:#}");
-                }
-            } else {
-                warn!("could not find GPU with id {id} defined in configuration");
-            }
-        }
-
-        Ok(())
+        apply_config_to_controllers(&controllers, &config).await
     }
 
     pub async fn reload_gpus(&self) {
+        let mut controllers_guard = self.gpu_controllers.write().await;
+        let config = self.config.read().await;
+
         let base_path = drm_base_path();
         let pci_db = read_pci_db();
         match load_controllers(&base_path, &pci_db) {
             Ok(new_controllers) => {
-                info!("GPU list reloaded with {} devices", new_controllers.len());
-                *self.gpu_controllers.write().await = new_controllers;
+                info!(
+                    "GPU list reloaded with {} devices, reapplying configuration",
+                    new_controllers.len()
+                );
 
-                if let Err(err) = self.apply_current_config().await {
-                    error!("could not reapply config: {err:#}");
+                for old_controller in controllers_guard.values() {
+                    old_controller.cleanup().await;
+                    let _ = old_controller.reset_clocks();
+                }
+
+                *controllers_guard = new_controllers;
+
+                match apply_config_to_controllers(&controllers_guard, &config).await {
+                    Ok(()) => {
+                        info!("configuration applied");
+                    }
+                    Err(err) => {
+                        error!("could not reapply config: {err:#}");
+                    }
                 }
             }
             Err(err) => {
@@ -377,7 +391,7 @@ impl<'a> Handler {
     }
 
     pub async fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo> {
-        Ok(self.controller_by_id(id).await?.get_info())
+        Ok(self.controller_by_id(id).await?.get_info().await)
     }
 
     pub async fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
@@ -387,7 +401,9 @@ impl<'a> Handler {
     }
 
     pub async fn get_clocks_info(&'a self, id: &str) -> anyhow::Result<ClocksInfo> {
-        self.controller_by_id(id).await?.get_clocks_info()
+        let config = self.config.read().await;
+        let gpu_config = config.gpus()?.get(id);
+        self.controller_by_id(id).await?.get_clocks_info(gpu_config)
     }
 
     pub async fn set_fan_control(&'a self, opts: FanOptions<'_>) -> anyhow::Result<u64> {
@@ -520,7 +536,7 @@ impl<'a> Handler {
         command: SetClocksCommand,
     ) -> anyhow::Result<u64> {
         if let ClockspeedType::Reset = command.r#type {
-            self.controller_by_id(id).await?.cleanup_clocks()?;
+            self.controller_by_id(id).await?.reset_clocks()?;
         }
 
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
@@ -731,9 +747,9 @@ impl<'a> Handler {
 
             let data = json!({
                 "pci_info": controller.controller_info().pci_info.clone(),
-                "info": controller.get_info(),
+                "info": controller.get_info().await,
                 "stats": controller.get_stats(gpu_config),
-                "clocks_info": controller.get_clocks_info().ok(),
+                "clocks_info": controller.get_clocks_info(gpu_config).ok(),
                 "power_profile_modes": controller.get_power_profile_modes().ok(),
                 "power_states": controller.get_power_states(gpu_config),
             });
@@ -930,7 +946,7 @@ impl<'a> Handler {
         for (id, controller) in controllers.iter() {
             if !disable_clocks_cleanup {
                 debug!("resetting clocks table");
-                if let Err(err) = controller.cleanup_clocks() {
+                if let Err(err) = controller.reset_clocks() {
                     error!("could not reset the clocks table: {err}");
                 }
             }
@@ -940,8 +956,29 @@ impl<'a> Handler {
             if let Err(err) = controller.apply_config(&config::Gpu::default()).await {
                 error!("Could not reset settings for controller {id}: {err:#}");
             }
+
+            controller.cleanup().await;
         }
     }
+}
+
+async fn apply_config_to_controllers(
+    controllers: &BTreeMap<String, Box<dyn GpuController>>,
+    config: &Config,
+) -> anyhow::Result<()> {
+    let gpus = config.gpus()?;
+    for (id, gpu_config) in gpus {
+        if let Some(controller) = controllers.get(id) {
+            debug!("applying config {gpu_config:#?} to controller {id}");
+            if let Err(err) = controller.apply_config(gpu_config).await {
+                error!("could not apply existing config for gpu {id}: {err:#}");
+            }
+        } else {
+            warn!("could not find GPU with id {id} defined in configuration");
+        }
+    }
+
+    Ok(())
 }
 
 fn read_pci_db() -> Database {

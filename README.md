@@ -20,6 +20,14 @@ Current features:
 
 All of the functionality works regardless of the desktop session (there is no dependency on X11 extensions).
 
+# Quick links
+- [Installation](#installation)
+- [Hardware support](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Support)
+- [Enable overclocking on AMD](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD))
+- [Config file reference](./docs/CONFIG.md)
+- [API](./docs/API.md)
+- [Power profiles daemon conflict](#power-profiles-daemon-note)
+
 # Installation
 
 - Arch Linux: Install the package from official repositories: `pacman -S lact` (or `lact-git` from AUR for development builds).
@@ -55,7 +63,7 @@ You can now use the GUI to change settings and view information.
 
 # Hardware support
 
-See [HARDWARE.md](./docs/HARDWARE.md)
+See the [Wiki page](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Support)
 
 # Configuration
 
@@ -75,12 +83,7 @@ To fix socket permissions in such configurations, edit `/etc/lact/config.yaml` a
 
 # Overclocking (AMD)
 
-The overclocking functionality is disabled by default in the driver. There are two ways to enable it:
-- By using the "enable overclocking" option in the LACT GUI. This will create a file in `/etc/modprobe.d` that enables the required driver options. This is the easiest way and it should work for most people running standard distributions.
-
-  **Note:** This will attempt to automatically regenerate the initramfs to include the new settings. It does not cover all possible distro combinations. If you've enabled overclocking in LACT but it still doesn't work after a reboot,
-  you might need to check your distro's configuration to make sure the initramfs was updated. Updating the kernel version is a guaranteed way to trigger an initramfs update.
-- Specifying a boot parameter. This might be needed if your distro is not supported by the auto-enable functionality. You can manually specify the `amdgpu.ppfeaturemask=0xffffffff` kernel parameter in your bootloader to enable overclocking. See the [ArchWiki](https://wiki.archlinux.org/title/AMDGPU#Boot_parameter) for more details.
+Some functionality requires enabling an option in the amdgpu driver, see the [wiki page](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)) for more information.
 
 ## Power profiles daemon note!
 
@@ -92,6 +95,8 @@ To avoid this, create a file at `/etc/systemd/system/power-profiles-daemon.servi
 ExecStart=
 ExecStart=/usr/libexec/power-profiles-daemon --block-action=amdgpu_dpm
 ```
+Note: the `/usr/libexec` path might be different on your system, check it in `systemctl status power-profiles-daemon`
+
 See https://github.com/ilya-zlobintsev/LACT/issues/370 for more information.
 
 # Suspend/Resume
@@ -109,11 +114,11 @@ Dependencies:
 - make
 - hwdata
 - libdrm
-- blueprint-compiler 0.10.0+ (Ubuntu 22.04 in particular ships an older version in the repos, you can manually download a [deb file](http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.14.0-1_all.deb) of a new version)
+- vulkan-tools
 
 Command to install all dependencies:
-- Fedora: `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel blueprint-compiler`
-- Arch: `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata blueprint-compiler`
+- Fedora: `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel vulkan-tools`
+- Arch: `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata vulkan-tools`
 
 Steps:
 - `git clone https://github.com/ilya-zlobintsev/LACT && cd LACT`
@@ -132,10 +137,6 @@ Build GUI with libadwaita support:
 ```
 make build-release-libadwaita
 ```
-
-# API
-
-There is an API available over a unix or TCP socket. See [here](docs/API.md) for more information.
 
 # Remote management
 
@@ -172,7 +173,7 @@ There is also a cli available.
     Example output:
 
     ```
-    1002:687F-1043:0555-0000:0b:00.0 (Vega 10 XL/XT [Radeon RX Vega 56/64])
+    10DE:2704-1462:5110-0000:09:00.0 (AD103 [GeForce RTX 4080])
     ```
 - Getting GPU information:
 
@@ -181,12 +182,25 @@ There is also a cli available.
     Example output:
 
     ```
-    lact cli info
-    GPU Vendor: Advanced Micro Devices, Inc. [AMD/ATI]
-    GPU Model: Vega 10 XL/XT [Radeon RX Vega 56/64]
-    Driver in use: amdgpu
-    VBIOS version: 115-D050PIL-100
-    Link: LinkInfo { current_width: Some("16"), current_speed: Some("8.0 GT/s PCIe"), max_width: Some("16"), max_speed: Some("8.0 GT/s PCIe") }
+    $ lact cli info
+    GPU 10DE:2704-1462:5110-0000:09:00.0:
+    =====================================
+    GPU Model: NVIDIA GeForce RTX 4080 (0x10DE:0x2704)
+    Card Manufacturer: Micro-Star International Co., Ltd. [MSI] (0x1462)
+    Card Model: Unknown (0x5110)
+    Driver Used: nvidia 570.124.04
+    VBIOS Version: 95.03.1E.00.60
+    VRAM Size: 16376 MiB
+    GPU Family: Ada
+    Cuda Cores: 9728
+    SM Count: 76
+    ROP Count: 112 (14 * 8)
+    VRAM Type: GDDR6x
+    VRAM Manufacturer: Micron
+    L2 Cache: 65536 KiB
+    Resizeable bar: Enabled
+    CPU Accessible VRAM: 16384
+    Link Speed: 8 GT/s PCIe gen 3 x8
     ```
     
 The functionality of the CLI is quite limited. If you want to integrate LACT with some application/script, you should use the [API](API.md) instead.

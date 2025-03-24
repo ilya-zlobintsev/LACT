@@ -3,7 +3,7 @@ metadata:
   description: AMDGPU control utility
   arch: x86_64
   license: MIT
-  version: 0.7.2
+  version: 0.7.3
   maintainer: ilya-zlobintsev
   url: https://github.com/ilya-zlobintsev/lact
   source:
@@ -11,15 +11,15 @@ metadata:
   provides: [ lact ]
   conflicts: [ lact, lact-libadwaita ]
   depends:
-    all: [ hwdata ]
+    all: [ hwdata, vulkan-tools ]
     debian-12+ubuntu-2204+ubuntu-2404: [ libdrm-amdgpu1, libdrm2 ]
-    fedora-39+fedora-40+fedora-41+rhel-8+rhel-9: [ libdrm ]
+    fedora-40+fedora-41+rhel-8+rhel-9: [ libdrm ]
     arch: [ libdrm ]
     opensuse-tumbleweed: [ libdrm ]
   build_depends:
-    all: [ curl, make, clang, git ]
+    all: [ curl, make, clang, git, vulkan-tools ]
     debian-12+ubuntu-2204+ubuntu-2404: [ pkg-config, build-essential, libdrm-dev, dbus ]
-    fedora-39+fedora-40+fedora-41+rhel-8+rhel-9: [ gcc, libdrm-devel, dbus ]
+    fedora-40+fedora-41+rhel-8+rhel-9: [ gcc, libdrm-devel, dbus ]
     arch: [ libdrm, dbus ]
     opensuse-tumbleweed: [ libdrm-devel ]
   all_images: true

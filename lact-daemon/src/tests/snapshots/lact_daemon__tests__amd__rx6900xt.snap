@@ -29,8 +29,11 @@ expression: device_info
               "max": 3000,
               "min": 500
             },
+            "sclk_offset": null,
             "voltage_offset": null
           },
+          "rdna4_sclk_offset_workaround": false,
+          "sclk_offset": null,
           "vddc_curve": [],
           "voltage_offset": -10
         },
@@ -54,6 +57,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "Sapphire Nitro+ OC RX 6900 XT",
         "model_id": "440E",
         "vendor": "Sapphire Technology Limited",
         "vendor_id": "1DA2"
@@ -79,6 +83,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "Sapphire Nitro+ OC RX 6900 XT",
       "model_id": "440E",
       "vendor": "Sapphire Technology Limited",
       "vendor_id": "1DA2"
@@ -476,6 +481,8 @@ expression: device_info
       "control_enabled": false,
       "pmfw_info": {},
       "pwm_current": 0,
+      "pwm_max": 255,
+      "pwm_min": 0,
       "speed_current": 0,
       "speed_max": 3400,
       "speed_min": 0

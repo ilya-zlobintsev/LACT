@@ -18,6 +18,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "Sapphire HD 7870",
         "model_id": "E217",
         "vendor": "PC Partner Limited / Sapphire Technology",
         "vendor_id": "174B"
@@ -42,6 +43,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "Sapphire HD 7870",
       "model_id": "E217",
       "vendor": "PC Partner Limited / Sapphire Technology",
       "vendor_id": "174B"
@@ -59,7 +61,9 @@ expression: device_info
     "fan": {
       "control_enabled": false,
       "pmfw_info": {},
-      "pwm_current": 51
+      "pwm_current": 51,
+      "pwm_max": 255,
+      "pwm_min": 0
     },
     "power": {},
     "temps": {

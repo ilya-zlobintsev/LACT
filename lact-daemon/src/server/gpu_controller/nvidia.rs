@@ -1,3 +1,5 @@
+mod driver;
+
 use crate::{
     config::{self, FanControlSettings},
     server::vulkan::get_vulkan_info,
@@ -5,8 +7,9 @@ use crate::{
 
 use super::{fan_control::FanCurve, CommonControllerInfo, FanControlHandle, GpuController};
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
-use anyhow::{anyhow, Context};
-use futures::future::LocalBoxFuture;
+use anyhow::{anyhow, bail, Context};
+use driver::DriverHandle;
+use futures::{future::LocalBoxFuture, FutureExt};
 use indexmap::IndexMap;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo,
@@ -16,10 +19,12 @@ use lact_schema::{
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
+    enums::device::GpuLockedClocksSetting,
     Device, Nvml,
 };
 use std::{
     cell::RefCell,
+    cmp,
     collections::HashMap,
     fmt::Write,
     rc::Rc,
@@ -33,24 +38,46 @@ pub struct NvidiaGpuController {
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
 
+    driver_handle: Option<DriverHandle>,
+
     // Store last applied offsets as a workaround when the driver doesn't tell us the current offset
     last_applied_offsets: RefCell<HashMap<Clock, HashMap<PerformanceState, i32>>>,
+    last_applied_gpu_locked_clocks: RefCell<Option<(u32, u32)>>,
+    last_applied_vram_locked_clocks: RefCell<Option<(u32, u32)>>,
 }
 
 impl NvidiaGpuController {
     pub fn new(common: CommonControllerInfo, nvml: Rc<Nvml>) -> anyhow::Result<Self> {
-        nvml.device_by_pci_bus_id(common.pci_slot_name.as_str())
+        let device = nvml
+            .device_by_pci_bus_id(common.pci_slot_name.as_str())
             .with_context(|| {
                 format!(
                     "Could not get PCI device '{}' from NVML",
                     common.pci_slot_name
                 )
             })?;
+
+        let minor_number = device.minor_number()?;
+
+        let driver_handle = match DriverHandle::open(minor_number) {
+            Ok(handle) => {
+                debug!("opened Nvidia driver handle");
+                Some(handle)
+            }
+            Err(err) => {
+                error!("could not get Nvidia driver handle: {err:#}");
+                None
+            }
+        };
+
         Ok(Self {
             nvml,
             common,
+            driver_handle,
             fan_control_handle: RefCell::new(None),
             last_applied_offsets: RefCell::new(HashMap::new()),
+            last_applied_gpu_locked_clocks: RefCell::new(None),
+            last_applied_vram_locked_clocks: RefCell::new(None),
         })
     }
 
@@ -249,83 +276,96 @@ impl GpuController for NvidiaGpuController {
         &self.common
     }
 
-    fn get_info(&self) -> DeviceInfo {
-        let vulkan_info = match get_vulkan_info(&self.common.pci_info) {
-            Ok(info) => Some(info),
-            Err(err) => {
-                warn!("could not load vulkan info: {err}");
-                None
+    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
+        Box::pin(async move {
+            let vulkan_info = match get_vulkan_info(&self.common.pci_info).await {
+                Ok(info) => Some(info),
+                Err(err) => {
+                    warn!("could not load vulkan info: {err}");
+                    None
+                }
+            };
+
+            let device = self.device();
+            let driver_handle = self.driver_handle.as_ref();
+
+            DeviceInfo {
+                pci_info: Some(self.common.pci_info.clone()),
+                vulkan_info,
+                driver: format!(
+                    "nvidia {}",
+                    self.nvml.sys_driver_version().unwrap_or_default()
+                ), // NVML should always be "nvidia"
+                vbios_version: device
+                    .vbios_version()
+                    .map_err(|err| error!("could not get VBIOS version: {err}"))
+                    .ok(),
+                link_info: LinkInfo {
+                    current_width: device.current_pcie_link_width().map(|v| v.to_string()).ok(),
+                    current_speed: device
+                        .pcie_link_speed()
+                        .map(|v| {
+                            let mut output = format!("{} GT/s", v / 1000);
+                            if let Ok(gen) = device.current_pcie_link_gen() {
+                                let _ = write!(output, " PCIe gen {gen}");
+                            }
+                            output
+                        })
+                        .ok(),
+                    max_width: device.max_pcie_link_width().map(|v| v.to_string()).ok(),
+                    max_speed: device
+                        .max_pcie_link_speed()
+                        .ok()
+                        .and_then(|v| v.as_integer())
+                        .map(|v| {
+                            let mut output = format!("{} GT/s", v / 1000);
+                            if let Ok(gen) = device.current_pcie_link_gen() {
+                                let _ = write!(output, " PCIe gen {gen}");
+                            }
+                            output
+                        }),
+                },
+                drm_info: Some(DrmInfo {
+                    device_name: device.name().ok(),
+                    pci_revision_id: None,
+                    family_name: device.architecture().map(|arch| arch.to_string()).ok(),
+                    family_id: None,
+                    asic_name: None,
+                    chip_class: device.architecture().map(|arch| arch.to_string()).ok(),
+                    compute_units: None,
+                    streaming_multiprocessors: driver_handle
+                        .and_then(|handle| handle.get_sm_count().ok()),
+                    cuda_cores: device.num_cores().ok(),
+                    vram_type: driver_handle
+                        .and_then(|handle| handle.get_ram_type().ok())
+                        .map(str::to_owned),
+                    vram_clock_ratio: 1.0,
+                    vram_vendor: driver_handle
+                        .and_then(|handle| handle.get_ram_vendor().ok())
+                        .map(str::to_owned),
+                    vram_bit_width: device.current_pcie_link_width().ok(),
+                    vram_max_bw: None,
+                    l1_cache_per_cu: None,
+                    l2_cache: driver_handle.and_then(|handle| handle.get_l2_cache_size().ok()),
+                    l3_cache_mb: None,
+                    rop_info: driver_handle
+                        .as_ref()
+                        .and_then(|handle| handle.get_rop_info().ok()),
+                    memory_info: device
+                        .bar1_memory_info()
+                        .map(|bar_info| DrmMemoryInfo {
+                            cpu_accessible_used: bar_info.used,
+                            cpu_accessible_total: bar_info.total,
+                            resizeable_bar: device
+                                .memory_info()
+                                .ok()
+                                .map(|memory_info| bar_info.total >= memory_info.total),
+                        })
+                        .ok(),
+                    intel: IntelDrmInfo::default(),
+                }),
             }
-        };
-
-        let device = self.device();
-
-        DeviceInfo {
-            pci_info: Some(self.common.pci_info.clone()),
-            vulkan_info,
-            driver: format!(
-                "nvidia {}",
-                self.nvml.sys_driver_version().unwrap_or_default()
-            ), // NVML should always be "nvidia"
-            vbios_version: device
-                .vbios_version()
-                .map_err(|err| error!("could not get VBIOS version: {err}"))
-                .ok(),
-            link_info: LinkInfo {
-                current_width: device.current_pcie_link_width().map(|v| v.to_string()).ok(),
-                current_speed: device
-                    .pcie_link_speed()
-                    .map(|v| {
-                        let mut output = format!("{} GT/s", v / 1000);
-                        if let Ok(gen) = device.current_pcie_link_gen() {
-                            let _ = write!(output, " PCIe gen {gen}");
-                        }
-                        output
-                    })
-                    .ok(),
-                max_width: device.max_pcie_link_width().map(|v| v.to_string()).ok(),
-                max_speed: device
-                    .max_pcie_link_speed()
-                    .ok()
-                    .and_then(|v| v.as_integer())
-                    .map(|v| {
-                        let mut output = format!("{} GT/s", v / 1000);
-                        if let Ok(gen) = device.current_pcie_link_gen() {
-                            let _ = write!(output, " PCIe gen {gen}");
-                        }
-                        output
-                    }),
-            },
-            drm_info: Some(DrmInfo {
-                device_name: device.name().ok(),
-                pci_revision_id: None,
-                family_name: device.architecture().map(|arch| arch.to_string()).ok(),
-                family_id: None,
-                asic_name: None,
-                chip_class: device.architecture().map(|arch| arch.to_string()).ok(),
-                compute_units: None,
-                cuda_cores: device.num_cores().ok(),
-                vram_type: None,
-                vram_clock_ratio: 1.0,
-                vram_bit_width: device.current_pcie_link_width().ok(),
-                vram_max_bw: None,
-                l1_cache_per_cu: None,
-                l2_cache: None,
-                l3_cache_mb: None,
-                memory_info: device
-                    .bar1_memory_info()
-                    .map(|bar_info| DrmMemoryInfo {
-                        cpu_accessible_used: bar_info.used,
-                        cpu_accessible_total: bar_info.total,
-                        resizeable_bar: device
-                            .memory_info()
-                            .ok()
-                            .map(|memory_info| bar_info.total >= memory_info.total),
-                    })
-                    .ok(),
-                intel: IntelDrmInfo::default(),
-            }),
-        }
+        })
     }
 
     #[allow(
@@ -334,7 +374,7 @@ impl GpuController for NvidiaGpuController {
         clippy::cast_sign_loss
     )]
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
-        let device = self.device();
+        let mut device = self.device();
 
         let mut temps = HashMap::new();
 
@@ -378,6 +418,8 @@ impl GpuController for NvidiaGpuController {
             .map(|pstate| pstate.as_c() as usize)
             .ok();
 
+        let fan_range = device.min_max_fan_speed().ok();
+
         DeviceStats {
             temps,
             fan: FanStats {
@@ -388,9 +430,11 @@ impl GpuController for NvidiaGpuController {
                 spindown_delay_ms: fan_settings.and_then(|settings| settings.spindown_delay_ms),
                 change_threshold: fan_settings.and_then(|settings| settings.change_threshold),
                 speed_current: None,
-                speed_max: None,
-                speed_min: None,
+                speed_max: fan_range.map(|range| range.1),
+                speed_min: fan_range.map(|range| range.0),
                 pwm_current,
+                pwm_max: fan_range.map(|(_, max)| (f64::from(max) * 2.55).round() as u32),
+                pwm_min: fan_range.map(|(min, _)| (f64::from(min) * 2.55).round() as u32),
                 pmfw_info: PmfwInfo::default(),
             },
             power: PowerStats {
@@ -443,22 +487,24 @@ impl GpuController for NvidiaGpuController {
     }
 
     #[allow(clippy::cast_possible_wrap)]
-    fn get_clocks_info(&self) -> anyhow::Result<ClocksInfo> {
+    fn get_clocks_info(&self, _gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
         let device = self.device();
 
         let mut gpu_offsets = IndexMap::new();
         let mut mem_offsets = IndexMap::new();
+        let mut gpu_clock_range = None;
+        let mut vram_clock_range = None;
 
         let supported_pstates = device.supported_performance_states()?;
 
-        let clock_types = [
-            (Clock::Graphics, &mut gpu_offsets),
-            (Clock::Memory, &mut mem_offsets),
+        let mut clock_types = [
+            (Clock::Graphics, &mut gpu_offsets, &mut gpu_clock_range),
+            (Clock::Memory, &mut mem_offsets, &mut vram_clock_range),
         ];
 
-        for (clock_type, offsets) in clock_types {
-            for pstate in supported_pstates.iter().rev() {
-                if let Ok(offset) = device.clock_offset(clock_type, *pstate) {
+        for pstate in supported_pstates.iter().rev() {
+            for (clock_type, offsets, clock_range) in &mut clock_types {
+                if let Ok(offset) = device.clock_offset(*clock_type, *pstate) {
                     let mut offset = NvidiaClockOffset {
                         current: offset.clock_offset_mhz,
                         min: offset.min_clock_offset_mhz,
@@ -469,7 +515,7 @@ impl GpuController for NvidiaGpuController {
                     // In these scenarios we must store them manually for reporting.
                     if offset.current == 0 {
                         if let Some(applied_offsets) =
-                            self.last_applied_offsets.borrow().get(&clock_type)
+                            self.last_applied_offsets.borrow().get(clock_type)
                         {
                             if let Some(applied_offset) = applied_offsets.get(pstate) {
                                 offset.current = *applied_offset;
@@ -479,12 +525,31 @@ impl GpuController for NvidiaGpuController {
 
                     offsets.insert(pstate.as_c(), offset);
                 }
+
+                // Find min and max clockspeeds from any pstate
+                if let Ok((pstate_min, pstate_max)) =
+                    device.min_max_clock_of_pstate(*clock_type, *pstate)
+                {
+                    match clock_range {
+                        Some((current_min, current_max)) => {
+                            *current_min = cmp::min(*current_min, pstate_min);
+                            *current_max = cmp::max(*current_max, pstate_max);
+                        }
+                        None => {
+                            **clock_range = Some((pstate_min, pstate_max));
+                        }
+                    }
+                }
             }
         }
 
         let table = NvidiaClocksTable {
             gpu_offsets,
             mem_offsets,
+            gpu_locked_clocks: *self.last_applied_gpu_locked_clocks.borrow(),
+            vram_locked_clocks: *self.last_applied_vram_locked_clocks.borrow(),
+            gpu_clock_range,
+            vram_clock_range,
         };
 
         Ok(ClocksInfo {
@@ -510,7 +575,7 @@ impl GpuController for NvidiaGpuController {
         Err(anyhow!("Not supported on Nvidia"))
     }
 
-    #[allow(clippy::cast_possible_wrap)]
+    #[allow(clippy::cast_possible_wrap, clippy::cast_sign_loss)]
     fn apply_config<'a>(
         &'a self,
         config: &'a config::Gpu,
@@ -546,9 +611,40 @@ impl GpuController for NvidiaGpuController {
                 }
             }
 
-            self.cleanup_clocks()?;
+            self.reset_clocks()?;
 
-            for (pstate, offset) in &config.clocks_configuration.gpu_clock_offsets {
+            let clocks = &config.clocks_configuration;
+
+            match (clocks.min_core_clock, clocks.max_core_clock) {
+                (Some(min), Some(max)) => {
+                    debug!("applying GPU locked clocks: {min}..{max}");
+                    device
+                        .set_gpu_locked_clocks(GpuLockedClocksSetting::Numeric {
+                            min_clock_mhz: min as u32,
+                            max_clock_mhz: max as u32,
+                        })
+                        .context("Could not apply GPU locked clocks")?;
+                    self.last_applied_gpu_locked_clocks
+                        .replace(Some((min as u32, max as u32)));
+                }
+                (None, None) => (),
+                _ => bail!("Min and max GPU clock must be set together"),
+            }
+
+            match (clocks.min_memory_clock, clocks.max_memory_clock) {
+                (Some(min), Some(max)) => {
+                    debug!("applying VRAM locked clocks: {min}..{max}");
+                    device
+                        .set_mem_locked_clocks(min as u32, max as u32)
+                        .context("Could not apply VRAM locked clocks")?;
+                    self.last_applied_vram_locked_clocks
+                        .replace(Some((min as u32, max as u32)));
+                }
+                (None, None) => (),
+                _ => bail!("Min and max VRAM clock must be set together"),
+            }
+
+            for (pstate, offset) in &clocks.gpu_clock_offsets {
                 let pstate = PerformanceState::try_from(*pstate)
                     .map_err(|_| anyhow!("Invalid pstate '{pstate}'"))?;
                 debug!("applying offset {offset} for GPU pstate {pstate:?}");
@@ -565,7 +661,7 @@ impl GpuController for NvidiaGpuController {
                     .insert(pstate, *offset);
             }
 
-            for (pstate, offset) in &config.clocks_configuration.mem_clock_offsets {
+            for (pstate, offset) in &clocks.mem_clock_offsets {
                 let pstate = PerformanceState::try_from(*pstate)
                     .map_err(|_| anyhow!("Invalid pstate '{pstate}'"))?;
                 debug!("applying offset {offset} for VRAM pstate {pstate:?}");
@@ -603,7 +699,19 @@ impl GpuController for NvidiaGpuController {
                                 .context("Could not reset fan speed to default")?;
                         }
                     }
+
                     FanControlMode::Curve => {
+                        let (min_speed, max_speed) = device
+                            .min_max_fan_speed()
+                            .context("Could not get fan speed range")?;
+
+                        for point in settings.curve.0.values() {
+                            #[allow(clippy::cast_possible_truncation)]
+                            if !(min_speed..=max_speed).contains(&((*point * 100.0) as u32)) {
+                                bail!("Fan speed {}% outside of the allowed range {min_speed}% to {max_speed}%", point*100.0);
+                            }
+                        }
+
                         self.start_curve_fan_control_task(settings.curve.clone(), settings.clone())
                             .await?;
                     }
@@ -618,8 +726,8 @@ impl GpuController for NvidiaGpuController {
         })
     }
 
-    fn cleanup_clocks(&self) -> anyhow::Result<()> {
-        let device = self.device();
+    fn reset_clocks(&self) -> anyhow::Result<()> {
+        let mut device = self.device();
 
         if let Ok(supported_pstates) = device.supported_performance_states() {
             for pstate in supported_pstates {
@@ -651,6 +759,32 @@ impl GpuController for NvidiaGpuController {
             }
         }
 
+        if self.last_applied_gpu_locked_clocks.borrow().is_some() {
+            device
+                .reset_gpu_locked_clocks()
+                .context("Could not reset locked GPU clocks")?;
+            self.last_applied_gpu_locked_clocks.take();
+        }
+
+        if self.last_applied_vram_locked_clocks.borrow().is_some() {
+            device
+                .reset_mem_locked_clocks()
+                .context("Could not reset locked GPU clocks")?;
+            self.last_applied_vram_locked_clocks.take();
+        }
+
         Ok(())
+    }
+
+    fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
+        async {
+            if let Some((fan_notify, fan_handle)) = self.fan_control_handle.take() {
+                debug!("sending stop notification to old fan control task");
+                fan_notify.notify_one();
+                fan_handle.await.unwrap();
+                debug!("finished controller cleanup");
+            }
+        }
+        .boxed_local()
     }
 }

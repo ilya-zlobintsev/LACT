@@ -22,9 +22,8 @@ use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
-    borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
-    fmt,
+    fmt::{self, Write},
     str::FromStr,
     sync::Arc,
 };
@@ -54,7 +53,7 @@ impl FromStr for FanControlMode {
 pub type FanCurveMap = BTreeMap<i32, f32>;
 
 pub fn default_fan_curve() -> FanCurveMap {
-    [(40, 0.2), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into()
+    [(40, 0.3), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into()
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -110,6 +109,159 @@ impl DeviceInfo {
             .map(|info| info.vram_clock_ratio)
             .unwrap_or(1.0)
     }
+
+    pub fn info_elements(&self, stats: Option<&DeviceStats>) -> Vec<(&str, Option<String>)> {
+        let pci_info = self.pci_info.as_ref();
+
+        let mut gpu_model = self
+            .drm_info
+            .as_ref()
+            .and_then(|drm| drm.device_name.as_deref())
+            .or_else(|| pci_info.and_then(|pci_info| pci_info.device_pci_info.model.as_deref()))
+            .unwrap_or("Unknown")
+            .to_owned();
+
+        let mut card_manufacturer = pci_info
+            .and_then(|info| info.subsystem_pci_info.vendor.as_deref())
+            .unwrap_or("Unknown")
+            .to_owned();
+
+        let mut card_model = pci_info
+            .and_then(|info| info.subsystem_pci_info.model.as_deref())
+            .unwrap_or("Unknown")
+            .to_owned();
+
+        if let Some(pci_info) = &self.pci_info {
+            match self.drm_info {
+                Some(DrmInfo {
+                    pci_revision_id: Some(pci_rev),
+                    ..
+                }) => {
+                    let _ = write!(
+                        gpu_model,
+                        " (0x{}:0x{}:0x{pci_rev:X})",
+                        pci_info.device_pci_info.vendor_id, pci_info.device_pci_info.model_id,
+                    );
+                }
+                _ => {
+                    let _ = write!(
+                        gpu_model,
+                        " (0x{}:0x{})",
+                        pci_info.device_pci_info.vendor_id, pci_info.device_pci_info.model_id
+                    );
+                }
+            }
+
+            let _ = write!(
+                card_manufacturer,
+                " (0x{})",
+                pci_info.subsystem_pci_info.vendor_id
+            );
+
+            let _ = write!(card_model, " (0x{})", pci_info.subsystem_pci_info.model_id);
+        };
+
+        let mut elements = vec![
+            ("GPU Model", Some(gpu_model)),
+            ("Card Manufacturer", Some(card_manufacturer)),
+            ("Card Model", Some(card_model)),
+            ("Driver Used", Some(self.driver.clone())),
+            ("VBIOS Version", self.vbios_version.clone()),
+        ];
+
+        if let Some(stats) = stats {
+            elements.push((
+                "VRAM Size",
+                stats
+                    .vram
+                    .total
+                    .map(|size| format!("{} MiB", size / 1024 / 1024)),
+            ));
+        }
+
+        if let Some(drm_info) = &self.drm_info {
+            elements.extend([
+                ("GPU Family", drm_info.family_name.clone()),
+                ("ASIC Name", drm_info.asic_name.clone()),
+                (
+                    "Compute Units",
+                    drm_info.compute_units.map(|count| count.to_string()),
+                ),
+                (
+                    "Execution Units",
+                    drm_info
+                        .intel
+                        .execution_units
+                        .map(|count| count.to_string()),
+                ),
+                (
+                    "Subslices",
+                    drm_info
+                        .intel
+                        .execution_units
+                        .map(|count| count.to_string()),
+                ),
+                (
+                    "Cuda Cores",
+                    drm_info.cuda_cores.map(|count| count.to_string()),
+                ),
+                (
+                    "SM Count",
+                    drm_info
+                        .streaming_multiprocessors
+                        .map(|count| count.to_string()),
+                ),
+                (
+                    "ROP Count",
+                    drm_info.rop_info.as_ref().map(|rop| {
+                        format!(
+                            "{} ({} * {})",
+                            rop.operations_count, rop.unit_count, rop.operations_factor
+                        )
+                    }),
+                ),
+                ("VRAM Type", drm_info.vram_type.clone()),
+                ("VRAM Manufacturer", drm_info.vram_vendor.clone()),
+                ("Theoretical VRAM Bandwidth", drm_info.vram_max_bw.clone()),
+                (
+                    "L1 Cache (Per CU)",
+                    drm_info
+                        .l1_cache_per_cu
+                        .map(|cache| format!("{} KiB", cache / 1024)),
+                ),
+                (
+                    "L2 Cache",
+                    drm_info
+                        .l2_cache
+                        .map(|cache| format!("{} KiB", cache / 1024)),
+                ),
+                (
+                    "L3 Cache",
+                    drm_info.l3_cache_mb.map(|cache| format!("{cache} MiB")),
+                ),
+            ]);
+
+            if let Some(memory_info) = &drm_info.memory_info {
+                if let Some(rebar) = memory_info.resizeable_bar {
+                    let rebar = if rebar { "Enabled" } else { "Disabled" };
+                    elements.push(("Resizeable bar", Some(rebar.to_owned())));
+                }
+
+                elements.push((
+                    "CPU Accessible VRAM",
+                    Some((memory_info.cpu_accessible_total / 1024 / 1024).to_string()),
+                ));
+            }
+        }
+
+        if let (Some(link_speed), Some(link_width)) =
+            (&self.link_info.current_speed, &self.link_info.current_width)
+        {
+            elements.push(("Link Speed", Some(format!("{link_speed} x{link_width}"))));
+        }
+
+        elements
+    }
 }
 
 #[skip_serializing_none]
@@ -122,17 +274,27 @@ pub struct DrmInfo {
     pub asic_name: Option<String>,
     pub chip_class: Option<String>,
     pub compute_units: Option<u32>,
+    pub streaming_multiprocessors: Option<u32>,
     pub cuda_cores: Option<u32>,
     pub vram_type: Option<String>,
+    pub vram_vendor: Option<String>,
     pub vram_clock_ratio: f64,
     pub vram_bit_width: Option<u32>,
     pub vram_max_bw: Option<String>,
     pub l1_cache_per_cu: Option<u32>,
     pub l2_cache: Option<u32>,
     pub l3_cache_mb: Option<u32>,
+    pub rop_info: Option<NvidiaRopInfo>,
     pub memory_info: Option<DrmMemoryInfo>,
     #[serde(flatten)]
     pub intel: IntelDrmInfo,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NvidiaRopInfo {
+    pub unit_count: u32,
+    pub operations_factor: u32,
+    pub operations_count: u32,
 }
 
 #[skip_serializing_none]
@@ -167,12 +329,21 @@ pub enum ClocksTable {
     Intel(IntelClocksTable),
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct NvidiaClocksTable {
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub gpu_offsets: IndexMap<u32, NvidiaClockOffset>,
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub mem_offsets: IndexMap<u32, NvidiaClockOffset>,
+    #[serde(default)]
+    pub gpu_locked_clocks: Option<(u32, u32)>,
+    #[serde(default)]
+    pub vram_locked_clocks: Option<(u32, u32)>,
+    #[serde(default)]
+    pub gpu_clock_range: Option<(u32, u32)>,
+    #[serde(default)]
+    pub vram_clock_range: Option<(u32, u32)>,
 }
 
 /// Doc from `xe_gt_freq.c`
@@ -224,8 +395,8 @@ pub struct VulkanInfo {
     pub api_version: String,
     pub driver: VulkanDriverInfo,
     pub enabled_layers: Vec<String>,
-    pub features: IndexMap<Cow<'static, str>, bool>,
-    pub extensions: IndexMap<Cow<'static, str>, bool>,
+    pub features: IndexMap<String, bool>,
+    pub extensions: IndexMap<String, bool>,
 }
 
 #[skip_serializing_none]
@@ -268,12 +439,14 @@ pub struct DeviceStats {
 pub struct FanStats {
     pub control_enabled: bool,
     pub control_mode: Option<FanControlMode>,
-    pub static_speed: Option<f64>,
+    pub static_speed: Option<f32>,
     pub curve: Option<FanCurveMap>,
     pub pwm_current: Option<u8>,
     pub speed_current: Option<u32>,
     pub speed_max: Option<u32>,
     pub speed_min: Option<u32>,
+    pub pwm_max: Option<u32>,
+    pub pwm_min: Option<u32>,
     pub spindown_delay_ms: Option<u64>,
     pub change_threshold: Option<u64>,
     // RDNA3+ params
@@ -377,7 +550,7 @@ pub struct FanOptions<'a> {
     pub id: &'a str,
     pub enabled: bool,
     pub mode: Option<FanControlMode>,
-    pub static_speed: Option<f64>,
+    pub static_speed: Option<f32>,
     pub curve: Option<FanCurveMap>,
     #[serde(default)]
     pub pmfw: PmfwOptions,

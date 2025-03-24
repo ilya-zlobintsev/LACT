@@ -29,8 +29,11 @@ expression: device_info
               "max": 2900,
               "min": 500
             },
+            "sclk_offset": null,
             "voltage_offset": null
           },
+          "rdna4_sclk_offset_workaround": false,
+          "sclk_offset": null,
           "vddc_curve": [],
           "voltage_offset": -100
         },
@@ -52,6 +55,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "GIGABYTE RX 6600 Eagle",
         "model_id": "2334",
         "vendor": "Gigabyte Technology Co., Ltd",
         "vendor_id": "1458"
@@ -77,6 +81,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "GIGABYTE RX 6600 Eagle",
       "model_id": "2334",
       "vendor": "Gigabyte Technology Co., Ltd",
       "vendor_id": "1458"
@@ -479,6 +484,8 @@ expression: device_info
       "control_enabled": false,
       "pmfw_info": {},
       "pwm_current": 0,
+      "pwm_max": 255,
+      "pwm_min": 0,
       "speed_current": 1395,
       "speed_max": 3100,
       "speed_min": 0

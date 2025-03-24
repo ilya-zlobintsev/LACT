@@ -56,8 +56,11 @@ expression: device_info
               "max": 2200,
               "min": 800
             },
+            "sclk_offset": null,
             "voltage_offset": null
           },
+          "rdna4_sclk_offset_workaround": false,
+          "sclk_offset": null,
           "vddc_curve": [
             {
               "clockspeed": 500,
@@ -92,6 +95,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "MSI RX 5500 XT Gaming X",
         "model_id": "3820",
         "vendor": "Micro-Star International Co., Ltd. [MSI]",
         "vendor_id": "1462"
@@ -117,6 +121,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "MSI RX 5500 XT Gaming X",
       "model_id": "3820",
       "vendor": "Micro-Star International Co., Ltd. [MSI]",
       "vendor_id": "1462"
@@ -519,6 +524,8 @@ expression: device_info
       "control_enabled": false,
       "pmfw_info": {},
       "pwm_current": 0,
+      "pwm_max": 255,
+      "pwm_min": 0,
       "speed_current": 0,
       "speed_max": 3200,
       "speed_min": 0

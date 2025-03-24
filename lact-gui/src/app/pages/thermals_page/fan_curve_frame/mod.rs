@@ -11,7 +11,10 @@ use lact_client::schema::{default_fan_curve, FanCurveMap};
 use lact_schema::PmfwInfo;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::ops::RangeInclusive;
 use std::rc::Rc;
+
+use super::pmfw_frame;
 
 const DEFAULT_CHANGE_THRESHOLD: u64 = 2;
 const DEFAULT_SPINDOWN_DELAY_MS: u64 = 5000;
@@ -20,16 +23,18 @@ const DEFAULT_SPINDOWN_DELAY_MS: u64 = 5000;
 pub struct FanCurveFrame {
     pub container: Box,
     curve_container: Frame,
+    zero_rpm_grid: Grid,
     zero_rpm_switch: Switch,
-    zero_rpm_row: Box,
+    zero_rpm_temperature: OcAdjustment,
     points: Rc<RefCell<Vec<PointAdjustment>>>,
+    speed_range: Rc<RefCell<RangeInclusive<f32>>>,
     spindown_delay_adj: OcAdjustment,
     change_threshold_adj: OcAdjustment,
     hysteresis_grid: Grid,
 }
 
 impl FanCurveFrame {
-    pub fn new() -> Self {
+    pub fn new(zero_rpm_temperature: OcAdjustment) -> Self {
         let root_box = Box::new(Orientation::Vertical, 5);
 
         let hbox = Box::new(Orientation::Horizontal, 5);
@@ -113,29 +118,36 @@ impl FanCurveFrame {
 
         root_box.append(&hysteresis_grid);
 
+        let zero_rpm_grid = Grid::new();
+
         let zero_rpm_label = Label::builder()
             .label("Zero RPM mode")
             .halign(Align::Start)
             .build();
-        let zero_rpm_switch = Switch::builder().halign(Align::End).hexpand(true).build();
-        let zero_rpm_row = gtk::Box::builder()
-            .orientation(Orientation::Horizontal)
-            .spacing(5)
-            .hexpand(true)
-            .build();
-        zero_rpm_row.append(&zero_rpm_label);
-        zero_rpm_row.append(&zero_rpm_switch);
+        let zero_rpm_switch = Switch::builder().halign(Align::End).build();
 
-        root_box.append(&zero_rpm_row);
+        zero_rpm_grid.attach(&zero_rpm_label, 0, 0, 1, 1);
+        zero_rpm_grid.attach(&zero_rpm_switch, 5, 0, 1, 1);
+
+        pmfw_frame::attach_adjustment(
+            &zero_rpm_grid,
+            "Zero RPM stop temperature (°C)",
+            1,
+            &zero_rpm_temperature,
+        );
+
+        root_box.append(&zero_rpm_grid);
 
         let curve_frame = Self {
             container: root_box,
             curve_container,
             points,
-            zero_rpm_row,
+            zero_rpm_grid,
+            speed_range: Rc::new(RefCell::new(0.0..=1.0)),
             zero_rpm_switch,
             spindown_delay_adj: spindown_delay_adj.clone(),
             change_threshold_adj: change_threshold_adj.clone(),
+            zero_rpm_temperature,
             hysteresis_grid,
         };
 
@@ -144,7 +156,8 @@ impl FanCurveFrame {
             curve_frame,
             move |_| {
                 let curve = default_fan_curve();
-                curve_frame.set_curve(&curve);
+                let speed_range = curve_frame.speed_range.borrow().clone();
+                curve_frame.set_curve(&curve, speed_range);
                 spindown_delay_adj.set_value(DEFAULT_SPINDOWN_DELAY_MS as f64);
                 change_threshold_adj.set_value(DEFAULT_CHANGE_THRESHOLD as f64);
             }
@@ -170,20 +183,22 @@ impl FanCurveFrame {
     }
 
     fn add_point(&self) {
+        let speed_range = self.speed_range.borrow().clone();
         let mut curve = self.get_curve();
         if let Some((temperature, ratio)) = curve.iter().last() {
             curve.insert(temperature + 5, *ratio);
-            self.set_curve(&curve);
+            self.set_curve(&curve, speed_range);
         } else {
             curve.insert(50, 0.5);
-            self.set_curve(&curve);
+            self.set_curve(&curve, speed_range);
         }
     }
 
     fn remove_point(&self) {
         let mut curve = self.get_curve();
         curve.pop_last();
-        self.set_curve(&curve);
+        let speed_range = self.speed_range.borrow().clone();
+        self.set_curve(&curve, speed_range);
     }
 
     fn notify_changed(&self) {
@@ -192,7 +207,7 @@ impl FanCurveFrame {
         }
     }
 
-    pub fn set_curve(&self, curve: &FanCurveMap) {
+    pub fn set_curve(&self, curve: &FanCurveMap, speed_range: RangeInclusive<f32>) {
         // Notify that the values were changed when the entire curve is overwritten, e.g. when resetting to default
         self.notify_changed();
 
@@ -205,11 +220,13 @@ impl FanCurveFrame {
         let mut adjustments = Vec::with_capacity(curve.len());
 
         for (temperature, ratio) in curve {
-            let adjustment = PointAdjustment::new(&points_container, *ratio, *temperature);
+            let adjustment =
+                PointAdjustment::new(&points_container, *ratio, *temperature, speed_range.clone());
             adjustments.push(adjustment);
         }
 
         self.points.replace(adjustments);
+        self.speed_range.replace(speed_range);
         self.curve_container.set_child(Some(&points_container));
     }
 
@@ -220,6 +237,7 @@ impl FanCurveFrame {
         for point in &*points {
             let temperature = point.temperature.value() as i32;
             let ratio = point.ratio.value() as f32;
+            let ratio = (ratio * 100.0).round() / 100.0;
             curve.insert(temperature, ratio);
         }
 
@@ -288,17 +306,19 @@ impl FanCurveFrame {
     }
 
     pub fn set_pmfw(&self, pmfw_info: &PmfwInfo) {
-        self.zero_rpm_row
+        self.zero_rpm_grid
             .set_visible(pmfw_info.zero_rpm_enable.is_some());
 
         if let Some(value) = pmfw_info.zero_rpm_enable {
-            self.zero_rpm_switch.set_state(value);
+            self.zero_rpm_switch.set_active(value);
         }
+
+        pmfw_frame::set_fan_info(&self.zero_rpm_temperature, pmfw_info.zero_rpm_temperature);
     }
 
     pub fn get_zero_rpm(&self) -> Option<bool> {
-        if self.zero_rpm_row.is_visible() {
-            Some(self.zero_rpm_switch.state())
+        if self.zero_rpm_grid.is_visible() {
+            Some(self.zero_rpm_switch.is_active())
         } else {
             None
         }

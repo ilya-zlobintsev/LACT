@@ -98,6 +98,7 @@ expression: device_info
         "vendor_id": "1002"
       },
       "subsystem_pci_info": {
+        "model": "ASUS ROG Strix RX VEGA 56",
         "model_id": "0555",
         "vendor": "ASUSTeK Computer Inc.",
         "vendor_id": "1043"
@@ -123,6 +124,7 @@ expression: device_info
       "vendor_id": "1002"
     },
     "subsystem_pci_info": {
+      "model": "ASUS ROG Strix RX VEGA 56",
       "model_id": "0555",
       "vendor": "ASUSTeK Computer Inc.",
       "vendor_id": "1043"
@@ -314,6 +316,8 @@ expression: device_info
       "control_enabled": false,
       "pmfw_info": {},
       "pwm_current": 0,
+      "pwm_max": 255,
+      "pwm_min": 0,
       "speed_current": 5,
       "speed_max": 3500,
       "speed_min": 0

@@ -17,18 +17,20 @@ use gtk::{
     prelude::{BoxExt, ButtonExt, FrameExt, OrientableExt, WidgetExt},
 };
 use lact_daemon::MODULE_CONF_PATH;
-use lact_schema::{request::SetClocksCommand, ClocksTable, PowerStates, SystemInfo};
+use lact_schema::{request::SetClocksCommand, ClocksTable, DeviceInfo, PowerStates, SystemInfo};
 use performance_frame::PerformanceFrame;
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::PowerStatesFrame;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
-use std::{cell::Cell, collections::HashMap, rc::Rc};
+use std::{cell::Cell, collections::HashMap, rc::Rc, sync::Arc};
 
-const OVERCLOCKING_DISABLED_TEXT: &str = "Overclocking support is not enabled! \
+const OVERCLOCKING_DISABLED_TEXT: &str = "AMD Overclocking support is not enabled! \
 You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
 
 pub struct OcPage {
     stats_section: relm4::Controller<GpuStatsSection>,
+    system_info: Rc<SystemInfo>,
+    device_info: Option<Arc<DeviceInfo>>,
     pub performance_frame: PerformanceFrame,
     power_cap_section: relm4::Controller<PowerCapSection>,
     power_states_frame: PowerStatesFrame,
@@ -63,7 +65,8 @@ impl relm4::Component for OcPage {
                 set_margin_horizontal: 20,
 
                 gtk::Frame {
-                    set_visible: system_info.amdgpu_overdrive_enabled == Some(false),
+                    #[watch]
+                    set_visible: model.system_info.amdgpu_overdrive_enabled == Some(false) && model.device_info.as_ref().is_some_and(|info| info.driver == "amdgpu"),
                     set_label_align: 0.3,
 
                     gtk::Box {
@@ -78,13 +81,13 @@ impl relm4::Component for OcPage {
                         },
 
                         gtk::Button {
-                            set_label: "Enable Overclocking",
+                            set_label: "Enable AMD Overclocking",
                             set_halign: gtk::Align::End,
 
                             connect_clicked[sender] => move |_| {
                                 sender.output(AppMsg::ask_confirmation(
                                     AppMsg::EnableOverdrive,
-                                    "Enable Overclocking",
+                                    "Enable AMD Overclocking",
                                     format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this?"),
                                     gtk::ButtonsType::OkCancel,
                                 )).expect("Channel closed");
@@ -113,6 +116,8 @@ impl relm4::Component for OcPage {
 
         let model = Self {
             stats_section,
+            device_info: None,
+            system_info,
             performance_frame: PerformanceFrame::new(),
             power_cap_section,
             power_states_frame: PowerStatesFrame::new(),
@@ -163,6 +168,7 @@ impl relm4::Component for OcPage {
                     PageUpdate::Info(info) => {
                         let vram_clock_ratio = info.vram_clock_ratio();
 
+                        self.device_info = Some(info.clone());
                         self.power_states_frame
                             .set_vram_clock_ratio(vram_clock_ratio);
                         self.clocks_frame

@@ -113,18 +113,14 @@ impl Default for PowerProfileHeuristicsGrid {
 mod imp {
     use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileComponent;
     use gtk::{
-        glib::{self, subclass::InitializingObject},
-        prelude::{CheckButtonExt, WidgetExt},
-        subclass::{
-            prelude::*,
-            widget::{CompositeTemplateClass, WidgetImpl},
-        },
-        Adjustment, CheckButton, CompositeTemplate, SpinButton,
+        glib,
+        prelude::{CheckButtonExt, GridExt, WidgetExt},
+        subclass::{prelude::*, widget::WidgetImpl},
+        Adjustment, CheckButton, SpinButton,
     };
     use std::{cell::RefCell, rc::Rc};
 
-    #[derive(CompositeTemplate, Default)]
-    #[template(file = "ui/oc_page/power_profile/power_profile_heuristics_grid.blp")]
+    #[derive(Default)]
     pub struct PowerProfileHeuristicsGrid {
         pub component: Rc<RefCell<PowerProfileComponent>>,
         pub(super) adjustments: Rc<RefCell<Vec<(Adjustment, CheckButton)>>>,
@@ -135,17 +131,14 @@ mod imp {
         const NAME: &'static str = "PowerProfileHeuristicsGrid";
         type Type = super::PowerProfileHeuristicsGrid;
         type ParentType = gtk::Grid;
-
-        fn class_init(class: &mut Self::Class) {
-            class.bind_template();
-        }
-
-        fn instance_init(obj: &InitializingObject<Self>) {
-            obj.init_template();
-        }
     }
 
-    impl ObjectImpl for PowerProfileHeuristicsGrid {}
+    impl ObjectImpl for PowerProfileHeuristicsGrid {
+        fn constructed(&self) {
+            self.obj().set_row_spacing(5);
+            self.obj().set_column_spacing(5);
+        }
+    }
 
     impl WidgetImpl for PowerProfileHeuristicsGrid {}
     impl GridImpl for PowerProfileHeuristicsGrid {}

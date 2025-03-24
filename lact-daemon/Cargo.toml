@@ -1,6 +1,6 @@
 [package]
 name = "lact-daemon"
-version = "0.7.2"
+version = "0.7.3"
 edition = "2021"
 
 [features]
@@ -35,7 +35,6 @@ nvml-wrapper = { git = "https://github.com/ilya-zlobintsev/nvml-wrapper", branch
 bitflags = "2.6.0"
 pciid-parser = { version = "0.8", features = ["serde"] }
 serde_yaml = "0.9"
-vulkano = { version = "0.35.0", default-features = false }
 zbus = { version = "5.3.1", default-features = false, features = ["tokio"] }
 libdrm_amdgpu_sys = { version = "0.8.1", default-features = false, features = [
     "dynamic_loading",
@@ -46,12 +45,13 @@ os-release = "0.1.0"
 notify = { version = "8.0.0", default-features = false }
 copes = { git = "https://gitlab.com/corectrl/copes" }
 libloading = "0.8.6"
+tempfile = "3.17.1"
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 insta = { version = "1.41.1", features = ["json", "yaml"] }
-tempfile = "3.17.1"
 easy_fuser = { version = "0.4.0", features = ["parallel"] }
 
 [build-dependencies]
 bindgen = "0.68"
+serde_json = { workspace = true }
