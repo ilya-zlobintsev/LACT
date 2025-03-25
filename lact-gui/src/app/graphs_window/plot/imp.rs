@@ -1,7 +1,8 @@
-use super::config::PlotConfig;
 use super::render_thread::{PlotColorScheme, RenderRequest, RenderThread};
+use crate::app::graphs_window::stat::StatType;
 use crate::app::graphs_window::stat::StatsData;
 use glib::Properties;
+use gtk::gdk::MemoryTexture;
 use gtk::{glib, prelude::*, subclass::prelude::*};
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -15,20 +16,12 @@ const SUPERSAMPLE_FACTOR: u32 = 1;
 pub struct Plot {
     #[property(get, set)]
     title: RefCell<String>,
-    #[property(get, set)]
-    value_suffix: RefCell<String>,
-    #[property(get, set)]
-    secondary_value_suffix: RefCell<String>,
-    #[property(get, set)]
-    y_label_area_size: Cell<u32>,
-    #[property(get, set)]
-    secondary_y_label_area_size: Cell<u32>,
     #[property(set)]
     dirty: Cell<bool>,
     render_thread: RenderThread,
     #[property(get, set)]
     time_period_seconds: Cell<i64>,
-    pub config: RefCell<PlotConfig>,
+    pub stats: RefCell<Vec<StatType>>,
     pub data: RefCell<Arc<RwLock<StatsData>>>,
 }
 
@@ -63,7 +56,7 @@ impl WidgetImpl for Plot {
             return;
         }
 
-        let last_texture = self.render_thread.get_last_texture();
+        let last_texture = self.get_last_texture();
         let size_changed = last_texture
             .as_ref()
             .map(|texture| (texture.width() as u32, texture.height() as u32) != (width, height))
@@ -72,15 +65,11 @@ impl WidgetImpl for Plot {
         if self.dirty.replace(false) || size_changed {
             self.render_thread.replace_render_request(RenderRequest {
                 data: self.data.borrow().clone(),
-                config: self.config.borrow().clone(),
+                stats: self.stats.borrow().clone(),
                 width,
                 height,
                 colors,
                 title: self.title.borrow().clone(),
-                value_suffix: self.value_suffix.borrow().clone(),
-                secondary_value_suffix: self.secondary_value_suffix.borrow().clone(),
-                y_label_area_size: self.y_label_area_size.get(),
-                secondary_y_label_area_size: self.secondary_y_label_area_size.get(),
                 supersample_factor: SUPERSAMPLE_FACTOR,
                 time_period_seconds: self.time_period_seconds.get(),
             });
@@ -92,6 +81,12 @@ impl WidgetImpl for Plot {
             // Uses by default Trillinear texture filtering, which is quite good at 4x supersampling
             snapshot.append_texture(&texture, &bounds);
         }
+    }
+}
+
+impl Plot {
+    pub fn get_last_texture(&self) -> Option<MemoryTexture> {
+        self.render_thread.get_last_texture()
     }
 }
 

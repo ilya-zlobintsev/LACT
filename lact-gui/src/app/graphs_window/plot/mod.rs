@@ -1,15 +1,11 @@
-pub mod config;
 mod cubic_spline;
 mod imp;
 mod render_thread;
 mod to_texture_ext;
 
-use std::sync::{Arc, RwLock};
-
-use config::PlotConfig;
+use super::stat::{StatType, StatsData};
 use gtk::glib::{self, subclass::types::ObjectSubclassIsExt, Object};
-
-use super::stat::StatsData;
+use std::sync::{Arc, RwLock};
 
 glib::wrapper! {
     pub struct Plot(ObjectSubclass<imp::Plot>)
@@ -27,7 +23,7 @@ impl Plot {
         *self.imp().data.borrow_mut() = data;
     }
 
-    pub fn set_config(&self, config: PlotConfig) {
-        *self.imp().config.borrow_mut() = config;
+    pub fn set_stats(&self, stats: Vec<StatType>) {
+        *self.imp().stats.borrow_mut() = stats;
     }
 }

@@ -1,16 +1,14 @@
-use crate::app::graphs_window::stat::StatsData;
-
-use super::config::PlotConfig;
 use super::cubic_spline::cubic_spline_interpolation;
 use super::to_texture_ext::ToTextureExt;
+use crate::app::graphs_window::stat::{StatType, StatsData};
 use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
 use gtk::gdk::MemoryTexture;
 use gtk::prelude::StyleContextExt;
 use gtk::StyleContext;
-use itertools::Itertools;
 use plotters::prelude::*;
 use plotters::style::colors::full_palette::DEEPORANGE_100;
+use plotters::style::text_anchor::Pos;
 use plotters_cairo::CairoBackend;
 use std::cmp::{self, max};
 use std::ops::{Deref, DerefMut};
@@ -25,13 +23,9 @@ enum Request {
 
 pub struct RenderRequest {
     pub title: String,
-    pub value_suffix: String,
-    pub secondary_value_suffix: String,
-    pub y_label_area_size: u32,
-    pub secondary_y_label_area_size: u32,
 
     pub data: Arc<RwLock<StatsData>>,
-    pub config: PlotConfig,
+    pub stats: Vec<StatType>,
     pub colors: PlotColorScheme,
 
     pub width: u32,
@@ -270,50 +264,53 @@ impl RenderRequest {
         let start_date = data.first_timestamp().unwrap_or_default();
         let end_date = data.last_timestamp().unwrap_or_default();
 
-        let left_data = data.get_stats(&self.config.left_stats).collect::<Vec<_>>();
-        let right_data = data.get_stats(&self.config.right_stats).collect::<Vec<_>>();
+        let data = data.get_stats(&self.stats).collect::<Vec<_>>();
+
+        let value_suffix = self
+            .stats
+            .first()
+            .map(|stat| stat.metric())
+            .unwrap_or_default();
 
         // Calculate the maximum value for the y-axis.
-        let mut maximum_value_left = left_data
-            .iter()
-            .flat_map(|(_, list)| list.iter().map(|(_, value)| *value))
-            .max_by(|x, y| x.partial_cmp(y).unwrap_or(cmp::Ordering::Equal))
-            .unwrap_or_default();
-        let mut maximum_value_right = right_data
+        let mut maximum_value = data
             .iter()
             .flat_map(|(_, list)| list.iter().map(|(_, value)| *value))
             .max_by(|x, y| x.partial_cmp(y).unwrap_or(cmp::Ordering::Equal))
             .unwrap_or_default();
 
-        for value in [&mut maximum_value_left, &mut maximum_value_right] {
-            if *value < 100.0 {
-                *value = 100.0;
-            }
+        if maximum_value < 100.0 {
+            maximum_value = 100.0;
         }
 
         root.fill(&self.colors.background)?; // Fill the background with white color.
 
-        let y_label_area_size = if left_data.is_empty() && !right_data.is_empty() {
-            0
-        } else {
-            self.y_label_area_size
+        let y_label_style = TextStyle {
+            font: ("sans-serif", 18).into(),
+            color: self.colors.text.to_backend_color(),
+            pos: Pos::default(),
         };
+        let y_label_area_size = root
+            .estimate_text_size(&format!("{maximum_value}{value_suffix}"), &y_label_style)?
+            .0
+            + 10;
 
         // Set up the main chart with axes and labels.
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(35)
             .y_label_area_size(y_label_area_size)
-            .right_y_label_area_size(self.secondary_y_label_area_size)
+            // .right_y_label_area_size(self.secondary_y_label_area_size)
             .margin(10)
+            .margin_top(20)
             .caption(self.title.as_str(), ("sans-serif", 24, &self.colors.text))
             .build_cartesian_2d(
                 start_date..max(end_date, start_date + self.time_period_seconds * 1000),
-                0f64..maximum_value_left,
-            )?
-            .set_secondary_coord(
-                start_date..max(end_date, start_date + self.time_period_seconds * 1000),
-                0.0..maximum_value_right,
-            );
+                0f64..maximum_value,
+            )?;
+        // .set_secondary_coord(
+        //     start_date..max(end_date, start_date + self.time_period_seconds * 1000),
+        //     0.0..maximum_value_right,
+        // );
 
         // Configure the x-axis and y-axis mesh.
         chart
@@ -324,22 +321,22 @@ impl RenderRequest {
                 let date_time = chrono::DateTime::from_timestamp_millis(*date_time).unwrap();
                 date_time.format("%H:%M:%S").to_string()
             })
-            .y_label_formatter(&|x| format!("{x}{}", &self.value_suffix))
+            .y_label_formatter(&|x| format!("{x}{value_suffix}"))
             .x_labels(5)
             .y_labels(10)
-            .label_style(("sans-serif", 18, &self.colors.text))
+            .label_style(y_label_style)
             .draw()
             .context("Failed to draw mesh")?;
 
-        // Configure the secondary axes (for the secondary y-axis).
-        chart
-            .configure_secondary_axes()
-            .axis_style(self.colors.border_secondary)
-            .y_label_formatter(&|x: &f64| format!("{x}{}", self.secondary_value_suffix.as_str()))
-            .y_labels(10)
-            .label_style(("sans-serif", 18, &self.colors.text))
-            .draw()
-            .context("Failed to draw mesh")?;
+        // // Configure the secondary axes (for the secondary y-axis).
+        // chart
+        //     .configure_secondary_axes()
+        //     .axis_style(self.colors.border_secondary)
+        //     .y_label_formatter(&|x: &f64| format!("{x}{secondary_value_suffix}"))
+        //     .y_labels(10)
+        //     .label_style(("sans-serif", 18, &self.colors.text))
+        //     .draw()
+        //     .context("Failed to draw mesh")?;
 
         // Draw the throttling histogram as a series of bars.
         // if !left_data.is_empty() || !right_data.is_empty() {
@@ -375,7 +372,7 @@ impl RenderRequest {
         // }
 
         // Draw the main line series using cubic spline interpolation.
-        for (idx, (stat_type, data)) in left_data.iter().enumerate() {
+        for (idx, (stat_type, data)) in data.iter().enumerate() {
             chart
                 .draw_series(LineSeries::new(
                     cubic_spline_interpolation(data).into_iter().flat_map(
@@ -399,29 +396,29 @@ impl RenderRequest {
                 });
         }
 
-        // Draw the secondary line series on the secondary y-axis.
-        for (idx, (stat_type, data)) in right_data.iter().enumerate() {
-            chart
-                .draw_secondary_series(LineSeries::new(
-                    cubic_spline_interpolation(data).into_iter().flat_map(
-                        |((first_time, second_time), segment)| {
-                            (first_time..second_time).map(move |current_date| {
-                                (current_date, segment.evaluate(current_date))
-                            })
-                        },
-                    ),
-                    Palette99::pick(idx + 10).stroke_width(2),
-                ))
-                .context("Failed to draw series")?
-                .label(stat_type.display())
-                .legend(move |(x, y)| {
-                    let offset = 7;
-                    Rectangle::new(
-                        [(x - offset, y - offset), (x + offset, y + offset)],
-                        Palette99::pick(idx + 10).filled(),
-                    )
-                });
-        }
+        // // Draw the secondary line series on the secondary y-axis.
+        // for (idx, (stat_type, data)) in right_data.iter().enumerate() {
+        //     chart
+        //         .draw_secondary_series(LineSeries::new(
+        //             cubic_spline_interpolation(data).into_iter().flat_map(
+        //                 |((first_time, second_time), segment)| {
+        //                     (first_time..second_time).map(move |current_date| {
+        //                         (current_date, segment.evaluate(current_date))
+        //                     })
+        //                 },
+        //             ),
+        //             Palette99::pick(idx + 10).stroke_width(2),
+        //         ))
+        //         .context("Failed to draw series")?
+        //         .label(stat_type.display())
+        //         .legend(move |(x, y)| {
+        //             let offset = 7;
+        //             Rectangle::new(
+        //                 [(x - offset, y - offset), (x + offset, y + offset)],
+        //                 Palette99::pick(idx + 10).filled(),
+        //             )
+        //         });
+        // }
 
         // Configure and draw series labels (the legend).
         chart

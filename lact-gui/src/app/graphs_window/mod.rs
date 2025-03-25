@@ -1,16 +1,24 @@
-pub(crate) mod plot;
+mod plot;
+mod plot_component;
 mod stat;
 
-use gtk::prelude::*;
+use gtk::{glib, prelude::*};
 use lact_schema::DeviceStats;
-use plot::{config::PlotConfig, Plot};
-use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
+use plot_component::{PlotComponent, PlotComponentMsg};
+use relm4::{
+    binding::{BoolBinding, ConnectBinding, F64Binding},
+    prelude::{DynamicIndex, FactoryVecDeque},
+    ComponentParts, ComponentSender, RelmWidgetExt,
+};
 use stat::{StatType, StatsData};
 use std::sync::{Arc, RwLock};
 
 pub struct GraphsWindow {
     time_period_seconds_adj: gtk::Adjustment,
+    edit_mode: BoolBinding,
+    plots_per_row: F64Binding,
     vram_clock_ratio: f64,
+    plots: FactoryVecDeque<PlotComponent>,
     stats_data: Arc<RwLock<StatsData>>,
 }
 
@@ -18,7 +26,9 @@ pub struct GraphsWindow {
 pub enum GraphsWindowMsg {
     Stats(Arc<DeviceStats>),
     VramClockRatio(f64),
-    Refresh,
+    NotifyEditing,
+    NotifyPlotsPerRow,
+    SwapPlots(DynamicIndex, DynamicIndex),
     Show,
     Clear,
 }
@@ -32,12 +42,62 @@ impl relm4::Component for GraphsWindow {
 
     view! {
         gtk::Window {
-            set_default_height: 650,
+            set_default_height: 700,
             set_default_width: 1200,
             set_title: Some("Historical data"),
             set_hide_on_close: true,
 
-            gtk::Grid {
+            gtk::ScrolledWindow {
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 5,
+                    set_margin_all: 10,
+
+                    append = model.plots.widget() {
+                        set_margin_all: 10,
+                        set_row_spacing: 20,
+                        set_column_spacing: 20,
+                    },
+
+                    append = &gtk::Box {
+                        set_halign: gtk::Align::End,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 5,
+
+
+                        append = &gtk::Box {
+                            set_halign: gtk::Align::End,
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: model.edit_mode.value(),
+
+                            append = &gtk::Label {
+                                set_label: "Graphs per row:",
+                            },
+
+                            append = &gtk::SpinButton {
+                                set_numeric: true,
+                                set_snap_to_ticks: true,
+                                set_range: (1.0, 5.0),
+                                set_increments: (1.0, 1.0),
+                                bind: &model.plots_per_row,
+
+                                connect_value_notify => GraphsWindowMsg::NotifyPlotsPerRow,
+                            },
+                        },
+
+                        append = &gtk::ToggleButton {
+                            set_label: "Edit",
+                            bind: &model.edit_mode,
+
+                            connect_active_notify => GraphsWindowMsg::NotifyEditing,
+                        },
+                    }
+                },
+            },
+
+            /*gtk::Grid {
                 set_margin_all: 10,
                 set_row_spacing: 20,
                 set_column_spacing: 20,
@@ -106,7 +166,7 @@ impl relm4::Component for GraphsWindow {
                         set_adjustment: &model.time_period_seconds_adj,
                     },
                 },
-            },
+            },*/
 
         }
     }
@@ -118,14 +178,42 @@ impl relm4::Component for GraphsWindow {
     ) -> ComponentParts<Self> {
         let time_period_seconds_adj = gtk::Adjustment::new(60.0, 15.0, 3601.0, 1.0, 1.0, 1.0);
 
-        time_period_seconds_adj.connect_value_changed(move |_| {
-            sender.input(GraphsWindowMsg::Refresh);
+        let stats_data = Arc::new(RwLock::new(StatsData::default()));
+        let plots_per_row = F64Binding::new(2.0);
+        let mut plots = FactoryVecDeque::builder()
+            .launch_default()
+            .forward(sender.input_sender(), |x| x);
+
+        let edit_mode = BoolBinding::new(false);
+
+        plots.guard().push_back(PlotComponent {
+            plots_per_row: plots_per_row.clone(),
+            stats: vec![StatType::GpuClock, StatType::VramClock],
+            data: stats_data.clone(),
+            edit_mode: edit_mode.clone(),
+        });
+
+        plots.guard().push_back(PlotComponent {
+            plots_per_row: plots_per_row.clone(),
+            stats: vec![StatType::PowerCurrent, StatType::PowerCap],
+            data: stats_data.clone(),
+            edit_mode: edit_mode.clone(),
+        });
+
+        plots.guard().push_back(PlotComponent {
+            plots_per_row: plots_per_row.clone(),
+            stats: vec![StatType::FanRpm, StatType::FanPwm],
+            data: stats_data.clone(),
+            edit_mode: edit_mode.clone(),
         });
 
         let model = Self {
             time_period_seconds_adj,
+            plots_per_row,
+            edit_mode,
+            plots,
             vram_clock_ratio: 1.0,
-            stats_data: Arc::default(),
+            stats_data,
         };
 
         let widgets = view_output!();
@@ -141,7 +229,6 @@ impl relm4::Component for GraphsWindow {
         root: &Self::Root,
     ) {
         match msg {
-            GraphsWindowMsg::Refresh => {}
             GraphsWindowMsg::Show => {
                 root.show();
             }
@@ -231,30 +318,49 @@ impl relm4::Component for GraphsWindow {
 
                 let time_period_seconds = self.time_period_seconds_adj.value() as i64;
                 data.trim(time_period_seconds);
-
-                Self::queue_plots_draw(widgets);
             }
             GraphsWindowMsg::Clear => {
                 self.stats_data.write().unwrap().clear();
-                Self::queue_plots_draw(widgets);
+            }
+            GraphsWindowMsg::NotifyEditing => {
+                self.plots.broadcast(PlotComponentMsg::Redraw);
+            }
+            GraphsWindowMsg::NotifyPlotsPerRow => {
+                self.update_plots_layout();
+            }
+            GraphsWindowMsg::SwapPlots(left, right) => {
+                let mut guard = self.plots.guard();
+                guard.swap(left.current_index(), right.current_index());
             }
         }
 
         self.update_view(widgets, sender);
+        self.queue_plots_draw();
     }
 }
 
 impl GraphsWindow {
-    fn queue_plots_draw(widgets: &<Self as relm4::Component>::Widgets) {
-        let plots = [
-            &widgets.temperature_plot,
-            &widgets.clockspeed_plot,
-            &widgets.power_plot,
-            &widgets.fan_plot,
-        ];
+    fn update_plots_layout(&mut self) {
+        let mut guard = self.plots.guard();
+
+        // This is an ugly workaround because it's not possible to manually trigger a re-layout of the grid factory
+
+        let mut plots = Vec::with_capacity(guard.len());
+
+        while let Some(element) = guard.pop_front() {
+            plots.push(element);
+        }
+
         for plot in plots {
-            plot.set_dirty(true);
-            plot.queue_draw();
+            guard.push_back(plot);
         }
     }
+
+    fn queue_plots_draw(&self) {
+        self.plots.broadcast(PlotComponentMsg::Redraw);
+    }
 }
+
+#[derive(Clone, glib::Boxed)]
+#[boxed_type(name = "DynamicIndexValue")]
+pub struct DynamicIndexValue(DynamicIndex);

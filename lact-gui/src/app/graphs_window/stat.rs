@@ -1,8 +1,7 @@
 use lact_schema::DeviceStats;
 use std::{borrow::Cow, collections::BTreeMap};
-use tracing::debug;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct StatsData {
     stats: BTreeMap<StatType, Vec<(i64, f64)>>,
     throttling: Vec<(i64, String)>,
@@ -10,8 +9,8 @@ pub struct StatsData {
 
 impl StatsData {
     pub fn update(&mut self, stats: &DeviceStats) {
-        let time = chrono::Local::now();
-        let timestamp = time.timestamp_millis();
+        let time = chrono::Local::now().naive_local();
+        let timestamp = time.and_utc().timestamp_millis();
 
         for (name, temperature) in &stats.temps {
             if let Some(value) = temperature.current {
@@ -37,7 +36,7 @@ impl StatsData {
             ),
             (StatType::PowerAverage, stats.power.average),
             (StatType::PowerCurrent, stats.power.current),
-            (StatType::PowerCap, stats.power.current),
+            (StatType::PowerCap, stats.power.cap_current),
             (
                 StatType::FanPwm,
                 stats
@@ -53,7 +52,6 @@ impl StatsData {
 
         for (stat_type, value) in stats_values {
             if let Some(value) = value {
-                debug!("Pushing stat {} {value}", stat_type.display());
                 self.stats
                     .entry(stat_type)
                     .or_default()
@@ -150,16 +148,28 @@ pub enum StatType {
 
 impl StatType {
     pub fn display(&self) -> Cow<'static, str> {
+        use StatType::*;
         match self {
-            StatType::GpuClock => "GPU Clock".into(),
-            StatType::GpuTargetClock => "GPU Clock (Target)".into(),
-            StatType::VramClock => "VRAM Clock".into(),
-            StatType::Temperature(name) => format!("Temp ({name})").into(),
-            StatType::FanRpm => "Fan RPM".into(),
-            StatType::FanPwm => "Fan %".into(),
-            StatType::PowerCurrent => "Power Draw".into(),
-            StatType::PowerAverage => "Power Draw (Avg)".into(),
-            StatType::PowerCap => "Power Cap".into(),
+            GpuClock => "GPU Clock".into(),
+            GpuTargetClock => "GPU Clock (Target)".into(),
+            VramClock => "VRAM Clock".into(),
+            Temperature(name) => format!("Temp ({name})").into(),
+            FanRpm => "Fan RPM".into(),
+            FanPwm => "Fan %".into(),
+            PowerCurrent => "Power Draw".into(),
+            PowerAverage => "Power Draw (Avg)".into(),
+            PowerCap => "Power Cap".into(),
+        }
+    }
+
+    pub fn metric(&self) -> &'static str {
+        use StatType::*;
+        match self {
+            GpuClock | GpuTargetClock | VramClock => "MHz",
+            Temperature(_) => "℃",
+            FanRpm => "RPM",
+            FanPwm => "%",
+            PowerCurrent | PowerAverage | PowerCap => "W",
         }
     }
 }
