@@ -86,6 +86,7 @@ const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
     "fan_zero_rpm_enable",
     "fan_zero_rpm_stop_temperature",
 ];
+const CONFIG_RESET_CMDLINE_ARG: &str = "lact-reset";
 
 #[derive(Clone)]
 pub struct Handler {
@@ -156,6 +157,34 @@ impl<'a> Handler {
             }
         }
         info!("initialized {} GPUs", controllers.len());
+
+        match fs::read_to_string("/proc/cmdline") {
+            Ok(cmdline) => {
+                if cmdline
+                    .split_ascii_whitespace()
+                    .any(|item| item == CONFIG_RESET_CMDLINE_ARG)
+                {
+                    // Save old config in a different file
+                    let datetime = chrono::Local::now().format("%Y%m%d-%H%M%S");
+                    let backup_filename = format!("config.reset-{datetime}.yaml");
+
+                    if let Err(err) =
+                        config.save_with_name(&Cell::new(Instant::now()), &backup_filename)
+                    {
+                        error!("could not back up old config: {err:#}");
+                    }
+
+                    info!("detected reset boot argument, resetting config (old config backed up to {backup_filename})");
+                    config = Config::default();
+                    if let Err(err) = config.save(&Cell::new(Instant::now())) {
+                        error!("could not save config: {err:#}");
+                    }
+                }
+            }
+            Err(err) => {
+                warn!("could not read kernel cmdline: {err}");
+            }
+        }
 
         let original_config_version = config.version;
         config.migrate_versions(&controllers);

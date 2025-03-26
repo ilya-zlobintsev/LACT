@@ -55,7 +55,7 @@ impl Default for Config {
             profiles: IndexMap::new(),
             current_profile: None,
             auto_switch_profiles: false,
-            version: 0,
+            version: 3,
         }
     }
 }
@@ -199,7 +199,7 @@ pub fn default_fan_static_speed() -> f32 {
 
 impl Config {
     pub fn load() -> anyhow::Result<Option<Self>> {
-        let path = get_path();
+        let path = get_path(FILE_NAME);
         if path.exists() {
             let raw_config = fs::read_to_string(path).context("Could not open config file")?;
             let config =
@@ -213,11 +213,24 @@ impl Config {
     }
 
     pub fn save(&self, config_last_saved: &Cell<Instant>) -> anyhow::Result<()> {
-        let path = get_path();
-        debug!("saving config to {path:?}");
-        let raw_config = serde_yaml::to_string(self)?;
+        self.save_with_name(config_last_saved, FILE_NAME)
+    }
 
-        fs::write(path, raw_config).context("Could not write config")?;
+    #[allow(clippy::pedantic)]
+    pub fn save_with_name(
+        &self,
+        config_last_saved: &Cell<Instant>,
+        filename: &str,
+    ) -> anyhow::Result<()> {
+        let path = get_path(filename);
+        debug!("saving config to {path:?}");
+
+        #[cfg(not(test))]
+        {
+            let raw_config = serde_yaml::to_string(self)?;
+            fs::write(path, raw_config).context("Could not write config")?;
+        }
+
         config_last_saved.set(Instant::now());
 
         Ok(())
@@ -366,7 +379,7 @@ pub fn start_watcher(config_last_saved: Rc<Cell<Instant>>) -> mpsc::UnboundedRec
             RecommendedWatcher::new(SenderEventHandler(event_tx), notify::Config::default())
                 .expect("Could not create config file watcher");
 
-        let config_path = get_path();
+        let config_path = get_path(FILE_NAME);
         let watch_path = config_path
             .parent()
             .expect("Config path always has a parent");
@@ -444,16 +457,16 @@ impl notify::EventHandler for SenderEventHandler {
     }
 }
 
-fn get_path() -> PathBuf {
+fn get_path(filename: &str) -> PathBuf {
     let uid = getuid();
     if uid.is_root() {
-        PathBuf::from("/etc/lact").join(FILE_NAME)
+        PathBuf::from("/etc/lact").join(filename)
     } else {
         let config_dir = PathBuf::from(env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
             let home = env::var("HOME").expect("$HOME variable is not set");
             format!("{home}/.config")
         }));
-        config_dir.join("lact").join(FILE_NAME)
+        config_dir.join("lact").join(filename)
     }
 }
 
