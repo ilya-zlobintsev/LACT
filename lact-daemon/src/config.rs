@@ -55,7 +55,7 @@ impl Default for Config {
             profiles: IndexMap::new(),
             current_profile: None,
             auto_switch_profiles: false,
-            version: 0,
+            version: 3,
         }
     }
 }
@@ -216,6 +216,7 @@ impl Config {
         self.save_with_name(config_last_saved, FILE_NAME)
     }
 
+    #[allow(clippy::pedantic)]
     pub fn save_with_name(
         &self,
         config_last_saved: &Cell<Instant>,
@@ -223,9 +224,13 @@ impl Config {
     ) -> anyhow::Result<()> {
         let path = get_path(filename);
         debug!("saving config to {path:?}");
-        let raw_config = serde_yaml::to_string(self)?;
 
-        fs::write(path, raw_config).context("Could not write config")?;
+        #[cfg(not(test))]
+        {
+            let raw_config = serde_yaml::to_string(self)?;
+            fs::write(path, raw_config).context("Could not write config")?;
+        }
+
         config_last_saved.set(Instant::now());
 
         Ok(())
