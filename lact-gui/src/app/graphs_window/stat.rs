@@ -4,7 +4,7 @@ use std::{borrow::Cow, collections::BTreeMap};
 #[derive(Default, Debug)]
 pub struct StatsData {
     stats: BTreeMap<StatType, Vec<(i64, f64)>>,
-    throttling: Vec<(i64, String)>,
+    throttling: Vec<Vec<(i64, Vec<String>)>>,
 }
 
 impl StatsData {
@@ -59,23 +59,45 @@ impl StatsData {
             }
         }
 
-        if let Some(throttle_info) = &stats.throttle_info {
-            if !throttle_info.is_empty() {
-                let type_text: Vec<String> = throttle_info
-                    .iter()
-                    .map(|(throttle_type, details)| {
-                        format!("{throttle_type} ({})", details.join(", "))
-                    })
-                    .collect();
+        let is_throttling = stats
+            .throttle_info
+            .as_ref()
+            .is_some_and(|info| !info.is_empty());
 
-                let text = type_text.join(", ");
-                self.throttling.push((timestamp, text));
+        if is_throttling {
+            let text: Vec<String> = stats
+                .throttle_info
+                .iter()
+                .flatten()
+                .map(|(throttle_type, details)| {
+                    if details.is_empty() {
+                        throttle_type.clone()
+                    } else {
+                        format!("{throttle_type} ({})", details.join(","))
+                    }
+                })
+                .collect();
+
+            if let Some(last_section) = self.throttling.last_mut() {
+                last_section.push((timestamp, text));
+            } else {
+                self.throttling.push(vec![(timestamp, text)]);
             }
-        }
+        } else if self
+            .throttling
+            .last()
+            .is_none_or(|last_section| !last_section.is_empty())
+        {
+            self.throttling.push(vec![]);
+        };
     }
 
     pub fn list_stats(&self) -> impl Iterator<Item = &StatType> {
         self.stats.keys()
+    }
+
+    pub fn throttling_sections(&self) -> &[Vec<(i64, Vec<String>)>] {
+        &self.throttling
     }
 
     pub fn get_stats<'a>(
@@ -122,14 +144,21 @@ impl StatsData {
         self.stats.retain(|_, data| !data.is_empty());
 
         // Limit data to N seconds
-        let maximum_point = self
-            .throttling
-            .last()
+        let last_timestamp = self
+            .stats
+            .iter()
+            .flat_map(|(_, stats)| stats)
             .map(|(date_time, _)| *date_time)
+            .last()
             .unwrap_or_default();
 
-        self.throttling
-            .retain(|(time_point, _)| ((maximum_point - *time_point) / 1000) < last_seconds);
+        self.throttling.retain(|section| {
+            if let Some((last_time_point, _)) = section.last() {
+                ((last_timestamp - last_time_point) / 1000) < last_seconds
+            } else {
+                true
+            }
+        });
     }
 }
 

@@ -258,13 +258,13 @@ impl RenderRequest {
     {
         let root = backend.into_drawing_area(); // Create the drawing area.
 
-        let data = self.data.read().unwrap();
+        let data_guard = self.data.read().unwrap();
 
         // Determine the start and end dates of the data series.
-        let start_date = data.first_timestamp().unwrap_or_default();
-        let end_date = data.last_timestamp().unwrap_or_default();
+        let start_date = data_guard.first_timestamp().unwrap_or_default();
+        let end_date = data_guard.last_timestamp().unwrap_or_default();
 
-        let data = data.get_stats(&self.stats).collect::<Vec<_>>();
+        let data = data_guard.get_stats(&self.stats).collect::<Vec<_>>();
 
         let value_suffix = if self.stats.len() >= 2 {
             let mut metric = self.stats[0].metric();
@@ -318,10 +318,6 @@ impl RenderRequest {
                 start_date..max(end_date, start_date + self.time_period_seconds * 1000),
                 0f64..maximum_value,
             )?;
-        // .set_secondary_coord(
-        //     start_date..max(end_date, start_date + self.time_period_seconds * 1000),
-        //     0f64..maximum_value,
-        // );
 
         // Configure the x-axis and y-axis mesh.
         chart
@@ -339,48 +335,62 @@ impl RenderRequest {
             .draw()
             .context("Failed to draw mesh")?;
 
-        // // Configure the secondary axes (for the secondary y-axis).
-        // chart
-        //     .configure_secondary_axes()
-        //     .axis_style(self.colors.border_secondary)
-        //     .y_label_formatter(&|x: &f64| format!("{x}{value_suffix}"))
-        //     .y_labels(10)
-        //     .label_style(("sans-serif", 18, &self.colors.text))
-        //     .draw()
-        //     .context("Failed to draw mesh")?;
+        // Draw throttling series
+        chart
+            .draw_series(
+                data_guard
+                    .throttling_sections()
+                    .iter()
+                    .filter_map(|section| {
+                        let first = section.first()?;
+                        Some((
+                            first.0,
+                            section.last().map(|(ts, _)| *ts).unwrap_or(first.0),
+                        ))
+                    })
+                    .map(|(start, end)| {
+                        Rectangle::new(
+                            [(start, 0f64), (end, maximum_value)],
+                            self.colors.throttling.mix(0.5).filled(),
+                        )
+                    }),
+            )
+            .context("Failed to draw throttling histogram")?;
 
-        // Draw the throttling histogram as a series of bars.
-        // if !left_data.is_empty() || !right_data.is_empty() {
-        //     chart
-        //         .draw_series(
-        //             data.throttling
-        //                 .iter()
-        //                 .chunk_by(|(_, _, point)| *point)
-        //                 .into_iter()
-        //                 .filter_map(|(point, group_iter)| point.then_some(group_iter))
-        //                 .filter_map(|mut group_iter| {
-        //                     let first = group_iter.next()?;
-        //                     Some((first, group_iter.last().unwrap_or(first)))
-        //                 })
-        //                 .map(|((start, name, _), (end, _, _))| ((start, end), name))
-        //                 .map(|((start_time, end_time), _)| (start_time, end_time))
-        //                 .sorted_by_key(|&(start_time, _)| start_time)
-        //                 .coalesce(|(start1, end1), (start2, end2)| {
-        //                     if end1 >= start2 {
-        //                         Ok((start1, std::cmp::max(end1, end2)))
-        //                     } else {
-        //                         Err(((start1, end1), (start2, end2)))
-        //                     }
-        //                 })
-        //                 .map(|(start_time, end_time)| {
-        //                     Rectangle::new(
-        //                         [(start_time, 0f64), (end_time, maximum_value)],
-        //                         self.colors.throttling.filled(),
-        //                     )
-        //                 }),
-        //         )
-        //         .context("Failed to draw throttling histogram")?;
-        // }
+        // Draw throttling text
+        /*chart
+        .draw_series(
+            data_guard
+                .throttling_sections()
+                .iter()
+                .filter_map(|section| {
+                    let mut texts: Vec<&str> = section
+                        .iter()
+                        .flat_map(|(_, text)| text.iter().map(|s| s.as_str()))
+                        .collect();
+                    texts.sort_unstable();
+                    texts.dedup();
+
+                    let first = section.first()?;
+                    Some((
+                        first.0,
+                        section.last().map(|(ts, _)| *ts).unwrap_or(first.0),
+                        texts,
+                    ))
+                })
+                .map(|(start, _end, text)| {
+                    Text::new(
+                        text.join(","),
+                        (start, 0.0),
+                        TextStyle {
+                            font: ("sans-serif", 16).into(),
+                            color: self.colors.text.to_backend_color(),
+                            pos: Pos::new(HPos::default(), VPos::Bottom),
+                        },
+                    )
+                }),
+        )
+        .context("Failed to draw throttling histogram")?;*/
 
         // Draw the main line series using cubic spline interpolation.
         for (idx, (stat_type, data)) in data.iter().enumerate() {
@@ -418,48 +428,7 @@ impl RenderRequest {
                         Palette99::pick(idx).filled(),
                     )
                 });
-
-            // if let Some(&(last_timestamp, last_value)) = data.last() {
-            //     chart.draw_series(PointSeries::of_element(
-            //         [(last_timestamp, last_value)],
-            //         5,
-            //         ShapeStyle::from(Palette99::pick(idx)).filled(),
-            //         &|coord, size, style| {
-            //             let text = format!("{}{value_suffix}", coord.1);
-            //             let text_width =
-            //                 root.estimate_text_size(&text, &y_label_style).unwrap().1 as i32;
-
-            //             EmptyElement::at(coord)
-            //                 + Circle::new((0, 0), size, style)
-            //                 + Text::new(text, (-text_width - 40, -15), y_label_style.clone())
-            //         },
-            //     ))?;
-            // }
         }
-
-        // // Draw the secondary line series on the secondary y-axis.
-        // for (idx, (stat_type, data)) in right_data.iter().enumerate() {
-        //     chart
-        //         .draw_secondary_series(LineSeries::new(
-        //             cubic_spline_interpolation(data).into_iter().flat_map(
-        //                 |((first_time, second_time), segment)| {
-        //                     (first_time..second_time).map(move |current_date| {
-        //                         (current_date, segment.evaluate(current_date))
-        //                     })
-        //                 },
-        //             ),
-        //             Palette99::pick(idx + 10).stroke_width(2),
-        //         ))
-        //         .context("Failed to draw series")?
-        //         .label(stat_type.display())
-        //         .legend(move |(x, y)| {
-        //             let offset = 7;
-        //             Rectangle::new(
-        //                 [(x - offset, y - offset), (x + offset, y + offset)],
-        //                 Palette99::pick(idx + 10).filled(),
-        //             )
-        //         });
-        // }
 
         // Configure and draw series labels (the legend).
         chart
