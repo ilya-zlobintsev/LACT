@@ -266,11 +266,22 @@ impl RenderRequest {
 
         let data = data.get_stats(&self.stats).collect::<Vec<_>>();
 
-        let value_suffix = self
-            .stats
-            .first()
-            .map(|stat| stat.metric())
-            .unwrap_or_default();
+        let value_suffix = if self.stats.len() >= 2 {
+            let mut metric = self.stats[0].metric();
+            // Only display a suffix if it's the same across all metrics on the plot
+            for stat in &self.stats[1..] {
+                if stat.metric() != metric {
+                    metric = "";
+                    break;
+                }
+            }
+            metric
+        } else {
+            self.stats
+                .first()
+                .map(|stat| stat.metric())
+                .unwrap_or_default()
+        };
 
         // Calculate the maximum value for the y-axis.
         let mut maximum_value = data
@@ -309,7 +320,7 @@ impl RenderRequest {
             )?;
         // .set_secondary_coord(
         //     start_date..max(end_date, start_date + self.time_period_seconds * 1000),
-        //     0.0..maximum_value_right,
+        //     0f64..maximum_value,
         // );
 
         // Configure the x-axis and y-axis mesh.
@@ -324,7 +335,7 @@ impl RenderRequest {
             .y_label_formatter(&|x| format!("{x}{value_suffix}"))
             .x_labels(5)
             .y_labels(10)
-            .label_style(y_label_style)
+            .label_style(y_label_style.clone())
             .draw()
             .context("Failed to draw mesh")?;
 
@@ -332,7 +343,7 @@ impl RenderRequest {
         // chart
         //     .configure_secondary_axes()
         //     .axis_style(self.colors.border_secondary)
-        //     .y_label_formatter(&|x: &f64| format!("{x}{secondary_value_suffix}"))
+        //     .y_label_formatter(&|x: &f64| format!("{x}{value_suffix}"))
         //     .y_labels(10)
         //     .label_style(("sans-serif", 18, &self.colors.text))
         //     .draw()
@@ -373,12 +384,20 @@ impl RenderRequest {
 
         // Draw the main line series using cubic spline interpolation.
         for (idx, (stat_type, data)) in data.iter().enumerate() {
+            let current_value = data.last().map(|(_, val)| *val).unwrap_or(0.0);
+            let max_value = data
+                .iter()
+                .map(|(_, val)| *val)
+                .reduce(f64::max)
+                .unwrap_or(0.0);
+            let stat_suffix = stat_type.metric();
+
             chart
                 .draw_series(LineSeries::new(
-                    cubic_spline_interpolation(data).into_iter().flat_map(
+                    cubic_spline_interpolation(data).iter().flat_map(
                         |((first_time, second_time), segment)| {
                             // Interpolate in intervals of one millisecond.
-                            (first_time..second_time).map(move |current_date| {
+                            (*first_time..*second_time).map(move |current_date| {
                                 (current_date, segment.evaluate(current_date))
                             })
                         },
@@ -386,7 +405,12 @@ impl RenderRequest {
                     Palette99::pick(idx).stroke_width(2),
                 ))
                 .context("Failed to draw series")?
-                .label(stat_type.display())
+                // .label(stat_type.display())
+                .label(format!(
+                    "{}: {current_value:.1}{stat_suffix}, Peak {max_value:.1}{stat_suffix}",
+                    stat_type.display(),
+                ))
+                // .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLUE));
                 .legend(move |(x, y)| {
                     let offset = 7;
                     Rectangle::new(
@@ -394,6 +418,23 @@ impl RenderRequest {
                         Palette99::pick(idx).filled(),
                     )
                 });
+
+            // if let Some(&(last_timestamp, last_value)) = data.last() {
+            //     chart.draw_series(PointSeries::of_element(
+            //         [(last_timestamp, last_value)],
+            //         5,
+            //         ShapeStyle::from(Palette99::pick(idx)).filled(),
+            //         &|coord, size, style| {
+            //             let text = format!("{}{value_suffix}", coord.1);
+            //             let text_width =
+            //                 root.estimate_text_size(&text, &y_label_style).unwrap().1 as i32;
+
+            //             EmptyElement::at(coord)
+            //                 + Circle::new((0, 0), size, style)
+            //                 + Text::new(text, (-text_width - 40, -15), y_label_style.clone())
+            //         },
+            //     ))?;
+            // }
         }
 
         // // Draw the secondary line series on the secondary y-axis.
@@ -424,10 +465,10 @@ impl RenderRequest {
         chart
             .configure_series_labels()
             .margin(20)
-            .label_font(("sans-serif", 16, &self.colors.text))
+            .label_font(("sans-serif", 14, &self.colors.text))
             .position(SeriesLabelPosition::UpperLeft)
-            .background_style(self.colors.background.mix(0.8))
-            .border_style(self.colors.border)
+            .background_style(self.colors.background.mix(0.6))
+            // .border_style(self.colors.border)
             .draw()
             .context("Failed to draw series labels")?;
 

@@ -137,6 +137,7 @@ impl StatsData {
 pub enum StatType {
     GpuClock,
     GpuTargetClock,
+    GpuVoltage,
     VramClock,
     Temperature(String),
     FanRpm,
@@ -152,10 +153,11 @@ impl StatType {
         match self {
             GpuClock => "GPU Clock".into(),
             GpuTargetClock => "GPU Clock (Target)".into(),
+            GpuVoltage => "GPU Voltage".into(),
             VramClock => "VRAM Clock".into(),
             Temperature(name) => format!("Temp ({name})").into(),
             FanRpm => "Fan RPM".into(),
-            FanPwm => "Fan %".into(),
+            FanPwm => "Fan".into(),
             PowerCurrent => "Power Draw".into(),
             PowerAverage => "Power Draw (Avg)".into(),
             PowerCap => "Power Cap".into(),
@@ -166,6 +168,7 @@ impl StatType {
         use StatType::*;
         match self {
             GpuClock | GpuTargetClock | VramClock => "MHz",
+            GpuVoltage => "mV",
             Temperature(_) => "℃",
             FanRpm => "RPM",
             FanPwm => "%",

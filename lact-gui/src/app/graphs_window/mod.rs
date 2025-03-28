@@ -4,7 +4,7 @@ mod stat;
 
 use gtk::{glib, prelude::*};
 use lact_schema::DeviceStats;
-use plot_component::{PlotComponent, PlotComponentMsg};
+use plot_component::{PlotComponent, PlotComponentConfig, PlotComponentMsg};
 use relm4::{
     binding::{BoolBinding, ConnectBinding, F64Binding},
     prelude::{DynamicIndex, FactoryVecDeque},
@@ -24,13 +24,18 @@ pub struct GraphsWindow {
 
 #[derive(Debug)]
 pub enum GraphsWindowMsg {
-    Stats(Arc<DeviceStats>),
+    Stats {
+        stats: Arc<DeviceStats>,
+        initial: bool,
+    },
     VramClockRatio(f64),
     NotifyEditing,
     NotifyPlotsPerRow,
     SwapPlots(DynamicIndex, DynamicIndex),
+    RemovePlot(DynamicIndex),
+    AddPlot,
+    SetConfig(Vec<Vec<StatType>>),
     Show,
-    Clear,
 }
 
 #[relm4::component(pub)]
@@ -62,8 +67,7 @@ impl relm4::Component for GraphsWindow {
                     append = &gtk::Box {
                         set_halign: gtk::Align::End,
                         set_orientation: gtk::Orientation::Horizontal,
-                        set_spacing: 5,
-
+                        set_spacing: 10,
 
                         append = &gtk::Box {
                             set_halign: gtk::Align::End,
@@ -82,92 +86,32 @@ impl relm4::Component for GraphsWindow {
                                 set_range: (1.0, 5.0),
                                 set_increments: (1.0, 1.0),
                                 bind: &model.plots_per_row,
-
                                 connect_value_notify => GraphsWindowMsg::NotifyPlotsPerRow,
+                            },
+
+                            append = &gtk::Label {
+                                set_label: "Time period (seconds):"
+                            },
+
+                            append = &gtk::SpinButton {
+                                set_adjustment: &model.time_period_seconds_adj,
+                            },
+
+                            append = &gtk::Button {
+                                set_icon_name: "list-add-symbolic",
+                                connect_clicked => GraphsWindowMsg::AddPlot,
+                                set_tooltip: "Add graph",
                             },
                         },
 
                         append = &gtk::ToggleButton {
                             set_label: "Edit",
                             bind: &model.edit_mode,
-
                             connect_active_notify => GraphsWindowMsg::NotifyEditing,
                         },
                     }
                 },
             },
-
-            /*gtk::Grid {
-                set_margin_all: 10,
-                set_row_spacing: 20,
-                set_column_spacing: 20,
-                set_column_homogeneous: true,
-
-                attach[0, 0, 1, 1]: temperature_plot = &Plot {
-                    set_title: "Temperature",
-                    set_hexpand: true,
-                    set_value_suffix: "°C",
-                    set_y_label_area_size: 60,
-                    #[watch]
-                    set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
-
-                    set_data: model.stats_data.clone(),
-                },
-
-                attach[0, 1, 1, 1]: fan_plot = &Plot {
-                    set_title: "Fan speed",
-                    set_hexpand: true,
-                    set_value_suffix: "RPM",
-                    set_secondary_value_suffix: "%",
-                    set_y_label_area_size: 90,
-                    set_secondary_y_label_area_size: 60,
-                    #[watch]
-                    set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
-
-                    set_config: PlotConfig {
-                        left_stats: vec![StatType::FanRpm],
-                        right_stats: vec![StatType::FanPwm],
-                    },
-
-                    set_data: model.stats_data.clone(),
-                },
-
-                attach[1, 0, 1, 1]: clockspeed_plot = &Plot {
-                    set_title: "Clockspeed",
-                    set_hexpand: true,
-                    set_value_suffix: "MHz",
-                    set_y_label_area_size: 95,
-                    #[watch]
-                    set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
-
-                    set_data: model.stats_data.clone(),
-                },
-
-                attach[1, 1, 1, 1]: power_plot = &Plot {
-                    set_title: "Power usage",
-                    set_hexpand: true,
-                    set_value_suffix: "W",
-                    set_y_label_area_size: 65,
-                    #[watch]
-                    set_time_period_seconds: model.time_period_seconds_adj.value() as i64,
-
-                    set_data: model.stats_data.clone(),
-                },
-
-                attach[1, 2, 1, 1] = &gtk::Box {
-                    set_halign: gtk::Align::End,
-                    set_spacing: 5,
-
-                    gtk::Label {
-                        set_label: "Time period (seconds):"
-                    },
-
-                    gtk::SpinButton {
-                        set_adjustment: &model.time_period_seconds_adj,
-                    },
-                },
-            },*/
-
         }
     }
 
@@ -176,36 +120,15 @@ impl relm4::Component for GraphsWindow {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let time_period_seconds_adj = gtk::Adjustment::new(60.0, 15.0, 3601.0, 1.0, 1.0, 1.0);
+        let time_period_seconds_adj = gtk::Adjustment::new(60.0, 15.0, 3600.0, 1.0, 0.0, 1.0);
 
         let stats_data = Arc::new(RwLock::new(StatsData::default()));
         let plots_per_row = F64Binding::new(2.0);
-        let mut plots = FactoryVecDeque::builder()
+        let plots = FactoryVecDeque::builder()
             .launch_default()
             .forward(sender.input_sender(), |x| x);
 
         let edit_mode = BoolBinding::new(false);
-
-        plots.guard().push_back(PlotComponent {
-            plots_per_row: plots_per_row.clone(),
-            stats: vec![StatType::GpuClock, StatType::VramClock],
-            data: stats_data.clone(),
-            edit_mode: edit_mode.clone(),
-        });
-
-        plots.guard().push_back(PlotComponent {
-            plots_per_row: plots_per_row.clone(),
-            stats: vec![StatType::PowerCurrent, StatType::PowerCap],
-            data: stats_data.clone(),
-            edit_mode: edit_mode.clone(),
-        });
-
-        plots.guard().push_back(PlotComponent {
-            plots_per_row: plots_per_row.clone(),
-            stats: vec![StatType::FanRpm, StatType::FanPwm],
-            data: stats_data.clone(),
-            edit_mode: edit_mode.clone(),
-        });
 
         let model = Self {
             time_period_seconds_adj,
@@ -231,87 +154,16 @@ impl relm4::Component for GraphsWindow {
         match msg {
             GraphsWindowMsg::Show => {
                 root.show();
+                self.update_plots_layout();
             }
             GraphsWindowMsg::VramClockRatio(ratio) => {
                 self.vram_clock_ratio = ratio;
             }
-            GraphsWindowMsg::Stats(stats) => {
-                /*let mut temperature_plot = widgets.temperature_plot.data_mut();
-                let mut clockspeed_plot = widgets.clockspeed_plot.data_mut();
-                let mut power_plot = widgets.power_plot.data_mut();
-                let mut fan_plot = widgets.fan_plot.data_mut();
-
-                let throttling_plots =
-                    [&mut temperature_plot, &mut clockspeed_plot, &mut power_plot];
-                match &stats.throttle_info {
-                    Some(throttle_info) => {
-                        if throttle_info.is_empty() {
-                            for plot in throttling_plots {
-                                plot.push_throttling("No", false);
-                            }
-                        } else {
-                            let type_text: Vec<String> = throttle_info
-                                .iter()
-                                .map(|(throttle_type, details)| {
-                                    format!("{throttle_type} ({})", details.join(", "))
-                                })
-                                .collect();
-
-                            let text = type_text.join(", ");
-
-                            for plot in throttling_plots {
-                                plot.push_throttling(&text, true);
-                            }
-                        }
-                    }
-                    None => {
-                        for plot in throttling_plots {
-                            plot.push_throttling("Unknown", false);
-                        }
-                    }
+            GraphsWindowMsg::Stats { stats, initial } => {
+                if initial {
+                    self.stats_data.write().unwrap().clear();
+                    sender.input(GraphsWindowMsg::SetConfig(default_plots()));
                 }
-
-                for (name, value) in &stats.temps {
-                    temperature_plot.push_line_series(name, value.current.unwrap_or(0.0) as f64);
-                }
-
-                if let Some(average) = stats.power.average {
-                    power_plot.push_line_series("Average", average);
-                }
-                if let Some(current) = stats.power.current {
-                    power_plot.push_line_series("Current", current);
-                }
-                if let Some(limit) = stats.power.cap_current {
-                    power_plot.push_line_series("Limit", limit);
-                }
-
-                if let Some(point) = stats.clockspeed.gpu_clockspeed {
-                    clockspeed_plot.push_line_series("GPU (Avg)", point as f64);
-                }
-                if let Some(point) = stats.clockspeed.current_gfxclk {
-                    clockspeed_plot.push_line_series("GPU (Trgt)", point as f64);
-                }
-                if let Some(point) = stats.clockspeed.vram_clockspeed {
-                    clockspeed_plot.push_line_series("VRAM", point as f64 * self.vram_clock_ratio);
-                }
-
-                if let Some(max_speed) = stats.fan.speed_max {
-                    fan_plot.push_line_series("Maximum", max_speed as f64);
-                }
-                if let Some(min_speed) = stats.fan.speed_min {
-                    fan_plot.push_line_series("Minimum", min_speed as f64);
-                }
-
-                if let Some(current_speed) = stats.fan.speed_current {
-                    fan_plot.push_line_series("Current", current_speed as f64);
-                }
-
-                if let Some(pwm) = stats.fan.pwm_current {
-                    fan_plot.push_secondary_line_series(
-                        "Percentage",
-                        (pwm as f64 / u8::MAX as f64) * 100.0,
-                    );
-                }*/
 
                 let mut data = self.stats_data.write().unwrap();
                 data.update(&stats);
@@ -319,14 +171,37 @@ impl relm4::Component for GraphsWindow {
                 let time_period_seconds = self.time_period_seconds_adj.value() as i64;
                 data.trim(time_period_seconds);
             }
-            GraphsWindowMsg::Clear => {
-                self.stats_data.write().unwrap().clear();
+            GraphsWindowMsg::SetConfig(configured_plots) => {
+                let mut plots = self.plots.guard();
+                plots.clear();
+
+                for stats in configured_plots {
+                    plots.push_back(PlotComponentConfig {
+                        selected_stats: stats,
+                        data: self.stats_data.clone(),
+                        edit_mode: self.edit_mode.clone(),
+                        plots_per_row: self.plots_per_row.clone(),
+                        time_period: self.time_period_seconds_adj.clone(),
+                    });
+                }
             }
             GraphsWindowMsg::NotifyEditing => {
                 self.plots.broadcast(PlotComponentMsg::Redraw);
             }
             GraphsWindowMsg::NotifyPlotsPerRow => {
                 self.update_plots_layout();
+            }
+            GraphsWindowMsg::RemovePlot(index) => {
+                self.plots.guard().remove(index.current_index());
+            }
+            GraphsWindowMsg::AddPlot => {
+                self.plots.guard().push_back(PlotComponentConfig {
+                    selected_stats: vec![],
+                    data: self.stats_data.clone(),
+                    edit_mode: self.edit_mode.clone(),
+                    plots_per_row: self.plots_per_row.clone(),
+                    time_period: self.time_period_seconds_adj.clone(),
+                });
             }
             GraphsWindowMsg::SwapPlots(left, right) => {
                 let mut guard = self.plots.guard();
@@ -352,7 +227,7 @@ impl GraphsWindow {
         }
 
         for plot in plots {
-            guard.push_back(plot);
+            guard.push_back(plot.into_config());
         }
     }
 
@@ -364,3 +239,25 @@ impl GraphsWindow {
 #[derive(Clone, glib::Boxed)]
 #[boxed_type(name = "DynamicIndexValue")]
 pub struct DynamicIndexValue(DynamicIndex);
+
+fn default_plots() -> Vec<Vec<StatType>> {
+    vec![
+        vec![
+            StatType::Temperature("GPU".into()),
+            StatType::Temperature("edge".into()),
+            StatType::Temperature("junction".into()),
+            StatType::Temperature("mem".into()),
+        ],
+        vec![
+            StatType::GpuClock,
+            StatType::GpuTargetClock,
+            StatType::VramClock,
+        ],
+        vec![StatType::FanPwm, StatType::FanRpm],
+        vec![
+            StatType::PowerAverage,
+            StatType::PowerCurrent,
+            StatType::PowerCap,
+        ],
+    ]
+}
