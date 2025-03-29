@@ -3,11 +3,9 @@ mod imp;
 mod render_thread;
 mod to_texture_ext;
 
-use std::cell::RefMut;
-
-pub use imp::PlotData;
-
+use super::stat::{StatType, StatsData};
 use gtk::glib::{self, subclass::types::ObjectSubclassIsExt, Object};
+use std::sync::{Arc, RwLock};
 
 glib::wrapper! {
     pub struct Plot(ObjectSubclass<imp::Plot>)
@@ -21,8 +19,11 @@ impl Default for Plot {
 }
 
 impl Plot {
-    pub fn data_mut(&self) -> RefMut<'_, PlotData> {
-        self.imp().dirty.set(true);
-        self.imp().data.borrow_mut()
+    pub fn set_data(&self, data: Arc<RwLock<StatsData>>) {
+        *self.imp().data.borrow_mut() = data;
+    }
+
+    pub fn set_stats(&self, stats: Vec<StatType>) {
+        *self.imp().stats.borrow_mut() = stats;
     }
 }

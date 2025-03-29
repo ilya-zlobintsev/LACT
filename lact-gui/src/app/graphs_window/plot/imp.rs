@@ -1,11 +1,13 @@
-use chrono::NaiveDateTime;
+use super::render_thread::{PlotColorScheme, RenderRequest, RenderThread};
+use crate::app::graphs_window::stat::StatType;
+use crate::app::graphs_window::stat::StatsData;
 use glib::Properties;
+use gtk::gdk::MemoryTexture;
 use gtk::{glib, prelude::*, subclass::prelude::*};
 use std::cell::Cell;
 use std::cell::RefCell;
-use std::collections::BTreeMap;
-
-use super::render_thread::{PlotColorScheme, RenderRequest, RenderThread};
+use std::sync::Arc;
+use std::sync::RwLock;
 
 const SUPERSAMPLE_FACTOR: u32 = 1;
 
@@ -14,19 +16,13 @@ const SUPERSAMPLE_FACTOR: u32 = 1;
 pub struct Plot {
     #[property(get, set)]
     title: RefCell<String>,
-    #[property(get, set)]
-    value_suffix: RefCell<String>,
-    #[property(get, set)]
-    secondary_value_suffix: RefCell<String>,
-    #[property(get, set)]
-    y_label_area_size: Cell<u32>,
-    #[property(get, set)]
-    secondary_y_label_area_size: Cell<u32>,
-    pub(super) data: RefCell<PlotData>,
-    pub(super) dirty: Cell<bool>,
+    #[property(set)]
+    dirty: Cell<bool>,
     render_thread: RenderThread,
     #[property(get, set)]
     time_period_seconds: Cell<i64>,
+    pub stats: RefCell<Vec<StatType>>,
+    pub data: RefCell<Arc<RwLock<StatsData>>>,
 }
 
 #[glib::object_subclass]
@@ -60,7 +56,7 @@ impl WidgetImpl for Plot {
             return;
         }
 
-        let last_texture = self.render_thread.get_last_texture();
+        let last_texture = self.get_last_texture();
         let size_changed = last_texture
             .as_ref()
             .map(|texture| (texture.width() as u32, texture.height() as u32) != (width, height))
@@ -69,14 +65,11 @@ impl WidgetImpl for Plot {
         if self.dirty.replace(false) || size_changed {
             self.render_thread.replace_render_request(RenderRequest {
                 data: self.data.borrow().clone(),
+                stats: self.stats.borrow().clone(),
                 width,
                 height,
                 colors,
                 title: self.title.borrow().clone(),
-                value_suffix: self.value_suffix.borrow().clone(),
-                secondary_value_suffix: self.secondary_value_suffix.borrow().clone(),
-                y_label_area_size: self.y_label_area_size.get(),
-                secondary_y_label_area_size: self.secondary_y_label_area_size.get(),
                 supersample_factor: SUPERSAMPLE_FACTOR,
                 time_period_seconds: self.time_period_seconds.get(),
             });
@@ -91,124 +84,31 @@ impl WidgetImpl for Plot {
     }
 }
 
-#[derive(Default, Clone)]
-pub struct PlotData {
-    pub(super) line_series: BTreeMap<String, Vec<(i64, f64)>>,
-    pub(super) secondary_line_series: BTreeMap<String, Vec<(i64, f64)>>,
-    pub(super) throttling: Vec<(i64, (String, bool))>,
-}
-
-impl PlotData {
-    pub fn push_line_series(&mut self, name: &str, point: f64) {
-        self.push_line_series_with_time(name, point, chrono::Local::now().naive_local());
-    }
-
-    pub fn push_secondary_line_series(&mut self, name: &str, point: f64) {
-        self.push_secondary_line_series_with_time(name, point, chrono::Local::now().naive_local());
-    }
-
-    pub(super) fn push_line_series_with_time(
-        &mut self,
-        name: &str,
-        point: f64,
-        time: NaiveDateTime,
-    ) {
-        self.line_series
-            .entry(name.to_owned())
-            .or_default()
-            .push((time.and_utc().timestamp_millis(), point));
-    }
-
-    pub(super) fn push_secondary_line_series_with_time(
-        &mut self,
-        name: &str,
-        point: f64,
-        time: NaiveDateTime,
-    ) {
-        self.secondary_line_series
-            .entry(name.to_owned())
-            .or_default()
-            .push((time.and_utc().timestamp_millis(), point));
-    }
-
-    pub fn push_throttling(&mut self, name: &str, point: bool) {
-        self.throttling.push((
-            chrono::Local::now()
-                .naive_local()
-                .and_utc()
-                .timestamp_millis(),
-            (name.to_owned(), point),
-        ));
-    }
-
-    pub fn line_series_iter(&self) -> impl Iterator<Item = (&String, &Vec<(i64, f64)>)> {
-        self.line_series.iter()
-    }
-
-    pub fn secondary_line_series_iter(&self) -> impl Iterator<Item = (&String, &Vec<(i64, f64)>)> {
-        self.secondary_line_series.iter()
-    }
-
-    pub fn throttling_iter(&self) -> impl Iterator<Item = (i64, &str, bool)> {
-        self.throttling
-            .iter()
-            .map(|(time, (name, point))| (*time, name.as_str(), *point))
-    }
-
-    pub fn trim_data(&mut self, last_seconds: i64) {
-        // Limit data to N seconds
-        for data in self.line_series.values_mut() {
-            let maximum_point = data
-                .last()
-                .map(|(date_time, _)| *date_time)
-                .unwrap_or_default();
-
-            data.retain(|(time_point, _)| ((maximum_point - *time_point) / 1000) < last_seconds);
-        }
-
-        self.line_series.retain(|_, data| !data.is_empty());
-
-        for data in self.secondary_line_series.values_mut() {
-            let maximum_point = data
-                .last()
-                .map(|(date_time, _)| *date_time)
-                .unwrap_or_default();
-
-            data.retain(|(time_point, _)| ((maximum_point - *time_point) / 1000) < last_seconds);
-        }
-
-        self.secondary_line_series
-            .retain(|_, data| !data.is_empty());
-
-        // Limit data to N seconds
-        let maximum_point = self
-            .throttling
-            .last()
-            .map(|(date_time, _)| *date_time)
-            .unwrap_or_default();
-
-        self.throttling
-            .retain(|(time_point, _)| ((maximum_point - *time_point) / 1000) < last_seconds);
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.line_series.is_empty() && self.secondary_line_series.is_empty()
+impl Plot {
+    pub fn get_last_texture(&self) -> Option<MemoryTexture> {
+        self.render_thread.get_last_texture()
     }
 }
-
 #[cfg(feature = "bench")]
 mod benches {
-    use crate::app::graphs_window::plot::{
-        render_thread::{process_request, PlotColorScheme, RenderRequest},
-        PlotData,
+    use crate::app::graphs_window::{
+        plot::render_thread::{process_request, PlotColorScheme, RenderRequest},
+        stat::{StatType, StatsData},
     };
+    use amdgpu_sysfs::{gpu_handle::PerformanceLevel, hw_mon::Temperature};
     use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
     use divan::{counter::ItemsCount, Bencher};
-    use std::sync::Mutex;
+    use lact_schema::{
+        ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats, VoltageStats, VramStats,
+    };
+    use std::{
+        collections::HashMap,
+        sync::{Arc, Mutex, RwLock},
+    };
 
     use super::SUPERSAMPLE_FACTOR;
 
-    #[divan::bench]
+    #[divan::bench(sample_size = 10)]
     fn render_plot(bencher: Bencher) {
         let last_texture = &Mutex::new(None);
 
@@ -218,24 +118,26 @@ mod benches {
             .bench_values(|data| {
                 let request = RenderRequest {
                     title: "bench render".into(),
-                    value_suffix: "%".into(),
-                    secondary_value_suffix: "".into(),
-                    y_label_area_size: 30,
-                    secondary_y_label_area_size: 30,
                     colors: PlotColorScheme::default(),
                     data,
                     width: 1920,
                     height: 1080,
                     supersample_factor: SUPERSAMPLE_FACTOR,
                     time_period_seconds: 60,
+                    stats: vec![
+                        StatType::GpuClock,
+                        StatType::GpuTargetClock,
+                        StatType::VramClock,
+                        StatType::GpuVoltage,
+                    ],
                 };
 
                 process_request(request, last_texture)
             });
     }
 
-    fn sample_plot_data() -> PlotData {
-        let mut data = PlotData::default();
+    fn sample_plot_data() -> Arc<RwLock<StatsData>> {
+        let mut data = StatsData::default();
 
         // Simulate 1 minute plot with 4 values per second
         for sec in 0..60 {
@@ -245,11 +147,56 @@ mod benches {
                     NaiveTime::from_hms_milli_opt(0, 0, sec, milli).unwrap(),
                 );
 
-                data.push_line_series_with_time("GPU", 100.0, datetime);
-                data.push_secondary_line_series_with_time("GPU Secondary", 10.0, datetime);
+                let stats = DeviceStats {
+                    busy_percent: Some(3),
+                    clockspeed: ClockspeedStats {
+                        gpu_clockspeed: Some(500),
+                        vram_clockspeed: Some(1000),
+                        current_gfxclk: None,
+                    },
+                    core_power_state: Some(0),
+                    fan: FanStats {
+                        control_enabled: false,
+                        pmfw_info: PmfwInfo::default(),
+                        pwm_current: Some(0),
+                        pwm_max: Some(255),
+                        pwm_min: Some(0),
+                        speed_current: Some(0),
+                        speed_max: Some(3400),
+                        speed_min: Some(0),
+                        ..Default::default()
+                    },
+                    memory_power_state: Some(3),
+                    pcie_power_state: Some(1),
+                    performance_level: Some(PerformanceLevel::Auto),
+                    power: PowerStats {
+                        average: Some(36.0),
+                        cap_current: Some(289.0),
+                        cap_default: Some(289.0),
+                        cap_max: Some(332.0),
+                        cap_min: Some(0.0),
+                        current: None,
+                    },
+                    temps: HashMap::from([(
+                        "edge".to_owned(),
+                        Temperature {
+                            crit: Some(100.0),
+                            crit_hyst: None,
+                            current: Some(56.0),
+                        },
+                    )]),
+                    voltage: VoltageStats::default(),
+                    vram: VramStats {
+                        total: Some(17163091968),
+                        used: Some(668274688),
+                    },
+                    throttle_info: None,
+                };
+
+                data.update_with_timestamp(&stats, datetime.and_utc().timestamp_millis());
             }
         }
 
-        data
+        Arc::new(RwLock::new(data))
     }
 }
