@@ -1,1 +1,1 @@
-FROM fedora:41
+FROM quay.io/fedora/fedora:41
