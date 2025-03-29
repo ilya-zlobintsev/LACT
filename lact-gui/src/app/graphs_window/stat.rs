@@ -11,7 +11,10 @@ impl StatsData {
     pub fn update(&mut self, stats: &DeviceStats) {
         let time = chrono::Local::now().naive_local();
         let timestamp = time.and_utc().timestamp_millis();
+        self.update_with_timestamp(stats, timestamp);
+    }
 
+    pub fn update_with_timestamp(&mut self, stats: &DeviceStats, timestamp: i64) {
         for (name, temperature) in &stats.temps {
             if let Some(value) = temperature.current {
                 self.stats
