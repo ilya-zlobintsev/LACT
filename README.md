@@ -27,6 +27,7 @@ All of the functionality works regardless of the desktop session (there is no de
 - [Config file reference](./docs/CONFIG.md)
 - [API](./docs/API.md)
 - [Power profiles daemon conflict](#power-profiles-daemon-note)
+- [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock)
 
 # Installation
 
