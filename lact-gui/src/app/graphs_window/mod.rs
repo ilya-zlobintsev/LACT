@@ -2,16 +2,28 @@ mod plot;
 mod plot_component;
 mod stat;
 
+use anyhow::Context;
+use chrono::Local;
 use gtk::{glib, prelude::*};
 use lact_schema::DeviceStats;
 use plot_component::{PlotComponent, PlotComponentConfig, PlotComponentMsg};
 use relm4::{
     binding::{BoolBinding, ConnectBinding, F64Binding},
     prelude::{DynamicIndex, FactoryVecDeque},
-    ComponentParts, ComponentSender, RelmWidgetExt,
+    ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
+};
+use relm4_components::save_dialog::{
+    SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings,
 };
 use stat::{StatType, StatsData};
-use std::sync::{Arc, RwLock};
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+    path::Path,
+    sync::{Arc, RwLock},
+};
+
+use super::{msg::AppMsg, APP_BROKER};
 
 pub struct GraphsWindow {
     time_period_seconds_adj: gtk::Adjustment,
@@ -36,6 +48,7 @@ pub enum GraphsWindowMsg {
     AddPlot,
     SetConfig(Vec<Vec<StatType>>),
     Show,
+    ExportData,
 }
 
 #[relm4::component(pub)]
@@ -109,6 +122,11 @@ impl relm4::Component for GraphsWindow {
                             bind: &model.edit_mode,
                             connect_active_notify => GraphsWindowMsg::NotifyEditing,
                         },
+
+                        append = &gtk::Button {
+                            set_label: "Export as CSV",
+                            connect_clicked => GraphsWindowMsg::ExportData,
+                        }
                     }
                 },
             },
@@ -120,7 +138,7 @@ impl relm4::Component for GraphsWindow {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let time_period_seconds_adj = gtk::Adjustment::new(60.0, 15.0, 3600.0, 1.0, 0.0, 1.0);
+        let time_period_seconds_adj = gtk::Adjustment::new(60.0, 10.0, 3600.0, 1.0, 1.0, 0.0);
 
         let stats_data = Arc::new(RwLock::new(StatsData::default()));
         let plots_per_row = F64Binding::new(2.0);
@@ -207,6 +225,34 @@ impl relm4::Component for GraphsWindow {
                 let mut guard = self.plots.guard();
                 guard.swap(left.current_index(), right.current_index());
             }
+            GraphsWindowMsg::ExportData => {
+                let settings = SaveDialogSettings {
+                    cancel_label: "Cancel".to_owned(),
+                    accept_label: "Save".to_owned(),
+                    create_folders: true,
+                    is_modal: true,
+                    filters: vec![],
+                };
+
+                let save_dialog = SaveDialog::builder().launch(settings);
+                save_dialog.emit(SaveDialogMsg::SaveAs(format!(
+                    "LACT-stats-{}.csv",
+                    Local::now().format("%Y%m%d-%H%M%S")
+                )));
+                let save_dialog_stream = save_dialog.into_stream();
+
+                let data = self.stats_data.clone();
+                relm4::spawn(async move {
+                    if let Some(SaveDialogResponse::Accept(path)) =
+                        save_dialog_stream.recv_one().await
+                    {
+                        let data = data.read().unwrap();
+                        if let Err(err) = export_to_file(&data, &path) {
+                            APP_BROKER.send(AppMsg::Error(Arc::new(err)));
+                        }
+                    }
+                });
+            }
         }
 
         self.update_view(widgets, sender);
@@ -260,4 +306,36 @@ fn default_plots() -> Vec<Vec<StatType>> {
             StatType::PowerCap,
         ],
     ]
+}
+
+fn export_to_file(data: &StatsData, path: &Path) -> anyhow::Result<()> {
+    let file = File::create(path).context("Could not create file")?;
+    let mut output = BufWriter::new(file);
+
+    let header = data
+        .list_stats()
+        .map(|stat| stat.display())
+        .collect::<Vec<_>>()
+        .join(",");
+    writeln!(output, "timestamp,{header}")?;
+
+    let all_stats = data.all_stats().values().collect::<Vec<_>>();
+
+    if let Some(first_stat_type) = all_stats.first() {
+        for i in 0..first_stat_type.len() {
+            let timestamp = first_stat_type[i].0;
+            write!(output, "{timestamp}")?;
+
+            for stat in &all_stats {
+                let value = stat[i].1;
+                write!(output, ",{value}")?;
+            }
+
+            writeln!(output)?;
+        }
+    }
+
+    output.flush()?;
+
+    Ok(())
 }
