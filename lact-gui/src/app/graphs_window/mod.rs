@@ -138,7 +138,7 @@ impl relm4::Component for GraphsWindow {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let time_period_seconds_adj = gtk::Adjustment::new(60.0, 15.0, 3600.0, 1.0, 0.0, 1.0);
+        let time_period_seconds_adj = gtk::Adjustment::new(60.0, 10.0, 3600.0, 1.0, 1.0, 0.0);
 
         let stats_data = Arc::new(RwLock::new(StatsData::default()));
         let plots_per_row = F64Binding::new(2.0);
@@ -226,15 +226,12 @@ impl relm4::Component for GraphsWindow {
                 guard.swap(left.current_index(), right.current_index());
             }
             GraphsWindowMsg::ExportData => {
-                let file_filter = gtk::FileFilter::new();
-                file_filter.add_mime_type("text/plain");
-
                 let settings = SaveDialogSettings {
                     cancel_label: "Cancel".to_owned(),
                     accept_label: "Save".to_owned(),
                     create_folders: true,
                     is_modal: true,
-                    filters: vec![file_filter],
+                    filters: vec![],
                 };
 
                 let save_dialog = SaveDialog::builder().launch(settings);
