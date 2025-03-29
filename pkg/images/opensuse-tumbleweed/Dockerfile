@@ -1,2 +1,2 @@
 FROM opensuse/tumbleweed
-RUN zypper update -y
+RUN zypper dup -y
