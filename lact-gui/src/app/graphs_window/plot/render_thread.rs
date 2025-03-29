@@ -310,7 +310,6 @@ impl RenderRequest {
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(35)
             .y_label_area_size(y_label_area_size)
-            // .right_y_label_area_size(self.secondary_y_label_area_size)
             .margin(10)
             .margin_top(20)
             .caption(self.title.as_str(), ("sans-serif", 24, &self.colors.text))
@@ -358,6 +357,7 @@ impl RenderRequest {
             .context("Failed to draw throttling histogram")?;
 
         // Draw throttling text
+        // Currently disabled as text often overlaps, have to figure out a better way to display it
         /*chart
         .draw_series(
             data_guard
@@ -415,12 +415,10 @@ impl RenderRequest {
                     Palette99::pick(idx).stroke_width(2),
                 ))
                 .context("Failed to draw series")?
-                // .label(stat_type.display())
                 .label(format!(
                     "{}: {current_value:.1}{stat_suffix}, Peak {max_value:.1}{stat_suffix}",
                     stat_type.display(),
                 ))
-                // .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLUE));
                 .legend(move |(x, y)| {
                     let offset = 7;
                     Rectangle::new(
@@ -437,7 +435,6 @@ impl RenderRequest {
             .label_font(("sans-serif", 14, &self.colors.text))
             .position(SeriesLabelPosition::UpperLeft)
             .background_style(self.colors.background.mix(0.6))
-            // .border_style(self.colors.border)
             .draw()
             .context("Failed to draw series labels")?;
 
