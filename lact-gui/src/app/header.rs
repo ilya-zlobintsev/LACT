@@ -2,7 +2,7 @@ mod new_profile_dialog;
 mod profile_row;
 pub mod profile_rule_window;
 
-use crate::app::APP_BROKER;
+use crate::{app::APP_BROKER, CONFIG};
 
 use super::{AppMsg, DebugSnapshot, DisableOverdrive, DumpVBios, ResetConfig, ShowGraphsWindow};
 use glib::clone;
@@ -173,6 +173,17 @@ impl Component for Header {
                 }
             ));
 
+        if let Some(selected_gpu_id) = &CONFIG.read().selected_gpu {
+            for idx in 0..gpu_selector.len() {
+                let gpu_item = gpu_selector.get(idx).unwrap();
+                if gpu_item.borrow().0.id == *selected_gpu_id {
+                    debug!("selecting gpu id {selected_gpu_id}");
+                    gpu_selector.selection_model.set_selected(idx);
+                    break;
+                }
+            }
+        }
+
         let profile_selector = FactoryVecDeque::<ProfileRow>::builder()
             .launch_default()
             .forward(sender.input_sender(), |msg| msg);
@@ -236,7 +247,14 @@ impl Component for Header {
                 widgets.menu_button.popdown();
             }
             HeaderMsg::Profiles(profiles_info) => self.set_profiles_info(*profiles_info),
-            HeaderMsg::SelectGpu => sender.output(AppMsg::ReloadData { full: true }).unwrap(),
+            HeaderMsg::SelectGpu => {
+                let gpu_id = self.selected_gpu_id();
+                CONFIG.write().edit(|config| {
+                    config.selected_gpu = gpu_id;
+                });
+
+                sender.output(AppMsg::ReloadData { full: true }).unwrap()
+            }
             HeaderMsg::AutoProfileSwitch(auto_switch) => {
                 let msg = AppMsg::SelectProfile {
                     profile: self

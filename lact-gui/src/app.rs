@@ -1,6 +1,6 @@
 mod apply_revealer;
 mod confirmation_dialog;
-mod graphs_window;
+pub mod graphs_window;
 mod header;
 mod info_row;
 mod msg;
