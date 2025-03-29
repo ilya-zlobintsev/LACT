@@ -112,6 +112,13 @@ impl relm4::Component for GraphsWindow {
                             },
 
                             append = &gtk::Button {
+                                set_label: "Reset",
+                                set_tooltip: "Resets all graphs to default",
+                                set_css_classes: &["destructive-action"],
+                                connect_clicked => GraphsWindowMsg::SetConfig(default_plots()),
+                            },
+
+                            append = &gtk::Button {
                                 set_icon_name: "list-add-symbolic",
                                 connect_clicked => GraphsWindowMsg::AddPlot,
                                 set_tooltip: "Add graph",
