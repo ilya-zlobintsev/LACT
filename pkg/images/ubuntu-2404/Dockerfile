@@ -1,1 +1,1 @@
-FROM public.ecr.aws/ubuntu/ubuntu:24.04
+FROM quay.io/lib/ubuntu:24.04

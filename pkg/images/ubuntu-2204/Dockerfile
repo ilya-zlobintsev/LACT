@@ -1,1 +1,1 @@
-FROM public.ecr.aws/ubuntu/ubuntu:22.04
+FROM quay.io/lib/ubuntu:22.04
