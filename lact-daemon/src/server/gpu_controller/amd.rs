@@ -33,11 +33,7 @@ use std::{
     time::Duration,
 };
 use std::{collections::BTreeMap, fs, time::Instant};
-use tokio::{
-    select,
-    sync::Notify,
-    time::{sleep, timeout},
-};
+use tokio::{select, sync::Notify, time::sleep};
 use tracing::{debug, error, info, trace, warn};
 
 use {
@@ -45,7 +41,7 @@ use {
     libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
 };
 
-const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
+// const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
@@ -782,7 +778,7 @@ impl GpuController for AmdGpuController {
         config: &'a config::Gpu,
     ) -> LocalBoxFuture<'a, anyhow::Result<()>> {
         Box::pin(async {
-            if let Some(configured_cap) = config.power_cap {
+            /*if let Some(configured_cap) = config.power_cap {
                 let hw_mon = self.first_hw_mon()?;
 
                 let current_usage = hw_mon
@@ -798,7 +794,7 @@ impl GpuController for AmdGpuController {
                 // When applying a power limit that's lower than the current power consumption,
                 // try to downclock the GPU first by forcing it into the lowest performance level.
                 // Workaround for behaviour described in https://github.com/ilya-zlobintsev/LACT/issues/207
-                let mut original_performance_level = None;
+                /*let mut original_performance_level = None;
                 if current_usage > configured_cap && (current_cap - configured_cap).abs() > 0.1 {
                     if let Ok(performance_level) = self.handle.get_power_force_performance_level() {
                         if self
@@ -836,7 +832,7 @@ impl GpuController for AmdGpuController {
                     self.handle
                         .set_power_force_performance_level(level)
                         .context("Could not reapply original performance level")?;
-                }
+                }*/
             } else if let Ok(hw_mon) = self.first_hw_mon() {
                 if let Ok(default_cap) = hw_mon.get_power_cap_default() {
                     // Due to possible driver bug, RX 7900 XTX really doesn't like when we set the same value again.
@@ -847,7 +843,7 @@ impl GpuController for AmdGpuController {
                         })?;
                     }
                 }
-            }
+            }*/
 
             let mut commit_handles = VecDeque::new();
 
@@ -1070,6 +1066,14 @@ impl GpuController for AmdGpuController {
                 hw_mon
                     .set_power_cap(configured_cap)
                     .with_context(|| format!("Failed to set power cap: {configured_cap}"))?;
+            } else if let Ok(hw_mon) = self.first_hw_mon() {
+                if let Ok(default_cap) = hw_mon.get_power_cap_default() {
+                    if Ok(default_cap) != hw_mon.get_power_cap() {
+                        hw_mon.set_power_cap(default_cap).with_context(|| {
+                            format!("Failed to set power cap to default cap: {default_cap}")
+                        })?;
+                    }
+                }
             }
 
             for handle in commit_handles {
