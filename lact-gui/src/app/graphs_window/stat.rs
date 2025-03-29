@@ -116,6 +116,10 @@ impl StatsData {
             .filter_map(|stat_type| Some((stat_type, self.stats.get(stat_type)?.as_slice())))
     }
 
+    pub fn all_stats(&self) -> &BTreeMap<StatType, Vec<(i64, f64)>> {
+        &self.stats
+    }
+
     pub fn first_timestamp(&self) -> Option<i64> {
         self.stats
             .values()
