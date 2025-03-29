@@ -308,7 +308,7 @@ impl RenderRequest {
 
         // Set up the main chart with axes and labels.
         let mut chart = ChartBuilder::on(&root)
-            .x_label_area_size(35)
+            .x_label_area_size(25)
             .y_label_area_size(y_label_area_size)
             .margin(10)
             .margin_top(20)

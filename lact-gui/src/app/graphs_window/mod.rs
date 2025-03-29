@@ -60,8 +60,8 @@ impl relm4::Component for GraphsWindow {
 
                     append = model.plots.widget() {
                         set_margin_all: 10,
-                        set_row_spacing: 20,
-                        set_column_spacing: 20,
+                        set_row_spacing: 10,
+                        set_column_spacing: 10,
                     },
 
                     append = &gtk::Box {

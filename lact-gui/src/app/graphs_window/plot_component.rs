@@ -60,6 +60,7 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                 #[name = "plot"]
                 append = &Plot {
                     set_data: self.data.clone(),
+                    set_margin_all: 5,
 
                     #[watch]
                     set_cursor: self.get_cursor().as_ref(),
