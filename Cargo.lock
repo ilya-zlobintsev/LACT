@@ -1349,6 +1349,8 @@ dependencies = [
  "pretty_assertions",
  "relm4",
  "relm4-components",
+ "serde",
+ "serde_yaml",
  "thread-priority",
  "tracing",
  "tracing-subscriber",

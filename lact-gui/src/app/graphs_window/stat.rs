@@ -1,4 +1,5 @@
 use lact_schema::DeviceStats;
+use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::BTreeMap};
 
 #[derive(Default, Debug)]
@@ -173,7 +174,7 @@ impl StatsData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum StatType {
     GpuClock,
     GpuTargetClock,

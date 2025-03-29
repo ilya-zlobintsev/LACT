@@ -1,7 +1,9 @@
 mod plot;
 mod plot_component;
-mod stat;
+pub mod stat;
 
+use super::{msg::AppMsg, APP_BROKER};
+use crate::CONFIG;
 use anyhow::Context;
 use chrono::Local;
 use gtk::{glib, prelude::*};
@@ -22,8 +24,6 @@ use std::{
     path::Path,
     sync::{Arc, RwLock},
 };
-
-use super::{msg::AppMsg, APP_BROKER};
 
 pub struct GraphsWindow {
     time_period_seconds_adj: gtk::Adjustment,
@@ -108,6 +108,14 @@ impl relm4::Component for GraphsWindow {
 
                             append = &gtk::SpinButton {
                                 set_adjustment: &model.time_period_seconds_adj,
+                                connect_value_notify => GraphsWindowMsg::NotifyPlotsPerRow,
+                            },
+
+                            append = &gtk::Button {
+                                set_label: "Reset",
+                                set_tooltip: "Resets all graphs to default",
+                                set_css_classes: &["destructive-action"],
+                                connect_clicked => GraphsWindowMsg::SetConfig(default_plots()),
                             },
 
                             append = &gtk::Button {
@@ -140,8 +148,17 @@ impl relm4::Component for GraphsWindow {
     ) -> ComponentParts<Self> {
         let time_period_seconds_adj = gtk::Adjustment::new(60.0, 10.0, 3600.0, 1.0, 1.0, 0.0);
 
+        if let Some(time_period) = CONFIG.read().plots_time_period {
+            time_period_seconds_adj.set_value(time_period as f64);
+        }
+
         let stats_data = Arc::new(RwLock::new(StatsData::default()));
         let plots_per_row = F64Binding::new(2.0);
+
+        if let Some(plot_count) = CONFIG.read().plots_per_row {
+            plots_per_row.set_value(plot_count as f64);
+        }
+
         let plots = FactoryVecDeque::builder()
             .launch_default()
             .forward(sender.input_sender(), |x| x);
@@ -180,7 +197,15 @@ impl relm4::Component for GraphsWindow {
             GraphsWindowMsg::Stats { stats, initial } => {
                 if initial {
                     self.stats_data.write().unwrap().clear();
-                    sender.input(GraphsWindowMsg::SetConfig(default_plots()));
+
+                    let config = CONFIG.read();
+                    let plots_config = if config.plots.is_empty() {
+                        default_plots()
+                    } else {
+                        config.plots.clone()
+                    };
+
+                    sender.input(GraphsWindowMsg::SetConfig(plots_config));
                 }
 
                 let mut data = self.stats_data.write().unwrap();
@@ -205,6 +230,20 @@ impl relm4::Component for GraphsWindow {
             }
             GraphsWindowMsg::NotifyEditing => {
                 self.plots.broadcast(PlotComponentMsg::Redraw);
+
+                if !self.edit_mode.value() {
+                    CONFIG.write().edit(|config| {
+                        config.plots = self
+                            .plots
+                            .iter()
+                            .map(|plot| plot.selected_stats())
+                            .collect();
+
+                        config.plots_time_period =
+                            Some(self.time_period_seconds_adj.value() as u64);
+                        config.plots_per_row = Some(self.plots_per_row.value() as u64);
+                    });
+                }
             }
             GraphsWindowMsg::NotifyPlotsPerRow => {
                 self.update_plots_layout();
