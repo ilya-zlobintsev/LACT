@@ -1,14 +1,23 @@
-fan_control_enabled: false
+fan_control_enabled: true
+fan_control_settings:
+  mode: static
+  static_speed: 0.801
+  temperature_key: edge
+  interval_ms: 500
+  curve:
+    40: 0.35
+    50: 0.35
+    60: 0.5
+    70: 0.75
+    80: 1.0
 pmfw_options:
   acoustic_limit: 3000
-  acoustic_target: 1200
+  acoustic_target: 1100
   minimum_pwm: 35
-  target_temperature: 82
-  zero_rpm: false
+  target_temperature: 83
+  zero_rpm: true
   zero_rpm_threshold: 50
-performance_level: manual
-max_core_clock: 2660
-max_memory_clock: 1300
-voltage_offset: -100
-power_profile_mode_index: 5
-power_cap: 240.0
+power_cap: 280.0
+performance_level: auto
+max_core_clock: 3000
+voltage_offset: -190
