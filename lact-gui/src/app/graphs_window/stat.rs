@@ -56,6 +56,15 @@ impl StatsData {
                 StatType::FanRpm,
                 stats.fan.speed_current.map(|val| val as f64),
             ),
+            (StatType::GpuUsage, stats.busy_percent.map(|val| val as f64)),
+            (
+                StatType::VramSize,
+                stats.vram.total.map(|val| (val / 1024 / 1024) as f64),
+            ),
+            (
+                StatType::VramUsed,
+                stats.vram.used.map(|val| (val / 1024 / 1024) as f64),
+            ),
         ];
 
         for (stat_type, value) in stats_values {
@@ -180,6 +189,9 @@ pub enum StatType {
     GpuTargetClock,
     GpuVoltage,
     VramClock,
+    VramSize,
+    VramUsed,
+    GpuUsage,
     Temperature(String),
     FanRpm,
     FanPwm,
@@ -196,6 +208,9 @@ impl StatType {
             GpuTargetClock => "GPU Clock (Target)".into(),
             GpuVoltage => "GPU Voltage".into(),
             VramClock => "VRAM Clock".into(),
+            VramSize => "VRAM Size".into(),
+            VramUsed => "VRAM Used".into(),
+            GpuUsage => "GPU Usage".into(),
             Temperature(name) => format!("Temp ({name})").into(),
             FanRpm => "Fan RPM".into(),
             FanPwm => "Fan".into(),
@@ -209,11 +224,18 @@ impl StatType {
         use StatType::*;
         match self {
             GpuClock | GpuTargetClock | VramClock => "MHz",
+            VramSize | VramUsed => "MiB",
             GpuVoltage => "mV",
             Temperature(_) => "℃",
             FanRpm => "RPM",
             FanPwm => "%",
+            GpuUsage => "%",
             PowerCurrent | PowerAverage | PowerCap => "W",
         }
+    }
+
+    pub fn show_peak(&self) -> bool {
+        use StatType::*;
+        !matches!(self, VramSize | PowerCap)
     }
 }

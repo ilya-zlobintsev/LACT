@@ -11,6 +11,7 @@ use plotters::style::colors::full_palette::DEEPORANGE_100;
 use plotters::style::text_anchor::Pos;
 use plotters_cairo::CairoBackend;
 use std::cmp::{self, max};
+use std::fmt::Write;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex, RwLock};
 use thread_priority::{ThreadBuilderExt, ThreadPriority};
@@ -402,6 +403,12 @@ impl RenderRequest {
                 .unwrap_or(0.0);
             let stat_suffix = stat_type.metric();
 
+            let mut stat_label =
+                format!("{}: {current_value:.1}{stat_suffix}", stat_type.display(),);
+            if stat_type.show_peak() {
+                write!(stat_label, ", Peak {max_value:.1}{stat_suffix}").unwrap();
+            }
+
             chart
                 .draw_series(LineSeries::new(
                     cubic_spline_interpolation(data).iter().flat_map(
@@ -415,10 +422,7 @@ impl RenderRequest {
                     Palette99::pick(idx).stroke_width(2),
                 ))
                 .context("Failed to draw series")?
-                .label(format!(
-                    "{}: {current_value:.1}{stat_suffix}, Peak {max_value:.1}{stat_suffix}",
-                    stat_type.display(),
-                ))
+                .label(stat_label)
                 .legend(move |(x, y)| {
                     let offset = 7;
                     Rectangle::new(
