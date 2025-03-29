@@ -34,6 +34,10 @@ impl StatsData {
                 StatType::VramClock,
                 stats.clockspeed.vram_clockspeed.map(|val| val as f64),
             ),
+            (
+                StatType::GpuVoltage,
+                stats.voltage.gpu.map(|val| val as f64),
+            ),
             (StatType::PowerAverage, stats.power.average),
             (StatType::PowerCurrent, stats.power.current),
             (StatType::PowerCap, stats.power.cap_current),
