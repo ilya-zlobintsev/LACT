@@ -850,6 +850,12 @@ impl GpuController for AmdGpuController {
             // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
             self.handle.reset_clocks_table().ok();
 
+            if !config.fan_control_enabled {
+                self.stop_fan_control(true)
+                    .await
+                    .context("Failed to stop fan control")?;
+            }
+
             if self.is_steam_deck() {
                 // Van Gogh/Sephiroth only allow clock settings to be used with manual performance mode
                 self.handle
@@ -1019,10 +1025,6 @@ impl GpuController for AmdGpuController {
                         commit_handles.push_front(commit_handle);
                     }
                 }
-
-                self.stop_fan_control(true)
-                    .await
-                    .context("Failed to stop fan control")?;
             }
 
             // Unlike the other PMFW options, zero rpm should be functional with a custom curve
