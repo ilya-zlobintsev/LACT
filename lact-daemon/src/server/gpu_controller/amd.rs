@@ -41,7 +41,6 @@ use {
     libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
 };
 
-// const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
@@ -778,73 +777,6 @@ impl GpuController for AmdGpuController {
         config: &'a config::Gpu,
     ) -> LocalBoxFuture<'a, anyhow::Result<()>> {
         Box::pin(async {
-            /*if let Some(configured_cap) = config.power_cap {
-                let hw_mon = self.first_hw_mon()?;
-
-                let current_usage = hw_mon
-                    .get_power_input()
-                    .or_else(|_| hw_mon.get_power_average())
-                    .context("Could not get current power usage")?;
-
-                let current_cap = hw_mon
-                    .get_power_cap()
-                    .or_else(|_| hw_mon.get_power_average())
-                    .context("Could not get current power usage")?;
-
-                // When applying a power limit that's lower than the current power consumption,
-                // try to downclock the GPU first by forcing it into the lowest performance level.
-                // Workaround for behaviour described in https://github.com/ilya-zlobintsev/LACT/issues/207
-                /*let mut original_performance_level = None;
-                if current_usage > configured_cap && (current_cap - configured_cap).abs() > 0.1 {
-                    if let Ok(performance_level) = self.handle.get_power_force_performance_level() {
-                        if self
-                            .handle
-                            .set_power_force_performance_level(PerformanceLevel::Low)
-                            .is_ok()
-                        {
-                            debug!(
-                            "waiting for the GPU to clock down before applying a new power limit"
-                        );
-
-                            match timeout(
-                                Duration::from_secs(GPU_CLOCKDOWN_TIMEOUT_SECS),
-                                wait_until_lowest_clock_level(&self.handle),
-                            )
-                            .await
-                            {
-                                Ok(()) => {
-                                    debug!("GPU clocked down successfully");
-                                }
-                                Err(_) => {
-                                    warn!(
-                                        "GPU did not clock down after {GPU_CLOCKDOWN_TIMEOUT_SECS}"
-                                    );
-                                }
-                            }
-
-                            original_performance_level = Some(performance_level);
-                        }
-                    }
-                }
-
-                // Reapply old power level
-                if let Some(level) = original_performance_level {
-                    self.handle
-                        .set_power_force_performance_level(level)
-                        .context("Could not reapply original performance level")?;
-                }*/
-            } else if let Ok(hw_mon) = self.first_hw_mon() {
-                if let Ok(default_cap) = hw_mon.get_power_cap_default() {
-                    // Due to possible driver bug, RX 7900 XTX really doesn't like when we set the same value again.
-                    // But, also in general we want to avoid setting same value twice
-                    if Ok(default_cap) != hw_mon.get_power_cap() {
-                        hw_mon.set_power_cap(default_cap).with_context(|| {
-                            format!("Failed to set power cap to default cap: {default_cap}")
-                        })?;
-                    }
-                }
-            }*/
-
             let mut commit_handles = VecDeque::new();
 
             // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
@@ -1182,23 +1114,5 @@ impl ClocksConfiguration {
         }
 
         Ok(())
-    }
-}
-
-async fn wait_until_lowest_clock_level(handle: &GpuHandle) {
-    loop {
-        match handle.get_core_clock_levels() {
-            Ok(levels) => {
-                if levels.active == Some(0) {
-                    break;
-                }
-
-                sleep(Duration::from_millis(250)).await;
-            }
-            Err(err) => {
-                warn!("could not get core clock levels: {err}");
-                break;
-            }
-        }
     }
 }
