@@ -9,13 +9,18 @@ pub struct StatsData {
 }
 
 impl StatsData {
-    pub fn update(&mut self, stats: &DeviceStats) {
+    pub fn update(&mut self, stats: &DeviceStats, vram_clock_ratio: f64) {
         let time = chrono::Local::now().naive_local();
         let timestamp = time.and_utc().timestamp_millis();
-        self.update_with_timestamp(stats, timestamp);
+        self.update_with_timestamp(stats, vram_clock_ratio, timestamp);
     }
 
-    pub fn update_with_timestamp(&mut self, stats: &DeviceStats, timestamp: i64) {
+    pub fn update_with_timestamp(
+        &mut self,
+        stats: &DeviceStats,
+        vram_clock_ratio: f64,
+        timestamp: i64,
+    ) {
         for (name, temperature) in &stats.temps {
             if let Some(value) = temperature.current {
                 self.stats
@@ -36,7 +41,10 @@ impl StatsData {
             ),
             (
                 StatType::VramClock,
-                stats.clockspeed.vram_clockspeed.map(|val| val as f64),
+                stats
+                    .clockspeed
+                    .vram_clockspeed
+                    .map(|val| val as f64 * vram_clock_ratio),
             ),
             (
                 StatType::GpuVoltage,

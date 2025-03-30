@@ -209,7 +209,7 @@ impl relm4::Component for GraphsWindow {
                 }
 
                 let mut data = self.stats_data.write().unwrap();
-                data.update(&stats);
+                data.update(&stats, self.vram_clock_ratio);
 
                 let time_period_seconds = self.time_period_seconds_adj.value() as i64;
                 data.trim(time_period_seconds);

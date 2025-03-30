@@ -193,7 +193,7 @@ mod benches {
                     throttle_info: None,
                 };
 
-                data.update_with_timestamp(&stats, datetime.and_utc().timestamp_millis());
+                data.update_with_timestamp(&stats, 1.0, datetime.and_utc().timestamp_millis());
             }
         }
 
