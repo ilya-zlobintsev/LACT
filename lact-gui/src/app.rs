@@ -1,6 +1,6 @@
 mod apply_revealer;
 mod confirmation_dialog;
-mod graphs_window;
+pub mod graphs_window;
 mod header;
 mod info_row;
 mod msg;
@@ -28,7 +28,7 @@ use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
     args::GuiArgs,
     request::{ConfirmCommand, SetClocksCommand},
-    FanOptions, GIT_COMMIT,
+    DeviceStats, FanOptions, GIT_COMMIT,
 };
 use msg::AppMsg;
 use pages::{
@@ -330,7 +330,10 @@ impl AppModel {
 
                 self.thermals_page.set_stats(&stats, false);
 
-                self.graphs_window.emit(GraphsWindowMsg::Stats(stats));
+                self.graphs_window.emit(GraphsWindowMsg::Stats {
+                    stats,
+                    initial: false,
+                });
             }
             AppMsg::ApplyChanges => {
                 self.apply_settings(self.current_gpu_id()?, root, &sender)
@@ -465,11 +468,14 @@ impl AppModel {
         self.graphs_window
             .emit(GraphsWindowMsg::VramClockRatio(vram_clock_ratio));
 
-        self.update_gpu_data(gpu_id, sender).await?;
+        let stats = self.update_gpu_data(gpu_id, sender).await?;
 
         self.thermals_page.set_info(&info);
 
-        self.graphs_window.emit(GraphsWindowMsg::Clear);
+        self.graphs_window.emit(GraphsWindowMsg::Stats {
+            stats,
+            initial: true,
+        });
 
         Ok(())
     }
@@ -478,7 +484,7 @@ impl AppModel {
         &mut self,
         gpu_id: String,
         sender: AsyncComponentSender<AppModel>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Arc<DeviceStats>> {
         if let Some(stats_task) = self.stats_task_handle.take() {
             stats_task.abort();
         }
@@ -557,7 +563,7 @@ impl AppModel {
             self.header.sender().clone(),
         ));
 
-        Ok(())
+        Ok(stats)
     }
 
     async fn apply_settings(

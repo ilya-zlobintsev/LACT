@@ -374,7 +374,7 @@ impl GpuController for NvidiaGpuController {
         clippy::cast_sign_loss
     )]
     fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
-        let mut device = self.device();
+        let device = self.device();
 
         let mut temps = HashMap::new();
 
@@ -396,13 +396,33 @@ impl GpuController for NvidiaGpuController {
 
         let fan_settings = gpu_config.and_then(|config| config.fan_control_settings.as_ref());
 
-        let pwm_current = if device.num_fans().is_ok_and(|num| num > 0) {
-            device
-                .fan_speed(0)
-                .ok()
-                .map(|value| (f64::from(value) * 2.55) as u8)
+        let num_fans = device.num_fans().unwrap_or(0);
+
+        let (pwm_current, speed_current) = if num_fans == 0 {
+            (None, None)
         } else {
-            None
+            let fan_speeds = (0..num_fans)
+                .flat_map(|idx| device.fan_speed(idx))
+                .collect::<Vec<_>>();
+
+            let pwm_current = if fan_speeds.is_empty() {
+                None
+            } else {
+                let avg_speed: u32 = fan_speeds.iter().sum::<u32>() / fan_speeds.len() as u32;
+                Some((f64::from(avg_speed) * 2.55) as u8)
+            };
+
+            let fan_speeds_rpm = (0..num_fans)
+                .flat_map(|idx| device.fan_speed_rpm(idx))
+                .collect::<Vec<_>>();
+
+            let speed_current = if fan_speeds_rpm.is_empty() {
+                None
+            } else {
+                Some(fan_speeds_rpm.iter().sum::<u32>() / fan_speeds_rpm.len() as u32)
+            };
+
+            (pwm_current, speed_current)
         };
 
         let vram = device
@@ -429,7 +449,7 @@ impl GpuController for NvidiaGpuController {
                 curve: fan_settings.map(|settings| settings.curve.0.clone()),
                 spindown_delay_ms: fan_settings.and_then(|settings| settings.spindown_delay_ms),
                 change_threshold: fan_settings.and_then(|settings| settings.change_threshold),
-                speed_current: None,
+                speed_current,
                 speed_max: fan_range.map(|range| range.1),
                 speed_min: fan_range.map(|range| range.0),
                 pwm_current,

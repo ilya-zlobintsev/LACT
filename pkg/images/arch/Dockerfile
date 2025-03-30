@@ -1,1 +1,1 @@
-FROM archlinux:latest
+FROM quay.io/lib/archlinux:latest

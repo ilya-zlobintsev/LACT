@@ -1,1 +1,1 @@
-FROM public.ecr.aws/debian/debian:12
+FROM quay.io/lib/debian:12

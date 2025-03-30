@@ -1349,6 +1349,8 @@ dependencies = [
  "pretty_assertions",
  "relm4",
  "relm4-components",
+ "serde",
+ "serde_yaml",
  "thread-priority",
  "tracing",
  "tracing-subscriber",
@@ -1655,7 +1657,7 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper"
 version = "0.10.0"
-source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#7802f6f074467f14a11aefa8ee5d75c32319eb7c"
+source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=feature/pstate-wrappers#d245c3010c72466cfb572f5baf91c91f7294bb36"
 dependencies = [
  "bitflags 2.9.0",
  "libloading",
@@ -1668,7 +1670,7 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper-sys"
 version = "0.8.0"
-source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=lact#7802f6f074467f14a11aefa8ee5d75c32319eb7c"
+source = "git+https://github.com/ilya-zlobintsev/nvml-wrapper?branch=feature/pstate-wrappers#d245c3010c72466cfb572f5baf91c91f7294bb36"
 dependencies = [
  "libloading",
 ]
