@@ -27,17 +27,13 @@ use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE};
 use std::{
     cell::RefCell,
     cmp,
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     path::PathBuf,
     rc::Rc,
     time::Duration,
 };
 use std::{collections::BTreeMap, fs, time::Instant};
-use tokio::{
-    select,
-    sync::Notify,
-    time::{sleep, timeout},
-};
+use tokio::{select, sync::Notify, time::sleep};
 use tracing::{debug, error, info, trace, warn};
 
 use {
@@ -45,7 +41,6 @@ use {
     libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
 };
 
-const GPU_CLOCKDOWN_TIMEOUT_SECS: u64 = 3;
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
@@ -94,18 +89,22 @@ impl AmdGpuController {
         self.handle.hw_monitors.first().map(f)
     }
 
-    async fn set_static_fan_control(
-        &self,
-        static_speed: f32,
-    ) -> anyhow::Result<Option<CommitHandle>> {
+    async fn set_static_fan_control(&self, static_speed: f32) -> anyhow::Result<Vec<CommitHandle>> {
         // Stop existing task to set static speed
         self.stop_fan_control(false).await?;
+
+        let mut commit_handles = Vec::new();
 
         // Use PMFW curve functionality for static speed when it is available
         if let Ok(current_curve) = self.handle.get_fan_curve() {
             if let Ok(true) = self.handle.get_fan_zero_rpm_enable() {
-                if let Err(err) = self.handle.set_fan_zero_rpm_enable(false) {
-                    error!("could not disable zero RPM mode for static fan control: {err}");
+                match self.handle.set_fan_zero_rpm_enable(false) {
+                    Ok(zero_rpm_commit) => {
+                        commit_handles.push(zero_rpm_commit);
+                    }
+                    Err(err) => {
+                        error!("could not disable zero RPM mode for static fan control: {err}");
+                    }
                 }
             }
 
@@ -131,12 +130,13 @@ impl AmdGpuController {
 
             debug!("setting static curve {new_curve:?}");
 
-            let commit_handle = self
+            let curve_commit = self
                 .handle
                 .set_fan_curve(&new_curve)
                 .context("Could not set fan curve")?;
+            commit_handles.push(curve_commit);
 
-            Ok(Some(commit_handle))
+            Ok(commit_handles)
         } else {
             let hw_mon = self
                 .handle
@@ -158,7 +158,7 @@ impl AmdGpuController {
 
             debug!("set fan speed to {}", static_speed);
 
-            Ok(None)
+            Ok(vec![])
         }
     }
 
@@ -777,90 +777,21 @@ impl GpuController for AmdGpuController {
         config: &'a config::Gpu,
     ) -> LocalBoxFuture<'a, anyhow::Result<()>> {
         Box::pin(async {
-            if let Some(cap) = config.power_cap {
-                let hw_mon = self.first_hw_mon()?;
-
-                let current_usage = hw_mon
-                    .get_power_input()
-                    .or_else(|_| hw_mon.get_power_average())
-                    .context("Could not get current power usage")?;
-
-                // When applying a power limit that's lower than the current power consumption,
-                // try to downclock the GPU first by forcing it into the lowest performance level.
-                // Workaround for behaviour described in https://github.com/ilya-zlobintsev/LACT/issues/207
-                let mut original_performance_level = None;
-                if current_usage > cap {
-                    if let Ok(performance_level) = self.handle.get_power_force_performance_level() {
-                        if self
-                            .handle
-                            .set_power_force_performance_level(PerformanceLevel::Low)
-                            .is_ok()
-                        {
-                            debug!(
-                            "waiting for the GPU to clock down before applying a new power limit"
-                        );
-
-                            match timeout(
-                                Duration::from_secs(GPU_CLOCKDOWN_TIMEOUT_SECS),
-                                wait_until_lowest_clock_level(&self.handle),
-                            )
-                            .await
-                            {
-                                Ok(()) => {
-                                    debug!("GPU clocked down successfully");
-                                }
-                                Err(_) => {
-                                    warn!(
-                                        "GPU did not clock down after {GPU_CLOCKDOWN_TIMEOUT_SECS}"
-                                    );
-                                }
-                            }
-
-                            original_performance_level = Some(performance_level);
-                        }
-                    }
-                }
-
-                // Due to possible driver bug, RX 7900 XTX really doesn't like when we set the same value again.
-                // But, also in general we want to avoid setting same value twice
-                if Ok(cap) != hw_mon.get_power_cap() {
-                    hw_mon
-                        .set_power_cap(cap)
-                        .with_context(|| format!("Failed to set power cap: {cap}"))?;
-                }
-
-                // Reapply old power level
-                if let Some(level) = original_performance_level {
-                    self.handle
-                        .set_power_force_performance_level(level)
-                        .context("Could not reapply original performance level")?;
-                }
-            } else if let Ok(hw_mon) = self.first_hw_mon() {
-                if let Ok(default_cap) = hw_mon.get_power_cap_default() {
-                    // Due to possible driver bug, RX 7900 XTX really doesn't like when we set the same value again.
-                    // But, also in general we want to avoid setting same value twice
-                    if Ok(default_cap) != hw_mon.get_power_cap() {
-                        hw_mon.set_power_cap(default_cap).with_context(|| {
-                            format!("Failed to set power cap to default cap: {default_cap}")
-                        })?;
-                    }
-                }
-            }
-
-            let mut commit_handles = Vec::new();
+            let mut commit_handles = VecDeque::new();
 
             // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
             self.handle.reset_clocks_table().ok();
+
+            if !config.fan_control_enabled {
+                self.stop_fan_control(true)
+                    .await
+                    .context("Failed to stop fan control")?;
+            }
 
             if self.is_steam_deck() {
                 // Van Gogh/Sephiroth only allow clock settings to be used with manual performance mode
                 self.handle
                     .set_power_force_performance_level(PerformanceLevel::Manual)
-                    .ok();
-            } else {
-                // Reset performance level to work around some GPU quirks (found to be an issue on RDNA2)
-                self.handle
-                    .set_power_force_performance_level(PerformanceLevel::Auto)
                     .ok();
             }
 
@@ -890,7 +821,7 @@ impl GpuController for AmdGpuController {
                                     table.get_commands(&original_table)
                                 )
                             })?;
-                        commit_handles.push(handle);
+                        commit_handles.push_back(handle);
                     }
                     Err(err) => {
                         error!("custom clock settings are present but will be ignored, could not get clocks table: {err}");
@@ -898,12 +829,19 @@ impl GpuController for AmdGpuController {
                 }
             }
 
-            if let Some(level) = config.performance_level {
-                self.handle
-                    .set_power_force_performance_level(level)
-                    .context("Failed to set power performance level")?;
+            match self.handle.get_power_force_performance_level() {
+                Ok(_) => {
+                    let performance_level =
+                        config.performance_level.unwrap_or(PerformanceLevel::Auto);
+
+                    self.handle
+                        .set_power_force_performance_level(performance_level)
+                        .context("Failed to set power performance level")?;
+                }
+                Err(err) => {
+                    error!("could not get current performance level: {err}");
+                }
             }
-            // Else is not needed, it was previously reset to auto already
 
             if let Some(mode_index) = config.power_profile_mode_index {
                 if config.performance_level != Some(PerformanceLevel::Manual) {
@@ -929,12 +867,13 @@ impl GpuController for AmdGpuController {
                 if let Some(ref settings) = config.fan_control_settings {
                     match settings.mode {
                         lact_schema::FanControlMode::Static => {
-                            if let Some(commit_handle) = self
+                            let fan_handles = self
                                 .set_static_fan_control(settings.static_speed)
                                 .await
-                                .context("Failed to set static fan control")?
-                            {
-                                commit_handles.push(commit_handle);
+                                .context("Failed to set static fan control")?;
+
+                            for handle in fan_handles {
+                                commit_handles.push_front(handle);
                             }
                         }
                         lact_schema::FanControlMode::Curve => {
@@ -947,7 +886,7 @@ impl GpuController for AmdGpuController {
                                 .await
                                 .context("Failed to set curve fan control")?
                             {
-                                commit_handles.push(commit_handle);
+                                commit_handles.push_front(commit_handle);
                             }
                         }
                     }
@@ -970,7 +909,7 @@ impl GpuController for AmdGpuController {
                             .handle
                             .set_fan_acoustic_limit(acoustic_limit)
                             .context("Could not set acoustic limit")?;
-                        commit_handles.push(commit_handle);
+                        commit_handles.push_front(commit_handle);
                     }
                 }
                 if let Some(acoustic_target) = pmfw.acoustic_target {
@@ -985,7 +924,7 @@ impl GpuController for AmdGpuController {
                             .handle
                             .set_fan_acoustic_target(acoustic_target)
                             .context("Could not set acoustic target")?;
-                        commit_handles.push(commit_handle);
+                        commit_handles.push_front(commit_handle);
                     }
                 }
                 if let Some(target_temperature) = pmfw.target_temperature {
@@ -1000,7 +939,7 @@ impl GpuController for AmdGpuController {
                             .handle
                             .set_fan_target_temperature(target_temperature)
                             .context("Could not set target temperature")?;
-                        commit_handles.push(commit_handle);
+                        commit_handles.push_front(commit_handle);
                     }
                 }
                 if let Some(minimum_pwm) = pmfw.minimum_pwm {
@@ -1015,13 +954,9 @@ impl GpuController for AmdGpuController {
                             .handle
                             .set_fan_minimum_pwm(minimum_pwm)
                             .context("Could not set minimum pwm")?;
-                        commit_handles.push(commit_handle);
+                        commit_handles.push_front(commit_handle);
                     }
                 }
-
-                self.stop_fan_control(true)
-                    .await
-                    .context("Failed to stop fan control")?;
             }
 
             // Unlike the other PMFW options, zero rpm should be functional with a custom curve
@@ -1033,7 +968,7 @@ impl GpuController for AmdGpuController {
                                 .handle
                                 .set_fan_zero_rpm_enable(zero_rpm)
                                 .context("Could not set zero RPM mode")?;
-                            commit_handles.push(commit_handle);
+                            commit_handles.push_front(commit_handle);
                         }
                     }
                     Err(err) => {
@@ -1050,11 +985,27 @@ impl GpuController for AmdGpuController {
                                 .handle
                                 .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
                                 .context("Could not set zero RPM temperature")?;
-                            commit_handles.push(commit_handle);
+                            commit_handles.push_front(commit_handle);
                         }
                     }
                     Err(err) => {
                         error!("zero RPM threshold is present in the config, but not available on the GPU: {err}");
+                    }
+                }
+            }
+
+            if let Some(configured_cap) = config.power_cap {
+                let hw_mon = self.first_hw_mon()?;
+
+                hw_mon
+                    .set_power_cap(configured_cap)
+                    .with_context(|| format!("Failed to set power cap: {configured_cap}"))?;
+            } else if let Ok(hw_mon) = self.first_hw_mon() {
+                if let Ok(default_cap) = hw_mon.get_power_cap_default() {
+                    if Ok(default_cap) != hw_mon.get_power_cap() {
+                        hw_mon.set_power_cap(default_cap).with_context(|| {
+                            format!("Failed to set power cap to default cap: {default_cap}")
+                        })?;
                     }
                 }
             }
@@ -1163,23 +1114,5 @@ impl ClocksConfiguration {
         }
 
         Ok(())
-    }
-}
-
-async fn wait_until_lowest_clock_level(handle: &GpuHandle) {
-    loop {
-        match handle.get_core_clock_levels() {
-            Ok(levels) => {
-                if levels.active == Some(0) {
-                    break;
-                }
-
-                sleep(Duration::from_millis(250)).await;
-            }
-            Err(err) => {
-                warn!("could not get core clock levels: {err}");
-                break;
-            }
-        }
     }
 }
