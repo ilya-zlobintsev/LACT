@@ -16,6 +16,8 @@ pub enum Command {
     Gui(GuiArgs),
     /// Run the CLI
     Cli(CliArgs),
+    /// Generate a command that runs the daemon from flatpak
+    FlatpakDaemonCmd,
 }
 
 #[derive(Default, Parser)]

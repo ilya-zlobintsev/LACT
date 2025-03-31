@@ -13,6 +13,7 @@ lact-schema = { path = "../lact-schema", features = ["args"] }
 lact-cli = { path = "../lact-cli" }
 lact-gui = { path = "../lact-gui", optional = true }
 anyhow = { workspace = true }
+configparser = "3.1.0"
 
 [dev-dependencies]
 divan = { workspace = true }
