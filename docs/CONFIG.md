@@ -11,13 +11,14 @@ daemon:
   # The logging level of the daemon.
   # Possible values: `error`, `warn`, `info` (default), `debug`, `trace`
   log_level: info
-  # User groups who should have access to the daemon.
-  # WARNING: only the first group from this list that is found on the system is used!
-  # This is made a list and not a single value to allow this config to work across 
-  # different distros, which might have different groups for an "admin" user.
-  admin_groups:
-  - wheel
-  - sudo
+  # User group that owns the daemon socket.
+  # Any user in this group will be able to use the daemon.
+  # Access can also be granted with the `admin_user` setting. 
+  admin_group: wheel
+  # User that owns the daemon socket.
+  # This user will have access to the daemon, even if they are not in the part of the `admin_group` group.    
+  # Not set by default.
+  admin_user: foo
   # If set to `true`, this setting makes the LACT daemon not reset
   # GPU clocks when changing other settings or when turning off the daemon.
   # Can be used to work around a few very specific issues with 

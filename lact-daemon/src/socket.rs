@@ -1,7 +1,7 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use nix::{
     sys::stat::{umask, Mode},
-    unistd::{chown, getuid, Gid, Group},
+    unistd::{chown, getuid, Gid, Group, User},
 };
 use std::{fs, path::PathBuf, str::FromStr};
 use tokio::net::UnixListener;
@@ -25,7 +25,7 @@ pub fn cleanup() {
     debug!("removed socket");
 }
 
-pub fn listen(admin_groups: &[String]) -> anyhow::Result<UnixListener> {
+pub fn listen(admin_group: Option<&str>, admin_user: Option<&str>) -> anyhow::Result<UnixListener> {
     let socket_path = get_socket_path();
 
     if socket_path.exists() {
@@ -41,27 +41,28 @@ pub fn listen(admin_groups: &[String]) -> anyhow::Result<UnixListener> {
 
     let listener = UnixListener::bind(&socket_path)?;
 
-    chown(&socket_path, None, Some(socket_gid(admin_groups)))?;
+    let group = admin_group
+        .map(|name| {
+            Group::from_name(name)
+                .context("Could not get group")?
+                .with_context(|| format!("Group {name} does not exist"))
+        })
+        .transpose()?
+        .map_or_else(Gid::current, |group| group.gid);
+
+    let user = admin_user
+        .map(|name| {
+            User::from_name(name)
+                .context("Could not get group")?
+                .with_context(|| format!("Group {name} does not exist"))
+        })
+        .transpose()?
+        .map(|user| user.uid);
+
+    debug!("using gid {group} uid {user:?} for socket");
+
+    chown(&socket_path, user, Some(group))?;
 
     info!("listening on {socket_path:?}");
     Ok(listener)
-}
-
-fn socket_gid(admin_groups: &[String]) -> Gid {
-    if getuid().is_root() {
-        // Check if the group exists
-        for group_name in admin_groups {
-            if let Ok(Some(group)) = Group::from_name(group_name) {
-                return group.gid;
-            }
-        }
-
-        if let Ok(Some(group)) = Group::from_gid(Gid::from_raw(1000)) {
-            group.gid
-        } else {
-            Gid::current()
-        }
-    } else {
-        Gid::current()
-    }
 }
