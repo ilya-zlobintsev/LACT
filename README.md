@@ -68,7 +68,7 @@ See the [Wiki page](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Suppor
 
 # Configuration
 
-There is a configuration file available in `/etc/lact/config.yaml`. Most of the settings are accessible through the GUI, but some of them may be useful to be edited manually (like `admin_groups` to specify who has access to the daemon)
+There is a configuration file available in `/etc/lact/config.yaml`. Most of the settings are accessible through the GUI, but some of them may be useful to be edited manually (like `admin_group` and `admin_user` to specify who has access to the daemon)
 
 See [CONFIG.md](./docs/CONFIG.md) for more information.
 
@@ -76,11 +76,14 @@ See [CONFIG.md](./docs/CONFIG.md) for more information.
 
 By default, LACT uses either ether the `wheel` or `sudo` group (whichever is available) for the ownership of the unix socket that the GUI needs to connect to.
 
-On most configurations (such as the default setup on Arch-based, most Debian-based or Fedora systems) you do not need to do anything.
+On most desktop configurations (such as the default setup on Arch-based, most Debian-based or Fedora systems) this includes the default user, so you do not need to configure this.
 
 However, some systems may have different user configuration. In particular, this has been reported to be a problem on OpenSUSE.
 
-To fix socket permissions in such configurations, edit `/etc/lact/config.yaml` and add your username or group as the first entry in `admin_groups` under `daemon`, and restart the service (`sudo systemctl restart lactd`).
+To fix socket permissions in such configurations, edit `/etc/lact/config.yaml` and under the `daemon` section either:
+- Set `admin_user` to your username
+- Set `admin_group` to a group that your user is a part of 
+Then restart the service (`sudo systemctl restart lactd`).
 
 # Overclocking (AMD)
 
@@ -153,9 +156,7 @@ Example:
 daemon:
   tcp_listen_address: 0.0.0.0:12853
   log_level: info
-  admin_groups:
-  - wheel
-  - sudo
+  admin_group: wheel
   disable_clocks_cleanup: false
 ```
 
