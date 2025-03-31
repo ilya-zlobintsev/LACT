@@ -5,9 +5,8 @@ expression: deserialized_config
 version: 0
 daemon:
   log_level: info
-  admin_groups:
-    - wheel
-    - sudo
+  admin_user: foo
+  admin_group: wheel
   disable_clocks_cleanup: false
   tcp_listen_address: "127.0.0.1:12853"
 apply_settings_timer: 5

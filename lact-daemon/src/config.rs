@@ -7,7 +7,7 @@ use lact_schema::{
     request::{ClockspeedType, SetClocksCommand},
     FanControlMode, PmfwOptions, ProfileRule,
 };
-use nix::unistd::getuid;
+use nix::unistd::{getuid, Group};
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -55,7 +55,7 @@ impl Default for Config {
             profiles: IndexMap::new(),
             current_profile: None,
             auto_switch_profiles: false,
-            version: 3,
+            version: 4,
         }
     }
 }
@@ -64,7 +64,11 @@ impl Default for Config {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Daemon {
     pub log_level: String,
+    #[deprecated]
+    #[serde(default, skip_serializing)]
     pub admin_groups: Vec<String>,
+    pub admin_user: Option<String>,
+    pub admin_group: Option<String>,
     #[serde(default)]
     pub disable_clocks_cleanup: bool,
     pub tcp_listen_address: Option<String>,
@@ -72,9 +76,12 @@ pub struct Daemon {
 
 impl Default for Daemon {
     fn default() -> Self {
+        #[allow(deprecated)]
         Self {
             log_level: "info".to_owned(),
-            admin_groups: DEFAULT_ADMIN_GROUPS.map(str::to_owned).to_vec(),
+            admin_user: None,
+            admin_group: find_existing_group(&DEFAULT_ADMIN_GROUPS),
+            admin_groups: vec![],
             disable_clocks_cleanup: false,
             tcp_listen_address: None,
         }
@@ -313,6 +320,11 @@ impl Config {
                         }
                     }
                 }
+                #[allow(deprecated)]
+                4 => {
+                    self.daemon.admin_group = find_existing_group(&self.daemon.admin_groups);
+                    self.daemon.admin_groups.clear();
+                }
                 _ => break,
             }
             info!("migrated config version {} to {next_version}", self.version);
@@ -472,6 +484,13 @@ fn get_path(filename: &str) -> PathBuf {
 
 fn default_apply_settings_timer() -> u64 {
     5
+}
+
+fn find_existing_group(groups: &[impl AsRef<str>]) -> Option<String> {
+    groups
+        .iter()
+        .find_map(|group_name| Group::from_name(group_name.as_ref()).ok().flatten())
+        .map(|group| group.name)
 }
 
 #[cfg(test)]
