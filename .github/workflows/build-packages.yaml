@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Import gpg key
         run: |
@@ -85,6 +85,19 @@ jobs:
           name: ${{ matrix.target-os }}-${{ matrix.recipe }}
           path: release-artifacts/*
 
+  build-flatpak:
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:gnome-47
+      options: --privileged
+    steps:
+    - uses: actions/checkout@v4
+    - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+      with:
+        bundle: io.github.lact-linux.flatpak
+        manifest-path: flatpak/io.github.lact-linux.yaml
+        cache-key: flatpak-builder-${{ github.sha }}
+
   create-test-release:
     needs: build-packages
     runs-on: ubuntu-latest
@@ -116,7 +129,6 @@ jobs:
           git tag -f test-build
           git push -f origin test-build
         shell: bash
-
 
   create-stable-release:
     needs: build-packages
