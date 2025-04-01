@@ -1,6 +1,6 @@
 # Description
 
-The LACT Daemon exposes a JSON API over a unix socket or TCP, available on `/var/run/lactd.sock` or an arbitrary TCP port. You can configure who has access to the unix socket in `/etc/lact/config.yaml` in the `daemon.admin_group` or `daemon.admin_user` field. The TCP listener is disabled by default for security reasons, see [this README section](../README.md#remote-management) for how to enable it.
+The LACT Daemon exposes a JSON API over a unix socket or TCP, available on `/run/lactd.sock` or an arbitrary TCP port. You can configure who has access to the unix socket in `/etc/lact/config.yaml` in the `daemon.admin_group` or `daemon.admin_user` field. The TCP listener is disabled by default for security reasons, see [this README section](../README.md#remote-management) for how to enable it.
 
 The API expects newline-separated JSON objects, and returns a JSON object for every request.
 

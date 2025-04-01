@@ -13,7 +13,6 @@ finish-args:
   - --device=dri
   - --talk-name=org.freedesktop.Flatpak
   - --filesystem=/run/lactd.sock
-  - --filesystem=/var/run/lactd.sock
 modules:
   - name: lact
     buildsystem: simple 
