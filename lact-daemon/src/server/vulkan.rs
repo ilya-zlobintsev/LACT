@@ -2,10 +2,9 @@ use anyhow::{anyhow, bail, Context};
 use indexmap::{map::Entry, IndexMap};
 use lact_schema::{GpuPciInfo, VulkanDriverInfo, VulkanInfo};
 use serde::Deserialize;
-use std::fs;
-use tempfile::tempdir;
+use std::{env, fs, path::Path};
 use tokio::process::Command;
-use tracing::trace;
+use tracing::{error, trace};
 
 include!(concat!(env!("OUT_DIR"), "/vulkan_constants.rs"));
 
@@ -14,14 +13,12 @@ pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo
     #[cfg(test)]
     return Ok(VulkanInfo::default());
 
-    let workdir = tempdir().context("Could not create temp folder")?;
-
     trace!("Reading vulkan info");
     let vendor_id = u32::from_str_radix(&pci_info.device_pci_info.vendor_id, 16)?;
     let device_id = u32::from_str_radix(&pci_info.device_pci_info.model_id, 16)?;
     trace!("Reading vulkan info");
 
-    let summary_output = Command::new("vulkaninfo")
+    let summary_output = vulkaninfo_command()
         .arg("--summary")
         .output()
         .await
@@ -44,9 +41,9 @@ pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo
         if u32::from_str_radix(entry.vendor_id, 16) == Ok(vendor_id)
             && u32::from_str_radix(entry.device_id, 16) == Ok(device_id)
         {
-            let output = Command::new("vulkaninfo")
+            let output = vulkaninfo_command()
                 .arg(format!("--json={i}"))
-                .current_dir(workdir.path())
+                .current_dir("/tmp")
                 .output()
                 .await
                 .context("Could not read vulkan info for device")?;
@@ -64,10 +61,17 @@ pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo
             {
                 parse_legacy_devsim(devsim, &entry)
             } else {
-                let file_path = workdir.path().join(entry.file_name());
+                let file_path = Path::new("/tmp").join(entry.file_name());
                 let manifest = fs::read_to_string(&file_path).with_context(|| {
                     format!("Could not read info file from '{}'", file_path.display())
                 })?;
+
+                if let Err(err) = fs::remove_file(&file_path) {
+                    error!(
+                        "could not clean up file at '{}' created by vulkaninfo: {err}",
+                        file_path.display()
+                    );
+                }
 
                 parse_manifest(&manifest, &entry)?
             };
@@ -269,6 +273,21 @@ fn parse_summary(summary: &str) -> Vec<SummaryDeviceEntry> {
     devices.push(entry);
 
     devices
+}
+
+fn vulkaninfo_command() -> Command {
+    if let Ok(custom_command) = env::var("VULKANINFO_COMMAND") {
+        let mut split = custom_command.split_ascii_whitespace();
+        let program = split
+            .next()
+            .expect("Could not parse provided vulkaninfo command");
+
+        let mut cmd = Command::new(program);
+        cmd.args(split);
+        cmd
+    } else {
+        Command::new("vulkaninfo")
+    }
 }
 
 #[cfg(test)]
