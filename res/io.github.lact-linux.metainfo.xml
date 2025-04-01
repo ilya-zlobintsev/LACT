@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Bilal Elmoussaoui 2020 <bilal.elmoussaoui@gnome.org> -->
 <component type="desktop-application">
   <id>io.github.lact-linux</id>
   <metadata_license>CC0</metadata_license>
@@ -11,15 +10,13 @@
   </description>
   <!--<screenshots>
     <screenshot type="default">
-      <image>https://gitlab.gnome.org/World/design/contrast/raw/master/data/resources/screenshots/screenshot1.png</image>
+  <image>https://gitlab.gnome.org/World/design/contrast/raw/master/data/resources/screenshots/screenshot1.png</image>
       <caption>Main Window</caption>
     </screenshot>
   </screenshots>-->
-  <url type="homepage">https://github.com/ilya-zlobintsev/lact</url>
-<!--
-Open Age Rating Service
-https://hughsie.github.io/oars/index.html
--->
+  <url type="homepage">https://github.com/ilya-zlobintsev/LACT</url>
+  <url type="vsc-browser">https://github.com/ilya-zlobintsev/LACT</url>
+  <url type="bugtracker">https://github.com/ilya-zlobintsev/LACT/issues</url>
   <content_rating type="oars-1.0" />
   <!--<releases>
     <release version="0.0.1" date="2020-02-08">
@@ -27,13 +24,7 @@ https://hughsie.github.io/oars/index.html
         <p>First release of Rust Flatpak App</p>
       </description>
     </release>
-  </releases>
-  <kudos>
-    GNOME Software kudos:
-    https://gitlab.gnome.org/GNOME/gnome-software/blob/master/doc/kudos.md
-    <kudo>ModernToolkit</kudo>
-    <kudo>HiDpiIcon</kudo>
-  </kudos>-->
+  </releases>-->
   <developer_name>Ilya Zlobintsev</developer_name>
   <update_contact>ilya.zl@protonmail.com</update_contact>
 

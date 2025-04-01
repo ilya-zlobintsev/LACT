@@ -1,21 +1,20 @@
 // Inspired by https://github.com/ryanabx/flatpak-unsandbox/
 use anyhow::{anyhow, bail, Context};
+use configparser::ini::Ini;
+use lact_schema::args::FlatpakCommand;
 use std::{
     path::{Component, Path, PathBuf},
     process::Command,
 };
 
-pub fn generate_daemon_cmd() -> anyhow::Result<()> {
-    let info_path = Path::new("/.flatpak-info");
-
-    if !info_path.exists() {
-        bail!("Not running inside of Flatpak");
+pub fn cmd(cmd: FlatpakCommand) -> anyhow::Result<()> {
+    let info = get_flatpak_info()?;
+    match cmd {
+        FlatpakCommand::GenerateDaemonCmd => generate_daemon_cmd(&info),
     }
+}
 
-    let mut info = configparser::ini::Ini::new();
-    info.load(info_path)
-        .map_err(|err| anyhow!("Could not read flatpak info: {err}"))?;
-
+fn generate_daemon_cmd(info: &Ini) -> anyhow::Result<()> {
     let app_path = info
         .get("Instance", "app-path")
         .context("Could not get app path")?;
@@ -39,7 +38,7 @@ pub fn generate_daemon_cmd() -> anyhow::Result<()> {
     let app_bin_path = format!("{app_path}/bin");
     let library_paths = format!("{app_path}/lib:{runtime_lib_path}");
 
-    println!("env LD_LIBRARY_PATH={library_paths} {ld_path} --library-path {library_paths} {app_bin_path}/lact daemon");
+    println!("{ld_path} --library-path {library_paths} {app_bin_path}/lact daemon");
 
     Ok(())
 }
@@ -58,4 +57,18 @@ fn get_relative_ld_path() -> anyhow::Result<PathBuf> {
         }
     }
     bail!("Could not find ld-linux inside of flatpak");
+}
+
+fn get_flatpak_info() -> anyhow::Result<Ini> {
+    let info_path = Path::new("/.flatpak-info");
+
+    if !info_path.exists() {
+        bail!("Not running inside of Flatpak");
+    }
+
+    let mut info = Ini::new();
+    info.load(info_path)
+        .map_err(|err| anyhow!("Could not read flatpak info: {err}"))?;
+
+    Ok(info)
 }

@@ -76,10 +76,14 @@ pub struct Daemon {
 
 impl Default for Daemon {
     fn default() -> Self {
+        let admin_user = env::var("FLATPAK_INSTALL_USER")
+            .ok()
+            .filter(|user| !user.is_empty());
+
         #[allow(deprecated)]
         Self {
             log_level: "info".to_owned(),
-            admin_user: None,
+            admin_user,
             admin_group: find_existing_group(&DEFAULT_ADMIN_GROUPS),
             admin_groups: vec![],
             disable_clocks_cleanup: false,

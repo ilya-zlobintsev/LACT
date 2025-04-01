@@ -1,0 +1,73 @@
+app-id: io.github.lact-linux
+runtime: org.gnome.Platform
+runtime-version: "48"
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.llvm20
+command: lact
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --talk-name=org.freedesktop.Flatpak
+  - --filesystem=/run/lactd.sock
+  - --filesystem=/var/run/lactd.sock
+modules:
+  - name: lact
+    buildsystem: simple 
+    sources:
+      - generated-sources.json
+      - type: dir
+        path: "../"
+        skip: 
+          - "target"
+          - "target_ra"
+    build-commands:
+      - cargo --offline fetch --manifest-path Cargo.toml
+      - cargo --offline build -p lact --features flatpak --release
+      - PREFIX=/app make install
+    build-options:
+      append-path: "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin"
+      prepend-ld-library-path: "/usr/lib/sdk/llvm20/lib"
+      env:
+        CARGO_HOME: "/run/build/lact/cargo"
+    modules:
+      - name: libdrm
+        buildsystem: meson
+        builddir: true
+        config-opts:
+          - -Dtests=false
+        sources:
+          - type: git
+            url: https://gitlab.freedesktop.org/mesa/drm.git
+            tag: libdrm-2.4.124
+      - name: vulkan-tools
+        buildsystem: cmake-ninja
+        config-opts:
+          - -DVULKAN_HEADERS_INSTALL_DIR=/app
+          - -DCMAKE_BUILD_TYPE=Release
+          - -DBUILD_CUBE=OFF
+          - -DBUILD_ICD=OFF
+          - -DBUILD_VULKANINFO=ON
+        sources:
+          - type: archive
+            url: https://github.com/KhronosGroup/Vulkan-Tools/archive/v1.4.311/Vulkan-Tools-1.4.311.tar.gz
+            sha256: 7113bc0c746b45072e269fada0d684b4ae9de609c38d9e764b59793b14120a7b
+        modules:
+          - name: volk
+            buildsystem: cmake-ninja
+            config-opts:
+              - -DVOLK_INSTALL=ON
+            sources:
+              - type: archive
+                url: https://github.com/zeux/volk/archive/vulkan-sdk-1.4.309.0.tar.gz
+                sha256: 1724924d8e3dccf0c508887edb79d56d9dd11b0738eab5a44e2fa95b8a9ebe1c
+            modules:
+              - name: vulkan-headers
+                buildsystem: cmake-ninja
+                sources:
+                  - type: archive
+                    url: https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.4.311/Vulkan-Headers-v1.4.311.tar.gz
+                    sha256: 7989c360b870bcc2de52b9fd626fd2ba7a212fe177ade3aa3a10b2bcb61f8689

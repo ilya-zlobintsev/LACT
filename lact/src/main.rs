@@ -1,3 +1,4 @@
+#[cfg(feature = "flatpak")]
 mod flatpak;
 
 use lact_schema::args::{clap::Parser, Args, Command, GuiArgs};
@@ -12,7 +13,13 @@ fn main() -> anyhow::Result<()> {
         Command::Daemon => lact_daemon::run(),
         Command::Gui(gui_args) => run_gui(gui_args),
         Command::Cli(cli_args) => lact_cli::run(cli_args),
-        Command::FlatpakDaemonCmd => flatpak::generate_daemon_cmd(),
+        #[allow(unused_variables)]
+        Command::Flatpak { cmd } => {
+            #[cfg(not(feature = "flatpak"))]
+            return Err(anyhow::anyhow!("Compiled without flatpak support"));
+            #[cfg(feature = "flatpak")]
+            flatpak::cmd(cmd)
+        }
     }
 }
 
