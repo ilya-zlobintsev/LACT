@@ -18,7 +18,7 @@ It is possible to skip this step if you wish to use LACT only for information an
 
 Do you wish to install the service?" \
     --form \
-    --field "Autostart service at boot":CHK)
+    --field "Autostart service at boot":CHK "TRUE")
     EXIT_CODE=$?
     
     set -e
