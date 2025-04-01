@@ -25,9 +25,8 @@ modules:
           - "target_ra"
     build-commands:
       - cargo --offline fetch --manifest-path Cargo.toml
-      # - cargo --offline build -p lact --features flatpak --release
-      - cargo --offline build -p lact --features flatpak
-      - PREFIX=/app make install-debug
+      - cargo --offline build -p lact --features flatpak --release
+      - PREFIX=/app make install
       - install -Dm755 flatpak/startup.sh /app/bin/startup.sh
     build-options:
       append-path: "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin"
