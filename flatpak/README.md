@@ -17,6 +17,16 @@ It is also possible to skip the service setup if you want to use LACT only for i
 
 > Note: the setup script requires Polkit to be functional.
 
+## Service permissions
+
+The setup script will automatically configure the daemon in such a way that the user who ran the setup has access to it.
+It will not happen if you had an existing LACT config before setting up the Flatpak.
+
+In this scenario you have to manually edit `/etc/lact/config.yaml` and set `admin_user` in the `daemon` section.
+See this [README section](../README.md#configuration) for more information.
+
+**Flatpak specifically requires `admin_user` to be set** (and it is configured by default in the setup). Simply being part of a group like `wheel` does not grant the UI access to the daemon from Flatpak.
+
 ## Uninstall
 
 To uninstall the flatpak-created service run the following commands:
