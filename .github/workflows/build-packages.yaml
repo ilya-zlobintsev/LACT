@@ -94,8 +94,8 @@ jobs:
     - uses: actions/checkout@v4
     - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
       with:
-        bundle: io.github.lact-linux.flatpak
-        manifest-path: flatpak/io.github.lact-linux.yaml
+        bundle: io.github.ilya-zlobintsev.LACT.flatpak
+        manifest-path: flatpak/io.github.ilya-zlobintsev.LACT.yaml
         cache-key: flatpak-builder-${{ github.sha }}
 
   create-test-release:

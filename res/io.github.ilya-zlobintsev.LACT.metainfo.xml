@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.lact-linux</id>
+  <id>io.github.ilya-zlobintsev.LACT</id>
   <metadata_license>CC0</metadata_license>
   <project_license>MIT</project_license>
   <name>LACT</name>
@@ -28,5 +28,5 @@
   <developer_name>Ilya Zlobintsev</developer_name>
   <update_contact>ilya.zl@protonmail.com</update_contact>
 
-  <launchable type="desktop-id">io.github.lact-linux.desktop</launchable>
+  <launchable type="desktop-id">io.github.ilya-zlobintsev.LACT.desktop</launchable>
 </component>

@@ -1,6 +1,6 @@
 # Linux GPU Control Application
 
-<img src="res/io.github.lact-linux.png" alt="icon" width="100"/>
+<img src="res/io.github.ilya-zlobintsev.LACT.png" alt="icon" width="100"/>
 
 This application allows you to control your AMD, Nvidia or Intel GPU on a Linux system.
 
