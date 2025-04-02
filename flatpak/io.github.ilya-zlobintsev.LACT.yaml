@@ -33,6 +33,11 @@ modules:
       prepend-ld-library-path: "/usr/lib/sdk/llvm20/lib"
       env:
         CARGO_HOME: "/run/build/lact/cargo"
+    cleanup:
+      - /include
+      - /share/vulkan/registry
+      - /lib/*.a
+      - /lib/pkgconfig
     modules:
       - name: yad
         config-opts:
