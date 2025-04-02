@@ -54,10 +54,10 @@ dependency on X11 extensions).
   in the repos.
 - NixOS: There is a package available in
   [nixpkgs](https://search.nixos.org/packages?channel=24.05&from=0&size=50&sort=relevance&type=packages&query=lact)
-- Otherwise, build from source.
+- Flatpak (universal): Available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/) (not yet published on Flathub).
 
-**Why is there no AppImage/Flatpak/other universal format?** See
-[here](./pkg/README.md#why-is-there-no-appimageflatpakdocker).
+  See the [Flatpak documentation](./flatpak/README.md) for setup notes.
+- Build from source.
 
 Note: Nvidia support requires the Nvidia proprietary driver with CUDA libraries
 installed.
@@ -70,7 +70,7 @@ from the
 [test release](https://github.com/ilya-zlobintsev/LACT/releases/tag/test-build)
 or using the `lact-git` AUR package on Arch-based distros.
 
-Note: the date of the test release is not the date when the packages were built,
+Note: the date that GitHub shows next to the test release is not when the packages were built,
 the actual date is specified next to the attached package files.
 
 # Usage

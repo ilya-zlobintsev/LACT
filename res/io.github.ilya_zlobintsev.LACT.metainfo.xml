@@ -4,27 +4,39 @@
   <metadata_license>CC0</metadata_license>
   <project_license>MIT</project_license>
   <name>LACT</name>
-  <summary>Linux GPU Control Application</summary>
+  <summary>GPU Control Application</summary>
   <description>
-    <p>This application allows you to control your AMD, Nvidia or Intel GPU on a Linux system.</p>
+    <p>Control and monitor your AMD, Nvidia or Intel GPU on a Linux system.</p>
   </description>
-  <!--<screenshots>
+  <screenshots>
     <screenshot type="default">
-  <image>https://gitlab.gnome.org/World/design/contrast/raw/master/data/resources/screenshots/screenshot1.png</image>
-      <caption>Main Window</caption>
+      <image>https://i.imgur.com/gur90cK.png</image>
+      <caption>Information</caption>
     </screenshot>
-  </screenshots>-->
+    <screenshot>
+      <image>https://i.imgur.com/BAL3MgC.png</image>
+      <caption>Overclocking</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://i.imgur.com/VsAVdOR.png</image>
+      <caption>Fan Control</caption>
+    </screenshot>
+  </screenshots>
   <url type="homepage">https://github.com/ilya-zlobintsev/LACT</url>
-  <url type="vsc-browser">https://github.com/ilya-zlobintsev/LACT</url>
+  <url type="vcs-browser">https://github.com/ilya-zlobintsev/LACT</url>
   <url type="bugtracker">https://github.com/ilya-zlobintsev/LACT/issues</url>
   <content_rating type="oars-1.0" />
-  <!--<releases>
-    <release version="0.0.1" date="2020-02-08">
-      <description>
-        <p>First release of Rust Flatpak App</p>
-      </description>
+  <releases>
+    <release version="0.7.2" date="2025-03-16">
+      <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.2</url>
     </release>
-  </releases>-->
+    <release version="0.7.1" date="2025-02-27">
+      <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.1</url>
+    </release>
+    <release version="0.7.0" date="2025-01-14">
+      <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.0</url>
+    </release>
+  </releases>
   <developer_name>Ilya Zlobintsev</developer_name>
   <update_contact>ilya.zl@protonmail.com</update_contact>
 
