@@ -1,4 +1,4 @@
-app-id: io.github.ilya-zlobintsev.LACT
+app-id: io.github.ilya_zlobintsev.LACT
 runtime: org.gnome.Platform
 runtime-version: "48"
 sdk: org.gnome.Sdk

@@ -35,8 +35,8 @@ After=multi-user.target
 
 [Service]
 Environment=FLATPAK_INSTALL_USER=$USER
-Environment=VULKANINFO_COMMAND=\"sudo -u $USER -s flatpak run --filesystem=/tmp --command=vulkaninfo io.github.ilya-zlobintsev.LACT\"
-ExecStart=sh -c \"eval \$(sudo -u \$FLATPAK_INSTALL_USER -s flatpak run --command=lact io.github.ilya-zlobintsev.LACT flatpak generate-daemon-cmd)\"
+Environment=VULKANINFO_COMMAND=\"sudo -u $USER -s flatpak run --filesystem=/tmp --command=vulkaninfo io.github.ilya_zlobintsev.LACT\"
+ExecStart=sh -c \"eval \$(sudo -u \$FLATPAK_INSTALL_USER -s flatpak run --command=lact io.github.ilya_zlobintsev.LACT flatpak generate-daemon-cmd)\"
 Nice=-10
 Restart=on-failure
 
