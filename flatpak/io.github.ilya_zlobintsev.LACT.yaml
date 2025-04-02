@@ -13,6 +13,11 @@ finish-args:
   - --device=dri
   - --talk-name=org.freedesktop.Flatpak
   - --filesystem=/run/lactd.sock
+cleanup:
+  - /include
+  - /share/vulkan/registry
+  - /lib/*.a
+  - /lib/pkgconfig
 modules:
   - name: lact
     buildsystem: simple 
@@ -23,22 +28,18 @@ modules:
         skip: 
           - "target"
           - "target_ra"
-    build-commands:
-      - cargo --offline fetch --manifest-path Cargo.toml
-      - cargo --offline build -p lact --features flatpak --release
-      - make install
-      - install -Dm755 flatpak/startup.sh /app/bin/startup.sh
     build-options:
       append-path: "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin"
       prepend-ld-library-path: "/usr/lib/sdk/llvm20/lib"
       env:
         CARGO_HOME: "/run/build/lact/cargo"
         PREFIX: "/app"
-    cleanup:
-      - /include
-      - /share/vulkan/registry
-      - /lib/*.a
-      - /lib/pkgconfig
+    build-commands:
+      - cargo --offline fetch --manifest-path Cargo.toml
+      - cargo --offline build -p lact --features flatpak --release
+      - make install
+      - install -Dm755 flatpak/startup.sh /app/bin/startup.sh
+      - sed -i -E 's/lact gui/startup.sh/' /app/share/applications/io.github.ilya_zlobintsev.LACT.desktop
     modules:
       - name: yad
         config-opts:
