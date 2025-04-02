@@ -170,22 +170,19 @@ impl ThermalsPage {
         self.temperatures_label
             .set_markup(&format!("<b>{temperatures_text}</b>",));
 
+        let fan_percent = stats
+            .fan
+            .pwm_current
+            .map(|current_pwm| ((current_pwm as f64 / u8::MAX as f64) * 100.0).round());
+
         let fan_label = if let Some(current_rpm) = stats.fan.speed_current {
-            let text = match stats.fan.speed_max {
-                Some(max_rpm) => format!(
-                    "<b>{current_rpm} RPM ({}%)</b>",
-                    ((current_rpm as f64 / max_rpm as f64) * 100.0).round(),
-                ),
+            let text = match fan_percent {
+                Some(percent) => format!("<b>{current_rpm} RPM ({percent}%)</b>",),
                 None => format!("<b>{current_rpm} RPM</b>"),
             };
             Some(text)
         } else {
-            stats.fan.pwm_current.map(|current_pwm| {
-                format!(
-                    "<b>{}%</b>",
-                    ((current_pwm as f64 / u8::MAX as f64) * 100.0).round()
-                )
-            })
+            fan_percent.map(|percent| format!("<b>{percent}%</b>"))
         };
 
         match &fan_label {
