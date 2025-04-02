@@ -1,9 +1,0 @@
-name: libdrm
-buildsystem: meson
-builddir: true
-config-opts:
-  - -Dtests=false
-sources:
-  - type: git
-    url: https://gitlab.freedesktop.org/mesa/drm.git
-    tag: libdrm-2.4.124
