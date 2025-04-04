@@ -77,10 +77,10 @@ modules:
           - type: archive
             url: https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-2.4.124/drm-libdrm-2.4.124.tar.gz
             sha256: 49c077f3938147e7c321fe89255eb189c1be68f6ed0aa36e29d38e3db0e84e08
-        x-checker-data:
-          type: anitya
-          project-id: 1596
-          url-template: https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-$version/drm-libdrm-$version.tar.gz
+            x-checker-data:
+              type: anitya
+              project-id: 1596
+              url-template: https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-$version/drm-libdrm-$version.tar.gz
 
   - name: vulkan-tools
     buildsystem: cmake-ninja
