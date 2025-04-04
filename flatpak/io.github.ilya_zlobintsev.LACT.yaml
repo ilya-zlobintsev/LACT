@@ -64,52 +64,10 @@ modules:
               - type: archive
                 url: https://launchpad.net/intltool/trunk/0.51.0/+download/intltool-0.51.0.tar.gz
                 sha256: 67c74d94196b153b774ab9f89b2fa6c6ba79352407037c8c14d5aeb334e959cd
-            x-checker-data:
-              type: anitya
-              project-id: 1385
-              url-template: https://launchpad.net/intltool/trunk/$version/+download/intltool-$version.tar.gz
-
-      - name: vulkan-tools
-        buildsystem: cmake-ninja
-        config-opts:
-          - -DVULKAN_HEADERS_INSTALL_DIR=/app
-          - -DCMAKE_BUILD_TYPE=Release
-          - -DBUILD_CUBE=OFF
-          - -DBUILD_ICD=OFF
-          - -DBUILD_VULKANINFO=ON
-        sources:
-          - type: archive
-            url: https://github.com/KhronosGroup/Vulkan-Tools/archive/v1.4.311/Vulkan-Tools-1.4.311.tar.gz
-            sha256: 7113bc0c746b45072e269fada0d684b4ae9de609c38d9e764b59793b14120a7b
-        x-checker-data:
-          type: anitya
-          project-id: 242111
-          url-template: https://github.com/KhronosGroup/Vulkan-Tools/archive/v$version/Vulkan-Tools-$version.tar.gz
-        modules:
-          - name: volk
-            buildsystem: cmake-ninja
-            config-opts:
-              - -DVOLK_INSTALL=ON
-            sources:
-              - type: archive
-                url: https://github.com/zeux/volk/archive/vulkan-sdk-1.4.309.0.tar.gz
-                sha256: 1724924d8e3dccf0c508887edb79d56d9dd11b0738eab5a44e2fa95b8a9ebe1c
-            x-checker-data:
-              type: anitya
-              project-id: 370476
-              url-template: https://github.com/zeux/volk/archive/vulkan-sdk-$version.tar.gz
-            modules:
-              - name: vulkan-headers
-                buildsystem: cmake-ninja
-                sources:
-                  - type: archive
-                    url: https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.4.311/Vulkan-Headers-v1.4.311.tar.gz
-                    sha256: 7989c360b870bcc2de52b9fd626fd2ba7a212fe177ade3aa3a10b2bcb61f8689
                 x-checker-data:
                   type: anitya
-                  project-id: 88835
-                  url-template: https://github.com/KhronosGroup/Vulkan-Headers/archive/v$version/Vulkan-Headers-v$version.tar.gz
-
+                  project-id: 1385
+                  url-template: https://launchpad.net/intltool/trunk/$version/+download/intltool-$version.tar.gz
       - name: libdrm
         buildsystem: meson
         builddir: true
@@ -123,3 +81,44 @@ modules:
           type: anitya
           project-id: 1596
           url-template: https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-$version/drm-libdrm-$version.tar.gz
+
+  - name: vulkan-tools
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DVULKAN_HEADERS_INSTALL_DIR=/app
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_CUBE=OFF
+      - -DBUILD_ICD=OFF
+      - -DBUILD_VULKANINFO=ON
+    sources:
+      - type: archive
+        url: https://github.com/KhronosGroup/Vulkan-Tools/archive/v1.4.311/Vulkan-Tools-1.4.311.tar.gz
+        sha256: 7113bc0c746b45072e269fada0d684b4ae9de609c38d9e764b59793b14120a7b
+        x-checker-data:
+          type: anitya
+          project-id: 242111
+          url-template: https://github.com/KhronosGroup/Vulkan-Tools/archive/v$version/Vulkan-Tools-$version.tar.gz
+    modules:
+      - name: volk
+        buildsystem: cmake-ninja
+        config-opts:
+          - -DVOLK_INSTALL=ON
+        sources:
+          - type: archive
+            url: https://github.com/zeux/volk/archive/vulkan-sdk-1.4.309.0.tar.gz
+            sha256: 1724924d8e3dccf0c508887edb79d56d9dd11b0738eab5a44e2fa95b8a9ebe1c
+            x-checker-data:
+              type: anitya
+              project-id: 370476
+              url-template: https://github.com/zeux/volk/archive/vulkan-sdk-$version.tar.gz
+        modules:
+          - name: vulkan-headers
+            buildsystem: cmake-ninja
+            sources:
+              - type: archive
+                url: https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.4.311/Vulkan-Headers-v1.4.311.tar.gz
+                sha256: 7989c360b870bcc2de52b9fd626fd2ba7a212fe177ade3aa3a10b2bcb61f8689
+                x-checker-data:
+                  type: anitya
+                  project-id: 88835
+                  url-template: https://github.com/KhronosGroup/Vulkan-Headers/archive/v$version/Vulkan-Headers-v$version.tar.gz
