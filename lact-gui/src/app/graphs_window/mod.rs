@@ -47,6 +47,7 @@ pub enum GraphsWindowMsg {
     RemovePlot(DynamicIndex),
     AddPlot,
     SetConfig(Vec<Vec<StatType>>),
+    SaveConfig,
     Show,
     ExportData,
 }
@@ -230,26 +231,14 @@ impl relm4::Component for GraphsWindow {
             }
             GraphsWindowMsg::NotifyEditing => {
                 self.plots.broadcast(PlotComponentMsg::Redraw);
-
-                if !self.edit_mode.value() {
-                    CONFIG.write().edit(|config| {
-                        config.plots = self
-                            .plots
-                            .iter()
-                            .map(|plot| plot.selected_stats())
-                            .collect();
-
-                        config.plots_time_period =
-                            Some(self.time_period_seconds_adj.value() as u64);
-                        config.plots_per_row = Some(self.plots_per_row.value() as u64);
-                    });
-                }
             }
             GraphsWindowMsg::NotifyPlotsPerRow => {
                 self.update_plots_layout();
+                sender.input(GraphsWindowMsg::SaveConfig);
             }
             GraphsWindowMsg::RemovePlot(index) => {
                 self.plots.guard().remove(index.current_index());
+                sender.input(GraphsWindowMsg::SaveConfig);
             }
             GraphsWindowMsg::AddPlot => {
                 self.plots.guard().push_back(PlotComponentConfig {
@@ -259,10 +248,25 @@ impl relm4::Component for GraphsWindow {
                     plots_per_row: self.plots_per_row.clone(),
                     time_period: self.time_period_seconds_adj.clone(),
                 });
+                sender.input(GraphsWindowMsg::SaveConfig);
             }
             GraphsWindowMsg::SwapPlots(left, right) => {
-                let mut guard = self.plots.guard();
-                guard.swap(left.current_index(), right.current_index());
+                self.plots
+                    .guard()
+                    .swap(left.current_index(), right.current_index());
+                sender.input(GraphsWindowMsg::SaveConfig);
+            }
+            GraphsWindowMsg::SaveConfig => {
+                CONFIG.write().edit(|config| {
+                    config.plots = self
+                        .plots
+                        .iter()
+                        .map(|plot| plot.selected_stats())
+                        .collect();
+
+                    config.plots_time_period = Some(self.time_period_seconds_adj.value() as u64);
+                    config.plots_per_row = Some(self.plots_per_row.value() as u64);
+                });
             }
             GraphsWindowMsg::ExportData => {
                 let settings = SaveDialogSettings {

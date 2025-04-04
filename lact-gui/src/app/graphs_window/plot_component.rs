@@ -193,6 +193,7 @@ impl relm4::factory::FactoryComponent for PlotComponent {
             PlotComponentMsg::UpdatedSelection => {
                 widgets.plot.set_stats(self.selected_stats());
                 sender.input(PlotComponentMsg::Redraw);
+                sender.output(GraphsWindowMsg::SaveConfig).unwrap();
             }
         }
         self.update_view(widgets, sender);
