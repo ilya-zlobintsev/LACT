@@ -45,7 +45,7 @@ pub struct ThermalsPage {
     fan_curve_frame: FanCurveFrame,
     fan_control_mode_stack: Stack,
     fan_control_mode_stack_switcher: StackSwitcher,
-    is_amd: Rc<AtomicBool>,
+    show_amd_reset_warning: Rc<AtomicBool>,
 
     overdrive_enabled: Option<bool>,
 }
@@ -104,14 +104,14 @@ impl ThermalsPage {
 
         container.append(&fan_control_section);
 
-        let is_amd = Rc::new(AtomicBool::new(false));
+        let show_amd_reset_warning = Rc::new(AtomicBool::new(false));
 
         fan_control_mode_stack.connect_visible_child_name_notify(clone!(
             #[strong]
-            is_amd,
+            show_amd_reset_warning,
             move |stack| {
                 if stack.visible_child_name() == Some("automatic".into())
-                    && is_amd.load(Ordering::SeqCst)
+                    && show_amd_reset_warning.load(Ordering::SeqCst)
                 {
                     show_fan_control_warning()
                 }
@@ -129,27 +129,32 @@ impl ThermalsPage {
             fan_control_mode_stack_switcher,
             pmfw_frame,
             overdrive_enabled: system_info.amdgpu_overdrive_enabled,
-            is_amd,
+            show_amd_reset_warning,
         }
     }
 
     pub fn set_info(&self, info: &DeviceInfo) {
-        let pmfw_disabled = info.drm_info.as_ref().is_some_and(|info| {
-            debug!(
-                "family id: {:?}, overdrive enabled {:?}",
-                info.family_id, self.overdrive_enabled
-            );
-            (info.family_id.unwrap_or(0) >= AMDGPU_FAMILY_GC_11_0_0)
-                && (self.overdrive_enabled != Some(true))
-        });
+        let has_pmfw = info
+            .drm_info
+            .as_ref()
+            .and_then(|info| {
+                debug!(
+                    "family id: {:?}, overdrive enabled {:?}",
+                    info.family_id, self.overdrive_enabled
+                );
+                info.family_id
+            })
+            .is_some_and(|family| family >= AMDGPU_FAMILY_GC_11_0_0);
+
+        let pmfw_disabled = has_pmfw && self.overdrive_enabled != Some(true);
         self.pmfw_warning_label.set_visible(pmfw_disabled);
 
         let sensitive = self.fan_control_mode_stack_switcher.is_sensitive() && !pmfw_disabled;
         self.fan_control_mode_stack_switcher
             .set_sensitive(sensitive);
 
-        self.is_amd.store(
-            matches!(info.driver.as_str(), "radeon" | "amdgpu"),
+        self.show_amd_reset_warning.store(
+            matches!(info.driver.as_str(), "radeon" | "amdgpu") && !has_pmfw,
             Ordering::SeqCst,
         );
     }
