@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.ilya_zlobintsev.LACT</id>
+  <metadata_license>CC0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>LACT</name>
+  <summary>GPU Control Application</summary>
+  <description>
+    <p>LACT lets you configure and monitor your AMD, Nvidia or Intel GPU on Linux.</p>
+    <p>Supported functionality:</p>
+    <ul>
+      <li>Detailed GPU information</li>
+      <li>Overclocking</li>
+      <li>Power limits</li>
+      <li>Fan control</li>
+      <li>Monitoring with historical charts</li>
+    </ul>
+  </description>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://i.imgur.com/zG5jkTH.png</image>
+      <caption>Information</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://i.imgur.com/72y3Rca.png</image>
+      <caption>Overclocking</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://i.imgur.com/aMEDZ43.png</image>
+      <caption>Fan Control</caption>
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://github.com/ilya-zlobintsev/LACT</url>
+  <url type="vcs-browser">https://github.com/ilya-zlobintsev/LACT</url>
+  <url type="bugtracker">https://github.com/ilya-zlobintsev/LACT/issues</url>
+  <content_rating type="oars-1.0" />
+  <releases>
+    <release version="0.7.2" date="2025-03-16">
+      <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.2</url>
+    </release>
+    <release version="0.7.1" date="2025-02-27">
+      <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.1</url>
+    </release>
+    <release version="0.7.0" date="2025-01-14">
+      <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.0</url>
+    </release>
+  </releases>
+  <developer id="io.github.ilya_zlobintsev">
+    <name>Ilya Zlobintsev</name>
+  </developer>
+  <update_contact>ilya.zl@protonmail.com</update_contact>
+
+  <launchable type="desktop-id">io.github.ilya_zlobintsev.LACT.desktop</launchable>
+</component>

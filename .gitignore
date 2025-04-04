@@ -6,3 +6,5 @@ AppDir/
 appimage-build/
 *.stignore
 pkg/output
+build/
+.flatpak-builder/

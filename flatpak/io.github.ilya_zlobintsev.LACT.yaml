@@ -1,0 +1,124 @@
+app-id: io.github.ilya_zlobintsev.LACT
+runtime: org.gnome.Platform
+runtime-version: "48"
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.llvm20
+command: startup.sh
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --talk-name=org.freedesktop.Flatpak
+  - --filesystem=/run/lactd.sock
+cleanup:
+  - /include
+  - /share/vulkan/registry
+  - /lib/*.a
+  - /lib/pkgconfig
+modules:
+  - name: lact
+    buildsystem: simple 
+    sources:
+      - generated-sources.json
+      - type: dir
+        path: "../"
+        skip: 
+          - "target"
+          - "target_ra"
+    build-options:
+      append-path: "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin"
+      prepend-ld-library-path: "/usr/lib/sdk/llvm20/lib"
+      env:
+        CARGO_HOME: "/run/build/lact/cargo"
+        PREFIX: "/app"
+    build-commands:
+      - cargo --offline fetch --manifest-path Cargo.toml
+      - cargo --offline build -p lact --features flatpak --release
+      - make install
+      - install -Dm755 flatpak/startup.sh /app/bin/startup.sh
+      - sed -i -E 's/lact gui/startup.sh/' /app/share/applications/io.github.ilya_zlobintsev.LACT.desktop
+    modules:
+      - name: yad
+        config-opts:
+          - --enable-standalone
+          - --disable-icon-browser
+          - --disable-tools
+        sources:
+          - type: archive
+            url: https://github.com/v1cont/yad/releases/download/v14.1/yad-14.1.tar.xz
+            sha256: dde047a915cd8d3892c32b6ba031876f5cda673e01882c99613f043867c88133
+            x-checker-data:
+              type: anitya
+              project-id: 5280
+              url-template: https://github.com/v1cont/yad/releases/download/v$version/yad-$version.tar.xz
+        cleanup:
+          - /share/icons
+        modules:
+          - name: intltool
+            cleanup:
+              - '*'
+            sources:
+              - type: archive
+                url: https://launchpad.net/intltool/trunk/0.51.0/+download/intltool-0.51.0.tar.gz
+                sha256: 67c74d94196b153b774ab9f89b2fa6c6ba79352407037c8c14d5aeb334e959cd
+                x-checker-data:
+                  type: anitya
+                  project-id: 1385
+                  url-template: https://launchpad.net/intltool/trunk/$version/+download/intltool-$version.tar.gz
+      - name: libdrm
+        buildsystem: meson
+        builddir: true
+        config-opts:
+          - -Dtests=false
+        sources:
+          - type: archive
+            url: https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-2.4.124/drm-libdrm-2.4.124.tar.gz
+            sha256: 49c077f3938147e7c321fe89255eb189c1be68f6ed0aa36e29d38e3db0e84e08
+            x-checker-data:
+              type: anitya
+              project-id: 1596
+              url-template: https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-$version/drm-libdrm-$version.tar.gz
+
+  - name: vulkan-tools
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DVULKAN_HEADERS_INSTALL_DIR=/app
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_CUBE=OFF
+      - -DBUILD_ICD=OFF
+      - -DBUILD_VULKANINFO=ON
+    sources:
+      - type: archive
+        url: https://github.com/KhronosGroup/Vulkan-Tools/archive/v1.4.311/Vulkan-Tools-1.4.311.tar.gz
+        sha256: 7113bc0c746b45072e269fada0d684b4ae9de609c38d9e764b59793b14120a7b
+        x-checker-data:
+          type: anitya
+          project-id: 242111
+          url-template: https://github.com/KhronosGroup/Vulkan-Tools/archive/v$version/Vulkan-Tools-$version.tar.gz
+    modules:
+      - name: volk
+        buildsystem: cmake-ninja
+        config-opts:
+          - -DVOLK_INSTALL=ON
+        sources:
+          - type: archive
+            url: https://github.com/zeux/volk/archive/vulkan-sdk-1.4.309.0.tar.gz
+            sha256: 1724924d8e3dccf0c508887edb79d56d9dd11b0738eab5a44e2fa95b8a9ebe1c
+            x-checker-data:
+              type: anitya
+              project-id: 370476
+              url-template: https://github.com/zeux/volk/archive/vulkan-sdk-$version.tar.gz
+        modules:
+          - name: vulkan-headers
+            buildsystem: cmake-ninja
+            sources:
+              - type: archive
+                url: https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.4.311/Vulkan-Headers-v1.4.311.tar.gz
+                sha256: 7989c360b870bcc2de52b9fd626fd2ba7a212fe177ade3aa3a10b2bcb61f8689
+                x-checker-data:
+                  type: anitya
+                  project-id: 88835
+                  url-template: https://github.com/KhronosGroup/Vulkan-Headers/archive/v$version/Vulkan-Headers-v$version.tar.gz

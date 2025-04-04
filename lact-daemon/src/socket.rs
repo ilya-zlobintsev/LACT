@@ -10,9 +10,9 @@ use tracing::{debug, info};
 pub fn get_socket_path() -> PathBuf {
     let uid = getuid();
     if uid.is_root() {
-        PathBuf::from_str("/var/run/lactd.sock").unwrap()
+        PathBuf::from_str("/run/lactd.sock").unwrap()
     } else {
-        PathBuf::from_str(&format!("/var/run/user/{uid}/lactd.sock")).unwrap()
+        PathBuf::from_str(&format!("/run/user/{uid}/lactd.sock")).unwrap()
     }
 }
 

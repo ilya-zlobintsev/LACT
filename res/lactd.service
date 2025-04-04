@@ -1,5 +1,5 @@
 [Unit]
-Description=AMDGPU Control Daemon
+Description=GPU Control Daemon
 After=multi-user.target
 
 [Service]

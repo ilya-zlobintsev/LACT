@@ -3,6 +3,6 @@ Type=Application
 Name=LACT
 GenericName=GPU Control Application
 Exec=lact gui
-Icon=io.github.lact-linux
+Icon=io.github.ilya_zlobintsev.LACT
 Categories=System;
 Keywords=AMD;GPU;Radeon;

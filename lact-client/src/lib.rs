@@ -245,14 +245,14 @@ impl DaemonClient {
 }
 
 fn get_socket_path() -> Option<PathBuf> {
-    let root_path = PathBuf::from("/var/run/lactd.sock");
+    let root_path = PathBuf::from("/run/lactd.sock");
 
     if root_path.exists() {
         return Some(root_path);
     }
 
     let uid = getuid();
-    let user_path = PathBuf::from(format!("/var/run/user/{}/lactd.sock", uid));
+    let user_path = PathBuf::from(format!("/run/user/{}/lactd.sock", uid));
 
     if user_path.exists() {
         Some(user_path)

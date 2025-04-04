@@ -12,7 +12,7 @@ use tracing_subscriber::EnvFilter;
 static CONFIG: SharedState<UiConfig> = SharedState::new();
 
 const GUI_VERSION: &str = env!("CARGO_PKG_VERSION");
-const APP_ID: &str = "io.github.lact-linux";
+pub const APP_ID: &str = "io.github.ilya_zlobintsev.LACT";
 
 pub fn run(args: GuiArgs) -> anyhow::Result<()> {
     let env_filter = EnvFilter::builder()

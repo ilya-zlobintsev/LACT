@@ -29,9 +29,9 @@ VERGEN_GIT_SHA=942526e make install PREFIX=/usr DESTDIR=%{buildroot}
 %doc README.md
 /usr/bin/lact
 /usr/lib/systemd/system/lactd.service
-/usr/share/applications/io.github.lact-linux.desktop
-/usr/share/icons/hicolor/scalable/apps/io.github.lact-linux.svg
-/usr/share/pixmaps/io.github.lact-linux.png
+/usr/share/applications/io.github.ilya_zlobintsev.LACT.desktop
+/usr/share/icons/hicolor/scalable/apps/io.github.ilya_zlobintsev.LACT.svg
+/usr/share/pixmaps/io.github.ilya_zlobintsev.LACT.png
 
 %changelog
 * Sun Mar 16 2025 - ilya-zlobintsev - v0.7.2 - v0.7.2
