@@ -22,6 +22,7 @@ tracing-subscriber = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_yaml = { workspace = true }
+indexmap = { workspace = true }
 gtk = { version = "0.9", package = "gtk4", features = ["v4_6"] }
 
 adw = { package = "libadwaita", version = "0.7.1", features = [

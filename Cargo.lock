@@ -1346,6 +1346,7 @@ dependencies = [
  "chrono",
  "divan",
  "gtk4",
+ "indexmap",
  "itertools",
  "lact-client",
  "lact-daemon",

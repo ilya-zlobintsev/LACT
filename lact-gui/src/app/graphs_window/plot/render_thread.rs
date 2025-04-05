@@ -6,6 +6,8 @@ use cairo::{Context as CairoContext, ImageSurface};
 use gtk::gdk::MemoryTexture;
 use gtk::prelude::StyleContextExt;
 use gtk::StyleContext;
+use indexmap::IndexSet;
+use itertools::Itertools;
 use plotters::prelude::*;
 use plotters::style::colors::full_palette::DEEPORANGE_100;
 use plotters::style::text_anchor::Pos;
@@ -335,64 +337,6 @@ impl RenderRequest {
             .draw()
             .context("Failed to draw mesh")?;
 
-        // Draw throttling series
-        chart
-            .draw_series(
-                data_guard
-                    .throttling_sections()
-                    .iter()
-                    .filter_map(|section| {
-                        let first = section.first()?;
-                        Some((
-                            first.0,
-                            section.last().map(|(ts, _)| *ts).unwrap_or(first.0),
-                        ))
-                    })
-                    .map(|(start, end)| {
-                        Rectangle::new(
-                            [(start, 0f64), (end, maximum_value)],
-                            self.colors.throttling.mix(0.5).filled(),
-                        )
-                    }),
-            )
-            .context("Failed to draw throttling histogram")?;
-
-        // Draw throttling text
-        // Currently disabled as text often overlaps, have to figure out a better way to display it
-        /*chart
-        .draw_series(
-            data_guard
-                .throttling_sections()
-                .iter()
-                .filter_map(|section| {
-                    let mut texts: Vec<&str> = section
-                        .iter()
-                        .flat_map(|(_, text)| text.iter().map(|s| s.as_str()))
-                        .collect();
-                    texts.sort_unstable();
-                    texts.dedup();
-
-                    let first = section.first()?;
-                    Some((
-                        first.0,
-                        section.last().map(|(ts, _)| *ts).unwrap_or(first.0),
-                        texts,
-                    ))
-                })
-                .map(|(start, _end, text)| {
-                    Text::new(
-                        text.join(","),
-                        (start, 0.0),
-                        TextStyle {
-                            font: ("sans-serif", 16).into(),
-                            color: self.colors.text.to_backend_color(),
-                            pos: Pos::new(HPos::default(), VPos::Bottom),
-                        },
-                    )
-                }),
-        )
-        .context("Failed to draw throttling histogram")?;*/
-
         // Draw the main line series using cubic spline interpolation.
         for (idx, (stat_type, data)) in data.iter().enumerate() {
             let current_value = data.last().map(|(_, val)| *val).unwrap_or(0.0);
@@ -428,6 +372,47 @@ impl RenderRequest {
                     Rectangle::new(
                         [(x - offset, y - offset), (x + offset, y + offset)],
                         Palette99::pick(idx).filled(),
+                    )
+                });
+        }
+
+        // Draw throttling series
+        if data_guard
+            .throttling_sections()
+            .iter()
+            .any(|section| !section.is_empty())
+        {
+            let throttling_color = self.colors.throttling.mix(0.5).filled();
+            let names: IndexSet<&str> = data_guard
+                .throttling_sections()
+                .iter()
+                .flat_map(|section| section.iter().flat_map(|(_, values)| values))
+                .map(|value| value.as_str())
+                .collect();
+
+            chart
+                .draw_series(
+                    data_guard
+                        .throttling_sections()
+                        .iter()
+                        .filter_map(|section| {
+                            let first = section.first()?;
+                            Some((
+                                first.0,
+                                section.last().map(|(ts, _)| *ts).unwrap_or(first.0),
+                            ))
+                        })
+                        .map(|(start, end)| {
+                            Rectangle::new([(start, 0f64), (end, maximum_value)], throttling_color)
+                        }),
+                )
+                .context("Failed to draw throttling histogram")?
+                .label(format!("Throttling: {}", names.iter().join(",")))
+                .legend(move |(x, y)| {
+                    let offset = 7;
+                    Rectangle::new(
+                        [(x - offset, y - offset), (x + offset, y + offset)],
+                        throttling_color,
                     )
                 });
         }
