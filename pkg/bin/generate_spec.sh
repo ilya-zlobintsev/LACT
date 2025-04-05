@@ -96,6 +96,7 @@ VERGEN_GIT_SHA=$LACT_COMMIT_HASH make install PREFIX=/usr DESTDIR=%{buildroot}
 /usr/share/applications/io.github.ilya_zlobintsev.LACT.desktop
 /usr/share/icons/hicolor/scalable/apps/io.github.ilya_zlobintsev.LACT.svg
 /usr/share/pixmaps/io.github.ilya_zlobintsev.LACT.png
+/usr/share/metainfo/io.github.ilya_zlobintsev.LACT.metainfo.xml
 
 %changelog
 * $(date +"%a %b %d %Y") - $MAINTAINER - $GH_RELEASE_NAME - $GH_RELEASE_TAG

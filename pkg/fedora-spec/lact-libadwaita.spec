@@ -32,6 +32,7 @@ VERGEN_GIT_SHA=a86139a make install PREFIX=/usr DESTDIR=%{buildroot}
 /usr/share/applications/io.github.ilya_zlobintsev.LACT.desktop
 /usr/share/icons/hicolor/scalable/apps/io.github.ilya_zlobintsev.LACT.svg
 /usr/share/pixmaps/io.github.ilya_zlobintsev.LACT.png
+/usr/share/metainfo/io.github.ilya_zlobintsev.LACT.metainfo.xml
 
 %changelog
 * Sat Apr 05 2025 - ilya-zlobintsev - v0.7.3 - v0.7.3
