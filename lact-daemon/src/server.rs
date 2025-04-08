@@ -25,10 +25,7 @@ pub struct Server {
 
 impl Server {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
-        let unix_listener = socket::listen(
-            config.daemon.admin_group.as_deref(),
-            config.daemon.admin_user.as_deref(),
-        )?;
+        let (unix_listener, socket_path) = socket::listen()?;
 
         let tcp_listener = if let Some(address) = &config.daemon.tcp_listen_address {
             let listener = TcpListener::bind(address)
@@ -42,6 +39,8 @@ impl Server {
         };
 
         let handler = Handler::new(config).await?;
+
+        socket::set_permissions(&socket_path, &handler.config.read().await.daemon)?;
 
         Ok(Self {
             handler,

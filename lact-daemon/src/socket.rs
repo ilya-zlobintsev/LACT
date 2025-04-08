@@ -3,9 +3,15 @@ use nix::{
     sys::stat::{umask, Mode},
     unistd::{chown, getuid, Gid, Group, User},
 };
-use std::{fs, path::PathBuf, str::FromStr};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 use tokio::net::UnixListener;
 use tracing::{debug, info};
+
+use crate::config;
 
 pub fn get_socket_path() -> PathBuf {
     let uid = getuid();
@@ -25,7 +31,7 @@ pub fn cleanup() {
     debug!("removed socket");
 }
 
-pub fn listen(admin_group: Option<&str>, admin_user: Option<&str>) -> anyhow::Result<UnixListener> {
+pub fn listen() -> anyhow::Result<(UnixListener, PathBuf)> {
     let socket_path = get_socket_path();
 
     if socket_path.exists() {
@@ -41,7 +47,14 @@ pub fn listen(admin_group: Option<&str>, admin_user: Option<&str>) -> anyhow::Re
 
     let listener = UnixListener::bind(&socket_path)?;
 
-    let group = admin_group
+    info!("listening on {socket_path:?}");
+    Ok((listener, socket_path))
+}
+
+pub fn set_permissions(socket_path: &Path, daemon_config: &config::Daemon) -> anyhow::Result<()> {
+    let group = daemon_config
+        .admin_group
+        .as_ref()
         .map(|name| {
             Group::from_name(name)
                 .context("Could not get group")?
@@ -50,7 +63,9 @@ pub fn listen(admin_group: Option<&str>, admin_user: Option<&str>) -> anyhow::Re
         .transpose()?
         .map_or_else(Gid::current, |group| group.gid);
 
-    let user = admin_user
+    let user = daemon_config
+        .admin_user
+        .as_ref()
         .map(|name| {
             User::from_name(name)
                 .context("Could not get group")?
@@ -61,8 +76,7 @@ pub fn listen(admin_group: Option<&str>, admin_user: Option<&str>) -> anyhow::Re
 
     debug!("using gid {group} uid {user:?} for socket");
 
-    chown(&socket_path, user, Some(group))?;
+    chown(socket_path, user, Some(group)).context("Could not set socket permissions")?;
 
-    info!("listening on {socket_path:?}");
-    Ok(listener)
+    Ok(())
 }
