@@ -2,10 +2,14 @@
 mod amd;
 pub mod fan_control;
 mod intel;
+
+#[cfg(feature = "nvidia")]
 mod nvidia;
 
 use amd::AmdGpuController;
 use intel::IntelGpuController;
+
+#[cfg(feature = "nvidia")]
 use nvidia::NvidiaGpuController;
 
 pub const VENDOR_AMD: &str = "1002";
@@ -90,6 +94,9 @@ pub(crate) fn init_controller(
     amd_drm: &LazyCell<Option<LibDrmAmdgpu>>,
     intel_drm: &LazyCell<Option<Rc<IntelDrm>>>,
 ) -> anyhow::Result<Box<dyn GpuController>> {
+    #[cfg(not(feature = "nvidia"))]
+    let _ = nvml;
+
     let uevent_path = path.join("uevent");
     let uevent = fs::read_to_string(uevent_path).context("Could not read 'uevent'")?;
     let mut uevent_map = parse_uevent(&uevent);
@@ -175,6 +182,7 @@ pub(crate) fn init_controller(
                 error!("Intel DRM library missing, Intel controls will not be available");
             }
         }
+        #[cfg(feature = "nvidia")]
         "nvidia" => {
             if let Some(nvml) = nvml.as_ref().cloned() {
                 match NvidiaGpuController::new(common.clone(), nvml) {

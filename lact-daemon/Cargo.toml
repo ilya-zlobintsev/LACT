@@ -4,8 +4,9 @@ version = "0.7.3"
 edition = "2021"
 
 [features]
-default = []
+default = ["nvidia"]
 bench = ["dep:divan"]
+nvidia = []
 
 [dependencies]
 lact-schema = { path = "../lact-schema" }

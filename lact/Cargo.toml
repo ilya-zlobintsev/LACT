@@ -4,12 +4,13 @@ version = "0.7.3"
 edition = "2021"
 
 [features]
-default = ["lact-gui"]
+default = ["lact-gui", "nvidia"]
 adw = ["lact-gui/adw"]
 flatpak = ["dep:configparser"]
+nvidia = ["lact-daemon/nvidia"]
 
 [dependencies]
-lact-daemon = { path = "../lact-daemon" }
+lact-daemon = { path = "../lact-daemon", default-features = false }
 lact-schema = { path = "../lact-schema", features = ["args"] }
 lact-cli = { path = "../lact-cli" }
 lact-gui = { path = "../lact-gui", optional = true }

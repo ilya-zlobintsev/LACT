@@ -8,7 +8,10 @@ fn main() {
     println!("cargo::rerun-if-changed=include/");
 
     gen_intel_bindings();
+
+    #[cfg(feature = "nvidia")]
     gen_nvidia_bindings();
+
     gen_vulkan_constants();
 }
 
@@ -26,6 +29,7 @@ fn gen_intel_bindings() {
         .expect("Couldn't write bindings!");
 }
 
+#[cfg(feature = "nvidia")]
 fn gen_nvidia_bindings() {
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
