@@ -12,6 +12,7 @@ pub mod intel {
     include!(concat!(env!("OUT_DIR"), "/intel_bindings.rs"));
 }
 
+#[cfg(feature = "nvidia")]
 pub mod nvidia {
     include!(concat!(env!("OUT_DIR"), "/nvidia_bindings.rs"));
 }
