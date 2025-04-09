@@ -1,6 +1,6 @@
 Name:           lact-libadwaita
 Version:        0.7.3
-Release:        1
+Release:        2
 Summary:        AMDGPU control utility
 License:        MIT
 URL:            https://github.com/ilya-zlobintsev/LACT
@@ -17,11 +17,11 @@ AMDGPU control utility
 %setup -q -n LACT-%{version}
 
 %build
-make build-release-libadwaita %{?_smp_mflags}
+VERGEN_GIT_SHA=a86139a make build-release-libadwaita %{?_smp_mflags}
 
 %install
 rm -rf %{buildroot}
-VERGEN_GIT_SHA=a86139a make install PREFIX=/usr DESTDIR=%{buildroot}
+make install PREFIX=/usr DESTDIR=%{buildroot}
 
 %files
 %defattr(-,root,root,-)

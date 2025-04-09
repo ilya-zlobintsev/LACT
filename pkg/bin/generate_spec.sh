@@ -81,11 +81,11 @@ $PKG_DESCRIPTION
 %setup -q -n LACT-%{version}
 
 %build
-$MAKE_COMMAND %{?_smp_mflags}
+VERGEN_GIT_SHA=$LACT_COMMIT_HASH $MAKE_COMMAND %{?_smp_mflags}
 
 %install
 rm -rf %{buildroot}
-VERGEN_GIT_SHA=$LACT_COMMIT_HASH make install PREFIX=/usr DESTDIR=%{buildroot}
+make install PREFIX=/usr DESTDIR=%{buildroot}
 
 %files
 %defattr(-,root,root,-)
