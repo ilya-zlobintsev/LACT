@@ -35,6 +35,9 @@
   <url type="bugtracker">https://github.com/ilya-zlobintsev/LACT/issues</url>
   <content_rating type="oars-1.0" />
   <releases>
+    <release version="0.7.3" date="2025-04-05">
+      <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.3</url>
+    </release>
     <release version="0.7.2" date="2025-03-16">
       <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.2</url>
     </release>
