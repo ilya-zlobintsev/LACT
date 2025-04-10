@@ -180,33 +180,51 @@ impl IntelGpuController {
         }
     }
 
-    fn read_hwmon_file<T>(&self, file_prefix: &str, file_suffix: &str) -> Option<T>
+    fn read_hwmon_files<T>(
+        &self,
+        file_prefix: &str,
+        file_suffix: &str,
+    ) -> impl Iterator<Item = (T, PathBuf)> + '_
     where
         T: FromStr,
         T::Err: Display,
     {
         let mut files = Vec::with_capacity(1);
-        self.hwmon_path.as_ref().and_then(|hwmon_path| {
-            let entries = fs::read_dir(hwmon_path).ok()?;
-            for entry in entries.flatten() {
-                if let Some(name) = entry.file_name().to_str() {
-                    if let Some(infix) = name
-                        .strip_prefix(file_prefix)
-                        .and_then(|name| name.strip_suffix(file_suffix))
-                    {
-                        if !infix.contains('_') {
-                            files.push(entry.path());
+        self.hwmon_path
+            .as_ref()
+            .and_then(|hwmon_path| {
+                let entries = fs::read_dir(hwmon_path).ok()?;
+                for entry in entries.flatten() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        if let Some(infix) = name
+                            .strip_prefix(file_prefix)
+                            .and_then(|name| name.strip_suffix(file_suffix))
+                        {
+                            if !infix.contains('_') {
+                                files.push(entry.path());
+                            }
                         }
                     }
                 }
-            }
-            files.sort_unstable();
+                files.sort_unstable();
 
-            files
-                .into_iter()
-                .next()
-                .and_then(|path| self.read_file(path))
-        })
+                Some(files.into_iter().filter_map(|path| {
+                    let contents = self.read_file(&path)?;
+                    Some((contents, path))
+                }))
+            })
+            .into_iter()
+            .flatten()
+    }
+
+    fn read_hwmon_file<T>(&self, file_prefix: &str, file_suffix: &str) -> Option<T>
+    where
+        T: FromStr,
+        T::Err: Display,
+    {
+        self.read_hwmon_files(file_prefix, file_suffix)
+            .next()
+            .map(|(contents, _)| contents)
     }
 
     fn write_hwmon_file(
@@ -341,10 +359,21 @@ impl IntelGpuController {
     }
 
     fn get_temperatures(&self) -> HashMap<String, Temperature> {
-        self.read_hwmon_file::<f32>("temp", "_input")
-            .into_iter()
-            .map(|temp| {
-                let key = "gpu".to_owned();
+        self.read_hwmon_files::<f32>("temp", "_input")
+            .map(|(temp, file)| {
+                let mut key = None;
+                if let Some(filename) = file.to_str() {
+                    if let Some(base_filename) = filename.strip_suffix("_input") {
+                        let label_filename = format!("{base_filename}_label");
+
+                        if let Some(label) = self.read_file(&label_filename) {
+                            key = Some(label);
+                        }
+                    }
+                }
+
+                let key = key.unwrap_or_else(|| "gpu".to_owned());
+
                 let temperature = Temperature {
                     current: Some(temp / 1000.0),
                     crit: None,
