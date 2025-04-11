@@ -36,7 +36,7 @@ fn generate_daemon_cmd(info: &Ini) -> anyhow::Result<()> {
             .display()
     );
     let app_bin_path = format!("{app_path}/bin");
-    let library_paths = format!("{app_path}/lib:{runtime_lib_path}");
+    let library_paths = format!("{app_path}/lib:{app_path}/drm/lib:{runtime_lib_path}");
 
     println!("{ld_path} --library-path {library_paths} {app_bin_path}/lact daemon");
 
