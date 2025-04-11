@@ -55,7 +55,7 @@ impl Default for Config {
             profiles: IndexMap::new(),
             current_profile: None,
             auto_switch_profiles: false,
-            version: 4,
+            version: 5,
         }
     }
 }
@@ -328,6 +328,13 @@ impl Config {
                 4 => {
                     self.daemon.admin_group = find_existing_group(&self.daemon.admin_groups);
                     self.daemon.admin_groups.clear();
+                }
+                5 => {
+                    if let Ok(admin_user) = env::var("FLATPAK_INSTALL_USER") {
+                        if self.daemon.admin_user.is_none() {
+                            self.daemon.admin_user = Some(admin_user);
+                        }
+                    }
                 }
                 _ => break,
             }
