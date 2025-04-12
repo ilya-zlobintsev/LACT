@@ -1,12 +1,7 @@
-use crate::server::gpu_controller::{fan_control::FanCurve, GpuController, VENDOR_NVIDIA};
-use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
+use crate::server::gpu_controller::{GpuController, VENDOR_NVIDIA};
 use anyhow::Context;
 use indexmap::IndexMap;
-use lact_schema::{
-    default_fan_curve,
-    request::{ClockspeedType, SetClocksCommand},
-    FanControlMode, PmfwOptions, ProfileRule,
-};
+use lact_schema::{config::GpuConfig, ProfileRule};
 use nix::unistd::{getuid, Group};
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
@@ -37,7 +32,7 @@ pub struct Config {
     #[serde(default = "default_apply_settings_timer")]
     pub apply_settings_timer: u64,
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    gpus: IndexMap<String, Gpu>,
+    gpus: IndexMap<String, GpuConfig>,
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub profiles: IndexMap<Rc<str>, Profile>,
     #[serde(default)]
@@ -96,116 +91,8 @@ impl Default for Daemon {
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Profile {
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub gpus: IndexMap<String, Gpu>,
+    pub gpus: IndexMap<String, GpuConfig>,
     pub rule: Option<ProfileRule>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-pub struct Gpu {
-    #[serde(default)]
-    pub fan_control_enabled: bool,
-    pub fan_control_settings: Option<FanControlSettings>,
-    #[serde(default, skip_serializing_if = "PmfwOptions::is_empty")]
-    pub pmfw_options: PmfwOptions,
-    pub power_cap: Option<f64>,
-    pub performance_level: Option<PerformanceLevel>,
-    #[serde(default, flatten)]
-    pub clocks_configuration: ClocksConfiguration,
-    pub power_profile_mode_index: Option<u16>,
-    /// Outer vector is for power profile components, inner vector is for the heuristics within a component
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub custom_power_profile_mode_hueristics: Vec<Vec<Option<i32>>>,
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub power_states: IndexMap<PowerLevelKind, Vec<u8>>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct ClocksConfiguration {
-    pub min_core_clock: Option<i32>,
-    pub min_memory_clock: Option<i32>,
-    pub min_voltage: Option<i32>,
-    pub max_core_clock: Option<i32>,
-    pub max_memory_clock: Option<i32>,
-    pub max_voltage: Option<i32>,
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub gpu_clock_offsets: IndexMap<u32, i32>,
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub mem_clock_offsets: IndexMap<u32, i32>,
-    pub voltage_offset: Option<i32>,
-}
-
-impl Gpu {
-    pub fn is_core_clocks_used(&self) -> bool {
-        self.clocks_configuration != ClocksConfiguration::default()
-    }
-
-    pub fn apply_clocks_command(&mut self, command: &SetClocksCommand) {
-        let clocks = &mut self.clocks_configuration;
-        let value = command.value;
-        match command.r#type {
-            ClockspeedType::MaxCoreClock => clocks.max_core_clock = value,
-            ClockspeedType::MaxMemoryClock => clocks.max_memory_clock = value,
-            ClockspeedType::MaxVoltage => clocks.max_voltage = value,
-            ClockspeedType::MinCoreClock => clocks.min_core_clock = value,
-            ClockspeedType::MinMemoryClock => clocks.min_memory_clock = value,
-            ClockspeedType::MinVoltage => clocks.min_voltage = value,
-            ClockspeedType::VoltageOffset => clocks.voltage_offset = value,
-            ClockspeedType::GpuClockOffset(pstate) => match value {
-                Some(value) => {
-                    clocks.gpu_clock_offsets.insert(pstate, value);
-                }
-                None => {
-                    clocks.gpu_clock_offsets.shift_remove(&pstate);
-                }
-            },
-            ClockspeedType::MemClockOffset(pstate) => match value {
-                Some(value) => {
-                    clocks.mem_clock_offsets.insert(pstate, value);
-                }
-                None => {
-                    clocks.mem_clock_offsets.shift_remove(&pstate);
-                }
-            },
-            ClockspeedType::Reset => {
-                *clocks = ClocksConfiguration::default();
-                assert!(!self.is_core_clocks_used());
-            }
-        }
-    }
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct FanControlSettings {
-    #[serde(default)]
-    pub mode: FanControlMode,
-    #[serde(default = "default_fan_static_speed")]
-    pub static_speed: f32,
-    pub temperature_key: String,
-    pub interval_ms: u64,
-    pub curve: FanCurve,
-    pub spindown_delay_ms: Option<u64>,
-    pub change_threshold: Option<u64>,
-}
-
-impl Default for FanControlSettings {
-    fn default() -> Self {
-        Self {
-            mode: FanControlMode::default(),
-            static_speed: default_fan_static_speed(),
-            temperature_key: "edge".to_owned(),
-            interval_ms: 500,
-            curve: FanCurve(default_fan_curve()),
-            spindown_delay_ms: None,
-            change_threshold: None,
-        }
-    }
-}
-
-pub fn default_fan_static_speed() -> f32 {
-    0.5
 }
 
 impl Config {
@@ -344,7 +231,7 @@ impl Config {
     }
 
     /// Gets the GPU configs according to the current profile. Returns an error if the current profile could not be found.
-    pub fn gpus(&self) -> anyhow::Result<&IndexMap<String, Gpu>> {
+    pub fn gpus(&self) -> anyhow::Result<&IndexMap<String, GpuConfig>> {
         match &self.current_profile {
             Some(profile) => {
                 let profile = self
@@ -358,7 +245,7 @@ impl Config {
     }
 
     /// Same as [`gpus`], but with a mutable reference
-    pub fn gpus_mut(&mut self) -> anyhow::Result<&mut IndexMap<String, Gpu>> {
+    pub fn gpus_mut(&mut self) -> anyhow::Result<&mut IndexMap<String, GpuConfig>> {
         match &self.current_profile {
             Some(profile) => {
                 let profile = self
@@ -506,13 +393,14 @@ fn find_existing_group(groups: &[impl AsRef<str>]) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
-    use super::{ClocksConfiguration, Config, Daemon, FanControlSettings, Gpu};
-    use crate::server::gpu_controller::fan_control::FanCurve;
+    use crate::config::{Config, Daemon};
     use indexmap::IndexMap;
     use insta::assert_yaml_snapshot;
-    use lact_schema::{FanControlMode, PmfwOptions};
+    use lact_schema::{
+        config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
+        FanControlMode, PmfwOptions,
+    };
+    use std::collections::BTreeMap;
 
     #[test]
     fn serde_de_full() {
@@ -520,7 +408,7 @@ mod tests {
             daemon: Daemon::default(),
             gpus: [(
                 "my-gpu-id".to_owned(),
-                Gpu {
+                GpuConfig {
                     fan_control_enabled: true,
                     fan_control_settings: Some(FanControlSettings {
                         curve: FanCurve::default(),
@@ -561,7 +449,7 @@ mod tests {
 
     #[test]
     fn clocks_configuration_applied() {
-        let mut gpu = Gpu {
+        let mut gpu = GpuConfig {
             fan_control_enabled: false,
             fan_control_settings: None,
             pmfw_options: PmfwOptions::default(),
@@ -587,7 +475,7 @@ mod tests {
             gpus: IndexMap::from([
                 (
                     "10DE:2704-1462:5110-0000:09:00.0".to_owned(),
-                    Gpu {
+                    GpuConfig {
                         clocks_configuration: ClocksConfiguration {
                             max_core_clock: Some(3000),
                             max_memory_clock: Some(10_000),
@@ -598,7 +486,7 @@ mod tests {
                 ),
                 (
                     "1002:687F-1043:0555-0000:0b:00.0".to_owned(),
-                    Gpu {
+                    GpuConfig {
                         clocks_configuration: ClocksConfiguration {
                             max_core_clock: Some(1500),
                             max_memory_clock: Some(920),

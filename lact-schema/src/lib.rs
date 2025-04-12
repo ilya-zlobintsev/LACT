@@ -1,5 +1,6 @@
 #[cfg(feature = "args")]
 pub mod args;
+pub mod config;
 mod profiles;
 pub mod request;
 mod response;

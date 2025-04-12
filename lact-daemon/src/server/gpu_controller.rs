@@ -15,14 +15,13 @@ use nvidia::NvidiaGpuController;
 pub const VENDOR_AMD: &str = "1002";
 pub const VENDOR_NVIDIA: &str = "10DE";
 
-use crate::{
-    bindings::intel::IntelDrm,
-    config::{self},
-};
+use crate::bindings::intel::IntelDrm;
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::Context;
 use futures::{future::LocalBoxFuture, FutureExt};
-use lact_schema::{ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates};
+use lact_schema::{
+    config::GpuConfig, ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates,
+};
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use nvml_wrapper::Nvml;
 use std::{cell::LazyCell, collections::HashMap, fs, path::PathBuf, rc::Rc};
@@ -37,16 +36,13 @@ pub trait GpuController {
 
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo>;
 
-    fn apply_config<'a>(
-        &'a self,
-        config: &'a config::Gpu,
-    ) -> LocalBoxFuture<'a, anyhow::Result<()>>;
+    fn apply_config<'a>(&'a self, config: &'a GpuConfig) -> LocalBoxFuture<'a, anyhow::Result<()>>;
 
-    fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats;
+    fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats;
 
-    fn get_clocks_info(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo>;
+    fn get_clocks_info(&self, gpu_config: Option<&GpuConfig>) -> anyhow::Result<ClocksInfo>;
 
-    fn get_power_states(&self, gpu_config: Option<&config::Gpu>) -> PowerStates;
+    fn get_power_states(&self, gpu_config: Option<&GpuConfig>) -> PowerStates;
 
     fn reset_pmfw_settings(&self);
 

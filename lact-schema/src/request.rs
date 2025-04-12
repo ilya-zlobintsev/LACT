@@ -86,6 +86,9 @@ pub enum Request<'a> {
         name: String,
         rule: Option<ProfileRule>,
     },
+    GetGpuConfig {
+        id: &'a str,
+    },
     EnableOverdrive,
     DisableOverdrive,
     GenerateSnapshot,

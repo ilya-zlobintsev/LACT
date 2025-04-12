@@ -186,6 +186,7 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::SetProfileRule { name, rule } => {
             ok_response(handler.set_profile_rule(&name, rule).await?)
         }
+        Request::GetGpuConfig { id } => ok_response(handler.get_gpu_config(id).await?),
         Request::EnableOverdrive => ok_response(system::enable_overdrive().await?),
         Request::DisableOverdrive => ok_response(system::disable_overdrive().await?),
         Request::GenerateSnapshot => ok_response(handler.generate_snapshot().await?),

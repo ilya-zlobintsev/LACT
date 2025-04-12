@@ -1,10 +1,8 @@
 mod mock_fs;
 
-use crate::{
-    config::{self, Config},
-    server::handler::Handler,
-};
+use crate::{config::Config, server::handler::Handler};
 use insta::{assert_debug_snapshot, assert_json_snapshot};
+use lact_schema::config::GpuConfig;
 use mock_fs::MockSysfs;
 use std::{fs, path::PathBuf, sync::OnceLock};
 use tempfile::tempdir;
@@ -66,7 +64,7 @@ async fn apply_settings() {
                         vendor_dir.file_name().to_string_lossy(),
                         device_dir.file_name().to_string_lossy()
                     );
-                    let gpu_config: config::Gpu = serde_yaml::from_str(&raw_gpu_config).unwrap();
+                    let gpu_config: GpuConfig = serde_yaml::from_str(&raw_gpu_config).unwrap();
 
                     let mock_fs_dir = tempdir().unwrap();
 

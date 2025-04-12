@@ -1,11 +1,11 @@
 use super::{
-    gpu_controller::{fan_control::FanCurve, DynGpuController, GpuController},
+    gpu_controller::{fan_control::FanCurveExt, DynGpuController, GpuController},
     profiles::ProfileWatcherCommand,
     system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
 };
 use crate::{
     bindings::intel::IntelDrm,
-    config::{self, default_fan_static_speed, Config, FanControlSettings, Profile},
+    config::{Config, Profile},
     server::{gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
 };
 use amdgpu_sysfs::gpu_handle::{
@@ -13,6 +13,7 @@ use amdgpu_sysfs::gpu_handle::{
 };
 use anyhow::{anyhow, bail, Context};
 use lact_schema::{
+    config::{default_fan_static_speed, FanControlSettings, FanCurve, GpuConfig},
     default_fan_curve,
     request::{ClockspeedType, ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
@@ -280,7 +281,7 @@ impl<'a> Handler {
         info!("started new profile watcher");
     }
 
-    async fn edit_gpu_config<F: FnOnce(&mut config::Gpu)>(
+    async fn edit_gpu_config<F: FnOnce(&mut GpuConfig)>(
         &self,
         id: String,
         f: F,
@@ -329,8 +330,8 @@ impl<'a> Handler {
     fn wait_config_confirm(
         &self,
         id: String,
-        previous_config: config::Gpu,
-        new_config: config::Gpu,
+        previous_config: GpuConfig,
+        new_config: GpuConfig,
         apply_timer: u64,
     ) -> anyhow::Result<()> {
         let (tx, rx) = oneshot::channel();
@@ -933,6 +934,11 @@ impl<'a> Handler {
         Ok(())
     }
 
+    pub async fn get_gpu_config(&self, id: &str) -> anyhow::Result<Option<GpuConfig>> {
+        let config = self.config.read().await;
+        Ok(config.gpus()?.get(id).cloned())
+    }
+
     pub fn evaluate_profile_rule(&self, rule: &ProfileRule) -> anyhow::Result<bool> {
         let profile_watcher_state_guard = self.profile_watcher_state.borrow();
         match profile_watcher_state_guard.as_ref() {
@@ -982,7 +988,7 @@ impl<'a> Handler {
 
             controller.reset_pmfw_settings();
 
-            if let Err(err) = controller.apply_config(&config::Gpu::default()).await {
+            if let Err(err) = controller.apply_config(&GpuConfig::default()).await {
                 error!("Could not reset settings for controller {id}: {err:#}");
             }
 

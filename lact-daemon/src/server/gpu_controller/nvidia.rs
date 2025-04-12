@@ -1,17 +1,14 @@
 mod driver;
 
-use crate::{
-    config::{self, FanControlSettings},
-    server::vulkan::get_vulkan_info,
-};
-
-use super::{fan_control::FanCurve, CommonControllerInfo, FanControlHandle, GpuController};
+use super::{CommonControllerInfo, FanControlHandle, GpuController};
+use crate::server::{gpu_controller::fan_control::FanCurveExt, vulkan::get_vulkan_info};
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, bail, Context};
 use driver::DriverHandle;
 use futures::{future::LocalBoxFuture, FutureExt};
 use indexmap::IndexMap;
 use lact_schema::{
+    config::{FanControlSettings, FanCurve, GpuConfig},
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo,
     FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable,
     PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
@@ -373,7 +370,7 @@ impl GpuController for NvidiaGpuController {
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss
     )]
-    fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
+    fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let device = self.device();
 
         let mut temps = HashMap::new();
@@ -507,7 +504,7 @@ impl GpuController for NvidiaGpuController {
     }
 
     #[allow(clippy::cast_possible_wrap)]
-    fn get_clocks_info(&self, _gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
+    fn get_clocks_info(&self, _gpu_config: Option<&GpuConfig>) -> anyhow::Result<ClocksInfo> {
         let device = self.device();
 
         let mut gpu_offsets = IndexMap::new();
@@ -578,7 +575,7 @@ impl GpuController for NvidiaGpuController {
         })
     }
 
-    fn get_power_states(&self, _gpu_config: Option<&config::Gpu>) -> PowerStates {
+    fn get_power_states(&self, _gpu_config: Option<&GpuConfig>) -> PowerStates {
         self.try_get_power_states().unwrap_or_else(|err| {
             warn!("could not get pstates info: {err:#}");
             PowerStates::default()
@@ -596,10 +593,7 @@ impl GpuController for NvidiaGpuController {
     }
 
     #[allow(clippy::cast_possible_wrap, clippy::cast_sign_loss)]
-    fn apply_config<'a>(
-        &'a self,
-        config: &'a config::Gpu,
-    ) -> LocalBoxFuture<'a, anyhow::Result<()>> {
+    fn apply_config<'a>(&'a self, config: &'a GpuConfig) -> LocalBoxFuture<'a, anyhow::Result<()>> {
         Box::pin(async {
             let mut device = self.device();
 
