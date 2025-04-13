@@ -1,6 +1,7 @@
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::{de::Error, Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 use serde_with::skip_serializing_none;
 
 use crate::{
@@ -38,11 +39,38 @@ pub struct ClocksConfiguration {
     pub max_core_clock: Option<i32>,
     pub max_memory_clock: Option<i32>,
     pub max_voltage: Option<i32>,
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "IndexMap::is_empty",
+        deserialize_with = "deserialize_offsets"
+    )]
     pub gpu_clock_offsets: IndexMap<u32, i32>,
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "IndexMap::is_empty",
+        deserialize_with = "deserialize_offsets"
+    )]
     pub mem_clock_offsets: IndexMap<u32, i32>,
     pub voltage_offset: Option<i32>,
+}
+
+fn deserialize_offsets<'a, D: Deserializer<'a>>(
+    deserializer: D,
+) -> Result<IndexMap<u32, i32>, D::Error> {
+    let map: IndexMap<Value, i32> = IndexMap::deserialize(deserializer)?;
+
+    map.into_iter()
+        .map(|(key, value)| {
+            let parsed_key = match &key {
+                Value::Number(number) => number.as_i64().and_then(|val| u32::try_from(val).ok()),
+                Value::String(s) => s.parse::<u32>().ok(),
+                _ => None,
+            };
+            let key = parsed_key.ok_or_else(|| D::Error::custom(format!("Invalid key {key}")))?;
+
+            Ok((key, value))
+        })
+        .collect()
 }
 
 impl GpuConfig {
