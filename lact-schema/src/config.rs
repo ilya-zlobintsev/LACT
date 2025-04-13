@@ -1,7 +1,6 @@
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use indexmap::IndexMap;
-use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use crate::{
@@ -42,35 +41,55 @@ pub struct ClocksConfiguration {
     #[serde(
         default,
         skip_serializing_if = "IndexMap::is_empty",
-        deserialize_with = "deserialize_offsets"
+        deserialize_with = "offsets::deserialize"
     )]
     pub gpu_clock_offsets: IndexMap<u32, i32>,
     #[serde(
         default,
         skip_serializing_if = "IndexMap::is_empty",
-        deserialize_with = "deserialize_offsets"
+        deserialize_with = "offsets::deserialize"
     )]
     pub mem_clock_offsets: IndexMap<u32, i32>,
     pub voltage_offset: Option<i32>,
 }
 
-fn deserialize_offsets<'a, D: Deserializer<'a>>(
-    deserializer: D,
-) -> Result<IndexMap<u32, i32>, D::Error> {
-    let map: IndexMap<Value, i32> = IndexMap::deserialize(deserializer)?;
+mod offsets {
+    use indexmap::IndexMap;
+    use serde::{de::Error, Deserialize, Deserializer};
+    use serde_json::Value;
 
-    map.into_iter()
-        .map(|(key, value)| {
-            let parsed_key = match &key {
-                Value::Number(number) => number.as_i64().and_then(|val| u32::try_from(val).ok()),
-                Value::String(s) => s.parse::<u32>().ok(),
-                _ => None,
-            };
-            let key = parsed_key.ok_or_else(|| D::Error::custom(format!("Invalid key {key}")))?;
+    pub fn deserialize<'a, D: Deserializer<'a>>(
+        deserializer: D,
+    ) -> Result<IndexMap<u32, i32>, D::Error> {
+        let map: IndexMap<Value, i32> = IndexMap::deserialize(deserializer)?;
 
-            Ok((key, value))
-        })
-        .collect()
+        map.into_iter()
+            .map(|(key, value)| {
+                let parsed_key = match &key {
+                    Value::Number(number) => {
+                        number.as_i64().and_then(|val| u32::try_from(val).ok())
+                    }
+                    Value::String(s) => s.parse::<u32>().ok(),
+                    _ => None,
+                };
+                let key =
+                    parsed_key.ok_or_else(|| D::Error::custom(format!("Invalid key {key}")))?;
+
+                Ok((key, value))
+            })
+            .collect()
+    }
+
+    /*pub fn serialize<S: Serializer>(
+        offsets: &IndexMap<u32, i32>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let map = offsets
+            .iter()
+            .map(|(key, value)| (key.to_string(), value))
+            .collect::<IndexMap<_, _>>();
+        map.serialize(serializer)
+    }*/
 }
 
 impl GpuConfig {

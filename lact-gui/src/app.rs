@@ -8,7 +8,6 @@ mod page_section;
 mod pages;
 
 use crate::{APP_ID, GUI_VERSION};
-use amdgpu_sysfs::gpu_handle::PerformanceLevel;
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use confirmation_dialog::ConfirmationDialog;
@@ -592,19 +591,17 @@ impl AppModel {
         if let Some(level) = performance_level {
             gpu_config.performance_level = Some(level);
 
-            if level == PerformanceLevel::Auto {
-                gpu_config.power_profile_mode_index = self
-                    .oc_page
-                    .model()
-                    .performance_frame
-                    .get_selected_power_profile_mode();
+            gpu_config.power_profile_mode_index = self
+                .oc_page
+                .model()
+                .performance_frame
+                .get_selected_power_profile_mode();
 
-                gpu_config.custom_power_profile_mode_hueristics = self
-                    .oc_page
-                    .model()
-                    .performance_frame
-                    .get_power_profile_mode_custom_heuristics();
-            }
+            gpu_config.custom_power_profile_mode_hueristics = self
+                .oc_page
+                .model()
+                .performance_frame
+                .get_power_profile_mode_custom_heuristics();
         }
 
         if let Some(thermals_settings) = self.thermals_page.get_thermals_settings() {
