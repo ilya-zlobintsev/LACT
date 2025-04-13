@@ -1,6 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=LACT
+Comment=Control your graphic cards
 GenericName=GPU Control Application
 Exec=lact gui
 Icon=io.github.ilya_zlobintsev.LACT

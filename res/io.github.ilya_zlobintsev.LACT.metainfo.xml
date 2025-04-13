@@ -4,7 +4,7 @@
   <metadata_license>CC0</metadata_license>
   <project_license>MIT</project_license>
   <name>LACT</name>
-  <summary>GPU Control Application</summary>
+  <summary>Control your graphic cards</summary>
   <description>
     <p>LACT lets you configure and monitor your AMD, Nvidia or Intel GPU on Linux.</p>
     <p>Supported functionality:</p>
@@ -30,10 +30,24 @@
       <caption>Fan Control</caption>
     </screenshot>
   </screenshots>
+  <branding>
+    <color type="primary" scheme_preference="light">#CD969B</color>
+    <color type="primary" scheme_preference="dark">#4d171c</color>
+  </branding>
   <url type="homepage">https://github.com/ilya-zlobintsev/LACT</url>
   <url type="vcs-browser">https://github.com/ilya-zlobintsev/LACT</url>
   <url type="bugtracker">https://github.com/ilya-zlobintsev/LACT/issues</url>
+  <url type="donation">https://ko-fi.com/ilya_zlobintsev</url>
+  <url type="help">https://github.com/ilya-zlobintsev/LACT/blob/master/README.md</url>
   <content_rating type="oars-1.0" />
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>touch</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">827</display_length>
+  </requires>
   <releases>
     <release version="0.7.3" date="2025-04-05">
       <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.3</url>
