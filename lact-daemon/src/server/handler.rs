@@ -939,6 +939,11 @@ impl<'a> Handler {
         Ok(config.gpus()?.get(id).cloned())
     }
 
+    pub async fn set_gpu_config(&self, id: &str, new_config: GpuConfig) -> anyhow::Result<u64> {
+        self.edit_gpu_config(id.to_owned(), |config| *config = new_config)
+            .await
+    }
+
     pub fn evaluate_profile_rule(&self, rule: &ProfileRule) -> anyhow::Result<bool> {
         let profile_watcher_state_guard = self.profile_watcher_state.borrow();
         match profile_watcher_state_guard.as_ref() {

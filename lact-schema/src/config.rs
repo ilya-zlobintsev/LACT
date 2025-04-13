@@ -125,3 +125,22 @@ impl Default for FanControlSettings {
 pub fn default_fan_static_speed() -> f32 {
     0.5
 }
+
+#[cfg(test)]
+mod tests {
+    use super::GpuConfig;
+
+    #[test]
+    fn deserialize_config_json() {
+        let data = r#"{"fan_control_enabled":false,"fan_control_settings":{"mode":"curve","static_speed":0.5938412,"temperature_key":"edge","interval_ms":500,"curve":{"40":0.3,"50":0.35,"60":0.5,"70":0.75,"80":1.0},"spindown_delay_ms":1000,"change_threshold":2},"power_cap":318.0,"gpu_clock_offsets":{"0":-64}}"#;
+        let config: GpuConfig = serde_json::from_str(data).unwrap();
+        assert_eq!(
+            -64,
+            *config
+                .clocks_configuration
+                .gpu_clock_offsets
+                .get(&0)
+                .unwrap()
+        );
+    }
+}
