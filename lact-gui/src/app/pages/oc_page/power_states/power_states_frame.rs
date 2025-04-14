@@ -1,190 +1,150 @@
-use std::collections::HashMap;
-
-use amdgpu_sysfs::gpu_handle::PowerLevelKind;
-use gtk::{
-    glib::{self, subclass::types::ObjectSubclassIsExt, Object},
-    prelude::WidgetExt,
+use super::power_states_list::PowerStatesList;
+use crate::app::pages::oc_page::power_states::power_states_list::{
+    PowerStatesListMsg, PowerStatesListOptions,
 };
-use lact_client::schema::{DeviceStats, PowerStates};
+use amdgpu_sysfs::gpu_handle::PowerLevelKind;
+use gtk::prelude::{BoxExt, CheckButtonExt, OrientableExt, WidgetExt};
+use lact_schema::{DeviceStats, PowerStates};
+use relm4::{
+    binding::BoolBinding, Component, ComponentController, ComponentParts, ComponentSender,
+    RelmObjectExt, RelmWidgetExt,
+};
+use std::{collections::HashMap, sync::Arc};
 
-glib::wrapper! {
-    pub struct PowerStatesFrame(ObjectSubclass<imp::PowerStatesFrame>)
-        @extends gtk::Widget, gtk::Box,
-        @implements gtk::Accessible, gtk::Buildable;
+pub struct PowerStatesFrame {
+    core_states_list: relm4::Controller<PowerStatesList>,
+    vram_states_list: relm4::Controller<PowerStatesList>,
+    states_configurable: BoolBinding,
+    states_expanded: BoolBinding,
+    vram_clock_ratio: f64,
+}
+
+#[derive(Debug)]
+pub enum PowerStatesFrameMsg {
+    PowerStates(PowerStates),
+    Stats(Arc<DeviceStats>),
+    VramClockRatio(f64),
+    Configurable(bool),
+}
+
+#[relm4::component(pub)]
+impl relm4::SimpleComponent for PowerStatesFrame {
+    type Init = ();
+    type Input = PowerStatesFrameMsg;
+    type Output = ();
+
+    view! {
+        gtk::Expander {
+            set_label: Some("Power states"),
+            add_binding: (&model.states_expanded, "expanded"),
+
+            gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+                set_margin_all: 10,
+                set_spacing: 5,
+                add_binding: (&model.states_configurable, "sensitive"),
+
+                gtk::Label {
+                    set_label: "Note: performance level must be set to 'manual' to toggle power states",
+                    set_margin_horizontal: 10,
+                    set_halign: gtk::Align::Start,
+                },
+
+                gtk::CheckButton {
+                    // TODO: connect this
+                    set_label: Some("Enable power state configuration"),
+                },
+
+                gtk::Box {
+                    set_spacing: 10,
+                    set_orientation: gtk::Orientation::Horizontal,
+
+                    append = model.core_states_list.widget(),
+                    append = model.vram_states_list.widget(),
+                }
+            }
+        }
+    }
+
+    fn init(
+        _: Self::Init,
+        root: Self::Root,
+        _sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let core_states_list = PowerStatesList::builder()
+            .launch(PowerStatesListOptions {
+                title: "GPU Power States",
+                value_suffix: "MHz",
+            })
+            .detach();
+        let vram_states_list = PowerStatesList::builder()
+            .launch(PowerStatesListOptions {
+                title: "VRAM Power States",
+                value_suffix: "MHz",
+            })
+            .detach();
+
+        let model = Self {
+            core_states_list,
+            vram_states_list,
+            states_configurable: BoolBinding::new(false),
+            states_expanded: BoolBinding::new(false),
+            vram_clock_ratio: 1.0,
+        };
+
+        let widgets = view_output!();
+
+        ComponentParts { model, widgets }
+    }
+
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
+        match msg {
+            PowerStatesFrameMsg::PowerStates(pstates) => {
+                self.states_configurable.set_value(!pstates.is_empty());
+                // if !self.states_available.value() {
+                //     self.states_expanded.set_value(false);
+                // }
+
+                self.core_states_list
+                    .emit(PowerStatesListMsg::PowerStates(pstates.core, 1.0));
+                self.vram_states_list.emit(PowerStatesListMsg::PowerStates(
+                    pstates.vram,
+                    self.vram_clock_ratio,
+                ));
+            }
+            PowerStatesFrameMsg::Stats(stats) => {
+                self.core_states_list
+                    .emit(PowerStatesListMsg::ActiveState(stats.core_power_state));
+                self.vram_states_list
+                    .emit(PowerStatesListMsg::ActiveState(stats.memory_power_state));
+            }
+            PowerStatesFrameMsg::VramClockRatio(ratio) => {
+                self.vram_clock_ratio = ratio;
+            }
+            PowerStatesFrameMsg::Configurable(configurable) => {
+                self.states_configurable.set_value(configurable);
+            }
+        }
+    }
 }
 
 impl PowerStatesFrame {
-    pub fn new() -> Self {
-        Object::builder().build()
-    }
-
-    pub fn set_power_states(&self, states: PowerStates) {
-        let imp = self.imp();
-
-        imp.expander.set_sensitive(!states.is_empty());
-        if states.is_empty() {
-            imp.expander.set_expanded(false);
-        }
-
-        if states
-            .core
-            .iter()
-            .chain(states.vram.iter())
-            .any(|state| !state.enabled)
-        {
-            self.set_configurable(true);
-        }
-
-        imp.core_states_list
-            .set_power_states(states.core, "MHz", 1.0);
-        imp.vram_states_list
-            .set_power_states(states.vram, "MHz", self.vram_clock_ratio());
-    }
-
-    pub fn connect_values_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        let imp = self.imp();
-        imp.core_states_list.connect_values_changed(f.clone());
-        imp.vram_states_list.connect_values_changed(f);
-    }
-
-    pub fn set_stats(&self, stats: &DeviceStats) {
-        let imp = self.imp();
-
-        imp.core_states_list
-            .set_active_state(stats.core_power_state);
-        imp.vram_states_list
-            .set_active_state(stats.memory_power_state);
-    }
-
     pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
-        let core_states;
-        let vram_states;
+        let state_types = [
+            (PowerLevelKind::CoreClock, &self.core_states_list),
+            (PowerLevelKind::MemoryClock, &self.vram_states_list),
+        ];
 
-        if self.configurable() {
-            let imp = self.imp();
-            core_states = imp.core_states_list.get_enabled_power_states();
-            vram_states = imp.vram_states_list.get_enabled_power_states();
+        if self.states_configurable.value() {
+            state_types
+                .into_iter()
+                .map(|(kind, child)| (kind, child.model().get_enabled_power_states()))
+                .collect()
         } else {
-            core_states = vec![];
-            vram_states = vec![];
-        }
-
-        [
-            (PowerLevelKind::CoreClock, core_states),
-            (PowerLevelKind::MemoryClock, vram_states),
-        ]
-        .into_iter()
-        .collect()
-    }
-}
-
-impl Default for PowerStatesFrame {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-mod imp {
-    use crate::app::pages::oc_page::power_states::power_states_list::PowerStatesList;
-    use gtk::{
-        glib::{self, Properties},
-        prelude::{BoxExt, CheckButtonExt, ObjectExt, OrientableExt, WidgetExt},
-        subclass::{prelude::*, widget::WidgetImpl},
-        Expander,
-    };
-    use relm4::{view, RelmWidgetExt};
-    use std::{cell::Cell, sync::atomic::AtomicBool};
-
-    #[derive(Default, Properties)]
-    #[properties(wrapper_type = super::PowerStatesFrame)]
-    pub struct PowerStatesFrame {
-        pub expander: Expander,
-        pub core_states_list: PowerStatesList,
-        pub vram_states_list: PowerStatesList,
-
-        #[property(get, set)]
-        configurable: AtomicBool,
-        #[property(get, set)]
-        toggleable: AtomicBool,
-        #[property(get, set)]
-        vram_clock_ratio: Cell<f64>,
-    }
-
-    #[glib::object_subclass]
-    impl ObjectSubclass for PowerStatesFrame {
-        const NAME: &'static str = "PowerStatesFrame";
-        type Type = super::PowerStatesFrame;
-        type ParentType = gtk::Box;
-    }
-
-    #[glib::derived_properties]
-    impl ObjectImpl for PowerStatesFrame {
-        fn constructed(&self) {
-            self.parent_constructed();
-            let obj = &*self.obj();
-            let expander = &self.expander;
-            let core_states_list = &self.core_states_list;
-            let vram_states_list = &self.vram_states_list;
-
-            view! {
-                #[local_ref]
-                obj {
-                    #[local_ref]
-                    append = expander {
-                        set_label: Some("Power states"),
-
-                        gtk::Box {
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_margin_all: 10,
-                            set_spacing: 5,
-
-                            gtk::Label {
-                                set_label: "Note: performance level must be set to 'manual' to toggle power states",
-                                set_margin_horizontal: 10,
-                                set_halign: gtk::Align::Start,
-                            },
-
-                            #[name = "enable_checkbutton"]
-                            gtk::CheckButton {
-                                set_label: Some("Enable power state configuration"),
-                            },
-
-                            gtk::Box {
-                                set_spacing: 10,
-                                set_orientation: gtk::Orientation::Horizontal,
-
-                                #[local_ref]
-                                append = core_states_list {
-                                    set_title: "GPU power states",
-                                },
-
-                                #[local_ref]
-                                append = vram_states_list {
-                                    set_title: "VRAM power states",
-                                },
-                            }
-                        }
-                    }
-                }
-            };
-
-            obj.bind_property("toggleable", &enable_checkbutton, "sensitive")
-                .sync_create()
-                .build();
-            obj.bind_property("configurable", &enable_checkbutton, "active")
-                .bidirectional()
-                .sync_create()
-                .build();
-
-            obj.bind_property("configurable", core_states_list, "sensitive")
-                .sync_create()
-                .build();
-            obj.bind_property("configurable", vram_states_list, "sensitive")
-                .sync_create()
-                .build();
+            state_types
+                .into_iter()
+                .map(|(kind, _)| (kind, vec![]))
+                .collect()
         }
     }
-
-    impl WidgetImpl for PowerStatesFrame {}
-    impl BoxImpl for PowerStatesFrame {}
 }

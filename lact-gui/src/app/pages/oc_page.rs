@@ -20,7 +20,7 @@ use lact_daemon::MODULE_CONF_PATH;
 use lact_schema::{request::SetClocksCommand, ClocksTable, DeviceInfo, PowerStates, SystemInfo};
 use performance_frame::PerformanceFrame;
 use power_cap_section::{PowerCapMsg, PowerCapSection};
-use power_states::power_states_frame::PowerStatesFrame;
+use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::{cell::Cell, collections::HashMap, rc::Rc, sync::Arc};
 
@@ -33,7 +33,7 @@ pub struct OcPage {
     device_info: Option<Arc<DeviceInfo>>,
     pub performance_frame: PerformanceFrame,
     power_cap_section: relm4::Controller<PowerCapSection>,
-    power_states_frame: PowerStatesFrame,
+    power_states_frame: relm4::Controller<PowerStatesFrame>,
     clocks_frame: relm4::Controller<ClocksFrame>,
     // TODO: refactor this out when child components use senders
     signals_blocked: Rc<Cell<bool>>,
@@ -99,7 +99,7 @@ impl relm4::Component for OcPage {
                 model.stats_section.widget(),
                 model.power_cap_section.widget(),
                 model.performance_frame.container.clone(),
-                model.power_states_frame.clone(),
+                model.power_states_frame.widget(),
                 model.clocks_frame.widget(),
             }
         }
@@ -113,6 +113,7 @@ impl relm4::Component for OcPage {
         let stats_section = GpuStatsSection::builder().launch(()).detach();
         let power_cap_section = PowerCapSection::builder().launch(()).detach();
         let clocks_frame = ClocksFrame::builder().launch(()).detach();
+        let power_states_frame = PowerStatesFrame::builder().launch(()).detach();
 
         let model = Self {
             stats_section,
@@ -120,7 +121,7 @@ impl relm4::Component for OcPage {
             system_info,
             performance_frame: PerformanceFrame::new(),
             power_cap_section,
-            power_states_frame: PowerStatesFrame::new(),
+            power_states_frame,
             clocks_frame,
             signals_blocked: Rc::new(Cell::new(false)),
         };
@@ -143,7 +144,8 @@ impl relm4::Component for OcPage {
                 self.stats_section.emit(update.clone());
                 match &update {
                     PageUpdate::Stats(stats) => {
-                        self.power_states_frame.set_stats(stats);
+                        self.power_states_frame
+                            .emit(PowerStatesFrameMsg::Stats(stats.clone()));
 
                         if initial {
                             self.power_cap_section
@@ -170,7 +172,7 @@ impl relm4::Component for OcPage {
 
                         self.device_info = Some(info.clone());
                         self.power_states_frame
-                            .set_vram_clock_ratio(vram_clock_ratio);
+                            .emit(PowerStatesFrameMsg::VramClockRatio(vram_clock_ratio));
                         self.clocks_frame
                             .emit(ClocksFrameMsg::VramRatio(vram_clock_ratio));
                     }
@@ -183,15 +185,17 @@ impl relm4::Component for OcPage {
                 self.performance_frame.set_power_profile_modes(modes_table);
             }
             OcPageMsg::PowerStates(states) => {
-                self.power_states_frame.set_power_states(states);
+                self.power_states_frame
+                    .emit(PowerStatesFrameMsg::PowerStates(states));
+                sender.input(OcPageMsg::PerformanceLevelChanged);
             }
             OcPageMsg::PerformanceLevelChanged => {
-                if let Some(PerformanceLevel::Manual) = self.get_performance_level() {
-                    self.power_states_frame.set_toggleable(true);
-                } else {
-                    self.power_states_frame.set_toggleable(false);
-                    self.power_states_frame.set_configurable(false);
-                }
+                let custom_pstates_configurable =
+                    self.get_performance_level() == Some(PerformanceLevel::Manual);
+                self.power_states_frame
+                    .emit(PowerStatesFrameMsg::Configurable(
+                        custom_pstates_configurable,
+                    ));
             }
         }
 
@@ -208,16 +212,12 @@ impl relm4::Component for OcPage {
         };
         self.performance_frame.connect_settings_changed(f.clone());
 
-        self.power_states_frame.connect_values_changed(f.clone());
-
         {
             let sender = sender.clone();
             self.performance_frame.connect_settings_changed(move || {
                 sender.input(OcPageMsg::PerformanceLevelChanged);
             });
         }
-        self.power_states_frame
-            .connect_configurable_notify(move |_| f());
 
         self.update_view(widgets, sender);
     }
@@ -242,6 +242,6 @@ impl OcPage {
     }
 
     pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
-        self.power_states_frame.get_enabled_power_states()
+        self.power_states_frame.model().get_enabled_power_states()
     }
 }
