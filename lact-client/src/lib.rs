@@ -3,18 +3,16 @@ mod connection;
 mod macros;
 
 pub use lact_schema as schema;
-use lact_schema::ProfileRule;
+use lact_schema::{config::GpuConfig, ProfileRule};
 
-use amdgpu_sysfs::gpu_handle::{
-    power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
-};
+use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::Context;
 use connection::{tcp::TcpConnection, unix::UnixConnection, DaemonConnection};
 use nix::unistd::getuid;
 use schema::{
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanOptions, PowerStates, ProfilesInfo,
-    Request, Response, SystemInfo,
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, PowerStates, ProfilesInfo, Request,
+    Response, SystemInfo,
 };
 use serde::de::DeserializeOwned;
 use std::{
@@ -24,7 +22,7 @@ use tokio::{
     net::ToSocketAddrs,
     sync::{broadcast, Mutex},
 };
-use tracing::{error, info};
+use tracing::{error, info, trace};
 
 const STATUS_MSG_CHANNEL_SIZE: usize = 16;
 const RECONNECT_INTERVAL_MS: u64 = 250;
@@ -80,6 +78,8 @@ impl DaemonClient {
             let mut stream = self.stream.lock().await;
 
             let request_payload = serde_json::to_string(&request)?;
+            trace!("sending request {request_payload}");
+
             match stream.request(&request_payload).await {
                 Ok(response_payload) => {
                     let response: Response<T> = serde_json::from_str(&response_payload)
@@ -119,14 +119,6 @@ impl DaemonClient {
 
     pub async fn list_devices(&self) -> anyhow::Result<Vec<DeviceListEntry>> {
         self.make_request(Request::ListDevices).await
-    }
-
-    pub async fn set_fan_control(&self, cmd: FanOptions<'_>) -> anyhow::Result<u64> {
-        self.make_request(Request::SetFanControl(cmd)).await
-    }
-
-    pub async fn set_power_cap(&self, id: &str, cap: Option<f64>) -> anyhow::Result<u64> {
-        self.make_request(Request::SetPowerCap { id, cap }).await
     }
 
     request_plain!(get_system_info, SystemInfo, SystemInfo);
@@ -175,25 +167,13 @@ impl DaemonClient {
             .await
     }
 
-    pub async fn set_profile_rule(
-        &self,
-        name: String,
-        rule: Option<ProfileRule>,
-    ) -> anyhow::Result<()> {
-        self.make_request(Request::SetProfileRule { name, rule })
-            .await
+    pub async fn get_gpu_config(&self, id: &str) -> anyhow::Result<Option<GpuConfig>> {
+        self.make_request(Request::GetGpuConfig { id }).await
     }
 
-    pub async fn set_performance_level(
-        &self,
-        id: &str,
-        performance_level: PerformanceLevel,
-    ) -> anyhow::Result<u64> {
-        self.make_request(Request::SetPerformanceLevel {
-            id,
-            performance_level,
-        })
-        .await
+    pub async fn set_gpu_config(&self, id: &str, config: GpuConfig) -> anyhow::Result<u64> {
+        self.make_request(Request::SetGpuConfig { id, config })
+            .await
     }
 
     pub async fn set_clocks_value(
@@ -205,37 +185,13 @@ impl DaemonClient {
             .await
     }
 
-    pub async fn batch_set_clocks_value(
+    pub async fn set_profile_rule(
         &self,
-        id: &str,
-        commands: Vec<SetClocksCommand>,
-    ) -> anyhow::Result<u64> {
-        self.make_request(Request::BatchSetClocksValue { id, commands })
+        name: String,
+        rule: Option<ProfileRule>,
+    ) -> anyhow::Result<()> {
+        self.make_request(Request::SetProfileRule { name, rule })
             .await
-    }
-
-    pub async fn set_enabled_power_states(
-        &self,
-        id: &str,
-        kind: PowerLevelKind,
-        states: Vec<u8>,
-    ) -> anyhow::Result<u64> {
-        self.make_request(Request::SetEnabledPowerStates { id, kind, states })
-            .await
-    }
-
-    pub async fn set_power_profile_mode(
-        &self,
-        id: &str,
-        index: Option<u16>,
-        custom_heuristics: Vec<Vec<Option<i32>>>,
-    ) -> anyhow::Result<u64> {
-        self.make_request(Request::SetPowerProfileMode {
-            id,
-            index,
-            custom_heuristics,
-        })
-        .await
     }
 
     pub async fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {

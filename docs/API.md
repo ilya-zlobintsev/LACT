@@ -34,6 +34,41 @@ In this code, `name-of-the-profile` should be replaced with the name of a profil
 
 # Commands
 
+The primary API commands for GPU configuration are `get_gpu_config` and `set_gpu_config`. It uses the same configuration format as described in [CONFIG.md](./CONFIG.md), except as JSON instead of YAML.
+
+To change a setting through the API, you should fetch the current config, modify it, and then set it.
+Additionally, each config change must be confirmed, or it will be automatically reverted after a short time period (5 seconds by default). This is needed to avoid saving settings that instantly crash a system.
+
+**Deprecated commands**: there is a number of `set_` commands in the API that change individual settings. They are still functional for backwards compatibility purposes, but the `get_gpu_config`/`set_gpu_config` commands should be preferred instead.
+
+Example: how to set the power limit through the API:
+
+1. Get GPU id
+```
+> echo '{"command": "list_devices"}' | nc -U /run/lactd.sock 
+{"status":"ok","data":[{"id":"10DE:2704-1462:5110-0000:09:00.0","name":"AD103 [GeForce RTX 4080]"}]}
+```
+
+2. Get current config
+```
+> echo '{"command": "get_gpu_config", "args": {"id": "10DE:2704-1462:5110-0000:09:00.0"}}' | nc -U /run/lactd.sock 
+{"status":"ok","data":{"fan_control_enabled":false,"fan_control_settings":{"mode":"static","static_speed":1.0,"temperature_key":"edge","interval_ms":500,"curve":{"40":0.3,"50":0.35,"60":0.5,"70":0.75,"80":1.0},"spindown_delay_ms":2856,"change_threshold":2},"power_cap":320.0}}
+```
+
+3. Set a new config
+
+The `power_cap` field has been changed from the previous config
+```
+> echo '{"command": "set_gpu_config", "args": {"id": "10DE:2704-1462:5110-0000:09:00.0", "config": {"fan_control_enabled":false,"fan_control_settings":{"mode":"static","static_speed":1.0,"temperature_key":"edge","interval_ms":500,"curve":{"40":0.3,"50":0.35,"60":0.5,"70":0.75,"80":1.0},"spindown_delay_ms":2856,"change_threshold":2},"power_cap":340.0}}}' | nc -U /run/lactd.sock
+{"status":"ok","data":5}
+```
+
+4. Confirm new config
+```
+> echo '{"command": "confirm_pending_config", "args": {"command": "confirm"}}' | nc -U /run/lactd.sock
+{"status":"ok","data":null}
+```
+
 For the full list of available commands and responses, you can look at the source code of the schema: [requests](lact-schema/src/request.rs), [the basic response structure](lact-schema/src/response.rs) and [all possible types](lact-schema/src/lib.rs).
 
 It should also be fairly easy to figure out the API by trial and error, as the error message are quite verbose:

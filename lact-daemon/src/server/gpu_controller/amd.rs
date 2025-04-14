@@ -1,10 +1,5 @@
-use super::{
-    fan_control::FanCurve, CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD,
-};
-use crate::{
-    config::{self, ClocksConfiguration, FanControlSettings},
-    server::vulkan::get_vulkan_info,
-};
+use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
+use crate::server::{gpu_controller::fan_control::FanCurveExt, vulkan::get_vulkan_info};
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
@@ -19,6 +14,7 @@ use amdgpu_sysfs::{
 use anyhow::{anyhow, Context};
 use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
+    config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
     LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
 };
@@ -385,7 +381,7 @@ impl AmdGpuController {
 
     fn get_power_states_kind(
         &self,
-        gpu_config: Option<&config::Gpu>,
+        gpu_config: Option<&GpuConfig>,
         kind: PowerLevelKind,
         attempt: u32,
     ) -> Vec<PowerState> {
@@ -613,7 +609,7 @@ impl GpuController for AmdGpuController {
     }
 
     #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-    fn get_stats(&self, gpu_config: Option<&config::Gpu>) -> DeviceStats {
+    fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let metrics = GpuMetrics::get_from_sysfs_path(self.handle.get_path()).ok();
         let metrics = metrics.as_ref();
 
@@ -703,7 +699,7 @@ impl GpuController for AmdGpuController {
         }
     }
 
-    fn get_clocks_info(&self, gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
+    fn get_clocks_info(&self, gpu_config: Option<&GpuConfig>) -> anyhow::Result<ClocksInfo> {
         let mut clocks_table = self
             .handle
             .get_clocks_table()
@@ -732,7 +728,7 @@ impl GpuController for AmdGpuController {
         Ok(clocks_table.into())
     }
 
-    fn get_power_states(&self, gpu_config: Option<&config::Gpu>) -> PowerStates {
+    fn get_power_states(&self, gpu_config: Option<&GpuConfig>) -> PowerStates {
         let core = self.get_power_states_kind(gpu_config, PowerLevelKind::CoreClock, 0);
         let vram = self.get_power_states_kind(gpu_config, PowerLevelKind::MemoryClock, 0);
         PowerStates { core, vram }
@@ -772,10 +768,7 @@ impl GpuController for AmdGpuController {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn apply_config<'a>(
-        &'a self,
-        config: &'a config::Gpu,
-    ) -> LocalBoxFuture<'a, anyhow::Result<()>> {
+    fn apply_config<'a>(&'a self, config: &'a GpuConfig) -> LocalBoxFuture<'a, anyhow::Result<()>> {
         Box::pin(async {
             let mut commit_handles = VecDeque::new();
 
@@ -799,9 +792,7 @@ impl GpuController for AmdGpuController {
                 match self.handle.get_clocks_table() {
                     Ok(original_table) => {
                         let mut table = original_table.clone();
-                        config
-                            .clocks_configuration
-                            .apply_to_table(&mut table)
+                        apply_clocks_config_to_table(&config.clocks_configuration, &mut table)
                             .context("Failed to apply clocks configuration to table")?;
 
                         debug!(
@@ -1072,47 +1063,48 @@ fn get_drm_handle(handle: &GpuHandle, libdrm_amdgpu: &LibDrmAmdgpu) -> anyhow::R
     Ok(handle)
 }
 
-impl ClocksConfiguration {
-    fn apply_to_table(&self, table: &mut ClocksTableGen) -> anyhow::Result<()> {
-        if let ClocksTableGen::Vega20(ref mut table) = table {
-            // Avoid writing settings to the clocks table except the user-specified ones
-            // There is an issue on some GPU models where the default values are actually outside of the allowed range
-            // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example
-            table.clear();
+fn apply_clocks_config_to_table(
+    config: &ClocksConfiguration,
+    table: &mut ClocksTableGen,
+) -> anyhow::Result<()> {
+    if let ClocksTableGen::Vega20(ref mut table) = table {
+        // Avoid writing settings to the clocks table except the user-specified ones
+        // There is an issue on some GPU models where the default values are actually outside of the allowed range
+        // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example
+        table.clear();
 
-            // Normalize the VDDC curve - make sure all of the values are within the allowed range
-            table.normalize_vddc_curve();
+        // Normalize the VDDC curve - make sure all of the values are within the allowed range
+        table.normalize_vddc_curve();
 
-            match self.voltage_offset {
-                Some(offset) => table.set_voltage_offset(offset)?,
-                None => table.voltage_offset = None,
-            }
-
-            if let Some(offset) = self.gpu_clock_offsets.get(&0) {
-                table.sclk_offset = Some(*offset);
-            }
+        match config.voltage_offset {
+            Some(offset) => table.set_voltage_offset(offset)?,
+            None => table.voltage_offset = None,
         }
 
-        if let Some(min_clockspeed) = self.min_core_clock {
-            table.set_min_sclk(min_clockspeed)?;
+        if let Some(offset) = config.gpu_clock_offsets.get(&0) {
+            table.sclk_offset = Some(*offset);
         }
-        if let Some(min_clockspeed) = self.min_memory_clock {
-            table.set_min_mclk(min_clockspeed)?;
-        }
-        if let Some(min_voltage) = self.min_voltage {
-            table.set_min_voltage(min_voltage)?;
-        }
-
-        if let Some(clockspeed) = self.max_core_clock {
-            table.set_max_sclk(clockspeed)?;
-        }
-        if let Some(clockspeed) = self.max_memory_clock {
-            table.set_max_mclk(clockspeed)?;
-        }
-        if let Some(voltage) = self.max_voltage {
-            table.set_max_voltage(voltage)?;
-        }
-
-        Ok(())
     }
+
+    if let Some(min_clockspeed) = config.min_core_clock {
+        table.set_min_sclk(min_clockspeed)?;
+    }
+    if let Some(min_clockspeed) = config.min_memory_clock {
+        table.set_min_mclk(min_clockspeed)?;
+    }
+    if let Some(min_voltage) = config.min_voltage {
+        table.set_min_voltage(min_voltage)?;
+    }
+
+    if let Some(clockspeed) = config.max_core_clock {
+        table.set_max_sclk(clockspeed)?;
+    }
+    if let Some(clockspeed) = config.max_memory_clock {
+        table.set_max_mclk(clockspeed)?;
+    }
+    if let Some(voltage) = config.max_voltage {
+        table.set_max_voltage(voltage)?;
+    }
+
+    Ok(())
 }

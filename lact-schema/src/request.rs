@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{FanOptions, ProfileRule};
+use crate::{config::GpuConfig, FanOptions, ProfileRule};
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use serde::{Deserialize, Serialize};
 
@@ -85,6 +85,13 @@ pub enum Request<'a> {
     SetProfileRule {
         name: String,
         rule: Option<ProfileRule>,
+    },
+    GetGpuConfig {
+        id: &'a str,
+    },
+    SetGpuConfig {
+        id: &'a str,
+        config: GpuConfig,
     },
     EnableOverdrive,
     DisableOverdrive,

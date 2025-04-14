@@ -1,19 +1,23 @@
 use amdgpu_sysfs::{gpu_handle::fan_control::FanCurve as PmfwCurve, hw_mon::Temperature};
 use anyhow::{anyhow, bail, Context};
-use lact_schema::{default_fan_curve, FanCurveMap};
-use serde::{Deserialize, Serialize};
+use lact_schema::config::FanCurve;
 use tracing::warn;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct FanCurve(pub FanCurveMap);
+pub trait FanCurveExt {
+    fn pwm_at_temp(&self, temp: Temperature) -> u8;
+
+    fn into_pmfw_curve(self, current_pmfw_curve: PmfwCurve) -> anyhow::Result<PmfwCurve>;
+
+    fn validate(&self) -> anyhow::Result<()>;
+}
 
 #[allow(
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
     clippy::cast_sign_loss
 )]
-impl FanCurve {
-    pub fn pwm_at_temp(&self, temp: Temperature) -> u8 {
+impl FanCurveExt for FanCurve {
+    fn pwm_at_temp(&self, temp: Temperature) -> u8 {
         let current = temp.current.expect("No current temp");
 
         // This scenario is most likely unreachable as the kernel shuts down the GPU when it reaches critical temperature
@@ -39,7 +43,7 @@ impl FanCurve {
         (f32::from(u8::MAX) * percentage) as u8
     }
 
-    pub fn into_pmfw_curve(self, current_pmfw_curve: PmfwCurve) -> anyhow::Result<PmfwCurve> {
+    fn into_pmfw_curve(self, current_pmfw_curve: PmfwCurve) -> anyhow::Result<PmfwCurve> {
         if current_pmfw_curve.points.len() != self.0.len() {
             return Err(anyhow!(
                 "The GPU only supports {} curve points, given {}",
@@ -78,10 +82,8 @@ impl FanCurve {
             allowed_ranges: Some(allowed_ranges),
         })
     }
-}
 
-impl FanCurve {
-    pub fn validate(&self) -> anyhow::Result<()> {
+    fn validate(&self) -> anyhow::Result<()> {
         for percentage in self.0.values() {
             if !(0.0..=1.0).contains(percentage) {
                 return Err(anyhow!("Fan speed percentage must be between 0 and 1"));
@@ -91,14 +93,10 @@ impl FanCurve {
     }
 }
 
-impl Default for FanCurve {
-    fn default() -> Self {
-        Self(default_fan_curve())
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::server::gpu_controller::fan_control::FanCurveExt;
+
     use super::{FanCurve, PmfwCurve};
     use amdgpu_sysfs::{gpu_handle::fan_control::FanCurveRanges, hw_mon::Temperature};
     use anyhow::anyhow;

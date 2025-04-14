@@ -27,8 +27,9 @@ use header::{
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
     args::GuiArgs,
+    config::{FanControlSettings, FanCurve, GpuConfig},
     request::{ConfirmCommand, SetClocksCommand},
-    DeviceStats, FanOptions, GIT_COMMIT,
+    DeviceStats, GIT_COMMIT,
 };
 use msg::AppMsg;
 use pages::{
@@ -572,114 +573,86 @@ impl AppModel {
         root: &gtk::ApplicationWindow,
         sender: &AsyncComponentSender<Self>,
     ) -> anyhow::Result<()> {
-        // TODO: Ask confirmation for everything, not just clocks
-
         debug!("applying settings on gpu {gpu_id}");
+
+        let mut gpu_config = self
+            .daemon_client
+            .get_gpu_config(&gpu_id)
+            .await
+            .context("Could not get gpu config")?
+            .unwrap_or_else(GpuConfig::default);
 
         let cap = self.oc_page.model().get_power_cap();
         if let Some(cap) = cap {
-            self.daemon_client
-                .set_power_cap(&gpu_id, Some(cap))
-                .await
-                .context("Failed to set power cap")?;
-
-            self.daemon_client
-                .confirm_pending_config(ConfirmCommand::Confirm)
-                .await
-                .context("Could not commit config")?;
+            gpu_config.power_cap = Some(cap);
         }
-
-        // Reset the power profile mode for switching to/from manual performance level
-        self.daemon_client
-            .set_power_profile_mode(&gpu_id, None, vec![])
-            .await
-            .context("Could not set default power profile mode")?;
-        self.daemon_client
-            .confirm_pending_config(ConfirmCommand::Confirm)
-            .await
-            .context("Could not commit config")?;
 
         let performance_level = self.oc_page.model().get_performance_level();
         if let Some(level) = performance_level {
-            self.daemon_client
-                .set_performance_level(&gpu_id, level)
-                .await
-                .context("Failed to set power profile")?;
-            self.daemon_client
-                .confirm_pending_config(ConfirmCommand::Confirm)
-                .await
-                .context("Could not commit config")?;
+            gpu_config.performance_level = Some(level);
 
-            let mode_index = self
+            gpu_config.power_profile_mode_index = self
                 .oc_page
                 .model()
                 .performance_frame
                 .get_selected_power_profile_mode();
-            let custom_heuristics = self
+
+            gpu_config.custom_power_profile_mode_hueristics = self
                 .oc_page
                 .model()
                 .performance_frame
                 .get_power_profile_mode_custom_heuristics();
-
-            self.daemon_client
-                .set_power_profile_mode(&gpu_id, mode_index, custom_heuristics)
-                .await
-                .context("Could not set active power profile mode")?;
-            self.daemon_client
-                .confirm_pending_config(ConfirmCommand::Confirm)
-                .await
-                .context("Could not commit config")?;
         }
 
         if let Some(thermals_settings) = self.thermals_page.get_thermals_settings() {
             debug!("applying thermal settings: {thermals_settings:?}");
-            let opts = FanOptions {
-                id: &gpu_id,
-                enabled: thermals_settings.manual_fan_control,
-                mode: thermals_settings.mode,
-                static_speed: thermals_settings.static_speed,
-                curve: thermals_settings.curve,
-                pmfw: thermals_settings.pmfw,
-                spindown_delay_ms: thermals_settings.spindown_delay_ms,
-                change_threshold: thermals_settings.change_threshold,
-            };
+            let mut fan_config = gpu_config
+                .fan_control_settings
+                .take()
+                .unwrap_or_else(FanControlSettings::default);
 
-            self.daemon_client
-                .set_fan_control(opts)
-                .await
-                .context("Could not set fan control")?;
-            self.daemon_client
-                .confirm_pending_config(ConfirmCommand::Confirm)
-                .await
-                .context("Could not commit config")?;
+            gpu_config.fan_control_enabled = thermals_settings.manual_fan_control;
+            gpu_config.pmfw_options = thermals_settings.pmfw;
+
+            if let Some(mode) = thermals_settings.mode {
+                fan_config.mode = mode;
+            }
+            if let Some(static_speed) = thermals_settings.static_speed {
+                fan_config.static_speed = static_speed;
+            }
+            if let Some(curve) = thermals_settings.curve {
+                fan_config.curve = FanCurve(curve);
+            }
+            fan_config.spindown_delay_ms = thermals_settings.spindown_delay_ms;
+            fan_config.change_threshold = thermals_settings.change_threshold;
+
+            gpu_config.fan_control_settings = Some(fan_config);
         }
 
         let clocks_commands = self.oc_page.model().get_clocks_commands();
 
         debug!("applying clocks commands {clocks_commands:#?}");
 
+        for command in clocks_commands {
+            gpu_config.apply_clocks_command(&command);
+        }
+
         let enabled_power_states = self.oc_page.model().get_enabled_power_states();
 
-        for (kind, states) in enabled_power_states {
-            self.daemon_client
-                .set_enabled_power_states(&gpu_id, kind, states)
-                .await
-                .context("Could not set power states")?;
-
-            self.daemon_client
-                .confirm_pending_config(ConfirmCommand::Confirm)
-                .await
-                .context("Could not commit config")?;
+        for (kind, enabled_states) in enabled_power_states {
+            if enabled_states.is_empty() {
+                gpu_config.power_states.shift_remove(&kind);
+            } else {
+                gpu_config.power_states.insert(kind, enabled_states);
+            }
         }
 
-        if !clocks_commands.is_empty() {
-            let delay = self
-                .daemon_client
-                .batch_set_clocks_value(&gpu_id, clocks_commands)
-                .await
-                .context("Could not commit clocks settings")?;
-            self.ask_settings_confirmation(delay, root, sender).await;
-        }
+        let delay = self
+            .daemon_client
+            .set_gpu_config(&gpu_id, gpu_config)
+            .await
+            .context("Could not apply settings")?;
+        self.ask_settings_confirmation(delay, root, sender).await;
 
         sender.input(AppMsg::ReloadData { full: false });
 

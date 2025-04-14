@@ -6,16 +6,15 @@ use crate::{
         drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE,
         drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM, IntelDrm,
     },
-    config,
     server::vulkan::get_vulkan_info,
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo,
-    FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState, PowerStates, PowerStats,
-    VoltageStats, VramStats,
+    config::GpuConfig, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo,
+    DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState, PowerStates,
+    PowerStats, VoltageStats, VramStats,
 };
 use std::{
     cell::Cell,
@@ -594,10 +593,7 @@ impl GpuController for IntelGpuController {
     }
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    fn apply_config<'a>(
-        &'a self,
-        config: &'a config::Gpu,
-    ) -> LocalBoxFuture<'a, anyhow::Result<()>> {
+    fn apply_config<'a>(&'a self, config: &'a GpuConfig) -> LocalBoxFuture<'a, anyhow::Result<()>> {
         Box::pin(async {
             if let Some(max_clock) = config.clocks_configuration.max_core_clock {
                 self.write_freq(FrequencyType::Max, max_clock)
@@ -618,7 +614,7 @@ impl GpuController for IntelGpuController {
         })
     }
 
-    fn get_stats(&self, _gpu_config: Option<&config::Gpu>) -> DeviceStats {
+    fn get_stats(&self, _gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let current_gfxclk = self.read_freq(FrequencyType::Cur);
         let gpu_clockspeed = self
             .read_freq(FrequencyType::Act)
@@ -684,7 +680,7 @@ impl GpuController for IntelGpuController {
         }
     }
 
-    fn get_clocks_info(&self, _gpu_config: Option<&config::Gpu>) -> anyhow::Result<ClocksInfo> {
+    fn get_clocks_info(&self, _gpu_config: Option<&GpuConfig>) -> anyhow::Result<ClocksInfo> {
         let clocks_table = IntelClocksTable {
             gt_freq: self
                 .read_freq(FrequencyType::Min)
@@ -706,7 +702,7 @@ impl GpuController for IntelGpuController {
         })
     }
 
-    fn get_power_states(&self, _gpu_config: Option<&config::Gpu>) -> PowerStates {
+    fn get_power_states(&self, _gpu_config: Option<&GpuConfig>) -> PowerStates {
         let core = [
             FrequencyType::Rpn,
             FrequencyType::Rpe,

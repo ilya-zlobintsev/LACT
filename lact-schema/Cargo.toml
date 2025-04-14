@@ -10,6 +10,7 @@ args = ["clap"]
 amdgpu-sysfs = { workspace = true }
 serde = { workspace = true }
 serde_with = { workspace = true }
+serde_json = { workspace = true }
 anyhow = { workspace = true }
 indexmap = { workspace = true }
 
@@ -18,6 +19,3 @@ clap = { version = "4.4.18", features = ["derive"], optional = true }
 
 [build-dependencies]
 vergen = { version = "8.0.0", features = ["git", "gitcl"] }
-
-[dev-dependencies]
-serde_json = { workspace = true }
