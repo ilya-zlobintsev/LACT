@@ -15,6 +15,7 @@ pub struct PowerStatesFrame {
     core_states_list: relm4::Controller<PowerStatesList>,
     vram_states_list: relm4::Controller<PowerStatesList>,
     states_configurable: BoolBinding,
+    states_configured: BoolBinding,
     states_expanded: BoolBinding,
     vram_clock_ratio: f64,
 }
@@ -51,13 +52,14 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 },
 
                 gtk::CheckButton {
-                    // TODO: connect this
                     set_label: Some("Enable power state configuration"),
+                    add_binding: (&model.states_configured, "active"),
                 },
 
                 gtk::Box {
                     set_spacing: 10,
                     set_orientation: gtk::Orientation::Horizontal,
+                    add_binding: (&model.states_configured, "sensitive"),
 
                     append = model.core_states_list.widget(),
                     append = model.vram_states_list.widget(),
@@ -88,6 +90,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
             core_states_list,
             vram_states_list,
             states_configurable: BoolBinding::new(false),
+            states_configured: BoolBinding::new(false),
             states_expanded: BoolBinding::new(false),
             vram_clock_ratio: 1.0,
         };
@@ -100,10 +103,12 @@ impl relm4::SimpleComponent for PowerStatesFrame {
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
             PowerStatesFrameMsg::PowerStates(pstates) => {
-                self.states_configurable.set_value(!pstates.is_empty());
-                // if !self.states_available.value() {
-                //     self.states_expanded.set_value(false);
-                // }
+                let configured = pstates
+                    .core
+                    .iter()
+                    .chain(pstates.vram.iter())
+                    .any(|state| !state.enabled);
+                self.states_configured.set_value(configured);
 
                 self.core_states_list
                     .emit(PowerStatesListMsg::PowerStates(pstates.core, 1.0));
@@ -122,7 +127,14 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 self.vram_clock_ratio = ratio;
             }
             PowerStatesFrameMsg::Configurable(configurable) => {
-                self.states_configurable.set_value(configurable);
+                let value = configurable
+                    && (!self.core_states_list.model().is_empty()
+                        || !self.vram_states_list.model().is_empty());
+                self.states_configurable.set_value(value);
+
+                if !value {
+                    self.states_configured.set_value(false);
+                }
             }
         }
     }

@@ -87,6 +87,10 @@ impl PowerStatesList {
             .filter_map(|row| row.power_state.index)
             .collect()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.states.is_empty()
+    }
 }
 
 struct PowerStateRow {
