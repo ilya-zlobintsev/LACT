@@ -18,7 +18,7 @@ use gtk::{
 };
 use lact_daemon::MODULE_CONF_PATH;
 use lact_schema::{request::SetClocksCommand, ClocksTable, DeviceInfo, PowerStates, SystemInfo};
-use performance_frame::PerformanceFrame;
+use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
@@ -31,12 +31,11 @@ pub struct OcPage {
     stats_section: relm4::Controller<GpuStatsSection>,
     system_info: Rc<SystemInfo>,
     device_info: Option<Arc<DeviceInfo>>,
-    pub performance_frame: PerformanceFrame,
+
+    performance_frame: relm4::Controller<PerformanceFrame>,
     power_cap_section: relm4::Controller<PowerCapSection>,
     power_states_frame: relm4::Controller<PowerStatesFrame>,
     clocks_frame: relm4::Controller<ClocksFrame>,
-    // TODO: refactor this out when child components use senders
-    signals_blocked: Rc<Cell<bool>>,
 }
 
 #[derive(Debug)]
@@ -98,7 +97,7 @@ impl relm4::Component for OcPage {
 
                 model.stats_section.widget(),
                 model.power_cap_section.widget(),
-                model.performance_frame.container.clone(),
+                model.performance_frame.widget(),
                 model.power_states_frame.widget(),
                 model.clocks_frame.widget(),
             }
@@ -114,16 +113,18 @@ impl relm4::Component for OcPage {
         let power_cap_section = PowerCapSection::builder().launch(()).detach();
         let clocks_frame = ClocksFrame::builder().launch(()).detach();
         let power_states_frame = PowerStatesFrame::builder().launch(()).detach();
+        let performance_frame = PerformanceFrame::builder()
+            .launch(())
+            .forward(sender.input_sender(), |msg| msg);
 
         let model = Self {
             stats_section,
             device_info: None,
             system_info,
-            performance_frame: PerformanceFrame::new(),
+            performance_frame,
             power_cap_section,
             power_states_frame,
             clocks_frame,
-            signals_blocked: Rc::new(Cell::new(false)),
         };
 
         let widgets = view_output!();
@@ -138,7 +139,6 @@ impl relm4::Component for OcPage {
         sender: ComponentSender<Self>,
         _root: &Self::Root,
     ) {
-        self.signals_blocked.set(true);
         match msg {
             OcPageMsg::Update { update, initial } => {
                 self.stats_section.emit(update.clone());
@@ -157,13 +157,8 @@ impl relm4::Component for OcPage {
                                 self.power_cap_section.widget().set_visible(false);
                             }
 
-                            match stats.performance_level {
-                                Some(profile) => {
-                                    self.performance_frame.show();
-                                    self.performance_frame.set_active_level(profile);
-                                }
-                                None => self.performance_frame.hide(),
-                            }
+                            self.performance_frame
+                                .emit(PerformanceFrameMsg::Level(stats.performance_level));
                             sender.input(OcPageMsg::PerformanceLevelChanged);
                         }
                     }
@@ -182,7 +177,7 @@ impl relm4::Component for OcPage {
                 self.clocks_frame.emit(ClocksFrameMsg::Clocks(table));
             }
             OcPageMsg::ProfileModesTable(modes_table) => {
-                self.performance_frame.set_power_profile_modes(modes_table);
+                // self.performance_frame.set_power_profile_modes(modes_table);
             }
             OcPageMsg::PowerStates(states) => {
                 self.power_states_frame
@@ -199,38 +194,13 @@ impl relm4::Component for OcPage {
             }
         }
 
-        self.signals_blocked.set(false);
-
-        let signals_blocked = self.signals_blocked.clone();
-        let signals_sender = sender.clone();
-        let f = move || {
-            if !signals_blocked.get() {
-                signals_sender
-                    .output(AppMsg::SettingsChanged)
-                    .expect("Channel closed")
-            }
-        };
-        self.performance_frame.connect_settings_changed(f.clone());
-
-        {
-            let sender = sender.clone();
-            self.performance_frame.connect_settings_changed(move || {
-                sender.input(OcPageMsg::PerformanceLevelChanged);
-            });
-        }
-
         self.update_view(widgets, sender);
     }
 }
 
 impl OcPage {
     pub fn get_performance_level(&self) -> Option<PerformanceLevel> {
-        if self.performance_frame.get_visibility() {
-            let level = self.performance_frame.get_selected_performance_level();
-            Some(level)
-        } else {
-            None
-        }
+        self.performance_frame.model().performance_level()
     }
 
     pub fn get_power_cap(&self) -> Option<f64> {

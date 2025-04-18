@@ -1,4 +1,118 @@
-use crate::app::page_section::PageSection;
+use super::OcPageMsg;
+use crate::{
+    app::{msg::AppMsg, page_section::PageSection},
+    APP_BROKER,
+};
+use amdgpu_sysfs::gpu_handle::PerformanceLevel;
+use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
+use relm4::{ComponentParts, ComponentSender};
+
+const PERFORMANCE_LEVELS: [PerformanceLevel; 4] = [
+    PerformanceLevel::Auto,
+    PerformanceLevel::High,
+    PerformanceLevel::Low,
+    PerformanceLevel::Manual,
+];
+
+pub struct PerformanceFrame {
+    performance_level: Option<PerformanceLevel>,
+}
+
+#[derive(Debug)]
+pub enum PerformanceFrameMsg {
+    Level(Option<PerformanceLevel>),
+}
+
+#[relm4::component(pub)]
+impl relm4::Component for PerformanceFrame {
+    type Init = ();
+    type Input = PerformanceFrameMsg;
+    type Output = OcPageMsg;
+    type CommandOutput = ();
+
+    view! {
+        PageSection::new("Performance") {
+            #[watch]
+            set_visible: model.performance_level.is_some(),
+
+            append = &gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 10,
+
+                gtk::Label {
+                    set_label: "Performance Level:"
+                },
+
+                gtk::Label {
+                    #[watch]
+                    set_label: match model.performance_level {
+                        Some(PerformanceLevel::Auto) => "Automatically adjust GPU and VRAM clocks. (Default)",
+                        Some(PerformanceLevel::High) => "Always use the highest clockspeeds for GPU and VRAM.",
+                        Some(PerformanceLevel::Low) => "Always use the lowest clockspeeds for GPU and VRAM.",
+                        Some(PerformanceLevel::Manual) => "Manual performance control.",
+                        _ => "",
+                    },
+                    set_hexpand: true,
+                    set_halign: gtk::Align::End,
+                },
+
+                gtk::DropDown::from_strings(&PERFORMANCE_LEVELS.map(level_friendly_name)) {
+                    #[watch]
+                    #[block_signal(level_select_handler)]
+                    set_selected: PERFORMANCE_LEVELS.iter().position(|level| model.performance_level ==  Some(*level)).unwrap_or(0) as u32,
+
+                    connect_selected_notify[sender] => move |dropdown| {
+                        let idx = dropdown.selected();
+                        if let Some(level) = PERFORMANCE_LEVELS.get(idx as usize) {
+                            sender.input(PerformanceFrameMsg::Level(Some(*level)));
+                            sender.output(OcPageMsg::PerformanceLevelChanged).unwrap();
+                            APP_BROKER.send(AppMsg::SettingsChanged);
+                        }
+                    } @ level_select_handler,
+                },
+            },
+        }
+    }
+
+    fn init(
+        _init: Self::Init,
+        _root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let model = Self {
+            performance_level: None,
+        };
+
+        let widgets = view_output!();
+
+        ComponentParts { model, widgets }
+    }
+
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>, _root: &Self::Root) {
+        match msg {
+            PerformanceFrameMsg::Level(level) => {
+                self.performance_level = level;
+            }
+        }
+    }
+}
+
+impl PerformanceFrame {
+    pub fn performance_level(&self) -> Option<PerformanceLevel> {
+        self.performance_level
+    }
+}
+
+const fn level_friendly_name(level: PerformanceLevel) -> &'static str {
+    match level {
+        PerformanceLevel::Auto => "Automatic",
+        PerformanceLevel::Low => "Lowest Clocks",
+        PerformanceLevel::High => "Highest Clocks",
+        PerformanceLevel::Manual => "Manual",
+    }
+}
+
+/*use crate::app::page_section::PageSection;
 use amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel};
 use glib::clone;
 use gtk::subclass::prelude::ObjectSubclassIsExt;
@@ -363,4 +477,4 @@ impl PerformanceFrame {
     pub fn get_visibility(&self) -> bool {
         self.container.get_visible()
     }
-}
+}*/

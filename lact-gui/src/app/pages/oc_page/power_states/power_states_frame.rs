@@ -1,9 +1,18 @@
 use super::power_states_list::PowerStatesList;
-use crate::app::pages::oc_page::power_states::power_states_list::{
-    PowerStatesListMsg, PowerStatesListOptions,
+use crate::{
+    app::{
+        msg::AppMsg,
+        pages::oc_page::power_states::power_states_list::{
+            PowerStatesListMsg, PowerStatesListOptions,
+        },
+    },
+    APP_BROKER,
 };
 use amdgpu_sysfs::gpu_handle::PowerLevelKind;
-use gtk::prelude::{BoxExt, CheckButtonExt, OrientableExt, WidgetExt};
+use gtk::{
+    glib::{object::ObjectExt, SignalHandlerId},
+    prelude::{BoxExt, CheckButtonExt, OrientableExt, WidgetExt},
+};
 use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
     binding::BoolBinding, Component, ComponentController, ComponentParts, ComponentSender,
@@ -17,6 +26,7 @@ pub struct PowerStatesFrame {
     states_configurable: BoolBinding,
     states_configured: BoolBinding,
     states_expanded: BoolBinding,
+    configured_signal: SignalHandlerId,
     vram_clock_ratio: f64,
 }
 
@@ -86,11 +96,18 @@ impl relm4::SimpleComponent for PowerStatesFrame {
             })
             .detach();
 
+        let states_configured = BoolBinding::new(false);
+
+        let configured_signal = states_configured.connect_value_notify(|_| {
+            APP_BROKER.send(AppMsg::SettingsChanged);
+        });
+
         let model = Self {
             core_states_list,
             vram_states_list,
             states_configurable: BoolBinding::new(false),
-            states_configured: BoolBinding::new(false),
+            states_configured,
+            configured_signal,
             states_expanded: BoolBinding::new(false),
             vram_clock_ratio: 1.0,
         };
@@ -108,7 +125,11 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                     .iter()
                     .chain(pstates.vram.iter())
                     .any(|state| !state.enabled);
+
+                self.states_configured.block_signal(&self.configured_signal);
                 self.states_configured.set_value(configured);
+                self.states_configured
+                    .unblock_signal(&self.configured_signal);
 
                 self.core_states_list
                     .emit(PowerStatesListMsg::PowerStates(pstates.core, 1.0));
@@ -133,7 +154,10 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 self.states_configurable.set_value(value);
 
                 if !value {
+                    self.states_configured.block_signal(&self.configured_signal);
                     self.states_configured.set_value(false);
+                    self.states_configured
+                        .unblock_signal(&self.configured_signal);
                 }
             }
         }
