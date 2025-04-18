@@ -337,6 +337,7 @@ impl GpuController for NvidiaGpuController {
                         .and_then(|handle| handle.get_ram_type().ok())
                         .map(str::to_owned),
                     vram_clock_ratio: 1.0,
+                    isa: None,
                     vram_vendor: driver_handle
                         .and_then(|handle| handle.get_ram_vendor().ok())
                         .map(str::to_owned),
