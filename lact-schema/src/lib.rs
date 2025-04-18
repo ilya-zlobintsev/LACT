@@ -221,6 +221,7 @@ impl DeviceInfo {
                         )
                     }),
                 ),
+                ("Instruction Set", drm_info.isa.clone()),
                 ("VRAM Type", drm_info.vram_type.clone()),
                 ("VRAM Manufacturer", drm_info.vram_vendor.clone()),
                 ("Theoretical VRAM Bandwidth", drm_info.vram_max_bw.clone()),
@@ -275,6 +276,7 @@ pub struct DrmInfo {
     pub asic_name: Option<String>,
     pub chip_class: Option<String>,
     pub compute_units: Option<u32>,
+    pub isa: Option<String>,
     pub streaming_multiprocessors: Option<u32>,
     pub cuda_cores: Option<u32>,
     pub vram_type: Option<String>,
