@@ -39,8 +39,6 @@ impl relm4::SimpleComponent for SoftwarePage {
                 set_margin_horizontal: 20,
 
                 PageSection::new("System") {
-                    set_spacing: 10,
-
                     append = &InfoRow::new_selectable("LACT Daemon:", &daemon_version),
                     append = &InfoRow::new_selectable("LACT GUI:", &gui_version),
                     append = &InfoRow::new_selectable("Kernel Version:", &system_info.kernel_version),
@@ -49,8 +47,6 @@ impl relm4::SimpleComponent for SoftwarePage {
                 match model.device_info.as_ref().and_then(|info| info.vulkan_info.as_ref()) {
                     Some(info) => {
                         PageSection::new("Vulkan") {
-                            set_spacing: 10,
-
                             append = &InfoRow {
                                 set_name: "Device Name:",
                                 #[watch]
@@ -122,8 +118,6 @@ impl relm4::SimpleComponent for SoftwarePage {
                 match model.device_info.as_ref().and_then(|info| info.opencl_info.as_ref()) {
                     Some(info) => {
                         PageSection::new("OpenCL") {
-                            set_spacing: 10,
-
                             append = &InfoRow {
                                 set_name: "Platform Name:",
                                 #[watch]
