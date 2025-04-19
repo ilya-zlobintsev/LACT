@@ -1,16 +1,12 @@
 mod hardware_info;
-mod vulkan_info;
 
 use self::hardware_info::HardwareInfoSection;
-use super::{values_grid, PageUpdate};
-use crate::app::page_section::PageSection;
+use super::PageUpdate;
 use gtk::prelude::*;
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
-use vulkan_info::VulkanInfoFrame;
 
 pub struct InformationPage {
     hardware_info: relm4::Controller<HardwareInfoSection>,
-    vulkan_info: VulkanInfoFrame,
 }
 
 #[relm4::component(pub)]
@@ -30,22 +26,6 @@ impl Component for InformationPage {
                 set_margin_horizontal: 20,
 
                 model.hardware_info.widget(),
-
-                #[name = "vulkan_section"]
-                PageSection::new("Vulkan Information") -> PageSection {
-                    set_spacing: 10,
-                    set_margin_start: 15,
-
-                    append = &model.vulkan_info.container.clone(),
-                },
-
-                #[name = "vulkan_unavailable_label"]
-                gtk::Label {
-                    set_label: "Vulkan is not available on this GPU",
-                    set_visible: false,
-                    set_margin_horizontal: 10,
-                    set_halign: gtk::Align::Start,
-                }
             }
         }
     }
@@ -56,12 +36,8 @@ impl Component for InformationPage {
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let hardware_info = HardwareInfoSection::builder().launch(()).detach();
-        let vulkan_info = VulkanInfoFrame::new();
 
-        let model = Self {
-            hardware_info,
-            vulkan_info,
-        };
+        let model = Self { hardware_info };
 
         let widgets = view_output!();
 
@@ -72,23 +48,11 @@ impl Component for InformationPage {
         &mut self,
         widgets: &mut Self::Widgets,
         msg: Self::Input,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
         _root: &Self::Root,
     ) {
         self.hardware_info.emit(msg.clone());
 
-        match msg {
-            PageUpdate::Info(gpu_info) => {
-                if let Some(vulkan_info) = &gpu_info.vulkan_info {
-                    self.vulkan_info.set_info(vulkan_info);
-                    self.vulkan_info.container.show();
-                    widgets.vulkan_unavailable_label.hide();
-                } else {
-                    self.vulkan_info.container.hide();
-                    widgets.vulkan_unavailable_label.show();
-                }
-            }
-            PageUpdate::Stats(_stats) => {}
-        }
+        self.update_view(widgets, sender);
     }
 }

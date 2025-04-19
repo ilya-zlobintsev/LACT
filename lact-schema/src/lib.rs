@@ -403,6 +403,15 @@ pub struct VulkanInfo {
     pub extensions: IndexMap<String, bool>,
 }
 
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct VulkanDriverInfo {
+    pub version: u32,
+    pub name: Option<String>,
+    pub info: Option<String>,
+    pub driver_version: Option<String>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct OpenCLInfo {
     pub platform_name: String,
@@ -411,15 +420,6 @@ pub struct OpenCLInfo {
     pub compute_units: u32,
     pub global_memory: u64,
     pub local_memory: u64,
-}
-
-#[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct VulkanDriverInfo {
-    pub version: u32,
-    pub name: Option<String>,
-    pub info: Option<String>,
-    pub driver_version: Option<String>,
 }
 
 #[skip_serializing_none]

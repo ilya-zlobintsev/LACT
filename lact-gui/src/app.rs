@@ -35,7 +35,7 @@ use msg::AppMsg;
 use pages::{
     info_page::InformationPage,
     oc_page::{OcPage, OcPageMsg},
-    software_page::SoftwarePage,
+    software_page::{SoftwarePage, SoftwarePageMsg},
     thermals_page::ThermalsPage,
     PageUpdate,
 };
@@ -86,7 +86,7 @@ impl AsyncComponent for AppModel {
         #[root]
         gtk::ApplicationWindow::builder()
             .titlebar(&gtk::HeaderBar::new())
-            .default_height(900)
+            .default_height(800)
             .default_width(60)
             .icon_name(APP_ID)
             .title("LACT")
@@ -456,11 +456,12 @@ impl AppModel {
 
         let update = PageUpdate::Info(info.clone());
         self.info_page.emit(update.clone());
-        self.software_page.emit(update.clone());
         self.oc_page.emit(OcPageMsg::Update {
             update,
             initial: true,
         });
+        self.software_page
+            .emit(SoftwarePageMsg::DeviceInfo(info.clone()));
 
         let vram_clock_ratio = info
             .drm_info

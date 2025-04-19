@@ -1,22 +1,32 @@
-use super::PageUpdate;
+mod vulkan;
+
 use crate::{
     app::{format_friendly_size, info_row::InfoRow, page_section::PageSection},
     GUI_VERSION,
 };
 use gtk::prelude::*;
+use indexmap::IndexMap;
 use lact_client::schema::{SystemInfo, GIT_COMMIT};
 use lact_schema::DeviceInfo;
-use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent};
+use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::{fmt::Write, rc::Rc, sync::Arc};
+use vulkan::feature_window::{VulkanFeature, VulkanFeaturesWindow};
 
 pub struct SoftwarePage {
     device_info: Option<Arc<DeviceInfo>>,
 }
 
+#[derive(Debug)]
+pub enum SoftwarePageMsg {
+    DeviceInfo(Arc<DeviceInfo>),
+    ShowVulkanFeatures,
+    ShowVulkanExtensions,
+}
+
 #[relm4::component(pub)]
-impl SimpleComponent for SoftwarePage {
+impl relm4::SimpleComponent for SoftwarePage {
     type Init = (Rc<SystemInfo>, bool);
-    type Input = PageUpdate;
+    type Input = SoftwarePageMsg;
     type Output = ();
 
     view! {
@@ -34,6 +44,79 @@ impl SimpleComponent for SoftwarePage {
                     append = &InfoRow::new_selectable("LACT Daemon:", &daemon_version),
                     append = &InfoRow::new_selectable("LACT GUI:", &gui_version),
                     append = &InfoRow::new_selectable("Kernel Version:", &system_info.kernel_version),
+                },
+
+                match model.device_info.as_ref().and_then(|info| info.vulkan_info.as_ref()) {
+                    Some(info) => {
+                        PageSection::new("Vulkan") {
+                            set_spacing: 10,
+
+                            append = &InfoRow {
+                                set_name: "Device Name:",
+                                #[watch]
+                                set_value: info.device_name.as_str(),
+                                set_selectable: true,
+                            },
+                            append = &InfoRow {
+                                set_name: "API Version:",
+                                #[watch]
+                                set_value: info.api_version.as_str(),
+                                set_selectable: true,
+                            },
+                            append = &InfoRow {
+                                set_name: "Driver Name:",
+                                #[watch]
+                                set_value: info.driver.name.as_deref().unwrap_or_default(),
+                                set_selectable: true,
+                            },
+                            append = &InfoRow {
+                                set_name: "Driver Version:",
+                                #[watch]
+                                set_value: info.driver.info.as_deref().unwrap_or_default(),
+                                set_selectable: true,
+                            },
+
+                            append = &gtk::Box {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_hexpand: true,
+
+                                append = &gtk::Label {
+                                    set_halign: gtk::Align::Start,
+                                    set_hexpand: true,
+                                    set_label: "Features:"
+                                },
+
+                                append = &gtk::Button {
+                                    connect_clicked => SoftwarePageMsg::ShowVulkanFeatures,
+                                    set_label: "Show",
+                                }
+                            },
+
+                            append = &gtk::Box {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_hexpand: true,
+
+                                append = &gtk::Label {
+                                    set_halign: gtk::Align::Start,
+                                    set_hexpand: true,
+                                    set_label: "Extensions:"
+                                },
+
+                                append = &gtk::Button {
+                                    connect_clicked => SoftwarePageMsg::ShowVulkanExtensions,
+                                    set_label: "Show",
+                                }
+                            },
+                        }
+                    }
+                    None => {
+                        PageSection::new("Vulkan") {
+                            append = &gtk::Label {
+                                set_label: "Vulkan device not found",
+                                set_halign: gtk::Align::Start,
+                            },
+                        }
+                    }
                 },
 
                 match model.device_info.as_ref().and_then(|info| info.opencl_info.as_ref()) {
@@ -121,10 +204,39 @@ impl SimpleComponent for SoftwarePage {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            PageUpdate::Info(info) => {
+            SoftwarePageMsg::DeviceInfo(info) => {
                 self.device_info = Some(info);
             }
-            PageUpdate::Stats(_) => (),
+            SoftwarePageMsg::ShowVulkanFeatures => {
+                if let Some(info) = &self.device_info {
+                    if let Some(vulkan_info) = &info.vulkan_info {
+                        show_features_window("Vulkan Features", &vulkan_info.features);
+                    }
+                }
+            }
+            SoftwarePageMsg::ShowVulkanExtensions => {
+                if let Some(info) = &self.device_info {
+                    if let Some(vulkan_info) = &info.vulkan_info {
+                        show_features_window("Vulkan Extensions", &vulkan_info.extensions);
+                    }
+                }
+            }
         }
     }
+}
+
+fn show_features_window(title: &str, values: &IndexMap<String, bool>) {
+    let values = values
+        .into_iter()
+        .map(|(name, &supported)| VulkanFeature {
+            name: name.clone(),
+            supported,
+        })
+        .collect();
+
+    let mut window_controller = VulkanFeaturesWindow::builder()
+        .launch((values, title.to_owned()))
+        .detach();
+    window_controller.detach_runtime();
+    window_controller.widget().present();
 }
