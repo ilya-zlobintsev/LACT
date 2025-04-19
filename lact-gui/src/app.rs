@@ -456,6 +456,7 @@ impl AppModel {
 
         let update = PageUpdate::Info(info.clone());
         self.info_page.emit(update.clone());
+        self.software_page.emit(update.clone());
         self.oc_page.emit(OcPageMsg::Update {
             update,
             initial: true,
@@ -1096,4 +1097,18 @@ async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Err
             Ok((client, Some(err)))
         }
     }
+}
+
+fn format_friendly_size(bytes: u64) -> String {
+    const NAMES: &[&str] = &["bytes", "KiB", "MiB", "GiB"];
+
+    let mut size = bytes as f64;
+
+    let mut i = 0;
+    while size > 2048.0 && i < NAMES.len() - 1 {
+        size /= 1024.0;
+        i += 1;
+    }
+
+    format!("{size:.1$} {}", NAMES[i], (size.fract() != 0.0) as usize)
 }

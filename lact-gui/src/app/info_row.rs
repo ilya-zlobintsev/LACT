@@ -23,6 +23,38 @@ impl InfoRow {
     }
 }
 
+pub struct InfoRowItem {
+    pub name: String,
+    pub value: String,
+    pub note: Option<&'static str>,
+}
+
+#[relm4::factory(pub)]
+impl relm4::factory::FactoryComponent for InfoRowItem {
+    type Init = Self;
+    type ParentWidget = gtk::Box;
+    type CommandOutput = ();
+    type Input = ();
+    type Output = ();
+
+    fn init_model(
+        init: Self::Init,
+        _index: &Self::Index,
+        _sender: relm4::FactorySender<Self>,
+    ) -> Self {
+        init
+    }
+
+    view! {
+        InfoRow {
+            set_selectable: true,
+            set_name: self.name.clone(),
+            set_value: self.value.clone(),
+            set_info_text: self.note.unwrap_or_default(),
+        }
+    }
+}
+
 impl Default for InfoRow {
     fn default() -> Self {
         Object::builder().build()
