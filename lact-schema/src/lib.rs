@@ -97,6 +97,7 @@ pub struct GpuPciInfo {
 pub struct DeviceInfo {
     pub pci_info: Option<GpuPciInfo>,
     pub vulkan_info: Option<VulkanInfo>,
+    pub opencl_info: Option<OpenCLInfo>,
     pub driver: String,
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,
@@ -400,6 +401,16 @@ pub struct VulkanInfo {
     pub enabled_layers: Vec<String>,
     pub features: IndexMap<String, bool>,
     pub extensions: IndexMap<String, bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct OpenCLInfo {
+    pub platform_name: String,
+    pub device_name: String,
+    pub version: String,
+    pub compute_units: u32,
+    pub global_memory: u64,
+    pub local_memory: u64,
 }
 
 #[skip_serializing_none]

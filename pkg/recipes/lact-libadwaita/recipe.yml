@@ -27,7 +27,7 @@ configure:
   steps:
     - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
     - cmd: sh /tmp/install_rust.sh -y
-    - cmd: bash -c "source $HOME/.cargo/env && rustup toolchain install 1.82.0"
+    - cmd: bash -c "source $HOME/.cargo/env && rustup toolchain install 1.85.1"
     - cmd: pacman -Syu --noconfirm
       pkg: true
 build:
