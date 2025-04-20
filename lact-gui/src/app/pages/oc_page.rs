@@ -22,7 +22,7 @@ use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
-use std::{cell::Cell, collections::HashMap, rc::Rc, sync::Arc};
+use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 const OVERCLOCKING_DISABLED_TEXT: &str = "AMD Overclocking support is not enabled! \
 You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
@@ -177,7 +177,8 @@ impl relm4::Component for OcPage {
                 self.clocks_frame.emit(ClocksFrameMsg::Clocks(table));
             }
             OcPageMsg::ProfileModesTable(modes_table) => {
-                // self.performance_frame.set_power_profile_modes(modes_table);
+                self.performance_frame
+                    .emit(PerformanceFrameMsg::PowerProfileModes(modes_table));
             }
             OcPageMsg::PowerStates(states) => {
                 self.power_states_frame
@@ -201,6 +202,10 @@ impl relm4::Component for OcPage {
 impl OcPage {
     pub fn get_performance_level(&self) -> Option<PerformanceLevel> {
         self.performance_frame.model().performance_level()
+    }
+
+    pub fn get_power_profile_mode(&self) -> Option<u16> {
+        self.performance_frame.model().power_profile_mode()
     }
 
     pub fn get_power_cap(&self) -> Option<f64> {

@@ -3,9 +3,14 @@ use crate::{
     app::{msg::AppMsg, page_section::PageSection},
     APP_BROKER,
 };
-use amdgpu_sysfs::gpu_handle::PerformanceLevel;
-use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
-use relm4::{ComponentParts, ComponentSender};
+use amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel};
+use gtk::{
+    gio::prelude::ListModelExt,
+    glib::object::Cast,
+    prelude::{BoxExt, ListBoxRowExt, OrientableExt, WidgetExt},
+    StringList, StringObject,
+};
+use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
 
 const PERFORMANCE_LEVELS: [PerformanceLevel; 4] = [
     PerformanceLevel::Auto,
@@ -16,11 +21,15 @@ const PERFORMANCE_LEVELS: [PerformanceLevel; 4] = [
 
 pub struct PerformanceFrame {
     performance_level: Option<PerformanceLevel>,
+    power_profile_modes_table: Option<PowerProfileModesTable>,
+    power_profile_modes: StringList,
 }
 
 #[derive(Debug)]
 pub enum PerformanceFrameMsg {
     Level(Option<PerformanceLevel>),
+    PowerProfileModes(Option<PowerProfileModesTable>),
+    PowerProfileSelected(u16),
 }
 
 #[relm4::component(pub)]
@@ -59,7 +68,7 @@ impl relm4::Component for PerformanceFrame {
                 gtk::DropDown::from_strings(&PERFORMANCE_LEVELS.map(level_friendly_name)) {
                     #[watch]
                     #[block_signal(level_select_handler)]
-                    set_selected: PERFORMANCE_LEVELS.iter().position(|level| model.performance_level ==  Some(*level)).unwrap_or(0) as u32,
+                    set_selected: PERFORMANCE_LEVELS.iter().position(|level| model.performance_level == Some(*level)).unwrap_or(0) as u32,
 
                     connect_selected_notify[sender] => move |dropdown| {
                         let idx = dropdown.selected();
@@ -69,6 +78,65 @@ impl relm4::Component for PerformanceFrame {
                             APP_BROKER.send(AppMsg::SettingsChanged);
                         }
                     } @ level_select_handler,
+                },
+            },
+
+            append = &gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 10,
+
+                gtk::Label {
+                    set_label: "Power Profile Mode:",
+                    set_hexpand: true,
+                    set_halign: gtk::Align::Start,
+                },
+
+                gtk::MenuButton {
+                    set_icon_name: "dialog-information-symbolic",
+                    #[watch]
+                    set_visible: model.performance_level != Some(PerformanceLevel::Manual),
+
+                    #[wrap(Some)]
+                    set_popover =  &gtk::Popover {
+                        gtk::Label {
+                            set_label: "Performance level has to be set to \"manual\" to use power states and modes",
+                        }
+                    },
+                },
+
+                gtk::MenuButton {
+                    set_always_show_arrow: false,
+                    #[watch]
+                    set_label: model.power_profile_modes_table.as_ref().map(|table| table.modes.get(&table.active).unwrap().name.as_str()).unwrap_or_default(),
+
+                    #[wrap(Some)]
+                    set_popover =  &gtk::Popover {
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_margin_all: 5,
+
+                            #[name = "modes_listbox"]
+                            gtk::ListBox {
+                                set_selection_mode: gtk::SelectionMode::Single,
+                                bind_model: (Some(&model.power_profile_modes), |obj| {
+                                    let string = obj.downcast_ref::<StringObject>().unwrap();
+                                    gtk::Label::builder().label(string.string()).build().into()
+                                }),
+
+                                connect_row_selected[sender] => move |_, row| {
+                                    if let Some(row) = row {
+                                        if let Ok(idx) = u16::try_from(row.index()) {
+                                            sender.input(PerformanceFrameMsg::PowerProfileSelected(idx));
+                                        }
+                                    }
+                                } @ power_profile_selected_handler,
+
+                                #[watch]
+                                #[block_signal(power_profile_selected_handler)]
+                                select_row: model.power_profile_modes_table.as_ref().and_then(|table| modes_listbox.row_at_index(table.active.into())).as_ref(),
+                            }
+                        }
+                    },
                 },
             },
         }
@@ -81,6 +149,8 @@ impl relm4::Component for PerformanceFrame {
     ) -> ComponentParts<Self> {
         let model = Self {
             performance_level: None,
+            power_profile_modes_table: None,
+            power_profile_modes: StringList::new(&[]),
         };
 
         let widgets = view_output!();
@@ -93,6 +163,27 @@ impl relm4::Component for PerformanceFrame {
             PerformanceFrameMsg::Level(level) => {
                 self.performance_level = level;
             }
+            PerformanceFrameMsg::PowerProfileModes(table) => {
+                while self.power_profile_modes.n_items() != 0 {
+                    self.power_profile_modes.remove(0);
+                }
+
+                if let Some(table) = &table {
+                    for mode in table.modes.values() {
+                        self.power_profile_modes.append(&mode.name);
+                    }
+                }
+
+                self.power_profile_modes_table = table;
+            }
+            PerformanceFrameMsg::PowerProfileSelected(idx) => {
+                if let Some(table) = &mut self.power_profile_modes_table {
+                    if table.active != idx {
+                        table.active = idx;
+                        APP_BROKER.send(AppMsg::SettingsChanged);
+                    }
+                }
+            }
         }
     }
 }
@@ -100,6 +191,12 @@ impl relm4::Component for PerformanceFrame {
 impl PerformanceFrame {
     pub fn performance_level(&self) -> Option<PerformanceLevel> {
         self.performance_level
+    }
+
+    pub fn power_profile_mode(&self) -> Option<u16> {
+        self.power_profile_modes_table
+            .as_ref()
+            .map(|table| table.active)
     }
 }
 
