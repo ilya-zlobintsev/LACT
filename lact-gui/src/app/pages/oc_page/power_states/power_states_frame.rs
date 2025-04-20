@@ -8,7 +8,7 @@ use crate::{
     },
     APP_BROKER,
 };
-use amdgpu_sysfs::gpu_handle::PowerLevelKind;
+use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use gtk::{
     glib::{object::ObjectExt, SignalHandlerId},
     prelude::{BoxExt, CheckButtonExt, OrientableExt, WidgetExt},
@@ -26,6 +26,7 @@ pub struct PowerStatesFrame {
     states_configurable: BoolBinding,
     states_configured: BoolBinding,
     states_expanded: BoolBinding,
+    performance_level: Option<PerformanceLevel>,
     configured_signal: SignalHandlerId,
     vram_clock_ratio: f64,
 }
@@ -34,6 +35,7 @@ pub struct PowerStatesFrame {
 pub enum PowerStatesFrameMsg {
     PowerStates(PowerStates),
     Stats(Arc<DeviceStats>),
+    PerformanceLevel(Option<PerformanceLevel>),
     VramClockRatio(f64),
     Configurable(bool),
 }
@@ -59,11 +61,15 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                     set_label: "Note: performance level must be set to 'manual' to toggle power states",
                     set_margin_horizontal: 10,
                     set_halign: gtk::Align::Start,
+                    #[watch]
+                    set_visible: model.performance_level.is_some_and(|level| level != PerformanceLevel::Manual),
                 },
 
                 gtk::CheckButton {
                     set_label: Some("Enable power state configuration"),
                     add_binding: (&model.states_configured, "active"),
+                    #[watch]
+                    set_visible: model.performance_level.is_some(),
                 },
 
                 gtk::Box {
@@ -109,6 +115,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
             states_configured,
             configured_signal,
             states_expanded: BoolBinding::new(false),
+            performance_level: None,
             vram_clock_ratio: 1.0,
         };
 
@@ -159,6 +166,9 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                     self.states_configured
                         .unblock_signal(&self.configured_signal);
                 }
+            }
+            PowerStatesFrameMsg::PerformanceLevel(level) => {
+                self.performance_level = level;
             }
         }
     }

@@ -27,7 +27,7 @@ pub struct PerformanceFrame {
 
 #[derive(Debug)]
 pub enum PerformanceFrameMsg {
-    Level(Option<PerformanceLevel>),
+    PerformanceLevel(Option<PerformanceLevel>),
     PowerProfileModes(Option<PowerProfileModesTable>),
     PowerProfileSelected(u16),
 }
@@ -73,7 +73,7 @@ impl relm4::Component for PerformanceFrame {
                     connect_selected_notify[sender] => move |dropdown| {
                         let idx = dropdown.selected();
                         if let Some(level) = PERFORMANCE_LEVELS.get(idx as usize) {
-                            sender.input(PerformanceFrameMsg::Level(Some(*level)));
+                            sender.input(PerformanceFrameMsg::PerformanceLevel(Some(*level)));
                             sender.output(OcPageMsg::PerformanceLevelChanged).unwrap();
                             APP_BROKER.send(AppMsg::SettingsChanged);
                         }
@@ -160,7 +160,7 @@ impl relm4::Component for PerformanceFrame {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>, _root: &Self::Root) {
         match msg {
-            PerformanceFrameMsg::Level(level) => {
+            PerformanceFrameMsg::PerformanceLevel(level) => {
                 self.performance_level = level;
             }
             PerformanceFrameMsg::PowerProfileModes(table) => {

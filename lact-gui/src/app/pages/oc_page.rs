@@ -158,7 +158,9 @@ impl relm4::Component for OcPage {
                             }
 
                             self.performance_frame
-                                .emit(PerformanceFrameMsg::Level(stats.performance_level));
+                                .emit(PerformanceFrameMsg::PerformanceLevel(
+                                    stats.performance_level,
+                                ));
                             sender.input(OcPageMsg::PerformanceLevelChanged);
                         }
                     }
@@ -191,6 +193,11 @@ impl relm4::Component for OcPage {
                 self.power_states_frame
                     .emit(PowerStatesFrameMsg::Configurable(
                         custom_pstates_configurable,
+                    ));
+
+                self.power_states_frame
+                    .emit(PowerStatesFrameMsg::PerformanceLevel(
+                        self.get_performance_level(),
                     ));
             }
         }
