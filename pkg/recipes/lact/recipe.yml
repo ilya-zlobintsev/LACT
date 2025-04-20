@@ -18,10 +18,10 @@ metadata:
     opensuse-tumbleweed: [ gtk4 ]
   build_depends:
     all: [ curl, make, clang, git, vulkan-tools ]
-    debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus ]
-    fedora-40+fedora-41+fedora-42: [ gtk4-devel, gcc, libdrm-devel, dbus ]
-    arch: [ gtk4, dbus ]
-    opensuse-tumbleweed: [ gtk4-devel, libdrm-devel ]
+    debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus, ocl-icd-libopencl1 ]
+    fedora-40+fedora-41+fedora-42: [ gtk4-devel, gcc, libdrm-devel, dbus, ocl-icd ]
+    arch: [ gtk4, dbus, ocl-icd ]
+    opensuse-tumbleweed: [ gtk4-devel, libdrm-devel, ocl-icd ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs

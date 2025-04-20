@@ -18,10 +18,10 @@ metadata:
     opensuse-tumbleweed: [ libdrm ]
   build_depends:
     all: [ curl, make, clang, git, vulkan-tools ]
-    debian-12+ubuntu-2204+ubuntu-2404: [ pkg-config, build-essential, libdrm-dev, dbus ]
-    fedora-40+fedora-41+fedora-42+rhel-8+rhel-9: [ gcc, libdrm-devel, dbus ]
-    arch: [ libdrm, dbus ]
-    opensuse-tumbleweed: [ libdrm-devel ]
+    debian-12+ubuntu-2204+ubuntu-2404: [ pkg-config, build-essential, libdrm-dev, dbus, ocl-icd-libopencl1]
+    fedora-40+fedora-41+fedora-42+rhel-8+rhel-9: [ gcc, libdrm-devel, dbus, ocl-icd ]
+    arch: [ libdrm, dbus, ocl-icd ]
+    opensuse-tumbleweed: [ libdrm-devel, ocl-icd ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs
