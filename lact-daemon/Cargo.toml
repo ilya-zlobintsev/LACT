@@ -47,7 +47,13 @@ notify = { version = "8.0.0", default-features = false }
 copes = { git = "https://gitlab.com/corectrl/copes" }
 libloading = "0.8.6"
 tempfile = "3.17.1"
-cl3 = { version = "0.13.0", features = ["static"] }
+cl3 = { version = "0.13.0", default-features = false, features = [
+    "static",
+    "CL_VERSION_1_1",
+    "CL_VERSION_1_2",
+    "CL_VERSION_2_0",
+    "CL_VERSION_3_0"
+] }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
