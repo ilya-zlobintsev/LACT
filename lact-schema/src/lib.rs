@@ -417,7 +417,10 @@ pub struct OpenCLInfo {
     pub platform_name: String,
     pub device_name: String,
     pub version: String,
+    pub driver_version: String,
+    pub c_version: String,
     pub compute_units: u32,
+    pub workgroup_size: usize,
     pub global_memory: u64,
     pub local_memory: u64,
 }

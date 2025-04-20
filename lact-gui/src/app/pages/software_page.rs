@@ -137,9 +137,27 @@ impl relm4::SimpleComponent for SoftwarePage {
                                 set_selectable: true,
                             },
                             append = &InfoRow {
+                                set_name: "Driver Version:",
+                                #[watch]
+                                set_value: info.driver_version.as_str(),
+                                set_selectable: true,
+                            },
+                            append = &InfoRow {
+                                set_name: "OpenCL C Version:",
+                                #[watch]
+                                set_value: info.c_version.as_str(),
+                                set_selectable: true,
+                            },
+                            append = &InfoRow {
                                 set_name: "Compute Units:",
                                 #[watch]
                                 set_value: info.compute_units.to_string(),
+                                set_selectable: true,
+                            },
+                            append = &InfoRow {
+                                set_name: "Workgroup Size:",
+                                #[watch]
+                                set_value: info.workgroup_size.to_string(),
                                 set_selectable: true,
                             },
                             append = &InfoRow {

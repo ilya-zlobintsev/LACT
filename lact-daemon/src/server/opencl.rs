@@ -3,9 +3,10 @@ use anyhow::anyhow;
 use cl3::{
     device,
     ext::{
-        CL_DEVICE_GLOBAL_MEM_SIZE, CL_DEVICE_LOCAL_MEM_SIZE, CL_DEVICE_MAX_COMPUTE_UNITS,
-        CL_DEVICE_NAME, CL_DEVICE_PCI_BUS_INFO_KHR, CL_DEVICE_TYPE_ALL, CL_DEVICE_VERSION,
-        CL_PLATFORM_NAME,
+        cl_device_info, CL_DEVICE_GLOBAL_MEM_SIZE, CL_DEVICE_LOCAL_MEM_SIZE,
+        CL_DEVICE_MAX_COMPUTE_UNITS, CL_DEVICE_MAX_WORK_GROUP_SIZE, CL_DEVICE_NAME,
+        CL_DEVICE_OPENCL_C_VERSION, CL_DEVICE_PCI_BUS_INFO_KHR, CL_DEVICE_TYPE_ALL,
+        CL_DEVICE_VERSION, CL_DRIVER_VERSION, CL_PLATFORM_NAME,
     },
     platform,
 };
@@ -35,19 +36,18 @@ fn try_get_opencl_info(info: &CommonControllerInfo) -> anyhow::Result<Option<Ope
         .to_string()
         .replace('\0', "");
 
-    let device_name = device::get_device_info(device, CL_DEVICE_NAME)
-        .map_err(|err| anyhow!("Could not get device name: {err}"))?
-        .to_string()
-        .replace('\0', "");
-
-    let version = device::get_device_info(device, CL_DEVICE_VERSION)
-        .map_err(|err| anyhow!("Could not get device version: {err}"))?
-        .to_string()
-        .replace('\0', "");
+    let device_name = get_info_string(device, CL_DEVICE_NAME)?;
+    let version = get_info_string(device, CL_DEVICE_VERSION)?;
+    let driver_version = get_info_string(device, CL_DRIVER_VERSION)?;
+    let c_version = get_info_string(device, CL_DEVICE_OPENCL_C_VERSION)?;
 
     let compute_units = device::get_device_info(device, CL_DEVICE_MAX_COMPUTE_UNITS)
         .map_err(|err| anyhow!("Could not get device cu count: {err}"))?
         .to_uint();
+
+    let workgroup_size = device::get_device_info(device, CL_DEVICE_MAX_WORK_GROUP_SIZE)
+        .map_err(|err| anyhow!("Could not get device cu count: {err}"))?
+        .to_size();
 
     let global_memory = device::get_device_info(device, CL_DEVICE_GLOBAL_MEM_SIZE)
         .map_err(|err| anyhow!("Could not get device memory: {err}"))?
@@ -61,6 +61,9 @@ fn try_get_opencl_info(info: &CommonControllerInfo) -> anyhow::Result<Option<Ope
         platform_name,
         device_name,
         version,
+        driver_version,
+        c_version,
+        workgroup_size,
         compute_units,
         global_memory,
         local_memory,
@@ -93,4 +96,12 @@ fn find_matching_device(
     }
 
     Ok(None)
+}
+
+fn get_info_string(device: *mut c_void, param: cl_device_info) -> anyhow::Result<String> {
+    let mut string = device::get_device_info(device, param)
+        .map_err(|err| anyhow!("Could not fetch property {param:0x}: {err}"))?
+        .to_string();
+    string.pop();
+    Ok(string)
 }
