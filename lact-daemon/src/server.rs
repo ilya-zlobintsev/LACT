@@ -1,5 +1,6 @@
 pub mod gpu_controller;
 pub mod handler;
+mod opencl;
 mod profiles;
 pub(crate) mod system;
 mod vulkan;

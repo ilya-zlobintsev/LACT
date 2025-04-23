@@ -59,7 +59,7 @@ mod imp {
                 #[local_ref]
                 obj {
                     set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 5,
+                    set_spacing: 10,
                     set_margin_horizontal: 5,
 
                     #[local_ref]

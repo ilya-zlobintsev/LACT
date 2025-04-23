@@ -6,7 +6,7 @@ use crate::{
         drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE,
         drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM, IntelDrm,
     },
-    server::vulkan::get_vulkan_info,
+    server::{opencl::get_opencl_info, vulkan::get_vulkan_info},
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, Context};
@@ -588,6 +588,7 @@ impl GpuController for IntelGpuController {
                 vbios_version: None,
                 link_info: LinkInfo::default(),
                 drm_info: Some(drm_info),
+                opencl_info: get_opencl_info(&self.common),
             }
         })
     }
