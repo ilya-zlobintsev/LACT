@@ -11,15 +11,15 @@ metadata:
   provides: [ lact ]
   conflicts: [ lact, lact-headless ]
   depends:
-    all: [ hwdata, vulkan-tools, ocl-icd ]
-    fedora-40+fedora-41+fedora-42: [ gtk4, libdrm, libadwaita ]
-    arch: [ gtk4, libadwaita ]
-    opensuse-tumbleweed: [ libdrm, libadwaita ]
+    all: [ hwdata, vulkan-tools ]
+    fedora-40+fedora-41+fedora-42: [ gtk4, libdrm, libadwaita ocl-icd ]
+    arch: [ gtk4, libadwaita, ocl-icd ]
+    opensuse-tumbleweed: [ libdrm, libadwaita, ocl-icd-devel ]
   build_depends:
-    all: [ curl, make, clang, git, vulkan-tools, ocl-icd ]
-    fedora-40+fedora-41+fedora-42: [ gtk4-devel, gcc, libdrm-devel, libadwaita-devel, dbus ]
-    arch: [ gtk4, libadwaita, dbus ]
-    opensuse-tumbleweed: [ libdrm-devel, libadwaita-devel ]
+    all: [ curl, make, clang, git, vulkan-tools ]
+    fedora-40+fedora-41+fedora-42: [ gtk4-devel, gcc, libdrm-devel, libadwaita-devel, dbus, ocl-icd ]
+    arch: [ gtk4, libadwaita, dbus, ocl-icd ]
+    opensuse-tumbleweed: [ libdrm-devel, libadwaita-devel, ocl-icd-devel ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs
