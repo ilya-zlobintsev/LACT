@@ -5,6 +5,8 @@ use relm4::{
     ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
 };
 
+use crate::{app::msg::AppMsg, APP_BROKER};
+
 pub struct PowerProfileHeuristicsList {
     values: FactoryVecDeque<HeuristicRow>,
 }
@@ -49,6 +51,21 @@ impl relm4::SimpleComponent for PowerProfileHeuristicsList {
     }
 }
 
+impl PowerProfileHeuristicsList {
+    pub fn get_values(&self) -> Vec<Option<i32>> {
+        self.values
+            .iter()
+            .map(|row| {
+                if row.enabled.value() {
+                    Some(row.value.value() as i32)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
 struct HeuristicRow {
     name: String,
     enabled: BoolBinding,
@@ -68,6 +85,7 @@ impl relm4::factory::FactoryComponent for HeuristicRow {
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
             set_spacing: 5,
+            set_hexpand: true,
 
             gtk::Label {
                 set_label: &format!("{}:", self.name),
@@ -80,6 +98,7 @@ impl relm4::factory::FactoryComponent for HeuristicRow {
             },
 
             gtk::SpinButton {
+                set_width_request: 120,
                 set_digits: 0,
                 set_climb_rate: 1.0,
                 set_numeric: true,
@@ -97,10 +116,20 @@ impl relm4::factory::FactoryComponent for HeuristicRow {
         _index: &Self::Index,
         _sender: relm4::FactorySender<Self>,
     ) -> Self {
+        let enabled = BoolBinding::new(value.is_some());
+        let value = F64Binding::new(value.unwrap_or(0) as f64);
+
+        enabled.connect_value_notify(|_| {
+            APP_BROKER.send(AppMsg::SettingsChanged);
+        });
+        value.connect_value_notify(|_| {
+            APP_BROKER.send(AppMsg::SettingsChanged);
+        });
+
         Self {
             name,
-            enabled: BoolBinding::new(value.is_some()),
-            value: F64Binding::new(value.unwrap_or(0) as f64),
+            enabled,
+            value,
         }
     }
 }

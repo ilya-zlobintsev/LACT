@@ -13,7 +13,7 @@ use gtk::{
     StringObject,
 };
 use heuristics_list::PowerProfileHeuristicsList;
-use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 
 const PERFORMANCE_LEVELS: [PerformanceLevel; 4] = [
     PerformanceLevel::Auto,
@@ -185,44 +185,32 @@ impl relm4::Component for PerformanceFrame {
                     self.power_profile_modes.remove(0);
                 }
 
-                while let Some(component) = self.heuristics_components.pop() {
-                    let page = widgets.heuristics_notebook.page(component.widget());
-                    widgets
-                        .heuristics_notebook
-                        .remove_page(Some(page.position() as u32));
-                }
-
                 if let Some(table) = &table {
                     for mode in table.modes.values() {
                         self.power_profile_modes.append(&mode.name);
                     }
-
-                    if let Some(active_profile) = table.modes.get(&table.active) {
-                        for component in &active_profile.components {
-                            let title = component.clock_type.as_deref().unwrap_or("All");
-
-                            let heuristics_component = PowerProfileHeuristicsList::builder()
-                                .launch((component.values.clone(), table.value_names.clone()))
-                                .detach();
-
-                            widgets.heuristics_notebook.append_page(
-                                heuristics_component.widget(),
-                                Some(&gtk::Label::new(Some(title))),
-                            );
-
-                            self.heuristics_components.push(heuristics_component);
-                        }
-                    }
                 }
 
                 self.power_profile_modes_table = table;
+                self.update_heuristic_components(widgets);
             }
             PerformanceFrameMsg::PowerProfileSelected(idx) => {
                 if let Some(table) = &mut self.power_profile_modes_table {
                     if table.active != idx {
                         table.active = idx;
                         APP_BROKER.send(AppMsg::SettingsChanged);
+                        self.update_heuristic_components(widgets);
                     }
+                }
+            }
+        }
+
+        if let Some(table) = &self.power_profile_modes_table {
+            if let Some(active) = table.modes.get(&table.active) {
+                for heuristics_component in &self.heuristics_components {
+                    heuristics_component
+                        .widget()
+                        .set_sensitive(active.is_custom());
                 }
             }
         }
@@ -232,6 +220,34 @@ impl relm4::Component for PerformanceFrame {
 }
 
 impl PerformanceFrame {
+    fn update_heuristic_components(&mut self, widgets: &PerformanceFrameWidgets) {
+        while let Some(component) = self.heuristics_components.pop() {
+            let page = widgets.heuristics_notebook.page(component.widget());
+            widgets
+                .heuristics_notebook
+                .remove_page(Some(page.position() as u32));
+        }
+
+        if let Some(table) = &self.power_profile_modes_table {
+            if let Some(active_profile) = table.modes.get(&table.active) {
+                for component in &active_profile.components {
+                    let title = component.clock_type.as_deref().unwrap_or("All");
+
+                    let heuristics_component = PowerProfileHeuristicsList::builder()
+                        .launch((component.values.clone(), table.value_names.clone()))
+                        .detach();
+
+                    widgets.heuristics_notebook.append_page(
+                        heuristics_component.widget(),
+                        Some(&gtk::Label::new(Some(title))),
+                    );
+
+                    self.heuristics_components.push(heuristics_component);
+                }
+            }
+        }
+    }
+
     pub fn performance_level(&self) -> Option<PerformanceLevel> {
         self.performance_level
     }
@@ -240,6 +256,22 @@ impl PerformanceFrame {
         self.power_profile_modes_table
             .as_ref()
             .map(|table| table.active)
+    }
+
+    pub fn power_profile_mode_custom_heuristics(&self) -> Vec<Vec<Option<i32>>> {
+        if let Some(table) = &self.power_profile_modes_table {
+            if let Some(mode) = table.modes.get(&table.active) {
+                if mode.is_custom() {
+                    return self
+                        .heuristics_components
+                        .iter()
+                        .map(|list| list.model().get_values())
+                        .collect();
+                }
+            }
+        }
+
+        vec![]
     }
 }
 
@@ -474,36 +506,6 @@ impl PerformanceFrame {
         }
     }
 
-    pub fn get_power_profile_mode_custom_heuristics(&self) -> Vec<Vec<Option<i32>>> {
-        let modes_table = self.modes_table.borrow();
-        if let Some(table) = modes_table.as_ref() {
-            if let Some(row) = self.modes_listbox.selected_row() {
-                let active_index = row.index() as u16;
-                if let Some(active_profile) = table.modes.get(&active_index) {
-                    if active_profile.is_custom() {
-                        let mut components = vec![];
-
-                        for page in self
-                            .power_mode_info_notebook
-                            .pages()
-                            .iter::<NotebookPage>()
-                            .flatten()
-                        {
-                            let values_grid = page
-                                .child()
-                                .downcast::<PowerProfileHeuristicsGrid>()
-                                .unwrap();
-                            components.push(values_grid.imp().component.borrow().values.clone());
-                        }
-
-                        return components;
-                    }
-                }
-            }
-        }
-
-        vec![]
-    }
 
     fn update_from_selection(&self) {
         self.power_mode_info_notebook.set_visible(false);

@@ -215,6 +215,12 @@ impl OcPage {
         self.performance_frame.model().power_profile_mode()
     }
 
+    pub fn get_power_profile_mode_custom_heuristics(&self) -> Vec<Vec<Option<i32>>> {
+        self.performance_frame
+            .model()
+            .power_profile_mode_custom_heuristics()
+    }
+
     pub fn get_power_cap(&self) -> Option<f64> {
         self.power_cap_section.model().get_user_cap()
     }

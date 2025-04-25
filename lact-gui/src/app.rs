@@ -592,11 +592,10 @@ impl AppModel {
             gpu_config.performance_level = Some(level);
             gpu_config.power_profile_mode_index = self.oc_page.model().get_power_profile_mode();
 
-            // gpu_config.custom_power_profile_mode_hueristics = self
-            //     .oc_page
-            //     .model()
-            //     .performance_frame
-            //     .get_power_profile_mode_custom_heuristics();
+            gpu_config.custom_power_profile_mode_hueristics = self
+                .oc_page
+                .model()
+                .get_power_profile_mode_custom_heuristics();
         }
 
         if let Some(thermals_settings) = self.thermals_page.get_thermals_settings() {
