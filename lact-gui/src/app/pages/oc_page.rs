@@ -2,7 +2,7 @@ mod clocks_frame;
 mod gpu_stats_section;
 mod performance_frame;
 mod power_cap_section;
-mod power_profile;
+// mod power_profile;
 mod power_states;
 
 use super::PageUpdate;

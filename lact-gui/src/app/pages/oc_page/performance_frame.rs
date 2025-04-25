@@ -1,3 +1,5 @@
+mod heuristics_list;
+
 use super::OcPageMsg;
 use crate::{
     app::{msg::AppMsg, page_section::PageSection},
@@ -8,9 +10,10 @@ use gtk::{
     gio::prelude::ListModelExt,
     glib::object::Cast,
     prelude::{BoxExt, ListBoxRowExt, OrientableExt, WidgetExt},
-    StringList, StringObject,
+    StringObject,
 };
-use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
+use heuristics_list::PowerProfileHeuristicsList;
+use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 
 const PERFORMANCE_LEVELS: [PerformanceLevel; 4] = [
     PerformanceLevel::Auto,
@@ -22,7 +25,8 @@ const PERFORMANCE_LEVELS: [PerformanceLevel; 4] = [
 pub struct PerformanceFrame {
     performance_level: Option<PerformanceLevel>,
     power_profile_modes_table: Option<PowerProfileModesTable>,
-    power_profile_modes: StringList,
+    power_profile_modes: gtk::StringList,
+    heuristics_components: Vec<relm4::Controller<PowerProfileHeuristicsList>>,
 }
 
 #[derive(Debug)]
@@ -107,7 +111,7 @@ impl relm4::Component for PerformanceFrame {
                 gtk::MenuButton {
                     set_always_show_arrow: false,
                     #[watch]
-                    set_label: model.power_profile_modes_table.as_ref().map(|table| table.modes.get(&table.active).unwrap().name.as_str()).unwrap_or_default(),
+                    set_label: model.power_profile_modes_table.as_ref().and_then(|table| table.modes.get(&table.active)).map(|profile| profile.name.as_str()).unwrap_or_default(),
 
                     #[wrap(Some)]
                     set_popover =  &gtk::Popover {
@@ -134,7 +138,13 @@ impl relm4::Component for PerformanceFrame {
                                 #[watch]
                                 #[block_signal(power_profile_selected_handler)]
                                 select_row: model.power_profile_modes_table.as_ref().and_then(|table| modes_listbox.row_at_index(table.active.into())).as_ref(),
-                            }
+                            },
+
+                            #[name = "heuristics_notebook"]
+                            gtk::Notebook {
+                                #[watch]
+                                set_show_tabs: model.heuristics_components.len() > 1,
+                            },
                         }
                     },
                 },
@@ -150,7 +160,8 @@ impl relm4::Component for PerformanceFrame {
         let model = Self {
             performance_level: None,
             power_profile_modes_table: None,
-            power_profile_modes: StringList::new(&[]),
+            power_profile_modes: gtk::StringList::new(&[]),
+            heuristics_components: vec![],
         };
 
         let widgets = view_output!();
@@ -158,7 +169,13 @@ impl relm4::Component for PerformanceFrame {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>, _root: &Self::Root) {
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: ComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
         match msg {
             PerformanceFrameMsg::PerformanceLevel(level) => {
                 self.performance_level = level;
@@ -168,9 +185,33 @@ impl relm4::Component for PerformanceFrame {
                     self.power_profile_modes.remove(0);
                 }
 
+                while let Some(component) = self.heuristics_components.pop() {
+                    let page = widgets.heuristics_notebook.page(component.widget());
+                    widgets
+                        .heuristics_notebook
+                        .remove_page(Some(page.position() as u32));
+                }
+
                 if let Some(table) = &table {
                     for mode in table.modes.values() {
                         self.power_profile_modes.append(&mode.name);
+                    }
+
+                    if let Some(active_profile) = table.modes.get(&table.active) {
+                        for component in &active_profile.components {
+                            let title = component.clock_type.as_deref().unwrap_or("All");
+
+                            let heuristics_component = PowerProfileHeuristicsList::builder()
+                                .launch((component.values.clone(), table.value_names.clone()))
+                                .detach();
+
+                            widgets.heuristics_notebook.append_page(
+                                heuristics_component.widget(),
+                                Some(&gtk::Label::new(Some(title))),
+                            );
+
+                            self.heuristics_components.push(heuristics_component);
+                        }
                     }
                 }
 
@@ -185,6 +226,8 @@ impl relm4::Component for PerformanceFrame {
                 }
             }
         }
+
+        self.update_view(widgets, sender);
     }
 }
 
