@@ -48,7 +48,7 @@ impl relm4::Component for ClocksFrame {
     type CommandOutput = ();
 
     view! {
-        PageSection::new("Clockspeed and voltage") {
+        PageSection::new("Clockspeed and Voltage") {
             append = &gtk::Label {
                 set_label: WARNING_TEXT,
                 set_wrap_mode: pango::WrapMode::Word,

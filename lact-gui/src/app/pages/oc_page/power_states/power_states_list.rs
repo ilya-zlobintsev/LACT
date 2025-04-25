@@ -1,146 +1,160 @@
-use crate::app::pages::oc_page::power_states::power_state_row::PowerStateRow;
-use gtk::{
-    gio,
-    glib::{
-        self, clone,
-        object::{Cast, CastNone},
-        subclass::types::ObjectSubclassIsExt,
-        Object,
-    },
-    prelude::{ListBoxRowExt, WidgetExt},
-    ListBoxRow, Widget,
+use gtk::prelude::{BoxExt, CheckButtonExt, FrameExt, OrientableExt, WidgetExt};
+use lact_schema::PowerState;
+use relm4::{
+    binding::BoolBinding, prelude::FactoryVecDeque, ComponentParts, ComponentSender, RelmObjectExt,
 };
-use lact_client::schema::PowerState;
 
-glib::wrapper! {
-    pub struct PowerStatesList(ObjectSubclass<imp::PowerStatesList>)
-        @extends gtk::Frame, gtk::Widget,
-        @implements gtk::Accessible, gtk::Buildable;
+use crate::{app::msg::AppMsg, APP_BROKER};
+
+pub struct PowerStatesList {
+    states: FactoryVecDeque<PowerStateRow>,
+    value_suffix: &'static str,
 }
 
-impl Default for PowerStatesList {
-    fn default() -> Self {
-        Object::new()
+pub struct PowerStatesListOptions {
+    pub title: &'static str,
+    pub value_suffix: &'static str,
+}
+
+#[derive(Debug)]
+pub enum PowerStatesListMsg {
+    PowerStates(Vec<PowerState>, f64),
+    ActiveState(Option<usize>),
+}
+
+#[relm4::component(pub)]
+impl relm4::SimpleComponent for PowerStatesList {
+    type Init = PowerStatesListOptions;
+    type Input = PowerStatesListMsg;
+    type Output = ();
+
+    view! {
+        gtk::Frame {
+            set_hexpand: true,
+            set_label: Some(opts.title),
+            set_child: Some(model.states.widget()),
+        }
+    }
+
+    fn init(
+        opts: Self::Init,
+        root: Self::Root,
+        _sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let states = FactoryVecDeque::builder().launch_default().detach();
+
+        let model = Self {
+            states,
+            value_suffix: opts.value_suffix,
+        };
+
+        let widgets = view_output!();
+
+        ComponentParts { widgets, model }
+    }
+
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
+        match msg {
+            PowerStatesListMsg::PowerStates(new_pstates, value_ratio) => {
+                let mut states = self.states.guard();
+                states.clear();
+
+                for mut power_state in new_pstates {
+                    power_state.value = (power_state.value as f64 * value_ratio) as u64;
+                    let opts = PowerStateRowOptions {
+                        power_state,
+                        value_suffix: self.value_suffix,
+                        active: false,
+                    };
+                    states.push_back(opts);
+                }
+            }
+            PowerStatesListMsg::ActiveState(active_idx) => {
+                for i in 0..self.states.len() {
+                    let active = Some(i) == active_idx;
+                    self.states.send(i, active);
+                }
+            }
+        }
     }
 }
 
 impl PowerStatesList {
     pub fn get_enabled_power_states(&self) -> Vec<u8> {
-        self.rows()
+        self.states
             .iter()
-            .filter(|row| row.enabled())
-            .map(|row| row.index())
+            .filter(|row| row.enabled.value())
+            .filter_map(|row| row.power_state.index)
             .collect()
     }
 
-    pub fn set_power_states(
-        &self,
-        power_states: Vec<PowerState>,
-        value_suffix: &str,
-        value_ratio: f64,
-    ) {
-        let store = gio::ListStore::new::<PowerStateRow>();
-        for (i, mut state) in power_states.into_iter().enumerate() {
-            state.value = (state.value as f64 * value_ratio) as u64;
-            let index = u8::try_from(i).expect("Power state index doesn't fit in u8?");
-            let row = PowerStateRow::new(state, index, value_suffix);
-            store.append(&row);
-        }
-
-        self.imp().states_listbox.bind_model(Some(&store), |obj| {
-            obj.clone().downcast::<Widget>().unwrap()
-        });
-    }
-
-    pub fn connect_values_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        for row in self.rows() {
-            row.connect_enabled_notify(clone!(
-                #[strong]
-                f,
-                move |_| f()
-            ));
-        }
-    }
-
-    pub fn set_active_state(&self, i: Option<usize>) {
-        let imp = self.imp();
-
-        for object in imp.states_listbox.observe_children().into_iter().flatten() {
-            let list_row: ListBoxRow = object.downcast().unwrap();
-            if let Some(row) = list_row.child().and_downcast::<PowerStateRow>() {
-                let active = Some(row.index() as usize) == i;
-                row.set_active(active);
-            }
-        }
-    }
-
-    fn rows(&self) -> Vec<PowerStateRow> {
-        let children = self.imp().states_listbox.observe_children();
-        children
-            .into_iter()
-            .flatten()
-            .filter_map(|object| {
-                let item = object.downcast::<ListBoxRow>().unwrap();
-                let child = item.child()?;
-                let row = child
-                    .downcast::<PowerStateRow>()
-                    .expect("ListBoxRow child must be a PowerStateRow");
-                Some(row)
-            })
-            .collect()
+    pub fn is_empty(&self) -> bool {
+        self.states.is_empty()
     }
 }
 
-mod imp {
-    use gtk::{
-        glib::{self, Properties},
-        prelude::{FrameExt, ObjectExt, WidgetExt},
-        subclass::{prelude::*, widget::WidgetImpl},
-        ListBox,
-    };
-    use relm4::view;
-    use std::cell::RefCell;
+struct PowerStateRow {
+    active: BoolBinding,
+    enabled: BoolBinding,
+    power_state: PowerState,
+    value_suffix: &'static str,
+}
 
-    #[derive(Default, Properties)]
-    #[properties(wrapper_type = super::PowerStatesList)]
-    pub struct PowerStatesList {
-        #[property(get, set)]
-        pub title: RefCell<String>,
-        pub states_listbox: ListBox,
-    }
+pub struct PowerStateRowOptions {
+    pub power_state: PowerState,
+    pub value_suffix: &'static str,
+    pub active: bool,
+}
 
-    #[glib::object_subclass]
-    impl ObjectSubclass for PowerStatesList {
-        const NAME: &'static str = "PowerStatesList";
-        type Type = super::PowerStatesList;
-        type ParentType = gtk::Frame;
-    }
+#[relm4::factory]
+impl relm4::factory::FactoryComponent for PowerStateRow {
+    type ParentWidget = gtk::ListBox;
+    type CommandOutput = ();
+    type Input = bool;
+    type Output = ();
+    type Init = PowerStateRowOptions;
 
-    #[glib::derived_properties]
-    impl ObjectImpl for PowerStatesList {
-        fn constructed(&self) {
-            self.parent_constructed();
-            let frame = &*self.obj();
+    view! {
+        gtk::Box {
+            set_orientation: gtk::Orientation::Horizontal,
+            set_spacing: 5,
 
-            view! {
-                #[local_ref]
-                frame {
-                    set_hexpand: true,
-
-                    #[wrap(Some)]
-                    set_label_widget: title_label = &gtk::Label {},
-
-                    set_child: Some(&self.states_listbox),
+            append = &gtk::CheckButton {
+                set_hexpand: true,
+                add_binding: (&self.enabled, "active"),
+                set_label: {
+                    let value_text = match self.power_state.min_value {
+                        Some(min) if min != self.power_state.value => format!("{min}-{}", self.power_state.value),
+                        _ => self.power_state.value.to_string(),
+                    };
+                    Some(&format!("{}: {value_text} {}", index.current_index(), self.value_suffix))
                 }
-            };
+            },
 
-            frame
-                .bind_property("title", &title_label, "label")
-                .sync_create()
-                .build();
+            append: image = &gtk::Image {
+                set_icon_name: Some("pan-start-symbolic"),
+                add_binding: (&self.active, "visible"),
+            },
         }
     }
 
-    impl WidgetImpl for PowerStatesList {}
-    impl FrameImpl for PowerStatesList {}
+    fn init_model(
+        opts: Self::Init,
+        _index: &Self::Index,
+        _sender: relm4::FactorySender<Self>,
+    ) -> Self {
+        let enabled = BoolBinding::new(opts.power_state.enabled);
+        enabled.connect_value_notify(|_| APP_BROKER.send(AppMsg::SettingsChanged));
+
+        Self {
+            enabled,
+            active: BoolBinding::new(opts.active),
+            power_state: opts.power_state,
+            value_suffix: opts.value_suffix,
+        }
+    }
+
+    fn update(&mut self, active: Self::Input, _: relm4::FactorySender<Self>) {
+        self.active.set_value(active);
+    }
 }
