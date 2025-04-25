@@ -5,8 +5,8 @@ use cl3::{
     ext::{
         cl_device_info, CL_DEVICE_GLOBAL_MEM_SIZE, CL_DEVICE_LOCAL_MEM_SIZE,
         CL_DEVICE_MAX_COMPUTE_UNITS, CL_DEVICE_MAX_WORK_GROUP_SIZE, CL_DEVICE_NAME,
-        CL_DEVICE_OPENCL_C_VERSION, CL_DEVICE_PCI_BUS_INFO_KHR, CL_DEVICE_TYPE_ALL,
-        CL_DEVICE_VERSION, CL_DRIVER_VERSION, CL_PLATFORM_NAME,
+        CL_DEVICE_OPENCL_C_VERSION, CL_DEVICE_PCI_BUS_INFO_KHR, CL_DEVICE_TOPOLOGY_AMD,
+        CL_DEVICE_TYPE_ALL, CL_DEVICE_VERSION, CL_DRIVER_VERSION, CL_PLATFORM_NAME,
     },
     platform,
 };
@@ -80,6 +80,18 @@ fn find_matching_device(
         let devices = device::get_device_ids(platform, CL_DEVICE_TYPE_ALL)
             .map_err(|err| anyhow!("Could not get device list: {err}"))?;
         for device in devices {
+            if let Ok(raw_amd_topology) = device::get_device_info(device, CL_DEVICE_TOPOLOGY_AMD) {
+                let amd_topology =
+                    device::get_amd_device_topology(&raw_amd_topology.to_vec_uchar());
+
+                if u16::from(amd_topology.bus) == slot_info.bus
+                    && u16::from(amd_topology.device) == slot_info.dev
+                    && u16::from(amd_topology.function) == slot_info.func
+                {
+                    return Ok(Some((platform, device)));
+                }
+            }
+
             let raw_bus_info = device::get_device_info(device, CL_DEVICE_PCI_BUS_INFO_KHR)
                 .map_err(|err| anyhow!("Could not get bus info: {err}"))?
                 .to_vec_uchar();
