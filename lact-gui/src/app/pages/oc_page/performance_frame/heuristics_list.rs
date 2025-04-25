@@ -102,7 +102,7 @@ impl relm4::factory::FactoryComponent for HeuristicRow {
                 set_digits: 0,
                 set_climb_rate: 1.0,
                 set_numeric: true,
-                set_increments: (0.1, 1.0),
+                set_increments: (1.0, 1.0),
                 set_range: (f64::MIN, f64::MAX),
 
                 bind: &self.value,

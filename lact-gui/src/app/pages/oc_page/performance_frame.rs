@@ -122,6 +122,9 @@ impl relm4::Component for PerformanceFrame {
                             #[name = "modes_listbox"]
                             gtk::ListBox {
                                 set_selection_mode: gtk::SelectionMode::Single,
+                                #[watch]
+                                set_sensitive: model.performance_level.is_some_and(|level| level == PerformanceLevel::Manual),
+
                                 bind_model: (Some(&model.power_profile_modes), |obj| {
                                     let string = obj.downcast_ref::<StringObject>().unwrap();
                                     gtk::Label::builder().label(string.string()).build().into()
@@ -253,9 +256,13 @@ impl PerformanceFrame {
     }
 
     pub fn power_profile_mode(&self) -> Option<u16> {
-        self.power_profile_modes_table
-            .as_ref()
-            .map(|table| table.active)
+        if self.performance_level == Some(PerformanceLevel::Manual) {
+            self.power_profile_modes_table
+                .as_ref()
+                .map(|table| table.active)
+        } else {
+            None
+        }
     }
 
     pub fn power_profile_mode_custom_heuristics(&self) -> Vec<Vec<Option<i32>>> {
