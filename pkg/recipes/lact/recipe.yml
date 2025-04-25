@@ -12,16 +12,16 @@ metadata:
   conflicts: [ lact-headless, lact-libadwaita ]
   depends:
     all: [ hwdata, vulkan-tools ]
-    debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-1, libdrm2, libdrm-amdgpu1 ]
-    fedora-40+fedora-41+fedora-42: [ gtk4, libdrm ]
-    arch: [ gtk4 ]
-    opensuse-tumbleweed: [ gtk4 ]
+    debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-1, libdrm2, libdrm-amdgpu1, ocl-icd-opencl-dev ]
+    fedora-40+fedora-41+fedora-42: [ gtk4, libdrm, ocl-icd-devel ]
+    arch: [ gtk4, ocl-icd ]
+    opensuse-tumbleweed: [ gtk4, ocl-icd-devel ]
   build_depends:
     all: [ curl, make, clang, git, vulkan-tools ]
-    debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus ]
-    fedora-40+fedora-41+fedora-42: [ gtk4-devel, gcc, libdrm-devel, dbus ]
-    arch: [ gtk4, dbus ]
-    opensuse-tumbleweed: [ gtk4-devel, libdrm-devel ]
+    debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus, ocl-icd-opencl-dev ]
+    fedora-40+fedora-41+fedora-42: [ gtk4-devel, gcc, libdrm-devel, dbus, ocl-icd-devel ]
+    arch: [ gtk4, dbus, ocl-icd ]
+    opensuse-tumbleweed: [ gtk4-devel, libdrm-devel, ocl-icd-devel ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs
@@ -29,7 +29,7 @@ configure:
   steps:
     - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
     - cmd: sh /tmp/install_rust.sh -y
-    - cmd: bash -c "source $HOME/.cargo/env && rustup toolchain install 1.82.0"
+    - cmd: bash -c "source $HOME/.cargo/env && rustup toolchain install 1.85.1"
     - cmd: pacman -Syu --noconfirm
       pkg: true
 build:

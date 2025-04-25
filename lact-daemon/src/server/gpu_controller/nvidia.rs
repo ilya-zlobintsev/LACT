@@ -1,7 +1,9 @@
 mod driver;
 
 use super::{CommonControllerInfo, FanControlHandle, GpuController};
-use crate::server::{gpu_controller::fan_control::FanCurveExt, vulkan::get_vulkan_info};
+use crate::server::{
+    gpu_controller::fan_control::FanCurveExt, opencl::get_opencl_info, vulkan::get_vulkan_info,
+};
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, bail, Context};
 use driver::DriverHandle;
@@ -322,6 +324,7 @@ impl GpuController for NvidiaGpuController {
                             output
                         }),
                 },
+                opencl_info: get_opencl_info(&self.common),
                 drm_info: Some(DrmInfo {
                     device_name: device.name().ok(),
                     pci_revision_id: None,

@@ -17,6 +17,7 @@ pub const VENDOR_NVIDIA: &str = "10DE";
 
 use crate::bindings::intel::IntelDrm;
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
+use anyhow::anyhow;
 use anyhow::Context;
 use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
@@ -81,6 +82,30 @@ impl CommonControllerInfo {
             self.pci_slot_name
         )
     }
+
+    pub fn get_slot_info(&self) -> anyhow::Result<PciSlotInfo> {
+        let [domain, bus, dev, func] = self
+            .pci_slot_name
+            .split([':', '.'])
+            .map(|part| u16::from_str_radix(part, 16).context("Could not parse pci slot name part"))
+            .collect::<anyhow::Result<Vec<_>>>()?
+            .try_into()
+            .map_err(|err| anyhow!("Invalid pci slot name format {err:?}"))?;
+
+        Ok(PciSlotInfo {
+            domain,
+            bus,
+            dev,
+            func,
+        })
+    }
+}
+
+pub struct PciSlotInfo {
+    pub domain: u16,
+    pub bus: u16,
+    pub dev: u16,
+    pub func: u16,
 }
 
 pub(crate) fn init_controller(

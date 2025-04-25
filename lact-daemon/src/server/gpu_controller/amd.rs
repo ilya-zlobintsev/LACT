@@ -1,5 +1,7 @@
 use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
-use crate::server::{gpu_controller::fan_control::FanCurveExt, vulkan::get_vulkan_info};
+use crate::server::{
+    gpu_controller::fan_control::FanCurveExt, opencl::get_opencl_info, vulkan::get_vulkan_info,
+};
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
@@ -407,7 +409,7 @@ impl AmdGpuController {
             .enumerate()
             .map(|(i, value)| {
                 let i = u8::try_from(i).unwrap();
-                let enabled = enabled_states.map_or(true, |enabled| enabled.contains(&i));
+                let enabled = enabled_states.is_none_or(|enabled| enabled.contains(&i));
                 PowerState {
                     enabled,
                     min_value: None,
@@ -599,6 +601,7 @@ impl GpuController for AmdGpuController {
             let vbios_version = self.get_full_vbios_version();
             let link_info = self.get_link_info();
             let drm_info = self.get_drm_info();
+            let opencl_info = get_opencl_info(&self.common);
 
             DeviceInfo {
                 pci_info,
@@ -606,6 +609,7 @@ impl GpuController for AmdGpuController {
                 driver,
                 vbios_version,
                 link_info,
+                opencl_info,
                 drm_info,
             }
         })

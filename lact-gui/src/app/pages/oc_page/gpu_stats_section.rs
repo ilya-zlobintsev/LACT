@@ -19,8 +19,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
     view! {
         PageSection::new("Statistics") {
-            set_spacing: 10,
-
             append = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 5,

@@ -164,13 +164,14 @@ Dependencies:
 - hwdata
 - libdrm
 - vulkan-tools
+- ocl-icd
 
 Command to install all dependencies:
 
 - Fedora:
-  `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel vulkan-tools`
+  `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel vulkan-tools ocl-icd-devel`
 - Arch:
-  `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata vulkan-tools`
+  `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata vulkan-tools ocl-icd`
 
 Steps:
 

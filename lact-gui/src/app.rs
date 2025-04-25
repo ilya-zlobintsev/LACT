@@ -35,7 +35,7 @@ use msg::AppMsg;
 use pages::{
     info_page::InformationPage,
     oc_page::{OcPage, OcPageMsg},
-    software_page::SoftwarePage,
+    software_page::{SoftwarePage, SoftwarePageMsg},
     thermals_page::ThermalsPage,
     PageUpdate,
 };
@@ -86,7 +86,7 @@ impl AsyncComponent for AppModel {
         #[root]
         gtk::ApplicationWindow::builder()
             .titlebar(&gtk::HeaderBar::new())
-            .default_height(900)
+            .default_height(800)
             .default_width(60)
             .icon_name(APP_ID)
             .title("LACT")
@@ -460,6 +460,8 @@ impl AppModel {
             update,
             initial: true,
         });
+        self.software_page
+            .emit(SoftwarePageMsg::DeviceInfo(info.clone()));
 
         let vram_clock_ratio = info
             .drm_info
@@ -1090,4 +1092,18 @@ async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Err
             Ok((client, Some(err)))
         }
     }
+}
+
+fn format_friendly_size(bytes: u64) -> String {
+    const NAMES: &[&str] = &["bytes", "KiB", "MiB", "GiB"];
+
+    let mut size = bytes as f64;
+
+    let mut i = 0;
+    while size > 2048.0 && i < NAMES.len() - 1 {
+        size /= 1024.0;
+        i += 1;
+    }
+
+    format!("{size:.1$} {}", NAMES[i], (size.fract() != 0.0) as usize)
 }
