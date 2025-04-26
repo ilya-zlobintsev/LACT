@@ -1081,6 +1081,8 @@ async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Err
             info!("using a local daemon");
 
             let (server_stream, client_stream) = UnixStream::pair()?;
+            client_stream.set_nonblocking(true)?;
+            server_stream.set_nonblocking(true)?;
 
             std::thread::spawn(move || {
                 if let Err(err) = lact_daemon::run_embedded(server_stream) {
