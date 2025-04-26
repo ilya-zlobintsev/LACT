@@ -59,6 +59,7 @@ pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 static ERROR_WINDOW_COUNT: AtomicU32 = AtomicU32::new(0);
 
 const STATS_POLL_INTERVAL_MS: u64 = 250;
+const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 
 pub struct AppModel {
     daemon_client: DaemonClient,
@@ -452,6 +453,16 @@ impl AppModel {
         // Plain `nvidia` means that the nvidia driver is loaded, but it does not contain a version fetched from NVML
         if info.driver == "nvidia" {
             sender.input(AppMsg::Error(Arc::new(anyhow!("Nvidia driver detected, but the management library could not be loaded. Check lact service status for more information."))));
+        } else if let Some(nvidia_version) = info.driver.strip_prefix("nvidia ") {
+            if let Some(major_version) = nvidia_version
+                .split('.')
+                .next()
+                .and_then(|version| version.parse::<u32>().ok())
+            {
+                if major_version < NVIDIA_RECOMMENDED_MIN_VERSION {
+                    sender.input(AppMsg::Error(Arc::new(anyhow!("Old Nvidia driver version detected ({major_version}), some features might be missing. Driver version {NVIDIA_RECOMMENDED_MIN_VERSION} or newer is recommended."))));
+                }
+            }
         }
 
         let update = PageUpdate::Info(info.clone());
