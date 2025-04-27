@@ -1,6 +1,9 @@
 mod mock_fs;
 
-use crate::{config::Config, server::handler::Handler};
+use crate::{
+    config::Config,
+    server::handler::{read_pci_db, Handler},
+};
 use insta::{assert_debug_snapshot, assert_json_snapshot};
 use lact_schema::config::GpuConfig;
 use mock_fs::MockSysfs;
@@ -20,7 +23,7 @@ async fn snapshot_everything() {
     init_tracing();
 
     let test_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/data");
-    let pci_db = pciid_parser::Database::read().unwrap();
+    let pci_db = read_pci_db();
 
     for vendor_dir in fs::read_dir(test_data_dir).unwrap().flatten() {
         for device_dir in fs::read_dir(vendor_dir.path()).unwrap().flatten() {
@@ -52,7 +55,7 @@ async fn apply_settings() {
     let local_set = LocalSet::new();
     local_set.spawn_local(async move {
         let test_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/data");
-        let pci_db = pciid_parser::Database::read().unwrap();
+        let pci_db = read_pci_db();
 
         for vendor_dir in fs::read_dir(test_data_dir).unwrap().flatten() {
             for device_dir in fs::read_dir(vendor_dir.path()).unwrap().flatten() {

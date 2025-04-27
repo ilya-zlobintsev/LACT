@@ -1021,8 +1021,16 @@ async fn apply_config_to_controllers(
     Ok(())
 }
 
-fn read_pci_db() -> Database {
-    Database::read().unwrap_or_else(|err| {
+pub(crate) fn read_pci_db() -> Database {
+    let result = if let Some(db_path) = env::var("LACT_PCI_DB_PATH")
+        .ok()
+        .filter(|value| !value.is_empty())
+    {
+        Database::read_from_file(db_path)
+    } else {
+        Database::read()
+    };
+    result.unwrap_or_else(|err| {
         warn!("could not read PCI ID database: {err}, device information will be limited");
         Database {
             vendors: HashMap::new(),
