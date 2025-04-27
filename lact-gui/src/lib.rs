@@ -13,6 +13,7 @@ static CONFIG: SharedState<UiConfig> = SharedState::new();
 
 const GUI_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const APP_ID: &str = "io.github.ilya_zlobintsev.LACT";
+pub const REPO_URL: &str = "https://github.com/ilya-zlobintsev/LACT";
 
 pub fn run(args: GuiArgs) -> anyhow::Result<()> {
     let env_filter = EnvFilter::builder()

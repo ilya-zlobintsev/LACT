@@ -2,7 +2,7 @@ mod vulkan;
 
 use crate::{
     app::{format_friendly_size, info_row::InfoRow, page_section::PageSection},
-    GUI_VERSION,
+    GUI_VERSION, REPO_URL,
 };
 use gtk::prelude::*;
 use indexmap::IndexMap;
@@ -199,7 +199,12 @@ impl relm4::SimpleComponent for SoftwarePage {
             daemon_version.push_str("-embedded");
         }
         if let Some(commit) = &system_info.commit {
-            write!(daemon_version, " (commit {commit})").unwrap();
+            let daemon_commit_link = format!("{REPO_URL}/commit/{commit}");
+            write!(
+                daemon_version,
+                " (commit <a href=\"{daemon_commit_link}\">{commit}</a>)"
+            )
+            .unwrap();
         }
 
         let gui_profile = if cfg!(debug_assertions) {
@@ -207,7 +212,10 @@ impl relm4::SimpleComponent for SoftwarePage {
         } else {
             "release"
         };
-        let gui_version = format!("{GUI_VERSION}-{gui_profile} (commit {GIT_COMMIT})");
+        let gui_commit_link = format!("{REPO_URL}/commit/{GIT_COMMIT}");
+        let gui_version = format!(
+            "{GUI_VERSION}-{gui_profile} (commit <a href=\"{gui_commit_link}\">{GIT_COMMIT}</a>)"
+        );
 
         let widgets = view_output!();
 
