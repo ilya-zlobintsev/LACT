@@ -38,7 +38,9 @@ fn generate_daemon_cmd(info: &Ini) -> anyhow::Result<()> {
     let app_bin_path = format!("{app_path}/bin");
     let library_paths = format!("{app_path}/lib:{app_path}/drm/lib:{runtime_lib_path}");
 
-    println!("{ld_path} --library-path {library_paths} {app_bin_path}/lact daemon");
+    let pci_db_path = format!("{runtime_path}/share/hwdata/pci.ids");
+
+    println!("env LACT_PCI_DB_PATH={pci_db_path} {ld_path} --library-path {library_paths} {app_bin_path}/lact daemon");
 
     Ok(())
 }
