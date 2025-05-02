@@ -44,6 +44,7 @@ impl relm4::SimpleComponent for SoftwarePage {
                     append = &InfoRow::new_selectable("Kernel Version:", &system_info.kernel_version),
                 },
 
+                #[name = "vulkan_stack"]
                 match model.device_info.as_ref().and_then(|info| info.vulkan_info.as_ref()) {
                     Some(info) => {
                         PageSection::new("Vulkan") {
@@ -115,6 +116,7 @@ impl relm4::SimpleComponent for SoftwarePage {
                     }
                 },
 
+                #[name = "opencl_stack"]
                 match model.device_info.as_ref().and_then(|info| info.opencl_info.as_ref()) {
                     Some(info) => {
                         PageSection::new("OpenCL") {
@@ -218,6 +220,9 @@ impl relm4::SimpleComponent for SoftwarePage {
         );
 
         let widgets = view_output!();
+
+        widgets.vulkan_stack.set_vhomogeneous(false);
+        widgets.opencl_stack.set_vhomogeneous(false);
 
         ComponentParts { model, widgets }
     }
