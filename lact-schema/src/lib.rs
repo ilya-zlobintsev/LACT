@@ -198,10 +198,7 @@ impl DeviceInfo {
                 ),
                 (
                     "Subslices",
-                    drm_info
-                        .intel
-                        .execution_units
-                        .map(|count| count.to_string()),
+                    drm_info.intel.subslices.map(|count| count.to_string()),
                 ),
                 (
                     "Cuda Cores",
