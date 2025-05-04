@@ -3,11 +3,6 @@ mod drm;
 use super::{CommonControllerInfo, GpuController};
 use crate::{
     bindings::intel::{
-        drm_i915_gem_engine_class_I915_ENGINE_CLASS_COMPUTE,
-        drm_i915_gem_engine_class_I915_ENGINE_CLASS_COPY,
-        drm_i915_gem_engine_class_I915_ENGINE_CLASS_RENDER,
-        drm_i915_gem_engine_class_I915_ENGINE_CLASS_VIDEO,
-        drm_i915_gem_engine_class_I915_ENGINE_CLASS_VIDEO_ENHANCE,
         drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE, drm_i915_query_topology_info,
         drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM, IntelDrm,
     },
@@ -272,46 +267,34 @@ impl IntelGpuController {
     }
 
     fn get_drm_info_i915(&self) -> IntelDrmInfo {
-        let engines = drm::i915::query_engine_info(&self.drm_file)
+        let mut engines = fs::read_dir(self.card_path().join("engine"))
             .ok()
+            .into_iter()
             .flatten()
-            .map(|engine_info| unsafe {
-                let engines = engine_info
-                    .engines
-                    .as_slice(engine_info.num_engines as usize);
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_ok_and(|file_type| file_type.is_dir()))
+            .filter_map(|entry| {
+                let path = entry.path();
+                let name = fs::read_to_string(path.join("name"))
+                    .ok()?
+                    .trim()
+                    .to_owned();
+                let class = fs::read_to_string(path.join("class"))
+                    .ok()
+                    .and_then(|class| class.trim().parse::<u16>().ok())?;
+                let instance = fs::read_to_string(path.join("instance"))
+                    .ok()
+                    .and_then(|instance| instance.trim().parse::<u16>().ok())?;
 
-                engines
-                    .iter()
-                    .map(|engine| {
-                        #[allow(non_upper_case_globals)]
-                        let class = match i32::from(engine.engine.engine_class) {
-                            drm_i915_gem_engine_class_I915_ENGINE_CLASS_RENDER => {
-                                IntelEngineClass::Render
-                            }
-                            drm_i915_gem_engine_class_I915_ENGINE_CLASS_COPY => {
-                                IntelEngineClass::Copy
-                            }
-                            drm_i915_gem_engine_class_I915_ENGINE_CLASS_VIDEO => {
-                                IntelEngineClass::Video
-                            }
-                            drm_i915_gem_engine_class_I915_ENGINE_CLASS_VIDEO_ENHANCE => {
-                                IntelEngineClass::VideoEnhance
-                            }
-                            drm_i915_gem_engine_class_I915_ENGINE_CLASS_COMPUTE => {
-                                IntelEngineClass::Compute
-                            }
-                            _ => IntelEngineClass::Invalid,
-                        };
-
-                        IntelEngine {
-                            class,
-                            engine_instance: engine.engine.engine_instance,
-                            logical_instance: engine.logical_instance,
-                        }
-                    })
-                    .collect()
+                Some(IntelEngine {
+                    name,
+                    class: IntelEngineClass::from(class),
+                    instance,
+                })
             })
-            .unwrap_or_default();
+            .collect::<Vec<_>>();
+
+        engines.sort_by_key(|engine| (engine.class, engine.instance));
 
         let mut max_slices = 0;
         let mut max_subslices = 0;
@@ -505,11 +488,9 @@ impl IntelGpuController {
     }
 
     fn freq_path(&self, freq: FrequencyType) -> Option<PathBuf> {
-        let path = &self.common.sysfs_path;
-
         match self.driver_type {
             DriverType::I915 => {
-                let card_path = path.parent().expect("Device has no parent path");
+                let card_path = self.card_path();
 
                 let infix = match freq {
                     FrequencyType::Cur => "cur",
@@ -547,11 +528,7 @@ impl IntelGpuController {
 
         match self.driver_type {
             DriverType::I915 => {
-                let card_path = self
-                    .common
-                    .sysfs_path
-                    .parent()
-                    .expect("Device has no parent path");
+                let card_path = self.card_path();
                 let gt_path = card_path.join("gt").join("gt0");
                 let gt_files = fs::read_dir(gt_path).ok()?;
                 for file in gt_files.flatten() {
@@ -661,6 +638,13 @@ impl IntelGpuController {
                 resizeable_bar: Some(cpu_accessible_total == total),
             },
         }
+    }
+
+    fn card_path(&self) -> &Path {
+        self.common
+            .sysfs_path
+            .parent()
+            .expect("Device has no parent path")
     }
 }
 

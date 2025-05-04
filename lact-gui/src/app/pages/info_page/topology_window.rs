@@ -8,8 +8,6 @@ use relm4::{
 
 use crate::app::ext::RelmDefaultLauchable;
 
-const ITEMS_PER_ROW: usize = 4;
-
 pub struct TopologyWindow {
     root: FactoryVecDeque<TopologyItem>,
 }
@@ -42,6 +40,7 @@ impl relm4::SimpleComponent for TopologyWindow {
         let mut root_item = TopologyItem {
             name: root_name,
             subitems: FactoryVecDeque::builder().launch_default().detach(),
+            items_per_row: 1,
         };
 
         match topology {
@@ -70,10 +69,36 @@ fn process_intel_topology(topology: IntelTopology, items: &mut FactoryVecDeque<T
     let mut subslice_num = 1;
     let mut eu_num = 1;
 
+    let mut engines_item = TopologyItem {
+        name: "Engines".to_owned(),
+        subitems: FactoryVecDeque::launch_default(),
+        items_per_row: 1,
+    };
+
+    {
+        let mut engines = engines_item.subitems.guard();
+
+        for engine in topology.engines {
+            engines.push_back(TopologyItem {
+                name: format!("{:?} engine {}", engine.class, engine.name),
+                subitems: FactoryVecDeque::launch_default(),
+                items_per_row: 4,
+            });
+        }
+    }
+    guard.push_back(engines_item);
+
+    let mut slices_item = TopologyItem {
+        name: "Slices".to_owned(),
+        subitems: FactoryVecDeque::launch_default(),
+        items_per_row: 1,
+    };
+
     for slice in topology.slices {
         let mut slice_item = TopologyItem {
             name: format!("Slice {slice_num}"),
             subitems: FactoryVecDeque::launch_default(),
+            items_per_row: 4,
         };
 
         {
@@ -83,6 +108,7 @@ fn process_intel_topology(topology: IntelTopology, items: &mut FactoryVecDeque<T
                 let mut subslice_item = TopologyItem {
                     name: format!("Subslice {subslice_num}"),
                     subitems: FactoryVecDeque::launch_default(),
+                    items_per_row: 4,
                 };
 
                 {
@@ -91,6 +117,7 @@ fn process_intel_topology(topology: IntelTopology, items: &mut FactoryVecDeque<T
                         let eu_item = TopologyItem {
                             name: format!("EU {eu_num}"),
                             subitems: FactoryVecDeque::launch_default(),
+                            items_per_row: 4,
                         };
                         subslice_subitems.push_back(eu_item);
                         eu_num += 1;
@@ -102,15 +129,18 @@ fn process_intel_topology(topology: IntelTopology, items: &mut FactoryVecDeque<T
             }
         }
 
-        guard.push_back(slice_item);
+        slices_item.subitems.guard().push_back(slice_item);
         slice_num += 1;
     }
+
+    guard.push_back(slices_item);
 }
 
 #[derive(Clone)]
 struct TopologyItem {
     name: String,
     subitems: FactoryVecDeque<TopologyItem>,
+    items_per_row: usize,
 }
 
 #[relm4::factory]
@@ -126,6 +156,7 @@ impl FactoryComponent for TopologyItem {
             set_label: Some(&self.name),
             set_margin_all: 10,
             set_expand: true,
+            set_label_align: if self.subitems.is_empty() { 0.5 } else { 0.0 },
 
             self.subitems.widget(),
         }
@@ -143,8 +174,8 @@ impl FactoryComponent for TopologyItem {
 impl Position<GridPosition, DynamicIndex> for TopologyItem {
     fn position(&self, index: &DynamicIndex) -> GridPosition {
         let index = index.current_index();
-        let x = index / ITEMS_PER_ROW;
-        let y = index % ITEMS_PER_ROW;
+        let x = index / self.items_per_row;
+        let y = index % self.items_per_row;
         GridPosition {
             column: y as i32,
             row: x as i32,

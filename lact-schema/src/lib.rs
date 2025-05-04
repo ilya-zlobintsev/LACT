@@ -317,12 +317,12 @@ pub struct IntelTopology {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IntelEngine {
+    pub name: String,
     pub class: IntelEngineClass,
-    pub engine_instance: u16,
-    pub logical_instance: u16,
+    pub instance: u16,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum IntelEngineClass {
     Render,
     Copy,
@@ -330,6 +330,19 @@ pub enum IntelEngineClass {
     VideoEnhance,
     Compute,
     Invalid,
+}
+
+impl From<u16> for IntelEngineClass {
+    fn from(value: u16) -> Self {
+        match value {
+            0 => IntelEngineClass::Render,
+            1 => IntelEngineClass::Copy,
+            2 => IntelEngineClass::Video,
+            3 => IntelEngineClass::VideoEnhance,
+            4 => IntelEngineClass::Compute,
+            _ => IntelEngineClass::Invalid,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

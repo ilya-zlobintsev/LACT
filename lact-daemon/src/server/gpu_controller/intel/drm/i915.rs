@@ -4,12 +4,11 @@
     clippy::cast_sign_loss
 )]
 use super::DrmBox;
+use crate::bindings::intel::drm_i915_query_item;
 use crate::bindings::intel::{
     drm_i915_query, drm_i915_query_memory_regions, drm_i915_query_topology_info, DRM_COMMAND_BASE,
-    DRM_I915_QUERY_ENGINE_INFO, DRM_I915_QUERY_MEMORY_REGIONS, DRM_I915_QUERY_TOPOLOGY_INFO,
-    DRM_IOCTL_BASE,
+    DRM_I915_QUERY_MEMORY_REGIONS, DRM_I915_QUERY_TOPOLOGY_INFO, DRM_IOCTL_BASE,
 };
-use crate::bindings::intel::{drm_i915_query_engine_info, drm_i915_query_item};
 use nix::{errno::Errno, ioctl_readwrite};
 use std::{alloc, fs::File, mem, os::fd::AsRawFd, ptr};
 
@@ -58,10 +57,6 @@ pub fn query_memory_regions(
     fd: &File,
 ) -> Result<Option<DrmBox<drm_i915_query_memory_regions>>, Errno> {
     unsafe { Ok(query_item(fd.as_raw_fd(), DRM_I915_QUERY_MEMORY_REGIONS)?.0) }
-}
-
-pub fn query_engine_info(fd: &File) -> Result<Option<DrmBox<drm_i915_query_engine_info>>, Errno> {
-    unsafe { Ok(query_item(fd.as_raw_fd(), DRM_I915_QUERY_ENGINE_INFO)?.0) }
 }
 
 pub fn query_topology_info(
