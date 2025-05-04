@@ -1,20 +1,33 @@
+mod topology_window;
+
 use super::PageUpdate;
 use crate::app::{info_row::InfoRow, page_section::PageSection};
 use gtk::prelude::*;
 use lact_schema::{DeviceInfo, DeviceStats};
-use relm4::{prelude::FactoryVecDeque, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{
+    prelude::FactoryVecDeque, Component, ComponentController, ComponentParts, ComponentSender,
+    RelmWidgetExt,
+};
 use std::sync::Arc;
+use topology_window::{TopologyType, TopologyWindow};
 
 pub struct InformationPage {
     values_list: FactoryVecDeque<InfoRowItem>,
     device_info: Option<Arc<DeviceInfo>>,
     device_stats: Option<Arc<DeviceStats>>,
+    topology: Option<TopologyType>,
+}
+
+#[derive(Debug)]
+pub enum InfoPageMsg {
+    PageUpdate(PageUpdate),
+    ShowTopology,
 }
 
 #[relm4::component(pub)]
 impl relm4::SimpleComponent for InformationPage {
     type Init = ();
-    type Input = PageUpdate;
+    type Input = InfoPageMsg;
     type Output = ();
 
     view! {
@@ -30,7 +43,14 @@ impl relm4::SimpleComponent for InformationPage {
                     append = &model.values_list.widget().clone() -> gtk::Box {
                         set_spacing: 10,
                         set_orientation: gtk::Orientation::Vertical,
-                    }
+                    },
+
+                    append = &gtk::Button {
+                        set_label: "Show Topology",
+                        #[watch]
+                        set_visible: model.topology.is_some(),
+                        connect_clicked => InfoPageMsg::ShowTopology,
+                    },
                 },
             }
         }
@@ -45,6 +65,7 @@ impl relm4::SimpleComponent for InformationPage {
             values_list: FactoryVecDeque::builder().launch_default().detach(),
             device_info: None,
             device_stats: None,
+            topology: None,
         };
 
         let widgets = view_output!();
@@ -54,11 +75,30 @@ impl relm4::SimpleComponent for InformationPage {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            PageUpdate::Info(device_info) => {
+            InfoPageMsg::PageUpdate(PageUpdate::Info(device_info)) => {
+                let drm_info = device_info.drm_info.as_ref();
+
+                self.topology = drm_info
+                    .and_then(|info| info.intel.intel_topology.clone().map(TopologyType::Intel));
+
                 self.device_info = Some(device_info);
             }
-            PageUpdate::Stats(device_stats) => {
+            InfoPageMsg::PageUpdate(PageUpdate::Stats(device_stats)) => {
                 self.device_stats = Some(device_stats);
+            }
+            InfoPageMsg::ShowTopology => {
+                if let (Some(info), Some(topology)) = (&self.device_info, &self.topology) {
+                    let gpu_name = info
+                        .pci_info
+                        .as_ref()
+                        .and_then(|pci_info| pci_info.device_pci_info.model.clone())
+                        .unwrap_or_else(|| "GPU".to_owned());
+
+                    let mut window = TopologyWindow::builder()
+                        .launch((gpu_name, topology.clone()))
+                        .detach();
+                    window.detach_runtime();
+                }
             }
         }
         self.update_items();

@@ -34,7 +34,7 @@ use lact_schema::{
 };
 use msg::AppMsg;
 use pages::{
-    info_page::InformationPage,
+    info_page::{InfoPageMsg, InformationPage},
     oc_page::{OcPage, OcPageMsg},
     software_page::{SoftwarePage, SoftwarePageMsg},
     thermals_page::ThermalsPage,
@@ -467,7 +467,7 @@ impl AppModel {
         }
 
         let update = PageUpdate::Info(info.clone());
-        self.info_page.emit(update.clone());
+        self.info_page.emit(InfoPageMsg::PageUpdate(update.clone()));
         self.oc_page.emit(OcPageMsg::Update {
             update,
             initial: true,
@@ -516,7 +516,7 @@ impl AppModel {
         self.thermals_page.set_stats(&stats, true);
 
         let update = PageUpdate::Stats(stats.clone());
-        self.info_page.emit(update.clone());
+        self.info_page.emit(InfoPageMsg::PageUpdate(update.clone()));
         self.oc_page.emit(OcPageMsg::Update {
             update,
             initial: true,
