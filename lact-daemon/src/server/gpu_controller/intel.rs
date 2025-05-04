@@ -3,7 +3,12 @@ mod drm;
 use super::{CommonControllerInfo, GpuController};
 use crate::{
     bindings::intel::{
-        drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE,
+        drm_i915_gem_engine_class_I915_ENGINE_CLASS_COMPUTE,
+        drm_i915_gem_engine_class_I915_ENGINE_CLASS_COPY,
+        drm_i915_gem_engine_class_I915_ENGINE_CLASS_RENDER,
+        drm_i915_gem_engine_class_I915_ENGINE_CLASS_VIDEO,
+        drm_i915_gem_engine_class_I915_ENGINE_CLASS_VIDEO_ENHANCE,
+        drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE, drm_i915_query_topology_info,
         drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM, IntelDrm,
     },
     server::{opencl::get_opencl_info, vulkan::get_vulkan_info},
@@ -13,7 +18,8 @@ use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     config::GpuConfig, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo,
-    DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState, PowerStates,
+    DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, IntelEngine, IntelEngineClass,
+    IntelEu, IntelSlice, IntelSubslice, IntelTopology, LinkInfo, PowerState, PowerStates,
     PowerStats, VoltageStats, VramStats,
 };
 use std::{
@@ -22,6 +28,7 @@ use std::{
     fmt::{self, Display},
     fs,
     io::{BufRead, BufReader},
+    mem,
     os::{fd::AsRawFd, raw::c_int},
     path::{Path, PathBuf},
     rc::Rc,
@@ -265,9 +272,111 @@ impl IntelGpuController {
     }
 
     fn get_drm_info_i915(&self) -> IntelDrmInfo {
+        let engines = drm::i915::query_engine_info(&self.drm_file)
+            .ok()
+            .flatten()
+            .map(|engine_info| unsafe {
+                let engines = engine_info
+                    .engines
+                    .as_slice(engine_info.num_engines as usize);
+
+                engines
+                    .iter()
+                    .map(|engine| {
+                        #[allow(non_upper_case_globals)]
+                        let class = match i32::from(engine.engine.engine_class) {
+                            drm_i915_gem_engine_class_I915_ENGINE_CLASS_RENDER => {
+                                IntelEngineClass::Render
+                            }
+                            drm_i915_gem_engine_class_I915_ENGINE_CLASS_COPY => {
+                                IntelEngineClass::Copy
+                            }
+                            drm_i915_gem_engine_class_I915_ENGINE_CLASS_VIDEO => {
+                                IntelEngineClass::Video
+                            }
+                            drm_i915_gem_engine_class_I915_ENGINE_CLASS_VIDEO_ENHANCE => {
+                                IntelEngineClass::VideoEnhance
+                            }
+                            drm_i915_gem_engine_class_I915_ENGINE_CLASS_COMPUTE => {
+                                IntelEngineClass::Compute
+                            }
+                            _ => IntelEngineClass::Invalid,
+                        };
+
+                        IntelEngine {
+                            class,
+                            engine_instance: engine.engine.engine_instance,
+                            logical_instance: engine.logical_instance,
+                        }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let mut max_slices = 0;
+        let mut max_subslices = 0;
+        let mut max_eu = 0;
+
+        let slices = drm::i915::query_topology_info(&self.drm_file)
+            .ok()
+            .flatten()
+            .map(|(topology_info, response_length)| {
+                #[allow(clippy::cast_sign_loss)]
+                let data_length =
+                    response_length as usize - mem::size_of::<drm_i915_query_topology_info>();
+                let data = unsafe { topology_info.data.as_slice(data_length) };
+
+                max_slices = topology_info.max_slices;
+                max_subslices = topology_info.max_subslices;
+                max_eu = topology_info.max_eus_per_subslice;
+
+                (0..max_slices)
+                    .filter(|slice| {
+                        let slice_num = *slice as usize;
+                        (data[slice_num / 8] >> (slice_num % 8)) & 1 != 0
+                    })
+                    .map(|slice| {
+                        let subslices = (0..max_subslices)
+                            .filter(|subslice| {
+                                let addr = topology_info.subslice_offset
+                                    + slice * topology_info.subslice_stride
+                                    + subslice / 8;
+                                (data[addr as usize] >> (subslice % 8)) & 1 != 0
+                            })
+                            .map(|subslice| {
+                                let eu = (0..topology_info.max_eus_per_subslice)
+                                    .filter(|eu| {
+                                        let addr = topology_info.eu_offset
+                                            + (slice * max_subslices + subslice)
+                                                * topology_info.eu_stride
+                                            + *eu / 8;
+                                        (data[addr as usize] >> (eu % 8)) & 1 != 0
+                                    })
+                                    .map(|_| IntelEu {})
+                                    .collect();
+
+                                IntelSubslice { eu }
+                            })
+                            .collect();
+
+                        IntelSlice { subslices }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let topology = IntelTopology {
+            engines,
+            slices,
+            max_slices,
+            max_subslices,
+            max_eu,
+        };
+
         IntelDrmInfo {
             execution_units: self.drm_try(IntelDrm::drm_intel_get_eu_total),
             subslices: self.drm_try(IntelDrm::drm_intel_get_subslice_total),
+            intel_topology: Some(topology),
         }
     }
 
@@ -276,6 +385,7 @@ impl IntelGpuController {
         IntelDrmInfo {
             execution_units: None,
             subslices: None,
+            intel_topology: None,
         }
     }
 

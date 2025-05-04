@@ -303,6 +303,48 @@ pub struct NvidiaRopInfo {
 pub struct IntelDrmInfo {
     pub execution_units: Option<u32>,
     pub subslices: Option<u32>,
+    pub intel_topology: Option<IntelTopology>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IntelTopology {
+    pub engines: Vec<IntelEngine>,
+    pub max_slices: u16,
+    pub max_subslices: u16,
+    pub max_eu: u16,
+    pub slices: Vec<IntelSlice>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IntelEngine {
+    pub class: IntelEngineClass,
+    pub engine_instance: u16,
+    pub logical_instance: u16,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub enum IntelEngineClass {
+    Render,
+    Copy,
+    Video,
+    VideoEnhance,
+    Compute,
+    Invalid,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IntelSlice {
+    pub subslices: Vec<IntelSubslice>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IntelSubslice {
+    pub eu: Vec<IntelEu>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IntelEu {
+    // No information here currently, but might be filled in the future
 }
 
 #[skip_serializing_none]
