@@ -419,17 +419,42 @@ impl Header {
 
 struct GpuListItem(DeviceListEntry);
 
+struct GpuListItemWidgets {
+    name_label: gtk::Label,
+    id_label: gtk::Label,
+}
+
 impl RelmListItem for GpuListItem {
-    type Root = gtk::Label;
-    type Widgets = gtk::Label;
+    type Root = gtk::Box;
+    type Widgets = GpuListItemWidgets;
 
     fn setup(_list_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
-        let label = gtk::Label::new(None);
-        label.set_margin_all(5);
-        (label.clone(), label)
+        relm4::view! {
+            root = gtk::Box {
+                set_margin_all: 5,
+                set_orientation: gtk::Orientation::Vertical,
+
+                #[name = "name_label"]
+                gtk::Label,
+
+                #[name = "id_label"]
+                gtk::Label {
+                    add_css_class: "subtitle",
+                },
+            }
+        };
+
+        let widgets = GpuListItemWidgets {
+            name_label,
+            id_label,
+        };
+        (root, widgets)
     }
 
     fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        widgets.set_label(self.0.name.as_deref().unwrap_or(&self.0.id));
+        widgets
+            .name_label
+            .set_label(self.0.name.as_deref().unwrap_or("Unknown"));
+        widgets.id_label.set_label(&self.0.id);
     }
 }
