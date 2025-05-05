@@ -502,13 +502,13 @@ impl AmdGpuController {
                 l3_cache_mb: Some(drm_info.calc_l3_cache_size_mb()),
                 memory_info: drm_memory_info,
                 rop_info: Some(RopInfo {
-                    unit_count: drm_info.calc_rop_count(),
+                    unit_count: drm_info.rb_pipes(),
                     operations_factor: if drm_info.get_asic_name().rbplus_allowed() {
                         8
                     } else {
                         4
                     },
-                    operations_count: drm_info.rb_pipes(),
+                    operations_count: drm_info.calc_rop_count(),
                 }),
                 intel: IntelDrmInfo::default(),
             }),
