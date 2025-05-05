@@ -313,6 +313,7 @@ pub struct IntelTopology {
     pub max_subslices: u16,
     pub max_eu: u16,
     pub slices: Vec<IntelSlice>,
+    pub vram_size: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

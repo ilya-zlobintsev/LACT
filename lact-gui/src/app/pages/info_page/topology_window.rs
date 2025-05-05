@@ -49,7 +49,7 @@ impl relm4::SimpleComponent for TopologyWindow {
             }
         }
 
-        let mut root = FactoryVecDeque::launch_default();
+        let mut root = FactoryVecDeque::detach_default();
         root.guard().push_back(root_item);
 
         let model = Self { root };
@@ -71,7 +71,7 @@ fn process_intel_topology(topology: IntelTopology, items: &mut FactoryVecDeque<T
 
     let mut engines_item = TopologyItem {
         name: "Engines".to_owned(),
-        subitems: FactoryVecDeque::launch_default(),
+        subitems: FactoryVecDeque::detach_default(),
         items_per_row: 1,
     };
 
@@ -81,7 +81,7 @@ fn process_intel_topology(topology: IntelTopology, items: &mut FactoryVecDeque<T
         for engine in topology.engines {
             engines.push_back(TopologyItem {
                 name: format!("{:?} engine {}", engine.class, engine.name),
-                subitems: FactoryVecDeque::launch_default(),
+                subitems: FactoryVecDeque::detach_default(),
                 items_per_row: 4,
             });
         }
@@ -90,14 +90,14 @@ fn process_intel_topology(topology: IntelTopology, items: &mut FactoryVecDeque<T
 
     let mut slices_item = TopologyItem {
         name: "Slices".to_owned(),
-        subitems: FactoryVecDeque::launch_default(),
+        subitems: FactoryVecDeque::detach_default(),
         items_per_row: 1,
     };
 
     for slice in topology.slices {
         let mut slice_item = TopologyItem {
             name: format!("Slice {slice_num}"),
-            subitems: FactoryVecDeque::launch_default(),
+            subitems: FactoryVecDeque::detach_default(),
             items_per_row: 4,
         };
 
@@ -107,7 +107,7 @@ fn process_intel_topology(topology: IntelTopology, items: &mut FactoryVecDeque<T
             for subslice in slice.subslices {
                 let mut subslice_item = TopologyItem {
                     name: format!("Subslice {subslice_num}"),
-                    subitems: FactoryVecDeque::launch_default(),
+                    subitems: FactoryVecDeque::detach_default(),
                     items_per_row: 4,
                 };
 
@@ -116,7 +116,7 @@ fn process_intel_topology(topology: IntelTopology, items: &mut FactoryVecDeque<T
                     for _eu in subslice.eu {
                         let eu_item = TopologyItem {
                             name: format!("EU {eu_num}"),
-                            subitems: FactoryVecDeque::launch_default(),
+                            subitems: FactoryVecDeque::detach_default(),
                             items_per_row: 4,
                         };
                         subslice_subitems.push_back(eu_item);
@@ -134,6 +134,15 @@ fn process_intel_topology(topology: IntelTopology, items: &mut FactoryVecDeque<T
     }
 
     guard.push_back(slices_item);
+
+    if topology.vram_size != 0 {
+        let vram_item = TopologyItem {
+            name: format!("{} MiB VRAM", topology.vram_size / 1024 / 1024),
+            subitems: FactoryVecDeque::detach_default(),
+            items_per_row: 1,
+        };
+        guard.push_back(vram_item);
+    }
 }
 
 #[derive(Clone)]

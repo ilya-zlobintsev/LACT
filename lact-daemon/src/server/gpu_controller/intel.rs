@@ -354,6 +354,7 @@ impl IntelGpuController {
             max_slices,
             max_subslices,
             max_eu,
+            vram_size: self.get_vram_info().total,
         };
 
         IntelDrmInfo {

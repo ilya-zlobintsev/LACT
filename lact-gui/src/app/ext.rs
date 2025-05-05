@@ -23,7 +23,7 @@ impl FlowBoxExt for FlowBox {
 }
 
 pub trait RelmDefaultLauchable {
-    fn launch_default() -> Self;
+    fn detach_default() -> Self;
 }
 
 impl<T, R> RelmDefaultLauchable for FactoryVecDeque<T>
@@ -31,7 +31,7 @@ where
     T: FactoryComponent<Index = DynamicIndex, ParentWidget = R>,
     R: Default + FactoryView,
 {
-    fn launch_default() -> Self {
+    fn detach_default() -> Self {
         Self::builder().launch_default().detach()
     }
 }
