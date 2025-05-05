@@ -1,12 +1,11 @@
-use gtk::prelude::{FrameExt, GtkWindowExt};
+use crate::app::ext::RelmDefaultLauchable;
+use gtk::prelude::{FrameExt, GtkWindowExt, WidgetExt};
 use lact_schema::IntelTopology;
 use relm4::{
     factory::{positions::GridPosition, CloneableFactoryComponent, Position},
     prelude::{DynamicIndex, FactoryComponent, FactoryVecDeque},
     ComponentParts, ComponentSender, RelmWidgetExt,
 };
-
-use crate::app::ext::RelmDefaultLauchable;
 
 pub struct TopologyWindow {
     root: FactoryVecDeque<TopologyItem>,
@@ -28,7 +27,15 @@ impl relm4::SimpleComponent for TopologyWindow {
             set_hide_on_close: true,
             set_title: Some("GPU Topology"),
 
-            model.root.widget(),
+            gtk::ScrolledWindow {
+                set_policy: (gtk::PolicyType::Automatic, gtk::PolicyType::Automatic),
+                set_max_content_height: 700,
+                set_max_content_width: 1300,
+                set_propagate_natural_height: true,
+                set_propagate_natural_width: true,
+
+                model.root.widget(),
+            },
         }
     }
 
@@ -164,7 +171,7 @@ impl FactoryComponent for TopologyItem {
         gtk::Frame {
             set_label: Some(&self.name),
             set_margin_all: 10,
-            set_expand: true,
+            set_hexpand: true,
             set_label_align: if self.subitems.is_empty() { 0.5 } else { 0.0 },
 
             self.subitems.widget(),
