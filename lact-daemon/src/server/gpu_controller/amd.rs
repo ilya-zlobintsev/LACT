@@ -18,7 +18,7 @@ use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
-    LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
+    LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, RopInfo, VoltageStats, VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottleStatus, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE};
@@ -501,7 +501,15 @@ impl AmdGpuController {
                 l2_cache: Some(drm_info.calc_l2_cache_size()),
                 l3_cache_mb: Some(drm_info.calc_l3_cache_size_mb()),
                 memory_info: drm_memory_info,
-                rop_info: None,
+                rop_info: Some(RopInfo {
+                    unit_count: drm_info.calc_rop_count(),
+                    operations_factor: if drm_info.get_asic_name().rbplus_allowed() {
+                        8
+                    } else {
+                        4
+                    },
+                    operations_count: drm_info.rb_pipes(),
+                }),
                 intel: IntelDrmInfo::default(),
             }),
             None => None,
