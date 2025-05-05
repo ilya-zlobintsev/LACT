@@ -20,6 +20,34 @@ expression: device_info
   "info": {
     "driver": "i915",
     "drm_info": {
+      "intel_topology": {
+        "engines": [
+          {
+            "class": "Render",
+            "instance": 0,
+            "name": "rcs0"
+          },
+          {
+            "class": "Copy",
+            "instance": 0,
+            "name": "bcs0"
+          },
+          {
+            "class": "Video",
+            "instance": 0,
+            "name": "vcs0"
+          },
+          {
+            "class": "VideoEnhance",
+            "instance": 0,
+            "name": "vecs0"
+          }
+        ],
+        "max_eu": 0,
+        "max_slices": 0,
+        "max_subslices": 0,
+        "slices": []
+      },
       "memory_info": {
         "cpu_accessible_total": 0,
         "cpu_accessible_used": 0,
