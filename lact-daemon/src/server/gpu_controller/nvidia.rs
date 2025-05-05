@@ -344,7 +344,7 @@ impl GpuController for NvidiaGpuController {
                     vram_vendor: driver_handle
                         .and_then(|handle| handle.get_ram_vendor().ok())
                         .map(str::to_owned),
-                    vram_bit_width: device.current_pcie_link_width().ok(),
+                    vram_bit_width: None,
                     vram_max_bw: None,
                     l1_cache_per_cu: None,
                     l2_cache: driver_handle.and_then(|handle| handle.get_l2_cache_size().ok()),

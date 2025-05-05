@@ -34,7 +34,7 @@ use crate::bindings::nvidia::{
     NVOS64_PARAMETERS, NV_ESC_REGISTER_FD, NV_ESC_RM_ALLOC, NV_ESC_RM_CONTROL, NV_IOCTL_MAGIC,
 };
 use anyhow::{bail, Context};
-use lact_schema::NvidiaRopInfo;
+use lact_schema::RopInfo;
 use nix::ioctl_readwrite;
 
 pub struct DriverHandle {
@@ -132,12 +132,12 @@ impl DriverHandle {
         })
     }
 
-    pub fn get_rop_info(&self) -> anyhow::Result<NvidiaRopInfo> {
+    pub fn get_rop_info(&self) -> anyhow::Result<RopInfo> {
         unsafe {
             let mut params: NV2080_CTRL_GR_GET_ROP_INFO_PARAMS = mem::zeroed();
             self.query_rm_control(NV2080_CTRL_CMD_GR_GET_ROP_INFO, &mut params)?;
 
-            Ok(NvidiaRopInfo {
+            Ok(RopInfo {
                 unit_count: params.ropUnitCount,
                 operations_factor: params.ropOperationsFactor,
                 operations_count: params.ropOperationsCount,
