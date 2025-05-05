@@ -182,6 +182,23 @@ impl DeviceInfo {
         }
 
         if let Some(drm_info) = &self.drm_info {
+            let mut vram_type = drm_info.vram_type.clone();
+            if let Some(vram_type) = &mut vram_type {
+                if let Some(width) = drm_info.vram_bit_width {
+                    write!(vram_type, " {width}-bit").unwrap();
+                }
+
+                if let Some(bw) = &drm_info.vram_max_bw {
+                    if bw != "0" {
+                        write!(vram_type, " {bw}").unwrap();
+                    }
+                }
+
+                if let Some(vram_vendor) = &drm_info.vram_vendor {
+                    write!(vram_type, " ({vram_vendor})").unwrap();
+                }
+            }
+
             elements.extend([
                 ("GPU Family", drm_info.family_name.clone()),
                 ("ASIC Name", drm_info.asic_name.clone()),
@@ -220,9 +237,7 @@ impl DeviceInfo {
                     }),
                 ),
                 ("Instruction Set", drm_info.isa.clone()),
-                ("VRAM Type", drm_info.vram_type.clone()),
-                ("VRAM Manufacturer", drm_info.vram_vendor.clone()),
-                ("Theoretical VRAM Bandwidth", drm_info.vram_max_bw.clone()),
+                ("VRAM Type", vram_type),
                 (
                     "L1 Cache (Per CU)",
                     drm_info
@@ -285,14 +300,14 @@ pub struct DrmInfo {
     pub l1_cache_per_cu: Option<u32>,
     pub l2_cache: Option<u32>,
     pub l3_cache_mb: Option<u32>,
-    pub rop_info: Option<NvidiaRopInfo>,
+    pub rop_info: Option<RopInfo>,
     pub memory_info: Option<DrmMemoryInfo>,
     #[serde(flatten)]
     pub intel: IntelDrmInfo,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct NvidiaRopInfo {
+pub struct RopInfo {
     pub unit_count: u32,
     pub operations_factor: u32,
     pub operations_count: u32,
