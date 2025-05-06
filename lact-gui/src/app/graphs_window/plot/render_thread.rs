@@ -7,7 +7,6 @@ use gtk::gdk::MemoryTexture;
 use gtk::prelude::StyleContextExt;
 use gtk::StyleContext;
 use indexmap::IndexSet;
-use itertools::Itertools;
 use plotters::prelude::*;
 use plotters::style::colors::full_palette::DEEPORANGE_100;
 use plotters::style::text_anchor::Pos;
@@ -355,10 +354,10 @@ impl RenderRequest {
 
             chart
                 .draw_series(LineSeries::new(
-                    cubic_spline_interpolation(data).iter().flat_map(
+                    cubic_spline_interpolation(data).flat_map(
                         |((first_time, second_time), segment)| {
                             // Interpolate in intervals of one millisecond.
-                            (*first_time..*second_time).map(move |current_date| {
+                            (first_time..second_time).map(move |current_date| {
                                 (current_date, segment.evaluate(current_date))
                             })
                         },
@@ -407,7 +406,10 @@ impl RenderRequest {
                         }),
                 )
                 .context("Failed to draw throttling histogram")?
-                .label(format!("Throttling: {}", names.iter().join(",")))
+                .label(format!(
+                    "Throttling: {}",
+                    names.into_iter().collect::<Vec<_>>().join(",")
+                ))
                 .legend(move |(x, y)| {
                     let offset = 7;
                     Rectangle::new(
