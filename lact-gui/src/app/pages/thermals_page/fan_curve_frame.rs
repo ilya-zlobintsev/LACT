@@ -4,7 +4,10 @@ use crate::{
 };
 use gtk::{
     gdk,
-    prelude::{BoxExt, ButtonExt, DrawingAreaExtManual, OrientableExt, WidgetExt},
+    glib::{object::ObjectExt, SignalHandlerId},
+    prelude::{
+        AdjustmentExt, BoxExt, ButtonExt, DrawingAreaExtManual, OrientableExt, RangeExt, WidgetExt,
+    },
 };
 use lact_schema::{default_fan_curve, FanCurveMap};
 use plotters::{
@@ -22,6 +25,8 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+use super::FanSettingRow;
+
 pub const DEFAULT_TEMP_RANGE: RangeInclusive<f32> = 20.0..=115.0;
 pub const DEFAULT_SPEED_RANGE: RangeInclusive<f32> = 0.0..=1.0;
 const DEFAULT_CHANGE_THRESHOLD: u64 = 2;
@@ -34,8 +39,10 @@ pub struct FanCurveFrame {
     data: Rc<RefCell<Vec<(i32, f32)>>>,
     speed_range: Rc<RefCell<RangeInclusive<f32>>>,
     temperature_range: Rc<RefCell<RangeInclusive<f32>>>,
+
     spindown_delay_adj: OcAdjustment,
     change_threshold_adj: OcAdjustment,
+    adj_signals: Rc<[(OcAdjustment, SignalHandlerId)]>,
 
     /// Index of the point currently being dragged
     drag_point: Rc<Cell<Option<usize>>>,
@@ -47,6 +54,8 @@ pub struct FanCurveFrame {
 pub enum FanCurveFrameMsg {
     Curve {
         curve: FanCurveMap,
+        spindown_delay: Option<u64>,
+        change_threshold: Option<u64>,
         speed_range: RangeInclusive<f32>,
         temperature_range: RangeInclusive<f32>,
     },
@@ -122,7 +131,48 @@ impl relm4::Component for FanCurveFrame {
                     set_label: "Default",
                     connect_clicked => FanCurveFrameMsg::DefaultCurve,
                 },
-            }
+            },
+
+            #[template]
+            FanSettingRow {
+                #[template_child]
+                label {
+                    set_label: "Spindown Delay (ms)",
+                    set_tooltip: "How long the GPU needs to remain at a lower temperature value before ramping down the fan",
+                    set_size_group: &label_size_group,
+                },
+
+                #[template_child]
+                scale {
+                    set_adjustment: &model.spindown_delay_adj,
+                },
+
+                #[template_child]
+                spinbutton {
+                    set_adjustment: &model.spindown_delay_adj,
+                    set_size_group: &spin_size_group,
+                },
+            },
+
+            #[template]
+            FanSettingRow {
+                #[template_child]
+                label {
+                    set_label: "Speed change threshold (°C)",
+                    set_size_group: &label_size_group,
+                },
+
+                #[template_child]
+                scale {
+                    set_adjustment: &model.change_threshold_adj,
+                },
+
+                #[template_child]
+                spinbutton {
+                    set_adjustment: &model.change_threshold_adj,
+                    set_size_group: &spin_size_group,
+                },
+            },
         }
     }
 
@@ -137,29 +187,32 @@ impl relm4::Component for FanCurveFrame {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let spindown_delay_adj =
+            OcAdjustment::new(DEFAULT_SPINDOWN_DELAY_MS as f64, 0.0, 30_000.0, 10.0, 10.0);
+        let change_threshold_adj =
+            OcAdjustment::new(DEFAULT_CHANGE_THRESHOLD as f64, 0.0, 10.0, 1.0, 1.0);
+
+        let adj_signals = [&spindown_delay_adj, &change_threshold_adj].map(|adj| {
+            let signal = adj.connect_value_changed(|_| {
+                APP_BROKER.send(AppMsg::SettingsChanged);
+            });
+            (adj.clone(), signal)
+        });
+
         let model = Self {
             is_dragging: Rc::new(AtomicBool::new(false)),
             speed_range: Rc::new(RefCell::new(DEFAULT_SPEED_RANGE)),
             temperature_range: Rc::new(RefCell::new(DEFAULT_TEMP_RANGE)),
-            spindown_delay_adj: OcAdjustment::new(
-                DEFAULT_SPINDOWN_DELAY_MS as f64,
-                0.0,
-                30_000.0,
-                10.0,
-                10.0,
-            ),
-            change_threshold_adj: OcAdjustment::new(
-                DEFAULT_CHANGE_THRESHOLD as f64,
-                0.0,
-                10.0,
-                1.0,
-                1.0,
-            ),
+            spindown_delay_adj,
+            change_threshold_adj,
+            adj_signals: Rc::new(adj_signals),
             data: Rc::default(),
             drag_coord: Rc::default(),
             drag_point: Rc::default(),
         };
 
+        let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+        let spin_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         let widgets = view_output!();
 
         ComponentParts { model, widgets }
@@ -176,11 +229,27 @@ impl relm4::Component for FanCurveFrame {
             FanCurveFrameMsg::Curve {
                 curve,
                 temperature_range,
+                spindown_delay,
+                change_threshold,
                 speed_range,
             } => {
                 *self.data.borrow_mut() = curve.into_iter().collect();
                 *self.speed_range.borrow_mut() = speed_range;
                 *self.temperature_range.borrow_mut() = temperature_range;
+
+                for (adj, signal) in self.adj_signals.iter() {
+                    adj.block_signal(signal);
+                }
+
+                self.spindown_delay_adj
+                    .set_initial_value(spindown_delay.unwrap_or(0) as f64);
+                self.change_threshold_adj
+                    .set_initial_value(change_threshold.unwrap_or(0) as f64);
+
+                for (adj, signal) in self.adj_signals.iter() {
+                    adj.unblock_signal(signal);
+                }
+
                 widgets.drawing_area.queue_draw();
             }
             FanCurveFrameMsg::DragStart => {
@@ -199,18 +268,33 @@ impl relm4::Component for FanCurveFrame {
             FanCurveFrameMsg::AddPoint => {
                 let temp_range = self.temperature_range.borrow();
                 let speed_range = self.speed_range.borrow();
-                self.data
-                    .borrow_mut()
-                    .push((*temp_range.end() as i32, *speed_range.end()));
-                widgets.drawing_area.queue_draw();
+
+                self.edit_curve(
+                    |curve| {
+                        curve.push((*temp_range.end() as i32, *speed_range.end()));
+                    },
+                    widgets,
+                );
             }
             FanCurveFrameMsg::RemovePoint => {
-                self.data.borrow_mut().pop();
-                widgets.drawing_area.queue_draw();
+                self.edit_curve(
+                    |curve| {
+                        curve.pop();
+                    },
+                    widgets,
+                );
             }
             FanCurveFrameMsg::DefaultCurve => {
-                *self.data.borrow_mut() = default_fan_curve().into_iter().collect();
-                widgets.drawing_area.queue_draw();
+                self.edit_curve(
+                    |curve| {
+                        *curve = default_fan_curve().into_iter().collect();
+                    },
+                    widgets,
+                );
+                self.spindown_delay_adj
+                    .set_value(DEFAULT_SPINDOWN_DELAY_MS as f64);
+                self.change_threshold_adj
+                    .set_value(DEFAULT_CHANGE_THRESHOLD as f64);
             }
         }
         self.update_view(widgets, sender);
@@ -220,6 +304,21 @@ impl relm4::Component for FanCurveFrame {
 impl FanCurveFrame {
     pub fn get_curve(&self) -> FanCurveMap {
         self.data.borrow().iter().copied().collect()
+    }
+
+    pub fn spindown_delay(&self) -> u64 {
+        self.spindown_delay_adj.value() as u64
+    }
+
+    pub fn change_threshold(&self) -> u64 {
+        self.change_threshold_adj.value() as u64
+    }
+
+    fn edit_curve(&self, f: impl FnOnce(&mut Vec<(i32, f32)>), widgets: &FanCurveFrameWidgets) {
+        f(&mut self.data.borrow_mut());
+
+        widgets.drawing_area.queue_draw();
+        APP_BROKER.send(AppMsg::SettingsChanged);
     }
 
     fn draw_chart(&self, ctx: &cairo::Context, width: i32, height: i32, colors: PlotColorScheme) {

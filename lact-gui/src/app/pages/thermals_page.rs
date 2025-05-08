@@ -9,7 +9,7 @@ use crate::{
 use fan_curve_frame::{FanCurveFrame, FanCurveFrameMsg, DEFAULT_SPEED_RANGE, DEFAULT_TEMP_RANGE};
 use gtk::{
     glib::object::ObjectExt,
-    prelude::{BoxExt, OrientableExt},
+    prelude::{BoxExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
 };
 use lact_schema::{
     config::{FanControlSettings, FanCurve, GpuConfig},
@@ -191,6 +191,8 @@ impl relm4::Component for ThermalsPage {
 
                         self.fan_curve_frame.emit(FanCurveFrameMsg::Curve {
                             curve: stats.fan.curve.clone().unwrap_or_else(default_fan_curve),
+                            spindown_delay: stats.fan.spindown_delay_ms,
+                            change_threshold: stats.fan.change_threshold,
                             speed_range,
                             temperature_range,
                         });
@@ -218,7 +220,11 @@ impl ThermalsPage {
             match selected_page.as_str() {
                 CURVE_PAGE => {
                     fan_settings.mode = FanControlMode::Curve;
-                    fan_settings.curve = FanCurve(self.fan_curve_frame.model().get_curve());
+
+                    let fan_curve_model = self.fan_curve_frame.model();
+                    fan_settings.curve = FanCurve(fan_curve_model.get_curve());
+                    fan_settings.change_threshold = Some(fan_curve_model.change_threshold());
+                    fan_settings.spindown_delay_ms = Some(fan_curve_model.spindown_delay());
                 }
                 STATIC_PAGE => {
                     fan_settings.mode = FanControlMode::Static;
@@ -226,5 +232,33 @@ impl ThermalsPage {
                 _ => unreachable!("Invalid fan control page selected"),
             }
         }
+    }
+}
+
+#[relm4::widget_template]
+impl relm4::WidgetTemplate for FanSettingRow {
+    view! {
+        gtk::Box {
+            set_orientation: gtk::Orientation::Horizontal,
+            set_spacing: 5,
+
+            #[name = "label"]
+            gtk::Label {
+                set_xalign: 0.0,
+            },
+
+            #[name = "scale"]
+            gtk::Scale {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_hexpand: true,
+                set_digits: 0,
+                set_round_digits: 0,
+                set_value_pos: gtk::PositionType::Right,
+                set_margin_horizontal: 5,
+            },
+
+            #[name = "spinbutton"]
+            gtk::SpinButton {},
+        },
     }
 }
