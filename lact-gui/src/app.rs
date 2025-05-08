@@ -275,6 +275,11 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ReloadData { full } => {
+                self.apply_revealer
+                    .sender()
+                    .send(ApplyRevealerMsg::Hide)
+                    .unwrap();
+
                 let gpu_id = self.current_gpu_id()?;
                 if full {
                     self.update_gpu_data_full(gpu_id, sender).await?;
@@ -644,10 +649,6 @@ impl AppModel {
             .context("Could not apply settings")?;
         self.ask_settings_confirmation(delay, root, sender).await;
 
-        self.apply_revealer
-            .sender()
-            .send(ApplyRevealerMsg::Hide)
-            .unwrap();
         sender.input(AppMsg::ReloadData { full: false });
 
         Ok(())
