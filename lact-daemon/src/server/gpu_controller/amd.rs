@@ -666,6 +666,15 @@ impl GpuController for AmdGpuController {
                 }),
                 pwm_max,
                 pwm_min,
+                temperature_range: pmfw_curve
+                    .as_ref()
+                    .and_then(|curve| curve.allowed_ranges.as_ref())
+                    .map(|range| {
+                        (
+                            *range.temperature_range.start(),
+                            *range.temperature_range.end(),
+                        )
+                    }),
                 pmfw_info: PmfwInfo {
                     acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
                     acoustic_target: self.handle.get_fan_acoustic_target().ok(),

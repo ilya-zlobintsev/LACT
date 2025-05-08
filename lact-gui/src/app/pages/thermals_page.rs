@@ -6,7 +6,7 @@ use crate::{
     app::{ext::RelmDefaultLauchable, info_row::InfoRow, msg::AppMsg, page_section::PageSection},
     APP_BROKER,
 };
-use fan_curve_frame::{FanCurveFrame, FanCurveFrameMsg};
+use fan_curve_frame::{FanCurveFrame, FanCurveFrameMsg, DEFAULT_TEMP_RANGE};
 use gtk::{
     glib::object::ObjectExt,
     prelude::{BoxExt, OrientableExt},
@@ -163,7 +163,7 @@ impl relm4::Component for ThermalsPage {
                         self.selected_mode.set(page_name.to_owned());
                         widgets.stack.unblock_signal(&widgets.mode_selected_signal);
 
-                        let range = stats
+                        let speed_range = stats
                             .fan
                             .pwm_min
                             .zip(stats.fan.pwm_max)
@@ -174,9 +174,16 @@ impl relm4::Component for ThermalsPage {
                             })
                             .unwrap_or(0.0..=1.0);
 
+                        let temperature_range = stats
+                            .fan
+                            .temperature_range
+                            .map(|(start, end)| start as f32..=end as f32)
+                            .unwrap_or(DEFAULT_TEMP_RANGE);
+
                         self.fan_curve_frame.emit(FanCurveFrameMsg::Curve {
                             curve: stats.fan.curve.clone().unwrap_or_else(default_fan_curve),
-                            range,
+                            speed_range,
+                            temperature_range,
                         })
                     }
                 }

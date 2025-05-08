@@ -4,26 +4,27 @@ use crate::{
 };
 use gtk::{
     gdk,
+    graphene::Size,
     prelude::{BoxExt, DrawingAreaExtManual, OrientableExt, WidgetExt},
 };
 use lact_schema::FanCurveMap;
 use plotters::{
     chart::ChartBuilder,
     prelude::{Circle, EmptyElement, IntoDrawingArea, Text},
-    series::{LineSeries, PointSeries},
+    series::{DashedLineSeries, LineSeries, PointSeries},
     style::{full_palette::LIGHTBLUE, text_anchor::Pos, Color, ShapeStyle, TextStyle},
 };
 use plotters_cairo::CairoBackend;
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
 use std::{
     cell::{Cell, RefCell},
-    ops::{Range, RangeInclusive},
+    ops::RangeInclusive,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
 };
 
-const TEMP_RANGE: Range<f32> = 20.0..115.0;
-const SPEED_RANGE: Range<f32> = 0.0..1.0;
+pub const DEFAULT_TEMP_RANGE: RangeInclusive<f32> = 20.0..=115.0;
+pub const DEFAULT_SPEED_RANGE: RangeInclusive<f32> = 0.0..=1.0;
 
 #[derive(Clone)]
 pub struct FanCurveFrame {
@@ -31,6 +32,7 @@ pub struct FanCurveFrame {
 
     data: Rc<RefCell<Vec<(i32, f32)>>>,
     speed_range: Rc<RefCell<RangeInclusive<f32>>>,
+    temperature_range: Rc<RefCell<RangeInclusive<f32>>>,
 
     /// Index of the point currently being dragged
     drag_point: Rc<Cell<Option<usize>>>,
@@ -42,7 +44,8 @@ pub struct FanCurveFrame {
 pub enum FanCurveFrameMsg {
     Curve {
         curve: FanCurveMap,
-        range: RangeInclusive<f32>,
+        speed_range: RangeInclusive<f32>,
+        temperature_range: RangeInclusive<f32>,
     },
     DragStart,
     DragUpdate(f64, f64),
@@ -109,7 +112,8 @@ impl relm4::Component for FanCurveFrame {
     ) -> ComponentParts<Self> {
         let model = Self {
             is_dragging: Rc::new(AtomicBool::new(false)),
-            speed_range: Rc::new(RefCell::new(0.0..=100.0)),
+            speed_range: Rc::new(RefCell::new(DEFAULT_SPEED_RANGE)),
+            temperature_range: Rc::new(RefCell::new(DEFAULT_TEMP_RANGE)),
             data: Rc::default(),
             drag_coord: Rc::default(),
             drag_point: Rc::default(),
@@ -128,9 +132,14 @@ impl relm4::Component for FanCurveFrame {
         _root: &Self::Root,
     ) {
         match msg {
-            FanCurveFrameMsg::Curve { curve, range } => {
+            FanCurveFrameMsg::Curve {
+                curve,
+                temperature_range,
+                speed_range,
+            } => {
                 *self.data.borrow_mut() = curve.into_iter().collect();
-                *self.speed_range.borrow_mut() = range;
+                *self.speed_range.borrow_mut() = speed_range;
+                *self.temperature_range.borrow_mut() = temperature_range;
                 widgets.drawing_area.queue_draw();
             }
             FanCurveFrameMsg::DragStart => {
@@ -161,7 +170,14 @@ impl FanCurveFrame {
 
         let drag_coord = self.drag_coord.take();
 
-        let new_value = draw_chart(cairo_backend, &self.data.borrow(), drag_coord, colors);
+        let new_value = draw_chart(
+            cairo_backend,
+            &self.data.borrow(),
+            drag_coord,
+            colors,
+            &self.temperature_range.borrow(),
+            &self.speed_range.borrow(),
+        );
         if let Some(mut new_value) = new_value {
             let drag_point_idx = match self.drag_point.get() {
                 Some(idx) => Some(idx),
@@ -175,19 +191,19 @@ impl FanCurveFrame {
                 }
             };
             if let Some(idx) = drag_point_idx {
-                self.normalize_speed_to_range(&mut new_value.1);
+                normalize_to_range(&mut new_value.0, &self.temperature_range.borrow());
+                normalize_to_range(&mut new_value.1, &self.speed_range.borrow());
                 self.data.borrow_mut()[idx] = (new_value.0 as i32, new_value.1);
 
                 APP_BROKER.send(AppMsg::SettingsChanged);
             }
         }
     }
+}
 
-    fn normalize_speed_to_range(&self, value: &mut f32) {
-        let range = self.speed_range.borrow();
-        *value = f32::max(*value, *range.start());
-        *value = f32::min(*value, *range.end());
-    }
+fn normalize_to_range(value: &mut f32, range: &RangeInclusive<f32>) {
+    *value = f32::max(*value, *range.start());
+    *value = f32::min(*value, *range.end());
 }
 
 fn draw_chart(
@@ -195,6 +211,8 @@ fn draw_chart(
     data: &[(i32, f32)],
     translate_coord: Option<(f64, f64)>,
     colors: PlotColorScheme,
+    temp_range: &RangeInclusive<f32>,
+    speed_range: &RangeInclusive<f32>,
 ) -> Option<(f32, f32)> {
     let root = backend.into_drawing_area();
     root.fill(&colors.background).unwrap();
@@ -203,7 +221,10 @@ fn draw_chart(
         .x_label_area_size(45)
         .y_label_area_size(60)
         .margin(10)
-        .build_cartesian_2d(TEMP_RANGE, SPEED_RANGE)
+        .build_cartesian_2d(
+            *temp_range.start()..*temp_range.end(),
+            *speed_range.start()..*speed_range.end(),
+        )
         .unwrap();
 
     chart
@@ -223,10 +244,10 @@ fn draw_chart(
     chart
         .draw_series(LineSeries::new(
             data.first()
-                .map(|(_, y)| (TEMP_RANGE.start, { *y }))
+                .map(|(_, y)| (*temp_range.start(), { *y }))
                 .into_iter()
                 .chain(data.iter().map(|(x, y)| (*x as f32, *y)))
-                .chain(data.last().map(|(_, y)| (TEMP_RANGE.end, *y))),
+                .chain(data.last().map(|(_, y)| (*temp_range.end(), *y))),
             &LIGHTBLUE,
         ))
         .unwrap();
@@ -242,12 +263,18 @@ fn draw_chart(
                     + Text::new(
                         format!("{:.0}% at {}°C", coord.1 * 100.0, coord.0),
                         (
-                            match coord.0 {
-                                ..25.0 => 0,
-                                105.0.. => -75,
-                                _ => -35,
+                            if coord.0 - temp_range.start() < 5.0 {
+                                0
+                            } else if temp_range.end() - coord.0 < 5.0 {
+                                -75
+                            } else {
+                                -35
                             },
-                            if coord.1 < 0.06 { -25 } else { 15 },
+                            if coord.1 - speed_range.start() < 0.06 {
+                                -25
+                            } else {
+                                15
+                            },
                         ),
                         TextStyle {
                             font: ("sans-serif", 15).into(),
