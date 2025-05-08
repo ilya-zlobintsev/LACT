@@ -9,7 +9,8 @@ use crate::{
 use fan_curve_frame::{FanCurveFrame, FanCurveFrameMsg, DEFAULT_SPEED_RANGE, DEFAULT_TEMP_RANGE};
 use gtk::{
     glib::object::ObjectExt,
-    prelude::{BoxExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
+    prelude::{AdjustmentExt, BoxExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
+    Adjustment,
 };
 use lact_schema::{
     config::{FanControlSettings, FanCurve, GpuConfig},
@@ -30,6 +31,8 @@ pub struct ThermalsPage {
     temperatures: Option<String>,
     fan_speed: Option<String>,
     throttling: String,
+
+    static_speed_adj: Adjustment,
 
     selected_mode: StringBinding,
 }
@@ -84,7 +87,29 @@ impl relm4::Component for ThermalsPage {
                     },
                     add_titled[Some(CURVE_PAGE), "Curve"] = model.fan_curve_frame.widget(),
                     add_titled[Some(STATIC_PAGE), "Static"] = &gtk::Box {
+                        set_valign: gtk::Align::Start,
 
+                        #[template]
+                        #[name = "static_speed_row"]
+                        FanSettingRow {
+                            #[template_child]
+                            label {
+                                set_label: "Static Speed (%)",
+                            },
+
+                            #[template_child]
+                            scale {
+                                set_adjustment: &model.static_speed_adj,
+                                connect_value_changed => move |_| {
+                                    APP_BROKER.send(AppMsg::SettingsChanged);
+                                } @ static_speed_changed_signal,
+                            },
+
+                            #[template_child]
+                            spinbutton {
+                                set_adjustment: &model.static_speed_adj,
+                            },
+                        },
                     },
 
                     add_binding: (&model.selected_mode, "visible-child-name"),
@@ -108,6 +133,7 @@ impl relm4::Component for ThermalsPage {
             throttling: String::new(),
             temperatures: None,
             fan_speed: None,
+            static_speed_adj: Adjustment::new(50.0, 0.0, 100.0, 1.0, 5.0, 0.0),
             selected_mode: StringBinding::new(AUTO_PAGE),
         };
 
@@ -183,6 +209,23 @@ impl relm4::Component for ThermalsPage {
                             })
                             .unwrap_or(DEFAULT_SPEED_RANGE);
 
+                        widgets
+                            .static_speed_row
+                            .scale
+                            .block_signal(&widgets.static_speed_changed_signal);
+
+                        self.static_speed_adj
+                            .set_lower((*speed_range.start() as f64 * 100.0).round());
+                        self.static_speed_adj
+                            .set_upper((*speed_range.end() as f64 * 100.0).round());
+                        self.static_speed_adj
+                            .set_value((stats.fan.static_speed.unwrap_or(0.5) * 100.0).into());
+
+                        widgets
+                            .static_speed_row
+                            .scale
+                            .unblock_signal(&widgets.static_speed_changed_signal);
+
                         let temperature_range = stats
                             .fan
                             .temperature_range
@@ -228,6 +271,7 @@ impl ThermalsPage {
                 }
                 STATIC_PAGE => {
                     fan_settings.mode = FanControlMode::Static;
+                    fan_settings.static_speed = self.static_speed_adj.value() as f32 / 100.0;
                 }
                 _ => unreachable!("Invalid fan control page selected"),
             }
@@ -235,7 +279,7 @@ impl ThermalsPage {
     }
 }
 
-#[relm4::widget_template]
+#[relm4::widget_template(pub)]
 impl relm4::WidgetTemplate for FanSettingRow {
     view! {
         gtk::Box {

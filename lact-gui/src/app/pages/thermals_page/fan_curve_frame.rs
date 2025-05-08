@@ -242,9 +242,9 @@ impl relm4::Component for FanCurveFrame {
                 }
 
                 self.spindown_delay_adj
-                    .set_initial_value(spindown_delay.unwrap_or(0) as f64);
+                    .set_initial_value(spindown_delay.unwrap_or(DEFAULT_SPINDOWN_DELAY_MS) as f64);
                 self.change_threshold_adj
-                    .set_initial_value(change_threshold.unwrap_or(0) as f64);
+                    .set_initial_value(change_threshold.unwrap_or(DEFAULT_CHANGE_THRESHOLD) as f64);
 
                 for (adj, signal) in self.adj_signals.iter() {
                     adj.unblock_signal(signal);
