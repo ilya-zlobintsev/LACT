@@ -6,7 +6,7 @@ mod power_cap_section;
 mod power_states;
 
 use super::PageUpdate;
-use crate::app::msg::AppMsg;
+use crate::app::{ext::RelmDefaultLauchable, msg::AppMsg};
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
@@ -109,10 +109,10 @@ impl relm4::Component for OcPage {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let stats_section = GpuStatsSection::builder().launch(()).detach();
-        let power_cap_section = PowerCapSection::builder().launch(()).detach();
-        let clocks_frame = ClocksFrame::builder().launch(()).detach();
-        let power_states_frame = PowerStatesFrame::builder().launch(()).detach();
+        let stats_section = GpuStatsSection::detach_default();
+        let power_cap_section = PowerCapSection::detach_default();
+        let clocks_frame = ClocksFrame::detach_default();
+        let power_states_frame = PowerStatesFrame::detach_default();
         let performance_frame = PerformanceFrame::builder()
             .launch(())
             .forward(sender.input_sender(), |msg| msg);

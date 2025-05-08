@@ -1,4 +1,4 @@
-mod plot;
+pub mod plot;
 mod plot_component;
 pub mod stat;
 
