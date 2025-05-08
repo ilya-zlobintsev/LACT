@@ -6,8 +6,6 @@ use lact_schema::{DeviceStats, PowerStats};
 use relm4::{ComponentParts, ComponentSender};
 use std::{fmt::Write, sync::Arc};
 
-const TEMP_KEYS: &[&str] = &["junction", "edge"];
-
 pub struct GpuStatsSection {
     stats: Arc<DeviceStats>,
     vram_clock_ratio: f64,
@@ -93,33 +91,9 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
                 append = &InfoRow {
                     #[watch]
-                    set_name: {
-                        if model.stats.temps.len() <= 1 {
-                            "GPU Temperature:".to_owned()
-                        } else {
-                            let key = TEMP_KEYS.iter().copied().find(|key| {
-                                model.stats.temps.contains_key(*key)
-                            })
-                            .unwrap_or_else(|| model.stats.temps.keys().next().map(|s| s.as_str()).unwrap_or_default());
-                            format!("GPU Temperature ({key}):")
-                        }
-                    },
+                    set_name: "Temperature:",
                     #[watch]
-                    set_value: {
-                        if model.stats.temps.is_empty() {
-                            "N/A".to_owned()
-                        } else {
-                            let value = if model.stats.temps.len() == 1 {
-                                model.stats.temps.values().next().unwrap().current
-                            } else {
-                                TEMP_KEYS.iter().find_map(|key| {
-                                    model.stats.temps.get(*key).and_then(|temp| temp.current)
-                                })
-                            }
-                            .unwrap_or(0.0);
-                            format!("{value}°C")
-                        }
-                    },
+                    set_value: temperature_text(&model.stats).unwrap_or_else(|| "N/A".to_owned()),
                     set_spacing: 40,
                 },
 
@@ -254,5 +228,19 @@ pub fn throttling_text(stats: &DeviceStats) -> String {
             }
         }
         None => "Unknown".to_owned(),
+    }
+}
+
+pub fn temperature_text(stats: &DeviceStats) -> Option<String> {
+    let mut temperatures: Vec<String> = stats
+        .temps
+        .iter()
+        .filter_map(|(label, temp)| temp.current.map(|current| format!("{label}: {current}°C")))
+        .collect();
+    temperatures.sort_unstable();
+    if temperatures.is_empty() {
+        None
+    } else {
+        Some(temperatures.join(", "))
     }
 }

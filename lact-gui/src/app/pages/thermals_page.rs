@@ -1,7 +1,10 @@
 mod fan_curve_frame;
 mod pmfw_frame;
 
-use super::{oc_page::gpu_stats_section::throttling_text, PageUpdate};
+use super::{
+    oc_page::gpu_stats_section::{temperature_text, throttling_text},
+    PageUpdate,
+};
 use crate::{
     app::{ext::RelmDefaultLauchable, info_row::InfoRow, msg::AppMsg, page_section::PageSection},
     APP_BROKER,
@@ -153,21 +156,6 @@ impl relm4::Component for ThermalsPage {
             ThermalsPageMsg::Update { update, initial } => match update {
                 PageUpdate::Info(_device_info) => (),
                 PageUpdate::Stats(stats) => {
-                    let mut temperatures: Vec<String> = stats
-                        .temps
-                        .iter()
-                        .filter_map(|(label, temp)| {
-                            temp.current.map(|current| format!("{label}: {current}°C"))
-                        })
-                        .collect();
-                    temperatures.sort_unstable();
-
-                    self.temperatures = if temperatures.is_empty() {
-                        None
-                    } else {
-                        Some(temperatures.join(", "))
-                    };
-
                     let fan_percent = stats
                         .fan
                         .pwm_current
@@ -183,6 +171,7 @@ impl relm4::Component for ThermalsPage {
                     };
 
                     self.fan_speed = fan_text;
+                    self.temperatures = temperature_text(&stats);
                     self.throttling = throttling_text(&stats);
 
                     if initial {
