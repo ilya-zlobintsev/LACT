@@ -176,29 +176,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 append = &InfoRow {
                     set_name: "Throttling:",
                     #[watch]
-                    set_value: {
-                        match &model.stats.throttle_info {
-                            Some(throttle_info) => {
-                                if throttle_info.is_empty() {
-                                    "No".to_owned()
-                                } else {
-                                    let type_text: Vec<String> = throttle_info
-                                        .iter()
-                                        .map(|(throttle_type, details)| {
-                                            let mut out = throttle_type.to_string();
-                                            if !details.is_empty() {
-                                                let _ = write!(out, "({})", details.join(", "));
-                                            }
-                                            out
-                                        })
-                                        .collect();
-
-                                    type_text.join(", ")
-                                }
-                            }
-                            None => "Unknown".to_owned(),
-                        }
-                    },
+                    set_value: throttling_text(&model.stats),
                     set_spacing: 40,
                 },
             },
@@ -252,5 +230,29 @@ fn format_current_gfxclk(value: Option<u64>) -> String {
         }
     } else {
         "N/A".to_string()
+    }
+}
+
+pub fn throttling_text(stats: &DeviceStats) -> String {
+    match &stats.throttle_info {
+        Some(throttle_info) => {
+            if throttle_info.is_empty() {
+                "No".to_owned()
+            } else {
+                let type_text: Vec<String> = throttle_info
+                    .iter()
+                    .map(|(throttle_type, details)| {
+                        let mut out = throttle_type.to_string();
+                        if !details.is_empty() {
+                            let _ = write!(out, "({})", details.join(", "));
+                        }
+                        out
+                    })
+                    .collect();
+
+                type_text.join(", ")
+            }
+        }
+        None => "Unknown".to_owned(),
     }
 }

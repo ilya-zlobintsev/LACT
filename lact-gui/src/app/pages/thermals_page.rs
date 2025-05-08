@@ -1,12 +1,12 @@
 mod fan_curve_frame;
 mod pmfw_frame;
 
-use super::PageUpdate;
+use super::{oc_page::gpu_stats_section::throttling_text, PageUpdate};
 use crate::{
     app::{ext::RelmDefaultLauchable, info_row::InfoRow, msg::AppMsg, page_section::PageSection},
     APP_BROKER,
 };
-use fan_curve_frame::{FanCurveFrame, FanCurveFrameMsg, DEFAULT_TEMP_RANGE};
+use fan_curve_frame::{FanCurveFrame, FanCurveFrameMsg, DEFAULT_SPEED_RANGE, DEFAULT_TEMP_RANGE};
 use gtk::{
     glib::object::ObjectExt,
     prelude::{BoxExt, OrientableExt},
@@ -29,6 +29,7 @@ pub struct ThermalsPage {
 
     temperatures: Option<String>,
     fan_speed: Option<String>,
+    throttling: String,
 
     selected_mode: StringBinding,
 }
@@ -62,6 +63,12 @@ impl relm4::Component for ThermalsPage {
                     set_name: "Fan Speed:",
                     #[watch]
                     set_value: model.fan_speed.as_deref().unwrap_or("No fan detected"),
+                },
+
+                append = &InfoRow {
+                    set_name: "Throttling:",
+                    #[watch]
+                    set_value: model.throttling.as_str(),
                 },
             },
 
@@ -98,6 +105,7 @@ impl relm4::Component for ThermalsPage {
 
         let model = Self {
             fan_curve_frame,
+            throttling: String::new(),
             temperatures: None,
             fan_speed: None,
             selected_mode: StringBinding::new(AUTO_PAGE),
@@ -149,6 +157,7 @@ impl relm4::Component for ThermalsPage {
                     };
 
                     self.fan_speed = fan_text;
+                    self.throttling = throttling_text(&stats);
 
                     if initial {
                         let page_name = match stats.fan.control_mode {
@@ -172,7 +181,7 @@ impl relm4::Component for ThermalsPage {
                                 let max = max as f32 / f32::from(u8::MAX);
                                 min..=max
                             })
-                            .unwrap_or(0.0..=1.0);
+                            .unwrap_or(DEFAULT_SPEED_RANGE);
 
                         let temperature_range = stats
                             .fan
@@ -184,7 +193,7 @@ impl relm4::Component for ThermalsPage {
                             curve: stats.fan.curve.clone().unwrap_or_else(default_fan_curve),
                             speed_range,
                             temperature_range,
-                        })
+                        });
                     }
                 }
             },

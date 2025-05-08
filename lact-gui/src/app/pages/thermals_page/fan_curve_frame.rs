@@ -1,17 +1,16 @@
 use crate::{
-    app::{graphs_window::plot::PlotColorScheme, msg::AppMsg},
+    app::{graphs_window::plot::PlotColorScheme, msg::AppMsg, pages::oc_adjustment::OcAdjustment},
     APP_BROKER,
 };
 use gtk::{
     gdk,
-    graphene::Size,
-    prelude::{BoxExt, DrawingAreaExtManual, OrientableExt, WidgetExt},
+    prelude::{BoxExt, ButtonExt, DrawingAreaExtManual, OrientableExt, WidgetExt},
 };
-use lact_schema::FanCurveMap;
+use lact_schema::{default_fan_curve, FanCurveMap};
 use plotters::{
     chart::ChartBuilder,
     prelude::{Circle, EmptyElement, IntoDrawingArea, Text},
-    series::{DashedLineSeries, LineSeries, PointSeries},
+    series::{LineSeries, PointSeries},
     style::{full_palette::LIGHTBLUE, text_anchor::Pos, Color, ShapeStyle, TextStyle},
 };
 use plotters_cairo::CairoBackend;
@@ -25,6 +24,8 @@ use std::{
 
 pub const DEFAULT_TEMP_RANGE: RangeInclusive<f32> = 20.0..=115.0;
 pub const DEFAULT_SPEED_RANGE: RangeInclusive<f32> = 0.0..=1.0;
+const DEFAULT_CHANGE_THRESHOLD: u64 = 2;
+const DEFAULT_SPINDOWN_DELAY_MS: u64 = 5000;
 
 #[derive(Clone)]
 pub struct FanCurveFrame {
@@ -33,6 +34,8 @@ pub struct FanCurveFrame {
     data: Rc<RefCell<Vec<(i32, f32)>>>,
     speed_range: Rc<RefCell<RangeInclusive<f32>>>,
     temperature_range: Rc<RefCell<RangeInclusive<f32>>>,
+    spindown_delay_adj: OcAdjustment,
+    change_threshold_adj: OcAdjustment,
 
     /// Index of the point currently being dragged
     drag_point: Rc<Cell<Option<usize>>>,
@@ -50,6 +53,9 @@ pub enum FanCurveFrameMsg {
     DragStart,
     DragUpdate(f64, f64),
     DragEnd,
+    AddPoint,
+    RemovePoint,
+    DefaultCurve,
 }
 
 #[relm4::component(pub)]
@@ -96,6 +102,27 @@ impl relm4::Component for FanCurveFrame {
                     None
                 }.as_ref(),
             },
+
+            gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 5,
+                set_halign: gtk::Align::End,
+
+                gtk::Button {
+                    set_icon_name: "list-add-symbolic",
+                    connect_clicked => FanCurveFrameMsg::AddPoint,
+                },
+
+                gtk::Button {
+                    set_icon_name: "list-remove-symbolic",
+                    connect_clicked => FanCurveFrameMsg::RemovePoint,
+                },
+
+                gtk::Button {
+                    set_label: "Default",
+                    connect_clicked => FanCurveFrameMsg::DefaultCurve,
+                },
+            }
         }
     }
 
@@ -114,6 +141,20 @@ impl relm4::Component for FanCurveFrame {
             is_dragging: Rc::new(AtomicBool::new(false)),
             speed_range: Rc::new(RefCell::new(DEFAULT_SPEED_RANGE)),
             temperature_range: Rc::new(RefCell::new(DEFAULT_TEMP_RANGE)),
+            spindown_delay_adj: OcAdjustment::new(
+                DEFAULT_SPINDOWN_DELAY_MS as f64,
+                0.0,
+                30_000.0,
+                10.0,
+                10.0,
+            ),
+            change_threshold_adj: OcAdjustment::new(
+                DEFAULT_CHANGE_THRESHOLD as f64,
+                0.0,
+                10.0,
+                1.0,
+                1.0,
+            ),
             data: Rc::default(),
             drag_coord: Rc::default(),
             drag_point: Rc::default(),
@@ -154,6 +195,22 @@ impl relm4::Component for FanCurveFrame {
                 self.drag_coord.take();
                 self.drag_point.take();
                 self.is_dragging.store(false, Ordering::SeqCst);
+            }
+            FanCurveFrameMsg::AddPoint => {
+                let temp_range = self.temperature_range.borrow();
+                let speed_range = self.speed_range.borrow();
+                self.data
+                    .borrow_mut()
+                    .push((*temp_range.end() as i32, *speed_range.end()));
+                widgets.drawing_area.queue_draw();
+            }
+            FanCurveFrameMsg::RemovePoint => {
+                self.data.borrow_mut().pop();
+                widgets.drawing_area.queue_draw();
+            }
+            FanCurveFrameMsg::DefaultCurve => {
+                *self.data.borrow_mut() = default_fan_curve().into_iter().collect();
+                widgets.drawing_area.queue_draw();
             }
         }
         self.update_view(widgets, sender);
@@ -265,8 +322,8 @@ fn draw_chart(
                         (
                             if coord.0 - temp_range.start() < 5.0 {
                                 0
-                            } else if temp_range.end() - coord.0 < 5.0 {
-                                -75
+                            } else if temp_range.end() - coord.0 < 8.0 {
+                                -85
                             } else {
                                 -35
                             },

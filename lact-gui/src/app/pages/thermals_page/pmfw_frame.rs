@@ -200,7 +200,7 @@ pub(super) fn set_fan_info(adjustment: &OcAdjustment, info: Option<FanInfo>) {
 }
 
 fn adjustment(parent_grid: &Grid, label: &str, row: i32) -> OcAdjustment {
-    let adjustment = OcAdjustment::new(0.0, 0.0, 100.0, 1.0, 1.0, 0.0);
+    let adjustment = OcAdjustment::new(0.0, 0.0, 100.0, 1.0, 1.0);
     attach_adjustment(parent_grid, label, row, &adjustment);
     adjustment
 }

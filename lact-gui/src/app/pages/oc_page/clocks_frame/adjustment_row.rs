@@ -111,7 +111,6 @@ impl FactoryComponent for ClockAdjustmentRow {
             data.max as f64,
             1.0,
             10.0,
-            0.0,
         );
 
         let change_signal = adjustment.connect_value_changed(move |_| {
