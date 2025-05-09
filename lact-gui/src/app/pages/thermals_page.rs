@@ -318,48 +318,6 @@ impl relm4::Component for ThermalsPage {
                                     set_adjustment: &model.static_speed_adj,
                                 },
                             },
-
-                            gtk::Box {
-                                set_orientation: gtk::Orientation::Horizontal,
-                                set_spacing: 5,
-                                #[watch]
-                                set_visible: model.pmfw_options.zero_rpm_available.get(),
-
-                                gtk::Label {
-                                    set_label: "Zero RPM",
-                                    set_xalign: 0.0,
-                                    set_size_group: &label_size_group,
-                                },
-
-                                gtk::Switch {
-                                    bind: &model.pmfw_options.zero_rpm,
-                                    set_hexpand: true,
-                                    set_halign: gtk::Align::End,
-                                },
-                            },
-
-                            #[template]
-                            FanSettingRow {
-                                #[watch]
-                                set_visible: !adj_is_empty(&model.pmfw_options.zero_rpm_temperature),
-
-                                #[template_child]
-                                label {
-                                    set_label: "Zero RPM stop temperature (°C)",
-                                    set_size_group: &label_size_group,
-                                },
-
-                                #[template_child]
-                                scale {
-                                    set_adjustment: &model.pmfw_options.zero_rpm_temperature,
-                                },
-
-                                #[template_child]
-                                spinbutton {
-                                    set_adjustment: &model.pmfw_options.zero_rpm_temperature,
-                                    set_size_group: &spin_size_group,
-                                },
-                            },
                         },
 
                         add_binding: (&model.selected_mode, "visible-child-name"),
