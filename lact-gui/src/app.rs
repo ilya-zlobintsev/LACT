@@ -597,31 +597,6 @@ impl AppModel {
 
         self.thermals_page.model().apply_config(&mut gpu_config);
 
-        /*if let Some(thermals_settings) = self.thermals_page.get_thermals_settings() {
-            debug!("applying thermal settings: {thermals_settings:?}");
-            let mut fan_config = gpu_config
-                .fan_control_settings
-                .take()
-                .unwrap_or_else(FanControlSettings::default);
-
-            gpu_config.fan_control_enabled = thermals_settings.manual_fan_control;
-            gpu_config.pmfw_options = thermals_settings.pmfw;
-
-            if let Some(mode) = thermals_settings.mode {
-                fan_config.mode = mode;
-            }
-            if let Some(static_speed) = thermals_settings.static_speed {
-                fan_config.static_speed = static_speed;
-            }
-            if let Some(curve) = thermals_settings.curve {
-                fan_config.curve = FanCurve(curve);
-            }
-            fan_config.spindown_delay_ms = thermals_settings.spindown_delay_ms;
-            fan_config.change_threshold = thermals_settings.change_threshold;
-
-            gpu_config.fan_control_settings = Some(fan_config);
-        }*/
-
         let clocks_commands = self.oc_page.model().get_clocks_commands();
 
         debug!("applying clocks commands {clocks_commands:#?}");
