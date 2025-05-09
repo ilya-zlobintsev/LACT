@@ -1,4 +1,5 @@
-use super::render_thread::{PlotColorScheme, RenderRequest, RenderThread};
+use super::render_thread::{RenderRequest, RenderThread};
+use super::PlotColorScheme;
 use crate::app::graphs_window::stat::StatType;
 use crate::app::graphs_window::stat::StatsData;
 use glib::Properties;
@@ -92,7 +93,10 @@ impl Plot {
 #[cfg(feature = "bench")]
 mod benches {
     use crate::app::graphs_window::{
-        plot::render_thread::{process_request, PlotColorScheme, RenderRequest},
+        plot::{
+            render_thread::{process_request, RenderRequest},
+            PlotColorScheme,
+        },
         stat::{StatType, StatsData},
     };
     use amdgpu_sysfs::{gpu_handle::PerformanceLevel, hw_mon::Temperature};

@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 use lact_client::schema::{SystemInfo, GIT_COMMIT};
 use lact_schema::DeviceInfo;
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
-use std::{fmt::Write, rc::Rc, sync::Arc};
+use std::{fmt::Write, sync::Arc};
 use vulkan::feature_window::{VulkanFeature, VulkanFeaturesWindow};
 
 pub struct SoftwarePage {
@@ -25,7 +25,7 @@ pub enum SoftwarePageMsg {
 
 #[relm4::component(pub)]
 impl relm4::SimpleComponent for SoftwarePage {
-    type Init = (Rc<SystemInfo>, bool);
+    type Init = (SystemInfo, bool);
     type Input = SoftwarePageMsg;
     type Output = ();
 

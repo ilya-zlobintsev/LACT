@@ -12,6 +12,7 @@ use crate::{APP_ID, GUI_VERSION};
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use confirmation_dialog::ConfirmationDialog;
+use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
     glib::{self, clone, ControlFlow},
@@ -28,7 +29,7 @@ use header::{
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
     args::GuiArgs,
-    config::{FanControlSettings, FanCurve, GpuConfig},
+    config::GpuConfig,
     request::{ConfirmCommand, SetClocksCommand},
     DeviceStats, GIT_COMMIT,
 };
@@ -37,7 +38,7 @@ use pages::{
     info_page::InformationPage,
     oc_page::{OcPage, OcPageMsg},
     software_page::{SoftwarePage, SoftwarePageMsg},
-    thermals_page::ThermalsPage,
+    thermals_page::{ThermalsPage, ThermalsPageMsg},
     PageUpdate,
 };
 use relm4::{
@@ -68,7 +69,7 @@ pub struct AppModel {
 
     info_page: relm4::Controller<InformationPage>,
     oc_page: relm4::Controller<OcPage>,
-    thermals_page: ThermalsPage,
+    thermals_page: relm4::Controller<ThermalsPage>,
     software_page: relm4::Controller<SoftwarePage>,
 
     header: relm4::Controller<Header>,
@@ -88,8 +89,7 @@ impl AsyncComponent for AppModel {
         #[root]
         gtk::ApplicationWindow::builder()
             .titlebar(&gtk::HeaderBar::new())
-            .default_height(800)
-            .default_width(60)
+            .default_height(850)
             .icon_name(APP_ID)
             .title("LACT")
             .build() {
@@ -107,7 +107,7 @@ impl AsyncComponent for AppModel {
 
                         add_titled[Some("info_page"), "Information"] = model.info_page.widget(),
                         add_titled[Some("oc_page"), "OC"] = model.oc_page.widget(),
-                        add_titled[Some("thermals_page"), "Thermals"] = &model.thermals_page.container.clone(),
+                        add_titled[Some("thermals_page"), "Thermals"] = model.thermals_page.widget(),
                         add_titled[Some("software_page"), "Software"] = model.software_page.widget(),
                     },
 
@@ -170,7 +170,6 @@ impl AsyncComponent for AppModel {
             .get_system_info()
             .await
             .expect("Could not fetch system info");
-        let system_info = Rc::new(system_info);
 
         let devices = daemon_client
             .list_devices()
@@ -182,12 +181,12 @@ impl AsyncComponent for AppModel {
             sender.input(AppMsg::Error(err.into()));
         }
 
-        let info_page = InformationPage::builder().launch(()).detach();
+        let info_page = InformationPage::detach_default();
 
         let oc_page = OcPage::builder()
             .launch(system_info.clone())
             .forward(sender.input_sender(), |msg| msg);
-        let thermals_page = ThermalsPage::new(&system_info);
+        let thermals_page = ThermalsPage::builder().launch(system_info.clone()).detach();
 
         let software_page = SoftwarePage::builder()
             .launch((system_info, daemon_client.embedded))
@@ -208,15 +207,7 @@ impl AsyncComponent for AppModel {
             .launch(())
             .forward(sender.input_sender(), |msg| msg);
 
-        thermals_page.connect_reset_pmfw(clone!(
-            #[strong]
-            sender,
-            move || {
-                sender.input(AppMsg::ResetPmfw);
-            }
-        ));
-
-        let graphs_window = GraphsWindow::builder().launch(()).detach();
+        let graphs_window = GraphsWindow::detach_default();
 
         let model = AppModel {
             daemon_client,
@@ -282,6 +273,11 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ReloadData { full } => {
+                self.apply_revealer
+                    .sender()
+                    .send(ApplyRevealerMsg::Hide)
+                    .unwrap();
+
                 let gpu_id = self.current_gpu_id()?;
                 if full {
                     self.update_gpu_data_full(gpu_id, sender).await?;
@@ -327,12 +323,13 @@ impl AppModel {
             AppMsg::Stats(stats) => {
                 let update = PageUpdate::Stats(stats.clone());
                 self.oc_page.emit(OcPageMsg::Update {
-                    update,
+                    update: update.clone(),
                     initial: false,
                 });
-
-                self.thermals_page.set_stats(&stats, false);
-
+                self.thermals_page.emit(ThermalsPageMsg::Update {
+                    update: update.clone(),
+                    initial: false,
+                });
                 self.graphs_window.emit(GraphsWindowMsg::Stats {
                     stats,
                     initial: false,
@@ -469,11 +466,15 @@ impl AppModel {
         let update = PageUpdate::Info(info.clone());
         self.info_page.emit(update.clone());
         self.oc_page.emit(OcPageMsg::Update {
-            update,
+            update: update.clone(),
             initial: true,
         });
         self.software_page
             .emit(SoftwarePageMsg::DeviceInfo(info.clone()));
+        self.thermals_page.emit(ThermalsPageMsg::Update {
+            update: update.clone(),
+            initial: true,
+        });
 
         let vram_clock_ratio = info
             .drm_info
@@ -484,8 +485,6 @@ impl AppModel {
             .emit(GraphsWindowMsg::VramClockRatio(vram_clock_ratio));
 
         let stats = self.update_gpu_data(gpu_id, sender).await?;
-
-        self.thermals_page.set_info(&info);
 
         self.graphs_window.emit(GraphsWindowMsg::Stats {
             stats,
@@ -513,10 +512,12 @@ impl AppModel {
             .context("Could not fetch stats")?;
         let stats = Arc::new(stats);
 
-        self.thermals_page.set_stats(&stats, true);
-
         let update = PageUpdate::Stats(stats.clone());
         self.info_page.emit(update.clone());
+        self.thermals_page.emit(ThermalsPageMsg::Update {
+            update: update.clone(),
+            initial: true,
+        });
         self.oc_page.emit(OcPageMsg::Update {
             update,
             initial: true,
@@ -552,24 +553,6 @@ impl AppModel {
             }
             Err(err) => warn!("could not get power states: {err:?}"),
         }
-
-        // Show apply button on setting changes
-        // This is done here because new widgets may appear after applying settings (like fan curve points) which should be connected
-        let show_revealer = clone!(
-            #[strong(rename_to = apply_sender)]
-            self.apply_revealer.sender(),
-            move || {
-                apply_sender.send(ApplyRevealerMsg::Show).unwrap();
-            }
-        );
-
-        self.thermals_page
-            .connect_settings_changed(show_revealer.clone());
-
-        self.apply_revealer
-            .sender()
-            .send(ApplyRevealerMsg::Hide)
-            .unwrap();
 
         self.stats_task_handle = Some(start_stats_update_loop(
             gpu_id.to_owned(),
@@ -612,30 +595,7 @@ impl AppModel {
                 .get_power_profile_mode_custom_heuristics();
         }
 
-        if let Some(thermals_settings) = self.thermals_page.get_thermals_settings() {
-            debug!("applying thermal settings: {thermals_settings:?}");
-            let mut fan_config = gpu_config
-                .fan_control_settings
-                .take()
-                .unwrap_or_else(FanControlSettings::default);
-
-            gpu_config.fan_control_enabled = thermals_settings.manual_fan_control;
-            gpu_config.pmfw_options = thermals_settings.pmfw;
-
-            if let Some(mode) = thermals_settings.mode {
-                fan_config.mode = mode;
-            }
-            if let Some(static_speed) = thermals_settings.static_speed {
-                fan_config.static_speed = static_speed;
-            }
-            if let Some(curve) = thermals_settings.curve {
-                fan_config.curve = FanCurve(curve);
-            }
-            fan_config.spindown_delay_ms = thermals_settings.spindown_delay_ms;
-            fan_config.change_threshold = thermals_settings.change_threshold;
-
-            gpu_config.fan_control_settings = Some(fan_config);
-        }
+        self.thermals_page.model().apply_config(&mut gpu_config);
 
         let clocks_commands = self.oc_page.model().get_clocks_commands();
 
@@ -1057,7 +1017,7 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
             AppMsg::ask_confirmation(
                 AppMsg::DisableOverdrive,
                 "Disable Overclocking",
-                "This will disable overclocking support on next reboot.",
+                "This will disable AMD overclocking support (overdrive) on next reboot.",
                 gtk::ButtonsType::OkCancel,
             )
         ),

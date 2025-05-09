@@ -1,14 +1,12 @@
 use super::cubic_spline::cubic_spline_interpolation;
 use super::to_texture_ext::ToTextureExt;
+use super::PlotColorScheme;
 use crate::app::graphs_window::stat::{StatType, StatsData};
 use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
 use gtk::gdk::MemoryTexture;
-use gtk::prelude::StyleContextExt;
-use gtk::StyleContext;
 use indexmap::IndexSet;
 use plotters::prelude::*;
-use plotters::style::colors::full_palette::DEEPORANGE_100;
 use plotters::style::text_anchor::Pos;
 use plotters_cairo::CairoBackend;
 use std::cmp::{self, max};
@@ -36,67 +34,6 @@ pub struct RenderRequest {
     pub supersample_factor: u32,
 
     pub time_period_seconds: i64,
-}
-
-#[derive(Debug)]
-pub struct PlotColorScheme {
-    pub background: RGBAColor,
-    pub text: RGBAColor,
-    pub border: RGBAColor,
-    pub border_secondary: RGBAColor,
-    pub throttling: RGBAColor,
-}
-
-impl Default for PlotColorScheme {
-    fn default() -> Self {
-        Self {
-            background: WHITE.into(),
-            text: BLACK.into(),
-            border: BLACK.mix(0.8),
-            border_secondary: BLACK.mix(0.5),
-            throttling: DEEPORANGE_100.into(),
-        }
-    }
-}
-
-impl PlotColorScheme {
-    pub fn from_context(ctx: &StyleContext) -> Option<Self> {
-        let background = lookup_color(
-            ctx,
-            &["theme_base_color", "theme_bg_color", "view_bg_color"],
-        )?;
-        let text = lookup_color(ctx, &["theme_text_color"])?;
-        let border = lookup_color(ctx, &["borders"])?;
-        let border_secondary = lookup_color(ctx, &["unfocused_borders"])?;
-        let mut throttling = lookup_color(ctx, &["theme_unfocused_fg_color"])?;
-        throttling.3 = 0.5;
-
-        Some(PlotColorScheme {
-            background,
-            text,
-            border,
-            border_secondary,
-            throttling,
-        })
-    }
-}
-
-fn lookup_color(ctx: &StyleContext, names: &[&str]) -> Option<RGBAColor> {
-    for name in names {
-        if let Some(color) = ctx.lookup_color(name) {
-            return Some(gtk_to_plotters_color(color));
-        }
-    }
-    None
-}
-
-fn gtk_to_plotters_color(color: gtk::gdk::RGBA) -> RGBAColor {
-    RGBAColor(
-        (color.blue() * u8::MAX as f32) as u8,
-        (color.green() * u8::MAX as f32) as u8,
-        (color.red() * u8::MAX as f32) as u8,
-        color.alpha() as f64,
-    )
 }
 
 #[derive(Default)]

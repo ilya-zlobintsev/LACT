@@ -1,12 +1,11 @@
 mod clocks_frame;
-mod gpu_stats_section;
+pub mod gpu_stats_section;
 mod performance_frame;
 mod power_cap_section;
-// mod power_profile;
 mod power_states;
 
 use super::PageUpdate;
-use crate::app::msg::AppMsg;
+use crate::app::{ext::RelmDefaultLauchable, msg::AppMsg};
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
@@ -22,14 +21,14 @@ use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
-use std::{collections::HashMap, rc::Rc, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 const OVERCLOCKING_DISABLED_TEXT: &str = "AMD Overclocking support is not enabled! \
 You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
 
 pub struct OcPage {
     stats_section: relm4::Controller<GpuStatsSection>,
-    system_info: Rc<SystemInfo>,
+    system_info: SystemInfo,
     device_info: Option<Arc<DeviceInfo>>,
 
     performance_frame: relm4::Controller<PerformanceFrame>,
@@ -49,7 +48,7 @@ pub enum OcPageMsg {
 
 #[relm4::component(pub)]
 impl relm4::Component for OcPage {
-    type Init = Rc<SystemInfo>;
+    type Init = SystemInfo;
     type Input = OcPageMsg;
     type Output = AppMsg;
     type CommandOutput = ();
@@ -109,10 +108,10 @@ impl relm4::Component for OcPage {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let stats_section = GpuStatsSection::builder().launch(()).detach();
-        let power_cap_section = PowerCapSection::builder().launch(()).detach();
-        let clocks_frame = ClocksFrame::builder().launch(()).detach();
-        let power_states_frame = PowerStatesFrame::builder().launch(()).detach();
+        let stats_section = GpuStatsSection::detach_default();
+        let power_cap_section = PowerCapSection::detach_default();
+        let clocks_frame = ClocksFrame::detach_default();
+        let power_states_frame = PowerStatesFrame::detach_default();
         let performance_frame = PerformanceFrame::builder()
             .launch(())
             .forward(sender.input_sender(), |msg| msg);

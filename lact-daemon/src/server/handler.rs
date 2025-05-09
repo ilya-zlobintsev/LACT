@@ -297,29 +297,35 @@ impl<'a> Handler {
             ));
         }
 
-        let (gpu_config, apply_timer) = {
+        let (previous_config, apply_timer) = {
             let config = self.config.read().await;
             let apply_timer = config.apply_settings_timer;
             let gpu_config = config.gpus()?.get(&id).cloned().unwrap_or_default();
             (gpu_config, apply_timer)
         };
 
-        let mut new_config = gpu_config.clone();
+        let mut new_config = previous_config.clone();
         f(&mut new_config);
 
         let controller = self.controller_by_id(&id).await?;
 
         match controller.apply_config(&new_config).await {
             Ok(()) => {
-                self.wait_config_confirm(id, gpu_config, new_config, apply_timer)?;
+                self.config
+                    .write()
+                    .await
+                    .gpus_mut()?
+                    .insert(id.clone(), new_config);
+                self.wait_config_confirm(id, previous_config, apply_timer)?;
+
                 Ok(apply_timer)
             }
             Err(apply_err) => {
                 error!("could not apply settings: {apply_err:?}");
-                match controller.apply_config(&gpu_config).await {
+                match controller.apply_config(&previous_config).await {
                     Ok(()) => Err(apply_err.context("Could not apply settings")),
                     Err(err) => Err(apply_err.context(err.context(
-                        "Could not apply settings, and could not reset to default settings",
+                        "Could not apply settings, and could not reset to previous settings",
                     ))),
                 }
             }
@@ -331,7 +337,6 @@ impl<'a> Handler {
         &self,
         id: String,
         previous_config: GpuConfig,
-        new_config: GpuConfig,
         apply_timer: u64,
     ) -> anyhow::Result<()> {
         let (tx, rx) = oneshot::channel();
@@ -361,19 +366,21 @@ impl<'a> Handler {
                         Ok(ConfirmCommand::Confirm) => {
                             info!("saving updated config");
 
-                            let mut config_guard = handler.config.write().await;
-                            match config_guard.gpus_mut() {
-                                Ok(gpus) => {
-                                    gpus.insert(id, new_config);
-                                }
-                                Err(err) => error!("{err:#}"),
-                            }
-
-                            if let Err(err) = config_guard.save(&handler.config_last_saved) {
+                            if let Err(err) = handler.config.read().await.save(&handler.config_last_saved) {
                                 error!("{err:#}");
                             }
                         }
                         Ok(ConfirmCommand::Revert) | Err(_) => {
+                            let mut config_guard = handler.config.write().await;
+                            match config_guard.gpus_mut() {
+                                Ok(gpus) => {
+                                    gpus.insert(id, previous_config.clone());
+                                }
+                                Err(err) => {
+                                    error!("could not revert config: {err}") ;
+                                }
+                            }
+
                             if let Err(err) = controller.apply_config(&previous_config).await {
                                 error!("could not revert settings: {err:#}");
                             }

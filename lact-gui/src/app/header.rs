@@ -147,7 +147,7 @@ impl Component for Header {
                 "Dump VBIOS" => DumpVBios,
             } ,
             section! {
-                "Disable overclocking support" => DisableOverdrive,
+                "Disable AMD overclocking support" => DisableOverdrive,
                 "Reset all configuration" => ResetConfig,
             }
         }
