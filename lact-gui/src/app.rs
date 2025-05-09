@@ -171,7 +171,6 @@ impl AsyncComponent for AppModel {
             .get_system_info()
             .await
             .expect("Could not fetch system info");
-        let system_info = Rc::new(system_info);
 
         let devices = daemon_client
             .list_devices()
@@ -188,7 +187,7 @@ impl AsyncComponent for AppModel {
         let oc_page = OcPage::builder()
             .launch(system_info.clone())
             .forward(sender.input_sender(), |msg| msg);
-        let thermals_page = ThermalsPage::detach_default();
+        let thermals_page = ThermalsPage::builder().launch(system_info.clone()).detach();
 
         let software_page = SoftwarePage::builder()
             .launch((system_info, daemon_client.embedded))

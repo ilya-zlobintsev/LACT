@@ -61,7 +61,7 @@ pub fn default_fan_curve() -> FanCurveMap {
 pub struct Pong;
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemInfo {
     pub version: String,
     pub commit: Option<String>,

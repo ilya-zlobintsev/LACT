@@ -17,7 +17,7 @@ use plotters::{
     style::{full_palette::LIGHTBLUE, text_anchor::Pos, Color, ShapeStyle, TextStyle},
 };
 use plotters_cairo::CairoBackend;
-use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{binding::ConnectBinding, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::{
     cell::{Cell, RefCell},
     ops::RangeInclusive,
@@ -25,7 +25,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use super::FanSettingRow;
+use super::{adj_is_empty, FanSettingRow, PmfwOptions};
 
 pub const DEFAULT_TEMP_RANGE: RangeInclusive<f32> = 20.0..=115.0;
 pub const DEFAULT_SPEED_RANGE: RangeInclusive<f32> = 0.0..=1.0;
@@ -33,8 +33,8 @@ const DEFAULT_CHANGE_THRESHOLD: u64 = 2;
 const DEFAULT_SPINDOWN_DELAY_MS: u64 = 5000;
 
 #[derive(Clone)]
-pub struct FanCurveFrame {
-    is_dragging: Rc<AtomicBool>,
+pub(super) struct FanCurveFrame {
+    pmfw_options: PmfwOptions,
 
     data: Rc<RefCell<Vec<(i32, f32)>>>,
     speed_range: Rc<RefCell<RangeInclusive<f32>>>,
@@ -44,6 +44,7 @@ pub struct FanCurveFrame {
     change_threshold_adj: OcAdjustment,
     adj_signals: Rc<[(OcAdjustment, SignalHandlerId)]>,
 
+    is_dragging: Rc<AtomicBool>,
     /// Index of the point currently being dragged
     drag_point: Rc<Cell<Option<usize>>>,
     /// Where the point was last moved to
@@ -51,7 +52,7 @@ pub struct FanCurveFrame {
 }
 
 #[derive(Debug)]
-pub enum FanCurveFrameMsg {
+pub(super) enum FanCurveFrameMsg {
     Curve {
         curve: FanCurveMap,
         spindown_delay: Option<u64>,
@@ -69,7 +70,7 @@ pub enum FanCurveFrameMsg {
 
 #[relm4::component(pub)]
 impl relm4::Component for FanCurveFrame {
-    type Init = ();
+    type Init = PmfwOptions;
     type Input = FanCurveFrameMsg;
     type Output = ();
     type CommandOutput = ();
@@ -82,6 +83,7 @@ impl relm4::Component for FanCurveFrame {
             #[name = "drawing_area"]
             gtk::DrawingArea {
                 set_expand: true,
+                set_height_request: 350,
                 set_draw_func[model = model.clone()] => move |area, ctx, width, height| {
                     let style_context = area.style_context();
                     let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
@@ -173,6 +175,48 @@ impl relm4::Component for FanCurveFrame {
                     set_size_group: &spin_size_group,
                 },
             },
+
+            gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 5,
+                #[watch]
+                set_visible: model.pmfw_options.zero_rpm_available.get(),
+
+                gtk::Label {
+                    set_label: "Zero RPM",
+                    set_xalign: 0.0,
+                    set_size_group: &label_size_group,
+                },
+
+                gtk::Switch {
+                    bind: &model.pmfw_options.zero_rpm,
+                    set_hexpand: true,
+                    set_halign: gtk::Align::End,
+                },
+            },
+
+            #[template]
+            FanSettingRow {
+                #[watch]
+                set_visible: !adj_is_empty(&model.pmfw_options.zero_rpm_temperature),
+
+                #[template_child]
+                label {
+                    set_label: "Zero RPM stop temperature (°C)",
+                    set_size_group: &label_size_group,
+                },
+
+                #[template_child]
+                scale {
+                    set_adjustment: &model.pmfw_options.zero_rpm_temperature,
+                },
+
+                #[template_child]
+                spinbutton {
+                    set_adjustment: &model.pmfw_options.zero_rpm_temperature,
+                    set_size_group: &spin_size_group,
+                },
+            },
         }
     }
 
@@ -183,7 +227,7 @@ impl relm4::Component for FanCurveFrame {
     }
 
     fn init(
-        _init: Self::Init,
+        pmfw_options: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -200,6 +244,7 @@ impl relm4::Component for FanCurveFrame {
         });
 
         let model = Self {
+            pmfw_options,
             is_dragging: Rc::new(AtomicBool::new(false)),
             speed_range: Rc::new(RefCell::new(DEFAULT_SPEED_RANGE)),
             temperature_range: Rc::new(RefCell::new(DEFAULT_TEMP_RANGE)),
