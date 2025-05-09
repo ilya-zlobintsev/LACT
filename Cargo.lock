@@ -313,8 +313,7 @@ dependencies = [
 [[package]]
 name = "cl3"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a50168bca6baeb04c8aec60adba5917221034d96275f6b199be66a3969519f1"
+source = "git+https://github.com/kenba/cl3?branch=develop#cb019aac330ab8243804be02b7183a1c5a211caa"
 dependencies = [
  "dlopen2",
  "libc",

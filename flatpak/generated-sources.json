@@ -1,6 +1,12 @@
 [
     {
         "type": "git",
+        "url": "https://github.com/kenba/cl3",
+        "commit": "cb019aac330ab8243804be02b7183a1c5a211caa",
+        "dest": "flatpak-cargo/git/cl3-cb019aa"
+    },
+    {
+        "type": "git",
         "url": "https://gitlab.com/corectrl/copes",
         "commit": "1bc002a030345787f0e11e0317975a2e4f2a22ee",
         "dest": "flatpak-cargo/git/copes-1bc002a"
@@ -441,16 +447,21 @@
         "dest-filename": ".cargo-checksum.json"
     },
     {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/cl3/cl3-0.13.0.crate",
-        "sha256": "0a50168bca6baeb04c8aec60adba5917221034d96275f6b199be66a3969519f1",
-        "dest": "cargo/vendor/cl3-0.13.0"
+        "type": "shell",
+        "commands": [
+            "cp -r --reflink=auto \"flatpak-cargo/git/cl3-cb019aa/.\" \"cargo/vendor/cl3\""
+        ]
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"0a50168bca6baeb04c8aec60adba5917221034d96275f6b199be66a3969519f1\", \"files\": {}}",
-        "dest": "cargo/vendor/cl3-0.13.0",
+        "contents": "[[example]]\nname = \"clinfo\"\npath = \"examples/clinfo.rs\"\n\n[package]\nname = \"cl3\"\nversion = \"0.13.0\"\nauthors = [ \"Ken Barker <ken.barker@via-technology.aero>\",]\ndescription = \"A Rust implementation of the Khronos OpenCL 3.0 API and extensions.\"\ndocumentation = \"https://docs.rs/cl3/\"\nhomepage = \"https://github.com/kenba/cl3\"\nrepository = \"https://github.com/kenba/cl3\"\nreadme = \"README.md\"\nkeywords = [ \"opencl\", \"gpu\", \"gpgpu\", \"ffi\", \"api\",]\ncategories = [ \"api-bindings\", \"asynchronous\", \"external-ffi-bindings\",]\nlicense = \"Apache-2.0\"\nedition = \"2024\"\n\n[features]\nstatic = [ \"opencl-sys/static\",]\nCL_VERSION_1_1 = [ \"opencl-sys/CL_VERSION_1_1\",]\nCL_VERSION_1_2 = [ \"opencl-sys/CL_VERSION_1_2\",]\nCL_VERSION_2_0 = [ \"opencl-sys/CL_VERSION_2_0\",]\nCL_VERSION_2_1 = [ \"opencl-sys/CL_VERSION_2_1\",]\nCL_VERSION_2_2 = [ \"opencl-sys/CL_VERSION_2_2\",]\nCL_VERSION_3_0 = [ \"opencl-sys/CL_VERSION_3_0\",]\ncl_apple_setmemobjectdestructor = [ \"opencl-sys/cl_apple_setmemobjectdestructor\",]\ncl_apple_contextloggingfunctions = [ \"opencl-sys/cl_apple_contextloggingfunctions\",]\ncl_khr_icd = [ \"opencl-sys/cl_khr_icd\",]\ncl_khr_il_program = [ \"opencl-sys/cl_khr_il_program\",]\ncl_khr_terminate_context = [ \"opencl-sys/cl_khr_terminate_context\",]\ncl_khr_create_command_queue = [ \"opencl-sys/cl_khr_create_command_queue\",]\ncl_ext_device_fission = [ \"opencl-sys/cl_ext_device_fission\",]\ncl_ext_migrate_memobject = [ \"opencl-sys/cl_ext_migrate_memobject\",]\ncl_qcom_ext_host_ptr = [ \"opencl-sys/cl_qcom_ext_host_ptr\",]\ncl_img_use_gralloc_ptr = [ \"opencl-sys/cl_img_use_gralloc_ptr\",]\ncl_img_generate_mipmap = [ \"opencl-sys/cl_img_generate_mipmap\",]\ncl_khr_subgroups = [ \"opencl-sys/cl_khr_subgroups\",]\ncl_khr_suggested_local_work_size = [ \"opencl-sys/cl_khr_suggested_local_work_size\",]\ncl_khr_external_memory = [ \"opencl-sys/cl_khr_external_memory\",]\ncl_khr_external_semaphore = [ \"opencl-sys/cl_khr_external_semaphore\",]\ncl_khr_external_semaphore_sync_fd = [ \"opencl-sys/cl_khr_external_semaphore_sync_fd\",]\ncl_khr_semaphore = [ \"opencl-sys/cl_khr_semaphore\",]\ncl_arm_import_memory = [ \"opencl-sys/cl_arm_import_memory\",]\ncl_arm_shared_virtual_memory = [ \"opencl-sys/cl_arm_shared_virtual_memory\",]\ncl_intel_accelerator = [ \"opencl-sys/cl_intel_accelerator\",]\ncl_intel_unified_shared_memory = [ \"opencl-sys/cl_intel_unified_shared_memory\",]\ncl_intel_create_buffer_with_properties = [ \"opencl-sys/cl_intel_create_buffer_with_properties\",]\ncl_intel_program_scope_host_pipe = [ \"opencl-sys/cl_intel_program_scope_host_pipe\",]\ncl_ext_image_requirements_info = [ \"opencl-sys/cl_ext_image_requirements_info\",]\ncl_khr_command_buffer = [ \"opencl-sys/cl_khr_command_buffer\",]\ncl_khr_command_buffer_multi_device = [ \"opencl-sys/cl_khr_command_buffer_multi_device\",]\ncl_khr_command_buffer_mutable_dispatch = [ \"opencl-sys/cl_khr_command_buffer_mutable_dispatch\",]\ncl_khr_gl_sharing = [ \"opencl-sys/cl_khr_gl_sharing\",]\ncl_khr_gl_event = [ \"opencl-sys/cl_khr_gl_event\",]\ncl_khr_egl_image = [ \"opencl-sys/cl_khr_egl_image\",]\ncl_khr_egl_event = [ \"opencl-sys/cl_khr_egl_event\",]\ncl_khr_dx9_media_sharing = [ \"opencl-sys/cl_khr_dx9_media_sharing\",]\ncl_intel_dx9_media_sharing = [ \"opencl-sys/cl_intel_dx9_media_sharing\",]\ncl_khr_d3d10_sharing = [ \"opencl-sys/cl_khr_d3d10_sharing\",]\ncl_khr_d3d11_sharing = [ \"opencl-sys/cl_khr_d3d11_sharing\",]\ncl_loader_info = [ \"opencl-sys/cl_loader_info\",]\ncl_pocl_content_size = [ \"opencl-sys/cl_pocl_content_size\",]\ncl_ext_buffer_device_address = [ \"opencl-sys/cl_ext_buffer_device_address\",]\ncl_loader_layers = [ \"opencl-sys/cl_loader_layers\",]\ncl_img_cancel_command = [ \"opencl-sys/cl_img_cancel_command\",]\ncl_qcom_perf_hint = [ \"opencl-sys/cl_qcom_perf_hint\",]\ndynamic = []\ndefault = [ \"dynamic\",]\n\n[dependencies]\ndlopen2 = \"0.7\"\nlibc = \"0.2\"\nopencl-sys = \"0.6\"\nthiserror = \"2.0\"\n\n[lints.clippy]\nenum_glob_use = \"deny\"\nmissing_errors_doc = \"allow\"\nmodule_name_repetitions = \"allow\"\nunwrap_used = \"deny\"\n\n[lints.clippy.nursery]\nlevel = \"deny\"\npriority = -1\n\n[lints.clippy.pedantic]\nlevel = \"deny\"\npriority = -1\n",
+        "dest": "cargo/vendor/cl3",
+        "dest-filename": "Cargo.toml"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": null, \"files\": {}}",
+        "dest": "cargo/vendor/cl3",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -1613,19 +1624,6 @@
         "type": "inline",
         "contents": "{\"package\": \"7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf\", \"files\": {}}",
         "dest": "cargo/vendor/is_terminal_polyfill-1.70.1",
-        "dest-filename": ".cargo-checksum.json"
-    },
-    {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/itertools/itertools-0.14.0.crate",
-        "sha256": "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285",
-        "dest": "cargo/vendor/itertools-0.14.0"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": \"2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285\", \"files\": {}}",
-        "dest": "cargo/vendor/itertools-0.14.0",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -4188,7 +4186,7 @@
     },
     {
         "type": "inline",
-        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://gitlab.com/corectrl/copes\"]\ngit = \"https://gitlab.com/corectrl/copes\"\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/ilya-zlobintsev/nvml-wrapper\"]\ngit = \"https://github.com/ilya-zlobintsev/nvml-wrapper\"\nreplace-with = \"vendored-sources\"\nbranch = \"feature/pstate-wrappers\"\n",
+        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/kenba/cl3\"]\ngit = \"https://github.com/kenba/cl3\"\nreplace-with = \"vendored-sources\"\nbranch = \"develop\"\n\n[source.\"https://gitlab.com/corectrl/copes\"]\ngit = \"https://gitlab.com/corectrl/copes\"\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/ilya-zlobintsev/nvml-wrapper\"]\ngit = \"https://github.com/ilya-zlobintsev/nvml-wrapper\"\nreplace-with = \"vendored-sources\"\nbranch = \"feature/pstate-wrappers\"\n",
         "dest": "cargo",
         "dest-filename": "config"
     }

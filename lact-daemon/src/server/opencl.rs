@@ -14,7 +14,11 @@ use lact_schema::OpenCLInfo;
 use std::ffi::c_void;
 use tracing::error;
 
+#[cfg_attr(test, allow(unreachable_code, unused_variables))]
 pub fn get_opencl_info(info: &CommonControllerInfo) -> Option<OpenCLInfo> {
+    #[cfg(test)]
+    return None;
+
     match try_get_opencl_info(info) {
         Ok(info) => info,
         Err(err) => {

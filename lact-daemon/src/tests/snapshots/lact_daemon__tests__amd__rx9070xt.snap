@@ -444,7 +444,11 @@ expression: device_info
       },
       "pwm_max": 254,
       "pwm_min": 76,
-      "speed_current": 0
+      "speed_current": 0,
+      "temperature_range": [
+        25,
+        100
+      ]
     },
     "memory_power_state": 0,
     "performance_level": "auto",

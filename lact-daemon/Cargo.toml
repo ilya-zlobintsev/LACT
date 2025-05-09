@@ -47,7 +47,9 @@ notify = { version = "8.0.0", default-features = false }
 copes = { git = "https://gitlab.com/corectrl/copes" }
 libloading = "0.8.6"
 tempfile = "3.17.1"
-cl3 = { version = "0.13.0", features = ["static"] }
+cl3 = { git = "https://github.com/kenba/cl3", branch = "develop", features = [
+    "static",
+] }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
