@@ -1,6 +1,6 @@
 metadata:
   name: lact-headless
-  description: AMDGPU control utility
+  description: GPU control utility
   arch: x86_64
   license: MIT
   version: 0.7.4

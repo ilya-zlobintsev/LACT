@@ -30,7 +30,7 @@ Do you wish to install the service?" \
 
         UNIT="\
 [Unit]
-Description=AMDGPU Control Daemon (via Flatpak)
+Description=GPU Control Daemon (via Flatpak)
 After=multi-user.target
 
 [Service]
