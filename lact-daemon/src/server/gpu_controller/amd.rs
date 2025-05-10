@@ -652,6 +652,7 @@ impl GpuController for AmdGpuController {
                 curve: fan_settings.map(|settings| settings.curve.0.clone()),
                 spindown_delay_ms: fan_settings.and_then(|settings| settings.spindown_delay_ms),
                 change_threshold: fan_settings.and_then(|settings| settings.change_threshold),
+                auto_threshold: None,
                 speed_current: self.hw_mon_and_then(HwMon::get_fan_current).or_else(|| {
                     metrics
                         .and_then(MetricsInfo::get_current_fan_speed)

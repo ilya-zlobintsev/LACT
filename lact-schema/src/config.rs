@@ -79,17 +79,6 @@ mod offsets {
             })
             .collect()
     }
-
-    /*pub fn serialize<S: Serializer>(
-        offsets: &IndexMap<u32, i32>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        let map = offsets
-            .iter()
-            .map(|(key, value)| (key.to_string(), value))
-            .collect::<IndexMap<_, _>>();
-        map.serialize(serializer)
-    }*/
 }
 
 impl GpuConfig {
@@ -153,6 +142,7 @@ pub struct FanControlSettings {
     pub curve: FanCurve,
     pub spindown_delay_ms: Option<u64>,
     pub change_threshold: Option<u64>,
+    pub auto_threshold: Option<u64>,
 }
 
 impl Default for FanControlSettings {
@@ -165,6 +155,7 @@ impl Default for FanControlSettings {
             curve: FanCurve(default_fan_curve()),
             spindown_delay_ms: None,
             change_threshold: None,
+            auto_threshold: None,
         }
     }
 }

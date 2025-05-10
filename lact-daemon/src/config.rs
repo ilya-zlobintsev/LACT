@@ -418,6 +418,7 @@ mod tests {
                         static_speed: 0.5,
                         spindown_delay_ms: Some(5000),
                         change_threshold: Some(3),
+                        auto_threshold: Some(40),
                     }),
                     ..Default::default()
                 },
