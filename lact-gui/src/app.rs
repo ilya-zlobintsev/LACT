@@ -965,7 +965,7 @@ async fn toggle_overdrive(daemon_client: &DaemonClient, enable: bool, root: Appl
     dialog.hide();
 
     match result {
-        Ok(msg) => oc_toggled_dialog(false, &msg),
+        Ok(msg) => oc_toggled_dialog(enable, &msg),
         Err(err) => {
             show_error(&root, &err);
         }
