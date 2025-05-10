@@ -830,7 +830,7 @@ fn show_embedded_info(parent: &ApplicationWindow, err: anyhow::Error) {
                         Please make sure the lactd service is running. \n\
                         Using embedded mode, you will not be able to change any settings. \n\n\
                         {error_text}\
-                        To enable the daemon, run the following command:"
+                        To enable the daemon, run the following command, then restart LACT:"
     );
 
     let text_label = gtk::Label::new(Some(&text));
