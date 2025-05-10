@@ -41,6 +41,7 @@ pub struct ThermalsPage {
     selected_mode: StringBinding,
 
     has_pmfw: bool,
+    has_auto_threshold: bool,
     pmfw_options: PmfwOptions,
     pmfw_change_signals: Vec<(glib::Object, SignalHandlerId)>,
 
@@ -371,6 +372,7 @@ impl relm4::Component for ThermalsPage {
             pmfw_options,
             pmfw_change_signals,
             has_pmfw: false,
+            has_auto_threshold: false,
             fan_speed: None,
             static_speed_adj: Adjustment::new(50.0, 0.0, 100.0, 1.0, 5.0, 0.0),
             selected_mode: StringBinding::new(AUTO_PAGE),
@@ -399,6 +401,8 @@ impl relm4::Component for ThermalsPage {
                         .as_ref()
                         .and_then(|info| info.family_id)
                         .is_some_and(|family| family >= AMDGPU_FAMILY_GC_11_0_0);
+
+                    self.has_auto_threshold = info.driver.starts_with("nvidia ");
                 }
                 PageUpdate::Stats(stats) => {
                     let fan_percent = stats
@@ -472,6 +476,8 @@ impl relm4::Component for ThermalsPage {
                             change_threshold: stats.fan.change_threshold,
                             speed_range,
                             temperature_range,
+                            auto_threshold_supported: self.has_auto_threshold,
+                            auto_threshold: stats.fan.auto_threshold,
                         });
 
                         let info = stats.fan.pmfw_info;
@@ -529,6 +535,10 @@ impl ThermalsPage {
                     fan_settings.curve = FanCurve(fan_curve_model.get_curve());
                     fan_settings.change_threshold = Some(fan_curve_model.change_threshold());
                     fan_settings.spindown_delay_ms = Some(fan_curve_model.spindown_delay());
+
+                    if let Some(threshold) = fan_curve_model.auto_threshold() {
+                        fan_settings.auto_threshold = Some(threshold);
+                    }
                 }
                 STATIC_PAGE => {
                     fan_settings.mode = FanControlMode::Static;

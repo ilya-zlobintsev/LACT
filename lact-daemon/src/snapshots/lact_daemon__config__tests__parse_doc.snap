@@ -26,6 +26,7 @@ gpus:
         80: 1
       spindown_delay_ms: 0
       change_threshold: 0
+      auto_threshold: 0
     pmfw_options:
       acoustic_limit: 3200
       acoustic_target: 1450

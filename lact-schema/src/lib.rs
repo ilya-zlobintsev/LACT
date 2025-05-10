@@ -479,6 +479,8 @@ pub struct FanStats {
     pub temperature_range: Option<(i32, i32)>,
     pub spindown_delay_ms: Option<u64>,
     pub change_threshold: Option<u64>,
+    /// Nvidia-only
+    pub auto_threshold: Option<u64>,
     // RDNA3+ params
     #[serde(default)]
     pub pmfw_info: PmfwInfo,

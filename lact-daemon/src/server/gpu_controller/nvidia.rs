@@ -128,6 +128,10 @@ impl NvidiaGpuController {
             let spindown_delay = Duration::from_millis(settings.spindown_delay_ms.unwrap_or(0));
             #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
             let change_threshold = settings.change_threshold.unwrap_or(0) as i32;
+            #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+            let auto_threshold = settings.auto_threshold.unwrap_or(0) as i32;
+
+            let mut manual_mode = true;
 
             loop {
                 select! {
@@ -142,6 +146,25 @@ impl NvidiaGpuController {
 
                 if (last_temp - current_temp).abs() < change_threshold {
                     trace!("temperature changed from {last_temp}°C to {current_temp}°C, which is less than the {change_threshold}°C threshold, skipping speed adjustment");
+                    continue;
+                }
+
+                if current_temp < auto_threshold {
+                    if manual_mode {
+                        trace!("temperature below auto threshold, setting fan policy to auto");
+                        for fan in 0..fan_count {
+                            if let Err(err) = device.set_default_fan_speed(fan) {
+                                error!(
+                                    "could not set fan speed to auto: {err}, disabling fan control"
+                                );
+                                break;
+                            }
+                        }
+
+                        manual_mode = false;
+                    } else {
+                        trace!("temperature below auto threshold, skipping control");
+                    }
                     continue;
                 }
 
@@ -178,6 +201,7 @@ impl NvidiaGpuController {
                         break;
                     }
                 }
+                manual_mode = true;
             }
             debug!("exited fan control task");
         });
@@ -450,6 +474,7 @@ impl GpuController for NvidiaGpuController {
                 curve: fan_settings.map(|settings| settings.curve.0.clone()),
                 spindown_delay_ms: fan_settings.and_then(|settings| settings.spindown_delay_ms),
                 change_threshold: fan_settings.and_then(|settings| settings.change_threshold),
+                auto_threshold: fan_settings.and_then(|settings| settings.auto_threshold),
                 speed_current,
                 speed_max: None,
                 speed_min: None,

@@ -82,6 +82,9 @@ gpus:
       # to affect the fan speed. Also used to avoid rapid fan speed changes
       # when the temperature only changes e.g. 1 degree.
       change_threshold: 0
+      # A temperature below which the fan control mode is switched to automatic (Nvidia only)
+      # This can be used as a workaround to achieve 0 RPM below a certain temperature even when the GPU only allows speeds like 30-100% to be set manually.
+      auto_threshold: 0
     # Power management firmware options. Specific to RDNA3+ AMD GPUs.
     # Most of these settings are only applied when not using a custom fan curve.
     pmfw_options: 

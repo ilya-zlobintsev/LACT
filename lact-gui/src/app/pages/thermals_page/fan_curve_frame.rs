@@ -30,6 +30,7 @@ use super::{adj_is_empty, FanSettingRow, PmfwOptions};
 pub const DEFAULT_TEMP_RANGE: RangeInclusive<f32> = 20.0..=115.0;
 pub const DEFAULT_SPEED_RANGE: RangeInclusive<f32> = 0.0..=1.0;
 const DEFAULT_CHANGE_THRESHOLD: u64 = 2;
+const DEFAULT_AUTO_THRESHOLD: u64 = 0;
 const DEFAULT_SPINDOWN_DELAY_MS: u64 = 5000;
 
 #[derive(Clone)]
@@ -42,6 +43,7 @@ pub(super) struct FanCurveFrame {
 
     spindown_delay_adj: OcAdjustment,
     change_threshold_adj: OcAdjustment,
+    auto_threshold_adj: OcAdjustment,
     adj_signals: Rc<[(OcAdjustment, SignalHandlerId)]>,
 
     is_dragging: Rc<AtomicBool>,
@@ -59,6 +61,9 @@ pub(super) enum FanCurveFrameMsg {
         change_threshold: Option<u64>,
         speed_range: RangeInclusive<f32>,
         temperature_range: RangeInclusive<f32>,
+        /// Nvidia only
+        auto_threshold_supported: bool,
+        auto_threshold: Option<u64>,
     },
     DragStart,
     DragUpdate(f64, f64),
@@ -176,6 +181,35 @@ impl relm4::Component for FanCurveFrame {
                 },
             },
 
+            #[template]
+            FanSettingRow {
+                #[watch]
+                set_visible: !adj_is_empty(&model.auto_threshold_adj),
+
+                #[template_child]
+                label {
+                    set_label: "Automatic Mode Threshold (°C)",
+                    set_tooltip: "Switch fan control to auto mode when the temperature is below this point.
+
+Many Nvidia GPUs only support stopping the fan in the automatic fan control mode, while a custom curve has a limited speed range such as 30-100%.
+
+This option allows to work around this limitation by only using the custom curve when above a specific temperature, \
+    with the card's builtin auto mode that supports zero RPM being used below it.",
+                    set_size_group: &label_size_group,
+                },
+
+                #[template_child]
+                scale {
+                    set_adjustment: &model.auto_threshold_adj,
+                },
+
+                #[template_child]
+                spinbutton {
+                    set_adjustment: &model.auto_threshold_adj,
+                    set_size_group: &spin_size_group,
+                },
+            },
+
             gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 5,
@@ -235,8 +269,14 @@ impl relm4::Component for FanCurveFrame {
             OcAdjustment::new(DEFAULT_SPINDOWN_DELAY_MS as f64, 0.0, 30_000.0, 10.0, 10.0);
         let change_threshold_adj =
             OcAdjustment::new(DEFAULT_CHANGE_THRESHOLD as f64, 0.0, 10.0, 1.0, 1.0);
+        let auto_threshold_adj = OcAdjustment::new(0.0, 0.0, 0.0, 1.0, 5.0);
 
-        let adj_signals = [&spindown_delay_adj, &change_threshold_adj].map(|adj| {
+        let adj_signals = [
+            &spindown_delay_adj,
+            &change_threshold_adj,
+            &auto_threshold_adj,
+        ]
+        .map(|adj| {
             let signal = adj.connect_value_changed(|_| {
                 APP_BROKER.send(AppMsg::SettingsChanged);
             });
@@ -250,6 +290,7 @@ impl relm4::Component for FanCurveFrame {
             temperature_range: Rc::new(RefCell::new(DEFAULT_TEMP_RANGE)),
             spindown_delay_adj,
             change_threshold_adj,
+            auto_threshold_adj,
             adj_signals: Rc::new(adj_signals),
             data: Rc::default(),
             drag_coord: Rc::default(),
@@ -277,10 +318,12 @@ impl relm4::Component for FanCurveFrame {
                 spindown_delay,
                 change_threshold,
                 speed_range,
+                auto_threshold_supported,
+                auto_threshold,
             } => {
                 *self.data.borrow_mut() = curve.into_iter().collect();
                 *self.speed_range.borrow_mut() = speed_range;
-                *self.temperature_range.borrow_mut() = temperature_range;
+                *self.temperature_range.borrow_mut() = temperature_range.clone();
 
                 for (adj, signal) in self.adj_signals.iter() {
                     adj.block_signal(signal);
@@ -290,6 +333,17 @@ impl relm4::Component for FanCurveFrame {
                     .set_initial_value(spindown_delay.unwrap_or(DEFAULT_SPINDOWN_DELAY_MS) as f64);
                 self.change_threshold_adj
                     .set_initial_value(change_threshold.unwrap_or(DEFAULT_CHANGE_THRESHOLD) as f64);
+
+                if auto_threshold_supported {
+                    self.auto_threshold_adj.set_lower(0.0);
+                    self.auto_threshold_adj
+                        .set_upper(*temperature_range.end() as f64);
+                    self.auto_threshold_adj
+                        .set_initial_value(auto_threshold.unwrap_or(DEFAULT_AUTO_THRESHOLD) as f64);
+                } else {
+                    self.auto_threshold_adj.set_lower(0.0);
+                    self.auto_threshold_adj.set_upper(0.0);
+                }
 
                 for (adj, signal) in self.adj_signals.iter() {
                     adj.unblock_signal(signal);
@@ -357,6 +411,12 @@ impl FanCurveFrame {
 
     pub fn change_threshold(&self) -> u64 {
         self.change_threshold_adj.value() as u64
+    }
+
+    pub fn auto_threshold(&self) -> Option<u64> {
+        self.auto_threshold_adj
+            .get_changed_value(false)
+            .map(|val| val as u64)
     }
 
     fn edit_curve(&self, f: impl FnOnce(&mut Vec<(i32, f32)>), widgets: &FanCurveFrameWidgets) {
