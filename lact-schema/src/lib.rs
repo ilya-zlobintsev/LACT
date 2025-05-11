@@ -188,14 +188,14 @@ impl DeviceInfo {
                     write!(vram_type, " {width}-bit").unwrap();
                 }
 
-                if let Some(bw) = &drm_info.vram_max_bw {
-                    if bw != "0" {
-                        write!(vram_type, " {bw}").unwrap();
-                    }
-                }
-
                 if let Some(vram_vendor) = &drm_info.vram_vendor {
                     write!(vram_type, " ({vram_vendor})").unwrap();
+                }
+
+                if let Some(bw) = &drm_info.vram_max_bw {
+                    if bw != "0" {
+                        write!(vram_type, " {bw} GiB/s").unwrap();
+                    }
                 }
             }
 
