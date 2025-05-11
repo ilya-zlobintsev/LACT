@@ -10,7 +10,9 @@ use crate::{
     APP_BROKER,
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
-use fan_curve_frame::{FanCurveFrame, FanCurveFrameMsg, DEFAULT_SPEED_RANGE, DEFAULT_TEMP_RANGE};
+use fan_curve_frame::{
+    CurveSetupMsg, FanCurveFrame, FanCurveFrameMsg, DEFAULT_SPEED_RANGE, DEFAULT_TEMP_RANGE,
+};
 use gtk::{
     glib::{
         self,
@@ -470,15 +472,18 @@ impl relm4::Component for ThermalsPage {
                             .map(|(start, end)| start as f32..=end as f32)
                             .unwrap_or(DEFAULT_TEMP_RANGE);
 
-                        self.fan_curve_frame.emit(FanCurveFrameMsg::Curve {
+                        let msg = CurveSetupMsg {
                             curve: stats.fan.curve.clone().unwrap_or_else(default_fan_curve),
+                            current_temperatures: stats.temps.clone(),
+                            temperature_key: stats.fan.temperature_key.clone(),
                             spindown_delay: stats.fan.spindown_delay_ms,
                             change_threshold: stats.fan.change_threshold,
                             speed_range,
                             temperature_range,
                             auto_threshold_supported: self.has_auto_threshold,
                             auto_threshold: stats.fan.auto_threshold,
-                        });
+                        };
+                        self.fan_curve_frame.emit(FanCurveFrameMsg::Curve(msg));
 
                         let info = stats.fan.pmfw_info;
                         let pmfw_options = &mut self.pmfw_options;
@@ -538,6 +543,10 @@ impl ThermalsPage {
 
                     if let Some(threshold) = fan_curve_model.auto_threshold() {
                         fan_settings.auto_threshold = Some(threshold);
+                    }
+
+                    if let Some(temp_key) = fan_curve_model.temperature_key() {
+                        fan_settings.temperature_key = temp_key;
                     }
                 }
                 STATIC_PAGE => {

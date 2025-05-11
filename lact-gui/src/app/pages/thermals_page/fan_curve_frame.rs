@@ -1,10 +1,17 @@
+use super::{adj_is_empty, FanSettingRow, PmfwOptions};
 use crate::{
     app::{graphs_window::plot::PlotColorScheme, msg::AppMsg, pages::oc_adjustment::OcAdjustment},
     APP_BROKER,
 };
+use amdgpu_sysfs::hw_mon::Temperature;
 use gtk::{
     gdk,
-    glib::{object::ObjectExt, SignalHandlerId},
+    gio::prelude::ListModelExt,
+    glib::{
+        self,
+        object::{Cast, ObjectExt},
+        SignalHandlerId,
+    },
     prelude::{
         AdjustmentExt, BoxExt, ButtonExt, DrawingAreaExtManual, OrientableExt, RangeExt, WidgetExt,
     },
@@ -17,15 +24,17 @@ use plotters::{
     style::{full_palette::LIGHTBLUE, text_anchor::Pos, Color, ShapeStyle, TextStyle},
 };
 use plotters_cairo::CairoBackend;
-use relm4::{binding::ConnectBinding, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{
+    binding::{ConnectBinding, U32Binding},
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
+};
 use std::{
     cell::{Cell, RefCell},
+    collections::HashMap,
     ops::RangeInclusive,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
 };
-
-use super::{adj_is_empty, FanSettingRow, PmfwOptions};
 
 pub const DEFAULT_TEMP_RANGE: RangeInclusive<f32> = 20.0..=115.0;
 pub const DEFAULT_SPEED_RANGE: RangeInclusive<f32> = 0.0..=1.0;
@@ -40,11 +49,13 @@ pub(super) struct FanCurveFrame {
     data: Rc<RefCell<Vec<(i32, f32)>>>,
     speed_range: Rc<RefCell<RangeInclusive<f32>>>,
     temperature_range: Rc<RefCell<RangeInclusive<f32>>>,
+    temp_keys: gtk::StringList,
+    current_temp_key: U32Binding,
 
     spindown_delay_adj: OcAdjustment,
     change_threshold_adj: OcAdjustment,
     auto_threshold_adj: OcAdjustment,
-    adj_signals: Rc<[(OcAdjustment, SignalHandlerId)]>,
+    change_signals: Rc<[(glib::Object, SignalHandlerId)]>,
 
     is_dragging: Rc<AtomicBool>,
     /// Index of the point currently being dragged
@@ -55,22 +66,28 @@ pub(super) struct FanCurveFrame {
 
 #[derive(Debug)]
 pub(super) enum FanCurveFrameMsg {
-    Curve {
-        curve: FanCurveMap,
-        spindown_delay: Option<u64>,
-        change_threshold: Option<u64>,
-        speed_range: RangeInclusive<f32>,
-        temperature_range: RangeInclusive<f32>,
-        /// Nvidia only
-        auto_threshold_supported: bool,
-        auto_threshold: Option<u64>,
-    },
+    Curve(CurveSetupMsg),
     DragStart,
     DragUpdate(f64, f64),
     DragEnd,
     AddPoint,
     RemovePoint,
     DefaultCurve,
+}
+
+#[derive(Debug)]
+pub(super) struct CurveSetupMsg {
+    pub curve: FanCurveMap,
+    pub current_temperatures: HashMap<String, Temperature>,
+    pub temperature_key: Option<String>,
+    pub speed_range: RangeInclusive<f32>,
+    pub temperature_range: RangeInclusive<f32>,
+    // Non-PMFW only
+    pub spindown_delay: Option<u64>,
+    pub change_threshold: Option<u64>,
+    /// Nvidia only
+    pub auto_threshold_supported: bool,
+    pub auto_threshold: Option<u64>,
 }
 
 #[relm4::component(pub)]
@@ -127,11 +144,15 @@ impl relm4::Component for FanCurveFrame {
                 gtk::Button {
                     set_icon_name: "list-add-symbolic",
                     connect_clicked => FanCurveFrameMsg::AddPoint,
+                    #[watch]
+                    set_visible: model.pmfw_options.is_empty(),
                 },
 
                 gtk::Button {
                     set_icon_name: "list-remove-symbolic",
                     connect_clicked => FanCurveFrameMsg::RemovePoint,
+                    #[watch]
+                    set_visible: model.pmfw_options.is_empty(),
                 },
 
                 gtk::Button {
@@ -140,8 +161,32 @@ impl relm4::Component for FanCurveFrame {
                 },
             },
 
+            gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 5,
+                #[watch]
+                set_visible: model.temp_keys_available(),
+
+                gtk::Label {
+                    set_label: "Temperature Sensor",
+                    set_xalign: 0.0,
+                    set_size_group: &label_size_group,
+                },
+
+                #[name = "temp_key_dropdown"]
+                gtk::DropDown {
+                    set_hexpand: true,
+                    set_halign: gtk::Align::End,
+                    add_binding: (&model.current_temp_key, "selected"),
+                    set_model: Some(&model.temp_keys),
+                },
+            },
+
             #[template]
             FanSettingRow {
+                #[watch]
+                set_visible: model.pmfw_options.is_empty(),
+
                 #[template_child]
                 label {
                     set_label: "Spindown Delay (ms)",
@@ -163,6 +208,9 @@ impl relm4::Component for FanCurveFrame {
 
             #[template]
             FanSettingRow {
+                #[watch]
+                set_visible: model.pmfw_options.is_empty(),
+
                 #[template_child]
                 label {
                     set_label: "Speed change threshold (°C)",
@@ -270,18 +318,28 @@ This option allows to work around this limitation by only using the custom curve
         let change_threshold_adj =
             OcAdjustment::new(DEFAULT_CHANGE_THRESHOLD as f64, 0.0, 10.0, 1.0, 1.0);
         let auto_threshold_adj = OcAdjustment::new(0.0, 0.0, 0.0, 1.0, 5.0);
+        let temp_keys = gtk::StringList::default();
+        let current_temp_key = U32Binding::new(0u32);
 
-        let adj_signals = [
+        let change_signals = [
             &spindown_delay_adj,
             &change_threshold_adj,
             &auto_threshold_adj,
         ]
+        .into_iter()
         .map(|adj| {
             let signal = adj.connect_value_changed(|_| {
                 APP_BROKER.send(AppMsg::SettingsChanged);
             });
-            (adj.clone(), signal)
-        });
+            (adj.clone().upcast(), signal)
+        })
+        .chain([(
+            current_temp_key.clone().upcast(),
+            current_temp_key.connect_value_notify(|_| {
+                APP_BROKER.send(AppMsg::SettingsChanged);
+            }),
+        )])
+        .collect();
 
         let model = Self {
             pmfw_options,
@@ -291,7 +349,9 @@ This option allows to work around this limitation by only using the custom curve
             spindown_delay_adj,
             change_threshold_adj,
             auto_threshold_adj,
-            adj_signals: Rc::new(adj_signals),
+            temp_keys,
+            current_temp_key,
+            change_signals,
             data: Rc::default(),
             drag_coord: Rc::default(),
             drag_point: Rc::default(),
@@ -312,40 +372,55 @@ This option allows to work around this limitation by only using the custom curve
         _root: &Self::Root,
     ) {
         match msg {
-            FanCurveFrameMsg::Curve {
-                curve,
-                temperature_range,
-                spindown_delay,
-                change_threshold,
-                speed_range,
-                auto_threshold_supported,
-                auto_threshold,
-            } => {
-                *self.data.borrow_mut() = curve.into_iter().collect();
-                *self.speed_range.borrow_mut() = speed_range;
-                *self.temperature_range.borrow_mut() = temperature_range.clone();
+            FanCurveFrameMsg::Curve(msg) => {
+                *self.data.borrow_mut() = msg.curve.into_iter().collect();
+                *self.speed_range.borrow_mut() = msg.speed_range;
+                *self.temperature_range.borrow_mut() = msg.temperature_range.clone();
 
-                for (adj, signal) in self.adj_signals.iter() {
+                for (adj, signal) in self.change_signals.iter() {
                     adj.block_signal(signal);
                 }
 
-                self.spindown_delay_adj
-                    .set_initial_value(spindown_delay.unwrap_or(DEFAULT_SPINDOWN_DELAY_MS) as f64);
-                self.change_threshold_adj
-                    .set_initial_value(change_threshold.unwrap_or(DEFAULT_CHANGE_THRESHOLD) as f64);
+                let mut temp_keys = msg.current_temperatures.into_keys().collect::<Vec<_>>();
+                temp_keys.sort();
 
-                if auto_threshold_supported {
+                let selected_idx = msg
+                    .temperature_key
+                    .and_then(|current_key| temp_keys.iter().position(|key| *key == current_key))
+                    .or_else(|| temp_keys.iter().position(|key| key == "edge"))
+                    .or(if temp_keys.is_empty() { None } else { Some(0) });
+
+                while self.temp_keys.n_items() > 0 {
+                    self.temp_keys.remove(0);
+                }
+                for key in temp_keys {
+                    self.temp_keys.append(&key);
+                }
+
+                if let Some(idx) = selected_idx {
+                    widgets.temp_key_dropdown.set_selected(idx as u32);
+                }
+
+                self.spindown_delay_adj.set_initial_value(
+                    msg.spindown_delay.unwrap_or(DEFAULT_SPINDOWN_DELAY_MS) as f64,
+                );
+                self.change_threshold_adj.set_initial_value(
+                    msg.change_threshold.unwrap_or(DEFAULT_CHANGE_THRESHOLD) as f64,
+                );
+
+                if msg.auto_threshold_supported {
                     self.auto_threshold_adj.set_lower(0.0);
                     self.auto_threshold_adj
-                        .set_upper(*temperature_range.end() as f64);
-                    self.auto_threshold_adj
-                        .set_initial_value(auto_threshold.unwrap_or(DEFAULT_AUTO_THRESHOLD) as f64);
+                        .set_upper(*msg.temperature_range.end() as f64);
+                    self.auto_threshold_adj.set_initial_value(
+                        msg.auto_threshold.unwrap_or(DEFAULT_AUTO_THRESHOLD) as f64,
+                    );
                 } else {
                     self.auto_threshold_adj.set_lower(0.0);
                     self.auto_threshold_adj.set_upper(0.0);
                 }
 
-                for (adj, signal) in self.adj_signals.iter() {
+                for (adj, signal) in self.change_signals.iter() {
                     adj.unblock_signal(signal);
                 }
 
@@ -413,10 +488,24 @@ impl FanCurveFrame {
         self.change_threshold_adj.value() as u64
     }
 
+    pub fn temperature_key(&self) -> Option<String> {
+        if self.temp_keys_available() {
+            self.temp_keys
+                .string(self.current_temp_key.value())
+                .map(|obj| obj.to_string())
+        } else {
+            None
+        }
+    }
+
     pub fn auto_threshold(&self) -> Option<u64> {
         self.auto_threshold_adj
             .get_changed_value(false)
             .map(|val| val as u64)
+    }
+
+    fn temp_keys_available(&self) -> bool {
+        self.pmfw_options.is_empty() && self.temp_keys.n_items() > 1
     }
 
     fn edit_curve(&self, f: impl FnOnce(&mut Vec<(i32, f32)>), widgets: &FanCurveFrameWidgets) {

@@ -475,6 +475,7 @@ impl GpuController for NvidiaGpuController {
                 spindown_delay_ms: fan_settings.and_then(|settings| settings.spindown_delay_ms),
                 change_threshold: fan_settings.and_then(|settings| settings.change_threshold),
                 auto_threshold: fan_settings.and_then(|settings| settings.auto_threshold),
+                temperature_key: None,
                 speed_current,
                 speed_max: None,
                 speed_min: None,

@@ -46,7 +46,6 @@ os-release = "0.1.0"
 notify = { version = "8.0.0", default-features = false }
 copes = { git = "https://gitlab.com/corectrl/copes" }
 libloading = "0.8.6"
-tempfile = "3.17.1"
 cl3 = { git = "https://github.com/kenba/cl3", branch = "develop", features = [
     "static",
 ] }
@@ -55,6 +54,7 @@ cl3 = { git = "https://github.com/kenba/cl3", branch = "develop", features = [
 pretty_assertions = { workspace = true }
 insta = { version = "1.41.1", features = ["json", "yaml"] }
 easy_fuser = { version = "0.4.0", features = ["parallel"] }
+tempfile = "3.17.1"
 
 [build-dependencies]
 bindgen = "0.68"
