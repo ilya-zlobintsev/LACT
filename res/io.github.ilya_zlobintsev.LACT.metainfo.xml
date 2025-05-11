@@ -49,6 +49,9 @@
     <display_length compare="ge">827</display_length>
   </requires>
   <releases>
+    <release version="0.7.4" date="2025-05-11">
+      <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.4</url>
+    </release>
     <release version="0.7.3" date="2025-04-05">
       <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.3</url>
     </release>
