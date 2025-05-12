@@ -19,9 +19,9 @@ metadata:
   build_depends:
     all: [ curl, make, clang, git, vulkan-tools ]
     debian-12+ubuntu-2204+ubuntu-2404: [ pkg-config, build-essential, libdrm-dev, dbus, ocl-icd-opencl-dev ]
-    fedora-40+fedora-41+fedora-42+rhel-8+rhel-9: [ gcc, libdrm-devel, dbus, libOpenCL.so.1 ]
+    fedora-40+fedora-41+fedora-42+rhel-8+rhel-9: [ gcc, libdrm-devel, dbus, OpenCL-ICD-Loader-devel ]
     arch: [ libdrm, dbus, ocl-icd ]
-    opensuse-tumbleweed: [ libdrm-devel, libOpenCL.so.1 ]
+    opensuse-tumbleweed: [ libdrm-devel, ocl-icd-devel ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs
