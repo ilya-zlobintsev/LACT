@@ -7,8 +7,8 @@ URL:            https://github.com/ilya-zlobintsev/LACT
 Source0:        https://github.com/ilya-zlobintsev/LACT/archive/refs/tags/v0.7.4.tar.gz
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-BuildRequires:  rust cargo gcc libdrm-devel dbus ocl-icd-devel curl make clang git vulkan-tools
-Requires:       libdrm ocl-icd-devel hwdata vulkan-tools
+BuildRequires:  rust cargo gcc libdrm-devel dbus OpenCL-ICD-Loader-devel curl make clang git vulkan-tools
+Requires:       libdrm libOpenCL.so.1 hwdata vulkan-tools
 
 %description
 GPU control utility
