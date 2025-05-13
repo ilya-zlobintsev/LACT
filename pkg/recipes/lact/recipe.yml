@@ -13,13 +13,13 @@ metadata:
   depends:
     all: [ hwdata, vulkan-tools ]
     debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-1, libdrm2, libdrm-amdgpu1, ocl-icd-opencl-dev ]
-    fedora-40+fedora-41+fedora-42: [ gtk4, libdrm, libOpenCL.so.1 ]
+    fedora-41+fedora-42: [ gtk4, libdrm, libOpenCL.so.1 ]
     arch: [ gtk4, ocl-icd ]
     opensuse-tumbleweed: [ gtk4, libOpenCL.so.1 ]
   build_depends:
     all: [ curl, make, clang, git, vulkan-tools ]
     debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus, ocl-icd-opencl-dev ]
-    fedora-40+fedora-41+fedora-42: [ gtk4-devel, gcc, libdrm-devel, dbus, OpenCL-ICD-Loader-devel ]
+    fedora-41+fedora-42: [ gtk4-devel, gcc, libdrm-devel, dbus, OpenCL-ICD-Loader-devel ]
     arch: [ gtk4, dbus, ocl-icd ]
     opensuse-tumbleweed: [ gtk4-devel, libdrm-devel, ocl-icd-devel ]
   all_images: true
