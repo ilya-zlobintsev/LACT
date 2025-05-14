@@ -43,8 +43,9 @@ use pages::{
 };
 use relm4::{
     actions::{RelmAction, RelmActionGroup},
+    binding::BoolBinding,
     prelude::{AsyncComponent, AsyncComponentParts},
-    tokio, AsyncComponentSender, Component, ComponentController, MessageBroker,
+    tokio, AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
 };
 use std::{
     os::unix::net::UnixStream,
@@ -66,6 +67,8 @@ const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 pub struct AppModel {
     daemon_client: DaemonClient,
     graphs_window: relm4::Controller<GraphsWindow>,
+
+    ui_sensitive: BoolBinding,
 
     info_page: relm4::Controller<InformationPage>,
     oc_page: relm4::Controller<OcPage>,
@@ -104,6 +107,8 @@ impl AsyncComponent for AppModel {
                         set_margin_top: 15,
                         set_margin_start: 30,
                         set_margin_end: 30,
+
+                        add_binding: (&model.ui_sensitive, "sensitive"),
 
                         add_titled[Some("info_page"), "Information"] = model.info_page.widget(),
                         add_titled[Some("oc_page"), "OC"] = model.oc_page.widget(),
@@ -217,6 +222,7 @@ impl AsyncComponent for AppModel {
             thermals_page,
             software_page,
             apply_revealer,
+            ui_sensitive: BoolBinding::new(false),
             header,
             stats_task_handle: None,
         };
@@ -441,6 +447,8 @@ impl AppModel {
         gpu_id: String,
         sender: AsyncComponentSender<AppModel>,
     ) -> anyhow::Result<()> {
+        self.ui_sensitive.set_value(false);
+
         let daemon_client = self.daemon_client.clone();
         let info_buf = daemon_client
             .get_device_info(&gpu_id)
@@ -490,6 +498,8 @@ impl AppModel {
             stats,
             initial: true,
         });
+
+        self.ui_sensitive.set_value(true);
 
         Ok(())
     }

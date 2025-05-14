@@ -1287,7 +1287,7 @@ dependencies = [
 
 [[package]]
 name = "lact"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "anyhow",
  "configparser",
@@ -1300,7 +1300,7 @@ dependencies = [
 
 [[package]]
 name = "lact-cli"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "anyhow",
  "lact-client",
@@ -1310,7 +1310,7 @@ dependencies = [
 
 [[package]]
 name = "lact-client"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "amdgpu-sysfs",
  "anyhow",
@@ -1325,7 +1325,7 @@ dependencies = [
 
 [[package]]
 name = "lact-daemon"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "amdgpu-sysfs",
  "anyhow",
@@ -1363,7 +1363,7 @@ dependencies = [
 
 [[package]]
 name = "lact-gui"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "amdgpu-sysfs",
  "anyhow",
@@ -1390,7 +1390,7 @@ dependencies = [
 
 [[package]]
 name = "lact-schema"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "amdgpu-sysfs",
  "anyhow",
