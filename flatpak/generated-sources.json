@@ -13,6 +13,12 @@
     },
     {
         "type": "git",
+        "url": "https://github.com/umio-yasuno/libdrm-amdgpu-sys-rs",
+        "commit": "c6d85fce871f79f763162ba15accdfcae74b2d40",
+        "dest": "flatpak-cargo/git/libdrm-amdgpu-sys-rs-c6d85fc"
+    },
+    {
+        "type": "git",
         "url": "https://github.com/ilya-zlobintsev/nvml-wrapper",
         "commit": "d245c3010c72466cfb572f5baf91c91f7294bb36",
         "dest": "flatpak-cargo/git/nvml-wrapper-d245c30"
@@ -1744,16 +1750,21 @@
         "dest-filename": ".cargo-checksum.json"
     },
     {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/libdrm_amdgpu_sys/libdrm_amdgpu_sys-0.8.4.crate",
-        "sha256": "4d1d46f1ac9f2440fc0caaee46cf88014c8b3157f10b6f28832b5abf74ca623a",
-        "dest": "cargo/vendor/libdrm_amdgpu_sys-0.8.4"
+        "type": "shell",
+        "commands": [
+            "cp -r --reflink=auto \"flatpak-cargo/git/libdrm-amdgpu-sys-rs-c6d85fc/.\" \"cargo/vendor/libdrm_amdgpu_sys\""
+        ]
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"4d1d46f1ac9f2440fc0caaee46cf88014c8b3157f10b6f28832b5abf74ca623a\", \"files\": {}}",
-        "dest": "cargo/vendor/libdrm_amdgpu_sys-0.8.4",
+        "contents": "[[example]]\nname = \"amdgpu_info\"\nrequired-features = []\n\n[[example]]\nname = \"vbios_dump\"\nrequired-features = []\n\n[[example]]\nname = \"vbios_parser\"\nrequired-features = []\n\n[[example]]\nname = \"gpu_metrics\"\nrequired-features = []\n\n[[example]]\nname = \"stable_pstate\"\nrequired-features = []\n\n[[example]]\nname = \"pp_table\"\nrequired-features = []\n\n[package]\nname = \"libdrm_amdgpu_sys\"\nversion = \"0.8.5\"\nedition = \"2024\"\nbuild = \"build.rs\"\nlicense = \"MIT\"\nauthors = [ \"Umio Yasuno <coelacanth_dream@proton.me>\",]\ndescription = \"libdrm_amdgpu bindings for Rust, and some methods ported from Mesa3D.\"\nrepository = \"https://github.com/Umio-Yasuno/libdrm-amdgpu-sys-rs\"\nkeywords = [ \"amdgpu\", \"libdrm\",]\nlinks = \"drm, drm_amdgpu\"\n\n[features]\ndefault = [ \"link_drm\",]\nbuildtime_bindgen = [ \"dep:bindgen\", \"dep:pkg-config\",]\nlink_drm = []\ndynamic_loading = [ \"dep:libloading\",]\nconvert_amdgpu_ids = []\n\n[lib]\npath = \"lib.rs\"\ndoctest = false\n\n[dependencies.libc]\nversion = \"0.2\"\ndefault-features = false\n\n[dependencies.libloading]\nversion = \"0.8\"\noptional = true\n\n[build-dependencies.bindgen]\nversion = \"0.71\"\noptional = true\n\n[build-dependencies.pkg-config]\nversion = \"0.3\"\noptional = true\n",
+        "dest": "cargo/vendor/libdrm_amdgpu_sys",
+        "dest-filename": "Cargo.toml"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": null, \"files\": {}}",
+        "dest": "cargo/vendor/libdrm_amdgpu_sys",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -4186,7 +4197,7 @@
     },
     {
         "type": "inline",
-        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/kenba/cl3\"]\ngit = \"https://github.com/kenba/cl3\"\nreplace-with = \"vendored-sources\"\nbranch = \"develop\"\n\n[source.\"https://gitlab.com/corectrl/copes\"]\ngit = \"https://gitlab.com/corectrl/copes\"\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/ilya-zlobintsev/nvml-wrapper\"]\ngit = \"https://github.com/ilya-zlobintsev/nvml-wrapper\"\nreplace-with = \"vendored-sources\"\nbranch = \"feature/pstate-wrappers\"\n",
+        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/kenba/cl3\"]\ngit = \"https://github.com/kenba/cl3\"\nreplace-with = \"vendored-sources\"\nbranch = \"develop\"\n\n[source.\"https://gitlab.com/corectrl/copes\"]\ngit = \"https://gitlab.com/corectrl/copes\"\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/umio-yasuno/libdrm-amdgpu-sys-rs\"]\ngit = \"https://github.com/umio-yasuno/libdrm-amdgpu-sys-rs\"\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/ilya-zlobintsev/nvml-wrapper\"]\ngit = \"https://github.com/ilya-zlobintsev/nvml-wrapper\"\nreplace-with = \"vendored-sources\"\nbranch = \"feature/pstate-wrappers\"\n",
         "dest": "cargo",
         "dest-filename": "config"
     }
