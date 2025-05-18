@@ -33,22 +33,24 @@ pub fn start_listener(event_tx: mpsc::Sender<ProfileWatcherEvent>) {
     match ProcessEventsConnector::try_new() {
         Ok(connector) => {
             tokio::task::spawn_blocking(move || {
-                let iter = connector.into_iter();
-                for result in iter {
-                    match result {
-                        Ok(event) => {
-                            if event_tx
-                                .blocking_send(ProfileWatcherEvent::Process(event))
-                                .is_err()
-                            {
-                                debug!(
+                let mut iter = connector.into_iter();
+                loop {
+                    if let Some(result) = iter.next() {
+                        match result {
+                            Ok(event) => {
+                                if event_tx
+                                    .blocking_send(ProfileWatcherEvent::Process(event))
+                                    .is_err()
+                                {
+                                    debug!(
                                     "profile watcher channel closed, exiting process event listener"
                                 );
-                                break;
+                                    break;
+                                }
                             }
-                        }
-                        Err(err) => {
-                            debug!("process event error: {err}");
+                            Err(err) => {
+                                debug!("process event error: {err}");
+                            }
                         }
                     }
                 }
