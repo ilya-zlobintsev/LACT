@@ -23,7 +23,10 @@ use gtk::{
     ApplicationWindow, ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog,
     MessageType, ResponseType,
 };
-use header::{profile_rule_window::ProfileRuleWindowMsg, Header, HeaderMsg};
+use header::{
+    profile_rule_window::{profile_row::ProfileRuleRowMsg, ProfileRuleWindowMsg},
+    Header, HeaderMsg,
+};
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
     args::GuiArgs,
@@ -546,7 +549,7 @@ impl AppModel {
 
     async fn reload_profiles(
         &mut self,
-        state_sender: Option<relm4::Sender<ProfileRuleWindowMsg>>,
+        state_sender: Option<relm4::Sender<ProfileRuleRowMsg>>,
     ) -> anyhow::Result<()> {
         let mut profiles = self
             .daemon_client
@@ -555,7 +558,7 @@ impl AppModel {
 
         if let Some(sender) = state_sender {
             if let Some(state) = profiles.watcher_state.take() {
-                let _ = sender.send(ProfileRuleWindowMsg::WatcherState(state));
+                let _ = sender.send(ProfileRuleRowMsg::WatcherState(state));
             }
         }
 

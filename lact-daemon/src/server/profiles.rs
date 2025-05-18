@@ -341,10 +341,10 @@ pub(crate) fn profile_rule_matches(state: &ProfileWatcherState, rule: &ProfileRu
             }
         }
         ProfileRule::And(rules) => {
-            return rules.iter().all(|rule| profile_rule_matches(state, rule));
+            return !rules.is_empty() && rules.iter().all(|rule| profile_rule_matches(state, rule));
         }
         ProfileRule::Or(rules) => {
-            return rules.iter().any(|rule| profile_rule_matches(state, rule));
+            return !rules.is_empty() && rules.iter().any(|rule| profile_rule_matches(state, rule));
         }
     }
     false
