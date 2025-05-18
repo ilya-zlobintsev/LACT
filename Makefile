@@ -1,4 +1,5 @@
 export CARGO_TARGET_DIR ?= ./target
+export CARGO_NET_GIT_FETCH_WITH_CLI ?= true
 DESTDIR ?= /
 PREFIX ?= /usr/local
 
