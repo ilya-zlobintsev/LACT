@@ -8,7 +8,7 @@ pub struct ProfileRenameDialog {}
 
 #[relm4::component(pub)]
 impl relm4::SimpleComponent for ProfileRenameDialog {
-    type Init = String;
+    type Init = (String, gtk::Window);
     type Input = ();
     type Output = String;
 
@@ -16,6 +16,7 @@ impl relm4::SimpleComponent for ProfileRenameDialog {
         gtk::Dialog {
             set_default_size: (400, 50),
             set_title: Some("Rename profile"),
+            set_transient_for: Some(&root_window),
             set_hide_on_close: true,
             connect_response[root, sender, name_entry] => move |_, response| {
                 match response {
@@ -51,7 +52,7 @@ impl relm4::SimpleComponent for ProfileRenameDialog {
     }
 
     fn init(
-        old_name: Self::Init,
+        (old_name, root_window): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {

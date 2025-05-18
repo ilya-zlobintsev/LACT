@@ -244,7 +244,7 @@ impl Component for Header {
         widgets: &mut Self::Widgets,
         msg: Self::Input,
         sender: ComponentSender<Self>,
-        _root: &Self::Root,
+        root: &Self::Root,
     ) {
         match msg {
             HeaderMsg::ClosePopover => {
@@ -321,7 +321,10 @@ impl Component for Header {
                 let sender = sender.clone();
                 if let ProfileRowType::Profile { name, .. } = profile.row.clone() {
                     let stream = ProfileRenameDialog::builder()
-                        .launch(name.clone())
+                        .launch((
+                            name.clone(),
+                            root.toplevel_window().expect("Widget not in a window"),
+                        ))
                         .into_stream();
 
                     sender.clone().oneshot_command(async move {
@@ -348,7 +351,11 @@ impl Component for Header {
                 let sender = sender.clone();
                 if let ProfileRowType::Profile { name, rule, .. } = &profile.row {
                     let rule_window = ProfileRuleWindow::builder()
-                        .launch((name.clone(), rule.clone().unwrap_or_default()))
+                        .launch((
+                            name.clone(),
+                            rule.clone().unwrap_or_default(),
+                            root.toplevel_window().expect("Widget not in a window"),
+                        ))
                         .into_stream();
 
                     sender.clone().oneshot_command(async move {

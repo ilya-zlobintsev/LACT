@@ -33,7 +33,7 @@ pub enum ProfileRuleWindowMsg {
 
 #[relm4::component(pub)]
 impl relm4::Component for ProfileRuleWindow {
-    type Init = (String, ProfileRule);
+    type Init = (String, ProfileRule, gtk::Window);
     type Input = ProfileRuleWindowMsg;
     type Output = (String, ProfileRule);
     type CommandOutput = ();
@@ -42,6 +42,7 @@ impl relm4::Component for ProfileRuleWindow {
         gtk::Dialog {
             set_default_size: (600, 300),
             set_title: Some("Profile activation rules"),
+            set_transient_for: Some(&root_window),
             connect_response[root, sender] => move |_, response| {
                 match response {
                     gtk::ResponseType::Accept => {
@@ -138,7 +139,7 @@ impl relm4::Component for ProfileRuleWindow {
     }
 
     fn init(
-        (profile_name, rule): Self::Init,
+        (profile_name, rule, root_window): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
