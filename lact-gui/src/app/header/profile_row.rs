@@ -3,6 +3,7 @@ use crate::app::{msg::AppMsg, APP_BROKER};
 use gtk::{pango, prelude::*};
 use lact_schema::ProfileRule;
 use relm4::{
+    css,
     factory::{DynamicIndex, FactoryComponent},
     FactorySender, RelmWidgetExt,
 };
@@ -56,12 +57,44 @@ impl FactoryComponent for ProfileRow {
                 set_width_request: 200,
             },
 
-            gtk::Button {
-                set_icon_name: "preferences-other-symbolic",
-                set_tooltip: "Edit Profile Rules",
-                set_sensitive: matches!(self.row, ProfileRowType::Profile { auto: true, .. }),
-                connect_clicked[sender, index] => move |_| {
-                    sender.output(HeaderMsg::ShowProfileEditor(index.clone())).unwrap();
+            gtk::MenuButton {
+                set_icon_name: "open-menu-symbolic",
+                #[wrap(Some)]
+                set_popover = &gtk::Popover {
+                    set_margin_all: 5,
+
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 5,
+
+                        gtk::Button {
+                            set_label: "Delete Profile",
+                            set_sensitive: matches!(self.row, ProfileRowType::Profile { .. }),
+                            connect_clicked[profile = self.row.clone()] => move |_| {
+                                if let ProfileRowType::Profile { name, .. } = profile.clone() {
+                                    APP_BROKER.send(AppMsg::DeleteProfile(name));
+                                }
+                            },
+                            add_css_class: css::FLAT,
+                        },
+
+                        gtk::Button {
+                            set_label: "Edit Activation Rules",
+                            set_sensitive: matches!(self.row, ProfileRowType::Profile { auto: true, .. }),
+                            connect_clicked[sender, index] => move |_| {
+                                sender.output(HeaderMsg::ShowProfileEditor(index.clone())).unwrap();
+                            },
+                            add_css_class: css::FLAT,
+                        },
+
+                        gtk::Button {
+                            set_label: "Export To File",
+                            connect_clicked[sender, index] => move |_| {
+                                sender.output(HeaderMsg::ExportProfile(index.clone())).unwrap();
+                            },
+                            add_css_class: css::FLAT,
+                        },
+                    },
                 }
             },
 
@@ -88,17 +121,6 @@ impl FactoryComponent for ProfileRow {
                 },
                 connect_clicked[index, profile = self.row.clone()] => move |_| {
                     APP_BROKER.send(move_profile_msg(&profile, &index, 1));
-                },
-            },
-
-            gtk::Button {
-                set_icon_name: "list-remove",
-                set_sensitive: matches!(self.row, ProfileRowType::Profile { .. }),
-                set_tooltip: "Delete Profile",
-                connect_clicked[profile = self.row.clone()] => move |_| {
-                    if let ProfileRowType::Profile { name, .. } = profile.clone() {
-                        APP_BROKER.send(AppMsg::DeleteProfile(name));
-                    }
                 },
             },
         }

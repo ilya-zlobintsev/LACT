@@ -1,7 +1,7 @@
 use crate::server::gpu_controller::{GpuController, VENDOR_NVIDIA};
 use anyhow::Context;
 use indexmap::IndexMap;
-use lact_schema::{config::GpuConfig, ProfileRule};
+use lact_schema::config::{GpuConfig, Profile};
 use nix::unistd::{getuid, Group};
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
@@ -85,14 +85,6 @@ impl Default for Daemon {
             tcp_listen_address: None,
         }
     }
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-pub struct Profile {
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub gpus: IndexMap<String, GpuConfig>,
-    pub rule: Option<ProfileRule>,
 }
 
 impl Config {

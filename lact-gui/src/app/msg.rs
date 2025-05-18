@@ -36,6 +36,8 @@ pub enum AppMsg {
         name: String,
         rule: Option<ProfileRule>,
     },
+    ImportProfile,
+    ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
     AskConfirmation(ConfirmationOptions, Box<AppMsg>),
 }

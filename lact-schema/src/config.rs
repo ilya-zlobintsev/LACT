@@ -6,8 +6,16 @@ use serde_with::skip_serializing_none;
 use crate::{
     default_fan_curve,
     request::{ClockspeedType, SetClocksCommand},
-    FanControlMode, FanCurveMap, PmfwOptions,
+    FanControlMode, FanCurveMap, PmfwOptions, ProfileRule,
 };
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct Profile {
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub gpus: IndexMap<String, GpuConfig>,
+    pub rule: Option<ProfileRule>,
+}
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]

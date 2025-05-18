@@ -171,6 +171,9 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::ListProfiles { include_state } => {
             ok_response(handler.list_profiles(include_state).await)
         }
+        Request::GetProfile { name } => {
+            ok_response(handler.get_profile(name.map(Into::into)).await?)
+        }
         Request::SetProfile { name, auto_switch } => ok_response(
             handler
                 .set_profile(name.map(Into::into), auto_switch)

@@ -3,7 +3,10 @@ mod connection;
 mod macros;
 
 pub use lact_schema as schema;
-use lact_schema::{config::GpuConfig, ProfileRule};
+use lact_schema::{
+    config::{GpuConfig, Profile},
+    ProfileRule,
+};
 
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::Context;
@@ -141,6 +144,10 @@ impl DaemonClient {
     pub async fn list_profiles(&self, include_state: bool) -> anyhow::Result<ProfilesInfo> {
         self.make_request(Request::ListProfiles { include_state })
             .await
+    }
+
+    pub async fn get_profile(&self, name: Option<String>) -> anyhow::Result<Option<Profile>> {
+        self.make_request(Request::GetProfile { name }).await
     }
 
     pub async fn set_profile(&self, name: Option<String>, auto_switch: bool) -> anyhow::Result<()> {
