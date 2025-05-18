@@ -378,7 +378,11 @@ fn format_rule(rule: &ProfileRule) -> String {
 
     match rule {
         ProfileRule::Process(process_rule) => {
-            write!(text, "Process <b>{}</b> is running", process_rule.name).unwrap();
+            if !process_rule.name.is_empty() {
+                write!(text, "Process <b>{}</b> is running", process_rule.name).unwrap();
+            } else {
+                write!(text, "Process is running <b>(unconfigured)</b>").unwrap();
+            }
             if let Some(args) = &process_rule.args {
                 write!(text, " with args <b>{args}</b>").unwrap();
             }

@@ -114,7 +114,7 @@ impl relm4::Component for ProfileRuleWindow {
                             gtk::Label {
                                 #[watch]
                                 set_markup: &format!(
-                                    "Selected settings are currently <b>{}</b>",
+                                    "Selected activation settings are currently <b>{}</b>",
                                     if model.currently_matches { "matched" } else { "not matched" }
                                 ),
                             },
