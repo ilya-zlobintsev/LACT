@@ -31,6 +31,7 @@ pub enum AppMsg {
     CreateProfile(String, ProfileBase),
     DeleteProfile(String),
     MoveProfile(String, usize),
+    RenameProfile(String, String),
     EvaluateProfile(ProfileRule),
     SetProfileRule {
         name: String,

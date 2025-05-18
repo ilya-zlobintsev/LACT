@@ -1,4 +1,5 @@
 mod new_profile_dialog;
+mod profile_rename_dialog;
 mod profile_row;
 pub mod profile_rule_window;
 
@@ -11,6 +12,7 @@ use gtk::*;
 use lact_client::schema::DeviceListEntry;
 use lact_schema::ProfilesInfo;
 use new_profile_dialog::NewProfileDialog;
+use profile_rename_dialog::ProfileRenameDialog;
 use profile_row::{ProfileRow, ProfileRowType};
 use profile_rule_window::{ProfileRuleWindow, ProfileRuleWindowMsg};
 use relm4::{
@@ -38,6 +40,7 @@ pub enum HeaderMsg {
     AutoProfileSwitch(bool),
     ShowProfileEditor(DynamicIndex),
     ExportProfile(DynamicIndex),
+    RenameProfile(DynamicIndex),
     SelectProfile,
     SelectGpu,
     CreateProfile,
@@ -316,7 +319,29 @@ impl Component for Header {
                     });
                 diag_controller.detach_runtime();
             }
+            HeaderMsg::RenameProfile(index) => {
+                sender.input(HeaderMsg::ClosePopover);
 
+                let profile = self
+                    .profile_selector
+                    .get(index.current_index())
+                    .expect("No profile with given index");
+
+                let sender = sender.clone();
+                if let ProfileRowType::Profile { name, .. } = profile.row.clone() {
+                    let stream = ProfileRenameDialog::builder()
+                        .launch(name.clone())
+                        .into_stream();
+
+                    sender.clone().oneshot_command(async move {
+                        if let Some(new_name) = stream.recv_one().await {
+                            sender
+                                .output(AppMsg::RenameProfile(name, new_name))
+                                .unwrap();
+                        }
+                    });
+                }
+            }
             HeaderMsg::ImportProfile => {
                 sender.input(HeaderMsg::ClosePopover);
                 sender.output(AppMsg::ImportProfile).unwrap();

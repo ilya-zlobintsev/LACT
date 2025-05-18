@@ -339,6 +339,28 @@ impl AppModel {
                     include_state: false,
                 });
             }
+            AppMsg::RenameProfile(old_name, new_name) => {
+                if old_name != new_name {
+                    let original_profile = self
+                        .daemon_client
+                        .get_profile(Some(old_name.clone()))
+                        .await
+                        .context("Could not get profile by old name")?
+                        .context("Original profile not found")?;
+                    self.daemon_client
+                        .create_profile(new_name, ProfileBase::Provided(original_profile))
+                        .await
+                        .context("Could not create new profile")?;
+                    self.daemon_client
+                        .delete_profile(old_name)
+                        .await
+                        .context("Could not delete old name")?;
+
+                    sender.input(AppMsg::ReloadProfiles {
+                        include_state: false,
+                    });
+                }
+            }
             AppMsg::DeleteProfile(profile) => {
                 self.daemon_client.delete_profile(profile).await?;
                 sender.input(AppMsg::ReloadProfiles {

@@ -68,6 +68,15 @@ impl FactoryComponent for ProfileRow {
                         set_spacing: 5,
 
                         gtk::Button {
+                            set_label: "Rename Profile",
+                            set_sensitive: matches!(self.row, ProfileRowType::Profile { .. }),
+                            connect_clicked[sender, index] => move |_| {
+                                sender.output(HeaderMsg::RenameProfile(index.clone())).unwrap();
+                            },
+                            add_css_class: css::FLAT,
+                        },
+
+                        gtk::Button {
                             set_label: "Delete Profile",
                             set_sensitive: matches!(self.row, ProfileRowType::Profile { .. }),
                             connect_clicked[profile = self.row.clone()] => move |_| {
