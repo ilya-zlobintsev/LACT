@@ -1,4 +1,6 @@
-use super::confirmation_dialog::ConfirmationOptions;
+use super::{
+    confirmation_dialog::ConfirmationOptions, header::profile_rule_window::ProfileRuleWindowMsg,
+};
 use lact_client::ConnectionStatusMsg;
 use lact_schema::{request::ProfileBase, DeviceStats, ProfileRule};
 use std::sync::Arc;
@@ -22,7 +24,7 @@ pub enum AppMsg {
     DisableOverdrive,
     ResetConfig,
     ReloadProfiles {
-        include_state: bool,
+        state_sender: Option<relm4::Sender<ProfileRuleWindowMsg>>,
     },
     SelectProfile {
         profile: Option<String>,
@@ -32,7 +34,7 @@ pub enum AppMsg {
     DeleteProfile(String),
     MoveProfile(String, usize),
     RenameProfile(String, String),
-    EvaluateProfile(ProfileRule),
+    EvaluateProfile(ProfileRule, relm4::Sender<ProfileRuleWindowMsg>),
     SetProfileRule {
         name: String,
         rule: Option<ProfileRule>,

@@ -14,24 +14,21 @@ use lact_schema::ProfilesInfo;
 use new_profile_dialog::NewProfileDialog;
 use profile_rename_dialog::ProfileRenameDialog;
 use profile_row::{ProfileRow, ProfileRowType};
-use profile_rule_window::{ProfileRuleWindow, ProfileRuleWindowMsg};
+use profile_rule_window::ProfileRuleWindow;
 use relm4::{
     factory::FactoryVecDeque,
     prelude::DynamicIndex,
     typed_view::list::{RelmListItem, TypedListView},
-    Component, ComponentController, ComponentParts, ComponentSender, MessageBroker,
-    RelmIterChildrenExt, RelmWidgetExt,
+    Component, ComponentController, ComponentParts, ComponentSender, RelmIterChildrenExt,
+    RelmWidgetExt,
 };
 use tracing::debug;
-
-pub static PROFILE_RULE_WINDOW_BROKER: MessageBroker<ProfileRuleWindowMsg> = MessageBroker::new();
 
 pub struct Header {
     profiles_info: ProfilesInfo,
     gpu_selector: TypedListView<GpuListItem, gtk::SingleSelection>,
     profile_selector: FactoryVecDeque<ProfileRow>,
     selector_label: String,
-    rule_window: relm4::Controller<ProfileRuleWindow>,
 }
 
 #[derive(Debug)]
@@ -208,17 +205,11 @@ impl Component for Header {
             }
         ));
 
-        let rule_window = ProfileRuleWindow::builder()
-            .transient_for(&root)
-            .launch_with_broker((), &PROFILE_RULE_WINDOW_BROKER)
-            .detach();
-
         let model = Self {
             gpu_selector,
             profile_selector,
             selector_label: String::new(),
             profiles_info: ProfilesInfo::default(),
-            rule_window,
         };
 
         let gpu_selector = &model.gpu_selector.view;
@@ -354,10 +345,21 @@ impl Component for Header {
                     .get(index.current_index())
                     .expect("No profile with given index");
 
+                let sender = sender.clone();
                 if let ProfileRowType::Profile { name, rule, .. } = &profile.row {
-                    self.rule_window.emit(ProfileRuleWindowMsg::Show {
-                        profile_name: name.clone(),
-                        rule: rule.clone().unwrap_or_default(),
+                    let rule_window = ProfileRuleWindow::builder()
+                        .launch((name.clone(), rule.clone().unwrap_or_default()))
+                        .into_stream();
+
+                    sender.clone().oneshot_command(async move {
+                        if let Some((name, rule)) = rule_window.recv_one().await {
+                            sender
+                                .output(AppMsg::SetProfileRule {
+                                    name,
+                                    rule: Some(rule),
+                                })
+                                .unwrap();
+                        }
                     });
                 }
             }

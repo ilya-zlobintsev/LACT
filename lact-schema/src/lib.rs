@@ -613,6 +613,8 @@ impl PartialEq for ProfilesInfo {
 pub enum ProfileRule {
     Process(ProcessProfileRule),
     Gamemode(Option<ProcessProfileRule>),
+    And(Vec<ProfileRule>),
+    Or(Vec<ProfileRule>),
 }
 
 impl Default for ProfileRule {

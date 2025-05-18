@@ -1,70 +1,76 @@
-use std::time::Duration;
-
 use crate::app::{msg::AppMsg, APP_BROKER};
 use gtk::{
     glib::{GStr, GString},
+    pango,
     prelude::{
-        BoxExt, CheckButtonExt, DialogExt, DialogExtManual, EditableExt, EntryBufferExtManual,
-        EntryExt, GridExt, GtkWindowExt, ObjectExt, OrientableExt, PopoverExt, SelectionModelExt,
-        WidgetExt,
+        BoxExt, ButtonExt, CheckButtonExt, DialogExt, DialogExtManual, EditableExt,
+        EntryBufferExtManual, EntryExt, GridExt, GtkWindowExt, ObjectExt, OrientableExt,
+        PopoverExt, SelectionModelExt, WidgetExt,
     },
-    SingleSelection,
 };
 use lact_schema::{ProcessInfo, ProcessProfileRule, ProfileRule, ProfileWatcherState};
 use relm4::{
+    prelude::{DynamicIndex, FactoryVecDeque},
     tokio::time::sleep,
     typed_view::list::{RelmListItem, TypedListView},
     view, ComponentParts, ComponentSender, RelmWidgetExt,
 };
+use std::{fmt::Write, time::Duration};
 use tracing::debug;
 
 const EVALUATE_INTERVAL_MS: u64 = 250;
 
 const PROCESS_PAGE: &str = "process";
 const GAMEMODE_PAGE: &str = "gamemode";
+const MULTI_RULE_PAGE: &str = "multiple";
 
 pub struct ProfileRuleWindow {
     profile_name: String,
     process_name_buffer: gtk::EntryBuffer,
     args_buffer: gtk::EntryBuffer,
     rule: ProfileRule,
-    process_list_view: TypedListView<ProcessListItem, SingleSelection>,
+    process_list_view: TypedListView<ProcessListItem, gtk::SingleSelection>,
+    sub_rules_list_view: FactoryVecDeque<MultiRuleRow>,
     currently_matches: bool,
 }
 
 #[derive(Debug)]
 pub enum ProfileRuleWindowMsg {
-    Show {
-        profile_name: String,
-        rule: ProfileRule,
-    },
     ProcessFilterChanged(GString),
     WatcherState(ProfileWatcherState),
     SetFromSelectedProcess,
     Evaluate,
     EvaluationResult(bool),
+    AddSubrule,
+    EditSubrule(DynamicIndex),
+    RemoveSubrule(DynamicIndex),
     Save,
+}
+
+#[derive(Debug)]
+pub enum CommandOutput {
+    SubruleAdded(ProfileRule),
+    SubruleEdited(ProfileRule, DynamicIndex),
 }
 
 #[relm4::component(pub)]
 impl relm4::Component for ProfileRuleWindow {
-    type Init = ();
+    type Init = (String, ProfileRule);
     type Input = ProfileRuleWindowMsg;
-    type Output = ();
-    type CommandOutput = ();
+    type Output = (String, ProfileRule);
+    type CommandOutput = Option<CommandOutput>;
 
     view! {
         gtk::Dialog {
             set_default_size: (600, 300),
             set_title: Some("Profile activation rules"),
-            set_hide_on_close: true,
             connect_response[root, sender] => move |_, response| {
                 match response {
                     gtk::ResponseType::Accept => {
                         sender.input(ProfileRuleWindowMsg::Save);
-                        root.hide();
+                        root.close();
                     }
-                    gtk::ResponseType::Cancel => root.hide(),
+                    gtk::ResponseType::Cancel => root.close(),
                     _ => (),
                 }
             },
@@ -141,9 +147,9 @@ impl relm4::Component for ProfileRuleWindow {
                                             }
                                         },
 
-                                        connect_visible_notify => |_| {
+                                        connect_visible_notify[sender] => move |_| {
                                             debug!("requesting profile watcher state");
-                                            APP_BROKER.send(AppMsg::ReloadProfiles { include_state: true });
+                                            APP_BROKER.send(AppMsg::ReloadProfiles { state_sender: Some(sender.input_sender().clone())});
                                         },
                                     },
                                 },
@@ -156,6 +162,7 @@ impl relm4::Component for ProfileRuleWindow {
 
                                 attach[1, 1, 1, 1]: filter_by_args_checkbutton = &gtk::CheckButton {
                                     connect_toggled => ProfileRuleWindowMsg::Evaluate,
+                                    set_active: model.args_buffer.length() > 0,
                                 },
 
                                 attach[2, 1, 1, 1]: args_entry = &gtk::Entry {
@@ -177,6 +184,7 @@ impl relm4::Component for ProfileRuleWindow {
 
                                 attach[1, 0, 1, 1]: gamemode_filter_by_process_checkbutton = &gtk::CheckButton {
                                     connect_toggled => ProfileRuleWindowMsg::Evaluate,
+                                    set_active: model.process_name_buffer.length() > 0,
                                 },
 
                                 attach[2, 0, 1, 1]: gamemode_process_name_entry = &gtk::Entry {
@@ -194,6 +202,7 @@ impl relm4::Component for ProfileRuleWindow {
 
                                 attach[1, 1, 1, 1]: gamemode_filter_by_args_checkbutton = &gtk::CheckButton {
                                     connect_toggled => ProfileRuleWindowMsg::Evaluate,
+                                    set_active: model.args_buffer.length() > 0,
                                 },
 
                                 attach[2, 1, 1, 1]: gamemode_args_entry = &gtk::Entry {
@@ -204,9 +213,47 @@ impl relm4::Component for ProfileRuleWindow {
                                 },
                             },
 
+                            add_titled[Some(MULTI_RULE_PAGE), "Multiple Rules"] = &gtk::Box {
+                                set_orientation: gtk::Orientation::Vertical,
+                                set_spacing: 5,
+
+                                #[name = "multi_or_checkbutton"]
+                                gtk::CheckButton {
+                                    set_label: Some("Any of the following rules are matched:"),
+                                    set_active: !matches!(model.rule, ProfileRule::And(_)),
+                                },
+
+                                #[name = "multi_and_checkbutton"]
+                                gtk::CheckButton {
+                                    set_label: Some("All of the following rules are matched:"),
+                                    set_group: Some(&multi_or_checkbutton),
+                                    set_active: matches!(model.rule, ProfileRule::And(_)),
+                                },
+
+                                gtk::Separator {},
+
+                                #[local_ref]
+                                sub_rules_listview -> gtk::Box {
+                                    set_orientation: gtk::Orientation::Vertical,
+                                    set_spacing: 5,
+                                },
+
+                                gtk::Box {
+                                    set_orientation: gtk::Orientation::Horizontal,
+                                    set_spacing: 5,
+
+                                    gtk::Button {
+                                        set_hexpand: true,
+                                        set_icon_name: "list-add-symbolic",
+                                        connect_clicked => ProfileRuleWindowMsg::AddSubrule,
+                                    },
+                                },
+                            },
+
                             set_visible_child_name: match &model.rule {
                                 ProfileRule::Process(_) => PROCESS_PAGE,
                                 ProfileRule::Gamemode(_) => GAMEMODE_PAGE,
+                                ProfileRule::And(_) | ProfileRule::Or(_) => MULTI_RULE_PAGE,
                             }
                         },
 
@@ -243,24 +290,33 @@ impl relm4::Component for ProfileRuleWindow {
     }
 
     fn init(
-        (): Self::Init,
+        (profile_name, rule): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let task_sender = sender.clone();
-        relm4::spawn_local(async move {
-            loop {
-                sleep(Duration::from_millis(EVALUATE_INTERVAL_MS)).await;
-                task_sender.input(ProfileRuleWindowMsg::Evaluate);
-            }
+        sender.command(move |_, shutdown| {
+            shutdown
+                .register(async move {
+                    loop {
+                        sleep(Duration::from_millis(EVALUATE_INTERVAL_MS)).await;
+                        task_sender.input(ProfileRuleWindowMsg::Evaluate);
+                    }
+                })
+                .drop_on_shutdown()
         });
 
+        let sub_rules_list_view = FactoryVecDeque::builder()
+            .launch_default()
+            .forward(sender.input_sender(), |msg| msg);
+
         let mut model = Self {
-            rule: ProfileRule::default(),
-            profile_name: String::new(),
+            rule,
+            profile_name,
             process_name_buffer: gtk::EntryBuffer::new(GStr::NONE),
             args_buffer: gtk::EntryBuffer::new(GStr::NONE),
             process_list_view: TypedListView::new(),
+            sub_rules_list_view,
             currently_matches: false,
         };
 
@@ -269,7 +325,23 @@ impl relm4::Component for ProfileRuleWindow {
             .selection_model
             .set_autoselect(false);
 
+        match &model.rule {
+            ProfileRule::Process(rule) | ProfileRule::Gamemode(Some(rule)) => {
+                model.process_name_buffer.set_text(rule.name.as_ref());
+                model
+                    .args_buffer
+                    .set_text(rule.args.as_deref().unwrap_or_default());
+            }
+            ProfileRule::Gamemode(None) => (),
+            ProfileRule::And(subrules) | ProfileRule::Or(subrules) => {
+                for rule in subrules.iter().cloned() {
+                    model.sub_rules_list_view.guard().push_back(rule);
+                }
+            }
+        };
+
         let process_listview = &model.process_list_view.view;
+        let sub_rules_listview = model.sub_rules_list_view.widget();
         let widgets = view_output!();
 
         model.process_list_view.add_filter({
@@ -286,20 +358,25 @@ impl relm4::Component for ProfileRuleWindow {
         widgets
             .filter_by_args_checkbutton
             .bind_property("active", &widgets.args_entry, "sensitive")
+            .sync_create()
             .bidirectional()
             .build();
 
         widgets
             .gamemode_filter_by_process_checkbutton
             .bind_property("active", &widgets.gamemode_process_name_entry, "sensitive")
+            .sync_create()
             .bidirectional()
             .build();
 
         widgets
             .gamemode_filter_by_args_checkbutton
             .bind_property("active", &widgets.gamemode_args_entry, "sensitive")
+            .sync_create()
             .bidirectional()
             .build();
+
+        root.present();
 
         ComponentParts { model, widgets }
     }
@@ -312,42 +389,6 @@ impl relm4::Component for ProfileRuleWindow {
         root: &Self::Root,
     ) {
         match msg {
-            ProfileRuleWindowMsg::Show { profile_name, rule } => {
-                self.profile_name = profile_name;
-
-                let page = match rule {
-                    ProfileRule::Process(rule) => {
-                        self.process_name_buffer.set_text(rule.name.as_ref());
-                        self.args_buffer
-                            .set_text(rule.args.as_deref().unwrap_or_default());
-                        PROCESS_PAGE
-                    }
-                    ProfileRule::Gamemode(Some(rule)) => {
-                        self.process_name_buffer.set_text(rule.name.as_ref());
-                        self.args_buffer
-                            .set_text(rule.args.as_deref().unwrap_or_default());
-                        GAMEMODE_PAGE
-                    }
-                    ProfileRule::Gamemode(None) => {
-                        self.process_name_buffer.set_text("");
-                        self.args_buffer.set_text("");
-                        GAMEMODE_PAGE
-                    }
-                };
-                widgets.stack.set_visible_child_name(page);
-
-                widgets
-                    .filter_by_args_checkbutton
-                    .set_active(self.args_buffer.length() > 0);
-                widgets
-                    .gamemode_filter_by_process_checkbutton
-                    .set_active(self.process_name_buffer.length() > 0);
-                widgets
-                    .gamemode_filter_by_args_checkbutton
-                    .set_active(self.args_buffer.length() > 0);
-
-                root.present();
-            }
             ProfileRuleWindowMsg::ProcessFilterChanged(filter) => {
                 self.process_list_view.set_filter_status(0, false);
                 if !filter.is_empty() {
@@ -384,21 +425,74 @@ impl relm4::Component for ProfileRuleWindow {
             ProfileRuleWindowMsg::Evaluate => {
                 if root.is_visible() {
                     let rule = self.get_rule(widgets);
-                    APP_BROKER.send(AppMsg::EvaluateProfile(rule));
+                    APP_BROKER.send(AppMsg::EvaluateProfile(rule, sender.input_sender().clone()));
                 }
+            }
+            ProfileRuleWindowMsg::AddSubrule => {
+                let stream = ProfileRuleWindow::builder()
+                    .launch(("Subrule".to_owned(), ProfileRule::default()))
+                    .into_stream();
+
+                sender.oneshot_command(async move {
+                    stream
+                        .recv_one()
+                        .await
+                        .map(|(_, rule)| CommandOutput::SubruleAdded(rule))
+                });
+            }
+            ProfileRuleWindowMsg::EditSubrule(index) => {
+                let current_rule = self
+                    .sub_rules_list_view
+                    .get(index.current_index())
+                    .unwrap()
+                    .rule
+                    .clone();
+
+                let stream = ProfileRuleWindow::builder()
+                    .launch(("Subrule".to_owned(), current_rule))
+                    .into_stream();
+
+                sender.oneshot_command(async move {
+                    stream
+                        .recv_one()
+                        .await
+                        .map(|(_, rule)| CommandOutput::SubruleEdited(rule, index))
+                });
+            }
+            ProfileRuleWindowMsg::RemoveSubrule(index) => {
+                self.sub_rules_list_view
+                    .guard()
+                    .remove(index.current_index());
             }
             ProfileRuleWindowMsg::EvaluationResult(matches) => {
                 self.currently_matches = matches;
             }
             ProfileRuleWindowMsg::Save => {
-                APP_BROKER.send(AppMsg::SetProfileRule {
-                    name: self.profile_name.clone(),
-                    rule: Some(self.get_rule(widgets)),
-                });
+                sender
+                    .output((self.profile_name.clone(), self.get_rule(widgets)))
+                    .unwrap();
             }
         }
 
         self.update_view(widgets, sender);
+    }
+
+    fn update_cmd(
+        &mut self,
+        msg: Self::CommandOutput,
+        _sender: ComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
+        if let Some(msg) = msg {
+            match msg {
+                CommandOutput::SubruleAdded(rule) => {
+                    self.sub_rules_list_view.guard().push_back(rule);
+                }
+                CommandOutput::SubruleEdited(rule, index) => {
+                    self.sub_rules_list_view.send(index.current_index(), rule);
+                }
+            }
+        }
     }
 }
 
@@ -437,6 +531,20 @@ impl ProfileRuleWindow {
                 };
                 ProfileRule::Gamemode(rule)
             }
+            Some(MULTI_RULE_PAGE) => {
+                let mut subrules = vec![];
+
+                for i in 0..self.sub_rules_list_view.len() {
+                    let rule = self.sub_rules_list_view.get(i).unwrap();
+                    subrules.push(rule.rule.clone());
+                }
+
+                if widgets.multi_or_checkbutton.is_active() {
+                    ProfileRule::Or(subrules)
+                } else {
+                    ProfileRule::And(subrules)
+                }
+            }
             _ => unreachable!(),
         }
     }
@@ -472,4 +580,99 @@ impl RelmListItem for ProcessListItem {
         let text = format!("<b>{}</b> ({})", self.0.name, self.0.cmdline);
         widgets.label.set_markup(&text);
     }
+}
+
+struct MultiRuleRow {
+    rule: ProfileRule,
+}
+
+#[relm4::factory]
+impl relm4::factory::FactoryComponent for MultiRuleRow {
+    type Init = ProfileRule;
+    type Input = ProfileRule;
+    type Output = ProfileRuleWindowMsg;
+    type CommandOutput = ();
+    type ParentWidget = gtk::Box;
+
+    view! {
+        gtk::Box {
+            gtk::Label {
+                set_hexpand: true,
+                set_halign: gtk::Align::Start,
+                set_ellipsize: pango::EllipsizeMode::End,
+                #[watch]
+                set_markup: &format_rule(&self.rule),
+            },
+
+            gtk::Button {
+                set_icon_name: "open-menu-symbolic",
+                set_tooltip: "Edit Rule",
+                connect_clicked[sender, index] => move |_| {
+                    let _ = sender.output(ProfileRuleWindowMsg::EditSubrule(index.clone()));
+                }
+            },
+
+            gtk::Button {
+                set_icon_name: "list-remove-symbolic",
+                set_tooltip: "Remove Rule",
+                connect_clicked[sender, index] => move |_| {
+                    let _ = sender.output(ProfileRuleWindowMsg::RemoveSubrule(index.clone()));
+                }
+            },
+        }
+    }
+
+    fn init_model(
+        rule: Self::Init,
+        _index: &Self::Index,
+        _sender: relm4::FactorySender<Self>,
+    ) -> Self {
+        Self { rule }
+    }
+
+    fn update(&mut self, rule: Self::Input, _sender: relm4::FactorySender<Self>) {
+        self.rule = rule;
+    }
+}
+
+fn format_rule(rule: &ProfileRule) -> String {
+    let mut text = String::new();
+
+    match rule {
+        ProfileRule::Process(process_rule) => {
+            write!(text, "Process <b>{}</b> is running", process_rule.name).unwrap();
+            if let Some(args) = &process_rule.args {
+                write!(text, " with args <b>{args}</b>").unwrap();
+            }
+        }
+        ProfileRule::Gamemode(process_rule) => {
+            write!(text, "Gamemode is active").unwrap();
+            if let Some(process_rule) = process_rule {
+                write!(text, "with process <b>{}</b>", process_rule.name).unwrap();
+                if let Some(args) = &process_rule.args {
+                    write!(text, " and args <b>{args}</b>").unwrap();
+                }
+            }
+        }
+        ProfileRule::And(subrules) => {
+            write!(text, "All of the following rules are matched: ").unwrap();
+            for (i, rule) in subrules.iter().enumerate() {
+                if i > 0 {
+                    text.push_str(", ");
+                }
+                text.push_str(&format_rule(rule));
+            }
+        }
+        ProfileRule::Or(subrules) => {
+            write!(text, "Any of the following rules are matched: ").unwrap();
+            for (i, rule) in subrules.iter().enumerate() {
+                if i > 0 {
+                    text.push_str(", ");
+                }
+                text.push_str(&format_rule(rule));
+            }
+        }
+    }
+
+    text
 }
