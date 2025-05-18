@@ -1,4 +1,5 @@
 mod new_profile_dialog;
+mod profile_rename_dialog;
 mod profile_row;
 pub mod profile_rule_window;
 
@@ -11,6 +12,7 @@ use gtk::*;
 use lact_client::schema::DeviceListEntry;
 use lact_schema::ProfilesInfo;
 use new_profile_dialog::NewProfileDialog;
+use profile_rename_dialog::ProfileRenameDialog;
 use profile_row::{ProfileRow, ProfileRowType};
 use profile_rule_window::{ProfileRuleWindow, ProfileRuleWindowMsg};
 use relm4::{
@@ -37,9 +39,12 @@ pub enum HeaderMsg {
     Profiles(std::boxed::Box<ProfilesInfo>),
     AutoProfileSwitch(bool),
     ShowProfileEditor(DynamicIndex),
+    ExportProfile(DynamicIndex),
+    RenameProfile(DynamicIndex),
     SelectProfile,
     SelectGpu,
     CreateProfile,
+    ImportProfile,
     ClosePopover,
 }
 
@@ -120,8 +125,16 @@ impl Component for Header {
                                     gtk::Button {
                                         set_expand: true,
                                         set_icon_name: "list-add",
+                                        set_tooltip: "Add new profile",
                                         connect_clicked => HeaderMsg::CreateProfile,
                                     },
+
+                                    gtk::Button {
+                                        set_icon_name: "document-import-symbolic",
+                                        set_tooltip: "Import profile from file",
+                                        set_expand: true,
+                                        connect_clicked => HeaderMsg::ImportProfile,
+                                    }
                                 },
                             }
                         },
@@ -282,6 +295,20 @@ impl Component for Header {
                     }
                 }
             }
+            HeaderMsg::ExportProfile(index) => {
+                sender.input(HeaderMsg::ClosePopover);
+
+                let profile = self
+                    .profile_selector
+                    .get(index.current_index())
+                    .expect("No profile with given index");
+
+                let name = match &profile.row {
+                    ProfileRowType::Default => None,
+                    ProfileRowType::Profile { name, .. } => Some(name.clone()),
+                };
+                sender.output(AppMsg::ExportProfile(name)).unwrap();
+            }
             HeaderMsg::CreateProfile => {
                 sender.input(HeaderMsg::ClosePopover);
 
@@ -291,6 +318,33 @@ impl Component for Header {
                         AppMsg::CreateProfile(name, base)
                     });
                 diag_controller.detach_runtime();
+            }
+            HeaderMsg::RenameProfile(index) => {
+                sender.input(HeaderMsg::ClosePopover);
+
+                let profile = self
+                    .profile_selector
+                    .get(index.current_index())
+                    .expect("No profile with given index");
+
+                let sender = sender.clone();
+                if let ProfileRowType::Profile { name, .. } = profile.row.clone() {
+                    let stream = ProfileRenameDialog::builder()
+                        .launch(name.clone())
+                        .into_stream();
+
+                    sender.clone().oneshot_command(async move {
+                        if let Some(new_name) = stream.recv_one().await {
+                            sender
+                                .output(AppMsg::RenameProfile(name, new_name))
+                                .unwrap();
+                        }
+                    });
+                }
+            }
+            HeaderMsg::ImportProfile => {
+                sender.input(HeaderMsg::ClosePopover);
+                sender.output(AppMsg::ImportProfile).unwrap();
             }
             HeaderMsg::ShowProfileEditor(index) => {
                 sender.input(HeaderMsg::ClosePopover);

@@ -22,6 +22,7 @@ tracing-subscriber = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_yaml = { workspace = true }
+serde_json = { workspace = true }
 indexmap = { workspace = true }
 gtk = { version = "0.9", package = "gtk4", features = ["v4_6"] }
 

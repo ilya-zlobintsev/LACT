@@ -29,8 +29,8 @@ use header::{
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
     args::GuiArgs,
-    config::GpuConfig,
-    request::{ConfirmCommand, SetClocksCommand},
+    config::{GpuConfig, Profile},
+    request::{ConfirmCommand, ProfileBase, SetClocksCommand},
     DeviceStats, GIT_COMMIT,
 };
 use msg::AppMsg;
@@ -47,8 +47,14 @@ use relm4::{
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio, AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
 };
+use relm4_components::{
+    open_dialog::{OpenDialog, OpenDialogMsg, OpenDialogResponse, OpenDialogSettings},
+    save_dialog::{SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings},
+};
 use std::{
+    fs,
     os::unix::net::UnixStream,
+    path::PathBuf,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, AtomicU32, Ordering},
@@ -80,13 +86,19 @@ pub struct AppModel {
     stats_task_handle: Option<glib::JoinHandle<()>>,
 }
 
+#[derive(Debug)]
+pub enum CommandOutput {
+    ProfileImport(PathBuf),
+    Error(anyhow::Error),
+}
+
 #[relm4::component(pub, async)]
 impl AsyncComponent for AppModel {
     type Init = GuiArgs;
 
     type Input = AppMsg;
     type Output = ();
-    type CommandOutput = ();
+    type CommandOutput = Option<CommandOutput>;
 
     view! {
         #[root]
@@ -259,6 +271,19 @@ impl AsyncComponent for AppModel {
         }
         self.update_view(widgets, sender);
     }
+
+    async fn update_cmd(
+        &mut self,
+        msg: Self::CommandOutput,
+        sender: AsyncComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
+        if let Some(msg) = msg {
+            if let Err(err) = self.handle_cmd_output(msg, &sender).await {
+                sender.input(AppMsg::Error(Arc::new(err)));
+            }
+        }
+    }
 }
 
 impl AppModel {
@@ -314,6 +339,28 @@ impl AppModel {
                     include_state: false,
                 });
             }
+            AppMsg::RenameProfile(old_name, new_name) => {
+                if old_name != new_name {
+                    let original_profile = self
+                        .daemon_client
+                        .get_profile(Some(old_name.clone()))
+                        .await
+                        .context("Could not get profile by old name")?
+                        .context("Original profile not found")?;
+                    self.daemon_client
+                        .create_profile(new_name, ProfileBase::Provided(original_profile))
+                        .await
+                        .context("Could not create new profile")?;
+                    self.daemon_client
+                        .delete_profile(old_name)
+                        .await
+                        .context("Could not delete old name")?;
+
+                    sender.input(AppMsg::ReloadProfiles {
+                        include_state: false,
+                    });
+                }
+            }
             AppMsg::DeleteProfile(profile) => {
                 self.daemon_client.delete_profile(profile).await?;
                 sender.input(AppMsg::ReloadProfiles {
@@ -325,6 +372,56 @@ impl AppModel {
                 sender.input(AppMsg::ReloadProfiles {
                     include_state: false,
                 });
+            }
+            AppMsg::ImportProfile => {
+                let json_filter = gtk::FileFilter::new();
+                json_filter.add_mime_type("application/json");
+
+                let settings = OpenDialogSettings {
+                    filters: vec![json_filter],
+                    ..Default::default()
+                };
+                let file_picker = OpenDialog::builder().launch(settings);
+                file_picker.emit(OpenDialogMsg::Open);
+                let stream = file_picker.into_stream();
+
+                sender.oneshot_command(async move {
+                    if let Some(OpenDialogResponse::Accept(path)) = stream.recv_one().await {
+                        Some(CommandOutput::ProfileImport(path))
+                    } else {
+                        None
+                    }
+                });
+            }
+            AppMsg::ExportProfile(name) => {
+                if let Some(profile) = self.daemon_client.get_profile(name.clone()).await? {
+                    let settings = SaveDialogSettings {
+                        create_folders: true,
+                        is_modal: true,
+                        ..Default::default()
+                    };
+                    let diag = SaveDialog::builder().launch(settings);
+                    diag.emit(SaveDialogMsg::SaveAs(format!(
+                        "LACT-profile-{}.json",
+                        name.as_deref().unwrap_or("default")
+                    )));
+
+                    let stream = diag.into_stream();
+
+                    sender.oneshot_command(async move {
+                        if let Some(SaveDialogResponse::Accept(path)) = stream.recv_one().await {
+                            let contents = serde_json::to_string(&profile)
+                                .expect("Could not serialize profile");
+
+                            if let Err(err) =
+                                fs::write(path, contents).context("Could not export profile")
+                            {
+                                return Some(CommandOutput::Error(err));
+                            }
+                        }
+                        None
+                    });
+                }
             }
             AppMsg::Stats(stats) => {
                 let update = PageUpdate::Stats(stats.clone());
@@ -420,6 +517,40 @@ impl AppModel {
                 self.reload_profiles(false).await?;
             }
         }
+        Ok(())
+    }
+
+    async fn handle_cmd_output(
+        &mut self,
+        msg: CommandOutput,
+        sender: &AsyncComponentSender<AppModel>,
+    ) -> anyhow::Result<()> {
+        match msg {
+            CommandOutput::ProfileImport(path) => {
+                let file_name = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("Imported profile");
+
+                let contents = fs::read_to_string(&path).context("Could not read selected file")?;
+                let profile = serde_json::from_str::<Profile>(&contents)
+                    .context("Could not parse profile")?;
+                let profile_name = file_name
+                    .trim_start_matches("LACT-profile-")
+                    .trim_end_matches(".json");
+
+                self.daemon_client
+                    .create_profile(profile_name.to_owned(), ProfileBase::Provided(profile))
+                    .await
+                    .context("Could not import profile")?;
+
+                sender.input(AppMsg::ReloadProfiles {
+                    include_state: false,
+                });
+            }
+            CommandOutput::Error(error) => return Err(error),
+        }
+
         Ok(())
     }
 

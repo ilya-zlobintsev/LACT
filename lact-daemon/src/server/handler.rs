@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     bindings::intel::IntelDrm,
-    config::{Config, Profile},
+    config::Config,
     server::{gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
 };
 use amdgpu_sysfs::gpu_handle::{
@@ -13,7 +13,7 @@ use amdgpu_sysfs::gpu_handle::{
 };
 use anyhow::{anyhow, bail, Context};
 use lact_schema::{
-    config::{default_fan_static_speed, FanControlSettings, FanCurve, GpuConfig},
+    config::{default_fan_static_speed, FanControlSettings, FanCurve, GpuConfig, Profile},
     default_fan_curve,
     request::{ClockspeedType, ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
@@ -817,6 +817,16 @@ impl<'a> Handler {
         }
     }
 
+    pub async fn get_profile(&self, name: Option<Rc<str>>) -> anyhow::Result<Option<Profile>> {
+        let config = self.config.read().await;
+
+        let profile = match name {
+            Some(profile) => config.profiles.get(&profile).cloned(),
+            None => Some(config.default_profile()),
+        };
+        Ok(profile)
+    }
+
     pub async fn set_profile(
         &self,
         name: Option<Rc<str>>,
@@ -860,6 +870,7 @@ impl<'a> Handler {
                 ProfileBase::Empty => Profile::default(),
                 ProfileBase::Default => config.default_profile(),
                 ProfileBase::Profile(name) => config.profile(&name)?.clone(),
+                ProfileBase::Provided(profile) => profile,
             };
             config.profiles.insert(name.into(), profile);
             config.save(&self.config_last_saved)?;

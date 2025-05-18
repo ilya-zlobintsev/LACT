@@ -31,11 +31,14 @@ pub enum AppMsg {
     CreateProfile(String, ProfileBase),
     DeleteProfile(String),
     MoveProfile(String, usize),
+    RenameProfile(String, String),
     EvaluateProfile(ProfileRule),
     SetProfileRule {
         name: String,
         rule: Option<ProfileRule>,
     },
+    ImportProfile,
+    ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
     AskConfirmation(ConfirmationOptions, Box<AppMsg>),
 }
