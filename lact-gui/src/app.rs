@@ -24,7 +24,8 @@ use gtk::{
     MessageType, ResponseType,
 };
 use header::{
-    profile_rule_window::ProfileRuleWindowMsg, Header, HeaderMsg, PROFILE_RULE_WINDOW_BROKER,
+    profile_rule_window::{profile_row::ProfileRuleRowMsg, ProfileRuleWindowMsg},
+    Header, HeaderMsg,
 };
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
@@ -251,9 +252,7 @@ impl AsyncComponent for AppModel {
             .stack_switcher
             .set_stack(Some(&widgets.root_stack));
 
-        sender.input(AppMsg::ReloadProfiles {
-            include_state: false,
-        });
+        sender.input(AppMsg::ReloadProfiles { state_sender: None });
 
         AsyncComponentParts { model, widgets }
     }
@@ -299,8 +298,8 @@ impl AppModel {
             AppMsg::SettingsChanged => {
                 self.apply_revealer.emit(ApplyRevealerMsg::Show);
             }
-            AppMsg::ReloadProfiles { include_state } => {
-                self.reload_profiles(include_state).await?;
+            AppMsg::ReloadProfiles { state_sender } => {
+                self.reload_profiles(state_sender).await?;
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ReloadData { full } => {
@@ -321,9 +320,7 @@ impl AppModel {
                 auto_switch,
             } => {
                 self.daemon_client.set_profile(profile, auto_switch).await?;
-                sender.input(AppMsg::ReloadProfiles {
-                    include_state: false,
-                });
+                sender.input(AppMsg::ReloadProfiles { state_sender: None });
             }
             AppMsg::CreateProfile(name, base) => {
                 self.daemon_client
@@ -335,9 +332,7 @@ impl AppModel {
                     .set_profile(Some(name), auto_switch)
                     .await?;
 
-                sender.input(AppMsg::ReloadProfiles {
-                    include_state: false,
-                });
+                sender.input(AppMsg::ReloadProfiles { state_sender: None });
             }
             AppMsg::RenameProfile(old_name, new_name) => {
                 if old_name != new_name {
@@ -356,22 +351,16 @@ impl AppModel {
                         .await
                         .context("Could not delete old name")?;
 
-                    sender.input(AppMsg::ReloadProfiles {
-                        include_state: false,
-                    });
+                    sender.input(AppMsg::ReloadProfiles { state_sender: None });
                 }
             }
             AppMsg::DeleteProfile(profile) => {
                 self.daemon_client.delete_profile(profile).await?;
-                sender.input(AppMsg::ReloadProfiles {
-                    include_state: false,
-                });
+                sender.input(AppMsg::ReloadProfiles { state_sender: None });
             }
             AppMsg::MoveProfile(name, new_position) => {
                 self.daemon_client.move_profile(name, new_position).await?;
-                sender.input(AppMsg::ReloadProfiles {
-                    include_state: false,
-                });
+                sender.input(AppMsg::ReloadProfiles { state_sender: None });
             }
             AppMsg::ImportProfile => {
                 let json_filter = gtk::FileFilter::new();
@@ -501,11 +490,10 @@ impl AppModel {
                     });
                 controller.detach_runtime();
             }
-            AppMsg::EvaluateProfile(rule) => {
+            AppMsg::EvaluateProfile(rule, sender) => {
                 match self.daemon_client.evaluate_profile_rule(rule).await {
                     Ok(matches) => {
-                        PROFILE_RULE_WINDOW_BROKER
-                            .send(ProfileRuleWindowMsg::EvaluationResult(matches));
+                        sender.emit(ProfileRuleWindowMsg::EvaluationResult(matches));
                     }
                     Err(err) => {
                         warn!("{err:#}");
@@ -514,7 +502,7 @@ impl AppModel {
             }
             AppMsg::SetProfileRule { name, rule } => {
                 self.daemon_client.set_profile_rule(name, rule).await?;
-                self.reload_profiles(false).await?;
+                self.reload_profiles(None).await?;
             }
         }
         Ok(())
@@ -544,9 +532,7 @@ impl AppModel {
                     .await
                     .context("Could not import profile")?;
 
-                sender.input(AppMsg::ReloadProfiles {
-                    include_state: false,
-                });
+                sender.input(AppMsg::ReloadProfiles { state_sender: None });
             }
             CommandOutput::Error(error) => return Err(error),
         }
@@ -561,11 +547,19 @@ impl AppModel {
             .context("No GPU selected")
     }
 
-    async fn reload_profiles(&mut self, include_state: bool) -> anyhow::Result<()> {
-        let mut profiles = self.daemon_client.list_profiles(include_state).await?;
+    async fn reload_profiles(
+        &mut self,
+        state_sender: Option<relm4::Sender<ProfileRuleRowMsg>>,
+    ) -> anyhow::Result<()> {
+        let mut profiles = self
+            .daemon_client
+            .list_profiles(state_sender.is_some())
+            .await?;
 
-        if let Some(state) = profiles.watcher_state.take() {
-            PROFILE_RULE_WINDOW_BROKER.send(ProfileRuleWindowMsg::WatcherState(state));
+        if let Some(sender) = state_sender {
+            if let Some(state) = profiles.watcher_state.take() {
+                let _ = sender.send(ProfileRuleRowMsg::WatcherState(state));
+            }
         }
 
         self.header.emit(HeaderMsg::Profiles(Box::new(profiles)));
