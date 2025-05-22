@@ -39,10 +39,16 @@ pub struct OcPage {
 
 #[derive(Debug)]
 pub enum OcPageMsg {
-    Update { update: PageUpdate, initial: bool },
+    Update {
+        update: PageUpdate,
+        initial: bool,
+    },
     ClocksTable(Option<ClocksTable>),
     ProfileModesTable(Option<PowerProfileModesTable>),
-    PowerStates(PowerStates),
+    PowerStates {
+        pstates: PowerStates,
+        configured: bool,
+    },
     PerformanceLevelChanged,
 }
 
@@ -181,9 +187,15 @@ impl relm4::Component for OcPage {
                 self.performance_frame
                     .emit(PerformanceFrameMsg::PowerProfileModes(modes_table));
             }
-            OcPageMsg::PowerStates(states) => {
+            OcPageMsg::PowerStates {
+                pstates,
+                configured,
+            } => {
                 self.power_states_frame
-                    .emit(PowerStatesFrameMsg::PowerStates(states));
+                    .emit(PowerStatesFrameMsg::PowerStates {
+                        pstates,
+                        configured,
+                    });
                 sender.input(OcPageMsg::PerformanceLevelChanged);
             }
             OcPageMsg::PerformanceLevelChanged => {
@@ -229,6 +241,10 @@ impl OcPage {
     }
 
     pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
-        self.power_states_frame.model().get_enabled_power_states()
+        if self.performance_frame.model().performance_level() == Some(PerformanceLevel::Manual) {
+            self.power_states_frame.model().get_enabled_power_states()
+        } else {
+            HashMap::new()
+        }
     }
 }

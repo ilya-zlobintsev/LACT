@@ -33,7 +33,10 @@ pub struct PowerStatesFrame {
 
 #[derive(Debug)]
 pub enum PowerStatesFrameMsg {
-    PowerStates(PowerStates),
+    PowerStates {
+        pstates: PowerStates,
+        configured: bool,
+    },
     Stats(Arc<DeviceStats>),
     PerformanceLevel(Option<PerformanceLevel>),
     VramClockRatio(f64),
@@ -126,13 +129,10 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            PowerStatesFrameMsg::PowerStates(pstates) => {
-                let configured = pstates
-                    .core
-                    .iter()
-                    .chain(pstates.vram.iter())
-                    .any(|state| !state.enabled);
-
+            PowerStatesFrameMsg::PowerStates {
+                pstates,
+                configured,
+            } => {
                 self.states_configured.block_signal(&self.configured_signal);
                 self.states_configured.set_value(configured);
                 self.states_configured
@@ -176,21 +176,25 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
 impl PowerStatesFrame {
     pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
-        let state_types = [
-            (PowerLevelKind::CoreClock, &self.core_states_list),
-            (PowerLevelKind::MemoryClock, &self.vram_states_list),
-        ];
+        if self.states_configured.value() {
+            let state_types = [
+                (PowerLevelKind::CoreClock, &self.core_states_list),
+                (PowerLevelKind::MemoryClock, &self.vram_states_list),
+            ];
 
-        if self.states_configurable.value() {
-            state_types
-                .into_iter()
-                .map(|(kind, child)| (kind, child.model().get_enabled_power_states()))
-                .collect()
+            if self.states_configurable.value() {
+                state_types
+                    .into_iter()
+                    .map(|(kind, child)| (kind, child.model().get_enabled_power_states()))
+                    .collect()
+            } else {
+                state_types
+                    .into_iter()
+                    .map(|(kind, _)| (kind, vec![]))
+                    .collect()
+            }
         } else {
-            state_types
-                .into_iter()
-                .map(|(kind, _)| (kind, vec![]))
-                .collect()
+            HashMap::new()
         }
     }
 }

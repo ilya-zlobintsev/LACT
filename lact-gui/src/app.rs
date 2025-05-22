@@ -640,6 +640,13 @@ impl AppModel {
 
         debug!("updating info for gpu {gpu_id}");
 
+        let gpu_config = self
+            .daemon_client
+            .get_gpu_config(&gpu_id)
+            .await
+            .ok()
+            .flatten();
+
         let stats = self
             .daemon_client
             .get_device_stats(&gpu_id)
@@ -684,7 +691,10 @@ impl AppModel {
 
         match self.daemon_client.get_power_states(&gpu_id).await {
             Ok(power_states) => {
-                self.oc_page.emit(OcPageMsg::PowerStates(power_states));
+                self.oc_page.emit(OcPageMsg::PowerStates {
+                    pstates: power_states,
+                    configured: gpu_config.is_some_and(|config| !config.power_states.is_empty()),
+                });
             }
             Err(err) => warn!("could not get power states: {err:?}"),
         }
@@ -742,11 +752,15 @@ impl AppModel {
 
         let enabled_power_states = self.oc_page.model().get_enabled_power_states();
 
-        for (kind, enabled_states) in enabled_power_states {
-            if enabled_states.is_empty() {
-                gpu_config.power_states.shift_remove(&kind);
-            } else {
-                gpu_config.power_states.insert(kind, enabled_states);
+        if enabled_power_states.is_empty() {
+            gpu_config.power_states.clear();
+        } else {
+            for (kind, enabled_states) in enabled_power_states {
+                if enabled_states.is_empty() {
+                    gpu_config.power_states.shift_remove(&kind);
+                } else {
+                    gpu_config.power_states.insert(kind, enabled_states);
+                }
             }
         }
 
