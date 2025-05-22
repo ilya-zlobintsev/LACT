@@ -15,13 +15,14 @@ use gtk::{
     pango,
     prelude::{BoxExt, ButtonExt, FrameExt, OrientableExt, WidgetExt},
 };
+use indexmap::IndexMap;
 use lact_daemon::MODULE_CONF_PATH;
 use lact_schema::{request::SetClocksCommand, ClocksTable, DeviceInfo, PowerStates, SystemInfo};
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 const OVERCLOCKING_DISABLED_TEXT: &str = "AMD Overclocking support is not enabled! \
 You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
@@ -240,11 +241,11 @@ impl OcPage {
         self.clocks_frame.model().get_commands()
     }
 
-    pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
+    pub fn get_enabled_power_states(&self) -> IndexMap<PowerLevelKind, Vec<u8>> {
         if self.performance_frame.model().performance_level() == Some(PerformanceLevel::Manual) {
             self.power_states_frame.model().get_enabled_power_states()
         } else {
-            HashMap::new()
+            IndexMap::new()
         }
     }
 }

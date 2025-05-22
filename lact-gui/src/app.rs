@@ -751,18 +751,7 @@ impl AppModel {
         }
 
         let enabled_power_states = self.oc_page.model().get_enabled_power_states();
-
-        if enabled_power_states.is_empty() {
-            gpu_config.power_states.clear();
-        } else {
-            for (kind, enabled_states) in enabled_power_states {
-                if enabled_states.is_empty() {
-                    gpu_config.power_states.shift_remove(&kind);
-                } else {
-                    gpu_config.power_states.insert(kind, enabled_states);
-                }
-            }
-        }
+        gpu_config.power_states = enabled_power_states;
 
         let delay = self
             .daemon_client

@@ -13,12 +13,13 @@ use gtk::{
     glib::{object::ObjectExt, SignalHandlerId},
     prelude::{BoxExt, CheckButtonExt, OrientableExt, WidgetExt},
 };
+use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
     binding::BoolBinding, Component, ComponentController, ComponentParts, ComponentSender,
     RelmObjectExt, RelmWidgetExt,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 pub struct PowerStatesFrame {
     core_states_list: relm4::Controller<PowerStatesList>,
@@ -175,7 +176,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 }
 
 impl PowerStatesFrame {
-    pub fn get_enabled_power_states(&self) -> HashMap<PowerLevelKind, Vec<u8>> {
+    pub fn get_enabled_power_states(&self) -> IndexMap<PowerLevelKind, Vec<u8>> {
         if self.states_configured.value() {
             let state_types = [
                 (PowerLevelKind::CoreClock, &self.core_states_list),
@@ -194,7 +195,7 @@ impl PowerStatesFrame {
                     .collect()
             }
         } else {
-            HashMap::new()
+            IndexMap::new()
         }
     }
 }
