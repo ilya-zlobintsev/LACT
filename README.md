@@ -5,11 +5,11 @@
 This application allows you to control your AMD, Nvidia or Intel GPU on a Linux
 system.
 
-| GPU info                                  | Overclocking                              | Fan control                               |
-| ----------------------------------------- | ----------------------------------------- | ----------------------------------------- |
-| ![image](https://i.imgur.com/gur90cK.png) | ![image](https://i.imgur.com/BAL3MgC.png) | ![image](https://i.imgur.com/VsAVdOR.png) |
-| Historical data                           |                                           |                                           |
-| ![image](https://i.imgur.com/GOmKh1M.png) |                                           |                                           |
+| GPU info                          | Overclocking                      | Fan control                       |
+| ----------------------------------| ----------------------------------| ----------------------------------|
+| ![image](./res/screenshots/1.png) | ![image](./res/screenshots/2.png) | ![image](./res/screenshots/3.png) |
+| Software info                     | Historical data                   |                                   |
+| ![image](./res/screenshots/4.png) | ![image](./res/screenshots/5.png) |                                   |
 
 Current features:
 
