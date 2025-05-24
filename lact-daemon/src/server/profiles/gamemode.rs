@@ -1,5 +1,5 @@
-use copes::solver::PID;
 use lact_schema::ProcessMap;
+use libcopes::PID;
 use nix::unistd::{geteuid, seteuid, Uid};
 use std::{
     env, fs,

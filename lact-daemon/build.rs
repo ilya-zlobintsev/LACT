@@ -20,7 +20,7 @@ fn gen_intel_bindings() {
 
     bindgen::builder()
         .header("include/intel.h")
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .dynamic_library_name("IntelDrm")
         .generate_comments(false)
         .generate()
@@ -35,7 +35,7 @@ fn gen_nvidia_bindings() {
 
     bindgen::builder()
         .header("include/nvidia.h")
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate_comments(false)
         .clang_arg("-Iinclude/nvidia/src/common/sdk/nvidia/inc")
         .generate()

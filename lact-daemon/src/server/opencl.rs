@@ -8,6 +8,7 @@ use cl3::{
         CL_DEVICE_OPENCL_C_VERSION, CL_DEVICE_PCI_BUS_INFO_KHR, CL_DEVICE_TOPOLOGY_AMD,
         CL_DEVICE_TYPE_ALL, CL_DEVICE_VERSION, CL_DRIVER_VERSION, CL_PLATFORM_NAME,
     },
+    info_type::InfoType,
     platform,
 };
 use lact_schema::OpenCLInfo;
@@ -98,7 +99,7 @@ fn find_matching_device(
 
             let Ok(raw_bus_info) = device::get_device_info(device, CL_DEVICE_PCI_BUS_INFO_KHR)
                 .map_err(|err| anyhow!("Could not get bus info: {err}"))
-                .map(|info_type| info_type.to_vec_uchar())
+                .map(InfoType::to_vec_uchar)
             else {
                 continue;
             };

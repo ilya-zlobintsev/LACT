@@ -44,7 +44,7 @@ tar = "0.4.40"
 libflate = "2.0.0"
 os-release = "0.1.0"
 notify = { version = "8.0.0", default-features = false }
-copes = { git = "https://gitlab.com/corectrl/copes" }
+libcopes = "1.0.0"
 libloading = "0.8.6"
 cl3 = { git = "https://github.com/kenba/cl3", branch = "develop", features = [
     "static",
@@ -57,5 +57,5 @@ easy_fuser = { version = "0.4.0", features = ["parallel"] }
 tempfile = "3.17.1"
 
 [build-dependencies]
-bindgen = "0.68"
+bindgen = "0.71"
 serde_json = { workspace = true }

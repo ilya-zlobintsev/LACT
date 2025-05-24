@@ -2,9 +2,9 @@ mod gamemode;
 mod process;
 
 use crate::server::handler::Handler;
-use copes::solver::PEvent;
 use futures::StreamExt;
 use lact_schema::{ProfileRule, ProfileWatcherState};
+use libcopes::PEvent;
 use std::{
     process::Command,
     rc::Rc,
