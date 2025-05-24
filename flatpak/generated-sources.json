@@ -1785,6 +1785,19 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/libyml/libyml-0.0.5.crate",
+        "sha256": "3302702afa434ffa30847a83305f0a69d6abd74293b6554c18ec85c7ef30c980",
+        "dest": "cargo/vendor/libyml-0.0.5"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": \"3302702afa434ffa30847a83305f0a69d6abd74293b6554c18ec85c7ef30c980\", \"files\": {}}",
+        "dest": "cargo/vendor/libyml-0.0.5",
+        "dest-filename": ".cargo-checksum.json"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/linux-raw-sys/linux-raw-sys-0.9.4.crate",
         "sha256": "cd945864f07fe9f5371a27ad7b52a172b4b499999f1d97574c9fa68373937e12",
         "dest": "cargo/vendor/linux-raw-sys-0.9.4"
@@ -2757,14 +2770,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/serde_yaml/serde_yaml-0.9.34+deprecated.crate",
-        "sha256": "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47",
-        "dest": "cargo/vendor/serde_yaml-0.9.34+deprecated"
+        "url": "https://static.crates.io/crates/serde_yml/serde_yml-0.0.12.crate",
+        "sha256": "59e2dd588bf1597a252c3b920e0143eb99b0f76e4e082f4c92ce34fbc9e71ddd",
+        "dest": "cargo/vendor/serde_yml-0.0.12"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47\", \"files\": {}}",
-        "dest": "cargo/vendor/serde_yaml-0.9.34+deprecated",
+        "contents": "{\"package\": \"59e2dd588bf1597a252c3b920e0143eb99b0f76e4e082f4c92ce34fbc9e71ddd\", \"files\": {}}",
+        "dest": "cargo/vendor/serde_yml-0.0.12",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -3285,19 +3298,6 @@
         "type": "inline",
         "contents": "{\"package\": \"5a5f39404a5da50712a4c1eecf25e90dd62b613502b7e925fd4e4d19b5c96512\", \"files\": {}}",
         "dest": "cargo/vendor/unicode-ident-1.0.18",
-        "dest-filename": ".cargo-checksum.json"
-    },
-    {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/unsafe-libyaml/unsafe-libyaml-0.2.11.crate",
-        "sha256": "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861",
-        "dest": "cargo/vendor/unsafe-libyaml-0.2.11"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": \"673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861\", \"files\": {}}",
-        "dest": "cargo/vendor/unsafe-libyaml-0.2.11",
         "dest-filename": ".cargo-checksum.json"
     },
     {
