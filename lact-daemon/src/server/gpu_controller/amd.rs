@@ -530,7 +530,7 @@ impl AmdGpuController {
                 .or_else(|| self.handle.get_max_link_width().ok()),
             max_speed: system_link
                 .map(|link| format!("Gen {}", link.gen))
-                .or_else(|| self.handle.get_max_link_width().ok()),
+                .or_else(|| self.handle.get_max_link_speed().ok()),
         }
     }
 
