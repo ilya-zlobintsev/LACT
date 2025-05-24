@@ -96,9 +96,12 @@ fn find_matching_device(
                 }
             }
 
-            let raw_bus_info = device::get_device_info(device, CL_DEVICE_PCI_BUS_INFO_KHR)
-                .map_err(|err| anyhow!("Could not get bus info: {err}"))?
-                .to_vec_uchar();
+            let Ok(raw_bus_info) = device::get_device_info(device, CL_DEVICE_PCI_BUS_INFO_KHR)
+                .map_err(|err| anyhow!("Could not get bus info: {err}"))
+                .map(|info_type| info_type.to_vec_uchar())
+            else {
+                continue;
+            };
             let bus_info = device::get_device_pci_bus_info_khr(&raw_bus_info);
 
             if bus_info.pci_bus == u32::from(slot_info.bus)
