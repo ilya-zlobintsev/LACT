@@ -148,7 +148,7 @@ pub(crate) async fn detect_initramfs_type(os_release: &OsRelease) -> Option<Init
 
     if os_release.id == "debian" || id_like.contains(&"debian") {
         Some(InitramfsType::Debian)
-    } else if os_release.id == "arch" || id_like.contains(&"arch") {
+    } else if os_release.id == "arch" || os_release.id == "cachyos" || id_like.contains(&"arch") {
         if Command::new("mkinitcpio")
             .arg("--version")
             .output()
