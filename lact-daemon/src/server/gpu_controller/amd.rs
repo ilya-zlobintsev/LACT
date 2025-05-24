@@ -517,11 +517,20 @@ impl AmdGpuController {
     }
 
     fn get_link_info(&self) -> LinkInfo {
+        let system_link = self
+            .drm_handle
+            .as_ref()
+            .and_then(libdrm_amdgpu_sys::AMDGPU::DeviceHandle::get_max_system_link);
+
         LinkInfo {
             current_width: self.handle.get_current_link_width().ok(),
             current_speed: self.handle.get_current_link_speed().ok(),
-            max_width: self.handle.get_max_link_width().ok(),
-            max_speed: self.handle.get_max_link_speed().ok(),
+            max_width: system_link
+                .map(|link| link.width.to_string())
+                .or_else(|| self.handle.get_max_link_width().ok()),
+            max_speed: system_link
+                .map(|link| format!("Gen {}", link.gen))
+                .or_else(|| self.handle.get_max_link_width().ok()),
         }
     }
 

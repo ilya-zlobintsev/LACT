@@ -330,7 +330,7 @@ impl GpuController for NvidiaGpuController {
                         .map(|v| {
                             let mut output = format!("{} GT/s", v / 1000);
                             if let Ok(gen) = device.current_pcie_link_gen() {
-                                let _ = write!(output, " PCIe gen {gen}");
+                                let _ = write!(output, " Gen {gen}");
                             }
                             output
                         })
@@ -343,7 +343,7 @@ impl GpuController for NvidiaGpuController {
                         .map(|v| {
                             let mut output = format!("{} GT/s", v / 1000);
                             if let Ok(gen) = device.current_pcie_link_gen() {
-                                let _ = write!(output, " PCIe gen {gen}");
+                                let _ = write!(output, " Gen {gen}");
                             }
                             output
                         }),

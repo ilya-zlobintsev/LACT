@@ -269,10 +269,14 @@ impl DeviceInfo {
             }
         }
 
-        if let (Some(link_speed), Some(link_width)) =
-            (&self.link_info.current_speed, &self.link_info.current_width)
+        if let (Some(max_link_speed), Some(max_link_width)) =
+            (&self.link_info.max_speed, &self.link_info.max_width)
         {
-            elements.push(("Link Speed", Some(format!("{link_speed} x{link_width}"))));
+            if let (Some(current_link_speed), Some(current_link_width)) =
+                (&self.link_info.current_speed, &self.link_info.current_width)
+            {
+                elements.push(("PCIe Link Speed", Some(format!("{current_link_speed} x{current_link_width} (Max: {max_link_speed} x{max_link_width})"))));
+            }
         }
 
         elements
