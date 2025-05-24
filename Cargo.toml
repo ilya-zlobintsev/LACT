@@ -26,7 +26,7 @@ chrono = "0.4.31"
 indexmap = { version = "2.5.0", features = ["serde"] }
 pretty_assertions = "1.4.0"
 divan = "0.1"
-serde_yaml = "0.9"
+serde_yml = "0.0.12"
 
 [profile.release]
 strip = "symbols"
