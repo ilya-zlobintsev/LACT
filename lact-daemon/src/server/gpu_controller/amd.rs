@@ -529,7 +529,10 @@ impl AmdGpuController {
         let max_link = if let (Some(max_pcie_link), Some(max_system_link)) =
             (max_pcie_link, max_system_link)
         {
-            Some(cmp::min(max_pcie_link, max_system_link))
+            Some(PCI::LINK {
+                r#gen: cmp::min(max_pcie_link.r#gen, max_system_link.r#gen),
+                width: cmp::min(max_pcie_link.width, max_system_link.width),
+            })
         } else {
             None
         };
