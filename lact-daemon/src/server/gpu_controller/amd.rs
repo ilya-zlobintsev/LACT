@@ -517,19 +517,30 @@ impl AmdGpuController {
     }
 
     fn get_link_info(&self) -> LinkInfo {
-        let system_link = self
+        let max_link = self
             .drm_handle
             .as_ref()
-            .and_then(libdrm_amdgpu_sys::AMDGPU::DeviceHandle::get_max_system_link);
+            .and_then(|drm| drm.device_info().ok())
+            .map(|drm_info| (drm_info.pcie_gen, drm_info.pcie_num_lanes));
+
+        let current_link = self
+            .drm_handle
+            .as_ref()
+            .and_then(|drm| drm.get_pci_bus_info().ok())
+            .and_then(|bus_info| bus_info.get_current_link_info());
 
         LinkInfo {
-            current_width: self.handle.get_current_link_width().ok(),
-            current_speed: self.handle.get_current_link_speed().ok(),
-            max_width: system_link
+            current_width: current_link
                 .map(|link| link.width.to_string())
-                .or_else(|| self.handle.get_max_link_width().ok()),
-            max_speed: system_link
+                .or_else(|| self.handle.get_current_link_width().ok()),
+            current_speed: current_link
                 .map(|link| format!("Gen {}", link.gen))
+                .or_else(|| self.handle.get_current_link_speed().ok()),
+            max_width: max_link
+                .map(|(_, lanes)| lanes.to_string())
+                .or_else(|| self.handle.get_max_link_width().ok()),
+            max_speed: max_link
+                .map(|(gen, _)| format!("Gen {gen}"))
                 .or_else(|| self.handle.get_max_link_speed().ok()),
         }
     }
