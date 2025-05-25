@@ -523,7 +523,16 @@ impl AmdGpuController {
             .and_then(|name| name.parse::<PCI::BUS_INFO>().ok())
             .map(|bus_info| bus_info.get_gpu_pcie_port_bus());
         let current_link = gpu_pcie_port_bus.and_then(|bus| bus.get_current_link_info());
-        let max_link = gpu_pcie_port_bus.and_then(|bus| bus.get_max_link_info());
+        let max_pcie_link = gpu_pcie_port_bus.and_then(|bus| bus.get_max_link_info());
+        let max_system_link = gpu_pcie_port_bus.and_then(|bus| bus.get_max_system_link());
+
+        let max_link = if let (Some(max_pcie_link), Some(max_system_link)) =
+            (max_pcie_link, max_system_link)
+        {
+            Some(cmp::min(max_pcie_link, max_system_link))
+        } else {
+            None
+        };
 
         LinkInfo {
             current_width: current_link
