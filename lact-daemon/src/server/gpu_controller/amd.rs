@@ -21,7 +21,7 @@ use lact_schema::{
     LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, RopInfo, VoltageStats, VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit};
-use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE};
+use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
 use std::{
     cell::RefCell,
     cmp,
@@ -517,17 +517,13 @@ impl AmdGpuController {
     }
 
     fn get_link_info(&self) -> LinkInfo {
-        let max_link = self
-            .drm_handle
-            .as_ref()
-            .and_then(|drm| drm.device_info().ok())
-            .map(|drm_info| (drm_info.pcie_gen, drm_info.pcie_num_lanes));
-
-        let current_link = self
-            .drm_handle
-            .as_ref()
-            .and_then(|drm| drm.get_pci_bus_info().ok())
-            .and_then(|bus_info| bus_info.get_current_link_info());
+        let gpu_pcie_port_bus = self
+            .handle
+            .get_pci_slot_name()
+            .and_then(|name| name.parse::<PCI::BUS_INFO>().ok())
+            .map(|bus_info| bus_info.get_gpu_pcie_port_bus());
+        let current_link = gpu_pcie_port_bus.and_then(|bus| bus.get_current_link_info());
+        let max_link = gpu_pcie_port_bus.and_then(|bus| bus.get_max_link_info());
 
         LinkInfo {
             current_width: current_link
@@ -537,10 +533,10 @@ impl AmdGpuController {
                 .map(|link| format!("Gen {}", link.gen))
                 .or_else(|| self.handle.get_current_link_speed().ok()),
             max_width: max_link
-                .map(|(_, lanes)| lanes.to_string())
+                .map(|link| link.width.to_string())
                 .or_else(|| self.handle.get_max_link_width().ok()),
             max_speed: max_link
-                .map(|(gen, _)| format!("Gen {gen}"))
+                .map(|link| format!("Gen {}", link.gen))
                 .or_else(|| self.handle.get_max_link_speed().ok()),
         }
     }
