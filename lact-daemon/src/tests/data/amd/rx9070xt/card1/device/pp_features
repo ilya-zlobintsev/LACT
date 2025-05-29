@@ -53,4 +53,3 @@ No. Feature               Bit : State
 50. SOC_EDC_XVMIN        (50) : enabled
 51. GFX_PSM_DIDT         (51) : enabled
 52. APT_ALL_ENABLE       (52) : disabled
-53. APT_SQ_THROTTLE      (53) : disabled

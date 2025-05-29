@@ -1,4 +1,0 @@
-MAJOR=226
-MINOR=1
-DEVNAME=dri/card1
-DEVTYPE=drm_minor

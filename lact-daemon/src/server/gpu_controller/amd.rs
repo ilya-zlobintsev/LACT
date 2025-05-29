@@ -517,11 +517,14 @@ impl AmdGpuController {
     }
 
     fn get_link_info(&self) -> LinkInfo {
+        #[cfg(not(test))]
         let gpu_pcie_port_bus = self
             .handle
             .get_pci_slot_name()
             .and_then(|name| name.parse::<PCI::BUS_INFO>().ok())
             .map(|bus_info| bus_info.get_gpu_pcie_port_bus());
+        #[cfg(test)]
+        let gpu_pcie_port_bus: Option<PCI::BUS_INFO> = None;
         let current_link = gpu_pcie_port_bus.and_then(|bus| bus.get_current_link_info());
         let max_pcie_link = gpu_pcie_port_bus.and_then(|bus| bus.get_max_link_info());
         let max_system_link = gpu_pcie_port_bus.and_then(|bus| bus.get_max_system_link());
@@ -745,31 +748,11 @@ impl GpuController for AmdGpuController {
         }
     }
 
-    fn get_clocks_info(&self, gpu_config: Option<&GpuConfig>) -> anyhow::Result<ClocksInfo> {
-        let mut clocks_table = self
+    fn get_clocks_info(&self, _gpu_config: Option<&GpuConfig>) -> anyhow::Result<ClocksInfo> {
+        let clocks_table = self
             .handle
             .get_clocks_table()
             .context("Clocks table not available")?;
-
-        if let ClocksTableGen::Vega20(table) = &mut clocks_table {
-            // Workaround for RDNA4 not reporting current SCLK offset in the original format:
-            // https://github.com/ilya-zlobintsev/LACT/issues/485#issuecomment-2712502906
-            if table.rdna4_sclk_offset_workaround {
-                // The values present in the old clocks table format for the current slck offset are rubbish,
-                // we should report the configured value instead
-                let offset = gpu_config
-                    .and_then(|config| {
-                        config
-                            .clocks_configuration
-                            .gpu_clock_offsets
-                            .get(&0)
-                            .copied()
-                    })
-                    .unwrap_or(0);
-
-                table.sclk_offset = Some(offset);
-            }
-        }
 
         Ok(clocks_table.into())
     }
@@ -1113,7 +1096,7 @@ fn apply_clocks_config_to_table(
     config: &ClocksConfiguration,
     table: &mut ClocksTableGen,
 ) -> anyhow::Result<()> {
-    if let ClocksTableGen::Vega20(ref mut table) = table {
+    if let ClocksTableGen::Rdna(ref mut table) = table {
         // Avoid writing settings to the clocks table except the user-specified ones
         // There is an issue on some GPU models where the default values are actually outside of the allowed range
         // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example

@@ -4,10 +4,15 @@ expression: write_commands
 ---
 [
     "card1/device/pp_od_clk_voltage: r\n",
-    "card1/device/gpu_od/fan_ctrl/fan_curve: r\n",
-    "card1/device/pp_od_clk_voltage: s 1 200\n",
+    "card1/device/pp_od_clk_voltage: s 200\n",
     "card1/device/pp_od_clk_voltage: vo -50\n",
     "card1/device/power_dpm_force_performance_level: auto",
-    "card1/device/hwmon/hwmon3/power1_cap: 280000000",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: 0 40 35\n",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: 1 50 40\n",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: 2 60 50\n",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: 3 80 80\n",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: 4 90 100\n",
+    "card1/device/hwmon/hwmon5/power1_cap: 280000000",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: c\n",
     "card1/device/pp_od_clk_voltage: c\n",
 ]
