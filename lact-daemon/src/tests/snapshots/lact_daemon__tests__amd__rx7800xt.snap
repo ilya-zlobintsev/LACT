@@ -35,12 +35,11 @@ expression: device_info
               "min": -450
             }
           },
-          "rdna4_sclk_offset_workaround": false,
           "sclk_offset": null,
           "vddc_curve": [],
           "voltage_offset": -100
         },
-        "kind": "vega20"
+        "kind": "rdna"
       }
     }
   },

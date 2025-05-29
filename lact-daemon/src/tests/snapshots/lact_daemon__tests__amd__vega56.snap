@@ -78,7 +78,7 @@ expression: device_info
             }
           ]
         },
-        "kind": "vega10"
+        "kind": "gcn"
       }
     }
   },

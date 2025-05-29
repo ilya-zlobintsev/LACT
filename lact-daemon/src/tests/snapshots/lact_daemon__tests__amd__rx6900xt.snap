@@ -32,12 +32,11 @@ expression: device_info
             "sclk_offset": null,
             "voltage_offset": null
           },
-          "rdna4_sclk_offset_workaround": false,
           "sclk_offset": null,
           "vddc_curve": [],
           "voltage_offset": -10
         },
-        "kind": "vega20"
+        "kind": "rdna"
       }
     }
   },
