@@ -779,14 +779,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/easy_fuser/easy_fuser-0.4.0.crate",
-        "sha256": "7f3ed26d190ef40be51fd728975117f58a30df5a83da7af5d52b98a92277d176",
-        "dest": "cargo/vendor/easy_fuser-0.4.0"
+        "url": "https://static.crates.io/crates/easy_fuser/easy_fuser-0.4.1.crate",
+        "sha256": "741f7677b0bf516435724bc9be16b5f14ec925e8dffd5059bc8d7ca006b00eeb",
+        "dest": "cargo/vendor/easy_fuser-0.4.1"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"7f3ed26d190ef40be51fd728975117f58a30df5a83da7af5d52b98a92277d176\", \"files\": {}}",
-        "dest": "cargo/vendor/easy_fuser-0.4.0",
+        "contents": "{\"package\": \"741f7677b0bf516435724bc9be16b5f14ec925e8dffd5059bc8d7ca006b00eeb\", \"files\": {}}",
+        "dest": "cargo/vendor/easy_fuser-0.4.1",
         "dest-filename": ".cargo-checksum.json"
     },
     {

@@ -545,9 +545,9 @@ dependencies = [
 
 [[package]]
 name = "easy_fuser"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f3ed26d190ef40be51fd728975117f58a30df5a83da7af5d52b98a92277d176"
+checksum = "741f7677b0bf516435724bc9be16b5f14ec925e8dffd5059bc8d7ca006b00eeb"
 dependencies = [
  "bitflags 2.9.0",
  "fuser",
