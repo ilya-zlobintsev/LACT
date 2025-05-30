@@ -918,78 +918,60 @@ impl GpuController for AmdGpuController {
             } else {
                 let pmfw = &config.pmfw_options;
                 if let Some(acoustic_limit) = pmfw.acoustic_limit {
-                    if self
-                        .handle
+                    self.handle
                         .get_fan_acoustic_limit()
-                        .context("Could not get acoustic limit")?
-                        .current
-                        != acoustic_limit
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_acoustic_limit(acoustic_limit)
-                            .context("Could not set acoustic limit")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                        .context("Could not get acoustic limit")?;
+
+                    let commit_handle = self
+                        .handle
+                        .set_fan_acoustic_limit(acoustic_limit)
+                        .context("Could not set acoustic limit")?;
+                    commit_handles.push_front(commit_handle);
                 }
                 if let Some(acoustic_target) = pmfw.acoustic_target {
-                    if self
-                        .handle
+                    self.handle
                         .get_fan_acoustic_target()
-                        .context("Could not get acoustic target")?
-                        .current
-                        != acoustic_target
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_acoustic_target(acoustic_target)
-                            .context("Could not set acoustic target")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                        .context("Could not get acoustic target")?;
+
+                    let commit_handle = self
+                        .handle
+                        .set_fan_acoustic_target(acoustic_target)
+                        .context("Could not set acoustic target")?;
+                    commit_handles.push_front(commit_handle);
                 }
                 if let Some(target_temperature) = pmfw.target_temperature {
-                    if self
-                        .handle
+                    self.handle
                         .get_fan_target_temperature()
-                        .context("Could not get target temperature")?
-                        .current
-                        != target_temperature
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_target_temperature(target_temperature)
-                            .context("Could not set target temperature")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                        .context("Could not get target temperature")?;
+
+                    let commit_handle = self
+                        .handle
+                        .set_fan_target_temperature(target_temperature)
+                        .context("Could not set target temperature")?;
+                    commit_handles.push_front(commit_handle);
                 }
                 if let Some(minimum_pwm) = pmfw.minimum_pwm {
-                    if self
-                        .handle
+                    self.handle
                         .get_fan_minimum_pwm()
-                        .context("Could not get minimum pwm")?
-                        .current
-                        != minimum_pwm
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_minimum_pwm(minimum_pwm)
-                            .context("Could not set minimum pwm")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                        .context("Could not get minimum pwm")?;
+
+                    let commit_handle = self
+                        .handle
+                        .set_fan_minimum_pwm(minimum_pwm)
+                        .context("Could not set minimum pwm")?;
+                    commit_handles.push_front(commit_handle);
                 }
             }
 
             // Unlike the other PMFW options, zero rpm should be functional with a custom curve
             if let Some(zero_rpm) = config.pmfw_options.zero_rpm {
                 match self.handle.get_fan_zero_rpm_enable() {
-                    Ok(current_zero_rpm) => {
-                        if current_zero_rpm != zero_rpm {
-                            let commit_handle = self
-                                .handle
-                                .set_fan_zero_rpm_enable(zero_rpm)
-                                .context("Could not set zero RPM mode")?;
-                            commit_handles.push_front(commit_handle);
-                        }
+                    Ok(_) => {
+                        let commit_handle = self
+                            .handle
+                            .set_fan_zero_rpm_enable(zero_rpm)
+                            .context("Could not set zero RPM mode")?;
+                        commit_handles.push_front(commit_handle);
                     }
                     Err(err) => {
                         error!("zero RPM is present in the config, but not available on the GPU: {err}");
@@ -999,14 +981,12 @@ impl GpuController for AmdGpuController {
 
             if let Some(zero_rpm_threshold) = config.pmfw_options.zero_rpm_threshold {
                 match self.handle.get_fan_zero_rpm_stop_temperature() {
-                    Ok(current_threshold) => {
-                        if current_threshold.current != zero_rpm_threshold {
-                            let commit_handle = self
-                                .handle
-                                .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
-                                .context("Could not set zero RPM temperature")?;
-                            commit_handles.push_front(commit_handle);
-                        }
+                    Ok(_) => {
+                        let commit_handle = self
+                            .handle
+                            .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
+                            .context("Could not set zero RPM temperature")?;
+                        commit_handles.push_front(commit_handle);
                     }
                     Err(err) => {
                         error!("zero RPM threshold is present in the config, but not available on the GPU: {err}");
