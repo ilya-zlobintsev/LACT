@@ -53,7 +53,7 @@ cl3 = { git = "https://github.com/kenba/cl3", branch = "develop", features = [
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 insta = { version = "1.41.1", features = ["json", "yaml"] }
-easy_fuser = { version = "0.4.0", features = ["parallel"] }
+easy_fuser = { version = "0.4.1", features = ["parallel"] }
 tempfile = "3.17.1"
 
 [build-dependencies]
