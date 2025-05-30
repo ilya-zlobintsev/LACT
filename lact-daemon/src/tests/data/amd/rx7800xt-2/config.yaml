@@ -1,0 +1,18 @@
+1002:747E-1DA2:475D-0000:0a:00.0:
+fan_control_enabled: true
+fan_control_settings:
+    mode: curve
+    static_speed: 0.5
+    temperature_key: edge
+    interval_ms: 500
+    curve:
+        55: 0.3001944
+        60: 0.4009776
+        65: 0.49936122
+        70: 0.75
+        80: 1.0
+    spindown_delay_ms: 5000
+    change_threshold: 2
+pmfw_options:
+    zero_rpm: false
+performance_level: auto
