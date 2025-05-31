@@ -22,7 +22,20 @@ use relm4::{
 
 // This is only used on RDNA1 in practice
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
-const WARNING_TEXT: &str = "Warning: changing these values may lead to system instability and potentially damage your hardware!";
+const WARNING_TEXT: &str = "Warning: changing these values may lead to system instability and can potentially damage your hardware!";
+const NVIDIA_OC_INFO_TEXT: &str = "\
+Overclocking functionality on Nvidia includes setting offsets for GPU/VRAM clockspeeds and limiting the potential range of clockspeeds using the \"locked clocks\" feature.
+
+On many cards, the VRAM clockpeed offset will only affect the actual memory clockspeed by half of the offset value. \
+For example, a +1000MHz VRAM offset may only increase the measured VRAM speed by 500MHz. \
+This is normal, and is how Nvidia handles GDDR data rates. Adjust your overclock accordingly.
+
+Direct voltage control is not supported, as it does not exist in the Nvidia Linux driver.
+
+It is possible to achieve a pseudo-undervolt by combining the locked clocks option with a positive clockspeed offset. \
+This will force the GPU to run at a voltage that's constrained by the locked clocks, while achieving a higher clockspeed due to the offset. \
+This can cause system instability if pushed too high.\
+";
 
 pub struct ClocksFrame {
     clocks: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
@@ -57,6 +70,33 @@ impl relm4::Component for ClocksFrame {
             },
 
             append = &gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_halign: gtk::Align::Start,
+                set_spacing: 5,
+                #[watch]
+                set_visible: model.show_nvidia_options,
+
+                append = &gtk::MenuButton {
+                    set_icon_name: "dialog-information-symbolic",
+
+                    #[wrap(Some)]
+                    set_popover = &gtk::Popover {
+                        gtk::Label {
+                            set_margin_all: 5,
+                            set_markup: NVIDIA_OC_INFO_TEXT,
+                            set_wrap: true,
+                            set_max_width_chars: 75,
+                        }
+                    }
+                },
+
+                append = &gtk::Label {
+                    set_label: "Nvidia Overclocking Information",
+                    add_css_class: "heading",
+                },
+            },
+
+            append = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
 
@@ -72,7 +112,6 @@ impl relm4::Component for ClocksFrame {
                         set_label: Some("Show all P-States"),
                         add_binding["active"]: &model.show_all_pstates,
                     },
-
 
                     append: gpu_locked_clocks_togglebutton = &gtk::CheckButton {
                         set_label: Some("Enable GPU Locked Clocks"),
@@ -180,7 +219,6 @@ impl relm4::Component for ClocksFrame {
                     .block_signal(&widgets.vram_locked_clock_signal);
 
                 self.clocks.clear();
-                self.show_all_pstates.set_value(false);
                 self.enable_gpu_locked_clocks.set_value(false);
                 self.enable_vram_locked_clocks.set_value(false);
                 self.show_nvidia_options = false;
@@ -213,6 +251,8 @@ impl relm4::Component for ClocksFrame {
                 widgets
                     .vram_locked_clocks_togglebutton
                     .unblock_signal(&widgets.vram_locked_clock_signal);
+
+                sender.input(ClocksFrameMsg::TogglePStatesVisibility);
             }
             ClocksFrameMsg::VramRatio(vram_ratio) => {
                 self.vram_clock_ratio = vram_ratio;
@@ -262,6 +302,8 @@ impl ClocksFrame {
     }
 
     fn set_amd_table(&mut self, table: AmdClocksTable) {
+        self.show_all_pstates.set_value(false);
+
         if let AmdClocksTable::Rdna(table) = &table {
             if let Some((sclk_offset_min, sclk_offset_max)) = table
                 .od_range
@@ -401,6 +443,8 @@ impl ClocksFrame {
     }
 
     fn set_intel_table(&mut self, table: IntelClocksTable) {
+        self.show_all_pstates.set_value(false);
+
         if let Some((current_gt_min, current_gt_max)) = table.gt_freq {
             if let (Some(min_clock), Some(max_clock)) = (table.rpn_freq, table.rp0_freq) {
                 self.clocks.insert(

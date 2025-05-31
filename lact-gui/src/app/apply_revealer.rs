@@ -30,12 +30,16 @@ impl SimpleComponent for ApplyRevealer {
                 gtk::Button {
                     set_label: "Apply",
                     set_hexpand: true,
-                    connect_clicked[sender] => move |_| { sender.output(super::AppMsg::ApplyChanges).unwrap(); },
+                    connect_clicked[sender] => move |_| {
+                        sender.output(super::AppMsg::ApplyChanges).unwrap();
+                    },
                 },
 
                 gtk::Button {
                     set_label: "Revert",
-                    connect_clicked[sender] => move |_| { sender.output(super::AppMsg::RevertChanges).unwrap(); },
+                    connect_clicked[sender] => move |_| {
+                        sender.output(super::AppMsg::RevertChanges).unwrap();
+                    },
                 },
             }
         }
