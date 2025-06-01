@@ -1,7 +1,7 @@
 use super::{
     gpu_controller::{fan_control::FanCurveExt, DynGpuController, GpuController},
     profiles::ProfileWatcherCommand,
-    system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
+    system::{self, detect_initramfs_type},
 };
 use crate::{
     bindings::intel::IntelDrm,
@@ -47,45 +47,28 @@ use tracing::{debug, error, info, trace, warn};
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
 const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 3;
 
-const SNAPSHOT_GLOBAL_FILES: &[&str] = &[
-    PP_FEATURE_MASK_PATH,
+const SNAPSHOT_GLOBAL_PATHS: &[&str] = &[
+    "/sys/module/amdgpu/parameters",
     "/etc/lact/config.yaml",
     "/proc/version",
+    "/proc/cmdline",
+    "/sys/class/kfd/kfd",
 ];
-const SNAPSHOT_DEVICE_FILES: &[&str] = &[
-    "uevent",
-    "vendor",
-    "pp_cur_state",
-    "pp_dpm_mclk",
-    "pp_dpm_pcie",
-    "pp_dpm_sclk",
-    "pp_dpm_socclk",
-    "pp_features",
-    "pp_force_state",
-    "pp_mclk_od",
-    "pp_num_states",
-    "pp_od_clk_voltage",
-    "pp_power_profile_mode",
-    "pp_sclk_od",
-    "pp_table",
-    "vbios_version",
-    "gpu_busy_percent",
-    "current_link_speed",
-    "current_link_width",
-    "power_dpm_force_performance_level",
-    "mem_info_vram_vendor",
-    "gpu_metrics",
-];
-/// Prefixes for entries that will be recursively included in the debug snapshot
-const SNAPSHOT_DEVICE_RECURSIVE_PATHS_PREFIXES: &[&str] = &["tile"];
-const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
-    "fan_curve",
-    "acoustic_limit_rpm_threshold",
-    "acoustic_target_rpm_threshold",
-    "fan_minimum_pwm",
-    "fan_target_temperature",
-    "fan_zero_rpm_enable",
-    "fan_zero_rpm_stop_temperature",
+const SNAPSHOT_EXCLUDED_FILENAME_PREFIXES: &[&str] = &[
+    "serial_number",
+    "autosuspend_delay_ms",
+    "new_device",
+    "delete_device",
+    "remove",
+    "rescan",
+    "reset",
+    "rom",
+    "resource",
+    "i2c",
+    "drm",
+    "graphics",
+    "pcie_bw",
+    "msi_irqs",
 ];
 const CONFIG_RESET_CMDLINE_ARG: &str = "lact-reset";
 
@@ -651,34 +634,16 @@ impl<'a> Handler {
 
         let mut archive = tar::Builder::new(out_writer);
 
-        for path in SNAPSHOT_GLOBAL_FILES {
+        for path in SNAPSHOT_GLOBAL_PATHS {
             let path = Path::new(path);
-            add_path_to_archive(&mut archive, path)?;
+            add_path_recursively(&mut archive, path, Path::new("/"))?;
         }
 
         let controllers = self.gpu_controllers.read().await;
         for controller in controllers.values() {
             let controller_path = &controller.controller_info().sysfs_path;
 
-            for device_file in SNAPSHOT_DEVICE_FILES {
-                let full_path = controller_path.join(device_file);
-                add_path_to_archive(&mut archive, &full_path)?;
-            }
-
-            let device_files = fs::read_dir(controller_path)
-                .context("Could not read device dir")?
-                .flatten();
-
-            for device_entry in device_files {
-                if let Some(entry_name) = device_entry.file_name().to_str() {
-                    if SNAPSHOT_DEVICE_RECURSIVE_PATHS_PREFIXES
-                        .iter()
-                        .any(|prefix| entry_name.starts_with(prefix))
-                    {
-                        add_path_recursively(&mut archive, &device_entry.path(), controller_path)?;
-                    }
-                }
-            }
+            add_path_recursively(&mut archive, controller_path, controller_path)?;
 
             let card_path = controller_path.parent().unwrap();
             let card_files = fs::read_dir(card_path)
@@ -698,15 +663,9 @@ impl<'a> Handler {
                 add_path_recursively(&mut archive, &gt_path, card_path)?;
             }
 
-            let fan_ctrl_path = controller_path.join("gpu_od").join("fan_ctrl");
-            for fan_ctrl_file in SNAPSHOT_FAN_CTRL_FILES {
-                let full_path = fan_ctrl_path.join(fan_ctrl_file);
-                add_path_to_archive(&mut archive, &full_path)?;
-            }
-
-            let hwmon_path = controller_path.join("hwmon");
-            if hwmon_path.exists() {
-                add_path_recursively(&mut archive, &hwmon_path, controller_path)?;
+            let gpu_od_path = controller_path.join("gpu_od");
+            if gpu_od_path.exists() {
+                add_path_recursively(&mut archive, &gpu_od_path, controller_path)?;
             }
         }
 
@@ -1145,10 +1104,19 @@ fn load_controllers(
 fn add_path_recursively(
     archive: &mut tar::Builder<impl Write>,
     entry_path: &Path,
-    controller_path: &Path,
+    prefix: &Path,
 ) -> anyhow::Result<()> {
     if let Ok(entries) = fs::read_dir(entry_path) {
         for entry in entries.flatten() {
+            if entry.file_name().to_str().is_some_and(|name| {
+                SNAPSHOT_EXCLUDED_FILENAME_PREFIXES
+                    .iter()
+                    .any(|prefix| name.starts_with(prefix))
+            }) {
+                debug!("skipping path '{}'", entry.path().display());
+                continue;
+            }
+
             match entry.metadata() {
                 Ok(metadata) => {
                     // Skip symlinks
@@ -1156,11 +1124,11 @@ fn add_path_recursively(
                         continue;
                     }
 
-                    let full_path = controller_path.join(entry.path());
+                    let full_path = prefix.join(entry.path());
                     if metadata.is_file() {
                         add_path_to_archive(archive, &full_path)?;
                     } else if metadata.is_dir() {
-                        add_path_recursively(archive, &full_path, controller_path)?;
+                        add_path_recursively(archive, &full_path, prefix)?;
                     }
                 }
                 Err(err) => {
@@ -1170,6 +1138,11 @@ fn add_path_recursively(
                     );
                 }
             }
+        }
+    } else if let Ok(metadata) = fs::metadata(entry_path) {
+        if metadata.is_file() {
+            let full_path = prefix.join(entry_path);
+            add_path_to_archive(archive, &full_path)?;
         }
     }
 
