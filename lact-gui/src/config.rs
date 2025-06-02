@@ -1,6 +1,6 @@
 use crate::app::graphs_window::stat::StatType;
 use serde::{Deserialize, Serialize};
-use std::{env, fs, path::PathBuf};
+use std::{collections::HashMap, env, fs, path::PathBuf};
 use tracing::{debug, error};
 
 #[derive(Default, Serialize, Deserialize)]
@@ -11,6 +11,12 @@ pub struct UiConfig {
     pub plots_time_period: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plots_per_row: Option<u64>,
+    #[serde(default)]
+    pub gpus: HashMap<String, UiGpuConfig>,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub struct UiGpuConfig {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plots: Vec<Vec<StatType>>,
 }

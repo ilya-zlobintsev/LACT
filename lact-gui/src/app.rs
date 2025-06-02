@@ -424,7 +424,7 @@ impl AppModel {
                 });
                 self.graphs_window.emit(GraphsWindowMsg::Stats {
                     stats,
-                    initial: false,
+                    selected_gpu_id: None,
                 });
             }
             AppMsg::ApplyChanges => {
@@ -617,11 +617,11 @@ impl AppModel {
         self.graphs_window
             .emit(GraphsWindowMsg::VramClockRatio(vram_clock_ratio));
 
-        let stats = self.update_gpu_data(gpu_id, sender).await?;
+        let stats = self.update_gpu_data(gpu_id.clone(), sender).await?;
 
         self.graphs_window.emit(GraphsWindowMsg::Stats {
             stats,
-            initial: true,
+            selected_gpu_id: Some(gpu_id),
         });
 
         self.ui_sensitive.set_value(true);
