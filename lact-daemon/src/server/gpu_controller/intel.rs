@@ -334,7 +334,11 @@ impl IntelGpuController {
     fn get_power_usage(&self) -> Option<f64> {
         self.read_hwmon_file::<u64>("power", "_input")
             .or_else(|| {
-                let energy = self.read_hwmon_file::<u64>("energy", "_input")?;
+                // Use first non-zero energy reading
+                let energy = self
+                    .read_hwmon_files::<u64>("energy", "_input")
+                    .map(|(value, _)| value)
+                    .find(|value| *value != 0)?;
                 let timestamp = Instant::now();
 
                 #[cfg(not(test))]
