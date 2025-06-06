@@ -1,3 +1,5 @@
+pub mod power_profiles_daemon;
+
 use anyhow::{anyhow, ensure, Context};
 use lact_schema::{InitramfsType, SystemInfo, GIT_COMMIT};
 use nix::sys::socket::{
@@ -249,7 +251,7 @@ pub(crate) fn listen_netlink_kernel_event(notify: &Notify) -> anyhow::Result<()>
 
 #[cfg(test)]
 mod tests {
-    use crate::server::system::detect_initramfs_type;
+    use super::detect_initramfs_type;
     use lact_schema::InitramfsType;
     use os_release::OsRelease;
 

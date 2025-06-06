@@ -2,11 +2,10 @@ pub mod gpu_controller;
 pub mod handler;
 mod opencl;
 mod profiles;
-pub(crate) mod system;
 mod vulkan;
 
 use self::handler::Handler;
-use crate::{config::Config, socket};
+use crate::{config::Config, socket, system};
 use anyhow::Context;
 use futures::future::join_all;
 use lact_schema::{Pong, Request, Response};
@@ -38,6 +37,8 @@ impl Server {
             info!("TCP listener disabled");
             None
         };
+
+        system::power_profiles_daemon::setup().await;
 
         let handler = Handler::new(config).await?;
 

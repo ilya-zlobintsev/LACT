@@ -89,6 +89,7 @@ impl IntelGpuController {
                 tile_gts.len(),
                 common.sysfs_path.display()
             );
+            tile_gts.sort();
         }
         let drm_file = if cfg!(not(test)) {
             let drm_path = format!("/dev/dri/by-path/pci-{}-render", common.pci_slot_name);
