@@ -127,10 +127,13 @@ more information.
 ## Power profiles daemon note!
 
 If you are using `power-profiles-daemon` (which is installed by default on many
-distributions), by default it will override the amdgpu performance level setting
+distributions), by default it may override the amdgpu performance level setting
 according to its own profile.
 
-To avoid this, create a file at
+When using LACT 0.7.5+ and power-profiles-daemon 0.30+, LACT will try to connect to power-profiles-daemon 
+and automatically disable the conflicting amdgpu action in ppd to avoid this conflict.
+
+If running older versions, you can resolve this manually by creating a file at
 `/etc/systemd/system/power-profiles-daemon.service.d/override.conf` with the
 following contents:
 
