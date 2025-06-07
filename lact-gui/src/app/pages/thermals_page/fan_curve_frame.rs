@@ -373,7 +373,9 @@ This option allows to work around this limitation by only using the custom curve
     ) {
         match msg {
             FanCurveFrameMsg::Curve(msg) => {
-                *self.data.borrow_mut() = msg.curve.into_iter().collect();
+                *self.data.borrow_mut() =
+                    normalize_fan_curve(msg.curve, &msg.temperature_range, &msg.speed_range)
+                        .collect();
                 *self.speed_range.borrow_mut() = msg.speed_range;
                 *self.temperature_range.borrow_mut() = msg.temperature_range.clone();
 
@@ -461,7 +463,12 @@ This option allows to work around this limitation by only using the custom curve
             FanCurveFrameMsg::DefaultCurve => {
                 self.edit_curve(
                     |curve| {
-                        *curve = default_fan_curve().into_iter().collect();
+                        *curve = normalize_fan_curve(
+                            default_fan_curve(),
+                            &self.temperature_range.borrow(),
+                            &self.speed_range.borrow(),
+                        )
+                        .collect();
                     },
                     widgets,
                 );
@@ -549,6 +556,19 @@ impl FanCurveFrame {
             }
         }
     }
+}
+
+fn normalize_fan_curve<'a>(
+    curve: impl IntoIterator<Item = (i32, f32)> + 'a,
+    temperature_range: &'a RangeInclusive<f32>,
+    speed_range: &'a RangeInclusive<f32>,
+) -> impl Iterator<Item = (i32, f32)> + 'a {
+    curve.into_iter().map(|(temp, mut speed)| {
+        let mut temp = temp as f32;
+        normalize_to_range(&mut temp, temperature_range);
+        normalize_to_range(&mut speed, speed_range);
+        (temp as i32, speed)
+    })
 }
 
 fn normalize_to_range(value: &mut f32, range: &RangeInclusive<f32>) {
