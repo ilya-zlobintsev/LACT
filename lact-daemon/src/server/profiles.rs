@@ -6,7 +6,6 @@ use futures::StreamExt;
 use lact_schema::{ProfileRule, ProfileWatcherState};
 use libcopes::PEvent;
 use std::{
-    process::Command,
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -15,14 +14,13 @@ use tokio::{
     sync::{mpsc, Mutex, Notify},
     time::sleep,
 };
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace};
 use zbus::AsyncDrop;
 
 static PROFILE_WATCHER_LOCK: Mutex<()> = Mutex::const_new(());
 
 const PROFILE_WATCHER_MIN_DELAY_MS: u64 = 50;
 const PROFILE_WATCHER_MAX_DELAY_MS: u64 = 500;
-const SUSPICIOUS_INACTIVITY_PERIOD_SECS: u64 = 30;
 
 #[derive(Debug)]
 enum ProfileWatcherEvent {
@@ -123,10 +121,6 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
     update_profile(&handler).await;
 
     let mut should_reload = false;
-    let mut suspiciously_quiet = false;
-
-    let inactivity_timer = sleep(Duration::from_secs(SUSPICIOUS_INACTIVITY_PERIOD_SECS));
-    tokio::pin!(inactivity_timer);
 
     loop {
         select! {
@@ -139,9 +133,6 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
                 }
             }
             Some(event) = event_rx.recv() => {
-                suspiciously_quiet = false;
-                inactivity_timer.as_mut().reset(tokio::time::Instant::now() + Duration::from_secs(SUSPICIOUS_INACTIVITY_PERIOD_SECS));
-
                 handle_profile_event(&event, &handler, &mut should_reload);
 
                 // It is very common during system usage that multiple processes start at the same time, or there are processes
@@ -177,26 +168,6 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
                 }
 
                 update_profile(&handler).await;
-            },
-            () = &mut inactivity_timer => {
-                if suspiciously_quiet {
-                    error!("no profile watcher events detected even after manual invocation, restarting watcher");
-                    should_reload = true;
-                } else {
-                    debug!("no event activity detected in {SUSPICIOUS_INACTIVITY_PERIOD_SECS} seconds, checking listener liveness by spawning a process");
-                    let next_check_delta = match Command::new("uname").output() {
-                        Ok(_) => {
-                            suspiciously_quiet = true;
-                            // The event regarding the just spawned command should be received within this time period
-                            Duration::from_secs(SUSPICIOUS_INACTIVITY_PERIOD_SECS / 3)
-                        }
-                        Err(err) => {
-                            warn!("could not spawn test command: {err}");
-                            Duration::from_secs(SUSPICIOUS_INACTIVITY_PERIOD_SECS)
-                        }
-                    };
-                    inactivity_timer.as_mut().reset(tokio::time::Instant::now() + next_check_delta);
-                }
             }
         }
 
