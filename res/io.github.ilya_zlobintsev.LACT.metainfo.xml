@@ -18,16 +18,20 @@
   </description>
   <screenshots>
     <screenshot type="default">
-      <image>https://i.imgur.com/zG5jkTH.png</image>
+      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/1.png</image>
       <caption>Information</caption>
     </screenshot>
     <screenshot>
-      <image>https://i.imgur.com/72y3Rca.png</image>
+      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/2.png</image>
       <caption>Overclocking</caption>
     </screenshot>
     <screenshot>
-      <image>https://i.imgur.com/aMEDZ43.png</image>
+      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/3.png</image>
       <caption>Fan Control</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/5.png</image>
+      <caption>Historical Data</caption>
     </screenshot>
   </screenshots>
   <branding>
