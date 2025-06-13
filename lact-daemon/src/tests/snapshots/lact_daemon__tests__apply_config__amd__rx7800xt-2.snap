@@ -1,0 +1,16 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: write_commands
+---
+[
+    "card1/device/pp_od_clk_voltage: r\n",
+    "card1/device/power_dpm_force_performance_level: auto",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: 0 55 30\n",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: 1 60 40\n",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: 2 65 49\n",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: 3 70 75\n",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: 4 80 100\n",
+    "card1/device/gpu_od/fan_ctrl/fan_zero_rpm_enable: 0\n",
+    "card1/device/gpu_od/fan_ctrl/fan_zero_rpm_enable: c\n",
+    "card1/device/gpu_od/fan_ctrl/fan_curve: c\n",
+]
