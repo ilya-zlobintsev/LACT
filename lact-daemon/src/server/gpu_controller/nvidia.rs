@@ -1,8 +1,14 @@
 mod driver;
+pub mod nvapi;
 
 use super::{CommonControllerInfo, FanControlHandle, GpuController};
-use crate::server::{
-    gpu_controller::fan_control::FanCurveExt, opencl::get_opencl_info, vulkan::get_vulkan_info,
+use crate::{
+    bindings::nvidia::NvPhysicalGpuHandle,
+    server::{
+        gpu_controller::{fan_control::FanCurveExt, NvApi},
+        opencl::get_opencl_info,
+        vulkan::get_vulkan_info,
+    },
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, bail, Context};
@@ -34,10 +40,13 @@ use tracing::{debug, error, trace, warn};
 
 pub struct NvidiaGpuController {
     nvml: Rc<Nvml>,
+    nvapi: Rc<Option<NvApi>>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
 
     driver_handle: Option<DriverHandle>,
+    nvapi_handle: Option<NvPhysicalGpuHandle>,
+    nvapi_thermals_mask: Option<i32>,
 
     // Store last applied offsets as a workaround when the driver doesn't tell us the current offset
     last_applied_offsets: RefCell<HashMap<Clock, HashMap<PerformanceState, i32>>>,
@@ -46,7 +55,11 @@ pub struct NvidiaGpuController {
 }
 
 impl NvidiaGpuController {
-    pub fn new(common: CommonControllerInfo, nvml: Rc<Nvml>) -> anyhow::Result<Self> {
+    pub fn new(
+        common: CommonControllerInfo,
+        nvml: Rc<Nvml>,
+        nvapi: Rc<Option<NvApi>>,
+    ) -> anyhow::Result<Self> {
         let device = nvml
             .device_by_pci_bus_id(common.pci_slot_name.as_str())
             .with_context(|| {
@@ -55,6 +68,33 @@ impl NvidiaGpuController {
                     common.pci_slot_name
                 )
             })?;
+
+        let (nvapi_handle, nvapi_thermals_mask) = match nvapi.as_ref() {
+            Some(nvapi) => {
+                let bus_id = common.get_slot_info()?.bus;
+                let gpu_handle = nvapi
+                    .find_matching_gpu(u32::from(bus_id))
+                    .inspect_err(|err| error!("Could not get NvAPI GPU handle: {err}"))
+                    .ok()
+                    .flatten();
+
+                let thermals_mask = gpu_handle.and_then(|handle| unsafe {
+                    nvapi
+                        .calculate_thermals_mask(handle)
+                        .inspect(|mask| {
+                            debug!("calculated NvAPI thermals mask {mask:x}");
+                        })
+                        .inspect_err(|err| {
+                            error!("could not calculate NvAPI thermal mask: {err:#}");
+                        })
+                        .ok()
+                });
+
+                (gpu_handle, thermals_mask)
+            }
+            None => (None, None),
+        };
+        debug!("initialized NvAPI device handle {nvapi_handle:?}");
 
         let minor_number = device.minor_number()?;
 
@@ -71,8 +111,11 @@ impl NvidiaGpuController {
 
         Ok(Self {
             nvml,
+            nvapi,
             common,
             driver_handle,
+            nvapi_handle,
+            nvapi_thermals_mask,
             fan_control_handle: RefCell::new(None),
             last_applied_offsets: RefCell::new(HashMap::new()),
             last_applied_gpu_locked_clocks: RefCell::new(None),
@@ -396,7 +439,8 @@ impl GpuController for NvidiaGpuController {
     #[allow(
         clippy::cast_precision_loss,
         clippy::cast_possible_truncation,
-        clippy::cast_sign_loss
+        clippy::cast_sign_loss,
+        clippy::too_many_lines
     )]
     fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let device = self.device();
@@ -418,6 +462,44 @@ impl GpuController for NvidiaGpuController {
                 },
             );
         };
+
+        let mut voltage = None;
+
+        if let (Some(nvapi), Some(handle)) = (self.nvapi.as_ref(), self.nvapi_handle.as_ref()) {
+            unsafe {
+                if let Some(mask) = self.nvapi_thermals_mask {
+                    if let Ok(thermals) = nvapi.get_thermals(*handle, mask) {
+                        let hotspot = thermals.hotspot();
+                        if hotspot != 0 {
+                            temps.insert(
+                                "GPU Hotspot".to_owned(),
+                                Temperature {
+                                    current: Some(hotspot as f32),
+                                    crit: None,
+                                    crit_hyst: None,
+                                },
+                            );
+                        }
+
+                        let vram = thermals.vram();
+                        if vram != 0 {
+                            temps.insert(
+                                "VRAM".to_owned(),
+                                Temperature {
+                                    current: Some(vram as f32),
+                                    crit: None,
+                                    crit_hyst: None,
+                                },
+                            );
+                        }
+                    }
+                }
+
+                if let Ok(value) = nvapi.get_voltage(*handle) {
+                    voltage = Some(u64::from(value) / 1000);
+                }
+            }
+        }
 
         let fan_settings = gpu_config.and_then(|config| config.fan_control_settings.as_ref());
 
@@ -526,7 +608,10 @@ impl GpuController for NvidiaGpuController {
                     })
                     .collect()
             }),
-            voltage: VoltageStats::default(), // Voltage reporting is not supported
+            voltage: VoltageStats {
+                gpu: voltage,
+                northbridge: None,
+            },
             performance_level: None,
             core_power_state: active_pstate,
             memory_power_state: active_pstate,
