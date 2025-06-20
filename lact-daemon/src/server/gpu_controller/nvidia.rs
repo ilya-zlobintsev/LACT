@@ -481,8 +481,7 @@ impl GpuController for NvidiaGpuController {
                             );
                         }
 
-                        let vram = thermals.vram();
-                        if vram != 0 {
+                        if let Some(vram) = thermals.vram() {
                             temps.insert(
                                 "VRAM".to_owned(),
                                 Temperature {

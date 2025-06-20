@@ -228,8 +228,13 @@ impl NvApiThermals {
         self.values[9] / 256
     }
 
-    pub fn vram(&self) -> i32 {
-        self.values[15] / 256
+    pub fn vram(&self) -> Option<i32> {
+        self.values
+            .iter()
+            .skip(10)
+            .map(|value| value / 256)
+            .filter(|value| *value != 0 && *value < 255)
+            .last()
     }
 }
 
