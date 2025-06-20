@@ -1025,6 +1025,7 @@ fn load_controllers(
 ) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
     let mut controllers = BTreeMap::new();
 
+    // TODO: fix build without nvidia feature
     #[cfg(not(test))]
     let nvml: LazyCell<Option<NvidiaLibs>> = LazyCell::new(|| match Nvml::init() {
         Ok(nvml) => {

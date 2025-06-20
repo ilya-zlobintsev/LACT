@@ -17,7 +17,7 @@ build-release-libadwaita:
 	
 .PHONY: build-release-headless
 build-release-headless:
-	cargo build -p lact --release --no-default-features
+	cargo build -p lact --release --no-default-features --features=nvidia
 	
 .PHONY: install-resources
 install-resources:
