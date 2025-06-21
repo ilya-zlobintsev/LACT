@@ -18,7 +18,7 @@ pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo
     let device_id = u32::from_str_radix(&pci_info.device_pci_info.model_id, 16)?;
     trace!("Reading vulkan info");
 
-    let summary_output = vulkaninfo_command()
+    let summary_output = Command::new("vulkaninfo")
         .arg("--summary")
         .output()
         .await
@@ -41,7 +41,7 @@ pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo
         if u32::from_str_radix(entry.vendor_id, 16) == Ok(vendor_id)
             && u32::from_str_radix(entry.device_id, 16) == Ok(device_id)
         {
-            let output = vulkaninfo_command()
+            let output = Command::new("vulkaninfo")
                 .arg(format!("--json={i}"))
                 .current_dir("/tmp")
                 .output()
@@ -273,21 +273,6 @@ fn parse_summary(summary: &str) -> Vec<SummaryDeviceEntry> {
     devices.push(entry);
 
     devices
-}
-
-fn vulkaninfo_command() -> Command {
-    if let Ok(custom_command) = env::var("VULKANINFO_COMMAND") {
-        let mut split = custom_command.split_ascii_whitespace();
-        let program = split
-            .next()
-            .expect("Could not parse provided vulkaninfo command");
-
-        let mut cmd = Command::new(program);
-        cmd.args(split);
-        cmd
-    } else {
-        Command::new("vulkaninfo")
-    }
 }
 
 #[cfg(test)]

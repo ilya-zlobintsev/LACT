@@ -362,15 +362,20 @@ impl notify::EventHandler for SenderEventHandler {
 }
 
 fn get_path(filename: &str) -> PathBuf {
-    let uid = getuid();
-    if uid.is_root() {
-        PathBuf::from("/etc/lact").join(filename)
+    if let Ok(path) = env::var("LACT_DAEMON_CONFIG_DIR") {
+        PathBuf::from(&path).join(filename)
     } else {
-        let config_dir = PathBuf::from(env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
-            let home = env::var("HOME").expect("$HOME variable is not set");
-            format!("{home}/.config")
-        }));
-        config_dir.join("lact").join(filename)
+        let uid = getuid();
+
+        if uid.is_root() {
+            PathBuf::from("/etc/lact").join(filename)
+        } else {
+            let config_dir = PathBuf::from(env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
+                let home = env::var("HOME").expect("$HOME variable is not set");
+                format!("{home}/.config")
+            }));
+            config_dir.join("lact").join(filename)
+        }
     }
 }
 

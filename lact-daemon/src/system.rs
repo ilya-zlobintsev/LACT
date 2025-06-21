@@ -5,14 +5,18 @@ use lact_schema::{InitramfsType, SystemInfo, GIT_COMMIT};
 use nix::sys::socket::{
     bind, recv, socket, AddressFamily, MsgFlags, NetlinkAddr, SockFlag, SockProtocol, SockType,
 };
-use os_release::{OsRelease, OS_RELEASE};
+use os_release::OsRelease;
 use std::{
+    env,
     fs::{self, File, Permissions},
-    io::Write,
+    io::{self, Write},
     os::{fd::AsRawFd, unix::prelude::PermissionsExt},
     path::Path,
-    process,
-    sync::atomic::{AtomicBool, Ordering},
+    process::{self, Output},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        LazyLock,
+    },
 };
 use tokio::{process::Command, sync::Notify};
 use tracing::{error, info, warn};
@@ -23,6 +27,7 @@ const PP_OVERDRIVE_MASK: u64 = 0x4000;
 pub const PP_FEATURE_MASK_PATH: &str = "/sys/module/amdgpu/parameters/ppfeaturemask";
 pub const MODULE_CONF_PATH: &str = "/etc/modprobe.d/99-amdgpu-overdrive.conf";
 pub const DAEMON_VERSION: &str = env!("CARGO_PKG_VERSION");
+static IS_FLATBOX: LazyLock<bool> = LazyLock::new(|| env::var("FLATBOX_ENV").as_deref() == Ok("1"));
 
 pub async fn info() -> anyhow::Result<SystemInfo> {
     let version = DAEMON_VERSION.to_owned();
@@ -126,8 +131,8 @@ fn read_current_mask() -> anyhow::Result<u64> {
 }
 
 async fn regenerate_initramfs() -> anyhow::Result<InitramfsType> {
-    let os_release = OS_RELEASE.as_ref().context("Could not detect distro")?;
-    match detect_initramfs_type(os_release).await {
+    let os_release = get_os_release().context("Could not detect distro")?;
+    match detect_initramfs_type(&os_release).await {
         Some(initramfs_type) => {
             info!("Detected initramfs type {initramfs_type:?}, regenerating");
             let result = match initramfs_type {
@@ -137,7 +142,7 @@ async fn regenerate_initramfs() -> anyhow::Result<InitramfsType> {
                     run_command("dracut", &["--regenerate-all", "--force"]).await
                 }
             };
-            result.map(|()| initramfs_type)
+            result.map(|_| initramfs_type)
         }
         None => Err(anyhow!(
             "Distro is not in the known configuration list, manually setting the overclocking option might be required. See the overclocking section on LACT's GitHub page for more information."
@@ -151,12 +156,7 @@ pub(crate) async fn detect_initramfs_type(os_release: &OsRelease) -> Option<Init
     if os_release.id == "debian" || id_like.contains(&"debian") {
         Some(InitramfsType::Debian)
     } else if os_release.id == "arch" || os_release.id == "cachyos" || id_like.contains(&"arch") {
-        if Command::new("mkinitcpio")
-            .arg("--version")
-            .output()
-            .await
-            .is_ok()
-        {
+        if run_command("mkinitcpio", &["--version"]).await.is_ok() {
             Some(InitramfsType::Mkinitcpio)
         } else {
             warn!(
@@ -165,12 +165,7 @@ pub(crate) async fn detect_initramfs_type(os_release: &OsRelease) -> Option<Init
             None
         }
     } else if os_release.id == "fedora" || id_like.contains(&"fedora") {
-        if Command::new("dracut")
-            .arg("--version")
-            .output()
-            .await
-            .is_ok()
-        {
+        if run_command("dracut", &["--version"]).await.is_ok() {
             Some(InitramfsType::Dracut)
         } else {
             warn!("Fedora without dracut detected, refusing to regenerate initramfs");
@@ -181,15 +176,29 @@ pub(crate) async fn detect_initramfs_type(os_release: &OsRelease) -> Option<Init
     }
 }
 
-async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<()> {
+fn get_os_release() -> io::Result<OsRelease> {
+    if *IS_FLATBOX {
+        OsRelease::new_from("/run/host/root/etc/os-release")
+    } else {
+        OsRelease::new()
+    }
+}
+
+pub async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<Output> {
     info!("Running {exec} with args {args:?}");
-    let output = Command::new(exec)
-        .args(args)
-        .output()
-        .await
-        .context("Could not run command")?;
+
+    let mut command;
+    if *IS_FLATBOX {
+        command = Command::new("flatpak-spawn");
+        command.arg("--host").arg(exec).args(args);
+    } else {
+        command = Command::new(exec);
+        command.args(args);
+    };
+
+    let output = command.output().await.context("Could not run command")?;
     if output.status.success() {
-        Ok(())
+        Ok(output)
     } else {
         let stdout = String::from_utf8(output.stdout).context("stdout is not valid UTF-8")?;
         let stderr = String::from_utf8(output.stderr).context("stderr is not valid UTF-8")?;

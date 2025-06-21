@@ -3,12 +3,12 @@ use super::{
     profiles::ProfileWatcherCommand,
     system::{self, detect_initramfs_type},
 };
-use crate::server::gpu_controller::NvidiaLibs;
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
     server::{gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
 };
+use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
@@ -40,7 +40,6 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::{
-    process::Command,
     sync::{mpsc, oneshot, RwLock, RwLockReadGuard},
     time::sleep,
 };
@@ -671,10 +670,7 @@ impl<'a> Handler {
             }
         }
 
-        let service_journal_output = Command::new("journalctl")
-            .args(["-u", "lactd", "-b"])
-            .output()
-            .await;
+        let service_journal_output = run_command("journalctl", &["-u", "lactd", "-b"]).await;
 
         match service_journal_output {
             Ok(output) => {
@@ -690,7 +686,7 @@ impl<'a> Handler {
                     .append_data(&mut header, "lactd.log", Cursor::new(output.stdout))
                     .context("Could not write data to archive")?;
             }
-            Err(err) => warn!("could not read service log: {err}"),
+            Err(err) => warn!("could not read service log: {err:#}"),
         }
 
         let system_info = system::info()

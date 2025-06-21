@@ -4,7 +4,7 @@ use nix::{
     unistd::{chown, getuid, Gid, Group, User},
 };
 use std::{
-    fs,
+    env, fs,
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -15,7 +15,10 @@ use crate::config;
 
 pub fn get_socket_path() -> PathBuf {
     let uid = getuid();
-    if uid.is_root() {
+
+    if let Ok(path) = env::var("LACT_DAEMON_SOCKET_PATH") {
+        PathBuf::from_str(&path).unwrap()
+    } else if uid.is_root() {
         PathBuf::from_str("/run/lactd.sock").unwrap()
     } else {
         PathBuf::from_str(&format!("/run/user/{uid}/lactd.sock")).unwrap()

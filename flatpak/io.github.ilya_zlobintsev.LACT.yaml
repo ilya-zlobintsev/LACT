@@ -1,6 +1,6 @@
 app-id: io.github.ilya_zlobintsev.LACT
 runtime: org.gnome.Platform
-runtime-version: "48"
+runtime-version: '48'
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
@@ -16,11 +16,11 @@ finish-args:
 cleanup:
   - /include
   - /share/vulkan/registry
-  - "*.a"
+  - '*.a'
   - /lib/pkgconfig
 modules:
   - name: lact
-    buildsystem: simple 
+    buildsystem: simple
     sources:
       - generated-sources.json
       - type: dir
@@ -29,17 +29,20 @@ modules:
           - "target"
           - "target_ra"
     build-options:
-      append-path: "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin"
-      prepend-ld-library-path: "/usr/lib/sdk/llvm20/lib"
+      append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm20/lib
       env:
-        CARGO_HOME: "/run/build/lact/cargo"
-        PREFIX: "/app"
+        CARGO_HOME: /run/build/lact/cargo
+        PREFIX: /app
     build-commands:
       - cargo --offline fetch --manifest-path Cargo.toml
-      - cargo --offline build -p lact --features flatpak --release
-      - make install
+      # - cargo --offline build -p lact --features flatpak --release
+      - cargo --offline build -p lact --features flatpak
+      # - make install
+      - make install-debug
       - install -Dm755 flatpak/startup.sh /app/bin/startup.sh
-      - desktop-file-edit --set-key Exec --set-value startup.sh /app/share/applications/io.github.ilya_zlobintsev.LACT.desktop 
+      - install -Dm755 flatpak/daemon.sh /app/bin/daemon.sh
+      - desktop-file-edit --set-key Exec --set-value startup.sh /app/share/applications/io.github.ilya_zlobintsev.LACT.desktop
     modules:
       - name: yad
         config-opts:
@@ -76,8 +79,8 @@ modules:
           - --libdir=/app/drm/lib
         sources:
           - type: archive
-            url: https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-2.4.124/drm-libdrm-2.4.124.tar.gz
-            sha256: 49c077f3938147e7c321fe89255eb189c1be68f6ed0aa36e29d38e3db0e84e08
+            url: https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-2.4.125/drm-libdrm-2.4.125.tar.gz
+            sha256: dd3e86a9fae99322d6430b28397f8e03ac4fb8deeed9a6e214bd5ced86db68c6
             x-checker-data:
               type: anitya
               project-id: 1596
@@ -93,8 +96,8 @@ modules:
       - -DBUILD_VULKANINFO=ON
     sources:
       - type: archive
-        url: https://github.com/KhronosGroup/Vulkan-Tools/archive/v1.4.311/Vulkan-Tools-1.4.311.tar.gz
-        sha256: 7113bc0c746b45072e269fada0d684b4ae9de609c38d9e764b59793b14120a7b
+        url: https://github.com/KhronosGroup/Vulkan-Tools/archive/v1.4.319/Vulkan-Tools-1.4.319.tar.gz
+        sha256: 2237d15179237bf932bf715c21179520c4d54d41bc859e59802888ade452298a
         x-checker-data:
           type: anitya
           project-id: 242111
@@ -106,8 +109,8 @@ modules:
           - -DVOLK_INSTALL=ON
         sources:
           - type: archive
-            url: https://github.com/zeux/volk/archive/vulkan-sdk-1.4.309.0.tar.gz
-            sha256: 1724924d8e3dccf0c508887edb79d56d9dd11b0738eab5a44e2fa95b8a9ebe1c
+            url: https://github.com/zeux/volk/archive/vulkan-sdk-1.4.313.0.tar.gz
+            sha256: d86bcf1aff499f41a3e445b55df5e393a5ce49b1bda689eb7335b0a0a54a3c0b
             x-checker-data:
               type: anitya
               project-id: 370476
@@ -117,9 +120,27 @@ modules:
             buildsystem: cmake-ninja
             sources:
               - type: archive
-                url: https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.4.311/Vulkan-Headers-v1.4.311.tar.gz
-                sha256: 7989c360b870bcc2de52b9fd626fd2ba7a212fe177ade3aa3a10b2bcb61f8689
+                url: https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.4.319/Vulkan-Headers-v1.4.319.tar.gz
+                sha256: d79d05def3aaa7f339f2b88b62f73072df0660fb50e9286554a043bab9f6c4dd
                 x-checker-data:
                   type: anitya
                   project-id: 88835
                   url-template: https://github.com/KhronosGroup/Vulkan-Headers/archive/v$version/Vulkan-Headers-v$version.tar.gz
+
+  - name: flatbox
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 flatbox -t /app/bin/
+    sources:
+      - type: archive
+        only-arches:
+          - x86_64
+        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.3/flatbox-Linux-musl-x86_64.tar.gz
+        strip-components: 0
+        sha256: 3e196227acd0564ed9daa976d2eb5b2b44cd68b93da5e49d5e97e46ca1614cb1
+      - type: archive
+        only-arches:
+          - aarch64
+        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.3/flatbox-Linux-musl-arm64.tar.gz
+        strip-components: 0
+        sha256: 0bf9c48f413c4d244181a8ece388a0c4d51f6e853ea9db64da5b8b237d88f81a

@@ -7,6 +7,10 @@ UNIT_PATH=/etc/systemd/system/lactd.service
 if [ ! -e "${DAEMON_SOCKET}" ]; then
     echo "${DAEMON_SOCKET} does not exist, showing setup prompt"
     
+    APP_COMMIT=$(grep app-commit= /.flatpak-info | sed "s/app-commit=//")
+    APP_PATH=$(grep app-path= /.flatpak-info | sed "s/app-path=//" | sed "s/${APP_COMMIT}/active/")
+    DAEMON_SH_PATH="${APP_PATH}/bin/daemon.sh"
+    
     set +e
 
     YAD_OUTPUT=$(yad --title="LACT Flatpak Setup" \
@@ -35,8 +39,7 @@ After=multi-user.target
 
 [Service]
 Environment=FLATPAK_INSTALL_USER=$USER
-Environment=VULKANINFO_COMMAND=\"sudo -u $USER -s flatpak run --filesystem=/tmp --command=vulkaninfo io.github.ilya_zlobintsev.LACT\"
-ExecStart=sh -c \"eval \$(sudo -u \$FLATPAK_INSTALL_USER -s flatpak run --command=lact io.github.ilya_zlobintsev.LACT flatpak generate-daemon-cmd)\"
+ExecStart=$DAEMON_SH_PATH
 Nice=-10
 Restart=on-failure
 
@@ -44,7 +47,7 @@ Restart=on-failure
 WantedBy=multi-user.target\
         "
 
-        echo "${UNIT}" | flatpak-spawn --host pkexec tee "${UNIT_PATH}"
+        echo "${UNIT}" | flatpak-spawn --host pkexec sh -c "tee ${UNIT_PATH} && (chcon -R -t bin_t $DAEMON_SH_PATH || true)"
         echo "Unit file created at ${UNIT_PATH}"
         
         if [ "${AUTOSTART}" == "TRUE" ]; then
