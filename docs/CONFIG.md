@@ -24,6 +24,9 @@ daemon:
   # Can be used to work around a few very specific issues with 
   # some settings not applying on AMD GPUs.
   disable_clocks_cleanup: false
+  # Disables fetching of additional information through NvAPI on Nvidia GPUs.
+  # Not set by default.
+  disable_nvapi: false
   # Daemon's TCP listening address. Not specified by default.
   # By default TCP access is disabled, and only a unix socket is present.
   # Specifying this option enables the TCP listener.

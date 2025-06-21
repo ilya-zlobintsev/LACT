@@ -1030,12 +1030,27 @@ fn load_controllers(
         Ok(nvml) => {
             use crate::server::gpu_controller::NvApi;
 
+            // The config has to be re-read here, because a LazyCell cannot capture external variables into the init closure
+            let disable_nvapi = Config::load()
+                .ok()
+                .flatten()
+                .and_then(|config| config.daemon.disable_nvapi);
+
             info!("Nvidia management library loaded");
-            let nvapi = NvApi::new()
-                .inspect_err(|err| {
-                    error!("could not load NvAPI library: {err:#}");
-                })
-                .ok();
+            let nvapi = if disable_nvapi == Some(true) {
+                info!("NvAPI support is disabled");
+                None
+            } else {
+                NvApi::new()
+                    .inspect(|_| {
+                        info!("NvAPI library loaded");
+                    })
+                    .inspect_err(|err| {
+                        error!("could not load NvAPI library: {err:#}");
+                    })
+                    .ok()
+            };
+
             Some((Rc::new(nvml), Rc::new(nvapi)))
         }
         Err(err) => {

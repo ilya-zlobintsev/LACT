@@ -8,6 +8,7 @@ daemon:
   admin_user: foo
   admin_group: wheel
   disable_clocks_cleanup: false
+  disable_nvapi: false
   tcp_listen_address: "127.0.0.1:12853"
 apply_settings_timer: 5
 gpus:
