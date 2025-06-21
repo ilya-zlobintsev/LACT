@@ -218,23 +218,25 @@ impl Drop for NvApi {
 #[repr(C)]
 #[derive(Debug)]
 pub struct NvApiThermals {
-    pub version: u32,
-    pub mask: i32,
-    pub values: [i32; 40],
+    version: u32,
+    mask: i32,
+    values: [i32; 40],
 }
 
 impl NvApiThermals {
-    pub fn hotspot(&self) -> i32 {
-        self.values[9] / 256
+    fn get_value(&self, index: usize) -> Option<i32> {
+        self.values
+            .get(index)
+            .map(|&value| value / 256)
+            .filter(|&value| value > 0 && value < 255)
+    }
+
+    pub fn hotspot(&self) -> Option<i32> {
+        self.get_value(9)
     }
 
     pub fn vram(&self) -> Option<i32> {
-        self.values
-            .iter()
-            .skip(10)
-            .map(|value| value / 256)
-            .filter(|value| *value != 0 && *value < 255)
-            .last()
+        self.get_value(15)
     }
 }
 

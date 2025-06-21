@@ -469,8 +469,7 @@ impl GpuController for NvidiaGpuController {
             unsafe {
                 if let Some(mask) = self.nvapi_thermals_mask {
                     if let Ok(thermals) = nvapi.get_thermals(*handle, mask) {
-                        let hotspot = thermals.hotspot();
-                        if hotspot != 0 {
+                        if let Some(hotspot) = thermals.hotspot() {
                             temps.insert(
                                 "GPU Hotspot".to_owned(),
                                 Temperature {
