@@ -1,13 +1,13 @@
 mod vulkan;
 
 use crate::{
-    app::{format_friendly_size, info_row::InfoRow, page_section::PageSection},
+    app::{info_row::InfoRow, page_section::PageSection},
     GUI_VERSION, REPO_URL,
 };
 use gtk::prelude::*;
 use indexmap::IndexMap;
 use lact_client::schema::{SystemInfo, GIT_COMMIT};
-use lact_schema::DeviceInfo;
+use lact_schema::{format_friendly_size, DeviceInfo};
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::{fmt::Write, sync::Arc};
 use vulkan::feature_window::{VulkanFeature, VulkanFeaturesWindow};

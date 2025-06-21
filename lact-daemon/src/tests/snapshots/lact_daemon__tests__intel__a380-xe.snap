@@ -20,6 +20,7 @@ expression: device_info
   "info": {
     "driver": "xe",
     "drm_info": {
+      "cache_info": [],
       "memory_info": {
         "cpu_accessible_total": 0,
         "cpu_accessible_used": 0,

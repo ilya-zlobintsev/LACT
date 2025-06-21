@@ -17,8 +17,9 @@ use anyhow::{anyhow, Context};
 use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
-    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
-    LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, RopInfo, VoltageStats, VramStats,
+    CacheInstance, CacheKey, CacheType, ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats,
+    DrmInfo, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats,
+    RopInfo, VoltageStats, VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
@@ -26,7 +27,7 @@ use std::{
     cell::RefCell,
     cmp,
     collections::{HashMap, HashSet, VecDeque},
-    path::PathBuf,
+    path::{Path, PathBuf},
     rc::Rc,
     time::Duration,
 };
@@ -42,6 +43,11 @@ use {
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
+
+const HSA_CACHE_TYPE_DATA: u32 = 0x0000_0001;
+const HSA_CACHE_TYPE_INSTRUCTION: u32 = 0x0000_0002;
+const HSA_CACHE_TYPE_CPU: u32 = 0x0000_0004;
+// const HSA_CACHE_TYPE_HSACU: u32 = 0x0000_0008;
 
 pub struct AmdGpuController {
     handle: GpuHandle,
@@ -463,6 +469,17 @@ impl AmdGpuController {
     fn get_drm_info(&self) -> Option<DrmInfo> {
         use libdrm_amdgpu_sys::AMDGPU::VRAM_TYPE;
 
+        let cache_info = self
+            .kfd_node_path()
+            .inspect(|path| debug!("found KFD node path at '{}'", path.display()))
+            .and_then(|path| match read_cache_info_from_kfd(&path) {
+                Ok(info) => Some(info),
+                Err(err) => {
+                    warn!("could not read cache info from kfd sysfs: {err:#}");
+                    None
+                }
+            });
+
         trace!("Reading DRM info");
         let drm_handle = self.drm_handle.as_ref();
 
@@ -497,9 +514,33 @@ impl AmdGpuController {
                 },
                 vram_bit_width: Some(drm_info.vram_bit_width),
                 vram_max_bw: Some(drm_info.peak_memory_bw_gb().to_string()),
-                l1_cache_per_cu: Some(drm_info.get_l1_cache_size()),
-                l2_cache: Some(drm_info.calc_l2_cache_size()),
-                l3_cache_mb: Some(drm_info.calc_l3_cache_size_mb()),
+                cache_info: cache_info.unwrap_or_else(|| {
+                    let mut caches = vec![
+                        CacheInstance {
+                            size: drm_info.get_l1_cache_size(),
+                            key: CacheKey {
+                                level: 1,
+                                types: vec![],
+                            },
+                        };
+                        drm_info.cu_active_number as usize
+                    ];
+                    caches.push(CacheInstance {
+                        size: drm_info.calc_l2_cache_size(),
+                        key: CacheKey {
+                            level: 2,
+                            types: vec![],
+                        },
+                    });
+                    caches.push(CacheInstance {
+                        key: CacheKey {
+                            level: 3,
+                            types: vec![],
+                        },
+                        size: drm_info.calc_l3_cache_size_mb() * 1024 * 1024,
+                    });
+                    caches
+                }),
                 memory_info: drm_memory_info,
                 rop_info: Some(RopInfo {
                     unit_count: drm_info.rb_pipes(),
@@ -610,6 +651,35 @@ impl AmdGpuController {
     fn is_steam_deck(&self) -> bool {
         self.common.pci_info.device_pci_info.vendor_id == VENDOR_AMD
             && STEAM_DECK_IDS.contains(&self.common.pci_info.device_pci_info.model_id.as_str())
+    }
+
+    fn kfd_node_path(&self) -> Option<PathBuf> {
+        self.drm_handle
+            .as_ref()
+            .and_then(|handle| handle.get_pci_bus_info().ok())
+            .and_then(|bus_info| bus_info.get_drm_render_path().ok())
+            .and_then(|path| {
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .map(str::to_owned)
+            })
+            .and_then(|name| name.strip_prefix("renderD").map(str::to_owned))
+            .and_then(|render_minor| {
+                let nodes_dir = fs::read_dir("/sys/class/kfd/kfd/topology/nodes").ok()?;
+                nodes_dir.into_iter().flatten().find_map(|entry| {
+                    fs::read_to_string(entry.path().join("properties"))
+                        .ok()
+                        .filter(|node_properties| {
+                            node_properties
+                                .lines()
+                                .filter_map(|line| line.split_once(' '))
+                                .any(|(key, value)| {
+                                    key == "drm_render_minor" && value == render_minor
+                                })
+                        })
+                        .map(|_| entry.path())
+                })
+            })
     }
 }
 
@@ -1136,4 +1206,49 @@ fn apply_clocks_config_to_table(
     }
 
     Ok(())
+}
+
+fn read_cache_info_from_kfd(node_path: &Path) -> anyhow::Result<Vec<CacheInstance>> {
+    let mut caches: BTreeMap<CacheKey, Vec<CacheInstance>> = BTreeMap::new();
+
+    let caches_dir = fs::read_dir(node_path.join("caches"))?;
+    for entry in caches_dir {
+        let entry = entry?;
+
+        let contents = fs::read_to_string(entry.path().join("properties"))
+            .context("Could not read cache properties")?;
+        let cache_info = contents
+            .lines()
+            .filter_map(|line| line.split_once(' '))
+            .collect::<HashMap<_, _>>();
+
+        if let (Some(cache_type), Some(level), Some(size)) = (
+            cache_info.get("type"),
+            cache_info.get("level"),
+            cache_info.get("size"),
+        ) {
+            let level: u8 = level.parse().context("Invalid cache size")?;
+            let size: u32 = size.parse().context("Invalid cache size")?;
+            let cache_type: u32 = cache_type.parse().context("Invalid cache size")?;
+
+            let types = [
+                (HSA_CACHE_TYPE_DATA, CacheType::Data),
+                (HSA_CACHE_TYPE_INSTRUCTION, CacheType::Instruction),
+                (HSA_CACHE_TYPE_CPU, CacheType::Cpu),
+            ]
+            .into_iter()
+            .filter(|(mask, _)| cache_type & mask > 0)
+            .map(|(_, cache_type)| cache_type)
+            .collect();
+
+            let key = CacheKey { level, types };
+
+            caches.entry(key.clone()).or_default().push(CacheInstance {
+                size: size * 1024,
+                key,
+            });
+        }
+    }
+
+    Ok(caches.into_values().flatten().collect())
 }
