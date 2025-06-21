@@ -512,7 +512,9 @@ impl FanCurveFrame {
     }
 
     fn temp_keys_available(&self) -> bool {
-        self.pmfw_options.is_empty() && self.temp_keys.n_items() > 1
+        self.pmfw_options.is_empty()
+            && self.temp_keys.n_items() > 1
+            && (self.auto_threshold_adj.upper() == 0.0) // Disable key selection on nvidia
     }
 
     fn edit_curve(&self, f: impl FnOnce(&mut Vec<(i32, f32)>), widgets: &FanCurveFrameWidgets) {
