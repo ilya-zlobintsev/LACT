@@ -66,6 +66,7 @@ pub struct Daemon {
     pub admin_group: Option<String>,
     #[serde(default)]
     pub disable_clocks_cleanup: bool,
+    pub disable_nvapi: Option<bool>,
     pub tcp_listen_address: Option<String>,
 }
 
@@ -83,6 +84,7 @@ impl Default for Daemon {
             admin_groups: vec![],
             disable_clocks_cleanup: false,
             tcp_listen_address: None,
+            disable_nvapi: None,
         }
     }
 }

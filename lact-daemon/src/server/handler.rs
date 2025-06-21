@@ -3,6 +3,7 @@ use super::{
     profiles::ProfileWatcherCommand,
     system::{self, detect_initramfs_type},
 };
+use crate::server::gpu_controller::NvidiaLibs;
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
@@ -22,6 +23,7 @@ use lact_schema::{
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
+#[cfg(all(not(test), feature = "nvidia"))]
 use nvml_wrapper::Nvml;
 use os_release::OS_RELEASE;
 use pciid_parser::Database;
@@ -1023,19 +1025,41 @@ fn load_controllers(
 ) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
     let mut controllers = BTreeMap::new();
 
-    #[cfg(not(test))]
-    let nvml: LazyCell<Option<Rc<Nvml>>> = LazyCell::new(|| match Nvml::init() {
+    #[cfg(all(not(test), feature = "nvidia"))]
+    let nvml: LazyCell<Option<NvidiaLibs>> = LazyCell::new(|| match Nvml::init() {
         Ok(nvml) => {
+            use crate::server::gpu_controller::NvApi;
+
+            // The config has to be re-read here, because a LazyCell cannot capture external variables into the init closure
+            let disable_nvapi = Config::load()
+                .ok()
+                .flatten()
+                .and_then(|config| config.daemon.disable_nvapi);
+
             info!("Nvidia management library loaded");
-            Some(Rc::new(nvml))
+            let nvapi = if disable_nvapi == Some(true) {
+                info!("NvAPI support is disabled");
+                None
+            } else {
+                NvApi::new()
+                    .inspect(|_| {
+                        info!("NvAPI library loaded");
+                    })
+                    .inspect_err(|err| {
+                        error!("could not load NvAPI library: {err:#}");
+                    })
+                    .ok()
+            };
+
+            Some((Rc::new(nvml), Rc::new(nvapi)))
         }
         Err(err) => {
             error!("could not load Nvidia management library: {err}");
             None
         }
     });
-    #[cfg(test)]
-    let nvml: LazyCell<Option<Rc<Nvml>>> = LazyCell::new(|| None);
+    #[cfg(any(test, not(feature = "nvidia")))]
+    let nvml: LazyCell<Option<NvidiaLibs>> = LazyCell::new(|| None);
 
     let amd_drm: LazyCell<Option<LibDrmAmdgpu>> = LazyCell::new(|| match LibDrmAmdgpu::new() {
         Ok(drm) => {

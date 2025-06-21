@@ -2,13 +2,11 @@
 mod amd;
 pub mod fan_control;
 mod intel;
-
 #[cfg(feature = "nvidia")]
 mod nvidia;
 
 use amd::AmdGpuController;
 use intel::IntelGpuController;
-
 #[cfg(feature = "nvidia")]
 use nvidia::NvidiaGpuController;
 
@@ -24,10 +22,14 @@ use lact_schema::{
     config::GpuConfig, ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates,
 };
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
-use nvml_wrapper::Nvml;
 use std::{cell::LazyCell, collections::HashMap, fs, path::PathBuf, rc::Rc};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, warn};
+
+#[cfg(feature = "nvidia")]
+pub use nvidia::nvapi::NvApi;
+#[cfg(feature = "nvidia")]
+use nvml_wrapper::Nvml;
 
 pub type DynGpuController = Box<dyn GpuController>;
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
@@ -108,10 +110,15 @@ pub struct PciSlotInfo {
     pub func: u16,
 }
 
+#[cfg(feature = "nvidia")]
+pub type NvidiaLibs = (Rc<Nvml>, Rc<Option<NvApi>>);
+#[cfg(not(feature = "nvidia"))]
+pub type NvidiaLibs = ();
+
 pub(crate) fn init_controller(
     path: PathBuf,
     pci_db: &pciid_parser::Database,
-    nvml: &LazyCell<Option<Rc<Nvml>>>,
+    nvml: &LazyCell<Option<NvidiaLibs>>,
     amd_drm: &LazyCell<Option<LibDrmAmdgpu>>,
     intel_drm: &LazyCell<Option<Rc<IntelDrm>>>,
 ) -> anyhow::Result<Box<dyn GpuController>> {
@@ -205,8 +212,8 @@ pub(crate) fn init_controller(
         }
         #[cfg(feature = "nvidia")]
         "nvidia" => {
-            if let Some(nvml) = nvml.as_ref().cloned() {
-                match NvidiaGpuController::new(common.clone(), nvml) {
+            if let Some((nvml, nvapi)) = nvml.as_ref().cloned() {
+                match NvidiaGpuController::new(common.clone(), nvml, nvapi) {
                     Ok(controller) => {
                         return Ok(Box::new(controller));
                     }
