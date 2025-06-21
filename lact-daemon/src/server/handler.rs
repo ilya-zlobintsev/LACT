@@ -23,7 +23,7 @@ use lact_schema::{
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
-#[cfg(not(test))]
+#[cfg(all(not(test), feature = "nvidia"))]
 use nvml_wrapper::Nvml;
 use os_release::OS_RELEASE;
 use pciid_parser::Database;
@@ -1025,8 +1025,7 @@ fn load_controllers(
 ) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
     let mut controllers = BTreeMap::new();
 
-    // TODO: fix build without nvidia feature
-    #[cfg(not(test))]
+    #[cfg(all(not(test), feature = "nvidia"))]
     let nvml: LazyCell<Option<NvidiaLibs>> = LazyCell::new(|| match Nvml::init() {
         Ok(nvml) => {
             use crate::server::gpu_controller::NvApi;
@@ -1044,7 +1043,7 @@ fn load_controllers(
             None
         }
     });
-    #[cfg(test)]
+    #[cfg(any(test, not(feature = "nvidia")))]
     let nvml: LazyCell<Option<NvidiaLibs>> = LazyCell::new(|| None);
 
     let amd_drm: LazyCell<Option<LibDrmAmdgpu>> = LazyCell::new(|| match LibDrmAmdgpu::new() {

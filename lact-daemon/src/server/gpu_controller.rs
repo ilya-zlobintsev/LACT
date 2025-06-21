@@ -8,8 +8,6 @@ mod nvidia;
 use amd::AmdGpuController;
 use intel::IntelGpuController;
 #[cfg(feature = "nvidia")]
-pub use nvidia::nvapi::NvApi;
-#[cfg(feature = "nvidia")]
 use nvidia::NvidiaGpuController;
 
 pub const VENDOR_AMD: &str = "1002";
@@ -24,10 +22,14 @@ use lact_schema::{
     config::GpuConfig, ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates,
 };
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
-use nvml_wrapper::Nvml;
 use std::{cell::LazyCell, collections::HashMap, fs, path::PathBuf, rc::Rc};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, warn};
+
+#[cfg(feature = "nvidia")]
+pub use nvidia::nvapi::NvApi;
+#[cfg(feature = "nvidia")]
+use nvml_wrapper::Nvml;
 
 pub type DynGpuController = Box<dyn GpuController>;
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
@@ -108,7 +110,10 @@ pub struct PciSlotInfo {
     pub func: u16,
 }
 
+#[cfg(feature = "nvidia")]
 pub type NvidiaLibs = (Rc<Nvml>, Rc<Option<NvApi>>);
+#[cfg(not(feature = "nvidia"))]
+pub type NvidiaLibs = ();
 
 pub(crate) fn init_controller(
     path: PathBuf,
