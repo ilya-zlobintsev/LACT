@@ -11,7 +11,7 @@ use std::{
     fs::{self, File, Permissions},
     io::{self, Write},
     os::{fd::AsRawFd, unix::prelude::PermissionsExt},
-    path::Path,
+    path::{Path, PathBuf},
     process::{self, Output},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -19,15 +19,23 @@ use std::{
     },
 };
 use tokio::{process::Command, sync::Notify};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 static OC_TOGGLED: AtomicBool = AtomicBool::new(false);
 
 const PP_OVERDRIVE_MASK: u64 = 0x4000;
 pub const PP_FEATURE_MASK_PATH: &str = "/sys/module/amdgpu/parameters/ppfeaturemask";
-pub const MODULE_CONF_PATH: &str = "/etc/modprobe.d/99-amdgpu-overdrive.conf";
+pub const BASE_MODULE_CONF_PATH: &str = "/etc/modprobe.d/99-amdgpu-overdrive.conf";
 pub const DAEMON_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 static IS_FLATBOX: LazyLock<bool> = LazyLock::new(|| env::var("FLATBOX_ENV").as_deref() == Ok("1"));
+static MODULE_CONF_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
+    if *IS_FLATBOX {
+        Path::new("/run/host/root").join(BASE_MODULE_CONF_PATH.strip_prefix('/').unwrap())
+    } else {
+        PathBuf::from(BASE_MODULE_CONF_PATH)
+    }
+});
 
 pub async fn info() -> anyhow::Result<SystemInfo> {
     let version = DAEMON_VERSION.to_owned();
@@ -78,7 +86,7 @@ pub async fn enable_overdrive() -> anyhow::Result<String> {
 
     let conf = format!("options amdgpu ppfeaturemask=0x{new_mask:X}");
 
-    let mut file = File::create(MODULE_CONF_PATH).context("Could not open module conf file")?;
+    let mut file = File::create(&*MODULE_CONF_PATH).context("Could not open module conf file")?;
     file.set_permissions(Permissions::from_mode(0o644))
         .context("Could not conf file permissions")?;
 
@@ -102,8 +110,8 @@ pub async fn disable_overdrive() -> anyhow::Result<String> {
         "Overdrive support was already toggled - please reboot to apply the changes"
     );
 
-    if Path::new(MODULE_CONF_PATH).exists() {
-        fs::remove_file(MODULE_CONF_PATH).context("Could not remove module config file")?;
+    if Path::new(&*MODULE_CONF_PATH).exists() {
+        fs::remove_file(&*MODULE_CONF_PATH).context("Could not remove module config file")?;
         match regenerate_initramfs().await {
             Ok(initramfs_type) => {
                 OC_TOGGLED.store(true, Ordering::SeqCst);
@@ -115,7 +123,8 @@ pub async fn disable_overdrive() -> anyhow::Result<String> {
         }
     } else {
         Err(anyhow!(
-            "Overclocking was not enabled through LACT (file at {MODULE_CONF_PATH} does not exist)"
+            "Overclocking was not enabled through LACT (file at {} does not exist)",
+            MODULE_CONF_PATH.display(),
         ))
     }
 }
@@ -176,12 +185,14 @@ pub(crate) async fn detect_initramfs_type(os_release: &OsRelease) -> Option<Init
     }
 }
 
-fn get_os_release() -> io::Result<OsRelease> {
-    if *IS_FLATBOX {
+pub fn get_os_release() -> io::Result<OsRelease> {
+    let release = if *IS_FLATBOX {
         OsRelease::new_from("/run/host/root/etc/os-release")
     } else {
         OsRelease::new()
-    }
+    };
+    debug!("read os-release info: {release:?}");
+    release
 }
 
 pub async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<Output> {
@@ -189,8 +200,15 @@ pub async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<Output> {
 
     let mut command;
     if *IS_FLATBOX {
-        command = Command::new("flatpak-spawn");
-        command.arg("--host").arg(exec).args(args);
+        // Escape the sandbox by creating a bwrap that mounts back into the host system
+        // `flatpak-spawn --host` cannot be used reliably from a system service
+        command = Command::new("bwrap");
+        command
+            .arg("--dev-bind")
+            .arg("/run/host/root")
+            .arg("/")
+            .arg(exec)
+            .args(args);
     } else {
         command = Command::new(exec);
         command.args(args);

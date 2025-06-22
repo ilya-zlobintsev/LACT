@@ -31,7 +31,7 @@ use tracing_subscriber::EnvFilter;
 /// RDNA3, minimum family that supports the new pmfw interface
 pub const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 
-pub use system::MODULE_CONF_PATH;
+pub use system::BASE_MODULE_CONF_PATH;
 
 const MIN_SYSTEM_UPTIME_SECS: f32 = 15.0;
 const DRM_EVENT_TIMEOUT_PERIOD_MS: u64 = 100;

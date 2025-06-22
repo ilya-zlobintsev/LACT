@@ -19,6 +19,65 @@ cleanup:
   - '*.a'
   - /lib/pkgconfig
 modules:
+  - name: vulkan-tools
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DVULKAN_HEADERS_INSTALL_DIR=/app
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_CUBE=OFF
+      - -DBUILD_ICD=OFF
+      - -DBUILD_VULKANINFO=ON
+    sources:
+      - type: archive
+        url: https://github.com/KhronosGroup/Vulkan-Tools/archive/v1.4.319/Vulkan-Tools-1.4.319.tar.gz
+        sha256: 2237d15179237bf932bf715c21179520c4d54d41bc859e59802888ade452298a
+        x-checker-data:
+          type: anitya
+          project-id: 242111
+          url-template: https://github.com/KhronosGroup/Vulkan-Tools/archive/v$version/Vulkan-Tools-$version.tar.gz
+    modules:
+      - name: volk
+        buildsystem: cmake-ninja
+        config-opts:
+          - -DVOLK_INSTALL=ON
+        sources:
+          - type: archive
+            url: https://github.com/zeux/volk/archive/vulkan-sdk-1.4.313.0.tar.gz
+            sha256: d86bcf1aff499f41a3e445b55df5e393a5ce49b1bda689eb7335b0a0a54a3c0b
+            x-checker-data:
+              type: anitya
+              project-id: 370476
+              url-template: https://github.com/zeux/volk/archive/vulkan-sdk-$version.tar.gz
+        modules:
+          - name: vulkan-headers
+            buildsystem: cmake-ninja
+            sources:
+              - type: archive
+                url: https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.4.319/Vulkan-Headers-v1.4.319.tar.gz
+                sha256: d79d05def3aaa7f339f2b88b62f73072df0660fb50e9286554a043bab9f6c4dd
+                x-checker-data:
+                  type: anitya
+                  project-id: 88835
+                  url-template: https://github.com/KhronosGroup/Vulkan-Headers/archive/v$version/Vulkan-Headers-v$version.tar.gz
+
+  - name: flatbox
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 flatbox -t /app/bin/
+    sources:
+      - type: archive
+        only-arches:
+          - x86_64
+        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.4/flatbox-Linux-musl-x86_64.tar.gz
+        strip-components: 0
+        sha256: ea8c8ca10523ca6196bfc055d2b4f7b29d629ba7af6d50932306a053e5a8ef31
+      - type: archive
+        only-arches:
+          - aarch64
+        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.4/flatbox-Linux-musl-arm64.tar.gz
+        strip-components: 0
+        sha256: 7579b11983084754ed58b04dcac4a5dfbca7b0db2f851f8722560121db4adf30
+
   - name: lact
     buildsystem: simple
     sources:
@@ -85,62 +144,3 @@ modules:
               type: anitya
               project-id: 1596
               url-template: https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-$version/drm-libdrm-$version.tar.gz
-
-  - name: vulkan-tools
-    buildsystem: cmake-ninja
-    config-opts:
-      - -DVULKAN_HEADERS_INSTALL_DIR=/app
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DBUILD_CUBE=OFF
-      - -DBUILD_ICD=OFF
-      - -DBUILD_VULKANINFO=ON
-    sources:
-      - type: archive
-        url: https://github.com/KhronosGroup/Vulkan-Tools/archive/v1.4.319/Vulkan-Tools-1.4.319.tar.gz
-        sha256: 2237d15179237bf932bf715c21179520c4d54d41bc859e59802888ade452298a
-        x-checker-data:
-          type: anitya
-          project-id: 242111
-          url-template: https://github.com/KhronosGroup/Vulkan-Tools/archive/v$version/Vulkan-Tools-$version.tar.gz
-    modules:
-      - name: volk
-        buildsystem: cmake-ninja
-        config-opts:
-          - -DVOLK_INSTALL=ON
-        sources:
-          - type: archive
-            url: https://github.com/zeux/volk/archive/vulkan-sdk-1.4.313.0.tar.gz
-            sha256: d86bcf1aff499f41a3e445b55df5e393a5ce49b1bda689eb7335b0a0a54a3c0b
-            x-checker-data:
-              type: anitya
-              project-id: 370476
-              url-template: https://github.com/zeux/volk/archive/vulkan-sdk-$version.tar.gz
-        modules:
-          - name: vulkan-headers
-            buildsystem: cmake-ninja
-            sources:
-              - type: archive
-                url: https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.4.319/Vulkan-Headers-v1.4.319.tar.gz
-                sha256: d79d05def3aaa7f339f2b88b62f73072df0660fb50e9286554a043bab9f6c4dd
-                x-checker-data:
-                  type: anitya
-                  project-id: 88835
-                  url-template: https://github.com/KhronosGroup/Vulkan-Headers/archive/v$version/Vulkan-Headers-v$version.tar.gz
-
-  - name: flatbox
-    buildsystem: simple
-    build-commands:
-      - install -Dm755 flatbox -t /app/bin/
-    sources:
-      - type: archive
-        only-arches:
-          - x86_64
-        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.3/flatbox-Linux-musl-x86_64.tar.gz
-        strip-components: 0
-        sha256: 3e196227acd0564ed9daa976d2eb5b2b44cd68b93da5e49d5e97e46ca1614cb1
-      - type: archive
-        only-arches:
-          - aarch64
-        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.3/flatbox-Linux-musl-arm64.tar.gz
-        strip-components: 0
-        sha256: 0bf9c48f413c4d244181a8ece388a0c4d51f6e853ea9db64da5b8b237d88f81a
