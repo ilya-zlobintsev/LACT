@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    fmt::{self, Write},
+    fmt::{self, Debug, Display, Write},
     str::FromStr,
     sync::Arc,
 };
@@ -77,11 +77,11 @@ pub struct DeviceListEntry {
     pub name: Option<String>,
 }
 
-impl fmt::Display for DeviceListEntry {
+impl Display for DeviceListEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.name {
-            Some(name) => name.fmt(f),
-            None => self.id.fmt(f),
+            Some(name) => Display::fmt(name, f),
+            None => Display::fmt(&self.id, f),
         }
     }
 }
@@ -643,18 +643,58 @@ impl Default for ProcessProfileRule {
     }
 }
 
-pub type ProcessMap = IndexMap<i32, ProcessInfo>;
+pub type ProfileProcessMap = IndexMap<i32, ProfileProcessInfo>;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ProfileWatcherState {
-    pub process_list: ProcessMap,
+    pub process_list: ProfileProcessMap,
     pub gamemode_games: IndexSet<i32>,
     pub process_names_map: HashMap<Arc<str>, HashSet<i32>>,
 }
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ProcessInfo {
+pub struct ProfileProcessInfo {
     pub name: Arc<str>,
     pub cmdline: Box<str>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ProcessList {
+    pub processes: BTreeMap<u32, ProcessInfo>,
+    pub supported_util_types: HashSet<ProcessUtilizationType>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProcessInfo {
+    pub name: String,
+    pub args: String,
+    pub memory_used: u64,
+    pub types: Vec<ProcessType>,
+    pub util: HashMap<ProcessUtilizationType, u32>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ProcessUtilizationType {
+    Graphics,
+    Compute,
+    Memory,
+    Encode,
+    Decode,
+}
+
+impl ProcessUtilizationType {
+    pub const ALL: &[ProcessUtilizationType] = &[
+        ProcessUtilizationType::Graphics,
+        ProcessUtilizationType::Compute,
+        ProcessUtilizationType::Memory,
+        ProcessUtilizationType::Encode,
+        ProcessUtilizationType::Decode,
+    ];
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum ProcessType {
+    Graphics,
+    Compute,
 }

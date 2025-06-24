@@ -14,7 +14,7 @@ use futures::future::LocalBoxFuture;
 use lact_schema::{
     config::GpuConfig, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo,
     DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState, PowerStates,
-    PowerStats, VoltageStats, VramStats,
+    PowerStats, ProcessList, VoltageStats, VramStats,
 };
 use std::{
     cell::Cell,
@@ -755,6 +755,10 @@ impl GpuController for IntelGpuController {
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
         Err(anyhow!("Not supported"))
+    }
+
+    fn process_list(&self) -> anyhow::Result<ProcessList> {
+        todo!()
     }
 }
 

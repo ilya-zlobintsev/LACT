@@ -5,7 +5,7 @@ use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::{
-        gpu_controller::{fan_control::FanCurveExt, NvApi},
+        gpu_controller::{common::resolve_process_name, fan_control::FanCurveExt, NvApi},
         opencl::get_opencl_info,
         vulkan::get_vulkan_info,
     },
@@ -19,18 +19,19 @@ use lact_schema::{
     config::{FanControlSettings, FanCurve, GpuConfig},
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo,
     FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable,
-    PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
+    PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType,
+    ProcessUtilizationType, VoltageStats, VramStats,
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
-    enums::device::GpuLockedClocksSetting,
+    enums::device::{GpuLockedClocksSetting, UsedGpuMemory},
     Device, Nvml,
 };
 use std::{
     cell::RefCell,
     cmp,
-    collections::HashMap,
+    collections::{btree_map::Entry, BTreeMap, HashMap},
     fmt::Write,
     rc::Rc,
     time::{Duration, Instant},
@@ -914,5 +915,71 @@ impl GpuController for NvidiaGpuController {
             }
         }
         .boxed_local()
+    }
+
+    fn process_list(&self) -> anyhow::Result<ProcessList> {
+        fn map_process(
+            process: &nvml_wrapper::struct_wrappers::device::ProcessInfo,
+            process_type: ProcessType,
+        ) -> ProcessInfo {
+            #[allow(clippy::cast_possible_wrap)]
+            let (name, args) = resolve_process_name((process.pid as i32).into())
+                .unwrap_or_else(|_| ("<Unknown>".to_owned(), String::new()));
+
+            ProcessInfo {
+                name,
+                args,
+                memory_used: match process.used_gpu_memory {
+                    UsedGpuMemory::Used(size) => size,
+                    UsedGpuMemory::Unavailable => 0,
+                },
+                types: vec![process_type],
+                util: HashMap::new(),
+            }
+        }
+
+        let device = self.device();
+
+        let mut processes = BTreeMap::new();
+
+        for process in device.running_graphics_processes()? {
+            processes.insert(process.pid, map_process(&process, ProcessType::Graphics));
+        }
+
+        for process in device.running_compute_processes()? {
+            match processes.entry(process.pid) {
+                Entry::Vacant(entry) => {
+                    entry.insert(map_process(&process, ProcessType::Compute));
+                }
+                Entry::Occupied(mut entry) => {
+                    entry.get_mut().types.push(ProcessType::Compute);
+                }
+            }
+        }
+
+        for stat in device.process_utilization_stats(None)? {
+            if let Some(info) = processes.get_mut(&stat.pid) {
+                info.util
+                    .insert(ProcessUtilizationType::Graphics, stat.sm_util);
+                info.util
+                    .insert(ProcessUtilizationType::Memory, stat.mem_util);
+                info.util
+                    .insert(ProcessUtilizationType::Encode, stat.enc_util);
+                info.util
+                    .insert(ProcessUtilizationType::Decode, stat.dec_util);
+            }
+        }
+
+        Ok(ProcessList {
+            processes,
+            supported_util_types: [
+                ProcessUtilizationType::Graphics,
+                ProcessUtilizationType::Memory,
+                ProcessUtilizationType::Encode,
+                ProcessUtilizationType::Decode,
+            ]
+            .into_iter()
+            .collect(),
+        })
     }
 }

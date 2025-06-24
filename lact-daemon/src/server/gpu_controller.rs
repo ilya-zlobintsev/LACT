@@ -1,5 +1,6 @@
 #![allow(clippy::module_name_repetitions)]
 mod amd;
+mod common;
 pub mod fan_control;
 mod intel;
 #[cfg(feature = "nvidia")]
@@ -7,6 +8,7 @@ mod nvidia;
 
 use amd::AmdGpuController;
 use intel::IntelGpuController;
+use lact_schema::ProcessList;
 #[cfg(feature = "nvidia")]
 use nvidia::NvidiaGpuController;
 
@@ -58,6 +60,8 @@ pub trait GpuController {
     fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable>;
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>>;
+
+    fn process_list(&self) -> anyhow::Result<ProcessList>;
 }
 
 #[derive(Clone)]

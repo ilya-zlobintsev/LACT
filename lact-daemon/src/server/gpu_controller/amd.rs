@@ -18,7 +18,8 @@ use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
-    LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, RopInfo, VoltageStats, VramStats,
+    LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList, RopInfo, VoltageStats,
+    VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
@@ -1070,6 +1071,10 @@ impl GpuController for AmdGpuController {
             }
         }
         .boxed_local()
+    }
+
+    fn process_list(&self) -> anyhow::Result<ProcessList> {
+        todo!()
     }
 }
 

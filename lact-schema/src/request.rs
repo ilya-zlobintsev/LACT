@@ -99,6 +99,9 @@ pub enum Request<'a> {
         id: &'a str,
         config: GpuConfig,
     },
+    ProcessList {
+        id: &'a str,
+    },
     EnableOverdrive,
     DisableOverdrive,
     GenerateSnapshot,

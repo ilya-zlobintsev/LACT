@@ -7,8 +7,12 @@ mod info_row;
 mod msg;
 mod page_section;
 mod pages;
+mod process_monitor;
 
-use crate::{APP_ID, GUI_VERSION};
+use crate::{
+    app::process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
+    APP_ID, GUI_VERSION,
+};
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use confirmation_dialog::ConfirmationDialog;
@@ -46,7 +50,8 @@ use relm4::{
     actions::{RelmAction, RelmActionGroup},
     binding::BoolBinding,
     prelude::{AsyncComponent, AsyncComponentParts},
-    tokio, AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
+    tokio::{self, time::sleep},
+    AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
 };
 use relm4_components::{
     open_dialog::{OpenDialog, OpenDialogMsg, OpenDialogResponse, OpenDialogSettings},
@@ -69,11 +74,13 @@ pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 static ERROR_WINDOW_COUNT: AtomicU32 = AtomicU32::new(0);
 
 const STATS_POLL_INTERVAL_MS: u64 = 250;
+const PROCESS_POLL_INTERVAL_MS: u64 = 1000;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 
 pub struct AppModel {
     daemon_client: DaemonClient,
     graphs_window: relm4::Controller<GraphsWindow>,
+    process_monitor_window: relm4::Controller<ProcessMonitorWindow>,
 
     ui_sensitive: BoolBinding,
 
@@ -89,6 +96,7 @@ pub struct AppModel {
 
 #[derive(Debug)]
 pub enum CommandOutput {
+    FetchProcessList,
     ProfileImport(PathBuf),
     Error(anyhow::Error),
 }
@@ -226,10 +234,12 @@ impl AsyncComponent for AppModel {
             .forward(sender.input_sender(), |msg| msg);
 
         let graphs_window = GraphsWindow::detach_default();
+        let process_monitor_window = ProcessMonitorWindow::detach_default();
 
         let model = AppModel {
             daemon_client,
             graphs_window,
+            process_monitor_window,
             info_page,
             oc_page,
             thermals_page,
@@ -253,6 +263,17 @@ impl AsyncComponent for AppModel {
             .set_stack(Some(&widgets.root_stack));
 
         sender.input(AppMsg::ReloadProfiles { state_sender: None });
+
+        sender.command(move |sender, shutdown| {
+            shutdown
+                .register(async move {
+                    loop {
+                        sleep(Duration::from_millis(PROCESS_POLL_INTERVAL_MS)).await;
+                        sender.send(Some(CommandOutput::FetchProcessList)).unwrap();
+                    }
+                })
+                .drop_on_shutdown()
+        });
 
         AsyncComponentParts { model, widgets }
     }
@@ -458,6 +479,10 @@ impl AppModel {
             AppMsg::ShowGraphsWindow => {
                 self.graphs_window.emit(GraphsWindowMsg::Show);
             }
+            AppMsg::ShowProcessMonitor => {
+                self.process_monitor_window
+                    .emit(ProcessMonitorWindowMsg::Show);
+            }
             AppMsg::DumpVBios => {
                 self.dump_vbios(&self.current_gpu_id()?, root).await;
             }
@@ -514,6 +539,21 @@ impl AppModel {
         sender: &AsyncComponentSender<AppModel>,
     ) -> anyhow::Result<()> {
         match msg {
+            CommandOutput::FetchProcessList => {
+                if self.process_monitor_window.widget().is_visible() {
+                    if let Ok(gpu_id) = self.current_gpu_id() {
+                        match self.daemon_client.get_process_list(&gpu_id).await {
+                            Ok(process_list) => {
+                                self.process_monitor_window
+                                    .emit(ProcessMonitorWindowMsg::Data(process_list));
+                            }
+                            Err(err) => {
+                                warn!("could not fetch process list: {err:#}");
+                            }
+                        }
+                    }
+                }
+            }
             CommandOutput::ProfileImport(path) => {
                 let file_name = path
                     .file_name()
@@ -1148,6 +1188,7 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
 
     actions! {
         (ShowGraphsWindow, AppMsg::ShowGraphsWindow),
+        (ShowProcessMonitor, AppMsg::ShowProcessMonitor),
         (DumpVBios, AppMsg::DumpVBios),
         (DebugSnapshot, AppMsg::DebugSnapshot),
         (
@@ -1175,6 +1216,7 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
 
 relm4::new_action_group!(AppActionGroup, "app");
 relm4::new_stateless_action!(ShowGraphsWindow, AppActionGroup, "show-graphs-window");
+relm4::new_stateless_action!(ShowProcessMonitor, AppActionGroup, "show-process-monitor");
 relm4::new_stateless_action!(DumpVBios, AppActionGroup, "dump-vbios");
 relm4::new_stateless_action!(DebugSnapshot, AppActionGroup, "generate-debug-snapshot");
 relm4::new_stateless_action!(DisableOverdrive, AppActionGroup, "disable-overdrive");

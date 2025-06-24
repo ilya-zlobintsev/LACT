@@ -1,4 +1,4 @@
-use lact_schema::ProcessMap;
+use lact_schema::ProfileProcessMap;
 use libcopes::PID;
 use nix::unistd::{geteuid, seteuid, Uid};
 use std::{
@@ -45,7 +45,7 @@ pub trait GameModeGame {
     fn executable(&self) -> zbus::Result<String>;
 }
 
-pub async fn connect(process_list: &ProcessMap) -> Option<GameModeProxy<'static>> {
+pub async fn connect(process_list: &ProfileProcessMap) -> Option<GameModeProxy<'static>> {
     let address;
     let gamemode_uid;
 

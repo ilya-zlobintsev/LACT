@@ -19,6 +19,7 @@ pub enum AppMsg {
     ResetClocks,
     ResetPmfw,
     ShowGraphsWindow,
+    ShowProcessMonitor,
     DumpVBios,
     DebugSnapshot,
     EnableOverdrive,
