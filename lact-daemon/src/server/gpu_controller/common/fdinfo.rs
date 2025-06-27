@@ -44,6 +44,10 @@ pub fn read_process_list(
             .to_str()
             .and_then(|name| name.parse::<u32>().ok())
         {
+            if pid == 1 {
+                continue;
+            }
+
             match collect_proc_util(&entry.path(), &dri_paths, vram_keys, engines) {
                 Ok(utils) => {
                     let mut pid_total_time: HashMap<ProcessUtilizationType, u64> = HashMap::new();
