@@ -5,7 +5,7 @@ use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::{
-        gpu_controller::{common::resolve_process_name, fan_control::FanCurveExt, NvApi},
+        gpu_controller::{common::fan_control::FanCurveExt, common::resolve_process_name, NvApi},
         opencl::get_opencl_info,
         vulkan::get_vulkan_info,
     },
@@ -29,7 +29,7 @@ use nvml_wrapper::{
     Device, Nvml,
 };
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     cmp,
     collections::{btree_map::Entry, BTreeMap, HashMap},
     fmt::Write,
@@ -49,6 +49,7 @@ pub struct NvidiaGpuController {
     nvapi_handle: Option<NvPhysicalGpuHandle>,
     nvapi_thermals_mask: Option<i32>,
 
+    last_util_timestamp: Cell<Option<u64>>,
     // Store last applied offsets as a workaround when the driver doesn't tell us the current offset
     last_applied_offsets: RefCell<HashMap<Clock, HashMap<PerformanceState, i32>>>,
     last_applied_gpu_locked_clocks: RefCell<Option<(u32, u32)>>,
@@ -117,6 +118,7 @@ impl NvidiaGpuController {
             driver_handle,
             nvapi_handle,
             nvapi_thermals_mask,
+            last_util_timestamp: Cell::new(None),
             fan_control_handle: RefCell::new(None),
             last_applied_offsets: RefCell::new(HashMap::new()),
             last_applied_gpu_locked_clocks: RefCell::new(None),
@@ -957,7 +959,12 @@ impl GpuController for NvidiaGpuController {
             }
         }
 
-        for stat in device.process_utilization_stats(None)? {
+        let stats = device.process_utilization_stats(self.last_util_timestamp.get())?;
+        if let Some(stat) = stats.first() {
+            self.last_util_timestamp.set(Some(stat.timestamp));
+        }
+
+        for stat in stats {
             if let Some(info) = processes.get_mut(&stat.pid) {
                 info.util
                     .insert(ProcessUtilizationType::Graphics, stat.sm_util);

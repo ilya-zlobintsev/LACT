@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::app::format_friendly_size;
+use crate::app::{format_friendly_size, msg::AppMsg, APP_BROKER};
 use gtk::{
     glib::object::{Cast, ObjectExt},
     pango,
@@ -49,7 +49,7 @@ impl relm4::Component for ProcessMonitorWindow {
                     set_show_row_separators: true,
                     set_reorderable: false,
                 }
-            }
+            },
         }
     }
 
@@ -85,6 +85,7 @@ impl relm4::Component for ProcessMonitorWindow {
         match msg {
             ProcessMonitorWindowMsg::Show => {
                 root.present();
+                APP_BROKER.send(AppMsg::FetchProcessList);
             }
             ProcessMonitorWindowMsg::Data(mut process_list) => {
                 for column in self.processes.view.columns().into_iter() {
@@ -319,22 +320,7 @@ macro_rules! util_columns {
     };
 }
 
-fn fmt_process_types(types: &[ProcessType]) -> &'static str {
-    let gfx = types.contains(&ProcessType::Graphics);
-    let compute = types.contains(&ProcessType::Compute);
-
-    if gfx && compute {
-        "Graph+Comp"
-    } else if gfx {
-        "Graphics"
-    } else if compute {
-        "Compute"
-    } else {
-        "Unknown"
-    }
-}
-
-// This must be kept in sync with the column visibility logic in `update``
+// This must be kept in sync with adding the columns in `init` and visibility logic in `update`
 util_columns!(
     (
         GraphicsUtilColumn,
@@ -350,3 +336,18 @@ util_columns!(
     (EncodeUtilColumn, "Encode", ProcessUtilizationType::Encode),
     (DecodeUtilColumn, "Decode", ProcessUtilizationType::Decode),
 );
+
+fn fmt_process_types(types: &[ProcessType]) -> &'static str {
+    let gfx = types.contains(&ProcessType::Graphics);
+    let compute = types.contains(&ProcessType::Compute);
+
+    if gfx && compute {
+        "Graph+Comp"
+    } else if gfx {
+        "Graphics"
+    } else if compute {
+        "Compute"
+    } else {
+        "Unknown"
+    }
+}

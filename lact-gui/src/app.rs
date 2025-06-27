@@ -96,7 +96,6 @@ pub struct AppModel {
 
 #[derive(Debug)]
 pub enum CommandOutput {
-    FetchProcessList,
     ProfileImport(PathBuf),
     Error(anyhow::Error),
 }
@@ -264,12 +263,13 @@ impl AsyncComponent for AppModel {
 
         sender.input(AppMsg::ReloadProfiles { state_sender: None });
 
-        sender.command(move |sender, shutdown| {
+        let task_sender = sender.clone();
+        sender.command(move |_, shutdown| {
             shutdown
                 .register(async move {
                     loop {
                         sleep(Duration::from_millis(PROCESS_POLL_INTERVAL_MS)).await;
-                        sender.send(Some(CommandOutput::FetchProcessList)).unwrap();
+                        task_sender.input(AppMsg::FetchProcessList);
                     }
                 })
                 .drop_on_shutdown()
@@ -499,6 +499,21 @@ impl AppModel {
                 self.daemon_client.reset_config().await?;
                 sender.input(AppMsg::ReloadData { full: true });
             }
+            AppMsg::FetchProcessList => {
+                if self.process_monitor_window.widget().is_visible() {
+                    if let Ok(gpu_id) = self.current_gpu_id() {
+                        match self.daemon_client.get_process_list(&gpu_id).await {
+                            Ok(process_list) => {
+                                self.process_monitor_window
+                                    .emit(ProcessMonitorWindowMsg::Data(process_list));
+                            }
+                            Err(err) => {
+                                warn!("could not fetch process list: {err:#}");
+                            }
+                        }
+                    }
+                }
+            }
             AppMsg::ConnectionStatus(status) => match status {
                 ConnectionStatusMsg::Disconnected => widgets.reconnecting_dialog.present(),
                 ConnectionStatusMsg::Reconnected => widgets.reconnecting_dialog.hide(),
@@ -539,21 +554,6 @@ impl AppModel {
         sender: &AsyncComponentSender<AppModel>,
     ) -> anyhow::Result<()> {
         match msg {
-            CommandOutput::FetchProcessList => {
-                if self.process_monitor_window.widget().is_visible() {
-                    if let Ok(gpu_id) = self.current_gpu_id() {
-                        match self.daemon_client.get_process_list(&gpu_id).await {
-                            Ok(process_list) => {
-                                self.process_monitor_window
-                                    .emit(ProcessMonitorWindowMsg::Data(process_list));
-                            }
-                            Err(err) => {
-                                warn!("could not fetch process list: {err:#}");
-                            }
-                        }
-                    }
-                }
-            }
             CommandOutput::ProfileImport(path) => {
                 let file_name = path
                     .file_name()

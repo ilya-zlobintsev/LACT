@@ -1,5 +1,5 @@
 use super::{
-    gpu_controller::{fan_control::FanCurveExt, DynGpuController, GpuController},
+    gpu_controller::{common::fan_control::FanCurveExt, DynGpuController, GpuController},
     profiles::ProfileWatcherCommand,
     system::{self, detect_initramfs_type},
 };

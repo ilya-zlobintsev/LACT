@@ -1,3 +1,6 @@
+pub mod fan_control;
+pub mod fdinfo;
+
 use libcopes::PID;
 use std::io;
 

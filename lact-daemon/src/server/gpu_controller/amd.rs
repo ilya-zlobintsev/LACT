@@ -1,6 +1,7 @@
 use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
 use crate::server::{
-    gpu_controller::fan_control::FanCurveExt, opencl::get_opencl_info, vulkan::get_vulkan_info,
+    gpu_controller::common::fan_control::FanCurveExt, opencl::get_opencl_info,
+    vulkan::get_vulkan_info,
 };
 use amdgpu_sysfs::{
     error::Error,
@@ -66,7 +67,7 @@ impl AmdGpuController {
         if let Some(libdrm_amdgpu) = libdrm_amdgpu {
             if handle.get_driver() == "amdgpu" {
                 drm_handle = Some(
-                    get_drm_handle(&handle, libdrm_amdgpu)
+                    get_drm_handle(&common, libdrm_amdgpu)
                         .context("Could not get AMD DRM handle")?,
                 );
             }
@@ -1079,18 +1080,18 @@ impl GpuController for AmdGpuController {
 }
 
 #[cfg(not(test))]
-fn get_drm_handle(handle: &GpuHandle, libdrm_amdgpu: &LibDrmAmdgpu) -> anyhow::Result<DrmHandle> {
+fn get_drm_handle(
+    common: &CommonControllerInfo,
+    libdrm_amdgpu: &LibDrmAmdgpu,
+) -> anyhow::Result<DrmHandle> {
     use std::os::unix::io::IntoRawFd;
 
-    let slot_name = handle
-        .get_pci_slot_name()
-        .context("Device has no PCI slot name")?;
-    let path = format!("/dev/dri/by-path/pci-{slot_name}-render");
+    let path = common.get_drm_render()?;
     let drm_file = fs::OpenOptions::new()
         .read(true)
         .write(true)
         .open(&path)
-        .with_context(|| format!("Could not open drm file at {path}"))?;
+        .with_context(|| format!("Could not open drm file at {}", path.display()))?;
     let (handle, _, _) = libdrm_amdgpu
         .init_device_handle(drm_file.into_raw_fd())
         .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
