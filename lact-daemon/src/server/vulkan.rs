@@ -325,7 +325,7 @@ fn parse_summary(summary: &str) -> Vec<SummaryDeviceEntry> {
 }
 
 fn vulkaninfo_command() -> Command {
-    if let Ok(custom_command) = env::var("VULKANINFO_COMMAND") {
+    let mut cmd = if let Ok(custom_command) = env::var("VULKANINFO_COMMAND") {
         let mut split = custom_command.split_ascii_whitespace();
         let program = split
             .next()
@@ -336,7 +336,10 @@ fn vulkaninfo_command() -> Command {
         cmd
     } else {
         Command::new("vulkaninfo")
-    }
+    };
+
+    cmd.env("DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1", "1");
+    cmd
 }
 
 #[cfg(test)]
