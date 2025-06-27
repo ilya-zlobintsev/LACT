@@ -21,7 +21,7 @@ use amdgpu_sysfs::{
 };
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
+use serde_with::{serde_as, skip_serializing_none, DefaultOnError};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fmt::{self, Debug, Display, Write},
@@ -93,9 +93,11 @@ pub struct GpuPciInfo {
 }
 
 #[skip_serializing_none]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceInfo {
     pub pci_info: Option<GpuPciInfo>,
+    #[serde_as(deserialize_as = "DefaultOnError")]
     #[serde(default)]
     pub vulkan_info: Vec<VulkanInfo>,
     pub opencl_info: Option<OpenCLInfo>,
