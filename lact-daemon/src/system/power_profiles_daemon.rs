@@ -17,7 +17,7 @@ pub async fn setup() {
     match PowerProfilesDaemonProxy::new(&conn).await {
         Ok(ppd_client) => {
             if let Err(err) = disable_conflicting_actions(&ppd_client).await {
-                error!("power-profiles-daemon detected, but conflicting actions could not be disabled: {err:#}");
+                warn!("power-profiles-daemon detected, but conflicting actions could not be disabled: {err:#}");
             }
         }
         Err(err) => {

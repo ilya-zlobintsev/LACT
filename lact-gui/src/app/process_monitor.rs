@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use crate::app::{format_friendly_size, msg::AppMsg, APP_BROKER};
 use gtk::{
-    glib::object::{Cast, ObjectExt},
+    glib::{
+        object::{Cast, ObjectExt},
+        GString,
+    },
     pango,
-    prelude::{GtkWindowExt, SorterExt},
+    prelude::{EditableExt, GtkWindowExt, OrientableExt, SorterExt, WidgetExt},
 };
 use lact_schema::{ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType};
 use relm4::{
@@ -24,6 +27,7 @@ pub struct ProcessMonitorWindow {
 pub enum ProcessMonitorWindowMsg {
     Show,
     Data(ProcessList),
+    FilterChanged(GString),
 }
 
 #[relm4::component(pub)]
@@ -40,15 +44,31 @@ impl relm4::Component for ProcessMonitorWindow {
             set_default_width: 900,
             set_hide_on_close: true,
 
-            gtk::ScrolledWindow {
-                set_hscrollbar_policy: gtk::PolicyType::Automatic,
-                set_vscrollbar_policy: gtk::PolicyType::Automatic,
+            gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
 
-                model.processes.view.clone() {
-                    set_show_column_separators: true,
-                    set_show_row_separators: true,
-                    set_reorderable: false,
-                }
+                #[name = "search_entry"]
+                gtk::SearchEntry {
+                    connect_search_changed[sender] => move |entry| {
+                        sender.input(ProcessMonitorWindowMsg::FilterChanged(entry.text()));
+                    },
+
+                    connect_stop_search[root] => move |_| {
+                        root.close();
+                    },
+                },
+
+                gtk::ScrolledWindow {
+                    set_hscrollbar_policy: gtk::PolicyType::Automatic,
+                    set_vscrollbar_policy: gtk::PolicyType::Automatic,
+                    set_vexpand: true,
+
+                    model.processes.view.clone() {
+                        set_show_column_separators: true,
+                        set_show_row_separators: true,
+                        set_reorderable: false,
+                    }
+                },
             },
         }
     }
@@ -56,7 +76,7 @@ impl relm4::Component for ProcessMonitorWindow {
     fn init(
         _: Self::Init,
         root: Self::Root,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let mut processes = TypedColumnView::new();
         processes.append_column::<PidColumn>();
@@ -74,9 +94,20 @@ impl relm4::Component for ProcessMonitorWindow {
             gtk::SortType::Descending,
         );
 
-        let model = Self { processes };
+        let mut model = Self { processes };
 
         let widgets = view_output!();
+
+        model.processes.add_filter({
+            let search_entry = widgets.search_entry.clone();
+            move |process| {
+                process
+                    .name
+                    .value()
+                    .to_lowercase()
+                    .contains(&search_entry.text().to_lowercase())
+            }
+        });
 
         ComponentParts { widgets, model }
     }
@@ -131,6 +162,12 @@ impl relm4::Component for ProcessMonitorWindow {
 
                 if let Some(sorter) = self.processes.view.sorter() {
                     sorter.changed(gtk::SorterChange::Different);
+                }
+            }
+            ProcessMonitorWindowMsg::FilterChanged(filter) => {
+                self.processes.set_filter_status(0, false);
+                if !filter.is_empty() {
+                    self.processes.set_filter_status(0, true);
                 }
             }
         }

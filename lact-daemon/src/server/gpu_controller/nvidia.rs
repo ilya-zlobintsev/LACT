@@ -26,6 +26,7 @@ use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
     enums::device::{GpuLockedClocksSetting, UsedGpuMemory},
+    error::NvmlError,
     Device, Nvml,
 };
 use std::{
@@ -38,6 +39,13 @@ use std::{
 };
 use tokio::{select, sync::Notify, time::sleep};
 use tracing::{debug, error, trace, warn};
+
+const SUPPORTED_UTIL_TYPES: &[ProcessUtilizationType] = &[
+    ProcessUtilizationType::Graphics,
+    ProcessUtilizationType::Memory,
+    ProcessUtilizationType::Encode,
+    ProcessUtilizationType::Decode,
+];
 
 pub struct NvidiaGpuController {
     nvml: Rc<Nvml>,
@@ -932,7 +940,7 @@ impl GpuController for NvidiaGpuController {
                     UsedGpuMemory::Unavailable => 0,
                 },
                 types: vec![process_type],
-                util: HashMap::new(),
+                util: SUPPORTED_UTIL_TYPES.iter().map(|util| (*util, 0)).collect(),
             }
         }
 
@@ -940,11 +948,17 @@ impl GpuController for NvidiaGpuController {
 
         let mut processes = BTreeMap::new();
 
-        for process in device.running_graphics_processes()? {
+        for process in device
+            .running_graphics_processes()
+            .context("Could not get graphics processes")?
+        {
             processes.insert(process.pid, map_process(&process, ProcessType::Graphics));
         }
 
-        for process in device.running_compute_processes()? {
+        for process in device
+            .running_compute_processes()
+            .context("Could not get compute processes")?
+        {
             match processes.entry(process.pid) {
                 Entry::Vacant(entry) => {
                     entry.insert(map_process(&process, ProcessType::Compute));
@@ -955,34 +969,33 @@ impl GpuController for NvidiaGpuController {
             }
         }
 
-        let stats = device.process_utilization_stats(self.last_util_timestamp.get())?;
-        if let Some(stat) = stats.first() {
-            self.last_util_timestamp.set(Some(stat.timestamp));
-        }
+        match device.process_utilization_stats(self.last_util_timestamp.get()) {
+            Ok(stats) => {
+                if let Some(stat) = stats.first() {
+                    self.last_util_timestamp.set(Some(stat.timestamp));
+                }
 
-        for stat in stats {
-            if let Some(info) = processes.get_mut(&stat.pid) {
-                info.util
-                    .insert(ProcessUtilizationType::Graphics, stat.sm_util);
-                info.util
-                    .insert(ProcessUtilizationType::Memory, stat.mem_util);
-                info.util
-                    .insert(ProcessUtilizationType::Encode, stat.enc_util);
-                info.util
-                    .insert(ProcessUtilizationType::Decode, stat.dec_util);
+                for stat in stats {
+                    if let Some(info) = processes.get_mut(&stat.pid) {
+                        info.util
+                            .insert(ProcessUtilizationType::Graphics, stat.sm_util);
+                        info.util
+                            .insert(ProcessUtilizationType::Memory, stat.mem_util);
+                        info.util
+                            .insert(ProcessUtilizationType::Encode, stat.enc_util);
+                        info.util
+                            .insert(ProcessUtilizationType::Decode, stat.dec_util);
+                    }
+                }
+            }
+            Err(NvmlError::NotFound) => (),
+            Err(err) => {
+                error!("could not get process util stats: {err}");
             }
         }
-
         Ok(ProcessList {
             processes,
-            supported_util_types: [
-                ProcessUtilizationType::Graphics,
-                ProcessUtilizationType::Memory,
-                ProcessUtilizationType::Encode,
-                ProcessUtilizationType::Decode,
-            ]
-            .into_iter()
-            .collect(),
+            supported_util_types: SUPPORTED_UTIL_TYPES.iter().copied().collect(),
         })
     }
 }
