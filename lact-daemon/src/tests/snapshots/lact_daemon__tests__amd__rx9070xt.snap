@@ -50,7 +50,7 @@ expression: device_info
     },
     "pci_info": {
       "device_pci_info": {
-        "model": "Navi 48 [RX 9070/9070 XT]",
+        "model": "Navi 48 [Radeon RX 9070/9070 XT/9070 GRE]",
         "model_id": "7550",
         "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
         "vendor_id": "1002"
@@ -67,7 +67,7 @@ expression: device_info
   },
   "pci_info": {
     "device_pci_info": {
-      "model": "Navi 48 [RX 9070/9070 XT]",
+      "model": "Navi 48 [Radeon RX 9070/9070 XT/9070 GRE]",
       "model_id": "7550",
       "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
       "vendor_id": "1002"

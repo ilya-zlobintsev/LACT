@@ -324,7 +324,7 @@ pub(crate) fn profile_rule_matches(state: &ProfileWatcherState, rule: &ProfileRu
 #[cfg(test)]
 mod tests {
     use super::evaluate_current_profile;
-    use lact_schema::{ProcessInfo, ProcessProfileRule, ProfileRule, ProfileWatcherState};
+    use lact_schema::{ProcessProfileRule, ProfileProcessInfo, ProfileRule, ProfileWatcherState};
     use pretty_assertions::assert_eq;
     use std::rc::Rc;
 
@@ -333,7 +333,7 @@ mod tests {
         let mut state = ProfileWatcherState::default();
         state.push_process(
             1,
-            ProcessInfo {
+            ProfileProcessInfo {
                 name: "game1".into(),
                 cmdline: "".into(),
             },
@@ -363,7 +363,7 @@ mod tests {
 
         state.push_process(
             1,
-            ProcessInfo {
+            ProfileProcessInfo {
                 name: "game2".into(),
                 cmdline: "".into(),
             },
@@ -375,7 +375,7 @@ mod tests {
 
         state.push_process(
             1,
-            ProcessInfo {
+            ProfileProcessInfo {
                 name: "game3".into(),
                 cmdline: "".into(),
             },
@@ -391,7 +391,7 @@ mod tests {
 mod benches {
     use super::evaluate_current_profile;
     use divan::Bencher;
-    use lact_schema::{ProcessInfo, ProcessProfileRule, ProfileRule, ProfileWatcherState};
+    use lact_schema::{ProcessProfileRule, ProfileProcessInfo, ProfileRule, ProfileWatcherState};
     use std::hint::black_box;
 
     #[divan::bench(sample_size = 1000, min_time = 2)]
@@ -401,7 +401,7 @@ mod benches {
         for pid in 1..2000 {
             let name = format!("process-{pid}").into();
             let cmdline = format!("{name} arg1 arg2 --arg3").into();
-            state.push_process(pid, ProcessInfo { name, cmdline });
+            state.push_process(pid, ProfileProcessInfo { name, cmdline });
         }
 
         let profile_rules = [

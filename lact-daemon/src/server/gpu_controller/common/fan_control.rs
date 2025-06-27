@@ -95,9 +95,8 @@ impl FanCurveExt for FanCurve {
 
 #[cfg(test)]
 mod tests {
-    use crate::server::gpu_controller::fan_control::FanCurveExt;
-
     use super::{FanCurve, PmfwCurve};
+    use crate::server::gpu_controller::common::fan_control::FanCurveExt;
     use amdgpu_sysfs::{gpu_handle::fan_control::FanCurveRanges, hw_mon::Temperature};
     use anyhow::anyhow;
 
