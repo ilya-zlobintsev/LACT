@@ -24,7 +24,7 @@ expression: device_info
       }
     },
     "vbios_version": "113-23L86HMD2-D02",
-    "vulkan_info": []
+    "vulkan_instances": []
   },
   "pci_info": {
     "device_pci_info": {

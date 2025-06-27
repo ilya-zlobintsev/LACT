@@ -64,7 +64,7 @@ expression: device_info
       }
     },
     "vbios_version": "113-D70401XT-N11",
-    "vulkan_info": []
+    "vulkan_instances": []
   },
   "pci_info": {
     "device_pci_info": {

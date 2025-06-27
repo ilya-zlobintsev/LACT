@@ -64,7 +64,7 @@ expression: device_info
       }
     },
     "vbios_version": "113-EXT90249-100",
-    "vulkan_info": []
+    "vulkan_instances": []
   },
   "pci_info": {
     "device_pci_info": {
