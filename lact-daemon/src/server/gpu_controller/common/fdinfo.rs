@@ -49,6 +49,7 @@ pub fn read_process_list(
                     let mut pid_total_time: HashMap<ProcessUtilizationType, u64> = HashMap::new();
                     let mut processed_client_ids = HashSet::new();
                     let mut memory_used = 0;
+                    let mut anything_used = false;
 
                     for util in utils {
                         if processed_client_ids.insert(util.client_id) {
@@ -56,6 +57,7 @@ pub fn read_process_list(
                                 supported_util_types.insert(util_type);
 
                                 *pid_total_time.entry(util_type).or_default() += total_time;
+                                anything_used |= total_time > 0;
                             }
                             memory_used += util.memory_used;
                         }
@@ -74,48 +76,55 @@ pub fn read_process_list(
 
                                     #[allow(
                                         clippy::cast_lossless,
-                                        clippy::cast_possible_truncation
+                                        clippy::cast_possible_truncation,
+                                        clippy::cast_sign_loss,
+                                        clippy::cast_precision_loss
                                     )]
                                     process_util.insert(
                                         *util_type,
-                                        (engine_time_delta as u128 / wall_time_delta) as u32 * 100,
+                                        ((engine_time_delta as f64 / wall_time_delta as f64)
+                                            * 100.0) as u32,
                                     );
                                 }
                             }
                         }
                     }
 
+                    println!("pid {pid} util {process_util:?}");
+
+                    if anything_used {
+                        #[allow(clippy::cast_possible_wrap)]
+                        let (name, args) = resolve_process_name((pid as i32).into())
+                            .unwrap_or_else(|_| ("<Unknown>".to_owned(), String::new()));
+
+                        let mut types = vec![];
+
+                        if pid_total_time
+                            .get(&ProcessUtilizationType::Graphics)
+                            .is_some_and(|value| *value > 0)
+                        {
+                            types.push(ProcessType::Graphics);
+                        }
+                        if pid_total_time
+                            .get(&ProcessUtilizationType::Compute)
+                            .is_some_and(|value| *value > 0)
+                        {
+                            types.push(ProcessType::Compute);
+                        }
+
+                        processes.insert(
+                            pid,
+                            ProcessInfo {
+                                name,
+                                args,
+                                memory_used,
+                                types,
+                                util: process_util,
+                            },
+                        );
+                    }
+
                     total_time_map.insert(pid, pid_total_time);
-
-                    #[allow(clippy::cast_possible_wrap)]
-                    let (name, args) = resolve_process_name((pid as i32).into())
-                        .unwrap_or_else(|_| ("<Unknown>".to_owned(), String::new()));
-
-                    let mut types = vec![];
-
-                    if process_util
-                        .get(&ProcessUtilizationType::Graphics)
-                        .is_some_and(|value| *value > 0)
-                    {
-                        types.push(ProcessType::Graphics);
-                    }
-                    if process_util
-                        .get(&ProcessUtilizationType::Compute)
-                        .is_some_and(|value| *value > 0)
-                    {
-                        types.push(ProcessType::Compute);
-                    }
-
-                    processes.insert(
-                        pid,
-                        ProcessInfo {
-                            name,
-                            args,
-                            memory_used,
-                            types,
-                            util: process_util,
-                        },
-                    );
                 }
                 Err(err) => {
                     error!("could not fetch fdinfo for pid {pid}: {err:#}");
