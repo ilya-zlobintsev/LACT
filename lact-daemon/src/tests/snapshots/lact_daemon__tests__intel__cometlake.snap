@@ -41,7 +41,7 @@ expression: device_info
         "vendor_id": "17AA"
       }
     },
-    "vulkan_info": []
+    "vulkan_instances": []
   },
   "pci_info": {
     "device_pci_info": {

@@ -261,7 +261,7 @@ impl relm4::SimpleComponent for SoftwarePage {
             SoftwarePageMsg::DeviceInfo(info) => {
                 let mut vulkan_drivers = Vec::new();
 
-                for info in &info.vulkan_info {
+                for info in &info.vulkan_instances {
                     let name = format!(
                         "{} ({})",
                         info.device_name,
@@ -306,7 +306,7 @@ impl SoftwarePage {
             .and_then(|idx| {
                 self.device_info
                     .as_ref()
-                    .and_then(|info| info.vulkan_info.get(idx))
+                    .and_then(|info| info.vulkan_instances.get(idx))
             })
     }
 }

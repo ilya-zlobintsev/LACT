@@ -42,7 +42,7 @@ expression: device_info
         "vendor_id": "1849"
       }
     },
-    "vulkan_info": []
+    "vulkan_instances": []
   },
   "pci_info": {
     "device_pci_info": {

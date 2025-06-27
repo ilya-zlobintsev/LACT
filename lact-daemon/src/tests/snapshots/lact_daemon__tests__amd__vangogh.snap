@@ -24,7 +24,7 @@ expression: device_info
       }
     },
     "vbios_version": "113-AMDAerithJ-005",
-    "vulkan_info": []
+    "vulkan_instances": []
   },
   "pci_info": {
     "device_pci_info": {
