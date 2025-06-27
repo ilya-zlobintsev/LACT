@@ -49,7 +49,7 @@ const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
 
-const DRM_VRAM_KEYS: &[&str] = &["drm-total-vram0", "drm-total-local0", "drm-total-system0"];
+const DRM_VRAM_KEYS: &[&str] = &["drm-memory-vram"];
 const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
     ("gfx", ProcessUtilizationType::Graphics),
     ("compute", ProcessUtilizationType::Compute),

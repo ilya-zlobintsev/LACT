@@ -90,8 +90,6 @@ pub fn read_process_list(
                         }
                     }
 
-                    println!("pid {pid} util {process_util:?}");
-
                     if anything_used {
                         #[allow(clippy::cast_possible_wrap)]
                         let (name, args) = resolve_process_name((pid as i32).into())
