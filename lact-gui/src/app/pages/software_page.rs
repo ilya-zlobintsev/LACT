@@ -7,13 +7,16 @@ use crate::{
 use gtk::prelude::*;
 use indexmap::IndexMap;
 use lact_client::schema::{SystemInfo, GIT_COMMIT};
-use lact_schema::DeviceInfo;
+use lact_schema::{DeviceInfo, VulkanInfo};
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4_components::simple_combo_box::{SimpleComboBox, SimpleComboBoxMsg};
 use std::{fmt::Write, sync::Arc};
 use vulkan::feature_window::{VulkanFeature, VulkanFeaturesWindow};
 
 pub struct SoftwarePage {
     device_info: Option<Arc<DeviceInfo>>,
+
+    vulkan_driver_selector: relm4::Controller<SimpleComboBox<String>>,
 }
 
 #[derive(Debug)]
@@ -21,6 +24,7 @@ pub enum SoftwarePageMsg {
     DeviceInfo(Arc<DeviceInfo>),
     ShowVulkanFeatures,
     ShowVulkanExtensions,
+    SelectionChanged,
 }
 
 #[relm4::component(pub)]
@@ -45,9 +49,24 @@ impl relm4::SimpleComponent for SoftwarePage {
                 },
 
                 #[name = "vulkan_stack"]
-                match model.device_info.as_ref().and_then(|info| info.vulkan_info.as_ref()) {
+                match model.selected_vulkan_info() {
                     Some(info) => {
                         PageSection::new("Vulkan") {
+                            append = &gtk::Box {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_hexpand: true,
+                                #[watch]
+                                set_visible: model.vulkan_driver_selector.model().variants.len() > 1,
+
+                                append = &gtk::Label {
+                                    set_halign: gtk::Align::Start,
+                                    set_hexpand: true,
+                                    set_label: "Instance:"
+                                },
+
+                                append = model.vulkan_driver_selector.widget(),
+                            },
+
                             append = &InfoRow {
                                 set_name: "Device Name:",
                                 #[watch]
@@ -192,9 +211,19 @@ impl relm4::SimpleComponent for SoftwarePage {
     fn init(
         (system_info, embedded): Self::Init,
         root: Self::Root,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let model = Self { device_info: None };
+        let vulkan_driver_selector = SimpleComboBox::builder()
+            .launch(SimpleComboBox {
+                variants: vec![],
+                active_index: None,
+            })
+            .forward(sender.input_sender(), |_| SoftwarePageMsg::SelectionChanged);
+
+        let model = Self {
+            device_info: None,
+            vulkan_driver_selector,
+        };
 
         let mut daemon_version = format!("{}-{}", system_info.version, system_info.profile);
         if embedded {
@@ -230,23 +259,55 @@ impl relm4::SimpleComponent for SoftwarePage {
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
             SoftwarePageMsg::DeviceInfo(info) => {
+                let mut vulkan_drivers = Vec::new();
+
+                for info in &info.vulkan_info {
+                    let name = format!(
+                        "{} ({})",
+                        info.device_name,
+                        info.driver.name.as_deref().unwrap_or_default()
+                    );
+                    vulkan_drivers.push(name);
+                }
+
+                let selected_driver = if vulkan_drivers.is_empty() {
+                    None
+                } else {
+                    Some(0)
+                };
+                self.vulkan_driver_selector
+                    .emit(SimpleComboBoxMsg::UpdateData(SimpleComboBox {
+                        variants: vulkan_drivers,
+                        active_index: selected_driver,
+                    }));
+
                 self.device_info = Some(info);
             }
             SoftwarePageMsg::ShowVulkanFeatures => {
-                if let Some(info) = &self.device_info {
-                    if let Some(vulkan_info) = &info.vulkan_info {
-                        show_features_window("Vulkan Features", &vulkan_info.features);
-                    }
+                if let Some(vulkan_info) = &self.selected_vulkan_info() {
+                    show_features_window("Vulkan Features", &vulkan_info.features);
                 }
             }
             SoftwarePageMsg::ShowVulkanExtensions => {
-                if let Some(info) = &self.device_info {
-                    if let Some(vulkan_info) = &info.vulkan_info {
-                        show_features_window("Vulkan Extensions", &vulkan_info.extensions);
-                    }
+                if let Some(vulkan_info) = self.selected_vulkan_info() {
+                    show_features_window("Vulkan Extensions", &vulkan_info.extensions);
                 }
             }
+            SoftwarePageMsg::SelectionChanged => (),
         }
+    }
+}
+
+impl SoftwarePage {
+    fn selected_vulkan_info(&self) -> Option<&VulkanInfo> {
+        self.vulkan_driver_selector
+            .model()
+            .active_index
+            .and_then(|idx| {
+                self.device_info
+                    .as_ref()
+                    .and_then(|info| info.vulkan_info.get(idx))
+            })
     }
 }
 

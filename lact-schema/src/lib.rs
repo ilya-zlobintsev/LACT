@@ -96,7 +96,8 @@ pub struct GpuPciInfo {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceInfo {
     pub pci_info: Option<GpuPciInfo>,
-    pub vulkan_info: Option<VulkanInfo>,
+    #[serde(default)]
+    pub vulkan_info: Vec<VulkanInfo>,
     pub opencl_info: Option<OpenCLInfo>,
     pub driver: String,
     pub vbios_version: Option<String>,

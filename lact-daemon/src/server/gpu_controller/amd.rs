@@ -622,13 +622,10 @@ impl GpuController for AmdGpuController {
 
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let vulkan_info = match get_vulkan_info(&self.common.pci_info).await {
-                Ok(info) => Some(info),
-                Err(err) => {
-                    warn!("could not load vulkan info: {err}");
-                    None
-                }
-            };
+            let vulkan_info = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
+                warn!("could not load vulkan info: {err:#}");
+                vec![]
+            });
             let pci_info = Some(self.common.pci_info.clone());
             let driver = self.handle.get_driver().to_owned();
             let vbios_version = self.get_full_vbios_version();
