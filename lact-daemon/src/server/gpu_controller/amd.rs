@@ -1,6 +1,10 @@
 use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
 use crate::server::{
-    gpu_controller::common::fan_control::FanCurveExt, opencl::get_opencl_info,
+    gpu_controller::common::{
+        fan_control::FanCurveExt,
+        fdinfo::{self, DrmUtilMap},
+    },
+    opencl::get_opencl_info,
     vulkan::get_vulkan_info,
 };
 use amdgpu_sysfs::{
@@ -19,8 +23,8 @@ use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
     ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
-    LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList, RopInfo, VoltageStats,
-    VramStats,
+    LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType,
+    RopInfo, VoltageStats, VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
@@ -45,11 +49,21 @@ const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
 
+const DRM_VRAM_KEYS: &[&str] = &["drm-total-vram0", "drm-total-local0", "drm-total-system0"];
+const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
+    ("gfx", ProcessUtilizationType::Graphics),
+    ("compute", ProcessUtilizationType::Compute),
+    ("dec", ProcessUtilizationType::Decode),
+    ("enc", ProcessUtilizationType::Encode),
+    ("enc_1", ProcessUtilizationType::Encode),
+];
+
 pub struct AmdGpuController {
     handle: GpuHandle,
     drm_handle: Option<DrmHandle>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
+    last_drm_util: RefCell<Option<DrmUtilMap>>,
 }
 
 impl AmdGpuController {
@@ -78,6 +92,7 @@ impl AmdGpuController {
             drm_handle,
             common,
             fan_control_handle: RefCell::new(None),
+            last_drm_util: RefCell::new(None),
         })
     }
 
@@ -1072,7 +1087,13 @@ impl GpuController for AmdGpuController {
     }
 
     fn process_list(&self) -> anyhow::Result<ProcessList> {
-        todo!()
+        let mut last_total_time_map = self.last_drm_util.borrow_mut();
+        fdinfo::read_process_list(
+            &self.common,
+            DRM_VRAM_KEYS,
+            DRM_ENGINES,
+            &mut last_total_time_map,
+        )
     }
 }
 

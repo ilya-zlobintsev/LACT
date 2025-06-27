@@ -6,7 +6,11 @@ use crate::{
         drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE,
         drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM, IntelDrm,
     },
-    server::{opencl::get_opencl_info, vulkan::get_vulkan_info},
+    server::{
+        gpu_controller::common::fdinfo::{self, DrmUtilMap},
+        opencl::get_opencl_info,
+        vulkan::get_vulkan_info,
+    },
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, Context};
@@ -17,7 +21,7 @@ use lact_schema::{
     PowerStats, ProcessList, ProcessUtilizationType, VoltageStats, VramStats,
 };
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap},
     fmt::{self, Display},
     fs,
@@ -50,6 +54,7 @@ pub struct IntelGpuController {
     hwmon_path: Option<PathBuf>,
     drm_file: fs::File,
     drm: Rc<IntelDrm>,
+    last_drm_util: RefCell<Option<DrmUtilMap>>,
     last_gpu_busy: Cell<Option<(Instant, u64)>>,
     #[allow(dead_code)]
     last_energy_value: Cell<Option<(Instant, u64)>>,
@@ -123,6 +128,7 @@ impl IntelGpuController {
             hwmon_path,
             drm_file,
             drm,
+            last_drm_util: RefCell::new(None),
             last_gpu_busy: Cell::new(None),
             last_energy_value: Cell::new(None),
             initial_power_cap: None,
@@ -761,7 +767,13 @@ impl GpuController for IntelGpuController {
     }
 
     fn process_list(&self) -> anyhow::Result<ProcessList> {
-        todo!()
+        let mut last_total_time_map = self.last_drm_util.borrow_mut();
+        fdinfo::read_process_list(
+            &self.common,
+            DRM_VRAM_KEYS,
+            DRM_ENGINES,
+            &mut last_total_time_map,
+        )
     }
 }
 

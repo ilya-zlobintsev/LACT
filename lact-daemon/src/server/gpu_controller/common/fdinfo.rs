@@ -1,5 +1,5 @@
 use anyhow::Context;
-use lact_schema::{ProcessInfo, ProcessList, ProcessUtilizationType};
+use lact_schema::{ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs::{self, File},
@@ -9,24 +9,33 @@ use std::{
 };
 use tracing::error;
 
+use crate::server::gpu_controller::{common::resolve_process_name, CommonControllerInfo};
+
 pub struct DrmUtilMap {
     timestamp: Instant,
     pids: HashMap<u32, HashMap<ProcessUtilizationType, u64>>,
 }
 
 pub fn read_process_list(
-    dri_paths: &[PathBuf],
+    controller_info: &CommonControllerInfo,
     vram_keys: &[&str],
     engines: EngineUtilTypes,
-    last_util_map: &mut Option<DrmUtilMap>,
+    last_total_time_map: &mut Option<DrmUtilMap>,
 ) -> anyhow::Result<ProcessList> {
+    let dri_paths = [
+        controller_info.get_drm_card()?,
+        controller_info.get_drm_render()?,
+    ];
+
     let procs = fs::read_dir("/proc").context("could not read /proc: {err}")?;
 
     let mut processes = BTreeMap::new();
     let mut supported_util_types = HashSet::new();
 
-    let mut new_util_map =
-        HashMap::with_capacity(last_util_map.map(|map| map.pids.len()).unwrap_or(0));
+    let timestamp = Instant::now();
+
+    let mut total_time_map =
+        HashMap::with_capacity(last_total_time_map.as_ref().map_or(0, |map| map.pids.len()));
 
     for entry in procs {
         let entry = entry?;
@@ -35,20 +44,78 @@ pub fn read_process_list(
             .to_str()
             .and_then(|name| name.parse::<u32>().ok())
         {
-            match collect_proc_util(&entry.path(), dri_paths, vram_keys, engines) {
+            match collect_proc_util(&entry.path(), &dri_paths, vram_keys, engines) {
                 Ok(utils) => {
-                    let mut pid_utils: HashMap<ProcessUtilizationType, u64> = HashMap::new();
+                    let mut pid_total_time: HashMap<ProcessUtilizationType, u64> = HashMap::new();
                     let mut processed_client_ids = HashSet::new();
-                    let mut total_memory = 0;
+                    let mut memory_used = 0;
 
                     for util in utils {
                         if processed_client_ids.insert(util.client_id) {
                             for (util_type, total_time) in util.total_time {
-                                *pid_utils.entry(util_type).or_default() += total_time;
+                                supported_util_types.insert(util_type);
+
+                                *pid_total_time.entry(util_type).or_default() += total_time;
                             }
-                            total_memory += util.memory_used;
+                            memory_used += util.memory_used;
                         }
                     }
+
+                    let mut process_util = HashMap::with_capacity(pid_total_time.len());
+
+                    if let Some(last_total_time_map) = last_total_time_map {
+                        if let Some(last_pid_util) = last_total_time_map.pids.get(&pid) {
+                            let wall_time_delta =
+                                (timestamp - last_total_time_map.timestamp).as_nanos();
+
+                            for (util_type, current_util) in &pid_total_time {
+                                if let Some(last_util) = last_pid_util.get(util_type) {
+                                    let engine_time_delta = *current_util - *last_util;
+
+                                    #[allow(
+                                        clippy::cast_lossless,
+                                        clippy::cast_possible_truncation
+                                    )]
+                                    process_util.insert(
+                                        *util_type,
+                                        (engine_time_delta as u128 / wall_time_delta) as u32 * 100,
+                                    );
+                                }
+                            }
+                        }
+                    }
+
+                    total_time_map.insert(pid, pid_total_time);
+
+                    #[allow(clippy::cast_possible_wrap)]
+                    let (name, args) = resolve_process_name((pid as i32).into())
+                        .unwrap_or_else(|_| ("<Unknown>".to_owned(), String::new()));
+
+                    let mut types = vec![];
+
+                    if process_util
+                        .get(&ProcessUtilizationType::Graphics)
+                        .is_some_and(|value| *value > 0)
+                    {
+                        types.push(ProcessType::Graphics);
+                    }
+                    if process_util
+                        .get(&ProcessUtilizationType::Compute)
+                        .is_some_and(|value| *value > 0)
+                    {
+                        types.push(ProcessType::Compute);
+                    }
+
+                    processes.insert(
+                        pid,
+                        ProcessInfo {
+                            name,
+                            args,
+                            memory_used,
+                            types,
+                            util: process_util,
+                        },
+                    );
                 }
                 Err(err) => {
                     error!("could not fetch fdinfo for pid {pid}: {err:#}");
@@ -56,6 +123,11 @@ pub fn read_process_list(
             }
         }
     }
+
+    *last_total_time_map = Some(DrmUtilMap {
+        timestamp,
+        pids: total_time_map,
+    });
 
     Ok(ProcessList {
         processes,
