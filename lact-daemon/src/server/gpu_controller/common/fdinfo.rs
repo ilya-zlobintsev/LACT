@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
     time::Instant,
 };
-use tracing::error;
+use tracing::{debug, warn};
 
 use crate::server::gpu_controller::{common::resolve_process_name, CommonControllerInfo};
 
@@ -129,7 +129,7 @@ pub fn read_process_list(
                     total_time_map.insert(pid, pid_total_time);
                 }
                 Err(err) => {
-                    error!("could not fetch fdinfo for pid {pid}: {err:#}");
+                    debug!("could not fetch fdinfo for pid {pid}: {err:#}");
                 }
             }
         }
@@ -179,7 +179,7 @@ fn collect_proc_util<'a>(
             File::open(&fdinfo_path)
                 .and_then(|mut file| file.read_to_string(&mut fdinfo_buf))
                 .map_err(|err| {
-                    error!(
+                    debug!(
                         "could not read fdinfo file at {}: {err}",
                         fdinfo_path.display()
                     );
@@ -188,7 +188,7 @@ fn collect_proc_util<'a>(
 
             parse_fdinfo(&fdinfo_buf, vram_keys, engines)
                 .map_err(|err| {
-                    error!(
+                    warn!(
                         "could not parse fdinfo at {}: {err:#}",
                         fdinfo_path.display()
                     );
