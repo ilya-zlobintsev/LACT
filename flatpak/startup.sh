@@ -47,9 +47,21 @@ Restart=on-failure
 WantedBy=multi-user.target\
         "
 
-        echo "${UNIT}" | flatpak-spawn --host pkexec sh -c "tee ${UNIT_PATH} && (chcon -R -t bin_t $DAEMON_SH_PATH || true)"
+        if ! type "pkexec" > /dev/null; then
+            ROOT_WRAPPER="pkexec"
+        else
+            ROOT_WRAPPER="run0 --pipe"
+        fi
+
+        echo "Using root wrapper ${ROOT_WRAPPER}"
+
+        echo "${UNIT}" | flatpak-spawn --host tee /tmp/lact-unit-setup
+
+        flatpak-spawn --host $ROOT_WRAPPER sh -c "cp /tmp/lact-unit-setup ${UNIT_PATH} && (chcon -R -t bin_t $DAEMON_SH_PATH || true)"
         echo "Unit file created at ${UNIT_PATH}"
         
+        flatpak-spawn --host rm /tmp/lact-unit-setup
+
         if [ "${AUTOSTART}" == "TRUE" ]; then
             echo "Enabling the service with autostart"
             flatpak-spawn --host pkexec sh -c "systemctl daemon-reload && systemctl enable --now lactd.service"
