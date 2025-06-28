@@ -16,7 +16,7 @@ use gtk::{
     prelude::{BoxExt, ButtonExt, FrameExt, OrientableExt, WidgetExt},
 };
 use indexmap::IndexMap;
-use lact_daemon::MODULE_CONF_PATH;
+use lact_daemon::BASE_MODULE_CONF_PATH;
 use lact_schema::{request::SetClocksCommand, ClocksTable, DeviceInfo, PowerStates, SystemInfo};
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
@@ -93,7 +93,7 @@ impl relm4::Component for OcPage {
                                 sender.output(AppMsg::ask_confirmation(
                                     AppMsg::EnableOverdrive,
                                     "Enable AMD Overclocking",
-                                    format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this?"),
+                                    format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{BASE_MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this?"),
                                     gtk::ButtonsType::OkCancel,
                                 )).expect("Channel closed");
                             }

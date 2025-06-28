@@ -3,12 +3,13 @@ use super::{
     profiles::ProfileWatcherCommand,
     system::{self, detect_initramfs_type},
 };
-use crate::server::gpu_controller::NvidiaLibs;
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
     server::{gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
+    system::get_os_release,
 };
+use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
@@ -25,7 +26,6 @@ use libflate::gzip;
 use nix::libc;
 #[cfg(all(not(test), feature = "nvidia"))]
 use nvml_wrapper::Nvml;
-use os_release::OS_RELEASE;
 use pciid_parser::Database;
 use serde_json::json;
 use std::{
@@ -40,7 +40,6 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::{
-    process::Command,
     sync::{mpsc, oneshot, RwLock, RwLockReadGuard},
     time::sleep,
 };
@@ -52,6 +51,7 @@ const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 3;
 const SNAPSHOT_GLOBAL_PATHS: &[&str] = &[
     "/sys/module/amdgpu/parameters",
     "/etc/lact/config.yaml",
+    "/run/host/root/etc/lact/config.yaml",
     "/proc/version",
     "/proc/cmdline",
     "/sys/class/kfd/kfd",
@@ -671,10 +671,7 @@ impl<'a> Handler {
             }
         }
 
-        let service_journal_output = Command::new("journalctl")
-            .args(["-u", "lactd", "-b"])
-            .output()
-            .await;
+        let service_journal_output = run_command("journalctl", &["-u", "lactd", "-b"]).await;
 
         match service_journal_output {
             Ok(output) => {
@@ -690,14 +687,14 @@ impl<'a> Handler {
                     .append_data(&mut header, "lactd.log", Cursor::new(output.stdout))
                     .context("Could not write data to archive")?;
             }
-            Err(err) => warn!("could not read service log: {err}"),
+            Err(err) => warn!("could not read service log: {err:#}"),
         }
 
         let system_info = system::info()
             .await
             .ok()
             .map(|info| serde_json::to_value(info).unwrap());
-        let initramfs_type = match OS_RELEASE.as_ref() {
+        let initramfs_type = match get_os_release().as_ref() {
             Ok(os_release) => detect_initramfs_type(os_release)
                 .await
                 .map(|initramfs_type| serde_json::to_value(initramfs_type).unwrap()),
