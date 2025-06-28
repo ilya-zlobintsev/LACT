@@ -193,10 +193,8 @@ impl NvApi {
                     "Got status {other_status:x} when fetching error message for status {status:x}"
                 );
             }
-            // let text = CStr::from_bytes_until_nul(transmute::<&[i8], &[u8]>(text.as_slice()));
-            let text = CStr::from_bytes_until_nul(
-                &*(ptr::from_ref::<[i8]>(text.as_slice()) as *const [u8]),
-            );
+            let text =
+                CStr::from_bytes_until_nul(&*(ptr::from_ref::<[_]>(text.as_slice()) as *const [_]));
             bail!(
                 "Got error {status:x} from NvAPI: {}",
                 text.unwrap_or_default().to_string_lossy()
