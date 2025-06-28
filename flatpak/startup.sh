@@ -47,7 +47,7 @@ Restart=on-failure
 WantedBy=multi-user.target\
         "
 
-        if flatpak-spawn --host command -v  "pkexec" > /dev/null 2>&1; then
+        if flatpak-spawn --host sh -c "command -v pkexec" > /dev/null 2>&1; then
             ROOT_WRAPPER="pkexec"
         else
             ROOT_WRAPPER="run0 --pipe"
