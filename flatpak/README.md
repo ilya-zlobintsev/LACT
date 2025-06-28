@@ -37,12 +37,7 @@ sudo rm /etc/systemd/system/lactd.service
 
 ## Implementation details
 
-The service uses a binary distributed with the flatpak, but runs it outside of the sandbox.
+The service uses [flatbox](github.com/ilya-zlobintsev/flatbox) in order to create a flatpak-like environment for the service that still has the permissions it needs to function (such as write access to various sysfs paths). Flatbox itself is shipped as a static binary with the flatpak and is executed on the host, which then discovers flatpak application/runtime/extension paths and sets them up for the service.
 
-This is achieved by first getting the location where the LACT flatpak and its flatpak runtime are located on the host.
-These paths are used to run the daemon binary, while letting it use libraries provided by the flatpak runtime. This avoids any reliance on libraries being present or missing the host¹.
+This approach allows the service to avoid any dependence on system libraries and commands for its functionality. The only exception are distro-specific commands for AMD overdrive setup.
 
-Additionally, a `flatpak run` wrapper command is provided to the service so that it can call `vulkaninfo` inside of the flatpak sandbox.
-
-
-1. Nvidia's management library will still be loaded from the host, as it is not directly a part of the Flatpak runtime. The library is shipped with Nvidia drivers, so it is extremely unlikely that it is available in Flatpak while being missing on the host.
