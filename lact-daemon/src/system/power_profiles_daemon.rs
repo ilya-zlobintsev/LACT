@@ -15,19 +15,26 @@ pub async fn setup() {
     };
 
     match PowerProfilesDaemonProxy::new(&conn).await {
-        Ok(ppd_client) => {
-            if let Err(err) = disable_conflicting_actions(&ppd_client).await {
-                warn!("power-profiles-daemon detected, but conflicting actions could not be disabled: {err:#}");
+        Ok(ppd_client) => match ppd_client.version().await {
+            Ok(version) => {
+                if let Err(err) = disable_conflicting_actions(&ppd_client, &version).await {
+                    warn!("power-profiles-daemon detected, but conflicting actions could not be disabled: {err:#}");
+                }
             }
-        }
+            Err(err) => {
+                debug!("could not get power-profiles-daemon version: {err}");
+            }
+        },
         Err(err) => {
             debug!("could not connect to power-profiles-daemon: {err}");
         }
     }
 }
 
-async fn disable_conflicting_actions(client: &PowerProfilesDaemonProxy<'_>) -> anyhow::Result<()> {
-    let version = client.version().await?;
+async fn disable_conflicting_actions(
+    client: &PowerProfilesDaemonProxy<'_>,
+    version: &str,
+) -> anyhow::Result<()> {
     debug!("connected to power-profiles-daemon {version}");
 
     let (_major, minor) = version
