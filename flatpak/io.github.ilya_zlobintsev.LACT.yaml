@@ -95,10 +95,8 @@ modules:
         PREFIX: /app
     build-commands:
       - cargo --offline fetch --manifest-path Cargo.toml
-      # - cargo --offline build -p lact --features flatpak --release
-      - cargo --offline build -p lact --features flatpak
-      # - make install
-      - make install-debug
+      - cargo --offline build -p lact --features flatpak --release
+      - make install
       - install -Dm755 flatpak/startup.sh /app/bin/startup.sh
       - install -Dm755 flatpak/daemon.sh /app/bin/daemon.sh
       - desktop-file-edit --set-key Exec --set-value startup.sh /app/share/applications/io.github.ilya_zlobintsev.LACT.desktop
@@ -130,17 +128,3 @@ modules:
                   type: anitya
                   project-id: 1385
                   url-template: https://launchpad.net/intltool/trunk/$version/+download/intltool-$version.tar.gz
-      - name: libdrm
-        buildsystem: meson
-        builddir: true
-        config-opts:
-          - -Dtests=false
-          - --libdir=/app/drm/lib
-        sources:
-          - type: archive
-            url: https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-2.4.125/drm-libdrm-2.4.125.tar.gz
-            sha256: dd3e86a9fae99322d6430b28397f8e03ac4fb8deeed9a6e214bd5ced86db68c6
-            x-checker-data:
-              type: anitya
-              project-id: 1596
-              url-template: https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-$version/drm-libdrm-$version.tar.gz

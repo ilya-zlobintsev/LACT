@@ -12,6 +12,8 @@ use zbus::{
     zvariant::{ObjectPath, OwnedObjectPath},
 };
 
+use crate::system::IS_FLATBOX;
+
 pub const PROCESS_NAME: &str = "gamemoded";
 const DBUS_ADDRESS_ENV: &str = "DBUS_SESSION_BUS_ADDRESS";
 
@@ -46,6 +48,12 @@ pub trait GameModeGame {
 }
 
 pub async fn connect(process_list: &ProfileProcessMap) -> Option<GameModeProxy<'static>> {
+    // `seteuid` has issues with sandboxing
+    if *IS_FLATBOX {
+        info!("gamemode integration is not supported from a sandbox");
+        return None;
+    }
+
     let address;
     let gamemode_uid;
 

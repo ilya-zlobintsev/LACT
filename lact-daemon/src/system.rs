@@ -28,7 +28,8 @@ pub const PP_FEATURE_MASK_PATH: &str = "/sys/module/amdgpu/parameters/ppfeaturem
 pub const BASE_MODULE_CONF_PATH: &str = "/etc/modprobe.d/99-amdgpu-overdrive.conf";
 pub const DAEMON_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-static IS_FLATBOX: LazyLock<bool> = LazyLock::new(|| env::var("FLATBOX_ENV").as_deref() == Ok("1"));
+pub static IS_FLATBOX: LazyLock<bool> =
+    LazyLock::new(|| env::var("FLATBOX_ENV").as_deref() == Ok("1"));
 static MODULE_CONF_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
     if *IS_FLATBOX {
         Path::new("/run/host/root").join(BASE_MODULE_CONF_PATH.strip_prefix('/').unwrap())
@@ -200,15 +201,8 @@ pub async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<Output> {
 
     let mut command;
     if *IS_FLATBOX {
-        // Escape the sandbox by creating a bwrap that mounts back into the host system
-        // `flatpak-spawn --host` cannot be used reliably from a system service
-        command = Command::new("bwrap");
-        command
-            .arg("--dev-bind")
-            .arg("/run/host/root")
-            .arg("/")
-            .arg(exec)
-            .args(args);
+        command = Command::new("flatpak-spawn");
+        command.arg("--host").arg(exec).args(args);
     } else {
         command = Command::new(exec);
         command.args(args);
