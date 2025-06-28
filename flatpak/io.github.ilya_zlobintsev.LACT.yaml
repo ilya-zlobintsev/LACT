@@ -95,7 +95,7 @@ modules:
         PREFIX: /app
     build-commands:
       - cargo --offline fetch --manifest-path Cargo.toml
-      - cargo --offline build -p lact --features flatpak --release
+      - cargo --offline build -p lact --release
       - make install
       - install -Dm755 flatpak/startup.sh /app/bin/startup.sh
       - install -Dm755 flatpak/daemon.sh /app/bin/daemon.sh

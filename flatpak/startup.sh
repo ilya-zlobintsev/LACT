@@ -47,7 +47,7 @@ Restart=on-failure
 WantedBy=multi-user.target\
         "
 
-        if ! type "pkexec" > /dev/null; then
+        if flatpak-spawn --host command -v  "pkexec" > /dev/null 2>&1; then
             ROOT_WRAPPER="pkexec"
         else
             ROOT_WRAPPER="run0 --pipe"
@@ -64,10 +64,10 @@ WantedBy=multi-user.target\
 
         if [ "${AUTOSTART}" == "TRUE" ]; then
             echo "Enabling the service with autostart"
-            flatpak-spawn --host pkexec sh -c "systemctl daemon-reload && systemctl enable --now lactd.service"
+            flatpak-spawn --host $ROOT_WRAPPER sh -c "systemctl daemon-reload && systemctl enable --now lactd.service"
         else
             echo "Starting the service without autostart"
-            flatpak-spawn --host pkexec sh -c "systemctl daemon-reload && systemctl start lactd.service"
+            flatpak-spawn --host $ROOT_WRAPPER sh -c "systemctl daemon-reload && systemctl start lactd.service"
         fi
 
         yad --text 'The service has been started. Please run LACT again.'  --button=OK:0
