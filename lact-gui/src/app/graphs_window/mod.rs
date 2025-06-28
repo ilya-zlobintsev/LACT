@@ -344,6 +344,8 @@ fn default_plots() -> Vec<Vec<StatType>> {
     vec![
         vec![
             StatType::Temperature("GPU".into()),
+            StatType::Temperature("GPU Hotspot".into()),
+            StatType::Temperature("VRAM".into()),
             StatType::Temperature("edge".into()),
             StatType::Temperature("junction".into()),
             StatType::Temperature("mem".into()),
