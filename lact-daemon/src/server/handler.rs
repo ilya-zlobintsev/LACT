@@ -1,5 +1,5 @@
 use super::{
-    gpu_controller::{fan_control::FanCurveExt, DynGpuController, GpuController},
+    gpu_controller::{common::fan_control::FanCurveExt, DynGpuController, GpuController},
     profiles::ProfileWatcherCommand,
     system::{self, detect_initramfs_type},
 };
@@ -19,7 +19,7 @@ use lact_schema::{
     default_fan_curve,
     request::{ClockspeedType, ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
-    PowerStates, ProfileRule, ProfileWatcherState, ProfilesInfo,
+    PowerStates, ProcessList, ProfileRule, ProfileWatcherState, ProfilesInfo,
 };
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
@@ -908,6 +908,10 @@ impl<'a> Handler {
         }
 
         Ok(())
+    }
+
+    pub async fn process_list(&self, id: &str) -> anyhow::Result<ProcessList> {
+        self.controller_by_id(id).await?.process_list()
     }
 
     pub async fn get_gpu_config(&self, id: &str) -> anyhow::Result<Option<GpuConfig>> {

@@ -1,12 +1,13 @@
 #![allow(clippy::module_name_repetitions)]
 mod amd;
-pub mod fan_control;
+pub mod common;
 mod intel;
 #[cfg(feature = "nvidia")]
 mod nvidia;
 
 use amd::AmdGpuController;
 use intel::IntelGpuController;
+use lact_schema::ProcessList;
 #[cfg(feature = "nvidia")]
 use nvidia::NvidiaGpuController;
 
@@ -22,6 +23,7 @@ use lact_schema::{
     config::GpuConfig, ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates,
 };
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
+use std::io;
 use std::{cell::LazyCell, collections::HashMap, fs, path::PathBuf, rc::Rc};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, warn};
@@ -58,9 +60,11 @@ pub trait GpuController {
     fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable>;
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>>;
+
+    fn process_list(&self) -> anyhow::Result<ProcessList>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct CommonControllerInfo {
     pub sysfs_path: PathBuf,
     pub pci_info: GpuPciInfo,
@@ -100,6 +104,17 @@ impl CommonControllerInfo {
             dev,
             func,
         })
+    }
+
+    pub fn get_drm_render(&self) -> io::Result<PathBuf> {
+        fs::canonicalize(format!(
+            "/dev/dri/by-path/pci-{}-render",
+            self.pci_slot_name
+        ))
+    }
+
+    pub fn get_drm_card(&self) -> io::Result<PathBuf> {
+        fs::canonicalize(format!("/dev/dri/by-path/pci-{}-card", self.pci_slot_name))
     }
 }
 

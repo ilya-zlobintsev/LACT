@@ -5,7 +5,7 @@ use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::{
-        gpu_controller::{fan_control::FanCurveExt, NvApi},
+        gpu_controller::{common::fan_control::FanCurveExt, common::resolve_process_name, NvApi},
         opencl::get_opencl_info,
         vulkan::get_vulkan_info,
     },
@@ -19,24 +19,33 @@ use lact_schema::{
     config::{FanControlSettings, FanCurve, GpuConfig},
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo,
     FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable,
-    PmfwInfo, PowerState, PowerStates, PowerStats, VoltageStats, VramStats,
+    PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType,
+    ProcessUtilizationType, VoltageStats, VramStats,
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
-    enums::device::GpuLockedClocksSetting,
+    enums::device::{GpuLockedClocksSetting, UsedGpuMemory},
+    error::NvmlError,
     Device, Nvml,
 };
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     cmp,
-    collections::HashMap,
+    collections::{btree_map::Entry, BTreeMap, HashMap},
     fmt::Write,
     rc::Rc,
     time::{Duration, Instant},
 };
 use tokio::{select, sync::Notify, time::sleep};
 use tracing::{debug, error, trace, warn};
+
+const SUPPORTED_UTIL_TYPES: &[ProcessUtilizationType] = &[
+    ProcessUtilizationType::Graphics,
+    ProcessUtilizationType::Memory,
+    ProcessUtilizationType::Encode,
+    ProcessUtilizationType::Decode,
+];
 
 pub struct NvidiaGpuController {
     nvml: Rc<Nvml>,
@@ -48,6 +57,7 @@ pub struct NvidiaGpuController {
     nvapi_handle: Option<NvPhysicalGpuHandle>,
     nvapi_thermals_mask: Option<i32>,
 
+    last_util_timestamp: Cell<Option<u64>>,
     // Store last applied offsets as a workaround when the driver doesn't tell us the current offset
     last_applied_offsets: RefCell<HashMap<Clock, HashMap<PerformanceState, i32>>>,
     last_applied_gpu_locked_clocks: RefCell<Option<(u32, u32)>>,
@@ -116,6 +126,7 @@ impl NvidiaGpuController {
             driver_handle,
             nvapi_handle,
             nvapi_thermals_mask,
+            last_util_timestamp: Cell::new(None),
             fan_control_handle: RefCell::new(None),
             last_applied_offsets: RefCell::new(HashMap::new()),
             last_applied_gpu_locked_clocks: RefCell::new(None),
@@ -344,20 +355,16 @@ impl GpuController for NvidiaGpuController {
 
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let vulkan_info = match get_vulkan_info(&self.common.pci_info).await {
-                Ok(info) => Some(info),
-                Err(err) => {
-                    warn!("could not load vulkan info: {err}");
-                    None
-                }
-            };
-
+            let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
+                warn!("could not load vulkan info: {err:#}");
+                vec![]
+            });
             let device = self.device();
             let driver_handle = self.driver_handle.as_ref();
 
             DeviceInfo {
                 pci_info: Some(self.common.pci_info.clone()),
-                vulkan_info,
+                vulkan_instances,
                 driver: format!(
                     "nvidia {}",
                     self.nvml.sys_driver_version().unwrap_or_default()
@@ -914,5 +921,81 @@ impl GpuController for NvidiaGpuController {
             }
         }
         .boxed_local()
+    }
+
+    fn process_list(&self) -> anyhow::Result<ProcessList> {
+        fn map_process(
+            process: &nvml_wrapper::struct_wrappers::device::ProcessInfo,
+            process_type: ProcessType,
+        ) -> ProcessInfo {
+            #[allow(clippy::cast_possible_wrap)]
+            let (name, args) = resolve_process_name((process.pid as i32).into())
+                .unwrap_or_else(|_| ("<Unknown>".to_owned(), String::new()));
+
+            ProcessInfo {
+                name,
+                args,
+                memory_used: match process.used_gpu_memory {
+                    UsedGpuMemory::Used(size) => size,
+                    UsedGpuMemory::Unavailable => 0,
+                },
+                types: vec![process_type],
+                util: SUPPORTED_UTIL_TYPES.iter().map(|util| (*util, 0)).collect(),
+            }
+        }
+
+        let device = self.device();
+
+        let mut processes = BTreeMap::new();
+
+        for process in device
+            .running_graphics_processes()
+            .context("Could not get graphics processes")?
+        {
+            processes.insert(process.pid, map_process(&process, ProcessType::Graphics));
+        }
+
+        for process in device
+            .running_compute_processes()
+            .context("Could not get compute processes")?
+        {
+            match processes.entry(process.pid) {
+                Entry::Vacant(entry) => {
+                    entry.insert(map_process(&process, ProcessType::Compute));
+                }
+                Entry::Occupied(mut entry) => {
+                    entry.get_mut().types.push(ProcessType::Compute);
+                }
+            }
+        }
+
+        match device.process_utilization_stats(self.last_util_timestamp.get()) {
+            Ok(stats) => {
+                if let Some(stat) = stats.first() {
+                    self.last_util_timestamp.set(Some(stat.timestamp));
+                }
+
+                for stat in stats {
+                    if let Some(info) = processes.get_mut(&stat.pid) {
+                        info.util
+                            .insert(ProcessUtilizationType::Graphics, stat.sm_util);
+                        info.util
+                            .insert(ProcessUtilizationType::Memory, stat.mem_util);
+                        info.util
+                            .insert(ProcessUtilizationType::Encode, stat.enc_util);
+                        info.util
+                            .insert(ProcessUtilizationType::Decode, stat.dec_util);
+                    }
+                }
+            }
+            Err(NvmlError::NotFound) => (),
+            Err(err) => {
+                error!("could not get process util stats: {err}");
+            }
+        }
+        Ok(ProcessList {
+            processes,
+            supported_util_types: SUPPORTED_UTIL_TYPES.iter().copied().collect(),
+        })
     }
 }

@@ -1,24 +1,31 @@
 use anyhow::{anyhow, bail, Context};
 use indexmap::{map::Entry, IndexMap};
-use lact_schema::{GpuPciInfo, VulkanDriverInfo, VulkanInfo};
+use lact_schema::{VulkanDriverInfo, VulkanInfo};
 use serde::Deserialize;
 use std::{env, fs, path::Path};
 use tokio::process::Command;
 use tracing::{error, trace};
 
+use crate::server::gpu_controller::{CommonControllerInfo, PciSlotInfo};
+
 include!(concat!(env!("OUT_DIR"), "/vulkan_constants.rs"));
 
 #[cfg_attr(test, allow(unreachable_code, unused_variables))]
-pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo> {
+pub async fn get_vulkan_info(info: &CommonControllerInfo) -> anyhow::Result<Vec<VulkanInfo>> {
     #[cfg(test)]
-    return Ok(VulkanInfo::default());
+    return Ok(vec![]);
+
+    let mut results = Vec::new();
+
+    let pci_info = &info.pci_info;
+    let pci_slot_info = info.get_slot_info()?;
 
     trace!("Reading vulkan info");
     let vendor_id = u32::from_str_radix(&pci_info.device_pci_info.vendor_id, 16)?;
     let device_id = u32::from_str_radix(&pci_info.device_pci_info.model_id, 16)?;
     trace!("Reading vulkan info");
 
-    let summary_output = Command::new("vulkaninfo")
+    let summary_output = vulkaninfo_command()
         .arg("--summary")
         .output()
         .await
@@ -41,7 +48,7 @@ pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo
         if u32::from_str_radix(entry.vendor_id, 16) == Ok(vendor_id)
             && u32::from_str_radix(entry.device_id, 16) == Ok(device_id)
         {
-            let output = Command::new("vulkaninfo")
+            let output = vulkaninfo_command()
                 .arg(format!("--json={i}"))
                 .current_dir("/tmp")
                 .output()
@@ -56,7 +63,7 @@ pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo
                 );
             }
 
-            let manifest = if let Ok(devsim) =
+            let info = if let Ok(devsim) =
                 serde_json::from_slice::<VulkanInfoDevSimManifest>(&output.stdout)
             {
                 parse_legacy_devsim(devsim, &entry)
@@ -73,21 +80,46 @@ pub async fn get_vulkan_info(pci_info: &GpuPciInfo) -> anyhow::Result<VulkanInfo
                     );
                 }
 
-                parse_manifest(&manifest, &entry)?
+                match serde_json::from_str::<VulkanInfoManifest>(&manifest) {
+                    Ok(manifest) if pci_info_matches(&manifest, &pci_slot_info) => {
+                        parse_manifest(manifest, &entry)
+                    }
+                    Ok(_) => continue,
+                    Err(err) => {
+                        error!("could not parse vulkan manifest: {err}");
+                        continue;
+                    }
+                }
             };
-            return Ok(manifest);
+            results.push(info);
         }
     }
 
-    Err(anyhow!(
-        "Could not find a vulkan device with matching pci ids"
-    ))
+    if results.is_empty() {
+        Err(anyhow!(
+            "Could not find a vulkan device with matching pci ids"
+        ))
+    } else {
+        Ok(results)
+    }
 }
 
-fn parse_manifest(manifest: &str, entry: &SummaryDeviceEntry<'_>) -> anyhow::Result<VulkanInfo> {
-    let manifest: VulkanInfoManifest =
-        serde_json::from_str(manifest).context("Could not parse vulkan info file")?;
+fn pci_info_matches(manifest: &VulkanInfoManifest, slot_info: &PciSlotInfo) -> bool {
+    manifest
+        .capabilities
+        .device
+        .properties
+        .pci_bus_info
+        .as_ref()
+        .is_none_or(|bus_info| {
+            bus_info.pci_bus == slot_info.bus
+                && bus_info.pci_domain == slot_info.domain
+                && bus_info.pci_device == slot_info.dev
+                && bus_info.pci_function == slot_info.func
+        })
+}
 
+fn parse_manifest(manifest: VulkanInfoManifest, entry: &SummaryDeviceEntry<'_>) -> VulkanInfo {
     let mut extensions: IndexMap<String, bool> = manifest
         .capabilities
         .device
@@ -120,14 +152,14 @@ fn parse_manifest(manifest: &str, entry: &SummaryDeviceEntry<'_>) -> anyhow::Res
         }
     }
 
-    Ok(VulkanInfo {
+    VulkanInfo {
         device_name: entry.device_name.to_owned(),
         api_version: entry.api_version.to_owned(),
         driver: entry.driver_info(),
         enabled_layers: vec![],
         extensions,
         features,
-    })
+    }
 }
 
 fn parse_legacy_devsim(
@@ -186,6 +218,23 @@ struct VulkanInfoCapabilitiesDevice<'a> {
     extensions: IndexMap<&'a str, i32>,
     #[serde(borrow)]
     features: IndexMap<&'a str, IndexMap<&'a str, bool>>,
+    properties: VulkanInfoDeviceProperties,
+}
+
+#[derive(Deserialize)]
+struct VulkanInfoDeviceProperties {
+    #[serde(rename = "VkPhysicalDevicePCIBusInfoPropertiesEXT")]
+    pci_bus_info: Option<VulkanPciBusInfoProperties>,
+}
+
+#[allow(clippy::struct_field_names)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct VulkanPciBusInfoProperties {
+    pci_domain: u16,
+    pci_bus: u16,
+    pci_device: u16,
+    pci_function: u16,
 }
 
 /// Old format
@@ -273,6 +322,12 @@ fn parse_summary(summary: &str) -> Vec<SummaryDeviceEntry> {
     devices.push(entry);
 
     devices
+}
+
+fn vulkaninfo_command() -> Command {
+    let mut cmd = Command::new("vulkaninfo");
+    cmd.env("DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1", "1");
+    cmd
 }
 
 #[cfg(test)]

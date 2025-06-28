@@ -6,7 +6,11 @@ use crate::{
         drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE,
         drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM, IntelDrm,
     },
-    server::{opencl::get_opencl_info, vulkan::get_vulkan_info},
+    server::{
+        gpu_controller::common::fdinfo::{self, DrmUtilMap},
+        opencl::get_opencl_info,
+        vulkan::get_vulkan_info,
+    },
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, Context};
@@ -14,10 +18,10 @@ use futures::future::LocalBoxFuture;
 use lact_schema::{
     config::GpuConfig, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo,
     DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState, PowerStates,
-    PowerStats, VoltageStats, VramStats,
+    PowerStats, ProcessList, ProcessUtilizationType, VoltageStats, VramStats,
 };
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap},
     fmt::{self, Display},
     fs,
@@ -29,6 +33,13 @@ use std::{
     time::Instant,
 };
 use tracing::{debug, error, info, trace, warn};
+
+const DRM_VRAM_KEYS: &[&str] = &["drm-total-vram0", "drm-total-local0", "drm-total-system0"];
+const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
+    ("render", ProcessUtilizationType::Graphics),
+    ("compute", ProcessUtilizationType::Compute),
+    ("video", ProcessUtilizationType::Decode),
+];
 
 #[derive(Clone, Copy)]
 enum DriverType {
@@ -43,6 +54,7 @@ pub struct IntelGpuController {
     hwmon_path: Option<PathBuf>,
     drm_file: fs::File,
     drm: Rc<IntelDrm>,
+    last_drm_util: RefCell<Option<DrmUtilMap>>,
     last_gpu_busy: Cell<Option<(Instant, u64)>>,
     #[allow(dead_code)]
     last_energy_value: Cell<Option<(Instant, u64)>>,
@@ -92,7 +104,7 @@ impl IntelGpuController {
             tile_gts.sort();
         }
         let drm_file = if cfg!(not(test)) {
-            let drm_path = format!("/dev/dri/by-path/pci-{}-render", common.pci_slot_name);
+            let drm_path = common.get_drm_render()?;
             fs::OpenOptions::new()
                 .read(true)
                 .write(true)
@@ -116,6 +128,7 @@ impl IntelGpuController {
             hwmon_path,
             drm_file,
             drm,
+            last_drm_util: RefCell::new(None),
             last_gpu_busy: Cell::new(None),
             last_energy_value: Cell::new(None),
             initial_power_cap: None,
@@ -566,14 +579,10 @@ impl GpuController for IntelGpuController {
 
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let vulkan_info = match get_vulkan_info(&self.common.pci_info).await {
-                Ok(info) => Some(info),
-                Err(err) => {
-                    warn!("could not load vulkan info: {err}");
-                    None
-                }
-            };
-
+            let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
+                warn!("could not load vulkan info: {err:#}");
+                vec![]
+            });
             let vram_info = self.get_vram_info();
 
             let drm_info = DrmInfo {
@@ -588,7 +597,7 @@ impl GpuController for IntelGpuController {
 
             DeviceInfo {
                 pci_info: Some(self.common.pci_info.clone()),
-                vulkan_info,
+                vulkan_instances,
                 driver: self.common.driver.clone(),
                 vbios_version: None,
                 link_info: LinkInfo::default(),
@@ -756,6 +765,16 @@ impl GpuController for IntelGpuController {
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
         Err(anyhow!("Not supported"))
     }
+
+    fn process_list(&self) -> anyhow::Result<ProcessList> {
+        let mut last_total_time_map = self.last_drm_util.borrow_mut();
+        fdinfo::read_process_list(
+            &self.common,
+            DRM_VRAM_KEYS,
+            DRM_ENGINES,
+            &mut last_total_time_map,
+        )
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -790,4 +809,102 @@ struct IntelVramInfo {
     total: u64,
     used: u64,
     mem_info: DrmMemoryInfo,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DRM_ENGINES, DRM_VRAM_KEYS};
+    use crate::server::gpu_controller::common::fdinfo::parse_fdinfo;
+    use lact_schema::ProcessUtilizationType;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn parse_dg2_fdinfo() {
+        let data = "\
+pos:    0
+flags:  02100002
+mnt_id: 29
+ino:    446
+drm-driver:     i915
+drm-client-id:  1261
+drm-pdev:       0000:0a:00.0
+drm-total-system0:      272 KiB
+drm-shared-system0:     0
+drm-active-system0:     0
+drm-resident-system0:   272 KiB
+drm-purgeable-system0:  0
+drm-total-local0:       21896 KiB
+drm-shared-local0:      4 MiB
+drm-active-local0:      0
+drm-resident-local0:    19848 KiB
+drm-purgeable-local0:   64 KiB
+drm-total-stolen-local0:        0
+drm-shared-stolen-local0:       0
+drm-active-stolen-local0:       0
+drm-resident-stolen-local0:     0
+drm-purgeable-stolen-local0:    0
+drm-engine-render:      371387589 ns
+drm-engine-copy:        0 ns
+drm-engine-video:       0 ns
+drm-engine-capacity-video:      2
+drm-engine-video-enhance:       0 ns
+drm-engine-capacity-video-enhance:      2
+drm-engine-compute:     0 ns\
+        ";
+
+        let util = parse_fdinfo(data, DRM_VRAM_KEYS, DRM_ENGINES).unwrap();
+        assert_eq!(1261, util.client_id);
+        assert_eq!(22_421_504, util.memory_used);
+        assert_eq!(
+            (ProcessUtilizationType::Graphics, 371_387_589),
+            util.total_time[0]
+        );
+        assert_eq!((ProcessUtilizationType::Decode, 0), util.total_time[1]);
+    }
+
+    #[test]
+    fn parse_xe_sample_fdinfo() {
+        let data = "\
+pos:    0
+flags:  0100002
+mnt_id: 26
+ino:    685
+drm-driver:     xe
+drm-client-id:  3
+drm-pdev:       0000:03:00.0
+drm-total-system:       0
+drm-shared-system:      0
+drm-active-system:      0
+drm-resident-system:    0
+drm-purgeable-system:   0
+drm-total-gtt:  192 KiB
+drm-shared-gtt: 0
+drm-active-gtt: 0
+drm-resident-gtt:       192 KiB
+drm-total-vram0:        23992 KiB
+drm-shared-vram0:       16 MiB
+drm-active-vram0:       0
+drm-resident-vram0:     23992 KiB
+drm-total-stolen:       0
+drm-shared-stolen:      0
+drm-active-stolen:      0
+drm-resident-stolen:    0
+drm-cycles-rcs: 28257900
+drm-total-cycles-rcs:   7655183225
+drm-cycles-bcs: 0
+drm-total-cycles-bcs:   7655183225
+drm-cycles-vcs: 0
+drm-total-cycles-vcs:   7655183225
+drm-engine-capacity-vcs:        2
+drm-cycles-vecs:        0
+drm-total-cycles-vecs:  7655183225
+drm-engine-capacity-vecs:       2
+drm-cycles-ccs: 0
+drm-total-cycles-ccs:   7655183225
+drm-engine-capacity-ccs:        4\
+        ";
+        let util = parse_fdinfo(data, DRM_VRAM_KEYS, DRM_ENGINES).unwrap();
+        assert_eq!(3, util.client_id);
+        assert_eq!(24_567_808, util.memory_used);
+    }
 }

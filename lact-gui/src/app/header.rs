@@ -3,7 +3,10 @@ mod profile_rename_dialog;
 mod profile_row;
 pub mod profile_rule_window;
 
-use crate::{app::APP_BROKER, CONFIG};
+use crate::{
+    app::{ShowProcessMonitor, APP_BROKER},
+    CONFIG,
+};
 
 use super::{AppMsg, DebugSnapshot, DisableOverdrive, DumpVBios, ResetConfig, ShowGraphsWindow};
 use glib::clone;
@@ -151,6 +154,7 @@ impl Component for Header {
         app_menu: {
             section! {
                 "Show historical charts" => ShowGraphsWindow,
+                "Show process monitor" => ShowProcessMonitor,
             },
             section! {
                 "Generate debug snapshot" => DebugSnapshot,
