@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use anyhow::{anyhow, Context};
 use tracing::{debug, error, info, warn};
-use zbus::{proxy, Connection};
+use zbus::{proxy, zvariant::OwnedValue, Connection};
 
 const CONFLICTING_ACTIONS: [&str; 1] = ["amdgpu_dpm"];
 const MIN_PPD_MINOR_VERSION: u32 = 30;
@@ -36,6 +38,18 @@ async fn disable_conflicting_actions(
     version: &str,
 ) -> anyhow::Result<()> {
     debug!("connected to power-profiles-daemon {version}");
+
+    let profiles = client.profiles().await?;
+    for profile in profiles {
+        if let Some(driver) = profile.get("Driver") {
+            if let Ok(driver) = driver.downcast_ref::<String>() {
+                if driver == "tuned" {
+                    info!("tuned-ppd detected, not disabling actions");
+                    return Ok(());
+                }
+            }
+        }
+    }
 
     let (_major, minor) = version
         .split_once('.')
@@ -107,9 +121,7 @@ trait PowerProfilesDaemon {
 
     /// ActionsInfo property
     #[zbus(property)]
-    fn actions_info(
-        &self,
-    ) -> zbus::Result<Vec<std::collections::HashMap<String, zbus::zvariant::OwnedValue>>>;
+    fn actions_info(&self) -> zbus::Result<Vec<std::collections::HashMap<String, OwnedValue>>>;
 
     /// ActiveProfile property
     #[zbus(property)]
@@ -121,4 +133,8 @@ trait PowerProfilesDaemon {
     /// Version property
     #[zbus(property)]
     fn version(&self) -> zbus::Result<String>;
+
+    /// Profiles property
+    #[zbus(property)]
+    fn profiles(&self) -> zbus::Result<Vec<HashMap<String, OwnedValue>>>;
 }
