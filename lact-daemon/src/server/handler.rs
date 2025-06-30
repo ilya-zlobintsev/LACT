@@ -28,9 +28,11 @@ use nix::libc;
 use nvml_wrapper::Nvml;
 use pciid_parser::Database;
 use serde_json::json;
+#[cfg(not(test))]
+use std::collections::HashMap;
 use std::{
     cell::{Cell, LazyCell, RefCell},
-    collections::{BTreeMap, HashMap},
+    collections::BTreeMap,
     env,
     fs::{self, File, Permissions},
     io::{BufWriter, Cursor, Write},
@@ -1001,6 +1003,13 @@ async fn apply_config_to_controllers(
     Ok(())
 }
 
+#[cfg(test)]
+pub(crate) fn read_pci_db() -> Database {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/data/pci.ids");
+    Database::read_from_file(&path).unwrap()
+}
+
+#[cfg(not(test))]
 pub(crate) fn read_pci_db() -> Database {
     let result = if let Some(db_path) = env::var("LACT_PCI_DB_PATH")
         .ok()

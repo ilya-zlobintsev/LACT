@@ -26,6 +26,10 @@ async fn snapshot_everything() {
     let pci_db = read_pci_db();
 
     for vendor_dir in fs::read_dir(test_data_dir).unwrap().flatten() {
+        if !vendor_dir.file_type().unwrap().is_dir() {
+            continue;
+        }
+
         for device_dir in fs::read_dir(vendor_dir.path()).unwrap().flatten() {
             let test_key = format!(
                 "{}/{}",
