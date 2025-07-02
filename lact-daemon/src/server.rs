@@ -42,7 +42,12 @@ impl Server {
 
         let handler = Handler::new(config).await?;
 
-        socket::set_permissions(&socket_path, &handler.config.read().await.daemon)?;
+        socket::set_permissions(&socket_path, &handler.config.read().await.daemon)
+            .await
+            .inspect_err(|_| {
+                // Clean up the socket if permissions failed to be set
+                socket::cleanup();
+            })?;
 
         Ok(Self {
             handler,
