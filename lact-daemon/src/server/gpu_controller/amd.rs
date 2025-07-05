@@ -22,9 +22,9 @@ use anyhow::{anyhow, Context};
 use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
-    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, FanStats, IntelDrmInfo,
-    LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType,
-    RopInfo, VoltageStats, VramStats,
+    ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats, DeviceType, DrmInfo, FanStats,
+    IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList,
+    ProcessUtilizationType, RopInfo, VoltageStats, VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
@@ -48,6 +48,7 @@ use {
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
+const AMDGPU_IDS_FLAGS_FUSION: u64 = 0x1;
 
 const DRM_VRAM_KEYS: &[&str] = &["drm-memory-vram"];
 const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
@@ -633,6 +634,19 @@ impl AmdGpuController {
 impl GpuController for AmdGpuController {
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
+    }
+
+    fn device_type(&self) -> DeviceType {
+        self.drm_handle
+            .as_ref()
+            .and_then(|drm| drm.device_info().ok())
+            .map_or(DeviceType::Dedicated, |info| {
+                if (info.ids_flags & AMDGPU_IDS_FLAGS_FUSION) > 0 {
+                    DeviceType::Integrated
+                } else {
+                    DeviceType::Dedicated
+                }
+            })
     }
 
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {

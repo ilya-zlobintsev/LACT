@@ -409,9 +409,12 @@ impl<'a> Handler {
                     .device_pci_info
                     .model
                     .clone();
+                let device_type = controller.device_type();
+
                 DeviceListEntry {
                     id: id.to_owned(),
                     name,
+                    device_type,
                 }
             })
             .collect()

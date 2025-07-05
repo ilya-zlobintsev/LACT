@@ -22,10 +22,12 @@ async fn list_gpus(_: &CliArgs, client: &DaemonClient) -> Result<()> {
     let entries = client.list_devices().await?;
     for entry in entries {
         let id = entry.id;
+        let device_type = entry.device_type;
+
         if let Some(name) = entry.name {
-            println!("{id} ({name})");
+            println!("{id} ({name}) [{device_type}]");
         } else {
-            println!("{id}");
+            println!("{id} [{device_type}]");
         }
     }
     Ok(())

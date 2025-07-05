@@ -77,6 +77,8 @@ pub struct SystemInfo {
 pub struct DeviceListEntry {
     pub id: String,
     pub name: Option<String>,
+    #[serde(default)]
+    pub device_type: DeviceType,
 }
 
 impl Display for DeviceListEntry {
@@ -85,6 +87,23 @@ impl Display for DeviceListEntry {
             Some(name) => Display::fmt(name, f),
             None => Display::fmt(&self.id, f),
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+pub enum DeviceType {
+    #[default]
+    Dedicated,
+    Integrated,
+}
+
+impl Display for DeviceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            DeviceType::Dedicated => "Dedicated",
+            DeviceType::Integrated => "Integrated",
+        };
+        Display::fmt(s, f)
     }
 }
 
