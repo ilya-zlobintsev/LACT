@@ -193,8 +193,8 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
             ok_response(handler.move_profile(&name, new_position).await?)
         }
         Request::EvaluateProfileRule { rule } => ok_response(handler.evaluate_profile_rule(&rule)?),
-        Request::SetProfileRule { name, rule } => {
-            ok_response(handler.set_profile_rule(&name, rule).await?)
+        Request::SetProfileRule { name, rule, hooks } => {
+            ok_response(handler.set_profile_rule(&name, rule, hooks).await?)
         }
         Request::GetGpuConfig { id } => ok_response(handler.get_gpu_config(id).await?),
         Request::SetGpuConfig { id, config } => {

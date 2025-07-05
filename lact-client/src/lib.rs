@@ -4,7 +4,7 @@ mod macros;
 
 pub use lact_schema as schema;
 use lact_schema::{
-    config::{GpuConfig, Profile},
+    config::{GpuConfig, Profile, ProfileHooks},
     ProcessList, ProfileRule,
 };
 
@@ -197,8 +197,9 @@ impl DaemonClient {
         &self,
         name: String,
         rule: Option<ProfileRule>,
+        hooks: ProfileHooks,
     ) -> anyhow::Result<()> {
-        self.make_request(Request::SetProfileRule { name, rule })
+        self.make_request(Request::SetProfileRule { name, rule, hooks })
             .await
     }
 

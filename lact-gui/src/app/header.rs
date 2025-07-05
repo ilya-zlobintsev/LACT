@@ -4,7 +4,7 @@ mod profile_row;
 pub mod profile_rule_window;
 
 use crate::{
-    app::{ShowProcessMonitor, APP_BROKER},
+    app::{header::profile_rule_window::ProfileEditParams, ShowProcessMonitor, APP_BROKER},
     CONFIG,
 };
 
@@ -97,6 +97,7 @@ impl Component for Header {
                                 set_orientation: gtk::Orientation::Vertical,
                                 set_spacing: 5,
 
+                                #[name = "auto_switcher"]
                                 gtk::CheckButton {
                                     set_label: Some("Switch automatically"),
                                     set_margin_horizontal: 5,
@@ -353,21 +354,30 @@ impl Component for Header {
                     .expect("No profile with given index");
 
                 let sender = sender.clone();
-                if let ProfileRowType::Profile { name, rule, .. } = &profile.row {
-                    let rule_window = ProfileRuleWindow::builder()
-                        .launch((
-                            name.clone(),
-                            rule.clone().unwrap_or_default(),
-                            root.toplevel_window().expect("Widget not in a window"),
-                        ))
-                        .into_stream();
+                if let ProfileRowType::Profile {
+                    name,
+                    rule,
+                    hooks,
+                    auto,
+                    ..
+                } = &profile.row
+                {
+                    let params = ProfileEditParams {
+                        name: name.clone(),
+                        rule: rule.clone().unwrap_or_default(),
+                        hooks: hooks.clone(),
+                        auto_switch: *auto,
+                        root_window: root.toplevel_window().expect("Widget not in a window"),
+                    };
+                    let rule_window = ProfileRuleWindow::builder().launch(params).into_stream();
 
                     sender.clone().oneshot_command(async move {
-                        if let Some((name, rule)) = rule_window.recv_one().await {
+                        if let Some((name, rule, hooks)) = rule_window.recv_one().await {
                             sender
                                 .output(AppMsg::SetProfileRule {
                                     name,
                                     rule: Some(rule),
+                                    hooks,
                                 })
                                 .unwrap();
                         }
@@ -395,12 +405,19 @@ impl Header {
 
         let last = profiles_info.profiles.len().saturating_sub(1);
         for (i, (name, rule)) in profiles_info.profiles.iter().enumerate() {
+            let hooks = profiles_info
+                .profile_hooks
+                .get(name)
+                .cloned()
+                .unwrap_or_default();
+
             let profile = ProfileRowType::Profile {
                 name: name.to_string(),
                 first: i == 0,
                 last: i == last,
                 auto: profiles_info.auto_switch,
                 rule: rule.clone(),
+                hooks,
             };
             profiles.push_back(profile);
         }

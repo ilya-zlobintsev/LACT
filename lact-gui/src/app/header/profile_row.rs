@@ -1,7 +1,7 @@
 use super::HeaderMsg;
 use crate::app::{msg::AppMsg, APP_BROKER};
 use gtk::{pango, prelude::*};
-use lact_schema::ProfileRule;
+use lact_schema::{config::ProfileHooks, ProfileRule};
 use relm4::{
     css,
     factory::{DynamicIndex, FactoryComponent},
@@ -21,6 +21,7 @@ pub enum ProfileRowType {
         last: bool,
         auto: bool,
         rule: Option<ProfileRule>,
+        hooks: ProfileHooks,
     },
 }
 
@@ -88,8 +89,8 @@ impl FactoryComponent for ProfileRow {
                         },
 
                         gtk::Button {
-                            set_label: "Edit Activation Rules",
-                            set_sensitive: matches!(self.row, ProfileRowType::Profile { auto: true, .. }),
+                            set_label: "Edit Rules",
+                            // set_sensitive: matches!(self.row, ProfileRowType::Profile { auto: true, .. }),
                             connect_clicked[sender, index] => move |_| {
                                 sender.output(HeaderMsg::ShowProfileEditor(index.clone())).unwrap();
                             },

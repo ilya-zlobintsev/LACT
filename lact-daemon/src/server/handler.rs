@@ -15,7 +15,9 @@ use amdgpu_sysfs::gpu_handle::{
 };
 use anyhow::{anyhow, bail, Context};
 use lact_schema::{
-    config::{default_fan_static_speed, FanControlSettings, FanCurve, GpuConfig, Profile},
+    config::{
+        default_fan_static_speed, FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks,
+    },
     default_fan_curve,
     request::{ClockspeedType, ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
@@ -42,6 +44,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::{
+    process::Command,
     sync::{mpsc, oneshot, RwLock, RwLockReadGuard},
     time::sleep,
 };
@@ -771,6 +774,11 @@ impl<'a> Handler {
                 .iter()
                 .map(|(name, profile)| (name.to_string(), profile.rule.clone()))
                 .collect(),
+            profile_hooks: config
+                .profiles
+                .iter()
+                .map(|(name, profile)| (name.to_string(), profile.hooks.clone()))
+                .collect(),
             current_profile: config.current_profile.as_ref().map(Rc::to_string),
             auto_switch: config.auto_switch_profiles,
             watcher_state,
@@ -807,14 +815,34 @@ impl<'a> Handler {
     }
 
     pub(super) async fn set_current_profile(&self, name: Option<Rc<str>>) -> anyhow::Result<()> {
-        if let Some(name) = &name {
-            self.config.read().await.profile(name)?;
+        let mut activation_hook = None;
+        let mut deactivation_hook = None;
+        {
+            let config = self.config.read().await;
+            // Make sure the profile exists
+            if let Some(name) = &name {
+                let new_profile = config.profile(name)?;
+                activation_hook.clone_from(&new_profile.hooks.activated);
+            }
+
+            if let Some(old_profile) = &config.current_profile {
+                if let Some(old_profile) = config.profiles.get(old_profile) {
+                    deactivation_hook.clone_from(&old_profile.hooks.deactivated);
+                }
+            }
         }
 
         self.cleanup().await;
         self.config.write().await.current_profile = name;
 
         self.apply_current_config().await?;
+
+        if let Some(deactivated) = &deactivation_hook {
+            run_hook_command(deactivated).await?;
+        }
+        if let Some(activated) = &activation_hook {
+            run_hook_command(activated).await?;
+        }
 
         Ok(())
     }
@@ -893,16 +921,20 @@ impl<'a> Handler {
         &self,
         name: &str,
         rule: Option<ProfileRule>,
+        hooks: ProfileHooks,
     ) -> anyhow::Result<()> {
-        self.config
-            .write()
-            .await
-            .profiles
-            .get_mut(name)
-            .with_context(|| format!("Profile {name} not found"))?
-            .rule = rule;
+        {
+            let mut config = self.config.write().await;
+            let profile = config
+                .profiles
+                .get_mut(name)
+                .with_context(|| format!("Profile {name} not found"))?;
 
-        self.config.read().await.save(&self.config_last_saved)?;
+            profile.rule = rule;
+            profile.hooks = hooks;
+
+            config.save(&self.config_last_saved)?;
+        }
 
         let tx = self.profile_watcher_tx.borrow().clone();
         if let Some(tx) = tx {
@@ -1221,4 +1253,22 @@ fn drm_base_path() -> PathBuf {
         Ok(custom_path) => PathBuf::from(custom_path),
         Err(_) => PathBuf::from("/sys/class/drm"),
     }
+}
+
+async fn run_hook_command(command: &str) -> anyhow::Result<()> {
+    let output = Command::new("sh").arg("-c").arg(command).output().await?;
+
+    if !output.status.success() {
+        let mut error_text = String::new();
+        error_text.push_str(&String::from_utf8_lossy(&output.stdout));
+        error_text.push(' ');
+        error_text.push_str(&String::from_utf8_lossy(&output.stderr));
+
+        warn!(
+            "command hook exited with status {}: {error_text}",
+            output.status
+        );
+    }
+
+    Ok(())
 }

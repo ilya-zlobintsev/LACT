@@ -540,8 +540,10 @@ impl AppModel {
                     }
                 }
             }
-            AppMsg::SetProfileRule { name, rule } => {
-                self.daemon_client.set_profile_rule(name, rule).await?;
+            AppMsg::SetProfileRule { name, rule, hooks } => {
+                self.daemon_client
+                    .set_profile_rule(name, rule, hooks)
+                    .await?;
                 self.reload_profiles(None).await?;
             }
         }

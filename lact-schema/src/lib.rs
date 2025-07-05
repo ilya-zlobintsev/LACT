@@ -29,6 +29,8 @@ use std::{
     sync::Arc,
 };
 
+use crate::config::ProfileHooks;
+
 pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -599,6 +601,8 @@ pub struct FanOptions<'a> {
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ProfilesInfo {
     pub profiles: IndexMap<String, Option<ProfileRule>>,
+    #[serde(default)]
+    pub profile_hooks: IndexMap<String, ProfileHooks>,
     pub current_profile: Option<String>,
     pub auto_switch: bool,
     pub watcher_state: Option<ProfileWatcherState>,
@@ -607,6 +611,7 @@ pub struct ProfilesInfo {
 impl PartialEq for ProfilesInfo {
     fn eq(&self, other: &Self) -> bool {
         self.profiles.as_slice() == other.profiles.as_slice()
+            && self.profile_hooks.as_slice() == other.profile_hooks.as_slice()
             && self.current_profile == other.current_profile
             && self.auto_switch == other.auto_switch
     }
