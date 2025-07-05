@@ -90,7 +90,6 @@ impl FactoryComponent for ProfileRow {
 
                         gtk::Button {
                             set_label: "Edit Rules",
-                            // set_sensitive: matches!(self.row, ProfileRowType::Profile { auto: true, .. }),
                             connect_clicked[sender, index] => move |_| {
                                 sender.output(HeaderMsg::ShowProfileEditor(index.clone())).unwrap();
                             },

@@ -97,7 +97,6 @@ impl Component for Header {
                                 set_orientation: gtk::Orientation::Vertical,
                                 set_spacing: 5,
 
-                                #[name = "auto_switcher"]
                                 gtk::CheckButton {
                                     set_label: Some("Switch automatically"),
                                     set_margin_horizontal: 5,
