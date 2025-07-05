@@ -505,6 +505,7 @@ struct GpuListItem(DeviceListEntry);
 struct GpuListItemWidgets {
     name_label: gtk::Label,
     id_label: gtk::Label,
+    type_label: gtk::Label,
 }
 
 impl RelmListItem for GpuListItem {
@@ -514,13 +515,23 @@ impl RelmListItem for GpuListItem {
     fn setup(_list_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
             root = gtk::Box {
-                set_margin_all: 5,
                 set_orientation: gtk::Orientation::Vertical,
 
                 #[name = "name_label"]
                 gtk::Label,
 
+                gtk::Box {
+                    set_spacing: 5,
+                    set_orientation: gtk::Orientation::Horizontal,
+
+                },
+
                 #[name = "id_label"]
+                gtk::Label {
+                    add_css_class: "subtitle",
+                },
+
+                #[name = "type_label"]
                 gtk::Label {
                     add_css_class: "subtitle",
                 },
@@ -530,6 +541,7 @@ impl RelmListItem for GpuListItem {
         let widgets = GpuListItemWidgets {
             name_label,
             id_label,
+            type_label,
         };
         (root, widgets)
     }
@@ -539,5 +551,8 @@ impl RelmListItem for GpuListItem {
             .name_label
             .set_label(self.0.name.as_deref().unwrap_or("Unknown"));
         widgets.id_label.set_label(&self.0.id);
+        widgets
+            .type_label
+            .set_label(&self.0.device_type.to_string());
     }
 }
