@@ -92,5 +92,8 @@ profiles:
       filter:
         name: vkcube
         args: "--my-arg"
+    hooks:
+      activated: echo foo >> /tmp/log
+      deactivated: echo bar >> /tmp/log
 current_profile: vkcube
 auto_switch_profiles: true
