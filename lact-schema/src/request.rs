@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{
-    config::{GpuConfig, Profile},
+    config::{GpuConfig, Profile, ProfileHooks},
     FanOptions, ProfileRule,
 };
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
@@ -91,6 +91,8 @@ pub enum Request<'a> {
     SetProfileRule {
         name: String,
         rule: Option<ProfileRule>,
+        #[serde(default)]
+        hooks: ProfileHooks,
     },
     GetGpuConfig {
         id: &'a str,

@@ -3,7 +3,7 @@ use super::{
     header::profile_rule_window::{profile_row::ProfileRuleRowMsg, ProfileRuleWindowMsg},
 };
 use lact_client::ConnectionStatusMsg;
-use lact_schema::{request::ProfileBase, DeviceStats, ProfileRule};
+use lact_schema::{config::ProfileHooks, request::ProfileBase, DeviceStats, ProfileRule};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -41,6 +41,7 @@ pub enum AppMsg {
     SetProfileRule {
         name: String,
         rule: Option<ProfileRule>,
+        hooks: ProfileHooks,
     },
     ImportProfile,
     ExportProfile(Option<String>),

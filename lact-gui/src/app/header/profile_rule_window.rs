@@ -1,16 +1,20 @@
 pub mod profile_row;
 
 use crate::app::{msg::AppMsg, APP_BROKER};
-use gtk::prelude::{
-    BoxExt, ButtonExt, CheckButtonExt, DialogExt, DialogExtManual, GtkWindowExt, OrientableExt,
-    WidgetExt,
+use gtk::{
+    pango,
+    prelude::{
+        BoxExt, ButtonExt, CheckButtonExt, DialogExt, DialogExtManual, EntryBufferExtManual,
+        EntryExt, GtkWindowExt, OrientableExt, WidgetExt,
+    },
 };
-use lact_schema::ProfileRule;
+use lact_schema::{config::ProfileHooks, ProfileRule};
 use profile_row::ProfileRuleRow;
 use relm4::{
+    binding::BoolBinding,
     prelude::{DynamicIndex, FactoryVecDeque},
     tokio::time::sleep,
-    ComponentParts, ComponentSender, RelmWidgetExt,
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
 };
 use std::time::Duration;
 
@@ -20,6 +24,21 @@ pub struct ProfileRuleWindow {
     profile_name: String,
     sub_rules_list_view: FactoryVecDeque<ProfileRuleRow>,
     currently_matches: bool,
+    auto_switch: bool,
+
+    activated_hook_enabled: BoolBinding,
+    activated_hook: gtk::EntryBuffer,
+
+    deactivated_hook_enabled: BoolBinding,
+    deactivated_hook: gtk::EntryBuffer,
+}
+
+pub struct ProfileEditParams {
+    pub name: String,
+    pub rule: ProfileRule,
+    pub hooks: ProfileHooks,
+    pub auto_switch: bool,
+    pub root_window: gtk::Window,
 }
 
 #[derive(Debug)]
@@ -33,15 +52,15 @@ pub enum ProfileRuleWindowMsg {
 
 #[relm4::component(pub)]
 impl relm4::Component for ProfileRuleWindow {
-    type Init = (String, ProfileRule, gtk::Window);
+    type Init = ProfileEditParams;
     type Input = ProfileRuleWindowMsg;
-    type Output = (String, ProfileRule);
+    type Output = (String, ProfileRule, ProfileHooks);
     type CommandOutput = ();
 
     view! {
         gtk::Dialog {
             set_default_size: (600, 300),
-            set_title: Some("Profile activation rules"),
+            set_title: Some("Profile rules"),
             set_transient_for: Some(&root_window),
             connect_response[root, sender] => move |_, response| {
                 match response {
@@ -58,52 +77,105 @@ impl relm4::Component for ProfileRuleWindow {
                 set_orientation: gtk::Orientation::Vertical,
                 set_margin_all: 5,
 
-                gtk::Label {
-                    #[watch]
-                    set_markup: &format!("<span font_desc='11'><b>Activate profile '{}' when:</b></span>", model.profile_name),
-                    set_halign: gtk::Align::Start,
-                    set_margin_all: 10,
+                append = &gtk::StackSwitcher {
+                    set_stack: Some(&stack),
                 },
 
-                gtk::Separator {},
-
-                gtk::Box {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_expand: true,
-
-                    gtk::Box {
+                #[name = "stack"]
+                append = &gtk::Stack {
+                    add_titled[None, "Activation"] = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_margin_all: 10,
-                        set_spacing: 10,
+                        set_margin_all: 5,
 
-                        #[name = "multi_or_checkbutton"]
-                        gtk::CheckButton {
-                            set_label: Some("Any of the following rules are matched:"),
-                            set_active: !matches!(rule, ProfileRule::And(_)),
-                            connect_toggled => ProfileRuleWindowMsg::Evaluate,
-                        },
-
-                        #[name = "multi_and_checkbutton"]
-                        gtk::CheckButton {
-                            set_label: Some("All of the following rules are matched:"),
-                            set_group: Some(&multi_or_checkbutton),
-                            set_active: matches!(rule, ProfileRule::And(_)),
-                            connect_toggled => ProfileRuleWindowMsg::Evaluate,
+                        gtk::Label {
+                            #[watch]
+                            set_markup: &format!("<span font_desc='11'><b>Activate profile '{}' when:</b></span>", model.profile_name),
+                            set_halign: gtk::Align::Start,
+                            set_margin_all: 10,
                         },
 
                         gtk::Separator {},
 
-                        #[local_ref]
-                        sub_rules_listview -> gtk::Box {
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_spacing: 5,
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_expand: true,
+
+                            gtk::Box {
+                                set_orientation: gtk::Orientation::Vertical,
+                                set_margin_all: 10,
+                                set_spacing: 10,
+
+                                #[name = "multi_or_checkbutton"]
+                                gtk::CheckButton {
+                                    set_label: Some("Any of the following rules are matched:"),
+                                    set_active: !matches!(rule, ProfileRule::And(_)),
+                                    connect_toggled => ProfileRuleWindowMsg::Evaluate,
+                                },
+
+                                #[name = "multi_and_checkbutton"]
+                                gtk::CheckButton {
+                                    set_label: Some("All of the following rules are matched:"),
+                                    set_group: Some(&multi_or_checkbutton),
+                                    set_active: matches!(rule, ProfileRule::And(_)),
+                                    connect_toggled => ProfileRuleWindowMsg::Evaluate,
+                                },
+
+                                gtk::Separator {},
+
+                                #[local_ref]
+                                sub_rules_listview -> gtk::Box {
+                                    set_orientation: gtk::Orientation::Vertical,
+                                    set_spacing: 5,
+                                },
+
+                                gtk::Button {
+                                    set_icon_name: "list-add-symbolic",
+                                    set_hexpand: true,
+                                    set_halign: gtk::Align::End,
+                                    connect_clicked => ProfileRuleWindowMsg::AddSubrule,
+                                },
+
+                                gtk::Separator {},
+
+                                gtk::Box {
+                                    set_orientation: gtk::Orientation::Horizontal,
+                                    set_spacing: 5,
+
+                                    gtk::Label {
+                                        #[watch]
+                                        set_markup: &if model.auto_switch {
+                                            format!(
+                                                "Selected activation settings are currently <b>{}</b>",
+                                                if model.currently_matches { "matched" } else { "not matched" }
+                                            )
+                                        } else {
+                                            "<b>Automatic profile switching is currently disabled</b>".to_owned()
+                                        },
+                                    },
+
+                                    gtk::Image {
+                                        #[watch]
+                                        set_icon_name: match model.currently_matches {
+                                            true => Some("object-select-symbolic"),
+                                            false => Some("list-remove-symbolic"),
+                                        },
+                                    },
+                                }
+                            },
                         },
 
-                        gtk::Button {
-                            set_icon_name: "list-add-symbolic",
-                            set_hexpand: true,
-                            set_halign: gtk::Align::End,
-                            connect_clicked => ProfileRuleWindowMsg::AddSubrule,
+                        gtk::Separator {},
+                    },
+
+                    add_titled[None, "Hooks"] = &gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_margin_all: 5,
+
+                        gtk::Label {
+                            #[watch]
+                            set_markup: &format!("<span font_desc='11'><b>Run a command when the profile '{}' is:</b></span>", model.profile_name),
+                            set_halign: gtk::Align::Start,
+                            set_margin_all: 10,
                         },
 
                         gtk::Separator {},
@@ -111,27 +183,64 @@ impl relm4::Component for ProfileRuleWindow {
                         gtk::Box {
                             set_orientation: gtk::Orientation::Horizontal,
                             set_spacing: 5,
+                            set_margin_vertical: 5,
+                            set_margin_horizontal: 10,
 
-                            gtk::Label {
-                                #[watch]
-                                set_markup: &format!(
-                                    "Selected activation settings are currently <b>{}</b>",
-                                    if model.currently_matches { "matched" } else { "not matched" }
-                                ),
+
+                            gtk::CheckButton {
+                                set_label: Some("Activated:"),
+                                add_binding: (&model.activated_hook_enabled, "active"),
+                                set_size_group: &hook_command_size_group,
                             },
 
+                            gtk::Entry {
+                                add_binding: (&model.activated_hook_enabled, "sensitive"),
+                                set_buffer: &model.activated_hook,
+                                set_hexpand: true,
+                            },
+                        },
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
+                            set_margin_vertical: 5,
+                            set_margin_horizontal: 10,
+
+                            gtk::CheckButton {
+                                set_label: Some("Deactivated:"),
+                                add_binding: (&model.deactivated_hook_enabled, "active"),
+                                set_size_group: &hook_command_size_group,
+                            },
+
+                            gtk::Entry {
+                                add_binding: (&model.deactivated_hook_enabled, "sensitive"),
+                                set_buffer: &model.deactivated_hook,
+                                set_hexpand: true,
+                            },
+                        },
+
+                        gtk::Separator {},
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
+                            set_margin_vertical: 5,
+                            set_margin_horizontal: 10,
+
                             gtk::Image {
-                                #[watch]
-                                set_icon_name: match model.currently_matches {
-                                    true => Some("object-select-symbolic"),
-                                    false => Some("list-remove-symbolic"),
-                                }
+                                set_icon_name: Some("dialog-warning-symbolic"),
+                            },
+
+                            gtk::Label {
+                                set_label: "Note: these commands are executed as root by the LACT daemon, and do not have access to the desktop environment. As such, they cannot be used directly to launch graphical applications.",
+                                set_wrap: true,
+                                set_wrap_mode: pango::WrapMode::Word,
+                                add_css_class: "caption-heading",
+                                set_hexpand: true,
                             },
                         }
                     },
-                },
-
-                gtk::Separator {},
+                }
             },
 
             add_buttons: &[("Cancel", gtk::ResponseType::Cancel), ("Save", gtk::ResponseType::Accept)],
@@ -139,11 +248,19 @@ impl relm4::Component for ProfileRuleWindow {
     }
 
     fn init(
-        (profile_name, rule, root_window): Self::Init,
+        params: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let task_sender = sender.clone();
+        let ProfileEditParams {
+            name,
+            rule,
+            hooks,
+            auto_switch,
+            root_window,
+        } = params;
+
         sender.command(move |_, shutdown| {
             shutdown
                 .register(async move {
@@ -171,12 +288,18 @@ impl relm4::Component for ProfileRuleWindow {
         };
 
         let model = Self {
-            profile_name,
+            profile_name: name,
             sub_rules_list_view,
             currently_matches: false,
+            auto_switch,
+            activated_hook_enabled: BoolBinding::new(hooks.activated.is_some()),
+            activated_hook: gtk::EntryBuffer::new(hooks.activated),
+            deactivated_hook_enabled: BoolBinding::new(hooks.deactivated.is_some()),
+            deactivated_hook: gtk::EntryBuffer::new(hooks.deactivated),
         };
 
         let sub_rules_listview = model.sub_rules_list_view.widget();
+        let hook_command_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         let widgets = view_output!();
 
         root.present();
@@ -193,7 +316,7 @@ impl relm4::Component for ProfileRuleWindow {
     ) {
         match msg {
             ProfileRuleWindowMsg::Evaluate => {
-                if root.is_visible() {
+                if root.is_visible() && self.auto_switch {
                     let rule = self.get_rule(widgets);
                     APP_BROKER.send(AppMsg::EvaluateProfile(rule, sender.input_sender().clone()));
                 }
@@ -213,7 +336,11 @@ impl relm4::Component for ProfileRuleWindow {
             }
             ProfileRuleWindowMsg::Save => {
                 sender
-                    .output((self.profile_name.clone(), self.get_rule(widgets)))
+                    .output((
+                        self.profile_name.clone(),
+                        self.get_rule(widgets),
+                        self.get_hooks(),
+                    ))
                     .unwrap();
             }
         }
@@ -236,6 +363,21 @@ impl ProfileRuleWindow {
             ProfileRule::Or(rules)
         } else {
             ProfileRule::And(rules)
+        }
+    }
+
+    fn get_hooks(&self) -> ProfileHooks {
+        ProfileHooks {
+            activated: if self.activated_hook_enabled.value() {
+                Some(self.activated_hook.text().to_string())
+            } else {
+                None
+            },
+            deactivated: if self.deactivated_hook_enabled.value() {
+                Some(self.deactivated_hook.text().to_string())
+            } else {
+                None
+            },
         }
     }
 }

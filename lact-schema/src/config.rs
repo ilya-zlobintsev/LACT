@@ -15,6 +15,21 @@ pub struct Profile {
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub gpus: IndexMap<String, GpuConfig>,
     pub rule: Option<ProfileRule>,
+    #[serde(default, skip_serializing_if = "ProfileHooks::is_empty")]
+    pub hooks: ProfileHooks,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct ProfileHooks {
+    pub activated: Option<String>,
+    pub deactivated: Option<String>,
+}
+
+impl ProfileHooks {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 #[skip_serializing_none]

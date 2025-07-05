@@ -198,6 +198,10 @@ profiles:
         name: vkcube
         # Process arguments. Not required.
         args: --my-arg
+    # Hooks that run when the profile is activated or deactivated
+    hooks:
+      activated: echo foo >> /tmp/log
+      deactivated: echo bar >> /tmp/log
 
 # Current profile to be used. Does not have effect when `auto_switch_profiles` is used.
 # Omit this option or set to `null` to use the default profile (settings in the top-level `gpus` entry).

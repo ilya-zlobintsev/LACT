@@ -1,7 +1,7 @@
 use crate::server::gpu_controller::{GpuController, VENDOR_NVIDIA};
 use anyhow::Context;
 use indexmap::IndexMap;
-use lact_schema::config::{GpuConfig, Profile};
+use lact_schema::config::{GpuConfig, Profile, ProfileHooks};
 use nix::unistd::{getuid, Group};
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
@@ -264,6 +264,7 @@ impl Config {
         Profile {
             gpus: self.gpus.clone(),
             rule: None,
+            hooks: ProfileHooks::default(),
         }
     }
 
