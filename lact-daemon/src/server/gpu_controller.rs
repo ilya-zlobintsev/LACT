@@ -7,6 +7,7 @@ mod nvidia;
 
 use amd::AmdGpuController;
 use intel::IntelGpuController;
+use lact_schema::DeviceType;
 use lact_schema::ProcessList;
 #[cfg(feature = "nvidia")]
 use nvidia::NvidiaGpuController;
@@ -38,6 +39,8 @@ type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 
 pub trait GpuController {
     fn controller_info(&self) -> &CommonControllerInfo;
+
+    fn device_type(&self) -> DeviceType;
 
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo>;
 

@@ -16,9 +16,10 @@ use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mo
 use anyhow::{anyhow, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
-    config::GpuConfig, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo,
-    DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState, PowerStates,
-    PowerStats, ProcessList, ProcessUtilizationType, VoltageStats, VramStats,
+    config::GpuConfig, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats,
+    DeviceType, DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo,
+    PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, VoltageStats,
+    VramStats,
 };
 use std::{
     cell::{Cell, RefCell},
@@ -575,6 +576,14 @@ impl IntelGpuController {
 impl GpuController for IntelGpuController {
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
+    }
+
+    fn device_type(&self) -> DeviceType {
+        if self.get_vram_info().total > 0 {
+            DeviceType::Dedicated
+        } else {
+            DeviceType::Integrated
+        }
     }
 
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {

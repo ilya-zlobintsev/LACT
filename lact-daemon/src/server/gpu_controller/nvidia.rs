@@ -17,10 +17,10 @@ use futures::{future::LocalBoxFuture, FutureExt};
 use indexmap::IndexMap;
 use lact_schema::{
     config::{FanControlSettings, FanCurve, GpuConfig},
-    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DrmInfo, DrmMemoryInfo,
-    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable,
-    PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType,
-    ProcessUtilizationType, VoltageStats, VramStats,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
+    DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset,
+    NvidiaClocksTable, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList,
+    ProcessType, ProcessUtilizationType, VoltageStats, VramStats,
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
@@ -351,6 +351,11 @@ impl NvidiaGpuController {
 impl GpuController for NvidiaGpuController {
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
+    }
+
+    fn device_type(&self) -> DeviceType {
+        // No clue what happens on Tegra chips
+        DeviceType::Dedicated
     }
 
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
