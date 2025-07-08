@@ -285,6 +285,13 @@ If there's a crash, run `lact gui` from the command line to get GUI logs, check
 daemon logs in `journalctl -u lactd` for errors, and see `dmesg` for kernel logs
 that might include information about driver and system issues.
 
+# Support the project
+
+If you wish to support the project, you can do so via crypto:
+- BTC: `12FuTXZzd5peGb7QfoRkXaLnbJ1DNVW4pP`
+- ETH: `0x80875173316aa6317641bfbc50644e7ca74d6b6d`
+- XMR: `42E93NZXM7STBUsnMRGNyxKryFVgpHKNP6aza94C5hn17j2W7zUnFHe7ASQzB3KorYYnsaVzWUyHHVYfcTLQRtB63qkv5jE`
+
 # Other tools
 
 Here's a list of other useful tools for AMD GPUs on Linux:
