@@ -38,10 +38,16 @@ dependency on X11 extensions).
   (or `lact-git` from AUR for development builds).
 - Debian/Ubuntu/Derivatives: Download a .deb from
   [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
-- Bazzite: Install with `ujust install-lact` to bypass flatpak sandbox issues.
 
   It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't
   ship gtk4.
+
+- **Bazzite**: Install with `ujust install-lact`.
+
+  This helper installs the Flatpak build **and** adds the over-clocking boot  
+   option required for the `lactd` systemd service. It makes no changes to  
+   Flatpak’s sandboxing or permissions.
+
 - Fedora: use the
   [Copr repository](https://copr.fedorainfracloud.org/coprs/ilyaz/LACT/), or
   download an RPM from
