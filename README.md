@@ -45,6 +45,10 @@ dependency on X11 extensions).
   [Copr repository](https://copr.fedorainfracloud.org/coprs/ilyaz/LACT/), or
   download an RPM from
   [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+- Bazzite: Install with `ujust install-lact`.
+
+  This helper installs the Flatpak version and automatically adds the AMD
+  overclocking boot option.
 - Gentoo: Available in
   [GURU](https://github.com/gentoo/guru/tree/master/sys-apps/lact).
 - OpenSUSE: an RPM is available in
