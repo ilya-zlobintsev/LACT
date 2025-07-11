@@ -44,9 +44,9 @@ dependency on X11 extensions).
 
 - **Bazzite**: Install with `ujust install-lact`.
 
-  This helper installs the Flatpak build **and** adds the over-clocking boot  
-   option required for the `lactd` systemd service. It makes no changes to  
-   Flatpak’s sandboxing or permissions.
+  This helper installs the Flatpak build **and** adds the over-clocking boot
+  option required for the `lactd` systemd service. It makes no changes to
+  Flatpak’s sandboxing or permissions.
 
 - Fedora: use the
   [Copr repository](https://copr.fedorainfracloud.org/coprs/ilyaz/LACT/), or
