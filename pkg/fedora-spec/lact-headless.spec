@@ -1,6 +1,6 @@
 Name:           lact-headless
 Version:        0.8.0
-Release:        1
+Release:        2
 Summary:        GPU control utility
 License:        MIT
 URL:            https://github.com/ilya-zlobintsev/LACT
