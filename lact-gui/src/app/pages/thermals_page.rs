@@ -134,7 +134,7 @@ impl relm4::Component for ThermalsPage {
                 PageSection::new("Fan Control") {
                     // Disable fan configuration when overdrive is disabled on GPUs that have PMFW (RDNA3+)
                     #[watch]
-                    set_sensitive: !(model.system_info.amdgpu_overdrive_enabled == Some(false) && model.has_pmfw),
+                    set_sensitive: model.fan_speed.is_some() && !(model.system_info.amdgpu_overdrive_enabled == Some(false) && model.has_pmfw),
 
                     append = &gtk::StackSwitcher {
                         set_stack: Some(&stack),
@@ -142,6 +142,9 @@ impl relm4::Component for ThermalsPage {
 
                     #[name = "stack"]
                     append = &gtk::Stack {
+                        #[watch]
+                        set_visible: model.fan_speed.is_some(),
+
                         add_titled[Some(AUTO_PAGE), "Automatic"] = &gtk::Box {
                             set_orientation: gtk::Orientation::Vertical,
                             set_spacing: 5,
