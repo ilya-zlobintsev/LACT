@@ -32,6 +32,10 @@ adw = { package = "libadwaita", version = "0.7.1", features = [
 relm4 = { version = "0.9.0", default-features = false }
 relm4-components = "0.9.0"
 
+i18n-embed = { workspace = true }
+i18n-embed-fl = { workspace = true }
+rust-embed = { workspace = true }
+
 plotters = { version = "0.3.5", default-features = false, features = [
     "line_series",
     "full_palette",

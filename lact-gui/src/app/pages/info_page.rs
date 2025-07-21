@@ -1,6 +1,8 @@
 use super::PageUpdate;
 use crate::app::{info_row::InfoRow, page_section::PageSection};
+use crate::LANGUAGE_LOADER;
 use gtk::prelude::*;
+use i18n_embed_fl::fl;
 use lact_schema::{DeviceInfo, DeviceStats};
 use relm4::{prelude::FactoryVecDeque, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::sync::Arc;
@@ -26,7 +28,7 @@ impl relm4::SimpleComponent for InformationPage {
                 set_spacing: 15,
                 set_margin_horizontal: 20,
 
-                PageSection::new("Hardware Information") {
+                PageSection::new(&fl!(LANGUAGE_LOADER, "hardware-info")) {
                     append = &model.values_list.widget().clone() -> gtk::Box {
                         set_spacing: 10,
                         set_orientation: gtk::Orientation::Vertical,

@@ -1,6 +1,7 @@
 #[cfg(feature = "args")]
 pub mod args;
 pub mod config;
+pub mod i18n;
 mod profiles;
 pub mod request;
 mod response;
@@ -8,6 +9,7 @@ mod response;
 #[cfg(test)]
 mod tests;
 
+use i18n_embed_fl::fl;
 pub use request::Request;
 pub use response::Response;
 
@@ -29,7 +31,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::config::ProfileHooks;
+use crate::{config::ProfileHooks, i18n::LANGUAGE_LOADER};
 
 pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
 
@@ -134,7 +136,7 @@ impl DeviceInfo {
             .unwrap_or(1.0)
     }
 
-    pub fn info_elements(&self, stats: Option<&DeviceStats>) -> Vec<(&str, Option<String>)> {
+    pub fn info_elements(&self, stats: Option<&DeviceStats>) -> Vec<(String, Option<String>)> {
         let pci_info = self.pci_info.as_ref();
 
         let mut gpu_model = self
@@ -186,16 +188,22 @@ impl DeviceInfo {
         };
 
         let mut elements = vec![
-            ("GPU Model", Some(gpu_model)),
-            ("Card Manufacturer", Some(card_manufacturer)),
-            ("Card Model", Some(card_model)),
-            ("Driver Used", Some(self.driver.clone())),
-            ("VBIOS Version", self.vbios_version.clone()),
+            (fl!(LANGUAGE_LOADER, "gpu-model"), Some(gpu_model)),
+            (fl!(LANGUAGE_LOADER, "subvendor"), Some(card_manufacturer)),
+            (fl!(LANGUAGE_LOADER, "subdevice"), Some(card_model)),
+            (
+                fl!(LANGUAGE_LOADER, "driver-used"),
+                Some(self.driver.clone()),
+            ),
+            (
+                fl!(LANGUAGE_LOADER, "vbios-version"),
+                self.vbios_version.clone(),
+            ),
         ];
 
         if let Some(stats) = stats {
             elements.push((
-                "VRAM Size",
+                fl!(LANGUAGE_LOADER, "vram-size"),
                 stats
                     .vram
                     .total
@@ -222,35 +230,41 @@ impl DeviceInfo {
             }
 
             elements.extend([
-                ("GPU Family", drm_info.family_name.clone()),
-                ("ASIC Name", drm_info.asic_name.clone()),
                 (
-                    "Compute Units",
+                    fl!(LANGUAGE_LOADER, "gpu-family"),
+                    drm_info.family_name.clone(),
+                ),
+                (
+                    fl!(LANGUAGE_LOADER, "asic-name"),
+                    drm_info.asic_name.clone(),
+                ),
+                (
+                    fl!(LANGUAGE_LOADER, "compute-units"),
                     drm_info.compute_units.map(|count| count.to_string()),
                 ),
                 (
-                    "Execution Units",
+                    fl!(LANGUAGE_LOADER, "execution-units"),
                     drm_info
                         .intel
                         .execution_units
                         .map(|count| count.to_string()),
                 ),
                 (
-                    "Subslices",
+                    fl!(LANGUAGE_LOADER, "subslices"),
                     drm_info.intel.subslices.map(|count| count.to_string()),
                 ),
                 (
-                    "Cuda Cores",
+                    fl!(LANGUAGE_LOADER, "cuda-cores"),
                     drm_info.cuda_cores.map(|count| count.to_string()),
                 ),
                 (
-                    "SM Count",
+                    fl!(LANGUAGE_LOADER, "hardware-count", name = "SM"),
                     drm_info
                         .streaming_multiprocessors
                         .map(|count| count.to_string()),
                 ),
                 (
-                    "ROP Count",
+                    fl!(LANGUAGE_LOADER, "hardware-count", name = "ROP"),
                     drm_info.rop_info.as_ref().map(|rop| {
                         format!(
                             "{} ({} * {})",
@@ -258,34 +272,38 @@ impl DeviceInfo {
                         )
                     }),
                 ),
-                ("Instruction Set", drm_info.isa.clone()),
-                ("VRAM Type", vram_type),
+                (fl!(LANGUAGE_LOADER, "isa"), drm_info.isa.clone()),
+                (fl!(LANGUAGE_LOADER, "vram-type"), vram_type),
                 (
-                    "L1 Cache (Per CU)",
+                    fl!(LANGUAGE_LOADER, "l1-cache-per-cu"),
                     drm_info
                         .l1_cache_per_cu
                         .map(|cache| format!("{} KiB", cache / 1024)),
                 ),
                 (
-                    "L2 Cache",
+                    fl!(LANGUAGE_LOADER, "l2-cache"),
                     drm_info
                         .l2_cache
                         .map(|cache| format!("{} KiB", cache / 1024)),
                 ),
                 (
-                    "L3 Cache",
+                    fl!(LANGUAGE_LOADER, "l3-cache"),
                     drm_info.l3_cache_mb.map(|cache| format!("{cache} MiB")),
                 ),
             ]);
 
             if let Some(memory_info) = &drm_info.memory_info {
                 if let Some(rebar) = memory_info.resizeable_bar {
-                    let rebar = if rebar { "Enabled" } else { "Disabled" };
-                    elements.push(("Resizeable bar", Some(rebar.to_owned())));
+                    let rebar = if rebar {
+                        fl!(LANGUAGE_LOADER, "enabled")
+                    } else {
+                        fl!(LANGUAGE_LOADER, "disabled")
+                    };
+                    elements.push((fl!(LANGUAGE_LOADER, "rebar"), Some(rebar.to_owned())));
                 }
 
                 elements.push((
-                    "CPU Accessible VRAM",
+                    fl!(LANGUAGE_LOADER, "cpu-vram"),
                     Some((memory_info.cpu_accessible_total / 1024 / 1024).to_string()),
                 ));
             }
@@ -297,7 +315,7 @@ impl DeviceInfo {
             if let (Some(current_link_speed), Some(current_link_width)) =
                 (&self.link_info.current_speed, &self.link_info.current_width)
             {
-                elements.push(("PCIe Link Speed", Some(format!("{current_link_speed} x{current_link_width} (Max: {max_link_speed} x{max_link_width})"))));
+                elements.push((fl!(LANGUAGE_LOADER, "pcie-speed"), Some(format!("{current_link_speed} x{current_link_width} (Max: {max_link_speed} x{max_link_width})"))));
             }
         }
 
