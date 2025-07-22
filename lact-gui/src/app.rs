@@ -11,7 +11,7 @@ mod process_monitor;
 
 use crate::{
     app::process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
-    APP_ID, GUI_VERSION, LANGUAGE_LOADER,
+    APP_ID, GUI_VERSION, I18N,
 };
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
@@ -131,10 +131,10 @@ impl AsyncComponent for AppModel {
 
                         add_binding: (&model.ui_sensitive, "sensitive"),
 
-                        add_titled[Some("info_page"), &fl!(LANGUAGE_LOADER, "info-page")] = model.info_page.widget(),
-                        add_titled[Some("oc_page"), &fl!(LANGUAGE_LOADER, "oc-page")] = model.oc_page.widget(),
-                        add_titled[Some("thermals_page"), &fl!(LANGUAGE_LOADER, "thermals-page")] = model.thermals_page.widget(),
-                        add_titled[Some("software_page"), &fl!(LANGUAGE_LOADER, "software-page")] = model.software_page.widget(),
+                        add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
+                        add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
+                        add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
+                        add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
                     },
 
                     model.apply_revealer.widget(),

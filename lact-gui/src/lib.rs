@@ -19,7 +19,7 @@ const GUI_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const APP_ID: &str = "io.github.ilya_zlobintsev.LACT";
 pub const REPO_URL: &str = "https://github.com/ilya-zlobintsev/LACT";
 
-pub(crate) static LANGUAGE_LOADER: LazyLock<FluentLanguageLoader> =
+pub(crate) static I18N: LazyLock<FluentLanguageLoader> =
     LazyLock::new(|| i18n::loader(fluent_language_loader!(), &Localizations));
 
 #[derive(RustEmbed)]
@@ -34,7 +34,7 @@ pub fn run(args: GuiArgs) -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
     // Pre-init localization
-    LazyLock::force(&LANGUAGE_LOADER);
+    LazyLock::force(&I18N);
     LazyLock::force(&lact_schema::i18n::LANGUAGE_LOADER);
 
     if let Some(existing_config) = UiConfig::load() {
