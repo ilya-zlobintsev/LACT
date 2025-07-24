@@ -1,17 +1,18 @@
 use crate::{
     app::{msg::AppMsg, pages::oc_adjustment::OcAdjustment},
-    APP_BROKER,
+    APP_BROKER, I18N,
 };
 use gtk::{
     glib::{object::ObjectExt, SignalHandlerId},
     prelude::{AdjustmentExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
 };
+use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
 use relm4::{prelude::FactoryComponent, RelmWidgetExt};
 
 pub struct ClockAdjustmentRow {
     clock_type: ClockspeedType,
-    custom_title: Option<&'static str>,
+    custom_title: Option<String>,
     value_ratio: f64,
     change_signal: SignalHandlerId,
     adjustment: OcAdjustment,
@@ -22,7 +23,7 @@ pub struct ClocksData {
     pub current: i32,
     pub min: i32,
     pub max: i32,
-    pub custom_title: Option<&'static str>,
+    pub custom_title: Option<String>,
     pub is_secondary: bool,
 }
 
@@ -64,19 +65,19 @@ impl FactoryComponent for ClockAdjustmentRow {
             gtk::Label {
                 set_xalign: 0.0,
                 #[watch]
-                set_markup: &match self.custom_title {
-                    Some(title) => title.to_owned(),
+                set_markup: &match &self.custom_title {
+                    Some(title) => title.clone(),
                     None => {
                         match self.clock_type {
-                            ClockspeedType::MaxCoreClock => "Maximum GPU Clock (MHz)".to_owned(),
-                            ClockspeedType::MaxMemoryClock => "Maximum VRAM Clock (MHz)".to_owned(),
-                            ClockspeedType::MaxVoltage => "Maximum GPU voltage (mV)".to_owned(),
-                            ClockspeedType::MinCoreClock => "Minimum GPU Clock (MHz)".to_owned(),
-                            ClockspeedType::MinMemoryClock => "Minimum VRAM Clock (MHz)".to_owned(),
-                            ClockspeedType::MinVoltage => "Minimum GPU voltage (mV)".to_owned(),
-                            ClockspeedType::VoltageOffset => "GPU voltage offset (mV)".to_owned(),
-                            ClockspeedType::GpuClockOffset(pstate) => format!("GPU P-State {pstate} Clock Offset (MHz)"),
-                            ClockspeedType::MemClockOffset(pstate) => format!("VRAM P-State {pstate} Clock Offset (MHz)"),
+                            ClockspeedType::MaxCoreClock => fl!(I18N, "max-gpu-clock"),
+                            ClockspeedType::MaxMemoryClock => fl!(I18N, "max-vram-clock"),
+                            ClockspeedType::MaxVoltage => fl!(I18N, "max-gpu-voltage"),
+                            ClockspeedType::MinCoreClock => fl!(I18N, "min-gpu-clock"),
+                            ClockspeedType::MinMemoryClock => fl!(I18N, "min-vram-clock"),
+                            ClockspeedType::MinVoltage => fl!(I18N, "min-gpu-voltage"),
+                            ClockspeedType::VoltageOffset => fl!(I18N, "gpu-voltage-offset"),
+                            ClockspeedType::GpuClockOffset(pstate) => fl!(I18N, "gpu-pstate-clock-offset", pstate = pstate),
+                            ClockspeedType::MemClockOffset(pstate) => fl!(I18N, "vram-pstate-clock-offset", pstate = pstate),
                             ClockspeedType::Reset => unreachable!(),
                         }
                     }

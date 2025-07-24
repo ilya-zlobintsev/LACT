@@ -4,3 +4,5 @@ thermals-page = Температура
 software-page = Програми 
 
 hardware-info = Інформація про обладнання
+
+watt = Вт

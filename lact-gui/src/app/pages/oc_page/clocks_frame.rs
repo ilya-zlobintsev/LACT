@@ -2,7 +2,7 @@ mod adjustment_row;
 
 use crate::{
     app::{msg::AppMsg, page_section::PageSection},
-    APP_BROKER,
+    APP_BROKER, I18N,
 };
 use adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
 use amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTable};
@@ -11,6 +11,7 @@ use gtk::{
     pango,
     prelude::{BoxExt, ButtonExt, CheckButtonExt, OrientableExt, WidgetExt},
 };
+use i18n_embed_fl::fl;
 use lact_schema::{
     request::{ClockspeedType, SetClocksCommand},
     ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
@@ -22,20 +23,6 @@ use relm4::{
 
 // This is only used on RDNA1 in practice
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
-const WARNING_TEXT: &str = "Warning: changing these values may lead to system instability and can potentially damage your hardware!";
-const NVIDIA_OC_INFO_TEXT: &str = "\
-Overclocking functionality on Nvidia includes setting offsets for GPU/VRAM clockspeeds and limiting the potential range of clockspeeds using the \"locked clocks\" feature.
-
-On many cards, the VRAM clockpeed offset will only affect the actual memory clockspeed by half of the offset value. \
-For example, a +1000MHz VRAM offset may only increase the measured VRAM speed by 500MHz. \
-This is normal, and is how Nvidia handles GDDR data rates. Adjust your overclock accordingly.
-
-Direct voltage control is not supported, as it does not exist in the Nvidia Linux driver.
-
-It is possible to achieve a pseudo-undervolt by combining the locked clocks option with a positive clockspeed offset. \
-This will force the GPU to run at a voltage that's constrained by the locked clocks, while achieving a higher clockspeed due to the offset. \
-This can cause system instability if pushed too high.\
-";
 
 pub struct ClocksFrame {
     clocks: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
@@ -61,9 +48,9 @@ impl relm4::Component for ClocksFrame {
     type CommandOutput = ();
 
     view! {
-        PageSection::new("Clockspeed and Voltage") {
+        PageSection::new(&fl!(I18N, "overclock-section")) {
             append = &gtk::Label {
-                set_label: WARNING_TEXT,
+                set_label: &fl!(I18N, "oc-warning"),
                 set_wrap_mode: pango::WrapMode::Word,
                 set_halign: gtk::Align::Start,
                 set_margin_horizontal: 5,
@@ -83,7 +70,7 @@ impl relm4::Component for ClocksFrame {
                     set_popover = &gtk::Popover {
                         gtk::Label {
                             set_margin_all: 5,
-                            set_markup: NVIDIA_OC_INFO_TEXT,
+                            set_markup: &fl!(I18N, "nvidia-oc-description"),
                             set_wrap: true,
                             set_max_width_chars: 75,
                         }
@@ -91,7 +78,7 @@ impl relm4::Component for ClocksFrame {
                 },
 
                 append = &gtk::Label {
-                    set_label: "Nvidia Overclocking Information",
+                    set_label: &fl!(I18N, "nvidia-oc-info"),
                     add_css_class: "heading",
                 },
             },
@@ -109,12 +96,12 @@ impl relm4::Component for ClocksFrame {
                     set_hexpand: true,
 
                     append = &gtk::CheckButton {
-                        set_label: Some("Show all P-States"),
+                        set_label: Some(&fl!(I18N, "show-all-pstates")),
                         add_binding["active"]: &model.show_all_pstates,
                     },
 
                     append: gpu_locked_clocks_togglebutton = &gtk::CheckButton {
-                        set_label: Some("Enable GPU Locked Clocks"),
+                        set_label: Some(&fl!(I18N, "enable-gpu-locked-clocks")),
                         add_binding["active"]: &model.enable_gpu_locked_clocks,
                         connect_toggled => move |_| {
                             APP_BROKER.send(AppMsg::SettingsChanged);
@@ -122,7 +109,7 @@ impl relm4::Component for ClocksFrame {
                     },
 
                     append: vram_locked_clocks_togglebutton = &gtk::CheckButton {
-                        set_label: Some("Enable VRAM Locked Clocks"),
+                        set_label: Some(&fl!(I18N, "enable-vram-locked-clocks")),
                         add_binding["active"]: &model.enable_vram_locked_clocks,
                         connect_toggled => move |_| {
                             APP_BROKER.send(AppMsg::SettingsChanged);
@@ -134,7 +121,7 @@ impl relm4::Component for ClocksFrame {
                     add_binding["visible"]: &model.show_all_pstates,
 
                     set_margin_horizontal: 5,
-                    set_markup: "<b>The following values are clock offsets for each P-State, going from highest to lowest.</b>",
+                    set_markup: &fl!(I18N, "pstate-list-description"),
                     set_wrap_mode: pango::WrapMode::Word,
                     set_halign: gtk::Align::Start,
                 },
@@ -147,7 +134,7 @@ impl relm4::Component for ClocksFrame {
             },
 
             append = &gtk::Label {
-                set_label: "No clocks data available",
+                set_label: &fl!(I18N, "no-clocks-data"),
                 set_margin_horizontal: 10,
                 set_halign: gtk::Align::Start,
                 #[watch]
@@ -155,10 +142,10 @@ impl relm4::Component for ClocksFrame {
             },
 
             append = &gtk::Button {
-                set_label: "Reset",
+                set_label: &fl!(I18N, "reset-button"),
                 set_halign: gtk::Align::End,
                 set_margin_horizontal: 5,
-                set_tooltip_text: Some("Warning: this resets all clock settings to defaults!"),
+                set_tooltip_text: Some(&fl!(I18N, "reset-oc-tooltip")),
                 set_css_classes: &["destructive-action"],
                 #[watch]
                 set_visible: !model.clocks.is_empty(),
@@ -319,7 +306,7 @@ impl ClocksFrame {
                             current: sclk_offset,
                             min: sclk_offset_min,
                             max: sclk_offset_max,
-                            custom_title: Some("Maximum GPU Clock Offset (MHz)"),
+                            custom_title: Some(fl!(I18N, "gpu-clock-offset")),
                             is_secondary: false,
                         },
                     );

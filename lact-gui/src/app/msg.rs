@@ -52,7 +52,7 @@ pub enum AppMsg {
 impl AppMsg {
     pub fn ask_confirmation(
         inner: AppMsg,
-        title: &'static str,
+        title: String,
         message: impl Into<String>,
         buttons_type: gtk::ButtonsType,
     ) -> Self {

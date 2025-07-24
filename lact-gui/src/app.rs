@@ -1198,8 +1198,8 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
             DisableOverdrive,
             AppMsg::ask_confirmation(
                 AppMsg::DisableOverdrive,
-                "Disable Overclocking",
-                "This will disable AMD overclocking support (overdrive) on next reboot.",
+                fl!(I18N, "disable-amd-oc"),
+                fl!(I18N, "disable-amd-oc-description"),
                 gtk::ButtonsType::OkCancel,
             )
         ),
@@ -1207,8 +1207,8 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
             ResetConfig,
             AppMsg::ask_confirmation(
                 AppMsg::ResetConfig,
-                "Reset configuration",
-                "Are you sure you want to reset all GPU configuration?",
+                fl!(I18N, "reset-config"),
+                fl!(I18N, "reset-config-description"),
                 gtk::ButtonsType::YesNo,
             )
         ),
