@@ -73,7 +73,6 @@ gpu-temp = GPU Temperature
 gpu-usage = GPU Usage
 vram-clock = VRAM Clock
 power-usage = Power Usage
-show-historical-charts = Show historical charts
 no-throttling = No
 unknown-throttling = Unknown
 missing-stat = N/A
@@ -128,3 +127,11 @@ gpu-pstates = GPU Power States
 vram-pstates = VRAM Power States
 pstates-manual-needed = Note: performance level must be set to 'manual' to toggle power states
 enable-pstate-config = Enable power state configuration
+
+show-historical-charts = Show historical charts
+show-process-montor = Show process monitor
+
+settings-profile = Settings Profile
+auto-switch-profiles = Switch automatically
+add-profile = Add new profile
+import-profile = Import profile from file

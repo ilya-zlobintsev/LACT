@@ -5,13 +5,14 @@ pub mod profile_rule_window;
 
 use crate::{
     app::{header::profile_rule_window::ProfileEditParams, ShowProcessMonitor, APP_BROKER},
-    CONFIG,
+    CONFIG, I18N,
 };
 
 use super::{AppMsg, DebugSnapshot, DisableOverdrive, DumpVBios, ResetConfig, ShowGraphsWindow};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
+use i18n_embed_fl::fl;
 use lact_client::schema::DeviceListEntry;
 use lact_schema::ProfilesInfo;
 use new_profile_dialog::NewProfileDialog;
@@ -89,7 +90,7 @@ impl Component for Header {
                         },
 
                         gtk::Frame {
-                            set_label: Some("Settings Profile"),
+                            set_label: Some(&fl!(I18N, "settings-profile")),
                             set_label_align: 0.05,
                             set_margin_all: 5,
 
@@ -98,7 +99,7 @@ impl Component for Header {
                                 set_spacing: 5,
 
                                 gtk::CheckButton {
-                                    set_label: Some("Switch automatically"),
+                                    set_label: Some(&fl!(I18N, "auto-switch-profiles")),
                                     set_margin_horizontal: 5,
                                     #[watch]
                                     #[block_signal(toggle_auto_profile_handler)]
@@ -125,13 +126,13 @@ impl Component for Header {
                                     gtk::Button {
                                         set_expand: true,
                                         set_icon_name: "list-add",
-                                        set_tooltip: "Add new profile",
+                                        set_tooltip: &fl!(I18N, "add-profile"),
                                         connect_clicked => HeaderMsg::CreateProfile,
                                     },
 
                                     gtk::Button {
                                         set_icon_name: "document-import-symbolic",
-                                        set_tooltip: "Import profile from file",
+                                        set_tooltip: &fl!(I18N, "import-profile"),
                                         set_expand: true,
                                         connect_clicked => HeaderMsg::ImportProfile,
                                     }
