@@ -3,7 +3,7 @@ mod heuristics_list;
 use super::OcPageMsg;
 use crate::{
     app::{msg::AppMsg, page_section::PageSection},
-    APP_BROKER,
+    APP_BROKER, I18N,
 };
 use amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel};
 use gtk::{
@@ -13,6 +13,7 @@ use gtk::{
     StringObject,
 };
 use heuristics_list::PowerProfileHeuristicsList;
+use i18n_embed_fl::fl;
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 
 const PERFORMANCE_LEVELS: [PerformanceLevel; 4] = [
@@ -58,18 +59,18 @@ impl relm4::Component for PerformanceFrame {
 
                 gtk::Label {
                     #[watch]
-                    set_label: match model.performance_level {
-                        Some(PerformanceLevel::Auto) => "Automatically adjust GPU and VRAM clocks. (Default)",
-                        Some(PerformanceLevel::High) => "Always use the highest clockspeeds for GPU and VRAM.",
-                        Some(PerformanceLevel::Low) => "Always use the lowest clockspeeds for GPU and VRAM.",
-                        Some(PerformanceLevel::Manual) => "Manual performance control.",
-                        _ => "",
+                    set_label: &match model.performance_level {
+                        Some(PerformanceLevel::Auto) => fl!(I18N, "performance-level-auto-description"),
+                        Some(PerformanceLevel::High) => fl!(I18N, "performance-level-high-description"),
+                        Some(PerformanceLevel::Low) => fl!(I18N, "performance-level-low-description"),
+                        Some(PerformanceLevel::Manual) => fl!(I18N, "performance-level-manual-description"),
+                        _ => String::new(),
                     },
                     set_hexpand: true,
                     set_halign: gtk::Align::End,
                 },
 
-                gtk::DropDown::from_strings(&PERFORMANCE_LEVELS.map(level_friendly_name)) {
+                gtk::DropDown::from_strings(&level_names_ref) {
                     #[watch]
                     #[block_signal(level_select_handler)]
                     set_selected: PERFORMANCE_LEVELS.iter().position(|level| model.performance_level == Some(*level)).unwrap_or(0) as u32,
@@ -90,7 +91,7 @@ impl relm4::Component for PerformanceFrame {
                 set_spacing: 10,
 
                 gtk::Label {
-                    set_label: "Power Profile Mode:",
+                    set_label: &fl!(I18N, "power-profile-mode"),
                     set_hexpand: true,
                     set_halign: gtk::Align::Start,
                 },
@@ -103,7 +104,7 @@ impl relm4::Component for PerformanceFrame {
                     #[wrap(Some)]
                     set_popover =  &gtk::Popover {
                         gtk::Label {
-                            set_label: "Performance level has to be set to \"manual\" to use power states and modes",
+                            set_label: &fl!(I18N, "manual-level-needed"),
                         }
                     },
                 },
@@ -160,6 +161,12 @@ impl relm4::Component for PerformanceFrame {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let level_names = PERFORMANCE_LEVELS.map(level_friendly_name);
+        let level_names_ref = level_names
+            .iter()
+            .map(|level| level.as_str())
+            .collect::<Vec<&str>>();
+
         let model = Self {
             performance_level: None,
             power_profile_modes_table: None,
@@ -282,11 +289,11 @@ impl PerformanceFrame {
     }
 }
 
-const fn level_friendly_name(level: PerformanceLevel) -> &'static str {
+fn level_friendly_name(level: PerformanceLevel) -> String {
     match level {
-        PerformanceLevel::Auto => "Automatic",
-        PerformanceLevel::Low => "Lowest Clocks",
-        PerformanceLevel::High => "Highest Clocks",
-        PerformanceLevel::Manual => "Manual",
+        PerformanceLevel::Auto => fl!(I18N, "performance-level-auto"),
+        PerformanceLevel::Low => fl!(I18N, "performance-level-low"),
+        PerformanceLevel::High => fl!(I18N, "performance-level-high"),
+        PerformanceLevel::Manual => fl!(I18N, "performance-level-manual"),
     }
 }

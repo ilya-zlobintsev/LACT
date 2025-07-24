@@ -1,7 +1,9 @@
 use crate::app::{
     ext::FlowBoxExt, info_row::InfoRow, page_section::PageSection, pages::PageUpdate,
 };
+use crate::I18N;
 use gtk::prelude::{ActionableExt, BoxExt, ButtonExt, OrientableExt, WidgetExt};
+use i18n_embed_fl::fl;
 use lact_schema::{DeviceStats, PowerStats};
 use relm4::{ComponentParts, ComponentSender};
 use std::{fmt::Write, sync::Arc};
@@ -18,7 +20,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
     type Output = ();
 
     view! {
-        PageSection::new("Statistics") {
+        PageSection::new(&fl!(I18N, "stats-section")) {
             append = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 5,
@@ -44,9 +46,10 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     add_overlay = &gtk::Label {
                         #[watch]
                         set_label: &format!(
-                            "{}/{} MiB",
+                            "{}/{} {}",
                             model.stats.vram.used.unwrap_or(0) / 1024 / 1024,
                             model.stats.vram.total.unwrap_or(0) / 1024 / 1024,
+                            fl!(I18N, "mebibyte")
                         ),
                     }
                 },
@@ -60,7 +63,15 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 set_selection_mode: gtk::SelectionMode::None,
 
                 append_child = &InfoRow {
-                    set_name: "GPU Core Clock (Average):",
+                    #[watch]
+                    set_name: {
+                        if model.stats.clockspeed.gpu_clockspeed.is_some()
+                            && model.stats.clockspeed.current_gfxclk.is_some() {
+                                fl!(I18N, "gpu-clock-avg")
+                            } else {
+                                fl!(I18N, "gpu-clock")
+                            }
+                    },
                     #[watch]
                     set_value: format_clockspeed(model.stats.clockspeed.gpu_clockspeed, 1.0),
                     set_spacing: 40,
@@ -70,7 +81,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 },
 
                 append_child = &InfoRow {
-                    set_name: "GPU Core Clock (Target):",
+                    set_name: fl!(I18N, "gpu-clock-target"),
                     #[watch]
                     set_value: format_current_gfxclk(model.stats.clockspeed.current_gfxclk),
                     set_spacing: 40,
@@ -80,7 +91,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 },
 
                 append_child = &InfoRow {
-                    set_name: "GPU Voltage:",
+                    set_name: fl!(I18N, "gpu-voltage"),
                     #[watch]
                     set_value: format!("{:.3} V", model.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64),
                     set_spacing: 40,
@@ -90,15 +101,14 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 },
 
                 append = &InfoRow {
-                    #[watch]
-                    set_name: "Temperature:",
+                    set_name: fl!(I18N, "gpu-temp"),
                     #[watch]
                     set_value: temperature_text(&model.stats).unwrap_or_else(|| "N/A".to_owned()),
                     set_spacing: 40,
                 },
 
                 append_child = &InfoRow {
-                    set_name: "GPU Memory Clock:",
+                    set_name: fl!(I18N, "vram-clock"),
                     #[watch]
                     set_value: format_clockspeed(
                         model.stats.clockspeed.vram_clockspeed,
@@ -111,7 +121,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 },
 
                 append_child = &InfoRow {
-                    set_name: "GPU Usage:",
+                    set_name: fl!(I18N, "gpu-usage"),
                     #[watch]
                     set_value: format!("{}%", model.stats.busy_percent.unwrap_or(0)),
                     set_spacing: 40,
@@ -121,7 +131,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 },
 
                 append_child = &InfoRow {
-                    set_name: "Power Usage:",
+                    set_name: fl!(I18N, "power-usage"),
                     #[watch]
                     set_value: {
                         let PowerStats {
@@ -136,9 +146,10 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             .or(power_average);
 
                         format!(
-                            "<b>{:.1}/{} W</b>",
+                            "<b>{:.1}/{} {}</b>",
                             power_current.unwrap_or(0.0),
-                            power_cap_current.unwrap_or(0.0)
+                            power_cap_current.unwrap_or(0.0),
+                            fl!(I18N, "watt")
                         )
                     },
                     set_spacing: 40,
@@ -148,7 +159,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 },
 
                 append = &InfoRow {
-                    set_name: "Throttling:",
+                    set_name: fl!(I18N, "throttling"),
                     #[watch]
                     set_value: throttling_text(&model.stats),
                     set_spacing: 40,
@@ -156,7 +167,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
             },
 
             append = &gtk::Button {
-                set_label: "Show historical charts",
+                set_label: &fl!(I18N, "show-historical-charts"),
                 set_action_name: Some("app.show-graphs-window"),
             },
         }
@@ -190,7 +201,11 @@ impl relm4::SimpleComponent for GpuStatsSection {
 }
 
 fn format_clockspeed(value: Option<u64>, ratio: f64) -> String {
-    format!("{:.3} GHz", value.unwrap_or(0) as f64 / 1000.0 * ratio)
+    format!(
+        "{:.3} {}",
+        value.unwrap_or(0) as f64 / 1000.0 * ratio,
+        fl!(I18N, "ghz")
+    )
 }
 
 fn format_current_gfxclk(value: Option<u64>) -> String {
@@ -198,12 +213,12 @@ fn format_current_gfxclk(value: Option<u64>) -> String {
         // if the APU/GPU dose not acually support current_gfxclk,
         // the value will be `u16::MAX (65535)`
         if v >= u16::MAX as u64 || v == 0 {
-            "N/A".to_string()
+            fl!(I18N, "missing-stat")
         } else {
             format_clockspeed(Some(v), 1.0)
         }
     } else {
-        "N/A".to_string()
+        fl!(I18N, "missing-stat")
     }
 }
 
@@ -211,7 +226,7 @@ pub fn throttling_text(stats: &DeviceStats) -> String {
     match &stats.throttle_info {
         Some(throttle_info) => {
             if throttle_info.is_empty() {
-                "No".to_owned()
+                fl!(I18N, "no-throttling")
             } else {
                 let type_text: Vec<String> = throttle_info
                     .iter()
@@ -227,7 +242,9 @@ pub fn throttling_text(stats: &DeviceStats) -> String {
                 type_text.join(", ")
             }
         }
-        None => "Unknown".to_owned(),
+        None => {
+            fl!(I18N, "unknown-throttling")
+        }
     }
 }
 

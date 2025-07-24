@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{
     app::{info_row::InfoRow, msg::AppMsg, page_section::PageSection},
-    APP_BROKER,
+    APP_BROKER, I18N,
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
 use fan_curve_frame::{
@@ -22,6 +22,7 @@ use gtk::{
     prelude::{AdjustmentExt, BoxExt, ButtonExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
     Adjustment,
 };
+use i18n_embed_fl::fl;
 use lact_daemon::AMDGPU_FAMILY_GC_11_0_0;
 use lact_schema::{
     config::{FanControlSettings, FanCurve, GpuConfig},
@@ -107,31 +108,31 @@ impl relm4::Component for ThermalsPage {
                     set_visible: model.system_info.amdgpu_overdrive_enabled == Some(false) && model.has_pmfw,
 
                     gtk::Label {
-                        set_label: "Warning: Overclocking support is disabled, fan control functionality is not available.",
+                        set_label: &fl!(I18N, "oc-missing-fan-control-warning"),
                     },
                 },
 
-                PageSection::new("Monitoring") {
+                PageSection::new(&fl!(I18N, "monitoring-section")) {
                     append = &InfoRow {
-                        set_name: "Temperatures:",
+                        set_name: fl!(I18N, "temperatures"),
                         #[watch]
                         set_value: model.temperatures.as_deref().unwrap_or("No sensors found"),
                     },
 
                     append = &InfoRow {
-                        set_name: "Fan Speed:",
+                        set_name: fl!(I18N, "fan-speed"),
                         #[watch]
                         set_value: model.fan_speed.as_deref().unwrap_or("No fan detected"),
                     },
 
                     append = &InfoRow {
-                        set_name: "Throttling:",
+                        set_name: fl!(I18N, "throttling"),
                         #[watch]
                         set_value: model.throttling.as_str(),
                     },
                 },
 
-                PageSection::new("Fan Control") {
+                PageSection::new(&fl!(I18N, "fan-control-section")) {
                     // Disable fan configuration when overdrive is disabled on GPUs that have PMFW (RDNA3+)
                     #[watch]
                     set_sensitive: model.fan_speed.is_some() && !(model.system_info.amdgpu_overdrive_enabled == Some(false) && model.has_pmfw),
@@ -145,7 +146,7 @@ impl relm4::Component for ThermalsPage {
                         #[watch]
                         set_visible: model.fan_speed.is_some(),
 
-                        add_titled[Some(AUTO_PAGE), "Automatic"] = &gtk::Box {
+                        add_titled[Some(AUTO_PAGE), &fl!(I18N, "auto-page")] = &gtk::Box {
                             set_orientation: gtk::Orientation::Vertical,
                             set_spacing: 5,
 
@@ -156,7 +157,7 @@ impl relm4::Component for ThermalsPage {
 
                                 #[template_child]
                                 label {
-                                    set_label: "Target temperature (°C)",
+                                    set_label: &fl!(I18N, "target-temp"),
                                     set_size_group: &label_size_group,
                                 },
 
@@ -179,7 +180,7 @@ impl relm4::Component for ThermalsPage {
 
                                 #[template_child]
                                 label {
-                                    set_label: "Acoustic Limit (RPM)",
+                                    set_label: &fl!(I18N, "acoustic-limit"),
                                     set_size_group: &label_size_group,
                                 },
 
@@ -202,7 +203,7 @@ impl relm4::Component for ThermalsPage {
 
                                 #[template_child]
                                 label {
-                                    set_label: "Acoustic Target (RPM)",
+                                    set_label: &fl!(I18N, "acoustic-target"),
                                     set_size_group: &label_size_group,
                                 },
 
@@ -225,7 +226,7 @@ impl relm4::Component for ThermalsPage {
 
                                 #[template_child]
                                 label {
-                                    set_label: "Minimum Fan Speed (%)",
+                                    set_label: &fl!(I18N, "min-fan-speed"),
                                     set_size_group: &label_size_group,
                                 },
 
@@ -248,7 +249,7 @@ impl relm4::Component for ThermalsPage {
                                 set_visible: model.pmfw_options.zero_rpm_available.get(),
 
                                 gtk::Label {
-                                    set_label: "Zero RPM",
+                                    set_label: &fl!(I18N, "zero-rpm"),
                                     set_xalign: 0.0,
                                     set_size_group: &label_size_group,
                                 },
@@ -267,7 +268,7 @@ impl relm4::Component for ThermalsPage {
 
                                 #[template_child]
                                 label {
-                                    set_label: "Zero RPM stop temperature (°C)",
+                                    set_label: &fl!(I18N, "zero-rpm-stop-temp"),
                                     set_size_group: &label_size_group,
                                 },
 
@@ -284,10 +285,10 @@ impl relm4::Component for ThermalsPage {
                             },
 
                             gtk::Button {
-                                set_label: "Reset",
+                                set_label: &fl!(I18N, "reset-button"),
                                 set_halign: gtk::Align::End,
                                 set_margin_vertical: 5,
-                                set_tooltip_text: Some("Warning: this resets the fan firmware settings!"),
+                                set_tooltip_text: Some(&fl!(I18N, "pmfw-reset-warning")),
                                 add_css_class: "destructive-action",
                                 set_size_group: &spin_size_group,
                                 #[watch]
@@ -297,8 +298,8 @@ impl relm4::Component for ThermalsPage {
                                 }
                             },
                         },
-                        add_titled[Some(CURVE_PAGE), "Curve"] = model.fan_curve_frame.widget(),
-                        add_titled[Some(STATIC_PAGE), "Static"] = &gtk::Box {
+                        add_titled[Some(CURVE_PAGE), &fl!(I18N, "curve-page")] = model.fan_curve_frame.widget(),
+                        add_titled[Some(STATIC_PAGE), &fl!(I18N, "static-page")] = &gtk::Box {
                             set_valign: gtk::Align::Start,
                             set_orientation: gtk::Orientation::Vertical,
                             set_spacing: 5,
@@ -308,7 +309,7 @@ impl relm4::Component for ThermalsPage {
                             FanSettingRow {
                                 #[template_child]
                                 label {
-                                    set_label: "Static Speed (%)",
+                                    set_label: &fl!(I18N, "static-speed"),
                                 },
 
                                 #[template_child]

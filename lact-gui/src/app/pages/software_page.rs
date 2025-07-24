@@ -2,9 +2,10 @@ mod vulkan;
 
 use crate::{
     app::{format_friendly_size, info_row::InfoRow, page_section::PageSection},
-    GUI_VERSION, REPO_URL,
+    GUI_VERSION, I18N, REPO_URL,
 };
 use gtk::prelude::*;
+use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_client::schema::{SystemInfo, GIT_COMMIT};
 use lact_schema::{DeviceInfo, VulkanInfo};
@@ -42,10 +43,10 @@ impl relm4::SimpleComponent for SoftwarePage {
                 set_spacing: 15,
                 set_margin_horizontal: 20,
 
-                PageSection::new("System") {
-                    append = &InfoRow::new_selectable("LACT Daemon:", &daemon_version),
-                    append = &InfoRow::new_selectable("LACT GUI:", &gui_version),
-                    append = &InfoRow::new_selectable("Kernel Version:", &system_info.kernel_version),
+                PageSection::new(&fl!(I18N, "system-section")) {
+                    append = &InfoRow::new_selectable(&fl!(I18N, "lact-daemon"), &daemon_version),
+                    append = &InfoRow::new_selectable(&fl!(I18N, "lact-gui"), &gui_version),
+                    append = &InfoRow::new_selectable(&fl!(I18N, "kernel-version"), &system_info.kernel_version),
                 },
 
                 #[name = "vulkan_stack"]
@@ -61,32 +62,32 @@ impl relm4::SimpleComponent for SoftwarePage {
                                 append = &gtk::Label {
                                     set_halign: gtk::Align::Start,
                                     set_hexpand: true,
-                                    set_label: "Instance:"
+                                    set_label: &fl!(I18N, "instance"),
                                 },
 
                                 append = model.vulkan_driver_selector.widget(),
                             },
 
                             append = &InfoRow {
-                                set_name: "Device Name:",
+                                set_name: fl!(I18N, "device-name"),
                                 #[watch]
                                 set_value: info.device_name.as_str(),
                                 set_selectable: true,
                             },
                             append = &InfoRow {
-                                set_name: "API Version:",
+                                set_name: fl!(I18N, "api-version"),
                                 #[watch]
                                 set_value: info.api_version.as_str(),
                                 set_selectable: true,
                             },
                             append = &InfoRow {
-                                set_name: "Driver Name:",
+                                set_name: fl!(I18N, "driver-name"),
                                 #[watch]
                                 set_value: info.driver.name.as_deref().unwrap_or_default(),
                                 set_selectable: true,
                             },
                             append = &InfoRow {
-                                set_name: "Driver Version:",
+                                set_name: fl!(I18N, "driver-version"),
                                 #[watch]
                                 set_value: info.driver.info.as_deref().unwrap_or_default(),
                                 set_selectable: true,
@@ -99,12 +100,12 @@ impl relm4::SimpleComponent for SoftwarePage {
                                 append = &gtk::Label {
                                     set_halign: gtk::Align::Start,
                                     set_hexpand: true,
-                                    set_label: "Features:"
+                                    set_label: &format!("{}:", fl!(I18N, "features")),
                                 },
 
                                 append = &gtk::Button {
                                     connect_clicked => SoftwarePageMsg::ShowVulkanFeatures,
-                                    set_label: "Show",
+                                    set_label: &fl!(I18N, "show-button"),
                                 }
                             },
 
@@ -115,12 +116,12 @@ impl relm4::SimpleComponent for SoftwarePage {
                                 append = &gtk::Label {
                                     set_halign: gtk::Align::Start,
                                     set_hexpand: true,
-                                    set_label: "Extensions:"
+                                    set_label: &format!("{}:", fl!(I18N, "extensions")),
                                 },
 
                                 append = &gtk::Button {
                                     connect_clicked => SoftwarePageMsg::ShowVulkanExtensions,
-                                    set_label: "Show",
+                                    set_label: &fl!(I18N, "show-button"),
                                 }
                             },
                         }
@@ -128,7 +129,7 @@ impl relm4::SimpleComponent for SoftwarePage {
                     None => {
                         PageSection::new("Vulkan") {
                             append = &gtk::Label {
-                                set_label: "Vulkan device not found",
+                                set_label: &fl!(I18N, "device-not-found", kind = "Vulkan"),
                                 set_halign: gtk::Align::Start,
                             },
                         }
@@ -140,55 +141,55 @@ impl relm4::SimpleComponent for SoftwarePage {
                     Some(info) => {
                         PageSection::new("OpenCL") {
                             append = &InfoRow {
-                                set_name: "Platform Name:",
+                                set_name: fl!(I18N, "platform-name"),
                                 #[watch]
                                 set_value: info.platform_name.as_str(),
                                 set_selectable: true,
                             },
                             append = &InfoRow {
-                                set_name: "Device Name:",
+                                set_name: fl!(I18N, "device-name"),
                                 #[watch]
                                 set_value: info.device_name.as_str(),
                                 set_selectable: true,
                             },
                             append = &InfoRow {
-                                set_name: "Version:",
+                                set_name: fl!(I18N, "version"),
                                 #[watch]
                                 set_value: info.version.as_str(),
                                 set_selectable: true,
                             },
                             append = &InfoRow {
-                                set_name: "Driver Version:",
+                                set_name: fl!(I18N, "driver-version"),
                                 #[watch]
                                 set_value: info.driver_version.as_str(),
                                 set_selectable: true,
                             },
                             append = &InfoRow {
-                                set_name: "OpenCL C Version:",
+                                set_name: fl!(I18N, "cl-c-version"),
                                 #[watch]
                                 set_value: info.c_version.as_str(),
                                 set_selectable: true,
                             },
                             append = &InfoRow {
-                                set_name: "Compute Units:",
+                                set_name: fl!(I18N, "compute-units"),
                                 #[watch]
                                 set_value: info.compute_units.to_string(),
                                 set_selectable: true,
                             },
                             append = &InfoRow {
-                                set_name: "Workgroup Size:",
+                                set_name: fl!(I18N, "workgroup-size"),
                                 #[watch]
                                 set_value: info.workgroup_size.to_string(),
                                 set_selectable: true,
                             },
                             append = &InfoRow {
-                                set_name: "Global Memory:",
+                                set_name: fl!(I18N, "global-memory"),
                                 #[watch]
                                 set_value: format_friendly_size(info.global_memory),
                                 set_selectable: true,
                             },
                             append = &InfoRow {
-                                set_name: "Local Memory:",
+                                set_name: fl!(I18N, "local-memory"),
                                 #[watch]
                                 set_value: format_friendly_size(info.local_memory),
                                 set_selectable: true,
@@ -198,7 +199,7 @@ impl relm4::SimpleComponent for SoftwarePage {
                     None => {
                         PageSection::new("OpenCL") {
                             append = &gtk::Label {
-                                set_label: "OpenCL device not found",
+                                set_label: &fl!(I18N, "device-not-found", kind = "OpenCL"),
                                 set_halign: gtk::Align::Start,
                             },
                         }

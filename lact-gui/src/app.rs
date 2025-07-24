@@ -11,7 +11,7 @@ mod process_monitor;
 
 use crate::{
     app::process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
-    APP_ID, GUI_VERSION,
+    APP_ID, GUI_VERSION, I18N,
 };
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
@@ -31,6 +31,7 @@ use header::{
     profile_rule_window::{profile_row::ProfileRuleRowMsg, ProfileRuleWindowMsg},
     Header, HeaderMsg,
 };
+use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
     args::GuiArgs,
@@ -130,10 +131,10 @@ impl AsyncComponent for AppModel {
 
                         add_binding: (&model.ui_sensitive, "sensitive"),
 
-                        add_titled[Some("info_page"), "Information"] = model.info_page.widget(),
-                        add_titled[Some("oc_page"), "OC"] = model.oc_page.widget(),
-                        add_titled[Some("thermals_page"), "Thermals"] = model.thermals_page.widget(),
-                        add_titled[Some("software_page"), "Software"] = model.software_page.widget(),
+                        add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
+                        add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
+                        add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
+                        add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
                     },
 
                     model.apply_revealer.widget(),
@@ -1197,8 +1198,8 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
             DisableOverdrive,
             AppMsg::ask_confirmation(
                 AppMsg::DisableOverdrive,
-                "Disable Overclocking",
-                "This will disable AMD overclocking support (overdrive) on next reboot.",
+                fl!(I18N, "disable-amd-oc"),
+                fl!(I18N, "disable-amd-oc-description"),
                 gtk::ButtonsType::OkCancel,
             )
         ),
@@ -1206,8 +1207,8 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
             ResetConfig,
             AppMsg::ask_confirmation(
                 AppMsg::ResetConfig,
-                "Reset configuration",
-                "Are you sure you want to reset all GPU configuration?",
+                fl!(I18N, "reset-config"),
+                fl!(I18N, "reset-config-description"),
                 gtk::ButtonsType::YesNo,
             )
         ),

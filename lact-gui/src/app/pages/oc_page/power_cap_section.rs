@@ -4,12 +4,13 @@ use crate::{
         page_section::PageSection,
         pages::{oc_adjustment::OcAdjustment, PageUpdate},
     },
-    APP_BROKER,
+    APP_BROKER, I18N,
 };
 use gtk::{
     glib::object::ObjectExt,
     prelude::{AdjustmentExt, BoxExt, ButtonExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
 };
+use i18n_embed_fl::fl;
 use lact_schema::PowerStats;
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
 use std::fmt::Write;
@@ -37,7 +38,7 @@ impl relm4::Component for PowerCapSection {
 
     view! {
         #[root]
-        PageSection::new("Power usage limit") {
+        PageSection::new(&fl!(I18N, "power-cap")) {
             append = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
 
@@ -56,7 +57,7 @@ impl relm4::Component for PowerCapSection {
                 },
 
                 gtk::Button {
-                    set_label: "Default",
+                    set_label: &fl!(I18N, "reset-button"),
                     connect_clicked => PowerCapMsg::Reset,
                 },
             }
@@ -113,9 +114,10 @@ impl relm4::Component for PowerCapSection {
                 self.value_text.clear();
                 write!(
                     self.value_text,
-                    "{}/{} W",
+                    "{}/{} {}",
                     self.adjustment.value(),
-                    self.adjustment.upper()
+                    self.adjustment.upper(),
+                    fl!(I18N, "watt")
                 )
                 .unwrap();
             }

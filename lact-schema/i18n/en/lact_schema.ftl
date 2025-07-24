@@ -1,0 +1,24 @@
+gpu-model = GPU Model
+subvendor = Card Manufacturer
+subdevice = Card Model
+driver-used = Driver Used
+vbios-version = VBIOS Version
+vram-size = VRAM Size
+vram-type = VRAM Type
+gpu-family = GPU Family
+asic-name = ASIC Name
+compute-units = Compute Units
+execution-units = Execution Units
+subslices = Subslices
+cuda-cores = CUDA Cores
+hardware-count = {$name} Count
+isa = Instruction Set
+l1-cache-per-cu = L1 Cache (Per CU)
+l2-cache = L2 Cache
+l3-cache = L3 Cache
+rebar = Resizable Bar
+cpu-vram = CPU Accessible VRAM
+pcie-speed = PCIe Link Speed
+
+enabled = Enabled
+disabled = Disabled

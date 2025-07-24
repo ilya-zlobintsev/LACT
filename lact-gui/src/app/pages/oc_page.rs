@@ -5,7 +5,10 @@ mod power_cap_section;
 mod power_states;
 
 use super::PageUpdate;
-use crate::app::{ext::RelmDefaultLauchable, msg::AppMsg};
+use crate::{
+    app::{ext::RelmDefaultLauchable, msg::AppMsg},
+    I18N,
+};
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
@@ -15,6 +18,7 @@ use gtk::{
     pango,
     prelude::{BoxExt, ButtonExt, FrameExt, OrientableExt, WidgetExt},
 };
+use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_daemon::BASE_MODULE_CONF_PATH;
 use lact_schema::{request::SetClocksCommand, ClocksTable, DeviceInfo, PowerStates, SystemInfo};
@@ -23,9 +27,6 @@ use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::sync::Arc;
-
-const OVERCLOCKING_DISABLED_TEXT: &str = "AMD Overclocking support is not enabled! \
-You can still change basic settings, but the more advanced clocks and voltage control will not be available.";
 
 pub struct OcPage {
     stats_section: relm4::Controller<GpuStatsSection>,
@@ -80,20 +81,20 @@ impl relm4::Component for OcPage {
                         set_margin_all: 10,
 
                         gtk::Label {
-                            set_markup: OVERCLOCKING_DISABLED_TEXT,
+                            set_markup: &fl!(I18N, "amd-oc-disabled"),
                             set_wrap: true,
                             set_wrap_mode: pango::WrapMode::Word,
                         },
 
                         gtk::Button {
-                            set_label: "Enable AMD Overclocking",
+                            set_label: &fl!(I18N, "enable-amd-oc"),
                             set_halign: gtk::Align::End,
 
                             connect_clicked[sender] => move |_| {
                                 sender.output(AppMsg::ask_confirmation(
                                     AppMsg::EnableOverdrive,
-                                    "Enable AMD Overclocking",
-                                    format!("This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{BASE_MODULE_CONF_PATH}</b> and updating the initramfs. Are you sure you want to do this?"),
+                                    fl!(I18N, "enable-amd-oc"),
+                                    fl!(I18N, "enable-amd-oc-description", path = BASE_MODULE_CONF_PATH),
                                     gtk::ButtonsType::OkCancel,
                                 )).expect("Channel closed");
                             }
