@@ -26,10 +26,11 @@ dependency on X11 extensions).
 
 - [Installation](#installation)
 - [Hardware support](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Support)
+- [Frequently asked questions](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions)
 - [Enable overclocking on AMD](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD))
 - [Config file reference](./docs/CONFIG.md)
 - [API](./docs/API.md)
-- [Power profiles daemon conflict](#power-profiles-daemon-note)
+- [Power profiles daemon note](#power-profiles-daemon-note)
 - [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock)
 
 # Installation
