@@ -64,18 +64,26 @@ pub struct ClocksConfiguration {
     #[serde(
         default,
         skip_serializing_if = "IndexMap::is_empty",
-        deserialize_with = "offsets::deserialize"
+        deserialize_with = "int_map::deserialize"
     )]
     pub gpu_clock_offsets: IndexMap<u32, i32>,
     #[serde(
         default,
         skip_serializing_if = "IndexMap::is_empty",
-        deserialize_with = "offsets::deserialize"
+        deserialize_with = "int_map::deserialize"
     )]
     pub mem_clock_offsets: IndexMap<u32, i32>,
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "IndexMap::is_empty",
+        deserialize_with = "int_map::deserialize"
+    )]
     pub gpu_vf_curve: IndexMap<u8, CurvePoint>,
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "IndexMap::is_empty",
+        deserialize_with = "int_map::deserialize"
+    )]
     pub mem_vf_curve: IndexMap<u8, CurvePoint>,
     pub voltage_offset: Option<i32>,
 }
@@ -86,23 +94,26 @@ pub struct CurvePoint {
     pub clockspeed: Option<i32>,
 }
 
-mod offsets {
+mod int_map {
     use indexmap::IndexMap;
     use serde::{de::Error, Deserialize, Deserializer};
     use serde_json::Value;
+    use std::hash::Hash;
+    use std::str::FromStr;
 
-    pub fn deserialize<'a, D: Deserializer<'a>>(
-        deserializer: D,
-    ) -> Result<IndexMap<u32, i32>, D::Error> {
-        let map: IndexMap<Value, i32> = IndexMap::deserialize(deserializer)?;
+    pub fn deserialize<'a, D, K, V>(deserializer: D) -> Result<IndexMap<K, V>, D::Error>
+    where
+        D: Deserializer<'a>,
+        K: Deserialize<'a> + Hash + Eq + TryFrom<i64> + FromStr,
+        V: Deserialize<'a>,
+    {
+        let map: IndexMap<Value, V> = IndexMap::deserialize(deserializer)?;
 
         map.into_iter()
             .map(|(key, value)| {
                 let parsed_key = match &key {
-                    Value::Number(number) => {
-                        number.as_i64().and_then(|val| u32::try_from(val).ok())
-                    }
-                    Value::String(s) => s.parse::<u32>().ok(),
+                    Value::Number(number) => number.as_i64().and_then(|val| K::try_from(val).ok()),
+                    Value::String(s) => s.parse::<K>().ok(),
                     _ => None,
                 };
                 let key =
