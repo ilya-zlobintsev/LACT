@@ -369,11 +369,13 @@ impl ClocksFrame {
                             ClockspeedType::MaxCoreClock,
                             table.current_sclk_range.max,
                             table.od_range.sclk,
+                            false,
                         ),
                         (
                             ClockspeedType::MinCoreClock,
                             table.current_sclk_range.min,
                             table.od_range.sclk,
+                            false,
                         ),
                     ]);
                 } else {
@@ -427,21 +429,21 @@ impl ClocksFrame {
                         ClockspeedType::MaxMemoryClock,
                         table.current_mclk_range.max,
                         table.od_range.mclk,
+                        true,
                     ),
                     (
                         ClockspeedType::MinMemoryClock,
                         table.current_mclk_range.min,
                         table.od_range.mclk,
+                        false,
                     ),
                 ]);
 
-                for (i, (clockspeed_type, current_value, range)) in
-                    clocks_types.into_iter().enumerate()
-                {
+                for (clockspeed_type, current_value, range, show_separator) in clocks_types {
                     if let Some(current) = current_value {
                         if let Some((min, max)) = range.and_then(|range| range.into_full()) {
                             let mut data = ClocksData::new(current, min, max);
-                            if i == 0 && !table.vddc_curve.is_empty() {
+                            if show_separator && !self.clocks.is_empty() {
                                 data.show_separator = true;
                             }
 
@@ -457,10 +459,9 @@ impl ClocksFrame {
                         .and_then(|range| range.into_full())
                         .unwrap_or((-DEFAULT_VOLTAGE_OFFSET_RANGE, DEFAULT_VOLTAGE_OFFSET_RANGE));
 
-                    self.clocks.insert(
-                        ClockspeedType::VoltageOffset,
-                        ClocksData::new(current, min, max),
-                    );
+                    let mut data = ClocksData::new(current, min, max);
+                    data.show_separator = true;
+                    self.clocks.insert(ClockspeedType::VoltageOffset, data);
                 }
             }
         }
