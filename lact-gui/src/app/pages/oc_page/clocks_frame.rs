@@ -310,7 +310,9 @@ impl ClocksFrame {
                     );
                 }
 
-                if let Some((min_mclk, max_mclk)) = table.od_range.sclk.into_full() {
+                if let Some((min_mclk, max_mclk)) =
+                    table.od_range.mclk.and_then(|range| range.into_full())
+                {
                     self.add_amd_list(
                         table.mclk_levels.iter().map(|level| level.clockspeed),
                         ClockspeedType::MemVfCurveClock,

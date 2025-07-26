@@ -4,7 +4,7 @@ use crate::{
 };
 use gtk::{
     glib::{object::ObjectExt, SignalHandlerId},
-    prelude::{AdjustmentExt, BoxExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
+    prelude::{AdjustmentExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
 };
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
@@ -65,10 +65,10 @@ impl FactoryComponent for ClockAdjustmentRow {
         #[name = "root_box"]
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 10,
 
             gtk::Separator {
                 set_visible: self.show_separator,
+                set_margin_vertical: 10,
             },
 
             gtk::Box {
