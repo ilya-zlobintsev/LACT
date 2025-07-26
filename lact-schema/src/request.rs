@@ -145,6 +145,10 @@ pub enum ClockspeedType {
     VoltageOffset,
     GpuClockOffset(u32),
     MemClockOffset(u32),
+    GpuVfCurveClock(u8),
+    MemVfCurveClock(u8),
+    GpuVfCurveVoltage(u8),
+    MemVfCurveVoltage(u8),
     Reset,
 }
 

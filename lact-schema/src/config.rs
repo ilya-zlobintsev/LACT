@@ -73,7 +73,17 @@ pub struct ClocksConfiguration {
         deserialize_with = "offsets::deserialize"
     )]
     pub mem_clock_offsets: IndexMap<u32, i32>,
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub gpu_vf_curve: IndexMap<u8, CurvePoint>,
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub mem_vf_curve: IndexMap<u8, CurvePoint>,
     pub voltage_offset: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct CurvePoint {
+    pub voltage: Option<i32>,
+    pub clockspeed: Option<i32>,
 }
 
 mod offsets {
@@ -136,6 +146,18 @@ impl GpuConfig {
                     clocks.mem_clock_offsets.shift_remove(&pstate);
                 }
             },
+            ClockspeedType::GpuVfCurveClock(point) => {
+                clocks.gpu_vf_curve.entry(point).or_default().clockspeed = value;
+            }
+            ClockspeedType::GpuVfCurveVoltage(point) => {
+                clocks.gpu_vf_curve.entry(point).or_default().voltage = value;
+            }
+            ClockspeedType::MemVfCurveClock(point) => {
+                clocks.mem_vf_curve.entry(point).or_default().clockspeed = value;
+            }
+            ClockspeedType::MemVfCurveVoltage(point) => {
+                clocks.mem_vf_curve.entry(point).or_default().voltage = value;
+            }
             ClockspeedType::Reset => {
                 *clocks = ClocksConfiguration::default();
                 assert!(!self.is_core_clocks_used());
