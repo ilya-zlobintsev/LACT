@@ -88,6 +88,7 @@ pub struct ClocksConfiguration {
     pub voltage_offset: Option<i32>,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct CurvePoint {
     pub voltage: Option<i32>,

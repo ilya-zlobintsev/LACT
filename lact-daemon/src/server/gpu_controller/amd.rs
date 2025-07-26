@@ -1239,7 +1239,7 @@ fn apply_clocks_config_to_table(
 
             #[allow(clippy::cast_possible_truncation)]
             if let Some(max_clock) = config.gpu_vf_curve.get(&(table.vddc_curve.len() as u8 - 1)) {
-                table.current_sclk_range.min = max_clock.clockspeed;
+                table.current_sclk_range.max = max_clock.clockspeed;
             }
         }
     }
