@@ -121,6 +121,10 @@ min-gpu-voltage = Minimum GPU Voltage (mV)
 gpu-voltage-offset = GPU voltage offset (mV)
 gpu-pstate-clock-offset = GPU P-State {$pstate} Clock Offset (MHz)
 vram-pstate-clock-offset = VRAM P-State {$pstate} Clock Offset (MHz)
+gpu-pstate-clock = GPU P-State {$pstate} Clock (MHz)
+mem-pstate-clock = VRAM P-State {$pstate} Clock (MHz)
+gpu-pstate-clock-voltage = GPU P-State {$pstate} Voltage (mV)
+mem-pstate-clock-voltage = VRAM P-State {$pstate} Voltage (mV)
 
 pstates = Power States
 gpu-pstates = GPU Power States

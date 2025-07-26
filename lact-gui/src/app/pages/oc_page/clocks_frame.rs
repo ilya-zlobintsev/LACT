@@ -5,7 +5,7 @@ use crate::{
     APP_BROKER, I18N,
 };
 use adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
-use amdgpu_sysfs::gpu_handle::overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTable};
+use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
 use gtk::{
     glib::object::ObjectExt,
     pango,
@@ -21,7 +21,7 @@ use relm4::{
     RelmWidgetExt,
 };
 
-// This is only used on RDNA1 in practice
+// This should not end up being used in practice
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 
 pub struct ClocksFrame {
@@ -87,20 +87,21 @@ impl relm4::Component for ClocksFrame {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
 
-                #[watch]
-                set_visible: model.show_nvidia_options,
-
                 append = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_homogeneous: true,
                     set_hexpand: true,
 
                     append = &gtk::CheckButton {
+                        #[watch]
+                        set_visible: model.clocks.values().any(|row| row.is_secondary),
                         set_label: Some(&fl!(I18N, "show-all-pstates")),
                         add_binding["active"]: &model.show_all_pstates,
                     },
 
                     append: gpu_locked_clocks_togglebutton = &gtk::CheckButton {
+                        #[watch]
+                        set_visible: model.show_nvidia_options,
                         set_label: Some(&fl!(I18N, "enable-gpu-locked-clocks")),
                         add_binding["active"]: &model.enable_gpu_locked_clocks,
                         connect_toggled => move |_| {
@@ -109,6 +110,8 @@ impl relm4::Component for ClocksFrame {
                     },
 
                     append: vram_locked_clocks_togglebutton = &gtk::CheckButton {
+                        #[watch]
+                        set_visible: model.show_nvidia_options,
                         set_label: Some(&fl!(I18N, "enable-vram-locked-clocks")),
                         add_binding["active"]: &model.enable_vram_locked_clocks,
                         connect_toggled => move |_| {
@@ -118,7 +121,9 @@ impl relm4::Component for ClocksFrame {
                 },
 
                 append = &gtk::Label {
-                    add_binding["visible"]: &model.show_all_pstates,
+                    #[watch]
+                    set_visible: model.show_all_pstates.value() && model.show_nvidia_options,
+                    // add_binding["visible"]: &model.show_all_pstates,
 
                     set_margin_horizontal: 5,
                     set_markup: &fl!(I18N, "pstate-list-description"),
@@ -289,88 +294,202 @@ impl ClocksFrame {
     }
 
     fn set_amd_table(&mut self, table: AmdClocksTable) {
-        self.show_all_pstates.set_value(false);
+        match table {
+            AmdClocksTable::Gcn(table) => {
+                let vddc_range = table.od_range.vddc.and_then(|range| range.into_full());
 
-        if let AmdClocksTable::Rdna(table) = &table {
-            if let Some((sclk_offset_min, sclk_offset_max)) = table
-                .od_range
-                .sclk_offset
-                .and_then(|range| range.into_full())
-            {
-                self.show_all_pstates.set_value(true);
+                if let Some((min_sclk, max_sclk)) = table.od_range.sclk.into_full() {
+                    self.add_amd_list(
+                        table.sclk_levels.iter().map(|level| level.clockspeed),
+                        ClockspeedType::GpuVfCurveClock,
+                        min_sclk,
+                        max_sclk,
+                        true,
+                    );
+                }
 
-                if let Some(sclk_offset) = table.sclk_offset {
-                    self.clocks.insert(
-                        ClockspeedType::GpuClockOffset(0),
-                        ClocksData {
-                            current: sclk_offset,
-                            min: sclk_offset_min,
-                            max: sclk_offset_max,
-                            custom_title: Some(fl!(I18N, "gpu-clock-offset")),
-                            is_secondary: false,
-                        },
+                if let Some((min_mclk, max_mclk)) =
+                    table.od_range.mclk.and_then(|range| range.into_full())
+                {
+                    self.add_amd_list(
+                        table.mclk_levels.iter().map(|level| level.clockspeed),
+                        ClockspeedType::MemVfCurveClock,
+                        min_mclk,
+                        max_mclk,
+                        false,
+                    );
+                }
+
+                if let Some((min_vddc, max_vddc)) = vddc_range {
+                    self.add_amd_list(
+                        table.sclk_levels.iter().map(|level| level.voltage),
+                        ClockspeedType::GpuVfCurveVoltage,
+                        min_vddc,
+                        max_vddc,
+                        false,
+                    );
+
+                    self.add_amd_list(
+                        table.mclk_levels.iter().map(|level| level.voltage),
+                        ClockspeedType::MemVfCurveVoltage,
+                        min_vddc,
+                        max_vddc,
+                        false,
                     );
                 }
             }
-        }
+            AmdClocksTable::Rdna(table) => {
+                // RDNA4 clock offset
+                if let Some((sclk_offset_min, sclk_offset_max)) = table
+                    .od_range
+                    .sclk_offset
+                    .and_then(|range| range.into_full())
+                {
+                    if let Some(sclk_offset) = table.sclk_offset {
+                        self.clocks.insert(
+                            ClockspeedType::GpuClockOffset(0),
+                            ClocksData {
+                                current: sclk_offset,
+                                min: sclk_offset_min,
+                                max: sclk_offset_max,
+                                custom_title: Some(fl!(I18N, "gpu-clock-offset")),
+                                is_secondary: false,
+                                show_separator: false,
+                            },
+                        );
+                    }
+                }
 
-        let clocks_types = [
-            (
-                ClockspeedType::MaxCoreClock,
-                table.get_max_sclk(),
-                table.get_max_sclk_range(),
-            ),
-            (
-                ClockspeedType::MaxMemoryClock,
-                table.get_max_mclk(),
-                table.get_max_mclk_range(),
-            ),
-            (
-                ClockspeedType::MaxVoltage,
-                table.get_max_sclk_voltage(),
-                table.get_max_voltage_range(),
-            ),
-            (
-                ClockspeedType::MinCoreClock,
-                table.get_current_sclk_range().min,
-                table.get_min_sclk_range(),
-            ),
-            (
-                ClockspeedType::MinMemoryClock,
-                table.get_current_mclk_range().min,
-                table.get_min_mclk_range(),
-            ),
-            (
-                ClockspeedType::MinVoltage,
-                table
-                    .get_current_voltage_range()
-                    .and_then(|range| range.min),
-                table.get_min_voltage_range(),
-            ),
-        ];
+                let mut clocks_types = Vec::with_capacity(4);
 
-        for (clockspeed_type, current_value, range) in clocks_types {
-            if let Some(current) = current_value {
-                if let Some((min, max)) = range.and_then(|range| range.into_full()) {
-                    self.clocks
-                        .insert(clockspeed_type, ClocksData::new(current, min, max));
+                if table.vddc_curve.is_empty() {
+                    // RDNA2/3 min/max clock values
+                    clocks_types.extend([
+                        (
+                            ClockspeedType::MaxCoreClock,
+                            table.current_sclk_range.max,
+                            table.od_range.sclk,
+                            false,
+                        ),
+                        (
+                            ClockspeedType::MinCoreClock,
+                            table.current_sclk_range.min,
+                            table.od_range.sclk,
+                            false,
+                        ),
+                    ]);
+                } else {
+                    // RDNA1 VF curve
+                    for (i, level) in table.vddc_curve.iter().enumerate().rev() {
+                        if let Some((min_sclk, max_sclk)) = table
+                            .od_range
+                            .curve_sclk_points
+                            .get(i)
+                            .or(table.od_range.sclk.as_ref())
+                            .and_then(|range| range.into_full())
+                        {
+                            self.clocks.insert(
+                                ClockspeedType::GpuVfCurveClock(i as u8),
+                                ClocksData {
+                                    current: level.voltage,
+                                    min: min_sclk,
+                                    max: max_sclk,
+                                    is_secondary: false,
+                                    custom_title: None,
+                                    show_separator: false,
+                                },
+                            );
+                        }
+                    }
+
+                    for (i, level) in table.vddc_curve.iter().enumerate().rev() {
+                        if let Some((min_vddc, max_vddc)) = table
+                            .od_range
+                            .curve_voltage_points
+                            .get(i)
+                            .and_then(|range| range.into_full())
+                        {
+                            self.clocks.insert(
+                                ClockspeedType::GpuVfCurveVoltage(i as u8),
+                                ClocksData {
+                                    current: level.voltage,
+                                    min: min_vddc,
+                                    max: max_vddc,
+                                    is_secondary: false,
+                                    custom_title: None,
+                                    show_separator: i == table.vddc_curve.len() - 1, // Show on first row (reversed count)
+                                },
+                            );
+                        }
+                    }
+                }
+
+                clocks_types.extend([
+                    (
+                        ClockspeedType::MaxMemoryClock,
+                        table.current_mclk_range.max,
+                        table.od_range.mclk,
+                        true,
+                    ),
+                    (
+                        ClockspeedType::MinMemoryClock,
+                        table.current_mclk_range.min,
+                        table.od_range.mclk,
+                        false,
+                    ),
+                ]);
+
+                for (clockspeed_type, current_value, range, show_separator) in clocks_types {
+                    if let Some(current) = current_value {
+                        if let Some((min, max)) = range.and_then(|range| range.into_full()) {
+                            let mut data = ClocksData::new(current, min, max);
+                            if show_separator && !self.clocks.is_empty() {
+                                data.show_separator = true;
+                            }
+
+                            self.clocks.insert(clockspeed_type, data);
+                        }
+                    }
+                }
+
+                if let Some(current) = table.voltage_offset {
+                    let (min, max) = table
+                        .od_range
+                        .voltage_offset
+                        .and_then(|range| range.into_full())
+                        .unwrap_or((-DEFAULT_VOLTAGE_OFFSET_RANGE, DEFAULT_VOLTAGE_OFFSET_RANGE));
+
+                    let mut data = ClocksData::new(current, min, max);
+                    data.show_separator = true;
+                    self.clocks.insert(ClockspeedType::VoltageOffset, data);
                 }
             }
         }
+    }
 
-        if let AmdClocksTable::Rdna(table) = table {
-            if let Some(current) = table.voltage_offset {
-                let (min, max) = table
-                    .od_range
-                    .voltage_offset
-                    .and_then(|range| range.into_full())
-                    .unwrap_or((-DEFAULT_VOLTAGE_OFFSET_RANGE, DEFAULT_VOLTAGE_OFFSET_RANGE));
+    fn add_amd_list(
+        &mut self,
+        values: impl ExactSizeIterator<Item = i32> + DoubleEndedIterator,
+        clock_type: fn(u8) -> ClockspeedType,
+        min: i32,
+        max: i32,
+        disable_separator: bool,
+    ) {
+        let values_len = values.len();
+        for (i, value) in values.enumerate().rev() {
+            let is_secondary = i > 0 && i < values_len - 1;
 
-                self.clocks.insert(
-                    ClockspeedType::VoltageOffset,
-                    ClocksData::new(current, min, max),
-                );
-            }
+            self.clocks.insert(
+                clock_type(i as u8),
+                ClocksData {
+                    current: value,
+                    min,
+                    max,
+                    is_secondary,
+                    custom_title: None,
+                    show_separator: !disable_separator && i == values_len - 1, // Show on first row (reversed count)
+                },
+            );
         }
     }
 
@@ -483,5 +602,6 @@ fn nvidia_clock_offset_to_data(clock_info: &NvidiaClockOffset, is_secondary: boo
         max: clock_info.max,
         custom_title: None,
         is_secondary,
+        show_separator: false,
     }
 }

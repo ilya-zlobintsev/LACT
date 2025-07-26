@@ -173,6 +173,18 @@ gpus:
     max_voltage: 1200
     # Voltage offset value in mV for RDNA and newer AMD GPUs.
     voltage_offset: 0
+
+    # GPU V/F curve with voltage and frequency points per each power state.
+    # Applicable only to AMD GCN and RDNA1 GPUs. Overrides the values of min/max clock/voltage fields.
+    gpu_vf_curve:
+      7:
+        clockspeed: 1590
+        voltage: 1200
+    # VRAM V/F curve with voltage and frequency points per each power state.
+    # Applicable only to AMD GCN GPUs. Overrides the values of min/max memory clock fields.
+    mem_vf_curve:
+      3:
+        clockspeed: 920
     
     # GPU and VRAM clockspeed offset values, per-pstate. Applicable on Nvidia and on AMD RDNA4.
     gpu_clock_offsets:

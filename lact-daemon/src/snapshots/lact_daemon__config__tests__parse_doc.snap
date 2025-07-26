@@ -47,6 +47,13 @@ gpus:
       0: -100
     mem_clock_offsets:
       0: 200
+    gpu_vf_curve:
+      7:
+        voltage: 1200
+        clockspeed: 1590
+    mem_vf_curve:
+      3:
+        clockspeed: 920
     voltage_offset: 0
     power_profile_mode_index: 0
     custom_power_profile_mode_hueristics:
