@@ -360,62 +360,92 @@ impl ClocksFrame {
                     }
                 }
 
-                // RDNA1 VF curve
-                for (i, level) in table.vddc_curve.iter().enumerate() {
-                    if let Some((min_sclk, max_sclk)) = table
-                        .od_range
-                        .curve_sclk_points
-                        .get(i)
-                        .or(table.od_range.sclk.as_ref())
-                        .and_then(|range| range.into_full())
-                    {
-                        self.clocks.insert(
-                            ClockspeedType::GpuVfCurveClock(i as u8),
-                            ClocksData::new(level.clockspeed, min_sclk, max_sclk),
-                        );
+                let mut clocks_types = Vec::with_capacity(4);
+
+                if table.vddc_curve.is_empty() {
+                    // RDNA2/3 min/max clock values
+                    clocks_types.extend([
+                        (
+                            ClockspeedType::MaxCoreClock,
+                            table.current_sclk_range.max,
+                            table.od_range.sclk,
+                        ),
+                        (
+                            ClockspeedType::MinCoreClock,
+                            table.current_sclk_range.min,
+                            table.od_range.sclk,
+                        ),
+                    ]);
+                } else {
+                    // RDNA1 VF curve
+                    for (i, level) in table.vddc_curve.iter().enumerate().rev() {
+                        if let Some((min_sclk, max_sclk)) = table
+                            .od_range
+                            .curve_sclk_points
+                            .get(i)
+                            .or(table.od_range.sclk.as_ref())
+                            .and_then(|range| range.into_full())
+                        {
+                            self.clocks.insert(
+                                ClockspeedType::GpuVfCurveClock(i as u8),
+                                ClocksData {
+                                    current: level.voltage,
+                                    min: min_sclk,
+                                    max: max_sclk,
+                                    is_secondary: false,
+                                    custom_title: None,
+                                    show_separator: false,
+                                },
+                            );
+                        }
                     }
 
-                    if let Some((min_vddc, max_vddc)) = table
-                        .od_range
-                        .curve_voltage_points
-                        .get(i)
-                        .and_then(|range| range.into_full())
-                    {
-                        self.clocks.insert(
-                            ClockspeedType::GpuVfCurveVoltage(i as u8),
-                            ClocksData::new(level.clockspeed, min_vddc, max_vddc),
-                        );
+                    for (i, level) in table.vddc_curve.iter().enumerate().rev() {
+                        if let Some((min_vddc, max_vddc)) = table
+                            .od_range
+                            .curve_voltage_points
+                            .get(i)
+                            .and_then(|range| range.into_full())
+                        {
+                            self.clocks.insert(
+                                ClockspeedType::GpuVfCurveVoltage(i as u8),
+                                ClocksData {
+                                    current: level.voltage,
+                                    min: min_vddc,
+                                    max: max_vddc,
+                                    is_secondary: false,
+                                    custom_title: None,
+                                    show_separator: i == table.vddc_curve.len() - 1, // Show on first row (reversed count)
+                                },
+                            );
+                        }
                     }
                 }
 
-                let clocks_types = [
-                    (
-                        ClockspeedType::MaxCoreClock,
-                        table.current_sclk_range.max,
-                        table.od_range.sclk,
-                    ),
+                clocks_types.extend([
                     (
                         ClockspeedType::MaxMemoryClock,
                         table.current_mclk_range.max,
                         table.od_range.mclk,
                     ),
                     (
-                        ClockspeedType::MinCoreClock,
-                        table.current_sclk_range.min,
-                        table.od_range.sclk,
-                    ),
-                    (
                         ClockspeedType::MinMemoryClock,
                         table.current_mclk_range.min,
                         table.od_range.mclk,
                     ),
-                ];
+                ]);
 
-                for (clockspeed_type, current_value, range) in clocks_types {
+                for (i, (clockspeed_type, current_value, range)) in
+                    clocks_types.into_iter().enumerate()
+                {
                     if let Some(current) = current_value {
                         if let Some((min, max)) = range.and_then(|range| range.into_full()) {
-                            self.clocks
-                                .insert(clockspeed_type, ClocksData::new(current, min, max));
+                            let mut data = ClocksData::new(current, min, max);
+                            if i == 0 && !table.vddc_curve.is_empty() {
+                                data.show_separator = true;
+                            }
+
+                            self.clocks.insert(clockspeed_type, data);
                         }
                     }
                 }
