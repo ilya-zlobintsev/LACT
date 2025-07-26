@@ -294,8 +294,6 @@ impl ClocksFrame {
     }
 
     fn set_amd_table(&mut self, table: AmdClocksTable) {
-        self.show_all_pstates.set_value(false);
-
         match table {
             AmdClocksTable::Gcn(table) => {
                 let vddc_range = table.od_range.vddc.and_then(|range| range.into_full());
