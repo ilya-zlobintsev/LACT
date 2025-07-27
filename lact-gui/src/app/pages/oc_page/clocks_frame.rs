@@ -391,7 +391,7 @@ impl ClocksFrame {
                             self.clocks.insert(
                                 ClockspeedType::GpuVfCurveClock(i as u8),
                                 ClocksData {
-                                    current: level.voltage,
+                                    current: level.clockspeed,
                                     min: min_sclk,
                                     max: max_sclk,
                                     is_secondary: false,
