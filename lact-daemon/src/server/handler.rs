@@ -1,34 +1,40 @@
 use super::{
-    gpu_controller::{fan_control::FanCurveExt, DynGpuController, GpuController},
+    gpu_controller::{common::fan_control::FanCurveExt, DynGpuController, GpuController},
     profiles::ProfileWatcherCommand,
-    system::{self, detect_initramfs_type, PP_FEATURE_MASK_PATH},
+    system::{self, detect_initramfs_type},
 };
 use crate::{
     bindings::intel::IntelDrm,
-    config::{Config, Profile},
+    config::Config,
     server::{gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
+    system::get_os_release,
 };
+use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
     power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
 };
 use anyhow::{anyhow, bail, Context};
 use lact_schema::{
-    config::{default_fan_static_speed, FanControlSettings, FanCurve, GpuConfig},
+    config::{
+        default_fan_static_speed, FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks,
+    },
     default_fan_curve,
     request::{ClockspeedType, ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
-    PowerStates, ProfileRule, ProfileWatcherState, ProfilesInfo,
+    PowerStates, ProcessList, ProfileRule, ProfileWatcherState, ProfilesInfo,
 };
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
+#[cfg(all(not(test), feature = "nvidia"))]
 use nvml_wrapper::Nvml;
-use os_release::OS_RELEASE;
 use pciid_parser::Database;
 use serde_json::json;
+#[cfg(not(test))]
+use std::collections::HashMap;
 use std::{
     cell::{Cell, LazyCell, RefCell},
-    collections::{BTreeMap, HashMap},
+    collections::BTreeMap,
     env,
     fs::{self, File, Permissions},
     io::{BufWriter, Cursor, Write},
@@ -47,45 +53,29 @@ use tracing::{debug, error, info, trace, warn};
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
 const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 3;
 
-const SNAPSHOT_GLOBAL_FILES: &[&str] = &[
-    PP_FEATURE_MASK_PATH,
+const SNAPSHOT_GLOBAL_PATHS: &[&str] = &[
+    "/sys/module/amdgpu/parameters",
     "/etc/lact/config.yaml",
+    "/run/host/root/etc/lact/config.yaml",
     "/proc/version",
+    "/proc/cmdline",
+    "/sys/class/kfd/kfd",
 ];
-const SNAPSHOT_DEVICE_FILES: &[&str] = &[
-    "uevent",
-    "vendor",
-    "pp_cur_state",
-    "pp_dpm_mclk",
-    "pp_dpm_pcie",
-    "pp_dpm_sclk",
-    "pp_dpm_socclk",
-    "pp_features",
-    "pp_force_state",
-    "pp_mclk_od",
-    "pp_num_states",
-    "pp_od_clk_voltage",
-    "pp_power_profile_mode",
-    "pp_sclk_od",
-    "pp_table",
-    "vbios_version",
-    "gpu_busy_percent",
-    "current_link_speed",
-    "current_link_width",
-    "power_dpm_force_performance_level",
-    "mem_info_vram_vendor",
-    "gpu_metrics",
-];
-/// Prefixes for entries that will be recursively included in the debug snapshot
-const SNAPSHOT_DEVICE_RECURSIVE_PATHS_PREFIXES: &[&str] = &["tile"];
-const SNAPSHOT_FAN_CTRL_FILES: &[&str] = &[
-    "fan_curve",
-    "acoustic_limit_rpm_threshold",
-    "acoustic_target_rpm_threshold",
-    "fan_minimum_pwm",
-    "fan_target_temperature",
-    "fan_zero_rpm_enable",
-    "fan_zero_rpm_stop_temperature",
+const SNAPSHOT_EXCLUDED_FILENAME_PREFIXES: &[&str] = &[
+    "serial_number",
+    "autosuspend_delay_ms",
+    "new_device",
+    "delete_device",
+    "remove",
+    "rescan",
+    "reset",
+    "rom",
+    "resource",
+    "i2c",
+    "drm",
+    "graphics",
+    "pcie_bw",
+    "msi_irqs",
 ];
 const CONFIG_RESET_CMDLINE_ARG: &str = "lact-reset";
 
@@ -297,29 +287,35 @@ impl<'a> Handler {
             ));
         }
 
-        let (gpu_config, apply_timer) = {
+        let (previous_config, apply_timer) = {
             let config = self.config.read().await;
             let apply_timer = config.apply_settings_timer;
             let gpu_config = config.gpus()?.get(&id).cloned().unwrap_or_default();
             (gpu_config, apply_timer)
         };
 
-        let mut new_config = gpu_config.clone();
+        let mut new_config = previous_config.clone();
         f(&mut new_config);
 
         let controller = self.controller_by_id(&id).await?;
 
         match controller.apply_config(&new_config).await {
             Ok(()) => {
-                self.wait_config_confirm(id, gpu_config, new_config, apply_timer)?;
+                self.config
+                    .write()
+                    .await
+                    .gpus_mut()?
+                    .insert(id.clone(), new_config);
+                self.wait_config_confirm(id, previous_config, apply_timer)?;
+
                 Ok(apply_timer)
             }
             Err(apply_err) => {
                 error!("could not apply settings: {apply_err:?}");
-                match controller.apply_config(&gpu_config).await {
+                match controller.apply_config(&previous_config).await {
                     Ok(()) => Err(apply_err.context("Could not apply settings")),
                     Err(err) => Err(apply_err.context(err.context(
-                        "Could not apply settings, and could not reset to default settings",
+                        "Could not apply settings, and could not reset to previous settings",
                     ))),
                 }
             }
@@ -331,7 +327,6 @@ impl<'a> Handler {
         &self,
         id: String,
         previous_config: GpuConfig,
-        new_config: GpuConfig,
         apply_timer: u64,
     ) -> anyhow::Result<()> {
         let (tx, rx) = oneshot::channel();
@@ -361,19 +356,21 @@ impl<'a> Handler {
                         Ok(ConfirmCommand::Confirm) => {
                             info!("saving updated config");
 
-                            let mut config_guard = handler.config.write().await;
-                            match config_guard.gpus_mut() {
-                                Ok(gpus) => {
-                                    gpus.insert(id, new_config);
-                                }
-                                Err(err) => error!("{err:#}"),
-                            }
-
-                            if let Err(err) = config_guard.save(&handler.config_last_saved) {
+                            if let Err(err) = handler.config.read().await.save(&handler.config_last_saved) {
                                 error!("{err:#}");
                             }
                         }
                         Ok(ConfirmCommand::Revert) | Err(_) => {
+                            let mut config_guard = handler.config.write().await;
+                            match config_guard.gpus_mut() {
+                                Ok(gpus) => {
+                                    gpus.insert(id, previous_config.clone());
+                                }
+                                Err(err) => {
+                                    error!("could not revert config: {err}") ;
+                                }
+                            }
+
                             if let Err(err) = controller.apply_config(&previous_config).await {
                                 error!("could not revert settings: {err:#}");
                             }
@@ -412,9 +409,12 @@ impl<'a> Handler {
                     .device_pci_info
                     .model
                     .clone();
+                let device_type = controller.device_type();
+
                 DeviceListEntry {
                     id: id.to_owned(),
                     name,
+                    device_type,
                 }
             })
             .collect()
@@ -644,34 +644,16 @@ impl<'a> Handler {
 
         let mut archive = tar::Builder::new(out_writer);
 
-        for path in SNAPSHOT_GLOBAL_FILES {
+        for path in SNAPSHOT_GLOBAL_PATHS {
             let path = Path::new(path);
-            add_path_to_archive(&mut archive, path)?;
+            add_path_recursively(&mut archive, path, Path::new("/"))?;
         }
 
         let controllers = self.gpu_controllers.read().await;
         for controller in controllers.values() {
             let controller_path = &controller.controller_info().sysfs_path;
 
-            for device_file in SNAPSHOT_DEVICE_FILES {
-                let full_path = controller_path.join(device_file);
-                add_path_to_archive(&mut archive, &full_path)?;
-            }
-
-            let device_files = fs::read_dir(controller_path)
-                .context("Could not read device dir")?
-                .flatten();
-
-            for device_entry in device_files {
-                if let Some(entry_name) = device_entry.file_name().to_str() {
-                    if SNAPSHOT_DEVICE_RECURSIVE_PATHS_PREFIXES
-                        .iter()
-                        .any(|prefix| entry_name.starts_with(prefix))
-                    {
-                        add_path_recursively(&mut archive, &device_entry.path(), controller_path)?;
-                    }
-                }
-            }
+            add_path_recursively(&mut archive, controller_path, controller_path)?;
 
             let card_path = controller_path.parent().unwrap();
             let card_files = fs::read_dir(card_path)
@@ -691,22 +673,13 @@ impl<'a> Handler {
                 add_path_recursively(&mut archive, &gt_path, card_path)?;
             }
 
-            let fan_ctrl_path = controller_path.join("gpu_od").join("fan_ctrl");
-            for fan_ctrl_file in SNAPSHOT_FAN_CTRL_FILES {
-                let full_path = fan_ctrl_path.join(fan_ctrl_file);
-                add_path_to_archive(&mut archive, &full_path)?;
-            }
-
-            let hwmon_path = controller_path.join("hwmon");
-            if hwmon_path.exists() {
-                add_path_recursively(&mut archive, &hwmon_path, controller_path)?;
+            let gpu_od_path = controller_path.join("gpu_od");
+            if gpu_od_path.exists() {
+                add_path_recursively(&mut archive, &gpu_od_path, controller_path)?;
             }
         }
 
-        let service_journal_output = Command::new("journalctl")
-            .args(["-u", "lactd", "-b"])
-            .output()
-            .await;
+        let service_journal_output = run_command("journalctl", &["-u", "lactd", "-b"]).await;
 
         match service_journal_output {
             Ok(output) => {
@@ -722,14 +695,14 @@ impl<'a> Handler {
                     .append_data(&mut header, "lactd.log", Cursor::new(output.stdout))
                     .context("Could not write data to archive")?;
             }
-            Err(err) => warn!("could not read service log: {err}"),
+            Err(err) => warn!("could not read service log: {err:#}"),
         }
 
         let system_info = system::info()
             .await
             .ok()
             .map(|info| serde_json::to_value(info).unwrap());
-        let initramfs_type = match OS_RELEASE.as_ref() {
+        let initramfs_type = match get_os_release().as_ref() {
             Ok(os_release) => detect_initramfs_type(os_release)
                 .await
                 .map(|initramfs_type| serde_json::to_value(initramfs_type).unwrap()),
@@ -804,10 +777,25 @@ impl<'a> Handler {
                 .iter()
                 .map(|(name, profile)| (name.to_string(), profile.rule.clone()))
                 .collect(),
+            profile_hooks: config
+                .profiles
+                .iter()
+                .map(|(name, profile)| (name.to_string(), profile.hooks.clone()))
+                .collect(),
             current_profile: config.current_profile.as_ref().map(Rc::to_string),
             auto_switch: config.auto_switch_profiles,
             watcher_state,
         }
+    }
+
+    pub async fn get_profile(&self, name: Option<Rc<str>>) -> anyhow::Result<Option<Profile>> {
+        let config = self.config.read().await;
+
+        let profile = match name {
+            Some(profile) => config.profiles.get(&profile).cloned(),
+            None => Some(config.default_profile()),
+        };
+        Ok(profile)
     }
 
     pub async fn set_profile(
@@ -830,14 +818,34 @@ impl<'a> Handler {
     }
 
     pub(super) async fn set_current_profile(&self, name: Option<Rc<str>>) -> anyhow::Result<()> {
-        if let Some(name) = &name {
-            self.config.read().await.profile(name)?;
+        let mut activation_hook = None;
+        let mut deactivation_hook = None;
+        {
+            let config = self.config.read().await;
+            // Make sure the profile exists
+            if let Some(name) = &name {
+                let new_profile = config.profile(name)?;
+                activation_hook.clone_from(&new_profile.hooks.activated);
+            }
+
+            if let Some(old_profile) = &config.current_profile {
+                if let Some(old_profile) = config.profiles.get(old_profile) {
+                    deactivation_hook.clone_from(&old_profile.hooks.deactivated);
+                }
+            }
         }
 
         self.cleanup().await;
         self.config.write().await.current_profile = name;
 
         self.apply_current_config().await?;
+
+        if let Some(deactivated) = &deactivation_hook {
+            run_hook_command(deactivated).await?;
+        }
+        if let Some(activated) = &activation_hook {
+            run_hook_command(activated).await?;
+        }
 
         Ok(())
     }
@@ -853,6 +861,7 @@ impl<'a> Handler {
                 ProfileBase::Empty => Profile::default(),
                 ProfileBase::Default => config.default_profile(),
                 ProfileBase::Profile(name) => config.profile(&name)?.clone(),
+                ProfileBase::Provided(profile) => profile,
             };
             config.profiles.insert(name.into(), profile);
             config.save(&self.config_last_saved)?;
@@ -915,16 +924,20 @@ impl<'a> Handler {
         &self,
         name: &str,
         rule: Option<ProfileRule>,
+        hooks: ProfileHooks,
     ) -> anyhow::Result<()> {
-        self.config
-            .write()
-            .await
-            .profiles
-            .get_mut(name)
-            .with_context(|| format!("Profile {name} not found"))?
-            .rule = rule;
+        {
+            let mut config = self.config.write().await;
+            let profile = config
+                .profiles
+                .get_mut(name)
+                .with_context(|| format!("Profile {name} not found"))?;
 
-        self.config.read().await.save(&self.config_last_saved)?;
+            profile.rule = rule;
+            profile.hooks = hooks;
+
+            config.save(&self.config_last_saved)?;
+        }
 
         let tx = self.profile_watcher_tx.borrow().clone();
         if let Some(tx) = tx {
@@ -932,6 +945,10 @@ impl<'a> Handler {
         }
 
         Ok(())
+    }
+
+    pub async fn process_list(&self, id: &str) -> anyhow::Result<ProcessList> {
+        self.controller_by_id(id).await?.process_list()
     }
 
     pub async fn get_gpu_config(&self, id: &str) -> anyhow::Result<Option<GpuConfig>> {
@@ -1021,8 +1038,23 @@ async fn apply_config_to_controllers(
     Ok(())
 }
 
-fn read_pci_db() -> Database {
-    Database::read().unwrap_or_else(|err| {
+#[cfg(test)]
+pub(crate) fn read_pci_db() -> Database {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/data/pci.ids");
+    Database::read_from_file(&path).unwrap()
+}
+
+#[cfg(not(test))]
+pub(crate) fn read_pci_db() -> Database {
+    let result = if let Some(db_path) = env::var("LACT_PCI_DB_PATH")
+        .ok()
+        .filter(|value| !value.is_empty())
+    {
+        Database::read_from_file(db_path)
+    } else {
+        Database::read()
+    };
+    result.unwrap_or_else(|err| {
         warn!("could not read PCI ID database: {err}, device information will be limited");
         Database {
             vendors: HashMap::new(),
@@ -1038,19 +1070,41 @@ fn load_controllers(
 ) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
     let mut controllers = BTreeMap::new();
 
-    #[cfg(not(test))]
-    let nvml: LazyCell<Option<Rc<Nvml>>> = LazyCell::new(|| match Nvml::init() {
+    #[cfg(all(not(test), feature = "nvidia"))]
+    let nvml: LazyCell<Option<NvidiaLibs>> = LazyCell::new(|| match Nvml::init() {
         Ok(nvml) => {
+            use crate::server::gpu_controller::NvApi;
+
+            // The config has to be re-read here, because a LazyCell cannot capture external variables into the init closure
+            let disable_nvapi = Config::load()
+                .ok()
+                .flatten()
+                .and_then(|config| config.daemon.disable_nvapi);
+
             info!("Nvidia management library loaded");
-            Some(Rc::new(nvml))
+            let nvapi = if disable_nvapi == Some(true) {
+                info!("NvAPI support is disabled");
+                None
+            } else {
+                NvApi::new()
+                    .inspect(|_| {
+                        info!("NvAPI library loaded");
+                    })
+                    .inspect_err(|err| {
+                        error!("could not load NvAPI library: {err:#}");
+                    })
+                    .ok()
+            };
+
+            Some((Rc::new(nvml), Rc::new(nvapi)))
         }
         Err(err) => {
             error!("could not load Nvidia management library: {err}");
             None
         }
     });
-    #[cfg(test)]
-    let nvml: LazyCell<Option<Rc<Nvml>>> = LazyCell::new(|| None);
+    #[cfg(any(test, not(feature = "nvidia")))]
+    let nvml: LazyCell<Option<NvidiaLibs>> = LazyCell::new(|| None);
 
     let amd_drm: LazyCell<Option<LibDrmAmdgpu>> = LazyCell::new(|| match LibDrmAmdgpu::new() {
         Ok(drm) => {
@@ -1119,10 +1173,19 @@ fn load_controllers(
 fn add_path_recursively(
     archive: &mut tar::Builder<impl Write>,
     entry_path: &Path,
-    controller_path: &Path,
+    prefix: &Path,
 ) -> anyhow::Result<()> {
     if let Ok(entries) = fs::read_dir(entry_path) {
         for entry in entries.flatten() {
+            if entry.file_name().to_str().is_some_and(|name| {
+                SNAPSHOT_EXCLUDED_FILENAME_PREFIXES
+                    .iter()
+                    .any(|prefix| name.starts_with(prefix))
+            }) {
+                debug!("skipping path '{}'", entry.path().display());
+                continue;
+            }
+
             match entry.metadata() {
                 Ok(metadata) => {
                     // Skip symlinks
@@ -1130,11 +1193,11 @@ fn add_path_recursively(
                         continue;
                     }
 
-                    let full_path = controller_path.join(entry.path());
+                    let full_path = prefix.join(entry.path());
                     if metadata.is_file() {
                         add_path_to_archive(archive, &full_path)?;
                     } else if metadata.is_dir() {
-                        add_path_recursively(archive, &full_path, controller_path)?;
+                        add_path_recursively(archive, &full_path, prefix)?;
                     }
                 }
                 Err(err) => {
@@ -1144,6 +1207,11 @@ fn add_path_recursively(
                     );
                 }
             }
+        }
+    } else if let Ok(metadata) = fs::metadata(entry_path) {
+        if metadata.is_file() {
+            let full_path = prefix.join(entry_path);
+            add_path_to_archive(archive, &full_path)?;
         }
     }
 
@@ -1188,4 +1256,22 @@ fn drm_base_path() -> PathBuf {
         Ok(custom_path) => PathBuf::from(custom_path),
         Err(_) => PathBuf::from("/sys/class/drm"),
     }
+}
+
+async fn run_hook_command(command: &str) -> anyhow::Result<()> {
+    let output = Command::new("sh").arg("-c").arg(command).output().await?;
+
+    if !output.status.success() {
+        let mut error_text = String::new();
+        error_text.push_str(&String::from_utf8_lossy(&output.stdout));
+        error_text.push(' ');
+        error_text.push_str(&String::from_utf8_lossy(&output.stderr));
+
+        warn!(
+            "command hook exited with status {}: {error_text}",
+            output.status
+        );
+    }
+
+    Ok(())
 }

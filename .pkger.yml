@@ -11,12 +11,6 @@ images:
   - name: debian-12
     target: deb
     os: Debian
-  - name: fedora-39
-    target: rpm
-    os: Fedora
-  - name: fedora-40
-    target: rpm
-    os: Fedora
   - name: fedora-41
     target: rpm
   - name: fedora-42

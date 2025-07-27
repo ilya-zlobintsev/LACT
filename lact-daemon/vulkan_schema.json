@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://schema.khronos.org/vulkan/profiles-0.8.2-309.json#",
-    "title": "Vulkan Profiles Schema for Vulkan 1.4.309",
+    "$id": "https://schema.khronos.org/vulkan/profiles-0.8.2-319.json#",
+    "title": "Vulkan Profiles Schema for Vulkan 1.4.319",
     "additionalProperties": true,
     "required": [
         "capabilities",
@@ -629,6 +629,27 @@
                 }
             }
         },
+        "VkPhysicalDeviceDataGraphFeaturesARM": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "dataGraph": {
+                    "type": "boolean"
+                },
+                "dataGraphDescriptorBuffer": {
+                    "type": "boolean"
+                },
+                "dataGraphShaderModule": {
+                    "type": "boolean"
+                },
+                "dataGraphSpecializationConstants": {
+                    "type": "boolean"
+                },
+                "dataGraphUpdateAfterBind": {
+                    "type": "boolean"
+                }
+            }
+        },
         "VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV": {
             "type": "object",
             "additionalProperties": false,
@@ -706,6 +727,15 @@
                     "type": "boolean"
                 },
                 "descriptorBufferPushDescriptors": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceDescriptorBufferTensorFeaturesARM": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "descriptorBufferTensorDescriptors": {
                     "type": "boolean"
                 }
             }
@@ -1064,6 +1094,15 @@
                 }
             }
         },
+        "VkPhysicalDeviceFormatPackFeaturesARM": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "formatPack": {
+                    "type": "boolean"
+                }
+            }
+        },
         "VkPhysicalDeviceFragmentDensityMap2FeaturesEXT": {
             "type": "object",
             "additionalProperties": false,
@@ -1088,7 +1127,16 @@
                 }
             }
         },
-        "VkPhysicalDeviceFragmentDensityMapOffsetFeaturesQCOM": {
+        "VkPhysicalDeviceFragmentDensityMapLayeredFeaturesVALVE": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "fragmentDensityMapLayered": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceFragmentDensityMapOffsetFeaturesEXT": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
@@ -1435,6 +1483,15 @@
             "additionalProperties": false,
             "properties": {
                 "maintenance8": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceMaintenance9FeaturesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "maintenance9": {
                     "type": "boolean"
                 }
             }
@@ -1787,6 +1844,15 @@
                 }
             }
         },
+        "VkPhysicalDevicePresentId2FeaturesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "presentId2": {
+                    "type": "boolean"
+                }
+            }
+        },
         "VkPhysicalDevicePresentIdFeaturesKHR": {
             "type": "object",
             "additionalProperties": false,
@@ -1810,6 +1876,15 @@
             "additionalProperties": false,
             "properties": {
                 "presentModeFifoLatestReady": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDevicePresentWait2FeaturesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "presentWait2": {
                     "type": "boolean"
                 }
             }
@@ -2033,7 +2108,7 @@
                 }
             }
         },
-        "VkPhysicalDeviceRobustness2FeaturesEXT": {
+        "VkPhysicalDeviceRobustness2FeaturesKHR": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
@@ -2189,6 +2264,21 @@
                 }
             }
         },
+        "VkPhysicalDeviceShaderBfloat16FeaturesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "shaderBFloat16CooperativeMatrix": {
+                    "type": "boolean"
+                },
+                "shaderBFloat16DotProduct": {
+                    "type": "boolean"
+                },
+                "shaderBFloat16Type": {
+                    "type": "boolean"
+                }
+            }
+        },
         "VkPhysicalDeviceShaderClockFeaturesKHR": {
             "type": "object",
             "additionalProperties": false,
@@ -2266,6 +2356,18 @@
                     "type": "boolean"
                 },
                 "shaderInt8": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceShaderFloat8FeaturesEXT": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "shaderFloat8": {
+                    "type": "boolean"
+                },
+                "shaderFloat8CooperativeMatrix": {
                     "type": "boolean"
                 }
             }
@@ -2495,6 +2597,30 @@
                 }
             }
         },
+        "VkPhysicalDeviceTensorFeaturesARM": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "descriptorBindingStorageTensorUpdateAfterBind": {
+                    "type": "boolean"
+                },
+                "shaderStorageTensorArrayDynamicIndexing": {
+                    "type": "boolean"
+                },
+                "shaderStorageTensorArrayNonUniformIndexing": {
+                    "type": "boolean"
+                },
+                "shaderTensorAccess": {
+                    "type": "boolean"
+                },
+                "tensorNonPacked": {
+                    "type": "boolean"
+                },
+                "tensors": {
+                    "type": "boolean"
+                }
+            }
+        },
         "VkPhysicalDeviceTexelBufferAlignmentFeaturesEXT": {
             "type": "object",
             "additionalProperties": false,
@@ -2513,11 +2639,68 @@
                 }
             }
         },
+        "VkPhysicalDeviceTileMemoryHeapFeaturesQCOM": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "tileMemoryHeap": {
+                    "type": "boolean"
+                }
+            }
+        },
         "VkPhysicalDeviceTilePropertiesFeaturesQCOM": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
                 "tileProperties": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceTileShadingFeaturesQCOM": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "tileShading": {
+                    "type": "boolean"
+                },
+                "tileShadingAnisotropicApron": {
+                    "type": "boolean"
+                },
+                "tileShadingApron": {
+                    "type": "boolean"
+                },
+                "tileShadingAtomicOps": {
+                    "type": "boolean"
+                },
+                "tileShadingColorAttachments": {
+                    "type": "boolean"
+                },
+                "tileShadingDepthAttachments": {
+                    "type": "boolean"
+                },
+                "tileShadingDispatchTile": {
+                    "type": "boolean"
+                },
+                "tileShadingFragmentStage": {
+                    "type": "boolean"
+                },
+                "tileShadingImageProcessing": {
+                    "type": "boolean"
+                },
+                "tileShadingInputAttachments": {
+                    "type": "boolean"
+                },
+                "tileShadingPerTileDispatch": {
+                    "type": "boolean"
+                },
+                "tileShadingPerTileDraw": {
+                    "type": "boolean"
+                },
+                "tileShadingSampledAttachments": {
+                    "type": "boolean"
+                },
+                "tileShadingStencilAttachments": {
                     "type": "boolean"
                 }
             }
@@ -2539,6 +2722,18 @@
                     "type": "boolean"
                 },
                 "transformFeedback": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "unifiedImageLayouts": {
+                    "type": "boolean"
+                },
+                "unifiedImageLayoutsVideo": {
                     "type": "boolean"
                 }
             }
@@ -2590,6 +2785,15 @@
             "additionalProperties": false,
             "properties": {
                 "vertexInputDynamicState": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceVideoDecodeVP9FeaturesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "videoDecodeVP9": {
                     "type": "boolean"
                 }
             }
@@ -2995,6 +3199,15 @@
             "additionalProperties": false,
             "properties": {
                 "ycbcrImageArrays": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceZeroInitializeDeviceMemoryFeaturesEXT": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "zeroInitializeDeviceMemory": {
                     "type": "boolean"
                 }
             }
@@ -3703,6 +3916,7 @@
         "VkQueueFlagBits": {
             "enum": [
                 "VK_QUEUE_COMPUTE_BIT",
+                "VK_QUEUE_DATA_GRAPH_BIT_ARM",
                 "VK_QUEUE_GRAPHICS_BIT",
                 "VK_QUEUE_OPTICAL_FLOW_BIT_NV",
                 "VK_QUEUE_PROTECTED_BIT",
@@ -3754,6 +3968,7 @@
                 "VK_RESOLVE_MODE_AVERAGE_BIT",
                 "VK_RESOLVE_MODE_AVERAGE_BIT_KHR",
                 "VK_RESOLVE_MODE_EXTERNAL_FORMAT_DOWNSAMPLE_ANDROID",
+                "VK_RESOLVE_MODE_EXTERNAL_FORMAT_DOWNSAMPLE_BIT_ANDROID",
                 "VK_RESOLVE_MODE_MAX_BIT",
                 "VK_RESOLVE_MODE_MAX_BIT_KHR",
                 "VK_RESOLVE_MODE_MIN_BIT",
@@ -3899,6 +4114,21 @@
                     "$ref": "#/definitions/size_t"
                 },
                 "uniformTexelBufferDescriptorSize": {
+                    "$ref": "#/definitions/size_t"
+                }
+            }
+        },
+        "VkPhysicalDeviceDescriptorBufferTensorPropertiesARM": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "tensorCaptureReplayDescriptorDataSize": {
+                    "$ref": "#/definitions/size_t"
+                },
+                "tensorDescriptorSize": {
+                    "$ref": "#/definitions/size_t"
+                },
+                "tensorViewCaptureReplayDescriptorDataSize": {
                     "$ref": "#/definitions/size_t"
                 }
             }
@@ -4218,6 +4448,7 @@
                 "VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR",
                 "VK_BUFFER_USAGE_STORAGE_BUFFER_BIT",
                 "VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT",
+                "VK_BUFFER_USAGE_TILE_MEMORY_BIT_QCOM",
                 "VK_BUFFER_USAGE_TRANSFER_DST_BIT",
                 "VK_BUFFER_USAGE_TRANSFER_SRC_BIT",
                 "VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT",
@@ -4254,6 +4485,8 @@
                 "VK_IMAGE_USAGE_SAMPLE_WEIGHT_BIT_QCOM",
                 "VK_IMAGE_USAGE_SHADING_RATE_IMAGE_BIT_NV",
                 "VK_IMAGE_USAGE_STORAGE_BIT",
+                "VK_IMAGE_USAGE_TENSOR_ALIASING_BIT_ARM",
+                "VK_IMAGE_USAGE_TILE_MEMORY_BIT_QCOM",
                 "VK_IMAGE_USAGE_TRANSFER_DST_BIT",
                 "VK_IMAGE_USAGE_TRANSFER_SRC_BIT",
                 "VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT",
@@ -4286,6 +4519,18 @@
                 },
                 "extendedSparseImageUsageFlags": {
                     "$ref": "#/definitions/VkImageUsageFlags"
+                }
+            }
+        },
+        "VkPhysicalDeviceExternalComputeQueuePropertiesNV": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "externalDataSize": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "maxExternalQueues": {
+                    "$ref": "#/definitions/uint32_t"
                 }
             }
         },
@@ -4406,6 +4651,15 @@
                 }
             }
         },
+        "VkPhysicalDeviceFragmentDensityMapLayeredPropertiesVALVE": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "maxFragmentDensityMapLayers": {
+                    "$ref": "#/definitions/uint32_t"
+                }
+            }
+        },
         "VkExtent2D": {
             "type": "object",
             "additionalProperties": false,
@@ -4418,7 +4672,7 @@
                 }
             }
         },
-        "VkPhysicalDeviceFragmentDensityMapOffsetPropertiesQCOM": {
+        "VkPhysicalDeviceFragmentDensityMapOffsetPropertiesEXT": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
@@ -4529,10 +4783,62 @@
                 }
             }
         },
+        "VkImageLayout": {
+            "enum": [
+                "VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT",
+                "VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL",
+                "VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR",
+                "VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL",
+                "VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL",
+                "VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR",
+                "VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL",
+                "VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL_KHR",
+                "VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL",
+                "VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL_KHR",
+                "VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL",
+                "VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR",
+                "VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL",
+                "VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL",
+                "VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT",
+                "VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR",
+                "VK_IMAGE_LAYOUT_GENERAL",
+                "VK_IMAGE_LAYOUT_PREINITIALIZED",
+                "VK_IMAGE_LAYOUT_PRESENT_SRC_KHR",
+                "VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL",
+                "VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL_KHR",
+                "VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ",
+                "VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR",
+                "VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL",
+                "VK_IMAGE_LAYOUT_SHADING_RATE_OPTIMAL_NV",
+                "VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR",
+                "VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL",
+                "VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL_KHR",
+                "VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL",
+                "VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL_KHR",
+                "VK_IMAGE_LAYOUT_TENSOR_ALIASING_ARM",
+                "VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL",
+                "VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL",
+                "VK_IMAGE_LAYOUT_UNDEFINED",
+                "VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR",
+                "VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR",
+                "VK_IMAGE_LAYOUT_VIDEO_DECODE_SRC_KHR",
+                "VK_IMAGE_LAYOUT_VIDEO_ENCODE_DPB_KHR",
+                "VK_IMAGE_LAYOUT_VIDEO_ENCODE_DST_KHR",
+                "VK_IMAGE_LAYOUT_VIDEO_ENCODE_QUANTIZATION_MAP_KHR",
+                "VK_IMAGE_LAYOUT_VIDEO_ENCODE_SRC_KHR",
+                "VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT"
+            ]
+        },
         "VkPhysicalDeviceHostImageCopyProperties": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "copyDstLayoutCount": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "copySrcLayoutCount": {
+                    "$ref": "#/definitions/uint32_t"
+                },
                 "identicalMemoryTypeRequirements": {
                     "type": "boolean"
                 },
@@ -4543,6 +4849,22 @@
                     },
                     "uniqueItems": false,
                     "maxItems": 16
+                },
+                "pCopyDstLayouts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/VkImageLayout"
+                    },
+                    "uniqueItems": false,
+                    "maxItems": 64
+                },
+                "pCopySrcLayouts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/VkImageLayout"
+                    },
+                    "uniqueItems": false,
+                    "maxItems": 64
                 }
             }
         },
@@ -4763,6 +5085,24 @@
                     "type": "boolean"
                 },
                 "separateDepthStencilAttachmentAccess": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkDefaultVertexAttributeValueKHR": {
+            "enum": [
+                "VK_DEFAULT_VERTEX_ATTRIBUTE_VALUE_ZERO_ZERO_ZERO_ONE_KHR",
+                "VK_DEFAULT_VERTEX_ATTRIBUTE_VALUE_ZERO_ZERO_ZERO_ZERO_KHR"
+            ]
+        },
+        "VkPhysicalDeviceMaintenance9PropertiesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "defaultVertexAttributeValue": {
+                    "$ref": "#/definitions/VkDefaultVertexAttributeValueKHR"
+                },
+                "image2DViewOf3DSparse": {
                     "type": "boolean"
                 }
             }
@@ -5313,7 +5653,7 @@
                 }
             }
         },
-        "VkPhysicalDeviceRobustness2PropertiesEXT": {
+        "VkPhysicalDeviceRobustness2PropertiesKHR": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
@@ -5756,6 +6096,51 @@
                 }
             }
         },
+        "VkPhysicalDeviceTensorPropertiesARM": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "maxDescriptorSetStorageTensors": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "maxDescriptorSetUpdateAfterBindStorageTensors": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "maxPerDimensionTensorElements": {
+                    "$ref": "#/definitions/uint64_t"
+                },
+                "maxPerStageDescriptorSetStorageTensors": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "maxPerStageDescriptorUpdateAfterBindStorageTensors": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "maxTensorDimensionCount": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "maxTensorElements": {
+                    "$ref": "#/definitions/uint64_t"
+                },
+                "maxTensorShaderAccessArrayLength": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "maxTensorShaderAccessSize": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "maxTensorSize": {
+                    "$ref": "#/definitions/uint64_t"
+                },
+                "maxTensorStride": {
+                    "$ref": "#/definitions/int64_t"
+                },
+                "shaderStorageTensorArrayNonUniformIndexingNative": {
+                    "type": "boolean"
+                },
+                "shaderTensorSupportedStages": {
+                    "$ref": "#/definitions/VkShaderStageFlags"
+                }
+            }
+        },
         "VkPhysicalDeviceTexelBufferAlignmentProperties": {
             "type": "object",
             "additionalProperties": false,
@@ -5771,6 +6156,36 @@
                 },
                 "uniformTexelBufferOffsetSingleTexelAlignment": {
                     "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceTileMemoryHeapPropertiesQCOM": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "queueSubmitBoundary": {
+                    "type": "boolean"
+                },
+                "tileBufferTransfers": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceTileShadingPropertiesQCOM": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "maxApronSize": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "maxTileShadingRate": {
+                    "$ref": "#/definitions/VkExtent2D"
+                },
+                "preferNonCoherent": {
+                    "type": "boolean"
+                },
+                "tileGranularity": {
+                    "$ref": "#/definitions/VkExtent2D"
                 }
             }
         },
@@ -6218,6 +6633,12 @@
                 "blockTexelViewCompatibleMultipleLayers": {
                     "type": "boolean"
                 },
+                "copyDstLayoutCount": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "copySrcLayoutCount": {
+                    "$ref": "#/definitions/uint32_t"
+                },
                 "defaultRobustnessImages": {
                     "$ref": "#/definitions/VkPipelineRobustnessImageBehavior"
                 },
@@ -6276,6 +6697,22 @@
                     },
                     "uniqueItems": false,
                     "maxItems": 16
+                },
+                "pCopyDstLayouts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/VkImageLayout"
+                    },
+                    "uniqueItems": false,
+                    "maxItems": 64
+                },
+                "pCopySrcLayouts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/VkImageLayout"
+                    },
+                    "uniqueItems": false,
+                    "maxItems": 64
                 },
                 "polygonModePointSize": {
                     "type": "boolean"
@@ -6422,6 +6859,9 @@
                 "VK_FORMAT_FEATURE_2_STORAGE_TEXEL_BUFFER_BIT_KHR",
                 "VK_FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT",
                 "VK_FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT_KHR",
+                "VK_FORMAT_FEATURE_2_TENSOR_DATA_GRAPH_BIT_ARM",
+                "VK_FORMAT_FEATURE_2_TENSOR_IMAGE_ALIASING_BIT_ARM",
+                "VK_FORMAT_FEATURE_2_TENSOR_SHADER_BIT_ARM",
                 "VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT",
                 "VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT_KHR",
                 "VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT",
@@ -6471,6 +6911,18 @@
                 }
             }
         },
+        "VkTensorFormatPropertiesARM": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "linearTilingTensorFeatures": {
+                    "$ref": "#/definitions/VkFormatFeatureFlags2"
+                },
+                "optimalTilingTensorFeatures": {
+                    "$ref": "#/definitions/VkFormatFeatureFlags2"
+                }
+            }
+        },
         "formatProperties": {
             "type": "object",
             "additionalProperties": false,
@@ -6492,6 +6944,9 @@
                 },
                 "VkSubpassResolvePerformanceQueryEXT": {
                     "$ref": "#/definitions/VkSubpassResolvePerformanceQueryEXT"
+                },
+                "VkTensorFormatPropertiesARM": {
+                    "$ref": "#/definitions/VkTensorFormatPropertiesARM"
                 }
             }
         },
@@ -6565,6 +7020,7 @@
                 "VK_PIPELINE_STAGE_2_CONVERT_COOPERATIVE_VECTOR_MATRIX_BIT_NV",
                 "VK_PIPELINE_STAGE_2_COPY_BIT",
                 "VK_PIPELINE_STAGE_2_COPY_BIT_KHR",
+                "VK_PIPELINE_STAGE_2_DATA_GRAPH_BIT_ARM",
                 "VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT",
                 "VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT_KHR",
                 "VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT",
@@ -6721,6 +7177,15 @@
                 }
             }
         },
+        "VkQueueFamilyOwnershipTransferPropertiesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "optimalImageTransferToQueueFamilies": {
+                    "$ref": "#/definitions/uint32_t"
+                }
+            }
+        },
         "VkQueueFamilyQueryResultStatusPropertiesKHR": {
             "type": "object",
             "additionalProperties": false,
@@ -6735,6 +7200,7 @@
                 "VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR",
                 "VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR",
                 "VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR",
+                "VK_VIDEO_CODEC_OPERATION_DECODE_VP9_BIT_KHR",
                 "VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR",
                 "VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR",
                 "VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR",
@@ -6894,6 +7360,24 @@
             "properties": {
                 "videoUsageHints": {
                     "$ref": "#/definitions/VkVideoDecodeUsageFlagsKHR"
+                }
+            }
+        },
+        "StdVideoVP9Profile": {
+            "enum": [
+                "STD_VIDEO_VP9_PROFILE_0",
+                "STD_VIDEO_VP9_PROFILE_1",
+                "STD_VIDEO_VP9_PROFILE_2",
+                "STD_VIDEO_VP9_PROFILE_3",
+                "STD_VIDEO_VP9_PROFILE_INVALID"
+            ]
+        },
+        "VkVideoDecodeVP9ProfileInfoKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "stdProfile": {
+                    "$ref": "#/definitions/StdVideoVP9Profile"
                 }
             }
         },
@@ -7170,6 +7654,34 @@
             "properties": {
                 "maxLevelIdc": {
                     "$ref": "#/definitions/StdVideoH265LevelIdc"
+                }
+            }
+        },
+        "StdVideoVP9Level": {
+            "enum": [
+                "STD_VIDEO_VP9_LEVEL_1_0",
+                "STD_VIDEO_VP9_LEVEL_1_1",
+                "STD_VIDEO_VP9_LEVEL_2_0",
+                "STD_VIDEO_VP9_LEVEL_2_1",
+                "STD_VIDEO_VP9_LEVEL_3_0",
+                "STD_VIDEO_VP9_LEVEL_3_1",
+                "STD_VIDEO_VP9_LEVEL_4_0",
+                "STD_VIDEO_VP9_LEVEL_4_1",
+                "STD_VIDEO_VP9_LEVEL_5_0",
+                "STD_VIDEO_VP9_LEVEL_5_1",
+                "STD_VIDEO_VP9_LEVEL_5_2",
+                "STD_VIDEO_VP9_LEVEL_6_0",
+                "STD_VIDEO_VP9_LEVEL_6_1",
+                "STD_VIDEO_VP9_LEVEL_6_2",
+                "STD_VIDEO_VP9_LEVEL_INVALID"
+            ]
+        },
+        "VkVideoDecodeVP9CapabilitiesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "maxLevel": {
+                    "$ref": "#/definitions/StdVideoVP9Level"
                 }
             }
         },
@@ -7846,6 +8358,8 @@
                 "VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16_KHR",
                 "VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16",
                 "VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16_KHR",
+                "VK_FORMAT_G14X2_B14X2R14X2_2PLANE_420_UNORM_3PACK16_ARM",
+                "VK_FORMAT_G14X2_B14X2R14X2_2PLANE_422_UNORM_3PACK16_ARM",
                 "VK_FORMAT_G16B16G16R16_422_UNORM",
                 "VK_FORMAT_G16B16G16R16_422_UNORM_KHR",
                 "VK_FORMAT_G16_B16R16_2PLANE_420_UNORM",
@@ -7882,18 +8396,30 @@
                 "VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG",
                 "VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG",
                 "VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG",
+                "VK_FORMAT_R10X6G10X6B10X6A10X6_UINT_4PACK16_ARM",
                 "VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16",
                 "VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16_KHR",
+                "VK_FORMAT_R10X6G10X6_UINT_2PACK16_ARM",
                 "VK_FORMAT_R10X6G10X6_UNORM_2PACK16",
                 "VK_FORMAT_R10X6G10X6_UNORM_2PACK16_KHR",
+                "VK_FORMAT_R10X6_UINT_PACK16_ARM",
                 "VK_FORMAT_R10X6_UNORM_PACK16",
                 "VK_FORMAT_R10X6_UNORM_PACK16_KHR",
+                "VK_FORMAT_R12X4G12X4B12X4A12X4_UINT_4PACK16_ARM",
                 "VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16",
                 "VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16_KHR",
+                "VK_FORMAT_R12X4G12X4_UINT_2PACK16_ARM",
                 "VK_FORMAT_R12X4G12X4_UNORM_2PACK16",
                 "VK_FORMAT_R12X4G12X4_UNORM_2PACK16_KHR",
+                "VK_FORMAT_R12X4_UINT_PACK16_ARM",
                 "VK_FORMAT_R12X4_UNORM_PACK16",
                 "VK_FORMAT_R12X4_UNORM_PACK16_KHR",
+                "VK_FORMAT_R14X2G14X2B14X2A14X2_UINT_4PACK16_ARM",
+                "VK_FORMAT_R14X2G14X2B14X2A14X2_UNORM_4PACK16_ARM",
+                "VK_FORMAT_R14X2G14X2_UINT_2PACK16_ARM",
+                "VK_FORMAT_R14X2G14X2_UNORM_2PACK16_ARM",
+                "VK_FORMAT_R14X2_UINT_PACK16_ARM",
+                "VK_FORMAT_R14X2_UNORM_PACK16_ARM",
                 "VK_FORMAT_R16G16B16A16_SFLOAT",
                 "VK_FORMAT_R16G16B16A16_SINT",
                 "VK_FORMAT_R16G16B16A16_SNORM",
@@ -7973,6 +8499,7 @@
                 "VK_FORMAT_R8G8_UINT",
                 "VK_FORMAT_R8G8_UNORM",
                 "VK_FORMAT_R8G8_USCALED",
+                "VK_FORMAT_R8_BOOL_ARM",
                 "VK_FORMAT_R8_SINT",
                 "VK_FORMAT_R8_SNORM",
                 "VK_FORMAT_R8_SRGB",
@@ -8001,6 +8528,7 @@
                 "VK_IMAGE_CREATE_DISJOINT_BIT_KHR",
                 "VK_IMAGE_CREATE_EXTENDED_USAGE_BIT",
                 "VK_IMAGE_CREATE_EXTENDED_USAGE_BIT_KHR",
+                "VK_IMAGE_CREATE_FRAGMENT_DENSITY_MAP_OFFSET_BIT_EXT",
                 "VK_IMAGE_CREATE_FRAGMENT_DENSITY_MAP_OFFSET_BIT_QCOM",
                 "VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT",
                 "VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT",
@@ -8179,6 +8707,12 @@
                             "VK_ANDROID_external_memory_android_hardware_buffer": {
                                 "type": "integer"
                             },
+                            "VK_ARM_data_graph": {
+                                "type": "integer"
+                            },
+                            "VK_ARM_format_pack": {
+                                "type": "integer"
+                            },
                             "VK_ARM_pipeline_opacity_micromap": {
                                 "type": "integer"
                             },
@@ -8195,6 +8729,9 @@
                                 "type": "integer"
                             },
                             "VK_ARM_shader_core_properties": {
+                                "type": "integer"
+                            },
+                            "VK_ARM_tensors": {
                                 "type": "integer"
                             },
                             "VK_EXT_4444_formats": {
@@ -8330,6 +8867,9 @@
                                 "type": "integer"
                             },
                             "VK_EXT_fragment_density_map2": {
+                                "type": "integer"
+                            },
+                            "VK_EXT_fragment_density_map_offset": {
                                 "type": "integer"
                             },
                             "VK_EXT_fragment_shader_interlock": {
@@ -8518,6 +9058,9 @@
                             "VK_EXT_shader_demote_to_helper_invocation": {
                                 "type": "integer"
                             },
+                            "VK_EXT_shader_float8": {
+                                "type": "integer"
+                            },
                             "VK_EXT_shader_image_atomic_int64": {
                                 "type": "integer"
                             },
@@ -8594,6 +9137,9 @@
                                 "type": "integer"
                             },
                             "VK_EXT_ycbcr_image_arrays": {
+                                "type": "integer"
+                            },
+                            "VK_EXT_zero_initialize_device_memory": {
                                 "type": "integer"
                             },
                             "VK_FUCHSIA_buffer_collection": {
@@ -8830,6 +9376,9 @@
                             "VK_KHR_maintenance8": {
                                 "type": "integer"
                             },
+                            "VK_KHR_maintenance9": {
+                                "type": "integer"
+                            },
                             "VK_KHR_map_memory2": {
                                 "type": "integer"
                             },
@@ -8857,7 +9406,13 @@
                             "VK_KHR_present_id": {
                                 "type": "integer"
                             },
+                            "VK_KHR_present_id2": {
+                                "type": "integer"
+                            },
                             "VK_KHR_present_wait": {
+                                "type": "integer"
+                            },
+                            "VK_KHR_present_wait2": {
                                 "type": "integer"
                             },
                             "VK_KHR_push_descriptor": {
@@ -8878,6 +9433,9 @@
                             "VK_KHR_relaxed_block_layout": {
                                 "type": "integer"
                             },
+                            "VK_KHR_robustness2": {
+                                "type": "integer"
+                            },
                             "VK_KHR_sampler_mirror_clamp_to_edge": {
                                 "type": "integer"
                             },
@@ -8888,6 +9446,9 @@
                                 "type": "integer"
                             },
                             "VK_KHR_shader_atomic_int64": {
+                                "type": "integer"
+                            },
+                            "VK_KHR_shader_bfloat16": {
                                 "type": "integer"
                             },
                             "VK_KHR_shader_clock": {
@@ -8962,6 +9523,9 @@
                             "VK_KHR_timeline_semaphore": {
                                 "type": "integer"
                             },
+                            "VK_KHR_unified_image_layouts": {
+                                "type": "integer"
+                            },
                             "VK_KHR_uniform_buffer_standard_layout": {
                                 "type": "integer"
                             },
@@ -8981,6 +9545,9 @@
                                 "type": "integer"
                             },
                             "VK_KHR_video_decode_queue": {
+                                "type": "integer"
+                            },
+                            "VK_KHR_video_decode_vp9": {
                                 "type": "integer"
                             },
                             "VK_KHR_video_encode_av1": {
@@ -9124,6 +9691,9 @@
                             "VK_NV_extended_sparse_address_space": {
                                 "type": "integer"
                             },
+                            "VK_NV_external_compute_queue": {
+                                "type": "integer"
+                            },
                             "VK_NV_external_memory": {
                                 "type": "integer"
                             },
@@ -9241,6 +9811,9 @@
                             "VK_NV_win32_keyed_mutex": {
                                 "type": "integer"
                             },
+                            "VK_OHOS_surface": {
+                                "type": "integer"
+                            },
                             "VK_QCOM_filter_cubic_clamp": {
                                 "type": "integer"
                             },
@@ -9274,7 +9847,13 @@
                             "VK_QCOM_rotated_copy_commands": {
                                 "type": "integer"
                             },
+                            "VK_QCOM_tile_memory_heap": {
+                                "type": "integer"
+                            },
                             "VK_QCOM_tile_properties": {
+                                "type": "integer"
+                            },
+                            "VK_QCOM_tile_shading": {
                                 "type": "integer"
                             },
                             "VK_QCOM_ycbcr_degamma": {
@@ -9290,6 +9869,9 @@
                                 "type": "integer"
                             },
                             "VK_VALVE_descriptor_set_host_mapping": {
+                                "type": "integer"
+                            },
+                            "VK_VALVE_fragment_density_map_layered": {
                                 "type": "integer"
                             },
                             "VK_VALVE_mutable_descriptor_type": {
@@ -9422,6 +10004,9 @@
                             "VkPhysicalDeviceCustomBorderColorFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceCustomBorderColorFeaturesEXT"
                             },
+                            "VkPhysicalDeviceDataGraphFeaturesARM": {
+                                "$ref": "#/definitions/VkPhysicalDeviceDataGraphFeaturesARM"
+                            },
                             "VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV": {
                                 "$ref": "#/definitions/VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV"
                             },
@@ -9445,6 +10030,9 @@
                             },
                             "VkPhysicalDeviceDescriptorBufferFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceDescriptorBufferFeaturesEXT"
+                            },
+                            "VkPhysicalDeviceDescriptorBufferTensorFeaturesARM": {
+                                "$ref": "#/definitions/VkPhysicalDeviceDescriptorBufferTensorFeaturesARM"
                             },
                             "VkPhysicalDeviceDescriptorIndexingFeatures": {
                                 "$ref": "#/definitions/VkPhysicalDeviceDescriptorIndexingFeatures"
@@ -9518,14 +10106,23 @@
                             "VkPhysicalDeviceFaultFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceFaultFeaturesEXT"
                             },
+                            "VkPhysicalDeviceFormatPackFeaturesARM": {
+                                "$ref": "#/definitions/VkPhysicalDeviceFormatPackFeaturesARM"
+                            },
                             "VkPhysicalDeviceFragmentDensityMap2FeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMap2FeaturesEXT"
                             },
                             "VkPhysicalDeviceFragmentDensityMapFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMapFeaturesEXT"
                             },
+                            "VkPhysicalDeviceFragmentDensityMapLayeredFeaturesVALVE": {
+                                "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMapLayeredFeaturesVALVE"
+                            },
+                            "VkPhysicalDeviceFragmentDensityMapOffsetFeaturesEXT": {
+                                "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMapOffsetFeaturesEXT"
+                            },
                             "VkPhysicalDeviceFragmentDensityMapOffsetFeaturesQCOM": {
-                                "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMapOffsetFeaturesQCOM"
+                                "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMapOffsetFeaturesEXT"
                             },
                             "VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR"
@@ -9671,6 +10268,9 @@
                             "VkPhysicalDeviceMaintenance8FeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDeviceMaintenance8FeaturesKHR"
                             },
+                            "VkPhysicalDeviceMaintenance9FeaturesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDeviceMaintenance9FeaturesKHR"
+                            },
                             "VkPhysicalDeviceMapMemoryPlacedFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceMapMemoryPlacedFeaturesEXT"
                             },
@@ -9773,6 +10373,9 @@
                             "VkPhysicalDevicePresentBarrierFeaturesNV": {
                                 "$ref": "#/definitions/VkPhysicalDevicePresentBarrierFeaturesNV"
                             },
+                            "VkPhysicalDevicePresentId2FeaturesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDevicePresentId2FeaturesKHR"
+                            },
                             "VkPhysicalDevicePresentIdFeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDevicePresentIdFeaturesKHR"
                             },
@@ -9781,6 +10384,9 @@
                             },
                             "VkPhysicalDevicePresentModeFifoLatestReadyFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDevicePresentModeFifoLatestReadyFeaturesEXT"
+                            },
+                            "VkPhysicalDevicePresentWait2FeaturesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDevicePresentWait2FeaturesKHR"
                             },
                             "VkPhysicalDevicePresentWaitFeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDevicePresentWaitFeaturesKHR"
@@ -9848,8 +10454,11 @@
                             "VkPhysicalDeviceRepresentativeFragmentTestFeaturesNV": {
                                 "$ref": "#/definitions/VkPhysicalDeviceRepresentativeFragmentTestFeaturesNV"
                             },
+                            "VkPhysicalDeviceRobustness2FeaturesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDeviceRobustness2FeaturesKHR"
+                            },
                             "VkPhysicalDeviceRobustness2FeaturesEXT": {
-                                "$ref": "#/definitions/VkPhysicalDeviceRobustness2FeaturesEXT"
+                                "$ref": "#/definitions/VkPhysicalDeviceRobustness2FeaturesKHR"
                             },
                             "VkPhysicalDeviceSamplerYcbcrConversionFeatures": {
                                 "$ref": "#/definitions/VkPhysicalDeviceSamplerYcbcrConversionFeatures"
@@ -9886,6 +10495,9 @@
                             },
                             "VkPhysicalDeviceShaderAtomicInt64FeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDeviceShaderAtomicInt64Features"
+                            },
+                            "VkPhysicalDeviceShaderBfloat16FeaturesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDeviceShaderBfloat16FeaturesKHR"
                             },
                             "VkPhysicalDeviceShaderClockFeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDeviceShaderClockFeaturesKHR"
@@ -9925,6 +10537,9 @@
                             },
                             "VkPhysicalDeviceFloat16Int8FeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDeviceShaderFloat16Int8Features"
+                            },
+                            "VkPhysicalDeviceShaderFloat8FeaturesEXT": {
+                                "$ref": "#/definitions/VkPhysicalDeviceShaderFloat8FeaturesEXT"
                             },
                             "VkPhysicalDeviceShaderFloatControls2Features": {
                                 "$ref": "#/definitions/VkPhysicalDeviceShaderFloatControls2Features"
@@ -10016,6 +10631,9 @@
                             "VkPhysicalDeviceSynchronization2FeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDeviceSynchronization2Features"
                             },
+                            "VkPhysicalDeviceTensorFeaturesARM": {
+                                "$ref": "#/definitions/VkPhysicalDeviceTensorFeaturesARM"
+                            },
                             "VkPhysicalDeviceTexelBufferAlignmentFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceTexelBufferAlignmentFeaturesEXT"
                             },
@@ -10025,8 +10643,14 @@
                             "VkPhysicalDeviceTextureCompressionASTCHDRFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceTextureCompressionASTCHDRFeatures"
                             },
+                            "VkPhysicalDeviceTileMemoryHeapFeaturesQCOM": {
+                                "$ref": "#/definitions/VkPhysicalDeviceTileMemoryHeapFeaturesQCOM"
+                            },
                             "VkPhysicalDeviceTilePropertiesFeaturesQCOM": {
                                 "$ref": "#/definitions/VkPhysicalDeviceTilePropertiesFeaturesQCOM"
+                            },
+                            "VkPhysicalDeviceTileShadingFeaturesQCOM": {
+                                "$ref": "#/definitions/VkPhysicalDeviceTileShadingFeaturesQCOM"
                             },
                             "VkPhysicalDeviceTimelineSemaphoreFeatures": {
                                 "$ref": "#/definitions/VkPhysicalDeviceTimelineSemaphoreFeatures"
@@ -10036,6 +10660,9 @@
                             },
                             "VkPhysicalDeviceTransformFeedbackFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceTransformFeedbackFeaturesEXT"
+                            },
+                            "VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR"
                             },
                             "VkPhysicalDeviceUniformBufferStandardLayoutFeatures": {
                                 "$ref": "#/definitions/VkPhysicalDeviceUniformBufferStandardLayoutFeatures"
@@ -10069,6 +10696,9 @@
                             },
                             "VkPhysicalDeviceVertexInputDynamicStateFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceVertexInputDynamicStateFeaturesEXT"
+                            },
+                            "VkPhysicalDeviceVideoDecodeVP9FeaturesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDeviceVideoDecodeVP9FeaturesKHR"
                             },
                             "VkPhysicalDeviceVideoEncodeAV1FeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDeviceVideoEncodeAV1FeaturesKHR"
@@ -10111,6 +10741,9 @@
                             },
                             "VkPhysicalDeviceYcbcrImageArraysFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceYcbcrImageArraysFeaturesEXT"
+                            },
+                            "VkPhysicalDeviceZeroInitializeDeviceMemoryFeaturesEXT": {
+                                "$ref": "#/definitions/VkPhysicalDeviceZeroInitializeDeviceMemoryFeaturesEXT"
                             },
                             "VkPhysicalDeviceZeroInitializeWorkgroupMemoryFeatures": {
                                 "$ref": "#/definitions/VkPhysicalDeviceZeroInitializeWorkgroupMemoryFeatures"
@@ -10185,6 +10818,9 @@
                             "VkPhysicalDeviceDescriptorBufferPropertiesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceDescriptorBufferPropertiesEXT"
                             },
+                            "VkPhysicalDeviceDescriptorBufferTensorPropertiesARM": {
+                                "$ref": "#/definitions/VkPhysicalDeviceDescriptorBufferTensorPropertiesARM"
+                            },
                             "VkPhysicalDeviceDescriptorIndexingProperties": {
                                 "$ref": "#/definitions/VkPhysicalDeviceDescriptorIndexingProperties"
                             },
@@ -10218,6 +10854,9 @@
                             "VkPhysicalDeviceExtendedSparseAddressSpacePropertiesNV": {
                                 "$ref": "#/definitions/VkPhysicalDeviceExtendedSparseAddressSpacePropertiesNV"
                             },
+                            "VkPhysicalDeviceExternalComputeQueuePropertiesNV": {
+                                "$ref": "#/definitions/VkPhysicalDeviceExternalComputeQueuePropertiesNV"
+                            },
                             "VkPhysicalDeviceExternalFormatResolvePropertiesANDROID": {
                                 "$ref": "#/definitions/VkPhysicalDeviceExternalFormatResolvePropertiesANDROID"
                             },
@@ -10233,8 +10872,14 @@
                             "VkPhysicalDeviceFragmentDensityMap2PropertiesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMap2PropertiesEXT"
                             },
+                            "VkPhysicalDeviceFragmentDensityMapLayeredPropertiesVALVE": {
+                                "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMapLayeredPropertiesVALVE"
+                            },
+                            "VkPhysicalDeviceFragmentDensityMapOffsetPropertiesEXT": {
+                                "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMapOffsetPropertiesEXT"
+                            },
                             "VkPhysicalDeviceFragmentDensityMapOffsetPropertiesQCOM": {
-                                "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMapOffsetPropertiesQCOM"
+                                "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMapOffsetPropertiesEXT"
                             },
                             "VkPhysicalDeviceFragmentDensityMapPropertiesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceFragmentDensityMapPropertiesEXT"
@@ -10323,6 +10968,9 @@
                             "VkPhysicalDeviceMaintenance7PropertiesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDeviceMaintenance7PropertiesKHR"
                             },
+                            "VkPhysicalDeviceMaintenance9PropertiesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDeviceMaintenance9PropertiesKHR"
+                            },
                             "VkPhysicalDeviceMapMemoryPlacedPropertiesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceMapMemoryPlacedPropertiesEXT"
                             },
@@ -10407,8 +11055,11 @@
                             "VkPhysicalDeviceRenderPassStripedPropertiesARM": {
                                 "$ref": "#/definitions/VkPhysicalDeviceRenderPassStripedPropertiesARM"
                             },
+                            "VkPhysicalDeviceRobustness2PropertiesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDeviceRobustness2PropertiesKHR"
+                            },
                             "VkPhysicalDeviceRobustness2PropertiesEXT": {
-                                "$ref": "#/definitions/VkPhysicalDeviceRobustness2PropertiesEXT"
+                                "$ref": "#/definitions/VkPhysicalDeviceRobustness2PropertiesKHR"
                             },
                             "VkPhysicalDeviceSampleLocationsPropertiesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceSampleLocationsPropertiesEXT"
@@ -10470,11 +11121,20 @@
                             "VkPhysicalDeviceSubpassShadingPropertiesHUAWEI": {
                                 "$ref": "#/definitions/VkPhysicalDeviceSubpassShadingPropertiesHUAWEI"
                             },
+                            "VkPhysicalDeviceTensorPropertiesARM": {
+                                "$ref": "#/definitions/VkPhysicalDeviceTensorPropertiesARM"
+                            },
                             "VkPhysicalDeviceTexelBufferAlignmentProperties": {
                                 "$ref": "#/definitions/VkPhysicalDeviceTexelBufferAlignmentProperties"
                             },
                             "VkPhysicalDeviceTexelBufferAlignmentPropertiesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceTexelBufferAlignmentProperties"
+                            },
+                            "VkPhysicalDeviceTileMemoryHeapPropertiesQCOM": {
+                                "$ref": "#/definitions/VkPhysicalDeviceTileMemoryHeapPropertiesQCOM"
+                            },
+                            "VkPhysicalDeviceTileShadingPropertiesQCOM": {
+                                "$ref": "#/definitions/VkPhysicalDeviceTileShadingPropertiesQCOM"
                             },
                             "VkPhysicalDeviceTimelineSemaphoreProperties": {
                                 "$ref": "#/definitions/VkPhysicalDeviceTimelineSemaphoreProperties"
@@ -11023,6 +11683,12 @@
                             "VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16_KHR": {
                                 "$ref": "#/definitions/formatProperties"
                             },
+                            "VK_FORMAT_G14X2_B14X2R14X2_2PLANE_420_UNORM_3PACK16_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
+                            "VK_FORMAT_G14X2_B14X2R14X2_2PLANE_422_UNORM_3PACK16_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
                             "VK_FORMAT_G16B16G16R16_422_UNORM": {
                                 "$ref": "#/definitions/formatProperties"
                             },
@@ -11131,10 +11797,16 @@
                             "VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG": {
                                 "$ref": "#/definitions/formatProperties"
                             },
+                            "VK_FORMAT_R10X6G10X6B10X6A10X6_UINT_4PACK16_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
                             "VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16": {
                                 "$ref": "#/definitions/formatProperties"
                             },
                             "VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16_KHR": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
+                            "VK_FORMAT_R10X6G10X6_UINT_2PACK16_ARM": {
                                 "$ref": "#/definitions/formatProperties"
                             },
                             "VK_FORMAT_R10X6G10X6_UNORM_2PACK16": {
@@ -11143,10 +11815,16 @@
                             "VK_FORMAT_R10X6G10X6_UNORM_2PACK16_KHR": {
                                 "$ref": "#/definitions/formatProperties"
                             },
+                            "VK_FORMAT_R10X6_UINT_PACK16_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
                             "VK_FORMAT_R10X6_UNORM_PACK16": {
                                 "$ref": "#/definitions/formatProperties"
                             },
                             "VK_FORMAT_R10X6_UNORM_PACK16_KHR": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
+                            "VK_FORMAT_R12X4G12X4B12X4A12X4_UINT_4PACK16_ARM": {
                                 "$ref": "#/definitions/formatProperties"
                             },
                             "VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16": {
@@ -11155,16 +11833,40 @@
                             "VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16_KHR": {
                                 "$ref": "#/definitions/formatProperties"
                             },
+                            "VK_FORMAT_R12X4G12X4_UINT_2PACK16_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
                             "VK_FORMAT_R12X4G12X4_UNORM_2PACK16": {
                                 "$ref": "#/definitions/formatProperties"
                             },
                             "VK_FORMAT_R12X4G12X4_UNORM_2PACK16_KHR": {
                                 "$ref": "#/definitions/formatProperties"
                             },
+                            "VK_FORMAT_R12X4_UINT_PACK16_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
                             "VK_FORMAT_R12X4_UNORM_PACK16": {
                                 "$ref": "#/definitions/formatProperties"
                             },
                             "VK_FORMAT_R12X4_UNORM_PACK16_KHR": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
+                            "VK_FORMAT_R14X2G14X2B14X2A14X2_UINT_4PACK16_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
+                            "VK_FORMAT_R14X2G14X2B14X2A14X2_UNORM_4PACK16_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
+                            "VK_FORMAT_R14X2G14X2_UINT_2PACK16_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
+                            "VK_FORMAT_R14X2G14X2_UNORM_2PACK16_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
+                            "VK_FORMAT_R14X2_UINT_PACK16_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
+                            "VK_FORMAT_R14X2_UNORM_PACK16_ARM": {
                                 "$ref": "#/definitions/formatProperties"
                             },
                             "VK_FORMAT_R16G16B16A16_SFLOAT": {
@@ -11404,6 +12106,9 @@
                             "VK_FORMAT_R8G8_USCALED": {
                                 "$ref": "#/definitions/formatProperties"
                             },
+                            "VK_FORMAT_R8_BOOL_ARM": {
+                                "$ref": "#/definitions/formatProperties"
+                            },
                             "VK_FORMAT_R8_SINT": {
                                 "$ref": "#/definitions/formatProperties"
                             },
@@ -11467,6 +12172,9 @@
                                 "VkQueueFamilyGlobalPriorityPropertiesEXT": {
                                     "$ref": "#/definitions/VkQueueFamilyGlobalPriorityProperties"
                                 },
+                                "VkQueueFamilyOwnershipTransferPropertiesKHR": {
+                                    "$ref": "#/definitions/VkQueueFamilyOwnershipTransferPropertiesKHR"
+                                },
                                 "VkQueueFamilyQueryResultStatusPropertiesKHR": {
                                     "$ref": "#/definitions/VkQueueFamilyQueryResultStatusPropertiesKHR"
                                 },
@@ -11499,6 +12207,9 @@
                                         "VkVideoDecodeH265ProfileInfoKHR": {
                                             "$ref": "#/definitions/VkVideoDecodeH265ProfileInfoKHR"
                                         },
+                                        "VkVideoDecodeVP9ProfileInfoKHR": {
+                                            "$ref": "#/definitions/VkVideoDecodeVP9ProfileInfoKHR"
+                                        },
                                         "VkVideoEncodeAV1ProfileInfoKHR": {
                                             "$ref": "#/definitions/VkVideoEncodeAV1ProfileInfoKHR"
                                         },
@@ -11528,6 +12239,9 @@
                                         },
                                         "VkVideoDecodeH265CapabilitiesKHR": {
                                             "$ref": "#/definitions/VkVideoDecodeH265CapabilitiesKHR"
+                                        },
+                                        "VkVideoDecodeVP9CapabilitiesKHR": {
+                                            "$ref": "#/definitions/VkVideoDecodeVP9CapabilitiesKHR"
                                         },
                                         "VkVideoEncodeAV1CapabilitiesKHR": {
                                             "$ref": "#/definitions/VkVideoEncodeAV1CapabilitiesKHR"

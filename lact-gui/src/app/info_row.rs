@@ -136,6 +136,7 @@ mod imp {
             }
 
             obj.bind_property("name", &name_label, "label")
+                .transform_to(|_, value: &str| Some(format!("{value}:")))
                 .sync_create()
                 .build();
 

@@ -1,6 +1,7 @@
 #[cfg(feature = "args")]
 pub mod args;
 pub mod config;
+pub mod i18n;
 mod profiles;
 pub mod request;
 mod response;
@@ -8,6 +9,7 @@ mod response;
 #[cfg(test)]
 mod tests;
 
+use i18n_embed_fl::fl;
 pub use request::Request;
 pub use response::Response;
 
@@ -24,10 +26,12 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    fmt::{self, Write},
+    fmt::{self, Debug, Display, Write},
     str::FromStr,
     sync::Arc,
 };
+
+use crate::{config::ProfileHooks, i18n::LANGUAGE_LOADER};
 
 pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
 
@@ -61,7 +65,7 @@ pub fn default_fan_curve() -> FanCurveMap {
 pub struct Pong;
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemInfo {
     pub version: String,
     pub commit: Option<String>,
@@ -75,14 +79,33 @@ pub struct SystemInfo {
 pub struct DeviceListEntry {
     pub id: String,
     pub name: Option<String>,
+    #[serde(default)]
+    pub device_type: DeviceType,
 }
 
-impl fmt::Display for DeviceListEntry {
+impl Display for DeviceListEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.name {
-            Some(name) => name.fmt(f),
-            None => self.id.fmt(f),
+            Some(name) => Display::fmt(name, f),
+            None => Display::fmt(&self.id, f),
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+pub enum DeviceType {
+    #[default]
+    Dedicated,
+    Integrated,
+}
+
+impl Display for DeviceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            DeviceType::Dedicated => "Dedicated",
+            DeviceType::Integrated => "Integrated",
+        };
+        Display::fmt(s, f)
     }
 }
 
@@ -96,7 +119,8 @@ pub struct GpuPciInfo {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceInfo {
     pub pci_info: Option<GpuPciInfo>,
-    pub vulkan_info: Option<VulkanInfo>,
+    #[serde(default)]
+    pub vulkan_instances: Vec<VulkanInfo>,
     pub opencl_info: Option<OpenCLInfo>,
     pub driver: String,
     pub vbios_version: Option<String>,
@@ -112,7 +136,7 @@ impl DeviceInfo {
             .unwrap_or(1.0)
     }
 
-    pub fn info_elements(&self, stats: Option<&DeviceStats>) -> Vec<(&str, Option<String>)> {
+    pub fn info_elements(&self, stats: Option<&DeviceStats>) -> Vec<(String, Option<String>)> {
         let pci_info = self.pci_info.as_ref();
 
         let mut gpu_model = self
@@ -164,16 +188,22 @@ impl DeviceInfo {
         };
 
         let mut elements = vec![
-            ("GPU Model", Some(gpu_model)),
-            ("Card Manufacturer", Some(card_manufacturer)),
-            ("Card Model", Some(card_model)),
-            ("Driver Used", Some(self.driver.clone())),
-            ("VBIOS Version", self.vbios_version.clone()),
+            (fl!(LANGUAGE_LOADER, "gpu-model"), Some(gpu_model)),
+            (fl!(LANGUAGE_LOADER, "subvendor"), Some(card_manufacturer)),
+            (fl!(LANGUAGE_LOADER, "subdevice"), Some(card_model)),
+            (
+                fl!(LANGUAGE_LOADER, "driver-used"),
+                Some(self.driver.clone()),
+            ),
+            (
+                fl!(LANGUAGE_LOADER, "vbios-version"),
+                self.vbios_version.clone(),
+            ),
         ];
 
         if let Some(stats) = stats {
             elements.push((
-                "VRAM Size",
+                fl!(LANGUAGE_LOADER, "vram-size"),
                 stats
                     .vram
                     .total
@@ -182,39 +212,59 @@ impl DeviceInfo {
         }
 
         if let Some(drm_info) = &self.drm_info {
+            let mut vram_type = drm_info.vram_type.clone();
+            if let Some(vram_type) = &mut vram_type {
+                if let Some(width) = drm_info.vram_bit_width {
+                    write!(vram_type, " {width}-bit").unwrap();
+                }
+
+                if let Some(vram_vendor) = &drm_info.vram_vendor {
+                    write!(vram_type, " ({vram_vendor})").unwrap();
+                }
+
+                if let Some(bw) = &drm_info.vram_max_bw {
+                    if bw != "0" {
+                        write!(vram_type, " {bw} GiB/s").unwrap();
+                    }
+                }
+            }
+
             elements.extend([
-                ("GPU Family", drm_info.family_name.clone()),
-                ("ASIC Name", drm_info.asic_name.clone()),
                 (
-                    "Compute Units",
+                    fl!(LANGUAGE_LOADER, "gpu-family"),
+                    drm_info.family_name.clone(),
+                ),
+                (
+                    fl!(LANGUAGE_LOADER, "asic-name"),
+                    drm_info.asic_name.clone(),
+                ),
+                (
+                    fl!(LANGUAGE_LOADER, "compute-units"),
                     drm_info.compute_units.map(|count| count.to_string()),
                 ),
                 (
-                    "Execution Units",
+                    fl!(LANGUAGE_LOADER, "execution-units"),
                     drm_info
                         .intel
                         .execution_units
                         .map(|count| count.to_string()),
                 ),
                 (
-                    "Subslices",
-                    drm_info
-                        .intel
-                        .execution_units
-                        .map(|count| count.to_string()),
+                    fl!(LANGUAGE_LOADER, "subslices"),
+                    drm_info.intel.subslices.map(|count| count.to_string()),
                 ),
                 (
-                    "Cuda Cores",
+                    fl!(LANGUAGE_LOADER, "cuda-cores"),
                     drm_info.cuda_cores.map(|count| count.to_string()),
                 ),
                 (
-                    "SM Count",
+                    fl!(LANGUAGE_LOADER, "hardware-count", name = "SM"),
                     drm_info
                         .streaming_multiprocessors
                         .map(|count| count.to_string()),
                 ),
                 (
-                    "ROP Count",
+                    fl!(LANGUAGE_LOADER, "hardware-count", name = "ROP"),
                     drm_info.rop_info.as_ref().map(|rop| {
                         format!(
                             "{} ({} * {})",
@@ -222,45 +272,51 @@ impl DeviceInfo {
                         )
                     }),
                 ),
-                ("Instruction Set", drm_info.isa.clone()),
-                ("VRAM Type", drm_info.vram_type.clone()),
-                ("VRAM Manufacturer", drm_info.vram_vendor.clone()),
-                ("Theoretical VRAM Bandwidth", drm_info.vram_max_bw.clone()),
+                (fl!(LANGUAGE_LOADER, "isa"), drm_info.isa.clone()),
+                (fl!(LANGUAGE_LOADER, "vram-type"), vram_type),
                 (
-                    "L1 Cache (Per CU)",
+                    fl!(LANGUAGE_LOADER, "l1-cache-per-cu"),
                     drm_info
                         .l1_cache_per_cu
                         .map(|cache| format!("{} KiB", cache / 1024)),
                 ),
                 (
-                    "L2 Cache",
+                    fl!(LANGUAGE_LOADER, "l2-cache"),
                     drm_info
                         .l2_cache
                         .map(|cache| format!("{} KiB", cache / 1024)),
                 ),
                 (
-                    "L3 Cache",
+                    fl!(LANGUAGE_LOADER, "l3-cache"),
                     drm_info.l3_cache_mb.map(|cache| format!("{cache} MiB")),
                 ),
             ]);
 
             if let Some(memory_info) = &drm_info.memory_info {
                 if let Some(rebar) = memory_info.resizeable_bar {
-                    let rebar = if rebar { "Enabled" } else { "Disabled" };
-                    elements.push(("Resizeable bar", Some(rebar.to_owned())));
+                    let rebar = if rebar {
+                        fl!(LANGUAGE_LOADER, "enabled")
+                    } else {
+                        fl!(LANGUAGE_LOADER, "disabled")
+                    };
+                    elements.push((fl!(LANGUAGE_LOADER, "rebar"), Some(rebar.to_owned())));
                 }
 
                 elements.push((
-                    "CPU Accessible VRAM",
+                    fl!(LANGUAGE_LOADER, "cpu-vram"),
                     Some((memory_info.cpu_accessible_total / 1024 / 1024).to_string()),
                 ));
             }
         }
 
-        if let (Some(link_speed), Some(link_width)) =
-            (&self.link_info.current_speed, &self.link_info.current_width)
+        if let (Some(max_link_speed), Some(max_link_width)) =
+            (&self.link_info.max_speed, &self.link_info.max_width)
         {
-            elements.push(("Link Speed", Some(format!("{link_speed} x{link_width}"))));
+            if let (Some(current_link_speed), Some(current_link_width)) =
+                (&self.link_info.current_speed, &self.link_info.current_width)
+            {
+                elements.push((fl!(LANGUAGE_LOADER, "pcie-speed"), Some(format!("{current_link_speed} x{current_link_width} (Max: {max_link_speed} x{max_link_width})"))));
+            }
         }
 
         elements
@@ -288,14 +344,14 @@ pub struct DrmInfo {
     pub l1_cache_per_cu: Option<u32>,
     pub l2_cache: Option<u32>,
     pub l3_cache_mb: Option<u32>,
-    pub rop_info: Option<NvidiaRopInfo>,
+    pub rop_info: Option<RopInfo>,
     pub memory_info: Option<DrmMemoryInfo>,
     #[serde(flatten)]
     pub intel: IntelDrmInfo,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct NvidiaRopInfo {
+pub struct RopInfo {
     pub unit_count: u32,
     pub operations_factor: u32,
     pub operations_count: u32,
@@ -464,8 +520,12 @@ pub struct FanStats {
     pub speed_min: Option<u32>,
     pub pwm_max: Option<u32>,
     pub pwm_min: Option<u32>,
+    pub temperature_range: Option<(i32, i32)>,
+    pub temperature_key: Option<String>,
     pub spindown_delay_ms: Option<u64>,
     pub change_threshold: Option<u64>,
+    /// Nvidia-only
+    pub auto_threshold: Option<u64>,
     // RDNA3+ params
     #[serde(default)]
     pub pmfw_info: PmfwInfo,
@@ -578,6 +638,8 @@ pub struct FanOptions<'a> {
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ProfilesInfo {
     pub profiles: IndexMap<String, Option<ProfileRule>>,
+    #[serde(default)]
+    pub profile_hooks: IndexMap<String, ProfileHooks>,
     pub current_profile: Option<String>,
     pub auto_switch: bool,
     pub watcher_state: Option<ProfileWatcherState>,
@@ -586,6 +648,7 @@ pub struct ProfilesInfo {
 impl PartialEq for ProfilesInfo {
     fn eq(&self, other: &Self) -> bool {
         self.profiles.as_slice() == other.profiles.as_slice()
+            && self.profile_hooks.as_slice() == other.profile_hooks.as_slice()
             && self.current_profile == other.current_profile
             && self.auto_switch == other.auto_switch
     }
@@ -597,6 +660,8 @@ impl PartialEq for ProfilesInfo {
 pub enum ProfileRule {
     Process(ProcessProfileRule),
     Gamemode(Option<ProcessProfileRule>),
+    And(Vec<ProfileRule>),
+    Or(Vec<ProfileRule>),
 }
 
 impl Default for ProfileRule {
@@ -621,18 +686,58 @@ impl Default for ProcessProfileRule {
     }
 }
 
-pub type ProcessMap = IndexMap<i32, ProcessInfo>;
+pub type ProfileProcessMap = IndexMap<i32, ProfileProcessInfo>;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ProfileWatcherState {
-    pub process_list: ProcessMap,
+    pub process_list: ProfileProcessMap,
     pub gamemode_games: IndexSet<i32>,
     pub process_names_map: HashMap<Arc<str>, HashSet<i32>>,
 }
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ProcessInfo {
+pub struct ProfileProcessInfo {
     pub name: Arc<str>,
     pub cmdline: Box<str>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ProcessList {
+    pub processes: BTreeMap<u32, ProcessInfo>,
+    pub supported_util_types: HashSet<ProcessUtilizationType>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProcessInfo {
+    pub name: String,
+    pub args: String,
+    pub memory_used: u64,
+    pub types: Vec<ProcessType>,
+    pub util: HashMap<ProcessUtilizationType, u32>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ProcessUtilizationType {
+    Graphics,
+    Compute,
+    Memory,
+    Encode,
+    Decode,
+}
+
+impl ProcessUtilizationType {
+    pub const ALL: &[ProcessUtilizationType] = &[
+        ProcessUtilizationType::Graphics,
+        ProcessUtilizationType::Compute,
+        ProcessUtilizationType::Memory,
+        ProcessUtilizationType::Encode,
+        ProcessUtilizationType::Decode,
+    ];
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum ProcessType {
+    Graphics,
+    Compute,
 }

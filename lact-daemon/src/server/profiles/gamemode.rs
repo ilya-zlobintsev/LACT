@@ -1,5 +1,5 @@
-use copes::solver::PID;
-use lact_schema::ProcessMap;
+use lact_schema::ProfileProcessMap;
+use libcopes::PID;
 use nix::unistd::{geteuid, seteuid, Uid};
 use std::{
     env, fs,
@@ -11,6 +11,8 @@ use zbus::{
     proxy,
     zvariant::{ObjectPath, OwnedObjectPath},
 };
+
+use crate::system::IS_FLATBOX;
 
 pub const PROCESS_NAME: &str = "gamemoded";
 const DBUS_ADDRESS_ENV: &str = "DBUS_SESSION_BUS_ADDRESS";
@@ -45,7 +47,13 @@ pub trait GameModeGame {
     fn executable(&self) -> zbus::Result<String>;
 }
 
-pub async fn connect(process_list: &ProcessMap) -> Option<GameModeProxy<'static>> {
+pub async fn connect(process_list: &ProfileProcessMap) -> Option<GameModeProxy<'static>> {
+    // `seteuid` has issues with sandboxing
+    if *IS_FLATBOX {
+        info!("gamemode integration is not supported from a sandbox");
+        return None;
+    }
+
     let address;
     let gamemode_uid;
 

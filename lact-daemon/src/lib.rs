@@ -6,13 +6,13 @@ mod config;
 mod server;
 mod socket;
 mod suspend;
+mod system;
 #[cfg(test)]
 mod tests;
 
 use anyhow::Context;
 use config::Config;
 use futures::future::select_all;
-use server::system;
 use server::{handle_stream, handler::Handler, Server};
 use std::sync::Arc;
 use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
@@ -31,7 +31,7 @@ use tracing_subscriber::EnvFilter;
 /// RDNA3, minimum family that supports the new pmfw interface
 pub const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 
-pub use server::system::MODULE_CONF_PATH;
+pub use system::BASE_MODULE_CONF_PATH;
 
 const MIN_SYSTEM_UPTIME_SECS: f32 = 15.0;
 const DRM_EVENT_TIMEOUT_PERIOD_MS: u64 = 100;

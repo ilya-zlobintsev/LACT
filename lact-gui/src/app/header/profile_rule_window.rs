@@ -1,70 +1,74 @@
-use std::time::Duration;
+pub mod profile_row;
 
 use crate::app::{msg::AppMsg, APP_BROKER};
 use gtk::{
-    glib::{GStr, GString},
+    pango,
     prelude::{
-        BoxExt, CheckButtonExt, DialogExt, DialogExtManual, EditableExt, EntryBufferExtManual,
-        EntryExt, GridExt, GtkWindowExt, ObjectExt, OrientableExt, PopoverExt, SelectionModelExt,
-        WidgetExt,
+        BoxExt, ButtonExt, CheckButtonExt, DialogExt, DialogExtManual, EntryBufferExtManual,
+        EntryExt, GtkWindowExt, OrientableExt, WidgetExt,
     },
-    SingleSelection,
 };
-use lact_schema::{ProcessInfo, ProcessProfileRule, ProfileRule, ProfileWatcherState};
+use lact_schema::{config::ProfileHooks, ProfileRule};
+use profile_row::ProfileRuleRow;
 use relm4::{
+    binding::BoolBinding,
+    prelude::{DynamicIndex, FactoryVecDeque},
     tokio::time::sleep,
-    typed_view::list::{RelmListItem, TypedListView},
-    view, ComponentParts, ComponentSender, RelmWidgetExt,
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
 };
-use tracing::debug;
+use std::time::Duration;
 
 const EVALUATE_INTERVAL_MS: u64 = 250;
 
-const PROCESS_PAGE: &str = "process";
-const GAMEMODE_PAGE: &str = "gamemode";
-
 pub struct ProfileRuleWindow {
     profile_name: String,
-    process_name_buffer: gtk::EntryBuffer,
-    args_buffer: gtk::EntryBuffer,
-    rule: ProfileRule,
-    process_list_view: TypedListView<ProcessListItem, SingleSelection>,
+    sub_rules_list_view: FactoryVecDeque<ProfileRuleRow>,
     currently_matches: bool,
+    auto_switch: bool,
+
+    activated_hook_enabled: BoolBinding,
+    activated_hook: gtk::EntryBuffer,
+
+    deactivated_hook_enabled: BoolBinding,
+    deactivated_hook: gtk::EntryBuffer,
+}
+
+pub struct ProfileEditParams {
+    pub name: String,
+    pub rule: ProfileRule,
+    pub hooks: ProfileHooks,
+    pub auto_switch: bool,
+    pub root_window: gtk::Window,
 }
 
 #[derive(Debug)]
 pub enum ProfileRuleWindowMsg {
-    Show {
-        profile_name: String,
-        rule: ProfileRule,
-    },
-    ProcessFilterChanged(GString),
-    WatcherState(ProfileWatcherState),
-    SetFromSelectedProcess,
     Evaluate,
     EvaluationResult(bool),
+    AddSubrule,
+    RemoveSubrule(DynamicIndex),
     Save,
 }
 
 #[relm4::component(pub)]
 impl relm4::Component for ProfileRuleWindow {
-    type Init = ();
+    type Init = ProfileEditParams;
     type Input = ProfileRuleWindowMsg;
-    type Output = ();
+    type Output = (String, ProfileRule, ProfileHooks);
     type CommandOutput = ();
 
     view! {
         gtk::Dialog {
             set_default_size: (600, 300),
-            set_title: Some("Profile activation rules"),
-            set_hide_on_close: true,
+            set_title: Some("Profile rules"),
+            set_transient_for: Some(&root_window),
             connect_response[root, sender] => move |_, response| {
                 match response {
                     gtk::ResponseType::Accept => {
                         sender.input(ProfileRuleWindowMsg::Save);
-                        root.hide();
+                        root.close();
                     }
-                    gtk::ResponseType::Cancel => root.hide(),
+                    gtk::ResponseType::Cancel => root.close(),
                     _ => (),
                 }
             },
@@ -73,141 +77,105 @@ impl relm4::Component for ProfileRuleWindow {
                 set_orientation: gtk::Orientation::Vertical,
                 set_margin_all: 5,
 
-                gtk::Label {
-                    #[watch]
-                    set_markup: &format!("<span font_desc='11'><b>Activate profile '{}' when:</b></span>", model.profile_name),
-                    set_halign: gtk::Align::Start,
-                    set_margin_all: 10,
+                append = &gtk::StackSwitcher {
+                    set_stack: Some(&stack),
                 },
 
-                gtk::Separator {},
-
-                gtk::Box {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_expand: true,
-
-                    gtk::StackSidebar {
-                        set_stack: &stack,
-                    },
-
-                    gtk::Box {
+                #[name = "stack"]
+                append = &gtk::Stack {
+                    add_titled[None, "Activation"] = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_margin_all: 10,
-                        set_spacing: 10,
+                        set_margin_all: 5,
 
-                        #[name = "stack"]
-                        gtk::Stack {
-                            connect_visible_child_name_notify => ProfileRuleWindowMsg::Evaluate,
+                        gtk::Label {
+                            #[watch]
+                            set_markup: &format!("<span font_desc='11'><b>Activate profile '{}' when:</b></span>", model.profile_name),
+                            set_halign: gtk::Align::Start,
+                            set_margin_all: 10,
+                        },
 
-                            add_titled[Some(PROCESS_PAGE), "A process is running"] = &gtk::Grid {
-                                set_row_spacing: 5,
-                                set_column_spacing: 5,
+                        gtk::Separator {},
 
-                                attach[0, 0, 1, 1] = &gtk::Label {
-                                    set_label: "Process Name:",
-                                    set_halign: gtk::Align::Start,
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_expand: true,
+
+                            gtk::Box {
+                                set_orientation: gtk::Orientation::Vertical,
+                                set_margin_all: 10,
+                                set_spacing: 10,
+
+                                #[name = "multi_or_checkbutton"]
+                                gtk::CheckButton {
+                                    set_label: Some("Any of the following rules are matched:"),
+                                    set_active: !matches!(rule, ProfileRule::And(_)),
+                                    connect_toggled => ProfileRuleWindowMsg::Evaluate,
                                 },
 
-                                attach[2, 0, 1, 1] = &gtk::Entry {
-                                    set_buffer: &model.process_name_buffer,
+                                #[name = "multi_and_checkbutton"]
+                                gtk::CheckButton {
+                                    set_label: Some("All of the following rules are matched:"),
+                                    set_group: Some(&multi_or_checkbutton),
+                                    set_active: matches!(rule, ProfileRule::And(_)),
+                                    connect_toggled => ProfileRuleWindowMsg::Evaluate,
+                                },
+
+                                gtk::Separator {},
+
+                                #[local_ref]
+                                sub_rules_listview -> gtk::Box {
+                                    set_orientation: gtk::Orientation::Vertical,
+                                    set_spacing: 5,
+                                },
+
+                                gtk::Button {
+                                    set_icon_name: "list-add-symbolic",
                                     set_hexpand: true,
-                                    set_placeholder_text: Some("Cyberpunk2077.exe"),
-                                    connect_changed => ProfileRuleWindowMsg::Evaluate,
+                                    set_halign: gtk::Align::End,
+                                    connect_clicked => ProfileRuleWindowMsg::AddSubrule,
                                 },
 
-                                attach[3, 0, 1, 1] = &gtk::MenuButton {
-                                    set_icon_name: "view-list-symbolic",
+                                gtk::Separator {},
 
-                                    #[wrap(Some)]
-                                    set_popover: process_filter_popover = &gtk::Popover {
-                                        gtk::Box {
-                                            set_orientation: gtk::Orientation::Vertical,
-                                            set_spacing: 5,
+                                gtk::Box {
+                                    set_orientation: gtk::Orientation::Horizontal,
+                                    set_spacing: 5,
 
-                                            #[name = "process_search_entry"]
-                                            gtk::SearchEntry {
-                                                connect_search_changed[sender] => move |entry| {
-                                                    sender.input(ProfileRuleWindowMsg::ProcessFilterChanged(entry.text()));
-                                                },
-                                            },
-
-                                            gtk::ScrolledWindow {
-                                                set_size_request: (400, 350),
-
-                                                #[local_ref]
-                                                process_listview -> gtk::ListView {
-                                                    set_show_separators: true,
-                                                },
-                                            }
-                                        },
-
-                                        connect_visible_notify => |_| {
-                                            debug!("requesting profile watcher state");
-                                            APP_BROKER.send(AppMsg::ReloadProfiles { include_state: true });
+                                    gtk::Label {
+                                        #[watch]
+                                        set_markup: &if model.auto_switch {
+                                            format!(
+                                                "Selected activation settings are currently <b>{}</b>",
+                                                if model.currently_matches { "matched" } else { "not matched" }
+                                            )
+                                        } else {
+                                            "<b>Automatic profile switching is currently disabled</b>".to_owned()
                                         },
                                     },
-                                },
 
-                                attach[0, 1, 1, 1] = &gtk::Label {
-                                    set_label: "Arguments Contain:",
-                                    set_halign: gtk::Align::Start,
-                                },
-
-
-                                attach[1, 1, 1, 1]: filter_by_args_checkbutton = &gtk::CheckButton {
-                                    connect_toggled => ProfileRuleWindowMsg::Evaluate,
-                                },
-
-                                attach[2, 1, 1, 1]: args_entry = &gtk::Entry {
-                                    set_buffer: &model.args_buffer,
-                                    set_hexpand: true,
-                                    set_sensitive: false,
-                                    connect_changed => ProfileRuleWindowMsg::Evaluate,
-                                },
+                                    gtk::Image {
+                                        #[watch]
+                                        set_icon_name: match model.currently_matches {
+                                            true => Some("object-select-symbolic"),
+                                            false => Some("list-remove-symbolic"),
+                                        },
+                                    },
+                                }
                             },
+                        },
 
-                            add_titled[Some(GAMEMODE_PAGE), "Gamemode is active"] = &gtk::Grid {
-                                set_row_spacing: 5,
-                                set_column_spacing: 10,
+                        gtk::Separator {},
+                    },
 
-                                attach[0, 0, 1, 1] = &gtk::Label {
-                                    set_label: "With a specific process:",
-                                    set_halign: gtk::Align::Start,
-                                },
+                    add_titled[None, "Hooks"] = &gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_margin_all: 5,
 
-                                attach[1, 0, 1, 1]: gamemode_filter_by_process_checkbutton = &gtk::CheckButton {
-                                    connect_toggled => ProfileRuleWindowMsg::Evaluate,
-                                },
-
-                                attach[2, 0, 1, 1]: gamemode_process_name_entry = &gtk::Entry {
-                                    set_buffer: &model.process_name_buffer,
-                                    set_hexpand: true,
-                                    set_placeholder_text: Some("Cyberpunk2077.exe"),
-                                    set_sensitive: false,
-                                    connect_changed => ProfileRuleWindowMsg::Evaluate,
-                                },
-
-                                attach[0, 1, 1, 1] = &gtk::Label {
-                                    set_label: "Arguments Contain:",
-                                    set_halign: gtk::Align::Start,
-                                },
-
-                                attach[1, 1, 1, 1]: gamemode_filter_by_args_checkbutton = &gtk::CheckButton {
-                                    connect_toggled => ProfileRuleWindowMsg::Evaluate,
-                                },
-
-                                attach[2, 1, 1, 1]: gamemode_args_entry = &gtk::Entry {
-                                    set_buffer: &model.args_buffer,
-                                    set_hexpand: true,
-                                    set_sensitive: false,
-                                    connect_changed => ProfileRuleWindowMsg::Evaluate,
-                                },
-                            },
-
-                            set_visible_child_name: match &model.rule {
-                                ProfileRule::Process(_) => PROCESS_PAGE,
-                                ProfileRule::Gamemode(_) => GAMEMODE_PAGE,
-                            }
+                        gtk::Label {
+                            #[watch]
+                            set_markup: &format!("<span font_desc='11'><b>Run a command when the profile '{}' is:</b></span>", model.profile_name),
+                            set_halign: gtk::Align::Start,
+                            set_margin_all: 10,
                         },
 
                         gtk::Separator {},
@@ -215,27 +183,64 @@ impl relm4::Component for ProfileRuleWindow {
                         gtk::Box {
                             set_orientation: gtk::Orientation::Horizontal,
                             set_spacing: 5,
+                            set_margin_vertical: 5,
+                            set_margin_horizontal: 10,
 
-                            gtk::Label {
-                                #[watch]
-                                set_markup: &format!(
-                                    "Selected settings are currently <b>{}</b>",
-                                    if model.currently_matches { "matched" } else { "not matched" }
-                                ),
+
+                            gtk::CheckButton {
+                                set_label: Some("Activated:"),
+                                add_binding: (&model.activated_hook_enabled, "active"),
+                                set_size_group: &hook_command_size_group,
                             },
 
+                            gtk::Entry {
+                                add_binding: (&model.activated_hook_enabled, "sensitive"),
+                                set_buffer: &model.activated_hook,
+                                set_hexpand: true,
+                            },
+                        },
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
+                            set_margin_vertical: 5,
+                            set_margin_horizontal: 10,
+
+                            gtk::CheckButton {
+                                set_label: Some("Deactivated:"),
+                                add_binding: (&model.deactivated_hook_enabled, "active"),
+                                set_size_group: &hook_command_size_group,
+                            },
+
+                            gtk::Entry {
+                                add_binding: (&model.deactivated_hook_enabled, "sensitive"),
+                                set_buffer: &model.deactivated_hook,
+                                set_hexpand: true,
+                            },
+                        },
+
+                        gtk::Separator {},
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
+                            set_margin_vertical: 5,
+                            set_margin_horizontal: 10,
+
                             gtk::Image {
-                                #[watch]
-                                set_icon_name: match model.currently_matches {
-                                    true => Some("object-select-symbolic"),
-                                    false => Some("list-remove-symbolic"),
-                                }
+                                set_icon_name: Some("dialog-warning-symbolic"),
+                            },
+
+                            gtk::Label {
+                                set_label: "Note: these commands are executed as root by the LACT daemon, and do not have access to the desktop environment. As such, they cannot be used directly to launch graphical applications.",
+                                set_wrap: true,
+                                set_wrap_mode: pango::WrapMode::Word,
+                                add_css_class: "caption-heading",
+                                set_hexpand: true,
                             },
                         }
                     },
-                },
-
-                gtk::Separator {},
+                }
             },
 
             add_buttons: &[("Cancel", gtk::ResponseType::Cancel), ("Save", gtk::ResponseType::Accept)],
@@ -243,63 +248,61 @@ impl relm4::Component for ProfileRuleWindow {
     }
 
     fn init(
-        (): Self::Init,
+        params: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let task_sender = sender.clone();
-        relm4::spawn_local(async move {
-            loop {
-                sleep(Duration::from_millis(EVALUATE_INTERVAL_MS)).await;
-                task_sender.input(ProfileRuleWindowMsg::Evaluate);
-            }
+        let ProfileEditParams {
+            name,
+            rule,
+            hooks,
+            auto_switch,
+            root_window,
+        } = params;
+
+        sender.command(move |_, shutdown| {
+            shutdown
+                .register(async move {
+                    loop {
+                        sleep(Duration::from_millis(EVALUATE_INTERVAL_MS)).await;
+                        task_sender.input(ProfileRuleWindowMsg::Evaluate);
+                    }
+                })
+                .drop_on_shutdown()
         });
 
-        let mut model = Self {
-            rule: ProfileRule::default(),
-            profile_name: String::new(),
-            process_name_buffer: gtk::EntryBuffer::new(GStr::NONE),
-            args_buffer: gtk::EntryBuffer::new(GStr::NONE),
-            process_list_view: TypedListView::new(),
-            currently_matches: false,
+        let mut sub_rules_list_view = FactoryVecDeque::builder()
+            .launch_default()
+            .forward(sender.input_sender(), |msg| msg);
+
+        match &rule {
+            ProfileRule::And(subrules) | ProfileRule::Or(subrules) => {
+                for rule in subrules.iter().cloned() {
+                    sub_rules_list_view.guard().push_back(rule);
+                }
+            }
+            rule => {
+                sub_rules_list_view.guard().push_back(rule.clone());
+            }
         };
 
-        model
-            .process_list_view
-            .selection_model
-            .set_autoselect(false);
+        let model = Self {
+            profile_name: name,
+            sub_rules_list_view,
+            currently_matches: false,
+            auto_switch,
+            activated_hook_enabled: BoolBinding::new(hooks.activated.is_some()),
+            activated_hook: gtk::EntryBuffer::new(hooks.activated),
+            deactivated_hook_enabled: BoolBinding::new(hooks.deactivated.is_some()),
+            deactivated_hook: gtk::EntryBuffer::new(hooks.deactivated),
+        };
 
-        let process_listview = &model.process_list_view.view;
+        let sub_rules_listview = model.sub_rules_list_view.widget();
+        let hook_command_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         let widgets = view_output!();
 
-        model.process_list_view.add_filter({
-            let search_entry = widgets.process_search_entry.clone();
-            move |process| process.0.cmdline.contains(search_entry.text().as_str())
-        });
-        model
-            .process_list_view
-            .selection_model
-            .connect_selected_item_notify(move |_| {
-                sender.input(ProfileRuleWindowMsg::SetFromSelectedProcess);
-            });
-
-        widgets
-            .filter_by_args_checkbutton
-            .bind_property("active", &widgets.args_entry, "sensitive")
-            .bidirectional()
-            .build();
-
-        widgets
-            .gamemode_filter_by_process_checkbutton
-            .bind_property("active", &widgets.gamemode_process_name_entry, "sensitive")
-            .bidirectional()
-            .build();
-
-        widgets
-            .gamemode_filter_by_args_checkbutton
-            .bind_property("active", &widgets.gamemode_args_entry, "sensitive")
-            .bidirectional()
-            .build();
+        root.present();
 
         ComponentParts { model, widgets }
     }
@@ -312,89 +315,33 @@ impl relm4::Component for ProfileRuleWindow {
         root: &Self::Root,
     ) {
         match msg {
-            ProfileRuleWindowMsg::Show { profile_name, rule } => {
-                self.profile_name = profile_name;
-
-                let page = match rule {
-                    ProfileRule::Process(rule) => {
-                        self.process_name_buffer.set_text(rule.name.as_ref());
-                        self.args_buffer
-                            .set_text(rule.args.as_deref().unwrap_or_default());
-                        PROCESS_PAGE
-                    }
-                    ProfileRule::Gamemode(Some(rule)) => {
-                        self.process_name_buffer.set_text(rule.name.as_ref());
-                        self.args_buffer
-                            .set_text(rule.args.as_deref().unwrap_or_default());
-                        GAMEMODE_PAGE
-                    }
-                    ProfileRule::Gamemode(None) => {
-                        self.process_name_buffer.set_text("");
-                        self.args_buffer.set_text("");
-                        GAMEMODE_PAGE
-                    }
-                };
-                widgets.stack.set_visible_child_name(page);
-
-                widgets
-                    .filter_by_args_checkbutton
-                    .set_active(self.args_buffer.length() > 0);
-                widgets
-                    .gamemode_filter_by_process_checkbutton
-                    .set_active(self.process_name_buffer.length() > 0);
-                widgets
-                    .gamemode_filter_by_args_checkbutton
-                    .set_active(self.args_buffer.length() > 0);
-
-                root.present();
-            }
-            ProfileRuleWindowMsg::ProcessFilterChanged(filter) => {
-                self.process_list_view.set_filter_status(0, false);
-                if !filter.is_empty() {
-                    self.process_list_view.set_filter_status(0, true);
-                }
-            }
-            ProfileRuleWindowMsg::WatcherState(state) => {
-                self.process_list_view.clear();
-                self.process_list_view
-                    .extend_from_iter(state.process_list.into_values().map(ProcessListItem).rev());
-            }
-            ProfileRuleWindowMsg::SetFromSelectedProcess => {
-                let index = self.process_list_view.selection_model.selected();
-
-                let filter_text = widgets.process_search_entry.text();
-                let item = if filter_text.is_empty() {
-                    self.process_list_view.get(index)
-                } else {
-                    // Indexing is not aware of filters, so we have to apply the filter here to find a matching index
-                    (0..self.process_list_view.len())
-                        .map(|i| self.process_list_view.get(i).unwrap())
-                        .filter(|item| item.borrow().0.cmdline.contains(filter_text.as_str()))
-                        .nth(index as usize)
-                };
-                if let Some(item) = item {
-                    let info = &item.borrow().0;
-                    self.process_name_buffer.set_text(info.name.as_ref());
-                    self.args_buffer.set_text(info.cmdline.as_ref());
-                }
-
-                self.process_list_view.selection_model.unselect_all();
-                widgets.process_filter_popover.popdown();
-            }
             ProfileRuleWindowMsg::Evaluate => {
-                if root.is_visible() {
+                if root.is_visible() && self.auto_switch {
                     let rule = self.get_rule(widgets);
-                    APP_BROKER.send(AppMsg::EvaluateProfile(rule));
+                    APP_BROKER.send(AppMsg::EvaluateProfile(rule, sender.input_sender().clone()));
                 }
+            }
+            ProfileRuleWindowMsg::AddSubrule => {
+                self.sub_rules_list_view
+                    .guard()
+                    .push_back(ProfileRule::default());
+            }
+            ProfileRuleWindowMsg::RemoveSubrule(index) => {
+                self.sub_rules_list_view
+                    .guard()
+                    .remove(index.current_index());
             }
             ProfileRuleWindowMsg::EvaluationResult(matches) => {
                 self.currently_matches = matches;
             }
             ProfileRuleWindowMsg::Save => {
-                APP_BROKER.send(AppMsg::SetProfileRule {
-                    name: self.profile_name.clone(),
-                    rule: Some(self.get_rule(widgets)),
-                });
+                sender
+                    .output((
+                        self.profile_name.clone(),
+                        self.get_rule(widgets),
+                        self.get_hooks(),
+                    ))
+                    .unwrap();
             }
         }
 
@@ -404,72 +351,33 @@ impl relm4::Component for ProfileRuleWindow {
 
 impl ProfileRuleWindow {
     fn get_rule(&self, widgets: &ProfileRuleWindowWidgets) -> ProfileRule {
-        let process_name = self.process_name_buffer.text();
-        let process_args = self.args_buffer.text();
+        let rules = self
+            .sub_rules_list_view
+            .iter()
+            .map(|row| row.get_configured_rule())
+            .collect::<Vec<_>>();
 
-        match widgets.stack.visible_child_name().as_deref() {
-            Some(PROCESS_PAGE) => {
-                let args = if widgets.filter_by_args_checkbutton.is_active() {
-                    Some(process_args.as_str().into())
-                } else {
-                    None
-                };
-                ProfileRule::Process(ProcessProfileRule {
-                    name: process_name.as_str().into(),
-                    args,
-                })
-            }
-            Some(GAMEMODE_PAGE) => {
-                let args = if widgets.gamemode_filter_by_args_checkbutton.is_active() {
-                    Some(process_args.as_str().into())
-                } else {
-                    None
-                };
-                let rule = if !widgets.gamemode_filter_by_process_checkbutton.is_active()
-                    && args.is_none()
-                {
-                    None
-                } else {
-                    Some(ProcessProfileRule {
-                        name: process_name.as_str().into(),
-                        args,
-                    })
-                };
-                ProfileRule::Gamemode(rule)
-            }
-            _ => unreachable!(),
+        if rules.len() == 1 {
+            rules.into_iter().next().unwrap()
+        } else if widgets.multi_or_checkbutton.is_active() {
+            ProfileRule::Or(rules)
+        } else {
+            ProfileRule::And(rules)
         }
     }
-}
 
-struct ProcessListItem(ProcessInfo);
-
-struct ProcessListItemWidgets {
-    label: gtk::Label,
-}
-
-impl RelmListItem for ProcessListItem {
-    type Root = gtk::Box;
-    type Widgets = ProcessListItemWidgets;
-
-    fn setup(_list_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
-        view! {
-            root_box = gtk::Box {
-                #[name = "label"]
-                gtk::Label {
-                    set_halign: gtk::Align::Start,
-                    set_hexpand: true,
-                    set_selectable: false,
-                },
-            }
+    fn get_hooks(&self) -> ProfileHooks {
+        ProfileHooks {
+            activated: if self.activated_hook_enabled.value() {
+                Some(self.activated_hook.text().to_string())
+            } else {
+                None
+            },
+            deactivated: if self.deactivated_hook_enabled.value() {
+                Some(self.deactivated_hook.text().to_string())
+            } else {
+                None
+            },
         }
-
-        let widgets = ProcessListItemWidgets { label };
-        (root_box, widgets)
-    }
-
-    fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        let text = format!("<b>{}</b> ({})", self.0.name, self.0.cmdline);
-        widgets.label.set_markup(&text);
     }
 }

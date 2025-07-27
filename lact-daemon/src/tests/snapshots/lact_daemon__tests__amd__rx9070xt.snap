@@ -34,12 +34,11 @@ expression: device_info
               "min": -200
             }
           },
-          "rdna4_sclk_offset_workaround": true,
           "sclk_offset": 0,
           "vddc_curve": [],
-          "voltage_offset": 0
+          "voltage_offset": -50
         },
-        "kind": "vega20"
+        "kind": "rdna"
       }
     }
   },
@@ -51,7 +50,7 @@ expression: device_info
     },
     "pci_info": {
       "device_pci_info": {
-        "model": "Navi 48 [RX 9070/9070 XT]",
+        "model": "Navi 48 [Radeon RX 9070/9070 XT/9070 GRE]",
         "model_id": "7550",
         "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
         "vendor_id": "1002"
@@ -63,21 +62,12 @@ expression: device_info
         "vendor_id": "148C"
       }
     },
-    "vbios_version": "113-EXT108779-100",
-    "vulkan_info": {
-      "api_version": "",
-      "device_name": "",
-      "driver": {
-        "version": 0
-      },
-      "enabled_layers": [],
-      "extensions": {},
-      "features": {}
-    }
+    "vbios_version": "113-EXT109069-101",
+    "vulkan_instances": []
   },
   "pci_info": {
     "device_pci_info": {
-      "model": "Navi 48 [RX 9070/9070 XT]",
+      "model": "Navi 48 [Radeon RX 9070/9070 XT/9070 GRE]",
       "model_id": "7550",
       "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
       "vendor_id": "1002"
@@ -90,7 +80,7 @@ expression: device_info
     }
   },
   "power_profile_modes": {
-    "active": 1,
+    "active": 0,
     "modes": {
       "0": {
         "components": [
@@ -362,12 +352,12 @@ expression: device_info
       {
         "enabled": true,
         "index": 1,
-        "value": 0
+        "value": 16
       },
       {
         "enabled": true,
         "index": 2,
-        "value": 2520
+        "value": 2400
       }
     ],
     "vram": [
@@ -404,10 +394,10 @@ expression: device_info
     ]
   },
   "stats": {
-    "busy_percent": 9,
+    "busy_percent": 3,
     "clockspeed": {
-      "gpu_clockspeed": 59,
-      "vram_clockspeed": 96
+      "gpu_clockspeed": 167,
+      "vram_clockspeed": 1258
     },
     "core_power_state": 1,
     "fan": {
@@ -425,7 +415,7 @@ expression: device_info
             500,
             3650
           ],
-          "current": 1300
+          "current": 1000
         },
         "minimum_pwm": {
           "allowed_range": [
@@ -439,19 +429,35 @@ expression: device_info
             25,
             105
           ],
-          "current": 90
+          "current": 92
+        },
+        "zero_rpm_enable": false,
+        "zero_rpm_temperature": {
+          "allowed_range": [
+            50,
+            110
+          ],
+          "current": 67
         }
       },
+      "pwm_current": 81,
       "pwm_max": 254,
       "pwm_min": 76,
-      "speed_current": 0
+      "speed_current": 896,
+      "speed_max": 3650,
+      "speed_min": 0,
+      "temperature_range": [
+        25,
+        100
+      ]
     },
-    "memory_power_state": 0,
+    "memory_power_state": 5,
+    "pcie_power_state": 1,
     "performance_level": "auto",
     "power": {
-      "average": 19.0,
-      "cap_current": 330.0,
-      "cap_default": 330.0,
+      "average": 55.0,
+      "cap_current": 120.0,
+      "cap_default": 304.0,
       "cap_max": 340.0,
       "cap_min": 0.0
     },
@@ -459,21 +465,21 @@ expression: device_info
       "edge": {
         "crit": 110.0,
         "crit_hyst": -273.1499938964844,
-        "current": 39.0
+        "current": 42.0
       },
       "junction": {
         "crit": 110.0,
         "crit_hyst": -273.1499938964844,
-        "current": 42.0
+        "current": 45.0
       },
       "mem": {
         "crit": 108.0,
         "crit_hyst": -273.1499938964844,
-        "current": 62.0
+        "current": 68.0
       }
     },
     "voltage": {
-      "gpu": 696
+      "gpu": 552
     },
     "vram": {}
   }

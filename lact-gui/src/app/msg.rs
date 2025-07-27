@@ -1,6 +1,9 @@
-use super::confirmation_dialog::ConfirmationOptions;
+use super::{
+    confirmation_dialog::ConfirmationOptions,
+    header::profile_rule_window::{profile_row::ProfileRuleRowMsg, ProfileRuleWindowMsg},
+};
 use lact_client::ConnectionStatusMsg;
-use lact_schema::{request::ProfileBase, DeviceStats, ProfileRule};
+use lact_schema::{config::ProfileHooks, request::ProfileBase, DeviceStats, ProfileRule};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -16,13 +19,15 @@ pub enum AppMsg {
     ResetClocks,
     ResetPmfw,
     ShowGraphsWindow,
+    ShowProcessMonitor,
     DumpVBios,
     DebugSnapshot,
     EnableOverdrive,
     DisableOverdrive,
     ResetConfig,
+    FetchProcessList,
     ReloadProfiles {
-        include_state: bool,
+        state_sender: Option<relm4::Sender<ProfileRuleRowMsg>>,
     },
     SelectProfile {
         profile: Option<String>,
@@ -31,11 +36,15 @@ pub enum AppMsg {
     CreateProfile(String, ProfileBase),
     DeleteProfile(String),
     MoveProfile(String, usize),
-    EvaluateProfile(ProfileRule),
+    RenameProfile(String, String),
+    EvaluateProfile(ProfileRule, relm4::Sender<ProfileRuleWindowMsg>),
     SetProfileRule {
         name: String,
         rule: Option<ProfileRule>,
+        hooks: ProfileHooks,
     },
+    ImportProfile,
+    ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
     AskConfirmation(ConfirmationOptions, Box<AppMsg>),
 }
@@ -43,7 +52,7 @@ pub enum AppMsg {
 impl AppMsg {
     pub fn ask_confirmation(
         inner: AppMsg,
-        title: &'static str,
+        title: String,
         message: impl Into<String>,
         buttons_type: gtk::ButtonsType,
     ) -> Self {

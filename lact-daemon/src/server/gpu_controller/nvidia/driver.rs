@@ -10,10 +10,10 @@ use crate::bindings::nvidia::{
     NvHandle, NV0080_ALLOC_PARAMETERS, NV01_DEVICE_0, NV2080_ALLOC_PARAMETERS,
     NV2080_CTRL_CMD_FB_GET_INFO, NV2080_CTRL_CMD_GR_GET_GLOBAL_SM_ORDER,
     NV2080_CTRL_CMD_GR_GET_ROP_INFO, NV2080_CTRL_FB_GET_INFO_PARAMS, NV2080_CTRL_FB_INFO,
-    NV2080_CTRL_FB_INFO_INDEX_L2CACHE_SIZE, NV2080_CTRL_FB_INFO_INDEX_MEMORYINFO_VENDOR_ID,
-    NV2080_CTRL_FB_INFO_INDEX_RAM_TYPE, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ELPIDA,
-    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ESMT, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ETRON,
-    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_HYNIX,
+    NV2080_CTRL_FB_INFO_INDEX_BUS_WIDTH, NV2080_CTRL_FB_INFO_INDEX_L2CACHE_SIZE,
+    NV2080_CTRL_FB_INFO_INDEX_MEMORYINFO_VENDOR_ID, NV2080_CTRL_FB_INFO_INDEX_RAM_TYPE,
+    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ELPIDA, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ESMT,
+    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ETRON, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_HYNIX,
     NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_MICRON,
     NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_MOSEL, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_NANYA,
     NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_QIMONDA,
@@ -34,7 +34,7 @@ use crate::bindings::nvidia::{
     NVOS64_PARAMETERS, NV_ESC_REGISTER_FD, NV_ESC_RM_ALLOC, NV_ESC_RM_CONTROL, NV_IOCTL_MAGIC,
 };
 use anyhow::{bail, Context};
-use lact_schema::NvidiaRopInfo;
+use lact_schema::RopInfo;
 use nix::ioctl_readwrite;
 
 pub struct DriverHandle {
@@ -132,12 +132,12 @@ impl DriverHandle {
         })
     }
 
-    pub fn get_rop_info(&self) -> anyhow::Result<NvidiaRopInfo> {
+    pub fn get_rop_info(&self) -> anyhow::Result<RopInfo> {
         unsafe {
             let mut params: NV2080_CTRL_GR_GET_ROP_INFO_PARAMS = mem::zeroed();
             self.query_rm_control(NV2080_CTRL_CMD_GR_GET_ROP_INFO, &mut params)?;
 
-            Ok(NvidiaRopInfo {
+            Ok(RopInfo {
                 unit_count: params.ropUnitCount,
                 operations_factor: params.ropOperationsFactor,
                 operations_count: params.ropOperationsCount,
@@ -184,6 +184,10 @@ impl DriverHandle {
             _ => "Unrecognized",
         };
         Ok(name)
+    }
+
+    pub fn get_bus_width(&self) -> anyhow::Result<u32> {
+        self.get_fb_info(NV2080_CTRL_FB_INFO_INDEX_BUS_WIDTH)
     }
 
     pub fn get_ram_vendor(&self) -> anyhow::Result<&'static str> {
@@ -239,7 +243,7 @@ impl DriverHandle {
         }
 
         if request.status != 0 {
-            bail!("Nvidia request failed with status {}", request.status);
+            bail!("Nvidia request failed with status {:x}", request.status);
         }
 
         Ok(())

@@ -3,7 +3,7 @@ use relm4::{ComponentParts, ComponentSender, SimpleComponent};
 
 #[derive(Clone, Debug)]
 pub struct ConfirmationOptions {
-    pub title: &'static str,
+    pub title: String,
     pub message: String,
     pub buttons_type: gtk::ButtonsType,
 }
@@ -19,7 +19,7 @@ impl SimpleComponent for ConfirmationDialog {
     view! {
         gtk::MessageDialog {
             set_transient_for: Some(&parent),
-            set_title: Some(options.title),
+            set_title: Some(&options.title),
             set_use_markup: true,
 
             connect_response[sender] => move |diag, response| {

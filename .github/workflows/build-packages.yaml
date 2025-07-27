@@ -10,7 +10,7 @@ jobs:
   build-packages:
     strategy:
       matrix:
-        target-os: [ debian-12, ubuntu-2204, ubuntu-2404, fedora-40, fedora-41, fedora-42, arch, opensuse-tumbleweed ]
+        target-os: [ debian-12, ubuntu-2204, ubuntu-2404, fedora-41, fedora-42, arch, opensuse-tumbleweed ]
         recipe: [ lact, lact-headless ]
         include:
           - target-os: rhel-8

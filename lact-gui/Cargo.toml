@@ -1,6 +1,6 @@
 [package]
 name = "lact-gui"
-version = "0.7.4"
+version = "0.8.1"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2021"
 
@@ -21,7 +21,8 @@ anyhow = { workspace = true }
 tracing-subscriber = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
-serde_yaml = { workspace = true }
+serde_yml = { workspace = true }
+serde_json = { workspace = true }
 indexmap = { workspace = true }
 gtk = { version = "0.9", package = "gtk4", features = ["v4_6"] }
 
@@ -31,13 +32,17 @@ adw = { package = "libadwaita", version = "0.7.1", features = [
 relm4 = { version = "0.9.0", default-features = false }
 relm4-components = "0.9.0"
 
+i18n-embed = { workspace = true }
+i18n-embed-fl = { workspace = true }
+rust-embed = { workspace = true }
+
 plotters = { version = "0.3.5", default-features = false, features = [
     "line_series",
     "full_palette",
+    "point_series",
 ] }
 plotters-cairo = "0.7.0"
 cairo-rs = { version = "0.20", default-features = false }
-itertools = "0.14.0"
 
 thread-priority = "1.1.0"
 

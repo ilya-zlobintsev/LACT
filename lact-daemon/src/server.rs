@@ -2,11 +2,10 @@ pub mod gpu_controller;
 pub mod handler;
 mod opencl;
 mod profiles;
-pub(crate) mod system;
 mod vulkan;
 
 use self::handler::Handler;
-use crate::{config::Config, socket};
+use crate::{config::Config, socket, system};
 use anyhow::Context;
 use futures::future::join_all;
 use lact_schema::{Pong, Request, Response};
@@ -39,9 +38,16 @@ impl Server {
             None
         };
 
+        system::power_profiles_daemon::setup().await;
+
         let handler = Handler::new(config).await?;
 
-        socket::set_permissions(&socket_path, &handler.config.read().await.daemon)?;
+        socket::set_permissions(&socket_path, &handler.config.read().await.daemon)
+            .await
+            .inspect_err(|_| {
+                // Clean up the socket if permissions failed to be set
+                socket::cleanup();
+            })?;
 
         Ok(Self {
             handler,
@@ -171,6 +177,9 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         Request::ListProfiles { include_state } => {
             ok_response(handler.list_profiles(include_state).await)
         }
+        Request::GetProfile { name } => {
+            ok_response(handler.get_profile(name.map(Into::into)).await?)
+        }
         Request::SetProfile { name, auto_switch } => ok_response(
             handler
                 .set_profile(name.map(Into::into), auto_switch)
@@ -184,13 +193,14 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
             ok_response(handler.move_profile(&name, new_position).await?)
         }
         Request::EvaluateProfileRule { rule } => ok_response(handler.evaluate_profile_rule(&rule)?),
-        Request::SetProfileRule { name, rule } => {
-            ok_response(handler.set_profile_rule(&name, rule).await?)
+        Request::SetProfileRule { name, rule, hooks } => {
+            ok_response(handler.set_profile_rule(&name, rule, hooks).await?)
         }
         Request::GetGpuConfig { id } => ok_response(handler.get_gpu_config(id).await?),
         Request::SetGpuConfig { id, config } => {
             ok_response(handler.set_gpu_config(id, config).await?)
         }
+        Request::ProcessList { id } => ok_response(handler.process_list(id).await?),
         Request::EnableOverdrive => ok_response(system::enable_overdrive().await?),
         Request::DisableOverdrive => ok_response(system::disable_overdrive().await?),
         Request::GenerateSnapshot => ok_response(handler.generate_snapshot().await?),

@@ -18,16 +18,20 @@
   </description>
   <screenshots>
     <screenshot type="default">
-      <image>https://i.imgur.com/zG5jkTH.png</image>
+      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/1.png</image>
       <caption>Information</caption>
     </screenshot>
     <screenshot>
-      <image>https://i.imgur.com/72y3Rca.png</image>
+      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/2.png</image>
       <caption>Overclocking</caption>
     </screenshot>
     <screenshot>
-      <image>https://i.imgur.com/aMEDZ43.png</image>
+      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/3.png</image>
       <caption>Fan Control</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/5.png</image>
+      <caption>Historical Data</caption>
     </screenshot>
   </screenshots>
   <branding>
@@ -49,6 +53,12 @@
     <display_length compare="ge">827</display_length>
   </requires>
   <releases>
+    <release version="0.8.0" date="2025-06-28">
+      <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.8.0</url>
+    </release>
+    <release version="0.7.4" date="2025-05-11">
+      <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.4</url>
+    </release>
     <release version="0.7.3" date="2025-04-05">
       <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.7.3</url>
     </release>

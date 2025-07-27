@@ -1,20 +1,22 @@
 use crate::{
     app::{msg::AppMsg, pages::oc_adjustment::OcAdjustment},
-    APP_BROKER,
+    APP_BROKER, I18N,
 };
 use gtk::{
     glib::{object::ObjectExt, SignalHandlerId},
     prelude::{AdjustmentExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
 };
+use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
 use relm4::{prelude::FactoryComponent, RelmWidgetExt};
 
 pub struct ClockAdjustmentRow {
     clock_type: ClockspeedType,
-    custom_title: Option<&'static str>,
+    custom_title: Option<String>,
     value_ratio: f64,
     change_signal: SignalHandlerId,
     adjustment: OcAdjustment,
+    show_separator: bool,
     pub(super) is_secondary: bool,
 }
 
@@ -22,8 +24,9 @@ pub struct ClocksData {
     pub current: i32,
     pub min: i32,
     pub max: i32,
-    pub custom_title: Option<&'static str>,
+    pub custom_title: Option<String>,
     pub is_secondary: bool,
+    pub show_separator: bool,
 }
 
 impl ClocksData {
@@ -34,6 +37,7 @@ impl ClocksData {
             max,
             is_secondary: false,
             custom_title: None,
+            show_separator: false,
         }
     }
 }
@@ -60,42 +64,57 @@ impl FactoryComponent for ClockAdjustmentRow {
     view! {
         #[name = "root_box"]
         gtk::Box {
-            #[name = "title_label"]
-            gtk::Label {
-                set_xalign: 0.0,
-                #[watch]
-                set_markup: &match self.custom_title {
-                    Some(title) => title.to_owned(),
-                    None => {
-                        match self.clock_type {
-                            ClockspeedType::MaxCoreClock => "Maximum GPU Clock (MHz)".to_owned(),
-                            ClockspeedType::MaxMemoryClock => "Maximum VRAM Clock (MHz)".to_owned(),
-                            ClockspeedType::MaxVoltage => "Maximum GPU voltage (mV)".to_owned(),
-                            ClockspeedType::MinCoreClock => "Minimum GPU Clock (MHz)".to_owned(),
-                            ClockspeedType::MinMemoryClock => "Minimum VRAM Clock (MHz)".to_owned(),
-                            ClockspeedType::MinVoltage => "Minimum GPU voltage (mV)".to_owned(),
-                            ClockspeedType::VoltageOffset => "GPU voltage offset (mV)".to_owned(),
-                            ClockspeedType::GpuClockOffset(pstate) => format!("GPU P-State {pstate} Clock Offset (MHz)"),
-                            ClockspeedType::MemClockOffset(pstate) => format!("VRAM P-State {pstate} Clock Offset (MHz)"),
-                            ClockspeedType::Reset => unreachable!(),
+            set_orientation: gtk::Orientation::Vertical,
+
+            gtk::Separator {
+                set_visible: self.show_separator,
+                set_margin_top: 5,
+                set_margin_bottom: 10,
+            },
+
+            gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                #[name = "title_label"]
+                gtk::Label {
+                    set_xalign: 0.0,
+                    #[watch]
+                    set_markup: &match &self.custom_title {
+                        Some(title) => title.clone(),
+                        None => {
+                            match self.clock_type {
+                                ClockspeedType::MaxCoreClock => fl!(I18N, "max-gpu-clock"),
+                                ClockspeedType::MaxMemoryClock => fl!(I18N, "max-vram-clock"),
+                                ClockspeedType::MaxVoltage => fl!(I18N, "max-gpu-voltage"),
+                                ClockspeedType::MinCoreClock => fl!(I18N, "min-gpu-clock"),
+                                ClockspeedType::MinMemoryClock => fl!(I18N, "min-vram-clock"),
+                                ClockspeedType::MinVoltage => fl!(I18N, "min-gpu-voltage"),
+                                ClockspeedType::VoltageOffset => fl!(I18N, "gpu-voltage-offset"),
+                                ClockspeedType::GpuClockOffset(pstate) => fl!(I18N, "gpu-pstate-clock-offset", pstate = pstate),
+                                ClockspeedType::MemClockOffset(pstate) => fl!(I18N, "vram-pstate-clock-offset", pstate = pstate),
+                                ClockspeedType::GpuVfCurveClock(pstate) => fl!(I18N, "gpu-pstate-clock", pstate = pstate),
+                                ClockspeedType::MemVfCurveClock(pstate) => fl!(I18N, "mem-pstate-clock", pstate = pstate),
+                                ClockspeedType::GpuVfCurveVoltage(pstate) => fl!(I18N, "gpu-pstate-clock-voltage", pstate = pstate),
+                                ClockspeedType::MemVfCurveVoltage(pstate) => fl!(I18N, "mem-pstate-clock-voltage", pstate = pstate),
+                                ClockspeedType::Reset => unreachable!(),
+                            }
                         }
                     }
-                }
-            },
+                },
 
-            gtk::Scale {
-                set_adjustment: &self.adjustment,
-                set_orientation: gtk::Orientation::Horizontal,
-                set_hexpand: true,
-                set_digits: 0,
-                set_round_digits: 0,
-                set_value_pos: gtk::PositionType::Right,
-                set_margin_horizontal: 5,
-            },
+                gtk::Scale {
+                    set_adjustment: &self.adjustment,
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_hexpand: true,
+                    set_digits: 0,
+                    set_round_digits: 0,
+                    set_value_pos: gtk::PositionType::Right,
+                    set_margin_horizontal: 5,
+                },
 
-            #[name = "input_button"]
-            gtk::SpinButton {
-                set_adjustment: &self.adjustment,
+                #[name = "input_button"]
+                gtk::SpinButton {
+                    set_adjustment: &self.adjustment,
+                },
             },
         }
     }
@@ -111,7 +130,6 @@ impl FactoryComponent for ClockAdjustmentRow {
             data.max as f64,
             1.0,
             10.0,
-            0.0,
         );
 
         let change_signal = adjustment.connect_value_changed(move |_| {
@@ -125,6 +143,7 @@ impl FactoryComponent for ClockAdjustmentRow {
             change_signal,
             value_ratio: 1.0,
             is_secondary: data.is_secondary,
+            show_separator: data.show_separator,
         }
     }
 

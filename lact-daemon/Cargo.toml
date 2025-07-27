@@ -1,6 +1,6 @@
 [package]
 name = "lact-daemon"
-version = "0.7.4"
+version = "0.8.1"
 edition = "2021"
 
 [features]
@@ -31,29 +31,31 @@ tokio = { workspace = true, features = [
 futures = { workspace = true }
 indexmap = { workspace = true }
 divan = { workspace = true, optional = true }
-serde_yaml = { workspace = true }
+serde_yml = { workspace = true }
 
-nvml-wrapper = { git = "https://github.com/ilya-zlobintsev/nvml-wrapper", branch = "feature/pstate-wrappers" }
+nvml-wrapper = "0.11.0"
 bitflags = "2.6.0"
 pciid-parser = { version = "0.8", features = ["serde"] }
 zbus = { version = "5.3.1", default-features = false, features = ["tokio"] }
-libdrm_amdgpu_sys = { version = "0.8.1", default-features = false, features = [
+libdrm_amdgpu_sys = { git = "https://github.com/Umio-Yasuno/libdrm-amdgpu-sys-rs", default-features = false, features = [
     "dynamic_loading",
 ] }
 tar = "0.4.40"
 libflate = "2.0.0"
 os-release = "0.1.0"
 notify = { version = "8.0.0", default-features = false }
-copes = { git = "https://gitlab.com/corectrl/copes" }
+libcopes = "1.0.0"
 libloading = "0.8.6"
-tempfile = "3.17.1"
-cl3 = { version = "0.13.0", features = ["static"] }
+cl3 = { git = "https://github.com/kenba/cl3", branch = "develop", features = [
+    "static",
+] }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 insta = { version = "1.41.1", features = ["json", "yaml"] }
-easy_fuser = { version = "0.4.0", features = ["parallel"] }
+easy_fuser = { version = "0.4.1", features = ["parallel"] }
+tempfile = "3.17.1"
 
 [build-dependencies]
-bindgen = "0.68"
+bindgen = "0.71"
 serde_json = { workspace = true }

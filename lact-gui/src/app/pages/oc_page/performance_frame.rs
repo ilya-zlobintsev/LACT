@@ -1,366 +1,299 @@
-use crate::app::page_section::PageSection;
+mod heuristics_list;
+
+use super::OcPageMsg;
+use crate::{
+    app::{msg::AppMsg, page_section::PageSection},
+    APP_BROKER, I18N,
+};
 use amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel};
-use glib::clone;
-use gtk::subclass::prelude::ObjectSubclassIsExt;
 use gtk::{
-    glib, DropDown, Label, ListBox, MenuButton, Notebook, NotebookPage, Popover, SelectionMode,
+    gio::prelude::ListModelExt,
+    glib::object::Cast,
+    prelude::{BoxExt, ListBoxRowExt, OrientableExt, WidgetExt},
     StringObject,
 };
-use gtk::{prelude::*, Align, Orientation, StringList};
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use heuristics_list::PowerProfileHeuristicsList;
+use i18n_embed_fl::fl;
+use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 
-use super::power_profile::power_profile_heuristics_grid::PowerProfileHeuristicsGrid;
+const PERFORMANCE_LEVELS: [PerformanceLevel; 4] = [
+    PerformanceLevel::Auto,
+    PerformanceLevel::High,
+    PerformanceLevel::Low,
+    PerformanceLevel::Manual,
+];
 
-type ValuesChangedCallback = Rc<dyn Fn()>;
-
-#[derive(Clone)]
 pub struct PerformanceFrame {
-    pub container: PageSection,
-    level_drop_down: DropDown,
-    modes_listbox: ListBox,
-    mode_menu_button: MenuButton,
-    description_label: Label,
-    manual_info_button: MenuButton,
-    mode_box: gtk::Box,
-    modes_table: Rc<RefCell<Option<PowerProfileModesTable>>>,
-    power_mode_info_notebook: Notebook,
-
-    values_changed_callback: Rc<RefCell<Option<ValuesChangedCallback>>>,
+    performance_level: Option<PerformanceLevel>,
+    power_profile_modes_table: Option<PowerProfileModesTable>,
+    power_profile_modes: gtk::StringList,
+    heuristics_components: Vec<relm4::Controller<PowerProfileHeuristicsList>>,
 }
 
-impl PerformanceFrame {
-    pub fn new() -> Self {
-        let container = PageSection::new("Performance");
+#[derive(Debug)]
+pub enum PerformanceFrameMsg {
+    PerformanceLevel(Option<PerformanceLevel>),
+    PowerProfileModes(Option<PowerProfileModesTable>),
+    PowerProfileSelected(u16),
+}
 
-        let levels_model: StringList = ["Automatic", "Highest Clocks", "Lowest Clocks", "Manual"]
-            .into_iter()
-            .collect();
+#[relm4::component(pub)]
+impl relm4::Component for PerformanceFrame {
+    type Init = ();
+    type Input = PerformanceFrameMsg;
+    type Output = OcPageMsg;
+    type CommandOutput = ();
 
-        let level_box = gtk::Box::new(Orientation::Horizontal, 10);
+    view! {
+        PageSection::new("Performance") {
+            #[watch]
+            set_visible: model.performance_level.is_some(),
 
-        let level_drop_down = DropDown::builder()
-            .model(&levels_model)
-            .sensitive(false)
-            .build();
-        let description_label = Label::builder().halign(Align::End).hexpand(true).build();
-        let perfromance_title_label = Label::builder().label("Performance level:").build();
+            append = &gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 10,
 
-        level_box.append(&perfromance_title_label);
-        level_box.append(&description_label);
-        level_box.append(&level_drop_down);
+                gtk::Label {
+                    set_label: "Performance Level:"
+                },
 
-        container.append(&level_box);
+                gtk::Label {
+                    #[watch]
+                    set_label: &match model.performance_level {
+                        Some(PerformanceLevel::Auto) => fl!(I18N, "performance-level-auto-description"),
+                        Some(PerformanceLevel::High) => fl!(I18N, "performance-level-high-description"),
+                        Some(PerformanceLevel::Low) => fl!(I18N, "performance-level-low-description"),
+                        Some(PerformanceLevel::Manual) => fl!(I18N, "performance-level-manual-description"),
+                        _ => String::new(),
+                    },
+                    set_hexpand: true,
+                    set_halign: gtk::Align::End,
+                },
 
-        let mode_box = gtk::Box::new(Orientation::Horizontal, 10);
+                gtk::DropDown::from_strings(&level_names_ref) {
+                    #[watch]
+                    #[block_signal(level_select_handler)]
+                    set_selected: PERFORMANCE_LEVELS.iter().position(|level| model.performance_level == Some(*level)).unwrap_or(0) as u32,
 
-        let mode_menu_button = MenuButton::builder()
-            .sensitive(false)
-            .halign(Align::End)
-            .always_show_arrow(false)
-            .build();
+                    connect_selected_notify[sender] => move |dropdown| {
+                        let idx = dropdown.selected();
+                        if let Some(level) = PERFORMANCE_LEVELS.get(idx as usize) {
+                            sender.input(PerformanceFrameMsg::PerformanceLevel(Some(*level)));
+                            sender.output(OcPageMsg::PerformanceLevelChanged).unwrap();
+                            APP_BROKER.send(AppMsg::SettingsChanged);
+                        }
+                    } @ level_select_handler,
+                },
+            },
 
-        let modes_listbox = ListBox::builder()
-            .selection_mode(SelectionMode::Single)
-            .build();
+            append = &gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 10,
 
-        let modes_popover_content = gtk::Box::builder()
-            .orientation(Orientation::Horizontal)
-            .spacing(10)
-            .margin_start(5)
-            .margin_end(5)
-            .margin_top(5)
-            .margin_bottom(5)
-            .build();
-        modes_popover_content.append(&modes_listbox);
+                gtk::Label {
+                    set_label: &fl!(I18N, "power-profile-mode"),
+                    set_hexpand: true,
+                    set_halign: gtk::Align::Start,
+                },
 
-        let power_mode_info_notebook = Notebook::new();
-        modes_popover_content.append(&power_mode_info_notebook);
+                gtk::MenuButton {
+                    set_icon_name: "dialog-information-symbolic",
+                    #[watch]
+                    set_visible: model.performance_level != Some(PerformanceLevel::Manual),
 
-        let modes_popover = Popover::builder().child(&modes_popover_content).build();
-        mode_menu_button.set_popover(Some(&modes_popover));
+                    #[wrap(Some)]
+                    set_popover =  &gtk::Popover {
+                        gtk::Label {
+                            set_label: &fl!(I18N, "manual-level-needed"),
+                        }
+                    },
+                },
 
-        let unavailable_label = Label::new(Some(
-            "Performance level has to be set to \"manual\" to use power states and modes",
-        ));
-        let mode_info_popover = Popover::builder().child(&unavailable_label).build();
-        let manual_info_button = MenuButton::builder()
-            .icon_name("dialog-information-symbolic")
-            .hexpand(true)
-            .halign(Align::End)
-            .popover(&mode_info_popover)
-            .build();
+                gtk::MenuButton {
+                    set_always_show_arrow: false,
+                    #[watch]
+                    set_label: model.power_profile_modes_table.as_ref().and_then(|table| table.modes.get(&table.active)).map(|profile| profile.name.as_str()).unwrap_or_default(),
 
-        let mode_title_label = Label::new(Some("Power level mode:"));
-        mode_box.append(&mode_title_label);
-        mode_box.append(&manual_info_button);
-        mode_box.append(&mode_menu_button);
+                    #[wrap(Some)]
+                    set_popover =  &gtk::Popover {
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_margin_all: 5,
 
-        container.append(&mode_box);
+                            #[name = "modes_listbox"]
+                            gtk::ListBox {
+                                set_selection_mode: gtk::SelectionMode::Single,
+                                #[watch]
+                                set_sensitive: model.performance_level.is_some_and(|level| level == PerformanceLevel::Manual),
 
-        let frame = Self {
-            container,
-            level_drop_down,
-            mode_menu_button,
-            description_label,
-            manual_info_button,
-            modes_listbox,
-            mode_box,
-            modes_table: Rc::new(RefCell::new(None)),
-            power_mode_info_notebook,
-            values_changed_callback: Rc::default(),
-        };
+                                bind_model: (Some(&model.power_profile_modes), |obj| {
+                                    let string = obj.downcast_ref::<StringObject>().unwrap();
+                                    gtk::Label::builder().label(string.string()).build().into()
+                                }),
 
-        frame.level_drop_down.connect_selected_notify(clone!(
-            #[strong]
-            frame,
-            move |_| {
-                frame.update_from_selection();
-            }
-        ));
+                                connect_row_selected[sender] => move |_, row| {
+                                    if let Some(row) = row {
+                                        if let Ok(idx) = u16::try_from(row.index()) {
+                                            sender.input(PerformanceFrameMsg::PowerProfileSelected(idx));
+                                        }
+                                    }
+                                } @ power_profile_selected_handler,
 
-        frame.modes_listbox.connect_row_selected(clone!(
-            #[strong]
-            frame,
-            move |_, _| frame.update_from_selection()
-        ));
+                                #[watch]
+                                #[block_signal(power_profile_selected_handler)]
+                                select_row: model.power_profile_modes_table.as_ref().and_then(|table| modes_listbox.row_at_index(table.active.into())).as_ref(),
+                            },
 
-        frame
-    }
-
-    pub fn set_active_level(&self, level: PerformanceLevel) {
-        self.level_drop_down.set_sensitive(true);
-        match level {
-            PerformanceLevel::Auto => self.level_drop_down.set_selected(0),
-            PerformanceLevel::High => self.level_drop_down.set_selected(1),
-            PerformanceLevel::Low => self.level_drop_down.set_selected(2),
-            PerformanceLevel::Manual => self.level_drop_down.set_selected(3),
-        };
-        self.update_from_selection();
-    }
-
-    pub fn set_power_profile_modes(&self, table: Option<PowerProfileModesTable>) {
-        self.mode_box.set_visible(table.is_some());
-
-        while let Some(row) = self.modes_listbox.row_at_index(0) {
-            self.modes_listbox.remove(&row);
+                            #[name = "heuristics_notebook"]
+                            gtk::Notebook {
+                                #[watch]
+                                set_show_tabs: model.heuristics_components.len() > 1,
+                            },
+                        }
+                    },
+                },
+            },
         }
+    }
 
-        match &table {
-            Some(table) => {
-                for profile in table.modes.values() {
-                    let profile_label = Label::builder()
-                        .label(&profile.name)
-                        .margin_start(5)
-                        .margin_end(5)
-                        .build();
-                    self.modes_listbox.append(&profile_label);
+    fn init(
+        _init: Self::Init,
+        _root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let level_names = PERFORMANCE_LEVELS.map(level_friendly_name);
+        let level_names_ref = level_names
+            .iter()
+            .map(|level| level.as_str())
+            .collect::<Vec<&str>>();
+
+        let model = Self {
+            performance_level: None,
+            power_profile_modes_table: None,
+            power_profile_modes: gtk::StringList::new(&[]),
+            heuristics_components: vec![],
+        };
+
+        let widgets = view_output!();
+
+        ComponentParts { model, widgets }
+    }
+
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: ComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
+        match msg {
+            PerformanceFrameMsg::PerformanceLevel(level) => {
+                self.performance_level = level;
+            }
+            PerformanceFrameMsg::PowerProfileModes(table) => {
+                while self.power_profile_modes.n_items() != 0 {
+                    self.power_profile_modes.remove(0);
                 }
 
-                let active_row = self
-                    .modes_listbox
-                    .row_at_index(table.active as i32)
-                    .unwrap();
-                self.modes_listbox.select_row(Some(&active_row));
+                if let Some(table) = &table {
+                    for mode in table.modes.values() {
+                        self.power_profile_modes.append(&mode.name);
+                    }
+                }
 
-                self.mode_menu_button.show();
+                self.power_profile_modes_table = table;
+                self.update_heuristic_components(widgets);
             }
-            None => {
-                self.mode_menu_button.hide();
-            }
-        }
-        self.modes_table.replace(table);
-
-        self.update_from_selection();
-    }
-
-    pub fn connect_settings_changed<F: Fn() + 'static + Clone>(&self, f: F) {
-        self.level_drop_down.connect_selected_notify(clone!(
-            #[strong]
-            f,
-            move |_| f()
-        ));
-        self.modes_listbox.connect_row_selected(clone!(
-            #[strong(rename_to = modes_table)]
-            self.modes_table,
-            #[strong]
-            f,
-            move |_, row| {
-                let modes_table = modes_table.borrow();
-
-                if let Some(row) = row {
-                    if let Some(table) = modes_table.as_ref() {
-                        if row.index() != table.active as i32 {
-                            f();
-                        }
+            PerformanceFrameMsg::PowerProfileSelected(idx) => {
+                if let Some(table) = &mut self.power_profile_modes_table {
+                    if table.active != idx {
+                        table.active = idx;
+                        APP_BROKER.send(AppMsg::SettingsChanged);
+                        self.update_heuristic_components(widgets);
                     }
                 }
             }
-        ));
+        }
 
-        *self.values_changed_callback.borrow_mut() = Some(Rc::new(f));
+        if let Some(table) = &self.power_profile_modes_table {
+            if let Some(active) = table.modes.get(&table.active) {
+                for heuristics_component in &self.heuristics_components {
+                    heuristics_component
+                        .widget()
+                        .set_sensitive(active.is_custom());
+                }
+            }
+        }
+
+        self.update_view(widgets, sender);
+    }
+}
+
+impl PerformanceFrame {
+    fn update_heuristic_components(&mut self, widgets: &PerformanceFrameWidgets) {
+        while let Some(component) = self.heuristics_components.pop() {
+            let page = widgets.heuristics_notebook.page(component.widget());
+            widgets
+                .heuristics_notebook
+                .remove_page(Some(page.position() as u32));
+        }
+
+        if let Some(table) = &self.power_profile_modes_table {
+            if let Some(active_profile) = table.modes.get(&table.active) {
+                for component in &active_profile.components {
+                    let title = component.clock_type.as_deref().unwrap_or("All");
+
+                    let heuristics_component = PowerProfileHeuristicsList::builder()
+                        .launch((component.values.clone(), table.value_names.clone()))
+                        .detach();
+
+                    widgets.heuristics_notebook.append_page(
+                        heuristics_component.widget(),
+                        Some(&gtk::Label::new(Some(title))),
+                    );
+
+                    self.heuristics_components.push(heuristics_component);
+                }
+            }
+        }
     }
 
-    pub fn get_selected_performance_level(&self) -> PerformanceLevel {
-        let selected_item = self
-            .level_drop_down
-            .selected_item()
-            .expect("No selected item");
-        let string_object = selected_item.downcast_ref::<StringObject>().unwrap();
-        PerformanceLevel::from_str(string_object.string().as_str())
-            .expect("Unrecognized selected performance level")
+    pub fn performance_level(&self) -> Option<PerformanceLevel> {
+        self.performance_level
     }
 
-    pub fn get_selected_power_profile_mode(&self) -> Option<u16> {
-        if self.mode_menu_button.is_sensitive() {
-            self.modes_listbox
-                .selected_row()
-                .map(|row| row.index() as u16)
+    pub fn power_profile_mode(&self) -> Option<u16> {
+        if self.performance_level == Some(PerformanceLevel::Manual) {
+            self.power_profile_modes_table
+                .as_ref()
+                .map(|table| table.active)
         } else {
             None
         }
     }
 
-    pub fn get_power_profile_mode_custom_heuristics(&self) -> Vec<Vec<Option<i32>>> {
-        let modes_table = self.modes_table.borrow();
-        if let Some(table) = modes_table.as_ref() {
-            if let Some(row) = self.modes_listbox.selected_row() {
-                let active_index = row.index() as u16;
-                if let Some(active_profile) = table.modes.get(&active_index) {
-                    if active_profile.is_custom() {
-                        let mut components = vec![];
-
-                        for page in self
-                            .power_mode_info_notebook
-                            .pages()
-                            .iter::<NotebookPage>()
-                            .flatten()
-                        {
-                            let values_grid = page
-                                .child()
-                                .downcast::<PowerProfileHeuristicsGrid>()
-                                .unwrap();
-                            components.push(values_grid.imp().component.borrow().values.clone());
-                        }
-
-                        return components;
-                    }
+    pub fn power_profile_mode_custom_heuristics(&self) -> Vec<Vec<Option<i32>>> {
+        if let Some(table) = &self.power_profile_modes_table {
+            if let Some(mode) = table.modes.get(&table.active) {
+                if mode.is_custom() {
+                    return self
+                        .heuristics_components
+                        .iter()
+                        .map(|list| list.model().get_values())
+                        .collect();
                 }
             }
         }
 
         vec![]
     }
+}
 
-    fn update_from_selection(&self) {
-        self.power_mode_info_notebook.set_visible(false);
-
-        let mut enable_mode_control = false;
-
-        let text = match self.level_drop_down.selected() {
-            0 => "Automatically adjust GPU and VRAM clocks. (Default)",
-            1 => "Always use the highest clockspeeds for GPU and VRAM.",
-            2 => "Always use the lowest clockspeeds for GPU and VRAM.",
-            3 => {
-                enable_mode_control = true;
-                "Manual performance control."
-            }
-            _ => unreachable!(),
-        };
-        self.description_label.set_text(text);
-
-        self.manual_info_button.set_visible(!enable_mode_control);
-
-        self.mode_menu_button.set_sensitive(enable_mode_control);
-        self.mode_menu_button.set_hexpand(enable_mode_control);
-
-        let values_changed_callback = self.values_changed_callback.borrow();
-
-        let modes_table = self.modes_table.borrow();
-        if let Some(table) = modes_table.as_ref() {
-            if let Some(row) = self.modes_listbox.selected_row() {
-                let active_index = row.index() as u16;
-                if let Some(active_profile) = table.modes.get(&active_index) {
-                    self.mode_menu_button.set_label(&active_profile.name);
-
-                    self.power_mode_info_notebook.set_visible(true);
-
-                    // Save current page to be restored after being refilled
-                    let current_page = self.power_mode_info_notebook.current_page();
-                    // Remove pages
-                    while self.power_mode_info_notebook.n_pages() != 0 {
-                        self.power_mode_info_notebook.remove_page(None);
-                    }
-
-                    for (i, component) in active_profile.components.iter().enumerate() {
-                        let values_grid = PowerProfileHeuristicsGrid::new();
-                        values_grid.set_component(component, table);
-
-                        let title = component.clock_type.as_deref().unwrap_or("All");
-                        let title_label = Label::builder()
-                            .label(title)
-                            .margin_start(5)
-                            .margin_end(5)
-                            .build();
-                        self.power_mode_info_notebook
-                            .append_page(&values_grid, Some(&title_label));
-
-                        if let Some(f) = &*values_changed_callback {
-                            values_grid.connect_component_values_changed(clone!(
-                                #[strong]
-                                f,
-                                #[strong(rename_to = modes_table)]
-                                self.modes_table,
-                                #[strong]
-                                values_grid,
-                                move || {
-                                    let mut modes_table = modes_table.borrow_mut();
-                                    if let Some(current_table) = &mut *modes_table {
-                                        let changed_component =
-                                            values_grid.imp().component.borrow().clone();
-                                        current_table
-                                            .modes
-                                            .get_mut(&active_index)
-                                            .unwrap()
-                                            .components[i] = changed_component;
-                                    }
-
-                                    f();
-                                }
-                            ));
-                        }
-                    }
-
-                    self.power_mode_info_notebook
-                        .set_show_tabs(active_profile.components.len() > 1);
-
-                    let is_custom = active_profile.is_custom();
-                    for page in self
-                        .power_mode_info_notebook
-                        .pages()
-                        .iter::<NotebookPage>()
-                        .flatten()
-                    {
-                        page.child().set_sensitive(is_custom);
-                    }
-
-                    // Restore selected page
-                    if current_page.is_some() {
-                        self.power_mode_info_notebook.set_current_page(current_page);
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn show(&self) {
-        self.container.set_visible(true);
-    }
-
-    pub fn hide(&self) {
-        self.container.set_visible(false);
-    }
-
-    pub fn get_visibility(&self) -> bool {
-        self.container.get_visible()
+fn level_friendly_name(level: PerformanceLevel) -> String {
+    match level {
+        PerformanceLevel::Auto => fl!(I18N, "performance-level-auto"),
+        PerformanceLevel::Low => fl!(I18N, "performance-level-low"),
+        PerformanceLevel::High => fl!(I18N, "performance-level-high"),
+        PerformanceLevel::Manual => fl!(I18N, "performance-level-manual"),
     }
 }

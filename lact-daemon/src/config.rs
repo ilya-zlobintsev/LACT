@@ -1,7 +1,7 @@
 use crate::server::gpu_controller::{GpuController, VENDOR_NVIDIA};
 use anyhow::Context;
 use indexmap::IndexMap;
-use lact_schema::{config::GpuConfig, ProfileRule};
+use lact_schema::config::{GpuConfig, Profile, ProfileHooks};
 use nix::unistd::{getuid, Group};
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
@@ -66,6 +66,7 @@ pub struct Daemon {
     pub admin_group: Option<String>,
     #[serde(default)]
     pub disable_clocks_cleanup: bool,
+    pub disable_nvapi: Option<bool>,
     pub tcp_listen_address: Option<String>,
 }
 
@@ -83,16 +84,9 @@ impl Default for Daemon {
             admin_groups: vec![],
             disable_clocks_cleanup: false,
             tcp_listen_address: None,
+            disable_nvapi: None,
         }
     }
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-pub struct Profile {
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub gpus: IndexMap<String, GpuConfig>,
-    pub rule: Option<ProfileRule>,
 }
 
 impl Config {
@@ -101,7 +95,7 @@ impl Config {
         if path.exists() {
             let raw_config = fs::read_to_string(path).context("Could not open config file")?;
             let config =
-                serde_yaml::from_str(&raw_config).context("Could not deserialize config")?;
+                serde_yml::from_str(&raw_config).context("Could not deserialize config")?;
             Ok(Some(config))
         } else {
             let parent = path.parent().unwrap();
@@ -125,7 +119,7 @@ impl Config {
 
         #[cfg(not(test))]
         {
-            let raw_config = serde_yaml::to_string(self)?;
+            let raw_config = serde_yml::to_string(self)?;
             fs::write(path, raw_config).context("Could not write config")?;
         }
 
@@ -270,6 +264,7 @@ impl Config {
         Profile {
             gpus: self.gpus.clone(),
             rule: None,
+            hooks: ProfileHooks::default(),
         }
     }
 
@@ -368,15 +363,20 @@ impl notify::EventHandler for SenderEventHandler {
 }
 
 fn get_path(filename: &str) -> PathBuf {
-    let uid = getuid();
-    if uid.is_root() {
-        PathBuf::from("/etc/lact").join(filename)
+    if let Ok(path) = env::var("LACT_DAEMON_CONFIG_DIR") {
+        PathBuf::from(&path).join(filename)
     } else {
-        let config_dir = PathBuf::from(env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
-            let home = env::var("HOME").expect("$HOME variable is not set");
-            format!("{home}/.config")
-        }));
-        config_dir.join("lact").join(filename)
+        let uid = getuid();
+
+        if uid.is_root() {
+            PathBuf::from("/etc/lact").join(filename)
+        } else {
+            let config_dir = PathBuf::from(env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
+                let home = env::var("HOME").expect("$HOME variable is not set");
+                format!("{home}/.config")
+            }));
+            config_dir.join("lact").join(filename)
+        }
     }
 }
 
@@ -418,6 +418,7 @@ mod tests {
                         static_speed: 0.5,
                         spindown_delay_ms: Some(5000),
                         change_threshold: Some(3),
+                        auto_threshold: Some(40),
                     }),
                     ..Default::default()
                 },
@@ -425,8 +426,8 @@ mod tests {
             .into(),
             ..Default::default()
         };
-        let data = serde_yaml::to_string(&config).unwrap();
-        let deserialized_config: Config = serde_yaml::from_str(&data).unwrap();
+        let data = serde_yml::to_string(&config).unwrap();
+        let deserialized_config: Config = serde_yml::from_str(&data).unwrap();
         assert_eq!(config, deserialized_config);
     }
 
@@ -443,7 +444,7 @@ mod tests {
             + example_config_start;
         let example_config = &doc[example_config_start..example_config_end];
 
-        let deserialized_config: Config = serde_yaml::from_str(example_config).unwrap();
+        let deserialized_config: Config = serde_yml::from_str(example_config).unwrap();
         assert_yaml_snapshot!(deserialized_config);
     }
 

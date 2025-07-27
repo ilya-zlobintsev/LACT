@@ -35,12 +35,11 @@ expression: device_info
               "min": -450
             }
           },
-          "rdna4_sclk_offset_workaround": false,
           "sclk_offset": null,
           "vddc_curve": [],
           "voltage_offset": 0
         },
-        "kind": "vega20"
+        "kind": "rdna"
       }
     }
   },
@@ -65,16 +64,7 @@ expression: device_info
       }
     },
     "vbios_version": "113-D70401XT-N11",
-    "vulkan_info": {
-      "api_version": "",
-      "device_name": "",
-      "driver": {
-        "version": 0
-      },
-      "enabled_layers": [],
-      "extensions": {},
-      "features": {}
-    }
+    "vulkan_instances": []
   },
   "pci_info": {
     "device_pci_info": {
@@ -438,7 +428,11 @@ expression: device_info
       "pwm_min": 38,
       "speed_current": 0,
       "speed_max": 3200,
-      "speed_min": 0
+      "speed_min": 0,
+      "temperature_range": [
+        25,
+        100
+      ]
     },
     "memory_power_state": 3,
     "performance_level": "auto",

@@ -1,16 +1,22 @@
 mod apply_revealer;
 mod confirmation_dialog;
+mod ext;
 pub mod graphs_window;
 mod header;
 mod info_row;
 mod msg;
 mod page_section;
 mod pages;
+mod process_monitor;
 
-use crate::{APP_ID, GUI_VERSION};
+use crate::{
+    app::process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
+    APP_ID, GUI_VERSION, I18N,
+};
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use confirmation_dialog::ConfirmationDialog;
+use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
     glib::{self, clone, ControlFlow},
@@ -22,13 +28,15 @@ use gtk::{
     MessageType, ResponseType,
 };
 use header::{
-    profile_rule_window::ProfileRuleWindowMsg, Header, HeaderMsg, PROFILE_RULE_WINDOW_BROKER,
+    profile_rule_window::{profile_row::ProfileRuleRowMsg, ProfileRuleWindowMsg},
+    Header, HeaderMsg,
 };
+use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
     args::GuiArgs,
-    config::{FanControlSettings, FanCurve, GpuConfig},
-    request::{ConfirmCommand, SetClocksCommand},
+    config::{GpuConfig, Profile},
+    request::{ConfirmCommand, ProfileBase, SetClocksCommand},
     DeviceStats, GIT_COMMIT,
 };
 use msg::AppMsg;
@@ -36,16 +44,24 @@ use pages::{
     info_page::InformationPage,
     oc_page::{OcPage, OcPageMsg},
     software_page::{SoftwarePage, SoftwarePageMsg},
-    thermals_page::ThermalsPage,
+    thermals_page::{ThermalsPage, ThermalsPageMsg},
     PageUpdate,
 };
 use relm4::{
     actions::{RelmAction, RelmActionGroup},
+    binding::BoolBinding,
     prelude::{AsyncComponent, AsyncComponentParts},
-    tokio, AsyncComponentSender, Component, ComponentController, MessageBroker,
+    tokio::{self, time::sleep},
+    AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
+};
+use relm4_components::{
+    open_dialog::{OpenDialog, OpenDialogMsg, OpenDialogResponse, OpenDialogSettings},
+    save_dialog::{SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings},
 };
 use std::{
+    fs,
     os::unix::net::UnixStream,
+    path::PathBuf,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, AtomicU32, Ordering},
@@ -59,19 +75,30 @@ pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 static ERROR_WINDOW_COUNT: AtomicU32 = AtomicU32::new(0);
 
 const STATS_POLL_INTERVAL_MS: u64 = 250;
+const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
+const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 
 pub struct AppModel {
     daemon_client: DaemonClient,
     graphs_window: relm4::Controller<GraphsWindow>,
+    process_monitor_window: relm4::Controller<ProcessMonitorWindow>,
+
+    ui_sensitive: BoolBinding,
 
     info_page: relm4::Controller<InformationPage>,
     oc_page: relm4::Controller<OcPage>,
-    thermals_page: ThermalsPage,
+    thermals_page: relm4::Controller<ThermalsPage>,
     software_page: relm4::Controller<SoftwarePage>,
 
     header: relm4::Controller<Header>,
     apply_revealer: relm4::Controller<ApplyRevealer>,
     stats_task_handle: Option<glib::JoinHandle<()>>,
+}
+
+#[derive(Debug)]
+pub enum CommandOutput {
+    ProfileImport(PathBuf),
+    Error(anyhow::Error),
 }
 
 #[relm4::component(pub, async)]
@@ -80,14 +107,13 @@ impl AsyncComponent for AppModel {
 
     type Input = AppMsg;
     type Output = ();
-    type CommandOutput = ();
+    type CommandOutput = Option<CommandOutput>;
 
     view! {
         #[root]
         gtk::ApplicationWindow::builder()
             .titlebar(&gtk::HeaderBar::new())
-            .default_height(800)
-            .default_width(60)
+            .default_height(850)
             .icon_name(APP_ID)
             .title("LACT")
             .build() {
@@ -103,10 +129,12 @@ impl AsyncComponent for AppModel {
                         set_margin_start: 30,
                         set_margin_end: 30,
 
-                        add_titled[Some("info_page"), "Information"] = model.info_page.widget(),
-                        add_titled[Some("oc_page"), "OC"] = model.oc_page.widget(),
-                        add_titled[Some("thermals_page"), "Thermals"] = &model.thermals_page.container.clone(),
-                        add_titled[Some("software_page"), "Software"] = model.software_page.widget(),
+                        add_binding: (&model.ui_sensitive, "sensitive"),
+
+                        add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
+                        add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
+                        add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
+                        add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
                     },
 
                     model.apply_revealer.widget(),
@@ -168,7 +196,6 @@ impl AsyncComponent for AppModel {
             .get_system_info()
             .await
             .expect("Could not fetch system info");
-        let system_info = Rc::new(system_info);
 
         let devices = daemon_client
             .list_devices()
@@ -180,12 +207,12 @@ impl AsyncComponent for AppModel {
             sender.input(AppMsg::Error(err.into()));
         }
 
-        let info_page = InformationPage::builder().launch(()).detach();
+        let info_page = InformationPage::detach_default();
 
         let oc_page = OcPage::builder()
             .launch(system_info.clone())
             .forward(sender.input_sender(), |msg| msg);
-        let thermals_page = ThermalsPage::new(&system_info);
+        let thermals_page = ThermalsPage::builder().launch(system_info.clone()).detach();
 
         let software_page = SoftwarePage::builder()
             .launch((system_info, daemon_client.embedded))
@@ -206,24 +233,19 @@ impl AsyncComponent for AppModel {
             .launch(())
             .forward(sender.input_sender(), |msg| msg);
 
-        thermals_page.connect_reset_pmfw(clone!(
-            #[strong]
-            sender,
-            move || {
-                sender.input(AppMsg::ResetPmfw);
-            }
-        ));
-
-        let graphs_window = GraphsWindow::builder().launch(()).detach();
+        let graphs_window = GraphsWindow::detach_default();
+        let process_monitor_window = ProcessMonitorWindow::detach_default();
 
         let model = AppModel {
             daemon_client,
             graphs_window,
+            process_monitor_window,
             info_page,
             oc_page,
             thermals_page,
             software_page,
             apply_revealer,
+            ui_sensitive: BoolBinding::new(false),
             header,
             stats_task_handle: None,
         };
@@ -240,8 +262,18 @@ impl AsyncComponent for AppModel {
             .stack_switcher
             .set_stack(Some(&widgets.root_stack));
 
-        sender.input(AppMsg::ReloadProfiles {
-            include_state: false,
+        sender.input(AppMsg::ReloadProfiles { state_sender: None });
+
+        let task_sender = sender.clone();
+        sender.command(move |_, shutdown| {
+            shutdown
+                .register(async move {
+                    loop {
+                        sleep(Duration::from_millis(PROCESS_POLL_INTERVAL_MS)).await;
+                        task_sender.input(AppMsg::FetchProcessList);
+                    }
+                })
+                .drop_on_shutdown()
         });
 
         AsyncComponentParts { model, widgets }
@@ -260,6 +292,19 @@ impl AsyncComponent for AppModel {
         }
         self.update_view(widgets, sender);
     }
+
+    async fn update_cmd(
+        &mut self,
+        msg: Self::CommandOutput,
+        sender: AsyncComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
+        if let Some(msg) = msg {
+            if let Err(err) = self.handle_cmd_output(msg, &sender).await {
+                sender.input(AppMsg::Error(Arc::new(err)));
+            }
+        }
+    }
 }
 
 impl AppModel {
@@ -275,11 +320,16 @@ impl AppModel {
             AppMsg::SettingsChanged => {
                 self.apply_revealer.emit(ApplyRevealerMsg::Show);
             }
-            AppMsg::ReloadProfiles { include_state } => {
-                self.reload_profiles(include_state).await?;
+            AppMsg::ReloadProfiles { state_sender } => {
+                self.reload_profiles(state_sender).await?;
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ReloadData { full } => {
+                self.apply_revealer
+                    .sender()
+                    .send(ApplyRevealerMsg::Hide)
+                    .unwrap();
+
                 let gpu_id = self.current_gpu_id()?;
                 if full {
                     self.update_gpu_data_full(gpu_id, sender).await?;
@@ -292,9 +342,7 @@ impl AppModel {
                 auto_switch,
             } => {
                 self.daemon_client.set_profile(profile, auto_switch).await?;
-                sender.input(AppMsg::ReloadProfiles {
-                    include_state: false,
-                });
+                sender.input(AppMsg::ReloadProfiles { state_sender: None });
             }
             AppMsg::CreateProfile(name, base) => {
                 self.daemon_client
@@ -306,34 +354,99 @@ impl AppModel {
                     .set_profile(Some(name), auto_switch)
                     .await?;
 
-                sender.input(AppMsg::ReloadProfiles {
-                    include_state: false,
-                });
+                sender.input(AppMsg::ReloadProfiles { state_sender: None });
+            }
+            AppMsg::RenameProfile(old_name, new_name) => {
+                if old_name != new_name {
+                    let original_profile = self
+                        .daemon_client
+                        .get_profile(Some(old_name.clone()))
+                        .await
+                        .context("Could not get profile by old name")?
+                        .context("Original profile not found")?;
+                    self.daemon_client
+                        .create_profile(new_name, ProfileBase::Provided(original_profile))
+                        .await
+                        .context("Could not create new profile")?;
+                    self.daemon_client
+                        .delete_profile(old_name)
+                        .await
+                        .context("Could not delete old name")?;
+
+                    sender.input(AppMsg::ReloadProfiles { state_sender: None });
+                }
             }
             AppMsg::DeleteProfile(profile) => {
                 self.daemon_client.delete_profile(profile).await?;
-                sender.input(AppMsg::ReloadProfiles {
-                    include_state: false,
-                });
+                sender.input(AppMsg::ReloadProfiles { state_sender: None });
             }
             AppMsg::MoveProfile(name, new_position) => {
                 self.daemon_client.move_profile(name, new_position).await?;
-                sender.input(AppMsg::ReloadProfiles {
-                    include_state: false,
+                sender.input(AppMsg::ReloadProfiles { state_sender: None });
+            }
+            AppMsg::ImportProfile => {
+                let json_filter = gtk::FileFilter::new();
+                json_filter.add_mime_type("application/json");
+
+                let settings = OpenDialogSettings {
+                    filters: vec![json_filter],
+                    ..Default::default()
+                };
+                let file_picker = OpenDialog::builder().launch(settings);
+                file_picker.emit(OpenDialogMsg::Open);
+                let stream = file_picker.into_stream();
+
+                sender.oneshot_command(async move {
+                    if let Some(OpenDialogResponse::Accept(path)) = stream.recv_one().await {
+                        Some(CommandOutput::ProfileImport(path))
+                    } else {
+                        None
+                    }
                 });
+            }
+            AppMsg::ExportProfile(name) => {
+                if let Some(profile) = self.daemon_client.get_profile(name.clone()).await? {
+                    let settings = SaveDialogSettings {
+                        create_folders: true,
+                        is_modal: true,
+                        ..Default::default()
+                    };
+                    let diag = SaveDialog::builder().launch(settings);
+                    diag.emit(SaveDialogMsg::SaveAs(format!(
+                        "LACT-profile-{}.json",
+                        name.as_deref().unwrap_or("default")
+                    )));
+
+                    let stream = diag.into_stream();
+
+                    sender.oneshot_command(async move {
+                        if let Some(SaveDialogResponse::Accept(path)) = stream.recv_one().await {
+                            let contents = serde_json::to_string(&profile)
+                                .expect("Could not serialize profile");
+
+                            if let Err(err) =
+                                fs::write(path, contents).context("Could not export profile")
+                            {
+                                return Some(CommandOutput::Error(err));
+                            }
+                        }
+                        None
+                    });
+                }
             }
             AppMsg::Stats(stats) => {
                 let update = PageUpdate::Stats(stats.clone());
                 self.oc_page.emit(OcPageMsg::Update {
-                    update,
+                    update: update.clone(),
                     initial: false,
                 });
-
-                self.thermals_page.set_stats(&stats, false);
-
+                self.thermals_page.emit(ThermalsPageMsg::Update {
+                    update: update.clone(),
+                    initial: false,
+                });
                 self.graphs_window.emit(GraphsWindowMsg::Stats {
                     stats,
-                    initial: false,
+                    selected_gpu_id: None,
                 });
             }
             AppMsg::ApplyChanges => {
@@ -367,6 +480,10 @@ impl AppModel {
             AppMsg::ShowGraphsWindow => {
                 self.graphs_window.emit(GraphsWindowMsg::Show);
             }
+            AppMsg::ShowProcessMonitor => {
+                self.process_monitor_window
+                    .emit(ProcessMonitorWindowMsg::Show);
+            }
             AppMsg::DumpVBios => {
                 self.dump_vbios(&self.current_gpu_id()?, root).await;
             }
@@ -382,6 +499,21 @@ impl AppModel {
             AppMsg::ResetConfig => {
                 self.daemon_client.reset_config().await?;
                 sender.input(AppMsg::ReloadData { full: true });
+            }
+            AppMsg::FetchProcessList => {
+                if self.process_monitor_window.widget().is_visible() {
+                    if let Ok(gpu_id) = self.current_gpu_id() {
+                        match self.daemon_client.get_process_list(&gpu_id).await {
+                            Ok(process_list) => {
+                                self.process_monitor_window
+                                    .emit(ProcessMonitorWindowMsg::Data(process_list));
+                            }
+                            Err(err) => {
+                                warn!("could not fetch process list: {err:#}");
+                            }
+                        }
+                    }
+                }
             }
             AppMsg::ConnectionStatus(status) => match status {
                 ConnectionStatusMsg::Disconnected => widgets.reconnecting_dialog.present(),
@@ -399,22 +531,55 @@ impl AppModel {
                     });
                 controller.detach_runtime();
             }
-            AppMsg::EvaluateProfile(rule) => {
+            AppMsg::EvaluateProfile(rule, sender) => {
                 match self.daemon_client.evaluate_profile_rule(rule).await {
                     Ok(matches) => {
-                        PROFILE_RULE_WINDOW_BROKER
-                            .send(ProfileRuleWindowMsg::EvaluationResult(matches));
+                        sender.emit(ProfileRuleWindowMsg::EvaluationResult(matches));
                     }
                     Err(err) => {
                         warn!("{err:#}");
                     }
                 }
             }
-            AppMsg::SetProfileRule { name, rule } => {
-                self.daemon_client.set_profile_rule(name, rule).await?;
-                self.reload_profiles(false).await?;
+            AppMsg::SetProfileRule { name, rule, hooks } => {
+                self.daemon_client
+                    .set_profile_rule(name, rule, hooks)
+                    .await?;
+                self.reload_profiles(None).await?;
             }
         }
+        Ok(())
+    }
+
+    async fn handle_cmd_output(
+        &mut self,
+        msg: CommandOutput,
+        sender: &AsyncComponentSender<AppModel>,
+    ) -> anyhow::Result<()> {
+        match msg {
+            CommandOutput::ProfileImport(path) => {
+                let file_name = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("Imported profile");
+
+                let contents = fs::read_to_string(&path).context("Could not read selected file")?;
+                let profile = serde_json::from_str::<Profile>(&contents)
+                    .context("Could not parse profile")?;
+                let profile_name = file_name
+                    .trim_start_matches("LACT-profile-")
+                    .trim_end_matches(".json");
+
+                self.daemon_client
+                    .create_profile(profile_name.to_owned(), ProfileBase::Provided(profile))
+                    .await
+                    .context("Could not import profile")?;
+
+                sender.input(AppMsg::ReloadProfiles { state_sender: None });
+            }
+            CommandOutput::Error(error) => return Err(error),
+        }
+
         Ok(())
     }
 
@@ -425,11 +590,19 @@ impl AppModel {
             .context("No GPU selected")
     }
 
-    async fn reload_profiles(&mut self, include_state: bool) -> anyhow::Result<()> {
-        let mut profiles = self.daemon_client.list_profiles(include_state).await?;
+    async fn reload_profiles(
+        &mut self,
+        state_sender: Option<relm4::Sender<ProfileRuleRowMsg>>,
+    ) -> anyhow::Result<()> {
+        let mut profiles = self
+            .daemon_client
+            .list_profiles(state_sender.is_some())
+            .await?;
 
-        if let Some(state) = profiles.watcher_state.take() {
-            PROFILE_RULE_WINDOW_BROKER.send(ProfileRuleWindowMsg::WatcherState(state));
+        if let Some(sender) = state_sender {
+            if let Some(state) = profiles.watcher_state.take() {
+                let _ = sender.send(ProfileRuleRowMsg::WatcherState(state));
+            }
         }
 
         self.header.emit(HeaderMsg::Profiles(Box::new(profiles)));
@@ -442,6 +615,8 @@ impl AppModel {
         gpu_id: String,
         sender: AsyncComponentSender<AppModel>,
     ) -> anyhow::Result<()> {
+        self.ui_sensitive.set_value(false);
+
         let daemon_client = self.daemon_client.clone();
         let info_buf = daemon_client
             .get_device_info(&gpu_id)
@@ -452,16 +627,30 @@ impl AppModel {
         // Plain `nvidia` means that the nvidia driver is loaded, but it does not contain a version fetched from NVML
         if info.driver == "nvidia" {
             sender.input(AppMsg::Error(Arc::new(anyhow!("Nvidia driver detected, but the management library could not be loaded. Check lact service status for more information."))));
+        } else if let Some(nvidia_version) = info.driver.strip_prefix("nvidia ") {
+            if let Some(major_version) = nvidia_version
+                .split('.')
+                .next()
+                .and_then(|version| version.parse::<u32>().ok())
+            {
+                if major_version < NVIDIA_RECOMMENDED_MIN_VERSION {
+                    sender.input(AppMsg::Error(Arc::new(anyhow!("Old Nvidia driver version detected ({major_version}), some features might be missing. Driver version {NVIDIA_RECOMMENDED_MIN_VERSION} or newer is recommended."))));
+                }
+            }
         }
 
         let update = PageUpdate::Info(info.clone());
         self.info_page.emit(update.clone());
         self.oc_page.emit(OcPageMsg::Update {
-            update,
+            update: update.clone(),
             initial: true,
         });
         self.software_page
             .emit(SoftwarePageMsg::DeviceInfo(info.clone()));
+        self.thermals_page.emit(ThermalsPageMsg::Update {
+            update: update.clone(),
+            initial: true,
+        });
 
         let vram_clock_ratio = info
             .drm_info
@@ -471,14 +660,14 @@ impl AppModel {
         self.graphs_window
             .emit(GraphsWindowMsg::VramClockRatio(vram_clock_ratio));
 
-        let stats = self.update_gpu_data(gpu_id, sender).await?;
-
-        self.thermals_page.set_info(&info);
+        let stats = self.update_gpu_data(gpu_id.clone(), sender).await?;
 
         self.graphs_window.emit(GraphsWindowMsg::Stats {
             stats,
-            initial: true,
+            selected_gpu_id: Some(gpu_id),
         });
+
+        self.ui_sensitive.set_value(true);
 
         Ok(())
     }
@@ -494,6 +683,13 @@ impl AppModel {
 
         debug!("updating info for gpu {gpu_id}");
 
+        let gpu_config = self
+            .daemon_client
+            .get_gpu_config(&gpu_id)
+            .await
+            .ok()
+            .flatten();
+
         let stats = self
             .daemon_client
             .get_device_stats(&gpu_id)
@@ -501,10 +697,12 @@ impl AppModel {
             .context("Could not fetch stats")?;
         let stats = Arc::new(stats);
 
-        self.thermals_page.set_stats(&stats, true);
-
         let update = PageUpdate::Stats(stats.clone());
         self.info_page.emit(update.clone());
+        self.thermals_page.emit(ThermalsPageMsg::Update {
+            update: update.clone(),
+            initial: true,
+        });
         self.oc_page.emit(OcPageMsg::Update {
             update,
             initial: true,
@@ -536,28 +734,13 @@ impl AppModel {
 
         match self.daemon_client.get_power_states(&gpu_id).await {
             Ok(power_states) => {
-                self.oc_page.emit(OcPageMsg::PowerStates(power_states));
+                self.oc_page.emit(OcPageMsg::PowerStates {
+                    pstates: power_states,
+                    configured: gpu_config.is_some_and(|config| !config.power_states.is_empty()),
+                });
             }
             Err(err) => warn!("could not get power states: {err:?}"),
         }
-
-        // Show apply button on setting changes
-        // This is done here because new widgets may appear after applying settings (like fan curve points) which should be connected
-        let show_revealer = clone!(
-            #[strong(rename_to = apply_sender)]
-            self.apply_revealer.sender(),
-            move || {
-                apply_sender.send(ApplyRevealerMsg::Show).unwrap();
-            }
-        );
-
-        self.thermals_page
-            .connect_settings_changed(show_revealer.clone());
-
-        self.apply_revealer
-            .sender()
-            .send(ApplyRevealerMsg::Hide)
-            .unwrap();
 
         self.stats_task_handle = Some(start_stats_update_loop(
             gpu_id.to_owned(),
@@ -592,44 +775,15 @@ impl AppModel {
         let performance_level = self.oc_page.model().get_performance_level();
         if let Some(level) = performance_level {
             gpu_config.performance_level = Some(level);
-
-            gpu_config.power_profile_mode_index = self
-                .oc_page
-                .model()
-                .performance_frame
-                .get_selected_power_profile_mode();
+            gpu_config.power_profile_mode_index = self.oc_page.model().get_power_profile_mode();
 
             gpu_config.custom_power_profile_mode_hueristics = self
                 .oc_page
                 .model()
-                .performance_frame
                 .get_power_profile_mode_custom_heuristics();
         }
 
-        if let Some(thermals_settings) = self.thermals_page.get_thermals_settings() {
-            debug!("applying thermal settings: {thermals_settings:?}");
-            let mut fan_config = gpu_config
-                .fan_control_settings
-                .take()
-                .unwrap_or_else(FanControlSettings::default);
-
-            gpu_config.fan_control_enabled = thermals_settings.manual_fan_control;
-            gpu_config.pmfw_options = thermals_settings.pmfw;
-
-            if let Some(mode) = thermals_settings.mode {
-                fan_config.mode = mode;
-            }
-            if let Some(static_speed) = thermals_settings.static_speed {
-                fan_config.static_speed = static_speed;
-            }
-            if let Some(curve) = thermals_settings.curve {
-                fan_config.curve = FanCurve(curve);
-            }
-            fan_config.spindown_delay_ms = thermals_settings.spindown_delay_ms;
-            fan_config.change_threshold = thermals_settings.change_threshold;
-
-            gpu_config.fan_control_settings = Some(fan_config);
-        }
+        self.thermals_page.model().apply_config(&mut gpu_config);
 
         let clocks_commands = self.oc_page.model().get_clocks_commands();
 
@@ -640,14 +794,7 @@ impl AppModel {
         }
 
         let enabled_power_states = self.oc_page.model().get_enabled_power_states();
-
-        for (kind, enabled_states) in enabled_power_states {
-            if enabled_states.is_empty() {
-                gpu_config.power_states.shift_remove(&kind);
-            } else {
-                gpu_config.power_states.insert(kind, enabled_states);
-            }
-        }
+        gpu_config.power_states = enabled_power_states;
 
         let delay = self
             .daemon_client
@@ -864,7 +1011,7 @@ fn show_embedded_info(parent: &ApplicationWindow, err: anyhow::Error) {
                         Please make sure the lactd service is running. \n\
                         Using embedded mode, you will not be able to change any settings. \n\n\
                         {error_text}\
-                        To enable the daemon, run the following command:"
+                        To enable the daemon, run the following command, then restart LACT:"
     );
 
     let text_label = gtk::Label::new(Some(&text));
@@ -999,7 +1146,7 @@ async fn toggle_overdrive(daemon_client: &DaemonClient, enable: bool, root: Appl
     dialog.hide();
 
     match result {
-        Ok(msg) => oc_toggled_dialog(false, &msg),
+        Ok(msg) => oc_toggled_dialog(enable, &msg),
         Err(err) => {
             show_error(&root, &err);
         }
@@ -1044,14 +1191,15 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
 
     actions! {
         (ShowGraphsWindow, AppMsg::ShowGraphsWindow),
+        (ShowProcessMonitor, AppMsg::ShowProcessMonitor),
         (DumpVBios, AppMsg::DumpVBios),
         (DebugSnapshot, AppMsg::DebugSnapshot),
         (
             DisableOverdrive,
             AppMsg::ask_confirmation(
                 AppMsg::DisableOverdrive,
-                "Disable Overclocking",
-                "This will disable overclocking support on next reboot.",
+                fl!(I18N, "disable-amd-oc"),
+                fl!(I18N, "disable-amd-oc-description"),
                 gtk::ButtonsType::OkCancel,
             )
         ),
@@ -1059,8 +1207,8 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
             ResetConfig,
             AppMsg::ask_confirmation(
                 AppMsg::ResetConfig,
-                "Reset configuration",
-                "Are you sure you want to reset all GPU configuration?",
+                fl!(I18N, "reset-config"),
+                fl!(I18N, "reset-config-description"),
                 gtk::ButtonsType::YesNo,
             )
         ),
@@ -1071,6 +1219,7 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
 
 relm4::new_action_group!(AppActionGroup, "app");
 relm4::new_stateless_action!(ShowGraphsWindow, AppActionGroup, "show-graphs-window");
+relm4::new_stateless_action!(ShowProcessMonitor, AppActionGroup, "show-process-monitor");
 relm4::new_stateless_action!(DumpVBios, AppActionGroup, "dump-vbios");
 relm4::new_stateless_action!(DebugSnapshot, AppActionGroup, "generate-debug-snapshot");
 relm4::new_stateless_action!(DisableOverdrive, AppActionGroup, "disable-overdrive");
@@ -1087,6 +1236,8 @@ async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Err
             info!("using a local daemon");
 
             let (server_stream, client_stream) = UnixStream::pair()?;
+            client_stream.set_nonblocking(true)?;
+            server_stream.set_nonblocking(true)?;
 
             std::thread::spawn(move || {
                 if let Err(err) = lact_daemon::run_embedded(server_stream) {

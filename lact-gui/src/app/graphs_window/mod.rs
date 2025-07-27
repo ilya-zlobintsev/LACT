@@ -1,4 +1,4 @@
-mod plot;
+pub mod plot;
 mod plot_component;
 pub mod stat;
 
@@ -27,6 +27,7 @@ use std::{
 
 pub struct GraphsWindow {
     time_period_seconds_adj: gtk::Adjustment,
+    gpu_id: Option<String>,
     edit_mode: BoolBinding,
     plots_per_row: F64Binding,
     vram_clock_ratio: f64,
@@ -38,7 +39,8 @@ pub struct GraphsWindow {
 pub enum GraphsWindowMsg {
     Stats {
         stats: Arc<DeviceStats>,
-        initial: bool,
+        /// Fill for initial message
+        selected_gpu_id: Option<String>,
     },
     VramClockRatio(f64),
     NotifyEditing,
@@ -171,6 +173,7 @@ impl relm4::Component for GraphsWindow {
             plots_per_row,
             edit_mode,
             plots,
+            gpu_id: None,
             vram_clock_ratio: 1.0,
             stats_data,
         };
@@ -195,17 +198,22 @@ impl relm4::Component for GraphsWindow {
             GraphsWindowMsg::VramClockRatio(ratio) => {
                 self.vram_clock_ratio = ratio;
             }
-            GraphsWindowMsg::Stats { stats, initial } => {
-                if initial {
+            GraphsWindowMsg::Stats {
+                stats,
+                selected_gpu_id,
+            } => {
+                if let Some(selected_gpu_id) = selected_gpu_id {
                     self.stats_data.write().unwrap().clear();
 
                     let config = CONFIG.read();
-                    let plots_config = if config.plots.is_empty() {
-                        default_plots()
-                    } else {
-                        config.plots.clone()
-                    };
+                    let plots_config = config
+                        .gpus
+                        .get(&selected_gpu_id)
+                        .map(|config| config.plots.clone())
+                        .filter(|plots| !plots.is_empty())
+                        .unwrap_or_else(default_plots);
 
+                    self.gpu_id = Some(selected_gpu_id);
                     sender.input(GraphsWindowMsg::SetConfig(plots_config));
                 }
 
@@ -257,16 +265,19 @@ impl relm4::Component for GraphsWindow {
                 sender.input(GraphsWindowMsg::SaveConfig);
             }
             GraphsWindowMsg::SaveConfig => {
-                CONFIG.write().edit(|config| {
-                    config.plots = self
-                        .plots
-                        .iter()
-                        .map(|plot| plot.selected_stats())
-                        .collect();
+                if let Some(gpu_id) = self.gpu_id.clone() {
+                    CONFIG.write().edit(|config| {
+                        config.gpus.entry(gpu_id).or_default().plots = self
+                            .plots
+                            .iter()
+                            .map(|plot| plot.selected_stats())
+                            .collect();
 
-                    config.plots_time_period = Some(self.time_period_seconds_adj.value() as u64);
-                    config.plots_per_row = Some(self.plots_per_row.value() as u64);
-                });
+                        config.plots_time_period =
+                            Some(self.time_period_seconds_adj.value() as u64);
+                        config.plots_per_row = Some(self.plots_per_row.value() as u64);
+                    });
+                }
             }
             GraphsWindowMsg::ExportData => {
                 let settings = SaveDialogSettings {
@@ -333,6 +344,8 @@ fn default_plots() -> Vec<Vec<StatType>> {
     vec![
         vec![
             StatType::Temperature("GPU".into()),
+            StatType::Temperature("GPU Hotspot".into()),
+            StatType::Temperature("VRAM".into()),
             StatType::Temperature("edge".into()),
             StatType::Temperature("junction".into()),
             StatType::Temperature("mem".into()),

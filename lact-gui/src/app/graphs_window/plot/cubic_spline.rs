@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 #[derive(Clone, Copy)]
 pub struct CubicSplineSegment {
     a: f64,
@@ -25,7 +23,9 @@ impl CubicSplineSegment {
 pub type TimePeriod = (i64, i64);
 
 // Define a function to perform cubic spline interpolation
-pub fn cubic_spline_interpolation(data: &[(i64, f64)]) -> Vec<(TimePeriod, CubicSplineSegment)> {
+pub fn cubic_spline_interpolation(
+    data: &[(i64, f64)],
+) -> impl Iterator<Item = (TimePeriod, CubicSplineSegment)> + '_ {
     let n = data.len();
 
     // Compute differences between consecutive x values
@@ -61,10 +61,11 @@ pub fn cubic_spline_interpolation(data: &[(i64, f64)]) -> Vec<(TimePeriod, Cubic
         d[i] = d[i] * d[i + 1] + p[i];
     }
 
-    data.iter()
+    let mut iter = data
+        .iter()
         .zip(
             // Construct cubic spline segments
-            (0..(n - 1)).map(|i| {
+            (0..(n - 1)).map(move |i| {
                 let a = dy[i];
                 let b = (dy[i + 1] - dy[i]) / dx[i] - dx[i] * (2.0 * d[i] + d[i + 1]) / 6.0;
                 let c = d[i] / 2.0;
@@ -72,11 +73,11 @@ pub fn cubic_spline_interpolation(data: &[(i64, f64)]) -> Vec<(TimePeriod, Cubic
                 CubicSplineSegment::new(a, b, c, d, data[i].0)
             }),
         )
-        // Group 2 closest points together
-        .tuple_windows::<(_, _)>()
-        // Get first time, second time and their corresponding interpolation segment
-        .map(|(((first_time, _), segment), ((second_time, _), _))| {
-            ((*first_time, *second_time), segment)
-        })
-        .collect()
+        .peekable();
+
+    std::iter::repeat(()).map_while(move |_| {
+        let ((first_time, _), segment) = iter.next()?;
+        let ((second_time, _), _) = iter.peek()?;
+        Some(((*first_time, *second_time), segment))
+    })
 }

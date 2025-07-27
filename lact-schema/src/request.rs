@@ -1,6 +1,9 @@
 use std::fmt;
 
-use crate::{config::GpuConfig, FanOptions, ProfileRule};
+use crate::{
+    config::{GpuConfig, Profile, ProfileHooks},
+    FanOptions, ProfileRule,
+};
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use serde::{Deserialize, Serialize};
 
@@ -63,6 +66,9 @@ pub enum Request<'a> {
         #[serde(default)]
         include_state: bool,
     },
+    GetProfile {
+        name: Option<String>,
+    },
     SetProfile {
         name: Option<String>,
         #[serde(default)]
@@ -85,6 +91,8 @@ pub enum Request<'a> {
     SetProfileRule {
         name: String,
         rule: Option<ProfileRule>,
+        #[serde(default)]
+        hooks: ProfileHooks,
     },
     GetGpuConfig {
         id: &'a str,
@@ -92,6 +100,9 @@ pub enum Request<'a> {
     SetGpuConfig {
         id: &'a str,
         config: GpuConfig,
+    },
+    ProcessList {
+        id: &'a str,
     },
     EnableOverdrive,
     DisableOverdrive,
@@ -134,6 +145,10 @@ pub enum ClockspeedType {
     VoltageOffset,
     GpuClockOffset(u32),
     MemClockOffset(u32),
+    GpuVfCurveClock(u8),
+    MemVfCurveClock(u8),
+    GpuVfCurveVoltage(u8),
+    MemVfCurveVoltage(u8),
     Reset,
 }
 
@@ -143,6 +158,7 @@ pub enum ProfileBase {
     Empty,
     Default,
     Profile(String),
+    Provided(Profile),
 }
 
 impl fmt::Display for ProfileBase {
@@ -151,6 +167,7 @@ impl fmt::Display for ProfileBase {
             ProfileBase::Empty => "Empty",
             ProfileBase::Default => "Default",
             ProfileBase::Profile(name) => name,
+            ProfileBase::Provided(_) => "<Provided>",
         };
         text.fmt(f)
     }

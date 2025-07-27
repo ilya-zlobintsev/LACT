@@ -32,12 +32,11 @@ expression: device_info
             "sclk_offset": null,
             "voltage_offset": null
           },
-          "rdna4_sclk_offset_workaround": false,
           "sclk_offset": null,
           "vddc_curve": [],
           "voltage_offset": -100
         },
-        "kind": "vega20"
+        "kind": "rdna"
       }
     }
   },
@@ -62,16 +61,7 @@ expression: device_info
       }
     },
     "vbios_version": "113-D534-R66E",
-    "vulkan_info": {
-      "api_version": "",
-      "device_name": "",
-      "driver": {
-        "version": 0
-      },
-      "enabled_layers": [],
-      "extensions": {},
-      "features": {}
-    }
+    "vulkan_instances": []
   },
   "pci_info": {
     "device_pci_info": {

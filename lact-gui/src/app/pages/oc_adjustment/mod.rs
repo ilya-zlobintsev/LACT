@@ -28,7 +28,6 @@ impl OcAdjustment {
         upper: f64,
         step_increment: f64,
         page_increment: f64,
-        page_size: f64,
     ) -> Self {
         let oc_adjustment = Self::default();
 
@@ -37,7 +36,7 @@ impl OcAdjustment {
         adjustment.set_upper(upper);
         adjustment.set_step_increment(step_increment);
         adjustment.set_page_increment(page_increment);
-        adjustment.set_page_size(page_size);
+        adjustment.set_page_size(0.0);
 
         oc_adjustment.set_initial_value(value);
 

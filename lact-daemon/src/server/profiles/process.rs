@@ -1,6 +1,6 @@
 use super::ProfileWatcherEvent;
-use copes::{io::connector::ProcessEventsConnector, solver::PID};
-use lact_schema::{ProcessInfo, ProfileWatcherState};
+use lact_schema::{ProfileProcessInfo, ProfileWatcherState};
+use libcopes::{ProcessEventsConnector, PID};
 use std::fs;
 use tokio::sync::mpsc;
 use tracing::{debug, error};
@@ -33,22 +33,24 @@ pub fn start_listener(event_tx: mpsc::Sender<ProfileWatcherEvent>) {
     match ProcessEventsConnector::try_new() {
         Ok(connector) => {
             tokio::task::spawn_blocking(move || {
-                let iter = connector.into_iter();
-                for result in iter {
-                    match result {
-                        Ok(event) => {
-                            if event_tx
-                                .blocking_send(ProfileWatcherEvent::Process(event))
-                                .is_err()
-                            {
-                                debug!(
+                let mut iter = connector.into_iter();
+                loop {
+                    if let Some(result) = iter.next() {
+                        match result {
+                            Ok(event) => {
+                                if event_tx
+                                    .blocking_send(ProfileWatcherEvent::Process(event))
+                                    .is_err()
+                                {
+                                    debug!(
                                     "profile watcher channel closed, exiting process event listener"
                                 );
-                                break;
+                                    break;
+                                }
                             }
-                        }
-                        Err(err) => {
-                            debug!("process event error: {err}");
+                            Err(err) => {
+                                debug!("process event error: {err}");
+                            }
                         }
                     }
                 }
@@ -60,14 +62,14 @@ pub fn start_listener(event_tx: mpsc::Sender<ProfileWatcherEvent>) {
     }
 }
 
-pub fn get_pid_info(pid: PID) -> std::io::Result<ProcessInfo> {
-    let exe = copes::io::proc::exe_reader(pid)?;
-    let cmdline = copes::io::proc::cmdline_reader(pid)?;
-    let name = copes::solver::get_process_executed_file(exe, &cmdline)
+pub fn get_pid_info(pid: PID) -> std::io::Result<ProfileProcessInfo> {
+    let exe = libcopes::io::exe_reader(pid)?;
+    let cmdline = libcopes::io::cmdline_reader(pid)?;
+    let name = libcopes::get_process_executed_file(exe, &cmdline)
         .to_string()
         .into();
 
-    Ok(ProcessInfo {
+    Ok(ProfileProcessInfo {
         name,
         cmdline: cmdline
             .to_string()
