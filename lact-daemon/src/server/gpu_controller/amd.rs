@@ -18,7 +18,7 @@ use amdgpu_sysfs::{
     hw_mon::{FanControlMethod, HwMon},
     sysfs::SysFS,
 };
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
@@ -1185,6 +1185,130 @@ fn apply_clocks_config_to_table(
     }
     if let Some(voltage) = config.max_voltage {
         table.set_max_voltage(voltage)?;
+    }
+
+    if !config.gpu_vf_curve.is_empty() {
+        // Validate first
+        for (i, point) in &config.gpu_vf_curve {
+            if let Some(clockspeed) = point.clockspeed {
+                let range = match table {
+                    ClocksTableGen::Gcn(table) => table.od_range.sclk,
+                    ClocksTableGen::Rdna(table) => table
+                        .od_range
+                        .curve_sclk_points
+                        .get(*i as usize)
+                        .copied()
+                        .unwrap_or_default(),
+                };
+                let (min, max) = range.into_full().context("SCLK range not present")?;
+
+                if !(min..=max).contains(&clockspeed) {
+                    bail!("Clockspeed {clockspeed} is not in the allowed range {min}-{max}");
+                }
+            }
+
+            if let Some(voltage) = point.voltage {
+                let range = match table {
+                    ClocksTableGen::Gcn(table) => table.od_range.vddc,
+                    ClocksTableGen::Rdna(table) => table
+                        .od_range
+                        .curve_voltage_points
+                        .get(*i as usize)
+                        .copied(),
+                };
+                let (min, max) = range
+                    .unwrap_or_default()
+                    .into_full()
+                    .context("Voltage range not present")?;
+
+                if !(min..=max).contains(&voltage) {
+                    bail!("Voltage {voltage} is not in the allowed range {min}-{max}");
+                }
+            }
+        }
+
+        let points = match table {
+            ClocksTableGen::Gcn(table) => &mut table.sclk_levels,
+            ClocksTableGen::Rdna(table) => &mut table.vddc_curve,
+        };
+        for (i, point) in &config.gpu_vf_curve {
+            let level = points
+                .get_mut(*i as usize)
+                .with_context(|| format!("GPU does not have a p-state {i}"))?;
+
+            if let Some(clockspeed) = point.clockspeed {
+                level.clockspeed = clockspeed;
+            }
+
+            if let Some(voltage) = point.voltage {
+                level.voltage = voltage;
+            }
+        }
+
+        // Apply RDNA1 OD_SCLK options in addition to the vddc curve
+        if let ClocksTableGen::Rdna(table) = table {
+            if let Some(min_clock) = config.gpu_vf_curve.get(&0) {
+                table.current_sclk_range.min = min_clock.clockspeed;
+            }
+
+            #[allow(clippy::cast_possible_truncation)]
+            if let Some(max_clock) = config.gpu_vf_curve.get(&(table.vddc_curve.len() as u8 - 1)) {
+                table.current_sclk_range.max = max_clock.clockspeed;
+            }
+        }
+    }
+
+    if !config.mem_vf_curve.is_empty() {
+        match table {
+            ClocksTableGen::Gcn(table) => {
+                // Validate first
+                for (_, point) in &config.mem_vf_curve {
+                    if let Some(clockspeed) = point.clockspeed {
+                        let (min, max) = table
+                            .od_range
+                            .mclk
+                            .unwrap_or_default()
+                            .into_full()
+                            .context("MCLK range not present")?;
+
+                        if !(min..=max).contains(&clockspeed) {
+                            bail!(
+                                "Memory clockspeed {clockspeed} is not in the allowed range {min}-{max}"
+                            );
+                        }
+                    }
+
+                    if let Some(voltage) = point.voltage {
+                        let (min, max) = table
+                            .od_range
+                            .vddc
+                            .unwrap_or_default()
+                            .into_full()
+                            .context("Voltage range not present")?;
+
+                        if !(min..=max).contains(&voltage) {
+                            bail!("Voltage {voltage} is not in the allowed range {min}-{max}");
+                        }
+                    }
+                }
+
+                for (i, point) in &config.mem_vf_curve {
+                    let level = table
+                        .mclk_levels
+                        .get_mut(*i as usize)
+                        .with_context(|| format!("GPU does not have a p-state {i}"))?;
+
+                    if let Some(clockspeed) = point.clockspeed {
+                        level.clockspeed = clockspeed;
+                    }
+
+                    if let Some(voltage) = point.voltage {
+                        level.voltage = voltage;
+                    }
+                }
+            }
+            ClocksTableGen::Rdna(_) => bail!("VRAM VF curve not supported"),
+        };
     }
 
     Ok(())

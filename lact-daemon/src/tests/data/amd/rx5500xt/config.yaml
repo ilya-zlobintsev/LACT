@@ -1,1 +1,5 @@
 max_core_clock: 2000
+gpu_vf_curve:
+  2:
+    clockspeed: 1950
+    voltage: 1102
