@@ -68,7 +68,8 @@ impl FactoryComponent for ClockAdjustmentRow {
 
             gtk::Separator {
                 set_visible: self.show_separator,
-                set_margin_vertical: 10,
+                set_margin_top: 5,
+                set_margin_bottom: 10,
             },
 
             gtk::Box {
