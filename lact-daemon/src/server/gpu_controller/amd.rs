@@ -838,6 +838,13 @@ impl GpuController for AmdGpuController {
                     .context("Failed to stop fan control")?;
             }
 
+            if let Some(PerformanceLevel::High | PerformanceLevel::Low) = config.performance_level {
+                // Reset to auto first
+                self.handle
+                    .set_power_force_performance_level(PerformanceLevel::Auto)
+                    .context("Failed to set power performance level")?;
+            }
+
             if self.is_steam_deck() {
                 // Van Gogh/Sephiroth only allow clock settings to be used with manual performance mode
                 self.handle
@@ -889,7 +896,7 @@ impl GpuController for AmdGpuController {
                                 .set_power_force_performance_level(performance_level)
                                 .context("Failed to set power performance level")?;
                         }
-                        _ => {
+                        PerformanceLevel::High | PerformanceLevel::Low => {
                             deferred_performance_level = Some(performance_level);
                         }
                     }
