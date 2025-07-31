@@ -139,3 +139,24 @@ settings-profile = Settings Profile
 auto-switch-profiles = Switch automatically
 add-profile = Add new profile
 import-profile = Import profile from file
+
+create-profile = Create Profile
+name = Name
+profile-copy-from = Copy settings from:
+create = Create
+cancel = Cancel
+save = Save
+default-profile = Default
+rename-profile = Rename Profile
+rename-profile-from = Rename profile <b>{$old_name}</b> to:
+delete-profile = Delete Profile
+edit-rules = Edit Rules
+profile-rules = Profile Rules
+export-to-file = Export To File
+move-up = Move Up
+move-down = Move Down
+profile-activation = Activation
+profile-activation-desc = <span font_desc='11'><b>Activate profile '{$name}' when:</b></span>
+any-rules-matched = Any of the following rules are matched:
+all-rules-matched = All of the following rules are matched:
+

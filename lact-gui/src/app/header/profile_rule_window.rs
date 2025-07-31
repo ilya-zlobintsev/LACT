@@ -1,6 +1,7 @@
 pub mod profile_row;
 
 use crate::app::{msg::AppMsg, APP_BROKER};
+use crate::I18N;
 use gtk::{
     pango,
     prelude::{
@@ -8,6 +9,7 @@ use gtk::{
         EntryExt, GtkWindowExt, OrientableExt, WidgetExt,
     },
 };
+use i18n_embed_fl::fl;
 use lact_schema::{config::ProfileHooks, ProfileRule};
 use profile_row::ProfileRuleRow;
 use relm4::{
@@ -60,7 +62,7 @@ impl relm4::Component for ProfileRuleWindow {
     view! {
         gtk::Dialog {
             set_default_size: (600, 300),
-            set_title: Some("Profile rules"),
+            set_title: Some(&fl!(I18N, "profile-rules")),
             set_transient_for: Some(&root_window),
             connect_response[root, sender] => move |_, response| {
                 match response {
@@ -83,13 +85,13 @@ impl relm4::Component for ProfileRuleWindow {
 
                 #[name = "stack"]
                 append = &gtk::Stack {
-                    add_titled[None, "Activation"] = &gtk::Box {
+                    add_titled[None, &fl!(I18N, "profile-activation")] = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
                         set_margin_all: 5,
 
                         gtk::Label {
                             #[watch]
-                            set_markup: &format!("<span font_desc='11'><b>Activate profile '{}' when:</b></span>", model.profile_name),
+                            set_markup: &fl!(I18N, "profile-activation-desc", name = model.profile_name.as_str()),
                             set_halign: gtk::Align::Start,
                             set_margin_all: 10,
                         },
@@ -107,14 +109,14 @@ impl relm4::Component for ProfileRuleWindow {
 
                                 #[name = "multi_or_checkbutton"]
                                 gtk::CheckButton {
-                                    set_label: Some("Any of the following rules are matched:"),
+                                    set_label: Some(&fl!(I18N, "any-rules-matched")),
                                     set_active: !matches!(rule, ProfileRule::And(_)),
                                     connect_toggled => ProfileRuleWindowMsg::Evaluate,
                                 },
 
                                 #[name = "multi_and_checkbutton"]
                                 gtk::CheckButton {
-                                    set_label: Some("All of the following rules are matched:"),
+                                    set_label: Some(&fl!(I18N, "all-rules-matched")),
                                     set_group: Some(&multi_or_checkbutton),
                                     set_active: matches!(rule, ProfileRule::And(_)),
                                     connect_toggled => ProfileRuleWindowMsg::Evaluate,
