@@ -26,6 +26,12 @@ features = Features
 extensions = Extensions
 show-button = Show
 device-not-found = {$kind} device not found
+cache-info = Cache Information
+amd-cache-desc = {$size} L{$level} {$types} cache shared between {$shared} CUs
+nvidia-cache-desc = {$size} L{$level}
+cache-data = Data
+cache-instruction = Data
+cache-cpu = CPU
 
 monitoring-section = Monitoring
 fan-control-section = Fan Control

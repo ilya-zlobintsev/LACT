@@ -1404,6 +1404,16 @@ fn read_cache_info_from_kfd(node_path: &Path) -> anyhow::Result<CacheInfo> {
             *caches.entry(instance).or_default() += 1;
         }
     }
+    let mut items = caches.into_iter().collect::<Vec<_>>();
 
-    Ok(CacheInfo::Amd(caches.into_iter().collect()))
+    items.sort_by_key(|(instance, _)| {
+        (
+            instance.level,
+            instance.cu_count,
+            instance.size,
+            instance.types.clone(),
+        )
+    });
+
+    Ok(CacheInfo::Amd(items))
 }
