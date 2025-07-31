@@ -22,7 +22,7 @@ use anyhow::{anyhow, bail, Context};
 use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
-    CacheInstance, CacheKey, CacheType, ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats,
+    AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats,
     DeviceType, DrmInfo, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates,
     PowerStats, ProcessList, ProcessUtilizationType, RopInfo, VoltageStats, VramStats,
 };
@@ -530,33 +530,7 @@ impl AmdGpuController {
                 },
                 vram_bit_width: Some(drm_info.vram_bit_width),
                 vram_max_bw: Some(drm_info.peak_memory_bw_gb().to_string()),
-                cache_info: cache_info.unwrap_or_else(|| {
-                    let mut caches = vec![
-                        CacheInstance {
-                            size: drm_info.get_l1_cache_size(),
-                            key: CacheKey {
-                                level: 1,
-                                types: vec![],
-                            },
-                        };
-                        drm_info.cu_active_number as usize
-                    ];
-                    caches.push(CacheInstance {
-                        size: drm_info.calc_l2_cache_size(),
-                        key: CacheKey {
-                            level: 2,
-                            types: vec![],
-                        },
-                    });
-                    caches.push(CacheInstance {
-                        key: CacheKey {
-                            level: 3,
-                            types: vec![],
-                        },
-                        size: drm_info.calc_l3_cache_size_mb() * 1024 * 1024,
-                    });
-                    caches
-                }),
+                cache_info,
                 memory_info: drm_memory_info,
                 rop_info: Some(RopInfo {
                     unit_count: drm_info.rb_pipes(),
@@ -569,7 +543,11 @@ impl AmdGpuController {
                 }),
                 intel: IntelDrmInfo::default(),
             }),
-            None => None,
+            None => Some(DrmInfo {
+                cache_info,
+                vram_clock_ratio: 1.0,
+                ..Default::default()
+            }),
         }
     }
 
@@ -669,6 +647,7 @@ impl AmdGpuController {
             && STEAM_DECK_IDS.contains(&self.common.pci_info.device_pci_info.model_id.as_str())
     }
 
+    #[cfg(not(test))]
     fn kfd_node_path(&self) -> Option<PathBuf> {
         self.drm_handle
             .as_ref()
@@ -696,6 +675,15 @@ impl AmdGpuController {
                         .map(|_| entry.path())
                 })
             })
+    }
+
+    #[cfg(test)]
+    fn kfd_node_path(&self) -> Option<PathBuf> {
+        self.handle
+            .get_path()
+            .parent()
+            .and_then(|path| path.parent())
+            .map(|path| path.join("kfd/topology/nodes/1"))
     }
 }
 
@@ -1368,8 +1356,8 @@ fn apply_clocks_config_to_table(
     Ok(())
 }
 
-fn read_cache_info_from_kfd(node_path: &Path) -> anyhow::Result<Vec<CacheInstance>> {
-    let mut caches: BTreeMap<CacheKey, Vec<CacheInstance>> = BTreeMap::new();
+fn read_cache_info_from_kfd(node_path: &Path) -> anyhow::Result<CacheInfo> {
+    let mut caches: BTreeMap<AmdCacheInstance, u16> = BTreeMap::new();
 
     let caches_dir = fs::read_dir(node_path.join("caches"))?;
     for entry in caches_dir {
@@ -1382,14 +1370,20 @@ fn read_cache_info_from_kfd(node_path: &Path) -> anyhow::Result<Vec<CacheInstanc
             .filter_map(|line| line.split_once(' '))
             .collect::<HashMap<_, _>>();
 
-        if let (Some(cache_type), Some(level), Some(size)) = (
+        if let (Some(cache_type), Some(level), Some(size), Some(sibling_map)) = (
             cache_info.get("type"),
             cache_info.get("level"),
             cache_info.get("size"),
+            cache_info.get("sibling_map"),
         ) {
             let level: u8 = level.parse().context("Invalid cache size")?;
             let size: u32 = size.parse().context("Invalid cache size")?;
             let cache_type: u32 = cache_type.parse().context("Invalid cache size")?;
+            #[allow(clippy::cast_possible_truncation)]
+            let cu_count = sibling_map
+                .split(',')
+                .take_while(|item| *item == "1")
+                .count() as u16;
 
             let types = [
                 (HSA_CACHE_TYPE_DATA, CacheType::Data),
@@ -1401,14 +1395,15 @@ fn read_cache_info_from_kfd(node_path: &Path) -> anyhow::Result<Vec<CacheInstanc
             .map(|(_, cache_type)| cache_type)
             .collect();
 
-            let key = CacheKey { level, types };
-
-            caches.entry(key.clone()).or_default().push(CacheInstance {
+            let instance = AmdCacheInstance {
+                level,
+                types,
                 size: size * 1024,
-                key,
-            });
+                cu_count,
+            };
+            *caches.entry(instance).or_default() += 1;
         }
     }
 
-    Ok(caches.into_values().flatten().collect())
+    Ok(CacheInfo::Amd(caches.into_iter().collect()))
 }

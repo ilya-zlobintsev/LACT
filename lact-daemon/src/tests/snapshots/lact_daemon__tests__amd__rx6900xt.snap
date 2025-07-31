@@ -42,6 +42,9 @@ expression: device_info
   },
   "info": {
     "driver": "amdgpu",
+    "drm_info": {
+      "vram_clock_ratio": 1.0
+    },
     "link_info": {
       "current_speed": "16.0 GT/s PCIe",
       "current_width": "16",

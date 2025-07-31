@@ -330,24 +330,26 @@ pub struct DrmInfo {
     pub vram_clock_ratio: f64,
     pub vram_bit_width: Option<u32>,
     pub vram_max_bw: Option<String>,
-    #[serde(default)]
-    pub cache_info: Vec<CacheInstance>,
+    /// Map of unique cache type+size to instance count
+    pub cache_info: Option<CacheInfo>,
     pub rop_info: Option<RopInfo>,
     pub memory_info: Option<DrmMemoryInfo>,
     #[serde(flatten)]
     pub intel: IntelDrmInfo,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CacheInstance {
-    pub key: CacheKey,
-    pub size: u32,
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CacheInfo {
+    Amd(Vec<(AmdCacheInstance, u16)>),
+    Nvidia { l2: u32 },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CacheKey {
-    pub level: u8,
+pub struct AmdCacheInstance {
     pub types: Vec<CacheType>,
+    pub level: u8,
+    pub size: u32,
+    pub cu_count: u16,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

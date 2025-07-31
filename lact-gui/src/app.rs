@@ -1251,7 +1251,7 @@ async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Err
     }
 }
 
-pub fn format_friendly_size(bytes: u64) -> String {
+fn format_friendly_size(bytes: u64) -> String {
     const NAMES: &[&str] = &["bytes", "KiB", "MiB", "GiB"];
 
     let mut size = bytes as f64;

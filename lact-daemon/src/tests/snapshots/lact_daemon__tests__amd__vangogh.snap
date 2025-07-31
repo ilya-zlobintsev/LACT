@@ -6,6 +6,68 @@ expression: device_info
   "clocks_info": null,
   "info": {
     "driver": "amdgpu",
+    "drm_info": {
+      "cache_info": {
+        "Amd": [
+          [
+            {
+              "cu_count": 1,
+              "level": 1,
+              "size": 16384,
+              "types": [
+                "Data"
+              ]
+            },
+            8
+          ],
+          [
+            {
+              "cu_count": 2,
+              "level": 1,
+              "size": 16384,
+              "types": [
+                "Data"
+              ]
+            },
+            4
+          ],
+          [
+            {
+              "cu_count": 8,
+              "level": 1,
+              "size": 131072,
+              "types": [
+                "Data"
+              ]
+            },
+            1
+          ],
+          [
+            {
+              "cu_count": 8,
+              "level": 2,
+              "size": 1048576,
+              "types": [
+                "Data"
+              ]
+            },
+            1
+          ],
+          [
+            {
+              "cu_count": 2,
+              "level": 1,
+              "size": 32768,
+              "types": [
+                "Instruction"
+              ]
+            },
+            4
+          ]
+        ]
+      },
+      "vram_clock_ratio": 1.0
+    },
     "link_info": {
       "current_speed": "8.0 GT/s PCIe",
       "current_width": "16"

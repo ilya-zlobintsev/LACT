@@ -17,10 +17,10 @@ use futures::{future::LocalBoxFuture, FutureExt};
 use indexmap::IndexMap;
 use lact_schema::{
     config::{FanControlSettings, FanCurve, GpuConfig},
-    CacheInstance, CacheKey, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats,
-    DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
-    NvidiaClockOffset, NvidiaClocksTable, PmfwInfo, PowerState, PowerStates, PowerStats,
-    ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, VoltageStats, VramStats,
+    CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DeviceType,
+    DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset,
+    NvidiaClocksTable, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList,
+    ProcessType, ProcessUtilizationType, VoltageStats, VramStats,
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
@@ -427,16 +427,7 @@ impl GpuController for NvidiaGpuController {
                     vram_max_bw: None,
                     cache_info: driver_handle
                         .and_then(|handle| handle.get_l2_cache_size().ok())
-                        .map(|size| {
-                            vec![CacheInstance {
-                                size,
-                                key: CacheKey {
-                                    level: 2,
-                                    types: vec![],
-                                },
-                            }]
-                        })
-                        .unwrap_or_default(),
+                        .map(|size| CacheInfo::Nvidia { l2: size }),
                     rop_info: driver_handle
                         .as_ref()
                         .and_then(|handle| handle.get_rop_info().ok()),
