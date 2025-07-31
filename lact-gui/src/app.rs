@@ -7,8 +7,12 @@ mod info_row;
 mod msg;
 mod page_section;
 mod pages;
+mod process_monitor;
 
-use crate::{APP_ID, GUI_VERSION};
+use crate::{
+    app::process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
+    APP_ID, GUI_VERSION, I18N,
+};
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use confirmation_dialog::ConfirmationDialog;
@@ -27,6 +31,7 @@ use header::{
     profile_rule_window::{profile_row::ProfileRuleRowMsg, ProfileRuleWindowMsg},
     Header, HeaderMsg,
 };
+use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
     args::GuiArgs,
@@ -46,7 +51,8 @@ use relm4::{
     actions::{RelmAction, RelmActionGroup},
     binding::BoolBinding,
     prelude::{AsyncComponent, AsyncComponentParts},
-    tokio, AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
+    tokio::{self, time::sleep},
+    AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
 };
 use relm4_components::{
     open_dialog::{OpenDialog, OpenDialogMsg, OpenDialogResponse, OpenDialogSettings},
@@ -69,11 +75,13 @@ pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 static ERROR_WINDOW_COUNT: AtomicU32 = AtomicU32::new(0);
 
 const STATS_POLL_INTERVAL_MS: u64 = 250;
+const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 
 pub struct AppModel {
     daemon_client: DaemonClient,
     graphs_window: relm4::Controller<GraphsWindow>,
+    process_monitor_window: relm4::Controller<ProcessMonitorWindow>,
 
     ui_sensitive: BoolBinding,
 
@@ -123,10 +131,10 @@ impl AsyncComponent for AppModel {
 
                         add_binding: (&model.ui_sensitive, "sensitive"),
 
-                        add_titled[Some("info_page"), "Information"] = model.info_page.widget(),
-                        add_titled[Some("oc_page"), "OC"] = model.oc_page.widget(),
-                        add_titled[Some("thermals_page"), "Thermals"] = model.thermals_page.widget(),
-                        add_titled[Some("software_page"), "Software"] = model.software_page.widget(),
+                        add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
+                        add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
+                        add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
+                        add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
                     },
 
                     model.apply_revealer.widget(),
@@ -226,10 +234,12 @@ impl AsyncComponent for AppModel {
             .forward(sender.input_sender(), |msg| msg);
 
         let graphs_window = GraphsWindow::detach_default();
+        let process_monitor_window = ProcessMonitorWindow::detach_default();
 
         let model = AppModel {
             daemon_client,
             graphs_window,
+            process_monitor_window,
             info_page,
             oc_page,
             thermals_page,
@@ -253,6 +263,18 @@ impl AsyncComponent for AppModel {
             .set_stack(Some(&widgets.root_stack));
 
         sender.input(AppMsg::ReloadProfiles { state_sender: None });
+
+        let task_sender = sender.clone();
+        sender.command(move |_, shutdown| {
+            shutdown
+                .register(async move {
+                    loop {
+                        sleep(Duration::from_millis(PROCESS_POLL_INTERVAL_MS)).await;
+                        task_sender.input(AppMsg::FetchProcessList);
+                    }
+                })
+                .drop_on_shutdown()
+        });
 
         AsyncComponentParts { model, widgets }
     }
@@ -458,6 +480,10 @@ impl AppModel {
             AppMsg::ShowGraphsWindow => {
                 self.graphs_window.emit(GraphsWindowMsg::Show);
             }
+            AppMsg::ShowProcessMonitor => {
+                self.process_monitor_window
+                    .emit(ProcessMonitorWindowMsg::Show);
+            }
             AppMsg::DumpVBios => {
                 self.dump_vbios(&self.current_gpu_id()?, root).await;
             }
@@ -473,6 +499,21 @@ impl AppModel {
             AppMsg::ResetConfig => {
                 self.daemon_client.reset_config().await?;
                 sender.input(AppMsg::ReloadData { full: true });
+            }
+            AppMsg::FetchProcessList => {
+                if self.process_monitor_window.widget().is_visible() {
+                    if let Ok(gpu_id) = self.current_gpu_id() {
+                        match self.daemon_client.get_process_list(&gpu_id).await {
+                            Ok(process_list) => {
+                                self.process_monitor_window
+                                    .emit(ProcessMonitorWindowMsg::Data(process_list));
+                            }
+                            Err(err) => {
+                                warn!("could not fetch process list: {err:#}");
+                            }
+                        }
+                    }
+                }
             }
             AppMsg::ConnectionStatus(status) => match status {
                 ConnectionStatusMsg::Disconnected => widgets.reconnecting_dialog.present(),
@@ -500,8 +541,10 @@ impl AppModel {
                     }
                 }
             }
-            AppMsg::SetProfileRule { name, rule } => {
-                self.daemon_client.set_profile_rule(name, rule).await?;
+            AppMsg::SetProfileRule { name, rule, hooks } => {
+                self.daemon_client
+                    .set_profile_rule(name, rule, hooks)
+                    .await?;
                 self.reload_profiles(None).await?;
             }
         }
@@ -1148,14 +1191,15 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
 
     actions! {
         (ShowGraphsWindow, AppMsg::ShowGraphsWindow),
+        (ShowProcessMonitor, AppMsg::ShowProcessMonitor),
         (DumpVBios, AppMsg::DumpVBios),
         (DebugSnapshot, AppMsg::DebugSnapshot),
         (
             DisableOverdrive,
             AppMsg::ask_confirmation(
                 AppMsg::DisableOverdrive,
-                "Disable Overclocking",
-                "This will disable AMD overclocking support (overdrive) on next reboot.",
+                fl!(I18N, "disable-amd-oc"),
+                fl!(I18N, "disable-amd-oc-description"),
                 gtk::ButtonsType::OkCancel,
             )
         ),
@@ -1163,8 +1207,8 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
             ResetConfig,
             AppMsg::ask_confirmation(
                 AppMsg::ResetConfig,
-                "Reset configuration",
-                "Are you sure you want to reset all GPU configuration?",
+                fl!(I18N, "reset-config"),
+                fl!(I18N, "reset-config-description"),
                 gtk::ButtonsType::YesNo,
             )
         ),
@@ -1175,6 +1219,7 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
 
 relm4::new_action_group!(AppActionGroup, "app");
 relm4::new_stateless_action!(ShowGraphsWindow, AppActionGroup, "show-graphs-window");
+relm4::new_stateless_action!(ShowProcessMonitor, AppActionGroup, "show-process-monitor");
 relm4::new_stateless_action!(DumpVBios, AppActionGroup, "dump-vbios");
 relm4::new_stateless_action!(DebugSnapshot, AppActionGroup, "generate-debug-snapshot");
 relm4::new_stateless_action!(DisableOverdrive, AppActionGroup, "disable-overdrive");
@@ -1204,4 +1249,18 @@ async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Err
             Ok((client, Some(err)))
         }
     }
+}
+
+pub fn format_friendly_size(bytes: u64) -> String {
+    const NAMES: &[&str] = &["bytes", "KiB", "MiB", "GiB"];
+
+    let mut size = bytes as f64;
+
+    let mut i = 0;
+    while size > 2048.0 && i < NAMES.len() - 1 {
+        size /= 1024.0;
+        i += 1;
+    }
+
+    format!("{size:.1$} {}", NAMES[i], (size.fract() != 0.0) as usize)
 }

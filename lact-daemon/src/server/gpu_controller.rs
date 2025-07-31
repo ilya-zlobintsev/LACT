@@ -1,14 +1,14 @@
 #![allow(clippy::module_name_repetitions)]
 mod amd;
-pub mod fan_control;
+pub mod common;
 mod intel;
-
 #[cfg(feature = "nvidia")]
 mod nvidia;
 
 use amd::AmdGpuController;
 use intel::IntelGpuController;
-
+use lact_schema::DeviceType;
+use lact_schema::ProcessList;
 #[cfg(feature = "nvidia")]
 use nvidia::NvidiaGpuController;
 
@@ -24,16 +24,23 @@ use lact_schema::{
     config::GpuConfig, ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates,
 };
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
-use nvml_wrapper::Nvml;
+use std::io;
 use std::{cell::LazyCell, collections::HashMap, fs, path::PathBuf, rc::Rc};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, warn};
+
+#[cfg(feature = "nvidia")]
+pub use nvidia::nvapi::NvApi;
+#[cfg(feature = "nvidia")]
+use nvml_wrapper::Nvml;
 
 pub type DynGpuController = Box<dyn GpuController>;
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 
 pub trait GpuController {
     fn controller_info(&self) -> &CommonControllerInfo;
+
+    fn device_type(&self) -> DeviceType;
 
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo>;
 
@@ -56,9 +63,11 @@ pub trait GpuController {
     fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable>;
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>>;
+
+    fn process_list(&self) -> anyhow::Result<ProcessList>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct CommonControllerInfo {
     pub sysfs_path: PathBuf,
     pub pci_info: GpuPciInfo,
@@ -99,6 +108,17 @@ impl CommonControllerInfo {
             func,
         })
     }
+
+    pub fn get_drm_render(&self) -> io::Result<PathBuf> {
+        fs::canonicalize(format!(
+            "/dev/dri/by-path/pci-{}-render",
+            self.pci_slot_name
+        ))
+    }
+
+    pub fn get_drm_card(&self) -> io::Result<PathBuf> {
+        fs::canonicalize(format!("/dev/dri/by-path/pci-{}-card", self.pci_slot_name))
+    }
 }
 
 pub struct PciSlotInfo {
@@ -108,10 +128,15 @@ pub struct PciSlotInfo {
     pub func: u16,
 }
 
+#[cfg(feature = "nvidia")]
+pub type NvidiaLibs = (Rc<Nvml>, Rc<Option<NvApi>>);
+#[cfg(not(feature = "nvidia"))]
+pub type NvidiaLibs = ();
+
 pub(crate) fn init_controller(
     path: PathBuf,
     pci_db: &pciid_parser::Database,
-    nvml: &LazyCell<Option<Rc<Nvml>>>,
+    nvml: &LazyCell<Option<NvidiaLibs>>,
     amd_drm: &LazyCell<Option<LibDrmAmdgpu>>,
     intel_drm: &LazyCell<Option<Rc<IntelDrm>>>,
 ) -> anyhow::Result<Box<dyn GpuController>> {
@@ -205,8 +230,8 @@ pub(crate) fn init_controller(
         }
         #[cfg(feature = "nvidia")]
         "nvidia" => {
-            if let Some(nvml) = nvml.as_ref().cloned() {
-                match NvidiaGpuController::new(common.clone(), nvml) {
+            if let Some((nvml, nvapi)) = nvml.as_ref().cloned() {
+                match NvidiaGpuController::new(common.clone(), nvml, nvapi) {
                     Ok(controller) => {
                         return Ok(Box::new(controller));
                     }

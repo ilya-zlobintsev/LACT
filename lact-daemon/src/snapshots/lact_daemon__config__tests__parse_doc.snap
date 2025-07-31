@@ -8,6 +8,7 @@ daemon:
   admin_user: foo
   admin_group: wheel
   disable_clocks_cleanup: false
+  disable_nvapi: false
   tcp_listen_address: "127.0.0.1:12853"
 apply_settings_timer: 5
 gpus:
@@ -46,6 +47,13 @@ gpus:
       0: -100
     mem_clock_offsets:
       0: 200
+    gpu_vf_curve:
+      7:
+        voltage: 1200
+        clockspeed: 1590
+    mem_vf_curve:
+      3:
+        clockspeed: 920
     voltage_offset: 0
     power_profile_mode_index: 0
     custom_power_profile_mode_hueristics:
@@ -91,5 +99,8 @@ profiles:
       filter:
         name: vkcube
         args: "--my-arg"
+    hooks:
+      activated: echo foo >> /tmp/log
+      deactivated: echo bar >> /tmp/log
 current_profile: vkcube
 auto_switch_profiles: true

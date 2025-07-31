@@ -4,18 +4,24 @@ use nix::{
     unistd::{chown, getuid, Gid, Group, User},
 };
 use std::{
-    fs,
+    env, fs,
     path::{Path, PathBuf},
     str::FromStr,
 };
 use tokio::net::UnixListener;
 use tracing::{debug, info};
 
-use crate::config;
+use crate::{
+    config,
+    system::{run_command, IS_FLATBOX},
+};
 
 pub fn get_socket_path() -> PathBuf {
     let uid = getuid();
-    if uid.is_root() {
+
+    if let Ok(path) = env::var("LACT_DAEMON_SOCKET_PATH") {
+        PathBuf::from_str(&path).unwrap()
+    } else if uid.is_root() {
         PathBuf::from_str("/run/lactd.sock").unwrap()
     } else {
         PathBuf::from_str(&format!("/run/user/{uid}/lactd.sock")).unwrap()
@@ -51,7 +57,10 @@ pub fn listen() -> anyhow::Result<(UnixListener, PathBuf)> {
     Ok((listener, socket_path))
 }
 
-pub fn set_permissions(socket_path: &Path, daemon_config: &config::Daemon) -> anyhow::Result<()> {
+pub async fn set_permissions(
+    socket_path: &Path,
+    daemon_config: &config::Daemon,
+) -> anyhow::Result<()> {
     let group = daemon_config
         .admin_group
         .as_ref()
@@ -76,7 +85,23 @@ pub fn set_permissions(socket_path: &Path, daemon_config: &config::Daemon) -> an
 
     debug!("using gid {group} uid {user:?} for socket");
 
-    chown(socket_path, user, Some(group)).context("Could not set socket permissions")?;
+    if *IS_FLATBOX {
+        let owner_arg = match user {
+            Some(user) => format!("{}:{}", user.as_raw(), group.as_raw()),
+            None => format!(":{}", group.as_raw()),
+        };
+
+        let path = socket_path
+            .to_str()
+            .expect("Invalid socket path")
+            .trim_start_matches("/run/host/root");
+
+        run_command("chown", &[&owner_arg, path])
+            .await
+            .context("Could not set socket permissions")?;
+    } else {
+        chown(socket_path, user, Some(group)).context("Could not set socket permissions")?;
+    }
 
     Ok(())
 }

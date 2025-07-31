@@ -3,12 +3,16 @@ mod profile_rename_dialog;
 mod profile_row;
 pub mod profile_rule_window;
 
-use crate::{app::APP_BROKER, CONFIG};
+use crate::{
+    app::{header::profile_rule_window::ProfileEditParams, ShowProcessMonitor, APP_BROKER},
+    CONFIG, I18N,
+};
 
 use super::{AppMsg, DebugSnapshot, DisableOverdrive, DumpVBios, ResetConfig, ShowGraphsWindow};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
+use i18n_embed_fl::fl;
 use lact_client::schema::DeviceListEntry;
 use lact_schema::ProfilesInfo;
 use new_profile_dialog::NewProfileDialog;
@@ -86,7 +90,7 @@ impl Component for Header {
                         },
 
                         gtk::Frame {
-                            set_label: Some("Settings Profile"),
+                            set_label: Some(&fl!(I18N, "settings-profile")),
                             set_label_align: 0.05,
                             set_margin_all: 5,
 
@@ -95,7 +99,7 @@ impl Component for Header {
                                 set_spacing: 5,
 
                                 gtk::CheckButton {
-                                    set_label: Some("Switch automatically"),
+                                    set_label: Some(&fl!(I18N, "auto-switch-profiles")),
                                     set_margin_horizontal: 5,
                                     #[watch]
                                     #[block_signal(toggle_auto_profile_handler)]
@@ -122,13 +126,13 @@ impl Component for Header {
                                     gtk::Button {
                                         set_expand: true,
                                         set_icon_name: "list-add",
-                                        set_tooltip: "Add new profile",
+                                        set_tooltip: &fl!(I18N, "add-profile"),
                                         connect_clicked => HeaderMsg::CreateProfile,
                                     },
 
                                     gtk::Button {
                                         set_icon_name: "document-import-symbolic",
-                                        set_tooltip: "Import profile from file",
+                                        set_tooltip: &fl!(I18N, "import-profile"),
                                         set_expand: true,
                                         connect_clicked => HeaderMsg::ImportProfile,
                                     }
@@ -151,6 +155,7 @@ impl Component for Header {
         app_menu: {
             section! {
                 "Show historical charts" => ShowGraphsWindow,
+                "Show process monitor" => ShowProcessMonitor,
             },
             section! {
                 "Generate debug snapshot" => DebugSnapshot,
@@ -349,21 +354,30 @@ impl Component for Header {
                     .expect("No profile with given index");
 
                 let sender = sender.clone();
-                if let ProfileRowType::Profile { name, rule, .. } = &profile.row {
-                    let rule_window = ProfileRuleWindow::builder()
-                        .launch((
-                            name.clone(),
-                            rule.clone().unwrap_or_default(),
-                            root.toplevel_window().expect("Widget not in a window"),
-                        ))
-                        .into_stream();
+                if let ProfileRowType::Profile {
+                    name,
+                    rule,
+                    hooks,
+                    auto,
+                    ..
+                } = &profile.row
+                {
+                    let params = ProfileEditParams {
+                        name: name.clone(),
+                        rule: rule.clone().unwrap_or_default(),
+                        hooks: hooks.clone(),
+                        auto_switch: *auto,
+                        root_window: root.toplevel_window().expect("Widget not in a window"),
+                    };
+                    let rule_window = ProfileRuleWindow::builder().launch(params).into_stream();
 
                     sender.clone().oneshot_command(async move {
-                        if let Some((name, rule)) = rule_window.recv_one().await {
+                        if let Some((name, rule, hooks)) = rule_window.recv_one().await {
                             sender
                                 .output(AppMsg::SetProfileRule {
                                     name,
                                     rule: Some(rule),
+                                    hooks,
                                 })
                                 .unwrap();
                         }
@@ -391,12 +405,19 @@ impl Header {
 
         let last = profiles_info.profiles.len().saturating_sub(1);
         for (i, (name, rule)) in profiles_info.profiles.iter().enumerate() {
+            let hooks = profiles_info
+                .profile_hooks
+                .get(name)
+                .cloned()
+                .unwrap_or_default();
+
             let profile = ProfileRowType::Profile {
                 name: name.to_string(),
                 first: i == 0,
                 last: i == last,
                 auto: profiles_info.auto_switch,
                 rule: rule.clone(),
+                hooks,
             };
             profiles.push_back(profile);
         }
@@ -485,6 +506,7 @@ struct GpuListItem(DeviceListEntry);
 struct GpuListItemWidgets {
     name_label: gtk::Label,
     id_label: gtk::Label,
+    type_label: gtk::Label,
 }
 
 impl RelmListItem for GpuListItem {
@@ -494,13 +516,23 @@ impl RelmListItem for GpuListItem {
     fn setup(_list_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
         relm4::view! {
             root = gtk::Box {
-                set_margin_all: 5,
                 set_orientation: gtk::Orientation::Vertical,
 
                 #[name = "name_label"]
                 gtk::Label,
 
+                gtk::Box {
+                    set_spacing: 5,
+                    set_orientation: gtk::Orientation::Horizontal,
+
+                },
+
                 #[name = "id_label"]
+                gtk::Label {
+                    add_css_class: "subtitle",
+                },
+
+                #[name = "type_label"]
                 gtk::Label {
                     add_css_class: "subtitle",
                 },
@@ -510,6 +542,7 @@ impl RelmListItem for GpuListItem {
         let widgets = GpuListItemWidgets {
             name_label,
             id_label,
+            type_label,
         };
         (root, widgets)
     }
@@ -519,5 +552,8 @@ impl RelmListItem for GpuListItem {
             .name_label
             .set_label(self.0.name.as_deref().unwrap_or("Unknown"));
         widgets.id_label.set_label(&self.0.id);
+        widgets
+            .type_label
+            .set_label(&self.0.device_type.to_string());
     }
 }

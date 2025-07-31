@@ -1,6 +1,11 @@
 use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
 use crate::server::{
-    gpu_controller::fan_control::FanCurveExt, opencl::get_opencl_info, vulkan::get_vulkan_info,
+    gpu_controller::common::{
+        fan_control::FanCurveExt,
+        fdinfo::{self, DrmUtilMap},
+    },
+    opencl::get_opencl_info,
+    vulkan::get_vulkan_info,
 };
 use amdgpu_sysfs::{
     error::Error,
@@ -13,13 +18,13 @@ use amdgpu_sysfs::{
     hw_mon::{FanControlMethod, HwMon},
     sysfs::SysFS,
 };
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
     CacheInstance, CacheKey, CacheType, ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats,
-    DrmInfo, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats,
-    RopInfo, VoltageStats, VramStats,
+    DeviceType, DrmInfo, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates,
+    PowerStats, ProcessList, ProcessUtilizationType, RopInfo, VoltageStats, VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
@@ -43,17 +48,27 @@ use {
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
-
+const AMDGPU_IDS_FLAGS_FUSION: u64 = 0x1;
 const HSA_CACHE_TYPE_DATA: u32 = 0x0000_0001;
 const HSA_CACHE_TYPE_INSTRUCTION: u32 = 0x0000_0002;
 const HSA_CACHE_TYPE_CPU: u32 = 0x0000_0004;
 // const HSA_CACHE_TYPE_HSACU: u32 = 0x0000_0008;
+
+const DRM_VRAM_KEYS: &[&str] = &["drm-memory-vram"];
+const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
+    ("gfx", ProcessUtilizationType::Graphics),
+    ("compute", ProcessUtilizationType::Compute),
+    ("dec", ProcessUtilizationType::Decode),
+    ("enc", ProcessUtilizationType::Encode),
+    ("enc_1", ProcessUtilizationType::Encode),
+];
 
 pub struct AmdGpuController {
     handle: GpuHandle,
     drm_handle: Option<DrmHandle>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
+    last_drm_util: RefCell<Option<DrmUtilMap>>,
 }
 
 impl AmdGpuController {
@@ -71,7 +86,7 @@ impl AmdGpuController {
         if let Some(libdrm_amdgpu) = libdrm_amdgpu {
             if handle.get_driver() == "amdgpu" {
                 drm_handle = Some(
-                    get_drm_handle(&handle, libdrm_amdgpu)
+                    get_drm_handle(&common, libdrm_amdgpu)
                         .context("Could not get AMD DRM handle")?,
                 );
             }
@@ -82,6 +97,7 @@ impl AmdGpuController {
             drm_handle,
             common,
             fan_control_handle: RefCell::new(None),
+            last_drm_util: RefCell::new(None),
         })
     }
 
@@ -688,15 +704,25 @@ impl GpuController for AmdGpuController {
         &self.common
     }
 
+    fn device_type(&self) -> DeviceType {
+        self.drm_handle
+            .as_ref()
+            .and_then(|drm| drm.device_info().ok())
+            .map_or(DeviceType::Dedicated, |info| {
+                if (info.ids_flags & AMDGPU_IDS_FLAGS_FUSION) > 0 {
+                    DeviceType::Integrated
+                } else {
+                    DeviceType::Dedicated
+                }
+            })
+    }
+
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let vulkan_info = match get_vulkan_info(&self.common.pci_info).await {
-                Ok(info) => Some(info),
-                Err(err) => {
-                    warn!("could not load vulkan info: {err}");
-                    None
-                }
-            };
+            let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
+                warn!("could not load vulkan info: {err:#}");
+                vec![]
+            });
             let pci_info = Some(self.common.pci_info.clone());
             let driver = self.handle.get_driver().to_owned();
             let vbios_version = self.get_full_vbios_version();
@@ -706,7 +732,7 @@ impl GpuController for AmdGpuController {
 
             DeviceInfo {
                 pci_info,
-                vulkan_info,
+                vulkan_instances,
                 driver,
                 vbios_version,
                 link_info,
@@ -1141,21 +1167,31 @@ impl GpuController for AmdGpuController {
         }
         .boxed_local()
     }
+
+    fn process_list(&self) -> anyhow::Result<ProcessList> {
+        let mut last_total_time_map = self.last_drm_util.borrow_mut();
+        fdinfo::read_process_list(
+            &self.common,
+            DRM_VRAM_KEYS,
+            DRM_ENGINES,
+            &mut last_total_time_map,
+        )
+    }
 }
 
 #[cfg(not(test))]
-fn get_drm_handle(handle: &GpuHandle, libdrm_amdgpu: &LibDrmAmdgpu) -> anyhow::Result<DrmHandle> {
+fn get_drm_handle(
+    common: &CommonControllerInfo,
+    libdrm_amdgpu: &LibDrmAmdgpu,
+) -> anyhow::Result<DrmHandle> {
     use std::os::unix::io::IntoRawFd;
 
-    let slot_name = handle
-        .get_pci_slot_name()
-        .context("Device has no PCI slot name")?;
-    let path = format!("/dev/dri/by-path/pci-{slot_name}-render");
+    let path = common.get_drm_render()?;
     let drm_file = fs::OpenOptions::new()
         .read(true)
         .write(true)
         .open(&path)
-        .with_context(|| format!("Could not open drm file at {path}"))?;
+        .with_context(|| format!("Could not open drm file at {}", path.display()))?;
     let (handle, _, _) = libdrm_amdgpu
         .init_device_handle(drm_file.into_raw_fd())
         .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
@@ -1203,6 +1239,130 @@ fn apply_clocks_config_to_table(
     }
     if let Some(voltage) = config.max_voltage {
         table.set_max_voltage(voltage)?;
+    }
+
+    if !config.gpu_vf_curve.is_empty() {
+        // Validate first
+        for (i, point) in &config.gpu_vf_curve {
+            if let Some(clockspeed) = point.clockspeed {
+                let range = match table {
+                    ClocksTableGen::Gcn(table) => table.od_range.sclk,
+                    ClocksTableGen::Rdna(table) => table
+                        .od_range
+                        .curve_sclk_points
+                        .get(*i as usize)
+                        .copied()
+                        .unwrap_or_default(),
+                };
+                let (min, max) = range.into_full().context("SCLK range not present")?;
+
+                if !(min..=max).contains(&clockspeed) {
+                    bail!("Clockspeed {clockspeed} is not in the allowed range {min}-{max}");
+                }
+            }
+
+            if let Some(voltage) = point.voltage {
+                let range = match table {
+                    ClocksTableGen::Gcn(table) => table.od_range.vddc,
+                    ClocksTableGen::Rdna(table) => table
+                        .od_range
+                        .curve_voltage_points
+                        .get(*i as usize)
+                        .copied(),
+                };
+                let (min, max) = range
+                    .unwrap_or_default()
+                    .into_full()
+                    .context("Voltage range not present")?;
+
+                if !(min..=max).contains(&voltage) {
+                    bail!("Voltage {voltage} is not in the allowed range {min}-{max}");
+                }
+            }
+        }
+
+        let points = match table {
+            ClocksTableGen::Gcn(table) => &mut table.sclk_levels,
+            ClocksTableGen::Rdna(table) => &mut table.vddc_curve,
+        };
+        for (i, point) in &config.gpu_vf_curve {
+            let level = points
+                .get_mut(*i as usize)
+                .with_context(|| format!("GPU does not have a p-state {i}"))?;
+
+            if let Some(clockspeed) = point.clockspeed {
+                level.clockspeed = clockspeed;
+            }
+
+            if let Some(voltage) = point.voltage {
+                level.voltage = voltage;
+            }
+        }
+
+        // Apply RDNA1 OD_SCLK options in addition to the vddc curve
+        if let ClocksTableGen::Rdna(table) = table {
+            if let Some(min_clock) = config.gpu_vf_curve.get(&0) {
+                table.current_sclk_range.min = min_clock.clockspeed;
+            }
+
+            #[allow(clippy::cast_possible_truncation)]
+            if let Some(max_clock) = config.gpu_vf_curve.get(&(table.vddc_curve.len() as u8 - 1)) {
+                table.current_sclk_range.max = max_clock.clockspeed;
+            }
+        }
+    }
+
+    if !config.mem_vf_curve.is_empty() {
+        match table {
+            ClocksTableGen::Gcn(table) => {
+                // Validate first
+                for (_, point) in &config.mem_vf_curve {
+                    if let Some(clockspeed) = point.clockspeed {
+                        let (min, max) = table
+                            .od_range
+                            .mclk
+                            .unwrap_or_default()
+                            .into_full()
+                            .context("MCLK range not present")?;
+
+                        if !(min..=max).contains(&clockspeed) {
+                            bail!(
+                                "Memory clockspeed {clockspeed} is not in the allowed range {min}-{max}"
+                            );
+                        }
+                    }
+
+                    if let Some(voltage) = point.voltage {
+                        let (min, max) = table
+                            .od_range
+                            .vddc
+                            .unwrap_or_default()
+                            .into_full()
+                            .context("Voltage range not present")?;
+
+                        if !(min..=max).contains(&voltage) {
+                            bail!("Voltage {voltage} is not in the allowed range {min}-{max}");
+                        }
+                    }
+                }
+
+                for (i, point) in &config.mem_vf_curve {
+                    let level = table
+                        .mclk_levels
+                        .get_mut(*i as usize)
+                        .with_context(|| format!("GPU does not have a p-state {i}"))?;
+
+                    if let Some(clockspeed) = point.clockspeed {
+                        level.clockspeed = clockspeed;
+                    }
+
+                    if let Some(voltage) = point.voltage {
+                        level.voltage = voltage;
+                    }
+                }
+            }
+            ClocksTableGen::Rdna(_) => bail!("VRAM VF curve not supported"),
+        };
     }
 
     Ok(())

@@ -24,6 +24,9 @@ daemon:
   # Can be used to work around a few very specific issues with 
   # some settings not applying on AMD GPUs.
   disable_clocks_cleanup: false
+  # Disables fetching of additional information through NvAPI on Nvidia GPUs.
+  # Not set by default.
+  disable_nvapi: false
   # Daemon's TCP listening address. Not specified by default.
   # By default TCP access is disabled, and only a unix socket is present.
   # Specifying this option enables the TCP listener.
@@ -170,6 +173,18 @@ gpus:
     max_voltage: 1200
     # Voltage offset value in mV for RDNA and newer AMD GPUs.
     voltage_offset: 0
+
+    # GPU V/F curve with voltage and frequency points per each power state.
+    # Applicable only to AMD GCN and RDNA1 GPUs. Overrides the values of min/max clock/voltage fields.
+    gpu_vf_curve:
+      7:
+        clockspeed: 1590
+        voltage: 1200
+    # VRAM V/F curve with voltage and frequency points per each power state.
+    # Applicable only to AMD GCN GPUs. Overrides the values of min/max memory clock fields.
+    mem_vf_curve:
+      3:
+        clockspeed: 920
     
     # GPU and VRAM clockspeed offset values, per-pstate. Applicable on Nvidia and on AMD RDNA4.
     gpu_clock_offsets:
@@ -195,6 +210,10 @@ profiles:
         name: vkcube
         # Process arguments. Not required.
         args: --my-arg
+    # Hooks that run when the profile is activated or deactivated
+    hooks:
+      activated: echo foo >> /tmp/log
+      deactivated: echo bar >> /tmp/log
 
 # Current profile to be used. Does not have effect when `auto_switch_profiles` is used.
 # Omit this option or set to `null` to use the default profile (settings in the top-level `gpus` entry).

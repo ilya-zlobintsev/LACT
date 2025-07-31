@@ -15,6 +15,21 @@ pub struct Profile {
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub gpus: IndexMap<String, GpuConfig>,
     pub rule: Option<ProfileRule>,
+    #[serde(default, skip_serializing_if = "ProfileHooks::is_empty")]
+    pub hooks: ProfileHooks,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct ProfileHooks {
+    pub activated: Option<String>,
+    pub deactivated: Option<String>,
+}
+
+impl ProfileHooks {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 #[skip_serializing_none]
@@ -49,35 +64,57 @@ pub struct ClocksConfiguration {
     #[serde(
         default,
         skip_serializing_if = "IndexMap::is_empty",
-        deserialize_with = "offsets::deserialize"
+        deserialize_with = "int_map::deserialize"
     )]
     pub gpu_clock_offsets: IndexMap<u32, i32>,
     #[serde(
         default,
         skip_serializing_if = "IndexMap::is_empty",
-        deserialize_with = "offsets::deserialize"
+        deserialize_with = "int_map::deserialize"
     )]
     pub mem_clock_offsets: IndexMap<u32, i32>,
+    #[serde(
+        default,
+        skip_serializing_if = "IndexMap::is_empty",
+        deserialize_with = "int_map::deserialize"
+    )]
+    pub gpu_vf_curve: IndexMap<u8, CurvePoint>,
+    #[serde(
+        default,
+        skip_serializing_if = "IndexMap::is_empty",
+        deserialize_with = "int_map::deserialize"
+    )]
+    pub mem_vf_curve: IndexMap<u8, CurvePoint>,
     pub voltage_offset: Option<i32>,
 }
 
-mod offsets {
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct CurvePoint {
+    pub voltage: Option<i32>,
+    pub clockspeed: Option<i32>,
+}
+
+mod int_map {
     use indexmap::IndexMap;
     use serde::{de::Error, Deserialize, Deserializer};
     use serde_json::Value;
+    use std::hash::Hash;
+    use std::str::FromStr;
 
-    pub fn deserialize<'a, D: Deserializer<'a>>(
-        deserializer: D,
-    ) -> Result<IndexMap<u32, i32>, D::Error> {
-        let map: IndexMap<Value, i32> = IndexMap::deserialize(deserializer)?;
+    pub fn deserialize<'a, D, K, V>(deserializer: D) -> Result<IndexMap<K, V>, D::Error>
+    where
+        D: Deserializer<'a>,
+        K: Deserialize<'a> + Hash + Eq + TryFrom<i64> + FromStr,
+        V: Deserialize<'a>,
+    {
+        let map: IndexMap<Value, V> = IndexMap::deserialize(deserializer)?;
 
         map.into_iter()
             .map(|(key, value)| {
                 let parsed_key = match &key {
-                    Value::Number(number) => {
-                        number.as_i64().and_then(|val| u32::try_from(val).ok())
-                    }
-                    Value::String(s) => s.parse::<u32>().ok(),
+                    Value::Number(number) => number.as_i64().and_then(|val| K::try_from(val).ok()),
+                    Value::String(s) => s.parse::<K>().ok(),
                     _ => None,
                 };
                 let key =
@@ -121,6 +158,18 @@ impl GpuConfig {
                     clocks.mem_clock_offsets.shift_remove(&pstate);
                 }
             },
+            ClockspeedType::GpuVfCurveClock(point) => {
+                clocks.gpu_vf_curve.entry(point).or_default().clockspeed = value;
+            }
+            ClockspeedType::GpuVfCurveVoltage(point) => {
+                clocks.gpu_vf_curve.entry(point).or_default().voltage = value;
+            }
+            ClockspeedType::MemVfCurveClock(point) => {
+                clocks.mem_vf_curve.entry(point).or_default().clockspeed = value;
+            }
+            ClockspeedType::MemVfCurveVoltage(point) => {
+                clocks.mem_vf_curve.entry(point).or_default().voltage = value;
+            }
             ClockspeedType::Reset => {
                 *clocks = ClocksConfiguration::default();
                 assert!(!self.is_core_clocks_used());

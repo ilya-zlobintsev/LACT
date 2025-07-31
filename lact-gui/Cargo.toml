@@ -1,6 +1,6 @@
 [package]
 name = "lact-gui"
-version = "0.7.5"
+version = "0.8.1"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2021"
 
@@ -31,6 +31,10 @@ adw = { package = "libadwaita", version = "0.7.1", features = [
 ], optional = true }
 relm4 = { version = "0.9.0", default-features = false }
 relm4-components = "0.9.0"
+
+i18n-embed = { workspace = true }
+i18n-embed-fl = { workspace = true }
+rust-embed = { workspace = true }
 
 plotters = { version = "0.3.5", default-features = false, features = [
     "line_series",

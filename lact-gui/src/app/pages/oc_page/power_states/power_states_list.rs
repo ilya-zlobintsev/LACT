@@ -8,12 +8,12 @@ use crate::{app::msg::AppMsg, APP_BROKER};
 
 pub struct PowerStatesList {
     states: FactoryVecDeque<PowerStateRow>,
-    value_suffix: &'static str,
+    value_suffix: String,
 }
 
 pub struct PowerStatesListOptions {
-    pub title: &'static str,
-    pub value_suffix: &'static str,
+    pub title: String,
+    pub value_suffix: String,
 }
 
 #[derive(Debug)]
@@ -31,7 +31,7 @@ impl relm4::SimpleComponent for PowerStatesList {
     view! {
         gtk::Frame {
             set_hexpand: true,
-            set_label: Some(opts.title),
+            set_label: Some(&opts.title),
             set_child: Some(model.states.widget()),
         }
     }
@@ -63,7 +63,7 @@ impl relm4::SimpleComponent for PowerStatesList {
                     power_state.value = (power_state.value as f64 * value_ratio) as u64;
                     let opts = PowerStateRowOptions {
                         power_state,
-                        value_suffix: self.value_suffix,
+                        value_suffix: self.value_suffix.clone(),
                         active: false,
                     };
                     states.push_back(opts);
@@ -97,12 +97,12 @@ struct PowerStateRow {
     active: BoolBinding,
     enabled: BoolBinding,
     power_state: PowerState,
-    value_suffix: &'static str,
+    value_suffix: String,
 }
 
 pub struct PowerStateRowOptions {
     pub power_state: PowerState,
-    pub value_suffix: &'static str,
+    pub value_suffix: String,
     pub active: bool,
 }
 

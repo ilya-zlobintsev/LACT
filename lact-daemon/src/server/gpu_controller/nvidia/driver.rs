@@ -243,7 +243,7 @@ impl DriverHandle {
         }
 
         if request.status != 0 {
-            bail!("Nvidia request failed with status {}", request.status);
+            bail!("Nvidia request failed with status {:x}", request.status);
         }
 
         Ok(())

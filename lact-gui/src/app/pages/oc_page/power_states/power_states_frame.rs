@@ -6,13 +6,14 @@ use crate::{
             PowerStatesListMsg, PowerStatesListOptions,
         },
     },
-    APP_BROKER,
+    APP_BROKER, I18N,
 };
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use gtk::{
     glib::{object::ObjectExt, SignalHandlerId},
     prelude::{BoxExt, CheckButtonExt, OrientableExt, WidgetExt},
 };
+use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
@@ -52,7 +53,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
     view! {
         gtk::Expander {
-            set_label: Some("Power states"),
+            set_label: Some(&fl!(I18N, "pstates")),
             add_binding: (&model.states_expanded, "expanded"),
 
             gtk::Box {
@@ -62,7 +63,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 add_binding: (&model.states_configurable, "sensitive"),
 
                 gtk::Label {
-                    set_label: "Note: performance level must be set to 'manual' to toggle power states",
+                    set_label: &fl!(I18N, "pstates-manual-needed"),
                     set_margin_horizontal: 10,
                     set_halign: gtk::Align::Start,
                     #[watch]
@@ -70,7 +71,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 },
 
                 gtk::CheckButton {
-                    set_label: Some("Enable power state configuration"),
+                    set_label: Some(&fl!(I18N, "enable-pstate-config")),
                     add_binding: (&model.states_configured, "active"),
                     #[watch]
                     set_visible: model.performance_level.is_some(),
@@ -95,14 +96,14 @@ impl relm4::SimpleComponent for PowerStatesFrame {
     ) -> ComponentParts<Self> {
         let core_states_list = PowerStatesList::builder()
             .launch(PowerStatesListOptions {
-                title: "GPU Power States",
-                value_suffix: "MHz",
+                title: fl!(I18N, "gpu-pstates"),
+                value_suffix: fl!(I18N, "mhz"),
             })
             .detach();
         let vram_states_list = PowerStatesList::builder()
             .launch(PowerStatesListOptions {
-                title: "VRAM Power States",
-                value_suffix: "MHz",
+                title: fl!(I18N, "vram-pstates"),
+                value_suffix: fl!(I18N, "mhz"),
             })
             .detach();
 

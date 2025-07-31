@@ -7,7 +7,7 @@ use gtk::{
         EntryExt, GridExt, OrientableExt, PopoverExt, SelectionModelExt, WidgetExt,
     },
 };
-use lact_schema::{ProcessInfo, ProcessProfileRule, ProfileRule, ProfileWatcherState};
+use lact_schema::{ProcessProfileRule, ProfileProcessInfo, ProfileRule, ProfileWatcherState};
 use relm4::{
     binding::{BoolBinding, StringBinding},
     typed_view::list::{RelmListItem, TypedListView},
@@ -419,7 +419,7 @@ fn format_rule(rule: &ProfileRule) -> String {
     text
 }
 
-struct ProcessListItem(ProcessInfo);
+struct ProcessListItem(ProfileProcessInfo);
 
 struct ProcessListItemWidgets {
     label: gtk::Label,

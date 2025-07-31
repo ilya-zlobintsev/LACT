@@ -1,6 +1,9 @@
 use super::PageUpdate;
-use crate::app::{info_row::InfoRow, page_section::PageSection};
+use crate::app::info_row::InfoRowItem;
+use crate::app::page_section::PageSection;
+use crate::I18N;
 use gtk::prelude::*;
+use i18n_embed_fl::fl;
 use lact_schema::{DeviceInfo, DeviceStats};
 use relm4::{prelude::FactoryVecDeque, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::sync::Arc;
@@ -26,7 +29,7 @@ impl relm4::SimpleComponent for InformationPage {
                 set_spacing: 15,
                 set_margin_horizontal: 20,
 
-                PageSection::new("Hardware Information") {
+                PageSection::new(&fl!(I18N, "hardware-info")) {
                     append = &model.values_list.widget().clone() -> gtk::Box {
                         set_spacing: 10,
                         set_orientation: gtk::Orientation::Vertical,
@@ -79,45 +82,9 @@ impl InformationPage {
                         None
                     };
 
-                    values_list.push_back(InfoRowItem {
-                        name: format!("{name}:"),
-                        value,
-                        note,
-                    });
+                    values_list.push_back(InfoRowItem { name, value, note });
                 }
             }
-        }
-    }
-}
-
-struct InfoRowItem {
-    name: String,
-    value: String,
-    note: Option<&'static str>,
-}
-
-#[relm4::factory]
-impl relm4::factory::FactoryComponent for InfoRowItem {
-    type Init = Self;
-    type ParentWidget = gtk::Box;
-    type CommandOutput = ();
-    type Input = ();
-    type Output = ();
-
-    fn init_model(
-        init: Self::Init,
-        _index: &Self::Index,
-        _sender: relm4::FactorySender<Self>,
-    ) -> Self {
-        init
-    }
-
-    view! {
-        InfoRow {
-            set_selectable: true,
-            set_name: self.name.clone(),
-            set_value: self.value.clone(),
-            set_info_text: self.note.unwrap_or_default(),
         }
     }
 }

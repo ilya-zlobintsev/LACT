@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use anyhow::{anyhow, Context};
 use tracing::{debug, error, info, warn};
-use zbus::{proxy, Connection};
+use zbus::{proxy, zvariant::OwnedValue, Connection};
 
 const CONFLICTING_ACTIONS: [&str; 1] = ["amdgpu_dpm"];
 const MIN_PPD_MINOR_VERSION: u32 = 30;
@@ -15,20 +17,39 @@ pub async fn setup() {
     };
 
     match PowerProfilesDaemonProxy::new(&conn).await {
-        Ok(ppd_client) => {
-            if let Err(err) = disable_conflicting_actions(&ppd_client).await {
-                error!("power-profiles-daemon detected, but conflicting actions could not be disabled: {err:#}");
+        Ok(ppd_client) => match ppd_client.version().await {
+            Ok(version) => {
+                if let Err(err) = disable_conflicting_actions(&ppd_client, &version).await {
+                    warn!("power-profiles-daemon detected, but conflicting actions could not be disabled: {err:#}");
+                }
             }
-        }
+            Err(err) => {
+                debug!("could not get power-profiles-daemon version: {err}");
+            }
+        },
         Err(err) => {
             debug!("could not connect to power-profiles-daemon: {err}");
         }
     }
 }
 
-async fn disable_conflicting_actions(client: &PowerProfilesDaemonProxy<'_>) -> anyhow::Result<()> {
-    let version = client.version().await?;
+async fn disable_conflicting_actions(
+    client: &PowerProfilesDaemonProxy<'_>,
+    version: &str,
+) -> anyhow::Result<()> {
     debug!("connected to power-profiles-daemon {version}");
+
+    let profiles = client.profiles().await?;
+    for profile in profiles {
+        if let Some(driver) = profile.get("Driver") {
+            if let Ok(driver) = driver.downcast_ref::<String>() {
+                if driver == "tuned" {
+                    info!("tuned-ppd detected, not disabling actions");
+                    return Ok(());
+                }
+            }
+        }
+    }
 
     let (_major, minor) = version
         .split_once('.')
@@ -100,9 +121,7 @@ trait PowerProfilesDaemon {
 
     /// ActionsInfo property
     #[zbus(property)]
-    fn actions_info(
-        &self,
-    ) -> zbus::Result<Vec<std::collections::HashMap<String, zbus::zvariant::OwnedValue>>>;
+    fn actions_info(&self) -> zbus::Result<Vec<std::collections::HashMap<String, OwnedValue>>>;
 
     /// ActiveProfile property
     #[zbus(property)]
@@ -114,4 +133,8 @@ trait PowerProfilesDaemon {
     /// Version property
     #[zbus(property)]
     fn version(&self) -> zbus::Result<String>;
+
+    /// Profiles property
+    #[zbus(property)]
+    fn profiles(&self) -> zbus::Result<Vec<HashMap<String, OwnedValue>>>;
 }

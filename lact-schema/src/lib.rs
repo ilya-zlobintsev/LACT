@@ -1,6 +1,7 @@
 #[cfg(feature = "args")]
 pub mod args;
 pub mod config;
+pub mod i18n;
 mod profiles;
 pub mod request;
 mod response;
@@ -8,6 +9,7 @@ mod response;
 #[cfg(test)]
 mod tests;
 
+use i18n_embed_fl::fl;
 pub use request::Request;
 pub use response::Response;
 
@@ -24,10 +26,12 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    fmt::{self, Write},
+    fmt::{self, Debug, Display, Write},
     str::FromStr,
     sync::Arc,
 };
+
+use crate::{config::ProfileHooks, i18n::LANGUAGE_LOADER};
 
 pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
 
@@ -75,14 +79,33 @@ pub struct SystemInfo {
 pub struct DeviceListEntry {
     pub id: String,
     pub name: Option<String>,
+    #[serde(default)]
+    pub device_type: DeviceType,
 }
 
-impl fmt::Display for DeviceListEntry {
+impl Display for DeviceListEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.name {
-            Some(name) => name.fmt(f),
-            None => self.id.fmt(f),
+            Some(name) => Display::fmt(name, f),
+            None => Display::fmt(&self.id, f),
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+pub enum DeviceType {
+    #[default]
+    Dedicated,
+    Integrated,
+}
+
+impl Display for DeviceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            DeviceType::Dedicated => "Dedicated",
+            DeviceType::Integrated => "Integrated",
+        };
+        Display::fmt(s, f)
     }
 }
 
@@ -96,7 +119,8 @@ pub struct GpuPciInfo {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceInfo {
     pub pci_info: Option<GpuPciInfo>,
-    pub vulkan_info: Option<VulkanInfo>,
+    #[serde(default)]
+    pub vulkan_instances: Vec<VulkanInfo>,
     pub opencl_info: Option<OpenCLInfo>,
     pub driver: String,
     pub vbios_version: Option<String>,
@@ -164,16 +188,22 @@ impl DeviceInfo {
         };
 
         let mut elements = vec![
-            ("GPU Model", Some(gpu_model)),
-            ("Card Manufacturer", Some(card_manufacturer)),
-            ("Card Model", Some(card_model)),
-            ("Driver Used", Some(self.driver.clone())),
-            ("VBIOS Version", self.vbios_version.clone()),
+            (fl!(LANGUAGE_LOADER, "gpu-model"), Some(gpu_model)),
+            (fl!(LANGUAGE_LOADER, "subvendor"), Some(card_manufacturer)),
+            (fl!(LANGUAGE_LOADER, "subdevice"), Some(card_model)),
+            (
+                fl!(LANGUAGE_LOADER, "driver-used"),
+                Some(self.driver.clone()),
+            ),
+            (
+                fl!(LANGUAGE_LOADER, "vbios-version"),
+                self.vbios_version.clone(),
+            ),
         ];
 
         if let Some(stats) = stats {
             elements.push((
-                "VRAM Size",
+                fl!(LANGUAGE_LOADER, "vram-size"),
                 stats
                     .vram
                     .total
@@ -204,103 +234,65 @@ impl DeviceInfo {
                 }
             }
 
-            elements.extend(
-                [
-                    ("GPU Family", drm_info.family_name.clone()),
-                    ("ASIC Name", drm_info.asic_name.clone()),
-                    (
-                        "Compute Units",
-                        drm_info.compute_units.map(|count| count.to_string()),
-                    ),
-                    (
-                        "Execution Units",
-                        drm_info
-                            .intel
-                            .execution_units
-                            .map(|count| count.to_string()),
-                    ),
-                    (
-                        "Subslices",
-                        drm_info.intel.subslices.map(|count| count.to_string()),
-                    ),
-                    (
-                        "Cuda Cores",
-                        drm_info.cuda_cores.map(|count| count.to_string()),
-                    ),
-                    (
-                        "SM Count",
-                        drm_info
-                            .streaming_multiprocessors
-                            .map(|count| count.to_string()),
-                    ),
-                    (
-                        "ROP Count",
-                        drm_info.rop_info.as_ref().map(|rop| {
-                            format!(
-                                "{} ({} * {})",
-                                rop.operations_count, rop.unit_count, rop.operations_factor
-                            )
-                        }),
-                    ),
-                    ("Instruction Set", drm_info.isa.clone()),
-                    ("VRAM Type", vram_type),
-                ]
-                .map(|(key, value)| (key.to_owned(), value)),
-            );
-
-            let mut cache_levels: BTreeMap<u8, Vec<&CacheInstance>> = BTreeMap::new();
-            for cache in &drm_info.cache_info {
-                cache_levels.entry(cache.key.level).or_default().push(cache);
-            }
-
-            for (level, instances) in cache_levels {
-                let mut unique_instances: BTreeMap<(u32, &[CacheType]), u32> = BTreeMap::new();
-
-                for instance in instances {
-                    *unique_instances
-                        .entry((instance.size, &instance.key.types))
-                        .or_default() += 1;
-                }
-
-                let text = unique_instances
-                    .into_iter()
-                    .map(|((size, types), count)| {
-                        let mut text = format_friendly_size(size.into());
-                        if !types.is_empty() {
-                            text.push_str(" (");
-                            for (i, cache_type) in types.iter().enumerate() {
-                                if i > 0 {
-                                    text.push(',');
-                                }
-
-                                let name = match cache_type {
-                                    CacheType::Data => "Data",
-                                    CacheType::Instruction => "Instruction",
-                                    CacheType::Cpu => "CPU",
-                                };
-                                text.push_str(name);
-                            }
-                            text.push(')');
-                        }
-                        if count > 1 {
-                            write!(text, " x{count}").unwrap();
-                        }
-                        text
-                    })
-                    .collect::<Vec<String>>()
-                    .join(", ");
-
-                elements.push((format!("L{level} Cache"), Some(text)));
-            }
+            elements.extend([
+                (
+                    fl!(LANGUAGE_LOADER, "gpu-family"),
+                    drm_info.family_name.clone(),
+                ),
+                (
+                    fl!(LANGUAGE_LOADER, "asic-name"),
+                    drm_info.asic_name.clone(),
+                ),
+                (
+                    fl!(LANGUAGE_LOADER, "compute-units"),
+                    drm_info.compute_units.map(|count| count.to_string()),
+                ),
+                (
+                    fl!(LANGUAGE_LOADER, "execution-units"),
+                    drm_info
+                        .intel
+                        .execution_units
+                        .map(|count| count.to_string()),
+                ),
+                (
+                    fl!(LANGUAGE_LOADER, "subslices"),
+                    drm_info.intel.subslices.map(|count| count.to_string()),
+                ),
+                (
+                    fl!(LANGUAGE_LOADER, "cuda-cores"),
+                    drm_info.cuda_cores.map(|count| count.to_string()),
+                ),
+                (
+                    fl!(LANGUAGE_LOADER, "hardware-count", name = "SM"),
+                    drm_info
+                        .streaming_multiprocessors
+                        .map(|count| count.to_string()),
+                ),
+                (
+                    fl!(LANGUAGE_LOADER, "hardware-count", name = "ROP"),
+                    drm_info.rop_info.as_ref().map(|rop| {
+                        format!(
+                            "{} ({} * {})",
+                            rop.operations_count, rop.unit_count, rop.operations_factor
+                        )
+                    }),
+                ),
+                (fl!(LANGUAGE_LOADER, "isa"), drm_info.isa.clone()),
+                (fl!(LANGUAGE_LOADER, "vram-type"), vram_type),
+            ]);
 
             if let Some(memory_info) = &drm_info.memory_info {
                 if let Some(rebar) = memory_info.resizeable_bar {
-                    let rebar = if rebar { "Enabled" } else { "Disabled" };
-                    elements.push(("Resizeable bar".to_owned(), Some(rebar.to_owned())));
+                    let rebar = if rebar {
+                        fl!(LANGUAGE_LOADER, "enabled")
+                    } else {
+                        fl!(LANGUAGE_LOADER, "disabled")
+                    };
+                    elements.push((fl!(LANGUAGE_LOADER, "rebar"), Some(rebar.to_owned())));
                 }
 
                 elements.push((
-                    "CPU Accessible VRAM".to_owned(),
+                    fl!(LANGUAGE_LOADER, "cpu-vram"),
                     Some((memory_info.cpu_accessible_total / 1024 / 1024).to_string()),
                 ));
             }
@@ -312,7 +304,7 @@ impl DeviceInfo {
             if let (Some(current_link_speed), Some(current_link_width)) =
                 (&self.link_info.current_speed, &self.link_info.current_width)
             {
-                elements.push(("PCIe Link Speed".to_owned(), Some(format!("{current_link_speed} x{current_link_width} (Max: {max_link_speed} x{max_link_width})"))));
+                elements.push((fl!(LANGUAGE_LOADER, "pcie-speed"), Some(format!("{current_link_speed} x{current_link_width} (Max: {max_link_speed} x{max_link_width})"))));
             }
         }
 
@@ -653,6 +645,8 @@ pub struct FanOptions<'a> {
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ProfilesInfo {
     pub profiles: IndexMap<String, Option<ProfileRule>>,
+    #[serde(default)]
+    pub profile_hooks: IndexMap<String, ProfileHooks>,
     pub current_profile: Option<String>,
     pub auto_switch: bool,
     pub watcher_state: Option<ProfileWatcherState>,
@@ -661,6 +655,7 @@ pub struct ProfilesInfo {
 impl PartialEq for ProfilesInfo {
     fn eq(&self, other: &Self) -> bool {
         self.profiles.as_slice() == other.profiles.as_slice()
+            && self.profile_hooks.as_slice() == other.profile_hooks.as_slice()
             && self.current_profile == other.current_profile
             && self.auto_switch == other.auto_switch
     }
@@ -698,32 +693,58 @@ impl Default for ProcessProfileRule {
     }
 }
 
-pub type ProcessMap = IndexMap<i32, ProcessInfo>;
+pub type ProfileProcessMap = IndexMap<i32, ProfileProcessInfo>;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ProfileWatcherState {
-    pub process_list: ProcessMap,
+    pub process_list: ProfileProcessMap,
     pub gamemode_games: IndexSet<i32>,
     pub process_names_map: HashMap<Arc<str>, HashSet<i32>>,
 }
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ProcessInfo {
+pub struct ProfileProcessInfo {
     pub name: Arc<str>,
     pub cmdline: Box<str>,
 }
 
-pub fn format_friendly_size(bytes: u64) -> String {
-    const NAMES: &[&str] = &["bytes", "KiB", "MiB", "GiB"];
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ProcessList {
+    pub processes: BTreeMap<u32, ProcessInfo>,
+    pub supported_util_types: HashSet<ProcessUtilizationType>,
+}
 
-    let mut size = bytes as f64;
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProcessInfo {
+    pub name: String,
+    pub args: String,
+    pub memory_used: u64,
+    pub types: Vec<ProcessType>,
+    pub util: HashMap<ProcessUtilizationType, u32>,
+}
 
-    let mut i = 0;
-    while size > 2048.0 && i < NAMES.len() - 1 {
-        size /= 1024.0;
-        i += 1;
-    }
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ProcessUtilizationType {
+    Graphics,
+    Compute,
+    Memory,
+    Encode,
+    Decode,
+}
 
-    format!("{size:.1$} {}", NAMES[i], (size.fract() != 0.0) as usize)
+impl ProcessUtilizationType {
+    pub const ALL: &[ProcessUtilizationType] = &[
+        ProcessUtilizationType::Graphics,
+        ProcessUtilizationType::Compute,
+        ProcessUtilizationType::Memory,
+        ProcessUtilizationType::Encode,
+        ProcessUtilizationType::Decode,
+    ];
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum ProcessType {
+    Graphics,
+    Compute,
 }

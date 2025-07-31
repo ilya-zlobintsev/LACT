@@ -1,4 +1,4 @@
-use crate::{ProcessInfo, ProfileWatcherState};
+use crate::{ProfileProcessInfo, ProfileWatcherState};
 use std::{collections::hash_map::Entry, fmt};
 
 impl fmt::Debug for ProfileWatcherState {
@@ -12,7 +12,7 @@ impl fmt::Debug for ProfileWatcherState {
 }
 
 impl ProfileWatcherState {
-    pub fn push_process(&mut self, pid: i32, info: ProcessInfo) {
+    pub fn push_process(&mut self, pid: i32, info: ProfileProcessInfo) {
         let name = info.name.clone();
 
         if let Some(old_info) = self.process_list.insert(pid, info) {
@@ -29,7 +29,7 @@ impl ProfileWatcherState {
         self.process_names_map.entry(name).or_default().insert(pid);
     }
 
-    pub fn remove_process(&mut self, pid: i32) -> Option<ProcessInfo> {
+    pub fn remove_process(&mut self, pid: i32) -> Option<ProfileProcessInfo> {
         if let Some(mut info) = self.process_list.shift_remove(&pid) {
             if let Entry::Occupied(mut entry) = self.process_names_map.entry(info.name) {
                 entry.get_mut().remove(&pid);

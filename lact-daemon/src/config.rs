@@ -1,7 +1,7 @@
 use crate::server::gpu_controller::{GpuController, VENDOR_NVIDIA};
 use anyhow::Context;
 use indexmap::IndexMap;
-use lact_schema::config::{GpuConfig, Profile};
+use lact_schema::config::{GpuConfig, Profile, ProfileHooks};
 use nix::unistd::{getuid, Group};
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
@@ -66,6 +66,7 @@ pub struct Daemon {
     pub admin_group: Option<String>,
     #[serde(default)]
     pub disable_clocks_cleanup: bool,
+    pub disable_nvapi: Option<bool>,
     pub tcp_listen_address: Option<String>,
 }
 
@@ -83,6 +84,7 @@ impl Default for Daemon {
             admin_groups: vec![],
             disable_clocks_cleanup: false,
             tcp_listen_address: None,
+            disable_nvapi: None,
         }
     }
 }
@@ -262,6 +264,7 @@ impl Config {
         Profile {
             gpus: self.gpus.clone(),
             rule: None,
+            hooks: ProfileHooks::default(),
         }
     }
 
@@ -360,15 +363,20 @@ impl notify::EventHandler for SenderEventHandler {
 }
 
 fn get_path(filename: &str) -> PathBuf {
-    let uid = getuid();
-    if uid.is_root() {
-        PathBuf::from("/etc/lact").join(filename)
+    if let Ok(path) = env::var("LACT_DAEMON_CONFIG_DIR") {
+        PathBuf::from(&path).join(filename)
     } else {
-        let config_dir = PathBuf::from(env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
-            let home = env::var("HOME").expect("$HOME variable is not set");
-            format!("{home}/.config")
-        }));
-        config_dir.join("lact").join(filename)
+        let uid = getuid();
+
+        if uid.is_root() {
+            PathBuf::from("/etc/lact").join(filename)
+        } else {
+            let config_dir = PathBuf::from(env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
+                let home = env::var("HOME").expect("$HOME variable is not set");
+                format!("{home}/.config")
+            }));
+            config_dir.join("lact").join(filename)
+        }
     }
 }
 

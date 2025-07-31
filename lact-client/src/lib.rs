@@ -4,8 +4,8 @@ mod macros;
 
 pub use lact_schema as schema;
 use lact_schema::{
-    config::{GpuConfig, Profile},
-    ProfileRule,
+    config::{GpuConfig, Profile, ProfileHooks},
+    ProcessList, ProfileRule,
 };
 
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
@@ -140,6 +140,7 @@ impl DaemonClient {
     request_with_id!(get_power_states, GetPowerStates, PowerStates);
     request_with_id!(reset_pmfw, ResetPmfw, u64);
     request_with_id!(dump_vbios, VbiosDump, Vec<u8>);
+    request_with_id!(get_process_list, ProcessList, ProcessList);
 
     pub async fn list_profiles(&self, include_state: bool) -> anyhow::Result<ProfilesInfo> {
         self.make_request(Request::ListProfiles { include_state })
@@ -196,8 +197,9 @@ impl DaemonClient {
         &self,
         name: String,
         rule: Option<ProfileRule>,
+        hooks: ProfileHooks,
     ) -> anyhow::Result<()> {
-        self.make_request(Request::SetProfileRule { name, rule })
+        self.make_request(Request::SetProfileRule { name, rule, hooks })
             .await
     }
 

@@ -26,10 +26,11 @@ dependency on X11 extensions).
 
 - [Installation](#installation)
 - [Hardware support](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Support)
+- [Frequently asked questions](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions)
 - [Enable overclocking on AMD](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD))
 - [Config file reference](./docs/CONFIG.md)
 - [API](./docs/API.md)
-- [Power profiles daemon conflict](#power-profiles-daemon-note)
+- [Power profiles daemon note](#power-profiles-daemon-note)
 - [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock)
 
 # Installation
@@ -45,6 +46,10 @@ dependency on X11 extensions).
   [Copr repository](https://copr.fedorainfracloud.org/coprs/ilyaz/LACT/), or
   download an RPM from
   [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+- Bazzite: Install with `ujust install-lact`.
+
+  This helper installs the Flatpak version and automatically adds the AMD
+  overclocking boot option.
 - Gentoo: Available in
   [GURU](https://github.com/gentoo/guru/tree/master/sys-apps/lact).
 - OpenSUSE: an RPM is available in
@@ -284,6 +289,16 @@ with the GPU.
 If there's a crash, run `lact gui` from the command line to get GUI logs, check
 daemon logs in `journalctl -u lactd` for errors, and see `dmesg` for kernel logs
 that might include information about driver and system issues.
+
+# Support the project
+
+If you wish to support the project, you can do so via Patreon:
+https://www.patreon.com/IlyaZlobintsev
+
+Or using cryptocurrency:
+- BTC: `12FuTXZzd5peGb7QfoRkXaLnbJ1DNVW4pP`
+- ETH: `0x80875173316aa6317641bfbc50644e7ca74d6b6d`
+- XMR: `42E93NZXM7STBUsnMRGNyxKryFVgpHKNP6aza94C5hn17j2W7zUnFHe7ASQzB3KorYYnsaVzWUyHHVYfcTLQRtB63qkv5jE`
 
 # Other tools
 
