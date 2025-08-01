@@ -330,7 +330,6 @@ pub struct DrmInfo {
     pub vram_clock_ratio: f64,
     pub vram_bit_width: Option<u32>,
     pub vram_max_bw: Option<String>,
-    /// Map of unique cache type+size to instance count
     pub cache_info: Option<CacheInfo>,
     pub rop_info: Option<RopInfo>,
     pub memory_info: Option<DrmMemoryInfo>,
