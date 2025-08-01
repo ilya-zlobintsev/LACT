@@ -80,6 +80,9 @@ expression: device_info
   },
   "info": {
     "driver": "amdgpu",
+    "drm_info": {
+      "vram_clock_ratio": 1.0
+    },
     "link_info": {
       "max_speed": "8.0 GT/s PCIe",
       "max_width": "16"
