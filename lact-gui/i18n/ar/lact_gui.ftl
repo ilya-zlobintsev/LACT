@@ -1,0 +1,51 @@
+cache-data = البيانات
+version = الإصدار
+system-section = النظام
+features = المزايا
+cache-instruction = البيانات
+cache-cpu = المعالج
+auto-page = تلقائي
+static-page = الثابت
+device-name = اسم الجهاز
+amd-cache-desc =
+    { $size } لتر { $level } { $types } ذاكرة تخزين مؤقتة { $shared ->
+        [1] محلية لكل وحدة تحكم
+       *[other] مشتركة بين { $shared } وحدات تحكم
+    }
+oc-missing-fan-control-warning = تحذير: دعم كسر السرعة مُعطّل، ووظيفة التحكم بالمروحة غير متاحة.
+device-not-found = جهاز { $kind } غير موجود
+api-version = إصدار API
+monitoring-section = المراقبة
+kernel-version = إصدار النواة
+oc-page = كسر السرعة
+software-page = البرمجية
+hardware-info = معلومات العتاد
+lact-daemon = عفريت LACT
+lact-gui = واجهة المستخدم الرسومية LACT
+instance = نُسخة
+platform-name = اسم المنصة
+driver-name = اسم المُشغّل
+driver-version = إصدار المُشغّل
+compute-units = وحدات الحوسبة
+cl-c-version = OpenC نُسخة C
+workgroup-size = حجم مجموعة العمل
+global-memory = الذاكرة العالمية
+local-memory = الذاكرة المحلية
+extensions = اﻹمتدادت
+show-button = أظهر
+cache-info = معلومات ذاكرة التخزين المؤقتة
+nvidia-cache-desc = { $size } L{ $level }
+fan-control-section = تحكم المروحة
+temperatures = درجات الحرارة
+fan-speed = سرعة المروحة
+throttling = الاختناق
+curve-page = المنحنى
+info-page = المعلومات
+acoustic-target = الهدف الصوتي (دورة في الدقيقة)
+zero-rpm-stop-temp = درجة حرارة توقف المروحة عند صفر دورة في الدقيقة (مئوية)
+target-temp = درجة الحرارة المستهدفة (مئوية)
+acoustic-limit = الحد الصوتي (دورة في الدقيقة)
+min-fan-speed = الحد الأدنى لسرعة المروحة (%)
+zero-rpm = صفر دورة في الدقيقة
+static-speed = السرعة الثابتة (%)
+reset-button = صفر

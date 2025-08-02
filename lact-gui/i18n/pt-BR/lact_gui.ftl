@@ -1,0 +1,135 @@
+oc-page = OC
+thermals-page = Térmicos
+software-page = Software
+hardware-info = Informação de hardware
+info-page = Informações
+lact-gui = LACT GUI
+lact-daemon = Daemon do LACT
+kernel-version = Versão do kernel
+system-section = Sistema
+instance = Instância
+device-name = Nome do dispositivo
+version = Versão
+extensions = Extensões
+features = Recursos
+platform-name = Nome da plataforma
+api-version = Versão da API
+driver-name = Nome do driver
+driver-version = Versão do driver
+compute-units = Unidades de computação
+cl-c-version = Versão de OpenCL C
+workgroup-size = Tamanho do workgroup
+global-memory = Memória global
+local-memory = Memória local
+cache-info = Informações de cache
+device-not-found = Dispositivo { $kind } não encontrado
+show-button = Mostrar
+reset-config-description = Tem certeza de que deseja redefinir todas as configurações da GPU?
+acoustic-target = Alvo acústico (RPM)
+gpu-pstate-clock-offset = Offset de clock do P-State { $pstate } da GPU (MHz)
+cache-data = Dados
+cache-instruction = Dados
+cache-cpu = CPU
+monitoring-section = Monitoramento
+temperatures = Temperaturas
+fan-speed = Velocidade da ventoinha
+throttling = Aceleração
+curve-page = Curva
+target-temp = Temperatura alvo (ºC)
+acoustic-limit = Limite acústico (RPM)
+zero-rpm-stop-temp = Temperatura de parada de RPM zero (°C)
+zero-rpm = RPM zero
+static-speed = Velocidade estática (%)
+enable-amd-oc-description = Isso habilitará o recurso de overdrive do driver amdgpu criando um arquivo em <b>{ $path }</b> e atualizando o initramfs. Tem certeza de que deseja fazer isso?
+disable-amd-oc = Desabilitar overclocking de AMD
+enable-amd-oc = Habilitar overclocking de AMD
+power-cap = Limite de uso de energia
+watt = W
+ghz = GHz
+mhz = MHz
+stats-section = Estatísticas
+gpu-clock = Clock de núcleo da GPU
+gpu-clock-target = Clock do núcleo da GPU (alvo)
+gpu-voltage = Voltagem da GPU
+gpu-temp = Temperatura da GPU
+vram-clock = Clock de VRAM
+no-throttling = Não
+missing-stat = N/D
+performance-level-low = Clocks mais baixos
+performance-level-auto-description = Ajusta automaticamente os clocks da GPU e da VRAM. (Padrão)
+performance-level-low-description = Usa sempre as velocidades de clock mais baixas para GPU e VRAM.
+performance-level-manual-description = Controle de desempenho manual.
+power-profile-mode = Modo de perfil de energia:
+manual-level-needed = O nível de desempenho deve ser definido como "manual" para usar estados e modos de energia
+overclock-section = Velocidade de clock e voltagem
+nvidia-oc-info = Informações de overclocking de Nvidia
+oc-warning = Aviso: alterar esses valores pode causar instabilidade no sistema e danificar seu hardware!
+show-all-pstates = Mostrar todos os P-States
+enable-gpu-locked-clocks = Habilitar clocks travados de GPU
+no-clocks-data = Nenhum dado de clock disponível
+gpu-clock-offset = Offset do clock da GPU (MHz)
+reset-oc-tooltip = Aviso: isso redefine todas as definições de clock para os valores padrão!
+max-gpu-clock = Clock máximo da GPU (MHz)
+max-vram-clock = Clock máximo da VRAM (MHz)
+min-gpu-clock = Clock mínimo da GPU (MHz)
+min-vram-clock = Clock mínimo da VRAM (MHz)
+min-gpu-voltage = Voltagem mínima da GPU (mV)
+gpu-voltage-offset = Offset de voltagem da GPU (mV)
+nvidia-cache-desc = { $size } L{ $level }
+min-fan-speed = Velocidade mínima da ventoinha (%)
+gpu-usage = Uso da GPU
+amd-cache-desc =
+    { $size } L{ $level } { $types } cache { $shared ->
+        [1] local para cada CU
+       *[other] compartilhado entre { $shared } CUs
+    }
+fan-control-section = Controle de ventoinha
+oc-missing-fan-control-warning = Aviso: o suporte a overclock está desabilitado, a funcionalidade de controle de ventoinha não está disponível.
+pmfw-reset-warning = Aviso: isso redefine as configurações de firmware da ventoinha!
+reset-config = Redefinir configuração
+amd-oc-disabled =
+    O suporte para overclocking da AMD não está habilitado!
+    Você ainda pode alterar as configurações básicas, mas o controle mais avançado de clocks e voltagem não estará disponível.
+performance-level-high-description = Usa sempre as velocidades de clock mais altas para GPU e VRAM.
+disable-amd-oc-description = Isso desabilitará o suporte para overclocking de AMD (overdrive) na próxima reinicialização.
+power-usage = Uso de energia
+performance-level-high = Clocks mais altos
+gpu-clock-avg = Clock de núcleo da GPU (médio)
+max-gpu-voltage = Voltagem máxima da GPU (mV)
+nvidia-oc-description =
+    A funcionalidade de overclocking na Nvidia inclui a configuração de offsets para clocks de GPU/VRAM e a limitação da faixa potencial de clocks usando o recurso "clocks travados".
+
+    Em muitas placas, o offset de clock da VRAM afetará o clock da memória real apenas pela metade do valor do offset.
+    Por exemplo, um offset de VRAM de +1000 MHz pode aumentar a velocidade medida da VRAM em apenas 500 MHz.
+    Isso é normal e é como a Nvidia lida com taxas de dados de GDDR. Ajuste seu overclock adequadamente.
+
+    O controle direto de tensão não é suportado, pois não existe no driver Linux da Nvidia.
+
+    É possível obter uma pseudo-subtensão combinando a opção de clocks travados com um offset positivo de clock.
+    Isso forçará a GPU a operar em uma tensão limitada pelos clocks travados, enquanto atinge uma velocidade de clock maior devido ao offset.
+    Isso pode causar instabilidade no sistema se for muito alto.
+enable-vram-locked-clocks = Habilitar clocks travados de VRAM
+pstate-list-description = <b>Os valores a seguir são offsets de clock para cada P-State, do maior para o menor.</b>
+auto-page = Automático
+static-page = Estático
+reset-button = Redefinir
+unknown-throttling = Desconhecido
+performance-level-auto = Automático
+performance-level-manual = Manual
+mebibyte = MiB
+gpu-pstate-clock = Clock do P-State { $pstate } da GPU (MHz)
+mem-pstate-clock = Clock do P-State { $pstate } da VRAM (MHz)
+gpu-pstate-clock-voltage = Voltagem do P-State { $pstate } da GPU (mV)
+mem-pstate-clock-voltage = Voltagem do P-State { $pstate } da VRAM (mV)
+pstates = Estados de energia
+gpu-pstates = Estados de energia da GPU
+vram-pstates = Estados de energia da VRAM
+enable-pstate-config = Habilitar configuração do estado de energia
+show-historical-charts = Mostrar gráficos históricos
+show-process-montor = Mostrar monitor de processos
+settings-profile = Perfil das configurações
+auto-switch-profiles = Trocar automaticamente
+add-profile = Adiciona novo perfil
+import-profile = Importa perfil de arquivo
+vram-pstate-clock-offset = Offset de clock do P-State { $pstate } da VRAM (MHz)
+pstates-manual-needed = Observação: o nível de desempenho deve ser definido como 'manual' para alternar os estados de energia
