@@ -1,4 +1,7 @@
 # Linux GPU Control Application
+<a href="https://translate.fedoraproject.org/engage/lact/">
+<img src="https://translate.fedoraproject.org/widget/lact/svg-badge.svg" alt="Translation status" />
+</a>
 
 <img src="res/io.github.ilya_zlobintsev.LACT.png" alt="icon" width="100"/>
 
@@ -31,7 +34,7 @@ dependency on X11 extensions).
 - [Config file reference](./docs/CONFIG.md)
 - [API](./docs/API.md)
 - [Power profiles daemon note](#power-profiles-daemon-note)
-- [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock)
+- [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock
 
 # Installation
 
@@ -289,6 +292,10 @@ with the GPU.
 If there's a crash, run `lact gui` from the command line to get GUI logs, check
 daemon logs in `journalctl -u lactd` for errors, and see `dmesg` for kernel logs
 that might include information about driver and system issues.
+
+# Localization
+
+You can contribute translations to LACT using [Weblate](https://translate.fedoraproject.org/engage/lact/).
 
 # Support the project
 
