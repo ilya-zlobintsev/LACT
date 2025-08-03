@@ -16,7 +16,7 @@ isa = Instruction Set
 l1-cache-per-cu = L1 Cache (Per CU)
 l2-cache = L2 Cache
 l3-cache = L3 Cache
-rebar = Resizable Bar
+rebar = Resizable BAR
 cpu-vram = CPU Accessible VRAM
 pcie-speed = PCIe Link Speed
 
