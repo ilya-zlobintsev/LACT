@@ -1,4 +1,6 @@
+use crate::I18N;
 use gtk::prelude::*;
+use i18n_embed_fl::fl;
 use lact_schema::request::ProfileBase;
 use relm4::{
     Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt,
@@ -25,7 +27,7 @@ impl Component for NewProfileDialog {
     view! {
         gtk::Window {
             set_default_size: (250, 130),
-            set_title: Some("Create Profile"),
+            set_title: Some(&fl!(I18N, "create-profile")),
             set_hide_on_close: true,
 
             gtk::Box {
@@ -34,7 +36,7 @@ impl Component for NewProfileDialog {
                 set_margin_all: 10,
 
                 gtk::Entry {
-                    set_placeholder_text: Some("Name"),
+                    set_placeholder_text: Some(&fl!(I18N, "name")),
                     set_buffer: &model.name_buffer,
                 },
 
@@ -43,7 +45,7 @@ impl Component for NewProfileDialog {
                     set_spacing: 5,
 
                     gtk::Label {
-                        set_label: "Copy settings from:",
+                        set_label: &fl!(I18N, "profile-copy-from"),
                     },
 
                     #[local_ref]
@@ -62,7 +64,7 @@ impl Component for NewProfileDialog {
                     set_valign: gtk::Align::End,
 
                     gtk::Button {
-                        set_label: "Cancel",
+                        set_label: &fl!(I18N, "cancel"),
                         set_hexpand: true,
 
                         connect_clicked[root] => move |_| {
@@ -71,7 +73,7 @@ impl Component for NewProfileDialog {
                     },
 
                     gtk::Button {
-                        set_label: "Create",
+                        set_label: &fl!(I18N, "create"),
                         set_hexpand: true,
 
                         connect_clicked => NewProfileDialogMsg::Create,

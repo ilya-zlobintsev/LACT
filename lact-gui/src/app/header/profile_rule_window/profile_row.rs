@@ -1,4 +1,5 @@
 use crate::app::{header::profile_rule_window::ProfileRuleWindowMsg, msg::AppMsg, APP_BROKER};
+use crate::I18N;
 use gtk::{
     glib::GString,
     pango,
@@ -7,6 +8,7 @@ use gtk::{
         EntryExt, GridExt, OrientableExt, PopoverExt, SelectionModelExt, WidgetExt,
     },
 };
+use i18n_embed_fl::fl;
 use lact_schema::{ProcessProfileRule, ProfileProcessInfo, ProfileRule, ProfileWatcherState};
 use relm4::{
     binding::{BoolBinding, StringBinding},
@@ -60,7 +62,7 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
 
             gtk::MenuButton {
                 set_icon_name: "open-menu-symbolic",
-                set_tooltip: "Edit Rule",
+                set_tooltip: &fl!(I18N, "edit-rule"),
 
                 #[wrap(Some)]
                 set_popover: main_popover = &gtk::Popover {
@@ -80,12 +82,12 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
                             gtk::Stack {
                                 connect_visible_child_name_notify => ProfileRuleRowMsg::Changed,
 
-                                add_titled[Some(PROCESS_PAGE), "A process is running"] = &gtk::Grid {
+                                add_titled[Some(PROCESS_PAGE), &fl!(I18N, "profile-rule-process-tab")] = &gtk::Grid {
                                     set_row_spacing: 5,
                                     set_column_spacing: 5,
 
                                     attach[0, 0, 1, 1] = &gtk::Label {
-                                        set_label: "Process Name:",
+                                        set_label: &fl!(I18N, "profile-rule-process-name"),
                                         set_halign: gtk::Align::Start,
                                     },
 
@@ -127,7 +129,7 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
                                     },
 
                                     attach[0, 1, 1, 1] = &gtk::Label {
-                                        set_label: "Arguments Contain:",
+                                        set_label: &fl!(I18N, "profile-rule-args-contain"),
                                         set_halign: gtk::Align::Start,
                                     },
 
@@ -145,12 +147,12 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
                                     },
                                 },
 
-                                add_titled[Some(GAMEMODE_PAGE), "Gamemode is active"] = &gtk::Grid {
+                                add_titled[Some(GAMEMODE_PAGE), &fl!(I18N, "profile-rule-gamemode-tab")] = &gtk::Grid {
                                     set_row_spacing: 5,
                                     set_column_spacing: 10,
 
                                     attach[0, 0, 1, 1] = &gtk::Label {
-                                        set_label: "With a specific process:",
+                                        set_label: &fl!(I18N, "profile-rule-specific-process"),
                                         set_halign: gtk::Align::Start,
                                     },
 
@@ -168,7 +170,7 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
                                     },
 
                                     attach[0, 1, 1, 1] = &gtk::Label {
-                                        set_label: "Arguments Contain:",
+                                        set_label: &fl!(I18N, "profile-rule-args-contain"),
                                         set_halign: gtk::Align::Start,
                                     },
 
@@ -203,7 +205,7 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
 
             gtk::Button {
                 set_icon_name: "list-remove-symbolic",
-                set_tooltip: "Remove Rule",
+                set_tooltip: &fl!(I18N, "remove-rule"),
                 connect_clicked[sender, index] => move |_| {
                     let _ = sender.output(ProfileRuleWindowMsg::RemoveSubrule(index.clone()));
                 }
