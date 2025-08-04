@@ -211,6 +211,11 @@ impl DeviceInfo {
             ));
         }
 
+        let mut elements = elements
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value))
+            .collect::<Vec<_>>();
+
         if let Some(drm_info) = &self.drm_info {
             let mut vram_type = drm_info.vram_type.clone();
             if let Some(vram_type) = &mut vram_type {
@@ -274,22 +279,6 @@ impl DeviceInfo {
                 ),
                 (fl!(LANGUAGE_LOADER, "isa"), drm_info.isa.clone()),
                 (fl!(LANGUAGE_LOADER, "vram-type"), vram_type),
-                (
-                    fl!(LANGUAGE_LOADER, "l1-cache-per-cu"),
-                    drm_info
-                        .l1_cache_per_cu
-                        .map(|cache| format!("{} KiB", cache / 1024)),
-                ),
-                (
-                    fl!(LANGUAGE_LOADER, "l2-cache"),
-                    drm_info
-                        .l2_cache
-                        .map(|cache| format!("{} KiB", cache / 1024)),
-                ),
-                (
-                    fl!(LANGUAGE_LOADER, "l3-cache"),
-                    drm_info.l3_cache_mb.map(|cache| format!("{cache} MiB")),
-                ),
             ]);
 
             if let Some(memory_info) = &drm_info.memory_info {
@@ -341,13 +330,32 @@ pub struct DrmInfo {
     pub vram_clock_ratio: f64,
     pub vram_bit_width: Option<u32>,
     pub vram_max_bw: Option<String>,
-    pub l1_cache_per_cu: Option<u32>,
-    pub l2_cache: Option<u32>,
-    pub l3_cache_mb: Option<u32>,
+    pub cache_info: Option<CacheInfo>,
     pub rop_info: Option<RopInfo>,
     pub memory_info: Option<DrmMemoryInfo>,
     #[serde(flatten)]
     pub intel: IntelDrmInfo,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CacheInfo {
+    Amd(Vec<(AmdCacheInstance, u16)>),
+    Nvidia { l2: u32 },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct AmdCacheInstance {
+    pub types: Vec<CacheType>,
+    pub level: u8,
+    pub size: u32,
+    pub cu_count: u16,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CacheType {
+    Data,
+    Instruction,
+    Cpu,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
