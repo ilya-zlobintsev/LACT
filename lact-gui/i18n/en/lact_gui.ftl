@@ -168,7 +168,7 @@ move-up = Move Up
 move-down = Move Down
 profile-activation = Activation
 profile-hooks = Hooks
-profile-activation-desc = <span font_desc='11'><b>Activate profile '{$name}' when:</b></span>
+profile-activation-desc = Activate profile '{$name}' when:
 any-rules-matched = Any of the following rules are matched:
 all-rules-matched = All of the following rules are matched:
 activation-settings-status = Selected activation settings are currently <b>{ $matched ->
