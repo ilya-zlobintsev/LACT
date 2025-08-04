@@ -70,8 +70,10 @@ pub struct SystemInfo {
     pub version: String,
     pub commit: Option<String>,
     pub profile: String,
+    pub distro: Option<String>,
     pub kernel_version: String,
     pub amdgpu_overdrive_enabled: Option<bool>,
+    pub amdgpu_params_configurator: Option<AmdgpuParamsConfigurator>,
 }
 
 #[skip_serializing_none]
@@ -606,10 +608,22 @@ pub struct PowerState {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AmdgpuParamsConfigurator {
+    /// Enables overdrive by creating a modprobe.d file and regenerating the initramfs
+    Modprobe(Option<InitramfsType>),
+    BootArg(BootArgConfigurator),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitramfsType {
     Debian,
     Mkinitcpio,
     Dracut,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BootArgConfigurator {
+    RpmOstree,
 }
 
 #[skip_serializing_none]
