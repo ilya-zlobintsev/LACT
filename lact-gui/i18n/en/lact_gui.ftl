@@ -160,12 +160,29 @@ rename-profile = Rename Profile
 rename-profile-from = Rename profile <b>{$old_name}</b> to:
 delete-profile = Delete Profile
 edit-rules = Edit Rules
+edit-rule = Edit Rule
+remove-rule = Remove Rule
 profile-rules = Profile Rules
 export-to-file = Export To File
 move-up = Move Up
 move-down = Move Down
 profile-activation = Activation
+profile-hooks = Hooks
 profile-activation-desc = <span font_desc='11'><b>Activate profile '{$name}' when:</b></span>
 any-rules-matched = Any of the following rules are matched:
 all-rules-matched = All of the following rules are matched:
+activation-settings-status = Selected activation settings are currently <b>{ $matched ->
+    [true] matched
+    *[false] not matched
+}</b>
+activation-auto-switching-disabled = Automatic profile switching is currently disabled
+profile-hook-command = Run a command when the profile '{$cmd}' is:
+profile-hook-activated = Activated:
+profile-hook-deactivated = Deactivated:
+profile-hook-note = Note: these commands are executed as root by the LACT daemon, and do not have access to the desktop environment. As such, they cannot be used directly to launch graphical applications.
 
+profile-rule-process-tab = A process is running
+profile-rule-gamemode-tab = Gamemode is active
+profile-rule-process-name = Process Name:
+profile-rule-args-contain = Arguments Contain:
+profile-rule-specific-process = With a specific process:

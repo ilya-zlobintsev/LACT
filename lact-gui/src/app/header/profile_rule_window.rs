@@ -91,7 +91,7 @@ impl relm4::Component for ProfileRuleWindow {
 
                         gtk::Label {
                             #[watch]
-                            set_markup: &fl!(I18N, "profile-activation-desc", name = model.profile_name.as_str()),
+                            set_markup: &format!("<span font_desc='11'><b>{}</b></span>", fl!(I18N, "profile-activation-desc", name = model.profile_name.as_str())),
                             set_halign: gtk::Align::Start,
                             set_margin_all: 10,
                         },
@@ -146,12 +146,12 @@ impl relm4::Component for ProfileRuleWindow {
                                     gtk::Label {
                                         #[watch]
                                         set_markup: &if model.auto_switch {
-                                            format!(
-                                                "Selected activation settings are currently <b>{}</b>",
-                                                if model.currently_matches { "matched" } else { "not matched" }
-                                            )
+                                            fl!(I18N, "activation-settings-status", matched = model.currently_matches.to_string())
                                         } else {
-                                            "<b>Automatic profile switching is currently disabled</b>".to_owned()
+                                            format!(
+                                                "<b>{}</b>",
+                                                fl!(I18N, "activation-auto-switching-disabled")
+                                            )
                                         },
                                     },
 
@@ -169,13 +169,13 @@ impl relm4::Component for ProfileRuleWindow {
                         gtk::Separator {},
                     },
 
-                    add_titled[None, "Hooks"] = &gtk::Box {
+                    add_titled[None, &fl!(I18N, "profile-hooks")] = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
                         set_margin_all: 5,
 
                         gtk::Label {
                             #[watch]
-                            set_markup: &format!("<span font_desc='11'><b>Run a command when the profile '{}' is:</b></span>", model.profile_name),
+                            set_markup: &format!("<span font_desc='11'><b>{}</b></span>", fl!(I18N, "profile-hook-command", cmd = model.profile_name.as_str())),
                             set_halign: gtk::Align::Start,
                             set_margin_all: 10,
                         },
@@ -190,7 +190,7 @@ impl relm4::Component for ProfileRuleWindow {
 
 
                             gtk::CheckButton {
-                                set_label: Some("Activated:"),
+                                set_label: Some(&fl!(I18N, "profile-hook-activated")),
                                 add_binding: (&model.activated_hook_enabled, "active"),
                                 set_size_group: &hook_command_size_group,
                             },
@@ -209,7 +209,7 @@ impl relm4::Component for ProfileRuleWindow {
                             set_margin_horizontal: 10,
 
                             gtk::CheckButton {
-                                set_label: Some("Deactivated:"),
+                                set_label: Some(&fl!(I18N, "profile-hook-deactivated")),
                                 add_binding: (&model.deactivated_hook_enabled, "active"),
                                 set_size_group: &hook_command_size_group,
                             },
@@ -234,7 +234,7 @@ impl relm4::Component for ProfileRuleWindow {
                             },
 
                             gtk::Label {
-                                set_label: "Note: these commands are executed as root by the LACT daemon, and do not have access to the desktop environment. As such, they cannot be used directly to launch graphical applications.",
+                                set_label: &fl!(I18N, "profile-hook-note"),
                                 set_wrap: true,
                                 set_wrap_mode: pango::WrapMode::Word,
                                 add_css_class: "caption-heading",
