@@ -133,3 +133,7 @@ nvidia-oc-description =
     Cela forcera le GPU à fonctionner à une tension limitée par le verrouillage d’horloges, tout en atteignant une fréquence d’horloge plus élevée grâce à l’ajustement.
     Cela est susceptible de rendre le système instable si la valeur d’ajustement est trop élevée.
 gpu-pstate-clock-offset = Ajustement de fréquence d’horloge pour le P-State GPU { $pstate } (MHz)
+name = Nom
+create = Créer
+profile-copy-from = Copier les paramètres à partir de :
+create-profile = Créer un profil
