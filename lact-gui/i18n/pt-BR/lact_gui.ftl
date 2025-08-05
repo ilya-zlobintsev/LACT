@@ -133,3 +133,40 @@ add-profile = Adiciona novo perfil
 import-profile = Importa perfil de arquivo
 vram-pstate-clock-offset = Offset de clock do P-State { $pstate } da VRAM (MHz)
 pstates-manual-needed = Observação: o nível de desempenho deve ser definido como 'manual' para alternar os estados de energia
+profile-hook-deactivated = Desativado:
+create-profile = Criar perfil
+rename-profile = Renomear perfil
+profile-activation-desc = Ativar o perfil "{ $name }" quando:
+all-rules-matched = Todas as seguintes regras forem atendidas:
+edit-rule = Editar regra
+profile-activation = Ativação
+cancel = Cancelar
+default-profile = Padrão
+profile-copy-from = Copiar configurações de:
+name = Nome
+create = Criar
+save = Salvar
+delete-profile = Excluir perfil
+edit-rules = Editar regras
+remove-rule = Remover regra
+profile-rules = Regras do perfil
+move-up = Mover para cima
+move-down = Mover para baixo
+profile-hooks = Ganchos
+any-rules-matched = Qualquer uma das seguintes regras forem atendidas:
+profile-hook-command = Executar um comando quando o perfil "{ $cmd }" for:
+rename-profile-from = Renomear o perfil <b>{ $old_name }</b> para:
+export-to-file = Exportar para arquivo
+activation-settings-status =
+    As configurações de ativação selecionadas atualmente <b>{ $matched ->
+        [true] foram atendidas
+       *[false] não foram atendidas
+    }</b>
+activation-auto-switching-disabled = A troca automática de perfil está atualmente desabilitada
+profile-hook-activated = Ativado:
+profile-hook-note = Observação: esses comandos são executados como root pelo daemon do LACT e não têm acesso ao ambiente de trabalho. Portanto, não podem ser usados diretamente para iniciar aplicativos gráficos.
+profile-rule-process-tab = Um processo está em execução
+profile-rule-gamemode-tab = Gamemode está ativo
+profile-rule-process-name = Nome do processo:
+profile-rule-args-contain = Os argumentos contêm:
+profile-rule-specific-process = Com um processo específico:
