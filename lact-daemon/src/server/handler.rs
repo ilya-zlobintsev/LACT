@@ -1,13 +1,12 @@
 use super::{
     gpu_controller::{common::fan_control::FanCurveExt, DynGpuController, GpuController},
     profiles::ProfileWatcherCommand,
-    system::{self, detect_initramfs_type},
+    system::{self},
 };
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
     server::{gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
-    system::get_os_release,
 };
 use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
@@ -60,6 +59,7 @@ const SNAPSHOT_GLOBAL_PATHS: &[&str] = &[
     "/proc/version",
     "/proc/cmdline",
     "/sys/class/kfd/kfd",
+    "/etc/os-release",
 ];
 const SNAPSHOT_EXCLUDED_FILENAME_PREFIXES: &[&str] = &[
     "serial_number",
@@ -702,16 +702,9 @@ impl<'a> Handler {
             .await
             .ok()
             .map(|info| serde_json::to_value(info).unwrap());
-        let initramfs_type = match get_os_release().as_ref() {
-            Ok(os_release) => detect_initramfs_type(os_release)
-                .await
-                .map(|initramfs_type| serde_json::to_value(initramfs_type).unwrap()),
-            Err(err) => Some(err.to_string().into()),
-        };
 
         let info = json!({
             "system_info": system_info,
-            "initramfs_type": initramfs_type,
             "devices": self.generate_snapshot_device_info().await,
         });
         let info_data = serde_json::to_vec_pretty(&info).unwrap();

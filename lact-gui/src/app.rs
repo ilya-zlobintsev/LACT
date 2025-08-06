@@ -5,12 +5,16 @@ pub mod graphs_window;
 mod header;
 mod info_row;
 mod msg;
+mod overdrive_dialog;
 mod page_section;
 mod pages;
 mod process_monitor;
 
 use crate::{
-    app::process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
+    app::{
+        overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
+        process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
+    },
     APP_ID, GUI_VERSION, I18N,
 };
 use anyhow::{anyhow, Context};
@@ -82,6 +86,7 @@ pub struct AppModel {
     daemon_client: DaemonClient,
     graphs_window: relm4::Controller<GraphsWindow>,
     process_monitor_window: relm4::Controller<ProcessMonitorWindow>,
+    overdrive_dialog: relm4::Controller<OverdriveDialog>,
 
     ui_sensitive: BoolBinding,
 
@@ -215,7 +220,16 @@ impl AsyncComponent for AppModel {
         let thermals_page = ThermalsPage::builder().launch(system_info.clone()).detach();
 
         let software_page = SoftwarePage::builder()
-            .launch((system_info, daemon_client.embedded))
+            .launch((system_info.clone(), daemon_client.embedded))
+            .detach();
+
+        let overdrive_dialog = OverdriveDialog::builder()
+            .transient_for(&root)
+            .launch(OverdriveDialog {
+                system_info,
+                is_loading: false,
+                is_done: false,
+            })
             .detach();
 
         let header = Header::builder()
@@ -240,6 +254,7 @@ impl AsyncComponent for AppModel {
             daemon_client,
             graphs_window,
             process_monitor_window,
+            overdrive_dialog,
             info_page,
             oc_page,
             thermals_page,
@@ -336,6 +351,9 @@ impl AppModel {
                 } else {
                     self.update_gpu_data(gpu_id, sender).await?;
                 }
+            }
+            AppMsg::ShowOverdriveDialog => {
+                self.overdrive_dialog.emit(OverdriveDialogMsg::Show);
             }
             AppMsg::SelectProfile {
                 profile,
@@ -491,10 +509,16 @@ impl AppModel {
                 self.generate_debug_snapshot(root).await;
             }
             AppMsg::EnableOverdrive => {
-                toggle_overdrive(&self.daemon_client, true, root.clone()).await;
+                self.overdrive_dialog.emit(OverdriveDialogMsg::Loading);
+                let result = self.daemon_client.enable_overdrive().await;
+                self.overdrive_dialog.emit(OverdriveDialogMsg::Loaded);
+                result?;
             }
             AppMsg::DisableOverdrive => {
-                toggle_overdrive(&self.daemon_client, false, root.clone()).await;
+                self.overdrive_dialog.emit(OverdriveDialogMsg::Loading);
+                let result = self.daemon_client.disable_overdrive().await;
+                self.overdrive_dialog.emit(OverdriveDialogMsg::Loaded);
+                result?;
             }
             AppMsg::ResetConfig => {
                 self.daemon_client.reset_config().await?;
@@ -1088,90 +1112,8 @@ fn start_stats_update_loop(
     })
 }
 
-fn oc_toggled_dialog(enabled: bool, msg: &str) {
-    let enabled_text = if enabled { "enabled" } else { "disabled" };
-
-    let child = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .spacing(5)
-        .margin_top(10)
-        .margin_bottom(10)
-        .margin_start(10)
-        .margin_end(10)
-        .build();
-    child.append(&gtk::Label::new(Some(&format!("Overclocking {enabled_text}. A system reboot is required to apply the changes.\nSystem message:"))));
-
-    let msg_label = gtk::Label::builder()
-        .label(msg)
-        .valign(gtk::Align::Start)
-        .halign(gtk::Align::Start)
-        .build();
-    let msg_scrollable = gtk::ScrolledWindow::builder().child(&msg_label).build();
-    child.append(&msg_scrollable);
-
-    let ok_button = gtk::Button::builder().label("OK").build();
-    child.append(&ok_button);
-
-    let success_dialog = MessageDialog::builder()
-        .title("Overclock info")
-        .child(&child)
-        .message_type(MessageType::Info)
-        .build();
-
-    ok_button.connect_clicked(clone!(
-        #[strong]
-        success_dialog,
-        move |_| success_dialog.hide(),
-    ));
-
-    success_dialog.run_async(move |diag, _| {
-        diag.hide();
-    });
-}
-
 fn confirmation_text(seconds_left: u64) -> String {
     format!("Do you want to keep the new settings? (Reverting in {seconds_left} seconds)")
-}
-
-async fn toggle_overdrive(daemon_client: &DaemonClient, enable: bool, root: ApplicationWindow) {
-    let dialog = spinner_dialog(&root, "Regenerating initramfs (this may take a while)");
-    dialog.show();
-
-    let result = if enable {
-        daemon_client.enable_overdrive().await
-    } else {
-        daemon_client.disable_overdrive().await
-    };
-
-    dialog.hide();
-
-    match result {
-        Ok(msg) => oc_toggled_dialog(enable, &msg),
-        Err(err) => {
-            show_error(&root, &err);
-        }
-    }
-}
-
-fn spinner_dialog(parent: &ApplicationWindow, title: &str) -> MessageDialog {
-    let spinner = gtk::Spinner::new();
-    spinner.start();
-    spinner.set_margin_top(10);
-    spinner.set_margin_bottom(10);
-
-    let dialog = MessageDialog::builder()
-        .title(title)
-        .child(&spinner)
-        .message_type(MessageType::Info)
-        .transient_for(parent)
-        .build();
-
-    if let Some(bar) = dialog.titlebar() {
-        bar.set_margin_start(15);
-        bar.set_margin_end(15);
-    }
-
-    dialog
 }
 
 fn register_actions(sender: &AsyncComponentSender<AppModel>) {
@@ -1194,15 +1136,7 @@ fn register_actions(sender: &AsyncComponentSender<AppModel>) {
         (ShowProcessMonitor, AppMsg::ShowProcessMonitor),
         (DumpVBios, AppMsg::DumpVBios),
         (DebugSnapshot, AppMsg::DebugSnapshot),
-        (
-            DisableOverdrive,
-            AppMsg::ask_confirmation(
-                AppMsg::DisableOverdrive,
-                fl!(I18N, "disable-amd-oc"),
-                fl!(I18N, "disable-amd-oc-description"),
-                gtk::ButtonsType::OkCancel,
-            )
-        ),
+        (DisableOverdrive, AppMsg::ShowOverdriveDialog),
         (
             ResetConfig,
             AppMsg::ask_confirmation(

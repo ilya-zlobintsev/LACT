@@ -1,7 +1,9 @@
 pub mod power_profiles_daemon;
 
-use anyhow::{anyhow, ensure, Context};
-use lact_schema::{InitramfsType, SystemInfo, GIT_COMMIT};
+use anyhow::{anyhow, bail, ensure, Context};
+use lact_schema::{
+    AmdgpuParamsConfigurator, BootArgConfigurator, InitramfsType, SystemInfo, GIT_COMMIT,
+};
 use nix::sys::socket::{
     bind, recv, socket, AddressFamily, MsgFlags, NetlinkAddr, SockFlag, SockProtocol, SockType,
 };
@@ -10,6 +12,7 @@ use std::{
     env,
     fs::{self, File, Permissions},
     io::{self, Write},
+    iter,
     os::{fd::AsRawFd, unix::prelude::PermissionsExt},
     path::{Path, PathBuf},
     process::{self, Output},
@@ -19,7 +22,7 @@ use std::{
     },
 };
 use tokio::{process::Command, sync::Notify};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 static OC_TOGGLED: AtomicBool = AtomicBool::new(false);
 
@@ -63,12 +66,19 @@ pub async fn info() -> anyhow::Result<SystemInfo> {
         None
     };
 
+    let os_release = get_os_release().inspect_err(|err| error!("Could not detect distro: {err}"));
+
     Ok(SystemInfo {
         version,
         profile,
         kernel_version,
+        distro: os_release.as_ref().map(|release| release.name.clone()).ok(),
         amdgpu_overdrive_enabled,
         commit: Some(GIT_COMMIT.to_owned()),
+        amdgpu_params_configurator: match os_release {
+            Ok(release) => detect_amdgpu_configurator(&release).await.ok(),
+            Err(_) => None,
+        },
     })
 }
 
@@ -78,31 +88,47 @@ pub async fn enable_overdrive() -> anyhow::Result<String> {
         "Overdrive support was already toggled - please reboot to apply the changes"
     );
 
-    let current_mask = read_current_mask()?;
+    let current_mask = read_current_mask().context("Could not get current amdgpu feature mask")?;
 
     let new_mask = current_mask | PP_OVERDRIVE_MASK;
     if new_mask == current_mask {
         return Err(anyhow!("Overdrive mask already enabled"));
     }
 
-    let conf = format!("options amdgpu ppfeaturemask=0x{new_mask:X}");
+    let os_release = get_os_release()?;
+    let configurator = detect_amdgpu_configurator(&os_release).await?;
+    match configurator {
+        AmdgpuParamsConfigurator::Modprobe(initramfs_type) => {
+            let conf = format!("options amdgpu ppfeaturemask=0x{new_mask:X}");
 
-    let mut file = File::create(&*MODULE_CONF_PATH).context("Could not open module conf file")?;
-    file.set_permissions(Permissions::from_mode(0o644))
-        .context("Could not conf file permissions")?;
+            let mut file =
+                File::create(&*MODULE_CONF_PATH).context("Could not open module conf file")?;
+            file.set_permissions(Permissions::from_mode(0o644))
+                .context("Could not conf file permissions")?;
 
-    file.write_all(conf.as_bytes())
-        .context("Could not write config")?;
+            file.write_all(conf.as_bytes())
+                .context("Could not write config")?;
 
-    let message = match regenerate_initramfs().await {
-        Ok(initramfs_type) => {
-            OC_TOGGLED.store(true, Ordering::SeqCst);
-            format!("Initramfs was successfully regenerated (detected type {initramfs_type:?})")
+            if let Some(initramfs) = initramfs_type {
+                regenerate_initramfs(initramfs).await?;
+            }
         }
-        Err(err) => format!("{err:#}"),
-    };
+        AmdgpuParamsConfigurator::BootArg(BootArgConfigurator::RpmOstree) => {
+            run_command(
+                "rpm-ostree",
+                &[
+                    "kargs",
+                    &format!("--append-if-missing=amdgpu.ppfeaturemask=0x{new_mask:X}"),
+                ],
+            )
+            .await?;
+        }
+    }
 
-    Ok(message)
+    OC_TOGGLED.store(true, Ordering::SeqCst);
+
+    // Returning a string only to maintain API compat
+    Ok(String::new())
 }
 
 pub async fn disable_overdrive() -> anyhow::Result<String> {
@@ -111,23 +137,53 @@ pub async fn disable_overdrive() -> anyhow::Result<String> {
         "Overdrive support was already toggled - please reboot to apply the changes"
     );
 
-    if Path::new(&*MODULE_CONF_PATH).exists() {
-        fs::remove_file(&*MODULE_CONF_PATH).context("Could not remove module config file")?;
-        match regenerate_initramfs().await {
-            Ok(initramfs_type) => {
-                OC_TOGGLED.store(true, Ordering::SeqCst);
-                Ok(format!(
-                    "Initramfs was successfully regenerated (detected type {initramfs_type:?})"
-                ))
+    let os_release = get_os_release()?;
+    let configurator = detect_amdgpu_configurator(&os_release).await?;
+    match configurator {
+        AmdgpuParamsConfigurator::Modprobe(initramfs_type) => {
+            if Path::new(&*MODULE_CONF_PATH).exists() {
+                fs::remove_file(&*MODULE_CONF_PATH)
+                    .context("Could not remove module config file")?;
+
+                if let Some(initramfs) = initramfs_type {
+                    regenerate_initramfs(initramfs).await?;
+                }
+            } else {
+                bail!(
+                    "Overclocking was not enabled through LACT (file at {} does not exist)",
+                    MODULE_CONF_PATH.display(),
+                );
             }
-            Err(err) => Ok(format!("{err:#}")),
         }
-    } else {
-        Err(anyhow!(
-            "Overclocking was not enabled through LACT (file at {} does not exist)",
-            MODULE_CONF_PATH.display(),
-        ))
+        AmdgpuParamsConfigurator::BootArg(BootArgConfigurator::RpmOstree) => {
+            let current_mask =
+                read_current_mask().context("Could not get current amdgpu feature mask")?;
+            run_command(
+                "rpm-ostree",
+                &[
+                    "kargs",
+                    &format!("--delete-if-present=amdgpu.ppfeaturemask=0x{current_mask:X}"),
+                ],
+            )
+            .await?;
+        }
     }
+
+    OC_TOGGLED.store(true, Ordering::SeqCst);
+
+    // Returning a string only to maintain API compat
+    Ok(String::new())
+}
+
+async fn regenerate_initramfs(initramfs_type: InitramfsType) -> anyhow::Result<()> {
+    info!("detected initramfs type {initramfs_type:?}, regenerating");
+    let result = match initramfs_type {
+        InitramfsType::Debian => run_command("update-initramfs", &["-u"]).await,
+        InitramfsType::Mkinitcpio => run_command("mkinitcpio", &["-P"]).await,
+        InitramfsType::Dracut => run_command("dracut", &["--regenerate-all", "--force"]).await,
+    };
+    result.context("Initramfs generation command failed")?;
+    Ok(())
 }
 
 fn read_current_mask() -> anyhow::Result<u64> {
@@ -140,50 +196,43 @@ fn read_current_mask() -> anyhow::Result<u64> {
     u64::from_str_radix(ppfeaturemask, 16).context("Invalid ppfeaturemask")
 }
 
-async fn regenerate_initramfs() -> anyhow::Result<InitramfsType> {
-    let os_release = get_os_release().context("Could not detect distro")?;
-    match detect_initramfs_type(&os_release).await {
-        Some(initramfs_type) => {
-            info!("Detected initramfs type {initramfs_type:?}, regenerating");
-            let result = match initramfs_type {
-                InitramfsType::Debian => run_command("update-initramfs", &["-u"]).await,
-                InitramfsType::Mkinitcpio => run_command("mkinitcpio", &["-P"]).await,
-                InitramfsType::Dracut => {
-                    run_command("dracut", &["--regenerate-all", "--force"]).await
-                }
-            };
-            result.map(|_| initramfs_type)
-        }
-        None => Err(anyhow!(
-            "Distro is not in the known configuration list, manually setting the overclocking option might be required. See the overclocking section on LACT's GitHub page for more information."
-        )),
-    }
-}
+pub(crate) async fn detect_amdgpu_configurator(
+    os_release: &OsRelease,
+) -> anyhow::Result<AmdgpuParamsConfigurator> {
+    let ids = iter::once(os_release.id.as_str()).chain(os_release.id_like.split_ascii_whitespace());
 
-pub(crate) async fn detect_initramfs_type(os_release: &OsRelease) -> Option<InitramfsType> {
-    let id_like: Vec<_> = os_release.id_like.split_whitespace().collect();
-
-    if os_release.id == "debian" || id_like.contains(&"debian") {
-        Some(InitramfsType::Debian)
-    } else if os_release.id == "arch" || os_release.id == "cachyos" || id_like.contains(&"arch") {
-        if run_command("mkinitcpio", &["--version"]).await.is_ok() {
-            Some(InitramfsType::Mkinitcpio)
-        } else {
-            warn!(
-                "Arch-based system with no mkinitcpio detected, refusing to regenerate initramfs"
-            );
-            None
+    for id in ids {
+        match id {
+            "debian" => {
+                return Ok(AmdgpuParamsConfigurator::Modprobe(Some(
+                    InitramfsType::Debian,
+                )));
+            }
+            "arch" | "cachyos" if run_command("mkinitcpio", &["--version"]).await.is_ok() => {
+                return Ok(AmdgpuParamsConfigurator::Modprobe(Some(
+                    InitramfsType::Mkinitcpio,
+                )));
+            }
+            "fedora" if Path::new("/run/ostree-booted").exists() => {
+                return Ok(AmdgpuParamsConfigurator::BootArg(
+                    BootArgConfigurator::RpmOstree,
+                ));
+            }
+            "fedora" if run_command("dracut", &["--version"]).await.is_ok() => {
+                return Ok(AmdgpuParamsConfigurator::Modprobe(Some(
+                    InitramfsType::Dracut,
+                )));
+            }
+            "nixos" => {
+                return Err(anyhow!(
+                    "Overdrive should be toggled through system config on NixOS"
+                ));
+            }
+            _ => (),
         }
-    } else if os_release.id == "fedora" || id_like.contains(&"fedora") {
-        if run_command("dracut", &["--version"]).await.is_ok() {
-            Some(InitramfsType::Dracut)
-        } else {
-            warn!("Fedora without dracut detected, refusing to regenerate initramfs");
-            None
-        }
-    } else {
-        None
     }
+
+    Ok(AmdgpuParamsConfigurator::Modprobe(None))
 }
 
 pub fn get_os_release() -> io::Result<OsRelease> {
@@ -272,8 +321,8 @@ pub(crate) fn listen_netlink_kernel_event(notify: &Notify) -> anyhow::Result<()>
 
 #[cfg(test)]
 mod tests {
-    use super::detect_initramfs_type;
-    use lact_schema::InitramfsType;
+    use super::detect_amdgpu_configurator;
+    use lact_schema::{AmdgpuParamsConfigurator, InitramfsType};
     use os_release::OsRelease;
 
     #[tokio::test]
@@ -289,8 +338,8 @@ BUG_REPORT_URL="https://bugs.debian.org/"
         "#;
         let os_release: OsRelease = data.lines().map(str::to_owned).collect();
         assert_eq!(
-            Some(InitramfsType::Debian),
-            detect_initramfs_type(&os_release).await
+            AmdgpuParamsConfigurator::Modprobe(Some(InitramfsType::Debian)),
+            detect_amdgpu_configurator(&os_release).await.unwrap()
         );
     }
 
@@ -312,8 +361,8 @@ UBUNTU_CODENAME=jammy
         "#;
         let os_release: OsRelease = data.lines().map(str::to_owned).collect();
         assert_eq!(
-            Some(InitramfsType::Debian),
-            detect_initramfs_type(&os_release).await
+            AmdgpuParamsConfigurator::Modprobe(Some(InitramfsType::Debian)),
+            detect_amdgpu_configurator(&os_release).await.unwrap()
         );
     }
 }

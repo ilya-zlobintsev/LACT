@@ -22,6 +22,7 @@ pub enum AppMsg {
     ShowProcessMonitor,
     DumpVBios,
     DebugSnapshot,
+    ShowOverdriveDialog,
     EnableOverdrive,
     DisableOverdrive,
     ResetConfig,
