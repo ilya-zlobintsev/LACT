@@ -70,12 +70,12 @@ amd-oc-detected-system-config = Detected system configuration: <b>{$config ->
 }</b>
 amd-oc-description = 
     {$config ->
-        [rpm-ostree] This option lets you toggle AMD overdrive support by setting boot flags through <b>rpm-ostree</b>.
+        [rpm-ostree] This option will toggle AMD overdrive support by setting boot flags through <b>rpm-ostree</b>.
         [unsupported] 
             The current system is not recognized as supported for automatic overdrive configuration.
             You may attempt to enable overclocking from LACT, but a manual initramfs regeneration may be required for it to take effect.
             If that fails, a fallback option is to add <b>amdgpu.ppfeaturemask=0xffffffff</b> as a boot parameter in your bootloader.
-        *[other] This option lets you toggle AMD overdrive support by creating a file at <b>{$path}</b> and updating the initramfs.
+        *[other] This option will toggle AMD overdrive support by creating a file at <b>{$path}</b> and updating the initramfs.
     }
 
     See <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">the wiki</a> for more information.

@@ -43,7 +43,7 @@ impl relm4::Component for OverdriveDialog {
                 set_margin_all: 10,
 
                 gtk::Label {
-                    set_halign: gtk::Align::Fill,
+                    set_xalign: 0.0,
                     set_markup: &fl!(
                         I18N,
                         "amd-oc-description",
@@ -57,7 +57,7 @@ impl relm4::Component for OverdriveDialog {
                 },
 
                 gtk::Label {
-                    set_halign: gtk::Align::Start,
+                    set_xalign: 0.0,
                     set_hexpand: true,
                     set_markup: &fl!(
                         I18N,
@@ -71,7 +71,7 @@ impl relm4::Component for OverdriveDialog {
                 },
 
                 gtk::Label {
-                    set_halign: gtk::Align::Start,
+                    set_xalign: 0.0,
                     set_hexpand: true,
                     set_markup: &fl!(I18N, "amd-oc-detected-system-config", config = format_config(&model.system_info)),
                 },
@@ -81,6 +81,7 @@ impl relm4::Component for OverdriveDialog {
                     set_orientation: gtk::Orientation::Horizontal,
 
                     gtk::Button {
+                        #[watch]
                         set_sensitive: model.system_info.amdgpu_overdrive_enabled == Some(false) && !model.is_loading && !model.is_done,
                         set_label: &fl!(I18N, "enable-amd-oc"),
                         connect_clicked => move |_| {
@@ -89,6 +90,7 @@ impl relm4::Component for OverdriveDialog {
                     },
 
                     gtk::Button {
+                        #[watch]
                         set_sensitive: model.system_info.amdgpu_overdrive_enabled == Some(true) && !model.is_loading && !model.is_done,
                         set_label: &fl!(I18N, "disable-amd-oc"),
                         connect_clicked => move |_| {

@@ -116,9 +116,10 @@ pub async fn enable_overdrive() -> anyhow::Result<String> {
         AmdgpuParamsConfigurator::BootArg(BootArgConfigurator::RpmOstree) => {
             run_command(
                 "rpm-ostree",
-                &[&format!(
-                    "--append-if-missing=amdgpu.ppfeaturemask=0x{new_mask:X}"
-                )],
+                &[
+                    "kargs",
+                    &format!("--append-if-missing=amdgpu.ppfeaturemask=0x{new_mask:X}"),
+                ],
             )
             .await?;
         }
@@ -159,9 +160,10 @@ pub async fn disable_overdrive() -> anyhow::Result<String> {
                 read_current_mask().context("Could not get current amdgpu feature mask")?;
             run_command(
                 "rpm-ostree",
-                &[&format!(
-                    "--delete-if-present=amdgpu.ppfeaturemask=0x{current_mask:X}"
-                )],
+                &[
+                    "kargs",
+                    &format!("--delete-if-present=amdgpu.ppfeaturemask=0x{current_mask:X}"),
+                ],
             )
             .await?;
         }
