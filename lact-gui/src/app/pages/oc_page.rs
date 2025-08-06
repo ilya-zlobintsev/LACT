@@ -20,7 +20,6 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use indexmap::IndexMap;
-use lact_daemon::BASE_MODULE_CONF_PATH;
 use lact_schema::{request::SetClocksCommand, ClocksTable, DeviceInfo, PowerStates, SystemInfo};
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
@@ -91,12 +90,7 @@ impl relm4::Component for OcPage {
                             set_halign: gtk::Align::End,
 
                             connect_clicked[sender] => move |_| {
-                                sender.output(AppMsg::ask_confirmation(
-                                    AppMsg::EnableOverdrive,
-                                    fl!(I18N, "enable-amd-oc"),
-                                    fl!(I18N, "enable-amd-oc-description", path = BASE_MODULE_CONF_PATH),
-                                    gtk::ButtonsType::OkCancel,
-                                )).expect("Channel closed");
+                                sender.output(AppMsg::ShowOverdriveDialog).expect("Channel closed");
                             }
                         },
                     },

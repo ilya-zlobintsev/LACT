@@ -55,13 +55,36 @@ static-speed = Static Speed (%)
 reset-button = Reset
 pmfw-reset-warning = Warning: this resets the fan firmware settings!
 
+amd-oc = AMD Overclocking
 amd-oc-disabled = 
     AMD Overclocking support is not enabled!
     You can still change basic settings, but the more advanced clocks and voltage control will not be available.
-enable-amd-oc = Enable AMD Overclocking
+amd-oc-status = AMD Overclocking is currently: <b>{$status ->
+    [true] Enabled
+    [false] Disabled
+    *[other] Unknown
+}</b>
+amd-oc-detected-system-config = Detected system configuration: <b>{$config ->
+    [unsupported] Unsupported
+    *[other] {$config}
+}</b>
+amd-oc-description = 
+    {$config ->
+        [rpm-ostree] This option lets you toggle AMD overdrive support by setting boot flags through <b>rpm-ostree</b>.
+        [unsupported] 
+            The current system is not recognized as supported for automatic overdrive configuration.
+            You may attempt to enable overclocking from LACT, but a manual initramfs regeneration may be required for it to take effect.
+            If that fails, a fallback option is to add <b>amdgpu.ppfeaturemask=0xffffffff</b> as a boot parameter in your bootloader.
+        *[other] This option lets you toggle AMD overdrive support by creating a file at <b>{$path}</b> and updating the initramfs.
+    }
+
+    See <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">the wiki</a> for more information.
 enable-amd-oc-description = This will enable the overdrive feature of the amdgpu driver by creating a file at <b>{$path}</b> and updating the initramfs. Are you sure you want to do this?
 disable-amd-oc = Disable AMD Overclocking
+enable-amd-oc = Enable AMD Overclocking
 disable-amd-oc-description = This will disable AMD overclocking support (overdrive) on next reboot.
+amd-oc-updating-configuration = Updating configuration (this may take a while)
+amd-oc-updating-done = Configuration updated, please reboot to apply changes.
 
 reset-config = Reset Configuration
 reset-config-description = Are you sure you want to reset all GPU configuration?
