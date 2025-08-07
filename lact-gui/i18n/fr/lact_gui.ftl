@@ -77,7 +77,7 @@ enable-vram-locked-clocks = Activer le verrouillage d’horloges VRAM
 oc-warning = Attention : la modification de ces valeurs peut entraîner une instabilité du système et potentiellement endommager votre matériel !
 pstates-manual-needed = Remarque : Le niveau de performance doit être défini sur « manuel » pour basculer entre les états d’alimentation.
 min-gpu-voltage = Tension GPU minimale (mV)
-pstate-list-description = <b>Les valeurs suivantes correspondent à l'ajustement des fréquences d’horloge pour chaque P-State, du plus élevé au plus faible.</b>
+pstate-list-description = <b>Les valeurs suivantes correspondent à l’ajustement des fréquences d’horloge pour chaque P-State, du plus élevé au plus faible.</b>
 min-vram-clock = Fréquence d’horloge VRAM minimale (MHz)
 amd-cache-desc =
     Cache L{ $level } { $types } de { $size } { $shared ->
@@ -137,3 +137,61 @@ name = Nom
 create = Créer
 profile-copy-from = Copier les paramètres à partir de :
 create-profile = Créer un profil
+any-rules-matched = Une des règles suivantes est satisfaite :
+cancel = Annuler
+save = Enregistrer
+rename-profile = Renommer le profil
+delete-profile = Supprimer le profil
+edit-rules = Modifier les règles
+remove-rule = Supprimer la règle
+profile-rules = Règles du profil
+export-to-file = Exporter vers un fichier
+move-down = Se déplacer vers le bas
+profile-activation = Activation
+profile-hooks = Hooks
+profile-hook-command = Exécuter une commande lorsque le profil "{ $cmd }" est :
+profile-hook-activated = Activé :
+profile-hook-deactivated = Désactivé :
+profile-rule-process-tab = Un processus est en cours d’exécution
+profile-rule-args-contain = Les arguments contiennent :
+profile-rule-specific-process = Avec un processus spécifique :
+profile-activation-desc = Activer le profil "{ $name }" lorsque :
+profile-hook-note = Remarque : Ces commandes sont exécutées en tant que root par le démon LACT, et n’ont pas accès à l’environnement de bureau. Par conséquent, elles ne peuvent pas être directement utilisées pour lancer des applications graphiques.
+all-rules-matched = Toutes les règles suivantes sont satisfaites :
+default-profile = Par défaut
+move-up = Se déplacer vers le haut
+edit-rule = Modifier la règle
+rename-profile-from = Renommer le profil <b>{ $old_name }</b> en :
+activation-auto-switching-disabled = Le changement de profil automatique est actuellement désactivé
+activation-settings-status =
+    Les conditions d’activation sélectionnées { $matched ->
+        [true] sont actuellement <b>réunies</b>
+       *[false] ne sont actuellement <b>pas réunies</b>
+    }
+profile-rule-process-name = Nom de processus :
+profile-rule-gamemode-tab = Le mode Jeu est actif
+amd-oc = Overclocking AMD
+amd-oc-updating-done = Configuration mise à jour, veuillez redémarrer pour appliquer les modifications.
+amd-oc-updating-configuration = Mise à jour de la configuration (cela peut prendre un certain temps)
+amd-oc-detected-system-config =
+    Configuration système détectée : <b>{ $config ->
+        [unsupported] Non prise en charge
+       *[other] { $config }
+    }</b>
+amd-oc-status =
+    L’overclocking AMD est actuellement : <b>{ $status ->
+        [true] Activé
+        [false] Désactivé
+       *[other] Inconnu
+    }</b>
+amd-oc-description =
+    { $config ->
+        [rpm-ostree] Cette option activera ou désactivera la prise en charge de l’overdrive AMD en définissant des flags de boot à l’aide de <b>rpm-ostree</b>.
+        [unsupported]
+            Le système actuel n’est pas reconnu comme pris en charge pour la configuration automatique de l’overdrive.
+            Vous pouvez essayer d’activer l’overclocking depuis LACT, mais une régénération manuelle de l’initramfs est susceptible d’être nécessaire pour que l’activation soit effective.
+            Si cela ne fonctionne pas, vous pouvez essayer de définir le paramètre de boot <b>amdgpu.ppfeaturemask=0xffffffff</b> dans votre bootloader.
+       *[other] Cette option activera ou désactivera la prise en charge de l’overdrive AMD en créant un fichier à l’emplacement <b>{ $path }</b>, puis en mettant à jour l’initramfs.
+    }
+
+    Consultez <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">le wiki</a> pour plus d’informations.
