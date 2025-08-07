@@ -170,3 +170,28 @@ profile-rule-gamemode-tab = Gamemode está ativo
 profile-rule-process-name = Nome do processo:
 profile-rule-args-contain = Os argumentos contêm:
 profile-rule-specific-process = Com um processo específico:
+amd-oc = Overclocking da AMD
+amd-oc-updating-configuration = Atualizando a configuração (isso pode levar um tempo)
+amd-oc-updating-done = Configuração atualizada. Por favor, reinicie para aplicar alterações.
+amd-oc-detected-system-config =
+    Detectada configuração do sistema: <b>{ $config ->
+        [unsupported] sem suporte
+       *[other] { $config }
+    }</b>
+amd-oc-status =
+    Overclocking da AMD está atualmente: <b>{ $status ->
+        [true] habilitado
+        [false] desabilitado
+       *[other] desconhecido
+    }</b>
+amd-oc-description =
+    { $config ->
+        [rpm-ostree] Esta opção vai alternar o suporte a overdrive da AMD definindo sinalizadores de inicialização por meio de <b>rpm-ostree</b>.
+        [unsupported]
+            O sistema atual não é reconhecido como suportado por configuração automática do overdrive.
+            Você pode tentar habilitar overclocking do LACT, mas uma regeneração manual do initramfs pode exigida para que tenha efeito.
+            Se isso falhar, uma opção alternativa é adicionar <b>amdgpu.ppfeaturemask=0xffffffff</b> como um parâmetro de inicialização no seu bootloader.
+       *[other] Esta opção alternará o suporte ao overdrive da AMD criando um arquivo em <b>{ $path }</b> e atualizando o initramfs.
+    }
+
+    Veja <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">a wiki</a> para mais informações.
