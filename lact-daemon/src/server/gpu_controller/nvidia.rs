@@ -358,6 +358,13 @@ impl GpuController for NvidiaGpuController {
         DeviceType::Dedicated
     }
 
+    fn friendly_name(&self) -> Option<String> {
+        self.device()
+            .name()
+            .ok()
+            .or_else(|| self.common.pci_info.device_pci_info.model.clone())
+    }
+
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
             let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {

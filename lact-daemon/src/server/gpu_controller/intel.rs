@@ -586,6 +586,10 @@ impl GpuController for IntelGpuController {
         }
     }
 
+    fn friendly_name(&self) -> Option<String> {
+        self.common.pci_info.device_pci_info.model.clone()
+    }
+
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
             let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {

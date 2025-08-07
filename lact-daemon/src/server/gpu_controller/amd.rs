@@ -730,6 +730,14 @@ impl GpuController for AmdGpuController {
         })
     }
 
+    fn friendly_name(&self) -> Option<String> {
+        self.drm_handle
+            .as_ref()
+            .and_then(|handle| handle.device_info().ok())
+            .and_then(|info| info.find_device_name())
+            .or_else(|| self.common.pci_info.device_pci_info.model.clone())
+    }
+
     #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let metrics = GpuMetrics::get_from_sysfs_path(self.handle.get_path()).ok();

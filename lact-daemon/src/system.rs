@@ -246,7 +246,7 @@ pub fn get_os_release() -> io::Result<OsRelease> {
 }
 
 pub async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<Output> {
-    info!("Running {exec} with args {args:?}");
+    debug!("running {exec} with args {args:?}");
 
     let mut command;
     if *IS_FLATBOX {

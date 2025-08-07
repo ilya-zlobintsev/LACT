@@ -398,26 +398,19 @@ impl<'a> Handler {
     }
 
     pub async fn list_devices(&'a self) -> Vec<DeviceListEntry> {
-        self.gpu_controllers
-            .read()
-            .await
-            .iter()
-            .map(|(id, controller)| {
-                let name = controller
-                    .controller_info()
-                    .pci_info
-                    .device_pci_info
-                    .model
-                    .clone();
-                let device_type = controller.device_type();
+        let mut entries = Vec::new();
 
-                DeviceListEntry {
-                    id: id.to_owned(),
-                    name,
-                    device_type,
-                }
-            })
-            .collect()
+        let controllers = self.gpu_controllers.read().await;
+
+        for (id, controller) in controllers.iter() {
+            entries.push(DeviceListEntry {
+                id: id.to_owned(),
+                name: controller.friendly_name(),
+                device_type: controller.device_type(),
+            });
+        }
+
+        entries
     }
 
     pub async fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo> {

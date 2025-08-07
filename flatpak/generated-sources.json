@@ -6,12 +6,6 @@
         "dest": "flatpak-cargo/git/cl3-7e742c9"
     },
     {
-        "type": "git",
-        "url": "https://github.com/umio-yasuno/libdrm-amdgpu-sys-rs",
-        "commit": "839b876653c47363f496a69b35d27fea3a72fdd0",
-        "dest": "flatpak-cargo/git/libdrm-amdgpu-sys-rs-839b876"
-    },
-    {
         "type": "archive",
         "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/addr2line/addr2line-0.24.2.crate",
@@ -1967,21 +1961,16 @@
         "dest-filename": ".cargo-checksum.json"
     },
     {
-        "type": "shell",
-        "commands": [
-            "cp -r --reflink=auto \"flatpak-cargo/git/libdrm-amdgpu-sys-rs-839b876/.\" \"cargo/vendor/libdrm_amdgpu_sys\""
-        ]
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/libdrm_amdgpu_sys/libdrm_amdgpu_sys-0.8.8.crate",
+        "sha256": "9a7bf95f3c5d8a8ae4a5c0c46fe2271c16fdf8fd4b26978f44b082a0f8ebaaae",
+        "dest": "cargo/vendor/libdrm_amdgpu_sys-0.8.8"
     },
     {
         "type": "inline",
-        "contents": "[[example]]\nname = \"amdgpu_info\"\nrequired-features = []\n\n[[example]]\nname = \"vbios_dump\"\nrequired-features = []\n\n[[example]]\nname = \"vbios_parser\"\nrequired-features = []\n\n[[example]]\nname = \"gpu_metrics\"\nrequired-features = []\n\n[[example]]\nname = \"stable_pstate\"\nrequired-features = []\n\n[[example]]\nname = \"pp_table\"\nrequired-features = []\n\n[package]\nname = \"libdrm_amdgpu_sys\"\nversion = \"0.8.7\"\nedition = \"2024\"\nbuild = \"build.rs\"\nlicense = \"MIT\"\nauthors = [ \"Umio Yasuno <coelacanth_dream@proton.me>\",]\ndescription = \"libdrm_amdgpu bindings for Rust, and some methods ported from Mesa3D.\"\nrepository = \"https://github.com/Umio-Yasuno/libdrm-amdgpu-sys-rs\"\nkeywords = [ \"amdgpu\", \"libdrm\",]\nlinks = \"drm, drm_amdgpu\"\n\n[features]\ndefault = [ \"link_drm\",]\nbuildtime_bindgen = [ \"dep:bindgen\", \"dep:pkg-config\",]\nlink_drm = []\ndynamic_loading = [ \"dep:libloading\",]\nconvert_amdgpu_ids = []\n\n[lib]\npath = \"lib.rs\"\ndoctest = false\n\n[dependencies.libc]\nversion = \"0.2\"\ndefault-features = false\n\n[dependencies.libloading]\nversion = \"0.8\"\noptional = true\n\n[build-dependencies.bindgen]\nversion = \"0.72\"\noptional = true\n\n[build-dependencies.pkg-config]\nversion = \"0.3\"\noptional = true\n",
-        "dest": "cargo/vendor/libdrm_amdgpu_sys",
-        "dest-filename": "Cargo.toml"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": null, \"files\": {}}",
-        "dest": "cargo/vendor/libdrm_amdgpu_sys",
+        "contents": "{\"package\": \"9a7bf95f3c5d8a8ae4a5c0c46fe2271c16fdf8fd4b26978f44b082a0f8ebaaae\", \"files\": {}}",
+        "dest": "cargo/vendor/libdrm_amdgpu_sys-0.8.8",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -4560,7 +4549,7 @@
     },
     {
         "type": "inline",
-        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/kenba/cl3\"]\ngit = \"https://github.com/kenba/cl3\"\nreplace-with = \"vendored-sources\"\nbranch = \"develop\"\n\n[source.\"https://github.com/umio-yasuno/libdrm-amdgpu-sys-rs\"]\ngit = \"https://github.com/umio-yasuno/libdrm-amdgpu-sys-rs\"\nreplace-with = \"vendored-sources\"\n",
+        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/kenba/cl3\"]\ngit = \"https://github.com/kenba/cl3\"\nreplace-with = \"vendored-sources\"\nbranch = \"develop\"\n",
         "dest": "cargo",
         "dest-filename": "config"
     }

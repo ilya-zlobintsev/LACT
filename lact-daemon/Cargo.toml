@@ -37,7 +37,7 @@ nvml-wrapper = "0.11.0"
 bitflags = "2.6.0"
 pciid-parser = { version = "0.8", features = ["serde"] }
 zbus = { version = "5.3.1", default-features = false, features = ["tokio"] }
-libdrm_amdgpu_sys = { git = "https://github.com/Umio-Yasuno/libdrm-amdgpu-sys-rs", default-features = false, features = [
+libdrm_amdgpu_sys = { version = "0.8.8", default-features = false, features = [
     "dynamic_loading",
 ] }
 tar = "0.4.40"

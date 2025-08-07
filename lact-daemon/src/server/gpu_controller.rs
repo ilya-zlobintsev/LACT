@@ -44,6 +44,8 @@ pub trait GpuController {
 
     fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo>;
 
+    fn friendly_name(&self) -> Option<String>;
+
     fn apply_config<'a>(&'a self, config: &'a GpuConfig) -> LocalBoxFuture<'a, anyhow::Result<()>>;
 
     fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats;
