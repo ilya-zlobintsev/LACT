@@ -43,6 +43,8 @@ jobs:
       - name: Build packages (without signing)
         if: ${{ !contains(matrix.target-os, 'fedora') || env.GPG_KEY_PASSWORD == '' }}
         run: pkger -t -c .pkger.yml build --no-sign ${{ matrix.recipe }} -i ${{ matrix.target-os }}
+        env:
+          GPG_KEY_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
 
       - name: Copy release files
         run: |
