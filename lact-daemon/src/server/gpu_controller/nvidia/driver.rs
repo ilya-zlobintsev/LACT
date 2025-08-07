@@ -72,6 +72,7 @@ impl DriverHandle {
             register_fd(device_fd.as_raw_fd(), &mut nvidiactl_fd.as_raw_fd())?;
 
             let mut alloc_params: NV0080_ALLOC_PARAMETERS = mem::zeroed();
+            alloc_params.deviceId = minor_number;
             let mut request = NVOS64_PARAMETERS {
                 hRoot: client_handle,
                 hObjectParent: client_handle,
