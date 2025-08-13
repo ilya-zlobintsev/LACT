@@ -17,7 +17,7 @@ device-not-found = جهاز { $kind } غير موجود
 api-version = إصدار API
 monitoring-section = المراقبة
 kernel-version = إصدار النواة
-oc-page = كسر السرعة
+oc-page = رفع تردد التشغيل
 software-page = البرمجية
 hardware-info = معلومات العتاد
 lact-daemon = عفريت LACT
@@ -151,7 +151,7 @@ remove-rule = أزل القاعدة
 profile-rules = قواعد ملف التعريف
 export-to-file = صدّر إلى ملف
 move-up = حرّك لأعلى
-profile-activation = التفعيل
+profile-activation = التنشيط
 profile-hooks = خطافات
 any-rules-matched = تتم مطابقة أي من القواعد التالية:
 all-rules-matched = تتم مطابقة جميع القواعد التالية:
@@ -170,3 +170,28 @@ activation-settings-status =
     }</b>
 profile-hook-note = ملاحظة: يتم تنفيذ هذه الأوامر بصلاحيات الجذز بواسطة خفي LACT، وليس لديها وصول إلى بيئة سطح المكتب. وبالتالي، لا يمكن استخدامها مباشرةً لتشغيل التطبيقات الرسومية.
 profile-rule-gamemode-tab = وضع ال Gamemode نشط
+amd-oc-updating-configuration = جارٍ تحديث التضبيط (قد يستغرق هذا بعض الوقت)
+amd-oc-updating-done = حُدث التضبيط، يُرجى إعادة التشغيل لتطبيق التغييرات.
+amd-oc = رفع تردد تشغيل AMD
+amd-oc-status =
+    رفع تردد التشغيل لوحدات AMD حاليًا: <b>{ $status ->
+        [true] مفعّل
+        [false] معطّل
+       *[other] مجهول
+    }</b>
+amd-oc-detected-system-config =
+    اكتُشف عن تضبيط النظام: <b>{ $config ->
+        [unsupported] غير مدعوم
+       *[other] { $config }
+    }</b>
+amd-oc-description =
+    { $config ->
+        [rpm-ostree] سيقوم هذا الخيار بتبديل دعم AMD overdrive عن طريق تعيين علامات التمهيد من خلال <b>rpm-ostree</b>.
+        [unsupported]
+            النظام الحالي غير معترف به كمدعوم للتضبيط التلقائي لـ overdrive.
+            يمكنك محاولة تفعيل رفع تردد التشغيل من LACT، ولكن قد يتطلب ذلك إعادة إنشاء initramfs يدويًا لكي يصبح ساري المفعول.
+            إذا فشل ذلك، فإن الخيار الاحتياطي هو إضافة <b>amdgpu.ppfeaturemask=0xffffffff</b> كمعامل تمهيد في محمل الإقلاع الخاص بك.
+       *[other] سيقوم هذا الخيار بتبديل دعم AMD overdrive عن طريق إنشاء ملف في <b>{ $path }</b> وتحديث initramfs.
+    }
+
+    انظر <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">الويكي</a> لمزيد من المعلومات.
