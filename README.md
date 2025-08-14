@@ -34,7 +34,7 @@ dependency on X11 extensions).
 - [Config file reference](./docs/CONFIG.md)
 - [API](./docs/API.md)
 - [Power profiles daemon note](#power-profiles-daemon-note)
-- [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock
+- [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock)
 
 # Installation
 
