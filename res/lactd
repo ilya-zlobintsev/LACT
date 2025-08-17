@@ -1,5 +1,5 @@
 type = process
 description = GPU Control Daemon
-depends = multiuser.d 
+depends = login.target 
 command = lact daemon
 restart = on-failure
