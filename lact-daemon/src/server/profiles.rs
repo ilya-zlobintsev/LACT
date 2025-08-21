@@ -1,8 +1,7 @@
 mod gamemode;
 mod process;
 
-use crate::server::handler::Handler;
-use futures::StreamExt;
+use crate::server::{handler::Handler, profiles::gamemode::GameModeConnector};
 use lact_schema::{ProfileRule, ProfileWatcherState};
 use libcopes::PEvent;
 use std::{
@@ -15,7 +14,6 @@ use tokio::{
     time::sleep,
 };
 use tracing::{debug, error, info, trace};
-use zbus::AsyncDrop;
 
 static PROFILE_WATCHER_LOCK: Mutex<()> = Mutex::const_new(());
 
@@ -36,7 +34,7 @@ pub enum ProfileWatcherCommand {
 
 pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<ProfileWatcherCommand>) {
     debug!(
-        "starting new task watcher (total task count: {})",
+        "starting new watcher task (total task count: {})",
         runtime::Handle::current().metrics().num_alive_tasks()
     );
 
@@ -52,10 +50,14 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
 
     let gamemode_stop_notify = Rc::new(Notify::new());
     let mut gamemode_task = None;
-    if let Some(gamemode_proxy) = gamemode::connect(&state.process_list).await {
-        match gamemode_proxy.list_games().await {
+    if let Some(gamemode) = GameModeConnector::connect(&state.process_list) {
+        match gamemode.list_games().await {
             Ok(games) => {
-                for (pid, _) in games {
+                info!(
+                    "connected to gamemode, games currently running: {}",
+                    games.len()
+                );
+                for pid in games {
                     state.gamemode_games.insert(pid);
                 }
             }
@@ -64,54 +66,29 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
             }
         }
 
-        match (
-            gamemode_proxy.receive_game_registered().await,
-            gamemode_proxy.receive_game_unregistered().await,
-        ) {
-            (Ok(mut registered_stream), Ok(mut unregistered_stream)) => {
+        match gamemode.receieve_events(gamemode_stop_notify.clone()) {
+            Ok(mut rx) => {
                 let event_tx = event_tx.clone();
                 let stop_notify = gamemode_stop_notify.clone();
 
                 let handle = tokio::task::spawn_local(async move {
                     loop {
-                        let mut event = None;
-
                         select! {
-                            Some(registered_event) = registered_stream.next() => {
-                                match registered_event.args() {
-                                    Ok(args) => {
-                                        debug!("gamemode activated for process {}", args.pid);
-                                        event = Some(PEvent::Exec(args.pid.into()));
-                                    }
-                                    Err(err) => error!("could not get event args: {err}"),
-                                }
-                            },
-                            Some(unregistered_event) = unregistered_stream.next() => {
-                                match unregistered_event.args() {
-                                    Ok(args) => {
-                                        debug!("gamemode exited for process {}", args.pid);
-                                        event = Some(PEvent::Exit(args.pid.into()));
-                                    }
-                                    Err(err) => error!("could not get event args: {err}"),
-                                }
+                            Some(event) = rx.recv() => {
+                                debug!("gamemode event: {event}");
+                                let _ = event_tx.send(ProfileWatcherEvent::Gamemode(event)).await;
                             },
                             () = stop_notify.notified() => {
                                 break;
                             }
                         };
-
-                        if let Some(event) = event {
-                            let _ = event_tx.send(ProfileWatcherEvent::Gamemode(event)).await;
-                        }
                     }
-                    registered_stream.async_drop().await;
-                    unregistered_stream.async_drop().await;
                     debug!("exited gamemode watcher");
                 });
                 gamemode_task = Some(handle);
             }
-            err_info => {
-                error!("Could not get gamemode event stream: {err_info:?}");
+            Err(err) => {
+                error!("Could not get gamemode event stream: {err:#}");
             }
         }
     }
@@ -180,9 +157,11 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
     handler.profile_watcher_state.borrow_mut().take();
 
     if let Some(handle) = gamemode_task {
-        gamemode_stop_notify.notify_one();
+        gamemode_stop_notify.notify_waiters();
         handle.await.unwrap();
     }
+
+    debug!("profile watched exited");
 }
 
 fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler, should_reload: &mut bool) {

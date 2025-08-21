@@ -1,78 +1,37 @@
-use lact_schema::ProfileProcessMap;
-use libcopes::PID;
-use nix::unistd::{geteuid, seteuid, Uid};
-use std::{
-    env, fs,
-    os::unix::fs::MetadataExt,
-    path::{Path, PathBuf},
-};
-use tracing::{error, info};
-use zbus::{
-    proxy,
-    zvariant::{ObjectPath, OwnedObjectPath},
-};
-
 use crate::system::IS_FLATBOX;
+use anyhow::Context;
+use lact_schema::ProfileProcessMap;
+use libcopes::{PEvent, PID};
+use nix::unistd::{Uid, User};
+use serde::Deserialize;
+use serde_json::Value;
+use std::{ffi::OsString, os::unix::fs::MetadataExt, path::PathBuf, process::Stdio, rc::Rc};
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    process::Command,
+    select,
+    sync::{mpsc, Notify},
+};
+use tracing::{debug, error, info, warn};
 
 pub const PROCESS_NAME: &str = "gamemoded";
-const DBUS_ADDRESS_ENV: &str = "DBUS_SESSION_BUS_ADDRESS";
+const INTERFACE_NAME: &str = "com.feralinteractive.GameMode";
 
-#[proxy(
-    interface = "com.feralinteractive.GameMode",
-    default_service = "com.feralinteractive.GameMode",
-    default_path = "/com/feralinteractive/GameMode"
-)]
-pub trait GameMode {
-    #[zbus(property)]
-    fn client_count(&self) -> zbus::Result<i32>;
-
-    fn list_games(&self) -> zbus::Result<Vec<(i32, OwnedObjectPath)>>;
-
-    #[zbus(signal)]
-    fn game_registered(&self, pid: i32, object_path: ObjectPath<'_>) -> zbus::Result<()>;
-
-    #[zbus(signal)]
-    fn game_unregistered(&self, pid: i32, object_path: ObjectPath<'_>) -> zbus::Result<()>;
+pub struct GameModeConnector {
+    program_name: OsString,
+    base_args: Vec<OsString>,
 }
 
-#[proxy(
-    interface = "com.feralinteractive.GameMode.Game",
-    default_service = "com.feralinteractive.GameMode"
-)]
-pub trait GameModeGame {
-    #[zbus(property)]
-    fn process_id(&self) -> zbus::Result<i32>;
+impl GameModeConnector {
+    pub fn connect(process_list: &ProfileProcessMap) -> Option<Self> {
+        let Some((pid, _)) = process_list
+            .iter()
+            .find(|(_, info)| info.name.as_ref() == PROCESS_NAME)
+        else {
+            info!("gamemode daemon not found");
+            return None;
+        };
 
-    #[zbus(property)]
-    fn executable(&self) -> zbus::Result<String>;
-}
-
-pub async fn connect(process_list: &ProfileProcessMap) -> Option<GameModeProxy<'static>> {
-    // `seteuid` has issues with sandboxing
-    if *IS_FLATBOX {
-        info!("gamemode integration is not supported from a sandbox");
-        return None;
-    }
-
-    let address;
-    let gamemode_uid;
-
-    if let Ok(raw_address) = env::var(DBUS_ADDRESS_ENV) {
-        match Path::new(&raw_address.trim_start_matches("unix:path=")).metadata() {
-            Ok(metadata) => {
-                gamemode_uid = metadata.uid();
-            }
-            Err(err) => {
-                error!("could not read DBus socket metadata from {raw_address}: {err}");
-                gamemode_uid = geteuid().into();
-            }
-        }
-
-        address = raw_address;
-    } else if let Some((pid, _)) = process_list
-        .iter()
-        .find(|(_, info)| info.name.as_ref() == PROCESS_NAME)
-    {
         let pid = PID::from(*pid);
         let process_path = PathBuf::from(pid);
         let metadata = process_path
@@ -80,72 +39,160 @@ pub async fn connect(process_list: &ProfileProcessMap) -> Option<GameModeProxy<'
             .map_err(|err| error!("could not read gamemode process metadata: {err}"))
             .ok()?;
 
-        gamemode_uid = metadata.uid();
+        let gamemode_uid = Uid::from_raw(metadata.uid());
+        let gamemode_user = User::from_uid(gamemode_uid)
+            .inspect_err(|err| error!("could not fetch gamemode process user: {err}"))
+            .ok()
+            .flatten()?;
 
-        let gamemode_env = fs::read(process_path.join("environ"))
-            .map_err(|err| error!("could not read gamemode process env: {err}"))
-            .ok()?;
+        info!(
+            "attempting to connect to gamemode at user {}",
+            gamemode_user.name
+        );
 
-        let dbus_addr_env = gamemode_env
-            .split(|c| *c == b'\0')
-            .filter_map(|pair| std::str::from_utf8(pair).ok())
-            .filter_map(|pair| pair.split_once('='))
-            .find(|(key, _)| *key == DBUS_ADDRESS_ENV);
-
-        if let Some((_, env_address)) = dbus_addr_env {
-            address = env_address.to_owned();
+        let mut base_args: Vec<OsString> = vec![];
+        let program_name = if *IS_FLATBOX {
+            base_args.extend_from_slice(&["--host".into(), "busctl".into()]);
+            "flatpak-spawn"
         } else {
-            error!("could not find DBus address env variable on gamemode's process");
-            return None;
-        }
-    } else {
-        info!("gamemode daemon not found");
-        return None;
+            "busctl"
+        };
+
+        base_args.extend_from_slice(&[
+            "--user".into(),
+            "--machine".into(),
+            format!("{}@", gamemode_user.name).into(),
+            "--json".into(),
+            "short".into(),
+        ]);
+
+        Some(Self {
+            program_name: program_name.into(),
+            base_args,
+        })
     }
 
-    info!("attempting to connect to gamemode on DBus address {address}");
+    pub async fn list_games(&self) -> anyhow::Result<Vec<i32>> {
+        let output = Command::new(&self.program_name)
+            .args(&self.base_args)
+            .arg("call")
+            .arg(INTERFACE_NAME)
+            .arg("/com/feralinteractive/GameMode")
+            .arg(INTERFACE_NAME)
+            .arg("ListGames")
+            .output()
+            .await?;
+        let response: GamesResponse =
+            serde_json::from_slice(&output.stdout).with_context(|| {
+                format!(
+                    "Could not parse busctl output: {}{}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                )
+            })?;
 
-    let builder = zbus::conn::Builder::address(address.as_str())
-        .map_err(|err| error!("could not construct DBus connection: {err}"))
-        .ok()?;
+        Ok(response
+            .data
+            .into_iter()
+            .flatten()
+            .map(|(pid, _)| pid)
+            .collect())
+    }
 
-    let connection_result;
+    pub fn receieve_events(
+        &self,
+        stop_notify: Rc<Notify>,
+    ) -> anyhow::Result<mpsc::Receiver<PEvent>> {
+        let (tx, rx) = mpsc::channel(100);
 
-    // It is very important that the euid gets reset back to the original,
-    // regardless of what's happening with the dbus connection
-    let original_uid = geteuid();
-    let gamemode_uid = Uid::from(gamemode_uid);
+        let mut child = Command::new(&self.program_name)
+            .args(&self.base_args)
+            .arg("monitor")
+            .arg("--match")
+            .arg(format!("sender={INTERFACE_NAME},type=signal"))
+            .stdout(Stdio::piped())
+            .spawn()?;
 
-    if original_uid == gamemode_uid {
-        connection_result = builder.build().await;
-    } else {
-        info!("gamemode session uid: {gamemode_uid}");
+        let stdout = child.stdout.take().context("No child stdout")?;
+        let reader = BufReader::new(stdout);
+        let mut lines = reader.lines();
 
-        seteuid(gamemode_uid)
-            .map_err(|err| error!("failed to set euid to gamemode's uid: {err}"))
-            .ok()?;
+        tokio::task::spawn_local(async move {
+            debug!("gamemode watcher listening");
+            loop {
+                select! {
+                    result = lines.next_line() => {
+                        match result {
+                            Ok(Some(line)) => match serde_json::from_str::<SignalMessage>(&line) {
+                                Ok(msg) => match msg.member.as_str() {
+                                    "GameRegistered" => {
+                                        if let Some(pid) = msg.extract_pid() {
+                                            if tx.send(PEvent::Exec(pid.into())).await.is_err() {
+                                                break;
+                                            }
+                                        } else {
+                                            warn!("could not parse gamemode payload: {line}");
+                                        }
+                                    }
+                                    "GameUnregistered" => {
+                                        if let Some(pid) = msg.extract_pid() {
+                                            if tx.send(PEvent::Exit(pid.into())).await.is_err() {
+                                                break;
+                                            }
+                                        } else {
+                                            warn!("could not parse gamemode payload: {line}");
+                                        }
+                                    }
+                                    _ => (),
+                                },
+                                Err(err) => warn!("could not parse gamemode signal: {err}: {line}"),
+                            },
+                            Ok(None) => (),
+                            Err(err) => {
+                                error!("gamemode watcher error: {err}");
+                                break;
+                            }
+                        }
+                    },
+                    () = stop_notify.notified() => {
+                        break;
+                    }
+                }
+            }
 
-        connection_result = builder.build().await;
+            debug!("gamemode watcher task exiting");
+            if let Err(err) = child.start_kill() {
+                error!("could not kill gamemode watcher child: {err}");
+            }
+        });
 
-        // If this fails then something is terribly wrong and we cannot continue
-        seteuid(original_uid).expect("Failed to reset euid back to original");
-    };
+        Ok(rx)
+    }
+}
 
-    let connection = connection_result
-        .map_err(|err| error!("could not connect to DBus: {err}"))
-        .ok()?;
+#[derive(Deserialize)]
+struct GamesResponse {
+    data: Vec<Vec<(i32, String)>>,
+}
 
-    let proxy = GameModeProxy::new(&connection)
-        .await
-        .map_err(|err| info!("could not connect to gamemode: {err}"))
-        .ok()?;
-    let client_count = proxy
-        .client_count()
-        .await
-        .map_err(|err| error!("could not fetch gamemode client count: {err}"))
-        .ok()?;
+#[derive(Deserialize)]
+struct SignalMessage {
+    pub member: String,
+    pub payload: SignalMessagePayload,
+}
 
-    info!("connected to gamemode daemon, games active: {client_count}");
+impl SignalMessage {
+    fn extract_pid(&self) -> Option<i32> {
+        self.payload
+            .data
+            .as_array()
+            .and_then(|arr| arr.first())
+            .and_then(Value::as_i64)
+            .and_then(|val| i32::try_from(val).ok())
+    }
+}
 
-    Some(proxy)
+#[derive(Deserialize)]
+struct SignalMessagePayload {
+    data: Value,
 }
