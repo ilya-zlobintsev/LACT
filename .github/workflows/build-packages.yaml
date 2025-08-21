@@ -89,9 +89,14 @@ jobs:
         bundle: io.github.ilya_zlobintsev.LACT.flatpak
         manifest-path: flatpak/io.github.ilya_zlobintsev.LACT.yaml
         cache-key: flatpak-builder-${{ github.sha }}
+    - name: Upload artifacts
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: flatpak
+        path: io.github.ilya_zlobintsev.LACT.flatpak
 
   create-test-release:
-    needs: build-packages
+    needs: [build-packages, build-flatpak]
     runs-on: ubuntu-latest
     if: (github.event_name == 'push' && github.ref == 'refs/heads/master')
 
@@ -123,7 +128,7 @@ jobs:
         shell: bash
 
   create-stable-release:
-    needs: build-packages
+    needs: [build-packages, build-flatpak]
     runs-on: ubuntu-latest
     if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
 
