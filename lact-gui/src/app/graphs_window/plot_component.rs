@@ -39,6 +39,7 @@ pub struct PlotComponentConfig {
 #[derive(Debug, Clone)]
 pub enum PlotComponentMsg {
     Redraw,
+    FrameRendered,
     UpdatedSelection,
 }
 
@@ -66,6 +67,10 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                     set_cursor: self.get_cursor().as_ref(),
                     #[watch]
                     set_time_period_seconds: self.time_period.value() as i64,
+
+                    connect_frame_rendered[sender] => move || {
+                        sender.input(PlotComponentMsg::FrameRendered);
+                    },
 
                     #[wrap(Clone::clone)]
                     add_controller = &gtk::DragSource {
@@ -188,6 +193,9 @@ impl relm4::factory::FactoryComponent for PlotComponent {
         match msg {
             PlotComponentMsg::Redraw => {
                 widgets.plot.set_dirty(true);
+                widgets.plot.queue_draw();
+            }
+            PlotComponentMsg::FrameRendered => {
                 widgets.plot.queue_draw();
             }
             PlotComponentMsg::UpdatedSelection => {

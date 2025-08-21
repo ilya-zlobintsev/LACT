@@ -19,11 +19,11 @@ pub struct Plot {
     title: RefCell<String>,
     #[property(set)]
     dirty: Cell<bool>,
-    render_thread: RenderThread,
+    pub(super) render_thread: RenderThread,
     #[property(get, set)]
     time_period_seconds: Cell<i64>,
-    pub stats: RefCell<Vec<StatType>>,
-    pub data: RefCell<Arc<RwLock<StatsData>>>,
+    pub(super) stats: RefCell<Vec<StatType>>,
+    pub(super) data: RefCell<Arc<RwLock<StatsData>>>,
 }
 
 #[glib::object_subclass]

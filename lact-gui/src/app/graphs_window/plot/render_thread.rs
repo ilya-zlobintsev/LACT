@@ -9,6 +9,7 @@ use indexmap::IndexSet;
 use plotters::prelude::*;
 use plotters::style::text_anchor::Pos;
 use plotters_cairo::CairoBackend;
+use relm4::tokio::sync::broadcast;
 use std::cmp::{self, max};
 use std::fmt::Write;
 use std::ops::{Deref, DerefMut};
@@ -49,6 +50,7 @@ pub struct RenderThread {
     /// Shared state is between the main thread and the rendering thread.
     state: Arc<RenderThreadState>,
     thread_handle: Option<std::thread::JoinHandle<()>>,
+    render_notifier: broadcast::Sender<()>,
 }
 
 /// Ensure the rendering thread is terminated properly when the RenderThread object is dropped.
@@ -69,12 +71,14 @@ impl Drop for RenderThread {
 impl RenderThread {
     pub fn new() -> Self {
         let state = Arc::new(RenderThreadState::default());
+        let render_tx = broadcast::Sender::new(1);
 
         let thread_handle = std::thread::Builder::new()
             .name("Plot-Renderer".to_owned())
             // Render thread is very unimportant, skipping frames and rendering slowly is ok
             .spawn_with_priority(ThreadPriority::Min, {
                 let state = state.clone();
+                let render_tx = render_tx.clone();
                 move |_| loop {
                     let RenderThreadState {
                         request_condition_variable,
@@ -97,6 +101,7 @@ impl RenderThread {
                         Some(Request::Terminate) => break,
                         None => {}
                     }
+                    let _ = render_tx.send(());
                 }
             })
             .unwrap();
@@ -104,7 +109,12 @@ impl RenderThread {
         Self {
             state,
             thread_handle: Some(thread_handle),
+            render_notifier: render_tx,
         }
+    }
+
+    pub fn render_notifier(&self) -> broadcast::Receiver<()> {
+        self.render_notifier.subscribe()
     }
 
     /// Replace the current render request with a new one (effectively dropping possible pending frame)

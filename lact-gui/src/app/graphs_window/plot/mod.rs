@@ -30,6 +30,15 @@ impl Plot {
     pub fn set_stats(&self, stats: Vec<StatType>) {
         *self.imp().stats.borrow_mut() = stats;
     }
+
+    pub fn connect_frame_rendered<F: Fn() + 'static>(&self, f: F) {
+        let mut rx = self.imp().render_thread.render_notifier();
+        relm4::spawn_local(async move {
+            while let Ok(()) = rx.recv().await {
+                f();
+            }
+        });
+    }
 }
 
 #[derive(Debug)]
