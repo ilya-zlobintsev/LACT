@@ -46,21 +46,24 @@ impl GameModeConnector {
             .ok()
             .flatten()?;
 
-        let gamemode_env = fs::read(process_path.join("environ"))
+        let dbus_addr_env = fs::read(process_path.join("environ"))
             .map_err(|err| error!("could not read gamemode process env: {err}"))
-            .ok()?;
+            .ok()
+            .and_then(|gamemode_env| {
+                gamemode_env
+                    .split(|c| *c == b'\0')
+                    .filter_map(|pair| std::str::from_utf8(pair).ok())
+                    .find(|line| line.starts_with(DBUS_ADDRESS_ENV_PREFIX))
+                    .context("Could not find DBUS env on gamemode process")
+                    .map(str::to_owned)
+                    .ok()
+            })
+            .unwrap_or_else(|| {
+                // Fallback value if actual address can't be read from env
+                format!("{DBUS_ADDRESS_ENV_PREFIX}unix:path=/run/user/{gamemode_uid}/bus")
+            });
 
-        let dbus_addr_env = gamemode_env
-            .split(|c| *c == b'\0')
-            .filter_map(|pair| std::str::from_utf8(pair).ok())
-            .find(|line| line.starts_with(DBUS_ADDRESS_ENV_PREFIX))
-            .context("Could not find DBUS env on gamemode process")
-            .ok()?;
-
-        info!(
-            "attempting to connect to gamemode at user '{}'",
-            gamemode_user.name
-        );
+        info!("attempting to connect to gamemode with '{dbus_addr_env}'");
 
         let mut base_args: Vec<OsString> = vec![];
         let program_name = if *IS_FLATBOX {
