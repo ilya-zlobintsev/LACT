@@ -10,8 +10,6 @@ use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-const SUPERSAMPLE_FACTOR: u32 = 1;
-
 #[derive(Properties, Default)]
 #[properties(wrapper_type = super::Plot)]
 pub struct Plot {
@@ -19,6 +17,8 @@ pub struct Plot {
     title: RefCell<String>,
     #[property(set)]
     dirty: Cell<bool>,
+    #[property(get, set)]
+    print_extra_info: Cell<bool>,
     pub(super) render_thread: RenderThread,
     #[property(get, set)]
     time_period_seconds: Cell<i64>,
@@ -71,7 +71,7 @@ impl WidgetImpl for Plot {
                 height,
                 colors,
                 title: self.title.borrow().clone(),
-                supersample_factor: SUPERSAMPLE_FACTOR,
+                print_extra_info: self.print_extra_info.get(),
                 time_period_seconds: self.time_period_seconds.get(),
             });
         }
@@ -110,8 +110,6 @@ mod benches {
         sync::{Arc, Mutex, RwLock},
     };
 
-    use super::SUPERSAMPLE_FACTOR;
-
     #[divan::bench(sample_size = 10)]
     fn render_plot(bencher: Bencher) {
         let last_texture = &Mutex::new(None);
@@ -126,8 +124,8 @@ mod benches {
                     data,
                     width: 1920,
                     height: 1080,
-                    supersample_factor: SUPERSAMPLE_FACTOR,
                     time_period_seconds: 60,
+                    print_extra_info: false,
                     stats: vec![
                         StatType::GpuClock,
                         StatType::GpuTargetClock,

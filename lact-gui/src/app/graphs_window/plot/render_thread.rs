@@ -25,14 +25,13 @@ enum Request {
 pub struct RenderRequest {
     pub title: String,
 
+    pub print_extra_info: bool,
     pub data: Arc<RwLock<StatsData>>,
     pub stats: Vec<StatType>,
     pub colors: PlotColorScheme,
 
     pub width: u32,
     pub height: u32,
-
-    pub supersample_factor: u32,
 
     pub time_period_seconds: i64,
 }
@@ -144,26 +143,16 @@ pub(super) fn process_request(
     // Create a new ImageSurface for Cairo rendering.
     let mut surface = ImageSurface::create(
         cairo::Format::ARgb32,
-        (render_request.width * render_request.supersample_factor) as i32,
-        (render_request.height * render_request.supersample_factor) as i32,
+        (render_request.width) as i32,
+        render_request.height as i32,
     )
     .unwrap();
 
     let cairo_context = CairoContext::new(&surface).unwrap();
 
-    // Don't use Cairo's default antialiasing, it makes the lines look too blurry
-    // Supersampling is our 2D anti-aliasing solution.
-    if render_request.supersample_factor > 1 {
-        cairo_context.set_antialias(cairo::Antialias::None);
-    }
-
     let cairo_backend = CairoBackend::new(
         &cairo_context,
-        // Supersample the rendering
-        (
-            render_request.width * render_request.supersample_factor,
-            render_request.height * render_request.supersample_factor,
-        ),
+        (render_request.width, render_request.height),
     )
     .unwrap();
 
@@ -291,12 +280,18 @@ impl RenderRequest {
                 .map(|(_, val)| *val)
                 .reduce(f64::max)
                 .unwrap_or(0.0);
+            let avg_value = data.iter().map(|(_, val)| *val).sum::<f64>() / data.len() as f64;
+
             let stat_suffix = stat_type.metric();
 
             let mut stat_label =
                 format!("{}: {current_value:.1}{stat_suffix}", stat_type.display(),);
-            if stat_type.show_peak() {
-                write!(stat_label, ", Peak {max_value:.1}{stat_suffix}").unwrap();
+            if self.print_extra_info {
+                if stat_type.show_peak() {
+                    write!(stat_label, ", Peak {max_value:.1}{stat_suffix}").unwrap();
+                }
+
+                write!(stat_label, ", Avg {avg_value:.1}{stat_suffix}").unwrap();
             }
 
             chart

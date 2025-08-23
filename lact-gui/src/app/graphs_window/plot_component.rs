@@ -1,10 +1,10 @@
-use crate::app::graphs_window::DynamicIndexValue;
-
 use super::{
     plot::Plot,
     stat::{StatType, StatsData},
     GraphsWindowMsg,
 };
+use crate::app::graphs_window::DynamicIndexValue;
+use crate::I18N;
 use gtk::{
     gdk,
     glib::{subclass::types::ObjectSubclassIsExt, types::StaticType, value::ToValue},
@@ -12,8 +12,9 @@ use gtk::{
         AdjustmentExt, BoxExt, ButtonExt, CheckButtonExt, OrientableExt, PopoverExt, WidgetExt,
     },
 };
+use i18n_embed_fl::fl;
 use relm4::{
-    binding::{BoolBinding, F64Binding},
+    binding::{BoolBinding, ConnectBinding, F64Binding},
     factory::positions::GridPosition,
     prelude::{DynamicIndex, FactoryVecDeque},
     RelmObjectExt, RelmWidgetExt,
@@ -25,6 +26,7 @@ pub struct PlotComponent {
     plots_per_row: F64Binding,
     data: Arc<RwLock<StatsData>>,
     edit_mode: BoolBinding,
+    print_extra_info: BoolBinding,
     time_period: gtk::Adjustment,
 }
 
@@ -58,18 +60,31 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
 
-                #[name = "plot"]
-                append = &Plot {
-                    set_data: self.data.clone(),
-                    set_margin_all: 5,
+                gtk::Overlay {
+                    #[name = "plot"]
+                    Plot {
+                        set_data: self.data.clone(),
+                        set_margin_all: 5,
 
-                    #[watch]
-                    set_cursor: self.get_cursor().as_ref(),
-                    #[watch]
-                    set_time_period_seconds: self.time_period.value() as i64,
+                        #[watch]
+                        set_cursor: self.get_cursor().as_ref(),
+                        #[watch]
+                        set_time_period_seconds: self.time_period.value() as i64,
+                        add_binding: (&self.print_extra_info, "print-extra-info"),
 
-                    connect_frame_rendered[sender] => move || {
-                        sender.input(PlotComponentMsg::FrameRendered);
+                        connect_frame_rendered[sender] => move || {
+                            sender.input(PlotComponentMsg::FrameRendered);
+                        },
+                    },
+
+                    add_overlay = &gtk::ToggleButton {
+                        set_halign: gtk::Align::End,
+                        set_valign: gtk::Align::Start,
+                        set_margin_all: 20,
+                        set_icon_name: "info-symbolic",
+                        set_tooltip: &fl!(I18N, "plot-show-detailed-info"),
+                        set_opacity: 0.8,
+                        bind: &self.print_extra_info,
                     },
 
                     #[wrap(Clone::clone)]
@@ -175,11 +190,17 @@ impl relm4::factory::FactoryComponent for PlotComponent {
 
         sender.input(PlotComponentMsg::UpdatedSelection);
 
+        let print_extra_info = BoolBinding::new(false);
+        print_extra_info.connect_value_notify(move |_| {
+            sender.input(PlotComponentMsg::Redraw);
+        });
+
         Self {
             stats,
             plots_per_row: init.plots_per_row,
             data: init.data,
             edit_mode: init.edit_mode,
+            print_extra_info,
             time_period: init.time_period,
         }
     }
