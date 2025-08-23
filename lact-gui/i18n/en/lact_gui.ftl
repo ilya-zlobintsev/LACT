@@ -167,6 +167,8 @@ enable-pstate-config = Enable power state configuration
 show-historical-charts = Show historical charts
 show-process-montor = Show process monitor
 
+plot-show-detailed-info = Show detailed info
+
 settings-profile = Settings Profile
 auto-switch-profiles = Switch automatically
 add-profile = Add new profile
