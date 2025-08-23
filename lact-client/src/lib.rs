@@ -28,7 +28,7 @@ use tokio::{
 use tracing::{error, info, trace};
 
 const STATUS_MSG_CHANNEL_SIZE: usize = 16;
-const RECONNECT_INTERVAL_MS: u64 = 250;
+const RECONNECT_INTERVAL_MS: u64 = 500;
 
 #[derive(Clone)]
 pub struct DaemonClient {

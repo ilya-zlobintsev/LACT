@@ -23,7 +23,7 @@ use confirmation_dialog::ConfirmationDialog;
 use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
-    glib::{self, clone, ControlFlow},
+    glib::{self, clone, object::ObjectExt, ControlFlow},
     prelude::{
         BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
         OrientableExt, WidgetExt,
@@ -57,6 +57,7 @@ use relm4::{
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio::{self, time::sleep},
     AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
+    RelmWidgetExt,
 };
 use relm4_components::{
     open_dialog::{OpenDialog, OpenDialogMsg, OpenDialogResponse, OpenDialogSettings},
@@ -147,15 +148,21 @@ impl AsyncComponent for AppModel {
             },
 
         #[name = "reconnecting_dialog"]
-        gtk::MessageDialog::new(
-            Some(&root),
-            gtk::DialogFlags::MODAL,
-            gtk::MessageType::Error,
-            gtk::ButtonsType::None,
-            "Daemon connection lost, reconnecting...",
-        ) -> gtk::MessageDialog {
-            set_title: Some("Connection Lost"),
-        }
+        gtk::Window {
+            set_transient_for: Some(&root),
+            set_modal: true,
+            set_title: Some(&fl!(I18N, "daemon-connection-lost")),
+            set_destroy_with_parent: true,
+            connect_close_request[root] => move |_| {
+                root.close();
+                glib::Propagation::Stop
+            },
+
+            gtk::Label {
+                set_margin_all: 10,
+                set_label: &fl!(I18N, "reconnecting-to-daemon"),
+            }
+        },
     }
 
     async fn init(

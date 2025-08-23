@@ -167,6 +167,9 @@ enable-pstate-config = Enable power state configuration
 show-historical-charts = Show historical charts
 show-process-montor = Show process monitor
 
+reconnecting-to-daemon = Daemon connection lost, reconnecting...
+daemon-connection-lost = Connection Lost
+
 plot-show-detailed-info = Show detailed info
 
 settings-profile = Settings Profile
