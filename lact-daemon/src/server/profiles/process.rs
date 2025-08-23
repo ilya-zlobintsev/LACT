@@ -1,7 +1,7 @@
 use super::ProfileWatcherEvent;
 use lact_schema::{ProfileProcessInfo, ProfileWatcherState};
 use libcopes::{ProcessEventsConnector, PID};
-use std::fs;
+use std::{ffi::OsString, fs};
 use tokio::sync::mpsc;
 use tracing::{debug, error};
 
@@ -63,8 +63,15 @@ pub fn start_listener(event_tx: mpsc::Sender<ProfileWatcherEvent>) {
 }
 
 pub fn get_pid_info(pid: PID) -> std::io::Result<ProfileProcessInfo> {
-    let exe = libcopes::io::exe_reader(pid)?;
     let cmdline = libcopes::io::cmdline_reader(pid)?;
+    let exe = libcopes::io::exe_reader(pid).unwrap_or_else(|_| {
+        let arg0 = cmdline.as_ref().first().cloned().unwrap_or_default();
+        arg0.to_str()
+            .and_then(|arg| arg.split('/').last())
+            .map(OsString::from)
+            .unwrap_or(arg0)
+            .into()
+    });
     let name = libcopes::get_process_executed_file(exe, &cmdline)
         .to_string()
         .into();
