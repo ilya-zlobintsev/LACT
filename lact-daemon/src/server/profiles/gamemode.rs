@@ -5,7 +5,7 @@ use libcopes::{PEvent, PID};
 use nix::unistd::{Uid, User};
 use serde::Deserialize;
 use serde_json::Value;
-use std::{ffi::OsString, os::unix::fs::MetadataExt, path::PathBuf, process::Stdio, rc::Rc};
+use std::{ffi::OsString, fs, os::unix::fs::MetadataExt, path::PathBuf, process::Stdio, rc::Rc};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
@@ -16,6 +16,7 @@ use tracing::{debug, error, info, warn};
 
 pub const PROCESS_NAME: &str = "gamemoded";
 const INTERFACE_NAME: &str = "com.feralinteractive.GameMode";
+const DBUS_ADDRESS_ENV_PREFIX: &str = "DBUS_SESSION_BUS_ADDRESS=";
 
 pub struct GameModeConnector {
     program_name: OsString,
@@ -45,23 +46,36 @@ impl GameModeConnector {
             .ok()
             .flatten()?;
 
+        let gamemode_env = fs::read(process_path.join("environ"))
+            .map_err(|err| error!("could not read gamemode process env: {err}"))
+            .ok()?;
+
+        let dbus_addr_env = gamemode_env
+            .split(|c| *c == b'\0')
+            .filter_map(|pair| std::str::from_utf8(pair).ok())
+            .find(|line| line.starts_with(DBUS_ADDRESS_ENV_PREFIX))
+            .context("Could not find DBUS env on gamemode process")
+            .ok()?;
+
         info!(
-            "attempting to connect to gamemode at user {}",
+            "attempting to connect to gamemode at user '{}'",
             gamemode_user.name
         );
 
         let mut base_args: Vec<OsString> = vec![];
         let program_name = if *IS_FLATBOX {
-            base_args.extend_from_slice(&["--host".into(), "busctl".into()]);
+            base_args.extend_from_slice(&["--host".into(), "sudo".into()]);
             "flatpak-spawn"
         } else {
-            "busctl"
+            "sudo"
         };
 
         base_args.extend_from_slice(&[
+            "-u".into(),
+            gamemode_user.name.into(),
+            dbus_addr_env.into(),
+            "busctl".into(),
             "--user".into(),
-            "--machine".into(),
-            format!("{}@", gamemode_user.name).into(),
             "--json".into(),
             "short".into(),
         ]);
@@ -73,15 +87,15 @@ impl GameModeConnector {
     }
 
     pub async fn list_games(&self) -> anyhow::Result<Vec<i32>> {
-        let output = Command::new(&self.program_name)
-            .args(&self.base_args)
+        let mut cmd = Command::new(&self.program_name);
+        cmd.args(&self.base_args)
             .arg("call")
             .arg(INTERFACE_NAME)
             .arg("/com/feralinteractive/GameMode")
             .arg(INTERFACE_NAME)
-            .arg("ListGames")
-            .output()
-            .await?;
+            .arg("ListGames");
+        debug!("running {cmd:?}");
+        let output = cmd.output().await?;
         let response: GamesResponse =
             serde_json::from_slice(&output.stdout).with_context(|| {
                 format!(
