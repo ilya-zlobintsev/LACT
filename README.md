@@ -14,16 +14,34 @@ system.
 | Software info                     | Historical data                   |                                   |
 | ![image](./res/screenshots/4.png) | ![image](./res/screenshots/5.png) |                                   |
 
-Current features:
+### Features:
 
-- Viewing information about the GPU
-- Power and thermals monitoring, power limit configuration
-- Fan curve control (AMD and Nvidia)
-- Overclocking (GPU/VRAM clockspeed and voltage)
-- Power states configuration (AMD only)
+- #### Detailed GPU information reporting
+  - Name and manufcaturer
+  - VBIOS info
+  - VRAM info (Type/Manufacturer/Bus)
+  - Hardware unit info (CUs/SMs/EUs, ROP count)
+  - Resizable BAR status
+  - Vulkan features and extensions
+- #### Monitoring
+  - Configurable historical charts for power/thermals/frequency
+  - Throttling info
+  - Data CSV export
+- #### Power configuration
+  - Power cap
+  - Power states (AMD only)
+- #### Thermals configuration
+  - Custom fan curves (AMD/Nvidia)
+  - GPU firmware thermal options such as thermal and acoustic target/limit (AMD RDNA3+ only)
+- #### Overclocking
+  - GPU/VRAM clocks configuration
+  - GPU undervolting (via voltage offset on AMD, [indirectly](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions#how-to-undervolt-nvidia-gpus) on Nvidia)
+- #### Settings profiles
+  - Automatic profile activation based on running processes or gamemode status
 
-All of the functionality works regardless of the desktop session (there is no
-dependency on X11 extensions).
+GPU configuration is handled by a system service that does not depend on a graphical session (Wayland/X11).
+
+The service can also be used standalone with a config file, for example in headless scenarios.
 
 # Quick links
 
@@ -35,6 +53,8 @@ dependency on X11 extensions).
 - [API](./docs/API.md)
 - [Power profiles daemon note](#power-profiles-daemon-note)
 - [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock)
+- [Contribute translations](#localization)
+- [Support the project](#support-the-project)
 
 # Installation
 
