@@ -195,3 +195,6 @@ amd-oc-description =
     }
 
     Veja <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">a wiki</a> para mais informações.
+reconnecting-to-daemon = Conexão do daemon perdida, reconectando...
+daemon-connection-lost = Conexão perdida
+plot-show-detailed-info = Mostrar informações detalhadas
