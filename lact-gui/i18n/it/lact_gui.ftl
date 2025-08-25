@@ -195,3 +195,6 @@ save = Salva
 edit-rule = Modifica Regola
 remove-rule = Rimuovi Regola
 default-profile = Predefinito
+reconnecting-to-daemon = Connessione al demone persa, riconnnessione in corso...
+daemon-connection-lost = Connessione Persa
+plot-show-detailed-info = Mostra informazioni dettagliate
