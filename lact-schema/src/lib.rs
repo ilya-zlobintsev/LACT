@@ -94,7 +94,7 @@ impl Display for DeviceListEntry {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq)]
 pub enum DeviceType {
     #[default]
     Dedicated,

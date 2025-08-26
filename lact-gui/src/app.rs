@@ -23,7 +23,7 @@ use confirmation_dialog::ConfirmationDialog;
 use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
-    glib::{self, clone, object::ObjectExt, ControlFlow},
+    glib::{self, clone, ControlFlow},
     prelude::{
         BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
         OrientableExt, WidgetExt,

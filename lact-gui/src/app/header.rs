@@ -14,7 +14,7 @@ use gtk::prelude::*;
 use gtk::*;
 use i18n_embed_fl::fl;
 use lact_client::schema::DeviceListEntry;
-use lact_schema::ProfilesInfo;
+use lact_schema::{DeviceType, ProfilesInfo};
 use new_profile_dialog::NewProfileDialog;
 use profile_rename_dialog::ProfileRenameDialog;
 use profile_row::{ProfileRow, ProfileRowType};
@@ -188,15 +188,33 @@ impl Component for Header {
                 }
             ));
 
-        if let Some(selected_gpu_id) = &CONFIG.read().selected_gpu {
-            for idx in 0..gpu_selector.len() {
-                let gpu_item = gpu_selector.get(idx).unwrap();
-                if gpu_item.borrow().0.id == *selected_gpu_id {
-                    debug!("selecting gpu id {selected_gpu_id}");
-                    gpu_selector.selection_model.set_selected(idx);
-                    break;
+        let idx = CONFIG
+            .read()
+            .selected_gpu
+            .as_ref()
+            .and_then(|selected_gpu_id| {
+                for idx in 0..gpu_selector.len() {
+                    let gpu_item = gpu_selector.get(idx).unwrap();
+                    if gpu_item.borrow().0.id == *selected_gpu_id {
+                        debug!("selecting gpu id {selected_gpu_id}");
+                        return Some(idx);
+                    }
                 }
-            }
+                None
+            })
+            .or_else(|| {
+                for idx in 0..gpu_selector.len() {
+                    let gpu_item = gpu_selector.get(idx).unwrap();
+                    if gpu_item.borrow().0.device_type == DeviceType::Dedicated {
+                        debug!("selecting default dedicated gpu {}", gpu_item.borrow().0.id);
+                        return Some(idx);
+                    }
+                }
+                None
+            });
+
+        if let Some(idx) = idx {
+            gpu_selector.selection_model.set_selected(idx);
         }
 
         let profile_selector = FactoryVecDeque::<ProfileRow>::builder()
