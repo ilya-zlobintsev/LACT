@@ -5,7 +5,8 @@
     unused,
     clippy::too_many_arguments,
     clippy::pedantic,
-    clippy::upper_case_acronyms
+    clippy::upper_case_acronyms,
+    clippy::ptr_offset_with_cast
 )]
 
 pub mod intel {
