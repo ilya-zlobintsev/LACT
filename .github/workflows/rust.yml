@@ -9,17 +9,11 @@ env:
 
 jobs:
   build-test:
-    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     runs-on: ubuntu-24.04
-
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     steps:
       - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
-      - name: Update repos
-        run: sudo apt update
-      - name: Install dependencies
-        run: sudo apt install -y libgtk-4-dev pkg-config libvulkan-dev libdrm-dev curl fuse3 libfuse-dev ocl-icd-libopencl1 ocl-icd-opencl-dev
-      - name: Update pci.ids
-        run: sudo curl -o /usr/share/hwdata/pci.ids https://pci-ids.ucw.cz/v2.2/pci.ids
+      - uses: ./.github/actions/setup-environment
       - name: Build
         run: cargo build
       - name: Run tests
@@ -30,7 +24,18 @@ jobs:
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     steps:
       - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
-      - name: install rustfmt
+      - name: Install rustfmt
         run: rustup component add rustfmt
       - name: Check formatting
         run: cargo fmt -- --check
+
+  check-clippy:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: ./.github/actions/setup-environment
+      - name: Install clippy
+        run: rustup component add clippy
+      - name: Run clippy
+        run: cargo clippy --verbose
