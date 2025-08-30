@@ -404,7 +404,7 @@ impl GpuController for NvidiaGpuController {
                         .and_then(|v| v.as_integer())
                         .map(|v| {
                             let mut output = format!("{} GT/s", v / 1000);
-                            if let Ok(gen) = device.current_pcie_link_gen() {
+                            if let Ok(gen) = device.max_pcie_link_gen() {
                                 let _ = write!(output, " Gen {gen}");
                             }
                             output
