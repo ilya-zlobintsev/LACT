@@ -39,3 +39,15 @@ jobs:
         run: rustup component add clippy
       - name: Run clippy
         run: cargo clippy --verbose
+
+  check-audit:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: ./.github/actions/setup-environment
+      - name: Run cargo audit
+        uses: simonhyll/cargo-audit@v1
+        with:
+          fix: false
+          deny: true
