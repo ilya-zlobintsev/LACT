@@ -12,3 +12,5 @@ runs:
     - name: Update pci.ids
       run: sudo curl -o /usr/share/hwdata/pci.ids https://pci-ids.ucw.cz/v2.2/pci.ids
       shell: bash
+    # A GitHub Action that implements smart caching for rust/cargo projects with sensible defaults.
+    - uses: Swatinem/rust-cache@v2
