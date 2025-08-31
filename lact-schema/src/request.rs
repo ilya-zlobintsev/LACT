@@ -99,7 +99,7 @@ pub enum Request<'a> {
     },
     SetGpuConfig {
         id: &'a str,
-        config: GpuConfig,
+        config: Box<GpuConfig>,
     },
     ProcessList {
         id: &'a str,

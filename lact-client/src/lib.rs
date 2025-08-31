@@ -180,8 +180,11 @@ impl DaemonClient {
     }
 
     pub async fn set_gpu_config(&self, id: &str, config: GpuConfig) -> anyhow::Result<u64> {
-        self.make_request(Request::SetGpuConfig { id, config })
-            .await
+        self.make_request(Request::SetGpuConfig {
+            id,
+            config: Box::new(config),
+        })
+        .await
     }
 
     pub async fn set_clocks_value(

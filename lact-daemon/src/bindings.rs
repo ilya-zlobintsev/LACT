@@ -3,6 +3,8 @@
     non_camel_case_types,
     non_snake_case,
     unused,
+    unknown_lints,
+    unnecessary_transmutes,
     clippy::too_many_arguments,
     clippy::pedantic,
     clippy::upper_case_acronyms,

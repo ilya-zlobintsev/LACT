@@ -1379,7 +1379,7 @@ fn apply_clocks_config_to_table(
                 }
             }
             ClocksTableGen::Rdna(_) => bail!("VRAM VF curve not supported"),
-        };
+        }
     }
 
     Ok(())

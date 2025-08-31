@@ -67,7 +67,7 @@ pub fn get_pid_info(pid: PID) -> std::io::Result<ProfileProcessInfo> {
     let exe = libcopes::io::exe_reader(pid).unwrap_or_else(|_| {
         let arg0 = cmdline.as_ref().first().cloned().unwrap_or_default();
         arg0.to_str()
-            .and_then(|arg| arg.split('/').last())
+            .and_then(|arg| arg.split('/').next_back())
             .map(OsString::from)
             .unwrap_or(arg0)
             .into()

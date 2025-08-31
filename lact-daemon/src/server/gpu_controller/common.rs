@@ -15,7 +15,7 @@ pub fn resolve_process_name(pid: PID) -> io::Result<(String, String)> {
             let args = cmdline.as_ref();
             args.first().and_then(|arg| arg.to_str()).map_or_else(
                 || "<Unknown>".to_owned(),
-                |arg| arg.split('/').last().unwrap_or(arg).to_owned(),
+                |arg| arg.split('/').next_back().unwrap_or(arg).to_owned(),
             )
         }
     };
