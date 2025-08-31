@@ -112,18 +112,18 @@ async fn disable_conflicting_actions(
     default_path = "/org/freedesktop/UPower/PowerProfiles"
 )]
 trait PowerProfilesDaemon {
-    /// SetActionEnabled method
+    /// `SetActionEnabled` method
     fn set_action_enabled(&self, action: &str, enabled: bool) -> zbus::Result<()>;
 
     /// Actions property
     #[zbus(property)]
     fn actions(&self) -> zbus::Result<Vec<String>>;
 
-    /// ActionsInfo property
+    /// `ActionsInfo` property
     #[zbus(property)]
     fn actions_info(&self) -> zbus::Result<Vec<std::collections::HashMap<String, OwnedValue>>>;
 
-    /// ActiveProfile property
+    /// `ActiveProfile` property
     #[zbus(property)]
     fn active_profile(&self) -> zbus::Result<String>;
 

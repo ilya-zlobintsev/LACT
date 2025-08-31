@@ -255,7 +255,7 @@ pub async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<Output> {
     } else {
         command = Command::new(exec);
         command.args(args);
-    };
+    }
 
     let output = command.output().await.context("Could not run command")?;
     if output.status.success() {

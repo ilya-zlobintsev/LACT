@@ -35,7 +35,7 @@ unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Err
         items_ptr: ptr::from_ref(&query_item) as u64,
     };
 
-    i915_query(fd, &mut query)?;
+    i915_query(fd, &raw mut query)?;
 
     if query_item.length <= 0 {
         return Ok(None);
@@ -48,7 +48,7 @@ unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Err
 
     query_item.data_ptr = data as u64;
 
-    i915_query(fd, &mut query)?;
+    i915_query(fd, &raw mut query)?;
 
     Ok(Some(DrmBox { data, layout }))
 }

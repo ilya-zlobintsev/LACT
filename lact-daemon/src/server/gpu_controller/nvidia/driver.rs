@@ -58,7 +58,7 @@ impl DriverHandle {
 
         let client_handle: NvHandle = unsafe {
             let mut client_request: NVOS21_PARAMETERS = mem::zeroed();
-            rm_alloc_nvos21(nvidiactl_fd.as_raw_fd(), &mut client_request)?;
+            rm_alloc_nvos21(nvidiactl_fd.as_raw_fd(), &raw mut client_request)?;
             client_request.hObjectNew
         };
 
@@ -85,7 +85,7 @@ impl DriverHandle {
                 status: 0,
             };
 
-            rm_alloc_nvos64(nvidiactl_fd.as_raw_fd(), &mut request)?;
+            rm_alloc_nvos64(nvidiactl_fd.as_raw_fd(), &raw mut request)?;
 
             if request.status != 0 {
                 bail!(
@@ -112,7 +112,7 @@ impl DriverHandle {
                 status: 0,
             };
 
-            rm_alloc_nvos64(nvidiactl_fd.as_raw_fd(), &mut request)?;
+            rm_alloc_nvos64(nvidiactl_fd.as_raw_fd(), &raw mut request)?;
 
             if request.status != 0 {
                 bail!(
@@ -240,7 +240,7 @@ impl DriverHandle {
             status: 0,
         };
         unsafe {
-            rm_control_nvos54(self.nvidiactl_fd.as_raw_fd(), &mut request)?;
+            rm_control_nvos54(self.nvidiactl_fd.as_raw_fd(), &raw mut request)?;
         }
 
         if request.status != 0 {

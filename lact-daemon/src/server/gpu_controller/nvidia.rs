@@ -480,7 +480,7 @@ impl GpuController for NvidiaGpuController {
                     crit_hyst: None,
                 },
             );
-        };
+        }
 
         let mut voltage = None;
 

@@ -198,7 +198,7 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
         }
         Request::GetGpuConfig { id } => ok_response(handler.get_gpu_config(id).await?),
         Request::SetGpuConfig { id, config } => {
-            ok_response(handler.set_gpu_config(id, config).await?)
+            ok_response(handler.set_gpu_config(id, *config).await?)
         }
         Request::ProcessList { id } => ok_response(handler.process_list(id).await?),
         Request::EnableOverdrive => ok_response(system::enable_overdrive().await?),

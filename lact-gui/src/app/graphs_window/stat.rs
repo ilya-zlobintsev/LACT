@@ -178,7 +178,7 @@ impl StatsData {
             .iter()
             .flat_map(|(_, stats)| stats)
             .map(|(date_time, _)| *date_time)
-            .last()
+            .next_back()
             .unwrap_or_default();
 
         self.throttling.retain(|section| {

@@ -22,7 +22,7 @@ unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Err
         extensions: 0,
         reserved: [0, 0],
     };
-    xe_device_query(fd, &mut query)?;
+    xe_device_query(fd, &raw mut query)?;
 
     if query.size == 0 {
         return Ok(None);
@@ -34,7 +34,7 @@ unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Err
 
     query.data = data as u64;
 
-    xe_device_query(fd, &mut query)?;
+    xe_device_query(fd, &raw mut query)?;
 
     Ok(Some(DrmBox { data, layout }))
 }

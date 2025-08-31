@@ -283,7 +283,7 @@ impl SummaryDeviceEntry<'_> {
     }
 }
 
-fn parse_summary(summary: &str) -> Vec<SummaryDeviceEntry> {
+fn parse_summary(summary: &str) -> Vec<SummaryDeviceEntry<'_>> {
     let mut lines = summary.lines();
     let mut devices = vec![];
 
