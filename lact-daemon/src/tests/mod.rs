@@ -75,7 +75,7 @@ async fn apply_settings() {
                             device_dir.file_name().to_string_lossy()
                         );
                         let raw_gpu_config = fs::read_to_string(entry.path()).unwrap();
-                        let gpu_config: GpuConfig = serde_yml::from_str(&raw_gpu_config).unwrap();
+                        let gpu_config: GpuConfig = serde_yaml::from_str(&raw_gpu_config).unwrap();
 
                         let mock_fs_dir = tempdir().unwrap();
 
