@@ -80,7 +80,10 @@ impl Default for Daemon {
         Self {
             log_level: "info".to_owned(),
             admin_user,
+            #[cfg(not(miri))]
             admin_group: find_existing_group(&DEFAULT_ADMIN_GROUPS),
+            #[cfg(miri)]
+            admin_group: None,
             admin_groups: vec![],
             disable_clocks_cleanup: false,
             tcp_listen_address: None,
@@ -432,6 +435,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn parse_doc() {
         let doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../docs/CONFIG.md"));
         let example_config_start = doc

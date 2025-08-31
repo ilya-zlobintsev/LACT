@@ -19,6 +19,7 @@ fn init_tracing() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore)]
 async fn snapshot_everything() {
     init_tracing();
 
@@ -53,6 +54,7 @@ async fn snapshot_everything() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore)]
 async fn apply_settings() {
     init_tracing();
 
