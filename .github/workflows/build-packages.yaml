@@ -33,6 +33,9 @@ jobs:
         run: |
           curl -L -o /usr/local/bin/pkger https://github.com/ilya-zlobintsev/pkger/releases/download/v0.11.1/pkger
           chmod +x /usr/local/bin/pkger
+      
+      # A GitHub Action that implements smart caching for rust/cargo projects with sensible defaults.
+      - uses: Swatinem/rust-cache@v2
 
       - name: Build packages (with signing)
         if: ${{ contains(matrix.target-os, 'fedora') && env.GPG_KEY_PASSWORD != '' }}
