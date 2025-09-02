@@ -3068,6 +3068,19 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/serde_norway/serde_norway-0.9.42.crate",
+        "sha256": "e408f29489b5fd500fab51ff1484fc859bb655f32c671f307dcd733b72e8168c",
+        "dest": "cargo/vendor/serde_norway-0.9.42"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": \"e408f29489b5fd500fab51ff1484fc859bb655f32c671f307dcd733b72e8168c\", \"files\": {}}",
+        "dest": "cargo/vendor/serde_norway-0.9.42",
+        "dest-filename": ".cargo-checksum.json"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/serde_repr/serde_repr-0.1.20.crate",
         "sha256": "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c",
         "dest": "cargo/vendor/serde_repr-0.1.20"
@@ -3115,19 +3128,6 @@
         "type": "inline",
         "contents": "{\"package\": \"de90945e6565ce0d9a25098082ed4ee4002e047cb59892c318d66821e14bb30f\", \"files\": {}}",
         "dest": "cargo/vendor/serde_with_macros-3.14.0",
-        "dest-filename": ".cargo-checksum.json"
-    },
-    {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/serde_yaml/serde_yaml-0.9.34+deprecated.crate",
-        "sha256": "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47",
-        "dest": "cargo/vendor/serde_yaml-0.9.34+deprecated"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": \"6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47\", \"files\": {}}",
-        "dest": "cargo/vendor/serde_yaml-0.9.34+deprecated",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -3757,14 +3757,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/unsafe-libyaml/unsafe-libyaml-0.2.11.crate",
-        "sha256": "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861",
-        "dest": "cargo/vendor/unsafe-libyaml-0.2.11"
+        "url": "https://static.crates.io/crates/unsafe-libyaml-norway/unsafe-libyaml-norway-0.2.15.crate",
+        "sha256": "b39abd59bf32521c7f2301b52d05a6a2c975b6003521cbd0c6dc1582f0a22104",
+        "dest": "cargo/vendor/unsafe-libyaml-norway-0.2.15"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861\", \"files\": {}}",
-        "dest": "cargo/vendor/unsafe-libyaml-0.2.11",
+        "contents": "{\"package\": \"b39abd59bf32521c7f2301b52d05a6a2c975b6003521cbd0c6dc1582f0a22104\", \"files\": {}}",
+        "dest": "cargo/vendor/unsafe-libyaml-norway-0.2.15",
         "dest-filename": ".cargo-checksum.json"
     },
     {

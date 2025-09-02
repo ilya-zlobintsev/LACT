@@ -98,7 +98,7 @@ impl Config {
         if path.exists() {
             let raw_config = fs::read_to_string(path).context("Could not open config file")?;
             let config =
-                serde_yaml::from_str(&raw_config).context("Could not deserialize config")?;
+                serde_norway::from_str(&raw_config).context("Could not deserialize config")?;
             Ok(Some(config))
         } else {
             let parent = path.parent().unwrap();
@@ -122,7 +122,7 @@ impl Config {
 
         #[cfg(not(test))]
         {
-            let raw_config = serde_yaml::to_string(self)?;
+            let raw_config = serde_norway::to_string(self)?;
             fs::write(path, raw_config).context("Could not write config")?;
         }
 
@@ -429,8 +429,8 @@ mod tests {
             .into(),
             ..Default::default()
         };
-        let data = serde_yaml::to_string(&config).unwrap();
-        let deserialized_config: Config = serde_yaml::from_str(&data).unwrap();
+        let data = serde_norway::to_string(&config).unwrap();
+        let deserialized_config: Config = serde_norway::from_str(&data).unwrap();
         assert_eq!(config, deserialized_config);
     }
 
@@ -448,7 +448,7 @@ mod tests {
             + example_config_start;
         let example_config = &doc[example_config_start..example_config_end];
 
-        let deserialized_config: Config = serde_yaml::from_str(example_config).unwrap();
+        let deserialized_config: Config = serde_norway::from_str(example_config).unwrap();
         assert_yaml_snapshot!(deserialized_config);
     }
 

@@ -31,7 +31,7 @@ tokio = { workspace = true, features = [
 futures = { workspace = true }
 indexmap = { workspace = true }
 divan = { workspace = true, optional = true }
-serde_yaml = { workspace = true }
+serde_norway = { workspace = true }
 
 nvml-wrapper = "0.11.0"
 bitflags = "2.6.0"
