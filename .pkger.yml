@@ -8,30 +8,30 @@ gpg_key: /tmp/package-signing-key.gpg
 gpg_name: Ilya Zlobintsev
 ssh: ~
 images:
-  - name: debian-12
-    target: deb
-    os: Debian
-  - name: fedora-41
-    target: rpm
-  - name: fedora-42
-    target: rpm
-    os: Fedora
-  - name: ubuntu-2204
-    target: deb
-    os: Ubuntu
-  - name: ubuntu-2404
-    target: deb
-    os: Ubuntu
-  - name: arch
-    target: pkg
-    os: Arch Linux
+  # - name: debian-12
+  #   target: deb
+  #   os: Debian
+  # - name: fedora-41
+  #   target: rpm
+  # - name: fedora-42
+  #   target: rpm
+  #   os: Fedora
+  # - name: ubuntu-2204
+  #   target: deb
+  #   os: Ubuntu
+  # - name: ubuntu-2404
+  #   target: deb
+  #   os: Ubuntu
+  # - name: arch
+  #   target: pkg
+  #   os: Arch Linux
   - name: opensuse-tumbleweed
     target: rpm
     os: OpenSUSE
-  - name: rhel-8
-    target: rpm
-    os: Red Hat
-  - name: rhel-9
-    target: rpm
-    os: Red Hat
+  # - name: rhel-8
+  #   target: rpm
+  #   os: Red Hat
+  # - name: rhel-9
+  #   target: rpm
+  #   os: Red Hat
 custom_simple_images: ~
