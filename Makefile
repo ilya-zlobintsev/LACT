@@ -5,20 +5,41 @@ PREFIX ?= /usr/local
 
 .PHONY: build-release
 build-release:
-	cargo build -p lact --release
+	# Build PGO-instrumented binary
+	cargo pgo build -p lact --release
+	# Run benchmarks to gather PGO profiles
+	cargo pgo bench -p lact --release
+	# Run benchmarks to show results
+	cargo pgo optimize bench -p lact --release
+	# Optimize binary with PGO
+	cargo pgo optimize -p lact --release
 
 .PHONY: build-debug
 build-debug:
 	cargo build -p lact
-	
+
 .PHONY: build-release-libadwaita
 build-release-libadwaita:
-	cargo build -p lact --release --features=adw
-	
+	# Build PGO-instrumented binary with libadwaita features
+	cargo pgo build -p lact --release --features=adw
+	# Run benchmarks to gather PGO profiles
+	cargo pgo bench -p lact --release --features=adw
+	# Run benchmarks to show results
+	cargo pgo optimize bench -p lact --release --features=adw
+	# Optimize binary with PGO
+	cargo pgo optimize -p lact --release --features=adw
+
 .PHONY: build-release-headless
 build-release-headless:
-	cargo build -p lact --release --no-default-features --features=nvidia
-	
+	# Build PGO-instrumented binary with headless (nvidia) features
+	cargo pgo build -p lact --release --no-default-features --features=nvidia
+	# Run benchmarks to gather PGO profiles
+	cargo pgo bench -p lact --release --no-default-features --features=nvidia
+	# Run benchmarks to show results
+	cargo pgo optimize bench -p lact --release --no-default-features --features=nvidia
+	# Optimize binary with PGO
+	cargo pgo optimize -p lact --release --no-default-features --features=nvidia
+
 .PHONY: install-resources
 install-resources:
 	install -Dm644 res/lactd.service $(DESTDIR)$(PREFIX)/lib/systemd/system/lactd.service
@@ -30,7 +51,7 @@ install-resources:
 .PHONY: install
 install: install-resources
 	install -Dm755 target/release/lact $(DESTDIR)$(PREFIX)/bin/lact
-	
+
 .PHONY: install-debug
 install-debug: install-resources
 	install -Dm755 target/debug/lact $(DESTDIR)$(PREFIX)/bin/lact
