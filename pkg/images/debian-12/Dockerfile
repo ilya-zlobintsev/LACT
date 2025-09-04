@@ -1,1 +1,1 @@
-FROM quay.io/lib/debian:12
+FROM docker.io/debian:bookworm

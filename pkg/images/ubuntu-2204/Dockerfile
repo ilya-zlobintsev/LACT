@@ -1,1 +1,1 @@
-FROM quay.io/lib/ubuntu:22.04
+FROM docker.io/ubuntu:22.04
