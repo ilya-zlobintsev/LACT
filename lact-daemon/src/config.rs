@@ -80,7 +80,10 @@ impl Default for Daemon {
         Self {
             log_level: "info".to_owned(),
             admin_user,
+            #[cfg(not(miri))]
             admin_group: find_existing_group(&DEFAULT_ADMIN_GROUPS),
+            #[cfg(miri)]
+            admin_group: None,
             admin_groups: vec![],
             disable_clocks_cleanup: false,
             tcp_listen_address: None,
@@ -95,7 +98,7 @@ impl Config {
         if path.exists() {
             let raw_config = fs::read_to_string(path).context("Could not open config file")?;
             let config =
-                serde_yml::from_str(&raw_config).context("Could not deserialize config")?;
+                serde_norway::from_str(&raw_config).context("Could not deserialize config")?;
             Ok(Some(config))
         } else {
             let parent = path.parent().unwrap();
@@ -119,7 +122,7 @@ impl Config {
 
         #[cfg(not(test))]
         {
-            let raw_config = serde_yml::to_string(self)?;
+            let raw_config = serde_norway::to_string(self)?;
             fs::write(path, raw_config).context("Could not write config")?;
         }
 
@@ -426,12 +429,13 @@ mod tests {
             .into(),
             ..Default::default()
         };
-        let data = serde_yml::to_string(&config).unwrap();
-        let deserialized_config: Config = serde_yml::from_str(&data).unwrap();
+        let data = serde_norway::to_string(&config).unwrap();
+        let deserialized_config: Config = serde_norway::from_str(&data).unwrap();
         assert_eq!(config, deserialized_config);
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn parse_doc() {
         let doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../docs/CONFIG.md"));
         let example_config_start = doc
@@ -444,7 +448,7 @@ mod tests {
             + example_config_start;
         let example_config = &doc[example_config_start..example_config_end];
 
-        let deserialized_config: Config = serde_yml::from_str(example_config).unwrap();
+        let deserialized_config: Config = serde_norway::from_str(example_config).unwrap();
         assert_yaml_snapshot!(deserialized_config);
     }
 

@@ -1024,10 +1024,16 @@ async fn apply_config_to_controllers(
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(miri)))]
 pub(crate) fn read_pci_db() -> Database {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/data/pci.ids");
     Database::read_from_file(&path).unwrap()
+}
+
+#[cfg(all(test, miri))]
+pub(crate) fn read_pci_db() -> Database {
+    let bytes = include_bytes!("../../src/tests/data/pci.ids");
+    Database::parse_db(std::io::Cursor::new(bytes)).unwrap()
 }
 
 #[cfg(not(test))]

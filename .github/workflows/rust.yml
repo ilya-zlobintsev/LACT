@@ -70,3 +70,22 @@ jobs:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
+
+  test-miri:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+    - uses: ./.github/actions/setup-environment
+    - name: Install Nightly Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        # Miri requires nightly Rust
+        toolchain: nightly-2025-01-03
+        override: true
+        components: miri
+
+    - name: Setup Miri
+      run: cargo +nightly-2025-01-03 miri setup
+    - name: Run tests inside Miri
+      run: cargo +nightly-2025-01-03 miri test

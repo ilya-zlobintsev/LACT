@@ -27,7 +27,7 @@ chrono = "0.4.31"
 indexmap = { version = "2.5.0", features = ["serde"] }
 pretty_assertions = "1.4.0"
 divan = "0.1"
-serde_yml = "0.0.12"
+serde_norway = "0.9.42"
 i18n-embed = { version = "0.16.0", features = [
     "fluent-system",
     "desktop-requester",
