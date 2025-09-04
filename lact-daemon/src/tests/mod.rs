@@ -19,6 +19,7 @@ fn init_tracing() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore)]
 async fn snapshot_everything() {
     init_tracing();
 
@@ -53,6 +54,7 @@ async fn snapshot_everything() {
 }
 
 #[tokio::test]
+#[cfg_attr(miri, ignore)]
 async fn apply_settings() {
     init_tracing();
 
@@ -75,7 +77,8 @@ async fn apply_settings() {
                             device_dir.file_name().to_string_lossy()
                         );
                         let raw_gpu_config = fs::read_to_string(entry.path()).unwrap();
-                        let gpu_config: GpuConfig = serde_yml::from_str(&raw_gpu_config).unwrap();
+                        let gpu_config: GpuConfig =
+                            serde_norway::from_str(&raw_gpu_config).unwrap();
 
                         let mock_fs_dir = tempdir().unwrap();
 
