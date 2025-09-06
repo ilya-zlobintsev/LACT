@@ -4,11 +4,9 @@ mod profile_row;
 pub mod profile_rule_window;
 
 use crate::{
-    app::{header::profile_rule_window::ProfileEditParams, ShowProcessMonitor, APP_BROKER},
+    app::{header::profile_rule_window::ProfileEditParams, msg::AppMsg, APP_BROKER},
     CONFIG, I18N,
 };
-
-use super::{AppMsg, DebugSnapshot, DisableOverdrive, DumpVBios, ResetConfig, ShowGraphsWindow};
 use glib::clone;
 use gtk::prelude::*;
 use gtk::*;
@@ -69,7 +67,7 @@ impl Component for Header {
                 set_label: &model.selector_label,
                 #[wrap(Some)]
                 set_popover = &gtk::Popover {
-                    set_margin_all: 5,
+                    set_margin_horizontal: 5,
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
@@ -145,27 +143,88 @@ impl Component for Header {
 
             pack_end = &gtk::MenuButton {
                 set_icon_name: "open-menu-symbolic",
-                set_menu_model: Some(&app_menu),
+
+                #[wrap(Some)]
+                set_popover = &gtk::Popover {
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 5,
+                        set_margin_all: 5,
+
+                        gtk::Button {
+                            set_label: &fl!(I18N, "show-historical-charts"),
+                            connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowGraphsWindow),
+                            add_css_class: "flat",
+                        },
+
+                        gtk::Button {
+                            set_label: &fl!(I18N, "show-process-monitor"),
+                            connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowProcessMonitor),
+                            add_css_class: "flat",
+                        },
+
+                        gtk::Separator {},
+
+                        gtk::Button {
+                            set_label: &fl!(I18N, "generate-debug-snapshot"),
+                            connect_clicked => move |_| APP_BROKER.send(AppMsg::DebugSnapshot),
+                            add_css_class: "flat",
+                        },
+
+                        gtk::Button {
+                            set_label: &fl!(I18N, "dump-vbios"),
+                            connect_clicked => move |_| APP_BROKER.send(AppMsg::DumpVBios),
+                            add_css_class: "flat",
+                        },
+
+                        gtk::Separator {},
+
+                        gtk::Button {
+                            set_label: &fl!(I18N, "disable-amd-oc"),
+                            connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowOverdriveDialog),
+                            add_css_class: "flat",
+                        },
+
+                        gtk::Button {
+                            set_label: &fl!(I18N, "reset-all-config"),
+                            connect_clicked => move |_| {
+                                let msg = AppMsg::ask_confirmation(
+                                    AppMsg::ResetConfig,
+                                    fl!(I18N, "reset-config"),
+                                    fl!(I18N, "reset-config-description"),
+                                    gtk::ButtonsType::YesNo,
+                                );
+                                APP_BROKER.send(msg);
+                            },
+                            add_css_class: "flat",
+                        },
+
+                        gtk::Separator {},
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
+
+                            gtk::Label {
+                                set_markup: &format!("<b>{}</b>", &fl!(I18N, "stats-update-interval")),
+                            },
+
+                            gtk::SpinButton {
+                                set_range: (250.0, 5000.0),
+                                set_increments: (250.0, 500.0),
+                                set_digits: 0,
+                                set_value: CONFIG.read().stats_poll_interval_ms as f64,
+                                connect_value_changed => move |btn| {
+                                    CONFIG.write().edit(|config| {
+                                        config.stats_poll_interval_ms = btn.value() as i64;
+                                    })
+                                }
+                            },
+                        },
+                    }
+                },
             }
         },
-
-    }
-
-    menu! {
-        app_menu: {
-            section! {
-                "Show historical charts" => ShowGraphsWindow,
-                "Show process monitor" => ShowProcessMonitor,
-            },
-            section! {
-                "Generate debug snapshot" => DebugSnapshot,
-                "Dump VBIOS" => DumpVBios,
-            } ,
-            section! {
-                "Disable AMD overclocking support" => DisableOverdrive,
-                "Reset all configuration" => ResetConfig,
-            }
-        }
     }
 
     fn init(

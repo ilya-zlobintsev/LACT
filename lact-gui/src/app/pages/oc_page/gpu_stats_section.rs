@@ -1,8 +1,10 @@
+use crate::app::msg::AppMsg;
+use crate::app::APP_BROKER;
 use crate::app::{
     ext::FlowBoxExt, info_row::InfoRow, page_section::PageSection, pages::PageUpdate,
 };
 use crate::I18N;
-use gtk::prelude::{ActionableExt, BoxExt, ButtonExt, OrientableExt, WidgetExt};
+use gtk::prelude::{BoxExt, ButtonExt, OrientableExt, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::{DeviceStats, PowerStats};
 use relm4::{ComponentParts, ComponentSender};
@@ -168,7 +170,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
             append = &gtk::Button {
                 set_label: &fl!(I18N, "show-historical-charts"),
-                set_action_name: Some("app.show-graphs-window"),
+                connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowGraphsWindow),
             },
         }
     }
