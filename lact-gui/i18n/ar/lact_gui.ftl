@@ -87,7 +87,6 @@ vram-pstate-clock-offset = إزاحة تردد ذاكرة الفيديو في ح
 vram-pstates = حالات طاقة معالج الفيديو
 enable-pstate-config = مكّن تضبيط حالة الطاقة
 show-historical-charts = أظهر الرسوم البيانية التاريخية
-show-process-montor = أظهر مراقب العمليات
 settings-profile = إعدادات ملف التعريف
 auto-switch-profiles = بدّل تلقائيًا
 add-profile = أضف ملف تعريف جديد
@@ -195,3 +194,6 @@ amd-oc-description =
     }
 
     انظر <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">الويكي</a> لمزيد من المعلومات.
+reconnecting-to-daemon = فُقد الاتصال بالعفريب، جارٍ إعادة الاتصال...
+daemon-connection-lost = فُقد الاتصال
+plot-show-detailed-info = أظهر معلومات مفصلة
