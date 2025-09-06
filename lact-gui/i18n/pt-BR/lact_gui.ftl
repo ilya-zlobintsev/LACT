@@ -126,7 +126,6 @@ gpu-pstates = Estados de energia da GPU
 vram-pstates = Estados de energia da VRAM
 enable-pstate-config = Habilitar configuração do estado de energia
 show-historical-charts = Mostrar gráficos históricos
-show-process-montor = Mostrar monitor de processos
 settings-profile = Perfil das configurações
 auto-switch-profiles = Trocar automaticamente
 add-profile = Adiciona novo perfil
@@ -195,3 +194,6 @@ amd-oc-description =
     }
 
     Veja <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">a wiki</a> para mais informações.
+reconnecting-to-daemon = Conexão do daemon perdida, reconectando...
+daemon-connection-lost = Conexão perdida
+plot-show-detailed-info = Mostrar informações detalhadas
