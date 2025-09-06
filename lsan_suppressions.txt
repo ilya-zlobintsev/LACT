@@ -1,0 +1,3 @@
+# TODO: Some leaks are detected from libfuse, they don't affect any real code
+# This may be LSAN false positive or a leak in third party library
+leak:*libfuse.so*

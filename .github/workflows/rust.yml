@@ -97,3 +97,30 @@ jobs:
       run: cargo +nightly-2025-01-03 miri setup
     - name: Run tests inside Miri
       run: cargo +nightly-2025-01-03 miri test
+
+  test-sanitizers:
+      runs-on: ubuntu-24.04
+      strategy:
+        fail-fast: false
+        matrix:
+          sanitizer: [address, thread]
+
+      env:
+        LSAN_OPTIONS: fast_unwind_on_malloc=0:max_leak_stack_depth=50:suppressions=../../../../lsan_suppressions.txt:print_suppressions=1
+        ASAN_OPTIONS: detect_leaks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1
+      steps:
+        - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+        - uses: ./.github/actions/setup-environment
+        - name: Install Nightly Rust toolchain
+          uses: actions-rs/toolchain@v1
+          with:
+            profile: minimal
+            # Sanitizers require nightly Rust
+            toolchain: nightly-2025-01-03
+            override: true
+            components: rust-src
+
+        - name: Run tests with ${{ matrix.sanitizer }}
+          run: |
+            RUSTFLAGS="-Zsanitizer=${{ matrix.sanitizer }}" \
+            cargo +nightly-2025-01-03 -Zbuild-std test --target x86_64-unknown-linux-gnu --verbose
