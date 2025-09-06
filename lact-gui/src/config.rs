@@ -11,6 +11,8 @@ pub struct UiConfig {
     pub plots_time_period: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plots_per_row: Option<u64>,
+    #[serde(default = "default_stats_poll_interval")]
+    pub stats_poll_interval_ms: i64,
     #[serde(default)]
     pub gpus: HashMap<String, UiGpuConfig>,
 }
@@ -72,4 +74,8 @@ fn config_path() -> PathBuf {
         format!("{home}/.config")
     }));
     config_dir.join("lact").join("ui.yaml")
+}
+
+fn default_stats_poll_interval() -> i64 {
+    500
 }

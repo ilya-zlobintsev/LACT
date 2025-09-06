@@ -15,7 +15,7 @@ use crate::{
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
     },
-    APP_ID, GUI_VERSION, I18N,
+    APP_ID, CONFIG, GUI_VERSION, I18N,
 };
 use anyhow::{anyhow, Context};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
@@ -52,7 +52,6 @@ use pages::{
     PageUpdate,
 };
 use relm4::{
-    actions::{RelmAction, RelmActionGroup},
     binding::BoolBinding,
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio::{self, time::sleep},
@@ -79,7 +78,6 @@ use tracing::{debug, error, info, trace, warn};
 pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 static ERROR_WINDOW_COUNT: AtomicU32 = AtomicU32::new(0);
 
-const STATS_POLL_INTERVAL_MS: u64 = 250;
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 
@@ -201,8 +199,6 @@ impl AsyncComponent for AppModel {
                 }
             }
         ));
-
-        register_actions(&sender);
 
         let system_info = daemon_client
             .get_system_info()
@@ -1092,10 +1088,10 @@ fn start_stats_update_loop(
     sender: AsyncComponentSender<AppModel>,
     header_sender: relm4::Sender<HeaderMsg>,
 ) -> glib::JoinHandle<()> {
-    debug!("spawning new stats update task with {STATS_POLL_INTERVAL_MS}ms interval");
-    let duration = Duration::from_millis(STATS_POLL_INTERVAL_MS);
+    debug!("spawning new stats update task");
     relm4::spawn_local(async move {
         loop {
+            let duration = Duration::from_millis(CONFIG.read().stats_poll_interval_ms as u64);
             tokio::time::sleep(duration).await;
 
             match daemon_client.get_device_stats(&gpu_id).await {
@@ -1122,49 +1118,6 @@ fn start_stats_update_loop(
 fn confirmation_text(seconds_left: u64) -> String {
     format!("Do you want to keep the new settings? (Reverting in {seconds_left} seconds)")
 }
-
-fn register_actions(sender: &AsyncComponentSender<AppModel>) {
-    let mut group = RelmActionGroup::<AppActionGroup>::new();
-
-    macro_rules! actions {
-        ($(($action:ty, $msg:expr),)*) => {
-            $(
-                group.add_action(RelmAction::<$action>::new_stateless(clone!(
-                    #[strong]
-                    sender,
-                    move |_| sender.input($msg)
-                )));
-            )*
-        }
-    }
-
-    actions! {
-        (ShowGraphsWindow, AppMsg::ShowGraphsWindow),
-        (ShowProcessMonitor, AppMsg::ShowProcessMonitor),
-        (DumpVBios, AppMsg::DumpVBios),
-        (DebugSnapshot, AppMsg::DebugSnapshot),
-        (DisableOverdrive, AppMsg::ShowOverdriveDialog),
-        (
-            ResetConfig,
-            AppMsg::ask_confirmation(
-                AppMsg::ResetConfig,
-                fl!(I18N, "reset-config"),
-                fl!(I18N, "reset-config-description"),
-                gtk::ButtonsType::YesNo,
-            )
-        ),
-    };
-
-    group.register_for_main_application();
-}
-
-relm4::new_action_group!(AppActionGroup, "app");
-relm4::new_stateless_action!(ShowGraphsWindow, AppActionGroup, "show-graphs-window");
-relm4::new_stateless_action!(ShowProcessMonitor, AppActionGroup, "show-process-monitor");
-relm4::new_stateless_action!(DumpVBios, AppActionGroup, "dump-vbios");
-relm4::new_stateless_action!(DebugSnapshot, AppActionGroup, "generate-debug-snapshot");
-relm4::new_stateless_action!(DisableOverdrive, AppActionGroup, "disable-overdrive");
-relm4::new_stateless_action!(ResetConfig, AppActionGroup, "reset-config");
 
 async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
     match DaemonClient::connect().await {

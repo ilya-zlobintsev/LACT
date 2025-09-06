@@ -101,7 +101,7 @@ gpu-clock = GPU Core Clock
 gpu-clock-avg = GPU Core Clock (Average)
 gpu-clock-target = GPU Core Clock (Target)
 gpu-voltage = GPU Voltage
-gpu-temp = GPU Temperature
+gpu-temp = Temperature
 gpu-usage = GPU Usage
 vram-clock = VRAM Clock
 power-usage = Power Usage
@@ -164,8 +164,12 @@ vram-pstates = VRAM Power States
 pstates-manual-needed = Note: performance level must be set to 'manual' to toggle power states
 enable-pstate-config = Enable power state configuration
 
-show-historical-charts = Show historical charts
-show-process-montor = Show process monitor
+show-historical-charts = Show Historical Charts
+show-process-monitor = Show Process Monitor
+generate-debug-snapshot = Generate Debug Snapshot
+dump-vbios = Dump VBIOS
+reset-all-config = Reset All Configuration
+stats-update-interval = Update Interval (ms)
 
 reconnecting-to-daemon = Daemon connection lost, reconnecting...
 daemon-connection-lost = Connection Lost
