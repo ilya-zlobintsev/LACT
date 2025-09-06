@@ -102,7 +102,6 @@ reset-oc-tooltip = Avertissement : cette opération réinitialise tous les rég
 mem-pstate-clock-voltage = P-State VRAM { $pstate } Tension (mV)
 performance-level-high-description = Toujours utiliser les fréquences d’horloge les plus élevées pour le GPU et la VRAM.
 manual-level-needed = Le niveau de performance doit être réglé sur « manuel » pour utiliser les états et modes d’alimentation
-show-process-montor = Afficher le moniteur de processus
 performance-level-high = Fréquences d’horloge les plus élevées
 performance-level-low = Fréquences d’horloge les plus faibles
 performance-level-low-description = Toujours utiliser les fréquences d’horloge les plus faibles pour le GPU et la VRAM.

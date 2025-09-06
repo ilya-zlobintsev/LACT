@@ -6,7 +6,6 @@ zero-rpm = Zero RPM
 gpu-usage = Utilizazion GPU
 features = Funzionalitâts
 performance-level-auto-description = Juste in automatic lis frecuencis de VRAM e de GPU. (Predefinît)
-show-process-montor = Mostre visôr dai procès
 min-fan-speed = Velocitât minime de svintule (%)
 stats-section = Statistichis
 enable-amd-oc = Abilite overclock AMD
