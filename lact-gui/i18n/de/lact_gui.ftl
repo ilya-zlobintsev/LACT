@@ -25,10 +25,10 @@ curve-page = Kurve
 acoustic-limit = Akustik Limit (RPM)
 acoustic-target = Akustik Ziel (RPM)
 min-fan-speed = Minimale Lüftergeschwindigkeit (%)
-zero-rpm = Zero RPM
+zero-rpm = Null RPM
 device-not-found = { $kind } Gerät nicht gefunden
 system-section = System
-oc-missing-fan-control-warning = Warnung: Übertacktungsmöglichkeit wurde deaktiviert, Lüfter Kontrolle ist nicht verfügbar.
+oc-missing-fan-control-warning = Warnung: Unterstützung für Übertacktung wurde deaktiviert, Lüftersteuerung ist nicht verfügbar.
 amd-cache-desc =
     { $size } L{ $level } { $types } Cache { $shared ->
         [1] lokal pro CU
@@ -49,7 +49,7 @@ info-page = Informationen
 zero-rpm-stop-temp = Zero RPM Stop Temperatur (°C)
 static-speed = Konstante Geschwindigkeit (%)
 reset-button = Zurücksetzen
-pmfw-reset-warning = Warnung: Die Lüfter Firmware wird hierdurch zurückgesetzt!
+pmfw-reset-warning = Warnung: Dies setzt die Lüfter-Firmware zurück!
 reset-oc-tooltip = Warnung: Die wird alle Takteinstellungen auf Standardwerte zurücksetzen!
 amd-oc = AMD Overclocking
 amd-oc-status =
@@ -143,7 +143,6 @@ any-rules-matched = Jeder der folgenden Regeln trifft zu:
 profile-activation-desc = Aktiviere Profil '{ $name }' wenn:
 enable-pstate-config = Power-State Konfiguration aktivieren
 show-historical-charts = Zeige historische Daten
-show-process-montor = Zeige Prozess-Monitor
 create-profile = Profil erstellen
 profile-copy-from = Einstellungen übernehmen von:
 create = Erstelle
@@ -194,3 +193,7 @@ nvidia-oc-description =
     Dies zwingt die GPU dazu, mit einer durch die gesperrten Takte begrenzten Spannung zu arbeiten, während durch den Offset eine höhere Taktrate erreicht wird.
     Wird diese Einstellung zu aggressiv gewählt, kann sie zu Systeminstabilität führen.
 mebibyte = MiB
+reconnecting-to-daemon = Verbindung zum Daemon verloren, verbinde neu...
+daemon-connection-lost = Verbindung verloren
+plot-show-detailed-info = Genaue Informationen anzeigen
+workgroup-size = Arbeitsgruppengröße
