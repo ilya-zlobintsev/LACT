@@ -54,7 +54,6 @@ auto-switch-profiles = Zmień automatycznie
 performance-level-auto = Automatycznie
 min-vram-clock = Minimalne Zegary VRAM (MHz)
 performance-level-auto-description = Automatycznie dopasuj zegary GPU I VRAM. (Podstawowe)
-show-process-montor = Pokaż monitor procesu
 reset-oc-tooltip = Ostrzeżenie: to spowoduje zresetowanie wszystkich zegarów do domyślnych!
 max-gpu-clock = Maksymalne Zegary Offset GPU (MHz)
 all-rules-matched = Jeśli spełnione są wszystkie z poniższych warunków:
