@@ -48,11 +48,13 @@ jobs:
     steps:
       - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
       - uses: ./.github/actions/setup-environment
-      - name: Run cargo audit
-        uses: simonhyll/cargo-audit@v1
+      - name: Install cargo-audit from crates.io
+        uses: baptiste0928/cargo-install@v3
         with:
-          fix: false
-          deny: true
+          crate: cargo-audit
+          version: 'latest'
+      - name: Run cargo audit
+        run: cargo audit
 
   coverage:
     runs-on: ubuntu-24.04
