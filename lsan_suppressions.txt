@@ -1,3 +1,3 @@
-# TODO: Some leaks are detected from libfuse, they don't affect any real code
-# This may be LSAN false positive or a leak in third party library
+# Some leaks are detected from libfuse, they don't affect any real code
+# Fix is pending in https://github.com/cberner/fuser/pull/390
 leak:*libfuse.so*
