@@ -103,7 +103,7 @@ jobs:
       strategy:
         fail-fast: false
         matrix:
-          sanitizer: [address, thread, safestack]
+          sanitizer: [address, thread, safestack, memory]
 
       env:
         LSAN_OPTIONS: fast_unwind_on_malloc=0:max_leak_stack_depth=50:suppressions=../../../../lsan_suppressions.txt:print_suppressions=1
