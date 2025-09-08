@@ -19,7 +19,7 @@ jobs:
       - name: Build
         run: cargo build
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --all --all-features --verbose
 
   check-format:
     runs-on: ubuntu-24.04
@@ -40,7 +40,7 @@ jobs:
       - name: Install clippy
         run: rustup component add clippy
       - name: Run clippy
-        run: cargo clippy --verbose
+        run: cargo clippy --all --all-features --verbose
 
   check-audit:
     runs-on: ubuntu-24.04
@@ -70,7 +70,7 @@ jobs:
           version: '0.6.18'
 
       - name: Generate coverage report
-        run: cargo llvm-cov --no-fail-fast  --include-ffi --workspace --lcov --output-path lcov.info
+        run: cargo llvm-cov --no-fail-fast --include-ffi --workspace --lcov --output-path lcov.info
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
