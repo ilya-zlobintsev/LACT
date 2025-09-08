@@ -48,8 +48,8 @@ const SUPPORTED_UTIL_TYPES: &[ProcessUtilizationType] = &[
 ];
 
 pub struct NvidiaGpuController {
-    nvml: Rc<Nvml>,
-    nvapi: Rc<Option<NvApi>>,
+    nvml: &'static Nvml,
+    nvapi: &'static Option<NvApi>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
 
@@ -67,8 +67,8 @@ pub struct NvidiaGpuController {
 impl NvidiaGpuController {
     pub fn new(
         common: CommonControllerInfo,
-        nvml: Rc<Nvml>,
-        nvapi: Rc<Option<NvApi>>,
+        nvml: &'static Nvml,
+        nvapi: &'static Option<NvApi>,
     ) -> anyhow::Result<Self> {
         let device = nvml
             .device_by_pci_bus_id(common.pci_slot_name.as_str())
@@ -166,7 +166,7 @@ impl NvidiaGpuController {
         let notify = Rc::new(Notify::new());
         let task_notify = notify.clone();
 
-        let nvml = self.nvml.clone();
+        let nvml = self.nvml;
         let pci_slot_id = self.common.pci_slot_name.clone();
         debug!("spawning new fan control task");
 
