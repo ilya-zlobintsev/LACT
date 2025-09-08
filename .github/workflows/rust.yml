@@ -99,3 +99,18 @@ jobs:
       run: cargo +nightly-2025-01-03 miri setup
     - name: Run tests inside Miri
       run: cargo +nightly-2025-01-03 miri test
+
+  check-features-powerset:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
+    strategy:
+      matrix:
+        command:
+          - check --feature-powerset --no-dev-deps --all
+          - test --feature-powerset --all
+    steps:
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: ./.github/actions/setup-environment
+      - uses: taiki-e/install-action@cargo-hack
+      - name: Run cargo hack ${{ matrix.command }}
+        run: cargo hack ${{ matrix.command }}
