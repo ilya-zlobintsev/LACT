@@ -122,6 +122,5 @@ jobs:
         - name: Run tests with ${{ matrix.sanitizer }}
           run: |
               export RUSTFLAGS="-Zsanitizer=${{ matrix.sanitizer }}"
-              cargo +nightly-2025-09-08 clean
               cargo +nightly-2025-09-08 -Zbuild-std test --target x86_64-unknown-linux-gnu --verbose
 
