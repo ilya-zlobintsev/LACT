@@ -1,0 +1,2 @@
+DRIVER=pmt_telemetry
+MODALIAS=auxiliary:intel_vsec.telemetry
