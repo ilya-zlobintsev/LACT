@@ -1148,7 +1148,7 @@ fn load_controllers(
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
 
-            match init_controller(device_path.clone(), pci_db, &*NVML, &*AMD_DRM, &*INTEL_DRM) {
+            match init_controller(device_path.clone(), pci_db, &NVML, &AMD_DRM, &INTEL_DRM) {
                 Ok(controller) => {
                     let info = controller.controller_info();
                     let id = info.build_id();

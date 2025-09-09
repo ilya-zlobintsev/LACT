@@ -26,6 +26,7 @@ use lact_schema::{
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use std::io;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, warn};
@@ -139,9 +140,9 @@ pub type NvidiaLibs = ();
 pub(crate) fn init_controller(
     path: PathBuf,
     pci_db: &pciid_parser::Database,
-    nvml: &'static Option<NvidiaLibs>,
-    amd_drm: &'static Option<LibDrmAmdgpu>,
-    intel_drm: &'static Option<IntelDrm>,
+    nvml: &'static LazyLock<Option<NvidiaLibs>>,
+    amd_drm: &'static LazyLock<Option<LibDrmAmdgpu>>,
+    intel_drm: &'static LazyLock<Option<IntelDrm>>,
 ) -> anyhow::Result<Box<dyn GpuController>> {
     #[cfg(not(feature = "nvidia"))]
     let _ = nvml;
@@ -215,12 +216,14 @@ pub(crate) fn init_controller(
     };
 
     match common.driver.as_str() {
-        "amdgpu" | "radeon" => match AmdGpuController::new_from_path(common.clone(), amd_drm) {
-            Ok(controller) => return Ok(Box::new(controller)),
-            Err(err) => error!("could not initialize AMD controller: {err:#}"),
-        },
+        "amdgpu" | "radeon" => {
+            match AmdGpuController::new_from_path(common.clone(), amd_drm.as_ref()) {
+                Ok(controller) => return Ok(Box::new(controller)),
+                Err(err) => error!("could not initialize AMD controller: {err:#}"),
+            }
+        }
         "i915" | "xe" => {
-            if let Some(drm) = intel_drm {
+            if let Some(drm) = &**intel_drm {
                 match IntelGpuController::new(common.clone(), drm) {
                     Ok(controller) => return Ok(Box::new(controller)),
                     Err(err) => error!("could not initialize Intel controller: {err:#}"),
@@ -231,8 +234,8 @@ pub(crate) fn init_controller(
         }
         #[cfg(feature = "nvidia")]
         "nvidia" => {
-            if let Some((nvml, nvapi)) = nvml {
-                match NvidiaGpuController::new(common.clone(), nvml, nvapi) {
+            if let Some((nvml, nvapi)) = &**nvml {
+                match NvidiaGpuController::new(common.clone(), nvml, nvapi.as_ref().as_ref()) {
                     Ok(controller) => {
                         return Ok(Box::new(controller));
                     }
@@ -254,7 +257,7 @@ pub(crate) fn init_controller(
     // We use the AMD controller as the fallback even for non-AMD devices, it will at least
     // display basic device information from the SysFS
     Ok(Box::new(
-        AmdGpuController::new_from_path(common, &None)
+        AmdGpuController::new_from_path(common, None)
             .context("Could initialize fallback controller")?,
     ))
 }

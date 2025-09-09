@@ -49,7 +49,7 @@ const SUPPORTED_UTIL_TYPES: &[ProcessUtilizationType] = &[
 
 pub struct NvidiaGpuController {
     nvml: &'static Nvml,
-    nvapi: &'static Option<NvApi>,
+    nvapi: Option<&'static NvApi>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
 
@@ -68,7 +68,7 @@ impl NvidiaGpuController {
     pub fn new(
         common: CommonControllerInfo,
         nvml: &'static Nvml,
-        nvapi: &'static Option<NvApi>,
+        nvapi: Option<&'static NvApi>,
     ) -> anyhow::Result<Self> {
         let device = nvml
             .device_by_pci_bus_id(common.pci_slot_name.as_str())

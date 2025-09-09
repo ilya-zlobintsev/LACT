@@ -300,7 +300,7 @@ impl IntelGpuController {
 
         unsafe {
             let mut out = T::default();
-            let result = f(&self.drm, self.drm_file.as_raw_fd(), &raw mut out);
+            let result = f(self.drm, self.drm_file.as_raw_fd(), &raw mut out);
             if result == 0 {
                 Some(out)
             } else {
