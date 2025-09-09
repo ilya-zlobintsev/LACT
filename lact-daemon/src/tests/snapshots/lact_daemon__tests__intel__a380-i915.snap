@@ -93,7 +93,7 @@ expression: device_info
     "power": {
       "cap_current": 55.0,
       "cap_default": 55.0,
-      "cap_max": 110.0,
+      "cap_max": 400.0,
       "cap_min": 0.0
     },
     "temps": {

@@ -121,7 +121,6 @@ gpu-pstate-clock-voltage = Напряжение GPU для P-State { $pstate } (
 mem-pstate-clock-voltage = Напряжение VRAM для P-State { $pstate } (мВ)
 pstates = Состояния питания (P-States)
 enable-pstate-config = Включить настройку состояний питания
-show-process-montor = Показать диспетчер задач
 settings-profile = Профиль настроек
 create-profile = Создать профиль
 profile-copy-from = Скопировать настройки:
