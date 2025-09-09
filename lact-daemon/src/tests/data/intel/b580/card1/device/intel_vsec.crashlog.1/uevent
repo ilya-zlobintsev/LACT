@@ -1,0 +1,2 @@
+DRIVER=pmt_crashlog
+MODALIAS=auxiliary:intel_vsec.crashlog
