@@ -103,11 +103,10 @@ jobs:
       strategy:
         fail-fast: false
         matrix:
-          # TODO: Memory sanitizer is temporarity disabled because of https://github.com/cberner/fuser/pull/390
-          sanitizer: [address, thread, safestack]
+          sanitizer: [address, thread, safestack, memory]
 
       env:
-        LSAN_OPTIONS: fast_unwind_on_malloc=0:max_leak_stack_depth=50:suppressions=../../../../lsan_suppressions.txt:print_suppressions=1
+        LSAN_OPTIONS: fast_unwind_on_malloc=0:max_leak_stack_depth=50:print_suppressions=1
         ASAN_OPTIONS: detect_leaks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1
       steps:
         - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2

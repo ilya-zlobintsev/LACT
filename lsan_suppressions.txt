@@ -1,3 +1,0 @@
-# Some leaks are detected from libfuse, they don't affect any real code
-# Fix is pending in https://github.com/cberner/fuser/pull/390
-leak:*libfuse.so*
