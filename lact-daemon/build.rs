@@ -23,6 +23,7 @@ fn gen_intel_bindings() {
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .dynamic_library_name("IntelDrm")
         // Don't generate bindings for functions and types related to file access
+        // This is needed to avoid IntelDrm structure being marked as !Send
         .allowlist_item("(DRM|drm).*")
         .blocklist_item(".*(FILE|file).*")
         .generate_comments(false)
