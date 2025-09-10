@@ -43,6 +43,13 @@ const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
     ("video", ProcessUtilizationType::Decode),
 ];
 const FALLBACK_MAX_POWER_CAP: f64 = 400.0;
+const POWER_CAP_NAMES: &[&str] = &["power1_cap", "power2_cap", "power1_max", "power2_max"];
+const MAX_POWER_CAP_NAMES: &[&str] = &[
+    "power1_rated_max",
+    "power2_rated_max",
+    "power1_crit",
+    "power2_crit",
+];
 
 #[derive(Clone, Copy)]
 enum DriverType {
@@ -189,7 +196,11 @@ impl IntelGpuController {
     }
 
     fn write_file(&self, path: impl AsRef<Path>, contents: &str) -> anyhow::Result<()> {
-        let file_path = self.common.sysfs_path.join(path);
+        let file_path = if path.as_ref().is_absolute() {
+            Cow::Borrowed(path.as_ref())
+        } else {
+            Cow::Owned(self.common.sysfs_path.join(path))
+        };
 
         if file_path.exists() {
             fs::write(&file_path, contents)
@@ -237,57 +248,31 @@ impl IntelGpuController {
             .flatten()
     }
 
-    fn read_hwmon_file(&self, possible_names: &[&str], filter_zero: bool) -> Option<u64> {
-        self.hwmon_path.as_ref().and_then(|hwmon| {
-            let mut iter = possible_names
-                .iter()
-                .map(|file| hwmon.join(file))
-                .filter_map(|path| self.read_file(path));
-
-            if filter_zero {
-                iter.find(|value| *value != 0)
-            } else {
-                iter.next()
-            }
-        })
+    fn match_hwmon_files<'a>(
+        &'a self,
+        possible_names: &'a [&str],
+    ) -> impl Iterator<Item = PathBuf> + 'a {
+        self.hwmon_path
+            .iter()
+            .flat_map(|hwmon| possible_names.iter().map(|file| hwmon.join(file)))
+            .filter(|path| path.exists())
     }
 
-    fn write_hwmon_file(
-        &self,
-        file_prefix: &str,
-        file_suffix: &str,
-        contents: &str,
-    ) -> anyhow::Result<()> {
-        debug!("writing value '{contents}' to '{file_prefix}*{file_suffix}'");
+    fn read_hwmon_file(&self, possible_names: &[&str], filter_zero: bool) -> Option<u64> {
+        self.match_hwmon_files(possible_names)
+            .filter_map(|path| self.read_file::<u64>(path))
+            .find(|value| !filter_zero || *value != 0)
+    }
 
-        if let Some(hwmon_path) = &self.hwmon_path {
-            let mut files = Vec::with_capacity(1);
+    fn write_hwmon_file(&self, possible_names: &[&str], contents: &str) -> anyhow::Result<()> {
+        let path = self
+            .match_hwmon_files(possible_names)
+            .next()
+            .context("Cap file not found")?;
 
-            let entries = fs::read_dir(hwmon_path)?;
-            for entry in entries.flatten() {
-                if let Some(name) = entry.file_name().to_str() {
-                    if name.starts_with(file_prefix) && name.ends_with(file_suffix) {
-                        if let Some(infix) = name
-                            .strip_prefix(file_prefix)
-                            .and_then(|name| name.strip_suffix(file_suffix))
-                        {
-                            if !infix.contains('_') {
-                                files.push(entry.path());
-                            }
-                        }
-                    }
-                }
-            }
-            files.sort_unstable();
+        debug!("writing value '{contents}' to '{}'", path.display());
 
-            if let Some(entry) = files.first() {
-                self.write_file(entry, contents)
-            } else {
-                Err(anyhow!("File not found"))
-            }
-        } else {
-            Err(anyhow!("No hwmon available"))
-        }
+        self.write_file(path, contents)
     }
 
     fn get_drm_info_i915(&self) -> IntelDrmInfo {
@@ -579,28 +564,17 @@ impl IntelGpuController {
 
     #[allow(clippy::cast_precision_loss)]
     fn get_power_cap(&self) -> Option<f64> {
-        self.read_hwmon_file(
-            &["power1_cap", "power2_cap", "power1_max", "power2_max"],
-            true,
-        )
-        .map(|value| value / 1_000_000)
-        .map(|value| value as f64) // Placeholder max value
+        self.read_hwmon_file(POWER_CAP_NAMES, true)
+            .map(|value| value / 1_000_000)
+            .map(|value| value as f64)
     }
 
     #[allow(clippy::cast_precision_loss)]
     fn get_power_cap_max(&self) -> Option<f64> {
-        self.read_hwmon_file(
-            &[
-                "power1_rated_max",
-                "power2_rated_max",
-                "power1_crit",
-                "power2_crit",
-            ],
-            true,
-        )
-        .map(|cap| cap / 1_000_000)
-        .map(|value| value as f64)
-        .or_else(|| self.get_power_cap().map(|_| FALLBACK_MAX_POWER_CAP))
+        self.read_hwmon_file(MAX_POWER_CAP_NAMES, true)
+            .map(|cap| cap / 1_000_000)
+            .map(|value| value as f64)
+            .or_else(|| self.get_power_cap().map(|_| FALLBACK_MAX_POWER_CAP))
     }
 }
 
@@ -665,7 +639,7 @@ impl GpuController for IntelGpuController {
             }
 
             if let Some(cap) = config.power_cap {
-                self.write_hwmon_file("power", "_max", &((cap * 1_000_000.0) as u64).to_string())
+                self.write_hwmon_file(POWER_CAP_NAMES, &((cap * 1_000_000.0) as u64).to_string())
                     .context("Could not set power cap")?;
             }
 
