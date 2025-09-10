@@ -1059,45 +1059,46 @@ pub(crate) fn read_pci_db() -> Database {
 }
 
 #[cfg(any(test, not(feature = "nvidia")))]
-static NVML: LazyLock<Option<NvidiaLibs>> = LazyLock::new(|| None);
+pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> = LazyLock::new(|| None);
 
 #[cfg(all(not(test), feature = "nvidia"))]
 // SAFETY: We use global LazyLock to make sure it's safe.
 #[allow(unused_unsafe)]
-static NVML: LazyLock<Option<NvidiaLibs>> = LazyLock::new(|| match unsafe { Nvml::init() } {
-    Ok(nvml) => {
-        use crate::server::gpu_controller::NvApi;
+pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> =
+    LazyLock::new(|| match unsafe { Nvml::init() } {
+        Ok(nvml) => {
+            use crate::server::gpu_controller::NvApi;
 
-        // The config has to be re-read here, because a LazyLock cannot capture external variables into the init closure
-        let disable_nvapi = Config::load()
-            .ok()
-            .flatten()
-            .and_then(|config| config.daemon.disable_nvapi);
-
-        info!("Nvidia management library loaded");
-        let nvapi = if disable_nvapi == Some(true) {
-            info!("NvAPI support is disabled");
-            None
-        } else {
-            NvApi::new()
-                .inspect(|_| {
-                    info!("NvAPI library loaded");
-                })
-                .inspect_err(|err| {
-                    error!("could not load NvAPI library: {err:#}");
-                })
+            // The config has to be re-read here, because a LazyLock cannot capture external variables into the init closure
+            let disable_nvapi = Config::load()
                 .ok()
-        };
+                .flatten()
+                .and_then(|config| config.daemon.disable_nvapi);
 
-        Some((Arc::new(nvml), Arc::new(nvapi)))
-    }
-    Err(err) => {
-        error!("could not load Nvidia management library: {err}");
-        None
-    }
-});
+            info!("Nvidia management library loaded");
+            let nvapi = if disable_nvapi == Some(true) {
+                info!("NvAPI support is disabled");
+                None
+            } else {
+                NvApi::new()
+                    .inspect(|_| {
+                        info!("NvAPI library loaded");
+                    })
+                    .inspect_err(|err| {
+                        error!("could not load NvAPI library: {err:#}");
+                    })
+                    .ok()
+            };
 
-static AMD_DRM: LazyLock<Option<LibDrmAmdgpu>> = LazyLock::new(|| {
+            Some((Arc::new(nvml), Arc::new(nvapi)))
+        }
+        Err(err) => {
+            error!("could not load Nvidia management library: {err}");
+            None
+        }
+    });
+
+pub(crate) static AMD_DRM: LazyLock<Option<LibDrmAmdgpu>> = LazyLock::new(|| {
     // SAFETY: We use global LazyLock to make sure it's safe.
     #[allow(unused_unsafe)]
     // author of LibDrmAmdgpu refuses acknowledge it's unsafe: https://github.com/Umio-Yasuno/libdrm-amdgpu-sys-rs/issues/12
@@ -1113,7 +1114,7 @@ static AMD_DRM: LazyLock<Option<LibDrmAmdgpu>> = LazyLock::new(|| {
     }
 });
 
-static INTEL_DRM: LazyLock<Option<IntelDrm>> = LazyLock::new(|| {
+pub(crate) static INTEL_DRM: LazyLock<Option<IntelDrm>> = LazyLock::new(|| {
     // SAFETY: We use global LazyLock to make sure it's safe.
     match unsafe { IntelDrm::new("libdrm_intel.so.1") } {
         Ok(drm) => {
@@ -1148,7 +1149,7 @@ fn load_controllers(
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
 
-            match init_controller(device_path.clone(), pci_db, &NVML, &AMD_DRM, &INTEL_DRM) {
+            match init_controller(device_path.clone(), pci_db) {
                 Ok(controller) => {
                     let info = controller.controller_info();
                     let id = info.build_id();

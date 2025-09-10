@@ -15,7 +15,7 @@ use nvidia::NvidiaGpuController;
 pub const VENDOR_AMD: &str = "1002";
 pub const VENDOR_NVIDIA: &str = "10DE";
 
-use crate::bindings::intel::IntelDrm;
+use crate::server::handler::{AMD_DRM, INTEL_DRM, NVML};
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::anyhow;
 use anyhow::Context;
@@ -23,10 +23,8 @@ use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::GpuConfig, ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates,
 };
-use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use std::io;
 use std::sync::Arc;
-use std::sync::LazyLock;
 use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, warn};
@@ -140,9 +138,6 @@ pub type NvidiaLibs = ();
 pub(crate) fn init_controller(
     path: PathBuf,
     pci_db: &pciid_parser::Database,
-    nvml: &'static LazyLock<Option<NvidiaLibs>>,
-    amd_drm: &'static LazyLock<Option<LibDrmAmdgpu>>,
-    intel_drm: &'static LazyLock<Option<IntelDrm>>,
 ) -> anyhow::Result<Box<dyn GpuController>> {
     #[cfg(not(feature = "nvidia"))]
     let _ = nvml;
@@ -217,13 +212,13 @@ pub(crate) fn init_controller(
 
     match common.driver.as_str() {
         "amdgpu" | "radeon" => {
-            match AmdGpuController::new_from_path(common.clone(), amd_drm.as_ref()) {
+            match AmdGpuController::new_from_path(common.clone(), AMD_DRM.as_ref()) {
                 Ok(controller) => return Ok(Box::new(controller)),
                 Err(err) => error!("could not initialize AMD controller: {err:#}"),
             }
         }
         "i915" | "xe" => {
-            if let Some(drm) = &**intel_drm {
+            if let Some(drm) = INTEL_DRM.as_ref() {
                 match IntelGpuController::new(common.clone(), drm) {
                     Ok(controller) => return Ok(Box::new(controller)),
                     Err(err) => error!("could not initialize Intel controller: {err:#}"),
@@ -234,7 +229,7 @@ pub(crate) fn init_controller(
         }
         #[cfg(feature = "nvidia")]
         "nvidia" => {
-            if let Some((nvml, nvapi)) = &**nvml {
+            if let Some((nvml, nvapi)) = NVML.as_ref() {
                 match NvidiaGpuController::new(common.clone(), nvml, nvapi.as_ref().as_ref()) {
                     Ok(controller) => {
                         return Ok(Box::new(controller));
