@@ -19,7 +19,7 @@ jobs:
       - name: Build
         run: cargo build
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --all --all-features --verbose
 
   check-format:
     runs-on: ubuntu-24.04
@@ -40,7 +40,7 @@ jobs:
       - name: Install clippy
         run: rustup component add clippy
       - name: Run clippy
-        run: cargo clippy --verbose
+        run: cargo clippy --all --all-features --verbose
 
   check-audit:
     runs-on: ubuntu-24.04
@@ -48,11 +48,13 @@ jobs:
     steps:
       - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
       - uses: ./.github/actions/setup-environment
-      - name: Run cargo audit
-        uses: simonhyll/cargo-audit@v1
+      - name: Install cargo-audit from crates.io
+        uses: baptiste0928/cargo-install@v3
         with:
-          fix: false
-          deny: true
+          crate: cargo-audit
+          version: 'latest'
+      - name: Run cargo audit
+        run: cargo audit
 
   coverage:
     runs-on: ubuntu-24.04
@@ -68,7 +70,7 @@ jobs:
           version: '0.6.18'
 
       - name: Generate coverage report
-        run: cargo llvm-cov --no-fail-fast  --include-ffi --workspace --lcov --output-path lcov.info
+        run: cargo llvm-cov --no-fail-fast --include-ffi --workspace --lcov --output-path lcov.info
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
@@ -124,3 +126,17 @@ jobs:
               export RUSTFLAGS="-Zsanitizer=${{ matrix.sanitizer }}"
               cargo +nightly-2025-01-03 -Zbuild-std test --target x86_64-unknown-linux-gnu --verbose
 
+  check-features-powerset:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
+    strategy:
+      matrix:
+        command:
+          - check --feature-powerset --no-dev-deps --all
+          - test --feature-powerset --all
+    steps:
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: ./.github/actions/setup-environment
+      - uses: taiki-e/install-action@cargo-hack
+      - name: Run cargo hack ${{ matrix.command }}
+        run: cargo hack ${{ matrix.command }}

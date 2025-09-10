@@ -500,7 +500,7 @@
     },
     {
         "type": "inline",
-        "contents": "[package]\nname = \"cl3\"\nversion = \"0.13.0\"\nauthors = [\"Ken Barker <ken.barker@via-technology.aero>\"]\ndescription = \"A Rust implementation of the Khronos OpenCL 3.0 API and extensions.\"\ndocumentation = \"https://docs.rs/cl3/\"\nhomepage = \"https://github.com/kenba/cl3\"\nrepository = \"https://github.com/kenba/cl3\"\nreadme = \"README.md\"\nkeywords = [\"opencl\", \"gpu\", \"gpgpu\", \"ffi\", \"api\"]\ncategories = [\"api-bindings\", \"asynchronous\", \"external-ffi-bindings\"]\nlicense = \"Apache-2.0\"\nedition = \"2024\"\n\n[features]\nstatic = [\"opencl-sys/static\"]\nCL_VERSION_1_1 = [\"opencl-sys/CL_VERSION_1_1\"]\nCL_VERSION_1_2 = [\"opencl-sys/CL_VERSION_1_2\"]\nCL_VERSION_2_0 = [\"opencl-sys/CL_VERSION_2_0\"]\nCL_VERSION_2_1 = [\"opencl-sys/CL_VERSION_2_1\"]\nCL_VERSION_2_2 = [\"opencl-sys/CL_VERSION_2_2\"]\nCL_VERSION_3_0 = [\"opencl-sys/CL_VERSION_3_0\"]\ncl_apple_setmemobjectdestructor = [\"opencl-sys/cl_apple_setmemobjectdestructor\"]\ncl_apple_contextloggingfunctions = [\"opencl-sys/cl_apple_contextloggingfunctions\"]\ncl_khr_icd = [\"opencl-sys/cl_khr_icd\"]\ncl_khr_il_program = [\"opencl-sys/cl_khr_il_program\"]\ncl_khr_terminate_context = [\"opencl-sys/cl_khr_terminate_context\"]\ncl_khr_create_command_queue = [\"opencl-sys/cl_khr_create_command_queue\"]\ncl_ext_device_fission = [\"opencl-sys/cl_ext_device_fission\"]\ncl_ext_migrate_memobject = [\"opencl-sys/cl_ext_migrate_memobject\"]\ncl_qcom_ext_host_ptr = [\"opencl-sys/cl_qcom_ext_host_ptr\"]\ncl_img_use_gralloc_ptr = [\"opencl-sys/cl_img_use_gralloc_ptr\"]\ncl_img_generate_mipmap = [\"opencl-sys/cl_img_generate_mipmap\"]\ncl_khr_subgroups = [\"opencl-sys/cl_khr_subgroups\"]\ncl_khr_suggested_local_work_size = [\"opencl-sys/cl_khr_suggested_local_work_size\"]\ncl_khr_external_memory = [\"opencl-sys/cl_khr_external_memory\"]\ncl_khr_external_semaphore = [\"opencl-sys/cl_khr_external_semaphore\"]\ncl_khr_external_semaphore_sync_fd = [\"opencl-sys/cl_khr_external_semaphore_sync_fd\"]\ncl_khr_semaphore = [\"opencl-sys/cl_khr_semaphore\"]\ncl_arm_import_memory = [\"opencl-sys/cl_arm_import_memory\"]\ncl_arm_shared_virtual_memory = [\"opencl-sys/cl_arm_shared_virtual_memory\"]\ncl_intel_accelerator = [\"opencl-sys/cl_intel_accelerator\"]\ncl_intel_unified_shared_memory = [\"opencl-sys/cl_intel_unified_shared_memory\"]\ncl_intel_create_buffer_with_properties = [\"opencl-sys/cl_intel_create_buffer_with_properties\"]\ncl_intel_program_scope_host_pipe = [\"opencl-sys/cl_intel_program_scope_host_pipe\"]\ncl_ext_image_requirements_info = [\"opencl-sys/cl_ext_image_requirements_info\"]\ncl_khr_command_buffer = [\"opencl-sys/cl_khr_command_buffer\"]\ncl_khr_command_buffer_multi_device = [\"opencl-sys/cl_khr_command_buffer_multi_device\"]\ncl_khr_command_buffer_mutable_dispatch = [\"opencl-sys/cl_khr_command_buffer_mutable_dispatch\"]\ncl_khr_gl_sharing = [\"opencl-sys/cl_khr_gl_sharing\"]\ncl_khr_gl_event = [\"opencl-sys/cl_khr_gl_event\"]\ncl_khr_egl_image = [\"opencl-sys/cl_khr_egl_image\"]\ncl_khr_egl_event = [\"opencl-sys/cl_khr_egl_event\"]\ncl_khr_dx9_media_sharing = [\"opencl-sys/cl_khr_dx9_media_sharing\"]\ncl_intel_dx9_media_sharing = [\"opencl-sys/cl_intel_dx9_media_sharing\"]\ncl_khr_d3d10_sharing = [\"opencl-sys/cl_khr_d3d10_sharing\"]\ncl_khr_d3d11_sharing = [\"opencl-sys/cl_khr_d3d11_sharing\"]\ncl_loader_info = [\"opencl-sys/cl_loader_info\"]\ncl_pocl_content_size = [\"opencl-sys/cl_pocl_content_size\"]\ncl_ext_buffer_device_address = [\"opencl-sys/cl_ext_buffer_device_address\"]\ncl_loader_layers = [\"opencl-sys/cl_loader_layers\"]\ncl_img_cancel_command = [\"opencl-sys/cl_img_cancel_command\"]\ncl_qcom_perf_hint = [\"opencl-sys/cl_qcom_perf_hint\"]\ndynamic = []\ndefault = [\"dynamic\"]\n\n[dependencies]\ndlopen2 = \"0.7\"\nlibc = \"0.2\"\nopencl-sys = \"0.6\"\nthiserror = \"2.0\"\n\n[[example]]\nname = \"clinfo\"\npath = \"examples/clinfo.rs\"\n\n[lints.clippy]\nenum_glob_use = \"deny\"\nmissing_errors_doc = \"allow\"\nmodule_name_repetitions = \"allow\"\nunwrap_used = \"deny\"\n\n[lints.clippy.nursery]\nlevel = \"deny\"\npriority = -1\n\n[lints.clippy.pedantic]\nlevel = \"deny\"\npriority = -1\n",
+        "contents": "[[example]]\nname = \"clinfo\"\npath = \"examples/clinfo.rs\"\n\n[package]\nname = \"cl3\"\nversion = \"0.13.0\"\nauthors = [ \"Ken Barker <ken.barker@via-technology.aero>\",]\ndescription = \"A Rust implementation of the Khronos OpenCL 3.0 API and extensions.\"\ndocumentation = \"https://docs.rs/cl3/\"\nhomepage = \"https://github.com/kenba/cl3\"\nrepository = \"https://github.com/kenba/cl3\"\nreadme = \"README.md\"\nkeywords = [ \"opencl\", \"gpu\", \"gpgpu\", \"ffi\", \"api\",]\ncategories = [ \"api-bindings\", \"asynchronous\", \"external-ffi-bindings\",]\nlicense = \"Apache-2.0\"\nedition = \"2024\"\n\n[features]\nstatic = [ \"opencl-sys/static\",]\nCL_VERSION_1_1 = [ \"opencl-sys/CL_VERSION_1_1\",]\nCL_VERSION_1_2 = [ \"opencl-sys/CL_VERSION_1_2\",]\nCL_VERSION_2_0 = [ \"opencl-sys/CL_VERSION_2_0\",]\nCL_VERSION_2_1 = [ \"opencl-sys/CL_VERSION_2_1\",]\nCL_VERSION_2_2 = [ \"opencl-sys/CL_VERSION_2_2\",]\nCL_VERSION_3_0 = [ \"opencl-sys/CL_VERSION_3_0\",]\ncl_apple_setmemobjectdestructor = [ \"opencl-sys/cl_apple_setmemobjectdestructor\",]\ncl_apple_contextloggingfunctions = [ \"opencl-sys/cl_apple_contextloggingfunctions\",]\ncl_khr_icd = [ \"opencl-sys/cl_khr_icd\",]\ncl_khr_il_program = [ \"opencl-sys/cl_khr_il_program\",]\ncl_khr_terminate_context = [ \"opencl-sys/cl_khr_terminate_context\",]\ncl_khr_create_command_queue = [ \"opencl-sys/cl_khr_create_command_queue\",]\ncl_ext_device_fission = [ \"opencl-sys/cl_ext_device_fission\",]\ncl_ext_migrate_memobject = [ \"opencl-sys/cl_ext_migrate_memobject\",]\ncl_qcom_ext_host_ptr = [ \"opencl-sys/cl_qcom_ext_host_ptr\",]\ncl_img_use_gralloc_ptr = [ \"opencl-sys/cl_img_use_gralloc_ptr\",]\ncl_img_generate_mipmap = [ \"opencl-sys/cl_img_generate_mipmap\",]\ncl_khr_subgroups = [ \"opencl-sys/cl_khr_subgroups\",]\ncl_khr_suggested_local_work_size = [ \"opencl-sys/cl_khr_suggested_local_work_size\",]\ncl_khr_external_memory = [ \"opencl-sys/cl_khr_external_memory\",]\ncl_khr_external_semaphore = [ \"opencl-sys/cl_khr_external_semaphore\",]\ncl_khr_external_semaphore_sync_fd = [ \"opencl-sys/cl_khr_external_semaphore_sync_fd\",]\ncl_khr_semaphore = [ \"opencl-sys/cl_khr_semaphore\",]\ncl_arm_import_memory = [ \"opencl-sys/cl_arm_import_memory\",]\ncl_arm_shared_virtual_memory = [ \"opencl-sys/cl_arm_shared_virtual_memory\",]\ncl_intel_accelerator = [ \"opencl-sys/cl_intel_accelerator\",]\ncl_intel_unified_shared_memory = [ \"opencl-sys/cl_intel_unified_shared_memory\",]\ncl_intel_create_buffer_with_properties = [ \"opencl-sys/cl_intel_create_buffer_with_properties\",]\ncl_intel_program_scope_host_pipe = [ \"opencl-sys/cl_intel_program_scope_host_pipe\",]\ncl_ext_image_requirements_info = [ \"opencl-sys/cl_ext_image_requirements_info\",]\ncl_khr_command_buffer = [ \"opencl-sys/cl_khr_command_buffer\",]\ncl_khr_command_buffer_multi_device = [ \"opencl-sys/cl_khr_command_buffer_multi_device\",]\ncl_khr_command_buffer_mutable_dispatch = [ \"opencl-sys/cl_khr_command_buffer_mutable_dispatch\",]\ncl_khr_gl_sharing = [ \"opencl-sys/cl_khr_gl_sharing\",]\ncl_khr_gl_event = [ \"opencl-sys/cl_khr_gl_event\",]\ncl_khr_egl_image = [ \"opencl-sys/cl_khr_egl_image\",]\ncl_khr_egl_event = [ \"opencl-sys/cl_khr_egl_event\",]\ncl_khr_dx9_media_sharing = [ \"opencl-sys/cl_khr_dx9_media_sharing\",]\ncl_intel_dx9_media_sharing = [ \"opencl-sys/cl_intel_dx9_media_sharing\",]\ncl_khr_d3d10_sharing = [ \"opencl-sys/cl_khr_d3d10_sharing\",]\ncl_khr_d3d11_sharing = [ \"opencl-sys/cl_khr_d3d11_sharing\",]\ncl_loader_info = [ \"opencl-sys/cl_loader_info\",]\ncl_pocl_content_size = [ \"opencl-sys/cl_pocl_content_size\",]\ncl_ext_buffer_device_address = [ \"opencl-sys/cl_ext_buffer_device_address\",]\ncl_loader_layers = [ \"opencl-sys/cl_loader_layers\",]\ncl_img_cancel_command = [ \"opencl-sys/cl_img_cancel_command\",]\ncl_qcom_perf_hint = [ \"opencl-sys/cl_qcom_perf_hint\",]\ndynamic = []\ndefault = [ \"dynamic\",]\n\n[dependencies]\ndlopen2 = \"0.7\"\nlibc = \"0.2\"\nopencl-sys = \"0.6\"\nthiserror = \"2.0\"\n\n[lints.clippy]\nenum_glob_use = \"deny\"\nmissing_errors_doc = \"allow\"\nmodule_name_repetitions = \"allow\"\nunwrap_used = \"deny\"\n\n[lints.clippy.nursery]\nlevel = \"deny\"\npriority = -1\n\n[lints.clippy.pedantic]\nlevel = \"deny\"\npriority = -1\n",
         "dest": "cargo/vendor/cl3",
         "dest-filename": "Cargo.toml"
     },
@@ -2078,14 +2078,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/matchers/matchers-0.1.0.crate",
-        "sha256": "8263075bb86c5a1b1427b5ae862e8889656f126e9f77c484496e8b47cf5c5558",
-        "dest": "cargo/vendor/matchers-0.1.0"
+        "url": "https://static.crates.io/crates/matchers/matchers-0.2.0.crate",
+        "sha256": "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9",
+        "dest": "cargo/vendor/matchers-0.2.0"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"8263075bb86c5a1b1427b5ae862e8889656f126e9f77c484496e8b47cf5c5558\", \"files\": {}}",
-        "dest": "cargo/vendor/matchers-0.1.0",
+        "contents": "{\"package\": \"d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9\", \"files\": {}}",
+        "dest": "cargo/vendor/matchers-0.2.0",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -2234,14 +2234,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/nu-ansi-term/nu-ansi-term-0.46.0.crate",
-        "sha256": "77a8165726e8236064dbb45459242600304b42a5ea24ee2948e18e023bf7ba84",
-        "dest": "cargo/vendor/nu-ansi-term-0.46.0"
+        "url": "https://static.crates.io/crates/nu-ansi-term/nu-ansi-term-0.50.1.crate",
+        "sha256": "d4a28e057d01f97e61255210fcff094d74ed0466038633e95017f5beb68e4399",
+        "dest": "cargo/vendor/nu-ansi-term-0.50.1"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"77a8165726e8236064dbb45459242600304b42a5ea24ee2948e18e023bf7ba84\", \"files\": {}}",
-        "dest": "cargo/vendor/nu-ansi-term-0.46.0",
+        "contents": "{\"package\": \"d4a28e057d01f97e61255210fcff094d74ed0466038633e95017f5beb68e4399\", \"files\": {}}",
+        "dest": "cargo/vendor/nu-ansi-term-0.50.1",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -2398,19 +2398,6 @@
         "type": "inline",
         "contents": "{\"package\": \"82f29ae2f71b53ec19cc23385f8e4f3d90975195aa3d09171ba3bef7159bec27\", \"files\": {}}",
         "dest": "cargo/vendor/os-release-0.1.0",
-        "dest-filename": ".cargo-checksum.json"
-    },
-    {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/overload/overload-0.1.1.crate",
-        "sha256": "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39",
-        "dest": "cargo/vendor/overload-0.1.1"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": \"b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39\", \"files\": {}}",
-        "dest": "cargo/vendor/overload-0.1.1",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -2728,19 +2715,6 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/regex-automata/regex-automata-0.1.10.crate",
-        "sha256": "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132",
-        "dest": "cargo/vendor/regex-automata-0.1.10"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": \"6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132\", \"files\": {}}",
-        "dest": "cargo/vendor/regex-automata-0.1.10",
-        "dest-filename": ".cargo-checksum.json"
-    },
-    {
-        "type": "archive",
-        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/regex-automata/regex-automata-0.4.9.crate",
         "sha256": "809e8dc61f6de73b46c85f4c96486310fe304c434cfa43669d7b40f711150908",
         "dest": "cargo/vendor/regex-automata-0.4.9"
@@ -2762,19 +2736,6 @@
         "type": "inline",
         "contents": "{\"package\": \"53a49587ad06b26609c52e423de037e7f57f20d53535d66e08c695f347df952a\", \"files\": {}}",
         "dest": "cargo/vendor/regex-lite-0.1.6",
-        "dest-filename": ".cargo-checksum.json"
-    },
-    {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/regex-syntax/regex-syntax-0.6.29.crate",
-        "sha256": "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1",
-        "dest": "cargo/vendor/regex-syntax-0.6.29"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": \"f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1\", \"files\": {}}",
-        "dest": "cargo/vendor/regex-syntax-0.6.29",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -3651,14 +3612,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/tracing-subscriber/tracing-subscriber-0.3.19.crate",
-        "sha256": "e8189decb5ac0fa7bc8b96b7cb9b2701d60d48805aca84a238004d665fcc4008",
-        "dest": "cargo/vendor/tracing-subscriber-0.3.19"
+        "url": "https://static.crates.io/crates/tracing-subscriber/tracing-subscriber-0.3.20.crate",
+        "sha256": "2054a14f5307d601f88daf0553e1cbf472acc4f2c51afab632431cdcd72124d5",
+        "dest": "cargo/vendor/tracing-subscriber-0.3.20"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"e8189decb5ac0fa7bc8b96b7cb9b2701d60d48805aca84a238004d665fcc4008\", \"files\": {}}",
-        "dest": "cargo/vendor/tracing-subscriber-0.3.19",
+        "contents": "{\"package\": \"2054a14f5307d601f88daf0553e1cbf472acc4f2c51afab632431cdcd72124d5\", \"files\": {}}",
+        "dest": "cargo/vendor/tracing-subscriber-0.3.20",
         "dest-filename": ".cargo-checksum.json"
     },
     {

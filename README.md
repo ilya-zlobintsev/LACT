@@ -17,7 +17,7 @@ system.
 ### Features:
 
 - #### Detailed GPU information reporting
-  - Name and manufcaturer
+  - Name and manufacturer
   - VBIOS info
   - VRAM info (Type/Manufacturer/Bus)
   - Hardware unit info (CUs/SMs/EUs, ROP count)

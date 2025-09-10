@@ -22,6 +22,7 @@ use lact_schema::{
     VramStats,
 };
 use std::{
+    borrow::Cow,
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap},
     fmt::{self, Display},
@@ -39,6 +40,14 @@ const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
     ("render", ProcessUtilizationType::Graphics),
     ("compute", ProcessUtilizationType::Compute),
     ("video", ProcessUtilizationType::Decode),
+];
+const FALLBACK_MAX_POWER_CAP: f64 = 400.0;
+const POWER_CAP_NAMES: &[&str] = &["power1_cap", "power2_cap", "power1_max", "power2_max"];
+const MAX_POWER_CAP_NAMES: &[&str] = &[
+    "power1_rated_max",
+    "power2_rated_max",
+    "power1_crit",
+    "power2_crit",
 ];
 
 #[derive(Clone, Copy)]
@@ -158,7 +167,11 @@ impl IntelGpuController {
         T: FromStr,
         T::Err: Display,
     {
-        let file_path = self.common.sysfs_path.join(path);
+        let file_path = if path.as_ref().is_absolute() {
+            Cow::Borrowed(path.as_ref())
+        } else {
+            Cow::Owned(self.common.sysfs_path.join(path))
+        };
 
         trace!("reading file from '{}'", file_path.display());
 
@@ -182,7 +195,11 @@ impl IntelGpuController {
     }
 
     fn write_file(&self, path: impl AsRef<Path>, contents: &str) -> anyhow::Result<()> {
-        let file_path = self.common.sysfs_path.join(path);
+        let file_path = if path.as_ref().is_absolute() {
+            Cow::Borrowed(path.as_ref())
+        } else {
+            Cow::Owned(self.common.sysfs_path.join(path))
+        };
 
         if file_path.exists() {
             fs::write(&file_path, contents)
@@ -230,52 +247,31 @@ impl IntelGpuController {
             .flatten()
     }
 
-    fn read_hwmon_file<T>(&self, file_prefix: &str, file_suffix: &str) -> Option<T>
-    where
-        T: FromStr,
-        T::Err: Display,
-    {
-        self.read_hwmon_files(file_prefix, file_suffix)
-            .next()
-            .map(|(contents, _)| contents)
+    fn match_hwmon_files<'a>(
+        &'a self,
+        possible_names: &'a [&str],
+    ) -> impl Iterator<Item = PathBuf> + 'a {
+        self.hwmon_path
+            .iter()
+            .flat_map(|hwmon| possible_names.iter().map(|file| hwmon.join(file)))
+            .filter(|path| path.exists())
     }
 
-    fn write_hwmon_file(
-        &self,
-        file_prefix: &str,
-        file_suffix: &str,
-        contents: &str,
-    ) -> anyhow::Result<()> {
-        debug!("writing value '{contents}' to '{file_prefix}*{file_suffix}'");
+    fn read_hwmon_file(&self, possible_names: &[&str], filter_zero: bool) -> Option<u64> {
+        self.match_hwmon_files(possible_names)
+            .filter_map(|path| self.read_file::<u64>(path))
+            .find(|value| !filter_zero || *value != 0)
+    }
 
-        if let Some(hwmon_path) = &self.hwmon_path {
-            let mut files = Vec::with_capacity(1);
+    fn write_hwmon_file(&self, possible_names: &[&str], contents: &str) -> anyhow::Result<()> {
+        let path = self
+            .match_hwmon_files(possible_names)
+            .next()
+            .context("Cap file not found")?;
 
-            let entries = fs::read_dir(hwmon_path)?;
-            for entry in entries.flatten() {
-                if let Some(name) = entry.file_name().to_str() {
-                    if name.starts_with(file_prefix) && name.ends_with(file_suffix) {
-                        if let Some(infix) = name
-                            .strip_prefix(file_prefix)
-                            .and_then(|name| name.strip_suffix(file_suffix))
-                        {
-                            if !infix.contains('_') {
-                                files.push(entry.path());
-                            }
-                        }
-                    }
-                }
-            }
-            files.sort_unstable();
+        debug!("writing value '{contents}' to '{}'", path.display());
 
-            if let Some(entry) = files.first() {
-                self.write_file(entry, contents)
-            } else {
-                Err(anyhow!("File not found"))
-            }
-        } else {
-            Err(anyhow!("No hwmon available"))
-        }
+        self.write_file(path, contents)
     }
 
     fn get_drm_info_i915(&self) -> IntelDrmInfo {
@@ -346,33 +342,27 @@ impl IntelGpuController {
 
     #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
     fn get_power_usage(&self) -> Option<f64> {
-        self.read_hwmon_file::<u64>("power", "_input")
-            .or_else(|| {
-                // Use first non-zero energy reading
-                let energy = self
-                    .read_hwmon_files::<u64>("energy", "_input")
-                    .map(|(value, _)| value)
-                    .find(|value| *value != 0)?;
-                let timestamp = Instant::now();
+        // Use first non-zero energy reading
+        let energy = self.read_hwmon_file(&["energy1_input", "energy2_input"], true)?;
+        let timestamp = Instant::now();
 
-                #[cfg(not(test))]
-                let last_value = self.last_energy_value.replace(Some((timestamp, energy)));
-                #[cfg(test)]
-                let last_value: Option<(Instant, u64)> = None;
+        #[cfg(not(test))]
+        let last_value = self.last_energy_value.replace(Some((timestamp, energy)));
+        #[cfg(test)]
+        let last_value: Option<(Instant, u64)> = None;
 
-                match last_value {
-                    Some((last_timestamp, last_energy)) => {
-                        let time_delta = timestamp - last_timestamp;
-                        let energy_delta = energy - last_energy;
+        match last_value {
+            Some((last_timestamp, last_energy)) => {
+                let time_delta = timestamp - last_timestamp;
+                let energy_delta = energy - last_energy;
 
-                        energy_delta
-                            .checked_div(time_delta.as_millis() as u64)
-                            .map(|value| value * 1000)
-                    }
-                    None => None,
-                }
-            })
-            .map(|value| value as f64 / 1_000_000.0)
+                energy_delta
+                    .checked_div(time_delta.as_millis() as u64)
+                    .map(|value| value / 1000)
+                    .map(|value| value as f64)
+            }
+            None => None,
+        }
     }
 
     fn get_temperatures(&self) -> HashMap<String, Temperature> {
@@ -570,6 +560,21 @@ impl IntelGpuController {
             },
         }
     }
+
+    #[allow(clippy::cast_precision_loss)]
+    fn get_power_cap(&self) -> Option<f64> {
+        self.read_hwmon_file(POWER_CAP_NAMES, true)
+            .map(|value| value / 1_000_000)
+            .map(|value| value as f64)
+    }
+
+    #[allow(clippy::cast_precision_loss)]
+    fn get_power_cap_max(&self) -> Option<f64> {
+        self.read_hwmon_file(MAX_POWER_CAP_NAMES, true)
+            .map(|cap| cap / 1_000_000)
+            .map(|value| value as f64)
+            .or_else(|| self.get_power_cap().map(|_| FALLBACK_MAX_POWER_CAP))
+    }
 }
 
 impl GpuController for IntelGpuController {
@@ -633,7 +638,7 @@ impl GpuController for IntelGpuController {
             }
 
             if let Some(cap) = config.power_cap {
-                self.write_hwmon_file("power", "_max", &((cap * 1_000_000.0) as u64).to_string())
+                self.write_hwmon_file(POWER_CAP_NAMES, &((cap * 1_000_000.0) as u64).to_string())
                     .context("Could not set power cap")?;
             }
 
@@ -654,31 +659,24 @@ impl GpuController for IntelGpuController {
             vram_clockspeed: None,
         };
 
-        let cap_current = self
-            .read_hwmon_file("power", "_max")
-            .map(|value: f64| value / 1_000_000.0)
-            .map(|cap| if cap == 0.0 { 100.0 } else { cap }); // Placeholder max value
-
         let power = PowerStats {
             average: None,
             current: self.get_power_usage(),
-            cap_current,
+            cap_current: self.get_power_cap(),
             cap_min: Some(0.0),
-            cap_max: self
-                .read_hwmon_file::<f64>("power", "_rated_max")
-                .filter(|max| *max != 0.0)
-                .map(|cap| cap / 1_000_000.0)
-                .or_else(|| cap_current.map(|current| current * 2.0)),
+            cap_max: self.get_power_cap_max(),
             cap_default: self.initial_power_cap,
         };
 
         let voltage = VoltageStats {
-            gpu: self.read_hwmon_file("in", "_input"),
+            gpu: self.read_hwmon_file(&["in0_input", "in1_input"], true),
             northbridge: None,
         };
 
         let fan = FanStats {
-            speed_current: self.read_hwmon_file("fan", "_input"),
+            speed_current: self
+                .read_hwmon_file(&["fan1_input", "fan2_input", "fan3_input"], false)
+                .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
             ..Default::default()
         };
 
