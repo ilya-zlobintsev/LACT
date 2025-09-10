@@ -818,7 +818,7 @@ checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 [[package]]
 name = "fuser"
 version = "0.15.1"
-source = "git+https://github.com/In-line/fuser.git?rev=8daba15728da46d9299a2b23daa3aeb9954e114e#8daba15728da46d9299a2b23daa3aeb9954e114e"
+source = "git+https://github.com/cberner/fuser.git?rev=47113e10ea4ab4be5b562cdc0d8cc8d41ce50311#47113e10ea4ab4be5b562cdc0d8cc8d41ce50311"
 dependencies = [
  "libc",
  "log",

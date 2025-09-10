@@ -7,9 +7,9 @@
     },
     {
         "type": "git",
-        "url": "https://github.com/in-line/fuser",
-        "commit": "8daba15728da46d9299a2b23daa3aeb9954e114e",
-        "dest": "flatpak-cargo/git/fuser-8daba15"
+        "url": "https://github.com/cberner/fuser",
+        "commit": "47113e10ea4ab4be5b562cdc0d8cc8d41ce50311",
+        "dest": "flatpak-cargo/git/fuser-47113e1"
     },
     {
         "type": "archive",
@@ -1150,7 +1150,7 @@
     {
         "type": "shell",
         "commands": [
-            "cp -r --reflink=auto \"flatpak-cargo/git/fuser-8daba15/.\" \"cargo/vendor/fuser\""
+            "cp -r --reflink=auto \"flatpak-cargo/git/fuser-47113e1/.\" \"cargo/vendor/fuser\""
         ]
     },
     {
@@ -4560,7 +4560,7 @@
     },
     {
         "type": "inline",
-        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/kenba/cl3\"]\ngit = \"https://github.com/kenba/cl3\"\nreplace-with = \"vendored-sources\"\nbranch = \"develop\"\n\n[source.\"https://github.com/in-line/fuser\"]\ngit = \"https://github.com/in-line/fuser\"\nreplace-with = \"vendored-sources\"\nrev = \"8daba15728da46d9299a2b23daa3aeb9954e114e\"\n",
+        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/kenba/cl3\"]\ngit = \"https://github.com/kenba/cl3\"\nreplace-with = \"vendored-sources\"\nbranch = \"develop\"\n\n[source.\"https://github.com/cberner/fuser\"]\ngit = \"https://github.com/cberner/fuser\"\nreplace-with = \"vendored-sources\"\nrev = \"47113e10ea4ab4be5b562cdc0d8cc8d41ce50311\"\n",
         "dest": "cargo",
         "dest-filename": "config"
     }
