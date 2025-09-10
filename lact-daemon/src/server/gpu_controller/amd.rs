@@ -75,7 +75,7 @@ impl AmdGpuController {
     #[allow(unused_variables)]
     pub fn new_from_path(
         common: CommonControllerInfo,
-        libdrm_amdgpu: Option<&LibDrmAmdgpu>,
+        libdrm_amdgpu: Option<&'static LibDrmAmdgpu>,
     ) -> anyhow::Result<Self> {
         let handle = GpuHandle::new_from_path(common.sysfs_path.clone())
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;

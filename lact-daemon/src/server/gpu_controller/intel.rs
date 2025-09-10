@@ -30,7 +30,6 @@ use std::{
     io::{BufRead, BufReader},
     os::{fd::AsRawFd, raw::c_int},
     path::{Path, PathBuf},
-    rc::Rc,
     str::FromStr,
     time::Instant,
 };
@@ -63,7 +62,7 @@ pub struct IntelGpuController {
     tile_gts: Vec<PathBuf>,
     hwmon_path: Option<PathBuf>,
     drm_file: fs::File,
-    drm: Rc<IntelDrm>,
+    drm: &'static IntelDrm,
     last_drm_util: RefCell<Option<DrmUtilMap>>,
     last_gpu_busy: Cell<Option<(Instant, u64)>>,
     #[allow(dead_code)]
@@ -72,7 +71,7 @@ pub struct IntelGpuController {
 }
 
 impl IntelGpuController {
-    pub fn new(common: CommonControllerInfo, drm: Rc<IntelDrm>) -> anyhow::Result<Self> {
+    pub fn new(common: CommonControllerInfo, drm: &'static IntelDrm) -> anyhow::Result<Self> {
         let driver_type = match common.driver.as_str() {
             "xe" => DriverType::Xe,
             "i915" => DriverType::I915,
@@ -297,7 +296,7 @@ impl IntelGpuController {
 
         unsafe {
             let mut out = T::default();
-            let result = f(&self.drm, self.drm_file.as_raw_fd(), &raw mut out);
+            let result = f(self.drm, self.drm_file.as_raw_fd(), &raw mut out);
             if result == 0 {
                 Some(out)
             } else {

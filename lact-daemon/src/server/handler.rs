@@ -31,8 +31,10 @@ use pciid_parser::Database;
 use serde_json::json;
 #[cfg(not(test))]
 use std::collections::HashMap;
+#[cfg(all(not(test), feature = "nvidia"))]
+use std::sync::Arc;
 use std::{
-    cell::{Cell, LazyCell, RefCell},
+    cell::{Cell, RefCell},
     collections::BTreeMap,
     env,
     fs::{self, File, Permissions},
@@ -40,6 +42,7 @@ use std::{
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     rc::Rc,
+    sync::LazyLock,
     time::{Duration, Instant},
 };
 use tokio::{
@@ -1055,19 +1058,20 @@ pub(crate) fn read_pci_db() -> Database {
     })
 }
 
-/// `sysfs_only` disables initialization of any external data sources, such as libdrm and nvml
-fn load_controllers(
-    base_path: &Path,
-    pci_db: &Database,
-) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
-    let mut controllers = BTreeMap::new();
+#[cfg(any(test, not(feature = "nvidia")))]
+pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> = LazyLock::new(|| None);
 
-    #[cfg(all(not(test), feature = "nvidia"))]
-    let nvml: LazyCell<Option<NvidiaLibs>> = LazyCell::new(|| match Nvml::init() {
+#[cfg(all(not(test), feature = "nvidia"))]
+// SAFETY: We use global LazyLock to make sure it's safe.
+// Loading of shared libaries is unsafe
+// https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
+#[allow(unused_unsafe)]
+pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> =
+    LazyLock::new(|| match unsafe { Nvml::init() } {
         Ok(nvml) => {
             use crate::server::gpu_controller::NvApi;
 
-            // The config has to be re-read here, because a LazyCell cannot capture external variables into the init closure
+            // The config has to be re-read here, because a LazyLock cannot capture external variables into the init closure
             let disable_nvapi = Config::load()
                 .ok()
                 .flatten()
@@ -1088,17 +1092,21 @@ fn load_controllers(
                     .ok()
             };
 
-            Some((Rc::new(nvml), Rc::new(nvapi)))
+            Some((Arc::new(nvml), Arc::new(nvapi)))
         }
         Err(err) => {
             error!("could not load Nvidia management library: {err}");
             None
         }
     });
-    #[cfg(any(test, not(feature = "nvidia")))]
-    let nvml: LazyCell<Option<NvidiaLibs>> = LazyCell::new(|| None);
 
-    let amd_drm: LazyCell<Option<LibDrmAmdgpu>> = LazyCell::new(|| match LibDrmAmdgpu::new() {
+pub(crate) static AMD_DRM: LazyLock<Option<LibDrmAmdgpu>> = LazyLock::new(|| {
+    // SAFETY: We use global LazyLock to make sure it's safe.
+    #[allow(unused_unsafe)]
+    // Loading of shared libaries is unsafe
+    // https://github.com/Umio-Yasuno/libdrm-amdgpu-sys-rs/issues/12
+    // https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
+    match unsafe { LibDrmAmdgpu::new() } {
         Ok(drm) => {
             info!("AMDGPU DRM initialized");
             Some(drm)
@@ -1107,20 +1115,29 @@ fn load_controllers(
             error!("failed to initialize AMDGPU DRM: {err}, some functionality will be missing");
             None
         }
-    });
+    }
+});
 
-    let intel_drm: LazyCell<Option<Rc<IntelDrm>>> = unsafe {
-        LazyCell::new(|| match IntelDrm::new("libdrm_intel.so.1") {
-            Ok(drm) => {
-                info!("Intel DRM initialized");
-                Some(Rc::new(drm))
-            }
-            Err(err) => {
-                error!("failed to initialize Intel DRM: {err}");
-                None
-            }
-        })
-    };
+pub(crate) static INTEL_DRM: LazyLock<Option<IntelDrm>> = LazyLock::new(|| {
+    // SAFETY: We use global LazyLock to make sure it's safe.
+    match unsafe { IntelDrm::new("libdrm_intel.so.1") } {
+        Ok(drm) => {
+            info!("Intel DRM initialized");
+            Some(drm)
+        }
+        Err(err) => {
+            error!("failed to initialize Intel DRM: {err}");
+            None
+        }
+    }
+});
+
+/// `sysfs_only` disables initialization of any external data sources, such as libdrm and nvml
+fn load_controllers(
+    base_path: &Path,
+    pci_db: &Database,
+) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
+    let mut controllers = BTreeMap::new();
 
     for entry in base_path
         .read_dir()
@@ -1136,7 +1153,7 @@ fn load_controllers(
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
 
-            match init_controller(device_path.clone(), pci_db, &nvml, &amd_drm, &intel_drm) {
+            match init_controller(device_path.clone(), pci_db) {
                 Ok(controller) => {
                     let info = controller.controller_info();
                     let id = info.build_id();

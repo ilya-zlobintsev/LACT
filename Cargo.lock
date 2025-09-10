@@ -818,15 +818,13 @@ checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 [[package]]
 name = "fuser"
 version = "0.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53274f494609e77794b627b1a3cddfe45d675a6b2e9ba9c0fdc8d8eee2184369"
+source = "git+https://github.com/cberner/fuser.git?rev=47113e10ea4ab4be5b562cdc0d8cc8d41ce50311#47113e10ea4ab4be5b562cdc0d8cc8d41ce50311"
 dependencies = [
  "libc",
  "log",
  "memchr",
  "nix 0.29.0",
  "page_size",
- "pkg-config",
  "smallvec",
  "zerocopy",
 ]
