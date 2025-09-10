@@ -24,6 +24,7 @@ use lact_schema::{
     config::GpuConfig, ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates,
 };
 use std::io;
+#[cfg(feature = "nvidia")]
 use std::sync::Arc;
 use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
 use tokio::{sync::Notify, task::JoinHandle};
@@ -140,7 +141,7 @@ pub(crate) fn init_controller(
     pci_db: &pciid_parser::Database,
 ) -> anyhow::Result<Box<dyn GpuController>> {
     #[cfg(not(feature = "nvidia"))]
-    let _ = nvml;
+    let _ = NVML;
 
     let uevent_path = path.join("uevent");
     let uevent = fs::read_to_string(uevent_path).context("Could not read 'uevent'")?;
