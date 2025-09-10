@@ -73,7 +73,8 @@ jobs:
         run: cargo llvm-cov --no-fail-fast --include-ffi --workspace --lcov --output-path lcov.info
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5.5.1
+        continue-on-error: true
         with:
           files: lcov.info
           fail_ci_if_error: true
