@@ -8,7 +8,7 @@ args = ["clap"]
 
 [dependencies]
 amdgpu-sysfs = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive", "rc"]}
 serde_with = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
