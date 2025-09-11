@@ -92,14 +92,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/amdgpu-sysfs/amdgpu-sysfs-0.19.1.crate",
-        "sha256": "e5fbcdced7a84f93ddaf2f038b299853ea57c2a436c79644b88462838b6bcef3",
-        "dest": "cargo/vendor/amdgpu-sysfs-0.19.1"
+        "url": "https://static.crates.io/crates/amdgpu-sysfs/amdgpu-sysfs-0.19.2.crate",
+        "sha256": "42a9b5289200126af51526d070365c1336f777093286ce47aa7ea1169c036713",
+        "dest": "cargo/vendor/amdgpu-sysfs-0.19.2"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"e5fbcdced7a84f93ddaf2f038b299853ea57c2a436c79644b88462838b6bcef3\", \"files\": {}}",
-        "dest": "cargo/vendor/amdgpu-sysfs-0.19.1",
+        "contents": "{\"package\": \"42a9b5289200126af51526d070365c1336f777093286ce47aa7ea1169c036713\", \"files\": {}}",
+        "dest": "cargo/vendor/amdgpu-sysfs-0.19.2",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -1155,7 +1155,7 @@
     },
     {
         "type": "inline",
-        "contents": "[package]\nname = \"fuser\"\ndescription = \"Filesystem in Userspace (FUSE) for Rust\"\nlicense = \"MIT\"\nrepository = \"https://github.com/cberner/fuser\"\ndocumentation = \"https://docs.rs/fuser\"\nhomepage = \"https://github.com/cberner/fuser\"\nversion = \"0.15.1\"\nedition = \"2024\"\nrust-version = \"1.85\"\nreadme = \"README.md\"\nauthors = [\"Christopher Berner <me@cberner.com>\"]\nkeywords = [\"fuse\", \"filesystem\", \"system\", \"bindings\"]\ncategories = [\"external-ffi-bindings\", \"api-bindings\", \"filesystem\", \"os::unix-apis\"]\nbuild = \"build.rs\"\n\n[dependencies]\nlibc = \"0.2.51\"\nlog = \"0.4.6\"\nmemchr = \"2.7.2\"\npage_size = \"0.6.0\"\nsmallvec = \"1.6.1\"\n\n[dependencies.serde]\nversion = \"1.0.102\"\nfeatures = [\"std\", \"derive\"]\noptional = true\n\n[dependencies.zerocopy]\nversion = \"0.8\"\nfeatures = [\"derive\"]\n\n[dependencies.nix]\nversion = \"0.29.0\"\nfeatures = [\"fs\", \"user\"]\n\n[dev-dependencies]\nenv_logger = \"0.11.7\"\nbincode = \"1.3.1\"\ntempfile = \"3.10.1\"\n\n[dev-dependencies.clap]\nversion = \"4.4\"\nfeatures = [\"cargo\", \"derive\"]\n\n[dev-dependencies.serde]\nversion = \"1.0.102\"\nfeatures = [\"std\", \"derive\"]\n\n[dev-dependencies.nix]\nversion = \"0.29.0\"\nfeatures = [\"poll\", \"fs\", \"ioctl\"]\n\n[build-dependencies.pkg-config]\nversion = \"0.3.14\"\noptional = true\n\n[features]\ndefault = []\nlibfuse = [\"pkg-config\"]\nserializable = [\"serde\"]\nmacfuse-4-compat = []\nabi-7-19 = []\nabi-7-20 = [\"abi-7-19\"]\nabi-7-21 = [\"abi-7-20\"]\nabi-7-22 = [\"abi-7-21\"]\nabi-7-23 = [\"abi-7-22\"]\nabi-7-24 = [\"abi-7-23\"]\nabi-7-25 = [\"abi-7-24\"]\nabi-7-26 = [\"abi-7-25\"]\nabi-7-27 = [\"abi-7-26\"]\nabi-7-28 = [\"abi-7-27\"]\nabi-7-29 = [\"abi-7-28\"]\nabi-7-30 = [\"abi-7-29\"]\nabi-7-31 = [\"abi-7-30\"]\nabi-7-36 = [\"abi-7-31\"]\nabi-7-40 = [\"abi-7-36\", \"nix/ioctl\"]\n\n[[example]]\nname = \"poll\"\n\n[[example]]\nname = \"poll_client\"\n\n[[example]]\nname = \"notify_inval_entry\"\n\n[[example]]\nname = \"notify_inval_inode\"\n\n[[example]]\nname = \"ioctl\"\n\n[[example]]\nname = \"passthrough\"\nrequired-features = [\"abi-7-40\"]\n",
+        "contents": "[[example]]\nname = \"poll\"\n\n[[example]]\nname = \"poll_client\"\n\n[[example]]\nname = \"notify_inval_entry\"\n\n[[example]]\nname = \"notify_inval_inode\"\n\n[[example]]\nname = \"ioctl\"\n\n[[example]]\nname = \"passthrough\"\nrequired-features = [ \"abi-7-40\",]\n\n[package]\nname = \"fuser\"\ndescription = \"Filesystem in Userspace (FUSE) for Rust\"\nlicense = \"MIT\"\nrepository = \"https://github.com/cberner/fuser\"\ndocumentation = \"https://docs.rs/fuser\"\nhomepage = \"https://github.com/cberner/fuser\"\nversion = \"0.15.1\"\nedition = \"2024\"\nrust-version = \"1.85\"\nreadme = \"README.md\"\nauthors = [ \"Christopher Berner <me@cberner.com>\",]\nkeywords = [ \"fuse\", \"filesystem\", \"system\", \"bindings\",]\ncategories = [ \"external-ffi-bindings\", \"api-bindings\", \"filesystem\", \"os::unix-apis\",]\nbuild = \"build.rs\"\n\n[dependencies]\nlibc = \"0.2.51\"\nlog = \"0.4.6\"\nmemchr = \"2.7.2\"\npage_size = \"0.6.0\"\nsmallvec = \"1.6.1\"\n\n[dev-dependencies]\nenv_logger = \"0.11.7\"\nbincode = \"1.3.1\"\ntempfile = \"3.10.1\"\n\n[features]\ndefault = []\nlibfuse = [ \"pkg-config\",]\nserializable = [ \"serde\",]\nmacfuse-4-compat = []\nabi-7-19 = []\nabi-7-20 = [ \"abi-7-19\",]\nabi-7-21 = [ \"abi-7-20\",]\nabi-7-22 = [ \"abi-7-21\",]\nabi-7-23 = [ \"abi-7-22\",]\nabi-7-24 = [ \"abi-7-23\",]\nabi-7-25 = [ \"abi-7-24\",]\nabi-7-26 = [ \"abi-7-25\",]\nabi-7-27 = [ \"abi-7-26\",]\nabi-7-28 = [ \"abi-7-27\",]\nabi-7-29 = [ \"abi-7-28\",]\nabi-7-30 = [ \"abi-7-29\",]\nabi-7-31 = [ \"abi-7-30\",]\nabi-7-36 = [ \"abi-7-31\",]\nabi-7-40 = [ \"abi-7-36\", \"nix/ioctl\",]\n\n[dependencies.serde]\nversion = \"1.0.102\"\nfeatures = [ \"std\", \"derive\",]\noptional = true\n\n[dependencies.zerocopy]\nversion = \"0.8\"\nfeatures = [ \"derive\",]\n\n[dependencies.nix]\nversion = \"0.29.0\"\nfeatures = [ \"fs\", \"user\",]\n\n[dev-dependencies.clap]\nversion = \"4.4\"\nfeatures = [ \"cargo\", \"derive\",]\n\n[dev-dependencies.serde]\nversion = \"1.0.102\"\nfeatures = [ \"std\", \"derive\",]\n\n[dev-dependencies.nix]\nversion = \"0.29.0\"\nfeatures = [ \"poll\", \"fs\", \"ioctl\",]\n\n[build-dependencies.pkg-config]\nversion = \"0.3.14\"\noptional = true\n",
         "dest": "cargo/vendor/fuser",
         "dest-filename": "Cargo.toml"
     },
