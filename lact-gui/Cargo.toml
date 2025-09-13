@@ -24,13 +24,13 @@ serde = { workspace = true }
 serde_norway = { workspace = true }
 serde_json = { workspace = true }
 indexmap = { workspace = true }
-gtk = { version = "0.9", package = "gtk4", features = ["v4_6"] }
+gtk = { version = "0.10.0", package = "gtk4", features = ["v4_6"] }
 
-adw = { package = "libadwaita", version = "0.7.1", features = [
+adw = { package = "libadwaita", version = "0.8.0", features = [
     "v1_4",
 ], optional = true }
-relm4 = { version = "0.9.0", default-features = false }
-relm4-components = "0.9.0"
+relm4 = { version = "0.10.0", default-features = false }
+relm4-components = "0.10.0"
 
 i18n-embed = { workspace = true }
 i18n-embed-fl = { workspace = true }
@@ -41,10 +41,10 @@ plotters = { version = "0.3.5", default-features = false, features = [
     "full_palette",
     "point_series",
 ] }
-plotters-cairo = "0.7.0"
-cairo-rs = { version = "0.20", default-features = false }
+plotters-cairo = "0.8.0"
+cairo-rs = { version = "0.21", default-features = false }
 
-thread-priority = "1.1.0"
+thread-priority = "3.0.0"
 
 divan = { workspace = true, optional = true }
 

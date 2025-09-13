@@ -17,8 +17,6 @@ impl ObjectSubclass for OcAdjustment {
 
 impl ObjectImpl for OcAdjustment {}
 
-impl WidgetImpl for OcAdjustment {}
-
 impl AdjustmentImpl for OcAdjustment {
     fn value_changed(&self) {
         self.parent_value_changed();

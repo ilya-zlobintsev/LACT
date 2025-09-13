@@ -3,7 +3,7 @@ use gtk::glib::{self, Object};
 glib::wrapper! {
     pub struct InfoRow(ObjectSubclass<imp::InfoRow>)
         @extends gtk::Box, gtk::Widget,
-        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
+        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
 }
 
 impl InfoRow {

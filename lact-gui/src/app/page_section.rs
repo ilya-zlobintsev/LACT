@@ -10,7 +10,7 @@ use gtk::{
 glib::wrapper! {
     pub struct PageSection(ObjectSubclass<imp::PageSection>)
         @extends gtk::Box, gtk::Widget,
-        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable;
+        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
 }
 
 impl PageSection {
