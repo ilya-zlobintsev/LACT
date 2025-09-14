@@ -83,6 +83,10 @@ expression: device_info
     "drm_info": {
       "vram_clock_ratio": 1.0
     },
+    "flags": [
+      "DumpableVBios",
+      "ConfigurableFanControl"
+    ],
     "link_info": {
       "max_speed": "8.0 GT/s PCIe",
       "max_width": "16"

@@ -12,7 +12,7 @@ use gtk::prelude::*;
 use gtk::*;
 use i18n_embed_fl::fl;
 use lact_client::schema::DeviceListEntry;
-use lact_schema::{DeviceType, ProfilesInfo};
+use lact_schema::{DeviceFlag, DeviceInfo, DeviceType, ProfilesInfo, SystemInfo};
 use new_profile_dialog::NewProfileDialog;
 use profile_rename_dialog::ProfileRenameDialog;
 use profile_row::{ProfileRow, ProfileRowType};
@@ -24,6 +24,7 @@ use relm4::{
     Component, ComponentController, ComponentParts, ComponentSender, RelmIterChildrenExt,
     RelmWidgetExt,
 };
+use std::sync::Arc;
 use tracing::debug;
 
 pub struct Header {
@@ -31,10 +32,13 @@ pub struct Header {
     gpu_selector: TypedListView<GpuListItem, gtk::SingleSelection>,
     profile_selector: FactoryVecDeque<ProfileRow>,
     selector_label: String,
+    system_info: SystemInfo,
+    device_flags: Vec<DeviceFlag>,
 }
 
 #[derive(Debug)]
 pub enum HeaderMsg {
+    DeviceInfo(Arc<DeviceInfo>),
     Profiles(std::boxed::Box<ProfilesInfo>),
     AutoProfileSwitch(bool),
     ShowProfileEditor(DynamicIndex),
@@ -49,7 +53,7 @@ pub enum HeaderMsg {
 
 #[relm4::component(pub)]
 impl Component for Header {
-    type Init = Vec<DeviceListEntry>;
+    type Init = (Vec<DeviceListEntry>, SystemInfo);
     type Input = HeaderMsg;
     type Output = AppMsg;
     type CommandOutput = ();
@@ -175,6 +179,8 @@ impl Component for Header {
                             set_label: &fl!(I18N, "dump-vbios"),
                             connect_clicked => move |_| APP_BROKER.send(AppMsg::DumpVBios),
                             add_css_class: "flat",
+                            #[watch]
+                            set_sensitive: model.device_flags.contains(&DeviceFlag::DumpableVBios),
                         },
 
                         gtk::Separator {},
@@ -183,6 +189,8 @@ impl Component for Header {
                             set_label: &fl!(I18N, "disable-amd-oc"),
                             connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowOverdriveDialog),
                             add_css_class: "flat",
+                            #[watch]
+                            set_sensitive: model.system_info.amdgpu_overdrive_enabled.is_some(),
                         },
 
                         gtk::Button {
@@ -228,7 +236,7 @@ impl Component for Header {
     }
 
     fn init(
-        variants: Self::Init,
+        (variants, system_info): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -292,6 +300,8 @@ impl Component for Header {
             profile_selector,
             selector_label: String::new(),
             profiles_info: ProfilesInfo::default(),
+            system_info,
+            device_flags: Vec::new(),
         };
 
         let gpu_selector = &model.gpu_selector.view;
@@ -460,6 +470,9 @@ impl Component for Header {
                         }
                     });
                 }
+            }
+            HeaderMsg::DeviceInfo(info) => {
+                self.device_flags = info.flags.clone();
             }
         }
         self.update_label();

@@ -22,9 +22,9 @@ use anyhow::{anyhow, bail, Context};
 use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
-    AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceInfo, DeviceStats,
-    DeviceType, DrmInfo, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates,
-    PowerStats, ProcessList, ProcessUtilizationType, RopInfo, VoltageStats, VramStats,
+    AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceFlag, DeviceInfo,
+    DeviceStats, DeviceType, DrmInfo, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState,
+    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo, VoltageStats, VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
@@ -44,6 +44,9 @@ use {
     lact_schema::DrmMemoryInfo,
     libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
 };
+
+/// RDNA3 - minimum family with PMFW
+const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
@@ -718,6 +721,35 @@ impl GpuController for AmdGpuController {
             let drm_info = self.get_drm_info();
             let opencl_info = get_opencl_info(&self.common);
 
+            let mut flags = vec![DeviceFlag::DumpableVBios];
+
+            if drm_info
+                .as_ref()
+                .and_then(|info| info.family_id)
+                .is_some_and(|family| family >= AMDGPU_FAMILY_GC_11_0_0)
+            {
+                flags.push(DeviceFlag::HasPmfw);
+            }
+
+            // Custom fan control can only be used if:
+            // - There is a fan with a readable speed
+            // - The device does not use PMFW (older than RDNA3) OR has a readable PMFW fan curve (with overdrive on RDNA3+)
+            if self
+                .hw_mon_and_then(HwMon::get_fan_current)
+                .or_else(|| self.hw_mon_and_then(HwMon::get_fan_pwm).map(u32::from))
+                .or_else(|| {
+                    let metrics = GpuMetrics::get_from_sysfs_path(self.handle.get_path()).ok();
+                    metrics
+                        .as_ref()
+                        .and_then(MetricsInfo::get_current_fan_speed)
+                        .map(u32::from)
+                })
+                .is_some()
+                && (!flags.contains(&DeviceFlag::HasPmfw) || self.handle.get_fan_curve().is_ok())
+            {
+                flags.push(DeviceFlag::ConfigurableFanControl);
+            }
+
             DeviceInfo {
                 pci_info,
                 vulkan_instances,
@@ -726,6 +758,7 @@ impl GpuController for AmdGpuController {
                 link_info,
                 opencl_info,
                 drm_info,
+                flags,
             }
         })
     }

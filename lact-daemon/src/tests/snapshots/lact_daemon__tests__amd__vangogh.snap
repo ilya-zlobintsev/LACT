@@ -68,6 +68,9 @@ expression: device_info
       },
       "vram_clock_ratio": 1.0
     },
+    "flags": [
+      "DumpableVBios"
+    ],
     "link_info": {
       "current_speed": "8.0 GT/s PCIe",
       "current_width": "16"

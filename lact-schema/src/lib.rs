@@ -117,6 +117,14 @@ pub struct GpuPciInfo {
     pub subsystem_pci_info: PciInfo,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum DeviceFlag {
+    ConfigurableFanControl,
+    DumpableVBios,
+    HasPmfw,
+    AutoFanThreshold,
+}
+
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceInfo {
@@ -128,6 +136,8 @@ pub struct DeviceInfo {
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,
     pub drm_info: Option<DrmInfo>,
+    #[serde(default)]
+    pub flags: Vec<DeviceFlag>,
 }
 
 impl DeviceInfo {
