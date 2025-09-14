@@ -1,0 +1,7 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: write_commands
+---
+[
+    "card1/device/tile0/gt0/freq0/max_freq: 2600",
+]

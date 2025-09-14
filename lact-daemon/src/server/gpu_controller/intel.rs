@@ -13,7 +13,7 @@ use crate::{
     },
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     config::GpuConfig, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats,
@@ -628,18 +628,39 @@ impl GpuController for IntelGpuController {
     fn apply_config<'a>(&'a self, config: &'a GpuConfig) -> LocalBoxFuture<'a, anyhow::Result<()>> {
         Box::pin(async {
             if let Some(max_clock) = config.clocks_configuration.max_core_clock {
-                self.write_freq(FrequencyType::Max, max_clock)
-                    .context("Could not set max clock")?;
+                if self.read_freq(FrequencyType::Max).is_some() {
+                    self.write_freq(FrequencyType::Max, max_clock)
+                        .context("Could not set max clock")?;
+                } else {
+                    error!("could not apply configured maximum frequency {max_clock}, no maximum frequency file is present");
+                }
             }
 
             if let Some(min_clock) = config.clocks_configuration.min_core_clock {
-                self.write_freq(FrequencyType::Min, min_clock)
-                    .context("Could not set min clock")?;
+                if self.read_freq(FrequencyType::Min).is_some() {
+                    self.write_freq(FrequencyType::Min, min_clock)
+                        .context("Could not set min clock")?;
+                } else {
+                    error!("could not apply configured minimum frequency {min_clock}, no minimum frequency file is present");
+                }
             }
 
             if let Some(cap) = config.power_cap {
-                self.write_hwmon_file(POWER_CAP_NAMES, &((cap * 1_000_000.0) as u64).to_string())
+                if self.get_power_cap().is_some() {
+                    if let Some(max_cap) = self.get_power_cap_max() {
+                        if cap > max_cap {
+                            bail!("Specified cap {cap} is greated than maximum allowed {max_cap}");
+                        }
+                    }
+
+                    self.write_hwmon_file(
+                        POWER_CAP_NAMES,
+                        &((cap * 1_000_000.0) as u64).to_string(),
+                    )
                     .context("Could not set power cap")?;
+                } else {
+                    error!("could not apply power cap, no power limit functionality available");
+                }
             }
 
             Ok(())

@@ -1,0 +1,109 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": {
+    "table": {
+      "type": "intel",
+      "value": {
+        "gt_freq": [
+          400,
+          2850
+        ],
+        "rp0_freq": 2850,
+        "rpe_freq": 400,
+        "rpn_freq": 400
+      }
+    }
+  },
+  "info": {
+    "driver": "xe",
+    "drm_info": {
+      "memory_info": {
+        "cpu_accessible_total": 0,
+        "cpu_accessible_used": 0,
+        "resizeable_bar": true
+      },
+      "vram_clock_ratio": 1.0
+    },
+    "link_info": {},
+    "pci_info": {
+      "device_pci_info": {
+        "model": "Battlemage G21 [Arc B580]",
+        "model_id": "E20B",
+        "vendor": "Intel Corporation",
+        "vendor_id": "8086"
+      },
+      "subsystem_pci_info": {
+        "model": "Intel Arc B580 Limited Edition",
+        "model_id": "1100",
+        "vendor": "Intel Corporation",
+        "vendor_id": "8086"
+      }
+    },
+    "vulkan_instances": []
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "Battlemage G21 [Arc B580]",
+      "model_id": "E20B",
+      "vendor": "Intel Corporation",
+      "vendor_id": "8086"
+    },
+    "subsystem_pci_info": {
+      "model": "Intel Arc B580 Limited Edition",
+      "model_id": "1100",
+      "vendor": "Intel Corporation",
+      "vendor_id": "8086"
+    }
+  },
+  "power_profile_modes": null,
+  "power_states": {
+    "core": [
+      {
+        "enabled": true,
+        "value": 400
+      },
+      {
+        "enabled": true,
+        "value": 400
+      },
+      {
+        "enabled": true,
+        "value": 2850
+      }
+    ],
+    "vram": []
+  },
+  "stats": {
+    "clockspeed": {
+      "current_gfxclk": 400,
+      "gpu_clockspeed": 400
+    },
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {},
+      "speed_current": 0
+    },
+    "power": {
+      "cap_max": 380.0,
+      "cap_min": 0.0
+    },
+    "temps": {
+      "pkg": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 46.0
+      },
+      "vram": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 48.0
+      }
+    },
+    "throttle_info": {},
+    "voltage": {},
+    "vram": {}
+  }
+}
