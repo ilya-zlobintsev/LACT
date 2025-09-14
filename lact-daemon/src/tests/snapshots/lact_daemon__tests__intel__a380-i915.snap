@@ -27,6 +27,7 @@ expression: device_info
       },
       "vram_clock_ratio": 1.0
     },
+    "flags": [],
     "link_info": {},
     "pci_info": {
       "device_pci_info": {

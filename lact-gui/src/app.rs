@@ -229,7 +229,7 @@ impl AsyncComponent for AppModel {
         let overdrive_dialog = OverdriveDialog::builder()
             .transient_for(&root)
             .launch(OverdriveDialog {
-                system_info,
+                system_info: system_info.clone(),
                 is_loading: false,
                 is_done: false,
             })
@@ -243,7 +243,7 @@ impl AsyncComponent for AppModel {
                     .downcast::<gtk::HeaderBar>()
                     .unwrap();
             })
-            .launch(devices)
+            .launch((devices, system_info))
             .forward(sender.input_sender(), |msg| msg);
 
         let apply_revealer = ApplyRevealer::builder()
@@ -674,6 +674,7 @@ impl AppModel {
         });
         self.software_page
             .emit(SoftwarePageMsg::DeviceInfo(info.clone()));
+        self.header.emit(HeaderMsg::DeviceInfo(info.clone()));
         self.thermals_page.emit(ThermalsPageMsg::Update {
             update: update.clone(),
             initial: true,

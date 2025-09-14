@@ -17,10 +17,10 @@ use futures::{future::LocalBoxFuture, FutureExt};
 use indexmap::IndexMap;
 use lact_schema::{
     config::{FanControlSettings, FanCurve, GpuConfig},
-    CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DeviceType,
-    DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset,
-    NvidiaClocksTable, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList,
-    ProcessType, ProcessUtilizationType, VoltageStats, VramStats,
+    CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceFlag, DeviceInfo, DeviceStats,
+    DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
+    NvidiaClockOffset, NvidiaClocksTable, PmfwInfo, PowerState, PowerStates, PowerStats,
+    ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, VoltageStats, VramStats,
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
@@ -451,6 +451,10 @@ impl GpuController for NvidiaGpuController {
                         .ok(),
                     intel: IntelDrmInfo::default(),
                 }),
+                flags: vec![
+                    DeviceFlag::ConfigurableFanControl,
+                    DeviceFlag::AutoFanThreshold,
+                ],
             }
         })
     }

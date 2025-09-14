@@ -23,10 +23,9 @@ use gtk::{
     Adjustment,
 };
 use i18n_embed_fl::fl;
-use lact_daemon::AMDGPU_FAMILY_GC_11_0_0;
 use lact_schema::{
     config::{FanControlSettings, FanCurve, GpuConfig},
-    default_fan_curve, FanControlMode, SystemInfo,
+    default_fan_curve, DeviceFlag, FanControlMode, SystemInfo,
 };
 use relm4::{
     binding::{Binding, BoolBinding, ConnectBinding, StringBinding},
@@ -43,6 +42,7 @@ pub struct ThermalsPage {
     system_info: SystemInfo,
     selected_mode: StringBinding,
 
+    custom_control_supported: bool,
     has_pmfw: bool,
     has_auto_threshold: bool,
     pmfw_options: PmfwOptions,
@@ -135,7 +135,7 @@ impl relm4::Component for ThermalsPage {
                 PageSection::new(&fl!(I18N, "fan-control-section")) {
                     // Disable fan configuration when overdrive is disabled on GPUs that have PMFW (RDNA3+)
                     #[watch]
-                    set_sensitive: model.fan_speed.is_some() && !(model.system_info.amdgpu_overdrive_enabled == Some(false) && model.has_pmfw),
+                    set_sensitive: model.custom_control_supported,
 
                     append = &gtk::StackSwitcher {
                         set_stack: Some(&stack),
@@ -377,6 +377,7 @@ impl relm4::Component for ThermalsPage {
             system_info,
             pmfw_options,
             pmfw_change_signals,
+            custom_control_supported: false,
             has_pmfw: false,
             has_auto_threshold: false,
             fan_speed: None,
@@ -402,13 +403,10 @@ impl relm4::Component for ThermalsPage {
         match msg {
             ThermalsPageMsg::Update { update, initial } => match update {
                 PageUpdate::Info(info) => {
-                    self.has_pmfw = info
-                        .drm_info
-                        .as_ref()
-                        .and_then(|info| info.family_id)
-                        .is_some_and(|family| family >= AMDGPU_FAMILY_GC_11_0_0);
-
-                    self.has_auto_threshold = info.driver.starts_with("nvidia ");
+                    self.custom_control_supported =
+                        info.flags.contains(&DeviceFlag::ConfigurableFanControl);
+                    self.has_pmfw = info.flags.contains(&DeviceFlag::HasPmfw);
+                    self.has_auto_threshold = info.flags.contains(&DeviceFlag::AutoFanThreshold);
                 }
                 PageUpdate::Stats(stats) => {
                     let fan_percent = stats

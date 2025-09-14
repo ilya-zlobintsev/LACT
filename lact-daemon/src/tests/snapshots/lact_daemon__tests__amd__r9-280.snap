@@ -9,6 +9,10 @@ expression: device_info
     "drm_info": {
       "vram_clock_ratio": 1.0
     },
+    "flags": [
+      "DumpableVBios",
+      "ConfigurableFanControl"
+    ],
     "link_info": {
       "current_speed": "5.0 GT/s PCIe",
       "current_width": "8"
