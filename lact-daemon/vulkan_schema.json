@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://schema.khronos.org/vulkan/profiles-0.8.2-319.json#",
-    "title": "Vulkan Profiles Schema for Vulkan 1.4.319",
+    "$id": "https://schema.khronos.org/vulkan/profiles-0.8.2-326.json#",
+    "title": "Vulkan Profiles Schema for Vulkan 1.4.326",
     "additionalProperties": true,
     "required": [
         "capabilities",
@@ -655,6 +655,15 @@
             "additionalProperties": false,
             "properties": {
                 "dedicatedAllocationImageAliasing": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceDenseGeometryFormatFeaturesAMDX": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "denseGeometryFormat": {
                     "type": "boolean"
                 }
             }
@@ -1721,6 +1730,15 @@
                 }
             }
         },
+        "VkPhysicalDevicePipelineCacheIncrementalModeFeaturesSEC": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "pipelineCacheIncrementalMode": {
+                    "type": "boolean"
+                }
+            }
+        },
         "VkPhysicalDevicePipelineCreationCacheControlFeatures": {
             "type": "object",
             "additionalProperties": false,
@@ -1871,7 +1889,7 @@
                 }
             }
         },
-        "VkPhysicalDevicePresentModeFifoLatestReadyFeaturesEXT": {
+        "VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
@@ -2537,6 +2555,15 @@
                 }
             }
         },
+        "VkPhysicalDeviceShaderUntypedPointersFeaturesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "shaderUntypedPointers": {
+                    "type": "boolean"
+                }
+            }
+        },
         "VkPhysicalDeviceShadingRateImageFeaturesNV": {
             "type": "object",
             "additionalProperties": false,
@@ -2579,7 +2606,7 @@
                 }
             }
         },
-        "VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT": {
+        "VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
@@ -2803,6 +2830,15 @@
             "additionalProperties": false,
             "properties": {
                 "videoEncodeAV1": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "VkPhysicalDeviceVideoEncodeIntraRefreshFeaturesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "videoEncodeIntraRefresh": {
                     "type": "boolean"
                 }
             }
@@ -7687,6 +7723,7 @@
         },
         "VkVideoEncodeAV1CapabilityFlagBitsKHR": {
             "enum": [
+                "VK_VIDEO_ENCODE_AV1_CAPABILITY_COMPOUND_PREDICTION_INTRA_REFRESH_BIT_KHR",
                 "VK_VIDEO_ENCODE_AV1_CAPABILITY_FRAME_SIZE_OVERRIDE_BIT_KHR",
                 "VK_VIDEO_ENCODE_AV1_CAPABILITY_GENERATE_OBU_EXTENSION_HEADER_BIT_KHR",
                 "VK_VIDEO_ENCODE_AV1_CAPABILITY_MOTION_VECTOR_SCALING_BIT_KHR",
@@ -7894,6 +7931,7 @@
             "enum": [
                 "VK_VIDEO_ENCODE_H264_CAPABILITY_B_FRAME_IN_L0_LIST_BIT_KHR",
                 "VK_VIDEO_ENCODE_H264_CAPABILITY_B_FRAME_IN_L1_LIST_BIT_KHR",
+                "VK_VIDEO_ENCODE_H264_CAPABILITY_B_PICTURE_INTRA_REFRESH_BIT_KHR",
                 "VK_VIDEO_ENCODE_H264_CAPABILITY_DIFFERENT_SLICE_TYPE_BIT_KHR",
                 "VK_VIDEO_ENCODE_H264_CAPABILITY_GENERATE_PREFIX_NALU_BIT_KHR",
                 "VK_VIDEO_ENCODE_H264_CAPABILITY_HRD_COMPLIANCE_BIT_KHR",
@@ -8017,6 +8055,7 @@
             "enum": [
                 "VK_VIDEO_ENCODE_H265_CAPABILITY_B_FRAME_IN_L0_LIST_BIT_KHR",
                 "VK_VIDEO_ENCODE_H265_CAPABILITY_B_FRAME_IN_L1_LIST_BIT_KHR",
+                "VK_VIDEO_ENCODE_H265_CAPABILITY_B_PICTURE_INTRA_REFRESH_BIT_KHR",
                 "VK_VIDEO_ENCODE_H265_CAPABILITY_CU_QP_DIFF_WRAPAROUND_BIT_KHR",
                 "VK_VIDEO_ENCODE_H265_CAPABILITY_DIFFERENT_SLICE_SEGMENT_TYPE_BIT_KHR",
                 "VK_VIDEO_ENCODE_H265_CAPABILITY_HRD_COMPLIANCE_BIT_KHR",
@@ -8145,6 +8184,43 @@
                 },
                 "minQpDelta": {
                     "$ref": "#/definitions/int32_t"
+                }
+            }
+        },
+        "VkVideoEncodeIntraRefreshModeFlagBitsKHR": {
+            "enum": [
+                "VK_VIDEO_ENCODE_INTRA_REFRESH_MODE_BLOCK_BASED_BIT_KHR",
+                "VK_VIDEO_ENCODE_INTRA_REFRESH_MODE_BLOCK_COLUMN_BASED_BIT_KHR",
+                "VK_VIDEO_ENCODE_INTRA_REFRESH_MODE_BLOCK_ROW_BASED_BIT_KHR",
+                "VK_VIDEO_ENCODE_INTRA_REFRESH_MODE_NONE_KHR",
+                "VK_VIDEO_ENCODE_INTRA_REFRESH_MODE_PER_PICTURE_PARTITION_BIT_KHR"
+            ]
+        },
+        "VkVideoEncodeIntraRefreshModeFlagsKHR": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/VkVideoEncodeIntraRefreshModeFlagBitsKHR"
+            },
+            "uniqueItems": true
+        },
+        "VkVideoEncodeIntraRefreshCapabilitiesKHR": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "intraRefreshModes": {
+                    "$ref": "#/definitions/VkVideoEncodeIntraRefreshModeFlagsKHR"
+                },
+                "maxIntraRefreshActiveReferencePictures": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "maxIntraRefreshCycleDuration": {
+                    "$ref": "#/definitions/uint32_t"
+                },
+                "nonRectangularIntraRefreshRegions": {
+                    "type": "boolean"
+                },
+                "partitionIndependentIntraRefreshRegions": {
+                    "type": "boolean"
                 }
             }
         },
@@ -8629,6 +8705,9 @@
                         "type": "object",
                         "additionalProperties": false,
                         "properties": {
+                            "VK_AMDX_dense_geometry_format": {
+                                "type": "integer"
+                            },
                             "VK_AMDX_shader_enqueue": {
                                 "type": "integer"
                             },
@@ -9409,6 +9488,9 @@
                             "VK_KHR_present_id2": {
                                 "type": "integer"
                             },
+                            "VK_KHR_present_mode_fifo_latest_ready": {
+                                "type": "integer"
+                            },
                             "VK_KHR_present_wait": {
                                 "type": "integer"
                             },
@@ -9496,6 +9578,9 @@
                             "VK_KHR_shader_terminate_invocation": {
                                 "type": "integer"
                             },
+                            "VK_KHR_shader_untyped_pointers": {
+                                "type": "integer"
+                            },
                             "VK_KHR_shared_presentable_image": {
                                 "type": "integer"
                             },
@@ -9508,10 +9593,16 @@
                             "VK_KHR_surface": {
                                 "type": "integer"
                             },
+                            "VK_KHR_surface_maintenance1": {
+                                "type": "integer"
+                            },
                             "VK_KHR_surface_protected_capabilities": {
                                 "type": "integer"
                             },
                             "VK_KHR_swapchain": {
+                                "type": "integer"
+                            },
+                            "VK_KHR_swapchain_maintenance1": {
                                 "type": "integer"
                             },
                             "VK_KHR_swapchain_mutable_format": {
@@ -9557,6 +9648,9 @@
                                 "type": "integer"
                             },
                             "VK_KHR_video_encode_h265": {
+                                "type": "integer"
+                            },
+                            "VK_KHR_video_encode_intra_refresh": {
                                 "type": "integer"
                             },
                             "VK_KHR_video_encode_quantization_map": {
@@ -9868,6 +9962,9 @@
                             "VK_SEC_amigo_profiling": {
                                 "type": "integer"
                             },
+                            "VK_SEC_pipeline_cache_incremental_mode": {
+                                "type": "integer"
+                            },
                             "VK_VALVE_descriptor_set_host_mapping": {
                                 "type": "integer"
                             },
@@ -10009,6 +10106,9 @@
                             },
                             "VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV": {
                                 "$ref": "#/definitions/VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV"
+                            },
+                            "VkPhysicalDeviceDenseGeometryFormatFeaturesAMDX": {
+                                "$ref": "#/definitions/VkPhysicalDeviceDenseGeometryFormatFeaturesAMDX"
                             },
                             "VkPhysicalDeviceDepthBiasControlFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceDepthBiasControlFeaturesEXT"
@@ -10337,6 +10437,9 @@
                             "VkPhysicalDevicePipelineBinaryFeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDevicePipelineBinaryFeaturesKHR"
                             },
+                            "VkPhysicalDevicePipelineCacheIncrementalModeFeaturesSEC": {
+                                "$ref": "#/definitions/VkPhysicalDevicePipelineCacheIncrementalModeFeaturesSEC"
+                            },
                             "VkPhysicalDevicePipelineCreationCacheControlFeatures": {
                                 "$ref": "#/definitions/VkPhysicalDevicePipelineCreationCacheControlFeatures"
                             },
@@ -10382,8 +10485,11 @@
                             "VkPhysicalDevicePresentMeteringFeaturesNV": {
                                 "$ref": "#/definitions/VkPhysicalDevicePresentMeteringFeaturesNV"
                             },
+                            "VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR"
+                            },
                             "VkPhysicalDevicePresentModeFifoLatestReadyFeaturesEXT": {
-                                "$ref": "#/definitions/VkPhysicalDevicePresentModeFifoLatestReadyFeaturesEXT"
+                                "$ref": "#/definitions/VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR"
                             },
                             "VkPhysicalDevicePresentWait2FeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDevicePresentWait2FeaturesKHR"
@@ -10607,6 +10713,9 @@
                             "VkPhysicalDeviceShaderTileImageFeaturesEXT": {
                                 "$ref": "#/definitions/VkPhysicalDeviceShaderTileImageFeaturesEXT"
                             },
+                            "VkPhysicalDeviceShaderUntypedPointersFeaturesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDeviceShaderUntypedPointersFeaturesKHR"
+                            },
                             "VkPhysicalDeviceShadingRateImageFeaturesNV": {
                                 "$ref": "#/definitions/VkPhysicalDeviceShadingRateImageFeaturesNV"
                             },
@@ -10622,8 +10731,11 @@
                             "VkPhysicalDeviceSubpassShadingFeaturesHUAWEI": {
                                 "$ref": "#/definitions/VkPhysicalDeviceSubpassShadingFeaturesHUAWEI"
                             },
+                            "VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR"
+                            },
                             "VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT": {
-                                "$ref": "#/definitions/VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT"
+                                "$ref": "#/definitions/VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR"
                             },
                             "VkPhysicalDeviceSynchronization2Features": {
                                 "$ref": "#/definitions/VkPhysicalDeviceSynchronization2Features"
@@ -10702,6 +10814,9 @@
                             },
                             "VkPhysicalDeviceVideoEncodeAV1FeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDeviceVideoEncodeAV1FeaturesKHR"
+                            },
+                            "VkPhysicalDeviceVideoEncodeIntraRefreshFeaturesKHR": {
+                                "$ref": "#/definitions/VkPhysicalDeviceVideoEncodeIntraRefreshFeaturesKHR"
                             },
                             "VkPhysicalDeviceVideoEncodeQuantizationMapFeaturesKHR": {
                                 "$ref": "#/definitions/VkPhysicalDeviceVideoEncodeQuantizationMapFeaturesKHR"
@@ -12263,6 +12378,9 @@
                                         },
                                         "VkVideoEncodeH265QuantizationMapCapabilitiesKHR": {
                                             "$ref": "#/definitions/VkVideoEncodeH265QuantizationMapCapabilitiesKHR"
+                                        },
+                                        "VkVideoEncodeIntraRefreshCapabilitiesKHR": {
+                                            "$ref": "#/definitions/VkVideoEncodeIntraRefreshCapabilitiesKHR"
                                         },
                                         "VkVideoEncodeQuantizationMapCapabilitiesKHR": {
                                             "$ref": "#/definitions/VkVideoEncodeQuantizationMapCapabilitiesKHR"
