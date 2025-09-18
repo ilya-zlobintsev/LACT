@@ -1,6 +1,6 @@
 use anyhow::Result;
 use lact_client::DaemonClient;
-use lact_schema::args::{CliArgs, CliCommand};
+use lact_schema::args::{CliArgs, CliCommand, SetProfileArgs};
 
 pub fn run(args: CliArgs) -> Result<()> {
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -14,6 +14,9 @@ pub fn run(args: CliArgs) -> Result<()> {
             CliCommand::ListGpus => list_gpus(&args, &client).await,
             CliCommand::Info => info(&args, &client).await,
             CliCommand::Snapshot => snapshot(&client).await,
+            CliCommand::ListProfiles => list_profiles(&args, &client).await,
+            CliCommand::CurrentProfile => current_profile(&args, &client).await,
+            CliCommand::SetProfile(profile_args) => set_profile(&profile_args, &client).await,
         }
     })
 }
@@ -68,5 +71,31 @@ async fn extract_gpu_ids(args: &CliArgs, client: &DaemonClient) -> Vec<String> {
 async fn snapshot(client: &DaemonClient) -> Result<()> {
     let path = client.generate_debug_snapshot().await?;
     println!("Generated debug snapshot in {path}");
+    Ok(())
+}
+
+async fn list_profiles(_: &CliArgs, client: &DaemonClient) -> Result<()> {
+    let profiles_info = client.list_profiles(true).await?;
+    for (name, _rule) in profiles_info.profiles {
+        println!("{}", name);
+    }
+    Ok(())
+}
+
+async fn current_profile(_: &CliArgs, client: &DaemonClient) -> Result<()> {
+    let profiles_info = client.list_profiles(true).await?;
+    if let Some(current_profile) = profiles_info.current_profile {
+        println!("{}", current_profile);
+    }
+    Ok(())
+}
+
+async fn set_profile(args: &SetProfileArgs, client: &DaemonClient) -> Result<()> {
+    if let (Some(new_profile), Some(enable_auto_switch)) = (args.name.clone(), args.auto_switch) {
+        client
+            .set_profile(Some(new_profile.clone()), enable_auto_switch)
+            .await?;
+        println!("{}", new_profile);
+    }
     Ok(())
 }
