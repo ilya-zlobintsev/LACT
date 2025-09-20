@@ -605,7 +605,9 @@ impl relm4::WidgetTemplate for FanSettingRow {
             },
 
             #[name = "spinbutton"]
-            gtk::SpinButton {},
+            gtk::SpinButton {
+                set_width_request: 120,
+            },
         },
     }
 }
