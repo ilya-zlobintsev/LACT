@@ -30,7 +30,7 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-nextest
-          version: '0.9.101'
+          version: '0.9.100'
       - name: Run tests
         run: cargo nextest run --cargo-verbose --all-targets --all-features
 
@@ -79,7 +79,7 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-nextest
-          version: '0.9.101'
+          version: '0.9.100'
       - name: Install cargo-llvm-cov from crates.io
         uses: baptiste0928/cargo-install@v3
         with:
@@ -126,7 +126,7 @@ jobs:
       uses: baptiste0928/cargo-install@v3
       with:
         crate: cargo-nextest
-        version: '0.9.101'
+        version: '0.9.100'
     - name: Setup Miri
       run: cargo +nightly-2025-01-03 miri setup
     - name: Run tests inside Miri
@@ -156,7 +156,7 @@ jobs:
           uses: baptiste0928/cargo-install@v3
           with:
             crate: cargo-nextest
-            version: '0.9.101'
+            version: '0.9.100'
         - name: Run tests with ${{ matrix.sanitizer }}
           run: |
               export RUSTFLAGS="-Zsanitizer=${{ matrix.sanitizer }}"
@@ -178,6 +178,6 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-nextest
-          version: '0.9.101'
+          version: '0.9.100'
       - name: Run cargo hack ${{ matrix.command }}
         run: cargo hack ${{ matrix.command }}
