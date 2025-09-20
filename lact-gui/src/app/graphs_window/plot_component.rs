@@ -138,7 +138,7 @@ impl relm4::factory::FactoryComponent for PlotComponent {
 
                     append = &gtk::MenuButton  {
                         set_icon_name: "view-list-symbolic",
-                        set_tooltip: "Edit graph sensors",
+                        set_tooltip: &fl!(I18N, "edit-graph-sensors"),
 
                         #[wrap(Some)]
                         set_popover = &gtk::Popover {

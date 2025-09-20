@@ -1,7 +1,7 @@
 use super::{adj_is_empty, FanSettingRow, PmfwOptions};
 use crate::{
     app::{graphs_window::plot::PlotColorScheme, msg::AppMsg, pages::oc_adjustment::OcAdjustment},
-    APP_BROKER,
+    APP_BROKER, I18N,
 };
 use amdgpu_sysfs::hw_mon::Temperature;
 use gtk::{
@@ -16,6 +16,7 @@ use gtk::{
         AdjustmentExt, BoxExt, ButtonExt, DrawingAreaExtManual, OrientableExt, RangeExt, WidgetExt,
     },
 };
+use i18n_embed_fl::fl;
 use lact_schema::{default_fan_curve, FanCurveMap};
 use plotters::{
     chart::ChartBuilder,
@@ -156,7 +157,7 @@ impl relm4::Component for FanCurveFrame {
                 },
 
                 gtk::Button {
-                    set_label: "Default",
+                    set_label: &fl!(I18N, "default-profile"),
                     connect_clicked => FanCurveFrameMsg::DefaultCurve,
                 },
             },
@@ -168,7 +169,7 @@ impl relm4::Component for FanCurveFrame {
                 set_visible: model.temp_keys_available(),
 
                 gtk::Label {
-                    set_label: "Temperature Sensor",
+                    set_label: &fl!(I18N, "temperature-sensor"),
                     set_xalign: 0.0,
                     set_size_group: &label_size_group,
                 },
@@ -189,8 +190,8 @@ impl relm4::Component for FanCurveFrame {
 
                 #[template_child]
                 label {
-                    set_label: "Spindown Delay (ms)",
-                    set_tooltip: "How long the GPU needs to remain at a lower temperature value before ramping down the fan",
+                    set_label: &fl!(I18N, "spindown-delay"),
+                    set_tooltip: &fl!(I18N, "spindown-delay-tooltip"),
                     set_size_group: &label_size_group,
                 },
 
@@ -213,7 +214,7 @@ impl relm4::Component for FanCurveFrame {
 
                 #[template_child]
                 label {
-                    set_label: "Speed change threshold (°C)",
+                    set_label: &fl!(I18N, "speed-change-threshold"),
                     set_size_group: &label_size_group,
                 },
 
@@ -236,13 +237,8 @@ impl relm4::Component for FanCurveFrame {
 
                 #[template_child]
                 label {
-                    set_label: "Automatic Mode Threshold (°C)",
-                    set_tooltip: "Switch fan control to auto mode when the temperature is below this point.
-
-Many Nvidia GPUs only support stopping the fan in the automatic fan control mode, while a custom curve has a limited speed range such as 30-100%.
-
-This option allows to work around this limitation by only using the custom curve when above a specific temperature, \
-    with the card's builtin auto mode that supports zero RPM being used below it.",
+                    set_label: &fl!(I18N, "automatic-mode-threshold"),
+                    set_tooltip: &fl!(I18N, "automatic-mode-threshold-tooltip"),
                     set_size_group: &label_size_group,
                 },
 
@@ -265,7 +261,7 @@ This option allows to work around this limitation by only using the custom curve
                 set_visible: model.pmfw_options.zero_rpm_available.get(),
 
                 gtk::Label {
-                    set_label: "Zero RPM",
+                    set_label: &fl!(I18N, "zero-rpm"),
                     set_xalign: 0.0,
                     set_size_group: &label_size_group,
                 },
@@ -284,7 +280,7 @@ This option allows to work around this limitation by only using the custom curve
 
                 #[template_child]
                 label {
-                    set_label: "Zero RPM stop temperature (°C)",
+                    set_label: &fl!(I18N, "zero-rpm-stop-temp"),
                     set_size_group: &label_size_group,
                 },
 

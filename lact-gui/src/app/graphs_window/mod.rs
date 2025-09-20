@@ -3,10 +3,11 @@ mod plot_component;
 pub mod stat;
 
 use super::{msg::AppMsg, APP_BROKER};
-use crate::CONFIG;
+use crate::{CONFIG, I18N};
 use anyhow::Context;
 use chrono::Local;
 use gtk::{glib, prelude::*};
+use i18n_embed_fl::fl;
 use lact_schema::DeviceStats;
 use plot_component::{PlotComponent, PlotComponentConfig, PlotComponentMsg};
 use relm4::{
@@ -65,7 +66,7 @@ impl relm4::Component for GraphsWindow {
         gtk::Window {
             set_default_height: 700,
             set_default_width: 1200,
-            set_title: Some("Historical data"),
+            set_title: Some(&fl!(I18N, "historical-data-title")),
             set_hide_on_close: true,
 
             gtk::ScrolledWindow {
@@ -93,7 +94,7 @@ impl relm4::Component for GraphsWindow {
                             set_visible: model.edit_mode.value(),
 
                             append = &gtk::Label {
-                                set_label: "Graphs per row:",
+                                set_label: &fl!(I18N, "graphs-per-row"),
                             },
 
                             append = &gtk::SpinButton {
@@ -106,7 +107,7 @@ impl relm4::Component for GraphsWindow {
                             },
 
                             append = &gtk::Label {
-                                set_label: "Time period (seconds):"
+                                set_label: &fl!(I18N, "time-period-seconds"),
                             },
 
                             append = &gtk::SpinButton {
@@ -115,8 +116,8 @@ impl relm4::Component for GraphsWindow {
                             },
 
                             append = &gtk::Button {
-                                set_label: "Reset",
-                                set_tooltip: "Resets all graphs to default",
+                                set_label: &fl!(I18N, "reset-button"),
+                                set_tooltip: &fl!(I18N, "reset-all-graphs-tooltip"),
                                 set_css_classes: &["destructive-action"],
                                 connect_clicked => GraphsWindowMsg::SetConfig(default_plots()),
                             },
@@ -124,18 +125,18 @@ impl relm4::Component for GraphsWindow {
                             append = &gtk::Button {
                                 set_icon_name: "list-add-symbolic",
                                 connect_clicked => GraphsWindowMsg::AddPlot,
-                                set_tooltip: "Add graph",
+                                set_tooltip: &fl!(I18N, "add-graph"),
                             },
                         },
 
                         append = &gtk::ToggleButton {
-                            set_label: "Edit",
+                            set_label: &fl!(I18N, "edit-graphs"),
                             bind: &model.edit_mode,
                             connect_active_notify => GraphsWindowMsg::NotifyEditing,
                         },
 
                         append = &gtk::Button {
-                            set_label: "Export as CSV",
+                            set_label: &fl!(I18N, "export-csv"),
                             connect_clicked => GraphsWindowMsg::ExportData,
                         }
                     }

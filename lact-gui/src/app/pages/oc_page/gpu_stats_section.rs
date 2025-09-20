@@ -28,7 +28,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 set_spacing: 5,
 
                 gtk::Label {
-                    set_label: "VRAM Usage:",
+                    set_label: &fl!(I18N, "vram-usage"),
                 },
 
                 gtk::Overlay {

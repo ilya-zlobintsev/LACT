@@ -54,7 +54,7 @@ impl relm4::Component for PerformanceFrame {
                 set_spacing: 10,
 
                 gtk::Label {
-                    set_label: "Performance Level:"
+                    set_label: &fl!(I18N, "performance-level"),
                 },
 
                 gtk::Label {

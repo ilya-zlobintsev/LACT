@@ -1,5 +1,7 @@
 use gtk::prelude::{BoxExt, ButtonExt, OrientableExt, WidgetExt};
+use i18n_embed_fl::fl;
 use relm4::{ComponentParts, ComponentSender, SimpleComponent};
+use crate::I18N;
 
 pub struct ApplyRevealer {
     shown: bool,
@@ -28,7 +30,7 @@ impl SimpleComponent for ApplyRevealer {
                 set_spacing: 5,
 
                 gtk::Button {
-                    set_label: "Apply",
+                    set_label: &fl!(I18N, "apply-button"),
                     set_hexpand: true,
                     connect_clicked[sender] => move |_| {
                         sender.output(super::AppMsg::ApplyChanges).unwrap();
@@ -36,7 +38,7 @@ impl SimpleComponent for ApplyRevealer {
                 },
 
                 gtk::Button {
-                    set_label: "Revert",
+                    set_label: &fl!(I18N, "revert-button"),
                     connect_clicked[sender] => move |_| {
                         sender.output(super::AppMsg::RevertChanges).unwrap();
                     },

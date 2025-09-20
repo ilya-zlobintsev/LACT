@@ -55,6 +55,17 @@ static-speed = Static Speed (%)
 reset-button = Reset
 pmfw-reset-warning = Warning: this resets the fan firmware settings!
 
+temperature-sensor = Temperature Sensor
+spindown-delay = Spindown Delay (ms)
+spindown-delay-tooltip = How long the GPU needs to remain at a lower temperature value before ramping down the fan
+speed-change-threshold = Speed Change Threshold (°C)
+automatic-mode-threshold = Automatic Mode Threshold (°C)
+automatic-mode-threshold-tooltip = Switch fan control to auto mode when the temperature is below this point.
+
+Many Nvidia GPUs only support stopping the fan in the automatic fan control mode, while a custom curve has a limited speed range such as 30-100%.
+
+This option allows to work around this limitation by only using the custom curve when above a specific temperature, with the card's builtin auto mode that supports zero RPM being used below it. 
+
 amd-oc = AMD Overclocking
 amd-oc-disabled = 
     AMD Overclocking support is not enabled!
@@ -89,6 +100,9 @@ amd-oc-updating-done = Configuration updated, please reboot to apply changes.
 reset-config = Reset Configuration
 reset-config-description = Are you sure you want to reset all GPU configuration?
 
+apply-button = Apply
+revert-button = Revert
+
 power-cap = Power Usage Limit
 
 watt = W
@@ -108,6 +122,7 @@ power-usage = Power Usage
 no-throttling = No
 unknown-throttling = Unknown
 missing-stat = N/A
+vram-usage = VRAM Usage:
 
 performance-level-auto = Automatic
 performance-level-high = Highest Clocks
@@ -118,6 +133,7 @@ performance-level-high-description = Always use the highest clockspeeds for GPU 
 performance-level-low-description = Always use the lowest clockspeeds for GPU and VRAM.
 performance-level-manual-description = Manual performance control.
 
+performance-level = Performance Level
 power-profile-mode = Power Profile Mode:
 manual-level-needed = Performance level has to be set to "manual" to use power states and modes
 
@@ -170,6 +186,16 @@ generate-debug-snapshot = Generate Debug Snapshot
 dump-vbios = Dump VBIOS
 reset-all-config = Reset All Configuration
 stats-update-interval = Update Interval (ms)
+
+historical-data-title = Historical Data
+graphs-per-row = Graphs Per Row:
+time-period-seconds = Time Period (Seconds):
+reset-all-graphs-tooltip = Reset All Graphs To Default
+add-graph = Add Graph
+delete-graph = Delete Graph
+edit-graphs = Edit
+export-csv = Export as CSV
+edit-graph-sensors = Edit Graph Sensors
 
 reconnecting-to-daemon = Daemon connection lost, reconnecting...
 daemon-connection-lost = Connection Lost
