@@ -62,9 +62,9 @@ speed-change-threshold = Speed Change Threshold (°C)
 automatic-mode-threshold = Automatic Mode Threshold (°C)
 automatic-mode-threshold-tooltip = Switch fan control to auto mode when the temperature is below this point.
 
-Many Nvidia GPUs only support stopping the fan in the automatic fan control mode, while a custom curve has a limited speed range such as 30-100%.
+    Many Nvidia GPUs only support stopping the fan in the automatic fan control mode, while a custom curve has a limited speed range such as 30-100%.
 
-This option allows to work around this limitation by only using the custom curve when above a specific temperature, with the card's builtin auto mode that supports zero RPM being used below it. 
+    This option allows to work around this limitation by only using the custom curve when above a specific temperature, with the card's builtin auto mode that supports zero RPM being used below it.
 
 amd-oc = AMD Overclocking
 amd-oc-disabled = 

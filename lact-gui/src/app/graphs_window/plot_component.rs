@@ -158,7 +158,7 @@ impl relm4::factory::FactoryComponent for PlotComponent {
 
                     append = &gtk::Button  {
                         set_icon_name: "edit-delete-symbolic",
-                        set_tooltip: "Delete graph",
+                        set_tooltip: &fl!(I18N, "delete-graph"),
 
                         connect_clicked[sender, index] => move |_| {
                             sender.output(GraphsWindowMsg::RemovePlot(index.clone())).unwrap();
