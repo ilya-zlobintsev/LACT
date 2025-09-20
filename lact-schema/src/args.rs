@@ -44,4 +44,18 @@ pub enum CliCommand {
     Info,
     /// Generate debug snapshot
     Snapshot,
+    /// List profiles
+    ListProfiles,
+    /// Current profile
+    CurrentProfile,
+    /// Set profile
+    SetProfile(SetProfileArgs),
+}
+
+#[derive(Parser)]
+pub struct SetProfileArgs {
+    #[arg(short, long, required = true)]
+    pub name: Option<String>,
+    #[arg(short, long, required = true)]
+    pub auto_switch: Option<bool>,
 }
