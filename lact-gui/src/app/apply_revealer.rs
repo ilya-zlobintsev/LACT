@@ -1,7 +1,7 @@
+use crate::I18N;
 use gtk::prelude::{BoxExt, ButtonExt, OrientableExt, WidgetExt};
 use i18n_embed_fl::fl;
 use relm4::{ComponentParts, ComponentSender, SimpleComponent};
-use crate::I18N;
 
 pub struct ApplyRevealer {
     shown: bool,
