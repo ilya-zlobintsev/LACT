@@ -8,9 +8,10 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  NEXTEST_RETRIES: 3
 
 jobs:
-  build-test:
+  build:
     runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
@@ -18,8 +19,20 @@ jobs:
       - uses: ./.github/actions/setup-environment
       - name: Build
         run: cargo build
+
+  test:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: ./.github/actions/setup-environment
+      - name: Install cargo-nextest from crates.io
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-nextest
+          version: '0.9.101'
       - name: Run tests
-        run: cargo test --all --all-features --verbose
+        run: cargo nextest run --cargo-verbose --all-targets --all-features
 
   check-format:
     runs-on: ubuntu-24.04
@@ -62,13 +75,27 @@ jobs:
     steps:
       - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
       - uses: ./.github/actions/setup-environment
-
+      - name: Install cargo-nextest from crates.io
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-nextest
+          version: '0.9.101'
       - name: Install cargo-llvm-cov from crates.io
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-llvm-cov
           version: '0.6.18'
-
+      - name: Install Nightly Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2025-01-03
+          override: true
+      - name: Collect coverage data (including doctests)
+        run: |
+          cargo llvm-cov --no-report --no-fail-fast --include-ffi --workspace nextest
+          cargo +nightly-2025-01-03 llvm-cov --no-report --no-fail-fast --include-ffi --workspace --doc
+          cargo llvm-cov report --doctests --lcov --output-path lcov.info
       - name: Generate coverage report
         run: cargo llvm-cov --no-fail-fast --include-ffi --workspace --lcov --output-path lcov.info
 
@@ -95,11 +122,15 @@ jobs:
         toolchain: nightly-2025-01-03
         override: true
         components: miri
-
+    - name: Install cargo-nextest from crates.io
+      uses: baptiste0928/cargo-install@v3
+      with:
+        crate: cargo-nextest
+        version: '0.9.101'
     - name: Setup Miri
       run: cargo +nightly-2025-01-03 miri setup
     - name: Run tests inside Miri
-      run: cargo +nightly-2025-01-03 miri test
+      run: cargo +nightly-2025-01-03 miri nextest run
 
   test-sanitizers:
       runs-on: ubuntu-24.04
@@ -121,11 +152,15 @@ jobs:
             toolchain: nightly-2025-01-03
             override: true
             components: rust-src
-
+        - name: Install cargo-nextest from crates.io
+          uses: baptiste0928/cargo-install@v3
+          with:
+            crate: cargo-nextest
+            version: '0.9.101'
         - name: Run tests with ${{ matrix.sanitizer }}
           run: |
               export RUSTFLAGS="-Zsanitizer=${{ matrix.sanitizer }}"
-              cargo +nightly-2025-01-03 -Zbuild-std test --target x86_64-unknown-linux-gnu --verbose
+              cargo +nightly-2025-01-03 nextest run -Zbuild-std --target x86_64-unknown-linux-gnu --cargo-verbose
 
   check-features-powerset:
     runs-on: ubuntu-24.04
@@ -134,10 +169,15 @@ jobs:
       matrix:
         command:
           - check --feature-powerset --no-dev-deps --all
-          - test --feature-powerset --all
+          - nextest run --feature-powerset --all --no-tests pass
     steps:
       - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
       - uses: ./.github/actions/setup-environment
       - uses: taiki-e/install-action@cargo-hack
+      - name: Install cargo-nextest from crates.io
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-nextest
+          version: '0.9.101'
       - name: Run cargo hack ${{ matrix.command }}
         run: cargo hack ${{ matrix.command }}
