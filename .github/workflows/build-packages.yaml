@@ -34,6 +34,11 @@ jobs:
           curl -L -o /usr/local/bin/pkger https://github.com/ilya-zlobintsev/pkger/releases/download/v0.11.1/pkger
           chmod +x /usr/local/bin/pkger
       
+      - name: Cache Docker base images.
+        uses: AndreKurait/docker-cache@0.6.0
+        with:
+          key: docker-${{ runner.os }}-${{ hashFiles('pkg/**') }}
+
       # A GitHub Action that implements smart caching for rust/cargo projects with sensible defaults.
       - uses: Swatinem/rust-cache@v2
 
