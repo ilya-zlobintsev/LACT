@@ -202,3 +202,4 @@ dump-vbios = Exportar VBIOS
 reset-all-config = Redefinir todas configurações
 stats-update-interval = Intervalo de atualização (ms)
 show-process-monitor = Mostrar monitor de processos
+temperature-sensor = Sensor de temperatura
