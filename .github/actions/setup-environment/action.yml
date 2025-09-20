@@ -11,5 +11,10 @@ runs:
     - name: Update pci.ids
       run: sudo curl -o /usr/share/hwdata/pci.ids https://pci-ids.ucw.cz/v2.2/pci.ids
       shell: bash
-    # A GitHub Action that implements smart caching for rust/cargo projects with sensible defaults.
     - uses: Swatinem/rust-cache@v2
+      with:
+        cache-targets: false
+    - name: Run sccache-cache
+      uses: mozilla-actions/sccache-action@v0.0.9
+      with:
+        version: "v0.10.0"
