@@ -292,6 +292,35 @@ There is also a cli available.
   CPU Accessible VRAM: 16384
   Link Speed: 8 GT/s PCIe gen 3 x8
   ```
+- List profiles:
+
+  `lact cli list-profiles`
+
+  Example output:
+
+  ```
+  Gaming
+  Performance
+  Balanced
+  ```
+- Get current Profile:
+
+  `lact cli current-profile`
+
+  Example output:
+
+  ```
+  Gaming
+  ```
+- Set Profile:
+
+  `lact cli set-profile --name "Performance" --auto-switch "false"`
+
+  Example output:
+
+  ```
+  Performance
+  ```
 
 The functionality of the CLI is quite limited. If you want to integrate LACT
 with some application/script, you should use the [API](API.md) instead.
