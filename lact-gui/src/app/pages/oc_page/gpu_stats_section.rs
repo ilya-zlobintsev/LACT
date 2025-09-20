@@ -1,7 +1,8 @@
 use crate::app::msg::AppMsg;
 use crate::app::APP_BROKER;
 use crate::app::{
-    ext::FlowBoxExt, info_row::InfoRow, page_section::PageSection, pages::PageUpdate,
+    ext::FlowBoxExt, formatting::Mono, info_row::InfoRow, page_section::PageSection,
+    pages::PageUpdate,
 };
 use crate::I18N;
 use gtk::prelude::{BoxExt, ButtonExt, OrientableExt, WidgetExt};
@@ -95,7 +96,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 append_child = &InfoRow {
                     set_name: fl!(I18N, "gpu-voltage"),
                     #[watch]
-                    set_value: format!("{:.3} V", model.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64),
+                    set_value: format!("{} V", Mono::float(model.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64, 3)),
                     set_spacing: 40,
                 } -> gpu_voltage_item: gtk::FlowBoxChild {
                     #[watch]
@@ -125,7 +126,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 append_child = &InfoRow {
                     set_name: fl!(I18N, "gpu-usage"),
                     #[watch]
-                    set_value: format!("{}%", model.stats.busy_percent.unwrap_or(0)),
+                    set_value: format!("{}%", Mono::uint(model.stats.busy_percent.unwrap_or(0))),
                     set_spacing: 40,
                 } -> gpu_usage_item: gtk::FlowBoxChild {
                     #[watch]
@@ -148,9 +149,9 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             .or(power_average);
 
                         format!(
-                            "<b>{:.1}/{} {}</b>",
-                            power_current.unwrap_or(0.0),
-                            power_cap_current.unwrap_or(0.0),
+                            "<b>{}/{} {}</b>",
+                            Mono::float(power_current.unwrap_or(0.0), 1),
+                            Mono::float(power_cap_current.unwrap_or(0.0), 1),
                             fl!(I18N, "watt")
                         )
                     },
@@ -204,8 +205,8 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
 fn format_clockspeed(value: Option<u64>, ratio: f64) -> String {
     format!(
-        "{:.3} {}",
-        value.unwrap_or(0) as f64 / 1000.0 * ratio,
+        "{} {}",
+        Mono::float(value.unwrap_or(0) as f64 / 1000.0 * ratio, 3),
         fl!(I18N, "ghz")
     )
 }
@@ -254,7 +255,10 @@ pub fn temperature_text(stats: &DeviceStats) -> Option<String> {
     let mut temperatures: Vec<String> = stats
         .temps
         .iter()
-        .filter_map(|(label, temp)| temp.current.map(|current| format!("{label}: {current}°C")))
+        .filter_map(|(label, temp)| {
+            temp.current
+                .map(|current| format!("{label}: {}°C", Mono::float(current, 0)))
+        })
         .collect();
     temperatures.sort_unstable();
     if temperatures.is_empty() {

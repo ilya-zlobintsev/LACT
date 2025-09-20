@@ -6,7 +6,7 @@ use super::{
     PageUpdate,
 };
 use crate::{
-    app::{info_row::InfoRow, msg::AppMsg, page_section::PageSection},
+    app::{formatting::Mono, info_row::InfoRow, msg::AppMsg, page_section::PageSection},
     APP_BROKER, I18N,
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
@@ -415,12 +415,16 @@ impl relm4::Component for ThermalsPage {
                         .map(|current_pwm| ((current_pwm as f64 / u8::MAX as f64) * 100.0).round());
                     let fan_text = if let Some(current_rpm) = stats.fan.speed_current {
                         let text = match fan_percent {
-                            Some(percent) => format!("<b>{current_rpm} RPM ({percent}%)</b>",),
-                            None => format!("<b>{current_rpm} RPM</b>"),
+                            Some(percent) => format!(
+                                "<b>{} RPM ({}%)</b>",
+                                Mono::uint(current_rpm),
+                                Mono::uint(percent as u32)
+                            ),
+                            None => format!("<b>{} RPM</b>", Mono::uint(current_rpm)),
                         };
                         Some(text)
                     } else {
-                        fan_percent.map(|percent| format!("<b>{percent}%</b>"))
+                        fan_percent.map(|percent| format!("<b>{}%</b>", Mono::uint(percent as u32)))
                     };
 
                     self.fan_speed = fan_text;
