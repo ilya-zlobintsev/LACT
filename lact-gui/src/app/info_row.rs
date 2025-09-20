@@ -131,6 +131,7 @@ mod imp {
                         set_halign: gtk::Align::End,
                         set_use_markup: true,
                         set_ellipsize: pango::EllipsizeMode::End,
+                        add_css_class: "monospace",
                     }
                 }
             }
