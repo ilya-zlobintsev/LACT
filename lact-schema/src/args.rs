@@ -69,8 +69,6 @@ pub enum ProfileCommand {
 #[derive(Parser)]
 pub struct SetProfileArgs {
     pub name: String,
-    #[arg(short, long)]
-    pub auto_switch: Option<bool>,
 }
 
 #[derive(Parser)]
