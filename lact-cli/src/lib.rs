@@ -90,7 +90,7 @@ async fn list_profiles(_: &ProfileArgs, client: &DaemonClient) -> Result<()> {
 }
 
 async fn current_profile(_: &ProfileArgs, client: &DaemonClient) -> Result<()> {
-    let profiles_info = client.list_profiles(true).await?;
+    let profiles_info = client.list_profiles(false).await?;
     if let Some(current_profile) = profiles_info.current_profile {
         println!("{}", current_profile);
     } else {
