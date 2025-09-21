@@ -86,6 +86,8 @@ async fn current_profile(_: &CliArgs, client: &DaemonClient) -> Result<()> {
     let profiles_info = client.list_profiles(true).await?;
     if let Some(current_profile) = profiles_info.current_profile {
         println!("{}", current_profile);
+    } else {
+        println!("Default");
     }
     Ok(())
 }
