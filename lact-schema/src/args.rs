@@ -1,5 +1,8 @@
+pub mod cli;
+
 pub use clap;
 
+use crate::args::cli::CliArgs;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -25,23 +28,4 @@ pub struct GuiArgs {
     /// Remote TCP address to connect to
     #[arg(long)]
     pub tcp_address: Option<String>,
-}
-
-#[derive(Parser)]
-#[command(author, version, about)]
-pub struct CliArgs {
-    #[arg(short, long)]
-    pub gpu_id: Option<String>,
-    #[command(subcommand)]
-    pub subcommand: CliCommand,
-}
-
-#[derive(Subcommand)]
-pub enum CliCommand {
-    /// List GPUs
-    ListGpus,
-    /// Show GPU info
-    Info,
-    /// Generate debug snapshot
-    Snapshot,
 }
