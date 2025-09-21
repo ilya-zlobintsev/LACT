@@ -100,11 +100,14 @@ async fn current_profile(_: &ProfileArgs, client: &DaemonClient) -> Result<()> {
 }
 
 async fn set_profile(args: &SetProfileArgs, client: &DaemonClient) -> Result<()> {
-    if let (Some(new_profile), Some(enable_auto_switch)) = (args.name.clone(), args.auto_switch) {
-        client
-            .set_profile(Some(new_profile.clone()), enable_auto_switch)
-            .await?;
-        println!("{}", new_profile);
-    }
+    let new_profile = &args.name;
+    let auto_switch = match args.auto_switch {
+        None => client.list_profiles(false).await?.auto_switch,
+        Some(auto_switch) => auto_switch,
+    };
+    client
+        .set_profile(Some(new_profile.clone()), auto_switch)
+        .await?;
+    println!("{}", new_profile);
     Ok(())
 }

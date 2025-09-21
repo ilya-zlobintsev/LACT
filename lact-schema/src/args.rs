@@ -54,7 +54,6 @@ pub struct ProfileArgs {
     pub subcommand: Option<ProfileCommand>,
 }
 
-
 #[derive(Subcommand)]
 pub enum ProfileCommand {
     /// List profiles
@@ -67,8 +66,7 @@ pub enum ProfileCommand {
 
 #[derive(Parser)]
 pub struct SetProfileArgs {
-    #[arg(short, long, required = true)]
-    pub name: Option<String>,
-    #[arg(short, long, required = true)]
+    pub name: String,
+    #[arg(short, long)]
     pub auto_switch: Option<bool>,
 }
