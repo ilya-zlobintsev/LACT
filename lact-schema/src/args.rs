@@ -62,6 +62,8 @@ pub enum ProfileCommand {
     Get,
     /// Set profile
     Set(SetProfileArgs),
+    /// Manage profile auto switching
+    AutoSwitch(ProfileAutoSwitchArgs),
 }
 
 #[derive(Parser)]
@@ -69,4 +71,20 @@ pub struct SetProfileArgs {
     pub name: String,
     #[arg(short, long)]
     pub auto_switch: Option<bool>,
+}
+
+#[derive(Parser)]
+pub struct ProfileAutoSwitchArgs {
+    #[command(subcommand)]
+    pub subcommand: Option<ProfileAutoSwitchCommand>,
+}
+
+#[derive(Subcommand)]
+pub enum ProfileAutoSwitchCommand {
+    /// Current auto switch state
+    Get,
+    /// Enable auto switching
+    Enable,
+    /// Disable auto switching
+    Disable,
 }

@@ -1,6 +1,9 @@
 use anyhow::Result;
 use lact_client::DaemonClient;
-use lact_schema::args::{CliArgs, CliCommand, ProfileArgs, ProfileCommand, SetProfileArgs};
+use lact_schema::args::{
+    CliArgs, CliCommand, ProfileArgs, ProfileAutoSwitchArgs, ProfileAutoSwitchCommand,
+    ProfileCommand, SetProfileArgs,
+};
 
 pub fn run(args: CliArgs) -> Result<()> {
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -21,6 +24,22 @@ pub fn run(args: CliArgs) -> Result<()> {
                     ProfileCommand::Get => current_profile(&profile_args, &client).await,
                     ProfileCommand::Set(set_profile_args) => {
                         set_profile(&set_profile_args, &client).await
+                    }
+                    ProfileCommand::AutoSwitch(auto_switch_args) => {
+                        match &auto_switch_args.subcommand {
+                            None => current_auto_switch(auto_switch_args, &client).await,
+                            Some(auto_switch_command) => match auto_switch_command {
+                                ProfileAutoSwitchCommand::Get => {
+                                    current_auto_switch(auto_switch_args, &client).await
+                                }
+                                ProfileAutoSwitchCommand::Enable => {
+                                    set_auto_switch(auto_switch_args, &client, true).await
+                                }
+                                ProfileAutoSwitchCommand::Disable => {
+                                    set_auto_switch(auto_switch_args, &client, false).await
+                                }
+                            },
+                        }
                     }
                 },
             },
@@ -109,5 +128,21 @@ async fn set_profile(args: &SetProfileArgs, client: &DaemonClient) -> Result<()>
         .set_profile(Some(new_profile.clone()), auto_switch)
         .await?;
     println!("{}", new_profile);
+    Ok(())
+}
+
+async fn current_auto_switch(_: &ProfileAutoSwitchArgs, client: &DaemonClient) -> Result<()> {
+    let auto_switch = client.list_profiles(false).await?.auto_switch;
+    println!("{}", auto_switch);
+    Ok(())
+}
+
+async fn set_auto_switch(
+    _: &ProfileAutoSwitchArgs,
+    client: &DaemonClient,
+    enable: bool,
+) -> Result<()> {
+    client.set_profile(None, enable).await?;
+    println!("{}", enable);
     Ok(())
 }
