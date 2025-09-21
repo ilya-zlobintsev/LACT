@@ -75,7 +75,7 @@ async fn snapshot(client: &DaemonClient) -> Result<()> {
 }
 
 async fn list_profiles(_: &CliArgs, client: &DaemonClient) -> Result<()> {
-    let profiles_info = client.list_profiles(true).await?;
+    let profiles_info = client.list_profiles(false).await?;
     for (name, _rule) in profiles_info.profiles {
         println!("{}", name);
     }
