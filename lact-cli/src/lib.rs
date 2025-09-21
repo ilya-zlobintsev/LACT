@@ -1,6 +1,6 @@
 use anyhow::Result;
 use lact_client::DaemonClient;
-use lact_schema::args::{CliArgs, CliCommand, SetProfileArgs};
+use lact_schema::args::{CliArgs, CliCommand, ProfileArgs, ProfileCommand, SetProfileArgs};
 
 pub fn run(args: CliArgs) -> Result<()> {
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -14,9 +14,16 @@ pub fn run(args: CliArgs) -> Result<()> {
             CliCommand::ListGpus => list_gpus(&args, &client).await,
             CliCommand::Info => info(&args, &client).await,
             CliCommand::Snapshot => snapshot(&client).await,
-            CliCommand::ListProfiles => list_profiles(&args, &client).await,
-            CliCommand::CurrentProfile => current_profile(&args, &client).await,
-            CliCommand::SetProfile(profile_args) => set_profile(&profile_args, &client).await,
+            CliCommand::Profile(profile_args) => match &profile_args.subcommand {
+                None => current_profile(&profile_args, &client).await,
+                Some(profile_subcommand) => match profile_subcommand {
+                    ProfileCommand::List => list_profiles(&profile_args, &client).await,
+                    ProfileCommand::Get => current_profile(&profile_args, &client).await,
+                    ProfileCommand::Set(set_profile_args) => {
+                        set_profile(&set_profile_args, &client).await
+                    }
+                },
+            },
         }
     })
 }
@@ -74,7 +81,7 @@ async fn snapshot(client: &DaemonClient) -> Result<()> {
     Ok(())
 }
 
-async fn list_profiles(_: &CliArgs, client: &DaemonClient) -> Result<()> {
+async fn list_profiles(_: &ProfileArgs, client: &DaemonClient) -> Result<()> {
     let profiles_info = client.list_profiles(false).await?;
     for (name, _rule) in profiles_info.profiles {
         println!("{}", name);
@@ -82,7 +89,7 @@ async fn list_profiles(_: &CliArgs, client: &DaemonClient) -> Result<()> {
     Ok(())
 }
 
-async fn current_profile(_: &CliArgs, client: &DaemonClient) -> Result<()> {
+async fn current_profile(_: &ProfileArgs, client: &DaemonClient) -> Result<()> {
     let profiles_info = client.list_profiles(true).await?;
     if let Some(current_profile) = profiles_info.current_profile {
         println!("{}", current_profile);

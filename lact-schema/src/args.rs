@@ -44,12 +44,25 @@ pub enum CliCommand {
     Info,
     /// Generate debug snapshot
     Snapshot,
+    /// Manage profiles or show current profile
+    Profile(ProfileArgs),
+}
+
+#[derive(Parser)]
+pub struct ProfileArgs {
+    #[command(subcommand)]
+    pub subcommand: Option<ProfileCommand>,
+}
+
+
+#[derive(Subcommand)]
+pub enum ProfileCommand {
     /// List profiles
-    ListProfiles,
+    List,
     /// Current profile
-    CurrentProfile,
+    Get,
     /// Set profile
-    SetProfile(SetProfileArgs),
+    Set(SetProfileArgs),
 }
 
 #[derive(Parser)]
