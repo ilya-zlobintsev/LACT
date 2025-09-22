@@ -298,7 +298,7 @@ There is also a cli available.
 
   - List profiles:
 
-    `lact cli profile list-profiles`
+    `lact cli profile list`
 
     Example output:
 
@@ -311,7 +311,7 @@ There is also a cli available.
 
   - Get current Profile:
 
-    `lact cli profile get` or `lact profile`
+    `lact cli profile get` or `lact cli profile`
 
     Example output:
 
@@ -330,7 +330,7 @@ There is also a cli available.
     ```
 
     - Auto switch profiles
-      `lact cli profile auto-switch`
+      `lact cli profile auto-switch [COMMAND]`
 
         - Get auto-switch state:
 
