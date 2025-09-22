@@ -5,6 +5,8 @@ use lact_schema::args::{
     ProfileCommand, SetProfileArgs,
 };
 
+const PROFILE_DEFAULT: &str = "Default";
+
 pub fn run(args: CliArgs) -> Result<()> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -102,6 +104,7 @@ async fn snapshot(client: &DaemonClient) -> Result<()> {
 
 async fn list_profiles(_: &ProfileArgs, client: &DaemonClient) -> Result<()> {
     let profiles_info = client.list_profiles(false).await?;
+    println!("{}", PROFILE_DEFAULT);
     for (name, _rule) in profiles_info.profiles {
         println!("{}", name);
     }
@@ -113,7 +116,7 @@ async fn current_profile(_: &ProfileArgs, client: &DaemonClient) -> Result<()> {
     if let Some(current_profile) = profiles_info.current_profile {
         println!("{}", current_profile);
     } else {
-        println!("Default");
+        println!("{}", PROFILE_DEFAULT);
     }
     Ok(())
 }
@@ -121,9 +124,9 @@ async fn current_profile(_: &ProfileArgs, client: &DaemonClient) -> Result<()> {
 async fn set_profile(args: &SetProfileArgs, client: &DaemonClient) -> Result<()> {
     let new_profile = args.name.trim();
 
-    if new_profile.to_lowercase() == "default" {
+    if new_profile.to_lowercase() == PROFILE_DEFAULT.to_lowercase() {
         client.set_profile(None, false).await?;
-        println!("Default");
+        println!("{}", PROFILE_DEFAULT);
     } else {
         // Ugly hack to workaround a bug:
         // When setting a profile while auto-switch is enabled, the new profile will not
