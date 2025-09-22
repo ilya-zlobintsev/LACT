@@ -44,7 +44,7 @@ pub enum CliCommand {
     Info,
     /// Generate debug snapshot
     Snapshot,
-    /// Manage profiles or show current profile
+    /// Manage profiles
     Profile(ProfileArgs),
 }
 
