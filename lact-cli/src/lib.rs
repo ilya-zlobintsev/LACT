@@ -151,7 +151,11 @@ async fn set_profile(args: &SetProfileArgs, client: &DaemonClient) -> Result<()>
 
 async fn current_auto_switch(_: &ProfileAutoSwitchArgs, client: &DaemonClient) -> Result<()> {
     let auto_switch = client.list_profiles(false).await?.auto_switch;
-    println!("{}", auto_switch);
+    if auto_switch {
+        println!("enabled");
+    } else {
+        println!("disabled");
+    }
     Ok(())
 }
 
@@ -161,6 +165,10 @@ async fn set_auto_switch(
     enable: bool,
 ) -> Result<()> {
     client.set_profile(None, enable).await?;
-    println!("{}", enable);
+    if enable {
+        println!("enabled");
+    } else {
+        println!("disabled");
+    }
     Ok(())
 }
