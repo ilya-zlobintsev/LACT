@@ -4,7 +4,7 @@ platform-name = Имя платформы
 instance = Инстанция
 api-version = Версия API
 info-page = Информация
-lact-daemon = Демон LACT
+lact-daemon = Сервис LACT
 software-page = ПО
 hardware-info = Сведения об оборудовании
 lact-gui = Графический интерфейс LACT
@@ -97,7 +97,7 @@ amd-oc-description =
 
     См. <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">вики</a> для получения дополнительной информации.
 power-cap = Порог потребляемой мощности
-gpu-temp = Температура GPU
+gpu-temp = Температура
 unknown-throttling = Неизвестно
 vram-clock = Частота VRAM
 performance-level-auto-description = Автоматическая регулировка частот GPU и VRAM (по умолчанию).
@@ -181,7 +181,7 @@ activation-settings-status =
         [true] совпадают
        *[false] не совпадают
     }</b>
-profile-hook-note = Примечание: эти команды выполняются демоном LACT с правами root, они не имеют доступа к графической среде рабочего стола, поэтому их нельзя использовать для запуска графических приложений.
+profile-hook-note = Примечание: эти команды выполняются сервисом LACT с правами root, они не имеют доступа к графической среде рабочего стола, поэтому их нельзя использовать для запуска графических приложений.
 default-profile = По умолчанию
 remove-rule = Удалить правило
 name = Имя
@@ -194,3 +194,11 @@ amd-cache-desc =
         [1] локальный для каждого CU
        *[other] общий между { $shared } CU
     }
+generate-debug-snapshot = Сгенерировать дебаг-лог
+dump-vbios = Сделать дамп VBIOS
+reset-all-config = Сбросить все настройки
+stats-update-interval = Интервал обновления (мс)
+reconnecting-to-daemon = Потеряно соединение с сервисом, переподключение...
+daemon-connection-lost = Соединение потеряно
+plot-show-detailed-info = Показать подробную информацию
+show-process-monitor = Показать диспетчер задач
