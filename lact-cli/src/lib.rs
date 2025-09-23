@@ -128,19 +128,6 @@ async fn set_profile(args: &SetProfileArgs, client: &DaemonClient) -> Result<()>
         client.set_profile(None, false).await?;
         println!("{}", PROFILE_DEFAULT);
     } else {
-        // Ugly hack to workaround a bug:
-        // When setting a profile while auto-switch is enabled, the new profile will not
-        // be set. Adding a little delay to allow the auto-switcher to shutdown fixes the issue.
-        client.set_profile(None, false).await?;
-        loop {
-            if let None = client.list_profiles(true).await?.watcher_state {
-                break;
-            } else {
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-            }
-        }
-        // Remove above when fixed.
-
         client
             .set_profile(Some(new_profile.to_string()), false)
             .await?;
