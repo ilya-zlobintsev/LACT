@@ -202,3 +202,27 @@ dump-vbios = Exportar VBIOS
 reset-all-config = Redefinir todas configurações
 stats-update-interval = Intervalo de atualização (ms)
 show-process-monitor = Mostrar monitor de processos
+temperature-sensor = Sensor de temperatura
+spindown-delay = Atraso da desaceleração (ms)
+spindown-delay-tooltip = Por quanto tempo a GPU precisa permanecer em uma temperatura mais baixa antes de desacelerar a ventoinha
+speed-change-threshold = Limiar de mudança de velocidade (ºC)
+automatic-mode-threshold = Limiar do Modo Automático
+automatic-mode-threshold-tooltip =
+    Altera o controle de ventoinha para o modo automático quando a temperatura estiver abaixo deste ponto.
+
+    Várias GPUs Nvidia suportam parar as ventoinhas apenas no modo de controle automático das ventoinhas, enquanto curvas personalizadas tem uma faixa de velocidade limitada entre 30-100%.
+
+    Esta opção permite lidar com esta limitação utlizando a curva personalizada apenas acima de uma temperatura específica, e abaixo desta, utilizando o modo automático que suporta parar as ventoinhas (zero RPM).
+apply-button = Aplicar
+revert-button = Reverter
+vram-usage = Uso de VRAM:
+performance-level = Nível de Desempenho
+historical-data-title = Dados Históricos
+graphs-per-row = Gráficos Por Linha:
+time-period-seconds = Período de Tempo (Segundos):
+reset-all-graphs-tooltip = Resetar Todos os Gráficos para o Padrão
+add-graph = Adicionar Gráfico
+delete-graph = Deletar Gráfico
+edit-graphs = Editar
+export-csv = Exportar como CSV
+edit-graph-sensors = Editar Gráfico de Sensores
