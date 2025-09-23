@@ -202,3 +202,27 @@ reconnecting-to-daemon = Connexion au démon perdue, reconnexion...
 daemon-connection-lost = Connexion perdue
 plot-show-detailed-info = Afficher les détails
 show-process-monitor = Afficher le moniteur de processus
+temperature-sensor = Capteur de température
+spindown-delay = Délai avant ralentissement (ms)
+spindown-delay-tooltip = Durée pendant laquelle le GPU doit maintenir une valeur de température faible avant de ralentir le ventilateur
+speed-change-threshold = Seuil de changement de vitesse (°C)
+automatic-mode-threshold = Seuil du mode automatique (°C)
+automatic-mode-threshold-tooltip =
+    Passez le contrôle des ventilateurs en mode automatique lorsque la température passe en dessous de cette valeur.
+
+    De nombreux GPU NVIDIA prennent en charge l'arrêt du ventilateur uniquement lorsque le contrôle des ventilateurs est en mode automatique, tandis que les courbes personnalisées sont limitées aux valeurs entre 30 et 100 %.
+
+    Cette option permet de contourner cette limitation en utilisant uniquement la courbe personnalisée au-delà d'une température donnée, et en activant le mode automatique intégré à la carte dès que la température repasse en dessous de cette valeur, permettant d'atteindre un vitesse de 0 tr/min.
+vram-usage = Utilisation de la VRAM :
+performance-level = Niveau de performance
+historical-data-title = Données historiques
+graphs-per-row = Graphiques par ligne :
+time-period-seconds = Période de temps (secondes) :
+reset-all-graphs-tooltip = Réinitialiser tous les graphiques
+add-graph = Ajouter un graphique
+delete-graph = Supprimer le graphique
+export-csv = Exporter en CSV
+edit-graph-sensors = Modifier les capteurs du graphique
+apply-button = Appliquer
+revert-button = Rétablir
+edit-graphs = Modifier
