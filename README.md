@@ -293,6 +293,75 @@ There is also a cli available.
   Link Speed: 8 GT/s PCIe gen 3 x8
   ```
 
+- Profiles
+  `lact cli profile [COMMAND]`
+
+  - List profiles:
+
+    `lact cli profile list`
+
+    Example output:
+
+    ```
+    Default
+    Gaming
+    Performance
+    Balanced
+    ```
+
+  - Get current Profile:
+
+    `lact cli profile get` or `lact cli profile`
+
+    Example output:
+
+    ```
+    Gaming
+    ```
+
+  - Set Profile:
+
+    `lact cli profile set "Performance"`
+
+    Example output:
+
+    ```
+    Performance
+    ```
+
+    - Auto switch profiles
+      `lact cli profile auto-switch [COMMAND]`
+
+        - Get auto-switch state:
+
+          `lact cli profile auto-switch get` or `lact cli profile auto-switch`
+
+          Example output:
+
+          ```
+          enabled
+          ```
+
+        - Enable auto switch:
+
+          `lact cli profile auto-switch enable`
+
+          Example output:
+
+          ```
+          enabled
+          ```
+
+        - Disable auto switch:
+
+          `lact cli profile auto-switch disable`
+
+          Example output:
+
+          ```
+          disabled
+          ```
+
 The functionality of the CLI is quite limited. If you want to integrate LACT
 with some application/script, you should use the [API](API.md) instead.
 
