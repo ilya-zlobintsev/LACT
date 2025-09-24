@@ -76,7 +76,9 @@ WantedBy=multi-user.target\
         echo "Service setup rejected, skipping"
     fi
 else
-    echo "${DAEMON_SOCKET} exists, skipping setup prompt"
+    if [ "$1" != "cli" ]; then
+        echo "${DAEMON_SOCKET} exists, skipping setup prompt"
+    fi
 fi
 
 lact $@
