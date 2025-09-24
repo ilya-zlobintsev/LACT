@@ -48,6 +48,7 @@ use std::{
 use tokio::{
     process::Command,
     sync::{mpsc, oneshot, RwLock, RwLockReadGuard},
+    task::JoinHandle,
     time::sleep,
 };
 use tracing::{debug, error, info, trace, warn};
@@ -90,6 +91,7 @@ pub struct Handler {
     pub config_last_saved: Rc<Cell<Instant>>,
     profile_watcher_tx: Rc<RefCell<Option<mpsc::Sender<ProfileWatcherCommand>>>>,
     pub profile_watcher_state: Rc<RefCell<Option<ProfileWatcherState>>>,
+    profile_watcher_join_handle: Rc<RefCell<Option<JoinHandle<()>>>>,
 }
 
 impl<'a> Handler {
@@ -193,6 +195,7 @@ impl<'a> Handler {
             config_last_saved: Rc::new(Cell::new(Instant::now())),
             profile_watcher_tx: Rc::new(RefCell::new(None)),
             profile_watcher_state: Rc::new(RefCell::new(None)),
+            profile_watcher_join_handle: Rc::new(RefCell::new(None)),
         };
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
@@ -260,8 +263,10 @@ impl<'a> Handler {
 
     async fn stop_profile_watcher(&self) {
         let tx = self.profile_watcher_tx.borrow_mut().take();
-        if let Some(existing_stop_notify) = tx {
+        let join_handle = self.profile_watcher_join_handle.borrow_mut().take();
+        if let (Some(existing_stop_notify), Some(join_handle)) = (tx, join_handle) {
             let _ = existing_stop_notify.send(ProfileWatcherCommand::Stop).await;
+            let _ = join_handle.await;
         }
     }
 
@@ -270,7 +275,9 @@ impl<'a> Handler {
 
         let (profile_watcher_tx, profile_watcher_rx) = mpsc::channel(5);
         *self.profile_watcher_tx.borrow_mut() = Some(profile_watcher_tx);
-        tokio::task::spawn_local(profiles::run_watcher(self.clone(), profile_watcher_rx));
+        *self.profile_watcher_join_handle.borrow_mut() = Some(tokio::task::spawn_local(
+            profiles::run_watcher(self.clone(), profile_watcher_rx),
+        ));
         info!("started new profile watcher");
     }
 

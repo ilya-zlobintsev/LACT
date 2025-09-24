@@ -8,3 +8,4 @@ appimage-build/
 pkg/output
 build/
 .flatpak-builder/
+.vscode

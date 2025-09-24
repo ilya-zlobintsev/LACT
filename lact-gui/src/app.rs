@@ -1,6 +1,7 @@
 mod apply_revealer;
 mod confirmation_dialog;
 mod ext;
+mod formatting;
 pub mod graphs_window;
 mod header;
 mod info_row;

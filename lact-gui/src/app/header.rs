@@ -152,8 +152,7 @@ impl Component for Header {
                 set_popover = &gtk::Popover {
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 5,
-                        set_margin_all: 5,
+                        set_margin_horizontal: 5,
 
                         gtk::Button {
                             set_label: &fl!(I18N, "show-historical-charts"),

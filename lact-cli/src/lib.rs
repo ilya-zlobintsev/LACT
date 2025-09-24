@@ -1,10 +1,13 @@
 mod subcommands;
 
-use crate::subcommands::{info, list_gpus, power_limit, snapshot};
+use crate::subcommands::{
+    current_auto_switch, current_profile, info, list_gpus, list_profiles, power_limit,
+    set_auto_switch, set_profile, snapshot,
+};
 use anyhow::{bail, Context, Result};
 use lact_client::DaemonClient;
 use lact_schema::{
-    args::cli::{CliArgs, CliCommand},
+    args::cli::{CliArgs, CliCommand, ProfileAutoSwitchCommand, ProfileCommand},
     config::GpuConfig,
     request::ConfirmCommand,
 };
@@ -22,11 +25,37 @@ pub fn run(args: CliArgs) -> Result<()> {
             args: &args,
         };
 
-        match args.subcommand {
+        match &args.subcommand {
             CliCommand::List => list_gpus(ctx).await,
             CliCommand::Info => info(ctx).await,
             CliCommand::Snapshot => snapshot(ctx).await,
-            CliCommand::PowerLimit { cmd } => power_limit(ctx, cmd).await,
+            CliCommand::PowerLimit { cmd } => power_limit(ctx, cmd.as_ref()).await,
+            CliCommand::Profile(profile_args) => match &profile_args.subcommand {
+                None => current_profile(profile_args, ctx).await,
+                Some(profile_subcommand) => match profile_subcommand {
+                    ProfileCommand::List => list_profiles(profile_args, ctx).await,
+                    ProfileCommand::Get => current_profile(profile_args, ctx).await,
+                    ProfileCommand::Set(set_profile_args) => {
+                        set_profile(set_profile_args, ctx).await
+                    }
+                    ProfileCommand::AutoSwitch(auto_switch_args) => {
+                        match &auto_switch_args.subcommand {
+                            None => current_auto_switch(auto_switch_args, ctx).await,
+                            Some(auto_switch_command) => match auto_switch_command {
+                                ProfileAutoSwitchCommand::Get => {
+                                    current_auto_switch(auto_switch_args, ctx).await
+                                }
+                                ProfileAutoSwitchCommand::Enable => {
+                                    set_auto_switch(auto_switch_args, ctx, true).await
+                                }
+                                ProfileAutoSwitchCommand::Disable => {
+                                    set_auto_switch(auto_switch_args, ctx, false).await
+                                }
+                            },
+                        }
+                    }
+                },
+            },
         }
     })
 }
