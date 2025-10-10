@@ -1,5 +1,6 @@
 pub mod gpu_controller;
 pub mod handler;
+mod metrics;
 mod opencl;
 mod profiles;
 mod vulkan;
@@ -15,7 +16,7 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     net::{TcpListener, UnixListener},
 };
-use tracing::{error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace};
 
 pub struct Server {
     pub handler: Handler,
@@ -48,6 +49,12 @@ impl Server {
                 // Clean up the socket if permissions failed to be set
                 socket::cleanup();
             })?;
+
+        if let Some(metrics_config) = handler.config.read().await.daemon.metrics.clone() {
+            metrics::setup(handler.clone(), metrics_config);
+        } else {
+            debug!("metrics exporter disabled");
+        }
 
         Ok(Self {
             handler,

@@ -50,6 +50,8 @@ cl3 = { git = "https://github.com/kenba/cl3", branch = "develop", features = [
     "static",
 ] }
 
+ureq = { version = "3.1.2", features = ["json", "rustls"] }
+
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 insta = { version = "1.41.1", features = ["json", "yaml"] }
