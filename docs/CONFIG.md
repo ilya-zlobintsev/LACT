@@ -31,6 +31,14 @@ daemon:
   # By default TCP access is disabled, and only a unix socket is present.
   # Specifying this option enables the TCP listener.
   tcp_listen_address: 127.0.0.1:12853
+  # Opentelemetry metrics exporter configuration
+  # Omitted by default, meaning the exporter is disabled.
+  metrics:
+    # Opentelemetry collector URL. The following example is for local Prometheus.
+    collector_address: 'http://localhost:9090/api/v1/otlp/v1/metrics'
+    # Interval in seconds for how often to collect the metrics. 
+    # Defaults to 30.
+    interval: 30
 
 # Period in seconds for how long settings should wait to be confirmed.
 # Most GPU setting change commands require a confirmation command to be used

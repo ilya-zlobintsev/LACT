@@ -59,30 +59,31 @@ jobs:
       - name: Run cargo audit
         run: cargo audit
 
-  coverage:
-    runs-on: ubuntu-24.04
-    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
-    steps:
-      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
-      - uses: ./.github/actions/setup-environment
+  # Disabled temporarily due to failing dependency build
+  # coverage:
+  #   runs-on: ubuntu-24.04
+  #   if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+  #   steps:
+  #     - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+  #     - uses: ./.github/actions/setup-environment
 
-      - name: Install cargo-llvm-cov from crates.io
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-llvm-cov
-          version: '0.6.18'
+  #     - name: Install cargo-llvm-cov from crates.io
+  #       uses: baptiste0928/cargo-install@v3
+  #       with:
+  #         crate: cargo-llvm-cov
+  #         version: '0.6.18'
 
-      - name: Generate coverage report
-        run: cargo llvm-cov --no-fail-fast --include-ffi --workspace --lcov --output-path lcov.info
+  #     - name: Generate coverage report
+  #       run: cargo llvm-cov --no-fail-fast --include-ffi --workspace --lcov --output-path lcov.info
 
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v5.5.1
-        continue-on-error: true
-        with:
-          files: lcov.info
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
+  #     - name: Upload to Codecov
+  #       uses: codecov/codecov-action@v5.5.1
+  #       continue-on-error: true
+  #       with:
+  #         files: lcov.info
+  #         fail_ci_if_error: true
+  #         token: ${{ secrets.CODECOV_TOKEN }}
+  #         verbose: true
 
   test-miri:
     runs-on: ubuntu-24.04
