@@ -38,6 +38,7 @@ system.
   - GPU undervolting (via voltage offset on AMD, [indirectly](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions#how-to-undervolt-nvidia-gpus) on Nvidia)
 - #### Settings profiles
   - Automatic profile activation based on running processes or gamemode status
+- #### [OpenTelemetry metrics exporter](./docs/EXPORTER.md)
 
 GPU configuration is handled by a system service that does not depend on a graphical session (Wayland/X11).
 
@@ -53,6 +54,7 @@ The service can also be used standalone with a config file, for example in headl
 - [API](./docs/API.md)
 - [Power profiles daemon note](#power-profiles-daemon-note)
 - [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock)
+- [Metrics exporter](./docs/EXPORTER.md)
 - [Contribute translations](#localization)
 - [Support the project](#support-the-project)
 
