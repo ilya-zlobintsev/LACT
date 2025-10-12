@@ -17,7 +17,7 @@ use tracing::{debug, error, info};
 
 pub fn setup(handler: Handler, config: config::Metrics) {
     info!(
-        "exporting metris to {} every {} seconds",
+        "exporting metrics to {} every {} seconds",
         config.collector_address, config.interval
     );
 
