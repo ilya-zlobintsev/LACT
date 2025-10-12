@@ -642,9 +642,9 @@ dependencies = [
 
 [[package]]
 name = "easy_fuser"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "741f7677b0bf516435724bc9be16b5f14ec925e8dffd5059bc8d7ca006b00eeb"
+checksum = "72a50e8f88bcce5ddbd829dd09ca553de13cd206fb2a68bc7de9cd56ed921e10"
 dependencies = [
  "bitflags 2.9.4",
  "fuser",
@@ -874,8 +874,9 @@ checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 
 [[package]]
 name = "fuser"
-version = "0.15.1"
-source = "git+https://github.com/cberner/fuser.git?rev=47113e10ea4ab4be5b562cdc0d8cc8d41ce50311#47113e10ea4ab4be5b562cdc0d8cc8d41ce50311"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bb29a3ae32279fe3e79a958fe01899f5fb23eadccee919cf88e145b54ed9367"
 dependencies = [
  "libc",
  "log",

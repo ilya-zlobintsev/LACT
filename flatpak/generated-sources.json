@@ -6,12 +6,6 @@
         "dest": "flatpak-cargo/git/cl3-4da03b1"
     },
     {
-        "type": "git",
-        "url": "https://github.com/cberner/fuser",
-        "commit": "47113e10ea4ab4be5b562cdc0d8cc8d41ce50311",
-        "dest": "flatpak-cargo/git/fuser-47113e1"
-    },
-    {
         "type": "archive",
         "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/addr2line/addr2line-0.24.2.crate",
@@ -890,14 +884,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/easy_fuser/easy_fuser-0.4.1.crate",
-        "sha256": "741f7677b0bf516435724bc9be16b5f14ec925e8dffd5059bc8d7ca006b00eeb",
-        "dest": "cargo/vendor/easy_fuser-0.4.1"
+        "url": "https://static.crates.io/crates/easy_fuser/easy_fuser-0.4.2.crate",
+        "sha256": "72a50e8f88bcce5ddbd829dd09ca553de13cd206fb2a68bc7de9cd56ed921e10",
+        "dest": "cargo/vendor/easy_fuser-0.4.2"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"741f7677b0bf516435724bc9be16b5f14ec925e8dffd5059bc8d7ca006b00eeb\", \"files\": {}}",
-        "dest": "cargo/vendor/easy_fuser-0.4.1",
+        "contents": "{\"package\": \"72a50e8f88bcce5ddbd829dd09ca553de13cd206fb2a68bc7de9cd56ed921e10\", \"files\": {}}",
+        "dest": "cargo/vendor/easy_fuser-0.4.2",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -1213,21 +1207,16 @@
         "dest-filename": ".cargo-checksum.json"
     },
     {
-        "type": "shell",
-        "commands": [
-            "cp -r --reflink=auto \"flatpak-cargo/git/fuser-47113e1/.\" \"cargo/vendor/fuser\""
-        ]
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/fuser/fuser-0.16.0.crate",
+        "sha256": "0bb29a3ae32279fe3e79a958fe01899f5fb23eadccee919cf88e145b54ed9367",
+        "dest": "cargo/vendor/fuser-0.16.0"
     },
     {
         "type": "inline",
-        "contents": "[[example]]\nname = \"poll\"\n\n[[example]]\nname = \"poll_client\"\n\n[[example]]\nname = \"notify_inval_entry\"\n\n[[example]]\nname = \"notify_inval_inode\"\n\n[[example]]\nname = \"ioctl\"\n\n[[example]]\nname = \"passthrough\"\nrequired-features = [ \"abi-7-40\",]\n\n[package]\nname = \"fuser\"\ndescription = \"Filesystem in Userspace (FUSE) for Rust\"\nlicense = \"MIT\"\nrepository = \"https://github.com/cberner/fuser\"\ndocumentation = \"https://docs.rs/fuser\"\nhomepage = \"https://github.com/cberner/fuser\"\nversion = \"0.15.1\"\nedition = \"2024\"\nrust-version = \"1.85\"\nreadme = \"README.md\"\nauthors = [ \"Christopher Berner <me@cberner.com>\",]\nkeywords = [ \"fuse\", \"filesystem\", \"system\", \"bindings\",]\ncategories = [ \"external-ffi-bindings\", \"api-bindings\", \"filesystem\", \"os::unix-apis\",]\nbuild = \"build.rs\"\n\n[dependencies]\nlibc = \"0.2.51\"\nlog = \"0.4.6\"\nmemchr = \"2.7.2\"\npage_size = \"0.6.0\"\nsmallvec = \"1.6.1\"\n\n[dev-dependencies]\nenv_logger = \"0.11.7\"\nbincode = \"1.3.1\"\ntempfile = \"3.10.1\"\n\n[features]\ndefault = []\nlibfuse = [ \"pkg-config\",]\nserializable = [ \"serde\",]\nmacfuse-4-compat = []\nabi-7-19 = []\nabi-7-20 = [ \"abi-7-19\",]\nabi-7-21 = [ \"abi-7-20\",]\nabi-7-22 = [ \"abi-7-21\",]\nabi-7-23 = [ \"abi-7-22\",]\nabi-7-24 = [ \"abi-7-23\",]\nabi-7-25 = [ \"abi-7-24\",]\nabi-7-26 = [ \"abi-7-25\",]\nabi-7-27 = [ \"abi-7-26\",]\nabi-7-28 = [ \"abi-7-27\",]\nabi-7-29 = [ \"abi-7-28\",]\nabi-7-30 = [ \"abi-7-29\",]\nabi-7-31 = [ \"abi-7-30\",]\nabi-7-36 = [ \"abi-7-31\",]\nabi-7-40 = [ \"abi-7-36\", \"nix/ioctl\",]\n\n[dependencies.serde]\nversion = \"1.0.102\"\nfeatures = [ \"std\", \"derive\",]\noptional = true\n\n[dependencies.zerocopy]\nversion = \"0.8\"\nfeatures = [ \"derive\",]\n\n[dependencies.nix]\nversion = \"0.29.0\"\nfeatures = [ \"fs\", \"user\",]\n\n[dev-dependencies.clap]\nversion = \"4.4\"\nfeatures = [ \"cargo\", \"derive\",]\n\n[dev-dependencies.serde]\nversion = \"1.0.102\"\nfeatures = [ \"std\", \"derive\",]\n\n[dev-dependencies.nix]\nversion = \"0.29.0\"\nfeatures = [ \"poll\", \"fs\", \"ioctl\",]\n\n[build-dependencies.pkg-config]\nversion = \"0.3.14\"\noptional = true\n",
-        "dest": "cargo/vendor/fuser",
-        "dest-filename": "Cargo.toml"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": null, \"files\": {}}",
-        "dest": "cargo/vendor/fuser",
+        "contents": "{\"package\": \"0bb29a3ae32279fe3e79a958fe01899f5fb23eadccee919cf88e145b54ed9367\", \"files\": {}}",
+        "dest": "cargo/vendor/fuser-0.16.0",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -5223,7 +5212,7 @@
     },
     {
         "type": "inline",
-        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/kenba/cl3\"]\ngit = \"https://github.com/kenba/cl3\"\nreplace-with = \"vendored-sources\"\nbranch = \"develop\"\n\n[source.\"https://github.com/cberner/fuser\"]\ngit = \"https://github.com/cberner/fuser\"\nreplace-with = \"vendored-sources\"\nrev = \"47113e10ea4ab4be5b562cdc0d8cc8d41ce50311\"\n",
+        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/kenba/cl3\"]\ngit = \"https://github.com/kenba/cl3\"\nreplace-with = \"vendored-sources\"\nbranch = \"develop\"\n",
         "dest": "cargo",
         "dest-filename": "config"
     }
