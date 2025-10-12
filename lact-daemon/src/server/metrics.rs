@@ -41,8 +41,8 @@ pub fn setup(handler: Handler, config: config::Metrics) {
                         .expect("Invalid timestamp")
                         .to_string();
 
-                    for (gpu_id, stats) in &devices {
-                        collect_metrics(gpu_id, stats, &mut metrics, &timestamp);
+                    for (gpu_id, (gpu_name, stats)) in &devices {
+                        collect_metrics(gpu_id, gpu_name, stats, &mut metrics, &timestamp);
                     }
 
                     let metric_count = metrics.len();
@@ -109,14 +109,21 @@ pub fn setup(handler: Handler, config: config::Metrics) {
 )]
 fn collect_metrics<'a>(
     gpu_id: &'a str,
+    gpu_name: &'a str,
     stats: &'a DeviceStats,
     metrics: &mut Vec<Metric<'a>>,
     timestamp: &'a str,
 ) {
-    let base_attrs = vec![Attribute {
-        key: "gpu_id",
-        value: Value::String(gpu_id),
-    }];
+    let base_attrs = vec![
+        Attribute {
+            key: "gpu_id",
+            value: Value::String(gpu_id),
+        },
+        Attribute {
+            key: "gpu_name",
+            value: Value::String(gpu_name),
+        },
+    ];
 
     if let Some(usage) = stats.busy_percent {
         metrics.push(make_metric(
@@ -323,7 +330,7 @@ fn make_metric<'a>(
     }
 }
 
-async fn get_stats(handler: &Handler) -> anyhow::Result<IndexMap<String, DeviceStats>> {
+async fn get_stats(handler: &Handler) -> anyhow::Result<IndexMap<String, (String, DeviceStats)>> {
     let mut devices = IndexMap::new();
 
     let device_list = handler.list_devices().await;
@@ -331,7 +338,7 @@ async fn get_stats(handler: &Handler) -> anyhow::Result<IndexMap<String, DeviceS
     for device in device_list {
         let stats = handler.get_gpu_stats(&device.id).await?;
 
-        devices.insert(device.id, stats);
+        devices.insert(device.id, (device.name.unwrap_or_default(), stats));
     }
 
     Ok(devices)
