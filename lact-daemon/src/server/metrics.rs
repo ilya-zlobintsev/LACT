@@ -30,6 +30,8 @@ pub fn setup(handler: Handler, config: config::Metrics) {
             .new_agent();
 
         loop {
+            sleep(interval).await;
+
             match get_stats(&handler).await {
                 Ok(devices) => {
                     debug!("collecting metrics for {} devices", devices.len());
@@ -96,13 +98,15 @@ pub fn setup(handler: Handler, config: config::Metrics) {
                 }
                 Err(err) => error!("could not fetch metrics: {err:#}"),
             }
-
-            sleep(interval).await;
         }
     });
 }
 
-#[allow(clippy::cast_possible_wrap, clippy::cast_precision_loss, clippy::too_many_lines)]
+#[allow(
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::too_many_lines
+)]
 fn collect_metrics<'a>(
     gpu_id: &'a str,
     stats: &'a DeviceStats,
