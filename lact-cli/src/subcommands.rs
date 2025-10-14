@@ -1,6 +1,10 @@
 use crate::CliContext;
 use anyhow::{Context, Result};
-use lact_schema::args::cli::{PowerLimitCmd, ProfileArgs, ProfileAutoSwitchArgs, SetProfileArgs};
+use lact_schema::{
+    args::cli::{PowerLimitCmd, ProfileArgs, ProfileAutoSwitchArgs, SetProfileArgs},
+    FanControlMode,
+};
+use std::fmt::Write;
 
 const PROFILE_DEFAULT: &str = "Default";
 
@@ -35,6 +39,101 @@ pub async fn info(ctx: CliContext<'_>) -> Result<()> {
             println!("{name}: {value}");
         }
     }
+
+    Ok(())
+}
+
+pub async fn stats(ctx: CliContext<'_>) -> Result<()> {
+    let id = ctx.current_gpu_id().await?;
+
+    let gpu_line = format!("GPU {id}:");
+    println!("{gpu_line}");
+    println!("{}", "=".repeat(gpu_line.len()));
+
+    // let info = ctx.client.get_device_info(&id).await?;
+    let stats = ctx.client.get_device_stats(&id).await?;
+
+    if let Some(gpu_clock) = stats.clockspeed.gpu_clockspeed {
+        println!("GPU Clockspeed: {gpu_clock} MHz");
+    }
+
+    if let Some(vram_clock) = stats.clockspeed.vram_clockspeed {
+        println!("VRAM Clockspeed: {vram_clock} MHz");
+    }
+
+    if let Some(gpu_voltage) = stats.voltage.gpu {
+        println!("GPU Voltage: {gpu_voltage} mV");
+    }
+
+    if let (Some(power_usage), Some(power_cap)) = (stats.power.current, stats.power.cap_current) {
+        println!("Power Usage: {power_usage:.1}/{power_cap} W");
+    }
+
+    if !stats.temps.is_empty() {
+        print!("Temperatures: ");
+        for (i, (name, value)) in stats.temps.iter().enumerate() {
+            if i > 0 {
+                print!(", ");
+            }
+            if let Some(value) = value.current {
+                print!("{name}: {value}°C");
+            }
+        }
+        println!();
+    }
+
+    if let (Some(vram_current), Some(vram_total)) = (stats.vram.used, stats.vram.total) {
+        println!(
+            "VRAM Usage: {}/{} MiB",
+            vram_current / 1024 / 1024,
+            vram_total / 1024 / 1024
+        );
+    }
+
+    if let Some(throttle_info) = stats.throttle_info {
+        let type_text: Vec<String> = throttle_info
+            .iter()
+            .map(|(throttle_type, details)| {
+                let mut out = throttle_type.to_string();
+                if !details.is_empty() {
+                    let _ = write!(out, "({})", details.join(", "));
+                }
+                out
+            })
+            .collect();
+
+        println!(
+            "Throttling: {}",
+            if type_text.is_empty() {
+                "No".to_owned()
+            } else {
+                type_text.join(", ")
+            }
+        );
+    }
+
+    if let Some(pwm) = stats.fan.pwm_current {
+        print!("Fan Speed: {:.0}%", pwm as f64 / 255.0 * 100.0);
+
+        if let Some(rpm) = stats.fan.speed_current {
+            print!(" ({rpm} RPM)");
+        }
+
+        println!();
+    }
+
+    println!(
+        "Fan Control Mode: {}",
+        if stats.fan.control_enabled {
+            match stats.fan.control_mode {
+                Some(FanControlMode::Curve) => "Curve",
+                Some(FanControlMode::Static) => "Static",
+                None => panic!("Invalid fan control config"),
+            }
+        } else {
+            "Automatic"
+        }
+    );
 
     Ok(())
 }

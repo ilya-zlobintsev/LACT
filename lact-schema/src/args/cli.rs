@@ -16,6 +16,8 @@ pub enum CliCommand {
     List,
     /// Show GPU info
     Info,
+    /// Show GPU stats
+    Stats,
     /// Generate debug snapshot
     Snapshot,
     /// Manage GPU power limit
