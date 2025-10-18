@@ -8,7 +8,8 @@ Source0:        https://github.com/ilya-zlobintsev/LACT/archive/refs/tags/v0.8.2
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires:  rust cargo gcc libdrm-devel dbus OpenCL-ICD-Loader-devel curl make clang git vulkan-tools
-Requires:       libdrm libOpenCL.so.1 hwdata vulkan-tools
+Requires:       libdrm hwdata vulkan-tools
+Requires:       (ocl-icd%{?_isa} or OpenCL-ICD-Loader%{?_isa})
 
 %description
 GPU control utility
