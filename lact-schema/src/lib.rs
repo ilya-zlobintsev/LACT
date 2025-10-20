@@ -6,9 +6,6 @@ mod profiles;
 pub mod request;
 mod response;
 
-#[cfg(test)]
-mod tests;
-
 use i18n_embed_fl::fl;
 pub use request::Request;
 pub use response::Response;

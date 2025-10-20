@@ -1,5 +1,5 @@
-use crate::{FanControlMode, FanOptions, PmfwOptions, Pong, Request, Response};
 use anyhow::anyhow;
+use lact_schema::{FanControlMode, FanOptions, PmfwOptions, Pong, Request, Response};
 use serde_json::json;
 use std::collections::BTreeMap;
 
