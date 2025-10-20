@@ -50,7 +50,7 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
 
     let gamemode_stop_notify = Rc::new(Notify::new());
     let mut gamemode_task = None;
-    if let Some(gamemode) = GameModeConnector::connect(&state.process_list) {
+    if let Some(gamemode) = GameModeConnector::new(&state.process_list) {
         match gamemode.list_games().await {
             Ok(games) => {
                 info!(
@@ -66,7 +66,7 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
             }
         }
 
-        match gamemode.receieve_events(gamemode_stop_notify.clone()) {
+        match gamemode.receieve_events(&gamemode_stop_notify) {
             Ok(mut rx) => {
                 let event_tx = event_tx.clone();
                 let stop_notify = gamemode_stop_notify.clone();
