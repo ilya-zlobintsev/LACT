@@ -1,6 +1,6 @@
 [package]
 name = "lact-daemon"
-version = "0.8.2"
+version = "0.8.3"
 edition = "2021"
 
 [features]
@@ -50,10 +50,12 @@ cl3 = { git = "https://github.com/kenba/cl3", branch = "develop", features = [
     "static",
 ] }
 
+ureq = { version = "3.1.2", features = ["json", "rustls"] }
+
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 insta = { version = "1.41.1", features = ["json", "yaml"] }
-easy_fuser = { version = "0.4.1", features = ["parallel"] }
+easy_fuser = { version = "0.4.2", features = ["parallel"] }
 tempfile = "3.17.1"
 
 [build-dependencies]

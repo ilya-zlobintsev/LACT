@@ -10,6 +10,9 @@ daemon:
   disable_clocks_cleanup: false
   disable_nvapi: false
   tcp_listen_address: "127.0.0.1:12853"
+  metrics:
+    collector_address: "http://localhost:9090/api/v1/otlp/v1/metrics"
+    interval: 30
 apply_settings_timer: 5
 gpus:
   "1002:687F-1043:0555-0000:0b:00.0":

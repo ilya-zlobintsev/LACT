@@ -57,8 +57,3 @@ strip = false
 debug = 1
 lto = "thin"
 codegen-units = 256
-
-# fuser contains memory safety issues which trigger leaks and UB inside libfuse.so
-# It's used only as dev dependency in the test code, so this is okay.
-[patch.crates-io]
-fuser = { git = "https://github.com/cberner/fuser.git", rev = "47113e10ea4ab4be5b562cdc0d8cc8d41ce50311" }

@@ -38,6 +38,7 @@ system.
   - GPU undervolting (via voltage offset on AMD, [indirectly](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions#how-to-undervolt-nvidia-gpus) on Nvidia)
 - #### Settings profiles
   - Automatic profile activation based on running processes or gamemode status
+- #### [OpenTelemetry metrics exporter](./docs/EXPORTER.md)
 
 GPU configuration is handled by a system service that does not depend on a graphical session (Wayland/X11).
 
@@ -53,6 +54,7 @@ The service can also be used standalone with a config file, for example in headl
 - [API](./docs/API.md)
 - [Power profiles daemon note](#power-profiles-daemon-note)
 - [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock)
+- [Metrics exporter](./docs/EXPORTER.md)
 - [Contribute translations](#localization)
 - [Support the project](#support-the-project)
 
@@ -292,6 +294,75 @@ There is also a cli available.
   CPU Accessible VRAM: 16384
   Link Speed: 8 GT/s PCIe gen 3 x8
   ```
+
+- Profiles
+  `lact cli profile [COMMAND]`
+
+  - List profiles:
+
+    `lact cli profile list`
+
+    Example output:
+
+    ```
+    Default
+    Gaming
+    Performance
+    Balanced
+    ```
+
+  - Get current Profile:
+
+    `lact cli profile get` or `lact cli profile`
+
+    Example output:
+
+    ```
+    Gaming
+    ```
+
+  - Set Profile:
+
+    `lact cli profile set "Performance"`
+
+    Example output:
+
+    ```
+    Performance
+    ```
+
+    - Auto switch profiles
+      `lact cli profile auto-switch [COMMAND]`
+
+        - Get auto-switch state:
+
+          `lact cli profile auto-switch get` or `lact cli profile auto-switch`
+
+          Example output:
+
+          ```
+          enabled
+          ```
+
+        - Enable auto switch:
+
+          `lact cli profile auto-switch enable`
+
+          Example output:
+
+          ```
+          enabled
+          ```
+
+        - Disable auto switch:
+
+          `lact cli profile auto-switch disable`
+
+          Example output:
+
+          ```
+          disabled
+          ```
 
 The functionality of the CLI is quite limited. If you want to integrate LACT
 with some application/script, you should use the [API](API.md) instead.

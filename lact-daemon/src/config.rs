@@ -68,6 +68,7 @@ pub struct Daemon {
     pub disable_clocks_cleanup: bool,
     pub disable_nvapi: Option<bool>,
     pub tcp_listen_address: Option<String>,
+    pub metrics: Option<Metrics>,
 }
 
 impl Default for Daemon {
@@ -88,6 +89,7 @@ impl Default for Daemon {
             disable_clocks_cleanup: false,
             tcp_listen_address: None,
             disable_nvapi: None,
+            metrics: None,
         }
     }
 }
@@ -276,6 +278,17 @@ impl Config {
         self.profiles.clear();
         self.current_profile = None;
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Metrics {
+    pub collector_address: String,
+    #[serde(default = "default_metrics_interval")]
+    pub interval: u64,
+}
+
+fn default_metrics_interval() -> u64 {
+    30
 }
 
 pub fn start_watcher(config_last_saved: Rc<Cell<Instant>>) -> mpsc::UnboundedReceiver<Config> {

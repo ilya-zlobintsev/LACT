@@ -50,7 +50,7 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
 
     let gamemode_stop_notify = Rc::new(Notify::new());
     let mut gamemode_task = None;
-    if let Some(gamemode) = GameModeConnector::connect(&state.process_list) {
+    if let Some(gamemode) = GameModeConnector::new(&state.process_list) {
         match gamemode.list_games().await {
             Ok(games) => {
                 info!(
@@ -66,7 +66,7 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
             }
         }
 
-        match gamemode.receieve_events(gamemode_stop_notify.clone()) {
+        match gamemode.receieve_events(&gamemode_stop_notify) {
             Ok(mut rx) => {
                 let event_tx = event_tx.clone();
                 let stop_notify = gamemode_stop_notify.clone();
@@ -149,7 +149,8 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
         }
 
         if should_reload {
-            handler.start_profile_watcher().await;
+            let handler = handler.clone();
+            tokio::task::spawn_local(async move { handler.start_profile_watcher().await });
             break;
         }
     }
@@ -165,39 +166,37 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
 }
 
 fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler, should_reload: &mut bool) {
-    {
-        let mut state_guard = handler.profile_watcher_state.borrow_mut();
-        let Some(state) = state_guard.as_mut() else {
-            return;
-        };
+    let mut state_guard = handler.profile_watcher_state.borrow_mut();
+    let Some(state) = state_guard.as_mut() else {
+        return;
+    };
 
-        match *event {
-            ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid) {
-                Ok(info) => {
-                    trace!("process {pid} ({}) started", info.name);
-                    if info.name.as_ref() == gamemode::PROCESS_NAME {
-                        info!("detected gamemode daemon, reloading profile watcher");
-                        *should_reload = true;
-                    }
-                    state.push_process(*pid.as_ref(), info);
+    match *event {
+        ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid) {
+            Ok(info) => {
+                trace!("process {pid} ({}) started", info.name);
+                if info.name.as_ref() == gamemode::PROCESS_NAME {
+                    info!("detected gamemode daemon, reloading profile watcher");
+                    *should_reload = true;
                 }
-                Err(err) => {
-                    debug!("could not get info for process {pid}: {err}");
-                }
-            },
-            ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
-                if let Some(info) = state.remove_process(*pid.as_ref()) {
-                    trace!("process {pid} ({}) exited", info.name);
-                } else {
-                    trace!("process {pid} exited");
-                }
+                state.push_process(*pid.as_ref(), info);
             }
-            ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
-                state.gamemode_games.insert(*pid.as_ref());
+            Err(err) => {
+                debug!("could not get info for process {pid}: {err}");
             }
-            ProfileWatcherEvent::Gamemode(PEvent::Exit(pid)) => {
-                state.gamemode_games.shift_remove(pid.as_ref());
+        },
+        ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
+            if let Some(info) = state.remove_process(*pid.as_ref()) {
+                trace!("process {pid} ({}) exited", info.name);
+            } else {
+                trace!("process {pid} exited");
             }
+        }
+        ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
+            state.gamemode_games.insert(*pid.as_ref());
+        }
+        ProfileWatcherEvent::Gamemode(PEvent::Exit(pid)) => {
+            state.gamemode_games.shift_remove(pid.as_ref());
         }
     }
 }

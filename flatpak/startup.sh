@@ -75,8 +75,25 @@ WantedBy=multi-user.target\
     else
         echo "Service setup rejected, skipping"
     fi
-else
-    echo "${DAEMON_SOCKET} exists, skipping setup prompt"
+fi
+
+if [ -z "$GTK_THEME" ]; then
+    set +e
+    if [ "$(gsettings get org.gnome.desktop.interface gtk-theme)" = "'Adwaita'" ] && [ "$(gsettings get org.gnome.desktop.interface color-scheme)" = "'default'" ]; then
+        COLOR_SCHEME=$(dbus-send --session --print-reply \
+          --dest=org.freedesktop.portal.Desktop \
+          /org/freedesktop/portal/desktop \
+          org.freedesktop.portal.Settings.Read \
+          string:"org.freedesktop.appearance" \
+          string:"color-scheme" \
+	  | grep -oP '(?<=uint32 )\d+')
+
+	if [ "$COLOR_SCHEME" = "1" ]; then
+	    export GTK_THEME="Adwaita:dark"
+	    echo "Detected dark theme system setting, GTK theme overriden to $GTK_THEME"
+	fi
+    fi
+    set -e
 fi
 
 lact $@
