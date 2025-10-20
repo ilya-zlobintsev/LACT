@@ -1,5 +1,5 @@
 [Unit]
-Description=GPU Control Daemon
+Description=LACT GPU Control Daemon
 After=multi-user.target
 
 [Service]
