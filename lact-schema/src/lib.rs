@@ -12,6 +12,9 @@ mod tests;
 use i18n_embed_fl::fl;
 pub use request::Request;
 pub use response::Response;
+pub use response::ResponseData;
+#[cfg(feature = "schema")]
+use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
 
 use amdgpu_sysfs::{
     gpu_handle::{
@@ -37,6 +40,7 @@ pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum FanControlMode {
     Static,
     #[default]
@@ -62,10 +66,12 @@ pub fn default_fan_curve() -> FanCurveMap {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct Pong;
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct SystemInfo {
     pub version: String,
     pub commit: Option<String>,
@@ -73,11 +79,58 @@ pub struct SystemInfo {
     pub distro: Option<String>,
     pub kernel_version: String,
     pub amdgpu_overdrive_enabled: Option<bool>,
+    #[cfg_attr(
+        feature = "schema",
+        schemars(schema_with = "amdgpu_params_configurator_schema")
+    )]
     pub amdgpu_params_configurator: Option<AmdgpuParamsConfigurator>,
+}
+
+#[cfg(feature = "schema")]
+fn amdgpu_params_configurator_schema(_gen: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+        "oneOf": [
+            {
+                "type": "object",
+                "properties": {
+                    "Modprobe": {
+                        "oneOf": [
+                            {
+                                "type": "null"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["debian", "mkinitcpio", "dracut"]
+                            }
+                        ]
+                    },
+                },
+                "required": ["Modprobe"]
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "BootArg": {
+                        "oneOf": [
+                            {
+                                "type": "null"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["rpm-ostree"]
+                            }
+                        ]
+                    },
+                },
+                "required": ["BootArg"]
+            }
+        ]
+    })
 }
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct DeviceListEntry {
     pub id: String,
     pub name: Option<String>,
@@ -95,6 +148,7 @@ impl Display for DeviceListEntry {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum DeviceType {
     #[default]
     Dedicated,
@@ -112,12 +166,14 @@ impl Display for DeviceType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct GpuPciInfo {
     pub device_pci_info: PciInfo,
     pub subsystem_pci_info: PciInfo,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum DeviceFlag {
     ConfigurableFanControl,
     DumpableVBios,
@@ -127,6 +183,7 @@ pub enum DeviceFlag {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct DeviceInfo {
     pub pci_info: Option<GpuPciInfo>,
     #[serde(default)]
@@ -326,6 +383,7 @@ impl DeviceInfo {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct DrmInfo {
     pub device_name: Option<String>,
     pub pci_revision_id: Option<u32>,
@@ -350,12 +408,14 @@ pub struct DrmInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum CacheInfo {
     Amd(Vec<(AmdCacheInstance, u16)>),
     Nvidia { l2: u32 },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct AmdCacheInstance {
     pub types: Vec<CacheType>,
     pub level: u8,
@@ -364,6 +424,7 @@ pub struct AmdCacheInstance {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum CacheType {
     Data,
     Instruction,
@@ -371,6 +432,7 @@ pub enum CacheType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct RopInfo {
     pub unit_count: u32,
     pub operations_factor: u32,
@@ -379,6 +441,7 @@ pub struct RopInfo {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct IntelDrmInfo {
     pub execution_units: Option<u32>,
     pub subslices: Option<u32>,
@@ -386,6 +449,7 @@ pub struct IntelDrmInfo {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct DrmMemoryInfo {
     pub cpu_accessible_used: u64,
     pub cpu_accessible_total: u64,
@@ -394,6 +458,7 @@ pub struct DrmMemoryInfo {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ClocksInfo {
     pub max_sclk: Option<i32>,
     pub max_mclk: Option<i32>,
@@ -402,15 +467,123 @@ pub struct ClocksInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum ClocksTable {
+    #[cfg_attr(feature = "schema", schemars(schema_with = "amd_clocks_table_schema"))]
     Amd(AmdClocksTableGen),
     Nvidia(NvidiaClocksTable),
     Intel(IntelClocksTable),
 }
 
+#[cfg(feature = "schema")]
+fn amd_clocks_table_schema(gen: &mut SchemaGenerator) -> Schema {
+    let range_schema = json_schema!({
+        "type": "object",
+        "properties": {
+            "min": gen.subschema_for::<Option<i32>>(),
+            "max": gen.subschema_for::<Option<i32>>(),
+        }
+    });
+
+    let optional_range_schema = json_schema!({
+        "oneOf": [
+            {
+                "type": "null"
+            },
+            range_schema
+        ]
+    });
+
+    let clocks_level_schema = json_schema!({
+        "type": "object",
+        "properties": {
+            "clockspeed": gen.subschema_for::<i32>(),
+            "voltage": gen.subschema_for::<i32>(),
+        }
+    });
+
+    let gcn_schema = json_schema!({
+        "type": "object",
+        "properties": {
+            "sclk_levels": {
+                "type": "array",
+                "items": clocks_level_schema
+            },
+            "mclk_levels": {
+                "type": "array",
+                "items": clocks_level_schema
+            },
+            "od_range": {
+                "type": "object",
+                "properties": {
+                    "sclk": range_schema,
+                    "mclk": optional_range_schema,
+                    "vddc": optional_range_schema,
+                    "curve_sclk_points": {
+                        "type": "array",
+                        "items": range_schema,
+                    },
+                    "curve_voltage_points": {
+                        "type": "array",
+                        "items": range_schema,
+                    },
+                    "voltage_offset": optional_range_schema,
+                }
+            }
+        }
+    }
+    );
+
+    let rdna_schema = json_schema!({
+    "type": "object",
+    "properties": {
+        "current_sclk_range": range_schema,
+        "current_mclk_range": range_schema,
+        "sclk_offset": optional_range_schema,
+        "voltage_offset": optional_range_schema,
+        "vddc_curve": {
+            "type": "array",
+            "items": clocks_level_schema
+        },
+        "od_range": {
+            "type": "object",
+            "properties": {
+                "sclk": range_schema,
+                "mclk": optional_range_schema,
+                "curve_sclk_points": {
+                    "type": "array",
+                    "items": range_schema,
+                },
+                "curve_voltage_points": {
+                    "type": "array",
+                    "items": range_schema,
+                },
+            }
+        }
+    }
+    });
+
+    json_schema!({
+        "type": "object",
+        "properties": {
+            "kind": {
+                "type": "string",
+                "enum": ["gcn", "rdna"]
+            },
+            "value": {
+                "oneOf": [
+                    gcn_schema,
+                    rdna_schema,
+                ]
+            }
+        }
+    })
+}
+
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct NvidiaClocksTable {
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub gpu_offsets: IndexMap<u32, NvidiaClockOffset>,
@@ -429,6 +602,7 @@ pub struct NvidiaClocksTable {
 /// Doc from `xe_gt_freq.c`
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct IntelClocksTable {
     pub gt_freq: Option<(u64, u64)>,
     /// - rpn_freq: The Render Performance (RP) N level, which is the minimal one.
@@ -440,6 +614,7 @@ pub struct IntelClocksTable {
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct NvidiaClockOffset {
     pub current: i32,
     pub min: i32,
@@ -462,6 +637,7 @@ impl From<AmdClocksTableGen> for ClocksInfo {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct LinkInfo {
     pub current_width: Option<String>,
     pub current_speed: Option<String>,
@@ -470,6 +646,7 @@ pub struct LinkInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct VulkanInfo {
     pub device_name: String,
     pub api_version: String,
@@ -481,6 +658,7 @@ pub struct VulkanInfo {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct VulkanDriverInfo {
     pub version: u32,
     pub name: Option<String>,
@@ -489,6 +667,7 @@ pub struct VulkanDriverInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct OpenCLInfo {
     pub platform_name: String,
     pub device_name: String,
@@ -503,6 +682,7 @@ pub struct OpenCLInfo {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PciInfo {
     pub vendor_id: String,
     pub vendor: Option<String>,
@@ -512,14 +692,23 @@ pub struct PciInfo {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct DeviceStats {
     pub fan: FanStats,
     pub clockspeed: ClockspeedStats,
     pub voltage: VoltageStats,
     pub vram: VramStats,
     pub power: PowerStats,
+    #[cfg_attr(
+        feature = "schema",
+        schemars(schema_with = "temperatures_schema", default)
+    )]
     pub temps: HashMap<String, Temperature>,
     pub busy_percent: Option<u8>,
+    #[cfg_attr(
+        feature = "schema",
+        schemars(schema_with = "performance_level_schema", default)
+    )]
     pub performance_level: Option<PerformanceLevel>,
     pub core_power_state: Option<usize>,
     pub memory_power_state: Option<usize>,
@@ -527,8 +716,52 @@ pub struct DeviceStats {
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
 }
 
+#[cfg(feature = "schema")]
+fn temperatures_schema(_gen: &mut SchemaGenerator) -> Schema {
+    let optional_float = json_schema!({
+        "type": [
+            "number",
+            "null"
+        ],
+        "format": "float",
+        "optional": true,
+    });
+
+    json_schema!({
+        "type": "object",
+        "additionalProperties": {
+            "type": "object",
+            "properties": {
+                "current": optional_float,
+                "crit": optional_float,
+                "crit_hyst": optional_float,
+            }
+        }
+    })
+}
+
+#[cfg(feature = "schema")]
+fn performance_level_schema(_gen: &mut SchemaGenerator) -> Schema {
+    use schemars::json_schema;
+
+    let enum_values = [
+        PerformanceLevel::Auto,
+        PerformanceLevel::High,
+        PerformanceLevel::Low,
+        PerformanceLevel::Manual,
+    ]
+    .map(|value| serde_json::to_value(value).unwrap());
+
+    json_schema!({
+        "type": ["string" ,"null"],
+        "enum": enum_values,
+        "optional": true
+    })
+}
+
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct FanStats {
     pub control_enabled: bool,
     pub control_mode: Option<FanControlMode>,
@@ -553,17 +786,35 @@ pub struct FanStats {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PmfwInfo {
+    #[cfg_attr(feature = "schema", schemars(schema_with = "fan_info_schema", default))]
     pub acoustic_limit: Option<FanInfo>,
+    #[cfg_attr(feature = "schema", schemars(schema_with = "fan_info_schema", default))]
     pub acoustic_target: Option<FanInfo>,
+    #[cfg_attr(feature = "schema", schemars(schema_with = "fan_info_schema", default))]
     pub target_temp: Option<FanInfo>,
+    #[cfg_attr(feature = "schema", schemars(schema_with = "fan_info_schema", default))]
     pub minimum_pwm: Option<FanInfo>,
     pub zero_rpm_enable: Option<bool>,
+    #[cfg_attr(feature = "schema", schemars(schema_with = "fan_info_schema", default))]
     pub zero_rpm_temperature: Option<FanInfo>,
+}
+
+#[cfg(feature = "schema")]
+fn fan_info_schema(gen: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+        "type": "object",
+        "properties": {
+            "current": gen.subschema_for::<u32>(),
+            "allowed_range": gen.subschema_for::<Option<(u32, u32)>>(),
+        }
+    })
 }
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ClockspeedStats {
     pub gpu_clockspeed: Option<u64>,
     /// Target clock
@@ -573,6 +824,7 @@ pub struct ClockspeedStats {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct VoltageStats {
     pub gpu: Option<u64>,
     pub northbridge: Option<u64>,
@@ -580,6 +832,7 @@ pub struct VoltageStats {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct VramStats {
     pub total: Option<u64>,
     pub used: Option<u64>,
@@ -587,6 +840,7 @@ pub struct VramStats {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PowerStats {
     pub average: Option<f64>,
     pub current: Option<f64>,
@@ -597,6 +851,7 @@ pub struct PowerStats {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PowerStates {
     pub core: Vec<PowerState>,
     pub vram: Vec<PowerState>,
@@ -610,6 +865,7 @@ impl PowerStates {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PowerState {
     pub enabled: bool,
     pub min_value: Option<u64>,
@@ -638,6 +894,7 @@ pub enum BootArgConfigurator {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PmfwOptions {
     pub acoustic_limit: Option<u32>,
     pub acoustic_target: Option<u32>,
@@ -655,6 +912,7 @@ impl PmfwOptions {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct FanOptions<'a> {
     pub id: &'a str,
     pub enabled: bool,
@@ -668,6 +926,7 @@ pub struct FanOptions<'a> {
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ProfilesInfo {
     pub profiles: IndexMap<String, Option<ProfileRule>>,
     #[serde(default)]
@@ -689,6 +948,7 @@ impl PartialEq for ProfilesInfo {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", content = "filter", rename_all = "lowercase")]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum ProfileRule {
     Process(ProcessProfileRule),
     Gamemode(Option<ProcessProfileRule>),
@@ -704,6 +964,7 @@ impl Default for ProfileRule {
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ProcessProfileRule {
     pub name: Arc<str>,
     pub args: Option<String>,
@@ -721,6 +982,7 @@ impl Default for ProcessProfileRule {
 pub type ProfileProcessMap = IndexMap<i32, ProfileProcessInfo>;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ProfileWatcherState {
     pub process_list: ProfileProcessMap,
     pub gamemode_games: IndexSet<i32>,
@@ -729,18 +991,21 @@ pub struct ProfileWatcherState {
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ProfileProcessInfo {
     pub name: Arc<str>,
     pub cmdline: Box<str>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ProcessList {
     pub processes: BTreeMap<u32, ProcessInfo>,
     pub supported_util_types: HashSet<ProcessUtilizationType>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ProcessInfo {
     pub name: String,
     pub args: String,
@@ -750,6 +1015,7 @@ pub struct ProcessInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum ProcessUtilizationType {
     Graphics,
     Compute,
@@ -769,6 +1035,7 @@ impl ProcessUtilizationType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum ProcessType {
     Graphics,
     Compute,

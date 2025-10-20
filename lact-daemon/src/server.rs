@@ -8,9 +8,7 @@ use self::handler::Handler;
 use crate::{config::Config, socket, system};
 use anyhow::Context;
 use futures::future::join_all;
-use lact_schema::{Pong, Request, Response};
-use serde::Serialize;
-use std::fmt::Debug;
+use lact_schema::{Pong, Request, Response, ResponseData};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     net::{TcpListener, UnixListener},
@@ -119,9 +117,9 @@ pub async fn handle_stream<T: AsyncRead + AsyncWrite + Unpin>(
         let response = match maybe_request {
             Ok(request) => match handle_request(request, &handler).await {
                 Ok(response) => response,
-                Err(error) => serde_json::to_vec(&Response::<()>::from(error))?,
+                Err(error) => serde_json::to_vec(&Response::from(error))?,
             },
-            Err(error) => serde_json::to_vec(&Response::<()>::from(
+            Err(error) => serde_json::to_vec(&Response::from(
                 anyhow::Error::new(error).context("Failed to deserialize"),
             ))?,
         };
@@ -214,7 +212,8 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
     }
 }
 
-fn ok_response<T: Serialize + Debug>(data: T) -> anyhow::Result<Vec<u8>> {
+fn ok_response<T: Into<ResponseData>>(data: T) -> anyhow::Result<Vec<u8>> {
+    let data = data.into();
     trace!("responding with {data:?}");
     Ok(serde_json::to_vec(&Response::Ok(data))?)
 }

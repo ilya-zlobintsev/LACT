@@ -19,18 +19,8 @@ fn pong_response() {
         "status": "ok",
         "data": null
     });
-    let response = Response::Ok(Pong);
+    let response = Response::Ok(Pong.into());
 
-    assert_eq!(serde_json::to_value(response).unwrap(), expected_response);
-}
-
-#[test]
-fn controllers_response() {
-    let expected_response = json!({
-      "status": "ok",
-      "data": ["1002:67DF-1DA2:E387-0000:0f:00.0"]
-    });
-    let response = Response::Ok(vec!["1002:67DF-1DA2:E387-0000:0f:00.0"]);
     assert_eq!(serde_json::to_value(response).unwrap(), expected_response);
 }
 
@@ -54,7 +44,7 @@ fn error_response() {
         .context("second context")
         .context(anyhow!("third deeper context"));
 
-    let response = Response::<()>::from(error);
+    let response = Response::from(error);
 
     assert_eq!(serde_json::to_value(response).unwrap(), expected_response);
 }
