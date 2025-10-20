@@ -1,0 +1,12 @@
+[package]
+name = "lact-schema-generator"
+version = "0.8.2"
+edition = "2021"
+
+[lib]
+
+[build-dependencies]
+lact-schema = { path = "../lact-schema", features = ["schema"] }
+schemars = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }

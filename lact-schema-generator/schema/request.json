@@ -1,0 +1,1479 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Request",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "ping"
+        }
+      },
+      "required": [
+        "command"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "list_devices"
+        }
+      },
+      "required": [
+        "command"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "system_info"
+        }
+      },
+      "required": [
+        "command"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "device_info"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "device_stats"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "device_clocks_info"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "device_power_profile_modes"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "$ref": "#/$defs/FanOptions"
+        },
+        "command": {
+          "type": "string",
+          "const": "set_fan_control"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "reset_pmfw"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "cap": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "set_power_cap"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "performance_level": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "high",
+                "low",
+                "manual"
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "performance_level"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "set_performance_level"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "$ref": "#/$defs/SetClocksCommand"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "command"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "set_clocks_value"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "commands": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SetClocksCommand"
+              }
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "commands"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "batch_set_clocks_value"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "custom_heuristics": {
+              "type": "array",
+              "default": [],
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "int32"
+                }
+              }
+            },
+            "id": {
+              "type": "string"
+            },
+            "index": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "set_power_profile_mode"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "get_power_states"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "core_clock",
+                "memory_clock",
+                "s_o_c_clock",
+                "fabric_clock",
+                "d_c_e_f_clock",
+                "pcie_speed"
+              ]
+            },
+            "states": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0
+              }
+            }
+          },
+          "required": [
+            "id",
+            "kind",
+            "states"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "set_enabled_power_states"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "vbios_dump"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "include_state": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
+        "command": {
+          "type": "string",
+          "const": "list_profiles"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "command": {
+          "type": "string",
+          "const": "get_profile"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "auto_switch": {
+              "type": "boolean",
+              "default": false
+            },
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "command": {
+          "type": "string",
+          "const": "set_profile"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "base": {
+              "$ref": "#/$defs/ProfileBase"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "base"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "create_profile"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "delete_profile"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "new_position": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "name",
+            "new_position"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "move_profile"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "rule": {
+              "$ref": "#/$defs/ProfileRule"
+            }
+          },
+          "required": [
+            "rule"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "evaluate_profile_rule"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "hooks": {
+              "$ref": "#/$defs/ProfileHooks",
+              "default": {}
+            },
+            "name": {
+              "type": "string"
+            },
+            "rule": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProfileRule"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "set_profile_rule"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "get_gpu_config"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "config": {
+              "$ref": "#/$defs/GpuConfig"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "config"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "set_gpu_config"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "process_list"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "enable_overdrive"
+        }
+      },
+      "required": [
+        "command"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "disable_overdrive"
+        }
+      },
+      "required": [
+        "command"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "generate_snapshot"
+        }
+      },
+      "required": [
+        "command"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "$ref": "#/$defs/ConfirmCommand"
+        },
+        "command": {
+          "type": "string",
+          "const": "confirm_pending_config"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "const": "rest_config"
+        }
+      },
+      "required": [
+        "command"
+      ]
+    }
+  ],
+  "$defs": {
+    "ClockspeedType": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "max_core_clock",
+            "max_memory_clock",
+            "max_voltage",
+            "min_core_clock",
+            "min_memory_clock",
+            "min_voltage",
+            "voltage_offset",
+            "reset"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "gpu_clock_offset": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "gpu_clock_offset"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mem_clock_offset": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "mem_clock_offset"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "gpu_vf_curve_clock": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "gpu_vf_curve_clock"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mem_vf_curve_clock": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "mem_vf_curve_clock"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "gpu_vf_curve_voltage": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "gpu_vf_curve_voltage"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mem_vf_curve_voltage": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "mem_vf_curve_voltage"
+          ]
+        }
+      ]
+    },
+    "ConfirmCommand": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "const": "confirm"
+            }
+          },
+          "required": [
+            "command"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "const": "revert"
+            }
+          },
+          "required": [
+            "command"
+          ]
+        }
+      ]
+    },
+    "CurvePoint": {
+      "type": "object",
+      "properties": {
+        "clockspeed": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "voltage": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        }
+      }
+    },
+    "FanControlMode": {
+      "type": "string",
+      "enum": [
+        "static",
+        "curve"
+      ]
+    },
+    "FanControlSettings": {
+      "type": "object",
+      "properties": {
+        "auto_threshold": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "change_threshold": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "curve": {
+          "$ref": "#/$defs/FanCurve"
+        },
+        "interval_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "mode": {
+          "$ref": "#/$defs/FanControlMode",
+          "default": "curve"
+        },
+        "spindown_delay_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "static_speed": {
+          "type": "number",
+          "format": "float",
+          "default": 0.5
+        },
+        "temperature_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "temperature_key",
+        "interval_ms",
+        "curve"
+      ]
+    },
+    "FanCurve": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^-?\\d+$": {
+          "type": "number",
+          "format": "float"
+        }
+      }
+    },
+    "FanOptions": {
+      "type": "object",
+      "properties": {
+        "change_threshold": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "curve": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^-?\\d+$": {
+              "type": "number",
+              "format": "float"
+            }
+          }
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FanControlMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pmfw": {
+          "$ref": "#/$defs/PmfwOptions",
+          "default": {}
+        },
+        "spindown_delay_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "static_speed": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "float"
+        }
+      },
+      "required": [
+        "id",
+        "enabled"
+      ]
+    },
+    "GpuConfig": {
+      "type": "object",
+      "properties": {
+        "custom_power_profile_mode_hueristics": {
+          "description": "Outer vector is for power profile components, inner vector is for the heuristics within a component",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32"
+            }
+          }
+        },
+        "fan_control_enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "fan_control_settings": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FanControlSettings"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gpu_clock_offsets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "gpu_vf_curve": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/CurvePoint"
+          }
+        },
+        "max_core_clock": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "max_memory_clock": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "max_voltage": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "mem_clock_offsets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "mem_vf_curve": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/CurvePoint"
+          }
+        },
+        "min_core_clock": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "min_memory_clock": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "min_voltage": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "performance_level": {
+          "type": "string"
+        },
+        "pmfw_options": {
+          "$ref": "#/$defs/PmfwOptions"
+        },
+        "power_cap": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "power_profile_mode_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "power_states": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          }
+        },
+        "voltage_offset": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        }
+      },
+      "required": [
+        "performance_level"
+      ]
+    },
+    "PmfwOptions": {
+      "type": "object",
+      "properties": {
+        "acoustic_limit": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "acoustic_target": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "minimum_pwm": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "target_temperature": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "zero_rpm": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "zero_rpm_threshold": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      }
+    },
+    "ProcessProfileRule": {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "Profile": {
+      "type": "object",
+      "properties": {
+        "gpus": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/GpuConfig"
+          }
+        },
+        "hooks": {
+          "$ref": "#/$defs/ProfileHooks"
+        },
+        "rule": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProfileRule"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ProfileBase": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "empty",
+            "default"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "profile": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "profile"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "provided": {
+              "$ref": "#/$defs/Profile"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "provided"
+          ]
+        }
+      ]
+    },
+    "ProfileHooks": {
+      "type": "object",
+      "properties": {
+        "activated": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deactivated": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "ProfileRule": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "filter": {
+              "$ref": "#/$defs/ProcessProfileRule"
+            },
+            "type": {
+              "type": "string",
+              "const": "process"
+            }
+          },
+          "required": [
+            "type",
+            "filter"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "filter": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProcessProfileRule"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "gamemode"
+            }
+          },
+          "required": [
+            "type",
+            "filter"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "filter": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ProfileRule"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "and"
+            }
+          },
+          "required": [
+            "type",
+            "filter"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "filter": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ProfileRule"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "or"
+            }
+          },
+          "required": [
+            "type",
+            "filter"
+          ]
+        }
+      ]
+    },
+    "SetClocksCommand": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/ClockspeedType"
+        },
+        "value": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    }
+  }
+}
