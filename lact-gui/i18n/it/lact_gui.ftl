@@ -202,3 +202,27 @@ generate-debug-snapshot = Genera Snapshot Di Debug
 dump-vbios = Esporta VBIOS
 reset-all-config = Ripristina Tutte Le Configurazioni
 stats-update-interval = Intervallo Di Aggiornamento (ms)
+temperature-sensor = Sensore di temperatura
+spindown-delay = Ritardo di spindown (ms)
+spindown-delay-tooltip = Per quanto tempo la GPU deve rimanere a un valore di temperatura inferiore prima di ridurre gradualmente la velocità della ventola
+speed-change-threshold = Soglia di variazione della velocità (°C)
+automatic-mode-threshold = Soglia modalità automatica (°C)
+automatic-mode-threshold-tooltip =
+    Passa il controllo della ventola in modalità automatica quando la temperatura è inferiore a questo valore.
+
+    Molte GPU Nvidia supportano l'arresto della ventola solo in modalità di controllo automatico, mentre una curva personalizzata ha un intervallo di velocità limitato, ad esempio dal 30 al 100%.
+
+    Questa opzione consente di aggirare questa limitazione utilizzando la curva personalizzata solo al di sopra di una temperatura specifica, mentre al di sotto di tale soglia viene utilizzata la modalità automatica integrata della scheda, che supporta zero RPM.
+vram-usage = Utilizzo VRAM:
+performance-level = Livello prestazione
+historical-data-title = Dati storici
+graphs-per-row = Grafici per riga:
+time-period-seconds = Periodo di tempo (secondi):
+reset-all-graphs-tooltip = Ripristina tutti i grafici ai valori predefiniti
+add-graph = Aggiungi grafico
+delete-graph = Elimina grafico
+export-csv = Esporta come CSV
+edit-graph-sensors = Modifica sensori grafico
+apply-button = Applica
+revert-button = Ripristina
+edit-graphs = Modifica
