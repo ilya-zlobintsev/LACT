@@ -365,7 +365,7 @@ impl GpuController for NvidiaGpuController {
             .or_else(|| self.common.pci_info.device_pci_info.model.clone())
     }
 
-    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
+    fn get_info(&self, unique_vendor: bool) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
             let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
                 warn!("could not load vulkan info: {err:#}");
@@ -410,7 +410,7 @@ impl GpuController for NvidiaGpuController {
                             output
                         }),
                 },
-                opencl_info: get_opencl_info(&self.common),
+                opencl_info: get_opencl_info(&self.common, unique_vendor),
                 drm_info: Some(DrmInfo {
                     device_name: device.name().ok(),
                     pci_revision_id: None,

@@ -708,7 +708,7 @@ impl GpuController for AmdGpuController {
             })
     }
 
-    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
+    fn get_info(&self, unique_vendor: bool) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
             let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
                 warn!("could not load vulkan info: {err:#}");
@@ -719,7 +719,7 @@ impl GpuController for AmdGpuController {
             let vbios_version = self.get_full_vbios_version();
             let link_info = self.get_link_info();
             let drm_info = self.get_drm_info();
-            let opencl_info = get_opencl_info(&self.common);
+            let opencl_info = get_opencl_info(&self.common, unique_vendor);
 
             let mut flags = vec![DeviceFlag::DumpableVBios];
 

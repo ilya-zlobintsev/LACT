@@ -1,4 +1,4 @@
-use super::gpu_controller::{CommonControllerInfo, PciSlotInfo};
+use super::gpu_controller::CommonControllerInfo;
 use anyhow::anyhow;
 use cl3::{
     device,
@@ -6,21 +6,21 @@ use cl3::{
         cl_device_info, CL_DEVICE_GLOBAL_MEM_SIZE, CL_DEVICE_LOCAL_MEM_SIZE,
         CL_DEVICE_MAX_COMPUTE_UNITS, CL_DEVICE_MAX_WORK_GROUP_SIZE, CL_DEVICE_NAME,
         CL_DEVICE_OPENCL_C_VERSION, CL_DEVICE_PCI_BUS_INFO_KHR, CL_DEVICE_TOPOLOGY_AMD,
-        CL_DEVICE_TYPE_ALL, CL_DEVICE_VERSION, CL_DRIVER_VERSION, CL_PLATFORM_NAME,
+        CL_DEVICE_TYPE_ALL, CL_DEVICE_VENDOR_ID, CL_DEVICE_VERSION, CL_DRIVER_VERSION,
+        CL_PLATFORM_NAME,
     },
-    info_type::InfoType,
     platform,
 };
 use lact_schema::OpenCLInfo;
-use std::ffi::c_void;
-use tracing::error;
+use std::{collections::BTreeMap, ffi::c_void};
+use tracing::{debug, error};
 
 #[cfg_attr(test, allow(unreachable_code, unused_variables))]
-pub fn get_opencl_info(info: &CommonControllerInfo) -> Option<OpenCLInfo> {
+pub fn get_opencl_info(info: &CommonControllerInfo, unique_vendor: bool) -> Option<OpenCLInfo> {
     #[cfg(test)]
     return None;
 
-    match try_get_opencl_info(info) {
+    match try_get_opencl_info(info, unique_vendor) {
         Ok(info) => info,
         Err(err) => {
             error!("could not get OpenCL info: {err}");
@@ -29,10 +29,11 @@ pub fn get_opencl_info(info: &CommonControllerInfo) -> Option<OpenCLInfo> {
     }
 }
 
-fn try_get_opencl_info(info: &CommonControllerInfo) -> anyhow::Result<Option<OpenCLInfo>> {
-    let slot_info = info.get_slot_info()?;
-
-    let Some((platform, device)) = find_matching_device(&slot_info)? else {
+fn try_get_opencl_info(
+    info: &CommonControllerInfo,
+    unique_vendor: bool,
+) -> anyhow::Result<Option<OpenCLInfo>> {
+    let Some((platform, device)) = find_matching_device(info, unique_vendor)? else {
         return Ok(None);
     };
 
@@ -76,16 +77,26 @@ fn try_get_opencl_info(info: &CommonControllerInfo) -> anyhow::Result<Option<Ope
 }
 
 fn find_matching_device(
-    slot_info: &PciSlotInfo,
+    info: &CommonControllerInfo,
+    unique_vendor: bool,
 ) -> anyhow::Result<Option<(*mut c_void, *mut c_void)>> {
+    let slot_info = info.get_slot_info()?;
+
     let platforms = platform::get_platform_ids()
         .map_err(|err| anyhow!("Could not get platform list: {err}"))?;
 
-    for platform in platforms {
-        let devices = device::get_device_ids(platform, CL_DEVICE_TYPE_ALL)
-            .map_err(|err| anyhow!("Could not get device list: {err}"))?;
+    let platform_devices = platforms
+        .into_iter()
+        .map(|platform| {
+            let devices = device::get_device_ids(platform, CL_DEVICE_TYPE_ALL)
+                .map_err(|err| anyhow!("Could not get device list: {err}"))?;
+            anyhow::Ok((platform, devices))
+        })
+        .collect::<anyhow::Result<BTreeMap<_, _>>>()?;
+
+    for (platform, devices) in &platform_devices {
         for device in devices {
-            if let Ok(raw_amd_topology) = device::get_device_info(device, CL_DEVICE_TOPOLOGY_AMD) {
+            if let Ok(raw_amd_topology) = device::get_device_info(*device, CL_DEVICE_TOPOLOGY_AMD) {
                 let amd_topology =
                     device::get_amd_device_topology(&raw_amd_topology.to_vec_uchar());
 
@@ -93,24 +104,39 @@ fn find_matching_device(
                     && u16::from(amd_topology.device) == slot_info.dev
                     && u16::from(amd_topology.function) == slot_info.func
                 {
-                    return Ok(Some((platform, device)));
+                    return Ok(Some((*platform, *device)));
                 }
             }
 
-            let Ok(raw_bus_info) = device::get_device_info(device, CL_DEVICE_PCI_BUS_INFO_KHR)
+            if let Ok(raw_bus_info) = device::get_device_info(*device, CL_DEVICE_PCI_BUS_INFO_KHR)
                 .map_err(|err| anyhow!("Could not get bus info: {err}"))
-                .map(InfoType::to_vec_uchar)
-            else {
-                continue;
-            };
-            let bus_info = device::get_device_pci_bus_info_khr(&raw_bus_info);
-
-            if bus_info.pci_bus == u32::from(slot_info.bus)
-                && bus_info.pci_device == u32::from(slot_info.dev)
-                && bus_info.pci_domain == u32::from(slot_info.domain)
-                && bus_info.pci_function == u32::from(slot_info.func)
             {
-                return Ok(Some((platform, device)));
+                let bus_info = device::get_device_pci_bus_info_khr(&raw_bus_info.to_vec_uchar());
+                if bus_info.pci_bus == u32::from(slot_info.bus)
+                    && bus_info.pci_device == u32::from(slot_info.dev)
+                    && bus_info.pci_domain == u32::from(slot_info.domain)
+                    && bus_info.pci_function == u32::from(slot_info.func)
+                {
+                    return Ok(Some((*platform, *device)));
+                }
+            }
+        }
+    }
+
+    // If no devices were matched by the PCI slot id, get the first device with the matching vendor, as long as it is the only device with that vendor
+    if unique_vendor {
+        let expected_vendor_id = u32::from_str_radix(&info.pci_info.device_pci_info.vendor_id, 16)?;
+
+        for (platform, devices) in platform_devices {
+            for device in devices {
+                if let Ok(raw_vendor_id) = device::get_device_info(device, CL_DEVICE_VENDOR_ID)
+                    .map_err(|err| anyhow!("Could not get bus info: {err}"))
+                {
+                    if raw_vendor_id.to_uint() == expected_vendor_id {
+                        debug!("found matching OpenCL device with vendor check fallback");
+                        return Ok(Some((platform, device)));
+                    }
+                }
             }
         }
     }

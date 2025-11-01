@@ -43,7 +43,7 @@ pub trait GpuController {
 
     fn device_type(&self) -> DeviceType;
 
-    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo>;
+    fn get_info(&self, unique_vendor: bool) -> LocalBoxFuture<'_, DeviceInfo>;
 
     fn friendly_name(&self) -> Option<String>;
 

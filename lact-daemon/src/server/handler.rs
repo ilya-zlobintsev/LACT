@@ -424,7 +424,14 @@ impl<'a> Handler {
     }
 
     pub async fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo> {
-        Ok(self.controller_by_id(id).await?.get_info().await)
+        let controllers = self.gpu_controllers.read().await;
+        let controller = controllers
+            .get(id)
+            .ok_or_else(|| anyhow!("Controller '{id}' not found"))?;
+
+        let unique_vendor = controller_vendor_is_unique(controller, id, &controllers);
+
+        Ok(controller.get_info(unique_vendor).await)
     }
 
     pub async fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
@@ -744,9 +751,11 @@ impl<'a> Handler {
         for (id, controller) in controllers.iter() {
             let gpu_config = config.gpus().ok().and_then(|gpus| gpus.get(id));
 
+            let unique_vendor = controller_vendor_is_unique(controller, id, &controllers);
+
             let data = json!({
                 "pci_info": controller.controller_info().pci_info.clone(),
-                "info": controller.get_info().await,
+                "info": controller.get_info(unique_vendor).await,
                 "stats": controller.get_stats(gpu_config),
                 "clocks_info": controller.get_clocks_info(gpu_config).ok(),
                 "power_profile_modes": controller.get_power_profile_modes().ok(),
@@ -1290,4 +1299,26 @@ async fn run_hook_command(command: &str) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn controller_vendor_is_unique(
+    controller: &DynGpuController,
+    id: &str,
+    controllers: &BTreeMap<String, DynGpuController>,
+) -> bool {
+    let vendor_id = &controller
+        .controller_info()
+        .pci_info
+        .device_pci_info
+        .vendor_id;
+
+    !controllers.iter().any(|(other_id, controller)| {
+        other_id != id
+            && controller
+                .controller_info()
+                .pci_info
+                .device_pci_info
+                .vendor_id
+                == *vendor_id
+    })
 }
