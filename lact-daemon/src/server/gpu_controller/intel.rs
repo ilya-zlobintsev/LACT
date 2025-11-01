@@ -594,7 +594,7 @@ impl GpuController for IntelGpuController {
         self.common.pci_info.device_pci_info.model.clone()
     }
 
-    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
+    fn get_info(&self, unique_vendor: bool) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
             let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
                 warn!("could not load vulkan info: {err:#}");
@@ -619,7 +619,7 @@ impl GpuController for IntelGpuController {
                 vbios_version: None,
                 link_info: LinkInfo::default(),
                 drm_info: Some(drm_info),
-                opencl_info: get_opencl_info(&self.common),
+                opencl_info: get_opencl_info(&self.common, unique_vendor),
                 flags: vec![],
             }
         })
