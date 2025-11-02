@@ -5,6 +5,7 @@ members = [
     "lact-cli",
     "lact-gui",
     "lact-schema",
+    "lact-schema-generator",
     "lact-client",
     "lact-daemon",
 ]
@@ -17,6 +18,7 @@ serde_with = { version = "3.5.0", default-features = false, features = [
     "alloc",
 ] }
 serde_json = "1.0.111"
+schemars = { version = "1.0.4" }
 anyhow = "1.0.79"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
