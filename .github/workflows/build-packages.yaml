@@ -116,7 +116,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: ${{ github.repository}}:{{ github.head_ref || github.ref_name }}
+          tags: ${{ github.repository}}:${{ github.head_ref || github.ref_name }}
 
   create-test-release:
     needs: [build-packages, build-flatpak]
