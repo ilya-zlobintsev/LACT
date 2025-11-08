@@ -1103,7 +1103,7 @@ pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> =
                         info!("NvAPI library loaded");
                     })
                     .inspect_err(|err| {
-                        error!("could not load NvAPI library: {err:#}");
+                        warn!("could not load NvAPI library: {err:#}");
                     })
                     .ok()
             };
