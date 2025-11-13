@@ -197,3 +197,4 @@ reconnecting-to-daemon = Verbindung zum Daemon verloren, verbinde neu...
 daemon-connection-lost = Verbindung verloren
 plot-show-detailed-info = Genaue Informationen anzeigen
 workgroup-size = Arbeitsgruppengröße
+temperature-sensor = Temperatursensor
