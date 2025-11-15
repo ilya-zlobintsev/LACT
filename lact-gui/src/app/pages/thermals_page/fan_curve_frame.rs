@@ -572,6 +572,7 @@ fn normalize_fan_curve<'a>(
 fn normalize_to_range(value: &mut f32, range: &RangeInclusive<f32>) {
     *value = f32::max(*value, *range.start());
     *value = f32::min(*value, *range.end());
+    *value = (*value * 100.0).round() / 100.0;
 }
 
 fn draw_chart(
