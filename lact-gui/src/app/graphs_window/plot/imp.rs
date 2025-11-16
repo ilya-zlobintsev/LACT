@@ -103,7 +103,8 @@ mod benches {
     use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
     use divan::{counter::ItemsCount, Bencher};
     use lact_schema::{
-        ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats, VoltageStats, VramStats,
+        ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats, TemperatureEntry,
+        VoltageStats, VramStats,
     };
     use std::{
         collections::HashMap,
@@ -154,7 +155,8 @@ mod benches {
                     clockspeed: ClockspeedStats {
                         gpu_clockspeed: Some(500),
                         vram_clockspeed: Some(1000),
-                        current_gfxclk: None,
+                        target_gpu_clockspeed: None,
+                        sensors: HashMap::new(),
                     },
                     core_power_state: Some(0),
                     fan: FanStats {
@@ -181,10 +183,13 @@ mod benches {
                     },
                     temps: HashMap::from([(
                         "edge".to_owned(),
-                        Temperature {
-                            crit: Some(100.0),
-                            crit_hyst: None,
-                            current: Some(56.0),
+                        TemperatureEntry {
+                            value: Temperature {
+                                crit: Some(100.0),
+                                crit_hyst: None,
+                                current: Some(56.0),
+                            },
+                            display_only: false,
                         },
                     )]),
                     voltage: VoltageStats::default(),

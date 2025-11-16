@@ -20,7 +20,8 @@ use lact_schema::{
     CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceFlag, DeviceInfo, DeviceStats,
     DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
     NvidiaClockOffset, NvidiaClocksTable, PmfwInfo, PowerState, PowerStates, PowerStats,
-    ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, VoltageStats, VramStats,
+    ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats,
+    VramStats,
 };
 use nvml_wrapper::{
     bitmasks::device::ThrottleReasons,
@@ -476,12 +477,17 @@ impl GpuController for NvidiaGpuController {
                 .map(|value| value as f32)
                 .ok();
 
+            let value = Temperature {
+                current: Some(temp as f32),
+                crit,
+                crit_hyst: None,
+            };
+
             temps.insert(
                 "GPU".to_owned(),
-                Temperature {
-                    current: Some(temp as f32),
-                    crit,
-                    crit_hyst: None,
+                TemperatureEntry {
+                    value,
+                    display_only: false,
                 },
             );
         }
@@ -495,10 +501,13 @@ impl GpuController for NvidiaGpuController {
                         if let Some(hotspot) = thermals.hotspot() {
                             temps.insert(
                                 "GPU Hotspot".to_owned(),
-                                Temperature {
-                                    current: Some(hotspot as f32),
-                                    crit: None,
-                                    crit_hyst: None,
+                                TemperatureEntry {
+                                    value: Temperature {
+                                        current: Some(hotspot as f32),
+                                        crit: None,
+                                        crit_hyst: None,
+                                    },
+                                    display_only: true,
                                 },
                             );
                         }
@@ -506,10 +515,13 @@ impl GpuController for NvidiaGpuController {
                         if let Some(vram) = thermals.vram() {
                             temps.insert(
                                 "VRAM".to_owned(),
-                                Temperature {
-                                    current: Some(vram as f32),
-                                    crit: None,
-                                    crit_hyst: None,
+                                TemperatureEntry {
+                                    value: Temperature {
+                                        current: Some(vram as f32),
+                                        crit: None,
+                                        crit_hyst: None,
+                                    },
+                                    display_only: true,
                                 },
                             );
                         }
@@ -616,7 +628,14 @@ impl GpuController for NvidiaGpuController {
             clockspeed: ClockspeedStats {
                 gpu_clockspeed: device.clock_info(Clock::Graphics).map(Into::into).ok(),
                 vram_clockspeed: device.clock_info(Clock::Memory).map(Into::into).ok(),
-                current_gfxclk: None,
+                target_gpu_clockspeed: None,
+                sensors: [
+                    ("SM", device.clock_info(Clock::SM)),
+                    ("Video", device.clock_info(Clock::Video)),
+                ]
+                .into_iter()
+                .filter_map(|(label, result)| Some((label.to_owned(), result.ok()?.into())))
+                .collect(),
             },
             throttle_info: device.current_throttle_reasons().ok().map(|reasons| {
                 reasons
@@ -631,7 +650,7 @@ impl GpuController for NvidiaGpuController {
             }),
             voltage: VoltageStats {
                 gpu: voltage,
-                northbridge: None,
+                ..Default::default()
             },
             performance_level: None,
             core_power_state: active_pstate,

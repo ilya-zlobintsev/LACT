@@ -518,13 +518,22 @@ pub struct DeviceStats {
     pub voltage: VoltageStats,
     pub vram: VramStats,
     pub power: PowerStats,
-    pub temps: HashMap<String, Temperature>,
+    pub temps: HashMap<String, TemperatureEntry>,
     pub busy_percent: Option<u8>,
     pub performance_level: Option<PerformanceLevel>,
     pub core_power_state: Option<usize>,
     pub memory_power_state: Option<usize>,
     pub pcie_power_state: Option<usize>,
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TemperatureEntry {
+    #[serde(flatten)]
+    pub value: Temperature,
+    /// If the temperature can be used for fan control
+    #[serde(default)]
+    pub display_only: bool,
 }
 
 #[skip_serializing_none]
@@ -563,19 +572,23 @@ pub struct PmfwInfo {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ClockspeedStats {
     pub gpu_clockspeed: Option<u64>,
     /// Target clock
-    pub current_gfxclk: Option<u64>,
+    #[serde(alias = "current_gfxclk")]
+    pub target_gpu_clockspeed: Option<u64>,
     pub vram_clockspeed: Option<u64>,
+    #[serde(default)]
+    pub sensors: HashMap<String, u64>,
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct VoltageStats {
     pub gpu: Option<u64>,
-    pub northbridge: Option<u64>,
+    #[serde(default)]
+    pub sensors: HashMap<String, u64>,
 }
 
 #[skip_serializing_none]

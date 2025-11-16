@@ -75,7 +75,7 @@ pub async fn stats(ctx: CliContext<'_>) -> Result<()> {
             if i > 0 {
                 print!(", ");
             }
-            if let Some(value) = value.current {
+            if let Some(value) = value.value.current {
                 print!("{name}: {value}°C");
             }
         }

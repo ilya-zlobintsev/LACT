@@ -81,8 +81,9 @@ expression: device_info
   },
   "stats": {
     "clockspeed": {
-      "current_gfxclk": 300,
-      "gpu_clockspeed": 300
+      "gpu_clockspeed": 300,
+      "sensors": {},
+      "target_gpu_clockspeed": 300
     },
     "fan": {
       "control_enabled": false,
@@ -92,7 +93,9 @@ expression: device_info
       "cap_min": 0.0
     },
     "temps": {},
-    "voltage": {},
+    "voltage": {
+      "sensors": {}
+    },
     "vram": {}
   }
 }

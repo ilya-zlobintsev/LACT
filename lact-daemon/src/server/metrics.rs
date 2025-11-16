@@ -165,7 +165,7 @@ fn collect_metrics<'a>(
             value: Value::String(key),
         });
 
-        if let Some(current) = temp.current {
+        if let Some(current) = temp.value.current {
             metrics.push(make_metric(
                 "lact_gpu_temperature",
                 f64::from(current).into(),
@@ -176,7 +176,7 @@ fn collect_metrics<'a>(
             ));
         }
 
-        if let Some(crit) = temp.crit {
+        if let Some(crit) = temp.value.crit {
             metrics.push(make_metric(
                 "lact_gpu_temperature_crit",
                 f64::from(crit).into(),
@@ -205,7 +205,7 @@ fn collect_metrics<'a>(
         ));
     }
 
-    if let Some(gpu_target_clock) = stats.clockspeed.current_gfxclk {
+    if let Some(gpu_target_clock) = stats.clockspeed.target_gpu_clockspeed {
         let mut attrs = base_attrs.clone();
         attrs.push(Attribute {
             key: "clockspeed_type",

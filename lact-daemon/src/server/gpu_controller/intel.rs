@@ -18,8 +18,8 @@ use futures::future::LocalBoxFuture;
 use lact_schema::{
     config::GpuConfig, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats,
     DeviceType, DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo,
-    PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, VoltageStats,
-    VramStats,
+    PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry,
+    VoltageStats, VramStats,
 };
 use std::{
     borrow::Cow,
@@ -365,7 +365,7 @@ impl IntelGpuController {
         }
     }
 
-    fn get_temperatures(&self) -> HashMap<String, Temperature> {
+    fn get_temperatures(&self) -> HashMap<String, TemperatureEntry> {
         self.read_hwmon_files::<f32>("temp", "_input")
             .map(|(temp, file)| {
                 let mut key = None;
@@ -381,12 +381,16 @@ impl IntelGpuController {
 
                 let key = key.unwrap_or_else(|| "gpu".to_owned());
 
-                let temperature = Temperature {
+                let value = Temperature {
                     current: Some(temp / 1000.0),
                     crit: None,
                     crit_hyst: None,
                 };
-                (key, temperature)
+                let entry = TemperatureEntry {
+                    value,
+                    display_only: true,
+                };
+                (key, entry)
             })
             .collect()
     }
@@ -669,16 +673,17 @@ impl GpuController for IntelGpuController {
     }
 
     fn get_stats(&self, _gpu_config: Option<&GpuConfig>) -> DeviceStats {
-        let current_gfxclk = self.read_freq(FrequencyType::Cur);
+        let target_gpu_clockspeed = self.read_freq(FrequencyType::Cur);
         let gpu_clockspeed = self
             .read_freq(FrequencyType::Act)
             .filter(|value| *value != 0)
-            .or(current_gfxclk);
+            .or(target_gpu_clockspeed);
 
         let clockspeed = ClockspeedStats {
             gpu_clockspeed,
-            current_gfxclk,
+            target_gpu_clockspeed,
             vram_clockspeed: None,
+            sensors: HashMap::new(),
         };
 
         let power = PowerStats {
@@ -692,7 +697,7 @@ impl GpuController for IntelGpuController {
 
         let voltage = VoltageStats {
             gpu: self.read_hwmon_file(&["in0_input", "in1_input"], true),
-            northbridge: None,
+            ..Default::default()
         };
 
         let fan = FanStats {
