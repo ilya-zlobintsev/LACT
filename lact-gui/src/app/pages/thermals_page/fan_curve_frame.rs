@@ -3,7 +3,6 @@ use crate::{
     app::{graphs_window::plot::PlotColorScheme, msg::AppMsg, pages::oc_adjustment::OcAdjustment},
     APP_BROKER, I18N,
 };
-use amdgpu_sysfs::hw_mon::Temperature;
 use gtk::{
     gdk,
     gio::prelude::ListModelExt,
@@ -17,7 +16,7 @@ use gtk::{
     },
 };
 use i18n_embed_fl::fl;
-use lact_schema::{default_fan_curve, FanCurveMap};
+use lact_schema::{default_fan_curve, FanCurveMap, TemperatureEntry};
 use plotters::{
     chart::ChartBuilder,
     prelude::{Circle, EmptyElement, IntoDrawingArea, Text},
@@ -79,7 +78,7 @@ pub(super) enum FanCurveFrameMsg {
 #[derive(Debug)]
 pub(super) struct CurveSetupMsg {
     pub curve: FanCurveMap,
-    pub current_temperatures: HashMap<String, Temperature>,
+    pub current_temperatures: HashMap<String, TemperatureEntry>,
     pub temperature_key: Option<String>,
     pub speed_range: RangeInclusive<f32>,
     pub temperature_range: RangeInclusive<f32>,
@@ -379,7 +378,12 @@ impl relm4::Component for FanCurveFrame {
                     adj.block_signal(signal);
                 }
 
-                let mut temp_keys = msg.current_temperatures.into_keys().collect::<Vec<_>>();
+                let mut temp_keys = msg
+                    .current_temperatures
+                    .into_iter()
+                    .filter(|(_, temp)| !temp.display_only)
+                    .map(|(key, _)| key)
+                    .collect::<Vec<_>>();
                 temp_keys.sort();
 
                 let selected_idx = msg

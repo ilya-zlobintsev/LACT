@@ -22,12 +22,19 @@ impl StatsData {
         timestamp: i64,
     ) {
         for (name, temperature) in &stats.temps {
-            if let Some(value) = temperature.current {
+            if let Some(value) = temperature.value.current {
                 self.stats
                     .entry(StatType::Temperature(name.to_owned()))
                     .or_default()
                     .push((timestamp, value.into()));
             }
+        }
+
+        for (name, value) in &stats.voltage.sensors {
+            self.stats
+                .entry(StatType::Voltage(name.clone()))
+                .or_default()
+                .push((timestamp, *value as f64));
         }
 
         let stats_values = [
@@ -37,7 +44,7 @@ impl StatsData {
             ),
             (
                 StatType::GpuTargetClock,
-                stats.clockspeed.current_gfxclk.map(|val| val as f64),
+                stats.clockspeed.target_gpu_clockspeed.map(|val| val as f64),
             ),
             (
                 StatType::VramClock,
@@ -195,10 +202,6 @@ impl StatsData {
 pub enum StatType {
     GpuClock,
     GpuTargetClock,
-    GpuVoltage,
-    VramClock,
-    VramSize,
-    VramUsed,
     GpuUsage,
     Temperature(String),
     FanRpm,
@@ -206,6 +209,11 @@ pub enum StatType {
     PowerCurrent,
     PowerAverage,
     PowerCap,
+    VramClock,
+    VramSize,
+    VramUsed,
+    GpuVoltage,
+    Voltage(String),
 }
 
 impl StatType {
@@ -220,6 +228,7 @@ impl StatType {
             VramUsed => "VRAM Used".into(),
             GpuUsage => "GPU Usage".into(),
             Temperature(name) => format!("Temp ({name})").into(),
+            Voltage(name) => format!("Voltage ({name})").into(),
             FanRpm => "Fan RPM".into(),
             FanPwm => "Fan".into(),
             PowerCurrent => "Power Draw".into(),
@@ -233,7 +242,7 @@ impl StatType {
         match self {
             GpuClock | GpuTargetClock | VramClock => "MHz",
             VramSize | VramUsed => "MiB",
-            GpuVoltage => "mV",
+            GpuVoltage | Voltage(_) => "mV",
             Temperature(_) => "℃",
             FanRpm => "RPM",
             FanPwm => "%",
