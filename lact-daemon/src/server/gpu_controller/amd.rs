@@ -823,7 +823,7 @@ impl GpuController for AmdGpuController {
                         label.to_owned(),
                         TemperatureEntry {
                             value: Temperature {
-                                current: Some(f32::from(value)),
+                                current: Some(f32::from(value / 100)),
                                 crit: None,
                                 crit_hyst: None,
                             },
