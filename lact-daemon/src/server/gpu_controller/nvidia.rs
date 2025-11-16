@@ -629,6 +629,13 @@ impl GpuController for NvidiaGpuController {
                 gpu_clockspeed: device.clock_info(Clock::Graphics).map(Into::into).ok(),
                 vram_clockspeed: device.clock_info(Clock::Memory).map(Into::into).ok(),
                 target_gpu_clockspeed: None,
+                sensors: [
+                    ("SM", device.clock_info(Clock::SM)),
+                    ("Video", device.clock_info(Clock::Video)),
+                ]
+                .into_iter()
+                .filter_map(|(label, result)| Some((label.to_owned(), result.ok()?.into())))
+                .collect(),
             },
             throttle_info: device.current_throttle_reasons().ok().map(|reasons| {
                 reasons

@@ -56,6 +56,7 @@ expression: device_info
   "stats": {
     "clockspeed": {
       "gpu_clockspeed": 300,
+      "sensors": {},
       "vram_clockspeed": 150
     },
     "fan": {

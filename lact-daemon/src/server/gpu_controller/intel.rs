@@ -683,6 +683,7 @@ impl GpuController for IntelGpuController {
             gpu_clockspeed,
             target_gpu_clockspeed,
             vram_clockspeed: None,
+            sensors: HashMap::new(),
         };
 
         let power = PowerStats {

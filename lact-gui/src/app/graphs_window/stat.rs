@@ -37,6 +37,13 @@ impl StatsData {
                 .push((timestamp, *value as f64));
         }
 
+        for (name, value) in &stats.clockspeed.sensors {
+            self.stats
+                .entry(StatType::Clockspeed(name.clone()))
+                .or_default()
+                .push((timestamp, *value as f64));
+        }
+
         let stats_values = [
             (
                 StatType::GpuClock,
@@ -213,6 +220,7 @@ pub enum StatType {
     VramSize,
     VramUsed,
     GpuVoltage,
+    Clockspeed(String),
     Voltage(String),
 }
 
@@ -228,6 +236,7 @@ impl StatType {
             VramUsed => "VRAM Used".into(),
             GpuUsage => "GPU Usage".into(),
             Temperature(name) => format!("Temp ({name})").into(),
+            Clockspeed(name) => format!("Clockspeed ({name})").into(),
             Voltage(name) => format!("Voltage ({name})").into(),
             FanRpm => "Fan RPM".into(),
             FanPwm => "Fan".into(),
@@ -240,7 +249,7 @@ impl StatType {
     pub fn metric(&self) -> &'static str {
         use StatType::*;
         match self {
-            GpuClock | GpuTargetClock | VramClock => "MHz",
+            GpuClock | GpuTargetClock | VramClock | Clockspeed(_) => "MHz",
             VramSize | VramUsed => "MiB",
             GpuVoltage | Voltage(_) => "mV",
             Temperature(_) => "℃",

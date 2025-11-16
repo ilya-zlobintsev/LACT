@@ -52,7 +52,9 @@ expression: device_info
     "vram": []
   },
   "stats": {
-    "clockspeed": {},
+    "clockspeed": {
+      "sensors": {}
+    },
     "fan": {
       "control_enabled": false,
       "pmfw_info": {}

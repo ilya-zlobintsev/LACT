@@ -156,6 +156,7 @@ mod benches {
                         gpu_clockspeed: Some(500),
                         vram_clockspeed: Some(1000),
                         target_gpu_clockspeed: None,
+                        sensors: HashMap::new(),
                     },
                     core_power_state: Some(0),
                     fan: FanStats {

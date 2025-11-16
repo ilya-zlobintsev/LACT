@@ -149,7 +149,8 @@ expression: device_info
   "stats": {
     "busy_percent": 0,
     "clockspeed": {
-      "gpu_clockspeed": 200
+      "gpu_clockspeed": 200,
+      "sensors": {}
     },
     "core_power_state": 0,
     "fan": {

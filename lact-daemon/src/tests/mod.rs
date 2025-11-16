@@ -64,6 +64,10 @@ async fn apply_settings() {
         let pci_db = read_pci_db();
 
         for vendor_dir in fs::read_dir(test_data_dir).unwrap().flatten() {
+            if !vendor_dir.metadata().unwrap().is_dir() {
+                continue;
+            }
+
             for device_dir in fs::read_dir(vendor_dir.path()).unwrap().flatten() {
                 for entry in fs::read_dir(device_dir.path()).unwrap().flatten() {
                     let name = entry.file_name();

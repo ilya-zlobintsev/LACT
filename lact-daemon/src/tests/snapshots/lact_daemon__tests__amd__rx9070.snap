@@ -404,6 +404,14 @@ expression: device_info
     "busy_percent": 25,
     "clockspeed": {
       "gpu_clockspeed": 900,
+      "sensors": {
+        "DCLK": 25,
+        "DCLK1": 25,
+        "SOCCLK": 1200,
+        "UCLK": 1124,
+        "VCLK": 25,
+        "VCLK1": 25
+      },
       "vram_clockspeed": 1124
     },
     "core_power_state": 1,

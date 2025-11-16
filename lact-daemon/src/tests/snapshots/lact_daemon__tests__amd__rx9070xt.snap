@@ -404,6 +404,7 @@ expression: device_info
     "busy_percent": 3,
     "clockspeed": {
       "gpu_clockspeed": 167,
+      "sensors": {},
       "vram_clockspeed": 1258
     },
     "core_power_state": 1,

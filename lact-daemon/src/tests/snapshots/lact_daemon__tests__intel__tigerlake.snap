@@ -78,6 +78,7 @@ expression: device_info
   "stats": {
     "clockspeed": {
       "gpu_clockspeed": 1100,
+      "sensors": {},
       "target_gpu_clockspeed": 1100
     },
     "fan": {

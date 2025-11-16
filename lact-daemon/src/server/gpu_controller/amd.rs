@@ -449,7 +449,7 @@ impl AmdGpuController {
             .context("GPU has no hardware monitor")
     }
 
-    fn get_clockspeed(&self) -> ClockspeedStats {
+    fn get_clockspeed(&self, metrics: Option<&GpuMetrics>) -> ClockspeedStats {
         let vram_clockspeed = self
             .drm_handle
             .as_ref()
@@ -457,10 +457,31 @@ impl AmdGpuController {
             .map(u64::from)
             .or_else(|| self.hw_mon_and_then(HwMon::get_vram_clockspeed));
 
+        let mut sensors = HashMap::new();
+
+        if let Some(metrics) = metrics {
+            for (label, value) in [
+                ("DCLK", metrics.get_current_dclk()),
+                ("DCLK1", metrics.get_current_dclk1()),
+                ("FCLK", metrics.get_current_fclk()),
+                ("VCLK", metrics.get_current_vclk()),
+                ("VCLK1", metrics.get_current_vclk()),
+                ("UCLK", metrics.get_current_uclk()),
+                ("SOCCLK", metrics.get_current_socclk()),
+            ] {
+                if let Some(value) = value {
+                    if value != 0 {
+                        sensors.insert(label.to_owned(), u64::from(value));
+                    }
+                }
+            }
+        }
+
         ClockspeedStats {
             gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
             target_gpu_clockspeed: self.get_current_gfxclk(),
             vram_clockspeed,
+            sensors,
         }
     }
 
@@ -904,7 +925,7 @@ impl GpuController for AmdGpuController {
                     zero_rpm_temperature: self.handle.get_fan_zero_rpm_stop_temperature().ok(),
                 },
             },
-            clockspeed: self.get_clockspeed(),
+            clockspeed: self.get_clockspeed(metrics),
             voltage: VoltageStats {
                 gpu: self.hw_mon_and_then(HwMon::get_gpu_voltage),
                 sensors: voltages,

@@ -54,7 +54,8 @@ expression: device_info
   },
   "stats": {
     "clockspeed": {
-      "gpu_clockspeed": 300
+      "gpu_clockspeed": 300,
+      "sensors": {}
     },
     "fan": {
       "control_enabled": false,
