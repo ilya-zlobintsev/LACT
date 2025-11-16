@@ -77,8 +77,8 @@ expression: device_info
   },
   "stats": {
     "clockspeed": {
-      "current_gfxclk": 1100,
-      "gpu_clockspeed": 1100
+      "gpu_clockspeed": 1100,
+      "target_gpu_clockspeed": 1100
     },
     "fan": {
       "control_enabled": false,
@@ -89,7 +89,9 @@ expression: device_info
     },
     "temps": {},
     "throttle_info": {},
-    "voltage": {},
+    "voltage": {
+      "sensors": {}
+    },
     "vram": {}
   }
 }

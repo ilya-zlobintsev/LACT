@@ -500,21 +500,25 @@ expression: device_info
       "edge": {
         "crit": 100.0,
         "crit_hyst": -273.1499938964844,
-        "current": 28.0
+        "current": 28.0,
+        "display_only": false
       },
       "junction": {
         "crit": 110.0,
         "crit_hyst": -273.1499938964844,
-        "current": 28.0
+        "current": 28.0,
+        "display_only": false
       },
       "mem": {
         "crit": 100.0,
         "crit_hyst": -273.1499938964844,
-        "current": 26.0
+        "current": 26.0,
+        "display_only": false
       }
     },
     "voltage": {
-      "gpu": 1000
+      "gpu": 1000,
+      "sensors": {}
     },
     "vram": {}
   }

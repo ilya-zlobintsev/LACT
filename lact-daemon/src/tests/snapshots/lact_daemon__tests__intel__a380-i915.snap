@@ -83,8 +83,8 @@ expression: device_info
   },
   "stats": {
     "clockspeed": {
-      "current_gfxclk": 600,
-      "gpu_clockspeed": 600
+      "gpu_clockspeed": 600,
+      "target_gpu_clockspeed": 600
     },
     "fan": {
       "control_enabled": false,
@@ -101,12 +101,14 @@ expression: device_info
       "gpu": {
         "crit": null,
         "crit_hyst": null,
-        "current": 55.0
+        "current": 55.0,
+        "display_only": true
       }
     },
     "throttle_info": {},
     "voltage": {
-      "gpu": 603
+      "gpu": 603,
+      "sensors": {}
     },
     "vram": {}
   }

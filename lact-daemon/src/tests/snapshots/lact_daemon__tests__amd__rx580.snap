@@ -339,11 +339,13 @@ expression: device_info
       "edge": {
         "crit": 94.0,
         "crit_hyst": -273.1499938964844,
-        "current": 44.0
+        "current": 44.0,
+        "display_only": false
       }
     },
     "voltage": {
-      "gpu": 975
+      "gpu": 975,
+      "sensors": {}
     },
     "vram": {
       "total": 4294967296,

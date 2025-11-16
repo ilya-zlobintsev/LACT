@@ -59,7 +59,9 @@ expression: device_info
     },
     "power": {},
     "temps": {},
-    "voltage": {},
+    "voltage": {
+      "sensors": {}
+    },
     "vram": {}
   }
 }

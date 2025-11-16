@@ -79,8 +79,8 @@ expression: device_info
   },
   "stats": {
     "clockspeed": {
-      "current_gfxclk": 2850,
-      "gpu_clockspeed": 2733
+      "gpu_clockspeed": 2733,
+      "target_gpu_clockspeed": 2850
     },
     "fan": {
       "control_enabled": false,
@@ -97,18 +97,22 @@ expression: device_info
       "pkg": {
         "crit": null,
         "crit_hyst": null,
-        "current": 62.0
+        "current": 62.0,
+        "display_only": true
       },
       "vram": {
         "crit": null,
         "crit_hyst": null,
-        "current": 64.0
+        "current": 64.0,
+        "display_only": true
       }
     },
     "throttle_info": {
       "pl2": []
     },
-    "voltage": {},
+    "voltage": {
+      "sensors": {}
+    },
     "vram": {}
   }
 }

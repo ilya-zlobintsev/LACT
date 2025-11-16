@@ -463,21 +463,46 @@ expression: device_info
       "edge": {
         "crit": 100.0,
         "crit_hyst": -273.1499938964844,
-        "current": 24.0
+        "current": 24.0,
+        "display_only": false
       },
       "junction": {
         "crit": 110.0,
         "crit_hyst": -273.1499938964844,
-        "current": 31.0
+        "current": 31.0,
+        "display_only": false
       },
       "mem": {
         "crit": 108.0,
         "crit_hyst": -273.1499938964844,
-        "current": 48.0
+        "current": 48.0,
+        "display_only": false
+      },
+      "vrgfx": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 34.0,
+        "display_only": true
+      },
+      "vrmem": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 34.0,
+        "display_only": true
+      },
+      "vrsoc": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 32.0,
+        "display_only": true
       }
     },
     "voltage": {
-      "gpu": 985
+      "gpu": 985,
+      "sensors": {
+        "mem": 704,
+        "soc": 768
+      }
     },
     "vram": {}
   }

@@ -810,7 +810,7 @@ impl GpuController for AmdGpuController {
 
         if let Some(metrics) = metrics {
             let extra_sensors = [
-                ("soc", metrics.get_temperature_soc()),
+                ("soc", metrics.get_temperature_soc().map(|temp| temp / 100)),
                 ("vrgfx", metrics.get_temperature_vrgfx()),
                 ("vrmem", metrics.get_temperature_vrmem()),
                 ("vrsoc", metrics.get_temperature_vrsoc()),
@@ -819,17 +819,19 @@ impl GpuController for AmdGpuController {
 
             for (label, value) in extra_sensors {
                 if let Some(value) = value {
-                    temps.insert(
-                        label.to_owned(),
-                        TemperatureEntry {
-                            value: Temperature {
-                                current: Some(f32::from(value / 100)),
-                                crit: None,
-                                crit_hyst: None,
+                    if value != 0 {
+                        temps.insert(
+                            label.to_owned(),
+                            TemperatureEntry {
+                                value: Temperature {
+                                    current: Some(f32::from(value)),
+                                    crit: None,
+                                    crit_hyst: None,
+                                },
+                                display_only: true,
                             },
-                            display_only: true,
-                        },
-                    );
+                        );
+                    }
                 }
             }
         }

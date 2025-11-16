@@ -585,6 +585,7 @@ pub struct ClockspeedStats {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct VoltageStats {
     pub gpu: Option<u64>,
+    #[serde(default)]
     pub sensors: HashMap<String, u64>,
 }
 

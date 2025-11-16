@@ -68,10 +68,13 @@ expression: device_info
       "1": {
         "crit": 120.0,
         "crit_hyst": 90.0,
-        "current": 27.0
+        "current": 27.0,
+        "display_only": false
       }
     },
-    "voltage": {},
+    "voltage": {
+      "sensors": {}
+    },
     "vram": {}
   }
 }
