@@ -228,10 +228,10 @@ impl StatType {
     pub fn display(&self) -> Cow<'static, str> {
         use StatType::*;
         match self {
-            GpuClock => "GPU Clock".into(),
-            GpuTargetClock => "GPU Clock (Target)".into(),
+            GpuClock => "Clockspeed (GPU".into(),
+            GpuTargetClock => "Clockspeed (GPU Target)".into(),
             GpuVoltage => "GPU Voltage".into(),
-            VramClock => "VRAM Clock".into(),
+            VramClock => "Clockspeed (VRAM)".into(),
             VramSize => "VRAM Size".into(),
             VramUsed => "VRAM Used".into(),
             GpuUsage => "GPU Usage".into(),
