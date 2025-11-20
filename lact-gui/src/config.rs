@@ -1,9 +1,12 @@
 use crate::app::graphs_window::stat::StatType;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::{collections::HashMap, env, fs, path::PathBuf};
 use tracing::{debug, error};
 
-#[derive(Default, Serialize, Deserialize)]
+pub const MIN_STATS_POLL_INTERVAL_MS: i64 = 250;
+pub const MAX_STATS_POLL_INTERVAL_MS: i64 = 5000;
+
+#[derive(Serialize, Deserialize)]
 pub struct UiConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selected_gpu: Option<String>,
@@ -11,10 +14,25 @@ pub struct UiConfig {
     pub plots_time_period: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plots_per_row: Option<u64>,
-    #[serde(default = "default_stats_poll_interval")]
+    #[serde(
+        default = "default_stats_poll_interval",
+        deserialize_with = "deserialize_poll_interval"
+    )]
     pub stats_poll_interval_ms: i64,
     #[serde(default)]
     pub gpus: HashMap<String, UiGpuConfig>,
+}
+
+impl Default for UiConfig {
+    fn default() -> Self {
+        Self {
+            selected_gpu: None,
+            plots_time_period: None,
+            plots_per_row: None,
+            stats_poll_interval_ms: default_stats_poll_interval(),
+            gpus: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -78,4 +96,9 @@ fn config_path() -> PathBuf {
 
 fn default_stats_poll_interval() -> i64 {
     500
+}
+
+fn deserialize_poll_interval<'de, D: Deserializer<'de>>(deserializer: D) -> Result<i64, D::Error> {
+    let value = i64::deserialize(deserializer)?;
+    Ok(value.clamp(MIN_STATS_POLL_INTERVAL_MS, MAX_STATS_POLL_INTERVAL_MS))
 }
