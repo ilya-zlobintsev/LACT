@@ -18,19 +18,23 @@
   </description>
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/1.png</image>
+      <image>
+        https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/1.png</image>
       <caption>Information</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/2.png</image>
+      <image>
+        https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/2.png</image>
       <caption>Overclocking</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/3.png</image>
+      <image>
+        https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/3.png</image>
       <caption>Fan Control</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/5.png</image>
+      <image>
+        https://raw.githubusercontent.com/ilya-zlobintsev/LACT/refs/heads/master/res/screenshots/5.png</image>
       <caption>Historical Data</caption>
     </screenshot>
   </screenshots>
@@ -41,7 +45,7 @@
   <url type="homepage">https://github.com/ilya-zlobintsev/LACT</url>
   <url type="vcs-browser">https://github.com/ilya-zlobintsev/LACT</url>
   <url type="bugtracker">https://github.com/ilya-zlobintsev/LACT/issues</url>
-  <url type="donation">https://ko-fi.com/ilya_zlobintsev</url>
+  <url type="donation">https://www.patreon.com/c/IlyaZlobintsev</url>
   <url type="help">https://github.com/ilya-zlobintsev/LACT/blob/master/README.md</url>
   <content_rating type="oars-1.0" />
   <supports>
@@ -53,6 +57,9 @@
     <display_length compare="ge">827</display_length>
   </requires>
   <releases>
+    <release version="0.8.3" date="2025-11-20">
+      <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.8.2</url>
+    </release>
     <release version="0.8.2" date="2025-10-18">
       <url>https://github.com/ilya-zlobintsev/LACT/releases/tag/v0.8.2</url>
     </release>
