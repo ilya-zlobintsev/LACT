@@ -3,7 +3,7 @@ metadata:
   description: GPU control utility
   arch: x86_64
   license: MIT
-  version: 0.8.3
+  version: 0.8.4
   maintainer: ilya-zlobintsev
   url: https://github.com/ilya-zlobintsev/lact
   source:
