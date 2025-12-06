@@ -15,8 +15,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 FROM debian:trixie-slim
 
-RUN apt update -y && apt install -y libdrm-amdgpu1 libdrm-radeon1 libdrm-intel1 libdrm2 hwdata vulkan-tools
-RUN rm -rf /var/cache
+RUN apt update -y && apt install -y libdrm-amdgpu1 libdrm-radeon1 libdrm-intel1 libdrm2 hwdata vulkan-tools && rm -rf /var/cache
 
 COPY --from=builder /usr/local/bin/lact /usr/local/bin/lact
 
