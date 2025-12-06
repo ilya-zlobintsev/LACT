@@ -23,9 +23,9 @@ use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
     AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceFlag, DeviceInfo,
-    DeviceStats, DeviceType, DrmInfo, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState,
-    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo, TemperatureEntry,
-    VoltageStats, VramStats,
+    DeviceStats, DeviceType, DrmInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo,
+    PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo,
+    TemperatureEntry, VoltageStats, VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
@@ -1210,37 +1210,44 @@ impl GpuController for AmdGpuController {
                 }
             }
 
-            // Unlike the other PMFW options, zero rpm should be functional with a custom curve
-            if let Some(zero_rpm) = config.pmfw_options.zero_rpm {
-                match self.handle.get_fan_zero_rpm_enable() {
-                    Ok(current_zero_rpm) => {
-                        if current_zero_rpm != zero_rpm {
-                            let commit_handle = self
-                                .handle
-                                .set_fan_zero_rpm_enable(zero_rpm)
-                                .context("Could not set zero RPM mode")?;
-                            commit_handles.push_front(commit_handle);
+            // Unlike the other PMFW options, zero rpm should be applied with a custom curve as well (but not in static mode)
+            if !(config.fan_control_enabled
+                && config
+                    .fan_control_settings
+                    .as_ref()
+                    .is_some_and(|fan| fan.mode == FanControlMode::Static))
+            {
+                if let Some(zero_rpm) = config.pmfw_options.zero_rpm {
+                    match self.handle.get_fan_zero_rpm_enable() {
+                        Ok(current_zero_rpm) => {
+                            if current_zero_rpm != zero_rpm {
+                                let commit_handle = self
+                                    .handle
+                                    .set_fan_zero_rpm_enable(zero_rpm)
+                                    .context("Could not set zero RPM mode")?;
+                                commit_handles.push_front(commit_handle);
+                            }
                         }
-                    }
-                    Err(err) => {
-                        error!("zero RPM is present in the config, but not available on the GPU: {err}");
+                        Err(err) => {
+                            error!("zero RPM is present in the config, but not available on the GPU: {err}");
+                        }
                     }
                 }
-            }
 
-            if let Some(zero_rpm_threshold) = config.pmfw_options.zero_rpm_threshold {
-                match self.handle.get_fan_zero_rpm_stop_temperature() {
-                    Ok(current_threshold) => {
-                        if current_threshold.current != zero_rpm_threshold {
-                            let commit_handle = self
-                                .handle
-                                .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
-                                .context("Could not set zero RPM temperature")?;
-                            commit_handles.push_front(commit_handle);
+                if let Some(zero_rpm_threshold) = config.pmfw_options.zero_rpm_threshold {
+                    match self.handle.get_fan_zero_rpm_stop_temperature() {
+                        Ok(current_threshold) => {
+                            if current_threshold.current != zero_rpm_threshold {
+                                let commit_handle = self
+                                    .handle
+                                    .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
+                                    .context("Could not set zero RPM temperature")?;
+                                commit_handles.push_front(commit_handle);
+                            }
                         }
-                    }
-                    Err(err) => {
-                        error!("zero RPM threshold is present in the config, but not available on the GPU: {err}");
+                        Err(err) => {
+                            error!("zero RPM threshold is present in the config, but not available on the GPU: {err}");
+                        }
                     }
                 }
             }
