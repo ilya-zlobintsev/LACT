@@ -22,12 +22,26 @@ impl StatsData {
         timestamp: i64,
     ) {
         for (name, temperature) in &stats.temps {
-            if let Some(value) = temperature.current {
+            if let Some(value) = temperature.value.current {
                 self.stats
                     .entry(StatType::Temperature(name.to_owned()))
                     .or_default()
                     .push((timestamp, value.into()));
             }
+        }
+
+        for (name, value) in &stats.voltage.sensors {
+            self.stats
+                .entry(StatType::Voltage(name.clone()))
+                .or_default()
+                .push((timestamp, *value as f64));
+        }
+
+        for (name, value) in &stats.clockspeed.sensors {
+            self.stats
+                .entry(StatType::Clockspeed(name.clone()))
+                .or_default()
+                .push((timestamp, *value as f64));
         }
 
         let stats_values = [
@@ -37,7 +51,7 @@ impl StatsData {
             ),
             (
                 StatType::GpuTargetClock,
-                stats.clockspeed.current_gfxclk.map(|val| val as f64),
+                stats.clockspeed.target_gpu_clockspeed.map(|val| val as f64),
             ),
             (
                 StatType::VramClock,
@@ -195,10 +209,6 @@ impl StatsData {
 pub enum StatType {
     GpuClock,
     GpuTargetClock,
-    GpuVoltage,
-    VramClock,
-    VramSize,
-    VramUsed,
     GpuUsage,
     Temperature(String),
     FanRpm,
@@ -206,20 +216,28 @@ pub enum StatType {
     PowerCurrent,
     PowerAverage,
     PowerCap,
+    VramClock,
+    VramSize,
+    VramUsed,
+    GpuVoltage,
+    Clockspeed(String),
+    Voltage(String),
 }
 
 impl StatType {
     pub fn display(&self) -> Cow<'static, str> {
         use StatType::*;
         match self {
-            GpuClock => "GPU Clock".into(),
-            GpuTargetClock => "GPU Clock (Target)".into(),
+            GpuClock => "Clockspeed (GPU)".into(),
+            GpuTargetClock => "Clockspeed (GPU Target)".into(),
             GpuVoltage => "GPU Voltage".into(),
-            VramClock => "VRAM Clock".into(),
+            VramClock => "Clockspeed (VRAM)".into(),
             VramSize => "VRAM Size".into(),
             VramUsed => "VRAM Used".into(),
             GpuUsage => "GPU Usage".into(),
             Temperature(name) => format!("Temp ({name})").into(),
+            Clockspeed(name) => format!("Clockspeed ({name})").into(),
+            Voltage(name) => format!("Voltage ({name})").into(),
             FanRpm => "Fan RPM".into(),
             FanPwm => "Fan".into(),
             PowerCurrent => "Power Draw".into(),
@@ -231,9 +249,9 @@ impl StatType {
     pub fn metric(&self) -> &'static str {
         use StatType::*;
         match self {
-            GpuClock | GpuTargetClock | VramClock => "MHz",
+            GpuClock | GpuTargetClock | VramClock | Clockspeed(_) => "MHz",
             VramSize | VramUsed => "MiB",
-            GpuVoltage => "mV",
+            GpuVoltage | Voltage(_) => "mV",
             Temperature(_) => "℃",
             FanRpm => "RPM",
             FanPwm => "%",

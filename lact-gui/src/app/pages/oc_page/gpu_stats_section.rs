@@ -69,7 +69,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     #[watch]
                     set_name: {
                         if model.stats.clockspeed.gpu_clockspeed.is_some()
-                            && model.stats.clockspeed.current_gfxclk.is_some() {
+                            && model.stats.clockspeed.target_gpu_clockspeed.is_some() {
                                 fl!(I18N, "gpu-clock-avg")
                             } else {
                                 fl!(I18N, "gpu-clock")
@@ -86,11 +86,11 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 append_child = &InfoRow {
                     set_name: fl!(I18N, "gpu-clock-target"),
                     #[watch]
-                    set_value: format_current_gfxclk(model.stats.clockspeed.current_gfxclk),
+                    set_value: format_current_gfxclk(model.stats.clockspeed.target_gpu_clockspeed),
                     set_spacing: 40,
                 } -> clockspeed_target_item: gtk::FlowBoxChild {
                     #[watch]
-                    set_visible: model.stats.clockspeed.current_gfxclk.is_some(),
+                    set_visible: model.stats.clockspeed.target_gpu_clockspeed.is_some(),
                 },
 
                 append_child = &InfoRow {
@@ -256,7 +256,8 @@ pub fn temperature_text(stats: &DeviceStats) -> Option<String> {
         .temps
         .iter()
         .filter_map(|(label, temp)| {
-            temp.current
+            temp.value
+                .current
                 .map(|current| format!("{label}: {}°C", Mono::float(current, 0)))
         })
         .collect();

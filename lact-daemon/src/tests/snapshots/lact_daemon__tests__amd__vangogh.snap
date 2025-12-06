@@ -149,7 +149,8 @@ expression: device_info
   "stats": {
     "busy_percent": 0,
     "clockspeed": {
-      "gpu_clockspeed": 200
+      "gpu_clockspeed": 200,
+      "sensors": {}
     },
     "core_power_state": 0,
     "fan": {
@@ -168,12 +169,15 @@ expression: device_info
       "edge": {
         "crit": null,
         "crit_hyst": null,
-        "current": 56.0
+        "current": 56.0,
+        "display_only": false
       }
     },
     "voltage": {
       "gpu": 15,
-      "northbridge": 669
+      "sensors": {
+        "northbridge": 669
+      }
     },
     "vram": {}
   }

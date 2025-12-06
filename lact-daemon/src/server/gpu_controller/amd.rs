@@ -15,7 +15,7 @@ use amdgpu_sysfs::{
         power_profile_mode::PowerProfileModesTable,
         CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
     },
-    hw_mon::{FanControlMethod, HwMon},
+    hw_mon::{FanControlMethod, HwMon, Temperature},
     sysfs::SysFS,
 };
 use anyhow::{anyhow, bail, Context};
@@ -23,8 +23,9 @@ use futures::{future::LocalBoxFuture, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
     AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceFlag, DeviceInfo,
-    DeviceStats, DeviceType, DrmInfo, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState,
-    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo, VoltageStats, VramStats,
+    DeviceStats, DeviceType, DrmInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo,
+    PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo,
+    TemperatureEntry, VoltageStats, VramStats,
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
@@ -106,10 +107,6 @@ impl AmdGpuController {
 
     fn hw_mon_and_then<U>(&self, f: fn(&HwMon) -> Result<U, Error>) -> Option<U> {
         self.handle.hw_monitors.first().and_then(|mon| f(mon).ok())
-    }
-
-    fn hw_mon_map<U>(&self, f: fn(&HwMon) -> U) -> Option<U> {
-        self.handle.hw_monitors.first().map(f)
     }
 
     async fn set_static_fan_control(&self, static_speed: f32) -> anyhow::Result<Vec<CommitHandle>> {
@@ -452,7 +449,7 @@ impl AmdGpuController {
             .context("GPU has no hardware monitor")
     }
 
-    fn get_clockspeed(&self) -> ClockspeedStats {
+    fn get_clockspeed(&self, metrics: Option<&GpuMetrics>) -> ClockspeedStats {
         let vram_clockspeed = self
             .drm_handle
             .as_ref()
@@ -460,10 +457,31 @@ impl AmdGpuController {
             .map(u64::from)
             .or_else(|| self.hw_mon_and_then(HwMon::get_vram_clockspeed));
 
+        let mut sensors = HashMap::new();
+
+        if let Some(metrics) = metrics {
+            for (label, value) in [
+                ("DCLK", metrics.get_current_dclk()),
+                ("DCLK1", metrics.get_current_dclk1()),
+                ("FCLK", metrics.get_current_fclk()),
+                ("VCLK", metrics.get_current_vclk()),
+                ("VCLK1", metrics.get_current_vclk()),
+                ("UCLK", metrics.get_current_uclk()),
+                ("SOCCLK", metrics.get_current_socclk()),
+            ] {
+                if let Some(value) = value {
+                    if value != 0 {
+                        sensors.insert(label.to_owned(), u64::from(value));
+                    }
+                }
+            }
+        }
+
         ClockspeedStats {
             gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
-            current_gfxclk: self.get_current_gfxclk(),
+            target_gpu_clockspeed: self.get_current_gfxclk(),
             vram_clockspeed,
+            sensors,
         }
     }
 
@@ -771,7 +789,11 @@ impl GpuController for AmdGpuController {
             .or_else(|| self.common.pci_info.device_pci_info.model.clone())
     }
 
-    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+    #[allow(
+        clippy::cast_sign_loss,
+        clippy::cast_possible_truncation,
+        clippy::too_many_lines
+    )]
     fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let metrics = GpuMetrics::get_from_sysfs_path(self.handle.get_path()).ok();
         let metrics = metrics.as_ref();
@@ -790,6 +812,75 @@ impl GpuController for AmdGpuController {
             .map(|range| *range.start())
             .map(|percent| (f64::from(percent) * 2.55) as u32)
             .or_else(|| self.hw_mon_and_then(HwMon::get_fan_min_pwm).map(u32::from));
+
+        let mut temps: HashMap<String, TemperatureEntry> = HashMap::new();
+
+        if let Ok(hwmon) = self.first_hw_mon() {
+            temps = hwmon
+                .get_temps()
+                .into_iter()
+                .map(|(name, value)| {
+                    let entry = TemperatureEntry {
+                        value,
+                        display_only: false,
+                    };
+                    (name, entry)
+                })
+                .collect();
+        }
+
+        if let Some(metrics) = metrics {
+            let extra_sensors = [
+                ("soc", metrics.get_temperature_soc().map(|temp| temp / 100)),
+                ("vrgfx", metrics.get_temperature_vrgfx()),
+                ("vrmem", metrics.get_temperature_vrmem()),
+                ("vrsoc", metrics.get_temperature_vrsoc()),
+                ("skin", metrics.get_temperature_skin()),
+            ];
+
+            for (label, value) in extra_sensors {
+                if let Some(value) = value {
+                    if value != 0 {
+                        temps.insert(
+                            label.to_owned(),
+                            TemperatureEntry {
+                                value: Temperature {
+                                    current: Some(f32::from(value)),
+                                    crit: None,
+                                    crit_hyst: None,
+                                },
+                                display_only: true,
+                            },
+                        );
+                    }
+                }
+            }
+        }
+
+        let mut voltages = HashMap::new();
+
+        for (label, value) in [
+            (
+                "northbridge",
+                self.hw_mon_and_then(HwMon::get_northbridge_voltage),
+            ),
+            (
+                "mem",
+                metrics
+                    .and_then(MetricsInfo::get_voltage_mem)
+                    .map(u64::from),
+            ),
+            (
+                "soc",
+                metrics
+                    .and_then(MetricsInfo::get_voltage_soc)
+                    .map(u64::from),
+            ),
+        ] {
+            if let Some(value) = value {
+                voltages.insert(label.to_owned(), value);
+            }
+        }
 
         let fan_settings = gpu_config.and_then(|config| config.fan_control_settings.as_ref());
         DeviceStats {
@@ -834,10 +925,10 @@ impl GpuController for AmdGpuController {
                     zero_rpm_temperature: self.handle.get_fan_zero_rpm_stop_temperature().ok(),
                 },
             },
-            clockspeed: self.get_clockspeed(),
+            clockspeed: self.get_clockspeed(metrics),
             voltage: VoltageStats {
                 gpu: self.hw_mon_and_then(HwMon::get_gpu_voltage),
-                northbridge: self.hw_mon_and_then(HwMon::get_northbridge_voltage),
+                sensors: voltages,
             },
             vram: VramStats {
                 total: self.handle.get_total_vram().ok(),
@@ -851,7 +942,7 @@ impl GpuController for AmdGpuController {
                 cap_min: self.hw_mon_and_then(HwMon::get_power_cap_min),
                 cap_default: self.hw_mon_and_then(HwMon::get_power_cap_default),
             },
-            temps: self.hw_mon_map(HwMon::get_temps).unwrap_or_default(),
+            temps,
             busy_percent: self.handle.get_busy_percent().ok(),
             performance_level: self.handle.get_power_force_performance_level().ok(),
             core_power_state: self
@@ -1119,37 +1210,44 @@ impl GpuController for AmdGpuController {
                 }
             }
 
-            // Unlike the other PMFW options, zero rpm should be functional with a custom curve
-            if let Some(zero_rpm) = config.pmfw_options.zero_rpm {
-                match self.handle.get_fan_zero_rpm_enable() {
-                    Ok(current_zero_rpm) => {
-                        if current_zero_rpm != zero_rpm {
-                            let commit_handle = self
-                                .handle
-                                .set_fan_zero_rpm_enable(zero_rpm)
-                                .context("Could not set zero RPM mode")?;
-                            commit_handles.push_front(commit_handle);
+            // Unlike the other PMFW options, zero rpm should be applied with a custom curve as well (but not in static mode)
+            if !(config.fan_control_enabled
+                && config
+                    .fan_control_settings
+                    .as_ref()
+                    .is_some_and(|fan| fan.mode == FanControlMode::Static))
+            {
+                if let Some(zero_rpm) = config.pmfw_options.zero_rpm {
+                    match self.handle.get_fan_zero_rpm_enable() {
+                        Ok(current_zero_rpm) => {
+                            if current_zero_rpm != zero_rpm {
+                                let commit_handle = self
+                                    .handle
+                                    .set_fan_zero_rpm_enable(zero_rpm)
+                                    .context("Could not set zero RPM mode")?;
+                                commit_handles.push_front(commit_handle);
+                            }
                         }
-                    }
-                    Err(err) => {
-                        error!("zero RPM is present in the config, but not available on the GPU: {err}");
+                        Err(err) => {
+                            error!("zero RPM is present in the config, but not available on the GPU: {err}");
+                        }
                     }
                 }
-            }
 
-            if let Some(zero_rpm_threshold) = config.pmfw_options.zero_rpm_threshold {
-                match self.handle.get_fan_zero_rpm_stop_temperature() {
-                    Ok(current_threshold) => {
-                        if current_threshold.current != zero_rpm_threshold {
-                            let commit_handle = self
-                                .handle
-                                .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
-                                .context("Could not set zero RPM temperature")?;
-                            commit_handles.push_front(commit_handle);
+                if let Some(zero_rpm_threshold) = config.pmfw_options.zero_rpm_threshold {
+                    match self.handle.get_fan_zero_rpm_stop_temperature() {
+                        Ok(current_threshold) => {
+                            if current_threshold.current != zero_rpm_threshold {
+                                let commit_handle = self
+                                    .handle
+                                    .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
+                                    .context("Could not set zero RPM temperature")?;
+                                commit_handles.push_front(commit_handle);
+                            }
                         }
-                    }
-                    Err(err) => {
-                        error!("zero RPM threshold is present in the config, but not available on the GPU: {err}");
+                        Err(err) => {
+                            error!("zero RPM threshold is present in the config, but not available on the GPU: {err}");
+                        }
                     }
                 }
             }

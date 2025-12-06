@@ -304,6 +304,13 @@ expression: device_info
     "busy_percent": 0,
     "clockspeed": {
       "gpu_clockspeed": 0,
+      "sensors": {
+        "DCLK": 25,
+        "SOCCLK": 711,
+        "UCLK": 96,
+        "VCLK": 25,
+        "VCLK1": 25
+      },
       "vram_clockspeed": 96
     },
     "core_power_state": 1,
@@ -330,21 +337,28 @@ expression: device_info
       "edge": {
         "crit": 100.0,
         "crit_hyst": -273.1499938964844,
-        "current": 53.0
+        "current": 53.0,
+        "display_only": false
       },
       "junction": {
         "crit": 100.0,
         "crit_hyst": -273.1499938964844,
-        "current": 54.0
+        "current": 54.0,
+        "display_only": false
       },
       "mem": {
         "crit": 105.0,
         "crit_hyst": -273.1499938964844,
-        "current": 60.0
+        "current": 60.0,
+        "display_only": false
       }
     },
     "voltage": {
-      "gpu": 0
+      "gpu": 0,
+      "sensors": {
+        "mem": 687,
+        "soc": 727
+      }
     },
     "vram": {}
   }

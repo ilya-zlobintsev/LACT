@@ -5,6 +5,7 @@ pub mod profile_rule_window;
 
 use crate::{
     app::{header::profile_rule_window::ProfileEditParams, msg::AppMsg, APP_BROKER},
+    config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
     CONFIG, I18N,
 };
 use glib::clone;
@@ -217,7 +218,7 @@ impl Component for Header {
                             },
 
                             gtk::SpinButton {
-                                set_range: (250.0, 5000.0),
+                                set_range: (MIN_STATS_POLL_INTERVAL_MS as f64, MAX_STATS_POLL_INTERVAL_MS as f64),
                                 set_increments: (250.0, 500.0),
                                 set_digits: 0,
                                 set_value: CONFIG.read().stats_poll_interval_ms as f64,
