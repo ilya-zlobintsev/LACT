@@ -121,6 +121,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
+          file: pkg/docker/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.output.tags }}
           annotations: ${{ steps.meta.outputs.annotations }}
