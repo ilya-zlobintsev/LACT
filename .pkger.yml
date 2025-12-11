@@ -11,9 +11,9 @@ images:
   - name: debian-12
     target: deb
     os: Debian
-  - name: fedora-41
-    target: rpm
   - name: fedora-42
+    target: rpm
+  - name: fedora-43
     target: rpm
     os: Fedora
   - name: ubuntu-2204
