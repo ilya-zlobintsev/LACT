@@ -835,7 +835,10 @@ impl GpuController for AmdGpuController {
                 ("vrgfx", metrics.get_temperature_vrgfx()),
                 ("vrmem", metrics.get_temperature_vrmem()),
                 ("vrsoc", metrics.get_temperature_vrsoc()),
-                ("skin", metrics.get_temperature_skin()),
+                (
+                    "skin",
+                    metrics.get_temperature_skin().map(|temp| temp / 100),
+                ),
             ];
 
             for (label, value) in extra_sensors {
