@@ -294,12 +294,20 @@ impl RenderRequest {
                 write!(stat_label, ", Avg {avg_value:.1}{stat_suffix}").unwrap();
             }
 
+            // Evaluate fixed number of points per spline segment
+            const POINTS_PER_SEGMENT: usize = 4;
+
             chart
                 .draw_series(LineSeries::new(
                     cubic_spline_interpolation(data).flat_map(
-                        |((first_time, second_time), segment)| {
-                            // Interpolate in intervals of one millisecond.
-                            (first_time..second_time).map(move |current_date| {
+                        move |((first_time, second_time), segment)| {
+                            let segment_duration = (second_time - first_time) as f64;
+                            let step = segment_duration / (POINTS_PER_SEGMENT as f64 - 1.0);
+
+                            (0..POINTS_PER_SEGMENT).map(move |i| {
+                                let offset = (i as f64 * step).round() as i64;
+                                let current_date = first_time + offset;
+                                let current_date = current_date.min(second_time - 1);
                                 (current_date, segment.evaluate(current_date))
                             })
                         },
