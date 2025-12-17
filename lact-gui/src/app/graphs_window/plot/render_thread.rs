@@ -304,6 +304,7 @@ impl RenderRequest {
                             let segment_duration = (second_time - first_time) as f64;
                             let step = segment_duration / (POINTS_PER_SEGMENT as f64 - 1.0);
 
+                            // Evaluate spline at POINTS_PER_SEGMENT evenly spaced points per segment.
                             (0..POINTS_PER_SEGMENT).map(move |i| {
                                 let offset = (i as f64 * step).round() as i64;
                                 let current_date = first_time + offset;
