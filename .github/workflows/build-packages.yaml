@@ -38,13 +38,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Build packages (with signing)
-        if: ${{ (contains(matrix.target-os, 'fedora') || contains(matrix.target-os, 'opensuse') || contains(matrix.target-os, 'rhel')) && env.GPG_KEY_PASSWORD != '' }}
+        if: ${{ (contains(matrix.target-os, 'fedora') || contains(matrix.target-os, 'opensuse') || matrix.target-os == 'rhel-9') && env.GPG_KEY_PASSWORD != '' }}
         run: pkger -t -c .pkger.yml build ${{ matrix.recipe }} -i ${{ matrix.target-os }}
         env:
           GPG_KEY_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
 
       - name: Build packages (without signing)
-        if: ${{ !(contains(matrix.target-os, 'fedora') || contains(matrix.target-os, 'opensuse') || contains(matrix.target-os, 'rhel')) || env.GPG_KEY_PASSWORD == '' }}
+        if: ${{ !(contains(matrix.target-os, 'fedora') || contains(matrix.target-os, 'opensuse') || matrix.target-os == 'rhel-9') || env.GPG_KEY_PASSWORD == '' }}
         run: pkger -t -c .pkger.yml build --no-sign ${{ matrix.recipe }} -i ${{ matrix.target-os }}
         env:
           GPG_KEY_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
