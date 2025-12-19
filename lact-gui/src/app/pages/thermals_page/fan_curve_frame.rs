@@ -659,8 +659,18 @@ fn draw_chart(
         ))
         .unwrap();
 
-    let mapped_coord =
-        translate_coord.and_then(|(x, y)| chart.into_coord_trans()((x as i32, y as i32)));
+    let mapped_coord = translate_coord
+        .map(|(x, y)| {
+            let coord_spec = chart.as_coord_spec();
+            let x_range = coord_spec.get_x_axis_pixel_range();
+            let y_range = coord_spec.get_y_axis_pixel_range();
+
+            (
+                (x as i32).clamp(x_range.start, x_range.end),
+                (y as i32).clamp(y_range.start, y_range.end),
+            )
+        })
+        .and_then(|(x, y)| chart.into_coord_trans()((x, y)));
 
     root.present().unwrap();
 
