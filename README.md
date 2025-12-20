@@ -71,10 +71,7 @@ The service can also be used standalone with a config file, for example in headl
   [Copr repository](https://copr.fedorainfracloud.org/coprs/ilyaz/LACT/), or
   download an RPM from
   [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
-- Bazzite: Use the Flatpak below.
-
-  This helper installs the Flatpak version and automatically adds the AMD
-  overclocking boot option.
+- Bazzite/Fedora Atomic: Use the Flatpak.
 - Gentoo: Available in
   [GURU](https://github.com/gentoo/guru/tree/master/sys-apps/lact).
 - OpenSUSE: an RPM is available in
@@ -83,10 +80,11 @@ The service can also be used standalone with a config file, for example in headl
   Only tumbleweed is supported as leap does not have the required dependencies
   in the repos.
 - NixOS: There is a package available in
-  [nixpkgs](https://search.nixos.org/packages?channel=24.05&from=0&size=50&sort=relevance&type=packages&query=lact)
+  [nixpkgs](https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=lact).
 - Flatpak (universal): Available on [Flathub](https://flathub.org/apps/io.github.ilya_zlobintsev.LACT) and in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
-  See the [Flatpak documentation](./flatpak/README.md) for setup notes.
+  See the [Flatpak documentation](./flatpak/README.md) for additional notes.
+- Docker (service only, no GUI): See [DOCKER.md](./docs/DOCKER.md)
 - Build from source.
 
 Note: Nvidia support requires the Nvidia proprietary driver with CUDA libraries
