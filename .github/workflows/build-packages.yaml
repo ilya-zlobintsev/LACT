@@ -138,7 +138,7 @@ jobs:
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
 
       - name: Download artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
           path: downloaded-artifacts/
 
@@ -170,7 +170,7 @@ jobs:
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
 
       - name: Download artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
           path: downloaded-artifacts/
 
