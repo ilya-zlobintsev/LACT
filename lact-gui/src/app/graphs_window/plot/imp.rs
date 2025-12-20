@@ -49,6 +49,7 @@ impl WidgetImpl for Plot {
     fn snapshot(&self, snapshot: &gtk::Snapshot) {
         let width = self.obj().width() as u32;
         let height = self.obj().height() as u32;
+        let scale_factor = self.obj().scale_factor();
 
         let style_context = self.obj().style_context();
         let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
@@ -69,6 +70,7 @@ impl WidgetImpl for Plot {
                 stats: self.stats.borrow().clone(),
                 width,
                 height,
+                scale_factor,
                 colors,
                 title: self.title.borrow().clone(),
                 print_extra_info: self.print_extra_info.get(),
@@ -125,6 +127,7 @@ mod benches {
                     data,
                     width: 1920,
                     height: 1080,
+                    scale_factor: 1,
                     time_period_seconds: 60,
                     print_extra_info: false,
                     stats: vec![
