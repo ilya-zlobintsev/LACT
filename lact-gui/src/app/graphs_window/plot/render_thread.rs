@@ -32,6 +32,7 @@ pub struct RenderRequest {
 
     pub width: u32,
     pub height: u32,
+    pub scale_factor: i32,
 
     pub time_period_seconds: i64,
 }
@@ -143,10 +144,15 @@ pub(super) fn process_request(
     // Create a new ImageSurface for Cairo rendering.
     let mut surface = ImageSurface::create(
         cairo::Format::ARgb32,
-        (render_request.width) as i32,
-        render_request.height as i32,
+        (render_request.width) as i32 * render_request.scale_factor,
+        render_request.height as i32 * render_request.scale_factor,
     )
     .unwrap();
+
+    surface.set_device_scale(
+        render_request.scale_factor as f64,
+        render_request.scale_factor as f64,
+    );
 
     let cairo_context = CairoContext::new(&surface).unwrap();
 
