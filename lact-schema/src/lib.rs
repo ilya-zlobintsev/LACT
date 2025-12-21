@@ -305,7 +305,10 @@ impl DeviceInfo {
 
                 elements.push((
                     fl!(LANGUAGE_LOADER, "cpu-vram"),
-                    Some((memory_info.cpu_accessible_total / 1024 / 1024).to_string()),
+                    Some(format!(
+                        "{} MiB",
+                        memory_info.cpu_accessible_total / 1024 / 1024
+                    )),
                 ));
             }
         }
