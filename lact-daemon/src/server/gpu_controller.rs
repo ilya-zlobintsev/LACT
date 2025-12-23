@@ -238,6 +238,7 @@ pub(crate) fn init_controller(
                     Err(err) => error!("could not initialize Nvidia controller: {err:#}"),
                 }
             } else {
+                #[cfg(not(test))]
                 error!("NVML is missing, Nvidia controls will not be available");
             }
         }

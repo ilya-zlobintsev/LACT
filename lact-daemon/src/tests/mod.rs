@@ -14,7 +14,9 @@ use tokio::task::LocalSet;
 fn init_tracing() {
     static TRACING_LOCK: OnceLock<()> = OnceLock::new();
     TRACING_LOCK.get_or_init(|| {
-        tracing_subscriber::fmt().init();
+        tracing_subscriber::fmt()
+            .with_env_filter("easy_fuser=warn,info")
+            .init();
     });
 }
 
