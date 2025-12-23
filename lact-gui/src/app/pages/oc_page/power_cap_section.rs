@@ -98,7 +98,7 @@ impl relm4::Component for PowerCapSection {
                 // The signal blocking has to be manual,
                 // because relm's signal block macro feature doesn't seem to work with non-widget objects
                 self.adjustment.block_signal(&widgets.value_notify);
-                let power = stats.power;
+                let power = stats.power.clone();
 
                 self.adjustment.set_upper(power.cap_max.unwrap_or_default());
                 self.adjustment.set_lower(power.cap_min.unwrap_or_default());

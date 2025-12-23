@@ -44,6 +44,13 @@ impl StatsData {
                 .push((timestamp, *value as f64));
         }
 
+        for (name, value) in &stats.power.sensors {
+            self.stats
+                .entry(StatType::Power(name.clone()))
+                .or_default()
+                .push((timestamp, *value));
+        }
+
         let stats_values = [
             (
                 StatType::GpuClock,
@@ -216,6 +223,7 @@ pub enum StatType {
     PowerCurrent,
     PowerAverage,
     PowerCap,
+    Power(String),
     VramClock,
     VramSize,
     VramUsed,
@@ -238,6 +246,7 @@ impl StatType {
             Temperature(name) => format!("Temp ({name})").into(),
             Clockspeed(name) => format!("Clockspeed ({name})").into(),
             Voltage(name) => format!("Voltage ({name})").into(),
+            Power(name) => format!("Power ({name})").into(),
             FanRpm => "Fan RPM".into(),
             FanPwm => "Fan".into(),
             PowerCurrent => "Power Draw".into(),
@@ -256,7 +265,7 @@ impl StatType {
             FanRpm => "RPM",
             FanPwm => "%",
             GpuUsage => "%",
-            PowerCurrent | PowerAverage | PowerCap => "W",
+            PowerCurrent | PowerAverage | PowerCap | Power(_) => "W",
         }
     }
 

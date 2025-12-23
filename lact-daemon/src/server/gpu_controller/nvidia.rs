@@ -619,6 +619,7 @@ impl GpuController for NvidiaGpuController {
                     .power_management_limit_default()
                     .map(|mw| f64::from(mw) / 1000.0)
                     .ok(),
+                sensors: HashMap::new(),
             },
             busy_percent: device
                 .utilization_rates()

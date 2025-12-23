@@ -183,6 +183,7 @@ mod benches {
                         cap_max: Some(332.0),
                         cap_min: Some(0.0),
                         current: None,
+                        sensors: HashMap::new(),
                     },
                     temps: HashMap::from([(
                         "edge".to_owned(),

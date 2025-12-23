@@ -829,8 +829,10 @@ impl GpuController for AmdGpuController {
                 .collect();
         }
 
+        let mut power_sensors = HashMap::new();
+
         if let Some(metrics) = metrics {
-            let extra_sensors = [
+            let extra_temp_sensors = [
                 ("soc", metrics.get_temperature_soc().map(|temp| temp / 100)),
                 ("vrgfx", metrics.get_temperature_vrgfx()),
                 ("vrmem", metrics.get_temperature_vrmem()),
@@ -841,7 +843,7 @@ impl GpuController for AmdGpuController {
                 ),
             ];
 
-            for (label, value) in extra_sensors {
+            for (label, value) in extra_temp_sensors {
                 if let Some(value) = value {
                     if value != 0 {
                         temps.insert(
@@ -856,6 +858,29 @@ impl GpuController for AmdGpuController {
                             },
                         );
                     }
+                }
+            }
+
+            let extra_power_sensors = [
+                ("apu", metrics.get_average_apu_power()),
+                ("core", metrics.get_average_all_core_power()),
+                ("gfx", metrics.get_average_gfx_power_u32()),
+            ]
+            .into_iter()
+            .filter(|(_, value)| value.is_some_and(|value| value != 0 && value != u32::MAX))
+            .chain(
+                [
+                    ("soc", metrics.get_average_soc_power()),
+                    ("cpu", metrics.get_average_cpu_power()),
+                ]
+                .into_iter()
+                .filter(|(_, value)| value.is_some_and(|value| value != 0 && value != u16::MAX))
+                .map(|(label, value)| (label, value.map(u32::from))),
+            );
+
+            for (label, value) in extra_power_sensors {
+                if let Some(value) = value {
+                    power_sensors.insert(label.to_owned(), f64::from(value) / 1000.0);
                 }
             }
         }
@@ -944,6 +969,7 @@ impl GpuController for AmdGpuController {
                 cap_max: self.hw_mon_and_then(HwMon::get_power_cap_max),
                 cap_min: self.hw_mon_and_then(HwMon::get_power_cap_min),
                 cap_default: self.hw_mon_and_then(HwMon::get_power_cap_default),
+                sensors: power_sensors,
             },
             temps,
             busy_percent: self.handle.get_busy_percent().ok(),
