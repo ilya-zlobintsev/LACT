@@ -862,7 +862,6 @@ impl GpuController for AmdGpuController {
             }
 
             let extra_power_sensors = [
-                ("socket", metrics.get_average_socket_power()),
                 ("apu", metrics.get_average_apu_power()),
                 ("core", metrics.get_average_all_core_power()),
                 ("gfx", metrics.get_average_gfx_power_u32()),

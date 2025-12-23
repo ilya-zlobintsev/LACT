@@ -204,8 +204,7 @@ expression: device_info
       "sensors": {
         "apu": 9.839,
         "core": 2.499,
-        "gfx": 1.536,
-        "socket": 9.839
+        "gfx": 1.536
       }
     },
     "temps": {
