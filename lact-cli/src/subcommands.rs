@@ -69,6 +69,10 @@ pub async fn stats(ctx: CliContext<'_>) -> Result<()> {
         println!("Power Usage: {power_usage:.1}/{power_cap} W");
     }
 
+    for (label, value) in &stats.power.sensors {
+        println!("Power Sensor {label}: {value:.1} W");
+    }
+
     if !stats.temps.is_empty() {
         print!("Temperatures: ");
         for (i, (name, value)) in stats.temps.iter().enumerate() {

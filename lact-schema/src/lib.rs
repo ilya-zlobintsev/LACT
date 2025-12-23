@@ -602,7 +602,7 @@ pub struct VramStats {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct PowerStats {
     pub average: Option<f64>,
     pub current: Option<f64>,
@@ -610,6 +610,8 @@ pub struct PowerStats {
     pub cap_max: Option<f64>,
     pub cap_min: Option<f64>,
     pub cap_default: Option<f64>,
+    #[serde(default)]
+    pub sensors: HashMap<String, f64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
