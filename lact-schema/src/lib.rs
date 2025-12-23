@@ -610,7 +610,7 @@ pub struct PowerStats {
     pub cap_max: Option<f64>,
     pub cap_min: Option<f64>,
     pub cap_default: Option<f64>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub sensors: HashMap<String, f64>,
 }
 
