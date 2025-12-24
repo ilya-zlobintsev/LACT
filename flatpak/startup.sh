@@ -13,17 +13,23 @@ if [ ! -e "${DAEMON_SOCKET}" ]; then
     
     set +e
 
-    YAD_OUTPUT=$(yad --title="LACT Flatpak Setup" \
-    --text="The LACT system service could not be found.
+    if [ "${LACT_UNATTENDED_SETUP}" == "true" ]; then
+        YAD_OUTPUT="TRUE|"
+        EXIT_CODE=0
+    else
+        YAD_OUTPUT=$(yad --title="LACT Flatpak Setup" \
+        --text="The LACT system service could not be found.
 In order to edit GPU settings, LACT requires a service to be running as root.
-This setup will install <u><tt>lactd.service</tt></u> outside of the Flatpak sandbox.
+Thissetup will install <u><tt>lactd.service</tt></u> outside of the Flatpak sandbox.
 
 It is possible to skip this step if you wish to use LACT only for information and monitoring.
 
 Do you wish to install the service?" \
-    --form \
-    --field "Autostart service at boot":CHK "TRUE")
-    EXIT_CODE=$?
+        --form \
+        --field "Autostart service at boot":CHK "TRUE")
+        EXIT_CODE=$?
+    fi
+
     
     set -e
     
@@ -70,7 +76,9 @@ WantedBy=multi-user.target\
             flatpak-spawn --host $ROOT_WRAPPER sh -c "systemctl daemon-reload && systemctl start lactd.service"
         fi
 
-        yad --text 'The service has been started. Please run LACT again.'  --button=OK:0
+        if [ "${LACT_UNATTENDED_SETUP}" != "true" ]; then
+            yad --text 'The service has been started. Please run LACT again.'  --button=OK:0
+        fi
         exit 0
     else
         echo "Service setup rejected, skipping"
