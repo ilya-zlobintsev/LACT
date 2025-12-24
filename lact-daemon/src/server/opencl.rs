@@ -17,16 +17,16 @@ use tracing::{debug, error};
 
 #[cfg_attr(test, allow(unreachable_code, unused_variables))]
 pub fn get_opencl_info(info: &CommonControllerInfo, unique_vendor: bool) -> Option<OpenCLInfo> {
-    #[cfg(test)]
+    // #[cfg(test)]
     return None;
 
-    match try_get_opencl_info(info, unique_vendor) {
-        Ok(info) => info,
-        Err(err) => {
-            error!("could not get OpenCL info: {err}");
-            None
-        }
-    }
+    // match try_get_opencl_info(info, unique_vendor) {
+    //     Ok(info) => info,
+    //     Err(err) => {
+    //         error!("could not get OpenCL info: {err}");
+    //         None
+    //     }
+    // }
 }
 
 fn try_get_opencl_info(
