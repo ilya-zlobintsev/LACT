@@ -470,7 +470,7 @@ impl AmdGpuController {
                 ("SOCCLK", metrics.get_current_socclk()),
             ] {
                 if let Some(value) = value {
-                    if value != 0 {
+                    if value != 0 && value != u16::MAX {
                         sensors.insert(label.to_owned(), u64::from(value));
                     }
                 }
@@ -845,7 +845,7 @@ impl GpuController for AmdGpuController {
 
             for (label, value) in extra_temp_sensors {
                 if let Some(value) = value {
-                    if value != 0 {
+                    if value != 0 && value != u16::MAX {
                         temps.insert(
                             label.to_owned(),
                             TemperatureEntry {

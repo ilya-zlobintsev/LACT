@@ -1,0 +1,229 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": {
+    "max_sclk": 2700,
+    "table": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "current_mclk_range": {
+            "max": null,
+            "min": null
+          },
+          "current_sclk_range": {
+            "max": 2700,
+            "min": 800
+          },
+          "od_range": {
+            "curve_sclk_points": [],
+            "curve_voltage_points": [],
+            "mclk": null,
+            "sclk": {
+              "max": 2700,
+              "min": 800
+            },
+            "sclk_offset": null,
+            "voltage_offset": null
+          },
+          "sclk_offset": null,
+          "vddc_curve": [],
+          "voltage_offset": null
+        },
+        "kind": "rdna"
+      }
+    }
+  },
+  "info": {
+    "driver": "amdgpu",
+    "drm_info": {
+      "cache_info": {
+        "Amd": [
+          [
+            {
+              "cu_count": 1,
+              "level": 1,
+              "size": 32768,
+              "types": [
+                "Data"
+              ]
+            },
+            12
+          ],
+          [
+            {
+              "cu_count": 2,
+              "level": 1,
+              "size": 16384,
+              "types": [
+                "Data"
+              ]
+            },
+            6
+          ],
+          [
+            {
+              "cu_count": 2,
+              "level": 1,
+              "size": 32768,
+              "types": [
+                "Instruction"
+              ]
+            },
+            6
+          ],
+          [
+            {
+              "cu_count": 6,
+              "level": 1,
+              "size": 262144,
+              "types": [
+                "Data"
+              ]
+            },
+            2
+          ],
+          [
+            {
+              "cu_count": 6,
+              "level": 2,
+              "size": 2097152,
+              "types": [
+                "Data"
+              ]
+            },
+            1
+          ]
+        ]
+      },
+      "vram_clock_ratio": 1.0
+    },
+    "flags": [
+      "DumpableVBios"
+    ],
+    "link_info": {
+      "current_speed": "16.0 GT/s PCIe",
+      "current_width": "16",
+      "max_speed": "16.0 GT/s PCIe",
+      "max_width": "16"
+    },
+    "pci_info": {
+      "device_pci_info": {
+        "model": "Phoenix1",
+        "model_id": "15BF",
+        "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+        "vendor_id": "1002"
+      },
+      "subsystem_pci_info": {
+        "model_id": "50DA",
+        "vendor": "Lenovo",
+        "vendor_id": "17AA"
+      }
+    },
+    "vbios_version": "113-PHXGENERIC-001",
+    "vulkan_instances": []
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "Phoenix1",
+      "model_id": "15BF",
+      "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "vendor_id": "1002"
+    },
+    "subsystem_pci_info": {
+      "model_id": "50DA",
+      "vendor": "Lenovo",
+      "vendor_id": "17AA"
+    }
+  },
+  "power_profile_modes": null,
+  "power_states": {
+    "core": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 800
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 1100
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 2700
+      }
+    ],
+    "vram": [
+      {
+        "enabled": true,
+        "index": 0,
+        "value": 400
+      },
+      {
+        "enabled": true,
+        "index": 1,
+        "value": 800
+      },
+      {
+        "enabled": true,
+        "index": 2,
+        "value": 800
+      },
+      {
+        "enabled": true,
+        "index": 3,
+        "value": 800
+      }
+    ]
+  },
+  "stats": {
+    "busy_percent": 0,
+    "clockspeed": {
+      "gpu_clockspeed": 800,
+      "sensors": {}
+    },
+    "core_power_state": 0,
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {}
+    },
+    "memory_power_state": 0,
+    "performance_level": "auto",
+    "power": {
+      "average": 3.103,
+      "current": 3.142,
+      "sensors": {
+        "gfx": 0.585,
+        "soc": 0.743
+      }
+    },
+    "temps": {
+      "edge": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 25.0,
+        "display_only": false
+      },
+      "soc": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 27.0,
+        "display_only": true
+      }
+    },
+    "voltage": {
+      "gpu": 814,
+      "sensors": {
+        "northbridge": 615
+      }
+    },
+    "vram": {
+      "total": 4294967296,
+      "used": 1272893440
+    }
+  }
+}
