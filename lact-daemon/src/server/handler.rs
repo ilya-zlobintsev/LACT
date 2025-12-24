@@ -689,7 +689,8 @@ impl<'a> Handler {
             }
         }
 
-        let service_journal_output = run_command("journalctl", &["-u", "lactd", "-b"]).await;
+        let service_journal_output =
+            run_command("journalctl", &["--no-hostname", "-u", "lactd", "-b"]).await;
 
         match service_journal_output {
             Ok(output) => {
