@@ -131,7 +131,8 @@ pub struct DeviceInfo {
     pub pci_info: Option<GpuPciInfo>,
     #[serde(default)]
     pub vulkan_instances: Vec<VulkanInfo>,
-    pub opencl_info: Option<OpenCLInfo>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub opencl_instances: Vec<OpenCLInfo>,
     pub driver: String,
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,

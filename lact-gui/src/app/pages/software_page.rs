@@ -137,7 +137,7 @@ impl relm4::SimpleComponent for SoftwarePage {
                 },
 
                 #[name = "opencl_stack"]
-                match model.device_info.as_ref().and_then(|info| info.opencl_info.as_ref()) {
+                match model.device_info.as_ref().and_then(|info| info.opencl_instances.first()) { // TODO
                     Some(info) => {
                         PageSection::new("OpenCL") {
                             append = &InfoRow {

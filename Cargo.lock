@@ -333,17 +333,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cl3"
-version = "0.13.0"
-source = "git+https://github.com/kenba/cl3?branch=develop#4da03b19d19ce2ca735e09dc5e2a1bcfa133beff"
-dependencies = [
- "dlopen2",
- "libc",
- "opencl-sys",
- "thiserror 2.0.16",
-]
-
-[[package]]
 name = "clang-sys"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -602,29 +591,6 @@ name = "divan-macros"
 version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9556bc800956545d6420a640173e5ba7dfa82f38d3ea5a167eb555bc69ac3323"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "dlopen2"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b54f373ccf864bf587a89e880fb7610f8d73f3045f13580948ccbcaff26febff"
-dependencies = [
- "dlopen2_derive",
- "libc",
- "once_cell",
- "winapi",
-]
-
-[[package]]
-name = "dlopen2_derive"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "788160fb30de9cdd857af31c6a2675904b16ece8fc2737b2c7127ba368c9d0f4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1709,7 +1675,6 @@ dependencies = [
  "bindgen",
  "bitflags 2.9.4",
  "chrono",
- "cl3",
  "divan",
  "easy_fuser",
  "futures",
@@ -2137,15 +2102,6 @@ name = "once_cell_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
-
-[[package]]
-name = "opencl-sys"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bd005f352b2f05acd01d04122448e84f8bc66bdae49045927841bc63de62123"
-dependencies = [
- "libc",
-]
 
 [[package]]
 name = "ordered-stream"

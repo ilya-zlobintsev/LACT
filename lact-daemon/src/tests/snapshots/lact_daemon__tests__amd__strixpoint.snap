@@ -120,6 +120,30 @@ expression: device_info
       "max_speed": "16.0 GT/s PCIe",
       "max_width": "16"
     },
+    "opencl_instances": [
+      {
+        "c_version": "OpenCL C 1.2 ",
+        "compute_units": 12,
+        "device_name": "AMD Radeon 890M Graphics (radeonsi, gfx1150, LLVM 21.1.6, DRM 3.64, 6.17.12-300.fc43.x86_64)",
+        "driver_version": "25.3.2-arch1.1",
+        "global_memory": 536870912,
+        "local_memory": 65536,
+        "platform_name": "rusticl",
+        "version": "OpenCL 3.0 ",
+        "workgroup_size": 1024
+      },
+      {
+        "c_version": "OpenCL C 2.0 ",
+        "compute_units": 6,
+        "device_name": "gfx1150",
+        "driver_version": "3581.0 (HSA1.1,LC)",
+        "global_memory": 16441004032,
+        "local_memory": 65536,
+        "platform_name": "AMD Accelerated Parallel Processing",
+        "version": "OpenCL 2.0 ",
+        "workgroup_size": 256
+      }
+    ],
     "pci_info": {
       "device_pci_info": {
         "model": "Strix [Radeon 880M / 890M]",
