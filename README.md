@@ -194,7 +194,6 @@ Dependencies:
 - make
 - hwdata
 - libdrm
-- ocl-icd
 
 Optional Dependencies:
 - vulkan-tools
