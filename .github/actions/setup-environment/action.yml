@@ -6,7 +6,7 @@ runs:
     - name: Install dependencies
       uses: awalsh128/cache-apt-pkgs-action@latest
       with:
-        packages: libgtk-4-dev pkg-config libvulkan-dev libdrm-dev curl fuse3 libfuse-dev ocl-icd-libopencl1 ocl-icd-opencl-dev libadwaita-1-dev
+        packages: libgtk-4-dev pkg-config libvulkan-dev libdrm-dev curl fuse3 libfuse-dev libadwaita-1-dev
         version: 1.1
     - name: Update pci.ids
       run: sudo curl -o /usr/share/hwdata/pci.ids https://pci-ids.ucw.cz/v2.2/pci.ids

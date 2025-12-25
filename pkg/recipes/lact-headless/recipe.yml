@@ -11,18 +11,18 @@ metadata:
   provides: [ lact ]
   conflicts: [ lact, lact-libadwaita ]
   depends:
-    all: [ hwdata, vulkan-tools ]
-    debian-12+ubuntu-2204+ubuntu-2404: [ libdrm-amdgpu1, libdrm2, ocl-icd-opencl-dev ]
-    fedora-42+fedora-43+rhel-8+rhel-9: [ libdrm, libOpenCL.so.1 ]
+    all: [ hwdata, vulkan-tools, clinfo ]
+    debian-12+ubuntu-2204+ubuntu-2404: [ libdrm-amdgpu1, libdrm2 ]
+    fedora-42+fedora-43+rhel-8+rhel-9: [ libdrm ]
     arch: [ libdrm, ocl-icd ]
-    opensuse-tumbleweed: [ libdrm, libOpenCL.so.1 ]
+    opensuse-tumbleweed: [ libdrm ]
   build_depends:
-    all: [ curl, make, clang, git, vulkan-tools ]
-    debian-12+ubuntu-2204+ubuntu-2404: [ pkg-config, build-essential, libdrm-dev, dbus, ocl-icd-opencl-dev ]
-    fedora-42+fedora-43: [ gcc, libdrm-devel, dbus, OpenCL-ICD-Loader-devel ]
-    rhel-8+rhel-9: [ gcc, libdrm-devel, dbus, ocl-icd-devel ]
-    arch: [ libdrm, dbus, ocl-icd ]
-    opensuse-tumbleweed: [ libdrm-devel, ocl-icd-devel ]
+    all: [ curl, make, clang, git, vulkan-tools, clinfo ]
+    debian-12+ubuntu-2204+ubuntu-2404: [ pkg-config, build-essential, libdrm-dev, dbus ]
+    fedora-42+fedora-43: [ gcc, libdrm-devel, dbus ]
+    rhel-8+rhel-9: [ gcc, libdrm-devel, dbus ]
+    arch: [ libdrm, dbus ]
+    opensuse-tumbleweed: [ libdrm-devel ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs
