@@ -727,6 +727,19 @@ impl<'a> Handler {
 
         archive.append_data(&mut info_header, "info.json", Cursor::new(info_data))?;
 
+        if let Ok(clinfo_output) = Command::new("clinfo").arg("--json").output().await {
+            let mut clinfo_header = tar::Header::new_gnu();
+            clinfo_header.set_size(clinfo_output.stdout.len().try_into().unwrap());
+            clinfo_header.set_mode(0o755);
+            clinfo_header.set_cksum();
+
+            archive.append_data(
+                &mut clinfo_header,
+                "clinfo.json",
+                Cursor::new(clinfo_output.stdout),
+            )?;
+        }
+
         let mut writer = archive.into_inner().context("Could not finish archive")?;
         writer.flush().context("Could not flush output file")?;
 
