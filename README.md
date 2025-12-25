@@ -365,7 +365,7 @@ There is also a cli available.
           ```
 
 The functionality of the CLI is quite limited. If you want to integrate LACT
-with some application/script, you should use the [API](API.md) instead.
+with some application/script, you should use the [API](./docs/API.md) instead.
 
 # Reporting issues
 
