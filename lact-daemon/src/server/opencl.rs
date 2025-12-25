@@ -128,7 +128,6 @@ fn extract_device_info(
                     };
 
                     devices.push(make_opencl_info(platform, device));
-                    return devices;
                 }
             }
         }
