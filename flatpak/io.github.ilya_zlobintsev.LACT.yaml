@@ -62,6 +62,8 @@ modules:
 
 
   - name: clinfo
+    no-autogen: true
+    no-make-install: true
     build-commands:
       - make -j$FLATPAK_BUILDER_N_JOBS PREFIX=$FLATPAK_DEST install
       - chmod 755 $FLATPAK_DEST/bin/clinfo
