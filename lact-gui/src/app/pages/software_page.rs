@@ -8,7 +8,7 @@ use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_client::schema::{SystemInfo, GIT_COMMIT};
-use lact_schema::{DeviceInfo, VulkanInfo};
+use lact_schema::{DeviceInfo, OpenCLInfo, VulkanInfo};
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use relm4_components::simple_combo_box::{SimpleComboBox, SimpleComboBoxMsg};
 use std::{fmt::Write, sync::Arc};
@@ -18,6 +18,7 @@ pub struct SoftwarePage {
     device_info: Option<Arc<DeviceInfo>>,
 
     vulkan_driver_selector: relm4::Controller<SimpleComboBox<String>>,
+    opencl_platform_selector: relm4::Controller<SimpleComboBox<String>>,
 }
 
 #[derive(Debug)]
@@ -137,14 +138,31 @@ impl relm4::SimpleComponent for SoftwarePage {
                 },
 
                 #[name = "opencl_stack"]
-                match model.device_info.as_ref().and_then(|info| info.opencl_instances.first()) { // TODO
+                match model.selected_opencl_info() {
                     Some(info) => {
                         PageSection::new("OpenCL") {
+                            append = &gtk::Box {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_hexpand: true,
+                                #[watch]
+                                set_visible: model.opencl_platform_selector.model().variants.len() > 1,
+
+                                append = &gtk::Label {
+                                    set_halign: gtk::Align::Start,
+                                    set_hexpand: true,
+                                    set_label: &fl!(I18N, "platform-name"),
+                                },
+
+                                append = model.opencl_platform_selector.widget(),
+                            },
+
                             append = &InfoRow {
                                 set_name: fl!(I18N, "platform-name"),
                                 #[watch]
                                 set_value: info.platform_name.as_str(),
                                 set_selectable: true,
+                                #[watch]
+                                set_visible: model.opencl_platform_selector.model().variants.len() == 1,
                             },
                             append = &InfoRow {
                                 set_name: fl!(I18N, "device-name"),
@@ -221,9 +239,17 @@ impl relm4::SimpleComponent for SoftwarePage {
             })
             .forward(sender.input_sender(), |_| SoftwarePageMsg::SelectionChanged);
 
+        let opencl_platform_selector = SimpleComboBox::builder()
+            .launch(SimpleComboBox {
+                variants: vec![],
+                active_index: None,
+            })
+            .forward(sender.input_sender(), |_| SoftwarePageMsg::SelectionChanged);
+
         let model = Self {
             device_info: None,
             vulkan_driver_selector,
+            opencl_platform_selector,
         };
 
         let mut daemon_version = format!("{}-{}", system_info.version, system_info.profile);
@@ -282,6 +308,23 @@ impl relm4::SimpleComponent for SoftwarePage {
                         active_index: selected_driver,
                     }));
 
+                let mut opencl_platforms = Vec::new();
+
+                for info in &info.opencl_instances {
+                    opencl_platforms.push(info.platform_name.clone());
+                }
+
+                let selected_platform = if opencl_platforms.is_empty() {
+                    None
+                } else {
+                    Some(0)
+                };
+                self.opencl_platform_selector
+                    .emit(SimpleComboBoxMsg::UpdateData(SimpleComboBox {
+                        variants: opencl_platforms,
+                        active_index: selected_platform,
+                    }));
+
                 self.device_info = Some(info);
             }
             SoftwarePageMsg::ShowVulkanFeatures => {
@@ -308,6 +351,17 @@ impl SoftwarePage {
                 self.device_info
                     .as_ref()
                     .and_then(|info| info.vulkan_instances.get(idx))
+            })
+    }
+
+    fn selected_opencl_info(&self) -> Option<&OpenCLInfo> {
+        self.opencl_platform_selector
+            .model()
+            .active_index
+            .and_then(|idx| {
+                self.device_info
+                    .as_ref()
+                    .and_then(|info| info.opencl_instances.get(idx))
             })
     }
 }
