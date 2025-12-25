@@ -14,7 +14,7 @@ use crate::{
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, bail, Context};
-use futures::future::LocalBoxFuture;
+use futures::{future::LocalBoxFuture, join};
 use lact_schema::{
     config::GpuConfig, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats,
     DeviceType, DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo,
@@ -600,10 +600,15 @@ impl GpuController for IntelGpuController {
 
     fn get_info(&self, unique_vendor: bool) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
+            let (vulkan_result, opencl_instances) = join!(
+                get_vulkan_info(&self.common),
+                get_opencl_info(&self.common, unique_vendor)
+            );
+            let vulkan_instances = vulkan_result.unwrap_or_else(|err| {
                 warn!("could not load vulkan info: {err:#}");
                 vec![]
             });
+
             let vram_info = self.get_vram_info();
 
             let drm_info = DrmInfo {
@@ -623,7 +628,7 @@ impl GpuController for IntelGpuController {
                 vbios_version: None,
                 link_info: LinkInfo::default(),
                 drm_info: Some(drm_info),
-                opencl_info: get_opencl_info(&self.common, unique_vendor),
+                opencl_instances,
                 flags: vec![],
             }
         })

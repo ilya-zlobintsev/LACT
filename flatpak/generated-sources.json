@@ -1,11 +1,5 @@
 [
     {
-        "type": "git",
-        "url": "https://github.com/kenba/cl3",
-        "commit": "4da03b19d19ce2ca735e09dc5e2a1bcfa133beff",
-        "dest": "flatpak-cargo/git/cl3-4da03b1"
-    },
-    {
         "type": "archive",
         "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/addr2line/addr2line-0.24.2.crate",
@@ -474,24 +468,6 @@
         "dest-filename": ".cargo-checksum.json"
     },
     {
-        "type": "shell",
-        "commands": [
-            "cp -r --reflink=auto \"flatpak-cargo/git/cl3-4da03b1/.\" \"cargo/vendor/cl3\""
-        ]
-    },
-    {
-        "type": "inline",
-        "contents": "[[example]]\nname = \"clinfo\"\npath = \"examples/clinfo.rs\"\n\n[package]\nname = \"cl3\"\nversion = \"0.13.0\"\nauthors = [ \"Ken Barker <ken.barker@via-technology.aero>\",]\ndescription = \"A Rust implementation of the Khronos OpenCL 3.0 API and extensions.\"\ndocumentation = \"https://docs.rs/cl3/\"\nhomepage = \"https://github.com/kenba/cl3\"\nrepository = \"https://github.com/kenba/cl3\"\nreadme = \"README.md\"\nkeywords = [ \"opencl\", \"gpu\", \"gpgpu\", \"ffi\", \"api\",]\ncategories = [ \"api-bindings\", \"asynchronous\", \"external-ffi-bindings\",]\nlicense = \"Apache-2.0\"\nedition = \"2024\"\n\n[features]\nstatic = [ \"opencl-sys/static\",]\nCL_VERSION_1_1 = [ \"opencl-sys/CL_VERSION_1_1\",]\nCL_VERSION_1_2 = [ \"opencl-sys/CL_VERSION_1_2\",]\nCL_VERSION_2_0 = [ \"opencl-sys/CL_VERSION_2_0\",]\nCL_VERSION_2_1 = [ \"opencl-sys/CL_VERSION_2_1\",]\nCL_VERSION_2_2 = [ \"opencl-sys/CL_VERSION_2_2\",]\nCL_VERSION_3_0 = [ \"opencl-sys/CL_VERSION_3_0\",]\ncl_apple_setmemobjectdestructor = [ \"opencl-sys/cl_apple_setmemobjectdestructor\",]\ncl_apple_contextloggingfunctions = [ \"opencl-sys/cl_apple_contextloggingfunctions\",]\ncl_khr_icd = [ \"opencl-sys/cl_khr_icd\",]\ncl_khr_il_program = [ \"opencl-sys/cl_khr_il_program\",]\ncl_khr_terminate_context = [ \"opencl-sys/cl_khr_terminate_context\",]\ncl_khr_create_command_queue = [ \"opencl-sys/cl_khr_create_command_queue\",]\ncl_ext_device_fission = [ \"opencl-sys/cl_ext_device_fission\",]\ncl_ext_migrate_memobject = [ \"opencl-sys/cl_ext_migrate_memobject\",]\ncl_qcom_ext_host_ptr = [ \"opencl-sys/cl_qcom_ext_host_ptr\",]\ncl_img_use_gralloc_ptr = [ \"opencl-sys/cl_img_use_gralloc_ptr\",]\ncl_img_generate_mipmap = [ \"opencl-sys/cl_img_generate_mipmap\",]\ncl_khr_subgroups = [ \"opencl-sys/cl_khr_subgroups\",]\ncl_khr_suggested_local_work_size = [ \"opencl-sys/cl_khr_suggested_local_work_size\",]\ncl_khr_external_memory = [ \"opencl-sys/cl_khr_external_memory\",]\ncl_khr_external_semaphore = [ \"opencl-sys/cl_khr_external_semaphore\",]\ncl_khr_external_semaphore_sync_fd = [ \"opencl-sys/cl_khr_external_semaphore_sync_fd\",]\ncl_khr_semaphore = [ \"opencl-sys/cl_khr_semaphore\",]\ncl_arm_import_memory = [ \"opencl-sys/cl_arm_import_memory\",]\ncl_arm_shared_virtual_memory = [ \"opencl-sys/cl_arm_shared_virtual_memory\",]\ncl_intel_accelerator = [ \"opencl-sys/cl_intel_accelerator\",]\ncl_intel_unified_shared_memory = [ \"opencl-sys/cl_intel_unified_shared_memory\",]\ncl_intel_create_buffer_with_properties = [ \"opencl-sys/cl_intel_create_buffer_with_properties\",]\ncl_intel_program_scope_host_pipe = [ \"opencl-sys/cl_intel_program_scope_host_pipe\",]\ncl_ext_image_requirements_info = [ \"opencl-sys/cl_ext_image_requirements_info\",]\ncl_khr_command_buffer = [ \"opencl-sys/cl_khr_command_buffer\",]\ncl_khr_command_buffer_multi_device = [ \"opencl-sys/cl_khr_command_buffer_multi_device\",]\ncl_khr_command_buffer_mutable_dispatch = [ \"opencl-sys/cl_khr_command_buffer_mutable_dispatch\",]\ncl_khr_gl_sharing = [ \"opencl-sys/cl_khr_gl_sharing\",]\ncl_khr_gl_event = [ \"opencl-sys/cl_khr_gl_event\",]\ncl_khr_egl_image = [ \"opencl-sys/cl_khr_egl_image\",]\ncl_khr_egl_event = [ \"opencl-sys/cl_khr_egl_event\",]\ncl_khr_dx9_media_sharing = [ \"opencl-sys/cl_khr_dx9_media_sharing\",]\ncl_intel_dx9_media_sharing = [ \"opencl-sys/cl_intel_dx9_media_sharing\",]\ncl_khr_d3d10_sharing = [ \"opencl-sys/cl_khr_d3d10_sharing\",]\ncl_khr_d3d11_sharing = [ \"opencl-sys/cl_khr_d3d11_sharing\",]\ncl_loader_info = [ \"opencl-sys/cl_loader_info\",]\ncl_pocl_content_size = [ \"opencl-sys/cl_pocl_content_size\",]\ncl_ext_buffer_device_address = [ \"opencl-sys/cl_ext_buffer_device_address\",]\ncl_loader_layers = [ \"opencl-sys/cl_loader_layers\",]\ncl_img_cancel_command = [ \"opencl-sys/cl_img_cancel_command\",]\ncl_qcom_perf_hint = [ \"opencl-sys/cl_qcom_perf_hint\",]\ndynamic = []\ndefault = [ \"dynamic\",]\n\n[dependencies]\ndlopen2 = \"0.8\"\nlibc = \"0.2\"\nopencl-sys = \"0.6\"\nthiserror = \"2.0\"\n\n[lints.clippy]\nenum_glob_use = \"deny\"\nmissing_errors_doc = \"allow\"\nmodule_name_repetitions = \"allow\"\nunwrap_used = \"deny\"\n\n[lints.clippy.nursery]\nlevel = \"deny\"\npriority = -1\n\n[lints.clippy.pedantic]\nlevel = \"deny\"\npriority = -1\n",
-        "dest": "cargo/vendor/cl3",
-        "dest-filename": "Cargo.toml"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": null, \"files\": {}}",
-        "dest": "cargo/vendor/cl3",
-        "dest-filename": ".cargo-checksum.json"
-    },
-    {
         "type": "archive",
         "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/clang-sys/clang-sys-1.8.1.crate",
@@ -840,32 +816,6 @@
         "type": "inline",
         "contents": "{\"package\": \"9556bc800956545d6420a640173e5ba7dfa82f38d3ea5a167eb555bc69ac3323\", \"files\": {}}",
         "dest": "cargo/vendor/divan-macros-0.1.21",
-        "dest-filename": ".cargo-checksum.json"
-    },
-    {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/dlopen2/dlopen2-0.8.0.crate",
-        "sha256": "b54f373ccf864bf587a89e880fb7610f8d73f3045f13580948ccbcaff26febff",
-        "dest": "cargo/vendor/dlopen2-0.8.0"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": \"b54f373ccf864bf587a89e880fb7610f8d73f3045f13580948ccbcaff26febff\", \"files\": {}}",
-        "dest": "cargo/vendor/dlopen2-0.8.0",
-        "dest-filename": ".cargo-checksum.json"
-    },
-    {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/dlopen2_derive/dlopen2_derive-0.4.1.crate",
-        "sha256": "788160fb30de9cdd857af31c6a2675904b16ece8fc2737b2c7127ba368c9d0f4",
-        "dest": "cargo/vendor/dlopen2_derive-0.4.1"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": \"788160fb30de9cdd857af31c6a2675904b16ece8fc2737b2c7127ba368c9d0f4\", \"files\": {}}",
-        "dest": "cargo/vendor/dlopen2_derive-0.4.1",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -2582,19 +2532,6 @@
         "type": "inline",
         "contents": "{\"package\": \"a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad\", \"files\": {}}",
         "dest": "cargo/vendor/once_cell_polyfill-1.70.1",
-        "dest-filename": ".cargo-checksum.json"
-    },
-    {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/opencl-sys/opencl-sys-0.6.1.crate",
-        "sha256": "9bd005f352b2f05acd01d04122448e84f8bc66bdae49045927841bc63de62123",
-        "dest": "cargo/vendor/opencl-sys-0.6.1"
-    },
-    {
-        "type": "inline",
-        "contents": "{\"package\": \"9bd005f352b2f05acd01d04122448e84f8bc66bdae49045927841bc63de62123\", \"files\": {}}",
-        "dest": "cargo/vendor/opencl-sys-0.6.1",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -5212,7 +5149,7 @@
     },
     {
         "type": "inline",
-        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/kenba/cl3\"]\ngit = \"https://github.com/kenba/cl3\"\nreplace-with = \"vendored-sources\"\nbranch = \"develop\"\n",
+        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n",
         "dest": "cargo",
         "dest-filename": "config"
     }

@@ -1,0 +1,752 @@
+{
+    "platforms": [
+        {
+            "CL_PLATFORM_NAME": "rusticl",
+            "CL_PLATFORM_VENDOR": "Mesa/X.org",
+            "CL_PLATFORM_VERSION": "OpenCL 3.0 ",
+            "CL_PLATFORM_PROFILE": "FULL_PROFILE",
+            "CL_PLATFORM_EXTENSIONS": "cl_khr_icd cl_khr_byte_addressable_store cl_khr_create_command_queue cl_khr_expect_assume cl_khr_extended_bit_ops cl_khr_extended_versioning cl_khr_global_int32_base_atomics cl_khr_global_int32_extended_atomics cl_khr_il_program cl_khr_local_int32_base_atomics cl_khr_local_int32_extended_atomics cl_khr_integer_dot_product cl_khr_spirv_no_integer_wrap_decoration cl_khr_spirv_queries cl_khr_suggested_local_work_size cl_ext_immutable_memory_objects cl_khr_spirv_linkonce_odr cl_khr_fp16 cl_khr_gl_sharing cles_khr_int64 cl_khr_kernel_clock cl_khr_3d_image_writes cl_khr_depth_images cl_ext_image_unorm_int_2_101010 cl_khr_pci_bus_info cl_khr_priority_hints cl_khr_device_uuid cl_khr_subgroup_shuffle cl_khr_subgroup_shuffle_relative cl_arm_shared_virtual_memory cl_ext_buffer_device_address cl_khr_external_semaphore cl_khr_external_semaphore_sync_fd cl_khr_semaphore",
+            "CL_PLATFORM_EXTENSIONS_WITH_VERSION": {
+                "cl_khr_icd": {
+                    "raw": 8388608,
+                    "version": "2.0.0"
+                },
+                "cl_khr_byte_addressable_store": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_create_command_queue": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_expect_assume": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_extended_bit_ops": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_extended_versioning": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_global_int32_base_atomics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_global_int32_extended_atomics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_il_program": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_local_int32_base_atomics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_local_int32_extended_atomics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_integer_dot_product": {
+                    "raw": 8388608,
+                    "version": "2.0.0"
+                },
+                "cl_khr_spirv_no_integer_wrap_decoration": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_spirv_queries": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_suggested_local_work_size": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_ext_immutable_memory_objects": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_spirv_linkonce_odr": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_fp16": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_gl_sharing": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cles_khr_int64": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_kernel_clock": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_3d_image_writes": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_depth_images": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_ext_image_unorm_int_2_101010": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_pci_bus_info": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_priority_hints": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_device_uuid": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_subgroup_shuffle": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_subgroup_shuffle_relative": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_arm_shared_virtual_memory": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_ext_buffer_device_address": {
+                    "raw": 4194306,
+                    "version": "1.0.2"
+                },
+                "cl_khr_external_semaphore": {
+                    "raw": 4194305,
+                    "version": "1.0.1"
+                },
+                "cl_khr_external_semaphore_sync_fd": {
+                    "raw": 4194305,
+                    "version": "1.0.1"
+                },
+                "cl_khr_semaphore": {
+                    "raw": 4194305,
+                    "version": "1.0.1"
+                }
+            },
+            "CL_PLATFORM_NUMERIC_VERSION": {
+                "raw": 12582912,
+                "version": "3.0.0"
+            },
+            "CL_PLATFORM_ICD_SUFFIX_KHR": "MESA",
+            "CL_PLATFORM_HOST_TIMER_RESOLUTION": 1,
+            "CL_PLATFORM_SEMAPHORE_TYPES_KHR": [
+                "CL_SEMAPHORE_TYPE_BINARY_KHR"
+            ],
+            "CL_PLATFORM_SEMAPHORE_IMPORT_HANDLE_TYPES_KHR": [
+                "CL_SEMAPHORE_HANDLE_SYNC_FD_KHR"
+            ],
+            "CL_PLATFORM_SEMAPHORE_EXPORT_HANDLE_TYPES_KHR": [
+                "CL_SEMAPHORE_HANDLE_SYNC_FD_KHR"
+            ]
+        },
+        {
+            "CL_PLATFORM_NAME": "AMD Accelerated Parallel Processing",
+            "CL_PLATFORM_VENDOR": "Advanced Micro Devices, Inc.",
+            "CL_PLATFORM_VERSION": "OpenCL 2.1 AMD-APP.dbg (3581.0)",
+            "CL_PLATFORM_PROFILE": "FULL_PROFILE",
+            "CL_PLATFORM_EXTENSIONS": "cl_khr_icd cl_amd_event_callback ",
+            "CL_PLATFORM_ICD_SUFFIX_KHR": "AMD",
+            "CL_PLATFORM_HOST_TIMER_RESOLUTION": 1
+        }
+    ],
+    "devices": [
+        {
+            "online": [
+                {
+                    "CL_DEVICE_NAME": "AMD Radeon 890M Graphics (radeonsi, gfx1150, LLVM 21.1.6, DRM 3.64, 6.17.12-300.fc43.x86_64)",
+                    "CL_DEVICE_VENDOR": "AMD",
+                    "CL_DEVICE_VENDOR_ID": 4098,
+                    "CL_DEVICE_VERSION": "OpenCL 3.0 ",
+                    "CL_DEVICE_UUID_KHR": "00000000-c100-0000-0000-000000000000",
+                    "CL_DRIVER_UUID_KHR": "414d442d-4d45-5341-2d44-525600000000",
+                    "CL_DEVICE_LUID_VALID_KHR": false,
+                    "CL_DEVICE_LUID_KHR": "0000-000000000000",
+                    "CL_DEVICE_NODE_MASK_KHR": 0,
+                    "CL_DEVICE_NUMERIC_VERSION": {
+                        " raw ": 12582912,
+                        "version": "3.0.0"
+                    },
+                    "CL_DRIVER_VERSION": "25.3.2-arch1.1",
+                    "CL_DEVICE_OPENCL_C_VERSION": "OpenCL C 1.2 ",
+                    "CL_DEVICE_OPENCL_C_NUMERIC_VERSION_KHR": {
+                        " raw ": 4202496,
+                        "version": "1.2.0"
+                    },
+                    "CL_DEVICE_OPENCL_C_ALL_VERSIONS": {
+                        "OpenCL C": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        }
+                    },
+                    "CL_DEVICE_OPENCL_C_FEATURES": {
+                        "__opencl_c_integer_dot_product_input_4x8bit": {
+                            "raw": 8388608,
+                            "version": "2.0.0"
+                        },
+                        "__opencl_c_integer_dot_product_input_4x8bit_packed": {
+                            "raw": 8388608,
+                            "version": "2.0.0"
+                        },
+                        "__opencl_c_int64": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "__opencl_c_kernel_clock_scope_device": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "__opencl_c_kernel_clock_scope_sub_group": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "__opencl_c_images": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "__opencl_c_read_write_images": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "__opencl_c_3d_image_writes": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "__opencl_c_ext_image_unorm_int_2_101010": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "__opencl_c_subgroups": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        }
+                    },
+                    "CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED": "v0000-01-01-00",
+                    "CL_DEVICE_TYPE": {
+                        "raw": 4,
+                        "type": [
+                            "CL_DEVICE_TYPE_GPU"
+                        ]
+                    },
+                    "CL_DEVICE_PCI_BUS_INFO_KHR": "PCI-E, 0000:c1:00.0",
+                    "CL_DEVICE_PROFILE": "EMBEDDED_PROFILE",
+                    "CL_DEVICE_AVAILABLE": true,
+                    "CL_DEVICE_COMPILER_AVAILABLE": true,
+                    "CL_DEVICE_LINKER_AVAILABLE": true,
+                    "CL_DEVICE_MAX_COMPUTE_UNITS": 12,
+                    "CL_DEVICE_MAX_CLOCK_FREQUENCY": 2900,
+                    "CL_DEVICE_PARTITION_MAX_SUB_DEVICES": 0,
+                    "CL_DEVICE_PARTITION_PROPERTIES": [
+                        "CL_NONE"
+                    ],
+                    "CL_DEVICE_PARTITION_AFFINITY_DOMAIN": {
+                        "raw": 0,
+                        "domain": []
+                    },
+                    "CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS": 3,
+                    "CL_DEVICE_MAX_WORK_ITEM_SIZES": [
+                        1024,
+                        1024,
+                        1024
+                    ],
+                    "CL_DEVICE_MAX_WORK_GROUP_SIZE": 1024,
+                    "CL_DEVICE_PREFERRED_WORK_GROUP_SIZE_MULTIPLE": 64,
+                    "CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE": 64,
+                    "CL_DEVICE_MAX_NUM_SUB_GROUPS": 32,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_CHAR": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_SHORT": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_INT": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_LONG": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_FLOAT": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE": 0,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE": 0,
+                    "CL_DEVICE_HALF_FP_CONFIG": {
+                        "raw": 6,
+                        "config": [
+                            "CL_FP_INF_NAN",
+                            "CL_FP_ROUND_TO_NEAREST"
+                        ]
+                    },
+                    "CL_DEVICE_SINGLE_FP_CONFIG": {
+                        "raw": 6,
+                        "config": [
+                            "CL_FP_INF_NAN",
+                            "CL_FP_ROUND_TO_NEAREST"
+                        ]
+                    },
+                    "CL_DEVICE_ADDRESS_BITS": 64,
+                    "CL_DEVICE_ENDIAN_LITTLE": true,
+                    "CL_DEVICE_SEMAPHORE_TYPES_KHR": [
+                        "CL_SEMAPHORE_TYPE_BINARY_KHR"
+                    ],
+                    "CL_DEVICE_SEMAPHORE_IMPORT_HANDLE_TYPES_KHR": [
+                        "CL_SEMAPHORE_HANDLE_SYNC_FD_KHR"
+                    ],
+                    "CL_DEVICE_SEMAPHORE_EXPORT_HANDLE_TYPES_KHR": [
+                        "CL_SEMAPHORE_HANDLE_SYNC_FD_KHR"
+                    ],
+                    "CL_DEVICE_GLOBAL_MEM_SIZE": 536870912,
+                    "CL_DEVICE_ERROR_CORRECTION_SUPPORT": false,
+                    "CL_DEVICE_MAX_MEM_ALLOC_SIZE": 2147483647,
+                    "CL_DEVICE_HOST_UNIFIED_MEMORY": false,
+                    "CL_DEVICE_SVM_CAPABILITIES": {
+                        "raw": 1,
+                        "capabilities": [
+                            "CL_DEVICE_SVM_COARSE_GRAIN_BUFFER"
+                        ]
+                    },
+                    "CL_DEVICE_SVM_CAPABILITIES_ARM": {
+                        "raw": 1,
+                        "capabilities": [
+                            "CL_DEVICE_SVM_COARSE_GRAIN_BUFFER"
+                        ]
+                    },
+                    "CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE": 128,
+                    "CL_DEVICE_MEM_BASE_ADDR_ALIGN": 4096,
+                    "CL_DEVICE_PREFERRED_PLATFORM_ATOMIC_ALIGNMENT": 0,
+                    "CL_DEVICE_PREFERRED_GLOBAL_ATOMIC_ALIGNMENT": 0,
+                    "CL_DEVICE_PREFERRED_LOCAL_ATOMIC_ALIGNMENT": 0,
+                    "CL_DEVICE_ATOMIC_MEMORY_CAPABILITIES": {
+                        "raw": 17,
+                        "capabilities": [
+                            "CL_DEVICE_ATOMIC_ORDER_RELAXED",
+                            "CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP"
+                        ]
+                    },
+                    "CL_DEVICE_ATOMIC_FENCE_CAPABILITIES": {
+                        "raw": 19,
+                        "capabilities": [
+                            "CL_DEVICE_ATOMIC_ORDER_RELAXED",
+                            "CL_DEVICE_ATOMIC_ORDER_ACQ_REL",
+                            "CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP"
+                        ]
+                    },
+                    "CL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE": 0,
+                    "CL_DEVICE_GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE": 0,
+                    "CL_DEVICE_GLOBAL_MEM_CACHE_TYPE": "CL_NONE",
+                    "CL_DEVICE_IMAGE_SUPPORT": true,
+                    "CL_DEVICE_MAX_SAMPLERS": 32,
+                    "CL_DEVICE_IMAGE_MAX_BUFFER_SIZE": 134217727,
+                    "CL_DEVICE_IMAGE_MAX_ARRAY_SIZE": 8192,
+                    "CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT": 0,
+                    "CL_DEVICE_IMAGE_PITCH_ALIGNMENT": 0,
+                    "CL_DEVICE_IMAGE2D_MAX_HEIGHT": 16384,
+                    "CL_DEVICE_IMAGE2D_MAX_WIDTH": 16384,
+                    "CL_DEVICE_IMAGE3D_MAX_HEIGHT": 8192,
+                    "CL_DEVICE_IMAGE3D_MAX_WIDTH": 8192,
+                    "CL_DEVICE_IMAGE3D_MAX_DEPTH": 8192,
+                    "CL_DEVICE_MAX_READ_IMAGE_ARGS": 32,
+                    "CL_DEVICE_MAX_WRITE_IMAGE_ARGS": 16,
+                    "CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS": 16,
+                    "CL_DEVICE_PIPE_SUPPORT": false,
+                    "CL_DEVICE_MAX_PIPE_ARGS": 0,
+                    "CL_DEVICE_PIPE_MAX_ACTIVE_RESERVATIONS": 0,
+                    "CL_DEVICE_PIPE_MAX_PACKET_SIZE": 0,
+                    "CL_DEVICE_LOCAL_MEM_TYPE": "CL_GLOBAL",
+                    "CL_DEVICE_LOCAL_MEM_SIZE": 65536,
+                    "CL_DEVICE_MAX_CONSTANT_ARGS": 16,
+                    "CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE": 67108864,
+                    "CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT": false,
+                    "CL_DEVICE_MAX_PARAMETER_SIZE": 4096,
+                    "CL_DEVICE_QUEUE_ON_HOST_PROPERTIES": {
+                        "raw": 3,
+                        "queue_prop": [
+                            "CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE",
+                            "CL_QUEUE_PROFILING_ENABLE"
+                        ]
+                    },
+                    "CL_DEVICE_DEVICE_ENQUEUE_CAPABILITIES": {
+                        "raw": 0,
+                        "capabilities": []
+                    },
+                    "CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES": {
+                        "raw": 0,
+                        "queue_prop": []
+                    },
+                    "CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE": 0,
+                    "CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE": 0,
+                    "CL_DEVICE_MAX_ON_DEVICE_QUEUES": 0,
+                    "CL_DEVICE_MAX_ON_DEVICE_EVENTS": 0,
+                    "CL_DEVICE_PREFERRED_INTEROP_USER_SYNC": true,
+                    "CL_DEVICE_PROFILING_TIMER_RESOLUTION": 10,
+                    "CL_DEVICE_EXECUTION_CAPABILITIES": {
+                        "raw": 1,
+                        "type": [
+                            "CL_EXEC_KERNEL"
+                        ]
+                    },
+                    "CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT": false,
+                    "CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT": false,
+                    "CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS": false,
+                    "CL_DEVICE_IL_VERSION": "SPIR-V_1.0 SPIR-V_1.1 SPIR-V_1.2 SPIR-V_1.3 SPIR-V_1.4 SPIR-V_1.5 SPIR-V_1.6",
+                    "CL_DEVICE_ILS_WITH_VERSION": {
+                        "SPIR-V": {
+                            "raw": 4218880,
+                            "version": "1.6.0"
+                        }
+                    },
+                    "CL_DEVICE_PRINTF_BUFFER_SIZE": 1048576,
+                    "CL_DEVICE_BUILT_IN_KERNELS": "",
+                    "CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION": {},
+                    "CL_DEVICE_EXTENSIONS": "cl_khr_byte_addressable_store cl_khr_create_command_queue cl_khr_expect_assume cl_khr_extended_bit_ops cl_khr_extended_versioning cl_khr_global_int32_base_atomics cl_khr_global_int32_extended_atomics cl_khr_il_program cl_khr_local_int32_base_atomics cl_khr_local_int32_extended_atomics cl_khr_integer_dot_product cl_khr_spirv_no_integer_wrap_decoration cl_khr_spirv_queries cl_khr_suggested_local_work_size cl_ext_immutable_memory_objects cl_khr_spirv_linkonce_odr cl_khr_fp16 cl_khr_gl_sharing cles_khr_int64 cl_khr_kernel_clock cl_khr_3d_image_writes cl_khr_depth_images cl_ext_image_unorm_int_2_101010 cl_khr_pci_bus_info cl_khr_priority_hints cl_khr_device_uuid cl_khr_subgroup_shuffle cl_khr_subgroup_shuffle_relative cl_arm_shared_virtual_memory cl_ext_buffer_device_address cl_khr_external_semaphore cl_khr_external_semaphore_sync_fd cl_khr_semaphore",
+                    "CL_DEVICE_EXTENSIONS_WITH_VERSION": {
+                        "cl_khr_byte_addressable_store": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_create_command_queue": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_expect_assume": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_extended_bit_ops": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_extended_versioning": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_global_int32_base_atomics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_global_int32_extended_atomics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_il_program": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_local_int32_base_atomics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_local_int32_extended_atomics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_integer_dot_product": {
+                            "raw": 8388608,
+                            "version": "2.0.0"
+                        },
+                        "cl_khr_spirv_no_integer_wrap_decoration": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_spirv_queries": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_suggested_local_work_size": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_ext_immutable_memory_objects": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_spirv_linkonce_odr": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_fp16": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_gl_sharing": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cles_khr_int64": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_kernel_clock": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_3d_image_writes": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_depth_images": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_ext_image_unorm_int_2_101010": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_pci_bus_info": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_priority_hints": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_device_uuid": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_subgroup_shuffle": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_subgroup_shuffle_relative": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_arm_shared_virtual_memory": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_ext_buffer_device_address": {
+                            "raw": 4194306,
+                            "version": "1.0.2"
+                        },
+                        "cl_khr_external_semaphore": {
+                            "raw": 4194305,
+                            "version": "1.0.1"
+                        },
+                        "cl_khr_external_semaphore_sync_fd": {
+                            "raw": 4194305,
+                            "version": "1.0.1"
+                        },
+                        "cl_khr_semaphore": {
+                            "raw": 4194305,
+                            "version": "1.0.1"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "online": [
+                {
+                    "CL_DEVICE_NAME": "gfx1150",
+                    "CL_DEVICE_VENDOR": "Advanced Micro Devices, Inc.",
+                    "CL_DEVICE_VENDOR_ID": 4098,
+                    "CL_DEVICE_VERSION": "OpenCL 2.0 ",
+                    "CL_DRIVER_VERSION": "3581.0 (HSA1.1,LC)",
+                    "CL_DEVICE_OPENCL_C_VERSION": "OpenCL C 2.0 ",
+                    "CL_DEVICE_TYPE": {
+                        "raw": 4,
+                        "type": [
+                            "CL_DEVICE_TYPE_GPU"
+                        ]
+                    },
+                    "CL_DEVICE_BOARD_NAME_AMD": "AMD Radeon 890M Graphics",
+                    "CL_DEVICE_PCIE_ID_AMD": 5390,
+                    "CL_DEVICE_TOPOLOGY_AMD": "PCI-E, 0000:ffffffc1:00.0",
+                    "CL_DEVICE_PROFILE": "FULL_PROFILE",
+                    "CL_DEVICE_AVAILABLE": true,
+                    "CL_DEVICE_COMPILER_AVAILABLE": true,
+                    "CL_DEVICE_LINKER_AVAILABLE": true,
+                    "CL_DEVICE_MAX_COMPUTE_UNITS": 6,
+                    "CL_DEVICE_SIMD_PER_COMPUTE_UNIT_AMD": 4,
+                    "CL_DEVICE_SIMD_WIDTH_AMD": 32,
+                    "CL_DEVICE_SIMD_INSTRUCTION_WIDTH_AMD": 1,
+                    "CL_DEVICE_MAX_CLOCK_FREQUENCY": 2900,
+                    "CL_DEVICE_GFXIP_MAJOR_AMD": 11,
+                    "CL_DEVICE_GFXIP_MINOR_AMD": 5,
+                    "CL_DEVICE_PARTITION_MAX_SUB_DEVICES": 6,
+                    "CL_DEVICE_PARTITION_PROPERTIES": [
+                        "CL_NONE"
+                    ],
+                    "CL_DEVICE_PARTITION_AFFINITY_DOMAIN": {
+                        "raw": 0,
+                        "domain": []
+                    },
+                    "CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS": 3,
+                    "CL_DEVICE_MAX_WORK_ITEM_SIZES": [
+                        1024,
+                        1024,
+                        1024
+                    ],
+                    "CL_DEVICE_MAX_WORK_GROUP_SIZE": 256,
+                    "CL_DEVICE_PREFERRED_WORK_GROUP_SIZE_AMD": 256,
+                    "CL_DEVICE_MAX_WORK_GROUP_SIZE_AMD": 1024,
+                    "CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE": 32,
+                    "CL_DEVICE_WAVEFRONT_WIDTH_AMD": 32,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR": 4,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_CHAR": 4,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT": 2,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_SHORT": 2,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_INT": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_LONG": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_FLOAT": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE": 1,
+                    "CL_DEVICE_HALF_FP_CONFIG": {
+                        "raw": 191,
+                        "config": [
+                            "CL_FP_DENORM",
+                            "CL_FP_INF_NAN",
+                            "CL_FP_ROUND_TO_NEAREST",
+                            "CL_FP_ROUND_TO_ZERO",
+                            "CL_FP_ROUND_TO_INF",
+                            "CL_FP_FMA"
+                        ]
+                    },
+                    "CL_DEVICE_SINGLE_FP_CONFIG": {
+                        "raw": 191,
+                        "config": [
+                            "CL_FP_DENORM",
+                            "CL_FP_INF_NAN",
+                            "CL_FP_ROUND_TO_NEAREST",
+                            "CL_FP_ROUND_TO_ZERO",
+                            "CL_FP_ROUND_TO_INF",
+                            "CL_FP_FMA",
+                            "CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT"
+                        ]
+                    },
+                    "CL_DEVICE_DOUBLE_FP_CONFIG": {
+                        "raw": 63,
+                        "config": [
+                            "CL_FP_DENORM",
+                            "CL_FP_INF_NAN",
+                            "CL_FP_ROUND_TO_NEAREST",
+                            "CL_FP_ROUND_TO_ZERO",
+                            "CL_FP_ROUND_TO_INF",
+                            "CL_FP_FMA"
+                        ]
+                    },
+                    "CL_DEVICE_ADDRESS_BITS": 64,
+                    "CL_DEVICE_ENDIAN_LITTLE": true,
+                    "CL_DEVICE_GLOBAL_MEM_SIZE": 16441004032,
+                    "CL_DEVICE_GLOBAL_FREE_MEMORY_AMD": [
+                        15912256,
+                        15912256
+                    ],
+                    "CL_DEVICE_GLOBAL_MEM_CHANNELS_AMD": 4,
+                    "CL_DEVICE_GLOBAL_MEM_CHANNEL_BANKS_AMD": 4,
+                    "CL_DEVICE_GLOBAL_MEM_CHANNEL_BANK_WIDTH_AMD": 256,
+                    "CL_DEVICE_ERROR_CORRECTION_SUPPORT": false,
+                    "CL_DEVICE_MAX_MEM_ALLOC_SIZE": 13974853424,
+                    "CL_DEVICE_HOST_UNIFIED_MEMORY": true,
+                    "CL_DEVICE_SVM_CAPABILITIES": {
+                        "raw": 3,
+                        "capabilities": [
+                            "CL_DEVICE_SVM_COARSE_GRAIN_BUFFER",
+                            "CL_DEVICE_SVM_FINE_GRAIN_BUFFER"
+                        ]
+                    },
+                    "CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE": 128,
+                    "CL_DEVICE_MEM_BASE_ADDR_ALIGN": 2048,
+                    "CL_DEVICE_PREFERRED_PLATFORM_ATOMIC_ALIGNMENT": 0,
+                    "CL_DEVICE_PREFERRED_GLOBAL_ATOMIC_ALIGNMENT": 0,
+                    "CL_DEVICE_PREFERRED_LOCAL_ATOMIC_ALIGNMENT": 0,
+                    "CL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE": 13974853424,
+                    "CL_DEVICE_GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE": 16441004032,
+                    "CL_DEVICE_GLOBAL_MEM_CACHE_TYPE": "CL_READ_WRITE_CACHE",
+                    "CL_DEVICE_GLOBAL_MEM_CACHE_SIZE": 32768,
+                    "CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE": 128,
+                    "CL_DEVICE_IMAGE_SUPPORT": true,
+                    "CL_DEVICE_MAX_SAMPLERS": 16,
+                    "CL_DEVICE_IMAGE_MAX_BUFFER_SIZE": 134217728,
+                    "CL_DEVICE_IMAGE_MAX_ARRAY_SIZE": 8192,
+                    "CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT": 256,
+                    "CL_DEVICE_IMAGE_PITCH_ALIGNMENT": 256,
+                    "CL_DEVICE_IMAGE2D_MAX_HEIGHT": 16384,
+                    "CL_DEVICE_IMAGE2D_MAX_WIDTH": 16384,
+                    "CL_DEVICE_IMAGE3D_MAX_HEIGHT": 16384,
+                    "CL_DEVICE_IMAGE3D_MAX_WIDTH": 16384,
+                    "CL_DEVICE_IMAGE3D_MAX_DEPTH": 8192,
+                    "CL_DEVICE_MAX_READ_IMAGE_ARGS": 128,
+                    "CL_DEVICE_MAX_WRITE_IMAGE_ARGS": 8,
+                    "CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS": 64,
+                    "CL_DEVICE_MAX_PIPE_ARGS": 16,
+                    "CL_DEVICE_PIPE_MAX_ACTIVE_RESERVATIONS": 16,
+                    "CL_DEVICE_PIPE_MAX_PACKET_SIZE": 1089951536,
+                    "CL_DEVICE_LOCAL_MEM_TYPE": "CL_LOCAL",
+                    "CL_DEVICE_LOCAL_MEM_SIZE": 65536,
+                    "CL_DEVICE_LOCAL_MEM_SIZE_PER_COMPUTE_UNIT_AMD": 65536,
+                    "CL_DEVICE_LOCAL_MEM_BANKS_AMD": 32,
+                    "CL_DEVICE_MAX_CONSTANT_ARGS": 8,
+                    "CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE": 13974853424,
+                    "CL_DEVICE_PREFERRED_CONSTANT_BUFFER_SIZE_AMD": 16384,
+                    "CL_DEVICE_MAX_PARAMETER_SIZE": 1024,
+                    "CL_DEVICE_QUEUE_ON_HOST_PROPERTIES": {
+                        "raw": 2,
+                        "queue_prop": [
+                            "CL_QUEUE_PROFILING_ENABLE"
+                        ]
+                    },
+                    "CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES": {
+                        "raw": 3,
+                        "queue_prop": [
+                            "CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE",
+                            "CL_QUEUE_PROFILING_ENABLE"
+                        ]
+                    },
+                    "CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE": 262144,
+                    "CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE": 8388608,
+                    "CL_DEVICE_MAX_ON_DEVICE_QUEUES": 1,
+                    "CL_DEVICE_MAX_ON_DEVICE_EVENTS": 1024,
+                    "CL_DEVICE_PREFERRED_INTEROP_USER_SYNC": true,
+                    "CL_DEVICE_NUM_P2P_DEVICES_AMD": 0,
+                    "CL_DEVICE_PROFILING_TIMER_RESOLUTION": 1,
+                    "CL_DEVICE_PROFILING_TIMER_OFFSET_AMD": 0,
+                    "CL_DEVICE_EXECUTION_CAPABILITIES": {
+                        "raw": 1,
+                        "type": [
+                            "CL_EXEC_KERNEL"
+                        ]
+                    },
+                    "CL_DEVICE_THREAD_TRACE_SUPPORTED_AMD": false,
+                    "CL_DEVICE_AVAILABLE_ASYNC_QUEUES_AMD": 8,
+                    "CL_DEVICE_MAX_REAL_TIME_COMPUTE_QUEUES_AMD": 8,
+                    "CL_DEVICE_MAX_REAL_TIME_COMPUTE_UNITS_AMD": 6,
+                    "CL_DEVICE_PRINTF_BUFFER_SIZE": 4194304,
+                    "CL_DEVICE_BUILT_IN_KERNELS": "",
+                    "CL_DEVICE_EXTENSIONS": "cl_khr_fp64 cl_khr_global_int32_base_atomics cl_khr_global_int32_extended_atomics cl_khr_local_int32_base_atomics cl_khr_local_int32_extended_atomics cl_khr_int64_base_atomics cl_khr_int64_extended_atomics cl_khr_3d_image_writes cl_khr_byte_addressable_store cl_khr_fp16 cl_khr_gl_sharing cl_amd_device_attribute_query cl_amd_media_ops cl_amd_media_ops2 cl_khr_image2d_from_buffer cl_khr_subgroups cl_khr_depth_images cl_amd_copy_buffer_p2p cl_amd_assembly_program "
+                }
+            ]
+        }
+    ],
+    "icd_loader": {
+        "CL_ICDL_NAME": "OpenCL ICD Loader",
+        "CL_ICDL_VENDOR": "OCL Icd free software",
+        "CL_ICDL_VERSION": "2.3.4",
+        "CL_ICDL_OCL_VERSION": "OpenCL 3.0",
+        "_detected_version": "3.0"
+    }
+}

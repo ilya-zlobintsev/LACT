@@ -124,6 +124,7 @@ impl CommonControllerInfo {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct PciSlotInfo {
     pub domain: u16,
     pub bus: u16,

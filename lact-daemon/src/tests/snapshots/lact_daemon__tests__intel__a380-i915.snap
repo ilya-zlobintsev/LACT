@@ -29,6 +29,19 @@ expression: device_info
     },
     "flags": [],
     "link_info": {},
+    "opencl_instances": [
+      {
+        "c_version": "OpenCL C 1.2 ",
+        "compute_units": 128,
+        "device_name": "Intel(R) Arc(TM) A380 Graphics",
+        "driver_version": "25.48.36300",
+        "global_memory": 6064541696,
+        "local_memory": 65536,
+        "platform_name": "Intel(R) OpenCL Graphics",
+        "version": "OpenCL 3.0 NEO ",
+        "workgroup_size": 1024
+      }
+    ],
     "pci_info": {
       "device_pci_info": {
         "model": "DG2 [Arc A380]",

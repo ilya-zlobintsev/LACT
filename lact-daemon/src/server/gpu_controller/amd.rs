@@ -19,7 +19,7 @@ use amdgpu_sysfs::{
     sysfs::SysFS,
 };
 use anyhow::{anyhow, bail, Context};
-use futures::{future::LocalBoxFuture, FutureExt};
+use futures::{future::LocalBoxFuture, join, FutureExt};
 use lact_schema::{
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
     AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceFlag, DeviceInfo,
@@ -728,16 +728,20 @@ impl GpuController for AmdGpuController {
 
     fn get_info(&self, unique_vendor: bool) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
+            let (vulkan_result, opencl_instances) = join!(
+                get_vulkan_info(&self.common),
+                get_opencl_info(&self.common, unique_vendor)
+            );
+            let vulkan_instances = vulkan_result.unwrap_or_else(|err| {
                 warn!("could not load vulkan info: {err:#}");
                 vec![]
             });
+
             let pci_info = Some(self.common.pci_info.clone());
             let driver = self.handle.get_driver().to_owned();
             let vbios_version = self.get_full_vbios_version();
             let link_info = self.get_link_info();
             let drm_info = self.get_drm_info();
-            let opencl_info = get_opencl_info(&self.common, unique_vendor);
 
             let mut flags = vec![DeviceFlag::DumpableVBios];
 
@@ -774,7 +778,7 @@ impl GpuController for AmdGpuController {
                 driver,
                 vbios_version,
                 link_info,
-                opencl_info,
+                opencl_instances,
                 drm_info,
                 flags,
             }

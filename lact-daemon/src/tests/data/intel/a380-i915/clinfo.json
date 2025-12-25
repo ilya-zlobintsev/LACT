@@ -1,0 +1,980 @@
+{
+    "platforms": [
+        {
+            "CL_PLATFORM_NAME": "Intel(R) OpenCL Graphics",
+            "CL_PLATFORM_VENDOR": "Intel(R) Corporation",
+            "CL_PLATFORM_VERSION": "OpenCL 3.0 ",
+            "CL_PLATFORM_PROFILE": "FULL_PROFILE",
+            "CL_PLATFORM_EXTENSIONS": "cl_khr_byte_addressable_store cl_khr_device_uuid cl_khr_fp16 cl_khr_global_int32_base_atomics cl_khr_global_int32_extended_atomics cl_khr_icd cl_khr_local_int32_base_atomics cl_khr_local_int32_extended_atomics cl_intel_command_queue_families cl_intel_subgroups cl_intel_required_subgroup_size cl_intel_subgroups_short cl_intel_accelerator cl_intel_driver_diagnostics cl_khr_priority_hints cl_khr_throttle_hints cl_khr_create_command_queue cl_intel_subgroups_char cl_intel_subgroups_long cl_khr_il_program cl_intel_mem_force_host_memory cl_khr_subgroup_extended_types cl_khr_subgroup_non_uniform_vote cl_khr_subgroup_ballot cl_khr_subgroup_non_uniform_arithmetic cl_khr_subgroup_shuffle cl_khr_subgroup_shuffle_relative cl_khr_subgroup_clustered_reduce cl_intel_device_attribute_query cl_khr_expect_assume cl_khr_extended_bit_ops cl_khr_suggested_local_work_size cl_intel_split_work_group_barrier cl_khr_int64_base_atomics cl_khr_int64_extended_atomics cl_khr_integer_dot_product cl_intel_spirv_subgroups cl_khr_spirv_linkonce_odr cl_khr_spirv_no_integer_wrap_decoration cl_khr_spirv_queries cl_intel_unified_shared_memory cl_ext_float_atomics cl_intel_spirv_media_block_io cl_khr_mipmap_image cl_khr_mipmap_image_writes cl_khr_external_memory cl_intel_planar_yuv cl_intel_packed_yuv cl_khr_image2d_from_buffer cl_khr_depth_images cl_khr_3d_image_writes cl_intel_media_block_io cl_intel_bfloat16_conversions cl_intel_create_buffer_with_properties cl_intel_subgroup_local_block_io cl_intel_subgroup_matrix_multiply_accumulate cl_intel_subgroup_split_matrix_multiply_accumulate cl_khr_gl_sharing cl_khr_gl_depth_images cl_khr_gl_event cl_khr_gl_msaa_sharing cl_intel_sharing_format_query cl_khr_pci_bus_info ",
+            "CL_PLATFORM_EXTENSIONS_WITH_VERSION": {
+                "cl_khr_byte_addressable_store": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_device_uuid": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_fp16": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_global_int32_base_atomics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_global_int32_extended_atomics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_icd": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_local_int32_base_atomics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_local_int32_extended_atomics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_command_queue_families": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_subgroups": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_required_subgroup_size": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_subgroups_short": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_accelerator": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_driver_diagnostics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_priority_hints": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_throttle_hints": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_create_command_queue": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_subgroups_char": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_subgroups_long": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_il_program": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_mem_force_host_memory": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_subgroup_extended_types": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_subgroup_non_uniform_vote": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_subgroup_ballot": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_subgroup_non_uniform_arithmetic": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_subgroup_shuffle": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_subgroup_shuffle_relative": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_subgroup_clustered_reduce": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_device_attribute_query": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_expect_assume": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_extended_bit_ops": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_suggested_local_work_size": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_split_work_group_barrier": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_int64_base_atomics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_int64_extended_atomics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_integer_dot_product": {
+                    "raw": 8388608,
+                    "version": "2.0.0"
+                },
+                "cl_intel_spirv_subgroups": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_spirv_linkonce_odr": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_spirv_no_integer_wrap_decoration": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_spirv_queries": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_unified_shared_memory": {
+                    "raw": 4202496,
+                    "version": "1.2.0"
+                },
+                "cl_ext_float_atomics": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_spirv_media_block_io": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_mipmap_image": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_mipmap_image_writes": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_external_memory": {
+                    "raw": 36865,
+                    "version": "0.9.1"
+                },
+                "cl_intel_planar_yuv": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_packed_yuv": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_image2d_from_buffer": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_depth_images": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_3d_image_writes": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_media_block_io": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_bfloat16_conversions": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_create_buffer_with_properties": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_subgroup_local_block_io": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_subgroup_matrix_multiply_accumulate": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_subgroup_split_matrix_multiply_accumulate": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_gl_sharing": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_gl_depth_images": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_gl_event": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_gl_msaa_sharing": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_intel_sharing_format_query": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                },
+                "cl_khr_pci_bus_info": {
+                    "raw": 4194304,
+                    "version": "1.0.0"
+                }
+            },
+            "CL_PLATFORM_NUMERIC_VERSION": {
+                "raw": 12582912,
+                "version": "3.0.0"
+            },
+            "CL_PLATFORM_ICD_SUFFIX_KHR": "INTEL",
+            "CL_PLATFORM_HOST_TIMER_RESOLUTION": 1,
+            "CL_PLATFORM_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR": [
+                "CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR"
+            ]
+        },
+        {
+            "CL_PLATFORM_NAME": "rusticl",
+            "CL_PLATFORM_VENDOR": "Mesa/X.org",
+            "CL_PLATFORM_VERSION": "OpenCL 3.0 ",
+            "CL_PLATFORM_PROFILE": "FULL_PROFILE",
+            "CL_PLATFORM_EXTENSIONS": "cl_khr_icd",
+            "CL_PLATFORM_EXTENSIONS_WITH_VERSION": {
+                "cl_khr_icd": {
+                    "raw": 8388608,
+                    "version": "2.0.0"
+                }
+            },
+            "CL_PLATFORM_NUMERIC_VERSION": {
+                "raw": 12582912,
+                "version": "3.0.0"
+            },
+            "CL_PLATFORM_ICD_SUFFIX_KHR": "MESA",
+            "CL_PLATFORM_HOST_TIMER_RESOLUTION": 1
+        }
+    ],
+    "devices": [
+        {
+            "online": [
+                {
+                    "CL_DEVICE_NAME": "Intel(R) Arc(TM) A380 Graphics",
+                    "CL_DEVICE_VENDOR": "Intel(R) Corporation",
+                    "CL_DEVICE_VENDOR_ID": 32902,
+                    "CL_DEVICE_VERSION": "OpenCL 3.0 NEO ",
+                    "CL_DEVICE_UUID_KHR": "8680a556-0500-0000-0a00-000000000000",
+                    "CL_DRIVER_UUID_KHR": "32352e34-382e-3336-3330-300000000000",
+                    "CL_DEVICE_LUID_VALID_KHR": false,
+                    "CL_DEVICE_LUID_KHR": "8061-e9e3fd7f0000",
+                    "CL_DEVICE_NODE_MASK_KHR": 0,
+                    "CL_DEVICE_NUMERIC_VERSION": {
+                        " raw ": 12582912,
+                        "version": "3.0.0"
+                    },
+                    "CL_DRIVER_VERSION": "25.48.36300",
+                    "CL_DEVICE_OPENCL_C_VERSION": "OpenCL C 1.2 ",
+                    "CL_DEVICE_OPENCL_C_ALL_VERSIONS": {
+                        "OpenCL C": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "OpenCL C": {
+                            "raw": 4198400,
+                            "version": "1.1.0"
+                        },
+                        "OpenCL C": {
+                            "raw": 4202496,
+                            "version": "1.2.0"
+                        },
+                        "OpenCL C": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        }
+                    },
+                    "CL_DEVICE_OPENCL_C_FEATURES": {
+                        "__opencl_c_int64": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_3d_image_writes": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_images": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_read_write_images": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_atomic_order_acq_rel": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_atomic_order_seq_cst": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_atomic_scope_all_devices": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_atomic_scope_device": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_generic_address_space": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_program_scope_global_variables": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_work_group_collective_functions": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_subgroups": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_ext_fp32_global_atomic_add": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_ext_fp32_local_atomic_add": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_ext_fp32_global_atomic_min_max": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_ext_fp32_local_atomic_min_max": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_ext_fp16_global_atomic_load_store": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_ext_fp16_local_atomic_load_store": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_ext_fp16_global_atomic_min_max": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_ext_fp16_local_atomic_min_max": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_integer_dot_product_input_4x8bit": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        },
+                        "__opencl_c_integer_dot_product_input_4x8bit_packed": {
+                            "raw": 12582912,
+                            "version": "3.0.0"
+                        }
+                    },
+                    "CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED": "v2025-04-14-00",
+                    "CL_DEVICE_TYPE": {
+                        "raw": 4,
+                        "type": [
+                            "CL_DEVICE_TYPE_GPU"
+                        ]
+                    },
+                    "CL_DEVICE_PCI_BUS_INFO_KHR": "PCI-E, 0000:0a:00.0",
+                    "CL_DEVICE_PROFILE": "FULL_PROFILE",
+                    "CL_DEVICE_AVAILABLE": true,
+                    "CL_DEVICE_COMPILER_AVAILABLE": true,
+                    "CL_DEVICE_LINKER_AVAILABLE": true,
+                    "CL_DEVICE_MAX_COMPUTE_UNITS": 128,
+                    "CL_DEVICE_MAX_CLOCK_FREQUENCY": 2450,
+                    "CL_DEVICE_IP_VERSION_INTEL": {
+                        " raw ": 51249157,
+                        "version": "12.224.5"
+                    },
+                    "CL_DEVICE_ID_INTEL": 22181,
+                    "CL_DEVICE_NUM_SLICES_INTEL": 1,
+                    "CL_DEVICE_NUM_SUB_SLICES_PER_SLICE_INTEL": 8,
+                    "CL_DEVICE_NUM_EUS_PER_SUB_SLICE_INTEL": 16,
+                    "CL_DEVICE_NUM_THREADS_PER_EU_INTEL": 8,
+                    "CL_DEVICE_FEATURE_CAPABILITIES_INTEL": {
+                        "raw": 3,
+                        "features_intel": [
+                            "CL_DEVICE_FEATURE_FLAG_DP4A_INTEL",
+                            "CL_DEVICE_FEATURE_FLAG_DPAS_INTEL"
+                        ]
+                    },
+                    "CL_DEVICE_PARTITION_MAX_SUB_DEVICES": 0,
+                    "CL_DEVICE_PARTITION_PROPERTIES": [
+                        "CL_NONE"
+                    ],
+                    "CL_DEVICE_PARTITION_AFFINITY_DOMAIN": {
+                        "raw": 0,
+                        "domain": []
+                    },
+                    "CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS": 3,
+                    "CL_DEVICE_MAX_WORK_ITEM_SIZES": [
+                        1024,
+                        1024,
+                        1024
+                    ],
+                    "CL_DEVICE_MAX_WORK_GROUP_SIZE": 1024,
+                    "CL_DEVICE_PREFERRED_WORK_GROUP_SIZE_MULTIPLE": 64,
+                    "CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE": 64,
+                    "CL_DEVICE_MAX_NUM_SUB_GROUPS": 128,
+                    "CL_DEVICE_SUB_GROUP_SIZES_INTEL": [
+                        8,
+                        16,
+                        32
+                    ],
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR": 16,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_CHAR": 16,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT": 8,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_SHORT": 8,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT": 4,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_INT": 4,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_LONG": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF": 8,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF": 8,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT": 1,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_FLOAT": 1,
+                    "CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE": 0,
+                    "CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE": 0,
+                    "CL_DEVICE_HALF_FP_CONFIG": {
+                        "raw": 63,
+                        "config": [
+                            "CL_FP_DENORM",
+                            "CL_FP_INF_NAN",
+                            "CL_FP_ROUND_TO_NEAREST",
+                            "CL_FP_ROUND_TO_ZERO",
+                            "CL_FP_ROUND_TO_INF",
+                            "CL_FP_FMA"
+                        ]
+                    },
+                    "CL_DEVICE_SINGLE_FP_CONFIG": {
+                        "raw": 191,
+                        "config": [
+                            "CL_FP_DENORM",
+                            "CL_FP_INF_NAN",
+                            "CL_FP_ROUND_TO_NEAREST",
+                            "CL_FP_ROUND_TO_ZERO",
+                            "CL_FP_ROUND_TO_INF",
+                            "CL_FP_FMA",
+                            "CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT"
+                        ]
+                    },
+                    "CL_DEVICE_ADDRESS_BITS": 64,
+                    "CL_DEVICE_ENDIAN_LITTLE": true,
+                    "CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR": [
+                        "CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR"
+                    ],
+                    "CL_DEVICE_GLOBAL_MEM_SIZE": 6064541696,
+                    "CL_DEVICE_ERROR_CORRECTION_SUPPORT": false,
+                    "CL_DEVICE_MAX_MEM_ALLOC_SIZE": 3032270848,
+                    "CL_DEVICE_HOST_UNIFIED_MEMORY": false,
+                    "CL_DEVICE_SVM_CAPABILITIES": {
+                        "raw": 1,
+                        "capabilities": [
+                            "CL_DEVICE_SVM_COARSE_GRAIN_BUFFER"
+                        ]
+                    },
+                    "CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL": {
+                        "raw": 1,
+                        "capabilities": [
+                            "CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL"
+                        ]
+                    },
+                    "CL_DEVICE_DEVICE_MEM_CAPABILITIES_INTEL": {
+                        "raw": 3,
+                        "capabilities": [
+                            "CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL",
+                            "CL_UNIFIED_SHARED_MEMORY_ATOMIC_ACCESS_INTEL"
+                        ]
+                    },
+                    "CL_DEVICE_SINGLE_DEVICE_SHARED_MEM_CAPABILITIES_INTEL": {
+                        "raw": 3,
+                        "capabilities": [
+                            "CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL",
+                            "CL_UNIFIED_SHARED_MEMORY_ATOMIC_ACCESS_INTEL"
+                        ]
+                    },
+                    "CL_DEVICE_CROSS_DEVICE_SHARED_MEM_CAPABILITIES_INTEL": {
+                        "raw": 3,
+                        "capabilities": [
+                            "CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL",
+                            "CL_UNIFIED_SHARED_MEMORY_ATOMIC_ACCESS_INTEL"
+                        ]
+                    },
+                    "CL_DEVICE_SHARED_SYSTEM_MEM_CAPABILITIES_INTEL": {
+                        "raw": 0,
+                        "capabilities": []
+                    },
+                    "CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE": 128,
+                    "CL_DEVICE_MEM_BASE_ADDR_ALIGN": 1024,
+                    "CL_DEVICE_PREFERRED_PLATFORM_ATOMIC_ALIGNMENT": 64,
+                    "CL_DEVICE_PREFERRED_GLOBAL_ATOMIC_ALIGNMENT": 64,
+                    "CL_DEVICE_PREFERRED_LOCAL_ATOMIC_ALIGNMENT": 64,
+                    "CL_DEVICE_ATOMIC_MEMORY_CAPABILITIES": {
+                        "raw": 119,
+                        "capabilities": [
+                            "CL_DEVICE_ATOMIC_ORDER_RELAXED",
+                            "CL_DEVICE_ATOMIC_ORDER_ACQ_REL",
+                            "CL_DEVICE_ATOMIC_ORDER_SEQ_CST",
+                            "CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP",
+                            "CL_DEVICE_ATOMIC_SCOPE_DEVICE",
+                            "CL_DEVICE_ATOMIC_SCOPE_ALL_DEVICES"
+                        ]
+                    },
+                    "CL_DEVICE_ATOMIC_FENCE_CAPABILITIES": {
+                        "raw": 127,
+                        "capabilities": [
+                            "CL_DEVICE_ATOMIC_ORDER_RELAXED",
+                            "CL_DEVICE_ATOMIC_ORDER_ACQ_REL",
+                            "CL_DEVICE_ATOMIC_ORDER_SEQ_CST",
+                            "CL_DEVICE_ATOMIC_SCOPE_WORK_ITEM",
+                            "CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP",
+                            "CL_DEVICE_ATOMIC_SCOPE_DEVICE",
+                            "CL_DEVICE_ATOMIC_SCOPE_ALL_DEVICES"
+                        ]
+                    },
+                    "CL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE": 65536,
+                    "CL_DEVICE_GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE": 3032270848,
+                    "CL_DEVICE_GLOBAL_MEM_CACHE_TYPE": "CL_READ_WRITE_CACHE",
+                    "CL_DEVICE_GLOBAL_MEM_CACHE_SIZE": 4194304,
+                    "CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE": 64,
+                    "CL_DEVICE_IMAGE_SUPPORT": true,
+                    "CL_DEVICE_MAX_SAMPLERS": 16,
+                    "CL_DEVICE_IMAGE_MAX_BUFFER_SIZE": 189516928,
+                    "CL_DEVICE_IMAGE_MAX_ARRAY_SIZE": 2048,
+                    "CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT": 4,
+                    "CL_DEVICE_IMAGE_PITCH_ALIGNMENT": 4,
+                    "CL_DEVICE_IMAGE2D_MAX_HEIGHT": 16384,
+                    "CL_DEVICE_IMAGE2D_MAX_WIDTH": 16384,
+                    "CL_DEVICE_PLANAR_YUV_MAX_HEIGHT_INTEL": 16128,
+                    "CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL": 16384,
+                    "CL_DEVICE_IMAGE3D_MAX_HEIGHT": 16384,
+                    "CL_DEVICE_IMAGE3D_MAX_WIDTH": 16384,
+                    "CL_DEVICE_IMAGE3D_MAX_DEPTH": 2048,
+                    "CL_DEVICE_MAX_READ_IMAGE_ARGS": 128,
+                    "CL_DEVICE_MAX_WRITE_IMAGE_ARGS": 128,
+                    "CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS": 128,
+                    "CL_DEVICE_PIPE_SUPPORT": false,
+                    "CL_DEVICE_MAX_PIPE_ARGS": 0,
+                    "CL_DEVICE_PIPE_MAX_ACTIVE_RESERVATIONS": 0,
+                    "CL_DEVICE_PIPE_MAX_PACKET_SIZE": 0,
+                    "CL_DEVICE_LOCAL_MEM_TYPE": "CL_LOCAL",
+                    "CL_DEVICE_LOCAL_MEM_SIZE": 65536,
+                    "CL_DEVICE_MAX_CONSTANT_ARGS": 8,
+                    "CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE": 3032270848,
+                    "CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT": true,
+                    "CL_DEVICE_MAX_PARAMETER_SIZE": 2048,
+                    "CL_DEVICE_QUEUE_ON_HOST_PROPERTIES": {
+                        "raw": 3,
+                        "queue_prop": [
+                            "CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE",
+                            "CL_QUEUE_PROFILING_ENABLE"
+                        ]
+                    },
+                    "CL_DEVICE_DEVICE_ENQUEUE_CAPABILITIES": {
+                        "raw": 0,
+                        "capabilities": []
+                    },
+                    "CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES": {
+                        "raw": 0,
+                        "queue_prop": []
+                    },
+                    "CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE": 0,
+                    "CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE": 0,
+                    "CL_DEVICE_MAX_ON_DEVICE_QUEUES": 0,
+                    "CL_DEVICE_MAX_ON_DEVICE_EVENTS": 0,
+                    "CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL": {
+                        "ccs": {
+                            "count": 1,
+                            "proprerties": {
+                                "raw": 3,
+                                "properties": [
+                                    "CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE",
+                                    "CL_QUEUE_PROFILING_ENABLE"
+                                ]
+                            },
+                            "capabilities": {
+                                "raw": 3,
+                                "capabilities": [
+                                    "CL_QUEUE_CAPABILITY_CREATE_SINGLE_QUEUE_EVENTS_INTEL",
+                                    "CL_QUEUE_CAPABILITY_CREATE_CROSS_QUEUE_EVENTS_INTEL"
+                                ]
+                            }
+                        },
+                        "bcs": {
+                            "count": 1,
+                            "proprerties": {
+                                "raw": 3,
+                                "properties": [
+                                    "CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE",
+                                    "CL_QUEUE_PROFILING_ENABLE"
+                                ]
+                            },
+                            "capabilities": {
+                                "raw": 3,
+                                "capabilities": [
+                                    "CL_QUEUE_CAPABILITY_CREATE_SINGLE_QUEUE_EVENTS_INTEL",
+                                    "CL_QUEUE_CAPABILITY_CREATE_CROSS_QUEUE_EVENTS_INTEL"
+                                ]
+                            }
+                        }
+                    },
+                    "CL_DEVICE_PREFERRED_INTEROP_USER_SYNC": true,
+                    "CL_DEVICE_PROFILING_TIMER_RESOLUTION": 52,
+                    "CL_DEVICE_EXECUTION_CAPABILITIES": {
+                        "raw": 1,
+                        "type": [
+                            "CL_EXEC_KERNEL"
+                        ]
+                    },
+                    "CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT": true,
+                    "CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT": true,
+                    "CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS": false,
+                    "CL_DEVICE_IL_VERSION": "SPIR-V_1.5 SPIR-V_1.4 SPIR-V_1.3 SPIR-V_1.2 SPIR-V_1.1 SPIR-V_1.0 ",
+                    "CL_DEVICE_ILS_WITH_VERSION": {
+                        "SPIR-V": {
+                            "raw": 4214784,
+                            "version": "1.5.0"
+                        },
+                        "SPIR-V": {
+                            "raw": 4210688,
+                            "version": "1.4.0"
+                        },
+                        "SPIR-V": {
+                            "raw": 4206592,
+                            "version": "1.3.0"
+                        },
+                        "SPIR-V": {
+                            "raw": 4202496,
+                            "version": "1.2.0"
+                        },
+                        "SPIR-V": {
+                            "raw": 4198400,
+                            "version": "1.1.0"
+                        },
+                        "SPIR-V": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        }
+                    },
+                    "CL_DEVICE_PRINTF_BUFFER_SIZE": 4194304,
+                    "CL_DEVICE_BUILT_IN_KERNELS": "",
+                    "CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION": {},
+                    "CL_DEVICE_EXTENSIONS": "cl_khr_byte_addressable_store cl_khr_device_uuid cl_khr_fp16 cl_khr_global_int32_base_atomics cl_khr_global_int32_extended_atomics cl_khr_icd cl_khr_local_int32_base_atomics cl_khr_local_int32_extended_atomics cl_intel_command_queue_families cl_intel_subgroups cl_intel_required_subgroup_size cl_intel_subgroups_short cl_intel_accelerator cl_intel_driver_diagnostics cl_khr_priority_hints cl_khr_throttle_hints cl_khr_create_command_queue cl_intel_subgroups_char cl_intel_subgroups_long cl_khr_il_program cl_intel_mem_force_host_memory cl_khr_subgroup_extended_types cl_khr_subgroup_non_uniform_vote cl_khr_subgroup_ballot cl_khr_subgroup_non_uniform_arithmetic cl_khr_subgroup_shuffle cl_khr_subgroup_shuffle_relative cl_khr_subgroup_clustered_reduce cl_intel_device_attribute_query cl_khr_expect_assume cl_khr_extended_bit_ops cl_khr_suggested_local_work_size cl_intel_split_work_group_barrier cl_khr_int64_base_atomics cl_khr_int64_extended_atomics cl_khr_integer_dot_product cl_intel_spirv_subgroups cl_khr_spirv_linkonce_odr cl_khr_spirv_no_integer_wrap_decoration cl_khr_spirv_queries cl_intel_unified_shared_memory cl_ext_float_atomics cl_intel_spirv_media_block_io cl_khr_mipmap_image cl_khr_mipmap_image_writes cl_khr_external_memory cl_intel_planar_yuv cl_intel_packed_yuv cl_khr_image2d_from_buffer cl_khr_depth_images cl_khr_3d_image_writes cl_intel_media_block_io cl_intel_bfloat16_conversions cl_intel_create_buffer_with_properties cl_intel_subgroup_local_block_io cl_intel_subgroup_matrix_multiply_accumulate cl_intel_subgroup_split_matrix_multiply_accumulate cl_khr_gl_sharing cl_khr_gl_depth_images cl_khr_gl_event cl_khr_gl_msaa_sharing cl_intel_sharing_format_query cl_khr_pci_bus_info ",
+                    "CL_DEVICE_EXTENSIONS_WITH_VERSION": {
+                        "cl_khr_byte_addressable_store": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_device_uuid": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_fp16": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_global_int32_base_atomics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_global_int32_extended_atomics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_icd": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_local_int32_base_atomics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_local_int32_extended_atomics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_command_queue_families": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_subgroups": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_required_subgroup_size": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_subgroups_short": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_accelerator": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_driver_diagnostics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_priority_hints": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_throttle_hints": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_create_command_queue": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_subgroups_char": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_subgroups_long": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_il_program": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_mem_force_host_memory": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_subgroup_extended_types": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_subgroup_non_uniform_vote": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_subgroup_ballot": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_subgroup_non_uniform_arithmetic": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_subgroup_shuffle": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_subgroup_shuffle_relative": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_subgroup_clustered_reduce": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_device_attribute_query": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_expect_assume": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_extended_bit_ops": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_suggested_local_work_size": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_split_work_group_barrier": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_int64_base_atomics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_int64_extended_atomics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_integer_dot_product": {
+                            "raw": 8388608,
+                            "version": "2.0.0"
+                        },
+                        "cl_intel_spirv_subgroups": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_spirv_linkonce_odr": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_spirv_no_integer_wrap_decoration": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_spirv_queries": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_unified_shared_memory": {
+                            "raw": 4202496,
+                            "version": "1.2.0"
+                        },
+                        "cl_ext_float_atomics": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_spirv_media_block_io": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_mipmap_image": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_mipmap_image_writes": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_external_memory": {
+                            "raw": 36865,
+                            "version": "0.9.1"
+                        },
+                        "cl_intel_planar_yuv": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_packed_yuv": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_image2d_from_buffer": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_depth_images": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_3d_image_writes": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_media_block_io": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_bfloat16_conversions": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_create_buffer_with_properties": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_subgroup_local_block_io": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_subgroup_matrix_multiply_accumulate": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_subgroup_split_matrix_multiply_accumulate": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_gl_sharing": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_gl_depth_images": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_gl_event": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_gl_msaa_sharing": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_intel_sharing_format_query": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        },
+                        "cl_khr_pci_bus_info": {
+                            "raw": 4194304,
+                            "version": "1.0.0"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "online": []
+        }
+    ],
+    "icd_loader": {
+        "CL_ICDL_NAME": "OpenCL ICD Loader",
+        "CL_ICDL_VENDOR": "OCL Icd free software",
+        "CL_ICDL_VERSION": "2.3.4",
+        "CL_ICDL_OCL_VERSION": "OpenCL 3.0",
+        "_detected_version": "3.0"
+    }
+}

@@ -13,7 +13,7 @@ use crate::{
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{anyhow, bail, Context};
 use driver::DriverHandle;
-use futures::{future::LocalBoxFuture, FutureExt};
+use futures::{future::LocalBoxFuture, join, FutureExt};
 use indexmap::IndexMap;
 use lact_schema::{
     config::{FanControlSettings, FanCurve, GpuConfig},
@@ -368,10 +368,15 @@ impl GpuController for NvidiaGpuController {
 
     fn get_info(&self, unique_vendor: bool) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
+            let (vulkan_result, opencl_instances) = join!(
+                get_vulkan_info(&self.common),
+                get_opencl_info(&self.common, unique_vendor)
+            );
+            let vulkan_instances = vulkan_result.unwrap_or_else(|err| {
                 warn!("could not load vulkan info: {err:#}");
                 vec![]
             });
+
             let device = self.device();
             let driver_handle = self.driver_handle.as_ref();
 
@@ -411,7 +416,7 @@ impl GpuController for NvidiaGpuController {
                             output
                         }),
                 },
-                opencl_info: get_opencl_info(&self.common, unique_vendor),
+                opencl_instances,
                 drm_info: Some(DrmInfo {
                     device_name: device.name().ok(),
                     pci_revision_id: None,

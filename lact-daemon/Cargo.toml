@@ -46,9 +46,6 @@ os-release = "0.1.0"
 notify = { version = "8.0.0", default-features = false }
 libcopes = "1.0.0"
 libloading = "0.8.6"
-cl3 = { git = "https://github.com/kenba/cl3", branch = "develop", features = [
-    "static",
-] }
 
 ureq = { version = "3.1.2", features = ["json", "rustls"] }
 

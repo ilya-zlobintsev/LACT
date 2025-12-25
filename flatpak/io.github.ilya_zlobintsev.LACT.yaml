@@ -60,6 +60,35 @@ modules:
                   project-id: 88835
                   url-template: https://github.com/KhronosGroup/Vulkan-Headers/archive/v$version/Vulkan-Headers-v$version.tar.gz
 
+
+  - name: clinfo
+    no-autogen: true
+    no-make-install: true
+    build-commands:
+      - make -j$FLATPAK_BUILDER_N_JOBS PREFIX=$FLATPAK_DEST install
+      - chmod 755 $FLATPAK_DEST/bin/clinfo
+    sources:
+      - type: archive
+        url: https://github.com/Oblomov/clinfo/archive/3.0.25.02.14/clinfo-3.0.25.02.14.tar.gz
+        sha256: 48b77dc33315e6f760791a2984f98ea4bff28504ff37d460d8291585f49fcd3a
+        x-checker-data:
+          type: anitya
+          project-id: 10503
+          url-template: https://github.com/Oblomov/clinfo/archive/$version/clinfo-$version.tar.gz
+    modules:
+      - name: opencl-headers
+        buildsystem: cmake-ninja
+        config-opts:
+          - -DCMAKE_INSTALL_DATADIR=/app/lib
+        sources:
+          - type: archive
+            url: https://github.com/KhronosGroup/OpenCL-Headers/archive/v2025.07.22/OpenCL-Headers-v2025.07.22.tar.gz
+            sha256: 98f0a3ea26b4aec051e533cb1750db2998ab8e82eda97269ed6efe66ec94a240
+            x-checker-data:
+              type: anitya
+              project-id: 223257
+              url-template: https://github.com/KhronosGroup/OpenCL-Headers/archive/v$version/OpenCL-Headers-v$version.tar.gz
+
   - name: flatbox
     buildsystem: simple
     build-commands:

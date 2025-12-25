@@ -105,6 +105,7 @@ mod imp {
                 obj {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_hexpand: true,
+                    set_spacing: 50,
 
                     append: name_label = &gtk::Label {
                         set_halign: gtk::Align::Start,
