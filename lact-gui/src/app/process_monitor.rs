@@ -252,8 +252,8 @@ impl RelmColumn for NameColumn {
         let label = gtk::Label::builder()
             .halign(gtk::Align::Start)
             .use_markup(true)
+            .single_line_mode(true)
             .ellipsize(pango::EllipsizeMode::End)
-            .max_width_chars(70)
             .build();
 
         (label, ())
