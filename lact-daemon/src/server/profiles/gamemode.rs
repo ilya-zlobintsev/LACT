@@ -108,7 +108,8 @@ impl GameModeConnector {
                 .arg(INTERFACE_NAME)
                 .arg("/com/feralinteractive/GameMode")
                 .arg(INTERFACE_NAME)
-                .arg("ListGames");
+                .arg("ListGames")
+                .kill_on_drop(true);
             debug!("running {cmd:?}");
             let output = cmd.output().await?;
             let response: GamesResponse =
@@ -140,6 +141,7 @@ impl GameModeConnector {
                 .arg("--match")
                 .arg(format!("sender={INTERFACE_NAME},type=signal"))
                 .stdout(Stdio::piped())
+                .kill_on_drop(true)
                 .spawn()?;
 
             let stdout = child.stdout.take().context("No child stdout")?;
