@@ -8,6 +8,8 @@ pub const MAX_STATS_POLL_INTERVAL_MS: i64 = 5000;
 
 #[derive(Serialize, Deserialize)]
 pub struct UiConfig {
+    #[serde(default = "default_tab")]
+    pub selected_tab: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selected_gpu: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -26,6 +28,7 @@ pub struct UiConfig {
 impl Default for UiConfig {
     fn default() -> Self {
         Self {
+            selected_tab: default_tab(),
             selected_gpu: None,
             plots_time_period: None,
             plots_per_row: None,
@@ -101,4 +104,8 @@ fn default_stats_poll_interval() -> i64 {
 fn deserialize_poll_interval<'de, D: Deserializer<'de>>(deserializer: D) -> Result<i64, D::Error> {
     let value = i64::deserialize(deserializer)?;
     Ok(value.clamp(MIN_STATS_POLL_INTERVAL_MS, MAX_STATS_POLL_INTERVAL_MS))
+}
+
+fn default_tab() -> String {
+    "info_page".to_owned()
 }
