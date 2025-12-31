@@ -311,6 +311,7 @@ expression: device_info
         "VCLK": 25,
         "VCLK1": 25
       },
+      "target_gpu_clockspeed": 1200,
       "vram_clockspeed": 96
     },
     "core_power_state": 1,

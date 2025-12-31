@@ -459,6 +459,8 @@ impl AmdGpuController {
 
         let mut sensors = HashMap::new();
 
+        let mut target_gpu_clockspeed = None;
+
         if let Some(metrics) = metrics {
             for (label, value) in [
                 ("DCLK", metrics.get_current_dclk()),
@@ -475,22 +477,19 @@ impl AmdGpuController {
                     }
                 }
             }
+
+            target_gpu_clockspeed = metrics
+                .get_current_gfxclk()
+                .filter(|value| *value != u16::MAX)
+                .map(u64::from);
         }
 
         ClockspeedStats {
             gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
-            target_gpu_clockspeed: self.get_current_gfxclk(),
+            target_gpu_clockspeed,
             vram_clockspeed,
             sensors,
         }
-    }
-
-    fn get_current_gfxclk(&self) -> Option<u64> {
-        self.drm_handle
-            .as_ref()
-            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
-            .and_then(|metrics| metrics.get_current_gfxclk())
-            .map(u64::from)
     }
 
     fn get_full_vbios_version(&self) -> Option<String> {

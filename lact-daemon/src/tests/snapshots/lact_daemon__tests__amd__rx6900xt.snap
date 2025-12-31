@@ -475,6 +475,7 @@ expression: device_info
         "SOCCLK": 800,
         "UCLK": 1000
       },
+      "target_gpu_clockspeed": 500,
       "vram_clockspeed": 1000
     },
     "core_power_state": 0,
