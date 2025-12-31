@@ -140,6 +140,16 @@ impl AsyncComponent for AppModel {
                         add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
                         add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
                         add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
+
+                        set_visible_child_name: &CONFIG.read().selected_tab,
+                        connect_visible_child_name_notify => move |stack| {
+                            if let Some(name) = stack.visible_child_name() {
+                                let name = name.to_string();
+                                CONFIG.write().edit(|config| {
+                                    config.selected_tab = name;
+                                });
+                            }
+                        },
                     },
 
                     model.apply_revealer.widget(),
