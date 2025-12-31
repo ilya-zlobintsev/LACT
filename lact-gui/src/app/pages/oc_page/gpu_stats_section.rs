@@ -152,7 +152,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             format!(
                                 "<b>{}/{} {}</b>",
                                 Mono::float(power_current.unwrap_or(0.0), 1),
-                                Mono::float(cap, 1),
+                                Mono::float(cap, 0),
                                 fl!(I18N, "watt")
                             )
                         } else {
