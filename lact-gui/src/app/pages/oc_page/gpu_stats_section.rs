@@ -148,12 +148,21 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             .filter(|value| *value != 0.0)
                             .or(power_average);
 
-                        format!(
-                            "<b>{}/{} {}</b>",
-                            Mono::float(power_current.unwrap_or(0.0), 1),
-                            Mono::float(power_cap_current.unwrap_or(0.0), 1),
-                            fl!(I18N, "watt")
-                        )
+                        if let Some(cap) = power_cap_current {
+                            format!(
+                                "<b>{}/{} {}</b>",
+                                Mono::float(power_current.unwrap_or(0.0), 1),
+                                Mono::float(cap, 1),
+                                fl!(I18N, "watt")
+                            )
+                        } else {
+                            format!(
+                                "<b>{} {}</b>",
+                                Mono::float(power_current.unwrap_or(0.0), 1),
+                                fl!(I18N, "watt")
+                            )
+                        }
+
                     },
                     set_spacing: 40,
                 } -> power_usage_item: gtk::FlowBoxChild {
