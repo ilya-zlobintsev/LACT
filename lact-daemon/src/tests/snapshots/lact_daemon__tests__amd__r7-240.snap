@@ -1,0 +1,87 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": null,
+  "info": {
+    "driver": "amdgpu",
+    "drm_info": {
+      "vram_clock_ratio": 1.0
+    },
+    "flags": [
+      "DumpableVBios",
+      "ConfigurableFanControl"
+    ],
+    "link_info": {
+      "current_speed": "5.0 GT/s PCIe",
+      "current_width": "4",
+      "max_speed": "8.0 GT/s PCIe",
+      "max_width": "8"
+    },
+    "pci_info": {
+      "device_pci_info": {
+        "model": "Oland LE [Radeon R7 240]",
+        "model_id": "6617",
+        "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+        "vendor_id": "1002"
+      },
+      "subsystem_pci_info": {
+        "model_id": "012F",
+        "vendor": "Hightech Information System Ltd.",
+        "vendor_id": "1787"
+      }
+    },
+    "vbios_version": "13-C86901_216",
+    "vulkan_instances": []
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "Oland LE [Radeon R7 240]",
+      "model_id": "6617",
+      "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "vendor_id": "1002"
+    },
+    "subsystem_pci_info": {
+      "model_id": "012F",
+      "vendor": "Hightech Information System Ltd.",
+      "vendor_id": "1787"
+    }
+  },
+  "power_profile_modes": null,
+  "power_states": {
+    "core": [],
+    "vram": []
+  },
+  "stats": {
+    "clockspeed": {
+      "gpu_clockspeed": 400,
+      "sensors": {},
+      "vram_clockspeed": 1150
+    },
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {},
+      "pwm_current": 103,
+      "pwm_max": 255,
+      "pwm_min": 0
+    },
+    "performance_level": "auto",
+    "power": {},
+    "temps": {
+      "edge": {
+        "crit": 120.0,
+        "crit_hyst": 90.0,
+        "current": 52.0,
+        "display_only": false
+      }
+    },
+    "voltage": {
+      "sensors": {}
+    },
+    "vram": {
+      "total": 2147483648,
+      "used": 495321088
+    }
+  }
+}
