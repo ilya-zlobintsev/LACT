@@ -20,7 +20,7 @@ if [ ! -e "${DAEMON_SOCKET}" ]; then
         YAD_OUTPUT=$(yad --title="LACT Flatpak Setup" \
         --text="The LACT system service could not be found.
 In order to edit GPU settings, LACT requires a service to be running as root.
-Thissetup will install <u><tt>lactd.service</tt></u> outside of the Flatpak sandbox.
+This setup will install <u><tt>lactd.service</tt></u> outside of the Flatpak sandbox.
 
 It is possible to skip this step if you wish to use LACT only for information and monitoring.
 
