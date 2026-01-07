@@ -153,7 +153,7 @@ impl RelmListItem for VulkanFeature {
         widgets.label.set_label(&self.name);
 
         let icon = match self.supported {
-            true => "emblem-ok-symbolic",
+            true => "object-select-symbolic",
             false => "action-unavailable-symbolic",
         };
         widgets.image.set_icon_name(Some(icon));
