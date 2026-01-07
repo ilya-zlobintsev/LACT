@@ -182,6 +182,8 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     #[watch]
                     set_value: fan_speed_text(&model.stats).unwrap_or_else(|| fl!(I18N, "missing-stat")),
                     set_spacing: 40,
+                    #[watch]
+                    set_visible: model.stats.fan.pwm_current.is_some(),
                 },
             },
 
