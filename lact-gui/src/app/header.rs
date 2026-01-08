@@ -134,7 +134,7 @@ impl Component for Header {
                                     },
 
                                     gtk::Button {
-                                        set_icon_name: "document-import-symbolic",
+                                        set_icon_name: "folder-open-symbolic",
                                         set_tooltip: &fl!(I18N, "import-profile"),
                                         set_expand: true,
                                         connect_clicked => HeaderMsg::ImportProfile,
