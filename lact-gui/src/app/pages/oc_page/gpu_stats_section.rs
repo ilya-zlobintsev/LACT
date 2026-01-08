@@ -177,13 +177,14 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_spacing: 40,
                 },
 
-                append = &InfoRow {
+                append_child = &InfoRow {
                     set_name: fl!(I18N, "fan-speed"),
                     #[watch]
                     set_value: fan_speed_text(&model.stats).unwrap_or_else(|| fl!(I18N, "missing-stat")),
                     set_spacing: 40,
+                } -> fan_speed_item: gtk::FlowBoxChild {
                     #[watch]
-                    set_visible: model.stats.fan.pwm_current.is_some(),
+                    set_visible: model.stats.fan.pwm_current.is_some() || model.stats.fan.speed_current.is_some(),
                 },
             },
 
