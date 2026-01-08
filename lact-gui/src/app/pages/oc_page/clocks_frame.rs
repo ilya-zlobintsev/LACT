@@ -52,8 +52,7 @@ impl relm4::Component for ClocksFrame {
             append_header = &gtk::Button {
                 set_label: &fl!(I18N, "reset-button"),
                 set_tooltip_text: Some(&fl!(I18N, "reset-oc-tooltip")),
-
-                set_css_classes: &["suggested-action"],
+                
                 set_halign: gtk::Align::End,
                 set_hexpand: true,
 

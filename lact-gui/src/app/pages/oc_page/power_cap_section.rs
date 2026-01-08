@@ -43,7 +43,6 @@ impl relm4::Component for PowerCapSection {
                     set_label: &fl!(I18N, "reset-button"),
                     connect_clicked => PowerCapMsg::Reset,
 
-                    set_css_classes: &["suggested-action"],
                     set_halign: gtk::Align::End,
                     set_hexpand: true,
             },
