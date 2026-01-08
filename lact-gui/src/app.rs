@@ -136,9 +136,9 @@ impl AsyncComponent for AppModel {
 
                         add_binding: (&model.ui_sensitive, "sensitive"),
 
-                        add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
                         add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
                         add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
+                        add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
                         add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
                     },
 
