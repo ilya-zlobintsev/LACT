@@ -67,7 +67,7 @@ mod imp {
                 obj {
                     set_orientation: gtk::Orientation::Vertical,
                     set_spacing: 10,
-                    set_margin_horizontal: 5,
+                    set_margin_horizontal: 15,
 
                     #[local_ref]
                     append = header_box {
