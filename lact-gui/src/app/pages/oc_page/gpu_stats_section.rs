@@ -31,19 +31,18 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 set_homogeneous: true,
                 set_min_children_per_line: 2,
                 set_selection_mode: gtk::SelectionMode::None,
+                add_css_class: "card",
 
                 append = &InfoRow {
                     set_name: fl!(I18N, "device-name"),
                     #[watch]
                     set_value: model.gpu_model.clone(),
-                    set_spacing: 40,
                 },
 
                 append = &InfoRow {
                     set_name: fl!(I18N, "throttling"),
                     #[watch]
                     set_value: throttling_text(&model.stats),
-                    set_spacing: 40,
                 },
 
                 append_child = &InfoRow {
@@ -58,7 +57,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     },
                     #[watch]
                     set_value: format_clockspeed(model.stats.clockspeed.gpu_clockspeed, 1.0),
-                    set_spacing: 40,
                 } -> clockspeed_item: gtk::FlowBoxChild {
                     #[watch]
                     set_visible: model.stats.clockspeed.gpu_clockspeed.is_some(),
@@ -68,7 +66,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_name: fl!(I18N, "gpu-clock-target"),
                     #[watch]
                     set_value: format_current_gfxclk(model.stats.clockspeed.target_gpu_clockspeed),
-                    set_spacing: 40,
                 } -> clockspeed_target_item: gtk::FlowBoxChild {
                     #[watch]
                     set_visible: model.stats.clockspeed.target_gpu_clockspeed.is_some(),
@@ -81,7 +78,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         model.stats.clockspeed.vram_clockspeed,
                         model.vram_clock_ratio,
                     ),
-                    set_spacing: 40,
                 } -> vram_clock_item: gtk::FlowBoxChild {
                     #[watch]
                     set_visible: model.stats.clockspeed.vram_clockspeed.is_some(),
@@ -91,7 +87,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_name: fl!(I18N, "gpu-voltage"),
                     #[watch]
                     set_value: format!("{} V", Mono::float(model.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64, 3)),
-                    set_spacing: 40,
                 } -> gpu_voltage_item: gtk::FlowBoxChild {
                     #[watch]
                     set_visible: model.stats.voltage.gpu.is_some(),
@@ -128,7 +123,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         }
 
                     },
-                    set_spacing: 40,
                 } -> power_usage_item: gtk::FlowBoxChild {
                     #[watch]
                     set_visible: model.stats.power.average.is_some() || model.stats.power.current.is_some(),
@@ -138,7 +132,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_name: fl!(I18N, "gpu-usage"),
                     #[watch]
                     set_value: format!("{}%", Mono::uint(model.stats.busy_percent.unwrap_or(0))),
-                    set_spacing: 40,
                 } -> gpu_usage_item: gtk::FlowBoxChild {
                     #[watch]
                     set_visible: model.stats.busy_percent.is_some(),
@@ -183,14 +176,12 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_name: fl!(I18N, "gpu-temp"),
                     #[watch]
                     set_value: temperature_text(&model.stats).unwrap_or_else(|| "N/A".to_owned()),
-                    set_spacing: 40,
                 },
 
                 append_child = &InfoRow {
                     set_name: fl!(I18N, "fan-speed"),
                     #[watch]
                     set_value: fan_speed_text(&model.stats).unwrap_or_else(|| fl!(I18N, "missing-stat")),
-                    set_spacing: 40,
                 } -> fan_speed_item: gtk::FlowBoxChild {
                     #[watch]
                     set_visible: model.stats.fan.pwm_current.is_some() || model.stats.fan.speed_current.is_some(),

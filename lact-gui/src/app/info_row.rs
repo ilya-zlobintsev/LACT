@@ -103,41 +103,46 @@ mod imp {
             view! {
                 #[local_ref]
                 obj {
-                    set_orientation: gtk::Orientation::Horizontal,
+                    set_orientation: gtk::Orientation::Vertical,
                     set_hexpand: true,
-                    set_spacing: 50,
+                    set_spacing: 4,
 
                     append: name_label = &gtk::Label {
                         set_halign: gtk::Align::Start,
-                        set_hexpand: true,
+                        add_css_class: "caption",
+                        add_css_class: "dim-label",
                     },
 
-                    append: info_menubutton = &gtk::MenuButton {
-                        set_icon_name: "dialog-information-symbolic",
-                        set_margin_horizontal: 5,
+                    append = &gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 5,
 
-                        #[wrap(Some)]
-                        set_popover = &gtk::Popover {
-                            #[name(info_text_popover)]
-                            Label {
-                                set_wrap: true,
-                                set_wrap_mode: pango::WrapMode::Word,
-                                set_max_width_chars: 55,
-                            }
+                        append: value_label = &gtk::Label {
+                            set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
+                            set_halign: gtk::Align::Start,
+                            set_use_markup: true,
+                            set_ellipsize: pango::EllipsizeMode::End,
+                        },
+
+                        append: info_menubutton = &gtk::MenuButton {
+                            set_icon_name: "dialog-information-symbolic",
+                            set_margin_horizontal: 5,
+
+                            #[wrap(Some)]
+                            set_popover = &gtk::Popover {
+                                #[name(info_text_popover)]
+                                Label {
+                                    set_wrap: true,
+                                    set_wrap_mode: pango::WrapMode::Word,
+                                    set_max_width_chars: 55,
+                                }
+                            },
                         },
                     },
-
-                    append: value_label = &gtk::Label {
-                        set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
-                        set_halign: gtk::Align::End,
-                        set_use_markup: true,
-                        set_ellipsize: pango::EllipsizeMode::End,
-                    }
                 }
             }
 
             obj.bind_property("name", &name_label, "label")
-                .transform_to(|_, value: &str| Some(format!("{value}:")))
                 .sync_create()
                 .build();
 
