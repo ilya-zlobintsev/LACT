@@ -125,8 +125,6 @@ impl relm4::Component for ThermalsPage {
                         set_name: fl!(I18N, "fan-speed"),
                         #[watch]
                         set_value: model.fan_speed.as_deref().unwrap_or("No fan detected"),
-                        #[watch]
-                        set_visible: model.fan_speed.is_some(),
                     },
 
                     append = &InfoRow {
