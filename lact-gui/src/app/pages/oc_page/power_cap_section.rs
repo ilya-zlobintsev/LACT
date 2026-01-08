@@ -41,10 +41,14 @@ impl relm4::Component for PowerCapSection {
         PageSection::new(&fl!(I18N, "power-cap")) {
             append = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
+                add_css_class: "card",
+                set_spacing: 10,
 
                 gtk::Label {
                     #[watch]
                     set_label: &model.value_text,
+                    set_margin_start: 10,
+                    set_margin_vertical: 10,
                 },
 
                 gtk::Scale {
@@ -54,11 +58,14 @@ impl relm4::Component for PowerCapSection {
                     set_margin_horizontal: 5,
                     set_draw_value: false,
                     set_adjustment: adjustment,
+                    set_margin_vertical: 10,
                 },
 
                 gtk::Button {
                     set_label: &fl!(I18N, "reset-button"),
                     connect_clicked => PowerCapMsg::Reset,
+                    set_margin_end: 10,
+                    set_margin_vertical: 10,
                 },
             }
         },
