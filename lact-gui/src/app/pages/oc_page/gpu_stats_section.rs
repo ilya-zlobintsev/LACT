@@ -14,6 +14,7 @@ use std::{fmt::Write, sync::Arc};
 pub struct GpuStatsSection {
     stats: Arc<DeviceStats>,
     vram_clock_ratio: f64,
+    gpu_model: String,
 }
 
 #[relm4::component(pub)]
@@ -24,46 +25,26 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
     view! {
         PageSection::new(&fl!(I18N, "stats-section")) {
-            append = &gtk::Box {
-                set_orientation: gtk::Orientation::Horizontal,
-                set_spacing: 5,
-
-                gtk::Label {
-                    set_label: &fl!(I18N, "vram-usage"),
-                },
-
-                gtk::Overlay {
-                    gtk::LevelBar {
-                        set_hexpand: true,
-                        set_orientation: gtk::Orientation::Horizontal,
-                        #[watch]
-                        set_value: model
-                            .stats
-                            .vram
-                            .used
-                            .zip(model.stats.vram.total)
-                            .map(|(used, total)| used as f64 / total as f64)
-                            .unwrap_or(0.0),
-                    },
-
-                    add_overlay = &gtk::Label {
-                        #[watch]
-                        set_label: &format!(
-                            "{}/{} {}",
-                            model.stats.vram.used.unwrap_or(0) / 1024 / 1024,
-                            model.stats.vram.total.unwrap_or(0) / 1024 / 1024,
-                            fl!(I18N, "mebibyte")
-                        ),
-                    }
-                },
-            },
-
             append = &gtk::FlowBox {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_column_spacing: 10,
                 set_homogeneous: true,
                 set_min_children_per_line: 2,
                 set_selection_mode: gtk::SelectionMode::None,
+
+                append = &InfoRow {
+                    set_name: fl!(I18N, "device-name"),
+                    #[watch]
+                    set_value: model.gpu_model.clone(),
+                    set_spacing: 40,
+                },
+
+                append = &InfoRow {
+                    set_name: fl!(I18N, "throttling"),
+                    #[watch]
+                    set_value: throttling_text(&model.stats),
+                    set_spacing: 40,
+                },
 
                 append_child = &InfoRow {
                     #[watch]
@@ -94,23 +75,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 },
 
                 append_child = &InfoRow {
-                    set_name: fl!(I18N, "gpu-voltage"),
-                    #[watch]
-                    set_value: format!("{} V", Mono::float(model.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64, 3)),
-                    set_spacing: 40,
-                } -> gpu_voltage_item: gtk::FlowBoxChild {
-                    #[watch]
-                    set_visible: model.stats.voltage.gpu.is_some(),
-                },
-
-                append = &InfoRow {
-                    set_name: fl!(I18N, "gpu-temp"),
-                    #[watch]
-                    set_value: temperature_text(&model.stats).unwrap_or_else(|| "N/A".to_owned()),
-                    set_spacing: 40,
-                },
-
-                append_child = &InfoRow {
                     set_name: fl!(I18N, "vram-clock"),
                     #[watch]
                     set_value: format_clockspeed(
@@ -124,13 +88,13 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 },
 
                 append_child = &InfoRow {
-                    set_name: fl!(I18N, "gpu-usage"),
+                    set_name: fl!(I18N, "gpu-voltage"),
                     #[watch]
-                    set_value: format!("{}%", Mono::uint(model.stats.busy_percent.unwrap_or(0))),
+                    set_value: format!("{} V", Mono::float(model.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64, 3)),
                     set_spacing: 40,
-                } -> gpu_usage_item: gtk::FlowBoxChild {
+                } -> gpu_voltage_item: gtk::FlowBoxChild {
                     #[watch]
-                    set_visible: model.stats.busy_percent.is_some(),
+                    set_visible: model.stats.voltage.gpu.is_some(),
                 },
 
                 append_child = &InfoRow {
@@ -170,10 +134,55 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_visible: model.stats.power.average.is_some() || model.stats.power.current.is_some(),
                 },
 
-                append = &InfoRow {
-                    set_name: fl!(I18N, "throttling"),
+                append_child = &InfoRow {
+                    set_name: fl!(I18N, "gpu-usage"),
                     #[watch]
-                    set_value: throttling_text(&model.stats),
+                    set_value: format!("{}%", Mono::uint(model.stats.busy_percent.unwrap_or(0))),
+                    set_spacing: 40,
+                } -> gpu_usage_item: gtk::FlowBoxChild {
+                    #[watch]
+                    set_visible: model.stats.busy_percent.is_some(),
+                },
+
+
+                append = &gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 5,
+
+                    gtk::Label {
+                        set_label: &fl!(I18N, "vram-usage"),
+                    },
+
+                    gtk::Overlay {
+                        gtk::LevelBar {
+                            set_hexpand: true,
+                            set_orientation: gtk::Orientation::Horizontal,
+                            #[watch]
+                            set_value: model
+                                .stats
+                                .vram
+                                .used
+                                .zip(model.stats.vram.total)
+                                .map(|(used, total)| used as f64 / total as f64)
+                                .unwrap_or(0.0),
+                        },
+
+                        add_overlay = &gtk::Label {
+                            #[watch]
+                            set_label: &format!(
+                                "{}/{} {}",
+                                model.stats.vram.used.unwrap_or(0) / 1024 / 1024,
+                                model.stats.vram.total.unwrap_or(0) / 1024 / 1024,
+                                fl!(I18N, "mebibyte")
+                            ),
+                        }
+                    },
+                },
+
+                append = &InfoRow {
+                    set_name: fl!(I18N, "gpu-temp"),
+                    #[watch]
+                    set_value: temperature_text(&model.stats).unwrap_or_else(|| "N/A".to_owned()),
                     set_spacing: 40,
                 },
 
@@ -203,6 +212,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
         let model = Self {
             stats: Arc::new(DeviceStats::default()),
             vram_clock_ratio: 1.0,
+            gpu_model: String::new(),
         };
 
         let widgets = view_output!();
@@ -214,6 +224,15 @@ impl relm4::SimpleComponent for GpuStatsSection {
         match msg {
             PageUpdate::Info(info) => {
                 self.vram_clock_ratio = info.vram_clock_ratio();
+                if let Some(pci_info) = &info.pci_info {
+                    self.gpu_model = info
+                        .drm_info
+                        .as_ref()
+                        .and_then(|drm| drm.device_name.as_deref())
+                        .or_else(|| pci_info.device_pci_info.model.as_deref())
+                        .unwrap_or("Unknown")
+                        .to_owned();
+                }
             }
             PageUpdate::Stats(stats) => {
                 self.stats = stats;
