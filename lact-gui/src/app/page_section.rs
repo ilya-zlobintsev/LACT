@@ -1,3 +1,4 @@
+use gtk::prelude::*;
 use gtk::{
     glib::{
         self,
@@ -16,6 +17,10 @@ glib::wrapper! {
 impl PageSection {
     pub fn new(name: &str) -> Self {
         Object::builder().property("name", name).build()
+    }
+    pub fn append_header(&self, widget: &impl IsA<gtk::Widget>) {
+        use glib::subclass::types::ObjectSubclassIsExt;
+        self.imp().header_box.append(widget);
     }
 }
 
@@ -36,6 +41,7 @@ mod imp {
     #[properties(wrapper_type = super::PageSection)]
     pub struct PageSection {
         section_label: Label,
+        pub(super) header_box: gtk::Box,
 
         #[property(get, set)]
         name: RefCell<String>,
@@ -54,6 +60,7 @@ mod imp {
             self.parent_constructed();
             let obj = self.obj();
             let section_label = &self.section_label;
+            let header_box = &self.header_box;
 
             view! {
                 #[local_ref]
@@ -63,10 +70,16 @@ mod imp {
                     set_margin_horizontal: 5,
 
                     #[local_ref]
-                    append = section_label {
-                        set_use_markup: true,
-                        set_halign: gtk::Align::Start,
-                        set_margin_vertical: 5,
+                    append = header_box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 10,
+
+                        #[local_ref]
+                        append = section_label {
+                            set_use_markup: true,
+                            set_halign: gtk::Align::Start,
+                            set_margin_vertical: 5,
+                        }
                     }
                 }
             }
