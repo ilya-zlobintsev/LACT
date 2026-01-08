@@ -81,7 +81,7 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                         set_halign: gtk::Align::End,
                         set_valign: gtk::Align::Start,
                         set_margin_all: 20,
-                        set_icon_name: "info-symbolic",
+                        set_icon_name: "info-outline-symbolic",
                         set_tooltip: &fl!(I18N, "plot-show-detailed-info"),
                         set_opacity: 0.8,
                         bind: &self.print_extra_info,
