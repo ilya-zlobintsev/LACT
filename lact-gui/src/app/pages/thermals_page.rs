@@ -2,11 +2,11 @@ mod fan_curve_frame;
 
 use super::{
     oc_adjustment::OcAdjustment,
-    oc_page::gpu_stats_section::{temperature_text, throttling_text},
+    oc_page::gpu_stats_section::{fan_speed_text, temperature_text, throttling_text},
     PageUpdate,
 };
 use crate::{
-    app::{formatting::Mono, info_row::InfoRow, msg::AppMsg, page_section::PageSection},
+    app::{info_row::InfoRow, msg::AppMsg, page_section::PageSection},
     APP_BROKER, I18N,
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
@@ -411,25 +411,7 @@ impl relm4::Component for ThermalsPage {
                     self.has_auto_threshold = info.flags.contains(&DeviceFlag::AutoFanThreshold);
                 }
                 PageUpdate::Stats(stats) => {
-                    let fan_percent = stats
-                        .fan
-                        .pwm_current
-                        .map(|current_pwm| ((current_pwm as f64 / u8::MAX as f64) * 100.0).round());
-                    let fan_text = if let Some(current_rpm) = stats.fan.speed_current {
-                        let text = match fan_percent {
-                            Some(percent) => format!(
-                                "<b>{} RPM ({}%)</b>",
-                                Mono::uint(current_rpm),
-                                Mono::uint(percent as u32)
-                            ),
-                            None => format!("<b>{} RPM</b>", Mono::uint(current_rpm)),
-                        };
-                        Some(text)
-                    } else {
-                        fan_percent.map(|percent| format!("<b>{}%</b>", Mono::uint(percent as u32)))
-                    };
-
-                    self.fan_speed = fan_text;
+                    self.fan_speed = fan_speed_text(&stats);
                     self.temperatures = temperature_text(&stats);
                     self.throttling = throttling_text(&stats);
 

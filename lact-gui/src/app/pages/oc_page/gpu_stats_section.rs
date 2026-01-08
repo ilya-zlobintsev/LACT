@@ -176,6 +176,16 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_value: throttling_text(&model.stats),
                     set_spacing: 40,
                 },
+
+                append_child = &InfoRow {
+                    set_name: fl!(I18N, "fan-speed"),
+                    #[watch]
+                    set_value: fan_speed_text(&model.stats).unwrap_or_else(|| fl!(I18N, "missing-stat")),
+                    set_spacing: 40,
+                } -> fan_speed_item: gtk::FlowBoxChild {
+                    #[watch]
+                    set_visible: model.stats.fan.pwm_current.is_some() || model.stats.fan.speed_current.is_some(),
+                },
             },
 
             append = &gtk::Button {
@@ -275,5 +285,25 @@ pub fn temperature_text(stats: &DeviceStats) -> Option<String> {
         None
     } else {
         Some(temperatures.join(", "))
+    }
+}
+
+pub fn fan_speed_text(stats: &DeviceStats) -> Option<String> {
+    let fan_percent = stats
+        .fan
+        .pwm_current
+        .map(|current_pwm| ((current_pwm as f64 / u8::MAX as f64) * 100.0).round());
+    if let Some(current_rpm) = stats.fan.speed_current {
+        let text = match fan_percent {
+            Some(percent) => format!(
+                "<b>{} RPM ({}%)</b>",
+                Mono::uint(current_rpm),
+                Mono::uint(percent as u32)
+            ),
+            None => format!("<b>{} RPM</b>", Mono::uint(current_rpm)),
+        };
+        Some(text)
+    } else {
+        fan_percent.map(|percent| format!("<b>{}%</b>", Mono::uint(percent as u32)))
     }
 }
