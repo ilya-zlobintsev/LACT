@@ -1,5 +1,6 @@
-use gtk::glib::{self, Object};
+use gtk::glib::{self, Object, subclass::types::IsSubclassable};
 use gtk::prelude::*;
+use gtk::subclass::prelude::*;
 
 glib::wrapper! {
     pub struct InfoRow(ObjectSubclass<imp::InfoRow>)
@@ -22,12 +23,40 @@ impl InfoRow {
             .property("selectable", true)
             .build()
     }
+}
 
-    pub fn append_child(&self, widget: &impl IsA<gtk::Widget>) {
-        use glib::subclass::types::ObjectSubclassIsExt;
-        self.imp().value_box.append(widget);
+pub trait InfoRowExt {
+    fn append_child(&self, widget: &impl IsA<gtk::Widget>);
+    fn set_value_size_group(&self, size_group: &gtk::SizeGroup);
+
+    fn set_name(&self, name: String);
+    fn set_value(&self, value: String);
+    fn set_level_value(&self, level_value: f64);
+}
+
+impl<T: IsA<InfoRow>> InfoRowExt for T {
+    fn append_child(&self, widget: &impl IsA<gtk::Widget>) {
+        self.as_ref().imp().value_box.append(widget);
+    }
+
+    fn set_value_size_group(&self, size_group: &gtk::SizeGroup) {
+        size_group.add_widget(&self.as_ref().imp().value_label);
+    }
+
+    fn set_name(&self, name: String) {
+        self.as_ref().set_property("name", name);
+    }
+
+    fn set_value(&self, value: String) {
+        self.as_ref().set_property("value", value);
+    }
+
+    fn set_level_value(&self, level_value: f64) {
+        self.as_ref().set_property("level-value", level_value);
     }
 }
+
+unsafe impl<T: ObjectSubclass + BoxImpl> IsSubclassable<T> for InfoRow {}
 
 pub struct InfoRowItem {
     pub name: String,
@@ -92,6 +121,7 @@ mod imp {
         info_text: RefCell<String>,
 
         pub(super) value_box: gtk::Box,
+        pub(super) value_label: gtk::Label,
     }
 
     #[glib::object_subclass]
@@ -108,6 +138,7 @@ mod imp {
 
             let obj = self.obj();
             let value_box = &self.value_box;
+            let value_label = &self.value_label;
 
             view! {
                 #[local_ref]
@@ -127,7 +158,8 @@ mod imp {
                         set_orientation: gtk::Orientation::Horizontal,
                         set_spacing: 5,
 
-                        append: value_label = &gtk::Label {
+                        #[local_ref]
+                        append = value_label {
                             set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
                             set_halign: gtk::Align::Start,
                             set_xalign: 0.0,
@@ -153,7 +185,7 @@ mod imp {
                 }
             }
 
-            obj.bind_property("value", &value_label, "visible")
+            obj.bind_property("value", value_label, "visible")
                 .transform_to(|_, text: String| Some(!text.is_empty()))
                 .sync_create()
                 .build();
@@ -171,11 +203,11 @@ mod imp {
                 .sync_create()
                 .build();
 
-            obj.bind_property("value", &value_label, "label")
+            obj.bind_property("value", value_label, "label")
                 .sync_create()
                 .build();
 
-            obj.bind_property("selectable", &value_label, "selectable")
+            obj.bind_property("selectable", value_label, "selectable")
                 .sync_create()
                 .build();
 

@@ -1,7 +1,7 @@
 use crate::app::msg::AppMsg;
 use crate::app::APP_BROKER;
 use crate::app::{
-    ext::FlowBoxExt, formatting::Mono, info_row::InfoRow, info_row_level::InfoRowLevel,
+    ext::FlowBoxExt, formatting::Mono, info_row::{InfoRow, InfoRowExt}, info_row_level::InfoRowLevel,
     page_section::PageSection, pages::PageUpdate,
 };
 use crate::I18N;

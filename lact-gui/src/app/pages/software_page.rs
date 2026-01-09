@@ -1,7 +1,7 @@
 mod vulkan;
 
 use crate::{
-    app::{format_friendly_size, info_row::InfoRow, page_section::PageSection},
+    app::{format_friendly_size, info_row::{InfoRow, InfoRowExt}, page_section::PageSection},
     GUI_VERSION, I18N, REPO_URL,
 };
 use gtk::prelude::*;
