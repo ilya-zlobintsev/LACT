@@ -67,7 +67,8 @@ mod imp {
             self.content_box.add_css_class("card");
             let content_box = &self.content_box;
 
-            self.children_box.set_orientation(gtk::Orientation::Vertical);
+            self.children_box
+                .set_orientation(gtk::Orientation::Vertical);
             self.children_box.set_margin_all(10);
             self.children_box.set_spacing(10);
             let children_box = &self.children_box;
