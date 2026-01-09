@@ -205,9 +205,27 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
         let widgets = view_output!();
 
-        widgets.power_usage_item.child().unwrap().downcast::<InfoRowLevel>().unwrap().set_value_size_group(&model.value_size_group);
-        widgets.gpu_usage_item.child().unwrap().downcast::<InfoRowLevel>().unwrap().set_value_size_group(&model.value_size_group);
-        widgets.vram_usage_item.child().unwrap().downcast::<InfoRowLevel>().unwrap().set_value_size_group(&model.value_size_group);
+        widgets
+            .power_usage_item
+            .child()
+            .unwrap()
+            .downcast::<InfoRowLevel>()
+            .unwrap()
+            .set_value_size_group(&model.value_size_group);
+        widgets
+            .gpu_usage_item
+            .child()
+            .unwrap()
+            .downcast::<InfoRowLevel>()
+            .unwrap()
+            .set_value_size_group(&model.value_size_group);
+        widgets
+            .vram_usage_item
+            .child()
+            .unwrap()
+            .downcast::<InfoRowLevel>()
+            .unwrap()
+            .set_value_size_group(&model.value_size_group);
 
         ComponentParts { widgets, model }
     }

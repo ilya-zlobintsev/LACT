@@ -1,5 +1,5 @@
-use gtk::prelude::*;
 use gtk::glib::{self, Object};
+use gtk::prelude::*;
 
 glib::wrapper! {
     pub struct InfoRow(ObjectSubclass<imp::InfoRow>)
