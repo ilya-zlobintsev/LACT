@@ -1,3 +1,4 @@
+use gtk::prelude::*;
 use gtk::glib::{self, Object};
 
 glib::wrapper! {
@@ -20,6 +21,11 @@ impl InfoRow {
             .property("value", value)
             .property("selectable", true)
             .build()
+    }
+
+    pub fn append_child(&self, widget: &impl IsA<gtk::Widget>) {
+        use glib::subclass::types::ObjectSubclassIsExt;
+        self.imp().value_box.append(widget);
     }
 }
 
@@ -84,6 +90,8 @@ mod imp {
         selectable: RefCell<bool>,
         #[property(get, set)]
         info_text: RefCell<String>,
+
+        pub(super) value_box: gtk::Box,
     }
 
     #[glib::object_subclass]
@@ -99,6 +107,7 @@ mod imp {
             self.parent_constructed();
 
             let obj = self.obj();
+            let value_box = &self.value_box;
 
             view! {
                 #[local_ref]
@@ -113,7 +122,8 @@ mod imp {
                         add_css_class: "dim-label",
                     },
 
-                    append = &gtk::Box {
+                    #[local_ref]
+                    append = value_box {
                         set_orientation: gtk::Orientation::Horizontal,
                         set_spacing: 5,
 
@@ -141,6 +151,11 @@ mod imp {
                     },
                 }
             }
+
+            obj.bind_property("value", &value_label, "visible")
+                .transform_to(|_, text: String| Some(!text.is_empty()))
+                .sync_create()
+                .build();
 
             obj.bind_property("name", &name_label, "label")
                 .sync_create()

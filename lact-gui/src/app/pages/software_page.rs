@@ -94,33 +94,17 @@ impl relm4::SimpleComponent for SoftwarePage {
                                 set_selectable: true,
                             },
 
-                            append_child = &gtk::Box {
-                                set_orientation: gtk::Orientation::Horizontal,
-                                set_hexpand: true,
-
-                                append = &gtk::Label {
-                                    set_halign: gtk::Align::Start,
-                                    set_hexpand: true,
-                                    set_label: &format!("{}:", fl!(I18N, "features")),
-                                },
-
-                                append = &gtk::Button {
+                            append_child = &InfoRow {
+                                set_name: fl!(I18N, "features"),
+                                append_child = &gtk::Button {
                                     connect_clicked => SoftwarePageMsg::ShowVulkanFeatures,
                                     set_label: &fl!(I18N, "show-button"),
                                 }
                             },
 
-                            append_child = &gtk::Box {
-                                set_orientation: gtk::Orientation::Horizontal,
-                                set_hexpand: true,
-
-                                append = &gtk::Label {
-                                    set_halign: gtk::Align::Start,
-                                    set_hexpand: true,
-                                    set_label: &format!("{}:", fl!(I18N, "extensions")),
-                                },
-
-                                append = &gtk::Button {
+                            append_child = &InfoRow {
+                                set_name: fl!(I18N, "extensions"),
+                                append_child = &gtk::Button {
                                     connect_clicked => SoftwarePageMsg::ShowVulkanExtensions,
                                     set_label: &fl!(I18N, "show-button"),
                                 }

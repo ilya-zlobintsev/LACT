@@ -5,7 +5,7 @@ use crate::app::{
     pages::PageUpdate,
 };
 use crate::I18N;
-use gtk::prelude::{BoxExt, ButtonExt, OrientableExt, WidgetExt};
+use gtk::prelude::{ButtonExt, OrientableExt, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::{DeviceStats, PowerStats};
 use relm4::{ComponentParts, ComponentSender};
@@ -137,15 +137,10 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 },
 
 
-                append = &gtk::Box {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_spacing: 5,
+                append_child = &InfoRow {
+                    set_name: fl!(I18N, "vram-usage"),
 
-                    gtk::Label {
-                        set_label: &fl!(I18N, "vram-usage"),
-                    },
-
-                    gtk::Overlay {
+                    append_child = &gtk::Overlay {
                         gtk::LevelBar {
                             set_hexpand: true,
                             set_orientation: gtk::Orientation::Horizontal,
@@ -169,7 +164,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             ),
                         }
                     },
-                },
+                } -> vram_usage_item: gtk::FlowBoxChild {},
 
                 append = &InfoRow {
                     set_name: fl!(I18N, "gpu-temp"),
