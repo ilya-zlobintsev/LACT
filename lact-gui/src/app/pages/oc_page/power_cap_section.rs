@@ -39,9 +39,8 @@ impl relm4::Component for PowerCapSection {
     view! {
         #[root]
         PageSection::new(&fl!(I18N, "power-cap")) {
-            append = &gtk::Box {
+            append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
-                add_css_class: "card",
                 set_spacing: 10,
 
                 gtk::Label {

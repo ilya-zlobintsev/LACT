@@ -35,12 +35,12 @@ impl relm4::SimpleComponent for InformationPage {
                 set_margin_horizontal: 20,
 
                 PageSection::new(&fl!(I18N, "hardware-info")) {
-                    append = &model.values_list.widget().clone() -> gtk::Box {
+                    append_child = &model.values_list.widget().clone() -> gtk::Box {
                         set_spacing: 10,
                         set_orientation: gtk::Orientation::Vertical,
                     },
 
-                    append = &gtk::Expander {
+                    append_child = &gtk::Expander {
                         set_label: Some(&fl!(I18N, "cache-info")),
                         #[watch]
                         set_visible: !model.cache_list.is_empty(),

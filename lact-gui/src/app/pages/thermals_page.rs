@@ -115,19 +115,19 @@ impl relm4::Component for ThermalsPage {
                 },
 
                 PageSection::new(&fl!(I18N, "monitoring-section")) {
-                    append = &InfoRow {
+                    append_child = &InfoRow {
                         set_name: fl!(I18N, "temperatures"),
                         #[watch]
                         set_value: model.temperatures.as_deref().unwrap_or("No sensors found"),
                     },
 
-                    append = &InfoRow {
+                    append_child = &InfoRow {
                         set_name: fl!(I18N, "fan-speed"),
                         #[watch]
                         set_value: model.fan_speed.as_deref().unwrap_or("No fan detected"),
                     },
 
-                    append = &InfoRow {
+                    append_child = &InfoRow {
                         set_name: fl!(I18N, "throttling"),
                         #[watch]
                         set_value: model.throttling.as_str(),
@@ -139,12 +139,12 @@ impl relm4::Component for ThermalsPage {
                     #[watch]
                     set_sensitive: model.custom_control_supported,
 
-                    append = &gtk::StackSwitcher {
+                    append_child = &gtk::StackSwitcher {
                         set_stack: Some(&stack),
                     },
 
                     #[name = "stack"]
-                    append = &gtk::Stack {
+                    append_child = &gtk::Stack {
                         #[watch]
                         set_visible: model.fan_speed.is_some(),
 

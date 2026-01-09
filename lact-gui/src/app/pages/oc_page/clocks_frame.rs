@@ -49,14 +49,14 @@ impl relm4::Component for ClocksFrame {
 
     view! {
         PageSection::new(&fl!(I18N, "overclock-section")) {
-            append = &gtk::Label {
+            append_child = &gtk::Label {
                 set_label: &fl!(I18N, "oc-warning"),
                 set_wrap_mode: pango::WrapMode::Word,
                 set_halign: gtk::Align::Start,
                 set_margin_horizontal: 5,
             },
 
-            append = &gtk::Box {
+            append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_halign: gtk::Align::Start,
                 set_spacing: 5,
@@ -83,7 +83,7 @@ impl relm4::Component for ClocksFrame {
                 },
             },
 
-            append = &gtk::Box {
+            append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
 
@@ -132,13 +132,13 @@ impl relm4::Component for ClocksFrame {
                 },
             },
 
-            append = model.clocks.widget() {
+            append_child = model.clocks.widget() {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
                 set_margin_horizontal: 5,
             },
 
-            append = &gtk::Label {
+            append_child = &gtk::Label {
                 set_label: &fl!(I18N, "no-clocks-data"),
                 set_margin_horizontal: 10,
                 set_halign: gtk::Align::Start,
@@ -146,7 +146,7 @@ impl relm4::Component for ClocksFrame {
                 set_visible: model.clocks.is_empty(),
             },
 
-            append = &gtk::Button {
+            append_child = &gtk::Button {
                 set_label: &fl!(I18N, "reset-button"),
                 set_halign: gtk::Align::End,
                 set_margin_horizontal: 5,

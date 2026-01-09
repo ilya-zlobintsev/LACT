@@ -1,3 +1,4 @@
+use gtk::prelude::*;
 use gtk::{
     glib::{
         self,
@@ -16,6 +17,11 @@ glib::wrapper! {
 impl PageSection {
     pub fn new(name: &str) -> Self {
         Object::builder().property("name", name).build()
+    }
+
+    pub fn append_child(&self, widget: &impl IsA<gtk::Widget>) {
+        use glib::subclass::types::ObjectSubclassIsExt;
+        self.imp().content_box.append(widget);
     }
 }
 
@@ -36,6 +42,7 @@ mod imp {
     #[properties(wrapper_type = super::PageSection)]
     pub struct PageSection {
         section_label: Label,
+        pub(super) content_box: gtk::Box,
 
         #[property(get, set)]
         name: RefCell<String>,
@@ -55,19 +62,26 @@ mod imp {
             let obj = self.obj();
             let section_label = &self.section_label;
 
+            self.content_box.set_orientation(gtk::Orientation::Vertical);
+            self.content_box.add_css_class("card");
+            let content_box = &self.content_box;
+
             view! {
                 #[local_ref]
                 obj {
                     set_orientation: gtk::Orientation::Vertical,
                     set_spacing: 10,
-                    set_margin_horizontal: 5,
 
                     #[local_ref]
                     append = section_label {
                         set_use_markup: true,
                         set_halign: gtk::Align::Start,
                         set_margin_vertical: 5,
-                    }
+                        set_margin_horizontal: 5,
+                    },
+
+                    #[local_ref]
+                    append = content_box {}
                 }
             }
 
