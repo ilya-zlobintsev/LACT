@@ -21,7 +21,7 @@ impl PageSection {
 
     pub fn append_child(&self, widget: &impl IsA<gtk::Widget>) {
         use glib::subclass::types::ObjectSubclassIsExt;
-        self.imp().content_box.append(widget);
+        self.imp().children_box.append(widget);
     }
 }
 
@@ -43,6 +43,7 @@ mod imp {
     pub struct PageSection {
         section_label: Label,
         pub(super) content_box: gtk::Box,
+        pub(super) children_box: gtk::Box,
 
         #[property(get, set)]
         name: RefCell<String>,
@@ -66,6 +67,11 @@ mod imp {
             self.content_box.add_css_class("card");
             let content_box = &self.content_box;
 
+            self.children_box.set_orientation(gtk::Orientation::Vertical);
+            self.children_box.set_margin_all(10);
+            self.children_box.set_spacing(10);
+            let children_box = &self.children_box;
+
             view! {
                 #[local_ref]
                 obj {
@@ -81,7 +87,10 @@ mod imp {
                     },
 
                     #[local_ref]
-                    append = content_box {}
+                    append = content_box {
+                        #[local_ref]
+                        append = children_box {}
+                    }
                 }
             }
 
