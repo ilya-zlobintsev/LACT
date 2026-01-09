@@ -76,7 +76,7 @@ mod imp {
         subclass::{prelude::*, widget::WidgetImpl},
         Label,
     };
-    use relm4::{view, RelmWidgetExt};
+    use relm4::{css, view, RelmWidgetExt};
     use std::{cell::RefCell, str::FromStr};
 
     #[derive(Default, Properties)]
@@ -118,8 +118,8 @@ mod imp {
                     append: name_label = &gtk::Label {
                         set_halign: gtk::Align::Start,
                         set_xalign: 0.0,
-                        add_css_class: "caption",
-                        add_css_class: "dim-label",
+                        add_css_class: css::CAPTION,
+                        add_css_class: css::DIM_LABEL,
                     },
 
                     #[local_ref]
