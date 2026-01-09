@@ -113,11 +113,11 @@ mod imp {
                 #[local_ref]
                 obj {
                     set_orientation: gtk::Orientation::Vertical,
-                    set_hexpand: true,
                     set_spacing: 4,
 
                     append: name_label = &gtk::Label {
                         set_halign: gtk::Align::Start,
+                        set_xalign: 0.0,
                         add_css_class: "caption",
                         add_css_class: "dim-label",
                     },
@@ -130,6 +130,7 @@ mod imp {
                         append: value_label = &gtk::Label {
                             set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
                             set_halign: gtk::Align::Start,
+                            set_xalign: 0.0,
                             set_use_markup: true,
                             set_ellipsize: pango::EllipsizeMode::End,
                         },

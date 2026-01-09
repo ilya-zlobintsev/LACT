@@ -63,6 +63,11 @@ impl relm4::Component for ClocksFrame {
                 #[watch]
                 set_visible: model.show_nvidia_options,
 
+                append = &gtk::Label {
+                    set_label: &fl!(I18N, "nvidia-oc-info"),
+                    add_css_class: "heading",
+                },
+
                 append = &gtk::MenuButton {
                     set_icon_name: "dialog-information-symbolic",
 
@@ -75,11 +80,6 @@ impl relm4::Component for ClocksFrame {
                             set_max_width_chars: 75,
                         }
                     }
-                },
-
-                append = &gtk::Label {
-                    set_label: &fl!(I18N, "nvidia-oc-info"),
-                    add_css_class: "heading",
                 },
             },
 

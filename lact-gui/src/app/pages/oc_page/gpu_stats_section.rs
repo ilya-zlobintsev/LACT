@@ -1,11 +1,11 @@
 use crate::app::msg::AppMsg;
 use crate::app::APP_BROKER;
 use crate::app::{
-    ext::FlowBoxExt, formatting::Mono, info_row::InfoRow, page_section::PageSection,
-    pages::PageUpdate,
+    ext::FlowBoxExt, formatting::Mono, info_row::InfoRow, info_row_level::InfoRowLevel,
+    page_section::PageSection, pages::PageUpdate,
 };
 use crate::I18N;
-use gtk::prelude::{ButtonExt, OrientableExt, WidgetExt};
+use gtk::prelude::{ButtonExt, Cast, FlowBoxChildExt, OrientableExt, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::{DeviceStats, PowerStats};
 use relm4::{ComponentParts, ComponentSender};
@@ -15,6 +15,7 @@ pub struct GpuStatsSection {
     stats: Arc<DeviceStats>,
     vram_clock_ratio: f64,
     gpu_model: String,
+    value_size_group: gtk::SizeGroup,
 }
 
 #[relm4::component(pub)]
@@ -91,10 +92,28 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_visible: model.stats.voltage.gpu.is_some(),
                 },
 
-                append_child = &InfoRow {
+                append_child = &InfoRowLevel {
                     set_name: fl!(I18N, "power-usage"),
                     #[watch]
                     set_value: {
+                        let PowerStats {
+                            average: power_average,
+                            current: power_current,
+                            ..
+                        } = model.stats.power;
+
+                        let power_current = power_current
+                            .filter(|value| *value != 0.0)
+                            .or(power_average);
+
+                        format!(
+                            "{} {}",
+                            Mono::float(power_current.unwrap_or(0.0), 1),
+                            fl!(I18N, "watt")
+                        )
+                    },
+                    #[watch]
+                    set_level_value: {
                         let PowerStats {
                             average: power_average,
                             current: power_current,
@@ -106,64 +125,44 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             .filter(|value| *value != 0.0)
                             .or(power_average);
 
-                        if let Some(cap) = power_cap_current {
-                            format!(
-                                "<b>{}/{} {}</b>",
-                                Mono::float(power_current.unwrap_or(0.0), 1),
-                                Mono::float(cap, 0),
-                                fl!(I18N, "watt")
-                            )
-                        } else {
-                            format!(
-                                "<b>{} {}</b>",
-                                Mono::float(power_current.unwrap_or(0.0), 1),
-                                fl!(I18N, "watt")
-                            )
-                        }
-
+                        power_current
+                            .zip(power_cap_current)
+                            .map(|(current, cap)| current / cap)
+                            .unwrap_or(0.0)
                     },
                 } -> power_usage_item: gtk::FlowBoxChild {
                     #[watch]
                     set_visible: model.stats.power.average.is_some() || model.stats.power.current.is_some(),
                 },
 
-                append_child = &InfoRow {
+                append_child = &InfoRowLevel {
                     set_name: fl!(I18N, "gpu-usage"),
                     #[watch]
                     set_value: format!("{}%", Mono::uint(model.stats.busy_percent.unwrap_or(0))),
+                    #[watch]
+                    set_level_value: model.stats.busy_percent.unwrap_or(0) as f64 / 100.0,
                 } -> gpu_usage_item: gtk::FlowBoxChild {
                     #[watch]
                     set_visible: model.stats.busy_percent.is_some(),
                 },
 
 
-                append_child = &InfoRow {
+                append_child = &InfoRowLevel {
                     set_name: fl!(I18N, "vram-usage"),
-
-                    append_child = &gtk::Overlay {
-                        gtk::LevelBar {
-                            set_hexpand: true,
-                            set_orientation: gtk::Orientation::Horizontal,
-                            #[watch]
-                            set_value: model
-                                .stats
-                                .vram
-                                .used
-                                .zip(model.stats.vram.total)
-                                .map(|(used, total)| used as f64 / total as f64)
-                                .unwrap_or(0.0),
-                        },
-
-                        add_overlay = &gtk::Label {
-                            #[watch]
-                            set_label: &format!(
-                                "{}/{} {}",
-                                model.stats.vram.used.unwrap_or(0) / 1024 / 1024,
-                                model.stats.vram.total.unwrap_or(0) / 1024 / 1024,
-                                fl!(I18N, "mebibyte")
-                            ),
-                        }
-                    },
+                    #[watch]
+                    set_value: format!(
+                        "{} {}",
+                        Mono::float(model.stats.vram.used.unwrap_or(0) as f64 / 1024.0 / 1024.0 / 1024.0, 2),
+                        fl!(I18N, "gibibyte")
+                    ),
+                    #[watch]
+                    set_level_value: model
+                        .stats
+                        .vram
+                        .used
+                        .zip(model.stats.vram.total)
+                        .map(|(used, total)| used as f64 / total as f64)
+                        .unwrap_or(0.0),
                 } -> vram_usage_item: gtk::FlowBoxChild {},
 
                 append = &InfoRow {
@@ -195,13 +194,20 @@ impl relm4::SimpleComponent for GpuStatsSection {
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let value_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+
         let model = Self {
             stats: Arc::new(DeviceStats::default()),
             vram_clock_ratio: 1.0,
             gpu_model: String::new(),
+            value_size_group,
         };
 
         let widgets = view_output!();
+
+        widgets.power_usage_item.child().unwrap().downcast::<InfoRowLevel>().unwrap().set_value_size_group(&model.value_size_group);
+        widgets.gpu_usage_item.child().unwrap().downcast::<InfoRowLevel>().unwrap().set_value_size_group(&model.value_size_group);
+        widgets.vram_usage_item.child().unwrap().downcast::<InfoRowLevel>().unwrap().set_value_size_group(&model.value_size_group);
 
         ComponentParts { widgets, model }
     }
