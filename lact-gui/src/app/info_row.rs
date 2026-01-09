@@ -1,4 +1,4 @@
-use gtk::glib::{self, Object, subclass::types::IsSubclassable};
+use gtk::glib::{self, subclass::types::IsSubclassable, Object};
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 
