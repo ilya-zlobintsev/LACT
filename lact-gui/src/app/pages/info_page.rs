@@ -1,5 +1,6 @@
 use super::PageUpdate;
 use crate::app::format_friendly_size;
+use crate::app::ext::FlowBoxExt;
 use crate::app::info_row::{InfoRow, InfoRowExt, InfoRowItem};
 use crate::app::page_section::PageSection;
 use crate::I18N;
@@ -39,23 +40,25 @@ impl relm4::SimpleComponent for InformationPage {
                         set_min_children_per_line: 2,
                         set_max_children_per_line: 2,
                         set_selection_mode: gtk::SelectionMode::None,
-                    },
-                    
-                    append_child = &InfoRow {
-                        set_value: fl!(I18N, "cache-info"),
-                        set_icon: "go-down-symbolic".to_string(),
-                        #[name = "cache_popover"]
-                        set_popover = &gtk::Popover {
-                            add_css_class: css::BOXED_LIST,
 
-                            model.cache_list.widget().clone() -> gtk::ListBox {
-                                set_margin_all: 10,
-                                set_selection_mode: gtk::SelectionMode::None,
+                        append_child = &InfoRow {
+                            set_value: fl!(I18N, "cache-info"),
+                            set_icon: "go-down-symbolic".to_string(),
+
+                            #[name = "cache_popover"]
+                            set_popover = &gtk::Popover {
+                                model.cache_list.widget().clone() -> gtk::ListBox {
+                                    set_margin_all: 10,
+                                    set_selection_mode: gtk::SelectionMode::None,
+                                },
                             },
-                        },
 
-                        connect_clicked[cache_popover] => move |_| {
-                            cache_popover.popup();
+                            connect_clicked[cache_popover] => move |_| {
+                                cache_popover.popup();
+                            },
+                        } -> cache_row: gtk::FlowBoxChild {
+                            #[watch]
+                            set_visible: !model.cache_list.is_empty(),
                         },
                     },
                 },
