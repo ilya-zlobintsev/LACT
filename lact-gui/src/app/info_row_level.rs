@@ -55,6 +55,11 @@ mod imp {
                 .orientation(gtk::Orientation::Horizontal)
                 .build();
 
+            // this prevents re-colour of the bar when the value is close to 100%
+            level_bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_LOW));
+            level_bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_HIGH));
+            level_bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_FULL));
+
             obj.append_child(&level_bar);
 
             obj.bind_property("level-value", &level_bar, "value")
