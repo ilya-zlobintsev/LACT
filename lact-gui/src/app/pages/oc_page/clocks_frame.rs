@@ -16,7 +16,10 @@ use lact_schema::{
     request::{ClockspeedType, SetClocksCommand},
     ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
 };
-use relm4::{binding::BoolBinding, css, factory::FactoryHashMap, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt};
+use relm4::{
+    binding::BoolBinding, css, factory::FactoryHashMap, ComponentParts, ComponentSender,
+    RelmObjectExt, RelmWidgetExt,
+};
 
 // This should not end up being used in practice
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
