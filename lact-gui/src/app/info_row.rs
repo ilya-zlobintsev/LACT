@@ -31,7 +31,10 @@ pub trait InfoRowExt {
 
     fn set_name(&self, name: String);
     fn set_value(&self, value: String);
+    fn set_icon(&self, icon: String);
     fn set_level_value(&self, level_value: f64);
+
+    fn set_popover(&self, popover: &gtk::Popover);
 
     fn connect_clicked<F: Fn(&InfoRow) + 'static>(&self, f: F);
 }
@@ -53,8 +56,16 @@ impl<T: IsA<InfoRow>> InfoRowExt for T {
         self.as_ref().set_property("value", value);
     }
 
+    fn set_icon(&self, icon: String) {
+        self.as_ref().set_property("icon", icon);
+    }
+
     fn set_level_value(&self, level_value: f64) {
         self.as_ref().set_property("level-value", level_value);
+    }
+
+    fn set_popover(&self, popover: &gtk::Popover) {
+        popover.set_parent(self.as_ref());
     }
 
     fn connect_clicked<F: Fn(&InfoRow) + 'static>(&self, f: F) {
@@ -132,8 +143,9 @@ mod imp {
         #[property(get, set)]
         info_text: RefCell<String>,
         #[property(get, set)]
-        show_arrow: RefCell<bool>,
+        icon: RefCell<String>,
 
+        pub(super) info_menubutton: gtk::MenuButton,
         pub(super) value_box: gtk::Box,
         pub(super) value_label: gtk::Label,
     }
@@ -153,6 +165,7 @@ mod imp {
             let obj = self.obj();
             let value_box = &self.value_box;
             let value_label = &self.value_label;
+            let info_menubutton = &self.info_menubutton;
 
             view! {
                 #[local_ref]
@@ -189,7 +202,8 @@ mod imp {
                         },
                     },
 
-                    append: info_menubutton = &gtk::MenuButton {
+                    #[local_ref]
+                    append = info_menubutton {
                         set_icon_name: "dialog-information-symbolic",
                         add_css_class: css::FLAT,
                         set_valign: gtk::Align::Center,
@@ -205,8 +219,7 @@ mod imp {
                         },
                     },
 
-                    append: arrow_image = &gtk::Image {
-                        set_icon_name: Some("go-next-symbolic"),
+                    append: icon_image = &gtk::Image {
                         set_valign: gtk::Align::Center,
                     },
                 }
@@ -226,7 +239,7 @@ mod imp {
                 .sync_create()
                 .build();
 
-            obj.bind_property("info-text", &info_menubutton, "visible")
+            obj.bind_property("info-text", info_menubutton, "visible")
                 .transform_to(|_, text: String| Some(!text.is_empty()))
                 .sync_create()
                 .build();
@@ -239,7 +252,12 @@ mod imp {
                 .sync_create()
                 .build();
 
-            obj.bind_property("show-arrow", &arrow_image, "visible")
+            obj.bind_property("icon", &icon_image, "icon-name")
+                .sync_create()
+                .build();
+
+            obj.bind_property("icon", &icon_image, "visible")
+                .transform_to(|_, text: String| Some(!text.is_empty()))
                 .sync_create()
                 .build();
 
@@ -247,7 +265,7 @@ mod imp {
                 .sync_create()
                 .build();
 
-            obj.bind_property("value", &info_menubutton, "visible")
+            obj.bind_property("value", info_menubutton, "visible")
                 .transform_to(|_, text: String| {
                     if text.starts_with("Unknown ") {
                         Some(false)

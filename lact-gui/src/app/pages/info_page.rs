@@ -1,15 +1,12 @@
 use super::PageUpdate;
 use crate::app::format_friendly_size;
-use crate::app::info_row::InfoRowItem;
+use crate::app::info_row::{InfoRow, InfoRowExt, InfoRowItem};
 use crate::app::page_section::PageSection;
 use crate::I18N;
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use lact_schema::{CacheInfo, CacheType, DeviceInfo, DeviceStats};
-use relm4::{
-    prelude::{FactoryComponent, FactoryVecDeque},
-    ComponentParts, ComponentSender, RelmWidgetExt,
-};
+use relm4::{css, prelude::{FactoryComponent, FactoryVecDeque}, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::sync::Arc;
 
 pub struct InformationPage {
@@ -43,19 +40,23 @@ impl relm4::SimpleComponent for InformationPage {
                         set_max_children_per_line: 2,
                         set_selection_mode: gtk::SelectionMode::None,
                     },
+                    
+                    append_child = &InfoRow {
+                        set_value: fl!(I18N, "cache-info"),
+                        set_icon: "go-down-symbolic".to_string(),
+                        #[name = "cache_popover"]
+                        set_popover = &gtk::Popover {
+                            add_css_class: css::BOXED_LIST,
 
-                    append_child = &gtk::Expander {
-                        set_label: Some(&fl!(I18N, "cache-info")),
-                        #[watch]
-                        set_visible: !model.cache_list.is_empty(),
-
-                        gtk::Frame {
-                            model.cache_list.widget().clone() -> gtk::Box {
-                                set_spacing: 5,
+                            model.cache_list.widget().clone() -> gtk::ListBox {
                                 set_margin_all: 10,
-                                set_orientation: gtk::Orientation::Vertical,
+                                set_selection_mode: gtk::SelectionMode::None,
                             },
-                        }
+                        },
+
+                        connect_clicked[cache_popover] => move |_| {
+                            cache_popover.popup();
+                        },
                     },
                 },
             }
@@ -166,7 +167,7 @@ struct CacheRow {
 
 #[relm4::factory]
 impl FactoryComponent for CacheRow {
-    type ParentWidget = gtk::Box;
+    type ParentWidget = gtk::ListBox;
     type Init = Self;
     type Input = ();
     type Output = ();
@@ -181,10 +182,16 @@ impl FactoryComponent for CacheRow {
     }
 
     view! {
-        gtk::Label {
-            set_label: &format!("{}x {}", self.count, self.text),
-            set_selectable: true,
-            set_halign: gtk::Align::Start,
+        gtk::ListBoxRow {
+            set_activatable: false,
+            set_selectable: false,
+
+            gtk::Label {
+                set_label: &format!("{}x {}", self.count, self.text),
+                set_selectable: true,
+                set_halign: gtk::Align::Start,
+                set_margin_all: 5,
+            }
         }
     }
 }

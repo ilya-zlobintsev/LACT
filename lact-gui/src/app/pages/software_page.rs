@@ -111,13 +111,13 @@ impl relm4::SimpleComponent for SoftwarePage {
 
                                 append_child = &InfoRow {
                                     set_value: fl!(I18N, "features"),
-                                    set_show_arrow: true,
+                                    set_icon: "go-next-symbolic".to_string(),
                                     connect_clicked => SoftwarePageMsg::ShowVulkanFeatures,
                                 },
 
                                 append_child = &InfoRow {
                                     set_value: fl!(I18N, "extensions"),
-                                    set_show_arrow: true,
+                                    set_icon: "go-next-symbolic".to_string(),
                                     connect_clicked => SoftwarePageMsg::ShowVulkanExtensions,
                                 },
                             },
