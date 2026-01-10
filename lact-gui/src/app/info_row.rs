@@ -177,7 +177,7 @@ mod imp {
                         append = value_box {
                             set_orientation: gtk::Orientation::Horizontal,
                             set_spacing: 5,
-                            
+
                             #[local_ref]
                             append = value_label {
                                 set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
