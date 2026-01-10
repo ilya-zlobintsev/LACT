@@ -67,7 +67,7 @@ pub struct InfoRowItem {
 #[relm4::factory(pub)]
 impl relm4::factory::FactoryComponent for InfoRowItem {
     type Init = Self;
-    type ParentWidget = gtk::Box;
+    type ParentWidget = gtk::FlowBox;
     type CommandOutput = ();
     type Input = ();
     type Output = ();
@@ -143,43 +143,51 @@ mod imp {
             view! {
                 #[local_ref]
                 obj {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 4,
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_margin_all: 5,
+                    set_spacing: 5,
 
-                    append: name_label = &gtk::Label {
-                        set_halign: gtk::Align::Start,
-                        set_xalign: 0.0,
-                        add_css_class: css::CAPTION,
-                        add_css_class: css::DIM_LABEL,
-                    },
+                    append = &gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 4,
+                        set_hexpand: true,
 
-                    #[local_ref]
-                    append = value_box {
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_spacing: 5,
-
-                        #[local_ref]
-                        append = value_label {
-                            set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
+                        append: name_label = &gtk::Label {
                             set_halign: gtk::Align::Start,
                             set_xalign: 0.0,
-                            set_use_markup: true,
-                            set_ellipsize: pango::EllipsizeMode::End,
+                            add_css_class: css::CAPTION,
+                            add_css_class: css::DIM_LABEL,
                         },
 
-                        append: info_menubutton = &gtk::MenuButton {
-                            set_icon_name: "dialog-information-symbolic",
-                            set_margin_horizontal: 5,
+                        #[local_ref]
+                        append = value_box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
 
-                            #[wrap(Some)]
-                            set_popover = &gtk::Popover {
-                                #[name(info_text_popover)]
-                                Label {
-                                    set_wrap: true,
-                                    set_wrap_mode: pango::WrapMode::Word,
-                                    set_max_width_chars: 55,
-                                }
+                            #[local_ref]
+                            append = value_label {
+                                set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
+                                set_halign: gtk::Align::Start,
+                                set_xalign: 0.0,
+                                set_use_markup: true,
+                                set_ellipsize: pango::EllipsizeMode::End,
                             },
+                        },
+                    },
+
+                    append: info_menubutton = &gtk::MenuButton {
+                        set_icon_name: "dialog-information-symbolic",
+                        add_css_class: css::FLAT,
+                        set_valign: gtk::Align::Center,
+
+                        #[wrap(Some)]
+                        set_popover = &gtk::Popover {
+                            #[name(info_text_popover)]
+                            Label {
+                                set_wrap: true,
+                                set_wrap_mode: pango::WrapMode::Word,
+                                set_max_width_chars: 55,
+                            }
                         },
                     },
                 }
