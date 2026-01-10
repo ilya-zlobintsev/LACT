@@ -14,7 +14,7 @@ use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_client::schema::{SystemInfo, GIT_COMMIT};
 use lact_schema::{DeviceInfo, OpenCLInfo, VulkanInfo};
-use relm4::{css, Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use relm4_components::simple_combo_box::{SimpleComboBox, SimpleComboBoxMsg};
 use std::{fmt::Write, sync::Arc};
 use vulkan::feature_window::{VulkanFeature, VulkanFeaturesWindow};
@@ -110,20 +110,15 @@ impl relm4::SimpleComponent for SoftwarePage {
                                 },
 
                                 append_child = &InfoRow {
-                                    set_name: fl!(I18N, "features"),
-                                    append_child = &gtk::Button {
-                                        add_css_class: css::INLINE,
-                                        connect_clicked => SoftwarePageMsg::ShowVulkanFeatures,
-                                        set_label: &fl!(I18N, "show-button"),
-                                    }
+                                    set_value: fl!(I18N, "features"),
+                                    set_show_arrow: true,
+                                    connect_clicked => SoftwarePageMsg::ShowVulkanFeatures,
                                 },
 
                                 append_child = &InfoRow {
-                                    set_name: fl!(I18N, "extensions"),
-                                    append_child = &gtk::Button {
-                                        connect_clicked => SoftwarePageMsg::ShowVulkanExtensions,
-                                        set_label: &fl!(I18N, "show-button"),
-                                    }
+                                    set_value: fl!(I18N, "extensions"),
+                                    set_show_arrow: true,
+                                    connect_clicked => SoftwarePageMsg::ShowVulkanExtensions,
                                 },
                             },
                         }

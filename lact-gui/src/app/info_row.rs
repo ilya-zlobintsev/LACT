@@ -32,6 +32,8 @@ pub trait InfoRowExt {
     fn set_name(&self, name: String);
     fn set_value(&self, value: String);
     fn set_level_value(&self, level_value: f64);
+
+    fn connect_clicked<F: Fn(&InfoRow) + 'static>(&self, f: F);
 }
 
 impl<T: IsA<InfoRow>> InfoRowExt for T {
@@ -53,6 +55,16 @@ impl<T: IsA<InfoRow>> InfoRowExt for T {
 
     fn set_level_value(&self, level_value: f64) {
         self.as_ref().set_property("level-value", level_value);
+    }
+
+    fn connect_clicked<F: Fn(&InfoRow) + 'static>(&self, f: F) {
+        let gesture = gtk::GestureClick::new();
+        let obj = self.as_ref().clone();
+        gesture.connect_released(move |_, _, _, _| {
+            f(&obj);
+        });
+        self.as_ref().add_controller(gesture);
+        self.as_ref().set_cursor_from_name(Some("pointer"));
     }
 }
 
@@ -119,6 +131,8 @@ mod imp {
         selectable: RefCell<bool>,
         #[property(get, set)]
         info_text: RefCell<String>,
+        #[property(get, set)]
+        show_arrow: RefCell<bool>,
 
         pub(super) value_box: gtk::Box,
         pub(super) value_label: gtk::Label,
@@ -145,11 +159,12 @@ mod imp {
                 obj {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_margin_all: 5,
-                    // set_spacing: 5,
+                    set_spacing: 5,
 
                     append = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
                         set_hexpand: true,
+                        set_valign: gtk::Align::Center,
 
                         append: name_label = &gtk::Label {
                             set_halign: gtk::Align::Start,
@@ -161,7 +176,8 @@ mod imp {
                         #[local_ref]
                         append = value_box {
                             set_orientation: gtk::Orientation::Horizontal,
-
+                            set_spacing: 5,
+                            
                             #[local_ref]
                             append = value_label {
                                 set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
@@ -188,6 +204,11 @@ mod imp {
                             }
                         },
                     },
+
+                    append: arrow_image = &gtk::Image {
+                        set_icon_name: Some("go-next-symbolic"),
+                        set_valign: gtk::Align::Center,
+                    },
                 }
             }
 
@@ -197,6 +218,11 @@ mod imp {
                 .build();
 
             obj.bind_property("name", &name_label, "label")
+                .sync_create()
+                .build();
+
+            obj.bind_property("name", &name_label, "visible")
+                .transform_to(|_, text: String| Some(!text.is_empty()))
                 .sync_create()
                 .build();
 
@@ -210,6 +236,10 @@ mod imp {
                 .build();
 
             obj.bind_property("value", value_label, "label")
+                .sync_create()
+                .build();
+
+            obj.bind_property("show-arrow", &arrow_image, "visible")
                 .sync_create()
                 .build();
 
