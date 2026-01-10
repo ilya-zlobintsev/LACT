@@ -7,7 +7,7 @@ use crate::I18N;
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use lact_schema::{CacheInfo, CacheType, DeviceInfo, DeviceStats};
-use relm4::{css, prelude::{FactoryComponent, FactoryVecDeque}, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{prelude::{FactoryComponent, FactoryVecDeque}, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::sync::Arc;
 
 pub struct InformationPage {

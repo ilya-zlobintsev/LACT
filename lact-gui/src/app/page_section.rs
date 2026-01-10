@@ -35,7 +35,7 @@ mod imp {
         subclass::{prelude::*, widget::WidgetImpl},
         Label,
     };
-    use relm4::{view, RelmWidgetExt};
+    use relm4::{css, view, RelmWidgetExt};
     use std::cell::RefCell;
 
     #[derive(Default, Properties)]
@@ -64,7 +64,6 @@ mod imp {
             let section_label = &self.section_label;
 
             self.content_box.set_orientation(gtk::Orientation::Vertical);
-            self.content_box.add_css_class("card");
             let content_box = &self.content_box;
 
             self.children_box
@@ -89,6 +88,9 @@ mod imp {
 
                     #[local_ref]
                     append = content_box {
+                        add_css_class: if cfg!(feature = "adw") { css::CARD } else { css::FRAME },
+                        inline_css: if cfg!(feature = "adw") { "" } else { "border-color: @accent_color;" },
+
                         #[local_ref]
                         append = children_box {}
                     }
