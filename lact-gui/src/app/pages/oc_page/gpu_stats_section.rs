@@ -35,6 +35,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 set_column_spacing: 10,
                 set_homogeneous: true,
                 set_min_children_per_line: 2,
+                set_max_children_per_line: 2,
                 set_selection_mode: gtk::SelectionMode::None,
 
                 append = &InfoRow {
