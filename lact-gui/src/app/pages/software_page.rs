@@ -1,3 +1,4 @@
+use crate::app::ext::FlowBoxExt;
 mod vulkan;
 
 use crate::{
@@ -13,7 +14,7 @@ use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_client::schema::{SystemInfo, GIT_COMMIT};
 use lact_schema::{DeviceInfo, OpenCLInfo, VulkanInfo};
-use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{css, Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use relm4_components::simple_combo_box::{SimpleComboBox, SimpleComboBoxMsg};
 use std::{fmt::Write, sync::Arc};
 use vulkan::feature_window::{VulkanFeature, VulkanFeaturesWindow};
@@ -49,69 +50,88 @@ impl relm4::SimpleComponent for SoftwarePage {
                 set_margin_horizontal: 20,
 
                 PageSection::new(&fl!(I18N, "system-section")) {
-                    append_child = &InfoRow::new_selectable(&fl!(I18N, "lact-daemon"), &daemon_version),
-                    append_child = &InfoRow::new_selectable(&fl!(I18N, "lact-gui"), &gui_version),
-                    append_child = &InfoRow::new_selectable(&fl!(I18N, "kernel-version"), &system_info.kernel_version),
+                    append_child = &gtk::FlowBox {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_column_spacing: 10,
+                        set_homogeneous: true,
+                        set_min_children_per_line: 2,
+                        set_max_children_per_line: 2,
+                        set_selection_mode: gtk::SelectionMode::None,
+
+                        append_child = &InfoRow::new_selectable(&fl!(I18N, "lact-daemon"), &daemon_version),
+                        append_child = &InfoRow::new_selectable(&fl!(I18N, "lact-gui"), &gui_version),
+                        append_child = &InfoRow::new_selectable(&fl!(I18N, "kernel-version"), &system_info.kernel_version),
+                    },
                 },
 
                 #[name = "vulkan_stack"]
                 match model.selected_vulkan_info() {
                     Some(info) => {
                         PageSection::new("Vulkan") {
-                            append_child = &gtk::Box {
+                            append_child = &gtk::FlowBox {
                                 set_orientation: gtk::Orientation::Horizontal,
-                                set_hexpand: true,
-                                #[watch]
-                                set_visible: model.vulkan_driver_selector.model().variants.len() > 1,
+                                set_column_spacing: 10,
+                                set_homogeneous: true,
+                                set_min_children_per_line: 2,
+                                set_max_children_per_line: 2,
+                                set_selection_mode: gtk::SelectionMode::None,
 
-                                append = &gtk::Label {
-                                    set_halign: gtk::Align::Start,
+                                append_child = &gtk::Box {
+                                    set_orientation: gtk::Orientation::Horizontal,
                                     set_hexpand: true,
-                                    set_label: &fl!(I18N, "instance"),
+                                    #[watch]
+                                    set_visible: model.vulkan_driver_selector.model().variants.len() > 1,
+
+                                    append = &gtk::Label {
+                                        set_halign: gtk::Align::Start,
+                                        set_hexpand: true,
+                                        set_label: &fl!(I18N, "instance"),
+                                    },
+
+                                    append = model.vulkan_driver_selector.widget(),
                                 },
 
-                                append = model.vulkan_driver_selector.widget(),
-                            },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "device-name"),
+                                    #[watch]
+                                    set_value: info.device_name.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "api-version"),
+                                    #[watch]
+                                    set_value: info.api_version.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "driver-name"),
+                                    #[watch]
+                                    set_value: info.driver.name.as_deref().unwrap_or_default(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "driver-version"),
+                                    #[watch]
+                                    set_value: info.driver.info.as_deref().unwrap_or_default(),
+                                    set_selectable: true,
+                                },
 
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "device-name"),
-                                #[watch]
-                                set_value: info.device_name.as_str(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "api-version"),
-                                #[watch]
-                                set_value: info.api_version.as_str(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "driver-name"),
-                                #[watch]
-                                set_value: info.driver.name.as_deref().unwrap_or_default(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "driver-version"),
-                                #[watch]
-                                set_value: info.driver.info.as_deref().unwrap_or_default(),
-                                set_selectable: true,
-                            },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "features"),
+                                    append_child = &gtk::Button {
+                                        add_css_class: css::INLINE,
+                                        connect_clicked => SoftwarePageMsg::ShowVulkanFeatures,
+                                        set_label: &fl!(I18N, "show-button"),
+                                    }
+                                },
 
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "features"),
-                                append_child = &gtk::Button {
-                                    connect_clicked => SoftwarePageMsg::ShowVulkanFeatures,
-                                    set_label: &fl!(I18N, "show-button"),
-                                }
-                            },
-
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "extensions"),
-                                append_child = &gtk::Button {
-                                    connect_clicked => SoftwarePageMsg::ShowVulkanExtensions,
-                                    set_label: &fl!(I18N, "show-button"),
-                                }
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "extensions"),
+                                    append_child = &gtk::Button {
+                                        connect_clicked => SoftwarePageMsg::ShowVulkanExtensions,
+                                        set_label: &fl!(I18N, "show-button"),
+                                    }
+                                },
                             },
                         }
                     }

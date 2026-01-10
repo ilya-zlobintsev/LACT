@@ -145,11 +145,10 @@ mod imp {
                 obj {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_margin_all: 5,
-                    set_spacing: 5,
+                    // set_spacing: 5,
 
                     append = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 4,
                         set_hexpand: true,
 
                         append: name_label = &gtk::Label {
@@ -162,7 +161,6 @@ mod imp {
                         #[local_ref]
                         append = value_box {
                             set_orientation: gtk::Orientation::Horizontal,
-                            set_spacing: 5,
 
                             #[local_ref]
                             append = value_label {

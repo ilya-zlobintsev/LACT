@@ -63,9 +63,9 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     #[watch]
                     set_value: format_clockspeed(model.stats.clockspeed.gpu_clockspeed, 1.0),
                 } -> clockspeed_item: gtk::FlowBoxChild {
-                    #[watch]
-                    set_visible: model.stats.clockspeed.gpu_clockspeed.is_some(),
-                },
+                        #[watch]
+                        set_visible: model.stats.clockspeed.gpu_clockspeed.is_some(),
+                    },
 
                 append_child = &InfoRow {
                     set_name: fl!(I18N, "gpu-clock-target"),

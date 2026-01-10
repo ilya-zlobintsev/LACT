@@ -38,7 +38,7 @@ impl relm4::SimpleComponent for InformationPage {
                     append_child = &model.values_list.widget().clone() -> gtk::FlowBox {
                         set_orientation: gtk::Orientation::Horizontal,
                         set_column_spacing: 10,
-                        set_homogeneous: true,
+                        // set_homogeneous: true,
                         set_min_children_per_line: 2,
                         set_max_children_per_line: 2,
                         set_selection_mode: gtk::SelectionMode::None,
