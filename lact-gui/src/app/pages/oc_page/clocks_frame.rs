@@ -16,10 +16,7 @@ use lact_schema::{
     request::{ClockspeedType, SetClocksCommand},
     ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
 };
-use relm4::{
-    binding::BoolBinding, factory::FactoryHashMap, ComponentParts, ComponentSender, RelmObjectExt,
-    RelmWidgetExt,
-};
+use relm4::{binding::BoolBinding, css, factory::FactoryHashMap, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt};
 
 // This should not end up being used in practice
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
@@ -55,6 +52,7 @@ impl relm4::Component for ClocksFrame {
 
                 set_halign: gtk::Align::End,
                 set_hexpand: true,
+                add_css_class: css::DESTRUCTIVE_ACTION,
 
                 #[watch]
                 set_visible: !model.clocks.is_empty(),
