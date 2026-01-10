@@ -30,7 +30,7 @@ mod imp {
     use std::cell::RefCell;
 
     #[derive(Default, Properties)]
-    #[properties(wrapper_type = super::InfoRow)]
+    #[properties(wrapper_type = super::InfoRowLevel)]
     pub struct InfoRowLevel {
         #[property(get, set)]
         level_value: RefCell<f64>,
