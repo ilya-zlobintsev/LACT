@@ -116,29 +116,6 @@ impl<'a> Handler {
             controllers = load_controllers(base_path, pci_db)?;
 
             let mut should_retry = false;
-            #[cfg(not(test))]
-            if let Ok(devices) = fs::read_dir("/sys/bus/pci/devices") {
-                for device in devices.flatten() {
-                    if let Ok(uevent) = fs::read_to_string(device.path().join("uevent")) {
-                        let uevent = uevent.replace('\0', "");
-                        if uevent.contains("amdgpu") || uevent.contains("radeon") {
-                            let slot_name = device
-                                .file_name()
-                                .into_string()
-                                .expect("pci file name should be valid unicode");
-
-                            if controllers.values().any(|controller| {
-                                controller.controller_info().pci_slot_name == slot_name
-                            }) {
-                                debug!("found intialized drm entry for device {:?}", device.path());
-                            } else {
-                                warn!("could not find drm entry for device {:?}", device.path());
-                                should_retry = true;
-                            }
-                        }
-                    }
-                }
-            }
 
             if controllers.is_empty() {
                 warn!("no GPUs were found");
