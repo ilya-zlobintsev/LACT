@@ -73,16 +73,12 @@ impl Component for Header {
                 set_label: &model.selector_label,
                 #[wrap(Some)]
                 set_popover = &gtk::Popover {
-                    set_margin_horizontal: 5,
-
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 5,
 
                         gtk::Frame {
                             set_label: Some("GPU"),
-                            set_label_align: 0.05,
-                            set_margin_all: 5,
 
                             gtk::ScrolledWindow {
                                 set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
@@ -95,16 +91,12 @@ impl Component for Header {
 
                         gtk::Frame {
                             set_label: Some(&fl!(I18N, "settings-profile")),
-                            set_label_align: 0.05,
-                            set_margin_all: 5,
 
                             gtk::Box {
                                 set_orientation: gtk::Orientation::Vertical,
-                                set_spacing: 5,
 
                                 gtk::CheckButton {
                                     set_label: Some(&fl!(I18N, "auto-switch-profiles")),
-                                    set_margin_horizontal: 5,
                                     #[watch]
                                     #[block_signal(toggle_auto_profile_handler)]
                                     set_active: model.profiles_info.auto_switch,
@@ -126,6 +118,7 @@ impl Component for Header {
                                 gtk::Box {
                                     set_orientation: gtk::Orientation::Horizontal,
                                     set_spacing: 5,
+                                    set_margin_horizontal: 5,
 
                                     gtk::Button {
                                         set_expand: true,

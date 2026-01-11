@@ -46,13 +46,15 @@ impl FactoryComponent for ProfileRow {
 
     view! {
         gtk::Box {
+            set_spacing: 5,
+            set_margin_horizontal: 5,
+
             #[name = "name_label"]
             gtk::Label {
                 set_label: &match &self.row {
                     ProfileRowType::Default => fl!(I18N, "default-profile"),
                     ProfileRowType::Profile { name, .. } => name.clone(),
                 },
-                set_margin_all: 5,
                 set_halign: gtk::Align::Start,
                 set_hexpand: true,
                 set_xalign: 0.0,
