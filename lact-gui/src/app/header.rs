@@ -75,7 +75,7 @@ impl Component for Header {
                 set_popover = &gtk::Popover {
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 5,
+                        set_spacing: 8,
 
                         gtk::Frame {
                             set_label: Some("GPU"),
