@@ -54,6 +54,7 @@ impl relm4::Component for ClocksFrame {
                 set_wrap_mode: pango::WrapMode::Word,
                 set_halign: gtk::Align::Start,
                 set_margin_horizontal: 5,
+                add_css_class: css::WARNING,
             },
 
             append_child = &gtk::Box {
