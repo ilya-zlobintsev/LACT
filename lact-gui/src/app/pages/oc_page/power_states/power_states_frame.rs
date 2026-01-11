@@ -55,6 +55,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
         gtk::Expander {
             set_label: Some(&fl!(I18N, "pstates")),
             add_binding: (&model.states_expanded, "expanded"),
+            set_margin_horizontal: 20,
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,

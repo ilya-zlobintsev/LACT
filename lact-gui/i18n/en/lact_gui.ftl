@@ -109,6 +109,7 @@ watt = W
 ghz = GHz
 mhz = MHz
 mebibyte = MiB
+gibibyte = GiB
 
 stats-section = Statistics
 gpu-clock = GPU Core Clock

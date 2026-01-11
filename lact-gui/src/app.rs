@@ -5,6 +5,7 @@ mod formatting;
 pub mod graphs_window;
 mod header;
 mod info_row;
+mod info_row_level;
 mod msg;
 mod overdrive_dialog;
 mod page_section;

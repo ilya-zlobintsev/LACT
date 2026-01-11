@@ -220,7 +220,7 @@ impl DeviceInfo {
                 stats
                     .vram
                     .total
-                    .map(|size| format!("{} MiB", size / 1024 / 1024)),
+                    .map(|size| format!("{:.2} GiB", size as f64 / 1024.0 / 1024.0 / 1024.0)),
             ));
         }
 

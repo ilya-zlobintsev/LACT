@@ -46,8 +46,9 @@ impl relm4::Component for PowerCapSection {
                     set_halign: gtk::Align::End,
                     set_hexpand: true,
             },
-            append = &gtk::Box {
+            append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 10,
 
                 gtk::Label {
                     #[watch]

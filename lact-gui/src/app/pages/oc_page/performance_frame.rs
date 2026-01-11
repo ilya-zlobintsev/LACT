@@ -49,7 +49,7 @@ impl relm4::Component for PerformanceFrame {
             #[watch]
             set_visible: model.performance_level.is_some(),
 
-            append = &gtk::Box {
+            append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
 
@@ -86,7 +86,7 @@ impl relm4::Component for PerformanceFrame {
                 },
             },
 
-            append = &gtk::Box {
+            append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
 
