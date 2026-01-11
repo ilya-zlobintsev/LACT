@@ -69,7 +69,7 @@ amd-oc-status =
        *[other] Tuntematon
     }</b>
 apply-button = Toteuta
-revert-button = Peruuta
+revert-button = Palauta
 mebibyte = Mit
 unknown-throttling = Tuntematon
 missing-stat = Ei saatavilla
