@@ -39,6 +39,13 @@ impl relm4::Component for PowerCapSection {
     view! {
         #[root]
         PageSection::new(&fl!(I18N, "power-cap")) {
+            append_header = &gtk::Button {
+                    set_label: &fl!(I18N, "reset-button"),
+                    connect_clicked => PowerCapMsg::Reset,
+
+                    set_halign: gtk::Align::End,
+                    set_hexpand: true,
+            },
             append = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
 
@@ -54,11 +61,6 @@ impl relm4::Component for PowerCapSection {
                     set_margin_horizontal: 5,
                     set_draw_value: false,
                     set_adjustment: adjustment,
-                },
-
-                gtk::Button {
-                    set_label: &fl!(I18N, "reset-button"),
-                    connect_clicked => PowerCapMsg::Reset,
                 },
             }
         },
