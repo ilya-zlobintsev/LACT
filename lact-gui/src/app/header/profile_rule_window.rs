@@ -2,6 +2,7 @@ pub mod profile_row;
 
 use crate::app::{msg::AppMsg, APP_BROKER};
 use crate::I18N;
+use gtk::prelude::ObjectExt;
 use gtk::{
     pango,
     prelude::{
@@ -64,14 +65,16 @@ impl relm4::Component for ProfileRuleWindow {
             set_default_size: (600, 300),
             set_title: Some(&fl!(I18N, "profile-rules")),
             set_transient_for: Some(&root_window),
-            connect_response[root, sender] => move |_, response| {
-                match response {
-                    gtk::ResponseType::Accept => {
-                        sender.input(ProfileRuleWindowMsg::Save);
-                        root.close();
+            connect_response[root = root.downgrade(), sender] => move |_, response| {
+                if let Some(root) = root.upgrade() {
+                    match response {
+                        gtk::ResponseType::Accept => {
+                            sender.input(ProfileRuleWindowMsg::Save);
+                            root.close();
+                        }
+                        gtk::ResponseType::Cancel => root.close(),
+                        _ => (),
                     }
-                    gtk::ResponseType::Cancel => root.close(),
-                    _ => (),
                 }
             },
 

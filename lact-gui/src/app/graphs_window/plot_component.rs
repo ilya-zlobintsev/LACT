@@ -9,7 +9,8 @@ use gtk::{
     gdk,
     glib::{subclass::types::ObjectSubclassIsExt, types::StaticType, value::ToValue},
     prelude::{
-        AdjustmentExt, BoxExt, ButtonExt, CheckButtonExt, OrientableExt, PopoverExt, WidgetExt,
+        AdjustmentExt, BoxExt, ButtonExt, CheckButtonExt, ObjectExt, OrientableExt, PopoverExt,
+        WidgetExt,
     },
 };
 use i18n_embed_fl::fl;
@@ -108,17 +109,23 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                         set_actions: gdk::DragAction::MOVE,
                         set_types: &[DynamicIndexValue::static_type()],
 
-                        connect_enter[root] => move |_, _, _| {
-                            root.set_opacity(0.5);
+                        connect_enter[root = root.downgrade()] => move |_, _, _| {
+                            if let Some(root) = root.upgrade() {
+                                root.set_opacity(0.5);
+                            }
                             gdk::DragAction::MOVE
                         },
 
-                        connect_leave[root] => move |_| {
-                            root.set_opacity(1.0);
+                        connect_leave[root = root.downgrade()] => move |_| {
+                            if let Some(root) = root.upgrade() {
+                                root.set_opacity(1.0);
+                            }
                         },
 
-                        connect_drop[root, index, sender] => move |_, value, _, _| {
-                            root.set_opacity(1.0);
+                        connect_drop[root = root.downgrade(), index, sender] => move |_, value, _, _| {
+                            if let Some(root) = root.upgrade() {
+                                root.set_opacity(1.0);
+                            }
 
                             if let Ok(DynamicIndexValue(source_index)) = value.get::<DynamicIndexValue>() {
                                 sender.output(GraphsWindowMsg::SwapPlots(index.clone(), source_index)).unwrap();

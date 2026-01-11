@@ -67,8 +67,10 @@ impl Component for NewProfileDialog {
                         set_label: &fl!(I18N, "cancel"),
                         set_hexpand: true,
 
-                        connect_clicked[root] => move |_| {
-                            root.hide();
+                        connect_clicked[root = root.downgrade()] => move |_| {
+                            if let Some(root) = root.upgrade() {
+                                root.close();
+                            }
                         },
                     },
 
@@ -122,7 +124,7 @@ impl Component for NewProfileDialog {
                             .output((self.name_buffer.text().to_string(), base))
                             .unwrap();
 
-                        root.hide();
+                        root.close();
                     }
                 }
             }
