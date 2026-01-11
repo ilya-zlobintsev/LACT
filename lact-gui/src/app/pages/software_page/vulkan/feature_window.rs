@@ -1,6 +1,6 @@
 use gtk::{
     glib::GString,
-    prelude::{EditableExt, GtkWindowExt, OrientableExt, WidgetExt},
+    prelude::{EditableExt, GtkWindowExt, ObjectExt, OrientableExt, WidgetExt},
     NoSelection,
 };
 use relm4::{
@@ -39,8 +39,10 @@ impl SimpleComponent for VulkanFeaturesWindow {
                         sender.input(AppMsg::FilterChanged(entry.text()));
                     },
 
-                    connect_stop_search[root] => move |_| {
-                        root.close();
+                    connect_stop_search[root = root.downgrade()] => move |_| {
+                        if let Some(root) = root.upgrade() {
+                            root.close();
+                        }
                     },
                 },
 

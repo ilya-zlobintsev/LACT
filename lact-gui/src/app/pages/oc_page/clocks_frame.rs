@@ -49,6 +49,21 @@ impl relm4::Component for ClocksFrame {
 
     view! {
         PageSection::new(&fl!(I18N, "overclock-section")) {
+            append_header = &gtk::Button {
+                set_label: &fl!(I18N, "reset-button"),
+                set_tooltip_text: Some(&fl!(I18N, "reset-oc-tooltip")),
+
+                set_halign: gtk::Align::End,
+                set_hexpand: true,
+                add_css_class: css::DESTRUCTIVE_ACTION,
+
+                #[watch]
+                set_visible: !model.clocks.is_empty(),
+
+                connect_clicked => move |_| {
+                    APP_BROKER.send(AppMsg::ResetClocks);
+                }
+            },
             append_child = &gtk::Label {
                 set_label: &fl!(I18N, "oc-warning"),
                 set_wrap_mode: pango::WrapMode::Word,
@@ -145,20 +160,6 @@ impl relm4::Component for ClocksFrame {
                 set_halign: gtk::Align::Start,
                 #[watch]
                 set_visible: model.clocks.is_empty(),
-            },
-
-            append_child = &gtk::Button {
-                set_label: &fl!(I18N, "reset-button"),
-                set_halign: gtk::Align::End,
-                set_margin_horizontal: 5,
-                set_tooltip_text: Some(&fl!(I18N, "reset-oc-tooltip")),
-                set_css_classes: &[css::DESTRUCTIVE_ACTION],
-                #[watch]
-                set_visible: !model.clocks.is_empty(),
-
-                connect_clicked => move |_| {
-                    APP_BROKER.send(AppMsg::ResetClocks);
-                }
             },
         }
     }

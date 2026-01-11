@@ -30,6 +30,13 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
     view! {
         PageSection::new(&fl!(I18N, "stats-section")) {
+            append_header = &gtk::Button {
+                set_label: &fl!(I18N, "show-historical-charts"),
+                connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowGraphsWindow),
+                set_halign: gtk::Align::End,
+                set_hexpand: true,
+            },
+
             append_child = &gtk::FlowBox {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_column_spacing: 10,
@@ -184,12 +191,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     #[watch]
                     set_visible: model.stats.fan.pwm_current.is_some() || model.stats.fan.speed_current.is_some(),
                 },
-            },
-
-            append_child = &gtk::Button {
-                set_label: &fl!(I18N, "show-historical-charts"),
-                connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowGraphsWindow),
-                set_halign: gtk::Align::End,
             },
         }
     }
