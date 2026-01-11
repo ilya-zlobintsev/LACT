@@ -18,12 +18,7 @@ use new_profile_dialog::NewProfileDialog;
 use profile_rename_dialog::ProfileRenameDialog;
 use profile_row::{ProfileRow, ProfileRowType};
 use profile_rule_window::ProfileRuleWindow;
-use relm4::{
-    factory::FactoryVecDeque,
-    prelude::DynamicIndex,
-    typed_view::list::{RelmListItem, TypedListView},
-    Component, ComponentParts, ComponentSender, RelmIterChildrenExt, RelmWidgetExt,
-};
+use relm4::{css, factory::FactoryVecDeque, prelude::DynamicIndex, typed_view::list::{RelmListItem, TypedListView}, Component, ComponentParts, ComponentSender, RelmIterChildrenExt, RelmWidgetExt};
 use std::sync::Arc;
 use tracing::debug;
 
@@ -77,9 +72,11 @@ impl Component for Header {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 8,
 
+                         gtk::Label {
+                            set_label: "GPU",
+                            add_css_class: css::HEADING,
+                        },
                         gtk::Frame {
-                            set_label: Some("GPU"),
-
                             gtk::ScrolledWindow {
                                 set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
                                 set_propagate_natural_height: true,
@@ -89,9 +86,12 @@ impl Component for Header {
                             }
                         },
 
-                        gtk::Frame {
-                            set_label: Some(&fl!(I18N, "settings-profile")),
+                         gtk::Label {
+                            set_label: &fl!(I18N, "settings-profile"),
+                            add_css_class: css::HEADING,
+                        },
 
+                        gtk::Frame {
                             gtk::Box {
                                 set_orientation: gtk::Orientation::Vertical,
 
