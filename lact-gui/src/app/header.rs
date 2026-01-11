@@ -22,8 +22,7 @@ use relm4::{
     factory::FactoryVecDeque,
     prelude::DynamicIndex,
     typed_view::list::{RelmListItem, TypedListView},
-    Component, ComponentController, ComponentParts, ComponentSender, RelmIterChildrenExt,
-    RelmWidgetExt,
+    Component, ComponentParts, ComponentSender, RelmIterChildrenExt, RelmWidgetExt,
 };
 use std::sync::Arc;
 use tracing::debug;
@@ -35,6 +34,8 @@ pub struct Header {
     selector_label: String,
     system_info: SystemInfo,
     device_flags: Vec<DeviceFlag>,
+
+    new_profile_diag: Option<relm4::Controller<NewProfileDialog>>,
 }
 
 #[derive(Debug)]
@@ -302,6 +303,7 @@ impl Component for Header {
             profiles_info: ProfilesInfo::default(),
             system_info,
             device_flags: Vec::new(),
+            new_profile_diag: None,
         };
 
         let gpu_selector = &model.gpu_selector.view;
@@ -395,12 +397,13 @@ impl Component for Header {
             HeaderMsg::CreateProfile => {
                 sender.input(HeaderMsg::ClosePopover);
 
-                let mut diag_controller = NewProfileDialog::builder()
+                let diag_controller = NewProfileDialog::builder()
                     .launch(self.custom_profiles())
                     .forward(sender.output_sender(), |(name, base)| {
                         AppMsg::CreateProfile(name, base)
                     });
-                diag_controller.detach_runtime();
+
+                self.new_profile_diag = Some(diag_controller);
             }
             HeaderMsg::RenameProfile(index) => {
                 sender.input(HeaderMsg::ClosePopover);

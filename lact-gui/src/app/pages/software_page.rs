@@ -19,6 +19,8 @@ pub struct SoftwarePage {
 
     vulkan_driver_selector: relm4::Controller<SimpleComboBox<String>>,
     opencl_platform_selector: relm4::Controller<SimpleComboBox<String>>,
+
+    vulkan_window: Option<relm4::Controller<VulkanFeaturesWindow>>,
 }
 
 #[derive(Debug)]
@@ -250,6 +252,7 @@ impl relm4::SimpleComponent for SoftwarePage {
             device_info: None,
             vulkan_driver_selector,
             opencl_platform_selector,
+            vulkan_window: None,
         };
 
         let mut daemon_version = format!("{}-{}", system_info.version, system_info.profile);
@@ -329,12 +332,18 @@ impl relm4::SimpleComponent for SoftwarePage {
             }
             SoftwarePageMsg::ShowVulkanFeatures => {
                 if let Some(vulkan_info) = &self.selected_vulkan_info() {
-                    show_features_window("Vulkan Features", &vulkan_info.features);
+                    self.vulkan_window = Some(show_features_window(
+                        "Vulkan Features",
+                        &vulkan_info.features,
+                    ));
                 }
             }
             SoftwarePageMsg::ShowVulkanExtensions => {
                 if let Some(vulkan_info) = self.selected_vulkan_info() {
-                    show_features_window("Vulkan Extensions", &vulkan_info.extensions);
+                    self.vulkan_window = Some(show_features_window(
+                        "Vulkan Extensions",
+                        &vulkan_info.extensions,
+                    ));
                 }
             }
             SoftwarePageMsg::SelectionChanged => (),
@@ -366,7 +375,10 @@ impl SoftwarePage {
     }
 }
 
-fn show_features_window(title: &str, values: &IndexMap<String, bool>) {
+fn show_features_window(
+    title: &str,
+    values: &IndexMap<String, bool>,
+) -> relm4::Controller<VulkanFeaturesWindow> {
     let values = values
         .into_iter()
         .map(|(name, &supported)| VulkanFeature {
@@ -375,9 +387,9 @@ fn show_features_window(title: &str, values: &IndexMap<String, bool>) {
         })
         .collect();
 
-    let mut window_controller = VulkanFeaturesWindow::builder()
+    let window_controller = VulkanFeaturesWindow::builder()
         .launch((values, title.to_owned()))
         .detach();
-    window_controller.detach_runtime();
     window_controller.widget().present();
+    window_controller
 }
