@@ -89,7 +89,7 @@ mod imp {
                     #[local_ref]
                     append = content_box {
                         add_css_class: if cfg!(feature = "adw") { css::CARD } else { css::FRAME },
-                        inline_css: if cfg!(feature = "adw") { "" } else { "border-color: @accent_color;" },
+                        inline_css: if cfg!(feature = "adw") { "" } else { "border-radius: 5px;" },
 
                         #[local_ref]
                         append = children_box {}
