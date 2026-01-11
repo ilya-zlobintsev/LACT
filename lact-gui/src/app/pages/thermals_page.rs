@@ -32,6 +32,7 @@ use relm4::{
     ComponentController, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
 };
 use std::{cell::Cell, rc::Rc};
+use crate::app::ext::FlowBoxExt;
 
 const AUTO_PAGE: &str = "automatic";
 const CURVE_PAGE: &str = "curve";
@@ -115,23 +116,32 @@ impl relm4::Component for ThermalsPage {
                 },
 
                 PageSection::new(&fl!(I18N, "monitoring-section")) {
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "temperatures"),
-                        #[watch]
-                        set_value: model.temperatures.as_deref().unwrap_or("No sensors found"),
-                    },
+                      append_child = &gtk::FlowBox {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_column_spacing: 10,
+                        set_homogeneous: true,
+                        set_min_children_per_line: 2,
+                        set_max_children_per_line: 2,
+                        set_selection_mode: gtk::SelectionMode::None,
 
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "fan-speed"),
-                        #[watch]
-                        set_value: model.fan_speed.as_deref().unwrap_or("No fan detected"),
-                    },
+                        append_child = &InfoRow {
+                            set_name: fl!(I18N, "temperatures"),
+                            #[watch]
+                            set_value: model.temperatures.as_deref().unwrap_or("No sensors found"),
+                        },
 
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "throttling"),
-                        #[watch]
-                        set_value: model.throttling.as_str(),
-                    },
+                        append_child = &InfoRow {
+                            set_name: fl!(I18N, "fan-speed"),
+                            #[watch]
+                            set_value: model.fan_speed.as_deref().unwrap_or("No fan detected"),
+                        },
+
+                        append_child = &InfoRow {
+                            set_name: fl!(I18N, "throttling"),
+                            #[watch]
+                            set_value: model.throttling.as_str(),
+                        },
+                  }
                 },
 
                 PageSection::new(&fl!(I18N, "fan-control-section")) {
