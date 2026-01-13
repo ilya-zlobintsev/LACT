@@ -7,6 +7,9 @@ use gtk::{
     },
     subclass::box_::BoxImpl,
 };
+use relm4::css;
+
+pub const CONTAINER_CLASS: &str = if cfg!(feature = "adw") { css::CARD } else { css::FRAME };
 
 glib::wrapper! {
     pub struct PageSection(ObjectSubclass<imp::PageSection>)
@@ -18,6 +21,14 @@ impl PageSection {
     pub fn new(name: &str) -> Self {
         Object::builder().property("name", name).build()
     }
+
+    pub fn plain(name: &str) -> Self {
+        Object::builder()
+            .property("name", name)
+            .property("plain_container", true)
+            .build()
+    }
+
     pub fn append_header(&self, widget: &impl IsA<gtk::Widget>) {
         use glib::subclass::types::ObjectSubclassIsExt;
         self.imp().header_box.append(widget);
@@ -39,8 +50,8 @@ mod imp {
         subclass::{prelude::*, widget::WidgetImpl},
         Label,
     };
-    use relm4::{css, view, RelmWidgetExt};
-    use std::cell::RefCell;
+    use relm4::{view, RelmWidgetExt};
+    use std::cell::{Cell, RefCell};
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::PageSection)]
@@ -52,6 +63,9 @@ mod imp {
 
         #[property(get, set)]
         name: RefCell<String>,
+
+        #[property(get, set, construct_only)]
+        plain_container: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -66,16 +80,10 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let obj = self.obj();
+
             let section_label = &self.section_label;
             let header_box = &self.header_box;
-
-            self.content_box.set_orientation(gtk::Orientation::Vertical);
             let content_box = &self.content_box;
-
-            self.children_box
-                .set_orientation(gtk::Orientation::Vertical);
-            self.children_box.set_margin_all(10);
-            self.children_box.set_spacing(10);
             let children_box = &self.children_box;
 
             view! {
@@ -100,11 +108,16 @@ mod imp {
 
                     #[local_ref]
                     append = content_box {
-                        add_css_class: if cfg!(feature = "adw") { css::CARD } else { css::FRAME },
+                        set_orientation: gtk::Orientation::Vertical,
                         inline_css: if cfg!(feature = "adw") { "" } else { "border-radius: 5px;" },
+                        set_class_active: (super::CONTAINER_CLASS, !obj.plain_container()),
 
                         #[local_ref]
-                        append = children_box {}
+                        append = children_box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_margin_all: 10,
+                            set_spacing: 10,
+                        }
                     }
                 }
             }

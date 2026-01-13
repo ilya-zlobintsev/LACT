@@ -6,7 +6,7 @@ use super::{
     PageUpdate,
 };
 use crate::{
-    app::{info_row::InfoRow, msg::AppMsg, page_section::PageSection},
+    app::{info_row::InfoRow, msg::AppMsg, page_section::{PageSection}},
     APP_BROKER, I18N,
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
@@ -144,7 +144,7 @@ impl relm4::Component for ThermalsPage {
                   }
                 },
 
-                PageSection::new(&fl!(I18N, "fan-control-section")) {
+                PageSection::plain(&fl!(I18N, "fan-control-section")) {
                     // Disable fan configuration when overdrive is disabled on GPUs that have PMFW (RDNA3+)
                     #[watch]
                     set_sensitive: model.custom_control_supported,
