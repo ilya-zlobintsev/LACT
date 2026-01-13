@@ -1,13 +1,16 @@
 use super::PageUpdate;
-use crate::app::format_friendly_size;
 use crate::app::ext::FlowBoxExt;
+use crate::app::format_friendly_size;
 use crate::app::info_row::{InfoRow, InfoRowExt, InfoRowItem};
 use crate::app::page_section::PageSection;
 use crate::I18N;
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use lact_schema::{CacheInfo, CacheType, DeviceInfo, DeviceStats};
-use relm4::{prelude::{FactoryComponent, FactoryVecDeque}, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{
+    prelude::{FactoryComponent, FactoryVecDeque},
+    ComponentParts, ComponentSender, RelmWidgetExt,
+};
 use std::sync::Arc;
 
 pub struct InformationPage {

@@ -9,7 +9,11 @@ use gtk::{
 };
 use relm4::css;
 
-pub const CONTAINER_CLASS: &str = if cfg!(feature = "adw") { css::CARD } else { css::FRAME };
+pub const CONTAINER_CLASS: &str = if cfg!(feature = "adw") {
+    css::CARD
+} else {
+    css::FRAME
+};
 
 glib::wrapper! {
     pub struct PageSection(ObjectSubclass<imp::PageSection>)

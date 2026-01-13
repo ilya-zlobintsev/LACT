@@ -5,8 +5,9 @@ use super::{
     oc_page::gpu_stats_section::{fan_speed_text, temperature_text, throttling_text},
     PageUpdate,
 };
+use crate::app::ext::FlowBoxExt;
 use crate::{
-    app::{info_row::InfoRow, msg::AppMsg, page_section::{PageSection}},
+    app::{info_row::InfoRow, msg::AppMsg, page_section::PageSection},
     APP_BROKER, I18N,
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
@@ -32,7 +33,6 @@ use relm4::{
     ComponentController, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
 };
 use std::{cell::Cell, rc::Rc};
-use crate::app::ext::FlowBoxExt;
 
 const AUTO_PAGE: &str = "automatic";
 const CURVE_PAGE: &str = "curve";
