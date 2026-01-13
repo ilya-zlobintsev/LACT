@@ -41,7 +41,7 @@ mod imp {
         Label,
     };
     use relm4::{css, view, RelmWidgetExt};
-    use std::cell::{Cell, RefCell};
+    use std::cell::RefCell;
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::PageSection)]
