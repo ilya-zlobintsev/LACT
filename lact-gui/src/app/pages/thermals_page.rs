@@ -144,7 +144,7 @@ impl relm4::Component for ThermalsPage {
                   }
                 },
 
-                PageSection::plain(&fl!(I18N, "fan-control-section")) {
+                PageSection::new(&fl!(I18N, "fan-control-section")) {
                     // Disable fan configuration when overdrive is disabled on GPUs that have PMFW (RDNA3+)
                     #[watch]
                     set_sensitive: model.custom_control_supported,
@@ -155,6 +155,9 @@ impl relm4::Component for ThermalsPage {
 
                     #[name = "stack"]
                     append_child = &gtk::Stack {
+                        set_vexpand: false,
+                        set_vhomogeneous: false,
+
                         #[watch]
                         set_visible: model.fan_speed.is_some(),
 
