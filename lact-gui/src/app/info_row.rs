@@ -180,6 +180,7 @@ mod imp {
                         set_orientation: gtk::Orientation::Vertical,
                         set_hexpand: true,
                         set_valign: gtk::Align::Center,
+                        set_spacing: 5,
 
                         append: name_label = &gtk::Label {
                             set_halign: gtk::Align::Start,
