@@ -29,10 +29,7 @@ pub trait InfoRowExt {
     fn append_child(&self, widget: &impl IsA<gtk::Widget>);
     fn set_value_size_group(&self, size_group: &gtk::SizeGroup);
 
-    // idk why it complains about these not being used, but they are
-    #[allow(dead_code)]
     fn set_name(&self, name: String);
-    #[allow(dead_code)]
     fn set_value(&self, value: String);
     #[allow(dead_code)]
     fn set_icon(&self, icon: String);
