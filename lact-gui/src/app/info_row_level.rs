@@ -27,6 +27,7 @@ mod imp {
     use crate::app::info_row::{InfoRow, InfoRowExt};
     use glib::Properties;
     use gtk::{glib, prelude::*, subclass::prelude::*, LevelBar};
+    use relm4::view;
     use std::cell::RefCell;
 
     #[derive(Default, Properties)]
@@ -50,17 +51,20 @@ mod imp {
 
             let obj = self.obj();
 
-            let level_bar = LevelBar::builder()
-                .hexpand(true)
-                .orientation(gtk::Orientation::Horizontal)
-                .build();
-
-            // this prevents re-colour of the bar when the value is close to 100%
-            level_bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_LOW));
-            level_bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_HIGH));
-            level_bar.remove_offset_value(Some(gtk::LEVEL_BAR_OFFSET_FULL));
-
-            obj.append_child(&level_bar);
+            view! {
+                #[local_ref]
+                obj {
+                    #[name(level_bar)]
+                    append_child = &LevelBar {
+                        set_hexpand: true,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        // this prevents re-colour of the bar when the value is close to 100%
+                        remove_offset_value: Some(gtk::LEVEL_BAR_OFFSET_LOW),
+                        remove_offset_value: Some(gtk::LEVEL_BAR_OFFSET_HIGH),
+                        remove_offset_value: Some(gtk::LEVEL_BAR_OFFSET_FULL),
+                    }
+                }
+            }
 
             obj.bind_property("level-value", &level_bar, "value")
                 .sync_create()

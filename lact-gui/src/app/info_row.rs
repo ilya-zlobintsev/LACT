@@ -31,10 +31,6 @@ pub trait InfoRowExt {
 
     fn set_name(&self, name: String);
     fn set_value(&self, value: String);
-    #[allow(dead_code)]
-    fn set_icon(&self, icon: String);
-    #[allow(dead_code)]
-    fn set_level_value(&self, level_value: f64);
 
     fn set_popover(&self, popover: &gtk::Popover);
 
@@ -56,14 +52,6 @@ impl<T: IsA<InfoRow>> InfoRowExt for T {
 
     fn set_value(&self, value: String) {
         self.as_ref().set_property("value", value);
-    }
-
-    fn set_icon(&self, icon: String) {
-        self.as_ref().set_property("icon", icon);
-    }
-
-    fn set_level_value(&self, level_value: f64) {
-        self.as_ref().set_property("level-value", level_value);
     }
 
     fn set_popover(&self, popover: &gtk::Popover) {
