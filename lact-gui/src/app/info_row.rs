@@ -66,6 +66,14 @@ impl<T: IsA<InfoRow>> InfoRowExt for T {
         });
         self.as_ref().add_controller(gesture);
         self.as_ref().set_cursor_from_name(Some("pointer"));
+
+        self.as_ref().connect_map(|widget| {
+            if let Some(parent) = widget.parent() {
+                if let Ok(child) = parent.downcast::<gtk::FlowBoxChild>() {
+                    child.add_css_class("clickable-info-row");
+                }
+            }
+        });
     }
 }
 

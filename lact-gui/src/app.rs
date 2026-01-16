@@ -182,6 +182,12 @@ impl AsyncComponent for AppModel {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
+        if !cfg!(feature = "adw") {
+            if let Err(err) = relm4::set_global_css_from_file("lact-gui/res/style.css") {
+                tracing::warn!("Failed to load global CSS from file: {err}");
+            }
+        }
+
         let (daemon_client, conn_err) = match args.tcp_address {
             Some(remote_addr) => {
                 info!("establishing connection to {remote_addr}");

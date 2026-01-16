@@ -96,8 +96,13 @@ mod imp {
                     #[local_ref]
                     append = content_box {
                         set_orientation: gtk::Orientation::Vertical,
-                        inline_css: if cfg!(feature = "adw") { "" } else { "border-radius: 5px;" },
-                        add_css_class: if cfg!(feature = "adw") { css::CARD } else { css::FRAME },
+                        add_css_class: if cfg!(feature = "adw") {
+                            css::CARD
+                        } else {
+                            "page-section-content"
+                        },
+                        #[watch]
+                        add_css_class: if cfg!(feature = "adw") { "" } else { css::FRAME },
 
                         #[local_ref]
                         append = children_box {
