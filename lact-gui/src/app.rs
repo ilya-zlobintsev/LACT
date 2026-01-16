@@ -127,6 +127,8 @@ impl AsyncComponent for AppModel {
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
                     set_spacing: 5,
+                    set_halign: gtk::Align::Center,
+                    set_width_request: 700,
 
                     #[name = "root_stack"]
                     gtk::Stack {
