@@ -51,6 +51,7 @@ pub enum OcPageMsg {
         configured: bool,
     },
     PerformanceLevelChanged,
+    Panic,
 }
 
 #[relm4::component(pub)]
@@ -101,6 +102,15 @@ impl relm4::Component for OcPage {
                 model.performance_frame.widget(),
                 model.power_states_frame.widget(),
                 model.clocks_frame.widget(),
+
+                gtk::Button {
+                    set_label: "Panic (Debug)",
+                    set_halign: gtk::Align::End,
+                    set_margin_top: 20,
+                    connect_clicked => move |_| {
+                        sender.input(OcPageMsg::Panic);
+                    }
+                },
             }
         }
     }
@@ -141,6 +151,7 @@ impl relm4::Component for OcPage {
         _root: &Self::Root,
     ) {
         match msg {
+            OcPageMsg::Panic => panic!("User triggered panic"),
             OcPageMsg::Update { update, initial } => {
                 self.stats_section.emit(update.clone());
                 match &update {
