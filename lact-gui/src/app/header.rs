@@ -19,6 +19,7 @@ use profile_rename_dialog::ProfileRenameDialog;
 use profile_row::{ProfileRow, ProfileRowType};
 use profile_rule_window::ProfileRuleWindow;
 use relm4::{
+    css,
     factory::FactoryVecDeque,
     prelude::DynamicIndex,
     typed_view::list::{RelmListItem, TypedListView},
@@ -73,17 +74,15 @@ impl Component for Header {
                 set_label: &model.selector_label,
                 #[wrap(Some)]
                 set_popover = &gtk::Popover {
-                    set_margin_horizontal: 5,
-
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 5,
+                        set_spacing: 8,
 
+                         gtk::Label {
+                            set_label: "GPU",
+                            add_css_class: css::HEADING,
+                        },
                         gtk::Frame {
-                            set_label: Some("GPU"),
-                            set_label_align: 0.05,
-                            set_margin_all: 5,
-
                             gtk::ScrolledWindow {
                                 set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
                                 set_propagate_natural_height: true,
@@ -93,18 +92,18 @@ impl Component for Header {
                             }
                         },
 
-                        gtk::Frame {
-                            set_label: Some(&fl!(I18N, "settings-profile")),
-                            set_label_align: 0.05,
-                            set_margin_all: 5,
+                         gtk::Label {
+                            set_label: &fl!(I18N, "settings-profile"),
+                            add_css_class: css::HEADING,
+                        },
 
+                        gtk::Frame {
                             gtk::Box {
                                 set_orientation: gtk::Orientation::Vertical,
-                                set_spacing: 5,
 
                                 gtk::CheckButton {
+                                    set_margin_top: 5,
                                     set_label: Some(&fl!(I18N, "auto-switch-profiles")),
-                                    set_margin_horizontal: 5,
                                     #[watch]
                                     #[block_signal(toggle_auto_profile_handler)]
                                     set_active: model.profiles_info.auto_switch,
@@ -126,6 +125,7 @@ impl Component for Header {
                                 gtk::Box {
                                     set_orientation: gtk::Orientation::Horizontal,
                                     set_spacing: 5,
+                                    set_margin_horizontal: 5,
 
                                     gtk::Button {
                                         set_expand: true,
