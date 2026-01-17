@@ -4,8 +4,11 @@ use anyhow::{anyhow, bail, ensure, Context};
 use lact_schema::{
     AmdgpuParamsConfigurator, BootArgConfigurator, InitramfsType, SystemInfo, GIT_COMMIT,
 };
-use nix::sys::socket::{
-    bind, recv, socket, AddressFamily, MsgFlags, NetlinkAddr, SockFlag, SockProtocol, SockType,
+use nix::sys::{
+    socket::{
+        bind, recv, socket, AddressFamily, MsgFlags, NetlinkAddr, SockFlag, SockProtocol, SockType,
+    },
+    utsname::uname,
 };
 use os_release::OsRelease;
 use std::{
@@ -50,15 +53,13 @@ pub async fn info() -> anyhow::Result<SystemInfo> {
     }
     .to_owned();
 
-    let kernel_output = Command::new("uname")
-        .arg("-r")
-        .output()
-        .await
-        .context("Could not read kernel version")?;
-    let kernel_version = String::from_utf8(kernel_output.stdout)
-        .context("Invalid kernel version output")?
-        .trim()
-        .to_owned();
+    let kernel_version = uname().map_or_else(
+        |err| {
+            error!("could not fetch kernel version: {err}");
+            "<Unknown>".to_owned()
+        },
+        |info| info.release().to_string_lossy().into_owned(),
+    );
 
     let amdgpu_overdrive_enabled = if let Ok(mask) = read_current_mask() {
         Some((mask & PP_OVERDRIVE_MASK) > 0)
