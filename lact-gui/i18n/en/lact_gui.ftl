@@ -247,5 +247,4 @@ profile-rule-specific-process = With a specific process:
 
 # Crash page
 crash-page-title = Application Crashed
-
 exit = Exit
