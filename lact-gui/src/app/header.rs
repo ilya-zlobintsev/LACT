@@ -96,6 +96,7 @@ impl Component for Header {
                                 set_orientation: gtk::Orientation::Vertical,
 
                                 gtk::CheckButton {
+                                    set_margin_top: 5,
                                     set_label: Some(&fl!(I18N, "auto-switch-profiles")),
                                     #[watch]
                                     #[block_signal(toggle_auto_profile_handler)]

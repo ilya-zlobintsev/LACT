@@ -73,8 +73,9 @@ impl FactoryComponent for ProfileRow {
                         set_spacing: 5,
 
                         gtk::Button {
+                            inline_css: "color: @theme_text_color",
                             set_label: &fl!(I18N, "rename-profile"),
-                            set_sensitive: matches!(self.row, ProfileRowType::Profile { .. }),
+                            set_visible: matches!(self.row, ProfileRowType::Profile { .. }),
                             connect_clicked[sender, index] => move |_| {
                                 sender.output(HeaderMsg::RenameProfile(index.clone())).unwrap();
                             },
@@ -82,8 +83,9 @@ impl FactoryComponent for ProfileRow {
                         },
 
                         gtk::Button {
+                            inline_css: "color: @theme_text_color",
                             set_label: &fl!(I18N, "delete-profile"),
-                            set_sensitive: matches!(self.row, ProfileRowType::Profile { .. }),
+                            set_visible: matches!(self.row, ProfileRowType::Profile { .. }),
                             connect_clicked[profile = self.row.clone()] => move |_| {
                                 if let ProfileRowType::Profile { name, .. } = profile.clone() {
                                     APP_BROKER.send(AppMsg::DeleteProfile(name));
@@ -93,6 +95,7 @@ impl FactoryComponent for ProfileRow {
                         },
 
                         gtk::Button {
+                            inline_css: "color: @theme_text_color",
                             set_label: &fl!(I18N, "edit-rules"),
                             connect_clicked[sender, index] => move |_| {
                                 sender.output(HeaderMsg::ShowProfileEditor(index.clone())).unwrap();
@@ -101,6 +104,7 @@ impl FactoryComponent for ProfileRow {
                         },
 
                         gtk::Button {
+                            inline_css: "color: @theme_text_color",
                             set_label: &fl!(I18N, "export-to-file"),
                             connect_clicked[sender, index] => move |_| {
                                 sender.output(HeaderMsg::ExportProfile(index.clone())).unwrap();
