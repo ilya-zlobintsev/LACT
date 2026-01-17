@@ -1,5 +1,6 @@
-use crate::app::msg::AppMsg;
+use crate::{app::msg::AppMsg, I18N};
 use gtk::prelude::*;
+use i18n_embed_fl::fl;
 use relm4::{ComponentParts, ComponentSender};
 
 pub struct CrashPage {
@@ -26,7 +27,7 @@ impl relm4::SimpleComponent for CrashPage {
             },
 
             gtk::Label {
-                set_markup: "<b><span size='large'>Application Crashed</span></b>",
+                set_markup: &format!("<b><span size='large'>{}</span></b>", fl!(I18N, "crash-page-title")),
             },
 
             gtk::Label {
@@ -43,14 +44,14 @@ impl relm4::SimpleComponent for CrashPage {
                 set_halign: gtk::Align::Center,
 
                 gtk::Button {
-                    set_label: "Generate Debug Snapshot",
+                    set_label: &fl!(I18N, "generate-debug-snapshot"),
                     connect_clicked[sender] => move |_| {
                         sender.output(AppMsg::DebugSnapshot).expect("Channel closed");
                     }
                 },
 
                 gtk::Button {
-                    set_label: "Exit",
+                    set_label: &fl!(I18N, "exit"),
                     connect_clicked => |_| {
                         std::process::exit(1);
                     }
