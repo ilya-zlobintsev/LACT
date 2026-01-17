@@ -245,3 +245,7 @@ profile-rule-gamemode-tab = Gamemode is active
 profile-rule-process-name = Process Name:
 profile-rule-args-contain = Arguments Contain:
 profile-rule-specific-process = With a specific process:
+
+# Crash page
+crash-page-title = Application Crashed
+exit = Exit

@@ -6,10 +6,10 @@ pub mod graphs_window;
 mod header;
 mod info_row;
 mod info_row_level;
-mod msg;
+pub(crate) mod msg;
 mod overdrive_dialog;
 mod page_section;
-mod pages;
+pub(crate) mod pages;
 mod process_monitor;
 
 use crate::{
@@ -47,6 +47,7 @@ use lact_schema::{
 };
 use msg::AppMsg;
 use pages::{
+    crash_page::CrashPage,
     info_page::InformationPage,
     oc_page::{OcPage, OcPageMsg},
     software_page::{SoftwarePage, SoftwarePageMsg},
@@ -95,6 +96,7 @@ pub struct AppModel {
     oc_page: relm4::Controller<OcPage>,
     thermals_page: relm4::Controller<ThermalsPage>,
     software_page: relm4::Controller<SoftwarePage>,
+    crash_page: relm4::Controller<CrashPage>,
 
     header: relm4::Controller<Header>,
     apply_revealer: relm4::Controller<ApplyRevealer>,
@@ -141,14 +143,17 @@ impl AsyncComponent for AppModel {
                         add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
                         add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
                         add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
+                        add_named[Some("crash_page")] = model.crash_page.widget(),
 
                         set_visible_child_name: &CONFIG.read().selected_tab,
                         connect_visible_child_name_notify => move |stack| {
                             if let Some(name) = stack.visible_child_name() {
                                 let name = name.to_string();
-                                CONFIG.write().edit(|config| {
-                                    config.selected_tab = name;
-                                });
+                                if name != "crash_page" {
+                                    CONFIG.write().edit(|config| {
+                                        config.selected_tab = name;
+                                    });
+                                }
                             }
                         },
                     },
@@ -242,6 +247,10 @@ impl AsyncComponent for AppModel {
             .launch((system_info.clone(), daemon_client.embedded))
             .detach();
 
+        let crash_page = CrashPage::builder()
+            .launch(String::new())
+            .forward(sender.input_sender(), |msg| msg);
+
         let overdrive_dialog = OverdriveDialog::builder()
             .transient_for(&root)
             .launch(OverdriveDialog {
@@ -278,6 +287,7 @@ impl AsyncComponent for AppModel {
             oc_page,
             thermals_page,
             software_page,
+            crash_page,
             apply_revealer,
             ui_sensitive: BoolBinding::new(false),
             header,
@@ -589,6 +599,21 @@ impl AppModel {
                     .set_profile_rule(name, rule, hooks)
                     .await?;
                 self.reload_profiles(None).await?;
+            }
+            AppMsg::Crash(message) => {
+                // we cannot be sure that the application is fully functional after a crash
+                // even though the main loop is restored via crash handler, we want user to restart
+                // this is why header and toolbar disabled
+                self.header.widget().set_sensitive(false);
+                self.apply_revealer.widget().set_sensitive(false);
+
+                self.ui_sensitive.set_value(true);
+                widgets.root_stack.set_visible_child_name("crash_page");
+                self.crash_page.emit(message);
+
+                if let Some(handle) = self.stats_task_handle.take() {
+                    handle.abort();
+                }
             }
         }
         Ok(())

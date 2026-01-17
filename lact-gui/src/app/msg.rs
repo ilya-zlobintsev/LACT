@@ -48,6 +48,7 @@ pub enum AppMsg {
     ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
     AskConfirmation(ConfirmationOptions, Box<AppMsg>),
+    Crash(String),
 }
 
 impl AppMsg {
