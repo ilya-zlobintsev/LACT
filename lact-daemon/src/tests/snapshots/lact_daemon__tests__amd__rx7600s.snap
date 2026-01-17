@@ -354,6 +354,7 @@ expression: device_info
         "display_only": false
       }
     },
+    "throttle_info": {},
     "voltage": {
       "gpu": 0,
       "sensors": {

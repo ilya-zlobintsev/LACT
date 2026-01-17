@@ -508,6 +508,7 @@ expression: device_info
         "display_only": true
       }
     },
+    "throttle_info": {},
     "voltage": {
       "gpu": 790,
       "sensors": {

@@ -1,4 +1,6 @@
-use gtk::glib::{self, Object};
+use gtk::glib::{self, subclass::types::IsSubclassable, Object};
+use gtk::prelude::*;
+use gtk::subclass::prelude::*;
 
 glib::wrapper! {
     pub struct InfoRow(ObjectSubclass<imp::InfoRow>)
@@ -23,6 +25,60 @@ impl InfoRow {
     }
 }
 
+pub trait InfoRowExt {
+    fn append_child(&self, widget: &impl IsA<gtk::Widget>);
+    fn set_value_size_group(&self, size_group: &gtk::SizeGroup);
+
+    fn set_name(&self, name: String);
+    fn set_value(&self, value: String);
+
+    fn set_popover(&self, popover: &gtk::Popover);
+
+    fn connect_clicked<F: Fn(&InfoRow) + 'static>(&self, f: F);
+}
+
+impl<T: IsA<InfoRow>> InfoRowExt for T {
+    fn append_child(&self, widget: &impl IsA<gtk::Widget>) {
+        self.as_ref().imp().value_box.append(widget);
+    }
+
+    fn set_value_size_group(&self, size_group: &gtk::SizeGroup) {
+        size_group.add_widget(&self.as_ref().imp().value_label);
+    }
+
+    fn set_name(&self, name: String) {
+        self.as_ref().set_property("name", name);
+    }
+
+    fn set_value(&self, value: String) {
+        self.as_ref().set_property("value", value);
+    }
+
+    fn set_popover(&self, popover: &gtk::Popover) {
+        popover.set_parent(self.as_ref());
+    }
+
+    fn connect_clicked<F: Fn(&InfoRow) + 'static>(&self, f: F) {
+        let gesture = gtk::GestureClick::new();
+        let obj = self.as_ref().clone();
+        gesture.connect_released(move |_, _, _, _| {
+            f(&obj);
+        });
+        self.as_ref().add_controller(gesture);
+        self.as_ref().set_cursor_from_name(Some("pointer"));
+
+        self.as_ref().connect_map(|widget| {
+            if let Some(parent) = widget.parent() {
+                if let Ok(child) = parent.downcast::<gtk::FlowBoxChild>() {
+                    child.add_css_class("clickable-info-row");
+                }
+            }
+        });
+    }
+}
+
+unsafe impl<T: ObjectSubclass + BoxImpl> IsSubclassable<T> for InfoRow {}
+
 pub struct InfoRowItem {
     pub name: String,
     pub value: String,
@@ -32,7 +88,7 @@ pub struct InfoRowItem {
 #[relm4::factory(pub)]
 impl relm4::factory::FactoryComponent for InfoRowItem {
     type Init = Self;
-    type ParentWidget = gtk::Box;
+    type ParentWidget = gtk::FlowBox;
     type CommandOutput = ();
     type Input = ();
     type Output = ();
@@ -70,7 +126,7 @@ mod imp {
         subclass::{prelude::*, widget::WidgetImpl},
         Label,
     };
-    use relm4::{view, RelmWidgetExt};
+    use relm4::{css, view, RelmWidgetExt};
     use std::{cell::RefCell, str::FromStr};
 
     #[derive(Default, Properties)]
@@ -84,6 +140,12 @@ mod imp {
         selectable: RefCell<bool>,
         #[property(get, set)]
         info_text: RefCell<String>,
+        #[property(get, set)]
+        icon: RefCell<String>,
+
+        pub(super) info_menubutton: gtk::MenuButton,
+        pub(super) value_box: gtk::Box,
+        pub(super) value_label: gtk::Label,
     }
 
     #[glib::object_subclass]
@@ -99,22 +161,51 @@ mod imp {
             self.parent_constructed();
 
             let obj = self.obj();
+            let value_box = &self.value_box;
+            let value_label = &self.value_label;
+            let info_menubutton = &self.info_menubutton;
 
             view! {
                 #[local_ref]
                 obj {
                     set_orientation: gtk::Orientation::Horizontal,
-                    set_hexpand: true,
-                    set_spacing: 50,
+                    set_margin_all: 5,
+                    set_spacing: 5,
 
-                    append: name_label = &gtk::Label {
-                        set_halign: gtk::Align::Start,
+                    append = &gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
                         set_hexpand: true,
+                        set_valign: gtk::Align::Center,
+                        set_spacing: 5,
+
+                        append: name_label = &gtk::Label {
+                            set_halign: gtk::Align::Start,
+                            set_xalign: 0.0,
+                            add_css_class: css::CAPTION,
+                            add_css_class: css::DIM_LABEL,
+                        },
+
+                        #[local_ref]
+                        append = value_box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
+
+                            #[local_ref]
+                            append = value_label {
+                                set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
+                                set_halign: gtk::Align::Start,
+                                set_xalign: 0.0,
+                                set_use_markup: true,
+                                set_ellipsize: pango::EllipsizeMode::End,
+                            },
+                        },
                     },
 
-                    append: info_menubutton = &gtk::MenuButton {
+                    #[local_ref]
+                    append = info_menubutton {
                         set_icon_name: "dialog-information-symbolic",
-                        set_margin_horizontal: 5,
+                        add_css_class: css::FLAT,
+                        set_valign: gtk::Align::Center,
 
                         #[wrap(Some)]
                         set_popover = &gtk::Popover {
@@ -127,21 +218,27 @@ mod imp {
                         },
                     },
 
-                    append: value_label = &gtk::Label {
-                        set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
-                        set_halign: gtk::Align::End,
-                        set_use_markup: true,
-                        set_ellipsize: pango::EllipsizeMode::End,
-                    }
+                    append: icon_image = &gtk::Image {
+                        set_valign: gtk::Align::Center,
+                    },
                 }
             }
 
-            obj.bind_property("name", &name_label, "label")
-                .transform_to(|_, value: &str| Some(format!("{value}:")))
+            obj.bind_property("value", value_label, "visible")
+                .transform_to(|_, text: String| Some(!text.is_empty()))
                 .sync_create()
                 .build();
 
-            obj.bind_property("info-text", &info_menubutton, "visible")
+            obj.bind_property("name", &name_label, "label")
+                .sync_create()
+                .build();
+
+            obj.bind_property("name", &name_label, "visible")
+                .transform_to(|_, text: String| Some(!text.is_empty()))
+                .sync_create()
+                .build();
+
+            obj.bind_property("info-text", info_menubutton, "visible")
                 .transform_to(|_, text: String| Some(!text.is_empty()))
                 .sync_create()
                 .build();
@@ -150,15 +247,24 @@ mod imp {
                 .sync_create()
                 .build();
 
-            obj.bind_property("value", &value_label, "label")
+            obj.bind_property("value", value_label, "label")
                 .sync_create()
                 .build();
 
-            obj.bind_property("selectable", &value_label, "selectable")
+            obj.bind_property("icon", &icon_image, "icon-name")
                 .sync_create()
                 .build();
 
-            obj.bind_property("value", &info_menubutton, "visible")
+            obj.bind_property("icon", &icon_image, "visible")
+                .transform_to(|_, text: String| Some(!text.is_empty()))
+                .sync_create()
+                .build();
+
+            obj.bind_property("selectable", value_label, "selectable")
+                .sync_create()
+                .build();
+
+            obj.bind_property("value", info_menubutton, "visible")
                 .transform_to(|_, text: String| {
                     if text.starts_with("Unknown ") {
                         Some(false)

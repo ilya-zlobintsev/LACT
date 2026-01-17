@@ -6,6 +6,7 @@ pub mod graphs_window;
 mod header;
 mod info_row;
 pub(crate) mod msg;
+mod info_row_level;
 mod overdrive_dialog;
 mod page_section;
 pub(crate) mod pages;
@@ -184,6 +185,10 @@ impl AsyncComponent for AppModel {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
+        if !cfg!(feature = "adw") {
+            relm4::set_global_css(include_str!("../res/style.css"));
+        }
+
         let (daemon_client, conn_err) = match args.tcp_address {
             Some(remote_addr) => {
                 info!("establishing connection to {remote_addr}");

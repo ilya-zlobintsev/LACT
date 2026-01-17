@@ -1,6 +1,7 @@
 use super::PageUpdate;
+use crate::app::ext::FlowBoxExt;
 use crate::app::format_friendly_size;
-use crate::app::info_row::InfoRowItem;
+use crate::app::info_row::{InfoRow, InfoRowExt, InfoRowItem};
 use crate::app::page_section::PageSection;
 use crate::I18N;
 use gtk::prelude::*;
@@ -35,23 +36,33 @@ impl relm4::SimpleComponent for InformationPage {
                 set_margin_horizontal: 20,
 
                 PageSection::new(&fl!(I18N, "hardware-info")) {
-                    append = &model.values_list.widget().clone() -> gtk::Box {
-                        set_spacing: 10,
-                        set_orientation: gtk::Orientation::Vertical,
-                    },
+                    append_child = &model.values_list.widget().clone() -> gtk::FlowBox {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_column_spacing: 10,
+                        // set_homogeneous: true,
+                        set_min_children_per_line: 2,
+                        set_max_children_per_line: 4,
+                        set_selection_mode: gtk::SelectionMode::None,
 
-                    append = &gtk::Expander {
-                        set_label: Some(&fl!(I18N, "cache-info")),
-                        #[watch]
-                        set_visible: !model.cache_list.is_empty(),
+                        append_child = &InfoRow {
+                            set_value: fl!(I18N, "cache-info"),
+                            set_icon: "go-down-symbolic".to_string(),
 
-                        gtk::Frame {
-                            model.cache_list.widget().clone() -> gtk::Box {
-                                set_spacing: 5,
-                                set_margin_all: 10,
-                                set_orientation: gtk::Orientation::Vertical,
+                            #[name = "cache_popover"]
+                            set_popover = &gtk::Popover {
+                                model.cache_list.widget().clone() -> gtk::ListBox {
+                                    set_margin_all: 10,
+                                    set_selection_mode: gtk::SelectionMode::None,
+                                },
                             },
-                        }
+
+                            connect_clicked[cache_popover] => move |_| {
+                                cache_popover.popup();
+                            },
+                        } -> cache_row: gtk::FlowBoxChild {
+                            #[watch]
+                            set_visible: !model.cache_list.is_empty(),
+                        },
                     },
                 },
             }
@@ -162,7 +173,7 @@ struct CacheRow {
 
 #[relm4::factory]
 impl FactoryComponent for CacheRow {
-    type ParentWidget = gtk::Box;
+    type ParentWidget = gtk::ListBox;
     type Init = Self;
     type Input = ();
     type Output = ();
@@ -177,10 +188,16 @@ impl FactoryComponent for CacheRow {
     }
 
     view! {
-        gtk::Label {
-            set_label: &format!("{}x {}", self.count, self.text),
-            set_selectable: true,
-            set_halign: gtk::Align::Start,
+        gtk::ListBoxRow {
+            set_activatable: false,
+            set_selectable: false,
+
+            gtk::Label {
+                set_label: &format!("{}x {}", self.count, self.text),
+                set_selectable: true,
+                set_halign: gtk::Align::Start,
+                set_margin_all: 5,
+            }
         }
     }
 }

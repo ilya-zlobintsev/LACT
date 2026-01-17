@@ -537,6 +537,7 @@ expression: device_info
         "display_only": true
       }
     },
+    "throttle_info": {},
     "voltage": {
       "sensors": {
         "mem": 1356,
