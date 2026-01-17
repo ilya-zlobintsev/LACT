@@ -18,7 +18,13 @@ use new_profile_dialog::NewProfileDialog;
 use profile_rename_dialog::ProfileRenameDialog;
 use profile_row::{ProfileRow, ProfileRowType};
 use profile_rule_window::ProfileRuleWindow;
-use relm4::{css, factory::FactoryVecDeque, prelude::DynamicIndex, typed_view::list::{RelmListItem, TypedListView}, Component, ComponentParts, ComponentSender, RelmIterChildrenExt, RelmWidgetExt};
+use relm4::{
+    css,
+    factory::FactoryVecDeque,
+    prelude::DynamicIndex,
+    typed_view::list::{RelmListItem, TypedListView},
+    Component, ComponentParts, ComponentSender, RelmIterChildrenExt, RelmWidgetExt,
+};
 use std::sync::Arc;
 use tracing::debug;
 
