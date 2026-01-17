@@ -27,7 +27,7 @@ use lact_schema::{
     PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo,
     TemperatureEntry, VoltageStats, VramStats,
 };
-use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit};
+use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit, ThrottlerType};
 use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
 use std::{
     cell::RefCell,
@@ -611,38 +611,6 @@ impl AmdGpuController {
         }
     }
 
-    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
-        use libdrm_amdgpu_sys::AMDGPU::ThrottlerType;
-
-        self.drm_handle
-            .as_ref()
-            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
-            .and_then(|metrics| metrics.get_throttle_status_info())
-            .map(|throttle| {
-                let mut grouped_bits: HashMap<ThrottlerType, HashSet<u8>> = HashMap::new();
-
-                for bit in throttle.get_all_throttler() {
-                    let throttle_type = ThrottlerType::from(bit);
-                    grouped_bits
-                        .entry(throttle_type)
-                        .or_default()
-                        .insert(bit as u8);
-                }
-
-                grouped_bits
-                    .into_iter()
-                    .map(|(throttle_type, bits)| {
-                        let mut names: Vec<String> = bits
-                            .into_iter()
-                            .map(|bit| ThrottlerBit::from(bit).to_string())
-                            .collect();
-                        names.sort_unstable();
-                        (throttle_type.to_string(), names)
-                    })
-                    .collect()
-            })
-    }
-
     fn debugfs_path(&self) -> Option<PathBuf> {
         let slot_id = self.handle.get_pci_slot_name()?;
         let name_search_term = format!("dev={slot_id}");
@@ -834,6 +802,8 @@ impl GpuController for AmdGpuController {
 
         let mut power_sensors = HashMap::new();
 
+        let mut throttle_info = None;
+
         if let Some(metrics) = metrics {
             let extra_temp_sensors = [
                 ("soc", metrics.get_temperature_soc().map(|temp| temp / 100)),
@@ -886,6 +856,30 @@ impl GpuController for AmdGpuController {
                     power_sensors.insert(label.to_owned(), f64::from(value) / 1000.0);
                 }
             }
+
+            throttle_info = metrics.get_throttle_status_info().map(|throttle| {
+                let mut grouped_bits: HashMap<ThrottlerType, HashSet<u8>> = HashMap::new();
+
+                for bit in throttle.get_all_throttler() {
+                    let throttle_type = ThrottlerType::from(bit);
+                    grouped_bits
+                        .entry(throttle_type)
+                        .or_default()
+                        .insert(bit as u8);
+                }
+
+                grouped_bits
+                    .into_iter()
+                    .map(|(throttle_type, bits)| {
+                        let mut names: Vec<String> = bits
+                            .into_iter()
+                            .map(|bit| ThrottlerBit::from(bit).to_string())
+                            .collect();
+                        names.sort_unstable();
+                        (throttle_type.to_string(), names)
+                    })
+                    .collect()
+            });
         }
 
         let mut voltages = HashMap::new();
@@ -992,7 +986,7 @@ impl GpuController for AmdGpuController {
                 .get_pcie_clock_levels()
                 .ok()
                 .and_then(|levels| levels.active),
-            throttle_info: self.get_throttle_info(),
+            throttle_info,
         }
     }
 
