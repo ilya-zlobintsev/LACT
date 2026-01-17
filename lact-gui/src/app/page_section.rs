@@ -18,9 +18,15 @@ impl PageSection {
     pub fn new(name: &str) -> Self {
         Object::builder().property("name", name).build()
     }
+
     pub fn append_header(&self, widget: &impl IsA<gtk::Widget>) {
         use glib::subclass::types::ObjectSubclassIsExt;
         self.imp().header_box.append(widget);
+    }
+
+    pub fn append_child(&self, widget: &impl IsA<gtk::Widget>) {
+        use glib::subclass::types::ObjectSubclassIsExt;
+        self.imp().children_box.append(widget);
     }
 }
 
@@ -34,13 +40,15 @@ mod imp {
         subclass::{prelude::*, widget::WidgetImpl},
         Label,
     };
-    use relm4::{view, RelmWidgetExt};
+    use relm4::{css, view, RelmWidgetExt};
     use std::cell::RefCell;
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::PageSection)]
     pub struct PageSection {
         section_label: Label,
+        pub(super) content_box: gtk::Box,
+        pub(super) children_box: gtk::Box,
         pub(super) header_box: gtk::Box,
 
         #[property(get, set)]
@@ -59,8 +67,11 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let obj = self.obj();
+
             let section_label = &self.section_label;
             let header_box = &self.header_box;
+            let content_box = &self.content_box;
+            let children_box = &self.children_box;
 
             view! {
                 #[local_ref]
@@ -79,6 +90,25 @@ mod imp {
                             set_use_markup: true,
                             set_halign: gtk::Align::Start,
                             set_margin_vertical: 5,
+                        }
+                    },
+
+                    #[local_ref]
+                    append = content_box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        add_css_class: if cfg!(feature = "adw") {
+                            css::CARD
+                        } else {
+                            "page-section-content"
+                        },
+                        #[watch]
+                        add_css_class: if cfg!(feature = "adw") { "" } else { css::FRAME },
+
+                        #[local_ref]
+                        append = children_box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_margin_all: 10,
+                            set_spacing: 10,
                         }
                     }
                 }

@@ -5,6 +5,7 @@ use super::{
     oc_page::gpu_stats_section::{fan_speed_text, temperature_text, throttling_text},
     PageUpdate,
 };
+use crate::app::ext::FlowBoxExt;
 use crate::{
     app::{info_row::InfoRow, msg::AppMsg, page_section::PageSection},
     APP_BROKER, I18N,
@@ -115,23 +116,32 @@ impl relm4::Component for ThermalsPage {
                 },
 
                 PageSection::new(&fl!(I18N, "monitoring-section")) {
-                    append = &InfoRow {
-                        set_name: fl!(I18N, "temperatures"),
-                        #[watch]
-                        set_value: model.temperatures.as_deref().unwrap_or("No sensors found"),
-                    },
+                      append_child = &gtk::FlowBox {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_column_spacing: 10,
+                        set_homogeneous: true,
+                        set_min_children_per_line: 2,
+                        set_max_children_per_line: 4,
+                        set_selection_mode: gtk::SelectionMode::None,
 
-                    append = &InfoRow {
-                        set_name: fl!(I18N, "fan-speed"),
-                        #[watch]
-                        set_value: model.fan_speed.as_deref().unwrap_or("No fan detected"),
-                    },
+                        append_child = &InfoRow {
+                            set_name: fl!(I18N, "temperatures"),
+                            #[watch]
+                            set_value: model.temperatures.as_deref().unwrap_or("No sensors found"),
+                        },
 
-                    append = &InfoRow {
-                        set_name: fl!(I18N, "throttling"),
-                        #[watch]
-                        set_value: model.throttling.as_str(),
-                    },
+                        append_child = &InfoRow {
+                            set_name: fl!(I18N, "fan-speed"),
+                            #[watch]
+                            set_value: model.fan_speed.as_deref().unwrap_or("No fan detected"),
+                        },
+
+                        append_child = &InfoRow {
+                            set_name: fl!(I18N, "throttling"),
+                            #[watch]
+                            set_value: model.throttling.as_str(),
+                        },
+                  }
                 },
 
                 PageSection::new(&fl!(I18N, "fan-control-section")) {
@@ -139,12 +149,15 @@ impl relm4::Component for ThermalsPage {
                     #[watch]
                     set_sensitive: model.custom_control_supported,
 
-                    append = &gtk::StackSwitcher {
+                    append_child = &gtk::StackSwitcher {
                         set_stack: Some(&stack),
                     },
 
                     #[name = "stack"]
-                    append = &gtk::Stack {
+                    append_child = &gtk::Stack {
+                        set_vexpand: false,
+                        set_vhomogeneous: false,
+
                         #[watch]
                         set_visible: model.fan_speed.is_some(),
 

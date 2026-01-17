@@ -1,0 +1,12 @@
+.clickable-info-row {
+    transition: background-color 0.1s ease-in-out;
+    border-radius: 5px;
+}
+
+.clickable-info-row:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.page-section-content {
+    border-radius: 5px;
+}

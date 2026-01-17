@@ -64,19 +64,25 @@ impl relm4::Component for ClocksFrame {
                     APP_BROKER.send(AppMsg::ResetClocks);
                 }
             },
-            append = &gtk::Label {
+            append_child = &gtk::Label {
                 set_label: &fl!(I18N, "oc-warning"),
                 set_wrap_mode: pango::WrapMode::Word,
                 set_halign: gtk::Align::Start,
                 set_margin_horizontal: 5,
+                add_css_class: css::WARNING,
             },
 
-            append = &gtk::Box {
+            append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_halign: gtk::Align::Start,
                 set_spacing: 5,
                 #[watch]
                 set_visible: model.show_nvidia_options,
+
+                append = &gtk::Label {
+                    set_label: &fl!(I18N, "nvidia-oc-info"),
+                    add_css_class: css::HEADING,
+                },
 
                 append = &gtk::MenuButton {
                     set_icon_name: "dialog-information-symbolic",
@@ -91,14 +97,9 @@ impl relm4::Component for ClocksFrame {
                         }
                     }
                 },
-
-                append = &gtk::Label {
-                    set_label: &fl!(I18N, "nvidia-oc-info"),
-                    add_css_class: "heading",
-                },
             },
 
-            append = &gtk::Box {
+            append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
 
@@ -147,13 +148,13 @@ impl relm4::Component for ClocksFrame {
                 },
             },
 
-            append = model.clocks.widget() {
+            append_child = model.clocks.widget() {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
                 set_margin_horizontal: 5,
             },
 
-            append = &gtk::Label {
+            append_child = &gtk::Label {
                 set_label: &fl!(I18N, "no-clocks-data"),
                 set_margin_horizontal: 10,
                 set_halign: gtk::Align::Start,
