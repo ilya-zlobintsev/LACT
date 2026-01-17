@@ -41,7 +41,7 @@ impl relm4::SimpleComponent for InformationPage {
                         set_column_spacing: 10,
                         // set_homogeneous: true,
                         set_min_children_per_line: 2,
-                        set_max_children_per_line: 2,
+                        set_max_children_per_line: 4,
                         set_selection_mode: gtk::SelectionMode::None,
 
                         append_child = &InfoRow {
