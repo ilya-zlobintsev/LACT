@@ -1,7 +1,7 @@
 use crate::{app::msg::AppMsg, I18N};
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
-use relm4::{ComponentParts, ComponentSender};
+use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
 
 pub struct CrashPage {
     message: String,
@@ -19,6 +19,8 @@ impl relm4::SimpleComponent for CrashPage {
             set_spacing: 20,
             set_valign: gtk::Align::Center,
             set_halign: gtk::Align::Center,
+            set_margin_vertical: 15,
+            set_margin_horizontal: 30,
 
             gtk::Image {
                 set_icon_name: Some("dialog-error-symbolic"),

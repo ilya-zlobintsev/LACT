@@ -1,7 +1,7 @@
 use crate::I18N;
 use gtk::prelude::{BoxExt, ButtonExt, OrientableExt, WidgetExt};
 use i18n_embed_fl::fl;
-use relm4::{ComponentParts, ComponentSender, SimpleComponent};
+use relm4::{css, ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent};
 
 pub struct ApplyRevealer {
     shown: bool,
@@ -25,22 +25,26 @@ impl SimpleComponent for ApplyRevealer {
             #[watch]
             set_reveal_child: model.shown,
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Horizontal,
-                set_spacing: 5,
+            gtk::ActionBar {
+                pack_end = &gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 5,
+                    set_margin_horizontal: 60,
 
-                gtk::Button {
-                    set_label: &fl!(I18N, "apply-button"),
-                    set_hexpand: true,
-                    connect_clicked[sender] => move |_| {
-                        sender.output(super::AppMsg::ApplyChanges).unwrap();
+                    gtk::Button {
+                        set_label: &fl!(I18N, "revert-button"),
+                        set_width_request: 150,
+                        connect_clicked[sender] => move |_| {
+                            sender.output(super::AppMsg::RevertChanges).unwrap();
+                        },
                     },
-                },
-
-                gtk::Button {
-                    set_label: &fl!(I18N, "revert-button"),
-                    connect_clicked[sender] => move |_| {
-                        sender.output(super::AppMsg::RevertChanges).unwrap();
+                    gtk::Button {
+                        set_label: &fl!(I18N, "apply-button"),
+                        add_css_class: css::SUGGESTED_ACTION,
+                        set_width_request: 150,
+                        connect_clicked[sender] => move |_| {
+                            sender.output(super::AppMsg::ApplyChanges).unwrap();
+                        },
                     },
                 },
             }
