@@ -29,7 +29,7 @@ impl SimpleComponent for ApplyRevealer {
                 pack_end = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_spacing: 5,
-                    set_margin_horizontal: 60,
+                    set_margin_horizontal: 40,
 
                     gtk::Button {
                         set_label: &fl!(I18N, "revert-button"),
