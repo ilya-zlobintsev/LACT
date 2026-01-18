@@ -125,6 +125,7 @@ impl AsyncComponent for AppModel {
             .icon_name(APP_ID)
             .title("LACT")
             .build() {
+                #[name = "root_box"]
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
 
