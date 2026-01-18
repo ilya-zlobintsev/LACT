@@ -23,7 +23,7 @@ build-release-headless:
 install-resources:
 	install -Dm644 res/lactd.service $(DESTDIR)$(PREFIX)/lib/systemd/system/lactd.service
 	install -Dm644 res/io.github.ilya_zlobintsev.LACT.desktop $(DESTDIR)$(PREFIX)/share/applications/io.github.ilya_zlobintsev.LACT.desktop
-	install -Dm644 res/io.github.ilya_zlobintsev.LACT.png $(DESTDIR)$(PREFIX)/share/pixmaps/io.github.ilya_zlobintsev.LACT.png
+	install -Dm644 res/io.github.ilya_zlobintsev.LACT.png $(DESTDIR)$(PREFIX)/share/icons/hicolor/512x512/apps/io.github.ilya_zlobintsev.LACT.png
 	install -Dm644 res/io.github.ilya_zlobintsev.LACT.svg $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/io.github.ilya_zlobintsev.LACT.svg
 	install -Dm644 res/io.github.ilya_zlobintsev.LACT.metainfo.xml $(DESTDIR)$(PREFIX)/share/metainfo/io.github.ilya_zlobintsev.LACT.metainfo.xml
 
