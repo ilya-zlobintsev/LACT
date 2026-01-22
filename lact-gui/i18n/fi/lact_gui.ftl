@@ -226,3 +226,6 @@ watt = W
 ghz = GHz
 mhz = MHz
 nvidia-cache-desc = { $size } L{ $level }
+gibibyte = GiB
+crash-page-title = Ohjelma kaatui
+exit = Poistu
