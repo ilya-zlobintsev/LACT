@@ -226,3 +226,6 @@ edit-graph-sensors = Modifica sensori grafico
 apply-button = Applica
 revert-button = Ripristina
 edit-graphs = Modifica
+gibibyte = GiB
+crash-page-title = Applicazione crashata
+exit = Esci
