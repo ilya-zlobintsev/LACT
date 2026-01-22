@@ -70,8 +70,12 @@ impl relm4::SimpleComponent for PowerStatesList {
                 }
             }
             PowerStatesListMsg::ActiveState(active_idx) => {
-                for i in 0..self.states.len() {
-                    let active = Some(i) == active_idx;
+                for (i, row) in self.states.iter().enumerate() {
+                    let active = row
+                        .power_state
+                        .index
+                        .is_some_and(|index| Some(usize::from(index)) == active_idx);
+
                     self.states.send(i, active);
                 }
             }
