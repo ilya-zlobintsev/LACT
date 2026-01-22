@@ -226,3 +226,6 @@ delete-graph = Deletar Gráfico
 edit-graphs = Editar
 export-csv = Exportar como CSV
 edit-graph-sensors = Editar Gráfico de Sensores
+gibibyte = GiB
+crash-page-title = O aplicativo travou
+exit = Sair
