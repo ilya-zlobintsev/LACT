@@ -226,3 +226,6 @@ add-graph = أضِف رسم بياني
 delete-graph = احذف رسم بياني
 export-csv = صدّر ك CSV
 edit-graph-sensors = عدّل مستشعرات الرسم بياني
+gibibyte = ج.بايت
+crash-page-title = تطبيق تعطل
+exit = اخرج
