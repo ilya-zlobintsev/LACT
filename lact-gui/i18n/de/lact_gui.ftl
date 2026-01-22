@@ -2,14 +2,14 @@ oc-page = OC
 thermals-page = Thermik
 software-page = Software
 lact-gui = LACT GUI
-kernel-version = Kernel Version
+kernel-version = Kernelversion
 instance = Instanz
-platform-name = Plattform Name
+platform-name = Plattformname
 api-version = API Version
-driver-name = Treiber Name
-driver-version = Treiber Version
+driver-name = Treibername
+driver-version = Treiberversion
 compute-units = Compute Units
-cl-c-version = Wersja OpenCL C
+cl-c-version = OpenCL C Version
 local-memory = Lokaler Arbeitsspeicher
 features = Funktionalitäten
 extensions = Erweiterungen
@@ -34,7 +34,7 @@ amd-cache-desc =
         [1] lokal pro CU
        *[other] mit { $shared } CUs geteilt
     }
-hardware-info = Hardware Informationen
+hardware-info = Hardwareinformationen
 lact-daemon = LACT Daemon
 target-temp = Zieltemperatur (°C)
 global-memory = Globaler Arbeitsspeicher
