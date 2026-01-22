@@ -226,3 +226,6 @@ nvidia-oc-description =
     Je možné dosáhnout svého druhu snížení napětí kombinací předvolby uzamčené takt a kladného posunu taktu.
     Toto GPU přinutí běžet na napětí, které je omezeno uzamčenými takty a přitom dosahovat vyšších taktů (díky posunu).
     Pokud nastaveno příliš vysoko, může toto ale způsobovat nestabilitu systému.
+gibibyte = GiB
+crash-page-title = Aplikace zhavarovala
+exit = Ukončit
