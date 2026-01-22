@@ -226,3 +226,6 @@ edit-graph-sensors = Modifier les capteurs du graphique
 apply-button = Appliquer
 revert-button = Rétablir
 edit-graphs = Modifier
+gibibyte = Gio
+crash-page-title = L’application a planté
+exit = Quitter
