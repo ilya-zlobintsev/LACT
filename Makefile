@@ -40,6 +40,7 @@ uninstall:
 	rm $(DESTDIR)$(PREFIX)/bin/lact
 	rm $(DESTDIR)$(PREFIX)/lib/systemd/system/lactd.service
 	rm $(DESTDIR)$(PREFIX)/share/applications/io.github.ilya_zlobintsev.LACT.desktop
-	rm $(DESTDIR)$(PREFIX)/share/pixmaps/io.github.ilya_zlobintsev.LACT.png
+	rm -f $(DESTDIR)$(PREFIX)/share/pixmaps/io.github.ilya_zlobintsev.LACT.png
+	rm $(DESTDIR)$(PREFIX)/share/icons/hicolor/512x512/apps/io.github.ilya_zlobintsev.LACT.png
 	rm $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/io.github.ilya_zlobintsev.LACT.svg
 	rm $(DESTDIR)$(PREFIX)/share/metainfo/io.github.ilya_zlobintsev.LACT.metainfo.xml
