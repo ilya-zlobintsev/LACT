@@ -10,6 +10,19 @@
   "lockFileMaintenance": {
     "enabled": true
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "^rust-toolchain\\.toml$"
+      ],
+      "matchStrings": [
+        "channel\\s*=\\s*\"(?<currentValue>[^\"\\s]+)\""
+      ],
+      "depNameTemplate": "rust",
+      "datasourceTemplate": "rust"
+    }
+  ],
   "ignorePaths": [
     "pkg/images/**"
   ],
