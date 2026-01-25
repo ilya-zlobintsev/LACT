@@ -10,4 +10,7 @@
   "lockFileMaintenance": {
     "enabled": true
   },
+  "ignorePaths": [
+    "pkg/images/**"
+  ],
 }
