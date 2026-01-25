@@ -135,6 +135,9 @@ impl AsyncComponent for AppModel {
 
                         #[name = "root_stack"]
                         gtk::Stack {
+                            set_vexpand: false,
+                            set_vhomogeneous: false,
+
                             add_binding: (&model.ui_sensitive, "sensitive"),
 
                             add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
