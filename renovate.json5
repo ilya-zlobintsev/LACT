@@ -4,7 +4,7 @@
     "config:recommended",
     "group:all"
   ],
-  // make sure automerge is disabled, even when base configs changes
+  // make sure automerge is disabled, even when base configs change
   "automerge": false,
   "dependencyDashboard": false,
   "lockFileMaintenance": {
