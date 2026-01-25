@@ -32,6 +32,7 @@ jobs:
         with:
           configurationFile: renovate.json5
           token: ${{ steps.app-token.outputs.token }}
+          repositories: ${{ github.repository }}
         env:
           RENOVATE_PLATFORM_COMMIT: 'true'
           LOG_LEVEL: ${{ github.event.inputs.logLevel || 'info' }}
