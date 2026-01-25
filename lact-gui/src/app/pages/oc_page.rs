@@ -61,48 +61,46 @@ impl relm4::Component for OcPage {
     type CommandOutput = ();
 
     view! {
-        gtk::ScrolledWindow {
-            set_hscrollbar_policy: gtk::PolicyType::Never,
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            set_spacing: 15,
+            set_margin_horizontal: 30,
+            set_margin_top: 15,
+            set_margin_bottom: 60,
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 15,
-                set_margin_horizontal: 20,
+            gtk::Frame {
+                #[watch]
+                set_visible: model.system_info.amdgpu_overdrive_enabled == Some(false) && model.device_info.as_ref().is_some_and(|info| info.driver == "amdgpu"),
+                set_label_align: 0.3,
 
-                gtk::Frame {
-                    #[watch]
-                    set_visible: model.system_info.amdgpu_overdrive_enabled == Some(false) && model.device_info.as_ref().is_some_and(|info| info.driver == "amdgpu"),
-                    set_label_align: 0.3,
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 2,
+                    set_margin_all: 10,
 
-                    gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 2,
-                        set_margin_all: 10,
+                    gtk::Label {
+                        set_markup: &fl!(I18N, "amd-oc-disabled"),
+                        set_wrap: true,
+                        set_wrap_mode: pango::WrapMode::Word,
+                    },
 
-                        gtk::Label {
-                            set_markup: &fl!(I18N, "amd-oc-disabled"),
-                            set_wrap: true,
-                            set_wrap_mode: pango::WrapMode::Word,
-                        },
+                    gtk::Button {
+                        set_label: &fl!(I18N, "enable-amd-oc"),
+                        set_halign: gtk::Align::End,
 
-                        gtk::Button {
-                            set_label: &fl!(I18N, "enable-amd-oc"),
-                            set_halign: gtk::Align::End,
-
-                            connect_clicked[sender] => move |_| {
-                                sender.output(AppMsg::ShowOverdriveDialog).expect("Channel closed");
-                            }
-                        },
+                        connect_clicked[sender] => move |_| {
+                            sender.output(AppMsg::ShowOverdriveDialog).expect("Channel closed");
+                        }
                     },
                 },
+            },
 
-                model.stats_section.widget(),
-                model.power_cap_section.widget(),
-                model.performance_frame.widget(),
-                model.power_states_frame.widget(),
-                model.clocks_frame.widget(),
-            }
-        }
+            model.stats_section.widget(),
+            model.power_cap_section.widget(),
+            model.performance_frame.widget(),
+            model.power_states_frame.widget(),
+            model.clocks_frame.widget(),
+        },
     }
 
     fn init(

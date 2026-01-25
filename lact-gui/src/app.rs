@@ -128,33 +128,35 @@ impl AsyncComponent for AppModel {
                 #[name = "root_box"]
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 5,
 
-                    #[name = "root_stack"]
-                    gtk::Stack {
+                    gtk::ScrolledWindow {
                         set_vexpand: true,
-                        set_margin_top: 15,
-                        set_margin_start: 30,
-                        set_margin_end: 30,
+                        set_hscrollbar_policy: gtk::PolicyType::Never,
 
-                        add_binding: (&model.ui_sensitive, "sensitive"),
+                        #[name = "root_stack"]
+                        gtk::Stack {
+                            set_vexpand: false,
+                            set_vhomogeneous: false,
 
-                        add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
-                        add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
-                        add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
-                        add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
-                        add_named[Some("crash_page")] = model.crash_page.widget(),
+                            add_binding: (&model.ui_sensitive, "sensitive"),
 
-                        set_visible_child_name: &CONFIG.read().selected_tab,
-                        connect_visible_child_name_notify => move |stack| {
-                            if let Some(name) = stack.visible_child_name() {
-                                let name = name.to_string();
-                                if name != "crash_page" {
-                                    CONFIG.write().edit(|config| {
-                                        config.selected_tab = name;
-                                    });
+                            add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
+                            add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
+                            add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
+                            add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
+                            add_named[Some("crash_page")] = model.crash_page.widget(),
+
+                            set_visible_child_name: &CONFIG.read().selected_tab,
+                            connect_visible_child_name_notify => move |stack| {
+                                if let Some(name) = stack.visible_child_name() {
+                                    let name = name.to_string();
+                                    if name != "crash_page" {
+                                        CONFIG.write().edit(|config| {
+                                            config.selected_tab = name;
+                                        });
+                                    }
                                 }
-                            }
+                            },
                         },
                     },
 

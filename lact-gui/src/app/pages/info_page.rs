@@ -27,46 +27,43 @@ impl relm4::SimpleComponent for InformationPage {
     type Output = ();
 
     view! {
-        gtk::ScrolledWindow {
-            set_hscrollbar_policy: gtk::PolicyType::Never,
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            set_spacing: 15,
+            set_margin_vertical: 15,
+            set_margin_horizontal: 30,
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 15,
-                set_margin_horizontal: 20,
+            PageSection::new(&fl!(I18N, "hardware-info")) {
+                append_child = &model.values_list.widget().clone() -> gtk::FlowBox {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_column_spacing: 10,
+                    // set_homogeneous: true,
+                    set_min_children_per_line: 2,
+                    set_max_children_per_line: 4,
+                    set_selection_mode: gtk::SelectionMode::None,
 
-                PageSection::new(&fl!(I18N, "hardware-info")) {
-                    append_child = &model.values_list.widget().clone() -> gtk::FlowBox {
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_column_spacing: 10,
-                        // set_homogeneous: true,
-                        set_min_children_per_line: 2,
-                        set_max_children_per_line: 4,
-                        set_selection_mode: gtk::SelectionMode::None,
+                    append_child = &InfoRow {
+                        set_value: fl!(I18N, "cache-info"),
+                        set_icon: "go-down-symbolic".to_string(),
 
-                        append_child = &InfoRow {
-                            set_value: fl!(I18N, "cache-info"),
-                            set_icon: "go-down-symbolic".to_string(),
-
-                            #[name = "cache_popover"]
-                            set_popover = &gtk::Popover {
-                                model.cache_list.widget().clone() -> gtk::ListBox {
-                                    set_margin_all: 10,
-                                    set_selection_mode: gtk::SelectionMode::None,
-                                },
+                        #[name = "cache_popover"]
+                        set_popover = &gtk::Popover {
+                            model.cache_list.widget().clone() -> gtk::ListBox {
+                                set_margin_all: 10,
+                                set_selection_mode: gtk::SelectionMode::None,
                             },
-
-                            connect_clicked[cache_popover] => move |_| {
-                                cache_popover.popup();
-                            },
-                        } -> cache_row: gtk::FlowBoxChild {
-                            #[watch]
-                            set_visible: !model.cache_list.is_empty(),
                         },
+
+                        connect_clicked[cache_popover] => move |_| {
+                            cache_popover.popup();
+                        },
+                    } -> cache_row: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: !model.cache_list.is_empty(),
                     },
                 },
-            }
-        }
+            },
+        },
     }
 
     fn init(
