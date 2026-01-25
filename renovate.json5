@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+    "group:all"
+  ],
+  // make sure automerge is disabled, even when base configs changes
+  "automerge": false,
+  "dependencyDashboard": false,
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+}
