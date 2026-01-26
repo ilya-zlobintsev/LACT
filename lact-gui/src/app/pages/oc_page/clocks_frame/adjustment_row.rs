@@ -42,6 +42,14 @@ impl ClocksData {
     }
 }
 
+fn make_no_scroll_controller() -> gtk::EventControllerScroll {
+    let controller = gtk::EventControllerScroll::new(
+        gtk::EventControllerScrollFlags::VERTICAL | gtk::EventControllerScrollFlags::HORIZONTAL,
+    );
+    controller.connect_scroll(|_, _, _| gtk::glib::Propagation::Stop);
+    controller
+}
+
 #[derive(Debug)]
 pub enum ClockAdjustmentRowMsg {
     ValueRatio(f64),
@@ -109,11 +117,13 @@ impl FactoryComponent for ClockAdjustmentRow {
                     set_round_digits: 0,
                     set_value_pos: gtk::PositionType::Right,
                     set_margin_horizontal: 5,
+                    add_controller = make_no_scroll_controller(),
                 },
 
                 #[name = "input_button"]
                 gtk::SpinButton {
                     set_adjustment: &self.adjustment,
+                    add_controller = make_no_scroll_controller(),
                 },
             },
         }
@@ -128,7 +138,7 @@ impl FactoryComponent for ClockAdjustmentRow {
             data.current as f64,
             data.min as f64,
             data.max as f64,
-            1.0,
+            10.0,
             10.0,
         );
 
