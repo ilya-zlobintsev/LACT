@@ -3,12 +3,15 @@ use crate::{
     APP_BROKER, I18N,
 };
 use gtk::{
-    glib::{object::ObjectExt, SignalHandlerId},
-    prelude::{AdjustmentExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
+    glib::{self, object::ObjectExt, ControlFlow, SignalHandlerId, SourceId},
+    prelude::{
+        AdjustmentExt, EditableExt, OrientableExt, RangeExt, ScaleExt, WidgetExt,
+    },
 };
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
 use relm4::{prelude::FactoryComponent, RelmWidgetExt};
+use std::time::Duration;
 
 pub struct ClockAdjustmentRow {
     clock_type: ClockspeedType,
@@ -18,6 +21,7 @@ pub struct ClockAdjustmentRow {
     adjustment: OcAdjustment,
     show_separator: bool,
     pub(super) is_secondary: bool,
+    spin_commit_timeout: Option<SourceId>,
 }
 
 pub struct ClocksData {
@@ -58,6 +62,8 @@ pub enum ClockAdjustmentRowMsg {
         label_group: gtk::SizeGroup,
         input_group: gtk::SizeGroup,
     },
+    SpinEdited,
+    SpinCommit,
 }
 
 #[relm4::factory(pub)]
@@ -124,6 +130,10 @@ impl FactoryComponent for ClockAdjustmentRow {
                 gtk::SpinButton {
                     set_adjustment: &self.adjustment,
                     add_controller = make_event_controller_no_scroll(),
+                    // triggers update after debounce period
+                    connect_changed[sender] => move |_| {
+                        sender.input(ClockAdjustmentRowMsg::SpinEdited);
+                    },
                 },
             },
         }
@@ -154,6 +164,7 @@ impl FactoryComponent for ClockAdjustmentRow {
             value_ratio: 1.0,
             is_secondary: data.is_secondary,
             show_separator: data.show_separator,
+            spin_commit_timeout: None,
         }
     }
 
@@ -185,6 +196,24 @@ impl FactoryComponent for ClockAdjustmentRow {
             } => {
                 label_group.add_widget(&widgets.title_label);
                 input_group.add_widget(&widgets.input_button);
+            }
+            ClockAdjustmentRowMsg::SpinEdited => {
+                if let Some(timeout) = self.spin_commit_timeout.take() {
+                    timeout.remove();
+                }
+
+                let sender = sender.clone();
+                self.spin_commit_timeout = Some(glib::timeout_add_local(
+                    Duration::from_secs(1),
+                    move || {
+                        sender.input(ClockAdjustmentRowMsg::SpinCommit);
+                        ControlFlow::Break
+                    },
+                ));
+            }
+            ClockAdjustmentRowMsg::SpinCommit => {
+                self.spin_commit_timeout = None;
+                widgets.input_button.update();
             }
             ClockAdjustmentRowMsg::SetVisible(visible) => {
                 widgets.root_box.set_visible(visible);
