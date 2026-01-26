@@ -4,9 +4,7 @@ use crate::{
 };
 use gtk::{
     glib::{self, object::ObjectExt, ControlFlow, SignalHandlerId, SourceId},
-    prelude::{
-        AdjustmentExt, EditableExt, OrientableExt, RangeExt, ScaleExt, WidgetExt,
-    },
+    prelude::{AdjustmentExt, EditableExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
 };
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
@@ -203,13 +201,11 @@ impl FactoryComponent for ClockAdjustmentRow {
                 }
 
                 let sender = sender.clone();
-                self.spin_commit_timeout = Some(glib::timeout_add_local(
-                    Duration::from_secs(1),
-                    move || {
+                self.spin_commit_timeout =
+                    Some(glib::timeout_add_local(Duration::from_secs(1), move || {
                         sender.input(ClockAdjustmentRowMsg::SpinCommit);
                         ControlFlow::Break
-                    },
-                ));
+                    }));
             }
             ClockAdjustmentRowMsg::SpinCommit => {
                 self.spin_commit_timeout = None;
