@@ -42,7 +42,7 @@ impl ClocksData {
     }
 }
 
-fn make_no_scroll_controller() -> gtk::EventControllerScroll {
+fn make_event_controller_no_scroll() -> gtk::EventControllerScroll {
     let controller = gtk::EventControllerScroll::new(
         gtk::EventControllerScrollFlags::VERTICAL | gtk::EventControllerScrollFlags::HORIZONTAL,
     );
@@ -117,13 +117,13 @@ impl FactoryComponent for ClockAdjustmentRow {
                     set_round_digits: 0,
                     set_value_pos: gtk::PositionType::Right,
                     set_margin_horizontal: 5,
-                    add_controller = make_no_scroll_controller(),
+                    add_controller = make_event_controller_no_scroll(),
                 },
 
                 #[name = "input_button"]
                 gtk::SpinButton {
                     set_adjustment: &self.adjustment,
-                    add_controller = make_no_scroll_controller(),
+                    add_controller = make_event_controller_no_scroll(),
                 },
             },
         }
