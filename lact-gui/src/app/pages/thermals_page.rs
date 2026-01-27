@@ -106,7 +106,7 @@ impl relm4::Component for ThermalsPage {
                 #[watch]
                 set_visible: model.system_info.amdgpu_overdrive_enabled == Some(false)
                     && model.has_pmfw
-                    && model.custom_control_supported,
+                    && model.fan_speed.is_some(),
 
                 gtk::Label {
                     set_label: &fl!(I18N, "oc-missing-fan-control-warning"),
