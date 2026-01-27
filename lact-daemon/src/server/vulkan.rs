@@ -7,8 +7,9 @@ use tokio::process::Command;
 use tracing::{error, trace};
 
 use crate::server::gpu_controller::{CommonControllerInfo, PciSlotInfo};
-
 include!(concat!(env!("OUT_DIR"), "/vulkan_constants.rs"));
+
+const VULKAN_ICD_DIR: &str = "/usr/share/vulkan/icd.d";
 
 #[cfg_attr(test, allow(unreachable_code, unused_variables))]
 pub async fn get_vulkan_info(info: &CommonControllerInfo) -> anyhow::Result<Vec<VulkanInfo>> {
@@ -327,6 +328,11 @@ fn parse_summary(summary: &str) -> Vec<SummaryDeviceEntry<'_>> {
 fn vulkaninfo_command() -> Command {
     let mut cmd = Command::new("vulkaninfo");
     cmd.env("DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1", "1");
+    if env::var_os("VK_ICD_FILENAMES").is_none()
+        && Path::new(VULKAN_ICD_DIR).is_dir()
+    {
+        cmd.env("VK_ICD_FILENAMES", VULKAN_ICD_DIR);
+    }
     cmd
 }
 
