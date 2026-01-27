@@ -1,6 +1,7 @@
 use super::cubic_spline::cubic_spline_interpolation;
 use super::to_texture_ext::ToTextureExt;
 use super::PlotColorScheme;
+use crate::app::formatting;
 use crate::app::graphs_window::stat::{StatType, StatsData};
 use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
@@ -267,10 +268,7 @@ impl RenderRequest {
             .configure_mesh()
             .axis_style(self.colors.border_secondary)
             .bold_line_style(self.colors.border)
-            .x_label_formatter(&|date_time| {
-                let date_time = chrono::DateTime::from_timestamp_millis(*date_time).unwrap();
-                date_time.format("%H:%M:%S").to_string()
-            })
+            .x_label_formatter(&formatting::fmt_timestamp_to_dt)
             .y_label_formatter(&|x| format!("{x}{value_suffix}"))
             .x_labels(5)
             .y_labels(10)

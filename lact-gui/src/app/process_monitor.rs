@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::app::{format_friendly_size, msg::AppMsg, APP_BROKER};
+use crate::app::{formatting, msg::AppMsg, APP_BROKER};
 use gtk::{
     glib::{
         object::{Cast, ObjectExt},
@@ -308,7 +308,7 @@ impl RelmColumn for VramColumn {
     fn bind(item: &mut Self::Item, _widgets: &mut Self::Widgets, label: &mut Self::Root) {
         item.memory_usage
             .bind_property(U64Binding::property_name(), label, "label")
-            .transform_to(|_binding, value: u64| Some(format_friendly_size(value)))
+            .transform_to(|_binding, value: u64| Some(formatting::fmt_human_bytes(value, None)))
             .sync_create()
             .build();
     }

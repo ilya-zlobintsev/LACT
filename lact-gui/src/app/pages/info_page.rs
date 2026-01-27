@@ -1,6 +1,6 @@
 use super::PageUpdate;
 use crate::app::ext::FlowBoxExt;
-use crate::app::format_friendly_size;
+use crate::app::formatting::fmt_human_bytes;
 use crate::app::info_row::{InfoRow, InfoRowExt, InfoRowItem};
 use crate::app::page_section::PageSection;
 use crate::I18N;
@@ -137,7 +137,7 @@ impl InformationPage {
                                     text: fl!(
                                         I18N,
                                         "amd-cache-desc",
-                                        size = format_friendly_size(instance.size.into()),
+                                        size = fmt_human_bytes(instance.size.into(), None),
                                         level = instance.level,
                                         types = cache_types,
                                         shared = instance.cu_count
@@ -151,7 +151,7 @@ impl InformationPage {
                                 text: fl!(
                                     I18N,
                                     "nvidia-cache-desc",
-                                    size = format_friendly_size((*l2).into()),
+                                    size = fmt_human_bytes((*l2).into(), None),
                                     level = 2,
                                 ),
                             });
