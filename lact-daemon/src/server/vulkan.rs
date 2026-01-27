@@ -331,7 +331,7 @@ fn vulkaninfo_command() -> Command {
     let mut cmd = Command::new("vulkaninfo");
     cmd.env("DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1", "1");
 
-    // fixes duplicated entry in flatpak env
+    // fixes duplicated vulkan device in flatpak
     // https://github.com/flatpak/flatpak/issues/6418
     if *IS_FLATBOX
         && env::var_os("VK_ICD_FILENAMES").is_none()
