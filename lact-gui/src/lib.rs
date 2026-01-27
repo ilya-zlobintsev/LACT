@@ -1,5 +1,7 @@
 mod app;
 mod config;
+#[cfg(test)]
+mod tests;
 
 use std::{
     panic,
@@ -26,8 +28,16 @@ const GUI_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const APP_ID: &str = "io.github.ilya_zlobintsev.LACT";
 pub const REPO_URL: &str = "https://github.com/ilya-zlobintsev/LACT";
 
-pub(crate) static I18N: LazyLock<FluentLanguageLoader> =
-    LazyLock::new(|| i18n::loader(fluent_language_loader!(), &Localizations));
+pub(crate) static I18N: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
+    #[cfg(test)]
+    {
+        std::env::set_var("LANGUAGE", "en");
+        std::env::set_var("LC_ALL", "en_US.UTF-8");
+        std::env::set_var("LANG", "en_US.UTF-8");
+    }
+
+    i18n::loader(fluent_language_loader!(), &Localizations)
+});
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]
