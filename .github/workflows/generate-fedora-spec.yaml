@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
       - name: Install yq
         run: |
           sudo curl -L https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_linux_amd64 -o /usr/local/bin/yq
@@ -40,7 +40,7 @@ jobs:
           git commit -m "chore: Update spec files for release ${{ github.event.release.tag_name }}"
           git push origin $branch_name
       - name: Create Pull Request
-        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const { repo, owner } = context.repo;
