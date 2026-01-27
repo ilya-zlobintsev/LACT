@@ -32,12 +32,12 @@ unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Err
     let mut query = drm_i915_query {
         num_items: 1,
         flags: 0,
-        items_ptr: ptr::from_ref(&query_item) as u64,
+        items_ptr: ptr::from_mut(&mut query_item) as u64,
     };
 
     i915_query(fd, &raw mut query)?;
 
-    if query_item.length <= 0 {
+    if (*(query.items_ptr as *mut drm_i915_query_item)).length <= 0 {
         return Ok(None);
     }
 
@@ -46,7 +46,7 @@ unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Err
     #[allow(clippy::cast_ptr_alignment)]
     let data = alloc::alloc_zeroed(layout) as *const T;
 
-    query_item.data_ptr = data as u64;
+    (*(query.items_ptr as *mut drm_i915_query_item)).data_ptr = data as u64;
 
     i915_query(fd, &raw mut query)?;
 

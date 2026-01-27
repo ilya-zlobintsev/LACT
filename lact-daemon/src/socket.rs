@@ -42,9 +42,10 @@ pub fn listen() -> anyhow::Result<(UnixListener, PathBuf)> {
 
     if socket_path.exists() {
         return Err(anyhow!(
-            "Socket {socket_path:?} already exists. \
+            "Socket {} already exists. \
             This probably means that another instance of lact-daemon is currently running. \
-            If you are sure that this is not the case, please remove the file"
+            If you are sure that this is not the case, please remove the file",
+            socket_path.display()
         ));
     }
 
