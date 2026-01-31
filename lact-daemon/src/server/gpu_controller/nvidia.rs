@@ -236,7 +236,7 @@ impl NvidiaGpuController {
                     if target_pwm < previous_pwm && diff < spindown_delay {
                         trace!(
                             "delaying fan spindown ({}ms left)",
-                            (spindown_delay - diff).as_millis()
+                            spindown_delay.checked_sub(diff).unwrap().as_millis()
                         );
                         continue;
                     }

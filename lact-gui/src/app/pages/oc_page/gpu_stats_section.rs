@@ -245,7 +245,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         .drm_info
                         .as_ref()
                         .and_then(|drm| drm.device_name.as_deref())
-                        .or_else(|| pci_info.device_pci_info.model.as_deref())
+                        .or(pci_info.device_pci_info.model.as_deref())
                         .unwrap_or("Unknown")
                         .to_owned();
                 }
