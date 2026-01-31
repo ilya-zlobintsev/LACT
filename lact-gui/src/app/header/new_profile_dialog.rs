@@ -117,8 +117,8 @@ impl Component for NewProfileDialog {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, root: &Self::Root) {
         match msg {
             NewProfileDialogMsg::Create => {
-                if self.name_buffer.length() != 0 {
-                    if let Some(selected) = self.base_selector.model().active_index {
+                if self.name_buffer.length() != 0
+                    && let Some(selected) = self.base_selector.model().active_index {
                         let base = self.base_selector.model().variants[selected].clone();
                         sender
                             .output((self.name_buffer.text().to_string(), base))
@@ -126,7 +126,6 @@ impl Component for NewProfileDialog {
 
                         root.close();
                     }
-                }
             }
         }
     }

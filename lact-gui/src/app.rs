@@ -345,11 +345,10 @@ impl AsyncComponent for AppModel {
         sender: AsyncComponentSender<Self>,
         _root: &Self::Root,
     ) {
-        if let Some(msg) = msg {
-            if let Err(err) = self.handle_cmd_output(msg, &sender).await {
+        if let Some(msg) = msg
+            && let Err(err) = self.handle_cmd_output(msg, &sender).await {
                 sender.input(AppMsg::Error(Arc::new(err)));
             }
-        }
     }
 }
 
@@ -556,8 +555,8 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: true });
             }
             AppMsg::FetchProcessList => {
-                if self.process_monitor_window.widget().is_visible() {
-                    if let Ok(gpu_id) = self.current_gpu_id() {
+                if self.process_monitor_window.widget().is_visible()
+                    && let Ok(gpu_id) = self.current_gpu_id() {
                         match self.daemon_client.get_process_list(&gpu_id).await {
                             Ok(process_list) => {
                                 self.process_monitor_window
@@ -568,7 +567,6 @@ impl AppModel {
                             }
                         }
                     }
-                }
             }
             AppMsg::ConnectionStatus(status) => match status {
                 ConnectionStatusMsg::Disconnected => widgets.reconnecting_dialog.present(),
@@ -669,11 +667,10 @@ impl AppModel {
             .list_profiles(state_sender.is_some())
             .await?;
 
-        if let Some(sender) = state_sender {
-            if let Some(state) = profiles.watcher_state.take() {
+        if let Some(sender) = state_sender
+            && let Some(state) = profiles.watcher_state.take() {
                 let _ = sender.send(ProfileRuleRowMsg::WatcherState(state));
             }
-        }
 
         self.header.emit(HeaderMsg::Profiles(Box::new(profiles)));
 
@@ -697,17 +694,14 @@ impl AppModel {
         // Plain `nvidia` means that the nvidia driver is loaded, but it does not contain a version fetched from NVML
         if info.driver == "nvidia" {
             sender.input(AppMsg::Error(Arc::new(anyhow!("Nvidia driver detected, but the management library could not be loaded. Check lact service status for more information."))));
-        } else if let Some(nvidia_version) = info.driver.strip_prefix("nvidia ") {
-            if let Some(major_version) = nvidia_version
+        } else if let Some(nvidia_version) = info.driver.strip_prefix("nvidia ")
+            && let Some(major_version) = nvidia_version
                 .split('.')
                 .next()
                 .and_then(|version| version.parse::<u32>().ok())
-            {
-                if major_version < NVIDIA_RECOMMENDED_MIN_VERSION {
+                && major_version < NVIDIA_RECOMMENDED_MIN_VERSION {
                     sender.input(AppMsg::Error(Arc::new(anyhow!("Old Nvidia driver version detected ({major_version}), some features might be missing. Driver version {NVIDIA_RECOMMENDED_MIN_VERSION} or newer is recommended."))));
                 }
-            }
-        }
 
         let update = PageUpdate::Info(info.clone());
         self.info_page.emit(update.clone());
@@ -976,8 +970,8 @@ impl AppModel {
                     move |diag, response| {
                         diag.close();
 
-                        if response == gtk::ResponseType::Accept {
-                            if let Some(file) = diag.file() {
+                        if response == gtk::ResponseType::Accept
+                            && let Some(file) = diag.file() {
                                 match file.path() {
                                     Some(path) => {
                                         if let Err(err) = std::fs::write(path, vbios_data)
@@ -992,7 +986,6 @@ impl AppModel {
                                     ),
                                 }
                             }
-                        }
                     }
                 ));
             }

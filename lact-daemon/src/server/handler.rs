@@ -647,12 +647,11 @@ impl<'a> Handler {
                 .context("Could not read device dir")?
                 .flatten();
             for card_entry in card_files {
-                if let Ok(metadata) = card_entry.metadata() {
-                    if metadata.is_file() {
+                if let Ok(metadata) = card_entry.metadata()
+                    && metadata.is_file() {
                         let full_path = controller_path.join(card_entry.path());
                         add_path_to_archive(&mut archive, &full_path)?;
                     }
-                }
             }
 
             let gt_path = card_path.join("gt");
@@ -824,11 +823,10 @@ impl<'a> Handler {
                 activation_hook.clone_from(&new_profile.hooks.activated);
             }
 
-            if let Some(old_profile) = &config.current_profile {
-                if let Some(old_profile) = config.profiles.get(old_profile) {
+            if let Some(old_profile) = &config.current_profile
+                && let Some(old_profile) = config.profiles.get(old_profile) {
                     deactivation_hook.clone_from(&old_profile.hooks.deactivated);
                 }
-            }
         }
 
         self.cleanup().await;
@@ -1224,12 +1222,11 @@ fn add_path_recursively(
                 }
             }
         }
-    } else if let Ok(metadata) = fs::metadata(entry_path) {
-        if metadata.is_file() {
+    } else if let Ok(metadata) = fs::metadata(entry_path)
+        && metadata.is_file() {
             let full_path = prefix.join(entry_path);
             add_path_to_archive(archive, &full_path)?;
         }
-    }
 
     Ok(())
 }

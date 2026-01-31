@@ -116,8 +116,8 @@ impl InformationPage {
                 }
             }
 
-            if let Some(drm_info) = &info.drm_info {
-                if let Some(cache_info) = &drm_info.cache_info {
+            if let Some(drm_info) = &info.drm_info
+                && let Some(cache_info) = &drm_info.cache_info {
                     match cache_info {
                         CacheInfo::Amd(items) => {
                             for (instance, count) in items {
@@ -158,7 +158,6 @@ impl InformationPage {
                         }
                     }
                 }
-            }
         }
     }
 }

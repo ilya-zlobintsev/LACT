@@ -14,7 +14,7 @@ ioctl_readwrite!(
     drm_xe_device_query
 );
 
-unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Errno> {
+unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Errno> { unsafe {
     let mut query = drm_xe_device_query {
         query: query_id,
         size: 0,
@@ -37,7 +37,7 @@ unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Err
     xe_device_query(fd, &raw mut query)?;
 
     Ok(Some(DrmBox { data, layout }))
-}
+}}
 
 pub fn query_mem_regions(fd: &File) -> Result<Option<DrmBox<drm_xe_query_mem_regions>>, Errno> {
     unsafe { query_item(fd.as_raw_fd(), DRM_XE_DEVICE_QUERY_MEM_REGIONS) }

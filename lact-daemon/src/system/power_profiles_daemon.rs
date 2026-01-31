@@ -41,14 +41,12 @@ async fn disable_conflicting_actions(
 
     let profiles = client.profiles().await?;
     for profile in profiles {
-        if let Some(driver) = profile.get("Driver") {
-            if let Ok(driver) = driver.downcast_ref::<String>() {
-                if driver == "tuned" {
+        if let Some(driver) = profile.get("Driver")
+            && let Ok(driver) = driver.downcast_ref::<String>()
+                && driver == "tuned" {
                     info!("tuned-ppd detected, not disabling actions");
                     return Ok(());
                 }
-            }
-        }
     }
 
     let (_major, minor) = version
@@ -73,8 +71,7 @@ async fn disable_conflicting_actions(
         if let Some(name) = action_map
             .get("Name")
             .and_then(|value| value.downcast_ref::<String>().ok())
-        {
-            if CONFLICTING_ACTIONS.contains(&name.as_str()) {
+            && CONFLICTING_ACTIONS.contains(&name.as_str()) {
                 match action_map
                     .get("Enabled")
                     .and_then(|enabled| enabled.downcast_ref::<bool>().ok())
@@ -100,7 +97,6 @@ async fn disable_conflicting_actions(
                     }
                 }
             }
-        }
     }
 
     Ok(())

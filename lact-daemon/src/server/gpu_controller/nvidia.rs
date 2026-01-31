@@ -503,8 +503,8 @@ impl GpuController for NvidiaGpuController {
 
         if let (Some(nvapi), Some(handle)) = (self.nvapi.as_ref(), self.nvapi_handle.as_ref()) {
             unsafe {
-                if let Some(mask) = self.nvapi_thermals_mask {
-                    if let Ok(thermals) = nvapi.get_thermals(*handle, mask) {
+                if let Some(mask) = self.nvapi_thermals_mask
+                    && let Ok(thermals) = nvapi.get_thermals(*handle, mask) {
                         if let Some(hotspot) = thermals.hotspot() {
                             temps.insert(
                                 "GPU Hotspot".to_owned(),
@@ -533,7 +533,6 @@ impl GpuController for NvidiaGpuController {
                             );
                         }
                     }
-                }
 
                 if let Ok(value) = nvapi.get_voltage(*handle) {
                     voltage = Some(u64::from(value) / 1000);
@@ -694,15 +693,12 @@ impl GpuController for NvidiaGpuController {
 
                     // On some driver versions, the applied offset values are not reported.
                     // In these scenarios we must store them manually for reporting.
-                    if offset.current == 0 {
-                        if let Some(applied_offsets) =
+                    if offset.current == 0
+                        && let Some(applied_offsets) =
                             self.last_applied_offsets.borrow().get(clock_type)
-                        {
-                            if let Some(applied_offset) = applied_offsets.get(pstate) {
+                            && let Some(applied_offset) = applied_offsets.get(pstate) {
                                 offset.current = *applied_offset;
                             }
-                        }
-                    }
 
                     offsets.insert(pstate.as_c(), offset);
                 }
@@ -779,14 +775,13 @@ impl GpuController for NvidiaGpuController {
                 let current_cap = device.power_management_limit();
                 let default_cap = device.power_management_limit_default();
 
-                if let (Ok(current_cap), Ok(default_cap)) = (current_cap, default_cap) {
-                    if current_cap != default_cap {
+                if let (Ok(current_cap), Ok(default_cap)) = (current_cap, default_cap)
+                    && current_cap != default_cap {
                         debug!("resetting power cap to {default_cap}");
                         device
                             .set_power_management_limit(default_cap)
                             .context("Could not reset power cap")?;
                     }
-                }
             }
 
             self.reset_clocks()?;
@@ -913,14 +908,14 @@ impl GpuController for NvidiaGpuController {
         if let Ok(supported_pstates) = device.supported_performance_states() {
             for pstate in supported_pstates {
                 for clock_type in [Clock::Graphics, Clock::Memory] {
-                    if let Ok(current_offset) = device.clock_offset(clock_type, pstate) {
-                        if current_offset.clock_offset_mhz != 0
+                    if let Ok(current_offset) = device.clock_offset(clock_type, pstate)
+                        && (current_offset.clock_offset_mhz != 0
                             || self
                                 .last_applied_offsets
                                 .borrow()
                                 .get(&clock_type)
                                 .and_then(|applied_offsets| applied_offsets.get(&pstate))
-                                .is_some_and(|offset| *offset != 0)
+                                .is_some_and(|offset| *offset != 0))
                         {
                             debug!("resetting clock offset for {clock_type:?} pstate {pstate:?}");
                             device
@@ -929,7 +924,6 @@ impl GpuController for NvidiaGpuController {
                                     format!("Could not reset {clock_type:?} pstate {pstate:?}")
                                 })?;
                         }
-                    }
 
                     if let Some(applied_offsets) =
                         self.last_applied_offsets.borrow_mut().get_mut(&clock_type)

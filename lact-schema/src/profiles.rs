@@ -30,8 +30,8 @@ impl ProfileWatcherState {
     }
 
     pub fn remove_process(&mut self, pid: i32) -> Option<ProfileProcessInfo> {
-        if let Some(mut info) = self.process_list.shift_remove(&pid) {
-            if let Entry::Occupied(mut entry) = self.process_names_map.entry(info.name) {
+        if let Some(mut info) = self.process_list.shift_remove(&pid)
+            && let Entry::Occupied(mut entry) = self.process_names_map.entry(info.name) {
                 entry.get_mut().remove(&pid);
                 if entry.get().is_empty() {
                     let (key, _) = entry.remove_entry();
@@ -39,7 +39,6 @@ impl ProfileWatcherState {
                     return Some(info);
                 }
             }
-        }
         None
     }
 }

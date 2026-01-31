@@ -230,25 +230,23 @@ pub fn parse_fdinfo(
             }
             _ => {
                 if let Some(engine) = key.strip_prefix("drm-engine-") {
-                    if let Some((_, util_type)) = engines.iter().find(|(name, _)| engine == *name) {
-                        if let Some(time) =
+                    if let Some((_, util_type)) = engines.iter().find(|(name, _)| engine == *name)
+                        && let Some(time) =
                             value.strip_suffix(" ns").and_then(|time| time.parse().ok())
                         {
                             total_time.push((*util_type, time));
                         }
-                    }
                 } else {
                     for (i, vram_key) in vram_keys.iter().enumerate() {
                         // Prioritize first vram key in the list
-                        if key == *vram_key && memory_key_idx.is_none_or(|idx| i < idx) {
-                            if let Some(value) = value
+                        if key == *vram_key && memory_key_idx.is_none_or(|idx| i < idx)
+                            && let Some(value) = value
                                 .strip_suffix(" KiB")
                                 .and_then(|value| value.parse::<u64>().ok())
                             {
                                 memory_used = value * 1024;
                                 memory_key_idx = Some(i);
                             }
-                        }
                     }
                 }
             }

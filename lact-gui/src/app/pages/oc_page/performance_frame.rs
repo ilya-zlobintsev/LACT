@@ -132,11 +132,10 @@ impl relm4::Component for PerformanceFrame {
                                 }),
 
                                 connect_row_selected[sender] => move |_, row| {
-                                    if let Some(row) = row {
-                                        if let Ok(idx) = u16::try_from(row.index()) {
+                                    if let Some(row) = row
+                                        && let Ok(idx) = u16::try_from(row.index()) {
                                             sender.input(PerformanceFrameMsg::PowerProfileSelected(idx));
                                         }
-                                    }
                                 } @ power_profile_selected_handler,
 
                                 #[watch]
@@ -205,25 +204,23 @@ impl relm4::Component for PerformanceFrame {
                 self.update_heuristic_components(widgets);
             }
             PerformanceFrameMsg::PowerProfileSelected(idx) => {
-                if let Some(table) = &mut self.power_profile_modes_table {
-                    if table.active != idx {
+                if let Some(table) = &mut self.power_profile_modes_table
+                    && table.active != idx {
                         table.active = idx;
                         APP_BROKER.send(AppMsg::SettingsChanged);
                         self.update_heuristic_components(widgets);
                     }
-                }
             }
         }
 
-        if let Some(table) = &self.power_profile_modes_table {
-            if let Some(active) = table.modes.get(&table.active) {
+        if let Some(table) = &self.power_profile_modes_table
+            && let Some(active) = table.modes.get(&table.active) {
                 for heuristics_component in &self.heuristics_components {
                     heuristics_component
                         .widget()
                         .set_sensitive(active.is_custom());
                 }
             }
-        }
 
         self.update_view(widgets, sender);
     }
@@ -238,8 +235,8 @@ impl PerformanceFrame {
                 .remove_page(Some(page.position() as u32));
         }
 
-        if let Some(table) = &self.power_profile_modes_table {
-            if let Some(active_profile) = table.modes.get(&table.active) {
+        if let Some(table) = &self.power_profile_modes_table
+            && let Some(active_profile) = table.modes.get(&table.active) {
                 for component in &active_profile.components {
                     let title = component.clock_type.as_deref().unwrap_or("All");
 
@@ -255,7 +252,6 @@ impl PerformanceFrame {
                     self.heuristics_components.push(heuristics_component);
                 }
             }
-        }
     }
 
     pub fn performance_level(&self) -> Option<PerformanceLevel> {
@@ -273,17 +269,15 @@ impl PerformanceFrame {
     }
 
     pub fn power_profile_mode_custom_heuristics(&self) -> Vec<Vec<Option<i32>>> {
-        if let Some(table) = &self.power_profile_modes_table {
-            if let Some(mode) = table.modes.get(&table.active) {
-                if mode.is_custom() {
+        if let Some(table) = &self.power_profile_modes_table
+            && let Some(mode) = table.modes.get(&table.active)
+                && mode.is_custom() {
                     return self
                         .heuristics_components
                         .iter()
                         .map(|list| list.model().get_values())
                         .collect();
                 }
-            }
-        }
 
         vec![]
     }

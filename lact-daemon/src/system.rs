@@ -303,11 +303,10 @@ pub(crate) fn listen_netlink_kernel_event(notify: &Notify) -> anyhow::Result<()>
                         continue;
                     }
 
-                    if let Some(subsystem) = line.strip_prefix("SUBSYSTEM=") {
-                        if subsystem == "drm" {
+                    if let Some(subsystem) = line.strip_prefix("SUBSYSTEM=")
+                        && subsystem == "drm" {
                             notify.notify_one();
                         }
-                    }
                 }
                 Err(_) => {
                     error!(

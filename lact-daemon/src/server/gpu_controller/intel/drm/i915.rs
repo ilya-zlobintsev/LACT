@@ -21,7 +21,7 @@ ioctl_readwrite!(
     drm_i915_query
 );
 
-unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Errno> {
+unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Errno> { unsafe {
     let mut query_item = drm_i915_query_item {
         query_id: query_id as u64,
         length: 0,
@@ -51,7 +51,7 @@ unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Err
     i915_query(fd, &raw mut query)?;
 
     Ok(Some(DrmBox { data, layout }))
-}
+}}
 
 pub fn query_memory_regions(
     fd: &File,

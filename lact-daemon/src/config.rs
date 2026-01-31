@@ -178,8 +178,8 @@ impl Config {
                         if let Some(controller) = gpu_controllers.get(id) {
                             let stats = controller.get_stats(Some(gpu));
 
-                            if let Some(fan_settings) = &mut gpu.fan_control_settings {
-                                if let (Some(pwm_min), Some(pwm_max)) =
+                            if let Some(fan_settings) = &mut gpu.fan_control_settings
+                                && let (Some(pwm_min), Some(pwm_max)) =
                                     (stats.fan.pwm_min, stats.fan.pwm_max)
                                 {
                                     let ratio_min = (pwm_min as f32) / f32::from(u8::MAX);
@@ -206,7 +206,6 @@ impl Config {
                                         }
                                     }
                                 }
-                            }
                         }
                     }
                 }
@@ -216,11 +215,10 @@ impl Config {
                     self.daemon.admin_groups.clear();
                 }
                 5 => {
-                    if let Ok(admin_user) = env::var("FLATPAK_INSTALL_USER") {
-                        if self.daemon.admin_user.is_none() {
+                    if let Ok(admin_user) = env::var("FLATPAK_INSTALL_USER")
+                        && self.daemon.admin_user.is_none() {
                             self.daemon.admin_user = Some(admin_user);
                         }
-                    }
                 }
                 _ => break,
             }

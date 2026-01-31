@@ -85,11 +85,11 @@ impl IntelGpuController {
             .flatten()
             .flatten()
         {
-            if let Some(name) = entry.file_name().to_str() {
-                if name.starts_with("tile") {
+            if let Some(name) = entry.file_name().to_str()
+                && name.starts_with("tile") {
                     for gt_entry in fs::read_dir(entry.path()).into_iter().flatten().flatten() {
-                        if let Some(gt_name) = gt_entry.file_name().to_str() {
-                            if gt_name.starts_with("gt") {
+                        if let Some(gt_name) = gt_entry.file_name().to_str()
+                            && gt_name.starts_with("gt") {
                                 let gt_path = gt_entry
                                     .path()
                                     .strip_prefix(&common.sysfs_path)
@@ -98,10 +98,8 @@ impl IntelGpuController {
                                 debug!("initialized GT at '{}'", gt_path.display());
                                 tile_gts.push(gt_path);
                             }
-                        }
                     }
                 }
-            }
         }
 
         if !tile_gts.is_empty() {
@@ -225,16 +223,13 @@ impl IntelGpuController {
             .and_then(|hwmon_path| {
                 let entries = fs::read_dir(hwmon_path).ok()?;
                 for entry in entries.flatten() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        if let Some(infix) = name
+                    if let Some(name) = entry.file_name().to_str()
+                        && let Some(infix) = name
                             .strip_prefix(file_prefix)
                             .and_then(|name| name.strip_suffix(file_suffix))
-                        {
-                            if !infix.contains('_') {
+                            && !infix.contains('_') {
                                 files.push(entry.path());
                             }
-                        }
-                    }
                 }
                 files.sort_unstable();
 
@@ -369,15 +364,14 @@ impl IntelGpuController {
         self.read_hwmon_files::<f32>("temp", "_input")
             .map(|(temp, file)| {
                 let mut key = None;
-                if let Some(filename) = file.to_str() {
-                    if let Some(base_filename) = filename.strip_suffix("_input") {
+                if let Some(filename) = file.to_str()
+                    && let Some(base_filename) = filename.strip_suffix("_input") {
                         let label_filename = format!("{base_filename}_label");
 
                         if let Some(label) = self.read_file(&label_filename) {
                             key = Some(label);
                         }
                     }
-                }
 
                 let key = key.unwrap_or_else(|| "gpu".to_owned());
 
@@ -457,19 +451,17 @@ impl IntelGpuController {
                 let gt_path = card_path.join("gt").join("gt0");
                 let gt_files = fs::read_dir(gt_path).ok()?;
                 for file in gt_files.flatten() {
-                    if let Some(name) = file.file_name().to_str() {
-                        if let Some(reason) = name.strip_prefix("throttle_reason_") {
+                    if let Some(name) = file.file_name().to_str()
+                        && let Some(reason) = name.strip_prefix("throttle_reason_") {
                             if reason == "status" {
                                 continue;
                             }
 
-                            if let Some(value) = self.read_file::<i32>(file.path()) {
-                                if value != 0 {
+                            if let Some(value) = self.read_file::<i32>(file.path())
+                                && value != 0 {
                                     reasons.insert(reason.to_owned(), vec![]);
                                 }
-                            }
                         }
-                    }
                 }
             }
             DriverType::Xe => {
@@ -478,15 +470,12 @@ impl IntelGpuController {
 
                     let throttle_files = fs::read_dir(path).ok()?;
                     for file in throttle_files.flatten() {
-                        if let Some(name) = file.file_name().to_str() {
-                            if let Some(reason) = name.strip_prefix("reason_") {
-                                if let Some(value) = self.read_file::<i32>(file.path()) {
-                                    if value != 0 {
+                        if let Some(name) = file.file_name().to_str()
+                            && let Some(reason) = name.strip_prefix("reason_")
+                                && let Some(value) = self.read_file::<i32>(file.path())
+                                    && value != 0 {
                                         reasons.insert(reason.to_owned(), vec![]);
                                     }
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -657,11 +646,10 @@ impl GpuController for IntelGpuController {
 
             if let Some(cap) = config.power_cap {
                 if self.get_power_cap().is_some() {
-                    if let Some(max_cap) = self.get_power_cap_max() {
-                        if cap > max_cap {
+                    if let Some(max_cap) = self.get_power_cap_max()
+                        && cap > max_cap {
                             bail!("Specified cap {cap} is greated than maximum allowed {max_cap}");
                         }
-                    }
 
                     self.write_hwmon_file(
                         POWER_CAP_NAMES,
@@ -786,17 +774,15 @@ impl GpuController for IntelGpuController {
 
     #[allow(clippy::cast_possible_truncation)]
     fn reset_clocks(&self) -> anyhow::Result<()> {
-        if let Some(rp0) = self.read_freq(FrequencyType::Rp0) {
-            if let Err(err) = self.write_freq(FrequencyType::Max, rp0 as i32) {
+        if let Some(rp0) = self.read_freq(FrequencyType::Rp0)
+            && let Err(err) = self.write_freq(FrequencyType::Max, rp0 as i32) {
                 warn!("could not reset max clock: {err:#}");
             }
-        }
 
-        if let Some(rpn) = self.read_freq(FrequencyType::Rpn) {
-            if let Err(err) = self.write_freq(FrequencyType::Min, rpn as i32) {
+        if let Some(rpn) = self.read_freq(FrequencyType::Rpn)
+            && let Err(err) = self.write_freq(FrequencyType::Min, rpn as i32) {
                 warn!("could not reset min clock: {err:#}");
             }
-        }
 
         Ok(())
     }
