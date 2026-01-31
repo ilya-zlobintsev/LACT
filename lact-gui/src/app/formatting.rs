@@ -162,8 +162,8 @@ pub fn fmt_human_bytes(bytes: u64, unit: Option<ByteUnit>) -> String {
         (size, ByteUnit::ALL[i])
     };
 
-    let label = unit.label();
-    format!("{size:.1$} {}", label, (size.fract() != 0.0) as usize)
+    let size_str = format!("{:.1}", size).trim_end_matches(".0").to_string();
+    format!("{} {}", size_str, unit.label())
 }
 
 #[cfg(test)]
@@ -288,7 +288,7 @@ mod tests {
     #[test]
     fn fmt_human_bytes_formats_auto_and_fixed_units() {
         assert_eq!(fmt_human_bytes(1024, None), "1024 bytes");
-        assert_eq!(fmt_human_bytes(2049, None), "2.0 KiB");
+        assert_eq!(fmt_human_bytes(2049, None), "2 KiB");
         assert_eq!(
             fmt_human_bytes(1_073_741_824, Some(ByteUnit::Gibibyte)),
             "1 GiB"
