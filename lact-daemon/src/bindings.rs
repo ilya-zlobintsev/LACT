@@ -5,6 +5,7 @@
     unused,
     unknown_lints,
     unnecessary_transmutes,
+    unsafe_op_in_unsafe_fn,
     clippy::too_many_arguments,
     clippy::pedantic,
     clippy::upper_case_acronyms,
