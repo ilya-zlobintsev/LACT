@@ -231,31 +231,33 @@ mod tests {
 
     #[test]
     fn fmt_temperature_text_sorts_labels() {
-        let mut stats = DeviceStats::default();
-        stats.temps = HashMap::from([
-            (
-                "junction".to_string(),
-                TemperatureEntry {
-                    value: Temperature {
-                        crit: None,
-                        crit_hyst: None,
-                        current: Some(80.0),
+        let stats = DeviceStats {
+            temps: HashMap::from([
+                (
+                    "junction".to_string(),
+                    TemperatureEntry {
+                        value: Temperature {
+                            crit: None,
+                            crit_hyst: None,
+                            current: Some(80.0),
+                        },
+                        display_only: false,
                     },
-                    display_only: false,
-                },
-            ),
-            (
-                "edge".to_string(),
-                TemperatureEntry {
-                    value: Temperature {
-                        crit: None,
-                        crit_hyst: None,
-                        current: Some(55.0),
+                ),
+                (
+                    "edge".to_string(),
+                    TemperatureEntry {
+                        value: Temperature {
+                            crit: None,
+                            crit_hyst: None,
+                            current: Some(55.0),
+                        },
+                        display_only: false,
                     },
-                    display_only: false,
-                },
-            ),
-        ]);
+                ),
+            ]),
+            ..Default::default()
+        };
 
         assert_eq!(
             fmt_temperature_text(&stats),
