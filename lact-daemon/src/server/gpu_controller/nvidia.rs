@@ -5,35 +5,35 @@ use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::{
-        gpu_controller::{common::fan_control::FanCurveExt, common::resolve_process_name, NvApi},
+        gpu_controller::{NvApi, common::fan_control::FanCurveExt, common::resolve_process_name},
         opencl::get_opencl_info,
         vulkan::get_vulkan_info,
     },
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use driver::DriverHandle;
-use futures::{future::LocalBoxFuture, join, FutureExt};
+use futures::{FutureExt, future::LocalBoxFuture, join};
 use indexmap::IndexMap;
 use lact_schema::{
-    config::{FanControlSettings, FanCurve, GpuConfig},
     CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceFlag, DeviceInfo, DeviceStats,
     DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
     NvidiaClockOffset, NvidiaClocksTable, PmfwInfo, PowerState, PowerStates, PowerStats,
     ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats,
     VramStats,
+    config::{FanControlSettings, FanCurve, GpuConfig},
 };
 use nvml_wrapper::{
+    Device, Nvml,
     bitmasks::device::ThrottleReasons,
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
     enums::device::{GpuLockedClocksSetting, UsedGpuMemory},
     error::NvmlError,
-    Device, Nvml,
 };
 use std::{
     cell::{Cell, RefCell},
     cmp,
-    collections::{btree_map::Entry, BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, btree_map::Entry},
     fmt::Write,
     rc::Rc,
     time::{Duration, Instant},
@@ -200,7 +200,9 @@ impl NvidiaGpuController {
                     .expect("Could not read temperature") as i32;
 
                 if (last_temp - current_temp).abs() < change_threshold {
-                    trace!("temperature changed from {last_temp}°C to {current_temp}°C, which is less than the {change_threshold}°C threshold, skipping speed adjustment");
+                    trace!(
+                        "temperature changed from {last_temp}°C to {current_temp}°C, which is less than the {change_threshold}°C threshold, skipping speed adjustment"
+                    );
                     continue;
                 }
 
@@ -397,8 +399,8 @@ impl GpuController for NvidiaGpuController {
                         .pcie_link_speed()
                         .map(|v| {
                             let mut output = format!("{} GT/s", v / 1000);
-                            if let Ok(gen) = device.current_pcie_link_gen() {
-                                let _ = write!(output, " Gen {gen}");
+                            if let Ok(link_gen) = device.current_pcie_link_gen() {
+                                let _ = write!(output, " Gen {link_gen}");
                             }
                             output
                         })
@@ -410,8 +412,8 @@ impl GpuController for NvidiaGpuController {
                         .and_then(|v| v.as_integer())
                         .map(|v| {
                             let mut output = format!("{} GT/s", v / 1000);
-                            if let Ok(gen) = device.max_pcie_link_gen() {
-                                let _ = write!(output, " Gen {gen}");
+                            if let Ok(link_gen) = device.max_pcie_link_gen() {
+                                let _ = write!(output, " Gen {link_gen}");
                             }
                             output
                         }),
@@ -884,7 +886,10 @@ impl GpuController for NvidiaGpuController {
                         for point in settings.curve.0.values() {
                             #[allow(clippy::cast_possible_truncation)]
                             if !(min_speed..=max_speed).contains(&((*point * 100.0) as u32)) {
-                                bail!("Fan speed {}% outside of the allowed range {min_speed}% to {max_speed}%", point*100.0);
+                                bail!(
+                                    "Fan speed {}% outside of the allowed range {min_speed}% to {max_speed}%",
+                                    point * 100.0
+                                );
                             }
                         }
 
