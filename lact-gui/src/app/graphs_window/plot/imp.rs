@@ -1,5 +1,5 @@
-use super::render_thread::{RenderRequest, RenderThread};
 use super::PlotColorScheme;
+use super::render_thread::{RenderRequest, RenderThread};
 use crate::app::graphs_window::stat::StatType;
 use crate::app::graphs_window::stat::StatsData;
 use glib::Properties;
@@ -96,14 +96,14 @@ impl Plot {
 mod benches {
     use crate::app::graphs_window::{
         plot::{
-            render_thread::{process_request, RenderRequest},
             PlotColorScheme,
+            render_thread::{RenderRequest, process_request},
         },
         stat::{StatType, StatsData},
     };
     use amdgpu_sysfs::{gpu_handle::PerformanceLevel, hw_mon::Temperature};
     use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
-    use divan::{counter::ItemsCount, Bencher};
+    use divan::{Bencher, counter::ItemsCount};
     use lact_schema::{
         ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats, TemperatureEntry,
         VoltageStats, VramStats,

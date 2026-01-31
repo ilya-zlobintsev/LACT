@@ -1,6 +1,6 @@
 use crate::{
-    app::{msg::AppMsg, APP_BROKER},
     I18N,
+    app::{APP_BROKER, msg::AppMsg},
 };
 use gtk::{
     pango,

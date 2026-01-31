@@ -13,53 +13,53 @@ pub(crate) mod pages;
 mod process_monitor;
 
 use crate::{
+    APP_ID, CONFIG, GUI_VERSION, I18N,
     app::{
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
     },
-    APP_ID, CONFIG, GUI_VERSION, I18N,
 };
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use confirmation_dialog::ConfirmationDialog;
 use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
-    glib::{self, clone, ControlFlow},
+    ApplicationWindow, ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog,
+    MessageType, ResponseType,
+    glib::{self, ControlFlow, clone},
     prelude::{
         BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
         OrientableExt, WidgetExt,
     },
-    ApplicationWindow, ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog,
-    MessageType, ResponseType,
 };
 use header::{
-    profile_rule_window::{profile_row::ProfileRuleRowMsg, ProfileRuleWindowMsg},
     Header, HeaderMsg,
+    profile_rule_window::{ProfileRuleWindowMsg, profile_row::ProfileRuleRowMsg},
 };
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
+    DeviceStats, GIT_COMMIT,
     args::GuiArgs,
     config::{GpuConfig, Profile},
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
-    DeviceStats, GIT_COMMIT,
 };
 use msg::AppMsg;
 use pages::{
+    PageUpdate,
     crash_page::CrashPage,
     info_page::InformationPage,
     oc_page::{OcPage, OcPageMsg},
     software_page::{SoftwarePage, SoftwarePageMsg},
     thermals_page::{ThermalsPage, ThermalsPageMsg},
-    PageUpdate,
 };
 use relm4::{
+    AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
+    RelmWidgetExt,
     binding::BoolBinding,
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio::{self, time::sleep},
-    AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
-    RelmWidgetExt,
 };
 use relm4_components::{
     open_dialog::{OpenDialog, OpenDialogMsg, OpenDialogResponse, OpenDialogSettings},
@@ -71,8 +71,8 @@ use std::{
     path::PathBuf,
     rc::Rc,
     sync::{
-        atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU32, Ordering},
     },
     time::Duration,
 };
@@ -234,7 +234,11 @@ impl AsyncComponent for AppModel {
             .expect("Could not list devices");
 
         if system_info.version != GUI_VERSION || system_info.commit.as_deref() != Some(GIT_COMMIT) {
-            let err = anyhow!("Version mismatch between GUI and daemon ({GUI_VERSION}-{GIT_COMMIT} vs {}-{})! If you have updated LACT, you need to restart the service with `sudo systemctl restart lactd`.", system_info.version, system_info.commit.as_deref().unwrap_or_default());
+            let err = anyhow!(
+                "Version mismatch between GUI and daemon ({GUI_VERSION}-{GIT_COMMIT} vs {}-{})! If you have updated LACT, you need to restart the service with `sudo systemctl restart lactd`.",
+                system_info.version,
+                system_info.commit.as_deref().unwrap_or_default()
+            );
             sender.input(AppMsg::Error(err.into()));
         }
 
@@ -346,9 +350,10 @@ impl AsyncComponent for AppModel {
         _root: &Self::Root,
     ) {
         if let Some(msg) = msg
-            && let Err(err) = self.handle_cmd_output(msg, &sender).await {
-                sender.input(AppMsg::Error(Arc::new(err)));
-            }
+            && let Err(err) = self.handle_cmd_output(msg, &sender).await
+        {
+            sender.input(AppMsg::Error(Arc::new(err)));
+        }
     }
 }
 
@@ -556,17 +561,18 @@ impl AppModel {
             }
             AppMsg::FetchProcessList => {
                 if self.process_monitor_window.widget().is_visible()
-                    && let Ok(gpu_id) = self.current_gpu_id() {
-                        match self.daemon_client.get_process_list(&gpu_id).await {
-                            Ok(process_list) => {
-                                self.process_monitor_window
-                                    .emit(ProcessMonitorWindowMsg::Data(process_list));
-                            }
-                            Err(err) => {
-                                warn!("could not fetch process list: {err:#}");
-                            }
+                    && let Ok(gpu_id) = self.current_gpu_id()
+                {
+                    match self.daemon_client.get_process_list(&gpu_id).await {
+                        Ok(process_list) => {
+                            self.process_monitor_window
+                                .emit(ProcessMonitorWindowMsg::Data(process_list));
+                        }
+                        Err(err) => {
+                            warn!("could not fetch process list: {err:#}");
                         }
                     }
+                }
             }
             AppMsg::ConnectionStatus(status) => match status {
                 ConnectionStatusMsg::Disconnected => widgets.reconnecting_dialog.present(),
@@ -668,9 +674,10 @@ impl AppModel {
             .await?;
 
         if let Some(sender) = state_sender
-            && let Some(state) = profiles.watcher_state.take() {
-                let _ = sender.send(ProfileRuleRowMsg::WatcherState(state));
-            }
+            && let Some(state) = profiles.watcher_state.take()
+        {
+            let _ = sender.send(ProfileRuleRowMsg::WatcherState(state));
+        }
 
         self.header.emit(HeaderMsg::Profiles(Box::new(profiles)));
 
@@ -699,9 +706,10 @@ impl AppModel {
                 .split('.')
                 .next()
                 .and_then(|version| version.parse::<u32>().ok())
-                && major_version < NVIDIA_RECOMMENDED_MIN_VERSION {
-                    sender.input(AppMsg::Error(Arc::new(anyhow!("Old Nvidia driver version detected ({major_version}), some features might be missing. Driver version {NVIDIA_RECOMMENDED_MIN_VERSION} or newer is recommended."))));
-                }
+            && major_version < NVIDIA_RECOMMENDED_MIN_VERSION
+        {
+            sender.input(AppMsg::Error(Arc::new(anyhow!("Old Nvidia driver version detected ({major_version}), some features might be missing. Driver version {NVIDIA_RECOMMENDED_MIN_VERSION} or newer is recommended."))));
+        }
 
         let update = PageUpdate::Info(info.clone());
         self.info_page.emit(update.clone());
@@ -971,21 +979,21 @@ impl AppModel {
                         diag.close();
 
                         if response == gtk::ResponseType::Accept
-                            && let Some(file) = diag.file() {
-                                match file.path() {
-                                    Some(path) => {
-                                        if let Err(err) = std::fs::write(path, vbios_data)
-                                            .context("Could not save vbios file")
-                                        {
-                                            show_error(&root, &err);
-                                        }
+                            && let Some(file) = diag.file()
+                        {
+                            match file.path() {
+                                Some(path) => {
+                                    if let Err(err) = std::fs::write(path, vbios_data)
+                                        .context("Could not save vbios file")
+                                    {
+                                        show_error(&root, &err);
                                     }
-                                    None => show_error(
-                                        &root,
-                                        &anyhow!("Selected file has an invalid path"),
-                                    ),
+                                }
+                                None => {
+                                    show_error(&root, &anyhow!("Selected file has an invalid path"))
                                 }
                             }
+                        }
                     }
                 ));
             }

@@ -1,6 +1,6 @@
 use super::gpu_controller::CommonControllerInfo;
 use crate::server::gpu_controller::PciSlotInfo;
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use lact_schema::OpenCLInfo;
 use serde::Deserialize;
 use tracing::error;

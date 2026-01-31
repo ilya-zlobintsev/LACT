@@ -4,7 +4,7 @@ use crate::subcommands::{
     current_auto_switch, current_profile, info, list_gpus, list_profiles, power_limit,
     set_auto_switch, set_profile, snapshot, stats,
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use lact_client::DaemonClient;
 use lact_schema::{
     args::cli::{CliArgs, CliCommand, ProfileAutoSwitchCommand, ProfileCommand},

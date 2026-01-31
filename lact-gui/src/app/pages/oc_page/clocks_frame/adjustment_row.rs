@@ -1,14 +1,14 @@
 use crate::{
-    app::{msg::AppMsg, pages::oc_adjustment::OcAdjustment},
     APP_BROKER, I18N,
+    app::{msg::AppMsg, pages::oc_adjustment::OcAdjustment},
 };
 use gtk::{
-    glib::{object::ObjectExt, SignalHandlerId},
+    glib::{SignalHandlerId, object::ObjectExt},
     prelude::{AdjustmentExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
 };
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
-use relm4::{prelude::FactoryComponent, RelmWidgetExt};
+use relm4::{RelmWidgetExt, prelude::FactoryComponent};
 
 pub struct ClockAdjustmentRow {
     clock_type: ClockspeedType,

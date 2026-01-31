@@ -3,8 +3,8 @@ mod drm;
 use super::{CommonControllerInfo, GpuController};
 use crate::{
     bindings::intel::{
-        drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE,
-        drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM, IntelDrm,
+        IntelDrm, drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE,
+        drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM,
     },
     server::{
         gpu_controller::common::fdinfo::{self, DrmUtilMap},
@@ -13,13 +13,13 @@ use crate::{
     },
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use futures::{future::LocalBoxFuture, join};
 use lact_schema::{
-    config::GpuConfig, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats,
-    DeviceType, DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo,
-    PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry,
-    VoltageStats, VramStats,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
+    DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState, PowerStates,
+    PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
+    config::GpuConfig,
 };
 use std::{
     borrow::Cow,
@@ -86,20 +86,22 @@ impl IntelGpuController {
             .flatten()
         {
             if let Some(name) = entry.file_name().to_str()
-                && name.starts_with("tile") {
-                    for gt_entry in fs::read_dir(entry.path()).into_iter().flatten().flatten() {
-                        if let Some(gt_name) = gt_entry.file_name().to_str()
-                            && gt_name.starts_with("gt") {
-                                let gt_path = gt_entry
-                                    .path()
-                                    .strip_prefix(&common.sysfs_path)
-                                    .unwrap()
-                                    .to_owned();
-                                debug!("initialized GT at '{}'", gt_path.display());
-                                tile_gts.push(gt_path);
-                            }
+                && name.starts_with("tile")
+            {
+                for gt_entry in fs::read_dir(entry.path()).into_iter().flatten().flatten() {
+                    if let Some(gt_name) = gt_entry.file_name().to_str()
+                        && gt_name.starts_with("gt")
+                    {
+                        let gt_path = gt_entry
+                            .path()
+                            .strip_prefix(&common.sysfs_path)
+                            .unwrap()
+                            .to_owned();
+                        debug!("initialized GT at '{}'", gt_path.display());
+                        tile_gts.push(gt_path);
                     }
                 }
+            }
         }
 
         if !tile_gts.is_empty() {
@@ -227,9 +229,10 @@ impl IntelGpuController {
                         && let Some(infix) = name
                             .strip_prefix(file_prefix)
                             .and_then(|name| name.strip_suffix(file_suffix))
-                            && !infix.contains('_') {
-                                files.push(entry.path());
-                            }
+                        && !infix.contains('_')
+                    {
+                        files.push(entry.path());
+                    }
                 }
                 files.sort_unstable();
 
@@ -292,11 +295,7 @@ impl IntelGpuController {
         unsafe {
             let mut out = T::default();
             let result = f(self.drm, self.drm_file.as_raw_fd(), &raw mut out);
-            if result == 0 {
-                Some(out)
-            } else {
-                None
-            }
+            if result == 0 { Some(out) } else { None }
         }
     }
 
@@ -365,13 +364,14 @@ impl IntelGpuController {
             .map(|(temp, file)| {
                 let mut key = None;
                 if let Some(filename) = file.to_str()
-                    && let Some(base_filename) = filename.strip_suffix("_input") {
-                        let label_filename = format!("{base_filename}_label");
+                    && let Some(base_filename) = filename.strip_suffix("_input")
+                {
+                    let label_filename = format!("{base_filename}_label");
 
-                        if let Some(label) = self.read_file(&label_filename) {
-                            key = Some(label);
-                        }
+                    if let Some(label) = self.read_file(&label_filename) {
+                        key = Some(label);
                     }
+                }
 
                 let key = key.unwrap_or_else(|| "gpu".to_owned());
 
@@ -452,16 +452,18 @@ impl IntelGpuController {
                 let gt_files = fs::read_dir(gt_path).ok()?;
                 for file in gt_files.flatten() {
                     if let Some(name) = file.file_name().to_str()
-                        && let Some(reason) = name.strip_prefix("throttle_reason_") {
-                            if reason == "status" {
-                                continue;
-                            }
-
-                            if let Some(value) = self.read_file::<i32>(file.path())
-                                && value != 0 {
-                                    reasons.insert(reason.to_owned(), vec![]);
-                                }
+                        && let Some(reason) = name.strip_prefix("throttle_reason_")
+                    {
+                        if reason == "status" {
+                            continue;
                         }
+
+                        if let Some(value) = self.read_file::<i32>(file.path())
+                            && value != 0
+                        {
+                            reasons.insert(reason.to_owned(), vec![]);
+                        }
+                    }
                 }
             }
             DriverType::Xe => {
@@ -472,10 +474,11 @@ impl IntelGpuController {
                     for file in throttle_files.flatten() {
                         if let Some(name) = file.file_name().to_str()
                             && let Some(reason) = name.strip_prefix("reason_")
-                                && let Some(value) = self.read_file::<i32>(file.path())
-                                    && value != 0 {
-                                        reasons.insert(reason.to_owned(), vec![]);
-                                    }
+                            && let Some(value) = self.read_file::<i32>(file.path())
+                            && value != 0
+                        {
+                            reasons.insert(reason.to_owned(), vec![]);
+                        }
                     }
                 }
             }
@@ -631,7 +634,9 @@ impl GpuController for IntelGpuController {
                     self.write_freq(FrequencyType::Max, max_clock)
                         .context("Could not set max clock")?;
                 } else {
-                    error!("could not apply configured maximum frequency {max_clock}, no maximum frequency file is present");
+                    error!(
+                        "could not apply configured maximum frequency {max_clock}, no maximum frequency file is present"
+                    );
                 }
             }
 
@@ -640,16 +645,19 @@ impl GpuController for IntelGpuController {
                     self.write_freq(FrequencyType::Min, min_clock)
                         .context("Could not set min clock")?;
                 } else {
-                    error!("could not apply configured minimum frequency {min_clock}, no minimum frequency file is present");
+                    error!(
+                        "could not apply configured minimum frequency {min_clock}, no minimum frequency file is present"
+                    );
                 }
             }
 
             if let Some(cap) = config.power_cap {
                 if self.get_power_cap().is_some() {
                     if let Some(max_cap) = self.get_power_cap_max()
-                        && cap > max_cap {
-                            bail!("Specified cap {cap} is greated than maximum allowed {max_cap}");
-                        }
+                        && cap > max_cap
+                    {
+                        bail!("Specified cap {cap} is greated than maximum allowed {max_cap}");
+                    }
 
                     self.write_hwmon_file(
                         POWER_CAP_NAMES,
@@ -775,14 +783,16 @@ impl GpuController for IntelGpuController {
     #[allow(clippy::cast_possible_truncation)]
     fn reset_clocks(&self) -> anyhow::Result<()> {
         if let Some(rp0) = self.read_freq(FrequencyType::Rp0)
-            && let Err(err) = self.write_freq(FrequencyType::Max, rp0 as i32) {
-                warn!("could not reset max clock: {err:#}");
-            }
+            && let Err(err) = self.write_freq(FrequencyType::Max, rp0 as i32)
+        {
+            warn!("could not reset max clock: {err:#}");
+        }
 
         if let Some(rpn) = self.read_freq(FrequencyType::Rpn)
-            && let Err(err) = self.write_freq(FrequencyType::Min, rpn as i32) {
-                warn!("could not reset min clock: {err:#}");
-            }
+            && let Err(err) = self.write_freq(FrequencyType::Min, rpn as i32)
+        {
+            warn!("could not reset min clock: {err:#}");
+        }
 
         Ok(())
     }

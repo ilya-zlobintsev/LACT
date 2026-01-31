@@ -17,11 +17,11 @@ pub const VENDOR_NVIDIA: &str = "10DE";
 
 use crate::server::handler::{AMD_DRM, INTEL_DRM, NVML};
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
-use anyhow::anyhow;
 use anyhow::Context;
-use futures::{future::LocalBoxFuture, FutureExt};
+use anyhow::anyhow;
+use futures::{FutureExt, future::LocalBoxFuture};
 use lact_schema::{
-    config::GpuConfig, ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates,
+    ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates, config::GpuConfig,
 };
 use std::io;
 #[cfg(feature = "nvidia")]

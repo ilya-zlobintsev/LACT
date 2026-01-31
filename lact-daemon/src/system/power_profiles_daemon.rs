@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use tracing::{debug, error, info, warn};
-use zbus::{proxy, zvariant::OwnedValue, Connection};
+use zbus::{Connection, proxy, zvariant::OwnedValue};
 
 const CONFLICTING_ACTIONS: [&str; 1] = ["amdgpu_dpm"];
 const MIN_PPD_MINOR_VERSION: u32 = 30;
@@ -20,7 +20,9 @@ pub async fn setup() {
         Ok(ppd_client) => match ppd_client.version().await {
             Ok(version) => {
                 if let Err(err) = disable_conflicting_actions(&ppd_client, &version).await {
-                    warn!("power-profiles-daemon detected, but conflicting actions could not be disabled: {err:#}");
+                    warn!(
+                        "power-profiles-daemon detected, but conflicting actions could not be disabled: {err:#}"
+                    );
                 }
             }
             Err(err) => {
@@ -43,10 +45,11 @@ async fn disable_conflicting_actions(
     for profile in profiles {
         if let Some(driver) = profile.get("Driver")
             && let Ok(driver) = driver.downcast_ref::<String>()
-                && driver == "tuned" {
-                    info!("tuned-ppd detected, not disabling actions");
-                    return Ok(());
-                }
+            && driver == "tuned"
+        {
+            info!("tuned-ppd detected, not disabling actions");
+            return Ok(());
+        }
     }
 
     let (_major, minor) = version
@@ -71,32 +74,37 @@ async fn disable_conflicting_actions(
         if let Some(name) = action_map
             .get("Name")
             .and_then(|value| value.downcast_ref::<String>().ok())
-            && CONFLICTING_ACTIONS.contains(&name.as_str()) {
-                match action_map
-                    .get("Enabled")
-                    .and_then(|enabled| enabled.downcast_ref::<bool>().ok())
-                {
-                    Some(enabled) => {
-                        if enabled {
-                            match client.set_action_enabled(&name, false).await {
-                                Ok(()) => {
-                                    info!(
-                                        "disabled conflicting power-profiles-daemon action {name}"
-                                    );
-                                }
-                                Err(err) => {
-                                    error!("could not disable conflicting power-profiles-daemon action {name}: {err}");
-                                }
+            && CONFLICTING_ACTIONS.contains(&name.as_str())
+        {
+            match action_map
+                .get("Enabled")
+                .and_then(|enabled| enabled.downcast_ref::<bool>().ok())
+            {
+                Some(enabled) => {
+                    if enabled {
+                        match client.set_action_enabled(&name, false).await {
+                            Ok(()) => {
+                                info!("disabled conflicting power-profiles-daemon action {name}");
                             }
-                        } else {
-                            info!("conflicting power-profiles-daemon action {name} is already disabled");
+                            Err(err) => {
+                                error!(
+                                    "could not disable conflicting power-profiles-daemon action {name}: {err}"
+                                );
+                            }
                         }
-                    }
-                    None => {
-                        error!("could not check status for power-profiles-daemon action {name}: {action_map:?}");
+                    } else {
+                        info!(
+                            "conflicting power-profiles-daemon action {name} is already disabled"
+                        );
                     }
                 }
+                None => {
+                    error!(
+                        "could not check status for power-profiles-daemon action {name}: {action_map:?}"
+                    );
+                }
             }
+        }
     }
 
     Ok(())

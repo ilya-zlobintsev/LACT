@@ -1,6 +1,6 @@
 use super::ProfileWatcherEvent;
 use lact_schema::{ProfileProcessInfo, ProfileWatcherState};
-use libcopes::{ProcessEventsConnector, PID};
+use libcopes::{PID, ProcessEventsConnector};
 use std::{ffi::OsString, fs};
 use tokio::sync::mpsc;
 use tracing::{debug, error};
@@ -43,8 +43,8 @@ pub fn start_listener(event_tx: mpsc::Sender<ProfileWatcherEvent>) {
                                     .is_err()
                                 {
                                     debug!(
-                                    "profile watcher channel closed, exiting process event listener"
-                                );
+                                        "profile watcher channel closed, exiting process event listener"
+                                    );
                                     break;
                                 }
                             }

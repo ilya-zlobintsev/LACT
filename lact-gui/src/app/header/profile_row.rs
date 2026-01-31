@@ -1,13 +1,12 @@
 use super::HeaderMsg;
-use crate::app::{msg::AppMsg, APP_BROKER};
 use crate::I18N;
+use crate::app::{APP_BROKER, msg::AppMsg};
 use gtk::{pango, prelude::*};
 use i18n_embed_fl::fl;
-use lact_schema::{config::ProfileHooks, ProfileRule};
+use lact_schema::{ProfileRule, config::ProfileHooks};
 use relm4::{
-    css,
+    FactorySender, RelmWidgetExt, css,
     factory::{DynamicIndex, FactoryComponent},
-    FactorySender, RelmWidgetExt,
 };
 
 pub struct ProfileRow {

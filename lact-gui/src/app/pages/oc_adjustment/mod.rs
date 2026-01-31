@@ -64,11 +64,7 @@ impl OcAdjustment {
 
     pub fn get_nonzero_value(&self) -> Option<f64> {
         let value = self.value();
-        if value == 0.0 {
-            None
-        } else {
-            Some(value)
-        }
+        if value == 0.0 { None } else { Some(value) }
     }
 
     pub fn set_initial_value(&self, value: f64) {

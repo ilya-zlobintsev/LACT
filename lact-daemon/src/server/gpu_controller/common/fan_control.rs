@@ -1,5 +1,5 @@
 use amdgpu_sysfs::{gpu_handle::fan_control::FanCurve as PmfwCurve, hw_mon::Temperature};
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use lact_schema::config::FanCurve;
 use tracing::warn;
 

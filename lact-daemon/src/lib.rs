@@ -13,7 +13,7 @@ mod tests;
 use anyhow::Context;
 use config::Config;
 use futures::future::select_all;
-use server::{handle_stream, handler::Handler, Server};
+use server::{Server, handle_stream, handler::Handler};
 use std::sync::Arc;
 use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
 use tokio::net::UnixStream;
@@ -21,11 +21,11 @@ use tokio::sync::Notify;
 use tokio::time::timeout;
 use tokio::{
     runtime,
-    signal::unix::{signal, SignalKind},
+    signal::unix::{SignalKind, signal},
     task::LocalSet,
 };
 use tracing::level_filters::LevelFilter;
-use tracing::{debug, debug_span, error, info, warn, Instrument};
+use tracing::{Instrument, debug, debug_span, error, info, warn};
 use tracing_subscriber::EnvFilter;
 
 pub use system::BASE_MODULE_CONF_PATH;

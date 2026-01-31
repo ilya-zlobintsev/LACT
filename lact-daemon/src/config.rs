@@ -2,7 +2,7 @@ use crate::server::gpu_controller::{GpuController, VENDOR_NVIDIA};
 use anyhow::Context;
 use indexmap::IndexMap;
 use lact_schema::config::{GpuConfig, Profile, ProfileHooks};
-use nix::unistd::{getuid, Group};
+use nix::unistd::{Group, getuid};
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -181,31 +181,35 @@ impl Config {
                             if let Some(fan_settings) = &mut gpu.fan_control_settings
                                 && let (Some(pwm_min), Some(pwm_max)) =
                                     (stats.fan.pwm_min, stats.fan.pwm_max)
+                            {
+                                let ratio_min = (pwm_min as f32) / f32::from(u8::MAX);
+                                let ratio_max = (pwm_max as f32) / f32::from(u8::MAX);
+
+                                for value in fan_settings
+                                    .curve
+                                    .0
+                                    .values_mut()
+                                    .chain(iter::once(&mut (fan_settings.static_speed)))
                                 {
-                                    let ratio_min = (pwm_min as f32) / f32::from(u8::MAX);
-                                    let ratio_max = (pwm_max as f32) / f32::from(u8::MAX);
+                                    let mut updated_value = None;
+                                    if *value < ratio_min {
+                                        updated_value = Some(ratio_min);
+                                    }
+                                    if *value > ratio_max {
+                                        updated_value = Some(ratio_max);
+                                    }
 
-                                    for value in fan_settings
-                                        .curve
-                                        .0
-                                        .values_mut()
-                                        .chain(iter::once(&mut (fan_settings.static_speed)))
-                                    {
-                                        let mut updated_value = None;
-                                        if *value < ratio_min {
-                                            updated_value = Some(ratio_min);
-                                        }
-                                        if *value > ratio_max {
-                                            updated_value = Some(ratio_max);
-                                        }
-
-                                        if let Some(new_value) = updated_value {
-                                            let new_value = (new_value * 100.0).round() / 100.0;
-                                            info!("updated fan curve speed point {}% to {}% to be within the allowed range", *value * 100.0, new_value * 100.0);
-                                            *value = new_value;
-                                        }
+                                    if let Some(new_value) = updated_value {
+                                        let new_value = (new_value * 100.0).round() / 100.0;
+                                        info!(
+                                            "updated fan curve speed point {}% to {}% to be within the allowed range",
+                                            *value * 100.0,
+                                            new_value * 100.0
+                                        );
+                                        *value = new_value;
                                     }
                                 }
+                            }
                         }
                     }
                 }
@@ -216,9 +220,10 @@ impl Config {
                 }
                 5 => {
                     if let Ok(admin_user) = env::var("FLATPAK_INSTALL_USER")
-                        && self.daemon.admin_user.is_none() {
-                            self.daemon.admin_user = Some(admin_user);
-                        }
+                        && self.daemon.admin_user.is_none()
+                    {
+                        self.daemon.admin_user = Some(admin_user);
+                    }
                 }
                 _ => break,
             }
@@ -411,8 +416,8 @@ mod tests {
     use indexmap::IndexMap;
     use insta::assert_yaml_snapshot;
     use lact_schema::{
-        config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
         FanControlMode, PmfwOptions,
+        config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
     };
     use std::collections::BTreeMap;
 

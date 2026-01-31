@@ -1,9 +1,9 @@
 use super::{
     confirmation_dialog::ConfirmationOptions,
-    header::profile_rule_window::{profile_row::ProfileRuleRowMsg, ProfileRuleWindowMsg},
+    header::profile_rule_window::{ProfileRuleWindowMsg, profile_row::ProfileRuleRowMsg},
 };
 use lact_client::ConnectionStatusMsg;
-use lact_schema::{config::ProfileHooks, request::ProfileBase, DeviceStats, ProfileRule};
+use lact_schema::{DeviceStats, ProfileRule, config::ProfileHooks, request::ProfileBase};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]

@@ -55,10 +55,11 @@ impl UiConfig {
         debug!("saving config to {}", path.display());
         let config_dir = path.parent().unwrap();
         if !config_dir.exists()
-            && let Err(err) = fs::create_dir_all(config_dir) {
-                error!("could not create config dir: {err}");
-                return;
-            }
+            && let Err(err) = fs::create_dir_all(config_dir)
+        {
+            error!("could not create config dir: {err}");
+            return;
+        }
 
         let raw_config = serde_norway::to_string(self).unwrap();
         if let Err(err) = fs::write(path, raw_config) {

@@ -3,17 +3,17 @@ mod config;
 
 use std::{
     panic,
-    sync::{atomic::AtomicBool, atomic::Ordering, LazyLock},
+    sync::{LazyLock, atomic::AtomicBool, atomic::Ordering},
 };
 
 use anyhow::Context;
-use app::{msg::AppMsg, AppModel, APP_BROKER};
+use app::{APP_BROKER, AppModel, msg::AppMsg};
 use config::UiConfig;
-use i18n_embed::fluent::{fluent_language_loader, FluentLanguageLoader};
+use i18n_embed::fluent::{FluentLanguageLoader, fluent_language_loader};
 use lact_schema::{args::GuiArgs, i18n};
 use relm4::{
-    gtk::{glib, glib::MainContext},
     RelmApp, SharedState,
+    gtk::{glib, glib::MainContext},
 };
 use rust_embed::RustEmbed;
 use tracing::metadata::LevelFilter;

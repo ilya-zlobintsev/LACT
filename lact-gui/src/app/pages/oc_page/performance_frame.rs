@@ -2,15 +2,15 @@ mod heuristics_list;
 
 use super::OcPageMsg;
 use crate::{
-    app::{msg::AppMsg, page_section::PageSection},
     APP_BROKER, I18N,
+    app::{msg::AppMsg, page_section::PageSection},
 };
-use amdgpu_sysfs::gpu_handle::{power_profile_mode::PowerProfileModesTable, PerformanceLevel};
+use amdgpu_sysfs::gpu_handle::{PerformanceLevel, power_profile_mode::PowerProfileModesTable};
 use gtk::{
+    StringObject,
     gio::prelude::ListModelExt,
     glib::object::Cast,
     prelude::{BoxExt, ListBoxRowExt, OrientableExt, WidgetExt},
-    StringObject,
 };
 use heuristics_list::PowerProfileHeuristicsList;
 use i18n_embed_fl::fl;
@@ -205,22 +205,24 @@ impl relm4::Component for PerformanceFrame {
             }
             PerformanceFrameMsg::PowerProfileSelected(idx) => {
                 if let Some(table) = &mut self.power_profile_modes_table
-                    && table.active != idx {
-                        table.active = idx;
-                        APP_BROKER.send(AppMsg::SettingsChanged);
-                        self.update_heuristic_components(widgets);
-                    }
+                    && table.active != idx
+                {
+                    table.active = idx;
+                    APP_BROKER.send(AppMsg::SettingsChanged);
+                    self.update_heuristic_components(widgets);
+                }
             }
         }
 
         if let Some(table) = &self.power_profile_modes_table
-            && let Some(active) = table.modes.get(&table.active) {
-                for heuristics_component in &self.heuristics_components {
-                    heuristics_component
-                        .widget()
-                        .set_sensitive(active.is_custom());
-                }
+            && let Some(active) = table.modes.get(&table.active)
+        {
+            for heuristics_component in &self.heuristics_components {
+                heuristics_component
+                    .widget()
+                    .set_sensitive(active.is_custom());
             }
+        }
 
         self.update_view(widgets, sender);
     }
@@ -236,22 +238,23 @@ impl PerformanceFrame {
         }
 
         if let Some(table) = &self.power_profile_modes_table
-            && let Some(active_profile) = table.modes.get(&table.active) {
-                for component in &active_profile.components {
-                    let title = component.clock_type.as_deref().unwrap_or("All");
+            && let Some(active_profile) = table.modes.get(&table.active)
+        {
+            for component in &active_profile.components {
+                let title = component.clock_type.as_deref().unwrap_or("All");
 
-                    let heuristics_component = PowerProfileHeuristicsList::builder()
-                        .launch((component.values.clone(), table.value_names.clone()))
-                        .detach();
+                let heuristics_component = PowerProfileHeuristicsList::builder()
+                    .launch((component.values.clone(), table.value_names.clone()))
+                    .detach();
 
-                    widgets.heuristics_notebook.append_page(
-                        heuristics_component.widget(),
-                        Some(&gtk::Label::new(Some(title))),
-                    );
+                widgets.heuristics_notebook.append_page(
+                    heuristics_component.widget(),
+                    Some(&gtk::Label::new(Some(title))),
+                );
 
-                    self.heuristics_components.push(heuristics_component);
-                }
+                self.heuristics_components.push(heuristics_component);
             }
+        }
     }
 
     pub fn performance_level(&self) -> Option<PerformanceLevel> {
@@ -271,13 +274,14 @@ impl PerformanceFrame {
     pub fn power_profile_mode_custom_heuristics(&self) -> Vec<Vec<Option<i32>>> {
         if let Some(table) = &self.power_profile_modes_table
             && let Some(mode) = table.modes.get(&table.active)
-                && mode.is_custom() {
-                    return self
-                        .heuristics_components
-                        .iter()
-                        .map(|list| list.model().get_values())
-                        .collect();
-                }
+            && mode.is_custom()
+        {
+            return self
+                .heuristics_components
+                .iter()
+                .map(|list| list.model().get_values())
+                .collect();
+        }
 
         vec![]
     }

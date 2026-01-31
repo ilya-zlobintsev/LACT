@@ -1,22 +1,22 @@
 use std::collections::HashMap;
 
-use crate::app::{format_friendly_size, msg::AppMsg, APP_BROKER};
+use crate::app::{APP_BROKER, format_friendly_size, msg::AppMsg};
 use gtk::{
     glib::{
-        object::{Cast, ObjectExt},
         GString,
+        object::{Cast, ObjectExt},
     },
     pango,
     prelude::{EditableExt, GtkWindowExt, OrientableExt, SorterExt, WidgetExt},
 };
 use lact_schema::{ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType};
 use relm4::{
+    ComponentParts, ComponentSender, RelmObjectExt,
     binding::{Binding, StringBinding, U32Binding, U64Binding},
     typed_view::{
-        column::{LabelColumn, RelmColumn, TypedColumnView},
         OrdFn,
+        column::{LabelColumn, RelmColumn, TypedColumnView},
     },
-    ComponentParts, ComponentSender, RelmObjectExt,
 };
 
 pub struct ProcessMonitorWindow {

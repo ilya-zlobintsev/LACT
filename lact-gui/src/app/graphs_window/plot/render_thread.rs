@@ -1,6 +1,6 @@
+use super::PlotColorScheme;
 use super::cubic_spline::cubic_spline_interpolation;
 use super::to_texture_ext::ToTextureExt;
-use super::PlotColorScheme;
 use crate::app::graphs_window::stat::{StatType, StatsData};
 use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};

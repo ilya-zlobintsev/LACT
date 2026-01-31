@@ -1,4 +1,4 @@
-use super::{request, DaemonConnection};
+use super::{DaemonConnection, request};
 use anyhow::Context;
 use futures::future::BoxFuture;
 use tokio::{

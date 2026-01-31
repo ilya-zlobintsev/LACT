@@ -118,14 +118,15 @@ impl Component for NewProfileDialog {
         match msg {
             NewProfileDialogMsg::Create => {
                 if self.name_buffer.length() != 0
-                    && let Some(selected) = self.base_selector.model().active_index {
-                        let base = self.base_selector.model().variants[selected].clone();
-                        sender
-                            .output((self.name_buffer.text().to_string(), base))
-                            .unwrap();
+                    && let Some(selected) = self.base_selector.model().active_index
+                {
+                    let base = self.base_selector.model().variants[selected].clone();
+                    sender
+                        .output((self.name_buffer.text().to_string(), base))
+                        .unwrap();
 
-                        root.close();
-                    }
+                    root.close();
+                }
             }
         }
     }

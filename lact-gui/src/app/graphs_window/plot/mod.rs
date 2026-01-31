@@ -5,10 +5,10 @@ mod to_texture_ext;
 
 use super::stat::{StatType, StatsData};
 use gtk::{
-    glib::{self, subclass::types::ObjectSubclassIsExt, Object},
+    glib::{self, Object, subclass::types::ObjectSubclassIsExt},
     prelude::StyleContextExt,
 };
-use plotters::style::{full_palette::DEEPORANGE_100, Color, RGBAColor, BLACK, WHITE};
+use plotters::style::{BLACK, Color, RGBAColor, WHITE, full_palette::DEEPORANGE_100};
 use std::sync::{Arc, RwLock};
 
 glib::wrapper! {

@@ -1,36 +1,36 @@
 mod fan_curve_frame;
 
 use super::{
+    PageUpdate,
     oc_adjustment::OcAdjustment,
     oc_page::gpu_stats_section::{fan_speed_text, temperature_text, throttling_text},
-    PageUpdate,
 };
 use crate::app::ext::FlowBoxExt;
 use crate::{
-    app::{info_row::InfoRow, msg::AppMsg, page_section::PageSection},
     APP_BROKER, I18N,
+    app::{info_row::InfoRow, msg::AppMsg, page_section::PageSection},
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
 use fan_curve_frame::{
-    CurveSetupMsg, FanCurveFrame, FanCurveFrameMsg, DEFAULT_SPEED_RANGE, DEFAULT_TEMP_RANGE,
+    CurveSetupMsg, DEFAULT_SPEED_RANGE, DEFAULT_TEMP_RANGE, FanCurveFrame, FanCurveFrameMsg,
 };
 use gtk::{
+    Adjustment,
     glib::{
-        self,
+        self, SignalHandlerId,
         object::{Cast, ObjectExt},
-        SignalHandlerId,
     },
     prelude::{AdjustmentExt, BoxExt, ButtonExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
-    Adjustment,
 };
 use i18n_embed_fl::fl;
 use lact_schema::{
+    DeviceFlag, FanControlMode, SystemInfo,
     config::{FanControlSettings, FanCurve, GpuConfig},
-    default_fan_curve, DeviceFlag, FanControlMode, SystemInfo,
+    default_fan_curve,
 };
 use relm4::{
-    binding::{Binding, BoolBinding, ConnectBinding, StringBinding},
     ComponentController, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
+    binding::{Binding, BoolBinding, ConnectBinding, StringBinding},
 };
 use std::{cell::Cell, rc::Rc};
 

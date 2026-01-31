@@ -1,5 +1,5 @@
-use anyhow::{anyhow, bail, Context};
-use indexmap::{map::Entry, IndexMap};
+use anyhow::{Context, anyhow, bail};
+use indexmap::{IndexMap, map::Entry};
 use lact_schema::{VulkanDriverInfo, VulkanInfo};
 use serde::Deserialize;
 use std::{env, fs, path::Path};
@@ -344,7 +344,7 @@ fn vulkaninfo_command() -> Command {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_legacy_devsim, parse_summary, VulkanInfoDevSimManifest};
+    use super::{VulkanInfoDevSimManifest, parse_legacy_devsim, parse_summary};
     use crate::server::vulkan::SummaryDeviceEntry;
     use pretty_assertions::assert_eq;
 
