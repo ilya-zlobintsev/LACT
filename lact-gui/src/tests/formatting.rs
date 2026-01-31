@@ -3,6 +3,7 @@ use amdgpu_sysfs::hw_mon::Temperature;
 use lact_schema::{DeviceStats, TemperatureEntry};
 use std::collections::{BTreeMap, HashMap};
 
+
 #[test]
 fn mono_display_formats_values() {
     assert_eq!(
