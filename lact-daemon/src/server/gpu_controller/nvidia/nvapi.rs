@@ -1,11 +1,11 @@
 #![cfg_attr(test, allow(unused))]
-#![allow(clippy::unreadable_literal)]
+#![allow(clippy::unreadable_literal, unsafe_op_in_unsafe_fn)]
 use crate::bindings::nvidia::{
-    NvAPI_Status, NvPhysicalGpuHandle, NVAPI_MAX_PHYSICAL_GPUS, NVAPI_SHORT_STRING_MAX,
+    NVAPI_MAX_PHYSICAL_GPUS, NVAPI_SHORT_STRING_MAX, NvAPI_Status, NvPhysicalGpuHandle,
 };
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use std::{
-    ffi::{c_char, CStr},
+    ffi::{CStr, c_char},
     mem::{self, transmute},
     ptr,
 };
@@ -63,16 +63,16 @@ impl NvApi {
                     return Ok(Some(handle));
                 }
             }
-
-            Ok(None)
         }
+
+        Ok(None)
     }
 
     pub unsafe fn get_thermals(
         &self,
         handle: NvPhysicalGpuHandle,
         mask: i32,
-    ) -> anyhow::Result<NvApiThermals> { unsafe {
+    ) -> anyhow::Result<NvApiThermals> {
         let f = self.query_interface(QUERY_NVAPI_THERMALS)?;
         let f: unsafe extern "C" fn(
             handle: NvPhysicalGpuHandle,
@@ -90,9 +90,9 @@ impl NvApi {
         self.handle_status(status)?;
 
         Ok(sensors)
-    }}
+    }
 
-    pub unsafe fn get_voltage(&self, handle: NvPhysicalGpuHandle) -> anyhow::Result<u32> { unsafe {
+    pub unsafe fn get_voltage(&self, handle: NvPhysicalGpuHandle) -> anyhow::Result<u32> {
         let f = self.query_interface(QUERY_NVAPI_VOLTAGE)?;
         let f: unsafe extern "C" fn(
             handle: NvPhysicalGpuHandle,
@@ -111,12 +111,12 @@ impl NvApi {
         self.handle_status(status)?;
 
         Ok(data.value_uv)
-    }}
+    }
 
     pub unsafe fn calculate_thermals_mask(
         &self,
         handle: NvPhysicalGpuHandle,
-    ) -> anyhow::Result<i32> { unsafe {
+    ) -> anyhow::Result<i32> {
         let f = self.query_interface(QUERY_NVAPI_THERMALS)?;
         let f: unsafe extern "C" fn(
             handle: NvPhysicalGpuHandle,
@@ -142,9 +142,9 @@ impl NvApi {
         }
 
         bail!("Could not find suitable mask");
-    }}
+    }
 
-    unsafe fn enum_physical_gpus(&self) -> anyhow::Result<Vec<NvPhysicalGpuHandle>> { unsafe {
+    unsafe fn enum_physical_gpus(&self) -> anyhow::Result<Vec<NvPhysicalGpuHandle>> {
         let f = self.query_interface(QUERY_NVAPI_ENUM_PHYSICAL_GPUS)?;
         let f: unsafe extern "C" fn(
             handles: &mut [NvPhysicalGpuHandle; NVAPI_MAX_PHYSICAL_GPUS as usize],
@@ -159,9 +159,9 @@ impl NvApi {
         self.handle_status(status)?;
 
         Ok(handles.into_iter().take(count as usize).collect())
-    }}
+    }
 
-    unsafe fn query_interface(&self, id: u32) -> anyhow::Result<*const ()> { unsafe {
+    unsafe fn query_interface(&self, id: u32) -> anyhow::Result<*const ()> {
         let query_interface = self
             .lib
             .get::<unsafe extern "C" fn(u32) -> *const ()>(QUERY_INTERFACE_FN)
@@ -174,9 +174,9 @@ impl NvApi {
         }
 
         Ok(f)
-    }}
+    }
 
-    unsafe fn handle_status(&self, status: NvAPI_Status) -> anyhow::Result<()> { unsafe {
+    unsafe fn handle_status(&self, status: NvAPI_Status) -> anyhow::Result<()> {
         if status == 0 {
             Ok(())
         } else {
@@ -200,7 +200,7 @@ impl NvApi {
                 text.unwrap_or_default().to_string_lossy()
             );
         }
-    }}
+    }
 }
 
 impl Drop for NvApi {
