@@ -1,14 +1,15 @@
 mod fan_curve_frame;
 
-use super::{
-    PageUpdate,
-    oc_adjustment::OcAdjustment,
-    oc_page::gpu_stats_section::{fan_speed_text, temperature_text, throttling_text},
-};
+use super::{PageUpdate, oc_adjustment::OcAdjustment};
 use crate::app::ext::FlowBoxExt;
 use crate::{
     APP_BROKER, I18N,
-    app::{info_row::InfoRow, msg::AppMsg, page_section::PageSection},
+    app::{
+        formatting::{fmt_fan_speed, fmt_temperature_text, fmt_throttling_text},
+        info_row::InfoRow,
+        msg::AppMsg,
+        page_section::PageSection,
+    },
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
 use fan_curve_frame::{
@@ -421,9 +422,9 @@ impl relm4::Component for ThermalsPage {
                     self.has_auto_threshold = info.flags.contains(&DeviceFlag::AutoFanThreshold);
                 }
                 PageUpdate::Stats(stats) => {
-                    self.fan_speed = fan_speed_text(&stats);
-                    self.temperatures = temperature_text(&stats);
-                    self.throttling = throttling_text(&stats);
+                    self.fan_speed = fmt_fan_speed(&stats);
+                    self.temperatures = fmt_temperature_text(&stats);
+                    self.throttling = fmt_throttling_text(&stats);
 
                     if initial {
                         let page_name = match stats.fan.control_mode {
