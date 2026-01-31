@@ -15,7 +15,8 @@ pub fn loader(loader: FluentLanguageLoader, assets: &dyn I18nAssets) -> FluentLa
     } else {
         DesktopLanguageRequester::requested_languages()
     };
-    i18n_embed::select(&loader, assets, &requested_languages).expect("Failed to select localization");
+    i18n_embed::select(&loader, assets, &requested_languages)
+        .expect("Failed to select localization");
     loader
 }
 
