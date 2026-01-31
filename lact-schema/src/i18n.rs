@@ -15,7 +15,8 @@ pub fn loader(
     assets: &dyn I18nAssets,
     languages: Option<Vec<LanguageIdentifier>>,
 ) -> FluentLanguageLoader {
-    let requested_languages = languages.unwrap_or_else(DesktopLanguageRequester::requested_languages);
+    let requested_languages =
+        languages.unwrap_or_else(DesktopLanguageRequester::requested_languages);
     i18n_embed::select(&loader, assets, &requested_languages)
         .expect("Failed to select localization");
     loader
