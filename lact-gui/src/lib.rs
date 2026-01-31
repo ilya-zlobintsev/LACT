@@ -26,8 +26,13 @@ const GUI_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const APP_ID: &str = "io.github.ilya_zlobintsev.LACT";
 pub const REPO_URL: &str = "https://github.com/ilya-zlobintsev/LACT";
 
-pub(crate) static I18N: LazyLock<FluentLanguageLoader> =
-    LazyLock::new(|| i18n::loader(fluent_language_loader!(), &Localizations));
+pub(crate) static I18N: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
+    i18n::loader(
+        fluent_language_loader!(),
+        &Localizations,
+        cfg!(test).then(|| vec!["en-US".parse().unwrap()]),
+    )
+});
 
 #[derive(RustEmbed)]
 #[folder = "i18n"]

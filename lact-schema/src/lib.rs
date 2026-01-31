@@ -61,6 +61,10 @@ pub fn default_fan_curve() -> FanCurveMap {
     [(40, 0.3), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into()
 }
 
+pub fn bytes_to_mib(bytes: u64) -> f64 {
+    bytes as f64 / 1024.0 / 1024.0
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Pong;
 
@@ -220,7 +224,7 @@ impl DeviceInfo {
                 stats
                     .vram
                     .total
-                    .map(|size| format!("{:.2} GiB", size as f64 / 1024.0 / 1024.0 / 1024.0)),
+                    .map(|size| format!("{} Mb", bytes_to_mib(size))),
             ));
         }
 

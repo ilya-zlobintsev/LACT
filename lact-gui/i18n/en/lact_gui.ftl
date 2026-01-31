@@ -108,6 +108,8 @@ power-cap = Power Usage Limit
 watt = W
 ghz = GHz
 mhz = MHz
+bytes = bytes
+kibibyte = KiB
 mebibyte = MiB
 gibibyte = GiB
 
