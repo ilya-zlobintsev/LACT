@@ -263,7 +263,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
 fn format_current_gfxclk(value: Option<u64>) -> String {
     if let Some(v) = value {
-        // if the APU/GPU dose not actually support current_gfxclk,
+        // if the APU/GPU does not actually support current_gfxclk,
         // the value will be `u16::MAX (65535)`
         if v >= u16::MAX as u64 || v == 0 {
             fl!(I18N, "missing-stat")
