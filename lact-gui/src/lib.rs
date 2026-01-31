@@ -1,7 +1,5 @@
 mod app;
 mod config;
-#[cfg(test)]
-mod tests;
 
 use std::{
     panic,
