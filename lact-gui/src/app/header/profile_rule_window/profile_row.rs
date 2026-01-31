@@ -1,5 +1,5 @@
-use crate::app::{header::profile_rule_window::ProfileRuleWindowMsg, msg::AppMsg, APP_BROKER};
 use crate::I18N;
+use crate::app::{APP_BROKER, header::profile_rule_window::ProfileRuleWindowMsg, msg::AppMsg};
 use gtk::{
     glib::GString,
     pango,
@@ -11,9 +11,10 @@ use gtk::{
 use i18n_embed_fl::fl;
 use lact_schema::{ProcessProfileRule, ProfileProcessInfo, ProfileRule, ProfileWatcherState};
 use relm4::{
+    RelmObjectExt, RelmWidgetExt,
     binding::{BoolBinding, StringBinding},
     typed_view::list::{RelmListItem, TypedListView},
-    view, RelmObjectExt, RelmWidgetExt,
+    view,
 };
 use std::fmt::Write;
 use tracing::debug;

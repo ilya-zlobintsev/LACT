@@ -4,18 +4,18 @@ mod macros;
 
 pub use lact_schema as schema;
 use lact_schema::{
-    config::{GpuConfig, Profile, ProfileHooks},
     ProcessList, ProfileRule,
+    config::{GpuConfig, Profile, ProfileHooks},
 };
 
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::Context;
-use connection::{tcp::TcpConnection, unix::UnixConnection, DaemonConnection};
+use connection::{DaemonConnection, tcp::TcpConnection, unix::UnixConnection};
 use nix::unistd::getuid;
 use schema::{
-    request::{ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, PowerStates, ProfilesInfo, Request,
     Response, SystemInfo,
+    request::{ConfirmCommand, ProfileBase, SetClocksCommand},
 };
 use serde::de::DeserializeOwned;
 use std::{
@@ -23,7 +23,7 @@ use std::{
 };
 use tokio::{
     net::ToSocketAddrs,
-    sync::{broadcast, Mutex},
+    sync::{Mutex, broadcast},
 };
 use tracing::{error, info, trace};
 
@@ -109,7 +109,9 @@ impl DaemonClient {
                                 return self.make_request(request).await;
                             }
                             Err(err) => {
-                                error!("Could not reconnect: {err:#}, retrying in {RECONNECT_INTERVAL_MS}ms");
+                                error!(
+                                    "Could not reconnect: {err:#}, retrying in {RECONNECT_INTERVAL_MS}ms"
+                                );
                                 tokio::time::sleep(Duration::from_millis(RECONNECT_INTERVAL_MS))
                                     .await;
                             }

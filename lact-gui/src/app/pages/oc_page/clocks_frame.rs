@@ -1,8 +1,8 @@
 mod adjustment_row;
 
 use crate::{
-    app::{msg::AppMsg, page_section::PageSection},
     APP_BROKER, I18N,
+    app::{msg::AppMsg, page_section::PageSection},
 };
 use adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
@@ -13,12 +13,12 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use lact_schema::{
-    request::{ClockspeedType, SetClocksCommand},
     ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
+    request::{ClockspeedType, SetClocksCommand},
 };
 use relm4::{
-    binding::BoolBinding, css, factory::FactoryHashMap, ComponentParts, ComponentSender,
-    RelmObjectExt, RelmWidgetExt,
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
+    factory::FactoryHashMap,
 };
 
 // This should not end up being used in practice
@@ -346,20 +346,19 @@ impl ClocksFrame {
                     .od_range
                     .sclk_offset
                     .and_then(|range| range.into_full())
+                    && let Some(sclk_offset) = table.sclk_offset
                 {
-                    if let Some(sclk_offset) = table.sclk_offset {
-                        self.clocks.insert(
-                            ClockspeedType::GpuClockOffset(0),
-                            ClocksData {
-                                current: sclk_offset,
-                                min: sclk_offset_min,
-                                max: sclk_offset_max,
-                                custom_title: Some(fl!(I18N, "gpu-clock-offset")),
-                                is_secondary: false,
-                                show_separator: false,
-                            },
-                        );
-                    }
+                    self.clocks.insert(
+                        ClockspeedType::GpuClockOffset(0),
+                        ClocksData {
+                            current: sclk_offset,
+                            min: sclk_offset_min,
+                            max: sclk_offset_max,
+                            custom_title: Some(fl!(I18N, "gpu-clock-offset")),
+                            is_secondary: false,
+                            show_separator: false,
+                        },
+                    );
                 }
 
                 let mut clocks_types = Vec::with_capacity(4);
@@ -442,15 +441,15 @@ impl ClocksFrame {
                 ]);
 
                 for (clockspeed_type, current_value, range, show_separator) in clocks_types {
-                    if let Some(current) = current_value {
-                        if let Some((min, max)) = range.and_then(|range| range.into_full()) {
-                            let mut data = ClocksData::new(current, min, max);
-                            if show_separator && !self.clocks.is_empty() {
-                                data.show_separator = true;
-                            }
-
-                            self.clocks.insert(clockspeed_type, data);
+                    if let Some(current) = current_value
+                        && let Some((min, max)) = range.and_then(|range| range.into_full())
+                    {
+                        let mut data = ClocksData::new(current, min, max);
+                        if show_separator && !self.clocks.is_empty() {
+                            data.show_separator = true;
                         }
+
+                        self.clocks.insert(clockspeed_type, data);
                     }
                 }
 
@@ -553,17 +552,17 @@ impl ClocksFrame {
     fn set_intel_table(&mut self, table: IntelClocksTable) {
         self.show_all_pstates.set_value(false);
 
-        if let Some((current_gt_min, current_gt_max)) = table.gt_freq {
-            if let (Some(min_clock), Some(max_clock)) = (table.rpn_freq, table.rp0_freq) {
-                self.clocks.insert(
-                    ClockspeedType::MaxCoreClock,
-                    ClocksData::new(current_gt_max as i32, min_clock as i32, max_clock as i32),
-                );
-                self.clocks.insert(
-                    ClockspeedType::MinCoreClock,
-                    ClocksData::new(current_gt_min as i32, min_clock as i32, max_clock as i32),
-                );
-            }
+        if let Some((current_gt_min, current_gt_max)) = table.gt_freq
+            && let (Some(min_clock), Some(max_clock)) = (table.rpn_freq, table.rp0_freq)
+        {
+            self.clocks.insert(
+                ClockspeedType::MaxCoreClock,
+                ClocksData::new(current_gt_max as i32, min_clock as i32, max_clock as i32),
+            );
+            self.clocks.insert(
+                ClockspeedType::MinCoreClock,
+                ClocksData::new(current_gt_min as i32, min_clock as i32, max_clock as i32),
+            );
         }
     }
 

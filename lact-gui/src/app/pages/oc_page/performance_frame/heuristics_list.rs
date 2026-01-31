@@ -1,11 +1,11 @@
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use relm4::{
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
     binding::{BoolBinding, ConnectBinding, F64Binding},
     prelude::{DynamicIndex, FactoryVecDeque},
-    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
 };
 
-use crate::{app::msg::AppMsg, APP_BROKER};
+use crate::{APP_BROKER, app::msg::AppMsg};
 
 pub struct PowerProfileHeuristicsList {
     values: FactoryVecDeque<HeuristicRow>,

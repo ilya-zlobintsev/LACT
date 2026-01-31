@@ -1,5 +1,5 @@
 use super::{
-    gpu_controller::{common::fan_control::FanCurveExt, DynGpuController, GpuController},
+    gpu_controller::{DynGpuController, GpuController, common::fan_control::FanCurveExt},
     profiles::ProfileWatcherCommand,
     system::{self},
 };
@@ -10,17 +10,17 @@ use crate::{
 };
 use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
-    power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
+    PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use lact_schema::{
+    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
+    PowerStates, ProcessList, ProfileRule, ProfileWatcherState, ProfilesInfo,
     config::{
-        default_fan_static_speed, FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks,
+        FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks, default_fan_static_speed,
     },
     default_fan_curve,
     request::{ClockspeedType, ConfirmCommand, ProfileBase, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
-    PowerStates, ProcessList, ProfileRule, ProfileWatcherState, ProfilesInfo,
 };
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
@@ -47,7 +47,7 @@ use std::{
 };
 use tokio::{
     process::Command,
-    sync::{mpsc, oneshot, RwLock, RwLockReadGuard},
+    sync::{RwLock, RwLockReadGuard, mpsc, oneshot},
     task::JoinHandle,
     time::sleep,
 };
@@ -123,7 +123,9 @@ impl<'a> Handler {
             }
 
             if should_retry {
-                info!("retrying in {CONTROLLERS_LOAD_RETRY_INTERVAL}s (attempt {i}/{CONTROLLERS_LOAD_RETRY_ATTEMPTS})");
+                info!(
+                    "retrying in {CONTROLLERS_LOAD_RETRY_INTERVAL}s (attempt {i}/{CONTROLLERS_LOAD_RETRY_ATTEMPTS})"
+                );
                 sleep(Duration::from_secs(CONTROLLERS_LOAD_RETRY_INTERVAL)).await;
             } else {
                 break;
@@ -147,7 +149,9 @@ impl<'a> Handler {
                         error!("could not back up old config: {err:#}");
                     }
 
-                    info!("detected reset boot argument, resetting config (old config backed up to {backup_filename})");
+                    info!(
+                        "detected reset boot argument, resetting config (old config backed up to {backup_filename})"
+                    );
                     config = Config::default();
                     if let Err(err) = config.save(&Cell::new(Instant::now())) {
                         error!("could not save config: {err:#}");
@@ -647,11 +651,11 @@ impl<'a> Handler {
                 .context("Could not read device dir")?
                 .flatten();
             for card_entry in card_files {
-                if let Ok(metadata) = card_entry.metadata() {
-                    if metadata.is_file() {
-                        let full_path = controller_path.join(card_entry.path());
-                        add_path_to_archive(&mut archive, &full_path)?;
-                    }
+                if let Ok(metadata) = card_entry.metadata()
+                    && metadata.is_file()
+                {
+                    let full_path = controller_path.join(card_entry.path());
+                    add_path_to_archive(&mut archive, &full_path)?;
                 }
             }
 
@@ -824,10 +828,10 @@ impl<'a> Handler {
                 activation_hook.clone_from(&new_profile.hooks.activated);
             }
 
-            if let Some(old_profile) = &config.current_profile {
-                if let Some(old_profile) = config.profiles.get(old_profile) {
-                    deactivation_hook.clone_from(&old_profile.hooks.deactivated);
-                }
+            if let Some(old_profile) = &config.current_profile
+                && let Some(old_profile) = config.profiles.get(old_profile)
+            {
+                deactivation_hook.clone_from(&old_profile.hooks.deactivated);
             }
         }
 
@@ -1224,11 +1228,11 @@ fn add_path_recursively(
                 }
             }
         }
-    } else if let Ok(metadata) = fs::metadata(entry_path) {
-        if metadata.is_file() {
-            let full_path = prefix.join(entry_path);
-            add_path_to_archive(archive, &full_path)?;
-        }
+    } else if let Ok(metadata) = fs::metadata(entry_path)
+        && metadata.is_file()
+    {
+        let full_path = prefix.join(entry_path);
+        add_path_to_archive(archive, &full_path)?;
     }
 
     Ok(())

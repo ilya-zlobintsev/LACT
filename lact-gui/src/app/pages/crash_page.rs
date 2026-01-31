@@ -1,4 +1,4 @@
-use crate::{app::msg::AppMsg, I18N};
+use crate::{I18N, app::msg::AppMsg};
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};

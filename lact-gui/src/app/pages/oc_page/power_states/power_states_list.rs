@@ -1,10 +1,10 @@
 use gtk::prelude::{BoxExt, CheckButtonExt, FrameExt, OrientableExt, WidgetExt};
 use lact_schema::PowerState;
 use relm4::{
-    binding::BoolBinding, prelude::FactoryVecDeque, ComponentParts, ComponentSender, RelmObjectExt,
+    ComponentParts, ComponentSender, RelmObjectExt, binding::BoolBinding, prelude::FactoryVecDeque,
 };
 
-use crate::{app::msg::AppMsg, APP_BROKER};
+use crate::{APP_BROKER, app::msg::AppMsg};
 
 pub struct PowerStatesList {
     states: FactoryVecDeque<PowerStateRow>,
@@ -131,8 +131,8 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
                         Some(min) if min != self.power_state.value => format!("{min}-{}", self.power_state.value),
                         _ => self.power_state.value.to_string(),
                     };
-                    Some(&format!("{}: {value_text} {}", index.current_index(), self.value_suffix))
-                }
+                    Some(format!("{}: {value_text} {}", index.current_index(), self.value_suffix))
+                }.as_deref(),
             },
 
             append: image = &gtk::Image {

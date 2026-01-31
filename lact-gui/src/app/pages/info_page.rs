@@ -1,15 +1,15 @@
 use super::PageUpdate;
+use crate::I18N;
 use crate::app::ext::FlowBoxExt;
 use crate::app::formatting::fmt_human_bytes;
 use crate::app::info_row::{InfoRow, InfoRowExt, InfoRowItem};
 use crate::app::page_section::PageSection;
-use crate::I18N;
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use lact_schema::{CacheInfo, CacheType, DeviceInfo, DeviceStats};
 use relm4::{
-    prelude::{FactoryComponent, FactoryVecDeque},
     ComponentParts, ComponentSender, RelmWidgetExt,
+    prelude::{FactoryComponent, FactoryVecDeque},
 };
 use std::sync::Arc;
 
@@ -107,7 +107,9 @@ impl InformationPage {
             for (name, value) in info.info_elements(self.device_stats.as_deref()) {
                 if let Some(value) = value {
                     let note = if name == "Card Model" && !value.starts_with("Unknown ") {
-                        Some("The card displayed here may be of a sibling model, e.g. XT vs XTX variety. This is normal, as such models often use the same device ID, and it is not possible to differentiate between them.")
+                        Some(
+                            "The card displayed here may be of a sibling model, e.g. XT vs XTX variety. This is normal, as such models often use the same device ID, and it is not possible to differentiate between them.",
+                        )
                     } else {
                         None
                     };
@@ -116,46 +118,46 @@ impl InformationPage {
                 }
             }
 
-            if let Some(drm_info) = &info.drm_info {
-                if let Some(cache_info) = &drm_info.cache_info {
-                    match cache_info {
-                        CacheInfo::Amd(items) => {
-                            for (instance, count) in items {
-                                let cache_types = instance
-                                    .types
-                                    .iter()
-                                    .map(|cache_type| match cache_type {
-                                        CacheType::Data => fl!(I18N, "cache-data"),
-                                        CacheType::Instruction => fl!(I18N, "cache-instruction"),
-                                        CacheType::Cpu => fl!(I18N, "cache-cpu"),
-                                    })
-                                    .collect::<Vec<String>>()
-                                    .join("+");
+            if let Some(drm_info) = &info.drm_info
+                && let Some(cache_info) = &drm_info.cache_info
+            {
+                match cache_info {
+                    CacheInfo::Amd(items) => {
+                        for (instance, count) in items {
+                            let cache_types = instance
+                                .types
+                                .iter()
+                                .map(|cache_type| match cache_type {
+                                    CacheType::Data => fl!(I18N, "cache-data"),
+                                    CacheType::Instruction => fl!(I18N, "cache-instruction"),
+                                    CacheType::Cpu => fl!(I18N, "cache-cpu"),
+                                })
+                                .collect::<Vec<String>>()
+                                .join("+");
 
-                                cache_list.push_back(CacheRow {
-                                    count: *count,
-                                    text: fl!(
-                                        I18N,
-                                        "amd-cache-desc",
-                                        size = fmt_human_bytes(instance.size.into(), None),
-                                        level = instance.level,
-                                        types = cache_types,
-                                        shared = instance.cu_count
-                                    ),
-                                });
-                            }
-                        }
-                        CacheInfo::Nvidia { l2 } => {
                             cache_list.push_back(CacheRow {
-                                count: 1,
+                                count: *count,
                                 text: fl!(
                                     I18N,
-                                    "nvidia-cache-desc",
-                                    size = fmt_human_bytes((*l2).into(), None),
-                                    level = 2,
+                                    "amd-cache-desc",
+                                    size = fmt_human_bytes(instance.size.into(), None),
+                                    level = instance.level,
+                                    types = cache_types,
+                                    shared = instance.cu_count
                                 ),
                             });
                         }
+                    }
+                    CacheInfo::Nvidia { l2 } => {
+                        cache_list.push_back(CacheRow {
+                            count: 1,
+                            text: fl!(
+                                I18N,
+                                "nvidia-cache-desc",
+                                size = fmt_human_bytes((*l2).into(), None),
+                                level = 2,
+                            ),
+                        });
                     }
                 }
             }

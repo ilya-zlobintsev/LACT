@@ -1,10 +1,10 @@
 use super::{
+    GraphsWindowMsg,
     plot::Plot,
     stat::{StatType, StatsData},
-    GraphsWindowMsg,
 };
-use crate::app::graphs_window::DynamicIndexValue;
 use crate::I18N;
+use crate::app::graphs_window::DynamicIndexValue;
 use gtk::{
     gdk,
     glib::{subclass::types::ObjectSubclassIsExt, types::StaticType, value::ToValue},
@@ -15,10 +15,10 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use relm4::{
+    RelmObjectExt, RelmWidgetExt,
     binding::{BoolBinding, ConnectBinding, F64Binding},
     factory::positions::GridPosition,
     prelude::{DynamicIndex, FactoryVecDeque},
-    RelmObjectExt, RelmWidgetExt,
 };
 use std::sync::{Arc, RwLock};
 

@@ -1,7 +1,7 @@
 pub mod profile_row;
 
-use crate::app::{msg::AppMsg, APP_BROKER};
 use crate::I18N;
+use crate::app::{APP_BROKER, msg::AppMsg};
 use gtk::prelude::ObjectExt;
 use gtk::{
     pango,
@@ -11,13 +11,13 @@ use gtk::{
     },
 };
 use i18n_embed_fl::fl;
-use lact_schema::{config::ProfileHooks, ProfileRule};
+use lact_schema::{ProfileRule, config::ProfileHooks};
 use profile_row::ProfileRuleRow;
 use relm4::{
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
     binding::BoolBinding,
     prelude::{DynamicIndex, FactoryVecDeque},
     tokio::time::sleep,
-    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
 };
 use std::time::Duration;
 

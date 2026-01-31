@@ -6,8 +6,8 @@
 use super::DrmBox;
 use crate::bindings::intel::drm_i915_query_item;
 use crate::bindings::intel::{
-    drm_i915_query, drm_i915_query_memory_regions, DRM_COMMAND_BASE, DRM_I915_QUERY_MEMORY_REGIONS,
-    DRM_IOCTL_BASE,
+    DRM_COMMAND_BASE, DRM_I915_QUERY_MEMORY_REGIONS, DRM_IOCTL_BASE, drm_i915_query,
+    drm_i915_query_memory_regions,
 };
 use nix::{errno::Errno, ioctl_readwrite};
 use std::{alloc, fs::File, mem, os::fd::AsRawFd, ptr};
@@ -35,22 +35,25 @@ unsafe fn query_item<T>(fd: i32, query_id: u32) -> Result<Option<DrmBox<T>>, Err
         items_ptr: ptr::from_mut(&mut query_item) as u64,
     };
 
-    i915_query(fd, &raw mut query)?;
+    unsafe {
+        i915_query(fd, &raw mut query)?;
 
-    if (*(query.items_ptr as *mut drm_i915_query_item)).length <= 0 {
-        return Ok(None);
+        if (*(query.items_ptr as *mut drm_i915_query_item)).length <= 0 {
+            return Ok(None);
+        }
+
+        let layout =
+            alloc::Layout::from_size_align(query_item.length as usize, mem::align_of::<T>())
+                .unwrap();
+        #[allow(clippy::cast_ptr_alignment)]
+        let data = alloc::alloc_zeroed(layout) as *const T;
+
+        (*(query.items_ptr as *mut drm_i915_query_item)).data_ptr = data as u64;
+
+        i915_query(fd, &raw mut query)?;
+
+        Ok(Some(DrmBox { data, layout }))
     }
-
-    let layout =
-        alloc::Layout::from_size_align(query_item.length as usize, mem::align_of::<T>()).unwrap();
-    #[allow(clippy::cast_ptr_alignment)]
-    let data = alloc::alloc_zeroed(layout) as *const T;
-
-    (*(query.items_ptr as *mut drm_i915_query_item)).data_ptr = data as u64;
-
-    i915_query(fd, &raw mut query)?;
-
-    Ok(Some(DrmBox { data, layout }))
 }
 
 pub fn query_memory_regions(

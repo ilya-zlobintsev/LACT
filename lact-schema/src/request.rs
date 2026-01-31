@@ -1,8 +1,8 @@
 use std::fmt;
 
 use crate::{
-    config::{GpuConfig, Profile, ProfileHooks},
     FanOptions, ProfileRule,
+    config::{GpuConfig, Profile, ProfileHooks},
 };
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use serde::{Deserialize, Serialize};
@@ -176,8 +176,8 @@ impl fmt::Display for ProfileBase {
 #[cfg(test)]
 mod tests {
     use crate::{
-        request::{ClockspeedType, SetClocksCommand},
         Request,
+        request::{ClockspeedType, SetClocksCommand},
     };
 
     #[test]

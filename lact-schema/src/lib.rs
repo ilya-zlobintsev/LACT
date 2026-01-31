@@ -15,9 +15,9 @@ pub use response::Response;
 
 use amdgpu_sysfs::{
     gpu_handle::{
+        PerformanceLevel,
         fan_control::FanInfo,
         overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTableGen},
-        PerformanceLevel,
     },
     hw_mon::Temperature,
 };
@@ -244,10 +244,10 @@ impl DeviceInfo {
                     write!(vram_type, " ({vram_vendor})").unwrap();
                 }
 
-                if let Some(bw) = &drm_info.vram_max_bw {
-                    if bw != "0" {
-                        write!(vram_type, " {bw} GiB/s").unwrap();
-                    }
+                if let Some(bw) = &drm_info.vram_max_bw
+                    && bw != "0"
+                {
+                    write!(vram_type, " {bw} GiB/s").unwrap();
                 }
             }
 
@@ -320,12 +320,10 @@ impl DeviceInfo {
 
         if let (Some(max_link_speed), Some(max_link_width)) =
             (&self.link_info.max_speed, &self.link_info.max_width)
-        {
-            if let (Some(current_link_speed), Some(current_link_width)) =
+            && let (Some(current_link_speed), Some(current_link_width)) =
                 (&self.link_info.current_speed, &self.link_info.current_width)
-            {
-                elements.push((fl!(LANGUAGE_LOADER, "pcie-speed"), Some(format!("{current_link_speed} x{current_link_width} (Max: {max_link_speed} x{max_link_width})"))));
-            }
+        {
+            elements.push((fl!(LANGUAGE_LOADER, "pcie-speed"), Some(format!("{current_link_speed} x{current_link_width} (Max: {max_link_speed} x{max_link_width})"))));
         }
 
         elements

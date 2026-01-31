@@ -9,7 +9,7 @@ use std::{
 };
 use tracing::{debug, warn};
 
-use crate::server::gpu_controller::{common::resolve_process_name, CommonControllerInfo};
+use crate::server::gpu_controller::{CommonControllerInfo, common::resolve_process_name};
 
 pub struct DrmUtilMap {
     timestamp: Instant,
@@ -69,27 +69,27 @@ pub fn read_process_list(
 
                     let mut process_util = HashMap::with_capacity(pid_total_time.len());
 
-                    if let Some(last_total_time_map) = last_total_time_map {
-                        if let Some(last_pid_util) = last_total_time_map.pids.get(&pid) {
-                            let wall_time_delta =
-                                (timestamp - last_total_time_map.timestamp).as_nanos();
+                    if let Some(last_total_time_map) = last_total_time_map
+                        && let Some(last_pid_util) = last_total_time_map.pids.get(&pid)
+                    {
+                        let wall_time_delta =
+                            (timestamp - last_total_time_map.timestamp).as_nanos();
 
-                            for (util_type, current_util) in &pid_total_time {
-                                if let Some(last_util) = last_pid_util.get(util_type) {
-                                    let engine_time_delta = *current_util - *last_util;
+                        for (util_type, current_util) in &pid_total_time {
+                            if let Some(last_util) = last_pid_util.get(util_type) {
+                                let engine_time_delta = *current_util - *last_util;
 
-                                    #[allow(
-                                        clippy::cast_lossless,
-                                        clippy::cast_possible_truncation,
-                                        clippy::cast_sign_loss,
-                                        clippy::cast_precision_loss
-                                    )]
-                                    process_util.insert(
-                                        *util_type,
-                                        ((engine_time_delta as f64 / wall_time_delta as f64)
-                                            * 100.0) as u32,
-                                    );
-                                }
+                                #[allow(
+                                    clippy::cast_lossless,
+                                    clippy::cast_possible_truncation,
+                                    clippy::cast_sign_loss,
+                                    clippy::cast_precision_loss
+                                )]
+                                process_util.insert(
+                                    *util_type,
+                                    ((engine_time_delta as f64 / wall_time_delta as f64) * 100.0)
+                                        as u32,
+                                );
                             }
                         }
                     }
@@ -230,24 +230,23 @@ pub fn parse_fdinfo(
             }
             _ => {
                 if let Some(engine) = key.strip_prefix("drm-engine-") {
-                    if let Some((_, util_type)) = engines.iter().find(|(name, _)| engine == *name) {
-                        if let Some(time) =
+                    if let Some((_, util_type)) = engines.iter().find(|(name, _)| engine == *name)
+                        && let Some(time) =
                             value.strip_suffix(" ns").and_then(|time| time.parse().ok())
-                        {
-                            total_time.push((*util_type, time));
-                        }
+                    {
+                        total_time.push((*util_type, time));
                     }
                 } else {
                     for (i, vram_key) in vram_keys.iter().enumerate() {
                         // Prioritize first vram key in the list
-                        if key == *vram_key && memory_key_idx.is_none_or(|idx| i < idx) {
-                            if let Some(value) = value
+                        if key == *vram_key
+                            && memory_key_idx.is_none_or(|idx| i < idx)
+                            && let Some(value) = value
                                 .strip_suffix(" KiB")
                                 .and_then(|value| value.parse::<u64>().ok())
-                            {
-                                memory_used = value * 1024;
-                                memory_key_idx = Some(i);
-                            }
+                        {
+                            memory_used = value * 1024;
+                            memory_key_idx = Some(i);
                         }
                     }
                 }

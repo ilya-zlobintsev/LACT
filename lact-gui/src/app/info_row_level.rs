@@ -26,7 +26,7 @@ impl Default for InfoRowLevel {
 mod imp {
     use crate::app::info_row::{InfoRow, InfoRowExt};
     use glib::Properties;
-    use gtk::{glib, prelude::*, subclass::prelude::*, LevelBar};
+    use gtk::{LevelBar, glib, prelude::*, subclass::prelude::*};
     use relm4::view;
     use std::cell::RefCell;
 

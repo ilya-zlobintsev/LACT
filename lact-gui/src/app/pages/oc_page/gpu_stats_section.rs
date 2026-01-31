@@ -1,5 +1,6 @@
-use crate::app::msg::AppMsg;
+use crate::I18N;
 use crate::app::APP_BROKER;
+use crate::app::msg::AppMsg;
 use crate::app::{
     ext::FlowBoxExt,
     formatting::{self, Mono},
@@ -8,7 +9,6 @@ use crate::app::{
     page_section::PageSection,
     pages::PageUpdate,
 };
-use crate::I18N;
 use gtk::prelude::{ButtonExt, Cast, FlowBoxChildExt, OrientableExt, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::{DeviceStats, PowerStats};

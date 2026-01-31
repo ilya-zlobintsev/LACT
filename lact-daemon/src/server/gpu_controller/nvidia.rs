@@ -5,35 +5,35 @@ use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::{
-        gpu_controller::{common::fan_control::FanCurveExt, common::resolve_process_name, NvApi},
+        gpu_controller::{NvApi, common::fan_control::FanCurveExt, common::resolve_process_name},
         opencl::get_opencl_info,
         vulkan::get_vulkan_info,
     },
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use driver::DriverHandle;
-use futures::{future::LocalBoxFuture, join, FutureExt};
+use futures::{FutureExt, future::LocalBoxFuture, join};
 use indexmap::IndexMap;
 use lact_schema::{
-    config::{FanControlSettings, FanCurve, GpuConfig},
     CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceFlag, DeviceInfo, DeviceStats,
     DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
     NvidiaClockOffset, NvidiaClocksTable, PmfwInfo, PowerState, PowerStates, PowerStats,
     ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats,
     VramStats,
+    config::{FanControlSettings, FanCurve, GpuConfig},
 };
 use nvml_wrapper::{
+    Device, Nvml,
     bitmasks::device::ThrottleReasons,
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
     enums::device::{GpuLockedClocksSetting, UsedGpuMemory},
     error::NvmlError,
-    Device, Nvml,
 };
 use std::{
     cell::{Cell, RefCell},
     cmp,
-    collections::{btree_map::Entry, BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, btree_map::Entry},
     fmt::Write,
     rc::Rc,
     time::{Duration, Instant},
@@ -200,7 +200,9 @@ impl NvidiaGpuController {
                     .expect("Could not read temperature") as i32;
 
                 if (last_temp - current_temp).abs() < change_threshold {
-                    trace!("temperature changed from {last_temp}°C to {current_temp}°C, which is less than the {change_threshold}°C threshold, skipping speed adjustment");
+                    trace!(
+                        "temperature changed from {last_temp}°C to {current_temp}°C, which is less than the {change_threshold}°C threshold, skipping speed adjustment"
+                    );
                     continue;
                 }
 
@@ -397,8 +399,8 @@ impl GpuController for NvidiaGpuController {
                         .pcie_link_speed()
                         .map(|v| {
                             let mut output = format!("{} GT/s", v / 1000);
-                            if let Ok(gen) = device.current_pcie_link_gen() {
-                                let _ = write!(output, " Gen {gen}");
+                            if let Ok(link_gen) = device.current_pcie_link_gen() {
+                                let _ = write!(output, " Gen {link_gen}");
                             }
                             output
                         })
@@ -410,8 +412,8 @@ impl GpuController for NvidiaGpuController {
                         .and_then(|v| v.as_integer())
                         .map(|v| {
                             let mut output = format!("{} GT/s", v / 1000);
-                            if let Ok(gen) = device.max_pcie_link_gen() {
-                                let _ = write!(output, " Gen {gen}");
+                            if let Ok(link_gen) = device.max_pcie_link_gen() {
+                                let _ = write!(output, " Gen {link_gen}");
                             }
                             output
                         }),
@@ -501,35 +503,35 @@ impl GpuController for NvidiaGpuController {
 
         if let (Some(nvapi), Some(handle)) = (self.nvapi.as_ref(), self.nvapi_handle.as_ref()) {
             unsafe {
-                if let Some(mask) = self.nvapi_thermals_mask {
-                    if let Ok(thermals) = nvapi.get_thermals(*handle, mask) {
-                        if let Some(hotspot) = thermals.hotspot() {
-                            temps.insert(
-                                "GPU Hotspot".to_owned(),
-                                TemperatureEntry {
-                                    value: Temperature {
-                                        current: Some(hotspot as f32),
-                                        crit: None,
-                                        crit_hyst: None,
-                                    },
-                                    display_only: true,
+                if let Some(mask) = self.nvapi_thermals_mask
+                    && let Ok(thermals) = nvapi.get_thermals(*handle, mask)
+                {
+                    if let Some(hotspot) = thermals.hotspot() {
+                        temps.insert(
+                            "GPU Hotspot".to_owned(),
+                            TemperatureEntry {
+                                value: Temperature {
+                                    current: Some(hotspot as f32),
+                                    crit: None,
+                                    crit_hyst: None,
                                 },
-                            );
-                        }
+                                display_only: true,
+                            },
+                        );
+                    }
 
-                        if let Some(vram) = thermals.vram() {
-                            temps.insert(
-                                "VRAM".to_owned(),
-                                TemperatureEntry {
-                                    value: Temperature {
-                                        current: Some(vram as f32),
-                                        crit: None,
-                                        crit_hyst: None,
-                                    },
-                                    display_only: true,
+                    if let Some(vram) = thermals.vram() {
+                        temps.insert(
+                            "VRAM".to_owned(),
+                            TemperatureEntry {
+                                value: Temperature {
+                                    current: Some(vram as f32),
+                                    crit: None,
+                                    crit_hyst: None,
                                 },
-                            );
-                        }
+                                display_only: true,
+                            },
+                        );
                     }
                 }
 
@@ -692,14 +694,12 @@ impl GpuController for NvidiaGpuController {
 
                     // On some driver versions, the applied offset values are not reported.
                     // In these scenarios we must store them manually for reporting.
-                    if offset.current == 0 {
-                        if let Some(applied_offsets) =
+                    if offset.current == 0
+                        && let Some(applied_offsets) =
                             self.last_applied_offsets.borrow().get(clock_type)
-                        {
-                            if let Some(applied_offset) = applied_offsets.get(pstate) {
-                                offset.current = *applied_offset;
-                            }
-                        }
+                        && let Some(applied_offset) = applied_offsets.get(pstate)
+                    {
+                        offset.current = *applied_offset;
                     }
 
                     offsets.insert(pstate.as_c(), offset);
@@ -777,13 +777,13 @@ impl GpuController for NvidiaGpuController {
                 let current_cap = device.power_management_limit();
                 let default_cap = device.power_management_limit_default();
 
-                if let (Ok(current_cap), Ok(default_cap)) = (current_cap, default_cap) {
-                    if current_cap != default_cap {
-                        debug!("resetting power cap to {default_cap}");
-                        device
-                            .set_power_management_limit(default_cap)
-                            .context("Could not reset power cap")?;
-                    }
+                if let (Ok(current_cap), Ok(default_cap)) = (current_cap, default_cap)
+                    && current_cap != default_cap
+                {
+                    debug!("resetting power cap to {default_cap}");
+                    device
+                        .set_power_management_limit(default_cap)
+                        .context("Could not reset power cap")?;
                 }
             }
 
@@ -884,7 +884,10 @@ impl GpuController for NvidiaGpuController {
                         for point in settings.curve.0.values() {
                             #[allow(clippy::cast_possible_truncation)]
                             if !(min_speed..=max_speed).contains(&((*point * 100.0) as u32)) {
-                                bail!("Fan speed {}% outside of the allowed range {min_speed}% to {max_speed}%", point*100.0);
+                                bail!(
+                                    "Fan speed {}% outside of the allowed range {min_speed}% to {max_speed}%",
+                                    point * 100.0
+                                );
                             }
                         }
 
@@ -908,22 +911,21 @@ impl GpuController for NvidiaGpuController {
         if let Ok(supported_pstates) = device.supported_performance_states() {
             for pstate in supported_pstates {
                 for clock_type in [Clock::Graphics, Clock::Memory] {
-                    if let Ok(current_offset) = device.clock_offset(clock_type, pstate) {
-                        if current_offset.clock_offset_mhz != 0
+                    if let Ok(current_offset) = device.clock_offset(clock_type, pstate)
+                        && (current_offset.clock_offset_mhz != 0
                             || self
                                 .last_applied_offsets
                                 .borrow()
                                 .get(&clock_type)
                                 .and_then(|applied_offsets| applied_offsets.get(&pstate))
-                                .is_some_and(|offset| *offset != 0)
-                        {
-                            debug!("resetting clock offset for {clock_type:?} pstate {pstate:?}");
-                            device
-                                .set_clock_offset(clock_type, pstate, 0)
-                                .with_context(|| {
-                                    format!("Could not reset {clock_type:?} pstate {pstate:?}")
-                                })?;
-                        }
+                                .is_some_and(|offset| *offset != 0))
+                    {
+                        debug!("resetting clock offset for {clock_type:?} pstate {pstate:?}");
+                        device
+                            .set_clock_offset(clock_type, pstate, 0)
+                            .with_context(|| {
+                                format!("Could not reset {clock_type:?} pstate {pstate:?}")
+                            })?;
                     }
 
                     if let Some(applied_offsets) =
