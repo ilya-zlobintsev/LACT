@@ -300,14 +300,11 @@ impl relm4::Component for ClocksFrame {
 }
 
 impl ClocksFrame {
-    fn get_factory(
-        &mut self,
-        clock_type: ClockspeedType,
-    ) -> &mut FactoryHashMap<ClockspeedType, ClockAdjustmentRow> {
+    fn set_clock(&mut self, clock_type: ClockspeedType, data: ClocksData) {
         if is_vram_clock(clock_type) {
-            &mut self.vram_clocks
+            self.vram_clocks.insert(clock_type, data);
         } else {
-            &mut self.gpu_clocks
+            self.gpu_clocks.insert(clock_type, data);
         }
     }
 
@@ -378,9 +375,8 @@ impl ClocksFrame {
                     .and_then(|range| range.into_full())
                     && let Some(sclk_offset) = table.sclk_offset
                 {
-                    let clock_type = ClockspeedType::GpuClockOffset(0);
-                    self.get_factory(clock_type).insert(
-                        clock_type,
+                    self.set_clock(
+                        ClockspeedType::GpuClockOffset(0),
                         ClocksData {
                             current: sclk_offset,
                             min: sclk_offset_min,
@@ -420,9 +416,8 @@ impl ClocksFrame {
                             .or(table.od_range.sclk.as_ref())
                             .and_then(|range| range.into_full())
                         {
-                            let clock_type = ClockspeedType::GpuVfCurveClock(i as u8);
-                            self.get_factory(clock_type).insert(
-                                clock_type,
+                            self.set_clock(
+                                ClockspeedType::GpuVfCurveClock(i as u8),
                                 ClocksData {
                                     current: level.clockspeed,
                                     min: min_sclk,
@@ -442,9 +437,8 @@ impl ClocksFrame {
                             .get(i)
                             .and_then(|range| range.into_full())
                         {
-                            let clock_type = ClockspeedType::GpuVfCurveVoltage(i as u8);
-                            self.get_factory(clock_type).insert(
-                                clock_type,
+                            self.set_clock(
+                                ClockspeedType::GpuVfCurveVoltage(i as u8),
                                 ClocksData {
                                     current: level.voltage,
                                     min: min_vddc,
@@ -482,8 +476,7 @@ impl ClocksFrame {
                             data.show_separator = true;
                         }
 
-                        self.get_factory(clockspeed_type)
-                            .insert(clockspeed_type, data);
+                        self.set_clock(clockspeed_type, data);
                     }
                 }
 
@@ -496,7 +489,7 @@ impl ClocksFrame {
 
                     let mut data = ClocksData::new(current, min, max);
                     data.show_separator = true;
-                    self.gpu_clocks.insert(ClockspeedType::VoltageOffset, data);
+                    self.set_clock(ClockspeedType::VoltageOffset, data);
                 }
             }
         }
@@ -512,20 +505,19 @@ impl ClocksFrame {
     ) {
         let values_len = values.len();
         for (i, value) in values.enumerate().rev() {
-            let clockspeed_type = clock_type(i as u8);
             let is_secondary = i > 0 && i < values_len - 1;
 
-            let data = ClocksData {
-                current: value,
-                min,
-                max,
-                is_secondary,
-                custom_title: None,
-                show_separator: !disable_separator && i == values_len - 1, // Show on first row (reversed count)
-            };
-
-            self.get_factory(clockspeed_type)
-                .insert(clockspeed_type, data);
+            self.set_clock(
+                clock_type(i as u8),
+                ClocksData {
+                    current: value,
+                    min,
+                    max,
+                    is_secondary,
+                    custom_title: None,
+                    show_separator: !disable_separator && i == values_len - 1, // Show on first row (reversed count)
+                },
+            );
         }
     }
 
@@ -538,40 +530,32 @@ impl ClocksFrame {
                 table.gpu_locked_clocks,
                 ClockspeedType::MinCoreClock,
                 ClockspeedType::MaxCoreClock,
-                self.enable_gpu_locked_clocks.value(),
+                &self.enable_gpu_locked_clocks.clone(),
             ),
             (
                 table.vram_clock_range,
                 table.vram_locked_clocks,
                 ClockspeedType::MinMemoryClock,
                 ClockspeedType::MaxMemoryClock,
-                self.enable_vram_locked_clocks.value(),
+                &self.enable_vram_locked_clocks.clone(),
             ),
         ];
 
-        for (clock_range, locked_clocks, min_type, max_type, is_enabled) in locked_clocks {
+        for (clock_range, locked_clocks, min_type, max_type, enable_binding) in locked_clocks {
             if let Some((gpu_min, gpu_max)) = clock_range {
                 let (current_min, current_max) = match locked_clocks {
-                    Some(locked_range) => (locked_range.0, locked_range.1),
+                    Some(locked_range) => {
+                        enable_binding.set_value(true);
+                        locked_range
+                    }
                     None => (gpu_min, gpu_max),
                 };
 
-                if locked_clocks.is_some() && !is_enabled {
-                    match min_type {
-                        ClockspeedType::MinMemoryClock | ClockspeedType::MaxMemoryClock => {
-                            self.enable_vram_locked_clocks.set_value(true);
-                        }
-                        _ => {
-                            self.enable_gpu_locked_clocks.set_value(true);
-                        }
-                    }
-                }
-
-                self.get_factory(min_type).insert(
+                self.set_clock(
                     min_type,
                     ClocksData::new(current_min as i32, gpu_min as i32, gpu_max as i32),
                 );
-                self.get_factory(max_type).insert(
+                self.set_clock(
                     max_type,
                     ClocksData::new(current_max as i32, gpu_min as i32, gpu_max as i32),
                 );
@@ -579,13 +563,13 @@ impl ClocksFrame {
         }
 
         for (pstate, offset) in table.gpu_offsets {
-            self.gpu_clocks.insert(
+            self.set_clock(
                 ClockspeedType::GpuClockOffset(pstate),
                 nvidia_clock_offset_to_data(&offset, pstate > 0),
             );
         }
         for (pstate, offset) in table.mem_offsets {
-            self.vram_clocks.insert(
+            self.set_clock(
                 ClockspeedType::MemClockOffset(pstate),
                 nvidia_clock_offset_to_data(&offset, pstate > 0),
             );
@@ -598,14 +582,12 @@ impl ClocksFrame {
         if let Some((current_gt_min, current_gt_max)) = table.gt_freq
             && let (Some(min_clock), Some(max_clock)) = (table.rpn_freq, table.rp0_freq)
         {
-            let max_type = ClockspeedType::MaxCoreClock;
-            self.get_factory(max_type).insert(
-                max_type,
+            self.set_clock(
+                ClockspeedType::MaxCoreClock,
                 ClocksData::new(current_gt_max as i32, min_clock as i32, max_clock as i32),
             );
-            let min_type = ClockspeedType::MinCoreClock;
-            self.get_factory(min_type).insert(
-                min_type,
+            self.set_clock(
+                ClockspeedType::MinCoreClock,
                 ClocksData::new(current_gt_min as i32, min_clock as i32, max_clock as i32),
             );
         }

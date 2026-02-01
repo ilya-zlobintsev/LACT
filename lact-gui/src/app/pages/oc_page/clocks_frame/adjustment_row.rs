@@ -2,7 +2,6 @@ use crate::{
     APP_BROKER, I18N,
     app::{msg::AppMsg, pages::oc_adjustment::OcAdjustment},
 };
-use gtk::prelude::BoxExt;
 use gtk::{
     glib::{SignalHandlerId, object::ObjectExt},
     prelude::{AdjustmentExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
@@ -66,10 +65,6 @@ impl FactoryComponent for ClockAdjustmentRow {
         #[name = "root_box"]
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            set_valign: gtk::Align::Start,
-            set_spacing: 5,
-            set_margin_horizontal: 5,
-            // set_hexpand: true,
 
             gtk::Separator {
                 set_visible: self.show_separator,
