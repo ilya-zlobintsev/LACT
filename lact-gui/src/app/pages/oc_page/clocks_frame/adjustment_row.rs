@@ -3,8 +3,15 @@ use crate::{
     app::{msg::AppMsg, pages::oc_adjustment::OcAdjustment},
 };
 use gtk::{
-    glib::{self, ControlFlow, SignalHandlerId, SourceId, object::ObjectExt},
-    prelude::{AdjustmentExt, EditableExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
+    glib::{
+        self, ControlFlow, SignalHandlerId, SourceId,
+        object::{Cast, ObjectExt},
+        types::StaticType,
+    },
+    prelude::{
+        AdjustmentExt, EditableExt, EventControllerExt, OrientableExt, RangeExt, ScaleExt,
+        WidgetExt,
+    },
 };
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
@@ -48,7 +55,34 @@ fn make_event_controller_no_scroll() -> gtk::EventControllerScroll {
     let controller = gtk::EventControllerScroll::new(
         gtk::EventControllerScrollFlags::VERTICAL | gtk::EventControllerScrollFlags::HORIZONTAL,
     );
-    controller.connect_scroll(|_, _, _| gtk::glib::Propagation::Stop);
+    controller.connect_scroll(|controller, dx, dy| {
+        if let Some(parent) = controller
+            .widget()
+            .and_then(|widget| widget.ancestor(gtk::ScrolledWindow::static_type()))
+        {
+            let scrolled_window = parent.downcast::<gtk::ScrolledWindow>().unwrap();
+
+            if dy != 0.0 {
+                let current = scrolled_window.vadjustment().value();
+                let step = scrolled_window.vadjustment().step_increment();
+
+                // This is a bit of a hack, fractional values are generally touchpad inputs (in pixels),
+                // while whole values are scroll wheel events (which should use the `step` value)
+                // With newer GTK this should be changed to getting `unit()` from the scroll controller
+                let delta = if dy.fract() == 0.0 { dy * step } else { dy };
+                scrolled_window.vadjustment().set_value(current + delta);
+            }
+
+            if dx != 0.0 {
+                let current = scrolled_window.hadjustment().value();
+                let step = scrolled_window.hadjustment().step_increment();
+                let delta = if dx.fract() == 0.0 { dy * step } else { dy };
+                scrolled_window.hadjustment().set_value(current + delta);
+            }
+        }
+
+        gtk::glib::Propagation::Stop
+    });
     controller
 }
 
