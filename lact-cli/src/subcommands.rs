@@ -1,8 +1,8 @@
 use crate::CliContext;
 use anyhow::{Context, Result};
 use lact_schema::{
-    args::cli::{PowerLimitCmd, ProfileArgs, ProfileAutoSwitchArgs, SetProfileArgs},
     FanControlMode,
+    args::cli::{PowerLimitCmd, ProfileArgs, ProfileAutoSwitchArgs, SetProfileArgs},
 };
 use std::fmt::Write;
 

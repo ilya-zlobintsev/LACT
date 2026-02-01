@@ -1,4 +1,4 @@
-use gtk::glib::{self, subclass::types::IsSubclassable, Object};
+use gtk::glib::{self, Object, subclass::types::IsSubclassable};
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 
@@ -68,10 +68,10 @@ impl<T: IsA<InfoRow>> InfoRowExt for T {
         self.as_ref().set_cursor_from_name(Some("pointer"));
 
         self.as_ref().connect_map(|widget| {
-            if let Some(parent) = widget.parent() {
-                if let Ok(child) = parent.downcast::<gtk::FlowBoxChild>() {
-                    child.add_css_class("clickable-info-row");
-                }
+            if let Some(parent) = widget.parent()
+                && let Ok(child) = parent.downcast::<gtk::FlowBoxChild>()
+            {
+                child.add_css_class("clickable-info-row");
             }
         });
     }
@@ -120,13 +120,12 @@ impl Default for InfoRow {
 mod imp {
     use glib::Properties;
     use gtk::{
-        glib,
+        Label, glib,
         pango::{self, AttrList},
         prelude::*,
         subclass::{prelude::*, widget::WidgetImpl},
-        Label,
     };
-    use relm4::{css, view, RelmWidgetExt};
+    use relm4::{RelmWidgetExt, css, view};
     use std::{cell::RefCell, str::FromStr};
 
     #[derive(Default, Properties)]

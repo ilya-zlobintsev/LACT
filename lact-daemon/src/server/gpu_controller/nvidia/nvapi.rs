@@ -1,11 +1,11 @@
 #![cfg_attr(test, allow(unused))]
-#![allow(clippy::unreadable_literal)]
+#![allow(clippy::unreadable_literal, unsafe_op_in_unsafe_fn)]
 use crate::bindings::nvidia::{
-    NvAPI_Status, NvPhysicalGpuHandle, NVAPI_MAX_PHYSICAL_GPUS, NVAPI_SHORT_STRING_MAX,
+    NVAPI_MAX_PHYSICAL_GPUS, NVAPI_SHORT_STRING_MAX, NvAPI_Status, NvPhysicalGpuHandle,
 };
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use std::{
-    ffi::{c_char, CStr},
+    ffi::{CStr, c_char},
     mem::{self, transmute},
     ptr,
 };
@@ -63,9 +63,9 @@ impl NvApi {
                     return Ok(Some(handle));
                 }
             }
-
-            Ok(None)
         }
+
+        Ok(None)
     }
 
     pub unsafe fn get_thermals(

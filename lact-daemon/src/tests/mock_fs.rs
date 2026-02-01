@@ -1,13 +1,13 @@
 use easy_fuser::{
+    FuseHandler,
     templates::{
-        mirror_fs::{MirrorFsReadOnly, MirrorFsTrait},
         DefaultFuseHandler,
+        mirror_fs::{MirrorFsReadOnly, MirrorFsTrait},
     },
     types::{
         BorrowedFileHandle, FUSESetXAttrFlags, FUSEWriteFlags, FileAttribute, FuseResult,
         OpenFlags, SetAttrRequest,
     },
-    FuseHandler,
 };
 use std::{
     ffi::OsStr,

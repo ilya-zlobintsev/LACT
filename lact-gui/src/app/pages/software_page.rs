@@ -2,17 +2,17 @@ use crate::app::ext::FlowBoxExt;
 mod vulkan;
 
 use crate::{
+    GUI_VERSION, I18N, REPO_URL,
     app::{
-        format_friendly_size,
+        formatting,
         info_row::{InfoRow, InfoRowExt},
         page_section::PageSection,
     },
-    GUI_VERSION, I18N, REPO_URL,
 };
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use indexmap::IndexMap;
-use lact_client::schema::{SystemInfo, GIT_COMMIT};
+use lact_client::schema::{GIT_COMMIT, SystemInfo};
 use lact_schema::{DeviceInfo, OpenCLInfo, VulkanInfo};
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use relm4_components::simple_combo_box::{SimpleComboBox, SimpleComboBoxMsg};
@@ -201,13 +201,13 @@ impl relm4::SimpleComponent for SoftwarePage {
                             append_child = &InfoRow {
                                 set_name: fl!(I18N, "global-memory"),
                                 #[watch]
-                                set_value: format_friendly_size(info.global_memory),
+                                set_value: formatting::fmt_human_bytes(info.global_memory, None),
                                 set_selectable: true,
                             },
                             append_child = &InfoRow {
                                 set_name: fl!(I18N, "local-memory"),
                                 #[watch]
-                                set_value: format_friendly_size(info.local_memory),
+                                set_value: formatting::fmt_human_bytes(info.local_memory, None),
                                 set_selectable: true,
                             },
                         },

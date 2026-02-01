@@ -1,5 +1,5 @@
-use anyhow::{anyhow, bail, Context};
-use indexmap::{map::Entry, IndexMap};
+use anyhow::{Context, anyhow, bail};
+use indexmap::{IndexMap, map::Entry};
 use lact_schema::{VulkanDriverInfo, VulkanInfo};
 use serde::Deserialize;
 use std::{env, fs, path::Path};
@@ -7,8 +7,11 @@ use tokio::process::Command;
 use tracing::{error, trace};
 
 use crate::server::gpu_controller::{CommonControllerInfo, PciSlotInfo};
+use crate::system::IS_FLATBOX;
 
 include!(concat!(env!("OUT_DIR"), "/vulkan_constants.rs"));
+
+const VULKAN_ICD_DIR: &str = "/usr/share/vulkan/icd.d";
 
 #[cfg_attr(test, allow(unreachable_code, unused_variables))]
 pub async fn get_vulkan_info(info: &CommonControllerInfo) -> anyhow::Result<Vec<VulkanInfo>> {
@@ -327,12 +330,21 @@ fn parse_summary(summary: &str) -> Vec<SummaryDeviceEntry<'_>> {
 fn vulkaninfo_command() -> Command {
     let mut cmd = Command::new("vulkaninfo");
     cmd.env("DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1", "1");
+
+    // fixes duplicated vulkan device in flatpak
+    // https://github.com/flatpak/flatpak/issues/6418
+    if *IS_FLATBOX
+        && env::var_os("VK_ICD_FILENAMES").is_none()
+        && Path::new(VULKAN_ICD_DIR).is_dir()
+    {
+        cmd.env("VK_ICD_FILENAMES", VULKAN_ICD_DIR);
+    }
     cmd
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_legacy_devsim, parse_summary, VulkanInfoDevSimManifest};
+    use super::{VulkanInfoDevSimManifest, parse_legacy_devsim, parse_summary};
     use crate::server::vulkan::SummaryDeviceEntry;
     use pretty_assertions::assert_eq;
 

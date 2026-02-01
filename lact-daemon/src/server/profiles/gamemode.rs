@@ -13,7 +13,7 @@ use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
     select,
-    sync::{mpsc, Notify},
+    sync::{Notify, mpsc},
 };
 use tracing::{debug, error, info, warn};
 

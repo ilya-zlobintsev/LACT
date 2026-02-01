@@ -1,12 +1,12 @@
 pub mod power_profiles_daemon;
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{Context, anyhow, bail, ensure};
 use lact_schema::{
-    AmdgpuParamsConfigurator, BootArgConfigurator, InitramfsType, SystemInfo, GIT_COMMIT,
+    AmdgpuParamsConfigurator, BootArgConfigurator, GIT_COMMIT, InitramfsType, SystemInfo,
 };
 use nix::sys::{
     socket::{
-        bind, recv, socket, AddressFamily, MsgFlags, NetlinkAddr, SockFlag, SockProtocol, SockType,
+        AddressFamily, MsgFlags, NetlinkAddr, SockFlag, SockProtocol, SockType, bind, recv, socket,
     },
     utsname::uname,
 };
@@ -20,8 +20,8 @@ use std::{
     path::{Path, PathBuf},
     process::{self, Output},
     sync::{
-        atomic::{AtomicBool, Ordering},
         LazyLock,
+        atomic::{AtomicBool, Ordering},
     },
 };
 use tokio::{process::Command, sync::Notify};
@@ -303,10 +303,10 @@ pub(crate) fn listen_netlink_kernel_event(notify: &Notify) -> anyhow::Result<()>
                         continue;
                     }
 
-                    if let Some(subsystem) = line.strip_prefix("SUBSYSTEM=") {
-                        if subsystem == "drm" {
-                            notify.notify_one();
-                        }
+                    if let Some(subsystem) = line.strip_prefix("SUBSYSTEM=")
+                        && subsystem == "drm"
+                    {
+                        notify.notify_one();
                     }
                 }
                 Err(_) => {

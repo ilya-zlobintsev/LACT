@@ -1,11 +1,12 @@
 use gtk::{
+    NoSelection,
     glib::GString,
     prelude::{EditableExt, GtkWindowExt, ObjectExt, OrientableExt, WidgetExt},
-    NoSelection,
 };
 use relm4::{
+    ComponentParts, ComponentSender, SimpleComponent,
     typed_view::list::{RelmListItem, TypedListView},
-    view, ComponentParts, ComponentSender, SimpleComponent,
+    view,
 };
 
 pub struct VulkanFeaturesWindow {

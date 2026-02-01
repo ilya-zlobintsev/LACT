@@ -1,24 +1,24 @@
 use super::power_states_list::PowerStatesList;
 use crate::{
+    APP_BROKER, I18N,
     app::{
         msg::AppMsg,
         pages::oc_page::power_states::power_states_list::{
             PowerStatesListMsg, PowerStatesListOptions,
         },
     },
-    APP_BROKER, I18N,
 };
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use gtk::{
-    glib::{object::ObjectExt, SignalHandlerId},
+    glib::{SignalHandlerId, object::ObjectExt},
     prelude::{BoxExt, CheckButtonExt, OrientableExt, WidgetExt},
 };
 use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
-    binding::BoolBinding, Component, ComponentController, ComponentParts, ComponentSender,
-    RelmObjectExt, RelmWidgetExt,
+    Component, ComponentController, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
+    binding::BoolBinding,
 };
 use std::sync::Arc;
 

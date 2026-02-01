@@ -1,36 +1,37 @@
 mod fan_curve_frame;
 
-use super::{
-    oc_adjustment::OcAdjustment,
-    oc_page::gpu_stats_section::{fan_speed_text, temperature_text, throttling_text},
-    PageUpdate,
-};
+use super::{PageUpdate, oc_adjustment::OcAdjustment};
 use crate::app::ext::FlowBoxExt;
 use crate::{
-    app::{info_row::InfoRow, msg::AppMsg, page_section::PageSection},
     APP_BROKER, I18N,
+    app::{
+        formatting::{fmt_fan_speed, fmt_temperature_text, fmt_throttling_text},
+        info_row::InfoRow,
+        msg::AppMsg,
+        page_section::PageSection,
+    },
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
 use fan_curve_frame::{
-    CurveSetupMsg, FanCurveFrame, FanCurveFrameMsg, DEFAULT_SPEED_RANGE, DEFAULT_TEMP_RANGE,
+    CurveSetupMsg, DEFAULT_SPEED_RANGE, DEFAULT_TEMP_RANGE, FanCurveFrame, FanCurveFrameMsg,
 };
 use gtk::{
+    Adjustment,
     glib::{
-        self,
+        self, SignalHandlerId,
         object::{Cast, ObjectExt},
-        SignalHandlerId,
     },
     prelude::{AdjustmentExt, BoxExt, ButtonExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
-    Adjustment,
 };
 use i18n_embed_fl::fl;
 use lact_schema::{
+    DeviceFlag, FanControlMode, SystemInfo,
     config::{FanControlSettings, FanCurve, GpuConfig},
-    default_fan_curve, DeviceFlag, FanControlMode, SystemInfo,
+    default_fan_curve,
 };
 use relm4::{
-    binding::{Binding, BoolBinding, ConnectBinding, StringBinding},
     ComponentController, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
+    binding::{Binding, BoolBinding, ConnectBinding, StringBinding},
 };
 use std::{cell::Cell, rc::Rc};
 
@@ -106,7 +107,7 @@ impl relm4::Component for ThermalsPage {
                 #[watch]
                 set_visible: model.system_info.amdgpu_overdrive_enabled == Some(false)
                     && model.has_pmfw
-                    && model.custom_control_supported,
+                    && model.fan_speed.is_some(),
 
                 gtk::Label {
                     set_label: &fl!(I18N, "oc-missing-fan-control-warning"),
@@ -421,9 +422,9 @@ impl relm4::Component for ThermalsPage {
                     self.has_auto_threshold = info.flags.contains(&DeviceFlag::AutoFanThreshold);
                 }
                 PageUpdate::Stats(stats) => {
-                    self.fan_speed = fan_speed_text(&stats);
-                    self.temperatures = temperature_text(&stats);
-                    self.throttling = throttling_text(&stats);
+                    self.fan_speed = fmt_fan_speed(&stats);
+                    self.temperatures = fmt_temperature_text(&stats);
+                    self.throttling = fmt_throttling_text(&stats);
 
                     if initial {
                         let page_name = match stats.fan.control_mode {

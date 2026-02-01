@@ -1,8 +1,8 @@
 [package]
 name = "lact-gui"
-version = "0.8.4"
+version = "0.8.5"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [features]
 default = []

@@ -1,32 +1,31 @@
-use super::{adj_is_empty, FanSettingRow, PmfwOptions};
+use super::{FanSettingRow, PmfwOptions, adj_is_empty};
 use crate::{
-    app::{graphs_window::plot::PlotColorScheme, msg::AppMsg, pages::oc_adjustment::OcAdjustment},
     APP_BROKER, I18N,
+    app::{graphs_window::plot::PlotColorScheme, msg::AppMsg, pages::oc_adjustment::OcAdjustment},
 };
 use gtk::{
     gdk,
     gio::prelude::ListModelExt,
     glib::{
-        self,
+        self, SignalHandlerId,
         object::{Cast, ObjectExt},
-        SignalHandlerId,
     },
     prelude::{
         AdjustmentExt, BoxExt, ButtonExt, DrawingAreaExtManual, OrientableExt, RangeExt, WidgetExt,
     },
 };
 use i18n_embed_fl::fl;
-use lact_schema::{default_fan_curve, FanCurveMap, TemperatureEntry};
+use lact_schema::{FanCurveMap, TemperatureEntry, default_fan_curve};
 use plotters::{
     chart::ChartBuilder,
     prelude::{Circle, EmptyElement, IntoDrawingArea, Text},
     series::{LineSeries, PointSeries},
-    style::{full_palette::LIGHTBLUE, text_anchor::Pos, Color, ShapeStyle, TextStyle},
+    style::{Color, ShapeStyle, TextStyle, full_palette::LIGHTBLUE, text_anchor::Pos},
 };
 use plotters_cairo::CairoBackend;
 use relm4::{
-    binding::{ConnectBinding, U32Binding},
     ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
+    binding::{ConnectBinding, U32Binding},
 };
 use std::{
     cell::{Cell, RefCell},

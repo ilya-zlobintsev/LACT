@@ -2,7 +2,7 @@ mod mock_fs;
 
 use crate::{
     config::Config,
-    server::handler::{read_pci_db, Handler},
+    server::handler::{Handler, read_pci_db},
 };
 use insta::{assert_debug_snapshot, assert_json_snapshot};
 use lact_schema::config::GpuConfig;

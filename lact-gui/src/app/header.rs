@@ -4,9 +4,9 @@ mod profile_row;
 pub mod profile_rule_window;
 
 use crate::{
-    app::{header::profile_rule_window::ProfileEditParams, msg::AppMsg, APP_BROKER},
-    config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
     CONFIG, I18N,
+    app::{APP_BROKER, header::profile_rule_window::ProfileEditParams, msg::AppMsg},
+    config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
 use glib::clone;
 use gtk::prelude::*;
@@ -19,11 +19,10 @@ use profile_rename_dialog::ProfileRenameDialog;
 use profile_row::{ProfileRow, ProfileRowType};
 use profile_rule_window::ProfileRuleWindow;
 use relm4::{
-    css,
+    Component, ComponentParts, ComponentSender, RelmIterChildrenExt, RelmWidgetExt, css,
     factory::FactoryVecDeque,
     prelude::DynamicIndex,
     typed_view::list::{RelmListItem, TypedListView},
-    Component, ComponentParts, ComponentSender, RelmIterChildrenExt, RelmWidgetExt,
 };
 use std::sync::Arc;
 use tracing::debug;

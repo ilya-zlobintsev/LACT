@@ -1,7 +1,7 @@
 use gtk::{
+    FlowBox, FlowBoxChild, Widget,
     glib::object::{Cast, IsA},
     prelude::WidgetExt,
-    FlowBox, FlowBoxChild, Widget,
 };
 use relm4::Component;
 

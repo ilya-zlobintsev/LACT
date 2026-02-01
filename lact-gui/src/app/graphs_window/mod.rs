@@ -2,7 +2,7 @@ pub mod plot;
 mod plot_component;
 pub mod stat;
 
-use super::{msg::AppMsg, APP_BROKER};
+use super::{APP_BROKER, msg::AppMsg};
 use crate::{CONFIG, I18N};
 use anyhow::Context;
 use chrono::Local;
@@ -11,9 +11,9 @@ use i18n_embed_fl::fl;
 use lact_schema::DeviceStats;
 use plot_component::{PlotComponent, PlotComponentConfig, PlotComponentMsg};
 use relm4::{
+    ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
     binding::{BoolBinding, ConnectBinding, F64Binding},
     prelude::{DynamicIndex, FactoryVecDeque},
-    ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
 };
 use relm4_components::save_dialog::{
     SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings,

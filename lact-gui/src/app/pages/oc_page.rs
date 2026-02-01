@@ -6,11 +6,11 @@ mod power_states;
 
 use super::PageUpdate;
 use crate::{
-    app::{ext::RelmDefaultLauchable, msg::AppMsg},
     I18N,
+    app::{ext::RelmDefaultLauchable, msg::AppMsg},
 };
 use amdgpu_sysfs::gpu_handle::{
-    power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
+    PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
 use clocks_frame::{ClocksFrame, ClocksFrameMsg};
 use gpu_stats_section::GpuStatsSection;
@@ -20,7 +20,7 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use indexmap::IndexMap;
-use lact_schema::{request::SetClocksCommand, ClocksTable, DeviceInfo, PowerStates, SystemInfo};
+use lact_schema::{ClocksTable, DeviceInfo, PowerStates, SystemInfo, request::SetClocksCommand};
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};

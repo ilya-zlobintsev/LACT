@@ -1,4 +1,4 @@
-use lact_schema::args::{clap::Parser, Args, Command, GuiArgs};
+use lact_schema::args::{Args, Command, GuiArgs, clap::Parser};
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();

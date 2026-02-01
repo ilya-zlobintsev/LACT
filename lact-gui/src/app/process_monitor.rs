@@ -1,22 +1,22 @@
 use std::collections::HashMap;
 
-use crate::app::{format_friendly_size, msg::AppMsg, APP_BROKER};
+use crate::app::{APP_BROKER, formatting, msg::AppMsg};
 use gtk::{
     glib::{
-        object::{Cast, ObjectExt},
         GString,
+        object::{Cast, ObjectExt},
     },
     pango,
     prelude::{EditableExt, GtkWindowExt, OrientableExt, SorterExt, WidgetExt},
 };
 use lact_schema::{ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType};
 use relm4::{
+    ComponentParts, ComponentSender, RelmObjectExt,
     binding::{Binding, StringBinding, U32Binding, U64Binding},
     typed_view::{
-        column::{LabelColumn, RelmColumn, TypedColumnView},
         OrdFn,
+        column::{LabelColumn, RelmColumn, TypedColumnView},
     },
-    ComponentParts, ComponentSender, RelmObjectExt,
 };
 
 pub struct ProcessMonitorWindow {
@@ -308,7 +308,7 @@ impl RelmColumn for VramColumn {
     fn bind(item: &mut Self::Item, _widgets: &mut Self::Widgets, label: &mut Self::Root) {
         item.memory_usage
             .bind_property(U64Binding::property_name(), label, "label")
-            .transform_to(|_binding, value: u64| Some(format_friendly_size(value)))
+            .transform_to(|_binding, value: u64| Some(formatting::fmt_human_bytes(value, None)))
             .sync_create()
             .build();
     }

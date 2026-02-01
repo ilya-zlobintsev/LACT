@@ -10,7 +10,7 @@ use std::{
 };
 use tokio::{
     runtime, select,
-    sync::{mpsc, Mutex, Notify},
+    sync::{Mutex, Notify, mpsc},
     time::sleep,
 };
 use tracing::{debug, error, info, trace};

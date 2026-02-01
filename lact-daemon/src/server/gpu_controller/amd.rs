@@ -10,25 +10,25 @@ use crate::server::{
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
+        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
         power_profile_mode::PowerProfileModesTable,
-        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
     },
     hw_mon::{FanControlMethod, HwMon, Temperature},
     sysfs::SysFS,
 };
-use anyhow::{anyhow, bail, Context};
-use futures::{future::LocalBoxFuture, join, FutureExt};
+use anyhow::{Context, anyhow, bail};
+use futures::{FutureExt, future::LocalBoxFuture, join};
 use lact_schema::{
-    config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
     AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceFlag, DeviceInfo,
     DeviceStats, DeviceType, DrmInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo,
     PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo,
     TemperatureEntry, VoltageStats, VramStats,
+    config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit, ThrottlerType};
-use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
+use libdrm_amdgpu_sys::{AMDGPU::SENSOR_INFO::SENSOR_TYPE, LibDrmAmdgpu, PCI};
 use std::{
     cell::RefCell,
     cmp,
@@ -43,7 +43,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use {
     lact_schema::DrmMemoryInfo,
-    libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
+    libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, GPU_INFO, MetricsInfo},
 };
 
 /// RDNA3 - minimum family with PMFW
@@ -87,13 +87,12 @@ impl AmdGpuController {
         #[allow(unused_mut)]
         let mut drm_handle = None;
         #[cfg(not(test))]
-        if let Some(libdrm_amdgpu) = libdrm_amdgpu {
-            if handle.get_driver() == "amdgpu" {
-                drm_handle = Some(
-                    get_drm_handle(&common, libdrm_amdgpu)
-                        .context("Could not get AMD DRM handle")?,
-                );
-            }
+        if let Some(libdrm_amdgpu) = libdrm_amdgpu
+            && handle.get_driver() == "amdgpu"
+        {
+            drm_handle = Some(
+                get_drm_handle(&common, libdrm_amdgpu).context("Could not get AMD DRM handle")?,
+            );
         }
 
         Ok(Self {
@@ -227,7 +226,9 @@ impl AmdGpuController {
         match temps.len() {
             0 => return Err(anyhow!("GPU has no temperature reporting")),
             1 => {
-                warn!("GPU has only one temperature sensor, 'temperature_key' setting will be ignored");
+                warn!(
+                    "GPU has only one temperature sensor, 'temperature_key' setting will be ignored"
+                );
             }
             _ => {
                 if !temps.contains_key(&settings.temperature_key) {
@@ -287,17 +288,24 @@ impl AmdGpuController {
                     retries += 1;
 
                     if retries == FAN_CONTROL_RETRIES {
-                        error!("could not get temperature sensor {temp_key}, exiting fan control (reached max attempts)");
+                        error!(
+                            "could not get temperature sensor {temp_key}, exiting fan control (reached max attempts)"
+                        );
                         break;
                     }
-                    error!("could not get temperature sensor {temp_key} from {} sensors (assuming error is temporary, attempt {retries}/{FAN_CONTROL_RETRIES})", temps.len());
+                    error!(
+                        "could not get temperature sensor {temp_key} from {} sensors (assuming error is temporary, attempt {retries}/{FAN_CONTROL_RETRIES})",
+                        temps.len()
+                    );
                     continue;
                 };
 
                 let current_temp = temp.current.expect("Missing temp");
 
                 if (last_temp - current_temp).abs() < change_threshold {
-                    trace!("temperature changed from {last_temp}°C to {current_temp}°C, which is less than the {change_threshold}°C threshold, skipping speed adjustment");
+                    trace!(
+                        "temperature changed from {last_temp}°C to {current_temp}°C, which is less than the {change_threshold}°C threshold, skipping speed adjustment"
+                    );
                     continue;
                 }
 
@@ -309,7 +317,7 @@ impl AmdGpuController {
                     if target_pwm < previous_pwm && diff < spindown_delay {
                         trace!(
                             "delaying fan spindown ({}ms left)",
-                            (spindown_delay - diff).as_millis()
+                            spindown_delay.checked_sub(diff).unwrap().as_millis()
                         );
                         continue;
                     }
@@ -328,17 +336,23 @@ impl AmdGpuController {
                             retries += 1;
 
                             if retries == FAN_CONTROL_RETRIES {
-                                error!("could not set fan speed after {retries} attempts, exiting fan control (reached max attempts)");
+                                error!(
+                                    "could not set fan speed after {retries} attempts, exiting fan control (reached max attempts)"
+                                );
                                 break;
                             }
 
-                            info!("fan control was previously available, assuming the error is temporary (attempt {retries}/{FAN_CONTROL_RETRIES})");
+                            info!(
+                                "fan control was previously available, assuming the error is temporary (attempt {retries}/{FAN_CONTROL_RETRIES})"
+                            );
 
                             if !matches!(
                                 hw_mon.get_fan_control_method(),
                                 Ok(FanControlMethod::Manual),
                             ) {
-                                info!("fan control method was changed externally, setting back to manual");
+                                info!(
+                                    "fan control method was changed externally, setting back to manual"
+                                );
                                 if let Err(err) =
                                     hw_mon.set_fan_control_method(FanControlMethod::Manual)
                                 {
@@ -383,20 +397,19 @@ impl AmdGpuController {
         }
 
         if reset_mode {
-            if self.handle.get_fan_curve().is_ok() {
-                if let Err(err) = self.handle.reset_fan_curve() {
-                    warn!("could not reset fan curve: {err:#}");
-                }
+            if self.handle.get_fan_curve().is_ok()
+                && let Err(err) = self.handle.reset_fan_curve()
+            {
+                warn!("could not reset fan curve: {err:#}");
             }
 
-            if let Some(hw_mon) = self.handle.hw_monitors.first().cloned() {
-                if let Ok(current_control) = hw_mon.get_fan_control_method() {
-                    if !matches!(current_control, FanControlMethod::Auto) {
-                        hw_mon
-                            .set_fan_control_method(FanControlMethod::Auto)
-                            .context("Could not set fan control back to automatic")?;
-                    }
-                }
+            if let Some(hw_mon) = self.handle.hw_monitors.first().cloned()
+                && let Ok(current_control) = hw_mon.get_fan_control_method()
+                && !matches!(current_control, FanControlMethod::Auto)
+            {
+                hw_mon
+                    .set_fan_control_method(FanControlMethod::Auto)
+                    .context("Could not set fan control back to automatic")?;
             }
         }
 
@@ -471,10 +484,11 @@ impl AmdGpuController {
                 ("UCLK", metrics.get_current_uclk()),
                 ("SOCCLK", metrics.get_current_socclk()),
             ] {
-                if let Some(value) = value {
-                    if value != 0 && value != u16::MAX {
-                        sensors.insert(label.to_owned(), u64::from(value));
-                    }
+                if let Some(value) = value
+                    && value != 0
+                    && value != u16::MAX
+                {
+                    sensors.insert(label.to_owned(), u64::from(value));
                 }
             }
 
@@ -493,10 +507,10 @@ impl AmdGpuController {
     }
 
     fn get_full_vbios_version(&self) -> Option<String> {
-        if let Some(drm_handle) = &self.drm_handle {
-            if let Ok(vbios_info) = drm_handle.get_vbios_info() {
-                return Some(format!("{} [{}]", vbios_info.ver, vbios_info.date));
-            }
+        if let Some(drm_handle) = &self.drm_handle
+            && let Ok(vbios_info) = drm_handle.get_vbios_info()
+        {
+            return Some(format!("{} [{}]", vbios_info.ver, vbios_info.date));
         }
 
         self.handle.get_vbios_version().ok()
@@ -600,13 +614,13 @@ impl AmdGpuController {
                 .map(|link| link.width.to_string())
                 .or_else(|| self.handle.get_current_link_width().ok()),
             current_speed: current_link
-                .map(|link| format!("Gen {}", link.gen))
+                .map(|link| format!("Gen {}", link.r#gen))
                 .or_else(|| self.handle.get_current_link_speed().ok()),
             max_width: max_link
                 .map(|link| link.width.to_string())
                 .or_else(|| self.handle.get_max_link_width().ok()),
             max_speed: max_link
-                .map(|link| format!("Gen {}", link.gen))
+                .map(|link| format!("Gen {}", link.r#gen))
                 .or_else(|| self.handle.get_max_link_speed().ok()),
         }
     }
@@ -618,12 +632,12 @@ impl AmdGpuController {
         for entry in fs::read_dir("/sys/kernel/debug/dri").ok()?.flatten() {
             let debugfs_path = entry.path();
             let name_file_path = debugfs_path.join("name");
-            if name_file_path.exists() {
-                if let Ok(contents) = fs::read_to_string(&name_file_path) {
-                    if contents.contains(&name_search_term) {
-                        return Some(debugfs_path);
-                    }
-                }
+
+            if name_file_path.exists()
+                && let Ok(contents) = fs::read_to_string(&name_file_path)
+                && contents.contains(&name_search_term)
+            {
+                return Some(debugfs_path);
             }
         }
 
@@ -817,20 +831,21 @@ impl GpuController for AmdGpuController {
             ];
 
             for (label, value) in extra_temp_sensors {
-                if let Some(value) = value {
-                    if value != 0 && value != u16::MAX {
-                        temps.insert(
-                            label.to_owned(),
-                            TemperatureEntry {
-                                value: Temperature {
-                                    current: Some(f32::from(value)),
-                                    crit: None,
-                                    crit_hyst: None,
-                                },
-                                display_only: true,
+                if let Some(value) = value
+                    && value != 0
+                    && value != u16::MAX
+                {
+                    temps.insert(
+                        label.to_owned(),
+                        TemperatureEntry {
+                            value: Temperature {
+                                current: Some(f32::from(value)),
+                                crit: None,
+                                crit_hyst: None,
                             },
-                        );
-                    }
+                            display_only: true,
+                        },
+                    );
                 }
             }
 
@@ -1011,25 +1026,28 @@ impl GpuController for AmdGpuController {
 
     fn reset_pmfw_settings(&self) {
         let handle = &self.handle;
-        if self.handle.get_fan_target_temperature().is_ok() {
-            if let Err(err) = handle.reset_fan_target_temperature() {
-                warn!("Could not reset target temperature: {err:#}");
-            }
+        if self.handle.get_fan_target_temperature().is_ok()
+            && let Err(err) = handle.reset_fan_target_temperature()
+        {
+            warn!("Could not reset target temperature: {err:#}");
         }
-        if self.handle.get_fan_acoustic_target().is_ok() {
-            if let Err(err) = handle.reset_fan_acoustic_target() {
-                warn!("Could not reset acoustic target: {err:#}");
-            }
+
+        if self.handle.get_fan_acoustic_target().is_ok()
+            && let Err(err) = handle.reset_fan_acoustic_target()
+        {
+            warn!("Could not reset acoustic target: {err:#}");
         }
-        if self.handle.get_fan_acoustic_limit().is_ok() {
-            if let Err(err) = handle.reset_fan_acoustic_limit() {
-                warn!("Could not reset acoustic limit: {err:#}");
-            }
+
+        if self.handle.get_fan_acoustic_limit().is_ok()
+            && let Err(err) = handle.reset_fan_acoustic_limit()
+        {
+            warn!("Could not reset acoustic limit: {err:#}");
         }
-        if self.handle.get_fan_minimum_pwm().is_ok() {
-            if let Err(err) = handle.reset_fan_minimum_pwm() {
-                warn!("Could not reset minimum pwm: {err:#}");
-            }
+
+        if self.handle.get_fan_minimum_pwm().is_ok()
+            && let Err(err) = handle.reset_fan_minimum_pwm()
+        {
+            warn!("Could not reset minimum pwm: {err:#}");
         }
     }
 
@@ -1093,7 +1111,9 @@ impl GpuController for AmdGpuController {
                         commit_handles.push_back(handle);
                     }
                     Err(err) => {
-                        error!("custom clock settings are present but will be ignored, could not get clocks table: {err}");
+                        error!(
+                            "custom clock settings are present but will be ignored, could not get clocks table: {err}"
+                        );
                     }
                 }
             }
@@ -1174,65 +1194,64 @@ impl GpuController for AmdGpuController {
                 }
             } else {
                 let pmfw = &config.pmfw_options;
-                if let Some(acoustic_limit) = pmfw.acoustic_limit {
-                    if self
+                if let Some(acoustic_limit) = pmfw.acoustic_limit
+                    && self
                         .handle
                         .get_fan_acoustic_limit()
                         .context("Could not get acoustic limit")?
                         .current
                         != acoustic_limit
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_acoustic_limit(acoustic_limit)
-                            .context("Could not set acoustic limit")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_acoustic_limit(acoustic_limit)
+                        .context("Could not set acoustic limit")?;
+                    commit_handles.push_front(commit_handle);
                 }
-                if let Some(acoustic_target) = pmfw.acoustic_target {
-                    if self
+
+                if let Some(acoustic_target) = pmfw.acoustic_target
+                    && self
                         .handle
                         .get_fan_acoustic_target()
                         .context("Could not get acoustic target")?
                         .current
                         != acoustic_target
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_acoustic_target(acoustic_target)
-                            .context("Could not set acoustic target")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_acoustic_target(acoustic_target)
+                        .context("Could not set acoustic target")?;
+                    commit_handles.push_front(commit_handle);
                 }
-                if let Some(target_temperature) = pmfw.target_temperature {
-                    if self
+
+                if let Some(target_temperature) = pmfw.target_temperature
+                    && self
                         .handle
                         .get_fan_target_temperature()
                         .context("Could not get target temperature")?
                         .current
                         != target_temperature
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_target_temperature(target_temperature)
-                            .context("Could not set target temperature")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_target_temperature(target_temperature)
+                        .context("Could not set target temperature")?;
+                    commit_handles.push_front(commit_handle);
                 }
-                if let Some(minimum_pwm) = pmfw.minimum_pwm {
-                    if self
+
+                if let Some(minimum_pwm) = pmfw.minimum_pwm
+                    && self
                         .handle
                         .get_fan_minimum_pwm()
                         .context("Could not get minimum pwm")?
                         .current
                         != minimum_pwm
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_minimum_pwm(minimum_pwm)
-                            .context("Could not set minimum pwm")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_minimum_pwm(minimum_pwm)
+                        .context("Could not set minimum pwm")?;
+                    commit_handles.push_front(commit_handle);
                 }
             }
 
@@ -1255,7 +1274,9 @@ impl GpuController for AmdGpuController {
                             }
                         }
                         Err(err) => {
-                            error!("zero RPM is present in the config, but not available on the GPU: {err}");
+                            error!(
+                                "zero RPM is present in the config, but not available on the GPU: {err}"
+                            );
                         }
                     }
                 }
@@ -1272,7 +1293,9 @@ impl GpuController for AmdGpuController {
                             }
                         }
                         Err(err) => {
-                            error!("zero RPM threshold is present in the config, but not available on the GPU: {err}");
+                            error!(
+                                "zero RPM threshold is present in the config, but not available on the GPU: {err}"
+                            );
                         }
                     }
                 }
@@ -1284,14 +1307,13 @@ impl GpuController for AmdGpuController {
                 hw_mon
                     .set_power_cap(configured_cap)
                     .with_context(|| format!("Failed to set power cap: {configured_cap}"))?;
-            } else if let Ok(hw_mon) = self.first_hw_mon() {
-                if let Ok(default_cap) = hw_mon.get_power_cap_default() {
-                    if Ok(default_cap) != hw_mon.get_power_cap() {
-                        hw_mon.set_power_cap(default_cap).with_context(|| {
-                            format!("Failed to set power cap to default cap: {default_cap}")
-                        })?;
-                    }
-                }
+            } else if let Ok(hw_mon) = self.first_hw_mon()
+                && let Ok(default_cap) = hw_mon.get_power_cap_default()
+                && Ok(default_cap) != hw_mon.get_power_cap()
+            {
+                hw_mon.set_power_cap(default_cap).with_context(|| {
+                    format!("Failed to set power cap to default cap: {default_cap}")
+                })?;
             }
 
             for handle in commit_handles {
@@ -1376,7 +1398,7 @@ fn apply_clocks_config_to_table(
     config: &ClocksConfiguration,
     table: &mut ClocksTableGen,
 ) -> anyhow::Result<()> {
-    if let ClocksTableGen::Rdna(ref mut table) = table {
+    if let ClocksTableGen::Rdna(table) = table {
         // Avoid writing settings to the clocks table except the user-specified ones
         // There is an issue on some GPU models where the default values are actually outside of the allowed range
         // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example

@@ -1,0 +1,38 @@
+name: Renovate
+on:
+  schedule:
+    - cron: '0 10 * * *' # 10:00 UTC
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: 'Dry Run'
+        default: 'null'
+        required: false
+      logLevel:
+        description: 'Log Level'
+        default: 'info'
+        required: false
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Generate token
+        uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.RENOVATE_APP_ID }}
+          private-key: ${{ secrets.RENOVATE_PRIVATE_KEY }}
+
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@v44.2.6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+        env:
+          RENOVATE_PLATFORM_COMMIT: 'true'
+          LOG_LEVEL: ${{ github.event.inputs.logLevel || 'info' }}
+          RENOVATE_DRY_RUN: ${{ github.event.inputs.dryRun || 'null' }}
+          RENOVATE_REPOSITORIES: ${{ github.repository }}

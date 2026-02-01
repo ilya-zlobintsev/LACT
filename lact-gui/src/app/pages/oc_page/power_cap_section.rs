@@ -1,10 +1,10 @@
 use crate::{
+    APP_BROKER, I18N,
     app::{
         msg::AppMsg,
         page_section::PageSection,
-        pages::{oc_adjustment::OcAdjustment, PageUpdate},
+        pages::{PageUpdate, oc_adjustment::OcAdjustment},
     },
-    APP_BROKER, I18N,
 };
 use gtk::{
     glib::object::ObjectExt,
