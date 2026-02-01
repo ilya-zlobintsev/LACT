@@ -6,6 +6,7 @@ use gtk::{
     glib::{SignalHandlerId, object::ObjectExt},
     prelude::{AdjustmentExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
 };
+use gtk::prelude::BoxExt;
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
 use relm4::{RelmWidgetExt, prelude::FactoryComponent};
@@ -65,6 +66,8 @@ impl FactoryComponent for ClockAdjustmentRow {
         #[name = "root_box"]
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
+            set_spacing: 5,
+            set_margin_horizontal: 5,
 
             gtk::Separator {
                 set_visible: self.show_separator,

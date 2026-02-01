@@ -148,11 +148,7 @@ impl relm4::Component for ClocksFrame {
                 },
             },
 
-            append_child = model.clocks.widget() {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
-                set_margin_horizontal: 5,
-            },
+            append_child = model.clocks.widget(),
 
             append_child = &gtk::Label {
                 set_label: &fl!(I18N, "no-clocks-data"),
