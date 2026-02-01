@@ -3,12 +3,20 @@ use crate::{
     app::{msg::AppMsg, pages::oc_adjustment::OcAdjustment},
 };
 use gtk::{
-    glib::{SignalHandlerId, object::ObjectExt},
-    prelude::{AdjustmentExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
+    glib::{
+        self, ControlFlow, SignalHandlerId, SourceId,
+        object::{Cast, ObjectExt},
+        types::StaticType,
+    },
+    prelude::{
+        AdjustmentExt, EditableExt, EventControllerExt, OrientableExt, RangeExt, ScaleExt,
+        WidgetExt,
+    },
 };
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
 use relm4::{RelmWidgetExt, prelude::FactoryComponent};
+use std::time::Duration;
 
 pub struct ClockAdjustmentRow {
     clock_type: ClockspeedType,
@@ -18,6 +26,7 @@ pub struct ClockAdjustmentRow {
     adjustment: OcAdjustment,
     show_separator: bool,
     pub(super) is_secondary: bool,
+    spin_commit_timeout: Option<SourceId>,
 }
 
 pub struct ClocksData {
@@ -42,6 +51,41 @@ impl ClocksData {
     }
 }
 
+fn make_event_controller_no_scroll() -> gtk::EventControllerScroll {
+    let controller = gtk::EventControllerScroll::new(
+        gtk::EventControllerScrollFlags::VERTICAL | gtk::EventControllerScrollFlags::HORIZONTAL,
+    );
+    controller.connect_scroll(|controller, dx, dy| {
+        if let Some(parent) = controller
+            .widget()
+            .and_then(|widget| widget.ancestor(gtk::ScrolledWindow::static_type()))
+        {
+            let scrolled_window = parent.downcast::<gtk::ScrolledWindow>().unwrap();
+
+            if dy != 0.0 {
+                let current = scrolled_window.vadjustment().value();
+                let step = scrolled_window.vadjustment().step_increment();
+
+                // This is a bit of a hack, fractional values are generally touchpad inputs (in pixels),
+                // while whole values are scroll wheel events (which should use the `step` value)
+                // With newer GTK this should be changed to getting `unit()` from the scroll controller
+                let delta = if dy.fract() == 0.0 { dy * step } else { dy };
+                scrolled_window.vadjustment().set_value(current + delta);
+            }
+
+            if dx != 0.0 {
+                let current = scrolled_window.hadjustment().value();
+                let step = scrolled_window.hadjustment().step_increment();
+                let delta = if dx.fract() == 0.0 { dy * step } else { dy };
+                scrolled_window.hadjustment().set_value(current + delta);
+            }
+        }
+
+        gtk::glib::Propagation::Stop
+    });
+    controller
+}
+
 #[derive(Debug)]
 pub enum ClockAdjustmentRowMsg {
     ValueRatio(f64),
@@ -50,6 +94,8 @@ pub enum ClockAdjustmentRowMsg {
         label_group: gtk::SizeGroup,
         input_group: gtk::SizeGroup,
     },
+    SpinEdited,
+    SpinCommit,
 }
 
 #[relm4::factory(pub)]
@@ -109,11 +155,17 @@ impl FactoryComponent for ClockAdjustmentRow {
                     set_round_digits: 0,
                     set_value_pos: gtk::PositionType::Right,
                     set_margin_horizontal: 5,
+                    add_controller = make_event_controller_no_scroll(),
                 },
 
                 #[name = "input_button"]
                 gtk::SpinButton {
                     set_adjustment: &self.adjustment,
+                    add_controller = make_event_controller_no_scroll(),
+                    // triggers update after debounce period
+                    connect_changed[sender] => move |_| {
+                        sender.input(ClockAdjustmentRowMsg::SpinEdited);
+                    },
                 },
             },
         }
@@ -128,7 +180,7 @@ impl FactoryComponent for ClockAdjustmentRow {
             data.current as f64,
             data.min as f64,
             data.max as f64,
-            1.0,
+            10.0,
             10.0,
         );
 
@@ -144,6 +196,7 @@ impl FactoryComponent for ClockAdjustmentRow {
             value_ratio: 1.0,
             is_secondary: data.is_secondary,
             show_separator: data.show_separator,
+            spin_commit_timeout: None,
         }
     }
 
@@ -175,6 +228,22 @@ impl FactoryComponent for ClockAdjustmentRow {
             } => {
                 label_group.add_widget(&widgets.title_label);
                 input_group.add_widget(&widgets.input_button);
+            }
+            ClockAdjustmentRowMsg::SpinEdited => {
+                if let Some(timeout) = self.spin_commit_timeout.take() {
+                    timeout.remove();
+                }
+
+                let sender = sender.clone();
+                self.spin_commit_timeout =
+                    Some(glib::timeout_add_local(Duration::from_secs(1), move || {
+                        sender.input(ClockAdjustmentRowMsg::SpinCommit);
+                        ControlFlow::Break
+                    }));
+            }
+            ClockAdjustmentRowMsg::SpinCommit => {
+                self.spin_commit_timeout = None;
+                widgets.input_button.update();
             }
             ClockAdjustmentRowMsg::SetVisible(visible) => {
                 widgets.root_box.set_visible(visible);
