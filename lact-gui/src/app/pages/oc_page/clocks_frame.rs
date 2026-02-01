@@ -149,15 +149,22 @@ impl relm4::Component for ClocksFrame {
                 },
             },
 
-            append_child = model.gpu_clocks.widget() {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
-                set_margin_horizontal: 5,
-            },
-            append_child = model.vram_clocks.widget() {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
-                set_margin_horizontal: 5,
+            append_child = &gtk::FlowBox {
+                set_selection_mode: gtk::SelectionMode::None,
+                set_max_children_per_line: 2,
+                set_min_children_per_line: 1,
+                set_column_spacing: 10,
+
+                append = model.gpu_clocks.widget() {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_valign: gtk::Align::Start,
+                    set_spacing: 5,
+                },
+                append = model.vram_clocks.widget() {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 5,
+                    set_valign: gtk::Align::Start,
+                },
             },
 
             append_child = &gtk::Label {
