@@ -1,7 +1,7 @@
 use crate::{APP_BROKER, app::msg::AppMsg};
-use gtk::prelude::{BoxExt, CheckButtonExt, OrientableExt, WidgetExt};
+use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use lact_schema::PowerState;
-use relm4::{RelmObjectExt, binding::BoolBinding};
+use relm4::{RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css};
 
 pub struct PowerStateRow {
     pub(super) active: BoolBinding,
@@ -33,18 +33,25 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
             set_spacing: 5,
+            set_margin_all: 2,
 
             append = &gtk::CheckButton {
-                set_hexpand: true,
                 add_binding: (&self.enabled, "active"),
                 set_sensitive: false,
-                set_label: {
+            },
+
+            append = &gtk::Label {
+                set_hexpand: true,
+                set_halign: gtk::Align::Start,
+                #[watch]
+                set_class_active: (css::DIM_LABEL, !self.active.value()),
+                set_label: &{
                     let value_text = match self.power_state.min_value {
                         Some(min) if min != self.power_state.value => format!("{min}-{}", self.power_state.value),
                         _ => self.power_state.value.to_string(),
                     };
-                    Some(format!("{}: {value_text} {}", index.current_index(), self.value_suffix))
-                }.as_deref(),
+                    format!("{}: {value_text} {}", index.current_index(), self.value_suffix)
+                },
             },
 
             append: image = &gtk::Image {
