@@ -121,10 +121,6 @@ mod imp {
                     Some(format!("<span font_desc='13'><b>{value}</b></span>"))
                 })
                 .build();
-
-            obj.bind_property("expanded", expander, "expanded")
-                .bidirectional()
-                .build();
         }
     }
 
