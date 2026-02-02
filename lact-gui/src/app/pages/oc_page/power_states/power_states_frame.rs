@@ -3,6 +3,7 @@ use crate::{
     APP_BROKER, I18N,
     app::{
         msg::AppMsg,
+        page_section_expander::PageSectionExpander,
         pages::oc_page::power_states::power_states_list::{
             PowerStatesListMsg, PowerStatesListOptions,
         },
@@ -53,16 +54,12 @@ impl relm4::SimpleComponent for PowerStatesFrame {
     type Output = ();
 
     view! {
-        gtk::Expander {
-            set_label: Some(&fl!(I18N, "pstates")),
+        PageSectionExpander::new(&fl!(I18N, "pstates")) {
             add_binding: (&model.states_expanded, "expanded"),
-            set_margin_horizontal: 5,
 
-            gtk::Box {
+            append_expandable = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-                set_margin_all: 10,
                 set_spacing: 5,
-                // add_binding: (&model.states_configurable, "sensitive"),
 
                 gtk::Label {
                     set_label: &fl!(I18N, "pstates-manual-needed"),
