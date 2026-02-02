@@ -8,6 +8,7 @@ pub struct PowerStateRow {
     pub(super) enabled: BoolBinding,
     pub(super) power_state: PowerState,
     pub(super) value_suffix: String,
+    pub(super) configurable: BoolBinding,
 }
 
 pub struct PowerStateRowOptions {
@@ -16,9 +17,10 @@ pub struct PowerStateRowOptions {
     pub active: bool,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum PowerStateRowMsg {
     Active(bool),
+    Configurable(bool),
 }
 
 #[relm4::factory(pub)]
@@ -33,18 +35,20 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
             set_spacing: 5,
-            set_margin_all: 2,
+            set_margin_vertical: 2,
+            set_margin_horizontal: 5,
 
             append = &gtk::CheckButton {
                 add_binding: (&self.enabled, "active"),
-                set_sensitive: false,
+                #[watch]
+                set_visible: self.configurable.value(),
             },
 
             append = &gtk::Label {
-                set_hexpand: true,
-                set_halign: gtk::Align::Start,
+                add_css_class: css::MONOSPACE,
                 #[watch]
                 set_class_active: (css::DIM_LABEL, !self.active.value()),
+
                 set_label: &{
                     let value_text = match self.power_state.min_value {
                         Some(min) if min != self.power_state.value => format!("{min}-{}", self.power_state.value),
@@ -74,12 +78,16 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
             active: BoolBinding::new(opts.active),
             power_state: opts.power_state,
             value_suffix: opts.value_suffix,
+            configurable: BoolBinding::new(true),
         }
     }
 
     fn update(&mut self, msg: Self::Input, _: relm4::FactorySender<Self>) {
         match msg {
             PowerStateRowMsg::Active(active) => self.active.set_value(active),
+            PowerStateRowMsg::Configurable(configurable) => {
+                self.configurable.set_value(configurable)
+            }
         }
     }
 }

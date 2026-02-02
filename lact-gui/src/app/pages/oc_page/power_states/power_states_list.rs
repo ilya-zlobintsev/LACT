@@ -19,6 +19,7 @@ pub struct PowerStatesListOptions {
 pub enum PowerStatesListMsg {
     PowerStates(Vec<PowerState>, f64),
     ActiveState(Option<usize>),
+    Configurable(bool),
 }
 
 #[relm4::component(pub)]
@@ -82,6 +83,10 @@ impl relm4::SimpleComponent for PowerStatesList {
 
                     self.states.send(i, PowerStateRowMsg::Active(is_active));
                 }
+            }
+            PowerStatesListMsg::Configurable(configurable) => {
+                self.states
+                    .broadcast(PowerStateRowMsg::Configurable(configurable));
             }
         }
     }

@@ -18,7 +18,7 @@ use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
     Component, ComponentController, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
-    binding::BoolBinding,
+    binding::{Binding, BoolBinding},
 };
 use std::sync::Arc;
 
@@ -43,6 +43,7 @@ pub enum PowerStatesFrameMsg {
     PerformanceLevel(Option<PerformanceLevel>),
     VramClockRatio(f64),
     Configurable(bool),
+    InternalConfigurableChanged(bool),
 }
 
 #[relm4::component(pub)]
@@ -93,7 +94,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
     fn init(
         _: Self::Init,
         root: Self::Root,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let core_states_list = PowerStatesList::builder()
             .launch(PowerStatesListOptions {
@@ -110,7 +111,10 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
         let states_configured = BoolBinding::new(false);
 
-        let configured_signal = states_configured.connect_value_notify(|_| {
+        let configured_signal = states_configured.connect_value_notify(move |states_configured| {
+            sender.input(PowerStatesFrameMsg::InternalConfigurableChanged(
+                states_configured.get(),
+            ));
             APP_BROKER.send(AppMsg::SettingsChanged);
         });
 
@@ -163,6 +167,11 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                         || !self.vram_states_list.model().is_empty());
                 self.states_configurable.set_value(value);
 
+                self.core_states_list
+                    .emit(PowerStatesListMsg::Configurable(value));
+                self.vram_states_list
+                    .emit(PowerStatesListMsg::Configurable(value));
+
                 if !value {
                     self.states_configured.block_signal(&self.configured_signal);
                     self.states_configured.set_value(false);
@@ -172,6 +181,12 @@ impl relm4::SimpleComponent for PowerStatesFrame {
             }
             PowerStatesFrameMsg::PerformanceLevel(level) => {
                 self.performance_level = level;
+            }
+            PowerStatesFrameMsg::InternalConfigurableChanged(configurable) => {
+                self.core_states_list
+                    .emit(PowerStatesListMsg::Configurable(configurable));
+                self.vram_states_list
+                    .emit(PowerStatesListMsg::Configurable(configurable));
             }
         }
     }
