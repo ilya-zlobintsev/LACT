@@ -111,7 +111,7 @@ mod imp {
                     append = children_box {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 10,
-                        set_margin_horizontal: 15,
+                        set_margin_all: 10,
                     },
                 },
             }
