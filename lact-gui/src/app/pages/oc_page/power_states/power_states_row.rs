@@ -6,7 +6,6 @@ use relm4::{RelmObjectExt, binding::BoolBinding};
 pub struct PowerStateRow {
     pub(super) active: BoolBinding,
     pub(super) enabled: BoolBinding,
-    pub(super) configurable: BoolBinding,
     pub(super) power_state: PowerState,
     pub(super) value_suffix: String,
 }
@@ -15,7 +14,6 @@ pub struct PowerStateRowOptions {
     pub power_state: PowerState,
     pub value_suffix: String,
     pub active: bool,
-    pub configurable: bool,
 }
 
 #[derive(Debug)]
@@ -39,7 +37,7 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
             append = &gtk::CheckButton {
                 set_hexpand: true,
                 add_binding: (&self.enabled, "active"),
-                add_binding: (&self.configurable, "sensitive"),
+                set_sensitive: false,
                 set_label: {
                     let value_text = match self.power_state.min_value {
                         Some(min) if min != self.power_state.value => format!("{min}-{}", self.power_state.value),
@@ -67,7 +65,6 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
         Self {
             enabled,
             active: BoolBinding::new(opts.active),
-            configurable: BoolBinding::new(opts.configurable),
             power_state: opts.power_state,
             value_suffix: opts.value_suffix,
         }

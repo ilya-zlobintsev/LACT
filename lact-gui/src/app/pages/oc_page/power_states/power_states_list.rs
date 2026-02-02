@@ -8,7 +8,6 @@ use relm4::{ComponentParts, ComponentSender, prelude::FactoryVecDeque};
 pub struct PowerStatesList {
     states: FactoryVecDeque<PowerStateRow>,
     value_suffix: String,
-    configurable: bool,
 }
 
 pub struct PowerStatesListOptions {
@@ -46,10 +45,14 @@ impl relm4::SimpleComponent for PowerStatesList {
         let model = Self {
             states,
             value_suffix: opts.value_suffix,
-            configurable: false,
         };
 
         let widgets = view_output!();
+
+        model
+            .states
+            .widget()
+            .set_selection_mode(gtk::SelectionMode::None);
 
         ComponentParts { widgets, model }
     }
@@ -66,7 +69,6 @@ impl relm4::SimpleComponent for PowerStatesList {
                         power_state,
                         value_suffix: self.value_suffix.clone(),
                         active: false,
-                        configurable: self.configurable,
                     };
                     states.push_back(opts);
                 }
