@@ -49,6 +49,11 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
                 #[watch]
                 set_class_active: (css::DIM_LABEL, !self.active.value()),
 
+                // prevents container width jumps when active row change
+                set_width_request: 150,
+                set_align: gtk::Align::Start,
+                set_xalign: 0.0,
+
                 set_label: &{
                     let value_text = match self.power_state.min_value {
                         Some(min) if min != self.power_state.value => format!("{min}-{}", self.power_state.value),
