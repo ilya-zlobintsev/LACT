@@ -38,6 +38,12 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
             set_margin_vertical: 2,
             set_margin_horizontal: 5,
 
+             append: image = &gtk::Image {
+                set_icon_name: Some("pan-end-symbolic"),
+                #[watch]
+                set_opacity: if self.active.value() { 1.0 } else { 0.0 },
+            },
+
             append = &gtk::CheckButton {
                 add_binding: (&self.enabled, "active"),
                 #[watch]
@@ -61,11 +67,6 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
                     };
                     format!("{}: {value_text} {}", index.current_index(), self.value_suffix)
                 },
-            },
-
-            append: image = &gtk::Image {
-                set_icon_name: Some("pan-start-symbolic"),
-                add_binding: (&self.active, "visible"),
             },
         }
     }
