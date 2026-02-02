@@ -276,15 +276,15 @@ impl relm4::Component for ClocksFrame {
                         // Only show min/max core/vram clock when nvidia locked clocks are enabeld
                         let show_current = match key {
                             ClockspeedType::MaxCoreClock | ClockspeedType::MinCoreClock
-                            if self.show_nvidia_options && !is_vram_clock(*key) =>
-                                {
-                                    self.enable_gpu_locked_clocks.value()
-                                }
+                                if self.show_nvidia_options && !is_vram_clock(*key) =>
+                            {
+                                self.enable_gpu_locked_clocks.value()
+                            }
                             ClockspeedType::MaxMemoryClock | ClockspeedType::MinMemoryClock
-                            if self.show_nvidia_options && is_vram_clock(*key) =>
-                                {
-                                    self.enable_vram_locked_clocks.value()
-                                }
+                                if self.show_nvidia_options && is_vram_clock(*key) =>
+                            {
+                                self.enable_vram_locked_clocks.value()
+                            }
                             _ => !row.is_secondary || show_secondary,
                         };
 
@@ -602,19 +602,19 @@ impl ClocksFrame {
                 let value = if self.show_nvidia_options {
                     match clock_type {
                         ClockspeedType::MinCoreClock | ClockspeedType::MaxCoreClock
-                        if !is_vram_clock(*clock_type) =>
-                            {
-                                self.enable_gpu_locked_clocks
-                                    .value()
-                                    .then(|| row.get_raw_value())
-                            }
+                            if !is_vram_clock(*clock_type) =>
+                        {
+                            self.enable_gpu_locked_clocks
+                                .value()
+                                .then(|| row.get_raw_value())
+                        }
                         ClockspeedType::MinMemoryClock | ClockspeedType::MaxMemoryClock
-                        if is_vram_clock(*clock_type) =>
-                            {
-                                self.enable_vram_locked_clocks
-                                    .value()
-                                    .then(|| row.get_raw_value())
-                            }
+                            if is_vram_clock(*clock_type) =>
+                        {
+                            self.enable_vram_locked_clocks
+                                .value()
+                                .then(|| row.get_raw_value())
+                        }
                         _ => Some(row.get_configured_value()?),
                     }
                 } else {
