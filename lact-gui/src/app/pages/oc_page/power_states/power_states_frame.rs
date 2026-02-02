@@ -28,7 +28,6 @@ pub struct PowerStatesFrame {
     vram_states_list: relm4::Controller<PowerStatesList>,
     states_configurable: BoolBinding,
     states_configured: BoolBinding,
-    states_expanded: BoolBinding,
     performance_level: Option<PerformanceLevel>,
     configured_signal: SignalHandlerId,
     vram_clock_ratio: f64,
@@ -55,8 +54,6 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
     view! {
         PageSectionExpander::new(&fl!(I18N, "pstates")) {
-            add_binding: (&model.states_expanded, "expanded"),
-
             append_expandable = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
@@ -79,7 +76,6 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 gtk::Box {
                     set_spacing: 10,
                     set_orientation: gtk::Orientation::Horizontal,
-                    // add_binding: (&model.states_configured, "sensitive"),
 
                     gtk::Box {
                         #[watch]
@@ -130,7 +126,6 @@ impl relm4::SimpleComponent for PowerStatesFrame {
             states_configurable: BoolBinding::new(false),
             states_configured,
             configured_signal,
-            states_expanded: BoolBinding::new(false),
             performance_level: None,
             vram_clock_ratio: 1.0,
         };

@@ -3,7 +3,7 @@ use crate::app::pages::oc_page::power_states::power_states_row::{
 };
 use gtk::prelude::{FrameExt, WidgetExt};
 use lact_schema::PowerState;
-use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, prelude::FactoryVecDeque, css};
+use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, css, prelude::FactoryVecDeque};
 
 pub struct PowerStatesList {
     states: FactoryVecDeque<PowerStateRow>,
