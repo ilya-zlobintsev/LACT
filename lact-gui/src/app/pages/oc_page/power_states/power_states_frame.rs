@@ -55,13 +55,13 @@ impl relm4::SimpleComponent for PowerStatesFrame {
         gtk::Expander {
             set_label: Some(&fl!(I18N, "pstates")),
             add_binding: (&model.states_expanded, "expanded"),
-            set_margin_horizontal: 20,
+            set_margin_horizontal: 5,
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_margin_all: 10,
                 set_spacing: 5,
-                add_binding: (&model.states_configurable, "sensitive"),
+                // add_binding: (&model.states_configurable, "sensitive"),
 
                 gtk::Label {
                     set_label: &fl!(I18N, "pstates-manual-needed"),
@@ -81,7 +81,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 gtk::Box {
                     set_spacing: 10,
                     set_orientation: gtk::Orientation::Horizontal,
-                    add_binding: (&model.states_configured, "sensitive"),
+                    // add_binding: (&model.states_configured, "sensitive"),
 
                     append = model.core_states_list.widget(),
                     append = model.vram_states_list.widget(),
