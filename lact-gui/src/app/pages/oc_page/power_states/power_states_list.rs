@@ -37,7 +37,10 @@ impl relm4::SimpleComponent for PowerStatesList {
                 set_margin_horizontal: 5,
                 add_css_class: css::CAPTION_HEADING,
             },
-            set_child: Some(model.states.widget()),
+            #[local_ref]
+            states_widget -> gtk::ListBox {
+                set_selection_mode: gtk::SelectionMode::None,
+            },
         }
     }
 
@@ -53,12 +56,9 @@ impl relm4::SimpleComponent for PowerStatesList {
             value_suffix: opts.value_suffix,
         };
 
-        let widgets = view_output!();
+        let states_widget = model.states.widget();
 
-        model
-            .states
-            .widget()
-            .set_selection_mode(gtk::SelectionMode::None);
+        let widgets = view_output!();
 
         ComponentParts { widgets, model }
     }
