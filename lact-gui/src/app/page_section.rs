@@ -83,6 +83,7 @@ mod imp {
                     append = header_box {
                         set_orientation: gtk::Orientation::Horizontal,
                         set_spacing: 10,
+                        set_visible: true,
 
                         #[local_ref]
                         append = section_label {
@@ -112,6 +113,10 @@ mod imp {
                     }
                 }
             }
+
+            obj.bind_property("name", &self.header_box, "visible")
+                .transform_to(|_, value: String| Some(!value.is_empty()))
+                .build();
 
             obj.bind_property("name", &self.section_label, "label")
                 .transform_to(|_, value: String| {
