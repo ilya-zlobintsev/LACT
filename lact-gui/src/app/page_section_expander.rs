@@ -100,6 +100,9 @@ mod imp {
                         set_use_markup: true,
                         set_halign: gtk::Align::Start,
                         set_margin_vertical: 5,
+                        // align label with normal PageSection
+                        set_margin_start: -1,
+                        set_margin_end: 1,
                     },
                 },
 
