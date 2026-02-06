@@ -373,8 +373,10 @@ impl NvidiaGpuController {
                 if let Ok((pstate_min, pstate_max)) =
                     device.min_max_clock_of_pstate(clock_type, pstate)
                 {
-                    min_clock = Some(min_clock.map_or(pstate_min, |current| current.min(pstate_min)));
-                    max_clock = Some(max_clock.map_or(pstate_max, |current| current.max(pstate_max)));
+                    min_clock =
+                        Some(min_clock.map_or(pstate_min, |current| current.min(pstate_min)));
+                    max_clock =
+                        Some(max_clock.map_or(pstate_max, |current| current.max(pstate_max)));
                 }
             }
         }
@@ -508,9 +510,11 @@ impl GpuController for NvidiaGpuController {
     fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let device = self.device();
 
-        let (min_gpu_clock, max_gpu_clock) = self.clock_range_from_pstates(&device, Clock::Graphics);
+        let (min_gpu_clock, max_gpu_clock) =
+            self.clock_range_from_pstates(&device, Clock::Graphics);
 
-        let (min_vram_clock, max_vram_clock) = self.clock_range_from_pstates(&device, Clock::Memory);
+        let (min_vram_clock, max_vram_clock) =
+            self.clock_range_from_pstates(&device, Clock::Memory);
 
         let mut temps = HashMap::new();
 
