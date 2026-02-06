@@ -349,6 +349,38 @@ impl NvidiaGpuController {
 
         Ok(power_states)
     }
+
+    fn clock_range_from_pstates(
+        &self,
+        device: &Device<'_>,
+        clock_type: Clock,
+    ) -> (Option<u32>, Option<u32>) {
+        let locked_clocks = match clock_type {
+            Clock::Graphics => &self.last_applied_gpu_locked_clocks,
+            Clock::Memory => &self.last_applied_vram_locked_clocks,
+            _ => return (None, None),
+        };
+
+        if let Some((min, max)) = *locked_clocks.borrow() {
+            return (Some(min), Some(max));
+        }
+
+        let mut min_clock: Option<u32> = None;
+        let mut max_clock: Option<u32> = None;
+
+        if let Ok(supported_pstates) = device.supported_performance_states() {
+            for pstate in supported_pstates {
+                if let Ok((pstate_min, pstate_max)) =
+                    device.min_max_clock_of_pstate(clock_type, pstate)
+                {
+                    min_clock = Some(min_clock.map_or(pstate_min, |current| current.min(pstate_min)));
+                    max_clock = Some(max_clock.map_or(pstate_max, |current| current.max(pstate_max)));
+                }
+            }
+        }
+
+        (min_clock, max_clock)
+    }
 }
 
 impl GpuController for NvidiaGpuController {
@@ -475,6 +507,10 @@ impl GpuController for NvidiaGpuController {
     )]
     fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let device = self.device();
+
+        let (min_gpu_clock, max_gpu_clock) = self.clock_range_from_pstates(&device, Clock::Graphics);
+
+        let (min_vram_clock, max_vram_clock) = self.clock_range_from_pstates(&device, Clock::Memory);
 
         let mut temps = HashMap::new();
 
@@ -637,6 +673,10 @@ impl GpuController for NvidiaGpuController {
                 gpu_clockspeed: device.clock_info(Clock::Graphics).map(Into::into).ok(),
                 vram_clockspeed: device.clock_info(Clock::Memory).map(Into::into).ok(),
                 target_gpu_clockspeed: None,
+                min_gpu_clockspeed: min_gpu_clock.map(Into::into),
+                max_gpu_clockspeed: max_gpu_clock.map(Into::into),
+                min_vram_clockspeed: min_vram_clock.map(Into::into),
+                max_vram_clockspeed: max_vram_clock.map(Into::into),
                 sensors: [
                     ("SM", device.clock_info(Clock::SM)),
                     ("Video", device.clock_info(Clock::Video)),

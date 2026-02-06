@@ -585,6 +585,10 @@ pub struct ClockspeedStats {
     #[serde(alias = "current_gfxclk")]
     pub target_gpu_clockspeed: Option<u64>,
     pub vram_clockspeed: Option<u64>,
+    pub min_gpu_clockspeed: Option<u64>,
+    pub max_gpu_clockspeed: Option<u64>,
+    pub min_vram_clockspeed: Option<u64>,
+    pub max_vram_clockspeed: Option<u64>,
     #[serde(default)]
     pub sensors: HashMap<String, u64>,
 }

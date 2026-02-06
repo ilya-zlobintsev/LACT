@@ -498,10 +498,34 @@ impl AmdGpuController {
                 .map(u64::from);
         }
 
+        let clocks_table = self.handle.get_clocks_table().ok();
+        let min_gpu_clockspeed = clocks_table
+            .as_ref()
+            .and_then(|table| table.get_min_sclk_range())
+            .and_then(|range| range.min)
+            .map(|v| v as u64);
+        let max_gpu_clockspeed = clocks_table
+            .as_ref()
+            .and_then(|table| table.get_max_sclk())
+            .map(|v| v as u64);
+        let min_vram_clockspeed = clocks_table
+            .as_ref()
+            .and_then(|table| table.get_min_mclk_range())
+            .and_then(|range| range.min)
+            .map(|v| v as u64);
+        let max_vram_clockspeed = clocks_table
+            .as_ref()
+            .and_then(|table| table.get_max_mclk())
+            .map(|v| v as u64);
+
         ClockspeedStats {
             gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
             target_gpu_clockspeed,
             vram_clockspeed,
+            min_gpu_clockspeed,
+            max_gpu_clockspeed,
+            min_vram_clockspeed,
+            max_vram_clockspeed,
             sensors,
         }
     }

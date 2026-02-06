@@ -680,10 +680,17 @@ impl GpuController for IntelGpuController {
             .filter(|value| *value != 0)
             .or(target_gpu_clockspeed);
 
+        let min_gpu_clockspeed = self.read_freq(FrequencyType::Rpn);
+        let max_gpu_clockspeed = self.read_freq(FrequencyType::Rp0);
+
         let clockspeed = ClockspeedStats {
             gpu_clockspeed,
             target_gpu_clockspeed,
             vram_clockspeed: None,
+            min_gpu_clockspeed,
+            max_gpu_clockspeed,
+            min_vram_clockspeed: None,
+            max_vram_clockspeed: None,
             sensors: HashMap::new(),
         };
 

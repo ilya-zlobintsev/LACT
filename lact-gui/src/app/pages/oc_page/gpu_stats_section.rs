@@ -56,6 +56,41 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     #[watch]
                     set_value: formatting::fmt_throttling_text(&model.stats),
                 },
+                // FIXME: these rows just for tests
+                append = &InfoRow {
+                    set_name: fl!(I18N, "max-gpu-clock"),
+                    #[watch]
+                    set_value: formatting::fmt_clockspeed(
+                        model.stats.clockspeed.max_gpu_clockspeed,
+                        1.0,
+                    ),
+                },
+
+                append = &InfoRow {
+                    set_name: fl!(I18N, "max-vram-clock"),
+                    #[watch]
+                    set_value: formatting::fmt_clockspeed(
+                        model.stats.clockspeed.max_vram_clockspeed,
+                        model.vram_clock_ratio,
+                    ),
+                },
+                 append = &InfoRow {
+                    set_name: fl!(I18N, "min-gpu-clock"),
+                    #[watch]
+                    set_value: formatting::fmt_clockspeed(
+                        model.stats.clockspeed.min_gpu_clockspeed,
+                        1.0,
+                    ),
+                },
+
+                append = &InfoRow {
+                    set_name: fl!(I18N, "min-vram-clock"),
+                    #[watch]
+                    set_value: formatting::fmt_clockspeed(
+                        model.stats.clockspeed.min_vram_clockspeed,
+                        model.vram_clock_ratio,
+                    ),
+                },
 
                 append_child = &InfoRow {
                     #[watch]
