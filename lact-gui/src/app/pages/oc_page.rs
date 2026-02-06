@@ -44,7 +44,7 @@ pub enum OcPageMsg {
         update: PageUpdate,
         initial: bool,
     },
-    ClocksTable(Option<ClocksTable>),
+    ClocksTable(Option<Arc<ClocksTable>>),
     ProfileModesTable(Option<PowerProfileModesTable>),
     PowerStates {
         pstates: PowerStates,
@@ -172,9 +172,13 @@ impl relm4::Component for OcPage {
                         self.clocks_frame
                             .emit(ClocksFrameMsg::VramRatio(vram_clock_ratio));
                     }
+                    PageUpdate::Clocks(_) => (),
                 }
             }
             OcPageMsg::ClocksTable(table) => {
+                if let Some(table) = &table {
+                    self.stats_section.emit(PageUpdate::Clocks(table.clone()));
+                }
                 self.clocks_frame.emit(ClocksFrameMsg::Clocks(table));
             }
             OcPageMsg::ProfileModesTable(modes_table) => {

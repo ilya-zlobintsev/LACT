@@ -1,6 +1,5 @@
-use crate::I18N;
-use crate::app::APP_BROKER;
 use crate::app::msg::AppMsg;
+use crate::app::APP_BROKER;
 use crate::app::{
     ext::FlowBoxExt,
     formatting::{self, Mono},
@@ -9,6 +8,7 @@ use crate::app::{
     page_section::PageSection,
     pages::PageUpdate,
 };
+use crate::I18N;
 use gtk::prelude::{BoxExt, ButtonExt, Cast, FlowBoxChildExt, OrientableExt, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::{DeviceStats, PowerStats};
@@ -20,6 +20,10 @@ pub struct GpuStatsSection {
     vram_clock_ratio: f64,
     gpu_model: String,
     value_size_group: gtk::SizeGroup,
+    max_gpu_clock: Option<u64>,
+    max_vram_clock: Option<u64>,
+    min_gpu_clock: Option<u64>,
+    min_vram_clock: Option<u64>,
 }
 
 #[relm4::component(pub)]
@@ -45,7 +49,8 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,
                     set_homogeneous: true,
-                    set_max_children_per_line: 1,
+                    // set_max_children_per_line: 1,
+                    set_min_children_per_line: 2,
                     set_selection_mode: gtk::SelectionMode::None,
 
                     append_child = &InfoRowLevel {
@@ -89,6 +94,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     } -> power_usage_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.power.average.is_some() || model.stats.power.current.is_some(),
+                        set_width_request: 400,
                     },
 
                     append_child = &InfoRowLevel {
@@ -118,6 +124,68 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             .map(|(used, total)| used as f64 / total as f64)
                             .unwrap_or(0.0),
                     } -> vram_usage_item: gtk::FlowBoxChild {},
+
+                    append_child = &InfoRowLevel {
+                        #[watch]
+                        set_name: {
+                            if model.stats.clockspeed.gpu_clockspeed.is_some()
+                                && model.stats.clockspeed.target_gpu_clockspeed.is_some() {
+                                    fl!(I18N, "gpu-clock-avg")
+                                } else {
+                                    fl!(I18N, "gpu-clock")
+                                }
+                        },
+                        #[watch]
+                        set_value: formatting::fmt_clockspeed(
+                            model.stats.clockspeed.gpu_clockspeed,
+                            1.0,
+                        ),
+                        #[watch]
+                        set_level_value: {
+                            model.stats.clockspeed.gpu_clockspeed
+                                .zip(model.max_gpu_clock)
+                                .zip(model.min_gpu_clock)
+                                .map(|((current, max), min)| {
+                                    let range = max.saturating_sub(min);
+                                    if range > 0 {
+                                        (current.saturating_sub(min)) as f64 / range as f64
+                                    } else {
+                                        0.0
+                                    }
+                                })
+                                .unwrap_or(0.0)
+                        },
+                    } -> gpu_clock_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: model.stats.clockspeed.gpu_clockspeed.is_some(),
+                    },
+
+                    append_child = &InfoRowLevel {
+                        set_name: fl!(I18N, "vram-clock"),
+                        #[watch]
+                        set_value: formatting::fmt_clockspeed(
+                            model.stats.clockspeed.vram_clockspeed,
+                            model.vram_clock_ratio,
+                        ),
+                        #[watch]
+                        set_level_value: {
+                            model.stats.clockspeed.vram_clockspeed
+                                .zip(model.max_vram_clock)
+                                .zip(model.min_vram_clock)
+                                .map(|((current, max), min)| {
+                                    let range = max.saturating_sub(min);
+                                    if range > 0 {
+                                        (current.saturating_sub(min)) as f64 / range as f64
+                                    } else {
+                                        0.0
+                                    }
+                                })
+                                .unwrap_or(0.0)
+                        },
+                    } -> vram_clock_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: model.stats.clockspeed.vram_clockspeed.is_some(),
+                    },
                 },
             },
 
@@ -142,44 +210,12 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     },
 
                     append_child = &InfoRow {
-                        #[watch]
-                        set_name: {
-                            if model.stats.clockspeed.gpu_clockspeed.is_some()
-                                && model.stats.clockspeed.target_gpu_clockspeed.is_some() {
-                                    fl!(I18N, "gpu-clock-avg")
-                                } else {
-                                    fl!(I18N, "gpu-clock")
-                                }
-                        },
-                        #[watch]
-                        set_value: formatting::fmt_clockspeed(
-                            model.stats.clockspeed.gpu_clockspeed,
-                            1.0,
-                        ),
-                    } -> clockspeed_item: gtk::FlowBoxChild {
-                            #[watch]
-                            set_visible: model.stats.clockspeed.gpu_clockspeed.is_some(),
-                        },
-
-                    append_child = &InfoRow {
                         set_name: fl!(I18N, "gpu-clock-target"),
                         #[watch]
                         set_value: format_current_gfxclk(model.stats.clockspeed.target_gpu_clockspeed),
                     } -> clockspeed_target_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.clockspeed.target_gpu_clockspeed.is_some(),
-                    },
-
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "vram-clock"),
-                        #[watch]
-                        set_value: formatting::fmt_clockspeed(
-                            model.stats.clockspeed.vram_clockspeed,
-                            model.vram_clock_ratio,
-                        ),
-                    } -> vram_clock_item: gtk::FlowBoxChild {
-                        #[watch]
-                        set_visible: model.stats.clockspeed.vram_clockspeed.is_some(),
                     },
 
                     append_child = &InfoRow {
@@ -224,6 +260,10 @@ impl relm4::SimpleComponent for GpuStatsSection {
             vram_clock_ratio: 1.0,
             gpu_model: String::new(),
             value_size_group,
+            max_gpu_clock: None,
+            max_vram_clock: None,
+            min_gpu_clock: None,
+            min_vram_clock: None,
         };
 
         let widgets = view_output!();
@@ -249,6 +289,20 @@ impl relm4::SimpleComponent for GpuStatsSection {
             .downcast::<InfoRowLevel>()
             .unwrap()
             .set_value_size_group(&model.value_size_group);
+        widgets
+            .gpu_clock_item
+            .child()
+            .unwrap()
+            .downcast::<InfoRowLevel>()
+            .unwrap()
+            .set_value_size_group(&model.value_size_group);
+        widgets
+            .vram_clock_item
+            .child()
+            .unwrap()
+            .downcast::<InfoRowLevel>()
+            .unwrap()
+            .set_value_size_group(&model.value_size_group);
 
         ComponentParts { widgets, model }
     }
@@ -269,6 +323,12 @@ impl relm4::SimpleComponent for GpuStatsSection {
             }
             PageUpdate::Stats(stats) => {
                 self.stats = stats;
+            }
+            PageUpdate::Clocks(table) => {
+                self.max_gpu_clock = table.max_gpu_clock();
+                self.max_vram_clock = table.max_vram_clock();
+                self.min_gpu_clock = table.min_gpu_clock();
+                self.min_vram_clock = table.min_vram_clock();
             }
         }
     }

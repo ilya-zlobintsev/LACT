@@ -1,10 +1,10 @@
 use crate::{
-    APP_BROKER, I18N,
     app::{
         msg::AppMsg,
         page_section::PageSection,
-        pages::{PageUpdate, oc_adjustment::OcAdjustment},
+        pages::{oc_adjustment::OcAdjustment, PageUpdate},
     },
+    APP_BROKER, I18N,
 };
 use gtk::{
     glib::object::ObjectExt,
@@ -113,6 +113,7 @@ impl relm4::Component for PowerCapSection {
                 self.power = power;
             }
             PowerCapMsg::Update(PageUpdate::Info(_)) => (),
+            PowerCapMsg::Update(PageUpdate::Clocks(_)) => (),
             PowerCapMsg::RefreshText => {
                 self.value_text.clear();
                 write!(

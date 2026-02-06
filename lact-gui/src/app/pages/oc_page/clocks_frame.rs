@@ -1,8 +1,8 @@
 mod adjustment_row;
 
 use crate::{
-    APP_BROKER, I18N,
     app::{msg::AppMsg, page_section::PageSection},
+    APP_BROKER, I18N,
 };
 use adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
@@ -13,13 +13,15 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use lact_schema::{
-    ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
     request::{ClockspeedType, SetClocksCommand},
+    ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
 };
 use relm4::{
-    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
-    factory::FactoryHashMap,
+    binding::BoolBinding, css, factory::FactoryHashMap, ComponentParts, ComponentSender,
+    RelmObjectExt, RelmWidgetExt,
 };
+
+use std::sync::Arc;
 
 // This should not end up being used in practice
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
@@ -35,7 +37,7 @@ pub struct ClocksFrame {
 
 #[derive(Debug)]
 pub enum ClocksFrameMsg {
-    Clocks(Option<ClocksTable>),
+    Clocks(Option<Arc<ClocksTable>>),
     VramRatio(f64),
     TogglePStatesVisibility,
 }
@@ -218,10 +220,10 @@ impl relm4::Component for ClocksFrame {
                 self.show_nvidia_options = false;
 
                 if let Some(table) = clocks_table {
-                    match table {
-                        ClocksTable::Amd(table) => self.set_amd_table(table),
-                        ClocksTable::Nvidia(table) => self.set_nvidia_table(table),
-                        ClocksTable::Intel(table) => self.set_intel_table(table),
+                    match table.as_ref() {
+                        ClocksTable::Amd(table) => self.set_amd_table(table.clone()),
+                        ClocksTable::Nvidia(table) => self.set_nvidia_table(table.clone()),
+                        ClocksTable::Intel(table) => self.set_intel_table(table.clone()),
                     }
                 }
 

@@ -415,6 +415,54 @@ pub enum ClocksTable {
     Intel(IntelClocksTable),
 }
 
+impl ClocksTable {
+    pub fn max_gpu_clock(&self) -> Option<u64> {
+        match self {
+            ClocksTable::Amd(amd_table) => amd_table.get_max_sclk().map(|v| v as u64),
+            ClocksTable::Nvidia(nvidia_table) => {
+                nvidia_table.gpu_clock_range.map(|(_, max)| max as u64)
+            }
+            ClocksTable::Intel(intel_table) => intel_table.rp0_freq,
+        }
+    }
+
+    pub fn min_gpu_clock(&self) -> Option<u64> {
+        match self {
+            ClocksTable::Amd(amd_table) => amd_table
+                .get_min_sclk_range()
+                .and_then(|r| r.min)
+                .map(|v| v as u64),
+            ClocksTable::Nvidia(nvidia_table) => {
+                nvidia_table.gpu_clock_range.map(|(min, _)| min as u64)
+            }
+            ClocksTable::Intel(intel_table) => intel_table.rpn_freq,
+        }
+    }
+
+    pub fn max_vram_clock(&self) -> Option<u64> {
+        match self {
+            ClocksTable::Amd(amd_table) => amd_table.get_max_mclk().map(|v| v as u64),
+            ClocksTable::Nvidia(nvidia_table) => {
+                nvidia_table.vram_clock_range.map(|(_, max)| max as u64)
+            }
+            ClocksTable::Intel(_) => None,
+        }
+    }
+
+    pub fn min_vram_clock(&self) -> Option<u64> {
+        match self {
+            ClocksTable::Amd(amd_table) => amd_table
+                .get_min_mclk_range()
+                .and_then(|r| r.min)
+                .map(|v| v as u64),
+            ClocksTable::Nvidia(nvidia_table) => {
+                nvidia_table.vram_clock_range.map(|(min, _)| min as u64)
+            }
+            ClocksTable::Intel(_) => None,
+        }
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct NvidiaClocksTable {
