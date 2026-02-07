@@ -415,8 +415,6 @@ pub enum ClocksTable {
     Intel(IntelClocksTable),
 }
 
-
-
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct NvidiaClocksTable {
@@ -566,6 +564,13 @@ pub struct FanStats {
     // RDNA3+ params
     #[serde(default)]
     pub pmfw_info: PmfwInfo,
+}
+
+impl FanStats {
+    pub fn percent(&self) -> Option<u64> {
+        self.pwm_current
+            .map(|pwm| ((pwm as f64 / u8::MAX as f64) * 100.0).round() as u64)
+    }
 }
 
 #[skip_serializing_none]

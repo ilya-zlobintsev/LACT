@@ -1,8 +1,8 @@
 mod adjustment_row;
 
 use crate::{
-    app::{msg::AppMsg, page_section::PageSection},
     APP_BROKER, I18N,
+    app::{msg::AppMsg, page_section::PageSection},
 };
 use adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
@@ -13,12 +13,12 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use lact_schema::{
-    request::{ClockspeedType, SetClocksCommand},
     ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
+    request::{ClockspeedType, SetClocksCommand},
 };
 use relm4::{
-    binding::BoolBinding, css, factory::FactoryHashMap, ComponentParts, ComponentSender,
-    RelmObjectExt, RelmWidgetExt,
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
+    factory::FactoryHashMap,
 };
 
 use std::sync::Arc;

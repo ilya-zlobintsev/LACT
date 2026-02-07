@@ -172,7 +172,7 @@ impl relm4::Component for OcPage {
                         self.clocks_frame
                             .emit(ClocksFrameMsg::VramRatio(vram_clock_ratio));
                     }
-                    PageUpdate::PowerStates(_) => ()
+                    PageUpdate::PowerStates(_) => (),
                 }
             }
             OcPageMsg::ClocksTable(table) => {

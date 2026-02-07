@@ -1,5 +1,6 @@
-use crate::app::msg::AppMsg;
+use crate::I18N;
 use crate::app::APP_BROKER;
+use crate::app::msg::AppMsg;
 use crate::app::{
     ext::FlowBoxExt,
     formatting::{self, Mono},
@@ -8,7 +9,6 @@ use crate::app::{
     page_section::PageSection,
     pages::PageUpdate,
 };
-use crate::I18N;
 use gtk::prelude::{BoxExt, ButtonExt, Cast, FlowBoxChildExt, OrientableExt, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::{DeviceStats, PowerStats};
@@ -188,7 +188,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     append_child = &InfoRowLevel {
                         set_name: fl!(I18N, "fan-speed"),
                         #[watch]
-                        set_value: formatting::fmt_fan_speed(&model.stats)
+                        set_value: formatting::fmt_fan_speed(&model.stats, false)
                             .unwrap_or_else(|| fl!(I18N, "missing-stat")),
                         #[watch]
                         set_level_value: model.stats.fan.pwm_current.map(|pwm| pwm as f64 / u8::MAX as f64).unwrap_or(0.0),
