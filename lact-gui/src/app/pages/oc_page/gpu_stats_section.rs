@@ -324,11 +324,11 @@ impl relm4::SimpleComponent for GpuStatsSection {
             PageUpdate::Stats(stats) => {
                 self.stats = stats;
             }
-            PageUpdate::Clocks(table) => {
-                self.max_gpu_clock = table.max_gpu_clock();
-                self.max_vram_clock = table.max_vram_clock();
-                self.min_gpu_clock = table.min_gpu_clock();
-                self.min_vram_clock = table.min_vram_clock();
+            PageUpdate::PowerStates(pstates) => {
+                self.max_gpu_clock = pstates.max_gpu_clock();
+                self.max_vram_clock = pstates.max_vram_clock();
+                self.min_gpu_clock = pstates.min_gpu_clock();
+                self.min_vram_clock = pstates.min_vram_clock();
             }
         }
     }

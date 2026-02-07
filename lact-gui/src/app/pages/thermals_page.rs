@@ -514,7 +514,7 @@ impl relm4::Component for ThermalsPage {
                         }
                     }
                 }
-                PageUpdate::Clocks(_) => (),
+                PageUpdate::PowerStates(_) => (),
             },
         }
 

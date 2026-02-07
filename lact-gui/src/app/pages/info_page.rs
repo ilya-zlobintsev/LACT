@@ -91,7 +91,7 @@ impl relm4::SimpleComponent for InformationPage {
             PageUpdate::Stats(device_stats) => {
                 self.device_stats = Some(device_stats);
             }
-            PageUpdate::Clocks(_) => return,
+            PageUpdate::PowerStates(_) => return
         }
         self.update_items();
     }

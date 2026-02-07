@@ -172,13 +172,10 @@ impl relm4::Component for OcPage {
                         self.clocks_frame
                             .emit(ClocksFrameMsg::VramRatio(vram_clock_ratio));
                     }
-                    PageUpdate::Clocks(_) => (),
+                    PageUpdate::PowerStates(_) => ()
                 }
             }
             OcPageMsg::ClocksTable(table) => {
-                if let Some(table) = &table {
-                    self.stats_section.emit(PageUpdate::Clocks(table.clone()));
-                }
                 self.clocks_frame.emit(ClocksFrameMsg::Clocks(table));
             }
             OcPageMsg::ProfileModesTable(modes_table) => {
@@ -191,9 +188,11 @@ impl relm4::Component for OcPage {
             } => {
                 self.power_states_frame
                     .emit(PowerStatesFrameMsg::PowerStates {
-                        pstates,
+                        pstates: pstates.clone(),
                         configured,
                     });
+                self.stats_section
+                    .emit(PageUpdate::PowerStates(Arc::new(pstates)));
                 sender.input(OcPageMsg::PerformanceLevelChanged);
             }
             OcPageMsg::PerformanceLevelChanged => {

@@ -113,7 +113,7 @@ impl relm4::Component for PowerCapSection {
                 self.power = power;
             }
             PowerCapMsg::Update(PageUpdate::Info(_)) => (),
-            PowerCapMsg::Update(PageUpdate::Clocks(_)) => (),
+            PowerCapMsg::Update(PageUpdate::PowerStates(_)) => (),
             PowerCapMsg::RefreshText => {
                 self.value_text.clear();
                 write!(
