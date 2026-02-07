@@ -50,7 +50,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_column_spacing: 10,
                     set_homogeneous: true,
                     // set_max_children_per_line: 1,
-                    set_min_children_per_line: 2,
+                    // set_min_children_per_line: 2,
                     set_selection_mode: gtk::SelectionMode::None,
 
                     append_child = &InfoRowLevel {
@@ -86,6 +86,8 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     } -> gpu_clock_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.clockspeed.gpu_clockspeed.is_some(),
+
+                        set_width_request: 350,
                     },
 
                     append_child = &InfoRowLevel {
@@ -113,6 +115,40 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     } -> vram_clock_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.clockspeed.vram_clockspeed.is_some(),
+
+                        set_width_request: 350,
+                    },
+
+                    append_child = &InfoRowLevel {
+                        set_name: fl!(I18N, "gpu-usage"),
+                        #[watch]
+                        set_value: format!("{}%", Mono::uint(model.stats.busy_percent.unwrap_or(0))),
+                        #[watch]
+                        set_level_value: model.stats.busy_percent.unwrap_or(0) as f64 / 100.0,
+                    } -> gpu_usage_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: model.stats.busy_percent.is_some(),
+
+                        set_width_request: 350,
+                    },
+
+                    append_child = &InfoRowLevel {
+                        set_name: fl!(I18N, "vram-usage"),
+                        #[watch]
+                        set_value: formatting::fmt_human_bytes(
+                            model.stats.vram.used.unwrap_or(0),
+                            Some(formatting::ByteUnit::Gibibyte),
+                        ),
+                        #[watch]
+                        set_level_value: model
+                            .stats
+                            .vram
+                            .used
+                            .zip(model.stats.vram.total)
+                            .map(|(used, total)| used as f64 / total as f64)
+                            .unwrap_or(0.0),
+                    } -> vram_usage_item: gtk::FlowBoxChild {
+                        set_width_request: 350,
                     },
 
                     append_child = &InfoRowLevel {
@@ -156,36 +192,22 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     } -> power_usage_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.power.average.is_some() || model.stats.power.current.is_some(),
-                        set_width_request: 400,
+                        set_width_request: 350,
                     },
 
                     append_child = &InfoRowLevel {
-                        set_name: fl!(I18N, "gpu-usage"),
+                        set_name: fl!(I18N, "fan-speed"),
                         #[watch]
-                        set_value: format!("{}%", Mono::uint(model.stats.busy_percent.unwrap_or(0))),
+                        set_value: formatting::fmt_fan_speed(&model.stats)
+                            .unwrap_or_else(|| fl!(I18N, "missing-stat")),
                         #[watch]
-                        set_level_value: model.stats.busy_percent.unwrap_or(0) as f64 / 100.0,
-                    } -> gpu_usage_item: gtk::FlowBoxChild {
+                        set_level_value: model.stats.fan.pwm_current.map(|pwm| pwm as f64 / u8::MAX as f64).unwrap_or(0.0),
+                    } -> fan_speed_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.busy_percent.is_some(),
-                    },
+                        set_visible: model.stats.fan.pwm_current.is_some() || model.stats.fan.speed_current.is_some(),
 
-                    append_child = &InfoRowLevel {
-                        set_name: fl!(I18N, "vram-usage"),
-                        #[watch]
-                        set_value: formatting::fmt_human_bytes(
-                            model.stats.vram.used.unwrap_or(0),
-                            Some(formatting::ByteUnit::Gibibyte),
-                        ),
-                        #[watch]
-                        set_level_value: model
-                            .stats
-                            .vram
-                            .used
-                            .zip(model.stats.vram.total)
-                            .map(|(used, total)| used as f64 / total as f64)
-                            .unwrap_or(0.0),
-                    } -> vram_usage_item: gtk::FlowBoxChild {},
+                        set_width_request: 350,
+                    },
                 },
             },
 
@@ -232,16 +254,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         #[watch]
                         set_value: formatting::fmt_temperature_text(&model.stats)
                             .unwrap_or_else(|| "N/A".to_owned()),
-                    },
-
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "fan-speed"),
-                        #[watch]
-                        set_value: formatting::fmt_fan_speed(&model.stats)
-                            .unwrap_or_else(|| fl!(I18N, "missing-stat")),
-                    } -> fan_speed_item: gtk::FlowBoxChild {
-                        #[watch]
-                        set_visible: model.stats.fan.pwm_current.is_some() || model.stats.fan.speed_current.is_some(),
                     },
                 },
             },
@@ -298,6 +310,13 @@ impl relm4::SimpleComponent for GpuStatsSection {
             .set_value_size_group(&model.value_size_group);
         widgets
             .vram_clock_item
+            .child()
+            .unwrap()
+            .downcast::<InfoRowLevel>()
+            .unwrap()
+            .set_value_size_group(&model.value_size_group);
+        widgets
+            .fan_speed_item
             .child()
             .unwrap()
             .downcast::<InfoRowLevel>()
