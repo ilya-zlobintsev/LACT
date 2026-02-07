@@ -6,7 +6,3 @@
 .clickable-info-row:hover {
     background-color: rgba(0, 0, 0, 0.08);
 }
-
-.page-section-content {
-    border-radius: 5px;
-}
