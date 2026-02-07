@@ -36,7 +36,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
         gtk::Box {
             add_css_class: "gpu-stats-section",
             set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 15,
+            set_spacing: 10,
 
             PageSection::new(&fl!(I18N, "stats-section")) {
                 append_header = &gtk::Button {

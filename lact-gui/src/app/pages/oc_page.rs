@@ -63,7 +63,7 @@ impl relm4::Component for OcPage {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 15,
+            set_spacing: 10,
             set_margin_horizontal: 30,
             set_margin_top: 15,
             set_margin_bottom: 60,
