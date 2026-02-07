@@ -395,6 +395,10 @@ expression: device_info
     "busy_percent": 2,
     "clockspeed": {
       "gpu_clockspeed": 2011,
+      "max_gpu_clockspeed": 2660,
+      "max_vram_clockspeed": 1300,
+      "min_gpu_clockspeed": 500,
+      "min_vram_clockspeed": 97,
       "sensors": {
         "DCLK": 25,
         "DCLK1": 25,

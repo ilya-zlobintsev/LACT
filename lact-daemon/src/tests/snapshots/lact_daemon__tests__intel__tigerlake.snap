@@ -78,6 +78,8 @@ expression: device_info
   "stats": {
     "clockspeed": {
       "gpu_clockspeed": 1100,
+      "max_gpu_clockspeed": 1300,
+      "min_gpu_clockspeed": 100,
       "sensors": {},
       "target_gpu_clockspeed": 1100
     },
