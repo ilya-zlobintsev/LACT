@@ -501,22 +501,22 @@ impl AmdGpuController {
         let clocks_table = self.handle.get_clocks_table().ok();
         let min_gpu_clockspeed = clocks_table
             .as_ref()
-            .and_then(|table| table.get_min_sclk_range())
+            .and_then(ClocksTable::get_min_sclk_range)
             .and_then(|range| range.min)
-            .map(|v| v as u64);
+            .and_then(|v| v.try_into().ok());
         let max_gpu_clockspeed = clocks_table
             .as_ref()
-            .and_then(|table| table.get_max_sclk())
-            .map(|v| v as u64);
+            .and_then(ClocksTable::get_max_sclk)
+            .and_then(|v| v.try_into().ok());
         let min_vram_clockspeed = clocks_table
             .as_ref()
-            .and_then(|table| table.get_min_mclk_range())
+            .and_then(ClocksTable::get_min_mclk_range)
             .and_then(|range| range.min)
-            .map(|v| v as u64);
+            .and_then(|v| v.try_into().ok());
         let max_vram_clockspeed = clocks_table
             .as_ref()
-            .and_then(|table| table.get_max_mclk())
-            .map(|v| v as u64);
+            .and_then(ClocksTable::get_max_mclk)
+            .and_then(|v| v.try_into().ok());
 
         ClockspeedStats {
             gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
