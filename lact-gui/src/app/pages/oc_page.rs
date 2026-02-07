@@ -44,7 +44,7 @@ pub enum OcPageMsg {
         update: PageUpdate,
         initial: bool,
     },
-    ClocksTable(Option<Arc<ClocksTable>>),
+    ClocksTable(Option<ClocksTable>),
     ProfileModesTable(Option<PowerProfileModesTable>),
     PowerStates {
         pstates: PowerStates,

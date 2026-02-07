@@ -781,7 +781,7 @@ impl AppModel {
         });
 
         let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(&gpu_id).await {
-            Ok(info) => info.table.map(Arc::new),
+            Ok(info) => info.table,
             Err(err) => {
                 debug!("could not fetch clocks info: {err:?}");
                 None

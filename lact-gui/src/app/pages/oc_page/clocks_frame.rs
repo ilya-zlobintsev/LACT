@@ -21,8 +21,6 @@ use relm4::{
     factory::FactoryHashMap,
 };
 
-use std::sync::Arc;
-
 // This should not end up being used in practice
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 
@@ -37,7 +35,7 @@ pub struct ClocksFrame {
 
 #[derive(Debug)]
 pub enum ClocksFrameMsg {
-    Clocks(Option<Arc<ClocksTable>>),
+    Clocks(Option<ClocksTable>),
     VramRatio(f64),
     TogglePStatesVisibility,
 }
@@ -220,10 +218,10 @@ impl relm4::Component for ClocksFrame {
                 self.show_nvidia_options = false;
 
                 if let Some(table) = clocks_table {
-                    match table.as_ref() {
-                        ClocksTable::Amd(table) => self.set_amd_table(table.clone()),
-                        ClocksTable::Nvidia(table) => self.set_nvidia_table(table.clone()),
-                        ClocksTable::Intel(table) => self.set_intel_table(table.clone()),
+                    match table {
+                        ClocksTable::Amd(table) => self.set_amd_table(table),
+                        ClocksTable::Nvidia(table) => self.set_nvidia_table(table),
+                        ClocksTable::Intel(table) => self.set_intel_table(table),
                     }
                 }
 
