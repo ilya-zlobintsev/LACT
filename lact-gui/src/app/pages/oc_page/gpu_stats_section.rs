@@ -34,6 +34,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
     view! {
         gtk::Box {
+            add_css_class: "gpu-stats-section",
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 15,
 
@@ -49,8 +50,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,
                     set_homogeneous: true,
-                    // set_max_children_per_line: 1,
-                    // set_min_children_per_line: 2,
                     set_selection_mode: gtk::SelectionMode::None,
 
                     append_child = &InfoRowLevel {
@@ -86,8 +85,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     } -> gpu_clock_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.clockspeed.gpu_clockspeed.is_some(),
-
-                        set_width_request: 350,
                     },
 
                     append_child = &InfoRowLevel {
@@ -115,8 +112,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     } -> vram_clock_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.clockspeed.vram_clockspeed.is_some(),
-
-                        set_width_request: 350,
                     },
 
                     append_child = &InfoRowLevel {
@@ -128,8 +123,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     } -> gpu_usage_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.busy_percent.is_some(),
-
-                        set_width_request: 350,
                     },
 
                     append_child = &InfoRowLevel {
@@ -147,9 +140,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             .zip(model.stats.vram.total)
                             .map(|(used, total)| used as f64 / total as f64)
                             .unwrap_or(0.0),
-                    } -> vram_usage_item: gtk::FlowBoxChild {
-                        set_width_request: 350,
-                    },
+                    } -> vram_usage_item: gtk::FlowBoxChild {},
 
                     append_child = &InfoRowLevel {
                         set_name: fl!(I18N, "power-usage"),
@@ -192,7 +183,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     } -> power_usage_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.power.average.is_some() || model.stats.power.current.is_some(),
-                        set_width_request: 350,
                     },
 
                     append_child = &InfoRowLevel {
@@ -205,8 +195,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     } -> fan_speed_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.fan.pwm_current.is_some() || model.stats.fan.speed_current.is_some(),
-
-                        set_width_request: 350,
                     },
                 },
             },
