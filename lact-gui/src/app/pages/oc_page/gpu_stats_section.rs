@@ -69,19 +69,13 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         ),
                         #[watch]
                         set_level_value: {
-                            model.stats.clockspeed.gpu_clockspeed
-                                .zip(model.max_gpu_clock)
-                                .zip(model.min_gpu_clock)
-                                .map(|((current, max), min)| {
-                                    let range = max.saturating_sub(min);
-                                    if range > 0 {
-                                        (current.saturating_sub(min)) as f64 / range as f64
-                                    } else {
-                                        0.0
-                                    }
-                                })
-                                .unwrap_or(0.0)
-                        },
+                            match (&model.stats.clockspeed.gpu_clockspeed, model.max_gpu_clock, model.min_gpu_clock) {
+                                (Some(cur), Some(max), Some(min)) if max > min => {
+                                    (cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64).min(1.0)
+                                }
+                                _ => 0.0,
+                            }
+                        }
                     } -> gpu_clock_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.clockspeed.gpu_clockspeed.is_some(),
@@ -96,19 +90,13 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         ),
                         #[watch]
                         set_level_value: {
-                            model.stats.clockspeed.vram_clockspeed
-                                .zip(model.max_vram_clock)
-                                .zip(model.min_vram_clock)
-                                .map(|((current, max), min)| {
-                                    let range = max.saturating_sub(min);
-                                    if range > 0 {
-                                        (current.saturating_sub(min)) as f64 / range as f64
-                                    } else {
-                                        0.0
-                                    }
-                                })
-                                .unwrap_or(0.0)
-                        },
+                            match (&model.stats.clockspeed.vram_clockspeed, model.max_vram_clock, model.min_vram_clock) {
+                                (Some(cur), Some(max), Some(min)) if max > min => {
+                                    (cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64).min(1.0)
+                                }
+                                _ => 0.0,
+                            }
+                        }
                     } -> vram_clock_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.clockspeed.vram_clockspeed.is_some(),
