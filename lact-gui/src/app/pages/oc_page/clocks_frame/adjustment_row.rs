@@ -20,7 +20,6 @@ pub struct ClockAdjustmentRow {
     value_ratio: f64,
     change_signal: SignalHandlerId,
     adjustment: OcAdjustment,
-    show_separator: bool,
     pub(super) is_secondary: bool,
 }
 
@@ -30,7 +29,6 @@ pub struct ClocksData {
     pub max: i32,
     pub custom_title: Option<String>,
     pub is_secondary: bool,
-    pub show_separator: bool,
 }
 
 impl ClocksData {
@@ -41,7 +39,6 @@ impl ClocksData {
             max,
             is_secondary: false,
             custom_title: None,
-            show_separator: false,
         }
     }
 }
@@ -106,6 +103,7 @@ impl FactoryComponent for ClockAdjustmentRow {
             set_orientation: gtk::Orientation::Vertical,
 
             gtk::Separator {
+                // this is for tests, ignore warning
                 set_visible: false,
                 set_margin_top: 5,
                 set_margin_bottom: 10,
@@ -185,7 +183,6 @@ impl FactoryComponent for ClockAdjustmentRow {
             change_signal,
             value_ratio: 1.0,
             is_secondary: data.is_secondary,
-            show_separator: data.show_separator,
         }
     }
 
