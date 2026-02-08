@@ -251,8 +251,11 @@ pub async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<Output> {
 
     let mut command;
     if *IS_FLATBOX {
-        command = Command::new("flatpak-spawn");
-        command.arg("--host").arg(exec).args(args);
+        command = Command::new("nsenter");
+        command
+            .args(["--target", "1", "--all", "--"])
+            .arg(exec)
+            .args(args);
     } else {
         command = Command::new(exec);
         command.args(args);

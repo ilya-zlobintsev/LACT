@@ -11,6 +11,7 @@ mod overdrive_dialog;
 mod page_section;
 pub(crate) mod pages;
 mod process_monitor;
+pub(crate) mod styles;
 
 use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
@@ -187,9 +188,7 @@ impl AsyncComponent for AppModel {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        if !cfg!(feature = "adw") {
-            relm4::set_global_css(include_str!("../res/style.css"));
-        }
+        relm4::set_global_css(styles::COMBINED_CSS);
 
         let (daemon_client, conn_err) = match args.tcp_address {
             Some(remote_addr) => {

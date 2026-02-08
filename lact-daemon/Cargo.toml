@@ -18,7 +18,7 @@ serde = { workspace = true, features = ["rc"] }
 serde_with = { workspace = true }
 serde_json = { workspace = true }
 tracing-subscriber = { workspace = true }
-nix = { workspace = true, features = ["user", "fs", "ioctl"] }
+nix = { workspace = true, features = ["user", "fs", "ioctl", "socket"] }
 chrono = { workspace = true }
 tokio = { workspace = true, features = [
     "rt",
