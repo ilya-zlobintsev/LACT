@@ -154,86 +154,100 @@ impl relm4::Component for ClocksFrame {
                 },
             },
 
-            append_child = &gtk::Box {
+            append_child = &gtk::FlowBox {
                 set_orientation: gtk::Orientation::Horizontal,
-                set_spacing: 10,
+                set_selection_mode: gtk::SelectionMode::None,
+                set_max_children_per_line: 2,
+                set_min_children_per_line: 1,
+                set_column_spacing: 20,
+                set_row_spacing: 15,
+                set_homogeneous: false,
+                set_valign: gtk::Align::Start,
                 set_hexpand: true,
 
                 // Left Column: Core/GPU
-                append = &gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 10,
-                    set_hexpand: true,
+                append = &gtk::FlowBoxChild {
                     set_valign: gtk::Align::Start,
                     #[watch]
                     set_visible: !model.core_clocks.is_empty() || !model.core_voltages.is_empty() || !model.core_curve_clocks.is_empty() || !model.core_curve_voltages.is_empty(),
 
-                    append = &gtk::Box {
+                    gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 20,
+                        set_hexpand: true,
                         set_valign: gtk::Align::Start,
-                        set_spacing: 5,
-                        #[watch]
-                        set_visible: !model.core_clocks.is_empty(),
-                        append = model.core_clocks.widget(),
-                    },
-                    append = &gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_valign: gtk::Align::Start,
-                        set_spacing: 5,
-                        #[watch]
-                        set_visible: !model.core_voltages.is_empty(),
-                        append = model.core_voltages.widget(),
-                    },
-                    append = &gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_valign: gtk::Align::Start,
-                        set_spacing: 5,
-                        #[watch]
-                        set_visible: !model.core_curve_clocks.is_empty(),
-                        append = model.core_curve_clocks.widget(),
-                    },
-                    append = &gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_valign: gtk::Align::Start,
-                        set_spacing: 5,
-                        #[watch]
-                        set_visible: !model.core_curve_voltages.is_empty(),
-                        append = model.core_curve_voltages.widget(),
+
+                        append = &gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.core_clocks.is_empty(),
+                            append = model.core_clocks.widget(),
+                        },
+                        append = &gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.core_voltages.is_empty(),
+                            append = model.core_voltages.widget(),
+                        },
+                        append = &gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.core_curve_clocks.is_empty(),
+                            append = model.core_curve_clocks.widget(),
+                        },
+                        append = &gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.core_curve_voltages.is_empty(),
+                            append = model.core_curve_voltages.widget(),
+                        },
                     },
                 },
 
                 // Right Column: VRAM
-                append = &gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 10,
-                    set_hexpand: true,
+                append = &gtk::FlowBoxChild {
                     set_valign: gtk::Align::Start,
                     #[watch]
                     set_visible: !model.vram_clocks.is_empty() || !model.vram_curve_clocks.is_empty() || !model.vram_curve_voltages.is_empty(),
 
-                    append = &gtk::Box {
+                    gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 20,
+                        set_hexpand: true,
                         set_valign: gtk::Align::Start,
-                        set_spacing: 5,
-                        #[watch]
-                        set_visible: !model.vram_clocks.is_empty(),
-                        append = model.vram_clocks.widget(),
-                    },
-                    append = &gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_valign: gtk::Align::Start,
-                        set_spacing: 5,
-                        #[watch]
-                        set_visible: !model.vram_curve_clocks.is_empty(),
-                        append = model.vram_curve_clocks.widget(),
-                    },
-                    append = &gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_valign: gtk::Align::Start,
-                        set_spacing: 5,
-                        #[watch]
-                        set_visible: !model.vram_curve_voltages.is_empty(),
-                        append = model.vram_curve_voltages.widget(),
+
+                        append = &gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.vram_clocks.is_empty(),
+                            append = model.vram_clocks.widget(),
+                        },
+                        append = &gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.vram_curve_clocks.is_empty(),
+                            append = model.vram_curve_clocks.widget(),
+                        },
+                        append = &gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.vram_curve_voltages.is_empty(),
+                            append = model.vram_curve_voltages.widget(),
+                        },
                     },
                 },
             },
