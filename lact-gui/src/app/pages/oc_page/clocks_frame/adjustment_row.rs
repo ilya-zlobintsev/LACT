@@ -106,7 +106,7 @@ impl FactoryComponent for ClockAdjustmentRow {
             set_orientation: gtk::Orientation::Vertical,
 
             gtk::Separator {
-                set_visible: self.show_separator,
+                set_visible: false,
                 set_margin_top: 5,
                 set_margin_bottom: 10,
             },
