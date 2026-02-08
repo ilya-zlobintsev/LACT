@@ -30,8 +30,14 @@ impl GameModeConnector {
     pub fn new(process_list: &ProfileProcessMap) -> Option<Self> {
         let mut base_args: Vec<OsString> = vec![];
         let program_name = if *IS_FLATBOX {
-            base_args.extend_from_slice(&["--host".into(), "sudo".into()]);
-            "flatpak-spawn"
+            base_args.extend_from_slice(&[
+                "--target".into(),
+                "1".into(),
+                "--all".into(),
+                "--".into(),
+                "sudo".into(),
+            ]);
+            "nsenter"
         } else {
             "sudo"
         };
