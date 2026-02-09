@@ -13,7 +13,7 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
-use relm4::{prelude::FactoryComponent};
+use relm4::prelude::FactoryComponent;
 
 pub struct ClockAdjustmentRow {
     clock_type: ClockspeedType,
