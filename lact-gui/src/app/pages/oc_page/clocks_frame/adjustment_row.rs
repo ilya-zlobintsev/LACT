@@ -2,6 +2,7 @@ use crate::{
     APP_BROKER, I18N,
     app::{msg::AppMsg, pages::oc_adjustment::OcAdjustment},
 };
+use gtk::prelude::BoxExt;
 use gtk::{
     glib::{
         SignalHandlerId,
@@ -10,10 +11,9 @@ use gtk::{
     },
     prelude::{AdjustmentExt, EventControllerExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
 };
-use gtk::prelude::BoxExt;
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
-use relm4::{RelmWidgetExt, prelude::FactoryComponent};
+use relm4::{prelude::FactoryComponent};
 
 pub struct ClockAdjustmentRow {
     clock_type: ClockspeedType,

@@ -57,42 +57,15 @@ impl relm4::Component for ClocksFrame {
         PageSection::new(&fl!(I18N, "overclock-section")) {
             add_css_class: "clocks-frame",
 
-            append_header = &gtk::Button {
-                set_label: &fl!(I18N, "reset-button"),
-                set_tooltip_text: Some(&fl!(I18N, "reset-oc-tooltip")),
-
-                set_halign: gtk::Align::End,
+            append_header = &gtk::Box {
+                set_spacing: 10,
                 set_hexpand: true,
-                add_css_class: css::DESTRUCTIVE_ACTION,
-
-                #[watch]
-                set_visible: !model.core_clocks.is_empty() || !model.core_voltages.is_empty() || !model.vram_clocks.is_empty() || !model.core_curve_clocks.is_empty() || !model.vram_curve_clocks.is_empty() || !model.core_curve_voltages.is_empty() || !model.vram_curve_voltages.is_empty(),
-
-                connect_clicked => move |_| {
-                    APP_BROKER.send(AppMsg::ResetClocks);
-                }
-            },
-            append_child = &gtk::Label {
-                set_label: &fl!(I18N, "oc-warning"),
-                set_wrap_mode: pango::WrapMode::Word,
-                set_halign: gtk::Align::Start,
-                add_css_class: css::WARNING,
-            },
-
-            append_child = &gtk::Box {
-                set_orientation: gtk::Orientation::Horizontal,
-                set_halign: gtk::Align::Start,
-                set_spacing: 5,
-                #[watch]
-                set_visible: model.show_nvidia_options,
-
-                append = &gtk::Label {
-                    set_label: &fl!(I18N, "nvidia-oc-info"),
-                    add_css_class: css::HEADING,
-                },
+                set_halign: gtk::Align::End,
 
                 append = &gtk::MenuButton {
-                    set_icon_name: "dialog-information-symbolic",
+                    #[watch]
+                    set_visible: model.show_nvidia_options,
+                    set_label: &fl!(I18N, "nvidia-oc-info"),
 
                     #[wrap(Some)]
                     set_popover = &gtk::Popover {
@@ -104,6 +77,28 @@ impl relm4::Component for ClocksFrame {
                         }
                     }
                 },
+
+                append = &gtk::Button {
+                    set_label: &fl!(I18N, "reset-button"),
+                    set_tooltip_text: Some(&fl!(I18N, "reset-oc-tooltip")),
+
+                    add_css_class: css::DESTRUCTIVE_ACTION,
+
+                    #[watch]
+                    set_visible: !model.core_clocks.is_empty() || !model.core_voltages.is_empty() || !model.vram_clocks.is_empty() || !model.core_curve_clocks.is_empty() || !model.vram_curve_clocks.is_empty() || !model.core_curve_voltages.is_empty() || !model.vram_curve_voltages.is_empty(),
+
+                    connect_clicked => move |_| {
+                        APP_BROKER.send(AppMsg::ResetClocks);
+                    }
+                },
+            },
+
+            append_child = &gtk::Label {
+                set_label: &fl!(I18N, "oc-warning"),
+                set_wrap_mode: pango::WrapMode::Word,
+                set_halign: gtk::Align::Start,
+                add_css_class: css::WARNING,
+                add_css_class: css::DIM_LABEL,
             },
 
             append_child = &gtk::Box {
