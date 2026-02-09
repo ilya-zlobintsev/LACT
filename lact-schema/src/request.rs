@@ -136,32 +136,24 @@ impl SetClocksCommand {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum ClockspeedType {
-    // group core
     MaxCoreClock,
     MinCoreClock,
     GpuClockOffset(u32),
 
-    // group core voltage
     MinVoltage,
     MaxVoltage,
     VoltageOffset,
 
-    // group vram
     MaxMemoryClock,
     MinMemoryClock,
     MemClockOffset(u32),
 
-    // group core curve
     GpuVfCurveClock(u8),
-    // group vram curve
-    MemVfCurveClock(u8),
-    // group core voltage curve
     GpuVfCurveVoltage(u8),
 
-    // group vram volage curve
+    MemVfCurveClock(u8),
     MemVfCurveVoltage(u8),
 
-    // has no row
     Reset,
 }
 
