@@ -85,7 +85,13 @@ impl relm4::Component for ClocksFrame {
                     add_css_class: css::DESTRUCTIVE_ACTION,
 
                     #[watch]
-                    set_visible: !model.core_clocks.is_empty() || !model.core_voltages.is_empty() || !model.vram_clocks.is_empty() || !model.core_curve_clocks.is_empty() || !model.vram_curve_clocks.is_empty() || !model.core_curve_voltages.is_empty() || !model.vram_curve_voltages.is_empty(),
+                    set_visible: !model.core_clocks.is_empty()
+                    || !model.core_voltages.is_empty()
+                    || !model.vram_clocks.is_empty()
+                    || !model.core_curve_clocks.is_empty()
+                    || !model.vram_curve_clocks.is_empty()
+                    || !model.core_curve_voltages.is_empty()
+                    || !model.vram_curve_voltages.is_empty(),
 
                     connect_clicked => move |_| {
                         APP_BROKER.send(AppMsg::ResetClocks);
@@ -112,7 +118,14 @@ impl relm4::Component for ClocksFrame {
 
                     append = &gtk::CheckButton {
                         #[watch]
-                        set_visible: model.core_clocks.values().any(|row| row.is_secondary) || model.core_voltages.values().any(|row| row.is_secondary) || model.vram_clocks.values().any(|row| row.is_secondary) || model.core_curve_clocks.values().any(|row| row.is_secondary) || model.vram_curve_clocks.values().any(|row| row.is_secondary) || model.core_curve_voltages.values().any(|row| row.is_secondary) || model.vram_curve_voltages.values().any(|row| row.is_secondary),
+                        set_visible: model.core_clocks.values().any(|row| row.is_secondary)
+                        || model.core_voltages.values().any(|row| row.is_secondary)
+                        || model.vram_clocks.values().any(|row| row.is_secondary)
+                        || model.core_curve_clocks.values().any(|row| row.is_secondary)
+                        || model.vram_curve_clocks.values().any(|row| row.is_secondary)
+                        || model.core_curve_voltages.values().any(|row| row.is_secondary)
+                        || model.vram_curve_voltages.values().any(|row| row.is_secondary),
+
                         set_label: Some(&fl!(I18N, "show-all-pstates")),
                         add_binding["active"]: &model.show_all_pstates,
                     },
@@ -166,7 +179,10 @@ impl relm4::Component for ClocksFrame {
                     add_css_class: "clocks-frame-group",
                     set_valign: gtk::Align::Start,
                     #[watch]
-                    set_visible: !model.core_clocks.is_empty() || !model.core_voltages.is_empty() || !model.core_curve_clocks.is_empty() || !model.core_curve_voltages.is_empty(),
+                    set_visible: !model.core_clocks.is_empty()
+                    || !model.core_voltages.is_empty()
+                    || !model.core_curve_clocks.is_empty()
+                    || !model.core_curve_voltages.is_empty(),
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
@@ -218,7 +234,9 @@ impl relm4::Component for ClocksFrame {
                     add_css_class: "clocks-frame-group",
                     set_valign: gtk::Align::Start,
                     #[watch]
-                    set_visible: !model.vram_clocks.is_empty() || !model.vram_curve_clocks.is_empty() || !model.vram_curve_voltages.is_empty(),
+                    set_visible: !model.vram_clocks.is_empty()
+                    || !model.vram_curve_clocks.is_empty()
+                    || !model.vram_curve_voltages.is_empty(),
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
@@ -262,7 +280,13 @@ impl relm4::Component for ClocksFrame {
                 set_margin_horizontal: 10,
                 set_halign: gtk::Align::Start,
                 #[watch]
-                set_visible: model.core_clocks.is_empty() && model.core_voltages.is_empty() && model.vram_clocks.is_empty() && model.core_curve_clocks.is_empty() && model.vram_curve_clocks.is_empty() && model.core_curve_voltages.is_empty() && model.vram_curve_voltages.is_empty(),
+                set_visible: model.core_clocks.is_empty()
+                && model.core_voltages.is_empty()
+                && model.vram_clocks.is_empty()
+                && model.core_curve_clocks.is_empty()
+                && model.vram_curve_clocks.is_empty()
+                && model.core_curve_voltages.is_empty()
+                && model.vram_curve_voltages.is_empty(),
             },
         }
     }
