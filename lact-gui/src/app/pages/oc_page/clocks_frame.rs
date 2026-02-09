@@ -55,6 +55,8 @@ impl relm4::Component for ClocksFrame {
 
     view! {
         PageSection::new(&fl!(I18N, "overclock-section")) {
+            add_css_class: "clocks-frame",
+
             append_header = &gtk::Button {
                 set_label: &fl!(I18N, "reset-button"),
                 set_tooltip_text: Some(&fl!(I18N, "reset-oc-tooltip")),
@@ -74,7 +76,6 @@ impl relm4::Component for ClocksFrame {
                 set_label: &fl!(I18N, "oc-warning"),
                 set_wrap_mode: pango::WrapMode::Word,
                 set_halign: gtk::Align::Start,
-                set_margin_horizontal: 5,
                 add_css_class: css::WARNING,
             },
 
@@ -159,7 +160,7 @@ impl relm4::Component for ClocksFrame {
                 set_selection_mode: gtk::SelectionMode::None,
                 set_max_children_per_line: 2,
                 set_min_children_per_line: 1,
-                set_column_spacing: 20,
+                set_column_spacing: 15,
                 set_row_spacing: 15,
                 set_homogeneous: false,
                 set_valign: gtk::Align::Start,
@@ -167,17 +168,19 @@ impl relm4::Component for ClocksFrame {
 
                 // Left Column: Core/GPU
                 append = &gtk::FlowBoxChild {
+                    add_css_class: "clocks-frame-group",
                     set_valign: gtk::Align::Start,
                     #[watch]
                     set_visible: !model.core_clocks.is_empty() || !model.core_voltages.is_empty() || !model.core_curve_clocks.is_empty() || !model.core_curve_voltages.is_empty(),
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 20,
+                        set_spacing: 15,
                         set_hexpand: true,
                         set_valign: gtk::Align::Start,
 
                         append = &gtk::Box {
+                            add_css_class: css::FRAME,
                             set_orientation: gtk::Orientation::Vertical,
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
@@ -186,6 +189,7 @@ impl relm4::Component for ClocksFrame {
                             append = model.core_clocks.widget(),
                         },
                         append = &gtk::Box {
+                            add_css_class: css::FRAME,
                             set_orientation: gtk::Orientation::Vertical,
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
@@ -194,6 +198,7 @@ impl relm4::Component for ClocksFrame {
                             append = model.core_voltages.widget(),
                         },
                         append = &gtk::Box {
+                            add_css_class: css::FRAME,
                             set_orientation: gtk::Orientation::Vertical,
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
@@ -202,6 +207,7 @@ impl relm4::Component for ClocksFrame {
                             append = model.core_curve_clocks.widget(),
                         },
                         append = &gtk::Box {
+                            add_css_class: css::FRAME,
                             set_orientation: gtk::Orientation::Vertical,
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
@@ -214,17 +220,19 @@ impl relm4::Component for ClocksFrame {
 
                 // Right Column: VRAM
                 append = &gtk::FlowBoxChild {
+                    add_css_class: "clocks-frame-group",
                     set_valign: gtk::Align::Start,
                     #[watch]
                     set_visible: !model.vram_clocks.is_empty() || !model.vram_curve_clocks.is_empty() || !model.vram_curve_voltages.is_empty(),
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 20,
+                        set_spacing: 15,
                         set_hexpand: true,
                         set_valign: gtk::Align::Start,
 
                         append = &gtk::Box {
+                            add_css_class: css::FRAME,
                             set_orientation: gtk::Orientation::Vertical,
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
@@ -233,6 +241,7 @@ impl relm4::Component for ClocksFrame {
                             append = model.vram_clocks.widget(),
                         },
                         append = &gtk::Box {
+                            add_css_class: css::FRAME,
                             set_orientation: gtk::Orientation::Vertical,
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
@@ -241,6 +250,7 @@ impl relm4::Component for ClocksFrame {
                             append = model.vram_curve_clocks.widget(),
                         },
                         append = &gtk::Box {
+                            add_css_class: css::FRAME,
                             set_orientation: gtk::Orientation::Vertical,
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
