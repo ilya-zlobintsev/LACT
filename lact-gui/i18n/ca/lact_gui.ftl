@@ -226,3 +226,8 @@ nvidia-oc-description =
     És possible aconseguir un pseudo-undervolt combinant l'opció de rellotges bloquejats amb un increment de la velocitat de rellotge.
     Això forçarà la GPU a funcionar a un voltatge que està limitat pels rellotges bloquejats, mentre s'aconsegueix una velocitat de rellotge més alta a causa de l'increment.
     Això pot causar inestabilitat del sistema si s'augmenta massa.
+exit = Sortir
+gibibyte = GiB
+crash-page-title = L'aplicació ha fallat
+bytes = bytes
+kibibyte = KiB
