@@ -168,7 +168,6 @@ mod imp {
                 #[local_ref]
                 obj {
                     set_orientation: gtk::Orientation::Horizontal,
-                    set_margin_all: 5,
                     set_spacing: 5,
 
                     append = &gtk::Box {
