@@ -229,3 +229,5 @@ edit-graphs = Modifier
 gibibyte = Gio
 crash-page-title = L’application a planté
 exit = Quitter
+bytes = octets
+kibibyte = Kio
