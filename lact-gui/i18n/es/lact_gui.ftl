@@ -226,3 +226,6 @@ gpu-pstate-clock = GPU P-State { $pstate } Reloj (MHz)
 mem-pstate-clock = VRAM P-State { $pstate } Reloj (MHz)
 gpu-pstate-clock-voltage = GPU P-State { $pstate } Voltaje (mV)
 mem-pstate-clock-voltage = VRAM P-State { $pstate } Voltaje (mV)
+gibibyte = GiB
+crash-page-title = Aplicación Colgada
+exit = Salir
