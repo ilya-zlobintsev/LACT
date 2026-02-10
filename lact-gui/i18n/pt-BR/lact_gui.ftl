@@ -229,3 +229,5 @@ edit-graph-sensors = Editar Gráfico de Sensores
 gibibyte = GiB
 crash-page-title = O aplicativo travou
 exit = Sair
+bytes = bytes
+kibibyte = KiB
