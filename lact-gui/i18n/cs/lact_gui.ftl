@@ -229,3 +229,5 @@ nvidia-oc-description =
 gibibyte = GiB
 crash-page-title = Aplikace zhavarovala
 exit = Ukončit
+bytes = bajtů
+kibibyte = KiB

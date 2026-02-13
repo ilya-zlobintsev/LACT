@@ -229,3 +229,5 @@ profile-hook-note = შენიშვნა: ეს ბრძანებებ
 gibibyte = გიბ
 crash-page-title = აპლიკაცია ავარიულად დასრულდა
 exit = გასვლა
+bytes = ბაიტი
+kibibyte = კიბ

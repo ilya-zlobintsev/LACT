@@ -229,3 +229,5 @@ edit-graph-sensors = عدّل مستشعرات الرسم بياني
 gibibyte = ج.بايت
 crash-page-title = تطبيق تعطل
 exit = اخرج
+bytes = بايتات
+kibibyte = ك.بايت
