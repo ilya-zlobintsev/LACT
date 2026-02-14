@@ -162,8 +162,8 @@ impl relm4::Component for ClocksFrame {
                 set_selection_mode: gtk::SelectionMode::None,
                 set_max_children_per_line: 2,
                 set_min_children_per_line: 1,
-                set_column_spacing: 15,
-                set_row_spacing: 15,
+                set_column_spacing: 10,
+                set_row_spacing: 10,
                 set_homogeneous: false,
                 set_valign: gtk::Align::Start,
                 set_hexpand: true,
@@ -176,7 +176,7 @@ impl relm4::Component for ClocksFrame {
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 15,
+                        set_spacing: 10,
                         set_hexpand: true,
                         set_valign: gtk::Align::Start,
 
@@ -227,7 +227,7 @@ impl relm4::Component for ClocksFrame {
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 15,
+                        set_spacing: 10,
                         set_hexpand: true,
                         set_valign: gtk::Align::Start,
 
