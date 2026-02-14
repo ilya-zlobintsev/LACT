@@ -32,6 +32,8 @@ impl PageSection {
 unsafe impl<T: ObjectSubclass + BoxImpl> IsSubclassable<T> for PageSection {}
 
 mod imp {
+    use std::cell::RefCell;
+
     use glib::Properties;
     use gtk::{
         Label,
@@ -40,7 +42,6 @@ mod imp {
         subclass::{prelude::*, widget::WidgetImpl},
     };
     use relm4::{RelmWidgetExt, css, view};
-    use std::cell::RefCell;
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::PageSection)]

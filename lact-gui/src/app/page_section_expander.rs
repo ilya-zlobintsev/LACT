@@ -1,3 +1,4 @@
+use cairo::glib::subclass::types::ObjectSubclassIsExt;
 use gtk::prelude::*;
 use gtk::{
     glib::{
@@ -19,12 +20,10 @@ impl PageSectionExpander {
     }
 
     pub fn append_header(&self, widget: &impl IsA<gtk::Widget>) {
-        use glib::subclass::types::ObjectSubclassIsExt;
         self.imp().header_box.append(widget);
     }
 
     pub fn append_expandable(&self, widget: &impl IsA<gtk::Widget>) {
-        use glib::subclass::types::ObjectSubclassIsExt;
         self.imp().children_box.append(widget);
     }
 }
@@ -32,6 +31,8 @@ impl PageSectionExpander {
 unsafe impl<T: ObjectSubclass + BoxImpl> IsSubclassable<T> for PageSectionExpander {}
 
 mod imp {
+    use std::cell::RefCell;
+
     use glib::Properties;
     use gtk::{
         Label,
@@ -40,7 +41,6 @@ mod imp {
         subclass::{prelude::*, widget::WidgetImpl},
     };
     use relm4::{RelmWidgetExt, view};
-    use std::cell::RefCell;
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::PageSectionExpander)]
