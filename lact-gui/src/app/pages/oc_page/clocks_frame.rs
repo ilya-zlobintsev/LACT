@@ -1,10 +1,15 @@
+mod adjustment_group;
 mod adjustment_row;
 
 use crate::{
     APP_BROKER, I18N,
     app::{msg::AppMsg, page_section::PageSection},
 };
-use adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
+use adjustment_group::{
+    ALL_CATEGORIES, AdjustmentGroup, CORE_CATEGORIES, ClockCategory, VRAM_CATEGORIES,
+    clock_category,
+};
+use adjustment_row::ClocksData;
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
 use gtk::{
     glib::object::ObjectExt,
@@ -18,14 +23,12 @@ use lact_schema::{
 };
 use relm4::{
     ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
-    factory::FactoryHashMap,
 };
 
-// This should not end up being used in practice
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 
 pub struct ClocksFrame {
-    clocks_groups: ClockGroupsFactories,
+    groups: AdjustmentGroups,
     vram_clock_ratio: f64,
     show_nvidia_options: bool,
     show_all_pstates: BoolBinding,
@@ -33,14 +36,14 @@ pub struct ClocksFrame {
     enable_vram_locked_clocks: BoolBinding,
 }
 
-pub struct ClockGroupsFactories {
-    core_clocks: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
-    core_voltages: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
-    vram_clocks: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
-    core_curve_clocks: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
-    vram_curve_clocks: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
-    core_curve_voltages: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
-    vram_curve_voltages: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
+pub struct AdjustmentGroups {
+    core_clock: AdjustmentGroup,
+    core_voltage: AdjustmentGroup,
+    vram_clock: AdjustmentGroup,
+    core_curve_clock: AdjustmentGroup,
+    vram_curve_clock: AdjustmentGroup,
+    core_curve_voltage: AdjustmentGroup,
+    vram_curve_voltage: AdjustmentGroup,
 }
 
 #[derive(Debug)]
@@ -146,7 +149,6 @@ impl relm4::Component for ClocksFrame {
                 append = &gtk::Label {
                     #[watch]
                     set_visible: model.show_all_pstates.value() && model.show_nvidia_options,
-                    // add_binding["visible"]: &model.show_all_pstates,
 
                     set_margin_horizontal: 5,
                     set_markup: &fl!(I18N, "pstate-list-description"),
@@ -166,7 +168,6 @@ impl relm4::Component for ClocksFrame {
                 set_valign: gtk::Align::Start,
                 set_hexpand: true,
 
-                // Left Column: Core/GPU
                 append = &gtk::FlowBoxChild {
                     add_css_class: "clocks-frame-group",
                     set_valign: gtk::Align::Start,
@@ -185,8 +186,8 @@ impl relm4::Component for ClocksFrame {
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
                             #[watch]
-                            set_visible: !model.clocks_groups.core_clocks.is_empty(),
-                            append = model.clocks_groups.core_clocks.widget(),
+                            set_visible: !model.groups.core_clock.is_empty(),
+                            append = model.groups.core_clock.widget(),
                         },
                         append = &gtk::Box {
                             add_css_class: css::FRAME,
@@ -194,8 +195,8 @@ impl relm4::Component for ClocksFrame {
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
                             #[watch]
-                            set_visible: !model.clocks_groups.core_voltages.is_empty(),
-                            append = model.clocks_groups.core_voltages.widget(),
+                            set_visible: !model.groups.core_voltage.is_empty(),
+                            append = model.groups.core_voltage.widget(),
                         },
                         append = &gtk::Box {
                             add_css_class: css::FRAME,
@@ -203,8 +204,8 @@ impl relm4::Component for ClocksFrame {
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
                             #[watch]
-                            set_visible: !model.clocks_groups.core_curve_clocks.is_empty(),
-                            append = model.clocks_groups.core_curve_clocks.widget(),
+                            set_visible: !model.groups.core_curve_clock.is_empty(),
+                            append = model.groups.core_curve_clock.widget(),
                         },
                         append = &gtk::Box {
                             add_css_class: css::FRAME,
@@ -212,13 +213,12 @@ impl relm4::Component for ClocksFrame {
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
                             #[watch]
-                            set_visible: !model.clocks_groups.core_curve_voltages.is_empty(),
-                            append = model.clocks_groups.core_curve_voltages.widget(),
+                            set_visible: !model.groups.core_curve_voltage.is_empty(),
+                            append = model.groups.core_curve_voltage.widget(),
                         },
                     },
                 },
 
-                // Right Column: VRAM
                 append = &gtk::FlowBoxChild {
                     add_css_class: "clocks-frame-group",
                     set_valign: gtk::Align::Start,
@@ -237,8 +237,8 @@ impl relm4::Component for ClocksFrame {
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
                             #[watch]
-                            set_visible: !model.clocks_groups.vram_clocks.is_empty(),
-                            append = model.clocks_groups.vram_clocks.widget(),
+                            set_visible: !model.groups.vram_clock.is_empty(),
+                            append = model.groups.vram_clock.widget(),
                         },
                         append = &gtk::Box {
                             add_css_class: css::FRAME,
@@ -246,8 +246,8 @@ impl relm4::Component for ClocksFrame {
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
                             #[watch]
-                            set_visible: !model.clocks_groups.vram_curve_clocks.is_empty(),
-                            append = model.clocks_groups.vram_curve_clocks.widget(),
+                            set_visible: !model.groups.vram_curve_clock.is_empty(),
+                            append = model.groups.vram_curve_clock.widget(),
                         },
                         append = &gtk::Box {
                             add_css_class: css::FRAME,
@@ -255,8 +255,8 @@ impl relm4::Component for ClocksFrame {
                             set_valign: gtk::Align::Start,
                             set_spacing: 5,
                             #[watch]
-                            set_visible: !model.clocks_groups.vram_curve_voltages.is_empty(),
-                            append = model.clocks_groups.vram_curve_voltages.widget(),
+                            set_visible: !model.groups.vram_curve_voltage.is_empty(),
+                            append = model.groups.vram_curve_voltage.widget(),
                         },
                     },
                 },
@@ -277,25 +277,9 @@ impl relm4::Component for ClocksFrame {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let mut factories = ClockGroupsFactories {
-            core_clocks: FactoryHashMap::builder().launch_default().detach(),
-            core_voltages: FactoryHashMap::builder().launch_default().detach(),
-            vram_clocks: FactoryHashMap::builder().launch_default().detach(),
-            core_curve_clocks: FactoryHashMap::builder().launch_default().detach(),
-            vram_curve_clocks: FactoryHashMap::builder().launch_default().detach(),
-            core_curve_voltages: FactoryHashMap::builder().launch_default().detach(),
-            vram_curve_voltages: FactoryHashMap::builder().launch_default().detach(),
-        };
-
-        for factory in factories.as_mut_array() {
-            let container = factory.widget();
-            container.set_orientation(gtk::Orientation::Vertical);
-            container.set_spacing(5);
-            container.set_valign(gtk::Align::Start);
-        }
 
         let model = Self {
-            clocks_groups: factories,
+            groups: AdjustmentGroups::new(),
             vram_clock_ratio: 1.0,
             show_nvidia_options: false,
             show_all_pstates: BoolBinding::new(false),
@@ -335,9 +319,7 @@ impl relm4::Component for ClocksFrame {
                     .vram_locked_clocks_togglebutton
                     .block_signal(&widgets.vram_locked_clock_signal);
 
-                for factory in self.clocks_groups.as_mut_array() {
-                    factory.clear();
-                }
+                self.groups.clear();
                 self.enable_gpu_locked_clocks.set_value(false);
                 self.enable_vram_locked_clocks.set_value(false);
                 self.show_nvidia_options = false;
@@ -350,21 +332,11 @@ impl relm4::Component for ClocksFrame {
                     }
                 }
 
-                // Make sure the width of all the labels is the same
                 let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                 let input_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
 
-                for factory in self.clocks_groups.as_array() {
-                    for clockspeed_type in factory.keys() {
-                        factory.send(
-                            clockspeed_type,
-                            ClockAdjustmentRowMsg::AddSizeGroup {
-                                label_group: label_size_group.clone(),
-                                input_group: input_size_group.clone(),
-                            },
-                        );
-                    }
-                }
+                self.groups
+                    .add_size_groups(label_size_group, input_size_group);
 
                 widgets
                     .gpu_locked_clocks_togglebutton
@@ -379,27 +351,12 @@ impl relm4::Component for ClocksFrame {
                 self.vram_clock_ratio = vram_ratio;
             }
             ClocksFrameMsg::TogglePStatesVisibility => {
-                let show_secondary = self.show_all_pstates.value();
-                for factory in self.clocks_groups.as_array() {
-                    for (key, row) in factory.iter() {
-                        // Only show min/max core/vram clock when nvidia locked clocks are enabeld
-                        let show_current = match key {
-                            ClockspeedType::MaxCoreClock | ClockspeedType::MinCoreClock
-                                if self.show_nvidia_options =>
-                            {
-                                self.enable_gpu_locked_clocks.value()
-                            }
-                            ClockspeedType::MaxMemoryClock | ClockspeedType::MinMemoryClock
-                                if self.show_nvidia_options =>
-                            {
-                                self.enable_vram_locked_clocks.value()
-                            }
-                            _ => !row.is_secondary || show_secondary,
-                        };
-
-                        factory.send(key, ClockAdjustmentRowMsg::SetVisible(show_current));
-                    }
-                }
+                self.groups.toggle_secondary_visibility(
+                    self.show_all_pstates.value(),
+                    self.show_nvidia_options,
+                    self.enable_gpu_locked_clocks.value(),
+                    self.enable_vram_locked_clocks.value(),
+                );
             }
         }
         self.update_vram_clock_ratio();
@@ -410,65 +367,30 @@ impl relm4::Component for ClocksFrame {
 
 impl ClocksFrame {
     fn set_clock(&mut self, clock_type: ClockspeedType, data: ClocksData) {
-        let factory = match clock_type {
-            ClockspeedType::MaxCoreClock
-            | ClockspeedType::MinCoreClock
-            | ClockspeedType::GpuClockOffset(_) => &mut self.clocks_groups.core_clocks,
-            ClockspeedType::MinVoltage
-            | ClockspeedType::MaxVoltage
-            | ClockspeedType::VoltageOffset => &mut self.clocks_groups.core_voltages,
-            ClockspeedType::MaxMemoryClock
-            | ClockspeedType::MinMemoryClock
-            | ClockspeedType::MemClockOffset(_) => &mut self.clocks_groups.vram_clocks,
-            ClockspeedType::GpuVfCurveClock(_) => &mut self.clocks_groups.core_curve_clocks,
-            ClockspeedType::MemVfCurveClock(_) => &mut self.clocks_groups.vram_curve_clocks,
-            ClockspeedType::GpuVfCurveVoltage(_) => &mut self.clocks_groups.core_curve_voltages,
-            ClockspeedType::MemVfCurveVoltage(_) => &mut self.clocks_groups.vram_curve_voltages,
-            ClockspeedType::Reset => return,
-        };
-        factory.insert(clock_type, data);
+        let category = clock_category(clock_type);
+        self.groups.get_mut(category).set_clock(clock_type, data);
     }
 
     fn has_any_clocks(&self) -> bool {
-        self.clocks_groups
-            .as_array()
-            .into_iter()
-            .any(|factory| !factory.is_empty())
+        self.groups.iter().any(|group| !group.is_empty())
     }
 
     fn any_is_secondary(&self) -> bool {
-        self.clocks_groups
-            .as_array()
-            .into_iter()
-            .any(|factory| factory.values().any(|row| row.is_secondary))
+        self.groups.iter().any(|group| group.has_secondary())
     }
 
     fn core_any_visible(&self) -> bool {
-        self.clocks_groups
-            .core_as_array()
-            .into_iter()
-            .any(|factory| !factory.is_empty())
+        self.groups.iter_core().any(|group| !group.is_empty())
     }
 
     fn vram_any_visible(&self) -> bool {
-        self.clocks_groups
-            .vram_as_array()
-            .into_iter()
-            .any(|factory| !factory.is_empty())
+        self.groups.iter_vram().any(|group| !group.is_empty())
     }
 
     fn update_vram_clock_ratio(&self) {
-        for clock_type in [
-            ClockspeedType::MaxMemoryClock,
-            ClockspeedType::MinMemoryClock,
-        ] {
-            if self.clocks_groups.vram_clocks.get(&clock_type).is_some() {
-                self.clocks_groups.vram_clocks.send(
-                    &clock_type,
-                    ClockAdjustmentRowMsg::ValueRatio(self.vram_clock_ratio),
-                );
-            }
-        }
+        self.groups
+            .get(ClockCategory::VramClock)
+            .set_value_ratio(self.vram_clock_ratio);
     }
 
     fn set_amd_table(&mut self, table: AmdClocksTable) {
@@ -667,14 +589,14 @@ impl ClocksFrame {
                 table.gpu_locked_clocks,
                 ClockspeedType::MinCoreClock,
                 ClockspeedType::MaxCoreClock,
-                &self.enable_gpu_locked_clocks.clone(),
+                self.enable_gpu_locked_clocks.clone(),
             ),
             (
                 table.vram_clock_range,
                 table.vram_locked_clocks,
                 ClockspeedType::MinMemoryClock,
                 ClockspeedType::MaxMemoryClock,
-                &self.enable_vram_locked_clocks.clone(),
+                self.enable_vram_locked_clocks.clone(),
             ),
         ];
 
@@ -731,77 +653,118 @@ impl ClocksFrame {
     }
 
     pub fn get_commands(&self) -> Vec<SetClocksCommand> {
-        self.clocks_groups
-            .as_array()
-            .into_iter()
-            .flat_map(|factory| factory.iter())
-            .filter_map(|(clock_type, row)| {
-                // If nvidia options are enabled, we always set locked clocks to None or Some
+        // If nvidia options are enabled, we always set locked clocks to None or Some
+        self.groups
+            .iter()
+            .flat_map(|group| group.get_commands())
+            .map(|(clock_type, configured_value)| {
                 let value = if self.show_nvidia_options {
                     match clock_type {
                         ClockspeedType::MinCoreClock | ClockspeedType::MaxCoreClock => self
                             .enable_gpu_locked_clocks
                             .value()
-                            .then(|| row.get_raw_value()),
+                            .then(|| self.groups.get_raw_value(clock_type)),
                         ClockspeedType::MinMemoryClock | ClockspeedType::MaxMemoryClock => self
                             .enable_vram_locked_clocks
                             .value()
-                            .then(|| row.get_raw_value()),
-                        _ => Some(row.get_configured_value()?),
+                            .then(|| self.groups.get_raw_value(clock_type)),
+                        _ => configured_value,
                     }
                 } else {
-                    Some(row.get_configured_value()?)
+                    configured_value
                 };
 
-                Some(SetClocksCommand {
-                    r#type: *clock_type,
+                SetClocksCommand {
+                    r#type: clock_type,
                     value,
-                })
+                }
             })
             .collect()
     }
 }
 
-impl ClockGroupsFactories {
-    fn as_array(&self) -> [&FactoryHashMap<ClockspeedType, ClockAdjustmentRow>; 7] {
-        [
-            &self.core_clocks,
-            &self.core_voltages,
-            &self.vram_clocks,
-            &self.core_curve_clocks,
-            &self.vram_curve_clocks,
-            &self.core_curve_voltages,
-            &self.vram_curve_voltages,
-        ]
+impl AdjustmentGroups {
+    fn new() -> Self {
+        Self {
+            core_clock: AdjustmentGroup::new(ClockCategory::CoreClock),
+            core_voltage: AdjustmentGroup::new(ClockCategory::CoreVoltage),
+            vram_clock: AdjustmentGroup::new(ClockCategory::VramClock),
+            core_curve_clock: AdjustmentGroup::new(ClockCategory::CoreCurveClock),
+            vram_curve_clock: AdjustmentGroup::new(ClockCategory::VramCurveClock),
+            core_curve_voltage: AdjustmentGroup::new(ClockCategory::CoreCurveVoltage),
+            vram_curve_voltage: AdjustmentGroup::new(ClockCategory::VramCurveVoltage),
+        }
     }
 
-    fn as_mut_array(&mut self) -> [&mut FactoryHashMap<ClockspeedType, ClockAdjustmentRow>; 7] {
-        [
-            &mut self.core_clocks,
-            &mut self.core_voltages,
-            &mut self.vram_clocks,
-            &mut self.core_curve_clocks,
-            &mut self.vram_curve_clocks,
-            &mut self.core_curve_voltages,
-            &mut self.vram_curve_voltages,
-        ]
+    fn get(&self, category: ClockCategory) -> &AdjustmentGroup {
+        match category {
+            ClockCategory::CoreClock => &self.core_clock,
+            ClockCategory::CoreVoltage => &self.core_voltage,
+            ClockCategory::VramClock => &self.vram_clock,
+            ClockCategory::CoreCurveClock => &self.core_curve_clock,
+            ClockCategory::VramCurveClock => &self.vram_curve_clock,
+            ClockCategory::CoreCurveVoltage => &self.core_curve_voltage,
+            ClockCategory::VramCurveVoltage => &self.vram_curve_voltage,
+        }
     }
 
-    fn core_as_array(&self) -> [&FactoryHashMap<ClockspeedType, ClockAdjustmentRow>; 4] {
-        [
-            &self.core_clocks,
-            &self.core_voltages,
-            &self.core_curve_clocks,
-            &self.core_curve_voltages,
-        ]
+    fn get_mut(&mut self, category: ClockCategory) -> &mut AdjustmentGroup {
+        match category {
+            ClockCategory::CoreClock => &mut self.core_clock,
+            ClockCategory::CoreVoltage => &mut self.core_voltage,
+            ClockCategory::VramClock => &mut self.vram_clock,
+            ClockCategory::CoreCurveClock => &mut self.core_curve_clock,
+            ClockCategory::VramCurveClock => &mut self.vram_curve_clock,
+            ClockCategory::CoreCurveVoltage => &mut self.core_curve_voltage,
+            ClockCategory::VramCurveVoltage => &mut self.vram_curve_voltage,
+        }
     }
 
-    fn vram_as_array(&self) -> [&FactoryHashMap<ClockspeedType, ClockAdjustmentRow>; 3] {
-        [
-            &self.vram_clocks,
-            &self.vram_curve_clocks,
-            &self.vram_curve_voltages,
-        ]
+    fn iter(&self) -> impl Iterator<Item = &AdjustmentGroup> {
+        ALL_CATEGORIES.iter().map(|category| self.get(*category))
+    }
+
+    fn iter_core(&self) -> impl Iterator<Item = &AdjustmentGroup> {
+        CORE_CATEGORIES.iter().map(|category| self.get(*category))
+    }
+
+    fn iter_vram(&self) -> impl Iterator<Item = &AdjustmentGroup> {
+        VRAM_CATEGORIES.iter().map(|category| self.get(*category))
+    }
+
+    fn clear(&mut self) {
+        for category in ALL_CATEGORIES {
+            self.get_mut(category).clear();
+        }
+    }
+
+    fn add_size_groups(&self, label_group: gtk::SizeGroup, input_group: gtk::SizeGroup) {
+        for category in ALL_CATEGORIES {
+            self.get(category)
+                .add_size_group(label_group.clone(), input_group.clone());
+        }
+    }
+
+    fn toggle_secondary_visibility(
+        &self,
+        show_secondary: bool,
+        show_nvidia_options: bool,
+        enable_gpu_locked: bool,
+        enable_vram_locked: bool,
+    ) {
+        for category in ALL_CATEGORIES {
+            self.get(category).toggle_secondary_visibility(
+                show_secondary,
+                show_nvidia_options,
+                enable_gpu_locked,
+                enable_vram_locked,
+            );
+        }
+    }
+
+    fn get_raw_value(&self, clock_type: ClockspeedType) -> i32 {
+        let category = clock_category(clock_type);
+        self.get(category).get_raw_value(clock_type)
     }
 }
 
