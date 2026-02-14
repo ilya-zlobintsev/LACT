@@ -4,12 +4,12 @@ use lact_schema::PowerState;
 use relm4::{RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css};
 
 pub struct PowerStateRow {
-    pub(super) active: BoolBinding,
+    active: BoolBinding,
     pub(super) enabled: BoolBinding,
     pub(super) power_state: PowerState,
-    pub(super) value_suffix: String,
-    pub(super) configurable: BoolBinding,
-    pub(super) show_active_indicator: BoolBinding,
+    value_suffix: String,
+    configurable: BoolBinding,
+    show_active_indicator: BoolBinding,
 }
 
 pub struct PowerStateRowOptions {
