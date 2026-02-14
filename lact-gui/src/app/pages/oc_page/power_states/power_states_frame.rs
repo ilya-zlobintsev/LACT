@@ -18,8 +18,9 @@ use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
-    Component, ComponentController, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
+    Component, ComponentController, ComponentParts, ComponentSender, RelmObjectExt,
     binding::{Binding, BoolBinding},
+    css,
 };
 use std::sync::Arc;
 
@@ -60,7 +61,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
                 gtk::Label {
                     set_label: &fl!(I18N, "pstates-manual-needed"),
-                    set_margin_horizontal: 10,
+                    add_css_class: css::DIM_LABEL,
                     set_halign: gtk::Align::Start,
                     #[watch]
                     set_visible: model.performance_level.is_some_and(|level| level != PerformanceLevel::Manual),

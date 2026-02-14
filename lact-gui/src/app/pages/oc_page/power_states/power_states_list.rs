@@ -11,7 +11,8 @@ use relm4::{
 pub struct PowerStatesList {
     states: FactoryVecDeque<PowerStateRow>,
     value_suffix: String,
-    show_active_indicator: BoolBinding,
+    is_active_indicator_visible: BoolBinding,
+    configurable: BoolBinding,
 }
 
 pub struct PowerStatesListOptions {
@@ -55,11 +56,13 @@ impl relm4::SimpleComponent for PowerStatesList {
     ) -> ComponentParts<Self> {
         let states = FactoryVecDeque::builder().launch_default().detach();
         let show_active_indicator = BoolBinding::new(false);
+        let configurable = BoolBinding::new(true);
 
         let model = Self {
             states,
             value_suffix: opts.value_suffix,
-            show_active_indicator,
+            is_active_indicator_visible: show_active_indicator,
+            configurable,
         };
 
         let states_widget = model.states.widget();
@@ -81,13 +84,15 @@ impl relm4::SimpleComponent for PowerStatesList {
                         power_state,
                         value_suffix: self.value_suffix.clone(),
                         active: false,
-                        show_active_indicator: self.show_active_indicator.clone(),
+                        show_active_indicator: self.is_active_indicator_visible.clone(),
+                        configurable: self.configurable.clone(),
                     };
                     states.push_back(opts);
                 }
             }
             PowerStatesListMsg::ActiveState(active_idx) => {
-                self.show_active_indicator.set_value(active_idx.is_some());
+                self.is_active_indicator_visible
+                    .set_value(active_idx.is_some());
                 for (i, row) in self.states.iter().enumerate() {
                     let is_active = row
                         .power_state
@@ -98,8 +103,7 @@ impl relm4::SimpleComponent for PowerStatesList {
                 }
             }
             PowerStatesListMsg::Configurable(configurable) => {
-                self.states
-                    .broadcast(PowerStateRowMsg::Configurable(configurable));
+                self.configurable.set_value(configurable);
             }
         }
     }

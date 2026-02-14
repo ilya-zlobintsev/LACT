@@ -1,7 +1,7 @@
-use crate::{app::msg::AppMsg, APP_BROKER};
+use crate::{APP_BROKER, app::msg::AppMsg};
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use lact_schema::PowerState;
-use relm4::{binding::BoolBinding, css, RelmObjectExt, RelmWidgetExt};
+use relm4::{RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css};
 
 pub struct PowerStateRow {
     pub(super) active: BoolBinding,
@@ -17,12 +17,12 @@ pub struct PowerStateRowOptions {
     pub value_suffix: String,
     pub active: bool,
     pub show_active_indicator: BoolBinding,
+    pub configurable: BoolBinding,
 }
 
 #[derive(Clone, Debug)]
 pub enum PowerStateRowMsg {
     Active(bool),
-    Configurable(bool),
 }
 
 #[relm4::factory(pub)]
@@ -42,16 +42,14 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
 
              append: image = &gtk::Image {
                 set_icon_name: Some("pan-end-symbolic"),
-                #[watch]
-                set_visible: self.show_active_indicator.value(),
+                add_binding: (&self.show_active_indicator, "visible"),
                 #[watch]
                 set_opacity: if self.active.value() { 1.0 } else { 0.0 },
             },
 
             append = &gtk::CheckButton {
                 add_binding: (&self.enabled, "active"),
-                #[watch]
-                set_visible: self.configurable.value(),
+                add_binding: (&self.configurable, "visible"),
             },
 
             append = &gtk::Label {
@@ -82,17 +80,13 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
             active: BoolBinding::new(opts.active),
             power_state: opts.power_state,
             value_suffix: opts.value_suffix,
-            configurable: BoolBinding::new(true),
+            configurable: opts.configurable,
             show_active_indicator: opts.show_active_indicator,
         }
     }
 
     fn update(&mut self, msg: Self::Input, _: relm4::FactorySender<Self>) {
-        match msg {
-            PowerStateRowMsg::Active(active) => self.active.set_value(active),
-            PowerStateRowMsg::Configurable(configurable) => {
-                self.configurable.set_value(configurable)
-            }
-        }
+        let PowerStateRowMsg::Active(active) = msg;
+        self.active.set_value(active);
     }
 }
