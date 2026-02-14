@@ -55,14 +55,12 @@ impl relm4::SimpleComponent for PowerStatesList {
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let states = FactoryVecDeque::builder().launch_default().detach();
-        let show_active_indicator = BoolBinding::new(false);
-        let configurable = BoolBinding::new(true);
 
         let model = Self {
             states,
             value_suffix: opts.value_suffix,
-            is_active_indicator_visible: show_active_indicator,
-            configurable,
+            is_active_indicator_visible: BoolBinding::new(false),
+            configurable: BoolBinding::new(true),
         };
 
         let states_widget = model.states.widget();
