@@ -3,11 +3,15 @@ use crate::app::pages::oc_page::power_states::power_states_row::{
 };
 use gtk::prelude::{FrameExt, WidgetExt};
 use lact_schema::PowerState;
-use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, css, prelude::FactoryVecDeque};
+use relm4::{
+    ComponentParts, ComponentSender, RelmWidgetExt, binding::BoolBinding, css,
+    prelude::FactoryVecDeque,
+};
 
 pub struct PowerStatesList {
     states: FactoryVecDeque<PowerStateRow>,
     value_suffix: String,
+    show_active_indicator: BoolBinding,
 }
 
 pub struct PowerStatesListOptions {
@@ -50,10 +54,12 @@ impl relm4::SimpleComponent for PowerStatesList {
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let states = FactoryVecDeque::builder().launch_default().detach();
+        let show_active_indicator = BoolBinding::new(false);
 
         let model = Self {
             states,
             value_suffix: opts.value_suffix,
+            show_active_indicator,
         };
 
         let states_widget = model.states.widget();
@@ -75,11 +81,13 @@ impl relm4::SimpleComponent for PowerStatesList {
                         power_state,
                         value_suffix: self.value_suffix.clone(),
                         active: false,
+                        show_active_indicator: self.show_active_indicator.clone(),
                     };
                     states.push_back(opts);
                 }
             }
             PowerStatesListMsg::ActiveState(active_idx) => {
+                self.show_active_indicator.set_value(active_idx.is_some());
                 for (i, row) in self.states.iter().enumerate() {
                     let is_active = row
                         .power_state

@@ -1,7 +1,7 @@
-use crate::{APP_BROKER, app::msg::AppMsg};
+use crate::{app::msg::AppMsg, APP_BROKER};
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use lact_schema::PowerState;
-use relm4::{RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css};
+use relm4::{binding::BoolBinding, css, RelmObjectExt, RelmWidgetExt};
 
 pub struct PowerStateRow {
     pub(super) active: BoolBinding,
@@ -9,12 +9,14 @@ pub struct PowerStateRow {
     pub(super) power_state: PowerState,
     pub(super) value_suffix: String,
     pub(super) configurable: BoolBinding,
+    pub(super) show_active_indicator: BoolBinding,
 }
 
 pub struct PowerStateRowOptions {
     pub power_state: PowerState,
     pub value_suffix: String,
     pub active: bool,
+    pub show_active_indicator: BoolBinding,
 }
 
 #[derive(Clone, Debug)]
@@ -40,6 +42,8 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
 
              append: image = &gtk::Image {
                 set_icon_name: Some("pan-end-symbolic"),
+                #[watch]
+                set_visible: self.show_active_indicator.value(),
                 #[watch]
                 set_opacity: if self.active.value() { 1.0 } else { 0.0 },
             },
@@ -79,6 +83,7 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
             power_state: opts.power_state,
             value_suffix: opts.value_suffix,
             configurable: BoolBinding::new(true),
+            show_active_indicator: opts.show_active_indicator,
         }
     }
 
