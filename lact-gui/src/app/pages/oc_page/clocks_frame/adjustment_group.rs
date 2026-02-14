@@ -152,3 +152,98 @@ impl AdjustmentGroup {
             .unwrap_or(0)
     }
 }
+
+pub struct AdjustmentGroups {
+    pub core_clock: AdjustmentGroup,
+    pub core_voltage: AdjustmentGroup,
+    pub vram_clock: AdjustmentGroup,
+    pub core_curve_clock: AdjustmentGroup,
+    pub vram_curve_clock: AdjustmentGroup,
+    pub core_curve_voltage: AdjustmentGroup,
+    pub vram_curve_voltage: AdjustmentGroup,
+}
+
+impl AdjustmentGroups {
+    pub fn new() -> Self {
+        Self {
+            core_clock: AdjustmentGroup::new(ClockCategory::CoreClock),
+            core_voltage: AdjustmentGroup::new(ClockCategory::CoreVoltage),
+            vram_clock: AdjustmentGroup::new(ClockCategory::VramClock),
+            core_curve_clock: AdjustmentGroup::new(ClockCategory::CoreCurveClock),
+            vram_curve_clock: AdjustmentGroup::new(ClockCategory::VramCurveClock),
+            core_curve_voltage: AdjustmentGroup::new(ClockCategory::CoreCurveVoltage),
+            vram_curve_voltage: AdjustmentGroup::new(ClockCategory::VramCurveVoltage),
+        }
+    }
+
+    pub fn get(&self, category: ClockCategory) -> &AdjustmentGroup {
+        match category {
+            ClockCategory::CoreClock => &self.core_clock,
+            ClockCategory::CoreVoltage => &self.core_voltage,
+            ClockCategory::VramClock => &self.vram_clock,
+            ClockCategory::CoreCurveClock => &self.core_curve_clock,
+            ClockCategory::VramCurveClock => &self.vram_curve_clock,
+            ClockCategory::CoreCurveVoltage => &self.core_curve_voltage,
+            ClockCategory::VramCurveVoltage => &self.vram_curve_voltage,
+        }
+    }
+
+    pub fn get_mut(&mut self, category: ClockCategory) -> &mut AdjustmentGroup {
+        match category {
+            ClockCategory::CoreClock => &mut self.core_clock,
+            ClockCategory::CoreVoltage => &mut self.core_voltage,
+            ClockCategory::VramClock => &mut self.vram_clock,
+            ClockCategory::CoreCurveClock => &mut self.core_curve_clock,
+            ClockCategory::VramCurveClock => &mut self.vram_curve_clock,
+            ClockCategory::CoreCurveVoltage => &mut self.core_curve_voltage,
+            ClockCategory::VramCurveVoltage => &mut self.vram_curve_voltage,
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &AdjustmentGroup> {
+        ALL_CATEGORIES.iter().map(|category| self.get(*category))
+    }
+
+    pub fn iter_core(&self) -> impl Iterator<Item = &AdjustmentGroup> {
+        CORE_CATEGORIES.iter().map(|category| self.get(*category))
+    }
+
+    pub fn iter_vram(&self) -> impl Iterator<Item = &AdjustmentGroup> {
+        VRAM_CATEGORIES.iter().map(|category| self.get(*category))
+    }
+
+    pub fn clear(&mut self) {
+        for category in ALL_CATEGORIES {
+            self.get_mut(category).clear();
+        }
+    }
+
+    pub fn add_size_groups(&self, label_group: gtk::SizeGroup, input_group: gtk::SizeGroup) {
+        for category in ALL_CATEGORIES {
+            self.get(category)
+                .add_size_group(label_group.clone(), input_group.clone());
+        }
+    }
+
+    pub fn toggle_secondary_visibility(
+        &self,
+        show_secondary: bool,
+        show_nvidia_options: bool,
+        enable_gpu_locked: bool,
+        enable_vram_locked: bool,
+    ) {
+        for category in ALL_CATEGORIES {
+            self.get(category).toggle_secondary_visibility(
+                show_secondary,
+                show_nvidia_options,
+                enable_gpu_locked,
+                enable_vram_locked,
+            );
+        }
+    }
+
+    pub fn get_raw_value(&self, clock_type: ClockspeedType) -> i32 {
+        let category = clock_category(clock_type);
+        self.get(category).get_raw_value(clock_type)
+    }
+}
