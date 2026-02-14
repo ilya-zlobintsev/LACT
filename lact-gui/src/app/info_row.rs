@@ -125,7 +125,7 @@ mod imp {
         prelude::*,
         subclass::{prelude::*, widget::WidgetImpl},
     };
-    use relm4::{RelmWidgetExt, css, view};
+    use relm4::{css, view};
     use std::{cell::RefCell, str::FromStr};
 
     #[derive(Default, Properties)]
