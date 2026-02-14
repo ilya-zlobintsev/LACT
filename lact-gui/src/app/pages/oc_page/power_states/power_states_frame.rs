@@ -72,6 +72,8 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                     add_binding: (&model.states_configured, "active"),
                     #[watch]
                     set_visible: model.performance_level.is_some(),
+                    #[watch]
+                    set_sensitive: model.performance_level.is_some_and(|level| level == PerformanceLevel::Manual),
                 },
 
                 gtk::Box {
