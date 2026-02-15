@@ -1,10 +1,12 @@
+mod adjustment_group;
 mod adjustment_row;
 
 use crate::{
     APP_BROKER, I18N,
     app::{msg::AppMsg, page_section::PageSection},
 };
-use adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
+use adjustment_group::{AdjustmentGroups, ClockCategory, clock_category};
+use adjustment_row::ClocksData;
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
 use gtk::{
     glib::object::ObjectExt,
@@ -18,14 +20,12 @@ use lact_schema::{
 };
 use relm4::{
     ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
-    factory::FactoryHashMap,
 };
 
-// This should not end up being used in practice
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 
 pub struct ClocksFrame {
-    clocks: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
+    groups: AdjustmentGroups,
     vram_clock_ratio: f64,
     show_nvidia_options: bool,
     show_all_pstates: BoolBinding,
@@ -49,43 +49,17 @@ impl relm4::Component for ClocksFrame {
 
     view! {
         PageSection::new(&fl!(I18N, "overclock-section")) {
-            append_header = &gtk::Button {
-                set_label: &fl!(I18N, "reset-button"),
-                set_tooltip_text: Some(&fl!(I18N, "reset-oc-tooltip")),
+            add_css_class: "clocks-frame",
 
-                set_halign: gtk::Align::End,
+            append_header = &gtk::Box {
+                set_spacing: 10,
                 set_hexpand: true,
-                add_css_class: css::DESTRUCTIVE_ACTION,
-
-                #[watch]
-                set_visible: !model.clocks.is_empty(),
-
-                connect_clicked => move |_| {
-                    APP_BROKER.send(AppMsg::ResetClocks);
-                }
-            },
-            append_child = &gtk::Label {
-                set_label: &fl!(I18N, "oc-warning"),
-                set_wrap_mode: pango::WrapMode::Word,
-                set_halign: gtk::Align::Start,
-                set_margin_horizontal: 5,
-                add_css_class: css::WARNING,
-            },
-
-            append_child = &gtk::Box {
-                set_orientation: gtk::Orientation::Horizontal,
-                set_halign: gtk::Align::Start,
-                set_spacing: 5,
-                #[watch]
-                set_visible: model.show_nvidia_options,
-
-                append = &gtk::Label {
-                    set_label: &fl!(I18N, "nvidia-oc-info"),
-                    add_css_class: css::HEADING,
-                },
+                set_halign: gtk::Align::End,
 
                 append = &gtk::MenuButton {
-                    set_icon_name: "dialog-information-symbolic",
+                    #[watch]
+                    set_visible: model.show_nvidia_options,
+                    set_label: &fl!(I18N, "nvidia-oc-info"),
 
                     #[wrap(Some)]
                     set_popover = &gtk::Popover {
@@ -97,6 +71,28 @@ impl relm4::Component for ClocksFrame {
                         }
                     }
                 },
+
+                append = &gtk::Button {
+                    set_label: &fl!(I18N, "reset-button"),
+                    set_tooltip_text: Some(&fl!(I18N, "reset-oc-tooltip")),
+
+                    add_css_class: css::DESTRUCTIVE_ACTION,
+
+                    #[watch]
+                    set_visible: model.has_any_clocks(),
+
+                    connect_clicked => move |_| {
+                        APP_BROKER.send(AppMsg::ResetClocks);
+                    }
+                },
+            },
+
+            append_child = &gtk::Label {
+                set_label: &fl!(I18N, "oc-warning"),
+                set_wrap_mode: pango::WrapMode::Word,
+                set_halign: gtk::Align::Start,
+                add_css_class: css::WARNING,
+                add_css_class: css::DIM_LABEL,
             },
 
             append_child = &gtk::Box {
@@ -110,7 +106,8 @@ impl relm4::Component for ClocksFrame {
 
                     append = &gtk::CheckButton {
                         #[watch]
-                        set_visible: model.clocks.values().any(|row| row.is_secondary),
+                        set_visible: model.any_is_secondary(),
+
                         set_label: Some(&fl!(I18N, "show-all-pstates")),
                         add_binding["active"]: &model.show_all_pstates,
                     },
@@ -139,7 +136,6 @@ impl relm4::Component for ClocksFrame {
                 append = &gtk::Label {
                     #[watch]
                     set_visible: model.show_all_pstates.value() && model.show_nvidia_options,
-                    // add_binding["visible"]: &model.show_all_pstates,
 
                     set_margin_horizontal: 5,
                     set_markup: &fl!(I18N, "pstate-list-description"),
@@ -148,10 +144,109 @@ impl relm4::Component for ClocksFrame {
                 },
             },
 
-            append_child = model.clocks.widget() {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
-                set_margin_horizontal: 5,
+            append_child = &gtk::FlowBox {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_selection_mode: gtk::SelectionMode::None,
+                set_max_children_per_line: 2,
+                set_min_children_per_line: 1,
+                set_column_spacing: 10,
+                set_row_spacing: 10,
+                set_homogeneous: false,
+                set_valign: gtk::Align::Start,
+                set_hexpand: true,
+
+                append = &gtk::FlowBoxChild {
+                    add_css_class: "clocks-frame-group",
+                    set_valign: gtk::Align::Start,
+                    #[watch]
+                    set_visible: model.core_any_visible(),
+
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 10,
+                        set_hexpand: true,
+                        set_valign: gtk::Align::Start,
+
+                        append = &gtk::Box {
+                            add_css_class: css::FRAME,
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.groups.core_clock.is_empty(),
+                            append = model.groups.core_clock.widget(),
+                        },
+                        append = &gtk::Box {
+                            add_css_class: css::FRAME,
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.groups.core_voltage.is_empty(),
+                            append = model.groups.core_voltage.widget(),
+                        },
+                        append = &gtk::Box {
+                            add_css_class: css::FRAME,
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.groups.core_curve_clock.is_empty(),
+                            append = model.groups.core_curve_clock.widget(),
+                        },
+                        append = &gtk::Box {
+                            add_css_class: css::FRAME,
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.groups.core_curve_voltage.is_empty(),
+                            append = model.groups.core_curve_voltage.widget(),
+                        },
+                    },
+                },
+
+                append = &gtk::FlowBoxChild {
+                    add_css_class: "clocks-frame-group",
+                    set_valign: gtk::Align::Start,
+                    #[watch]
+                    set_visible: model.vram_any_visible(),
+
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 10,
+                        set_hexpand: true,
+                        set_valign: gtk::Align::Start,
+
+                        append = &gtk::Box {
+                            add_css_class: css::FRAME,
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.groups.vram_clock.is_empty(),
+                            append = model.groups.vram_clock.widget(),
+                        },
+                        append = &gtk::Box {
+                            add_css_class: css::FRAME,
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.groups.vram_curve_clock.is_empty(),
+                            append = model.groups.vram_curve_clock.widget(),
+                        },
+                        append = &gtk::Box {
+                            add_css_class: css::FRAME,
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_valign: gtk::Align::Start,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: !model.groups.vram_curve_voltage.is_empty(),
+                            append = model.groups.vram_curve_voltage.widget(),
+                        },
+                    },
+                },
             },
 
             append_child = &gtk::Label {
@@ -159,7 +254,7 @@ impl relm4::Component for ClocksFrame {
                 set_margin_horizontal: 10,
                 set_halign: gtk::Align::Start,
                 #[watch]
-                set_visible: model.clocks.is_empty(),
+                set_visible: !model.has_any_clocks(),
             },
         }
     }
@@ -169,10 +264,8 @@ impl relm4::Component for ClocksFrame {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let clocks = FactoryHashMap::builder().launch_default().detach();
-
         let model = Self {
-            clocks,
+            groups: AdjustmentGroups::new(),
             vram_clock_ratio: 1.0,
             show_nvidia_options: false,
             show_all_pstates: BoolBinding::new(false),
@@ -212,7 +305,7 @@ impl relm4::Component for ClocksFrame {
                     .vram_locked_clocks_togglebutton
                     .block_signal(&widgets.vram_locked_clock_signal);
 
-                self.clocks.clear();
+                self.groups.clear();
                 self.enable_gpu_locked_clocks.set_value(false);
                 self.enable_vram_locked_clocks.set_value(false);
                 self.show_nvidia_options = false;
@@ -225,19 +318,11 @@ impl relm4::Component for ClocksFrame {
                     }
                 }
 
-                // Make sure the width of all the labels is the same
                 let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                 let input_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
 
-                for clockspeed_type in self.clocks.keys() {
-                    self.clocks.send(
-                        clockspeed_type,
-                        ClockAdjustmentRowMsg::AddSizeGroup {
-                            label_group: label_size_group.clone(),
-                            input_group: input_size_group.clone(),
-                        },
-                    );
-                }
+                self.groups
+                    .add_size_groups(label_size_group, input_size_group);
 
                 widgets
                     .gpu_locked_clocks_togglebutton
@@ -252,26 +337,12 @@ impl relm4::Component for ClocksFrame {
                 self.vram_clock_ratio = vram_ratio;
             }
             ClocksFrameMsg::TogglePStatesVisibility => {
-                let show_secondary = self.show_all_pstates.value();
-                for (key, row) in self.clocks.iter() {
-                    // Only show min/max core/vram clock when nvidia locked clocks are enabeld
-                    let show_current = match key {
-                        ClockspeedType::MaxCoreClock | ClockspeedType::MinCoreClock
-                            if self.show_nvidia_options =>
-                        {
-                            self.enable_gpu_locked_clocks.value()
-                        }
-                        ClockspeedType::MaxMemoryClock | ClockspeedType::MinMemoryClock
-                            if self.show_nvidia_options =>
-                        {
-                            self.enable_vram_locked_clocks.value()
-                        }
-                        _ => !row.is_secondary || show_secondary,
-                    };
-
-                    self.clocks
-                        .send(key, ClockAdjustmentRowMsg::SetVisible(show_current));
-                }
+                self.groups.toggle_secondary_visibility(
+                    self.show_all_pstates.value(),
+                    self.show_nvidia_options,
+                    self.enable_gpu_locked_clocks.value(),
+                    self.enable_vram_locked_clocks.value(),
+                );
             }
         }
         self.update_vram_clock_ratio();
@@ -281,18 +352,31 @@ impl relm4::Component for ClocksFrame {
 }
 
 impl ClocksFrame {
+    fn set_clock(&mut self, clock_type: ClockspeedType, data: ClocksData) {
+        let category = clock_category(clock_type);
+        self.groups.get_mut(category).set_clock(clock_type, data);
+    }
+
+    fn has_any_clocks(&self) -> bool {
+        self.groups.iter().any(|group| !group.is_empty())
+    }
+
+    fn any_is_secondary(&self) -> bool {
+        self.groups.iter().any(|group| group.has_secondary())
+    }
+
+    fn core_any_visible(&self) -> bool {
+        self.groups.iter_core().any(|group| !group.is_empty())
+    }
+
+    fn vram_any_visible(&self) -> bool {
+        self.groups.iter_vram().any(|group| !group.is_empty())
+    }
+
     fn update_vram_clock_ratio(&self) {
-        for clock_type in [
-            ClockspeedType::MaxMemoryClock,
-            ClockspeedType::MinMemoryClock,
-        ] {
-            if self.clocks.get(&clock_type).is_some() {
-                self.clocks.send(
-                    &clock_type,
-                    ClockAdjustmentRowMsg::ValueRatio(self.vram_clock_ratio),
-                );
-            }
-        }
+        self.groups
+            .get(ClockCategory::VramClock)
+            .set_value_ratio(self.vram_clock_ratio);
     }
 
     fn set_amd_table(&mut self, table: AmdClocksTable) {
@@ -348,7 +432,7 @@ impl ClocksFrame {
                     .and_then(|range| range.into_full())
                     && let Some(sclk_offset) = table.sclk_offset
                 {
-                    self.clocks.insert(
+                    self.set_clock(
                         ClockspeedType::GpuClockOffset(0),
                         ClocksData {
                             current: sclk_offset,
@@ -356,7 +440,6 @@ impl ClocksFrame {
                             max: sclk_offset_max,
                             custom_title: Some(fl!(I18N, "gpu-clock-offset")),
                             is_secondary: false,
-                            show_separator: false,
                         },
                     );
                 }
@@ -370,13 +453,11 @@ impl ClocksFrame {
                             ClockspeedType::MaxCoreClock,
                             table.current_sclk_range.max,
                             table.od_range.sclk,
-                            false,
                         ),
                         (
                             ClockspeedType::MinCoreClock,
                             table.current_sclk_range.min,
                             table.od_range.sclk,
-                            false,
                         ),
                     ]);
                 } else {
@@ -389,7 +470,7 @@ impl ClocksFrame {
                             .or(table.od_range.sclk.as_ref())
                             .and_then(|range| range.into_full())
                         {
-                            self.clocks.insert(
+                            self.set_clock(
                                 ClockspeedType::GpuVfCurveClock(i as u8),
                                 ClocksData {
                                     current: level.clockspeed,
@@ -397,7 +478,6 @@ impl ClocksFrame {
                                     max: max_sclk,
                                     is_secondary: false,
                                     custom_title: None,
-                                    show_separator: false,
                                 },
                             );
                         }
@@ -410,7 +490,7 @@ impl ClocksFrame {
                             .get(i)
                             .and_then(|range| range.into_full())
                         {
-                            self.clocks.insert(
+                            self.set_clock(
                                 ClockspeedType::GpuVfCurveVoltage(i as u8),
                                 ClocksData {
                                     current: level.voltage,
@@ -418,7 +498,6 @@ impl ClocksFrame {
                                     max: max_vddc,
                                     is_secondary: false,
                                     custom_title: None,
-                                    show_separator: i == table.vddc_curve.len() - 1, // Show on first row (reversed count)
                                 },
                             );
                         }
@@ -430,26 +509,19 @@ impl ClocksFrame {
                         ClockspeedType::MaxMemoryClock,
                         table.current_mclk_range.max,
                         table.od_range.mclk,
-                        true,
                     ),
                     (
                         ClockspeedType::MinMemoryClock,
                         table.current_mclk_range.min,
                         table.od_range.mclk,
-                        false,
                     ),
                 ]);
 
-                for (clockspeed_type, current_value, range, show_separator) in clocks_types {
+                for (clockspeed_type, current_value, range) in clocks_types {
                     if let Some(current) = current_value
                         && let Some((min, max)) = range.and_then(|range| range.into_full())
                     {
-                        let mut data = ClocksData::new(current, min, max);
-                        if show_separator && !self.clocks.is_empty() {
-                            data.show_separator = true;
-                        }
-
-                        self.clocks.insert(clockspeed_type, data);
+                        self.set_clock(clockspeed_type, ClocksData::new(current, min, max));
                     }
                 }
 
@@ -460,9 +532,10 @@ impl ClocksFrame {
                         .and_then(|range| range.into_full())
                         .unwrap_or((-DEFAULT_VOLTAGE_OFFSET_RANGE, DEFAULT_VOLTAGE_OFFSET_RANGE));
 
-                    let mut data = ClocksData::new(current, min, max);
-                    data.show_separator = true;
-                    self.clocks.insert(ClockspeedType::VoltageOffset, data);
+                    self.set_clock(
+                        ClockspeedType::VoltageOffset,
+                        ClocksData::new(current, min, max),
+                    );
                 }
             }
         }
@@ -474,13 +547,13 @@ impl ClocksFrame {
         clock_type: fn(u8) -> ClockspeedType,
         min: i32,
         max: i32,
-        disable_separator: bool,
+        _disable_separator: bool,
     ) {
         let values_len = values.len();
         for (i, value) in values.enumerate().rev() {
             let is_secondary = i > 0 && i < values_len - 1;
 
-            self.clocks.insert(
+            self.set_clock(
                 clock_type(i as u8),
                 ClocksData {
                     current: value,
@@ -488,7 +561,6 @@ impl ClocksFrame {
                     max,
                     is_secondary,
                     custom_title: None,
-                    show_separator: !disable_separator && i == values_len - 1, // Show on first row (reversed count)
                 },
             );
         }
@@ -503,14 +575,14 @@ impl ClocksFrame {
                 table.gpu_locked_clocks,
                 ClockspeedType::MinCoreClock,
                 ClockspeedType::MaxCoreClock,
-                &self.enable_gpu_locked_clocks,
+                self.enable_gpu_locked_clocks.clone(),
             ),
             (
                 table.vram_clock_range,
                 table.vram_locked_clocks,
                 ClockspeedType::MinMemoryClock,
                 ClockspeedType::MaxMemoryClock,
-                &self.enable_vram_locked_clocks,
+                self.enable_vram_locked_clocks.clone(),
             ),
         ];
 
@@ -524,11 +596,11 @@ impl ClocksFrame {
                     None => (gpu_min, gpu_max),
                 };
 
-                self.clocks.insert(
+                self.set_clock(
                     min_type,
                     ClocksData::new(current_min as i32, gpu_min as i32, gpu_max as i32),
                 );
-                self.clocks.insert(
+                self.set_clock(
                     max_type,
                     ClocksData::new(current_max as i32, gpu_min as i32, gpu_max as i32),
                 );
@@ -536,13 +608,13 @@ impl ClocksFrame {
         }
 
         for (pstate, offset) in table.gpu_offsets {
-            self.clocks.insert(
+            self.set_clock(
                 ClockspeedType::GpuClockOffset(pstate),
                 nvidia_clock_offset_to_data(&offset, pstate > 0),
             );
         }
         for (pstate, offset) in table.mem_offsets {
-            self.clocks.insert(
+            self.set_clock(
                 ClockspeedType::MemClockOffset(pstate),
                 nvidia_clock_offset_to_data(&offset, pstate > 0),
             );
@@ -555,11 +627,11 @@ impl ClocksFrame {
         if let Some((current_gt_min, current_gt_max)) = table.gt_freq
             && let (Some(min_clock), Some(max_clock)) = (table.rpn_freq, table.rp0_freq)
         {
-            self.clocks.insert(
+            self.set_clock(
                 ClockspeedType::MaxCoreClock,
                 ClocksData::new(current_gt_max as i32, min_clock as i32, max_clock as i32),
             );
-            self.clocks.insert(
+            self.set_clock(
                 ClockspeedType::MinCoreClock,
                 ClocksData::new(current_gt_min as i32, min_clock as i32, max_clock as i32),
             );
@@ -567,30 +639,31 @@ impl ClocksFrame {
     }
 
     pub fn get_commands(&self) -> Vec<SetClocksCommand> {
-        self.clocks
+        // If nvidia options are enabled, we always set locked clocks to None or Some
+        self.groups
             .iter()
-            .filter_map(|(clock_type, row)| {
-                // If nvidia options are enabled, we always set locked clocks to None or Some
+            .flat_map(|group| group.get_commands())
+            .map(|(clock_type, configured_value)| {
                 let value = if self.show_nvidia_options {
                     match clock_type {
                         ClockspeedType::MinCoreClock | ClockspeedType::MaxCoreClock => self
                             .enable_gpu_locked_clocks
                             .value()
-                            .then(|| row.get_raw_value()),
+                            .then(|| self.groups.get_raw_value(clock_type)),
                         ClockspeedType::MinMemoryClock | ClockspeedType::MaxMemoryClock => self
                             .enable_vram_locked_clocks
                             .value()
-                            .then(|| row.get_raw_value()),
-                        _ => Some(row.get_configured_value()?),
+                            .then(|| self.groups.get_raw_value(clock_type)),
+                        _ => configured_value,
                     }
                 } else {
-                    Some(row.get_configured_value()?)
+                    configured_value
                 };
 
-                Some(SetClocksCommand {
-                    r#type: *clock_type,
+                SetClocksCommand {
+                    r#type: clock_type,
                     value,
-                })
+                }
             })
             .collect()
     }
@@ -603,6 +676,5 @@ fn nvidia_clock_offset_to_data(clock_info: &NvidiaClockOffset, is_secondary: boo
         max: clock_info.max,
         custom_title: None,
         is_secondary,
-        show_separator: false,
     }
 }
