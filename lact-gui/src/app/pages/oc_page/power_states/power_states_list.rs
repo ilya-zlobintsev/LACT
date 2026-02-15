@@ -1,14 +1,18 @@
-use gtk::prelude::{BoxExt, CheckButtonExt, FrameExt, OrientableExt, WidgetExt};
+use crate::app::pages::oc_page::power_states::power_states_row::{
+    PowerStateRow, PowerStateRowMsg, PowerStateRowOptions,
+};
+use gtk::prelude::{FrameExt, WidgetExt};
 use lact_schema::PowerState;
 use relm4::{
-    ComponentParts, ComponentSender, RelmObjectExt, binding::BoolBinding, prelude::FactoryVecDeque,
+    ComponentParts, ComponentSender, RelmWidgetExt, binding::BoolBinding, css,
+    prelude::FactoryVecDeque,
 };
-
-use crate::{APP_BROKER, app::msg::AppMsg};
 
 pub struct PowerStatesList {
     states: FactoryVecDeque<PowerStateRow>,
     value_suffix: String,
+    is_active_indicator_visible: BoolBinding,
+    configurable: BoolBinding,
 }
 
 pub struct PowerStatesListOptions {
@@ -20,6 +24,7 @@ pub struct PowerStatesListOptions {
 pub enum PowerStatesListMsg {
     PowerStates(Vec<PowerState>, f64),
     ActiveState(Option<usize>),
+    Configurable(bool),
 }
 
 #[relm4::component(pub)]
@@ -31,8 +36,16 @@ impl relm4::SimpleComponent for PowerStatesList {
     view! {
         gtk::Frame {
             set_hexpand: true,
-            set_label: Some(&opts.title),
-            set_child: Some(model.states.widget()),
+            #[wrap(Some)]
+            set_label_widget = &gtk::Label {
+                set_label: &opts.title,
+                set_margin_horizontal: 5,
+                add_css_class: css::CAPTION_HEADING,
+            },
+            #[local_ref]
+            states_widget -> gtk::ListBox {
+                set_selection_mode: gtk::SelectionMode::None,
+            },
         }
     }
 
@@ -46,7 +59,11 @@ impl relm4::SimpleComponent for PowerStatesList {
         let model = Self {
             states,
             value_suffix: opts.value_suffix,
+            is_active_indicator_visible: BoolBinding::new(false),
+            configurable: BoolBinding::new(true),
         };
+
+        let states_widget = model.states.widget();
 
         let widgets = view_output!();
 
@@ -65,19 +82,26 @@ impl relm4::SimpleComponent for PowerStatesList {
                         power_state,
                         value_suffix: self.value_suffix.clone(),
                         active: false,
+                        show_active_indicator: self.is_active_indicator_visible.clone(),
+                        configurable: self.configurable.clone(),
                     };
                     states.push_back(opts);
                 }
             }
             PowerStatesListMsg::ActiveState(active_idx) => {
+                self.is_active_indicator_visible
+                    .set_value(active_idx.is_some());
                 for (i, row) in self.states.iter().enumerate() {
                     let is_active = row
                         .power_state
                         .index
                         .is_some_and(|index| Some(usize::from(index)) == active_idx);
 
-                    self.states.send(i, is_active);
+                    self.states.send(i, PowerStateRowMsg::Active(is_active));
                 }
+            }
+            PowerStatesListMsg::Configurable(configurable) => {
+                self.configurable.set_value(configurable);
             }
         }
     }
@@ -94,71 +118,5 @@ impl PowerStatesList {
 
     pub fn is_empty(&self) -> bool {
         self.states.is_empty()
-    }
-}
-
-struct PowerStateRow {
-    active: BoolBinding,
-    enabled: BoolBinding,
-    power_state: PowerState,
-    value_suffix: String,
-}
-
-pub struct PowerStateRowOptions {
-    pub power_state: PowerState,
-    pub value_suffix: String,
-    pub active: bool,
-}
-
-#[relm4::factory]
-impl relm4::factory::FactoryComponent for PowerStateRow {
-    type ParentWidget = gtk::ListBox;
-    type CommandOutput = ();
-    type Input = bool;
-    type Output = ();
-    type Init = PowerStateRowOptions;
-
-    view! {
-        gtk::Box {
-            set_orientation: gtk::Orientation::Horizontal,
-            set_spacing: 5,
-
-            append = &gtk::CheckButton {
-                set_hexpand: true,
-                add_binding: (&self.enabled, "active"),
-                set_label: {
-                    let value_text = match self.power_state.min_value {
-                        Some(min) if min != self.power_state.value => format!("{min}-{}", self.power_state.value),
-                        _ => self.power_state.value.to_string(),
-                    };
-                    Some(format!("{}: {value_text} {}", index.current_index(), self.value_suffix))
-                }.as_deref(),
-            },
-
-            append: image = &gtk::Image {
-                set_icon_name: Some("pan-start-symbolic"),
-                add_binding: (&self.active, "visible"),
-            },
-        }
-    }
-
-    fn init_model(
-        opts: Self::Init,
-        _index: &Self::Index,
-        _sender: relm4::FactorySender<Self>,
-    ) -> Self {
-        let enabled = BoolBinding::new(opts.power_state.enabled);
-        enabled.connect_value_notify(|_| APP_BROKER.send(AppMsg::SettingsChanged));
-
-        Self {
-            enabled,
-            active: BoolBinding::new(opts.active),
-            power_state: opts.power_state,
-            value_suffix: opts.value_suffix,
-        }
-    }
-
-    fn update(&mut self, active: Self::Input, _: relm4::FactorySender<Self>) {
-        self.active.set_value(active);
     }
 }

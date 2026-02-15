@@ -118,6 +118,8 @@ impl Default for InfoRow {
 }
 
 mod imp {
+    use std::{cell::RefCell, str::FromStr};
+
     use glib::Properties;
     use gtk::{
         Label, glib,
@@ -126,7 +128,6 @@ mod imp {
         subclass::{prelude::*, widget::WidgetImpl},
     };
     use relm4::{css, view};
-    use std::{cell::RefCell, str::FromStr};
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::InfoRow)]
