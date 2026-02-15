@@ -9,6 +9,7 @@ mod info_row_level;
 pub(crate) mod msg;
 mod overdrive_dialog;
 mod page_section;
+mod page_section_expander;
 pub(crate) mod pages;
 mod process_monitor;
 pub(crate) mod styles;
