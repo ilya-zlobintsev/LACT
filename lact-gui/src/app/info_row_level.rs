@@ -74,6 +74,7 @@ mod imp {
                     append_child = &LevelBar {
                         set_hexpand: true,
                         set_orientation: gtk::Orientation::Horizontal,
+                        // this prevents re-colour of the bar when the value is close to 100%
                         remove_offset_value: Some(gtk::LEVEL_BAR_OFFSET_LOW),
                         remove_offset_value: Some(gtk::LEVEL_BAR_OFFSET_HIGH),
                         remove_offset_value: Some(gtk::LEVEL_BAR_OFFSET_FULL),

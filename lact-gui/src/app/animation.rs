@@ -10,6 +10,8 @@ const DAMPING_COEFFICIENT: f64 = 20.0;
 const MASS: f64 = 0.5;
 const EPSILON: f64 = 0.00025;
 
+type UpdateCallback<W> = Option<Box<dyn Fn(&W, f64)>>;
+
 /// Spring physics animation for widget transitions (replicates AdwSpringAnimation).
 ///
 /// Memory: Rc<RefCell<Inner>> shared between struct and tick callback.
@@ -21,7 +23,7 @@ pub struct SpringAnimation<W: IsA<gtk::Widget>> {
 struct Inner<W: IsA<gtk::Widget>> {
     tick_id: Option<TickCallbackId>,
     widget: WeakRef<W>,
-    on_update: Option<Box<dyn Fn(&W, f64)>>,
+    on_update: UpdateCallback<W>,
     target: f64,
     displayed_value: f64,
     velocity: f64,
@@ -45,7 +47,6 @@ impl<W: IsA<gtk::Widget> + 'static> Default for SpringAnimation<W> {
 }
 
 impl<W: IsA<gtk::Widget> + 'static> SpringAnimation<W> {
-    /// Tick callback registered lazily on first animate_to().
     pub fn new<F>(widget: &W, on_update: F) -> Self
     where
         F: Fn(&W, f64) + 'static,
@@ -76,7 +77,7 @@ impl<W: IsA<gtk::Widget> + 'static> SpringAnimation<W> {
             let Some(widget) = inner.widget.upgrade() else {
                 return;
             };
-
+            // Tick callback registered lazily on first animate_to().
             let id = widget.add_tick_callback(move |_w, _clock| {
                 let mut inner = inner_rc.borrow_mut();
 
