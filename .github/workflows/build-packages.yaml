@@ -31,7 +31,7 @@ jobs:
 
       - name: Install pkger
         run: |
-          curl -L -o /usr/local/bin/pkger https://github.com/ilya-zlobintsev/pkger/releases/download/v0.11.4/pkger
+          curl -L -o /usr/local/bin/pkger https://github.com/ilya-zlobintsev/pkger/releases/download/v0.11.5/pkger
           chmod +x /usr/local/bin/pkger
       
       # A GitHub Action that implements smart caching for rust/cargo projects with sensible defaults.
