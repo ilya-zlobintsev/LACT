@@ -63,7 +63,7 @@ impl relm4::Component for OcPage {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 15,
+            set_spacing: 10,
             set_margin_horizontal: 30,
             set_margin_top: 15,
             set_margin_bottom: 60,
@@ -172,6 +172,7 @@ impl relm4::Component for OcPage {
                         self.clocks_frame
                             .emit(ClocksFrameMsg::VramRatio(vram_clock_ratio));
                     }
+                    PageUpdate::PowerStates(_) => (),
                 }
             }
             OcPageMsg::ClocksTable(table) => {
@@ -187,9 +188,11 @@ impl relm4::Component for OcPage {
             } => {
                 self.power_states_frame
                     .emit(PowerStatesFrameMsg::PowerStates {
-                        pstates,
+                        pstates: pstates.clone(),
                         configured,
                     });
+                self.stats_section
+                    .emit(PageUpdate::PowerStates(Arc::new(pstates)));
                 sender.input(OcPageMsg::PerformanceLevelChanged);
             }
             OcPageMsg::PerformanceLevelChanged => {

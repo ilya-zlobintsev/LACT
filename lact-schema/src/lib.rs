@@ -566,6 +566,13 @@ pub struct FanStats {
     pub pmfw_info: PmfwInfo,
 }
 
+impl FanStats {
+    pub fn percent(&self) -> Option<u64> {
+        self.pwm_current
+            .map(|pwm| ((pwm as f64 / u8::MAX as f64) * 100.0).round() as u64)
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct PmfwInfo {
@@ -626,6 +633,28 @@ pub struct PowerStates {
 impl PowerStates {
     pub fn is_empty(&self) -> bool {
         self.core.is_empty() && self.vram.is_empty()
+    }
+
+    pub fn max_gpu_clock(&self) -> Option<u64> {
+        self.core.iter().map(|s| s.value).max()
+    }
+
+    pub fn min_gpu_clock(&self) -> Option<u64> {
+        self.core
+            .iter()
+            .filter_map(|s| s.min_value.or(Some(s.value)))
+            .min()
+    }
+
+    pub fn max_vram_clock(&self) -> Option<u64> {
+        self.vram.iter().map(|s| s.value).max()
+    }
+
+    pub fn min_vram_clock(&self) -> Option<u64> {
+        self.vram
+            .iter()
+            .filter_map(|s| s.min_value.or(Some(s.value)))
+            .min()
     }
 }
 
