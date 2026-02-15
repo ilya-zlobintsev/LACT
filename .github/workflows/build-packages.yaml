@@ -29,8 +29,16 @@ jobs:
         env:
           GPG_KEY: ${{ secrets.GPG_KEY }}
 
-      - name: debug
-        run: docker info
+      # TODO: remove this later, potential cause: https://github.com/moby/moby/issues/51665
+      - name: Fix docker 
+        run: |
+          sudo tee /etc/docker/daemon.json <<EOF
+          {
+            "storage-driver": "overlay2"
+          }
+          EOF
+          sudo systemctl restart docker
+          docker info
 
       - name: Install pkger
         run: |
