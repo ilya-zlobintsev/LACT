@@ -26,42 +26,19 @@ impl Default for InfoRowLevel {
 mod imp {
     use std::cell::RefCell;
 
-    use glib::{ControlFlow, Properties};
-    use gtk::{LevelBar, TickCallbackId, glib, prelude::*, subclass::prelude::*};
+    use glib::Properties;
+    use gtk::{LevelBar, glib, prelude::*, subclass::prelude::*};
     use relm4::view;
 
+    use crate::app::animation::SpringAnimation;
     use crate::app::info_row::{InfoRow, InfoRowExt};
-
-    struct AnimationState {
-        displayed_value: f64,
-        velocity: f64,
-        tick_id: Option<TickCallbackId>,
-        last_frame_time: Option<std::time::Instant>,
-    }
-
-    impl Default for AnimationState {
-        fn default() -> Self {
-            Self {
-                displayed_value: 0.0,
-                velocity: 0.0,
-                tick_id: None,
-                last_frame_time: None,
-            }
-        }
-    }
-
-    const STIFFNESS: f64 = 200.0;
-    const DAMPING_RATIO: f64 = 1.0;
-    const MASS: f64 = 0.5;
-    const EPSILON: f64 = 0.00025;
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::InfoRowLevel)]
     pub struct InfoRowLevel {
         #[property(get, set = Self::set_level_value)]
         level_value: RefCell<f64>,
-        animation: RefCell<AnimationState>,
-        level_bar: RefCell<Option<LevelBar>>,
+        animation: RefCell<SpringAnimation<LevelBar>>,
     }
 
     impl InfoRowLevel {
@@ -72,74 +49,7 @@ mod imp {
             }
 
             self.level_value.replace(value);
-            self.start_animation(value);
-        }
-
-        /// Starts a spring-physics animation
-        /// https://gitlab.gnome.org/GNOME/libadwaita/-/blob/main/src/adw-spring-animation.c
-        fn start_animation(&self, _target: f64) {
-            let obj = self.obj().to_owned();
-            let level_bar = self.level_bar.borrow().clone();
-
-            let Some(level_bar) = level_bar else {
-                return;
-            };
-
-            let mut animation = self.animation.borrow_mut();
-
-            if animation.tick_id.is_none() {
-                let obj_weak = glib::WeakRef::new();
-                obj_weak.set(Some(&obj));
-                let level_bar_weak = glib::WeakRef::new();
-                level_bar_weak.set(Some(&level_bar));
-
-                let id = level_bar.add_tick_callback(move |_widget, _frame_clock| {
-                    let Some(obj) = obj_weak.upgrade() else {
-                        return ControlFlow::Break;
-                    };
-                    let Some(level_bar) = level_bar_weak.upgrade() else {
-                        return ControlFlow::Break;
-                    };
-
-                    let imp = obj.imp();
-                    let target = *imp.level_value.borrow();
-                    let mut anim = imp.animation.borrow_mut();
-
-                    let now = std::time::Instant::now();
-                    let dt = anim
-                        .last_frame_time
-                        .map(|t| (now - t).as_secs_f64())
-                        .unwrap_or(0.016);
-                    anim.last_frame_time = Some(now);
-
-                    let damping = 2.0 * DAMPING_RATIO * (STIFFNESS * MASS).sqrt();
-                    let spring_force = STIFFNESS * (target - anim.displayed_value);
-                    let damping_force = damping * anim.velocity;
-                    let acceleration = (spring_force - damping_force) / MASS;
-
-                    anim.velocity += acceleration * dt;
-                    anim.displayed_value += anim.velocity * dt;
-
-                    let settled = anim.velocity.abs() < EPSILON
-                        && (target - anim.displayed_value).abs() < EPSILON;
-
-                    if settled {
-                        anim.displayed_value = target;
-                        anim.velocity = 0.0;
-                        anim.tick_id = None;
-                        anim.last_frame_time = None;
-                    }
-
-                    level_bar.set_value(anim.displayed_value);
-
-                    if settled {
-                        ControlFlow::Break
-                    } else {
-                        ControlFlow::Continue
-                    }
-                });
-                animation.tick_id = Some(id);
-            }
+            self.animation.borrow().animate_to(value);
         }
     }
 
@@ -171,7 +81,10 @@ mod imp {
                 }
             }
 
-            self.level_bar.replace(Some(level_bar));
+            let animation = SpringAnimation::new(&level_bar, |bar, v| {
+                bar.set_value(v);
+            });
+            self.animation.replace(animation);
         }
     }
 

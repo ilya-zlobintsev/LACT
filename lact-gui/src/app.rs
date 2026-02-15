@@ -1,3 +1,4 @@
+mod animation;
 mod apply_revealer;
 mod confirmation_dialog;
 mod ext;
