@@ -29,6 +29,9 @@ jobs:
         env:
           GPG_KEY: ${{ secrets.GPG_KEY }}
 
+      - name: debug
+        run: docker info
+
       - name: Install pkger
         run: |
           curl -L -o /usr/local/bin/pkger https://github.com/ilya-zlobintsev/pkger/releases/download/v0.11.5/pkger
