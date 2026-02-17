@@ -656,7 +656,7 @@ impl GpuController for IntelGpuController {
                     if let Some(max_cap) = self.get_power_cap_max()
                         && cap > max_cap
                     {
-                        bail!("Specified cap {cap} is greated than maximum allowed {max_cap}");
+                        bail!("Specified cap {cap} is greater than maximum allowed {max_cap}");
                     }
 
                     self.write_hwmon_file(

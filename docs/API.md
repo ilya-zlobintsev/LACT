@@ -8,7 +8,7 @@ The general format of requests looks like:
 ```
 {"command": "command_name", "args": {}}
 ```
-Note that the type of `args` depends on the specific request, and may be ommited in some cases.
+Note that the type of `args` depends on the specific request, and may be omitted in some cases.
 
 The response looks like this:
 ```

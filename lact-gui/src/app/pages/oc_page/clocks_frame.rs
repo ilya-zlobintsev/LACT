@@ -254,7 +254,7 @@ impl relm4::Component for ClocksFrame {
             ClocksFrameMsg::TogglePStatesVisibility => {
                 let show_secondary = self.show_all_pstates.value();
                 for (key, row) in self.clocks.iter() {
-                    // Only show min/max core/vram clock when nvidia locked clocks are enabeld
+                    // Only show min/max core/vram clock when nvidia locked clocks are enabled
                     let show_current = match key {
                         ClockspeedType::MaxCoreClock | ClockspeedType::MinCoreClock
                             if self.show_nvidia_options =>

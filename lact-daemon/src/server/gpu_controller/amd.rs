@@ -660,7 +660,7 @@ impl AmdGpuController {
                     .and_then(|name| name.to_str())
                     .map(str::to_owned)
             })
-            .and_then(|name| name.strip_prefix("renderD").map(str::to_owned))
+            .and_then(|name| name.strip_prefix("rendered").map(str::to_owned))
             .and_then(|render_minor| {
                 let nodes_dir = fs::read_dir("/sys/class/kfd/kfd/topology/nodes").ok()?;
                 nodes_dir.into_iter().flatten().find_map(|entry| {

@@ -1,7 +1,7 @@
 use crate::system::IS_FLATBOX;
 use anyhow::Context;
 use lact_schema::ProfileProcessMap;
-use libcopes::{PEvent, PID};
+use libcopes::{prevent, PID};
 use nix::unistd::{Uid, User};
 use serde::Deserialize;
 use serde_json::Value;
@@ -137,7 +137,7 @@ impl GameModeConnector {
     pub fn receieve_events(
         &self,
         stop_notify: &Rc<Notify>,
-    ) -> anyhow::Result<mpsc::Receiver<PEvent>> {
+    ) -> anyhow::Result<mpsc::Receiver<prevent>> {
         let (tx, rx) = mpsc::channel(100);
 
         for (uid, base_args) in &self.args_sets {
@@ -168,7 +168,7 @@ impl GameModeConnector {
                                     Ok(msg) => match msg.member.as_str() {
                                         "GameRegistered" => {
                                             if let Some(pid) = msg.extract_pid() {
-                                                if tx.send(PEvent::Exec(pid.into())).await.is_err() {
+                                                if tx.send(prevent::Exec(pid.into())).await.is_err() {
                                                     break;
                                                 }
                                             } else {
@@ -177,7 +177,7 @@ impl GameModeConnector {
                                         }
                                         "GameUnregistered" => {
                                             if let Some(pid) = msg.extract_pid() {
-                                                if tx.send(PEvent::Exit(pid.into())).await.is_err() {
+                                                if tx.send(prevent::Exit(pid.into())).await.is_err() {
                                                     break;
                                                 }
                                             } else {

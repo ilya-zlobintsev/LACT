@@ -68,7 +68,7 @@ gpus:
       static_speed: 1.0
       # The temperature sensor name to be used with a custom fan curve.
       # This can be used to base the fan curve off  the`junction` (hotspot) 
-      # temperature instead of the default overall ("edge") tempreature.
+      # temperature instead of the default overall ("edge") temperature.
       # Applicable on most Vega and newer AMD GPUs.
       temperature_key: edge
       # Interval in milliseconds for how often the GPU temperature should be checked
@@ -207,7 +207,7 @@ profiles:
     # GPU settings in this profile. 
     # It is the same config format that is used for the top-level `gpus` option.
     gpus: {}
-    # Profile activation rule for when this profile shoule be activated 
+    # Profile activation rule for when this profile should be activated 
     # when using automatic profile switching.
     rule:
       # Type of the rule. Can be either `process or `gamemode`.

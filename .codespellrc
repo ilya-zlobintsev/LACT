@@ -1,0 +1,11 @@
+ # Usage:
+ #   codespell .
+ # or explicitly:
+ #   codespell --config .codespellrc .
+ #
+ # Notes:
+ # - The paths in `skip` are excluded to avoid touching build artifacts, vendored headers,
+ #   test data, and translation files, which often contain proper nouns/acronyms or
+ #   upstream content where automatic spelling fixes are undesirable.
+ [codespell]
+ skip = ./target,./build,./appimage-build,./AppDir,./.flatpak-builder,./pkg/output,./lact-gui/i18n,./lact-schema/i18n,./lact-daemon/src/tests/data,./lact-daemon/include,./res/device_ids.json

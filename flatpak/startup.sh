@@ -98,7 +98,7 @@ if [ -z "$GTK_THEME" ]; then
 
 	if [ "$COLOR_SCHEME" = "1" ]; then
 	    export GTK_THEME="Adwaita:dark"
-	    echo "Detected dark theme system setting, GTK theme overriden to $GTK_THEME"
+	    echo "Detected dark theme system setting, GTK theme overridden to $GTK_THEME"
 	fi
     fi
     set -e

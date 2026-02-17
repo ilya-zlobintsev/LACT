@@ -1074,7 +1074,7 @@ pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> = LazyLock::new(|| None);
 
 #[cfg(all(not(test), feature = "nvidia"))]
 // SAFETY: We use global LazyLock to make sure it's safe.
-// Loading of shared libaries is unsafe
+// Loading of shared libraries is unsafe
 // https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
 #[allow(unused_unsafe)]
 pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> =
@@ -1114,7 +1114,7 @@ pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> =
 pub(crate) static AMD_DRM: LazyLock<Option<LibDrmAmdgpu>> = LazyLock::new(|| {
     // SAFETY: We use global LazyLock to make sure it's safe.
     #[allow(unused_unsafe)]
-    // Loading of shared libaries is unsafe
+    // Loading of shared libraries is unsafe
     // https://github.com/Umio-Yasuno/libdrm-amdgpu-sys-rs/issues/12
     // https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
     match unsafe { LibDrmAmdgpu::new() } {

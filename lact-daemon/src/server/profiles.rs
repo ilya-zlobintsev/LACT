@@ -3,7 +3,7 @@ mod process;
 
 use crate::server::{handler::Handler, profiles::gamemode::GameModeConnector};
 use lact_schema::{ProfileRule, ProfileWatcherState};
-use libcopes::PEvent;
+use libcopes::prevent;
 use std::{
     rc::Rc,
     time::{Duration, Instant},
@@ -22,8 +22,8 @@ const PROFILE_WATCHER_MAX_DELAY_MS: u64 = 500;
 
 #[derive(Debug)]
 enum ProfileWatcherEvent {
-    Process(PEvent),
-    Gamemode(PEvent),
+    Process(prevent),
+    Gamemode(prevent),
 }
 
 pub enum ProfileWatcherCommand {
@@ -172,7 +172,7 @@ fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler, should_r
     };
 
     match *event {
-        ProfileWatcherEvent::Process(PEvent::Exec(pid)) => match process::get_pid_info(pid) {
+        ProfileWatcherEvent::Process(prevent::Exec(pid)) => match process::get_pid_info(pid) {
             Ok(info) => {
                 trace!("process {pid} ({}) started", info.name);
                 if info.name.as_ref() == gamemode::PROCESS_NAME {
@@ -185,17 +185,17 @@ fn handle_profile_event(event: &ProfileWatcherEvent, handler: &Handler, should_r
                 debug!("could not get info for process {pid}: {err}");
             }
         },
-        ProfileWatcherEvent::Process(PEvent::Exit(pid)) => {
+        ProfileWatcherEvent::Process(prevent::Exit(pid)) => {
             if let Some(info) = state.remove_process(*pid.as_ref()) {
                 trace!("process {pid} ({}) exited", info.name);
             } else {
                 trace!("process {pid} exited");
             }
         }
-        ProfileWatcherEvent::Gamemode(PEvent::Exec(pid)) => {
+        ProfileWatcherEvent::Gamemode(prevent::Exec(pid)) => {
             state.gamemode_games.insert(*pid.as_ref());
         }
-        ProfileWatcherEvent::Gamemode(PEvent::Exit(pid)) => {
+        ProfileWatcherEvent::Gamemode(prevent::Exit(pid)) => {
             state.gamemode_games.shift_remove(pid.as_ref());
         }
     }

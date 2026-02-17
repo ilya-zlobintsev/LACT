@@ -13131,7 +13131,7 @@
                             "type": "string"
                         },
                         "status": {
-                            "description": "The developmet status of the profile: ALPHA, BETA, STABLE or DEPRECATED.",
+                            "description": "The development status of the profile: ALPHA, BETA, STABLE or DEPRECATED.",
                             "$ref": "#/definitions/status"
                         },
                         "api-version": {
