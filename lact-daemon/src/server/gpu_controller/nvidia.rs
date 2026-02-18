@@ -973,8 +973,6 @@ impl GpuController for NvidiaGpuController {
                         )
                         .context("Could not set target temperature")?;
                 }
-            } else {
-                self.reset_pmfw_settings();
             }
 
             Ok(())
