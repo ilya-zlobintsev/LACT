@@ -144,7 +144,7 @@ impl NvidiaGpuController {
             .expect("Can no longer get device")
     }
 
-    fn get_target_temp_info(&self) -> Option<FanInfo> {
+    fn get_target_temp(&self) -> Option<FanInfo> {
         let device = self.device();
         let current = device
             .temperature_threshold(TemperatureThreshold::AcousticCurr)
@@ -485,7 +485,7 @@ impl GpuController for NvidiaGpuController {
                         DeviceFlag::ConfigurableFanControl,
                         DeviceFlag::AutoFanThreshold,
                     ];
-                    if self.get_target_temp_info().is_some() {
+                    if self.get_target_temp().is_some() {
                         flags.push(DeviceFlag::HasPmfw);
                     }
                     flags
@@ -633,7 +633,7 @@ impl GpuController for NvidiaGpuController {
                 pwm_min: fan_range.map(|(min, _)| (f64::from(min) * 2.55).round() as u32),
                 temperature_range: None,
                 pmfw_info: PmfwInfo {
-                    target_temp: self.get_target_temp_info(),
+                    target_temp: self.get_target_temp(),
                     ..Default::default()
                 },
             },
@@ -932,7 +932,7 @@ impl GpuController for NvidiaGpuController {
             }
 
             if let Some(target_temp) = config.pmfw_options.target_temperature
-                && let Some(info) = self.get_target_temp_info()
+                && let Some(info) = self.get_target_temp()
                 && let Some((min, max)) = info.allowed_range
             {
                 let target_temp = target_temp.clamp(min, max);
