@@ -33,7 +33,7 @@ indexmap = { workspace = true }
 divan = { workspace = true, optional = true }
 serde_norway = { workspace = true }
 
-nvml-wrapper = "0.11.0"
+nvml-wrapper = "0.12.0"
 bitflags = "2.6.0"
 pciid-parser = { version = "0.8", features = ["serde"] }
 zbus = { version = "5.3.1", default-features = false, features = ["tokio"] }
