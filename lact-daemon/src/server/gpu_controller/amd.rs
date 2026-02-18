@@ -1077,6 +1077,30 @@ impl GpuController for AmdGpuController {
                     .context("Failed to set power performance level")?;
             }
 
+            // Set performance level before applying clocks, as writing to the clocks table
+            // (pp_od_clk_voltage) requires the performance level to already be set to "manual"
+            let mut deferred_performance_level = None;
+            match self.handle.get_power_force_performance_level() {
+                Ok(_) => {
+                    let performance_level =
+                        config.performance_level.unwrap_or(PerformanceLevel::Auto);
+
+                    match performance_level {
+                        PerformanceLevel::Auto | PerformanceLevel::Manual => {
+                            self.handle
+                                .set_power_force_performance_level(performance_level)
+                                .context("Failed to set power performance level")?;
+                        }
+                        PerformanceLevel::High | PerformanceLevel::Low => {
+                            deferred_performance_level = Some(performance_level);
+                        }
+                    }
+                }
+                Err(err) => {
+                    error!("could not get current performance level: {err}");
+                }
+            }
+
             if self.is_steam_deck() {
                 // Van Gogh/Sephiroth only allow clock settings to be used with manual performance mode
                 self.handle
@@ -1115,28 +1139,6 @@ impl GpuController for AmdGpuController {
                             "custom clock settings are present but will be ignored, could not get clocks table: {err}"
                         );
                     }
-                }
-            }
-
-            let mut deferred_performance_level = None;
-            match self.handle.get_power_force_performance_level() {
-                Ok(_) => {
-                    let performance_level =
-                        config.performance_level.unwrap_or(PerformanceLevel::Auto);
-
-                    match performance_level {
-                        PerformanceLevel::Auto | PerformanceLevel::Manual => {
-                            self.handle
-                                .set_power_force_performance_level(performance_level)
-                                .context("Failed to set power performance level")?;
-                        }
-                        PerformanceLevel::High | PerformanceLevel::Low => {
-                            deferred_performance_level = Some(performance_level);
-                        }
-                    }
-                }
-                Err(err) => {
-                    error!("could not get current performance level: {err}");
                 }
             }
 
