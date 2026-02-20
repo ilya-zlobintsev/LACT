@@ -152,8 +152,8 @@ impl relm4::Component for ClocksFrame {
             append_child = &gtk::FlowBox {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_selection_mode: gtk::SelectionMode::None,
-                set_max_children_per_line: 2,
-                set_min_children_per_line: 1,
+                #[watch]
+                set_max_children_per_line: if model.core_any_visible() && model.vram_any_visible() { 2 } else { 1 },
                 set_column_spacing: 10,
                 set_row_spacing: 10,
                 set_homogeneous: false,
