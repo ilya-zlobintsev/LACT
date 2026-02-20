@@ -1,7 +1,7 @@
 use super::adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use lact_schema::request::ClockspeedType;
-use relm4::factory::FactoryHashMap;
+use relm4::{css, factory::FactoryHashMap, prelude::FactoryComponent};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ClockCategory {
@@ -14,46 +14,46 @@ pub enum ClockCategory {
     VramCurveVoltage,
 }
 
-pub const ALL_CATEGORIES: [ClockCategory; 7] = [
-    ClockCategory::CoreClock,
-    ClockCategory::CoreVoltage,
-    ClockCategory::VramClock,
-    ClockCategory::CoreCurveClock,
-    ClockCategory::VramCurveClock,
-    ClockCategory::CoreCurveVoltage,
-    ClockCategory::VramCurveVoltage,
-];
-
-pub const CORE_CATEGORIES: [ClockCategory; 4] = [
-    ClockCategory::CoreClock,
-    ClockCategory::CoreVoltage,
-    ClockCategory::CoreCurveClock,
-    ClockCategory::CoreCurveVoltage,
-];
-
-pub const VRAM_CATEGORIES: [ClockCategory; 3] = [
-    ClockCategory::VramClock,
-    ClockCategory::VramCurveClock,
-    ClockCategory::VramCurveVoltage,
-];
-
-pub fn clock_category(clock_type: ClockspeedType) -> ClockCategory {
-    match clock_type {
-        ClockspeedType::MaxCoreClock
-        | ClockspeedType::MinCoreClock
-        | ClockspeedType::GpuClockOffset(_) => ClockCategory::CoreClock,
-        ClockspeedType::MinVoltage | ClockspeedType::MaxVoltage | ClockspeedType::VoltageOffset => {
-            ClockCategory::CoreVoltage
+impl ClockCategory {
+    pub fn from_type(clock_type: ClockspeedType) -> Self {
+        match clock_type {
+            ClockspeedType::MaxCoreClock
+            | ClockspeedType::MinCoreClock
+            | ClockspeedType::GpuClockOffset(_) => ClockCategory::CoreClock,
+            ClockspeedType::MinVoltage
+            | ClockspeedType::MaxVoltage
+            | ClockspeedType::VoltageOffset => ClockCategory::CoreVoltage,
+            ClockspeedType::MaxMemoryClock
+            | ClockspeedType::MinMemoryClock
+            | ClockspeedType::MemClockOffset(_) => ClockCategory::VramClock,
+            ClockspeedType::GpuVfCurveClock(_) => ClockCategory::CoreCurveClock,
+            ClockspeedType::MemVfCurveClock(_) => ClockCategory::VramCurveClock,
+            ClockspeedType::GpuVfCurveVoltage(_) => ClockCategory::CoreCurveVoltage,
+            ClockspeedType::MemVfCurveVoltage(_) => ClockCategory::VramCurveVoltage,
+            ClockspeedType::Reset => unreachable!(),
         }
-        ClockspeedType::MaxMemoryClock
-        | ClockspeedType::MinMemoryClock
-        | ClockspeedType::MemClockOffset(_) => ClockCategory::VramClock,
-        ClockspeedType::GpuVfCurveClock(_) => ClockCategory::CoreCurveClock,
-        ClockspeedType::MemVfCurveClock(_) => ClockCategory::VramCurveClock,
-        ClockspeedType::GpuVfCurveVoltage(_) => ClockCategory::CoreCurveVoltage,
-        ClockspeedType::MemVfCurveVoltage(_) => ClockCategory::VramCurveVoltage,
-        ClockspeedType::Reset => unreachable!(),
     }
+
+    pub fn is_core(&self) -> bool {
+        Self::CORE.contains(self)
+    }
+
+    pub fn is_vram(&self) -> bool {
+        Self::VRAM.contains(self)
+    }
+
+    pub const CORE: [ClockCategory; 4] = [
+        ClockCategory::CoreClock,
+        ClockCategory::CoreVoltage,
+        ClockCategory::CoreCurveClock,
+        ClockCategory::CoreCurveVoltage,
+    ];
+
+    pub const VRAM: [ClockCategory; 3] = [
+        ClockCategory::VramClock,
+        ClockCategory::VramCurveClock,
+        ClockCategory::VramCurveVoltage,
+    ];
 }
 
 pub struct AdjustmentGroup {
@@ -61,21 +61,6 @@ pub struct AdjustmentGroup {
 }
 
 impl AdjustmentGroup {
-    pub fn new(_category: ClockCategory) -> Self {
-        let adjustments = FactoryHashMap::builder().launch_default().detach();
-
-        let container: &gtk::Box = adjustments.widget();
-        container.set_orientation(gtk::Orientation::Vertical);
-        container.set_spacing(5);
-        container.set_valign(gtk::Align::Start);
-
-        Self { adjustments }
-    }
-
-    pub fn widget(&self) -> &gtk::Box {
-        self.adjustments.widget()
-    }
-
     pub fn is_empty(&self) -> bool {
         self.adjustments.is_empty()
     }
@@ -86,10 +71,6 @@ impl AdjustmentGroup {
 
     pub fn set_clock(&mut self, clock_type: ClockspeedType, data: ClocksData) {
         self.adjustments.insert(clock_type, data);
-    }
-
-    pub fn clear(&mut self) {
-        self.adjustments.clear();
     }
 
     pub fn add_size_group(&self, label_group: gtk::SizeGroup, input_group: gtk::SizeGroup) {
@@ -153,97 +134,27 @@ impl AdjustmentGroup {
     }
 }
 
-pub struct AdjustmentGroups {
-    pub core_clock: AdjustmentGroup,
-    pub core_voltage: AdjustmentGroup,
-    pub vram_clock: AdjustmentGroup,
-    pub core_curve_clock: AdjustmentGroup,
-    pub vram_curve_clock: AdjustmentGroup,
-    pub core_curve_voltage: AdjustmentGroup,
-    pub vram_curve_voltage: AdjustmentGroup,
-}
+#[relm4::factory(pub)]
+impl FactoryComponent for AdjustmentGroup {
+    type Init = ();
+    type Input = ();
+    type Output = ();
+    type CommandOutput = ();
+    type ParentWidget = gtk::Box;
+    type Index = ClockCategory;
 
-impl AdjustmentGroups {
-    pub fn new() -> Self {
+    view! {
+        self.adjustments.widget().clone() -> gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            set_spacing: 5,
+            set_valign: gtk::Align::Start,
+            add_css_class: css::FRAME,
+        }
+    }
+
+    fn init_model(_: Self::Init, _: &Self::Index, _: relm4::FactorySender<Self>) -> Self {
         Self {
-            core_clock: AdjustmentGroup::new(ClockCategory::CoreClock),
-            core_voltage: AdjustmentGroup::new(ClockCategory::CoreVoltage),
-            vram_clock: AdjustmentGroup::new(ClockCategory::VramClock),
-            core_curve_clock: AdjustmentGroup::new(ClockCategory::CoreCurveClock),
-            vram_curve_clock: AdjustmentGroup::new(ClockCategory::VramCurveClock),
-            core_curve_voltage: AdjustmentGroup::new(ClockCategory::CoreCurveVoltage),
-            vram_curve_voltage: AdjustmentGroup::new(ClockCategory::VramCurveVoltage),
+            adjustments: FactoryHashMap::builder().launch_default().detach(),
         }
-    }
-
-    pub fn get(&self, category: ClockCategory) -> &AdjustmentGroup {
-        match category {
-            ClockCategory::CoreClock => &self.core_clock,
-            ClockCategory::CoreVoltage => &self.core_voltage,
-            ClockCategory::VramClock => &self.vram_clock,
-            ClockCategory::CoreCurveClock => &self.core_curve_clock,
-            ClockCategory::VramCurveClock => &self.vram_curve_clock,
-            ClockCategory::CoreCurveVoltage => &self.core_curve_voltage,
-            ClockCategory::VramCurveVoltage => &self.vram_curve_voltage,
-        }
-    }
-
-    pub fn get_mut(&mut self, category: ClockCategory) -> &mut AdjustmentGroup {
-        match category {
-            ClockCategory::CoreClock => &mut self.core_clock,
-            ClockCategory::CoreVoltage => &mut self.core_voltage,
-            ClockCategory::VramClock => &mut self.vram_clock,
-            ClockCategory::CoreCurveClock => &mut self.core_curve_clock,
-            ClockCategory::VramCurveClock => &mut self.vram_curve_clock,
-            ClockCategory::CoreCurveVoltage => &mut self.core_curve_voltage,
-            ClockCategory::VramCurveVoltage => &mut self.vram_curve_voltage,
-        }
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &AdjustmentGroup> {
-        ALL_CATEGORIES.iter().map(|category| self.get(*category))
-    }
-
-    pub fn iter_core(&self) -> impl Iterator<Item = &AdjustmentGroup> {
-        CORE_CATEGORIES.iter().map(|category| self.get(*category))
-    }
-
-    pub fn iter_vram(&self) -> impl Iterator<Item = &AdjustmentGroup> {
-        VRAM_CATEGORIES.iter().map(|category| self.get(*category))
-    }
-
-    pub fn clear(&mut self) {
-        for category in ALL_CATEGORIES {
-            self.get_mut(category).clear();
-        }
-    }
-
-    pub fn add_size_groups(&self, label_group: gtk::SizeGroup, input_group: gtk::SizeGroup) {
-        for category in ALL_CATEGORIES {
-            self.get(category)
-                .add_size_group(label_group.clone(), input_group.clone());
-        }
-    }
-
-    pub fn toggle_secondary_visibility(
-        &self,
-        show_secondary: bool,
-        show_nvidia_options: bool,
-        enable_gpu_locked: bool,
-        enable_vram_locked: bool,
-    ) {
-        for category in ALL_CATEGORIES {
-            self.get(category).toggle_secondary_visibility(
-                show_secondary,
-                show_nvidia_options,
-                enable_gpu_locked,
-                enable_vram_locked,
-            );
-        }
-    }
-
-    pub fn get_raw_value(&self, clock_type: ClockspeedType) -> i32 {
-        let category = clock_category(clock_type);
-        self.get(category).get_raw_value(clock_type)
     }
 }

@@ -3,9 +3,12 @@ mod adjustment_row;
 
 use crate::{
     APP_BROKER, I18N,
-    app::{msg::AppMsg, page_section::PageSection},
+    app::{
+        msg::AppMsg, page_section::PageSection,
+        pages::oc_page::clocks_frame::adjustment_group::AdjustmentGroup,
+    },
 };
-use adjustment_group::{AdjustmentGroups, ClockCategory, clock_category};
+use adjustment_group::ClockCategory;
 use adjustment_row::ClocksData;
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
 use gtk::{
@@ -20,12 +23,14 @@ use lact_schema::{
 };
 use relm4::{
     ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
+    factory::FactoryHashMap,
 };
 
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 
 pub struct ClocksFrame {
-    groups: AdjustmentGroups,
+    core_groups: FactoryHashMap<ClockCategory, AdjustmentGroup>,
+    vram_groups: FactoryHashMap<ClockCategory, AdjustmentGroup>,
     vram_clock_ratio: f64,
     show_nvidia_options: bool,
     show_all_pstates: BoolBinding,
@@ -161,48 +166,12 @@ impl relm4::Component for ClocksFrame {
                     #[watch]
                     set_visible: model.core_any_visible(),
 
-                    gtk::Box {
+                    #[local_ref]
+                    core_groups_widget -> gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
+                        set_valign: gtk::Align::Start,
                         set_spacing: 10,
                         set_hexpand: true,
-                        set_valign: gtk::Align::Start,
-
-                        append = &gtk::Box {
-                            add_css_class: css::FRAME,
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_valign: gtk::Align::Start,
-                            set_spacing: 5,
-                            #[watch]
-                            set_visible: !model.groups.core_clock.is_empty(),
-                            append = model.groups.core_clock.widget(),
-                        },
-                        append = &gtk::Box {
-                            add_css_class: css::FRAME,
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_valign: gtk::Align::Start,
-                            set_spacing: 5,
-                            #[watch]
-                            set_visible: !model.groups.core_voltage.is_empty(),
-                            append = model.groups.core_voltage.widget(),
-                        },
-                        append = &gtk::Box {
-                            add_css_class: css::FRAME,
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_valign: gtk::Align::Start,
-                            set_spacing: 5,
-                            #[watch]
-                            set_visible: !model.groups.core_curve_clock.is_empty(),
-                            append = model.groups.core_curve_clock.widget(),
-                        },
-                        append = &gtk::Box {
-                            add_css_class: css::FRAME,
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_valign: gtk::Align::Start,
-                            set_spacing: 5,
-                            #[watch]
-                            set_visible: !model.groups.core_curve_voltage.is_empty(),
-                            append = model.groups.core_curve_voltage.widget(),
-                        },
                     },
                 },
 
@@ -212,39 +181,12 @@ impl relm4::Component for ClocksFrame {
                     #[watch]
                     set_visible: model.vram_any_visible(),
 
-                    gtk::Box {
+                    #[local_ref]
+                    vram_groups_widget -> gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
+                        set_valign: gtk::Align::Start,
                         set_spacing: 10,
                         set_hexpand: true,
-                        set_valign: gtk::Align::Start,
-
-                        append = &gtk::Box {
-                            add_css_class: css::FRAME,
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_valign: gtk::Align::Start,
-                            set_spacing: 5,
-                            #[watch]
-                            set_visible: !model.groups.vram_clock.is_empty(),
-                            append = model.groups.vram_clock.widget(),
-                        },
-                        append = &gtk::Box {
-                            add_css_class: css::FRAME,
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_valign: gtk::Align::Start,
-                            set_spacing: 5,
-                            #[watch]
-                            set_visible: !model.groups.vram_curve_clock.is_empty(),
-                            append = model.groups.vram_curve_clock.widget(),
-                        },
-                        append = &gtk::Box {
-                            add_css_class: css::FRAME,
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_valign: gtk::Align::Start,
-                            set_spacing: 5,
-                            #[watch]
-                            set_visible: !model.groups.vram_curve_voltage.is_empty(),
-                            append = model.groups.vram_curve_voltage.widget(),
-                        },
                     },
                 },
             },
@@ -265,7 +207,8 @@ impl relm4::Component for ClocksFrame {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = Self {
-            groups: AdjustmentGroups::new(),
+            core_groups: FactoryHashMap::builder().launch_default().detach(),
+            vram_groups: FactoryHashMap::builder().launch_default().detach(),
             vram_clock_ratio: 1.0,
             show_nvidia_options: false,
             show_all_pstates: BoolBinding::new(false),
@@ -283,6 +226,9 @@ impl relm4::Component for ClocksFrame {
                 sender.input(ClocksFrameMsg::TogglePStatesVisibility)
             });
         }
+
+        let core_groups_widget = model.core_groups.widget();
+        let vram_groups_widget = model.vram_groups.widget();
 
         let widgets = view_output!();
 
@@ -305,7 +251,9 @@ impl relm4::Component for ClocksFrame {
                     .vram_locked_clocks_togglebutton
                     .block_signal(&widgets.vram_locked_clock_signal);
 
-                self.groups.clear();
+                self.core_groups.clear();
+                self.vram_groups.clear();
+
                 self.enable_gpu_locked_clocks.set_value(false);
                 self.enable_vram_locked_clocks.set_value(false);
                 self.show_nvidia_options = false;
@@ -321,8 +269,9 @@ impl relm4::Component for ClocksFrame {
                 let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                 let input_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
 
-                self.groups
-                    .add_size_groups(label_size_group, input_size_group);
+                for group in self.all_groups() {
+                    group.add_size_group(label_size_group.clone(), input_size_group.clone());
+                }
 
                 widgets
                     .gpu_locked_clocks_togglebutton
@@ -337,12 +286,14 @@ impl relm4::Component for ClocksFrame {
                 self.vram_clock_ratio = vram_ratio;
             }
             ClocksFrameMsg::TogglePStatesVisibility => {
-                self.groups.toggle_secondary_visibility(
-                    self.show_all_pstates.value(),
-                    self.show_nvidia_options,
-                    self.enable_gpu_locked_clocks.value(),
-                    self.enable_vram_locked_clocks.value(),
-                );
+                for group in self.all_groups() {
+                    group.toggle_secondary_visibility(
+                        self.show_all_pstates.value(),
+                        self.show_nvidia_options,
+                        self.enable_gpu_locked_clocks.value(),
+                        self.enable_vram_locked_clocks.value(),
+                    );
+                }
             }
         }
         self.update_vram_clock_ratio();
@@ -353,30 +304,50 @@ impl relm4::Component for ClocksFrame {
 
 impl ClocksFrame {
     fn set_clock(&mut self, clock_type: ClockspeedType, data: ClocksData) {
-        let category = clock_category(clock_type);
-        self.groups.get_mut(category).set_clock(clock_type, data);
+        let category = ClockCategory::from_type(clock_type);
+
+        let groups = if category.is_core() {
+            &mut self.core_groups
+        } else if category.is_vram() {
+            &mut self.vram_groups
+        } else {
+            unreachable!()
+        };
+
+        let mut group = if let Some(group) = groups.get_mut(&category) {
+            group
+        } else {
+            groups.insert(category, ());
+            groups.get_mut(&category).unwrap()
+        };
+
+        group.set_clock(clock_type, data);
+    }
+
+    fn all_groups(&self) -> impl Iterator<Item = &AdjustmentGroup> {
+        self.core_groups.values().chain(self.vram_groups.values())
     }
 
     fn has_any_clocks(&self) -> bool {
-        self.groups.iter().any(|group| !group.is_empty())
+        self.core_groups.values().any(|group| !group.is_empty())
     }
 
     fn any_is_secondary(&self) -> bool {
-        self.groups.iter().any(|group| group.has_secondary())
+        self.all_groups().any(|group| group.has_secondary())
     }
 
     fn core_any_visible(&self) -> bool {
-        self.groups.iter_core().any(|group| !group.is_empty())
+        self.core_groups.values().any(|group| !group.is_empty())
     }
 
     fn vram_any_visible(&self) -> bool {
-        self.groups.iter_vram().any(|group| !group.is_empty())
+        self.vram_groups.values().any(|group| !group.is_empty())
     }
 
     fn update_vram_clock_ratio(&self) {
-        self.groups
-            .get(ClockCategory::VramClock)
-            .set_value_ratio(self.vram_clock_ratio);
+        if let Some(vram_group) = self.vram_groups.get(&ClockCategory::VramClock) {
+            vram_group.set_value_ratio(self.vram_clock_ratio);
+        }
     }
 
     fn set_amd_table(&mut self, table: AmdClocksTable) {
@@ -640,8 +611,7 @@ impl ClocksFrame {
 
     pub fn get_commands(&self) -> Vec<SetClocksCommand> {
         // If nvidia options are enabled, we always set locked clocks to None or Some
-        self.groups
-            .iter()
+        self.all_groups()
             .flat_map(|group| group.get_commands())
             .map(|(clock_type, configured_value)| {
                 let value = if self.show_nvidia_options {
@@ -649,11 +619,21 @@ impl ClocksFrame {
                         ClockspeedType::MinCoreClock | ClockspeedType::MaxCoreClock => self
                             .enable_gpu_locked_clocks
                             .value()
-                            .then(|| self.groups.get_raw_value(clock_type)),
+                            .then(|| {
+                                self.core_groups
+                                    .get(&ClockCategory::from_type(clock_type))
+                                    .map(|group| group.get_raw_value(clock_type))
+                            })
+                            .flatten(),
                         ClockspeedType::MinMemoryClock | ClockspeedType::MaxMemoryClock => self
                             .enable_vram_locked_clocks
                             .value()
-                            .then(|| self.groups.get_raw_value(clock_type)),
+                            .then(|| {
+                                self.vram_groups
+                                    .get(&ClockCategory::from_type(clock_type))
+                                    .map(|group| group.get_raw_value(clock_type))
+                            })
+                            .flatten(),
                         _ => configured_value,
                     }
                 } else {
