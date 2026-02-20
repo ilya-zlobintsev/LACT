@@ -116,7 +116,7 @@ nvidia-oc-description =
     قد يتسبب هذا في عدم استقرار النظام إذا دُفع عاليًا جدًا.
 enable-gpu-locked-clocks = مكّن ترددات معالج الرسوميات المقفلة
 max-gpu-clock = الحد الأقصى لتردد معالج الرسوميات (ميجاهرتز)
-pstates-manual-needed = ملاحظة: يجب ضبط مستوى الأداء على "يدوي" لتبديل حالات الطاقة
+pstates-manual-needed = يجب ضبط مستوى الأداء على "يدوي" لتبديل حالات الطاقة
 min-gpu-voltage = الحد الأدنى لجهد معالج الرسوميات (mV)
 gpu-pstates = حالات طاقة معالج الرسوميات
 no-throttling = لا
@@ -229,3 +229,5 @@ edit-graph-sensors = عدّل مستشعرات الرسم بياني
 gibibyte = ج.بايت
 crash-page-title = تطبيق تعطل
 exit = اخرج
+bytes = بايتات
+kibibyte = ك.بايت
