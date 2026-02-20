@@ -33,7 +33,7 @@ indexmap = { workspace = true }
 divan = { workspace = true, optional = true }
 serde_norway = { workspace = true }
 
-nvml-wrapper = "0.11.0"
+nvml-wrapper = "0.12.0"
 bitflags = "2.6.0"
 pciid-parser = { version = "0.8", features = ["serde"] }
 zbus = { version = "5.3.1", default-features = false, features = ["tokio"] }
@@ -45,7 +45,7 @@ libflate = "2.0.0"
 os-release = "0.1.0"
 notify = { version = "8.0.0", default-features = false }
 libcopes = "1.0.0"
-libloading = "0.8.6"
+libloading = "0.8.6" # Can be updated when https://github.com/rust-lang/rust-bindgen/issues/3332 is released
 
 ureq = { version = "3.1.2", features = ["json", "rustls"] }
 
