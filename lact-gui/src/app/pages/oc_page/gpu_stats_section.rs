@@ -49,6 +49,53 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 append_child = &gtk::FlowBox {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,
+                    set_row_spacing: 10,
+                    set_homogeneous: true,
+                    set_selection_mode: gtk::SelectionMode::None,
+
+                    append = &InfoRow {
+                        set_name: fl!(I18N, "device-name"),
+                        #[watch]
+                        set_value: model.gpu_model.clone(),
+                    },
+
+                    append = &InfoRow {
+                        set_name: fl!(I18N, "throttling"),
+                        #[watch]
+                        set_value: formatting::fmt_throttling_text(&model.stats),
+                    },
+
+                    append_child = &InfoRow {
+                        set_name: fl!(I18N, "gpu-clock-target"),
+                        #[watch]
+                        set_value: format_current_gfxclk(model.stats.clockspeed.target_gpu_clockspeed),
+                    } -> clockspeed_target_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: model.stats.clockspeed.target_gpu_clockspeed.is_some(),
+                    },
+
+                    append_child = &InfoRow {
+                        set_name: fl!(I18N, "gpu-voltage"),
+                        #[watch]
+                        set_value: format!("{} V", Mono::float(model.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64, 3)),
+                    } -> gpu_voltage_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: model.stats.voltage.gpu.is_some(),
+                    },
+
+                    append = &InfoRow {
+                        set_name: fl!(I18N, "gpu-temp"),
+                        #[watch]
+                        set_value: formatting::fmt_temperature_text(&model.stats)
+                            .unwrap_or_else(|| "N/A".to_owned()),
+                    },
+                },
+            },
+
+            PageSection::new("") {
+                append_child = &gtk::FlowBox {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_column_spacing: 10,
                     set_homogeneous: true,
                     set_selection_mode: gtk::SelectionMode::None,
 
@@ -183,53 +230,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     } -> fan_speed_item: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: model.stats.fan.pwm_current.is_some() || model.stats.fan.speed_current.is_some(),
-                    },
-                },
-            },
-
-            PageSection::new("") {
-                append_child = &gtk::FlowBox {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_column_spacing: 10,
-                    set_row_spacing: 10,
-                    set_homogeneous: true,
-                    set_selection_mode: gtk::SelectionMode::None,
-
-                    append = &InfoRow {
-                        set_name: fl!(I18N, "device-name"),
-                        #[watch]
-                        set_value: model.gpu_model.clone(),
-                    },
-
-                    append = &InfoRow {
-                        set_name: fl!(I18N, "throttling"),
-                        #[watch]
-                        set_value: formatting::fmt_throttling_text(&model.stats),
-                    },
-
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "gpu-clock-target"),
-                        #[watch]
-                        set_value: format_current_gfxclk(model.stats.clockspeed.target_gpu_clockspeed),
-                    } -> clockspeed_target_item: gtk::FlowBoxChild {
-                        #[watch]
-                        set_visible: model.stats.clockspeed.target_gpu_clockspeed.is_some(),
-                    },
-
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "gpu-voltage"),
-                        #[watch]
-                        set_value: format!("{} V", Mono::float(model.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64, 3)),
-                    } -> gpu_voltage_item: gtk::FlowBoxChild {
-                        #[watch]
-                        set_visible: model.stats.voltage.gpu.is_some(),
-                    },
-
-                    append = &InfoRow {
-                        set_name: fl!(I18N, "gpu-temp"),
-                        #[watch]
-                        set_value: formatting::fmt_temperature_text(&model.stats)
-                            .unwrap_or_else(|| "N/A".to_owned()),
                     },
                 },
             },
