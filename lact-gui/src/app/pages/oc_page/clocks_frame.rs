@@ -605,7 +605,6 @@ impl ClocksFrame {
     }
 
     pub fn get_commands(&self) -> Vec<SetClocksCommand> {
-        // If nvidia options are enabled, we always set locked clocks to None or Some
         self.all_groups()
             .flat_map(|group| group.get_commands())
             .map(|(clock_type, configured_value)| {
