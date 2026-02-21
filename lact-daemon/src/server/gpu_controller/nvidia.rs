@@ -778,7 +778,23 @@ impl GpuController for NvidiaGpuController {
         Err(anyhow!("Not supported on Nvidia"))
     }
 
-    fn reset_pmfw_settings(&self) {}
+    fn reset_pmfw_settings(&self, gpu_config: Option<&GpuConfig>) {
+        if let Some(config) = gpu_config
+            && let Some(initial) = config.initial_target_temp
+        {
+            let device = self.device();
+            if let Ok(current) = device.temperature_threshold(TemperatureThreshold::AcousticCurr)
+                && current != initial
+            {
+                debug!("resetting target temperature to {initial}");
+                if let Err(err) =
+                    device.set_temperature_threshold(TemperatureThreshold::AcousticCurr, initial.cast_signed())
+                {
+                    warn!("Could not reset target temperature: {err:#}");
+                }
+            }
+        }
+    }
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
         Err(anyhow!("Not supported on Nvidia"))
@@ -1088,5 +1104,11 @@ impl GpuController for NvidiaGpuController {
             processes,
             supported_util_types: SUPPORTED_UTIL_TYPES.iter().copied().collect(),
         })
+    }
+
+    fn get_current_target_temp(&self) -> anyhow::Result<u32> {
+        self.get_target_temp()
+            .map(|info| info.current)
+            .ok_or_else(|| anyhow!("Target temperature not available"))
     }
 }
