@@ -214,7 +214,11 @@ impl<'a> Handler {
             let controllers = self.gpu_controllers.read().await;
             controllers
                 .iter()
-                .filter_map(|(id, c)| c.get_current_target_temp().ok().map(|temp| (id.clone(), temp)))
+                .filter_map(|(id, c)| {
+                    c.get_current_target_temp()
+                        .ok()
+                        .map(|temp| (id.clone(), temp))
+                })
                 .collect()
         };
 
@@ -234,9 +238,7 @@ impl<'a> Handler {
             }
         }
 
-        if changed
-            && let Err(err) = config.save(&self.config_last_saved)
-        {
+        if changed && let Err(err) = config.save(&self.config_last_saved) {
             error!("could not save config after capturing initial PMFW values: {err:#}");
         }
     }

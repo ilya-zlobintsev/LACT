@@ -787,9 +787,10 @@ impl GpuController for NvidiaGpuController {
                 && current != initial
             {
                 debug!("resetting target temperature to {initial}");
-                if let Err(err) =
-                    device.set_temperature_threshold(TemperatureThreshold::AcousticCurr, initial.cast_signed())
-                {
+                if let Err(err) = device.set_temperature_threshold(
+                    TemperatureThreshold::AcousticCurr,
+                    initial.cast_signed(),
+                ) {
                     warn!("Could not reset target temperature: {err:#}");
                 }
             }

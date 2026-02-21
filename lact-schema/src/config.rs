@@ -4,9 +4,8 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use crate::{
-    default_fan_curve,
+    FanControlMode, FanCurveMap, PmfwOptions, ProfileRule, default_fan_curve,
     request::{ClockspeedType, SetClocksCommand},
-    FanControlMode, FanCurveMap, PmfwOptions, ProfileRule,
 };
 
 #[skip_serializing_none]
@@ -100,7 +99,7 @@ pub struct CurvePoint {
 
 mod int_map {
     use indexmap::IndexMap;
-    use serde::{de::Error, Deserialize, Deserializer};
+    use serde::{Deserialize, Deserializer, de::Error};
     use serde_json::Value;
     use std::hash::Hash;
     use std::str::FromStr;
