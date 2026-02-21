@@ -361,7 +361,6 @@ impl ClocksFrame {
                         ClockspeedType::GpuVfCurveClock,
                         min_sclk,
                         max_sclk,
-                        true,
                     );
                 }
 
@@ -373,7 +372,6 @@ impl ClocksFrame {
                         ClockspeedType::MemVfCurveClock,
                         min_mclk,
                         max_mclk,
-                        false,
                     );
                 }
 
@@ -383,7 +381,6 @@ impl ClocksFrame {
                         ClockspeedType::GpuVfCurveVoltage,
                         min_vddc,
                         max_vddc,
-                        false,
                     );
 
                     self.add_amd_list(
@@ -391,7 +388,6 @@ impl ClocksFrame {
                         ClockspeedType::MemVfCurveVoltage,
                         min_vddc,
                         max_vddc,
-                        false,
                     );
                 }
             }
@@ -518,7 +514,6 @@ impl ClocksFrame {
         clock_type: fn(u8) -> ClockspeedType,
         min: i32,
         max: i32,
-        _disable_separator: bool,
     ) {
         let values_len = values.len();
         for (i, value) in values.enumerate().rev() {
