@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use gtk::glib::{ControlFlow, WeakRef};
-use gtk::{prelude::*, TickCallbackId};
+use gtk::{TickCallbackId, prelude::*};
 
 const STIFFNESS: f64 = 200.0;
 const DAMPING_COEFFICIENT: f64 = 20.0;
