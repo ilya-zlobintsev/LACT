@@ -137,18 +137,23 @@ impl SetClocksCommand {
 #[serde(rename_all = "snake_case")]
 pub enum ClockspeedType {
     MaxCoreClock,
-    MaxMemoryClock,
-    MaxVoltage,
     MinCoreClock,
-    MinMemoryClock,
-    MinVoltage,
-    VoltageOffset,
     GpuClockOffset(u32),
+
+    MinVoltage,
+    MaxVoltage,
+    VoltageOffset,
+
+    MaxMemoryClock,
+    MinMemoryClock,
     MemClockOffset(u32),
+
     GpuVfCurveClock(u8),
-    MemVfCurveClock(u8),
     GpuVfCurveVoltage(u8),
+
+    MemVfCurveClock(u8),
     MemVfCurveVoltage(u8),
+
     Reset,
 }
 
