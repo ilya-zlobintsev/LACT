@@ -778,6 +778,8 @@ impl GpuController for IntelGpuController {
         PowerStates { core, vram: vec![] }
     }
 
+    fn reset_pmfw_settings(&self, _gpu_config: Option<&GpuConfig>) {}
+
     #[allow(clippy::cast_possible_truncation)]
     fn reset_clocks(&self) -> anyhow::Result<()> {
         if let Some(rp0) = self.read_freq(FrequencyType::Rp0)
