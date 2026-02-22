@@ -10,7 +10,10 @@ use crate::{
         vulkan::get_vulkan_info,
     },
 };
-use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
+use amdgpu_sysfs::{
+    gpu_handle::{fan_control::FanInfo, power_profile_mode::PowerProfileModesTable},
+    hw_mon::Temperature,
+};
 use anyhow::{Context, anyhow, bail};
 use driver::DriverHandle;
 use futures::{FutureExt, future::LocalBoxFuture, join};
@@ -139,6 +142,24 @@ impl NvidiaGpuController {
         self.nvml
             .device_by_pci_bus_id(self.common.pci_slot_name.as_str())
             .expect("Can no longer get device")
+    }
+
+    fn get_target_temp(&self) -> Option<FanInfo> {
+        let device = self.device();
+        let current = device
+            .temperature_threshold(TemperatureThreshold::AcousticCurr)
+            .ok()?;
+        let min = device
+            .temperature_threshold(TemperatureThreshold::AcousticMin)
+            .ok()?;
+        let max = device
+            .temperature_threshold(TemperatureThreshold::AcousticMax)
+            .ok()?;
+
+        Some(FanInfo {
+            current,
+            allowed_range: Some((min, max)),
+        })
     }
 
     async fn start_curve_fan_control_task(
@@ -459,10 +480,16 @@ impl GpuController for NvidiaGpuController {
                         .ok(),
                     intel: IntelDrmInfo::default(),
                 }),
-                flags: vec![
-                    DeviceFlag::ConfigurableFanControl,
-                    DeviceFlag::AutoFanThreshold,
-                ],
+                flags: {
+                    let mut flags = vec![
+                        DeviceFlag::ConfigurableFanControl,
+                        DeviceFlag::AutoFanThreshold,
+                    ];
+                    if self.get_target_temp().is_some() {
+                        flags.push(DeviceFlag::HasPmfw);
+                    }
+                    flags
+                },
             }
         })
     }
@@ -605,7 +632,10 @@ impl GpuController for NvidiaGpuController {
                 pwm_max: fan_range.map(|(_, max)| (f64::from(max) * 2.55).round() as u32),
                 pwm_min: fan_range.map(|(min, _)| (f64::from(min) * 2.55).round() as u32),
                 temperature_range: None,
-                pmfw_info: PmfwInfo::default(),
+                pmfw_info: PmfwInfo {
+                    target_temp: self.get_target_temp(),
+                    ..Default::default()
+                },
             },
             power: PowerStats {
                 average: None,
@@ -748,7 +778,24 @@ impl GpuController for NvidiaGpuController {
         Err(anyhow!("Not supported on Nvidia"))
     }
 
-    fn reset_pmfw_settings(&self) {}
+    fn reset_pmfw_settings(&self, gpu_config: Option<&GpuConfig>) {
+        if let Some(config) = gpu_config
+            && let Some(initial) = config.initial_target_temp
+        {
+            let device = self.device();
+            if let Ok(current) = device.temperature_threshold(TemperatureThreshold::AcousticCurr)
+                && current != initial
+            {
+                debug!("resetting target temperature to {initial}");
+                if let Err(err) = device.set_temperature_threshold(
+                    TemperatureThreshold::AcousticCurr,
+                    initial.cast_signed(),
+                ) {
+                    warn!("Could not reset target temperature: {err:#}");
+                }
+            }
+        }
+    }
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
         Err(anyhow!("Not supported on Nvidia"))
@@ -901,6 +948,23 @@ impl GpuController for NvidiaGpuController {
                     .context("Could not reset fan control")?;
             }
 
+            if let Some(target_temp) = config.pmfw_options.target_temperature
+                && let Some(info) = self.get_target_temp()
+                && let Some((min, max)) = info.allowed_range
+            {
+                let target_temp = target_temp.clamp(min, max);
+
+                if info.current != target_temp {
+                    debug!("setting target temperature to {target_temp}");
+                    if let Err(err) = device.set_temperature_threshold(
+                        TemperatureThreshold::AcousticCurr,
+                        target_temp.cast_signed(),
+                    ) {
+                        warn!("Could not set target temperature: {err:#}");
+                    }
+                }
+            }
+
             Ok(())
         })
     }
@@ -1038,5 +1102,11 @@ impl GpuController for NvidiaGpuController {
             processes,
             supported_util_types: SUPPORTED_UTIL_TYPES.iter().copied().collect(),
         })
+    }
+
+    fn get_current_target_temp(&self) -> anyhow::Result<u32> {
+        self.get_target_temp()
+            .map(|info| info.current)
+            .ok_or_else(|| anyhow!("Target temperature not available"))
     }
 }
