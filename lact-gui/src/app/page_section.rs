@@ -103,8 +103,8 @@ mod imp {
 
                         #[local_ref]
                         append = children_box {
+                            add_css_class: "page-section-children-box",
                             set_orientation: gtk::Orientation::Vertical,
-                            set_margin_all: 10,
                             set_spacing: 10,
                         }
                     }
