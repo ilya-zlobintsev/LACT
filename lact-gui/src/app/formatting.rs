@@ -319,5 +319,9 @@ mod tests {
             fmt_human_bytes(1_610_612_736, Some(ByteUnit::Gibibyte)),
             "1.5 GiB"
         );
+        assert_eq!(
+            fmt_human_bytes(94_371_840, Some(ByteUnit::Gibibyte)),
+            "0.1 GiB"
+        );
     }
 }
