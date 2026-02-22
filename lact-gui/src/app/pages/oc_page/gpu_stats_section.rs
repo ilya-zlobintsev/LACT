@@ -7,11 +7,10 @@ use crate::app::{
     info_row::{InfoRow, InfoRowExt},
     info_row_level::InfoRowLevel,
     page_section::PageSection,
-    pages::PageUpdate,
 };
 use gtk::prelude::{BoxExt, ButtonExt, Cast, FlowBoxChildExt, OrientableExt, WidgetExt};
 use i18n_embed_fl::fl;
-use lact_schema::{DeviceStats, PowerStats};
+use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats};
 use relm4::{ComponentParts, ComponentSender};
 use std::sync::Arc;
 
@@ -26,11 +25,18 @@ pub struct GpuStatsSection {
     min_vram_clock: Option<u64>,
 }
 
+#[derive(Debug)]
+pub enum GpuStatsSectionMsg {
+    Info(Arc<DeviceInfo>),
+    Stats(Arc<DeviceStats>),
+    PowerStates(Arc<PowerStates>),
+}
+
 #[relm4::component(pub)]
 impl relm4::SimpleComponent for GpuStatsSection {
-    type Init = ();
-    type Input = PageUpdate;
+    type Input = GpuStatsSectionMsg;
     type Output = ();
+    type Init = ();
 
     view! {
         gtk::Box {
@@ -304,7 +310,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
     fn update(&mut self, msg: Self::Input, _sender: relm4::ComponentSender<Self>) {
         match msg {
-            PageUpdate::Info(info) => {
+            GpuStatsSectionMsg::Info(info) => {
                 self.vram_clock_ratio = info.vram_clock_ratio();
                 if let Some(pci_info) = &info.pci_info {
                     self.gpu_model = info
@@ -316,10 +322,10 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         .to_owned();
                 }
             }
-            PageUpdate::Stats(stats) => {
+            GpuStatsSectionMsg::Stats(stats) => {
                 self.stats = stats;
             }
-            PageUpdate::PowerStates(pstates) => {
+            GpuStatsSectionMsg::PowerStates(pstates) => {
                 self.max_gpu_clock = pstates.max_gpu_clock();
                 self.max_vram_clock = pstates.max_vram_clock();
                 self.min_gpu_clock = pstates.min_gpu_clock();

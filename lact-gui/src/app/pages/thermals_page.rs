@@ -514,7 +514,6 @@ impl relm4::Component for ThermalsPage {
                         }
                     }
                 }
-                PageUpdate::PowerStates(_) => (),
             },
         }
 
