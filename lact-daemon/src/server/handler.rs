@@ -1051,6 +1051,13 @@ impl<'a> Handler {
 
     pub async fn cleanup(&self) {
         let disable_clocks_cleanup = self.config.read().await.daemon.disable_clocks_cleanup;
+        let gpu_configs = self
+            .config
+            .read()
+            .await
+            .gpus()
+            .map(|g| g.clone())
+            .unwrap_or_default();
 
         let controllers = self.gpu_controllers.read().await;
         for (id, controller) in controllers.iter() {
@@ -1061,7 +1068,7 @@ impl<'a> Handler {
                 }
             }
 
-            controller.reset_pmfw_settings(None);
+            controller.reset_pmfw_settings(gpu_configs.get(id));
 
             if let Err(err) = controller.apply_config(&GpuConfig::default()).await {
                 error!("Could not reset settings for controller {id}: {err:#}");

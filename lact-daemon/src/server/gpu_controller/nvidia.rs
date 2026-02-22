@@ -956,10 +956,9 @@ impl GpuController for NvidiaGpuController {
 
                 if info.current != target_temp {
                     debug!("setting target temperature to {target_temp}");
-                    #[allow(clippy::cast_possible_wrap)]
                     if let Err(err) = device.set_temperature_threshold(
                         TemperatureThreshold::AcousticCurr,
-                        target_temp as i32,
+                        target_temp.cast_signed(),
                     ) {
                         warn!("Could not set target temperature: {err:#}");
                     }
