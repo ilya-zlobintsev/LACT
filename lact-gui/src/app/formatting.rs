@@ -47,22 +47,19 @@ impl fmt::Display for Mono {
     }
 }
 
-pub fn fmt_fan_speed(stats: &DeviceStats) -> Option<String> {
-    let fan_percent = stats
-        .fan
-        .pwm_current
-        .map(|current_pwm| ((current_pwm as f64 / u8::MAX as f64) * 100.0).round() as u64);
+pub fn fmt_fan_speed(stats: &DeviceStats, show_percent: bool) -> Option<String> {
+    let rpm = stats.fan.speed_current.map(u64::from);
+    let pct = stats.fan.percent(); // Method from Step 1
 
-    match (stats.fan.speed_current.map(u64::from), fan_percent) {
-        (Some(rpm), Some(percent)) => Some(format!(
-            "<b>{} RPM ({}%)</b>",
-            Mono::uint(rpm),
-            Mono::uint(percent)
-        )),
-        (Some(rpm), None) => Some(format!("<b>{} RPM</b>", Mono::uint(rpm))),
-        (None, Some(percent)) => Some(format!("<b>{}%</b>", Mono::uint(percent))),
-        (None, None) => None,
-    }
+    let content = match (rpm, pct) {
+        (Some(r), Some(p)) if show_percent => format!("{} RPM ({}%)", Mono::uint(r), Mono::uint(p)),
+        (Some(r), _) => format!("{} RPM", Mono::uint(r)),
+        (None, Some(p)) if show_percent => format!("{}%", Mono::uint(p)),
+        (None, Some(p)) => format!("{}", Mono::uint(p)),
+        (None, None) => return None,
+    };
+
+    Some(format!("<b>{}</b>", content))
 }
 
 pub fn fmt_throttling_text(stats: &DeviceStats) -> String {
@@ -190,13 +187,13 @@ mod tests {
     }
 
     #[test]
-    fn fmt_fan_speed_formats_rpm_and_percent() {
+    fn fmt_fan_speed_formats_rpm_and_percent_with_percent_in_text() {
         let mut stats = DeviceStats::default();
         stats.fan.pwm_current = Some(128);
         stats.fan.speed_current = Some(3000);
 
         assert_eq!(
-            fmt_fan_speed(&stats),
+            fmt_fan_speed(&stats, true),
             Some(
                 "<b><span font_family='monospace'>3000</span> RPM (<span font_family='monospace'>50</span>%)</b>"
                     .to_string()
@@ -205,13 +202,36 @@ mod tests {
     }
 
     #[test]
-    fn fmt_fan_speed_formats_percent_only() {
+    fn fmt_fan_speed_formats_rpm_and_percent_without_percent_in_text() {
+        let mut stats = DeviceStats::default();
+        stats.fan.pwm_current = Some(128);
+        stats.fan.speed_current = Some(3000);
+
+        assert_eq!(
+            fmt_fan_speed(&stats, false),
+            Some("<b><span font_family='monospace'>3000</span> RPM</b>".to_string())
+        );
+    }
+
+    #[test]
+    fn fmt_fan_speed_formats_percent_only_with_percent_in_text() {
         let mut stats = DeviceStats::default();
         stats.fan.pwm_current = Some(255);
 
         assert_eq!(
-            fmt_fan_speed(&stats),
+            fmt_fan_speed(&stats, true),
             Some("<b><span font_family='monospace'>100</span>%</b>".to_string())
+        );
+    }
+
+    #[test]
+    fn fmt_fan_speed_formats_percent_only_without_percent_in_text() {
+        let mut stats = DeviceStats::default();
+        stats.fan.pwm_current = Some(255);
+
+        assert_eq!(
+            fmt_fan_speed(&stats, false),
+            Some("<b><span font_family='monospace'>100</span></b>".to_string())
         );
     }
 
@@ -298,6 +318,10 @@ mod tests {
         assert_eq!(
             fmt_human_bytes(1_610_612_736, Some(ByteUnit::Gibibyte)),
             "1.5 GiB"
+        );
+        assert_eq!(
+            fmt_human_bytes(94_371_840, Some(ByteUnit::Gibibyte)),
+            "0.1 GiB"
         );
     }
 }

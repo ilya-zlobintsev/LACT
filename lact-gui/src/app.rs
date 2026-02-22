@@ -124,6 +124,7 @@ impl AsyncComponent for AppModel {
         gtk::ApplicationWindow::builder()
             .titlebar(&gtk::HeaderBar::new())
             .default_height(850)
+            .default_width(900)
             .icon_name(APP_ID)
             .title("LACT")
             .build() {

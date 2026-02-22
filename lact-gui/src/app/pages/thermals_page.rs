@@ -422,7 +422,7 @@ impl relm4::Component for ThermalsPage {
                     self.has_auto_threshold = info.flags.contains(&DeviceFlag::AutoFanThreshold);
                 }
                 PageUpdate::Stats(stats) => {
-                    self.fan_speed = fmt_fan_speed(&stats);
+                    self.fan_speed = fmt_fan_speed(&stats, true);
                     self.temperatures = fmt_temperature_text(&stats);
                     self.throttling = fmt_throttling_text(&stats);
 
