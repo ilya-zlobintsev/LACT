@@ -27,10 +27,10 @@ mod imp {
     use std::cell::RefCell;
 
     use glib::Properties;
-    use gtk::{LevelBar, glib, prelude::*, subclass::prelude::*};
+    use gtk::{glib, prelude::*, subclass::prelude::*, LevelBar};
     use relm4::view;
 
-    use crate::app::animation::SpringAnimation;
+    use crate::app::animation::LinearAnimation;
     use crate::app::info_row::{InfoRow, InfoRowExt};
 
     #[derive(Default, Properties)]
@@ -38,7 +38,7 @@ mod imp {
     pub struct InfoRowLevel {
         #[property(get, set = Self::set_level_value)]
         level_value: RefCell<f64>,
-        animation: RefCell<SpringAnimation<LevelBar>>,
+        animation: RefCell<LinearAnimation<LevelBar>>,
     }
 
     impl InfoRowLevel {
@@ -82,7 +82,7 @@ mod imp {
                 }
             }
 
-            let animation = SpringAnimation::new(&level_bar, |bar, v| {
+            let animation = LinearAnimation::new(&level_bar, |bar, v| {
                 bar.set_value(v);
             });
             self.animation.replace(animation);
