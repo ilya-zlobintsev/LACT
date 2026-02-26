@@ -545,18 +545,13 @@ impl<'a> Handler {
 
     pub async fn reset_pmfw(&self, id: &str) -> anyhow::Result<u64> {
         info!("Resetting PMFW settings");
-        let gpu_config = self
-            .config
-            .read()
-            .await
-            .gpus()?
-            .get(id)
-            .cloned()
-            .unwrap_or_default();
 
-        self.controller_by_id(id)
-            .await?
-            .reset_pmfw_settings(Some(&gpu_config));
+        let controller = self.controller_by_id(id).await?;
+        {
+            let config = self.config.read().await;
+            let gpu_config = config.gpus()?.get(id);
+            controller.reset_pmfw_settings(gpu_config);
+        }
 
         self.edit_gpu_config(id.to_owned(), |config| {
             config.pmfw_options = PmfwOptions::default();
