@@ -12,7 +12,6 @@ const EPSILON: f64 = 0.00025;
 
 type UpdateCallback<W> = Option<Box<dyn Fn(&W, f64)>>;
 
-/// Spring physics simulation (extracted for testability).
 pub(crate) struct SpringPhysics {
     target: f64,
     displayed_value: f64,
@@ -60,9 +59,6 @@ impl SpringPhysics {
 }
 
 /// Spring physics animation for widget transitions (replicates AdwSpringAnimation).
-///
-/// Memory: Rc<RefCell<Inner>> shared between struct and tick callback.
-/// WeakRef ensures safe cleanup when widget destroyed.
 pub struct SpringAnimation<W: IsA<gtk::Widget>> {
     inner: Rc<RefCell<Inner<W>>>,
 }
