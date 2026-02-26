@@ -1046,8 +1046,9 @@ impl<'a> Handler {
     }
 
     pub async fn cleanup(&self) {
-        let disable_clocks_cleanup = self.config.read().await.daemon.disable_clocks_cleanup;
-        let gpu_configs = self.config.read().await.gpus().cloned().unwrap_or_default();
+        let config = self.config.read().await;
+        let disable_clocks_cleanup = config.daemon.disable_clocks_cleanup;
+        let gpu_configs = config.gpus().cloned().unwrap_or_default();
 
         let controllers = self.gpu_controllers.read().await;
         for (id, controller) in controllers.iter() {
