@@ -985,11 +985,9 @@ impl GpuController for NvidiaGpuController {
                                 .is_some_and(|offset| *offset != 0))
                     {
                         debug!("resetting clock offset for {clock_type:?} pstate {pstate:?}");
-                        device
-                            .set_clock_offset(clock_type, pstate, 0)
-                            .with_context(|| {
-                                format!("Could not reset {clock_type:?} pstate {pstate:?}")
-                            })?;
+                        if let Err(err) = device.set_clock_offset(clock_type, pstate, 0) {
+                            warn!("could not reset {clock_type:?} pstate {pstate:?}: {err:#}");
+                        }
                     }
 
                     if let Some(applied_offsets) =

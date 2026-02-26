@@ -127,7 +127,7 @@ mod imp {
         prelude::*,
         subclass::{prelude::*, widget::WidgetImpl},
     };
-    use relm4::{RelmWidgetExt, css, view};
+    use relm4::{css, view};
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::InfoRow)]
@@ -169,7 +169,6 @@ mod imp {
                 #[local_ref]
                 obj {
                     set_orientation: gtk::Orientation::Horizontal,
-                    set_margin_all: 5,
                     set_spacing: 5,
 
                     append = &gtk::Box {

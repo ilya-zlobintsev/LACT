@@ -84,6 +84,7 @@ mod imp {
                     append = header_box {
                         set_orientation: gtk::Orientation::Horizontal,
                         set_spacing: 10,
+                        set_visible: true,
 
                         #[local_ref]
                         append = section_label {
@@ -102,13 +103,17 @@ mod imp {
 
                         #[local_ref]
                         append = children_box {
+                            add_css_class: "page-section-children-box",
                             set_orientation: gtk::Orientation::Vertical,
-                            set_margin_all: 10,
                             set_spacing: 10,
                         }
                     }
                 }
             }
+
+            obj.bind_property("name", &self.header_box, "visible")
+                .transform_to(|_, value: String| Some(!value.is_empty()))
+                .build();
 
             obj.bind_property("name", &self.section_label, "label")
                 .transform_to(|_, value: String| {
