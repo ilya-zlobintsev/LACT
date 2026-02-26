@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: ./.github/actions/setup-environment
       - name: Build
         run: cargo build
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Install rustfmt
         run: rustup component add rustfmt
       - name: Check formatting
@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: ./.github/actions/setup-environment
       - name: Install clippy
         run: rustup component add clippy
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: ./.github/actions/setup-environment
       - name: Install cargo-audit from crates.io
         uses: baptiste0928/cargo-install@v3
@@ -59,37 +59,43 @@ jobs:
       - name: Run cargo audit
         run: cargo audit
 
-  # Disabled temporarily due to failing dependency build
-  # coverage:
-  #   runs-on: ubuntu-24.04
-  #   if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
-  #   steps:
-  #     - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
-  #     - uses: ./.github/actions/setup-environment
+  coverage:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: ./.github/actions/setup-environment
+      - name: Install clang
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: clang clang++
+          version: 1.0
+      - name: Install cargo-llvm-cov from crates.io
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-llvm-cov
+          version: '0.6.18'
 
-  #     - name: Install cargo-llvm-cov from crates.io
-  #       uses: baptiste0928/cargo-install@v3
-  #       with:
-  #         crate: cargo-llvm-cov
-  #         version: '0.6.18'
+      - name: Generate coverage report
+        run: |
+          export CC=clang
+          export CXX=clang++
+          cargo llvm-cov --no-fail-fast --include-ffi --workspace --lcov --output-path lcov.info
 
-  #     - name: Generate coverage report
-  #       run: cargo llvm-cov --no-fail-fast --include-ffi --workspace --lcov --output-path lcov.info
-
-  #     - name: Upload to Codecov
-  #       uses: codecov/codecov-action@v5.5.1
-  #       continue-on-error: true
-  #       with:
-  #         files: lcov.info
-  #         fail_ci_if_error: true
-  #         token: ${{ secrets.CODECOV_TOKEN }}
-  #         verbose: true
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5.5.1
+        continue-on-error: true
+        with:
+          files: lcov.info
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
 
   test-miri:
     runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
     - uses: ./.github/actions/setup-environment
     - name: Install Nightly Rust toolchain
       uses: actions-rs/toolchain@v1
@@ -116,7 +122,7 @@ jobs:
         LSAN_OPTIONS: fast_unwind_on_malloc=0:max_leak_stack_depth=50:print_suppressions=1
         ASAN_OPTIONS: detect_leaks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1
       steps:
-        - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         - uses: ./.github/actions/setup-environment
         - name: Install Nightly Rust toolchain
           uses: actions-rs/toolchain@v1
@@ -140,7 +146,7 @@ jobs:
           - check --feature-powerset --no-dev-deps --all
           - test --feature-powerset --all
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: ./.github/actions/setup-environment
       - uses: taiki-e/install-action@cargo-hack
       - name: Run cargo hack ${{ matrix.command }}

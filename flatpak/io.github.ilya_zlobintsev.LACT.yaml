@@ -97,15 +97,15 @@ modules:
       - type: archive
         only-arches:
           - x86_64
-        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.9/flatbox-Linux-musl-x86_64.tar.gz
+        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.11/flatbox-Linux-musl-x86_64.tar.gz
         strip-components: 0
-        sha256: 3ba8c8dd44e409b1594c265d8c01ae8a996a283fcdb96d6642559eef44e92a5a
+        sha256: a9d1a73ffe8767acbb3191ff37f70b76332d0a1e06868407427fcd57f874eea7
       - type: archive
         only-arches:
           - aarch64
-        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.9/flatbox-Linux-musl-arm64.tar.gz
+        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.11/flatbox-Linux-musl-arm64.tar.gz
         strip-components: 0
-        sha256: 9dc6c428051874a3eec3bde9c0410f0375ab8ff48ffee61dc113b1c9bda6be38
+        sha256: 25856d4e64bb87de1f85af93b184a9d65177eacfde0ae4bad9a397797633c02b
 
   - name: lact
     buildsystem: simple
