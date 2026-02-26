@@ -202,25 +202,25 @@ impl<'a> Handler {
     }
 
     pub async fn apply_current_config(&self) -> anyhow::Result<()> {
-        self.capture_initial_pmfw_values().await;
+        let controllers = self.gpu_controllers.read().await;
+        self.capture_initial_pmfw_values(&controllers).await;
 
         let config = self.config.read().await;
-        let controllers = self.gpu_controllers.read().await;
         apply_config_to_controllers(&controllers, &config).await
     }
 
-    async fn capture_initial_pmfw_values(&self) {
-        let initial_temps: Vec<_> = {
-            let controllers = self.gpu_controllers.read().await;
-            controllers
-                .iter()
-                .filter_map(|(id, c)| {
-                    c.get_current_target_temp()
-                        .ok()
-                        .map(|temp| (id.clone(), temp))
-                })
-                .collect()
-        };
+    async fn capture_initial_pmfw_values(
+        &self,
+        controllers: &BTreeMap<String, Box<dyn GpuController>>,
+    ) {
+        let initial_temps: Vec<_> = controllers
+            .iter()
+            .filter_map(|(id, c)| {
+                c.get_current_target_temp()
+                    .ok()
+                    .map(|temp| (id.clone(), temp))
+            })
+            .collect();
 
         let mut config = self.config.write().await;
         let Ok(gpus) = config.gpus_mut() else {
@@ -264,11 +264,10 @@ impl<'a> Handler {
 
                 drop(controllers_guard);
 
-                self.capture_initial_pmfw_values().await;
+                let controllers = self.gpu_controllers.read().await;
+                self.capture_initial_pmfw_values(&controllers).await;
 
                 let config = self.config.read().await;
-                let controllers = self.gpu_controllers.read().await;
-
                 match apply_config_to_controllers(&controllers, &config).await {
                     Ok(()) => {
                         info!("configuration applied");
@@ -1056,7 +1055,7 @@ impl<'a> Handler {
             .read()
             .await
             .gpus()
-            .map(|g| g.clone())
+            .cloned()
             .unwrap_or_default();
 
         let controllers = self.gpu_controllers.read().await;
