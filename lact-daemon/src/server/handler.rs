@@ -202,14 +202,14 @@ impl<'a> Handler {
     }
 
     pub async fn apply_current_config(&self) -> anyhow::Result<()> {
-        let controllers = self.gpu_controllers.read().await;
         let config = self.config.read().await;
-
+        let controllers = self.gpu_controllers.read().await;
         apply_config_to_controllers(&controllers, &config).await
     }
 
     pub async fn reload_gpus(&self) {
         let mut controllers_guard = self.gpu_controllers.write().await;
+        let config = self.config.read().await;
 
         let base_path = drm_base_path();
         let pci_db = read_pci_db();
@@ -227,7 +227,6 @@ impl<'a> Handler {
 
                 *controllers_guard = new_controllers;
 
-                let config = self.config.read().await;
                 match apply_config_to_controllers(&controllers_guard, &config).await {
                     Ok(()) => {
                         info!("configuration applied");
@@ -508,9 +507,7 @@ impl<'a> Handler {
 
     pub async fn reset_pmfw(&self, id: &str) -> anyhow::Result<u64> {
         info!("Resetting PMFW settings");
-
-        let controller = self.controller_by_id(id).await?;
-        controller.reset_pmfw_settings();
+        self.controller_by_id(id).await?.reset_pmfw_settings();
 
         self.edit_gpu_config(id.to_owned(), |config| {
             config.pmfw_options = PmfwOptions::default();
@@ -1000,8 +997,7 @@ impl<'a> Handler {
     }
 
     pub async fn cleanup(&self) {
-        let config = self.config.read().await;
-        let disable_clocks_cleanup = config.daemon.disable_clocks_cleanup;
+        let disable_clocks_cleanup = self.config.read().await.daemon.disable_clocks_cleanup;
 
         let controllers = self.gpu_controllers.read().await;
         for (id, controller) in controllers.iter() {
