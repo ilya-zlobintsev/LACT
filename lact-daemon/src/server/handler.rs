@@ -203,44 +203,9 @@ impl<'a> Handler {
 
     pub async fn apply_current_config(&self) -> anyhow::Result<()> {
         let controllers = self.gpu_controllers.read().await;
-        self.capture_initial_pmfw_values(&controllers).await;
-
         let config = self.config.read().await;
+
         apply_config_to_controllers(&controllers, &config).await
-    }
-
-    async fn capture_initial_pmfw_values(
-        &self,
-        controllers: &BTreeMap<String, Box<dyn GpuController>>,
-    ) {
-        let initial_temps: Vec<_> = controllers
-            .iter()
-            .filter_map(|(id, c)| {
-                c.get_current_target_temp()
-                    .ok()
-                    .map(|temp| (id.clone(), temp))
-            })
-            .collect();
-
-        let mut config = self.config.write().await;
-        let Ok(gpus) = config.gpus_mut() else {
-            return;
-        };
-
-        let mut changed = false;
-        for (id, initial) in initial_temps {
-            let gpu_config = gpus.entry(id.clone()).or_default();
-
-            if gpu_config.initial_target_temp.is_none() {
-                debug!("captured initial target temp {initial} for GPU {id}");
-                gpu_config.initial_target_temp = Some(initial);
-                changed = true;
-            }
-        }
-
-        if changed && let Err(err) = config.save(&self.config_last_saved) {
-            error!("could not save config after capturing initial PMFW values: {err:#}");
-        }
     }
 
     pub async fn reload_gpus(&self) {
@@ -261,8 +226,6 @@ impl<'a> Handler {
                 }
 
                 *controllers_guard = new_controllers;
-
-                self.capture_initial_pmfw_values(&controllers_guard).await;
 
                 let config = self.config.read().await;
                 match apply_config_to_controllers(&controllers_guard, &config).await {
@@ -547,11 +510,7 @@ impl<'a> Handler {
         info!("Resetting PMFW settings");
 
         let controller = self.controller_by_id(id).await?;
-        {
-            let config = self.config.read().await;
-            let gpu_config = config.gpus()?.get(id);
-            controller.reset_pmfw_settings(gpu_config);
-        }
+        controller.reset_pmfw_settings();
 
         self.edit_gpu_config(id.to_owned(), |config| {
             config.pmfw_options = PmfwOptions::default();
@@ -1043,7 +1002,6 @@ impl<'a> Handler {
     pub async fn cleanup(&self) {
         let config = self.config.read().await;
         let disable_clocks_cleanup = config.daemon.disable_clocks_cleanup;
-        let gpu_configs = config.gpus().cloned().unwrap_or_default();
 
         let controllers = self.gpu_controllers.read().await;
         for (id, controller) in controllers.iter() {
@@ -1054,7 +1012,7 @@ impl<'a> Handler {
                 }
             }
 
-            controller.reset_pmfw_settings(gpu_configs.get(id));
+            controller.reset_pmfw_settings();
 
             if let Err(err) = controller.apply_config(&GpuConfig::default()).await {
                 error!("Could not reset settings for controller {id}: {err:#}");

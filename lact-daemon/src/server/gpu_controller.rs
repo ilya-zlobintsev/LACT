@@ -55,11 +55,7 @@ pub trait GpuController {
 
     fn get_power_states(&self, gpu_config: Option<&GpuConfig>) -> PowerStates;
 
-    fn reset_pmfw_settings(&self, _gpu_config: Option<&GpuConfig>) {}
-
-    fn get_current_target_temp(&self) -> anyhow::Result<u32> {
-        anyhow::bail!("Not supported")
-    }
+    fn reset_pmfw_settings(&self) {}
 
     fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
         async {}.boxed_local()

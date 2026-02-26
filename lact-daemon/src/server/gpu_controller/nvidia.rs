@@ -56,6 +56,7 @@ pub struct NvidiaGpuController {
     nvapi: Option<&'static NvApi>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
+    initial_target_temp: Option<u32>,
 
     driver_handle: Option<DriverHandle>,
     nvapi_handle: Option<NvPhysicalGpuHandle>,
@@ -123,6 +124,10 @@ impl NvidiaGpuController {
             }
         };
 
+        let target_temp = device
+            .temperature_threshold(TemperatureThreshold::AcousticCurr)
+            .ok();
+
         Ok(Self {
             nvml,
             nvapi,
@@ -130,6 +135,7 @@ impl NvidiaGpuController {
             driver_handle,
             nvapi_handle,
             nvapi_thermals_mask,
+            initial_target_temp: target_temp,
             last_util_timestamp: Cell::new(None),
             fan_control_handle: RefCell::new(None),
             last_applied_offsets: RefCell::new(HashMap::new()),
@@ -778,10 +784,8 @@ impl GpuController for NvidiaGpuController {
         Err(anyhow!("Not supported on Nvidia"))
     }
 
-    fn reset_pmfw_settings(&self, gpu_config: Option<&GpuConfig>) {
-        if let Some(config) = gpu_config
-            && let Some(initial) = config.initial_target_temp
-        {
+    fn reset_pmfw_settings(&self) {
+        if let Some(initial) = self.initial_target_temp {
             let device = self.device();
             if let Ok(current) = device.temperature_threshold(TemperatureThreshold::AcousticCurr)
                 && current != initial
@@ -1102,11 +1106,5 @@ impl GpuController for NvidiaGpuController {
             processes,
             supported_util_types: SUPPORTED_UTIL_TYPES.iter().copied().collect(),
         })
-    }
-
-    fn get_current_target_temp(&self) -> anyhow::Result<u32> {
-        self.get_target_temp()
-            .map(|info| info.current)
-            .ok_or_else(|| anyhow!("Target temperature not available"))
     }
 }

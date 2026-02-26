@@ -1024,7 +1024,7 @@ impl GpuController for AmdGpuController {
         Ok(self.handle.get_power_profile_modes()?)
     }
 
-    fn reset_pmfw_settings(&self, _gpu_config: Option<&GpuConfig>) {
+    fn reset_pmfw_settings(&self) {
         let handle = &self.handle;
         if self.handle.get_fan_target_temperature().is_ok()
             && let Err(err) = handle.reset_fan_target_temperature()
