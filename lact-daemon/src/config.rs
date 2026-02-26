@@ -480,7 +480,6 @@ mod tests {
             power_profile_mode_index: None,
             custom_power_profile_mode_hueristics: vec![],
             power_states: IndexMap::new(),
-            initial_target_temp: None,
         };
 
         assert!(!gpu.is_core_clocks_used());
