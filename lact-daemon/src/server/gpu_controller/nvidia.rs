@@ -486,16 +486,10 @@ impl GpuController for NvidiaGpuController {
                         .ok(),
                     intel: IntelDrmInfo::default(),
                 }),
-                flags: {
-                    let mut flags = vec![
-                        DeviceFlag::ConfigurableFanControl,
-                        DeviceFlag::AutoFanThreshold,
-                    ];
-                    if self.get_target_temp().is_some() {
-                        flags.push(DeviceFlag::HasPmfw);
-                    }
-                    flags
-                },
+                flags: vec![
+                    DeviceFlag::ConfigurableFanControl,
+                    DeviceFlag::AutoFanThreshold,
+                ],
             }
         })
     }
