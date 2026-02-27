@@ -9,7 +9,10 @@ use serde_with::skip_serializing_none;
 use std::{
     cell::Cell,
     collections::BTreeMap,
-    env, fs, iter,
+    env,
+    fs::{self, set_permissions},
+    iter,
+    os::unix::fs::PermissionsExt,
     path::PathBuf,
     rc::Rc,
     time::{Duration, Instant},
@@ -105,6 +108,9 @@ impl Config {
         } else {
             let parent = path.parent().unwrap();
             fs::create_dir_all(parent)?;
+            let mut perms = fs::metadata(parent)?.permissions();
+            perms.set_mode(0o700);
+            set_permissions(parent, perms)?;
             Ok(None)
         }
     }
@@ -139,6 +145,10 @@ impl Config {
         } else {
             let config = Config::default();
             config.save(&Cell::new(Instant::now()))?;
+            let path = get_path(FILE_NAME);
+            let mut perms = fs::metadata(&path)?.permissions();
+            perms.set_mode(0o600);
+            set_permissions(&path, perms)?;
             Ok(config)
         }
     }
