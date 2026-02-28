@@ -27,16 +27,30 @@ mod imp {
     use std::cell::RefCell;
 
     use glib::Properties;
-    use gtk::{LevelBar, glib, prelude::*, subclass::prelude::*};
+    use gtk::{glib, prelude::*, subclass::prelude::*, LevelBar};
     use relm4::view;
 
+    use crate::app::animation::LinearAnimation;
     use crate::app::info_row::{InfoRow, InfoRowExt};
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::InfoRowLevel)]
     pub struct InfoRowLevel {
-        #[property(get, set)]
+        #[property(get, set = Self::set_level_value)]
         level_value: RefCell<f64>,
+        animation: RefCell<LinearAnimation<LevelBar>>,
+    }
+
+    impl InfoRowLevel {
+        fn set_level_value(&self, value: f64) {
+            let old = *self.level_value.borrow();
+            if (old - value).abs() < f64::EPSILON {
+                return;
+            }
+
+            self.level_value.replace(value);
+            self.animation.borrow().animate_to(value);
+        }
     }
 
     #[glib::object_subclass]
@@ -68,9 +82,10 @@ mod imp {
                 }
             }
 
-            obj.bind_property("level-value", &level_bar, "value")
-                .sync_create()
-                .build();
+            let animation = LinearAnimation::new(&level_bar, |bar, v| {
+                bar.set_value(v);
+            });
+            self.animation.replace(animation);
         }
     }
 
