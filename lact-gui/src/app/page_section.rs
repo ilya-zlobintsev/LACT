@@ -1,9 +1,8 @@
 use gtk::prelude::*;
 use gtk::{
     glib::{
-        self,
+        self, Object,
         subclass::types::{IsSubclassable, ObjectSubclass},
-        Object,
     },
     subclass::box_::BoxImpl,
 };
@@ -37,12 +36,12 @@ mod imp {
 
     use glib::Properties;
     use gtk::{
+        Label,
         glib::{self},
         prelude::*,
         subclass::{prelude::*, widget::WidgetImpl},
-        Label,
     };
-    use relm4::{css, view, RelmWidgetExt};
+    use relm4::{RelmWidgetExt, css, view};
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::PageSection)]
