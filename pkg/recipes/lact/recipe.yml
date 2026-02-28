@@ -12,13 +12,13 @@ metadata:
   conflicts: [ lact-headless, lact-libadwaita ]
   depends:
     all: [ hwdata, vulkan-tools, clinfo ]
-    debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-1, libdrm2, libdrm-amdgpu1 ]
+    debian-13+ubuntu-2404: [ libgtk-4-1, libdrm2, libdrm-amdgpu1 ]
     fedora-42+fedora-43: [ gtk4, libdrm ]
     arch: [ gtk4, ocl-icd ]
     opensuse-tumbleweed: [ gtk4 ]
   build_depends:
     all: [ curl, make, clang, git, vulkan-tools, clinfo ]
-    debian-12+ubuntu-2204+ubuntu-2404: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus ]
+    debian-13+ubuntu-2404: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus ]
     fedora-42+fedora-43: [ gtk4-devel, gcc, libdrm-devel, dbus ]
     arch: [ gtk4, dbus, ocl-icd ]
     opensuse-tumbleweed: [ gtk4-devel, libdrm-devel ]
