@@ -6,3 +6,13 @@
 .clickable-info-row:hover {
     background-color: rgba(0, 0, 0, 0.08);
 }
+
+
+/* https://gitlab.gnome.org/GNOME/libadwaita/-/issues/1119 */
+.info-row-level-bar {
+    border-radius: 99px;
+}
+
+.info-row-level-bar block {
+    border-radius: 0;
+}
