@@ -221,10 +221,10 @@ Headless build with no GUI:
 make build-release-headless
 ```
 
-Build GUI with libadwaita support:
+Build GUI (libadwaita is now included by default):
 
 ```
-make build-release-libadwaita
+make build-release
 ```
 
 # Remote management
