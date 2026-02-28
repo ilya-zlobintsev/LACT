@@ -124,7 +124,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_level_value: {
                             match (&model.stats.clockspeed.gpu_clockspeed, model.max_gpu_clock, model.min_gpu_clock) {
                                 (Some(cur), Some(max), Some(min)) if max > min => {
-                                    ((cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64)).min(1.0)
+                                    (cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64)
                                 }
                                 _ => 0.0,
                             }
@@ -145,7 +145,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_level_value: {
                             match (&model.stats.clockspeed.vram_clockspeed, model.max_vram_clock, model.min_vram_clock) {
                                 (Some(cur), Some(max), Some(min)) if max > min => {
-                                    ((cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64)).min(1.0)
+                                    (cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64)
                                 }
                                 _ => 0.0,
                             }

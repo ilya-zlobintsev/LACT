@@ -35,8 +35,16 @@ mod imp {
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::InfoRowLevel)]
     pub struct InfoRowLevel {
-        #[property(get, set)]
+        #[property(get, set = Self::set_level_value)]
         level_value: RefCell<f64>,
+    }
+
+    impl InfoRowLevel {
+        fn set_level_value(&self, value: f64) {
+            let clamped = value.clamp(0.0, 1.0);
+            let rounded = (clamped * 100.0).round() / 100.0;
+            self.level_value.replace(rounded);
+        }
     }
 
     #[glib::object_subclass]
@@ -60,6 +68,8 @@ mod imp {
                     append_child = &LevelBar {
                         set_hexpand: true,
                         set_orientation: gtk::Orientation::Horizontal,
+                        set_overflow: gtk::Overflow::Hidden,
+                        add_css_class: "info-row-level-bar",
                         // this prevents re-colour of the bar when the value is close to 100%
                         remove_offset_value: Some(gtk::LEVEL_BAR_OFFSET_LOW),
                         remove_offset_value: Some(gtk::LEVEL_BAR_OFFSET_HIGH),
