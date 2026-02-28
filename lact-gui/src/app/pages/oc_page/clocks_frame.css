@@ -6,8 +6,7 @@
     padding: 0;
 }
 
-.clocks-frame-group .frame {
-    border-radius: 5px;
+.clocks-frame-group .card {
     padding: 10px;
 }
 
