@@ -608,22 +608,8 @@ impl ClocksFrame {
     pub fn get_commands(&self) -> Vec<SetClocksCommand> {
         self.all_groups()
             .flat_map(|group| group.get_commands())
-            .filter(|(clock_type, configured_value)| {
-                if configured_value.is_some() {
-                    true
-                } else {
-                    // Only allow None for Nvidia locked clocks
-                    self.show_nvidia_options
-                        && matches!(
-                            clock_type,
-                            ClockspeedType::MinCoreClock
-                                | ClockspeedType::MaxCoreClock
-                                | ClockspeedType::MinMemoryClock
-                                | ClockspeedType::MaxMemoryClock
-                        )
-                }
-            })
-            .map(|(clock_type, configured_value)| {
+            .filter_map(|(clock_type, configured_value)| {
+                // If nvidia options are enabled, we always set locked clocks to None or Some
                 let value = if self.show_nvidia_options {
                     match clock_type {
                         ClockspeedType::MinCoreClock | ClockspeedType::MaxCoreClock => self
@@ -644,16 +630,16 @@ impl ClocksFrame {
                                     .map(|group| group.get_raw_value(clock_type))
                             })
                             .flatten(),
-                        _ => configured_value,
+                        _ => Some(configured_value?),
                     }
                 } else {
-                    configured_value
+                    Some(configured_value?)
                 };
 
-                SetClocksCommand {
+                Some(SetClocksCommand {
                     r#type: clock_type,
                     value,
-                }
+                })
             })
             .collect()
     }
