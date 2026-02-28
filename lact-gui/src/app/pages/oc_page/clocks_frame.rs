@@ -280,10 +280,12 @@ impl relm4::Component for ClocksFrame {
                     .vram_locked_clocks_togglebutton
                     .unblock_signal(&widgets.vram_locked_clock_signal);
 
+                self.update_vram_clock_ratio();
                 sender.input(ClocksFrameMsg::TogglePStatesVisibility);
             }
             ClocksFrameMsg::VramRatio(vram_ratio) => {
                 self.vram_clock_ratio = vram_ratio;
+                self.update_vram_clock_ratio();
             }
             ClocksFrameMsg::TogglePStatesVisibility => {
                 for group in self.all_groups() {
@@ -296,7 +298,6 @@ impl relm4::Component for ClocksFrame {
                 }
             }
         }
-        self.update_vram_clock_ratio();
 
         self.update_view(widgets, sender);
     }
@@ -607,6 +608,21 @@ impl ClocksFrame {
     pub fn get_commands(&self) -> Vec<SetClocksCommand> {
         self.all_groups()
             .flat_map(|group| group.get_commands())
+            .filter(|(clock_type, configured_value)| {
+                if configured_value.is_some() {
+                    true
+                } else {
+                    // Only allow None for Nvidia locked clocks
+                    self.show_nvidia_options
+                        && matches!(
+                            clock_type,
+                            ClockspeedType::MinCoreClock
+                                | ClockspeedType::MaxCoreClock
+                                | ClockspeedType::MinMemoryClock
+                                | ClockspeedType::MaxMemoryClock
+                        )
+                }
+            })
             .map(|(clock_type, configured_value)| {
                 let value = if self.show_nvidia_options {
                     match clock_type {
