@@ -280,10 +280,12 @@ impl relm4::Component for ClocksFrame {
                     .vram_locked_clocks_togglebutton
                     .unblock_signal(&widgets.vram_locked_clock_signal);
 
+                self.update_vram_clock_ratio();
                 sender.input(ClocksFrameMsg::TogglePStatesVisibility);
             }
             ClocksFrameMsg::VramRatio(vram_ratio) => {
                 self.vram_clock_ratio = vram_ratio;
+                self.update_vram_clock_ratio();
             }
             ClocksFrameMsg::TogglePStatesVisibility => {
                 for group in self.all_groups() {
@@ -296,7 +298,6 @@ impl relm4::Component for ClocksFrame {
                 }
             }
         }
-        self.update_vram_clock_ratio();
 
         self.update_view(widgets, sender);
     }
@@ -607,7 +608,8 @@ impl ClocksFrame {
     pub fn get_commands(&self) -> Vec<SetClocksCommand> {
         self.all_groups()
             .flat_map(|group| group.get_commands())
-            .map(|(clock_type, configured_value)| {
+            .filter_map(|(clock_type, configured_value)| {
+                // If nvidia options are enabled, we always set locked clocks to None or Some
                 let value = if self.show_nvidia_options {
                     match clock_type {
                         ClockspeedType::MinCoreClock | ClockspeedType::MaxCoreClock => self
@@ -628,16 +630,16 @@ impl ClocksFrame {
                                     .map(|group| group.get_raw_value(clock_type))
                             })
                             .flatten(),
-                        _ => configured_value,
+                        _ => Some(configured_value?),
                     }
                 } else {
-                    configured_value
+                    Some(configured_value?)
                 };
 
-                SetClocksCommand {
+                Some(SetClocksCommand {
                     r#type: clock_type,
                     value,
-                }
+                })
             })
             .collect()
     }
