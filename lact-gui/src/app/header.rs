@@ -73,22 +73,27 @@ impl Component for Header {
                 set_label: &model.selector_label,
                 #[wrap(Some)]
                 set_popover = &gtk::Popover {
+                    add_css_class: "gpu-profile-popover",
+                    set_autohide: false,
+
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 8,
+                        set_spacing: 5,
 
                          gtk::Label {
                             set_label: "GPU",
                             add_css_class: css::HEADING,
                         },
-                        gtk::Frame {
-                            gtk::ScrolledWindow {
-                                set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
-                                set_propagate_natural_height: true,
 
-                                #[local_ref]
-                                gpu_selector -> gtk::ListView { }
-                            }
+
+                        gtk::ScrolledWindow {
+                            add_css_class: "gpu-picker-container",
+                            set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
+                            set_propagate_natural_height: true,
+
+
+                            #[local_ref]
+                            gpu_selector -> gtk::ListView {}
                         },
 
                          gtk::Label {
@@ -96,51 +101,52 @@ impl Component for Header {
                             add_css_class: css::HEADING,
                         },
 
-                        gtk::Frame {
+
+                        gtk::Box {
+                            add_css_class: "profile-picker-container",
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_spacing: 10,
+
+                            gtk::CheckButton {
+                                set_label: Some(&fl!(I18N, "auto-switch-profiles")),
+                                #[watch]
+                                #[block_signal(toggle_auto_profile_handler)]
+                                set_active: model.profiles_info.auto_switch,
+                                connect_toggled[sender] => move |button| {
+                                    sender.input(HeaderMsg::AutoProfileSwitch(button.is_active()));
+                                } @ toggle_auto_profile_handler
+                            },
+
+                            gtk::ScrolledWindow {
+                                set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
+                                set_propagate_natural_height: true,
+
+                                #[local_ref]
+                                profile_selector -> gtk::ListBox {
+                                    set_selection_mode: gtk::SelectionMode::Single,
+                                    add_css_class: css::BOXED_LIST,
+                                    set_margin_all: 3, // fixes shadow
+                                }
+                            },
+
                             gtk::Box {
-                                set_orientation: gtk::Orientation::Vertical,
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_spacing: 5,
 
-                                gtk::CheckButton {
-                                    set_margin_top: 5,
-                                    set_label: Some(&fl!(I18N, "auto-switch-profiles")),
-                                    #[watch]
-                                    #[block_signal(toggle_auto_profile_handler)]
-                                    set_active: model.profiles_info.auto_switch,
-                                    connect_toggled[sender] => move |button| {
-                                        sender.input(HeaderMsg::AutoProfileSwitch(button.is_active()));
-                                    } @ toggle_auto_profile_handler
+                                gtk::Button {
+                                    set_icon_name: "list-add",
+                                    set_expand: true,
+                                    set_tooltip: &fl!(I18N, "add-profile"),
+                                    connect_clicked => HeaderMsg::CreateProfile,
                                 },
 
-                                gtk::ScrolledWindow {
-                                    set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
-                                    set_propagate_natural_height: true,
-
-                                    #[local_ref]
-                                    profile_selector -> gtk::ListBox {
-                                        set_selection_mode: gtk::SelectionMode::Single,
-                                    }
-                                },
-
-                                gtk::Box {
-                                    set_orientation: gtk::Orientation::Horizontal,
-                                    set_spacing: 5,
-                                    set_margin_horizontal: 5,
-
-                                    gtk::Button {
-                                        set_expand: true,
-                                        set_icon_name: "list-add",
-                                        set_tooltip: &fl!(I18N, "add-profile"),
-                                        connect_clicked => HeaderMsg::CreateProfile,
-                                    },
-
-                                    gtk::Button {
-                                        set_icon_name: "folder-open-symbolic",
-                                        set_tooltip: &fl!(I18N, "import-profile"),
-                                        set_expand: true,
-                                        connect_clicked => HeaderMsg::ImportProfile,
-                                    }
-                                },
-                            }
+                                gtk::Button {
+                                    set_icon_name: "folder-open-symbolic",
+                                    set_expand: true,
+                                    set_tooltip: &fl!(I18N, "import-profile"),
+                                    connect_clicked => HeaderMsg::ImportProfile,
+                                }
+                            },
                         },
                     }
                 },
@@ -212,6 +218,7 @@ impl Component for Header {
                         gtk::Box {
                             set_orientation: gtk::Orientation::Horizontal,
                             set_spacing: 5,
+                            set_margin_top: 8,
 
                             gtk::Label {
                                 set_markup: &format!("<b>{}</b>", &fl!(I18N, "stats-update-interval")),
