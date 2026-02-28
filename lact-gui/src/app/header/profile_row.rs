@@ -46,7 +46,7 @@ impl FactoryComponent for ProfileRow {
     view! {
         gtk::Box {
             set_spacing: 5,
-            set_margin_horizontal: 5,
+            set_margin_all: 5,
 
             #[name = "name_label"]
             gtk::Label {
