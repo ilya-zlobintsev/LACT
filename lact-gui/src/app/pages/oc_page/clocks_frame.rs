@@ -54,6 +54,7 @@ impl relm4::Component for ClocksFrame {
 
     view! {
         PageSection::new(&fl!(I18N, "overclock-section")) {
+            set_hide_visible_container: true,
             add_css_class: "clocks-frame",
 
             append_header = &gtk::Box {
