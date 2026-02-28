@@ -221,7 +221,7 @@ Headless build with no GUI:
 make build-release-headless
 ```
 
-Build GUI (libadwaita is now included by default):
+Build GUI:
 
 ```
 make build-release
