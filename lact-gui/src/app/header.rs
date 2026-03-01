@@ -78,9 +78,12 @@ impl Component for Header {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 5,
 
-                        #[local_ref]
-                        gpu_selector_widget -> gtk::Box {},
+                        gtk::Box {
+                            add_css_class: css::CARD,
 
+                            #[local_ref]
+                            gpu_selector_widget -> adw::ComboRow {},
+                        },
                          gtk::Label {
                             set_label: &fl!(I18N, "settings-profile"),
                             add_css_class: css::HEADING,
