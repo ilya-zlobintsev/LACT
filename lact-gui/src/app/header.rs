@@ -86,7 +86,7 @@ impl Component for Header {
                         set_spacing: 5,
 
                         #[local_ref]
-                        gpu_selector_widget -> adw::ComboRow {},
+                        gpu_selector_widget -> adw::PreferencesGroup {},
 
                         gtk::Label {
                             set_label: &fl!(I18N, "settings-profile"),
