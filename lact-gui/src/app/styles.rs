@@ -1,5 +1,14 @@
 pub const COMBINED_CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/combined.css"));
 
+pub const THEME_BREEZE_DARK: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/themes/breeze-dark.css"
+));
+pub const THEME_BREEZE_LIGHT: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/themes/breeze-light.css"
+));
+
 #[cfg(test)]
 mod tests {
     use super::*;

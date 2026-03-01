@@ -1,0 +1,509 @@
+/*
+ * Breeze Light color theme
+ * Extracted from KDE Breeze GTK 4.0 theme
+ * Only color properties — layout is left to libadwaita
+ */
+
+/* ===================
+ * Breeze color palette
+ * =================== */
+
+/* Foreground / text */
+@define-color theme_fg_color_breeze #232629;
+@define-color theme_text_color_breeze #232629;
+
+/* Backgrounds */
+@define-color theme_bg_color_breeze #eff0f1;
+@define-color theme_base_color_breeze white;
+@define-color content_view_bg_breeze white;
+
+/* Selection / accent */
+@define-color theme_selected_bg_color_breeze #3daee9;
+@define-color theme_selected_fg_color_breeze white;
+@define-color theme_hovering_selected_bg_color_breeze #3daee9;
+@define-color theme_view_hover_decoration_color_breeze #3daee9;
+@define-color theme_view_active_decoration_color_breeze #3daee9;
+
+/* Insensitive */
+@define-color insensitive_bg_color_breeze #d8dadd;
+@define-color insensitive_fg_color_breeze rgba(32, 35, 37, 0.35);
+@define-color insensitive_base_color_breeze rgba(32, 35, 37, 0.35);
+@define-color insensitive_base_fg_color_breeze #e8e8e8;
+@define-color insensitive_selected_bg_color_breeze rgba(37, 164, 230, 0.35);
+@define-color insensitive_selected_fg_color_breeze #e8e8e8;
+
+/* Unfocused / backdrop */
+@define-color theme_unfocused_fg_color_breeze #232629;
+@define-color theme_unfocused_text_color_breeze #232629;
+@define-color theme_unfocused_bg_color_breeze #eff0f1;
+@define-color theme_unfocused_base_color_breeze white;
+@define-color theme_unfocused_selected_bg_color_alt_breeze #3daee9;
+@define-color theme_unfocused_selected_bg_color_breeze rgba(61, 174, 233, 0.5);
+@define-color theme_unfocused_selected_fg_color_breeze white;
+@define-color theme_unfocused_view_text_color_breeze rgba(32, 35, 37, 0.35);
+@define-color theme_unfocused_view_bg_color_breeze #e8e8e8;
+@define-color insensitive_unfocused_selected_bg_color_breeze rgba(37, 164, 230, 0.35);
+@define-color insensitive_unfocused_fg_color_breeze rgba(32, 35, 37, 0.35);
+@define-color insensitive_unfocused_bg_color_breeze #d8dadd;
+@define-color insensitive_unfocused_selected_fg_color_breeze #e8e8e8;
+
+/* Borders */
+@define-color borders_breeze #c6c8c9;
+@define-color unfocused_borders_breeze #c6c8c9;
+@define-color insensitive_borders_breeze rgba(179, 182, 183, 0.35);
+@define-color unfocused_insensitive_borders_breeze rgba(179, 182, 183, 0.35);
+
+/* Buttons */
+@define-color theme_button_background_normal_breeze #fcfcfc;
+@define-color theme_button_decoration_hover_breeze #3daee9;
+@define-color theme_button_decoration_focus_breeze #3daee9;
+@define-color theme_button_foreground_normal_breeze #232629;
+@define-color theme_button_foreground_active_breeze white;
+@define-color theme_button_background_insensitive_breeze #e5e5e5;
+@define-color theme_button_decoration_hover_insensitive_breeze rgba(37, 164, 230, 0.35);
+@define-color theme_button_decoration_focus_insensitive_breeze rgba(37, 164, 230, 0.35);
+@define-color theme_button_foreground_insensitive_breeze rgba(32, 35, 37, 0.35);
+@define-color theme_button_foreground_active_insensitive_breeze #e8e8e8;
+@define-color theme_button_background_backdrop_breeze #fcfcfc;
+@define-color theme_button_decoration_hover_backdrop_breeze #3daee9;
+@define-color theme_button_decoration_focus_backdrop_breeze #3daee9;
+@define-color theme_button_foreground_backdrop_breeze #232629;
+@define-color theme_button_foreground_active_backdrop_breeze white;
+@define-color theme_button_background_backdrop_insensitive_breeze #e5e5e5;
+@define-color theme_button_decoration_hover_backdrop_insensitive_breeze rgba(37, 164, 230, 0.35);
+@define-color theme_button_decoration_focus_backdrop_insensitive_breeze rgba(37, 164, 230, 0.35);
+@define-color theme_button_foreground_backdrop_insensitive_breeze rgba(32, 35, 37, 0.35);
+@define-color theme_button_foreground_active_backdrop_insensitive_breeze #e8e8e8;
+
+/* Status colors */
+@define-color warning_color_breeze #f67400;
+@define-color error_color_breeze #da4453;
+@define-color success_color_breeze #27ae60;
+@define-color warning_color_backdrop_breeze #f67400;
+@define-color error_color_backdrop_breeze #da4453;
+@define-color success_color_backdrop_breeze #27ae60;
+@define-color warning_color_insensitive_breeze rgba(224, 105, 0, 0.35);
+@define-color error_color_insensitive_breeze rgba(214, 46, 63, 0.35);
+@define-color success_color_insensitive_breeze rgba(35, 158, 87, 0.35);
+@define-color warning_color_insensitive_backdrop_breeze rgba(224, 105, 0, 0.35);
+@define-color error_color_insensitive_backdrop_breeze rgba(214, 46, 63, 0.35);
+@define-color success_color_insensitive_backdrop_breeze rgba(35, 158, 87, 0.35);
+
+/* Links */
+@define-color link_color_breeze #2980b9;
+@define-color link_visited_color_breeze #9b59b6;
+
+/* Titlebar */
+@define-color theme_titlebar_background_breeze #e3e5e7;
+@define-color theme_titlebar_foreground_breeze #232629;
+@define-color theme_titlebar_background_light_breeze #eff0f1;
+@define-color theme_titlebar_foreground_backdrop_breeze #707d8a;
+@define-color theme_titlebar_background_backdrop_breeze #eff0f1;
+@define-color theme_titlebar_foreground_insensitive_breeze rgba(32, 35, 37, 0.35);
+@define-color theme_titlebar_foreground_insensitive_backdrop_breeze rgba(102, 114, 125, 0.35);
+
+/* Tooltips */
+@define-color tooltip_text_breeze #232629;
+@define-color tooltip_background_breeze #f7f7f7;
+@define-color tooltip_border_breeze #cdcdce;
+
+
+/* ==============================
+ * libadwaita color overrides
+ * ============================== */
+
+/* Accent — Breeze KDE blue */
+@define-color accent_bg_color @theme_selected_bg_color_breeze;
+@define-color accent_fg_color @theme_selected_fg_color_breeze;
+@define-color accent_color @theme_selected_bg_color_breeze;
+
+/* Window */
+@define-color window_bg_color @theme_bg_color_breeze;
+@define-color window_fg_color @theme_fg_color_breeze;
+
+/* Views / content areas */
+@define-color view_bg_color @theme_base_color_breeze;
+@define-color view_fg_color @theme_text_color_breeze;
+
+/* Headerbar */
+@define-color headerbar_bg_color @theme_titlebar_background_breeze;
+@define-color headerbar_fg_color @theme_titlebar_foreground_breeze;
+@define-color headerbar_border_color @theme_titlebar_foreground_breeze;
+@define-color headerbar_backdrop_color @theme_titlebar_background_backdrop_breeze;
+@define-color headerbar_shade_color rgba(0, 0, 0, 0.07);
+@define-color headerbar_darker_shade_color rgba(0, 0, 0, 0.07);
+
+/* Sidebar */
+@define-color sidebar_bg_color #e3e5e7;
+@define-color sidebar_fg_color @theme_fg_color_breeze;
+@define-color sidebar_backdrop_color #eaebec;
+@define-color sidebar_shade_color rgba(0, 0, 0, 0.07);
+@define-color sidebar_border_color rgba(0, 0, 0, 0.07);
+
+/* Secondary sidebar */
+@define-color secondary_sidebar_bg_color #eaebec;
+@define-color secondary_sidebar_fg_color @theme_fg_color_breeze;
+@define-color secondary_sidebar_backdrop_color @theme_bg_color_breeze;
+@define-color secondary_sidebar_shade_color rgba(0, 0, 0, 0.07);
+@define-color secondary_sidebar_border_color rgba(0, 0, 0, 0.07);
+
+/* Cards */
+@define-color card_bg_color white;
+@define-color card_fg_color @theme_fg_color_breeze;
+@define-color card_shade_color rgba(0, 0, 0, 0.07);
+
+/* Dialogs & popovers */
+@define-color dialog_bg_color @theme_bg_color_breeze;
+@define-color dialog_fg_color @theme_fg_color_breeze;
+@define-color popover_bg_color white;
+@define-color popover_fg_color @theme_fg_color_breeze;
+@define-color popover_shade_color rgba(0, 0, 0, 0.07);
+
+/* Thumbnails */
+@define-color thumbnail_bg_color white;
+@define-color thumbnail_fg_color @theme_fg_color_breeze;
+
+/* Misc */
+@define-color shade_color rgba(0, 0, 0, 0.07);
+@define-color scrollbar_outline_color white;
+
+/* Status colors — libadwaita */
+@define-color destructive_bg_color @error_color_breeze;
+@define-color destructive_fg_color white;
+@define-color destructive_color @error_color_breeze;
+@define-color success_bg_color @success_color_breeze;
+@define-color success_fg_color white;
+@define-color success_color @success_color_breeze;
+@define-color warning_bg_color @warning_color_breeze;
+@define-color warning_fg_color white;
+@define-color warning_color @warning_color_breeze;
+@define-color error_bg_color @error_color_breeze;
+@define-color error_fg_color white;
+@define-color error_color @error_color_breeze;
+
+
+/* ==============================
+ * GTK standard color aliases
+ * ============================== */
+
+@define-color theme_fg_color @theme_fg_color_breeze;
+@define-color theme_text_color @theme_text_color_breeze;
+@define-color theme_bg_color @theme_bg_color_breeze;
+@define-color theme_base_color @theme_base_color_breeze;
+@define-color theme_selected_bg_color @theme_selected_bg_color_breeze;
+@define-color theme_selected_fg_color @theme_selected_fg_color_breeze;
+@define-color insensitive_bg_color @insensitive_bg_color_breeze;
+@define-color insensitive_fg_color @insensitive_fg_color_breeze;
+@define-color insensitive_base_color @insensitive_base_color_breeze;
+@define-color theme_unfocused_fg_color @theme_unfocused_fg_color_breeze;
+@define-color theme_unfocused_text_color @theme_unfocused_text_color_breeze;
+@define-color theme_unfocused_bg_color @theme_unfocused_bg_color_breeze;
+@define-color theme_unfocused_base_color @theme_unfocused_base_color_breeze;
+@define-color theme_unfocused_selected_bg_color @theme_unfocused_selected_bg_color_breeze;
+@define-color theme_unfocused_selected_fg_color @theme_unfocused_selected_fg_color_breeze;
+@define-color unfocused_insensitive_color @insensitive_unfocused_bg_color_breeze;
+@define-color borders @borders_breeze;
+@define-color unfocused_borders @unfocused_borders_breeze;
+@define-color content_view_bg @content_view_bg_breeze;
+@define-color text_view_bg @content_view_bg_breeze;
+
+
+/* ==============================
+ * Button shapes & colors
+ * ============================== */
+
+/* --- Regular buttons --- */
+
+button {
+  border-radius: 3px;
+  outline: 1px solid @borders_breeze;
+  outline-offset: -1px;
+  background: @theme_button_background_normal_breeze;
+  color: @theme_button_foreground_normal_breeze;
+  box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.125);
+  text-shadow: none;
+  -gtk-icon-shadow: none;
+  font-weight: normal;
+}
+
+button:hover {
+  outline-color: @theme_button_decoration_hover_breeze;
+}
+
+button:active {
+  box-shadow: none;
+  background: alpha(@theme_button_decoration_hover_breeze, 0.333);
+}
+
+button:checked {
+  background: alpha(@theme_button_foreground_normal_breeze, 0.125);
+  box-shadow: none;
+}
+
+button:focus {
+  outline-color: @theme_button_decoration_focus_breeze;
+}
+
+button:backdrop {
+  box-shadow: none;
+}
+
+button:disabled {
+  box-shadow: none;
+  color: @theme_button_foreground_insensitive_breeze;
+  outline-color: @insensitive_borders_breeze;
+  background: @theme_button_background_insensitive_breeze;
+}
+
+button:disabled:active,
+button:disabled:checked {
+  color: @theme_button_foreground_active_insensitive_breeze;
+}
+
+/* --- Suggested & destructive: subtle tint instead of solid fill --- */
+
+button.suggested-action,
+button.flat.suggested-action {
+  background-color: alpha(@theme_button_decoration_focus_breeze, 0.2);
+  outline-color: mix(@theme_button_decoration_focus_breeze,
+    mix(@theme_button_background_normal_breeze,
+        @theme_button_foreground_normal_breeze, 0.333), 0.5);
+}
+
+button.destructive-action,
+button.flat.destructive-action {
+  background-color: alpha(@error_color_breeze, 0.2);
+  outline-color: mix(@error_color_breeze,
+    mix(@theme_button_background_normal_breeze,
+        @theme_button_foreground_normal_breeze, 0.333), 0.5);
+}
+
+button.suggested-action:hover {
+  background-color: alpha(@theme_button_decoration_focus_breeze, 0.35);
+  outline-color: @theme_button_decoration_focus_breeze;
+}
+
+button.destructive-action:hover {
+  background-color: alpha(@error_color_breeze, 0.35);
+  outline-color: @error_color_breeze;
+}
+
+button.suggested-action:active {
+  background-color: alpha(@theme_button_decoration_focus_breeze, 0.5);
+}
+
+button.destructive-action:active {
+  background-color: alpha(@error_color_breeze, 0.5);
+}
+
+/* --- Flat buttons --- */
+
+button.flat {
+  outline-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+button.flat:checked {
+  outline-color: mix(@theme_button_background_normal_breeze,
+    @theme_button_foreground_normal_breeze, 0.3);
+  background-color: alpha(@theme_button_foreground_normal_breeze, 0.125);
+}
+
+button.flat:hover {
+  outline-color: @theme_button_decoration_hover_breeze;
+}
+
+button.flat:active {
+  outline-color: @theme_button_decoration_hover_breeze;
+  background-color: alpha(@theme_button_decoration_hover_breeze, 0.333);
+}
+
+/* --- Circular buttons --- */
+
+button.circular {
+  border-radius: 9999px;
+}
+
+/* --- Headerbar buttons (flat by default, like Breeze) --- */
+
+headerbar button:not(.suggested-action):not(.destructive-action) {
+  outline-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: @theme_titlebar_foreground_breeze;
+}
+
+headerbar button:not(.suggested-action):not(.destructive-action):checked {
+  outline-color: mix(@theme_button_background_normal_breeze,
+    @theme_button_foreground_normal_breeze, 0.3);
+  background-color: alpha(@theme_button_foreground_normal_breeze, 0.125);
+}
+
+headerbar button:not(.suggested-action):not(.destructive-action):hover {
+  outline-color: @theme_button_decoration_hover_breeze;
+  color: @theme_titlebar_foreground_breeze;
+  background-color: alpha(@theme_button_foreground_normal_breeze, 0.08);
+}
+
+headerbar button:not(.suggested-action):not(.destructive-action):active {
+  outline-color: @theme_button_decoration_hover_breeze;
+  background-color: alpha(@theme_button_decoration_hover_breeze, 0.333);
+}
+
+headerbar button:not(.suggested-action):not(.destructive-action):focus {
+  outline-color: @theme_button_decoration_focus_breeze;
+}
+
+headerbar button:not(.suggested-action):not(.destructive-action):backdrop {
+  color: @theme_titlebar_foreground_backdrop_breeze;
+}
+
+headerbar button:not(.suggested-action):not(.destructive-action):backdrop:checked {
+  outline-color: mix(@theme_button_background_normal_breeze,
+    @theme_button_foreground_normal_breeze, 0.3);
+  background-color: alpha(@theme_button_foreground_normal_breeze, 0.125);
+}
+
+headerbar button:not(.suggested-action):not(.destructive-action):disabled {
+  color: @theme_titlebar_foreground_insensitive_breeze;
+}
+
+/* Headerbar tab buttons (stack switcher) — visible so they look interactive */
+
+headerbar stackswitcher button:not(.suggested-action):not(.destructive-action):not(:checked) {
+  outline-color: alpha(@borders_breeze, 0.6);
+  background-color: alpha(@theme_button_foreground_normal_breeze, 0.06);
+}
+
+headerbar stackswitcher button:not(.suggested-action):not(.destructive-action):not(:checked):hover {
+  outline-color: @theme_button_decoration_hover_breeze;
+  background-color: alpha(@theme_button_foreground_normal_breeze, 0.08);
+}
+
+/* Headerbar linked buttons — restore regular button look */
+
+headerbar .linked button {
+  color: @theme_button_foreground_normal_breeze;
+  outline-color: @borders_breeze;
+  background: @theme_button_background_normal_breeze;
+  box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.125);
+}
+
+/* --- SpinButton +/- buttons: flat, only icon colour changes on disable --- */
+
+spinbutton:not(.vertical) button,
+spinbutton:not(.vertical) button:disabled {
+  background: transparent;
+  outline-color: transparent;
+  box-shadow: none;
+}
+
+spinbutton:not(.vertical) button:hover {
+  color: @theme_view_hover_decoration_color_breeze;
+}
+
+spinbutton:not(.vertical) button:active {
+  background: alpha(@theme_button_decoration_hover_breeze, 0.333);
+}
+
+spinbutton:not(.vertical) button:disabled {
+  color: @theme_button_foreground_insensitive_breeze;
+}
+
+/* --- Check & radio indicators --- */
+
+check,
+radio {
+  background-color: @theme_base_color_breeze;
+  outline: 1px solid alpha(@theme_button_foreground_normal_breeze, 0.333);
+  outline-offset: -1px;
+  -gtk-icon-shadow: none;
+}
+
+check {
+  border-radius: 3px;
+}
+
+radio {
+  border-radius: 50%;
+}
+
+check:hover,
+radio:hover {
+  outline-color: @theme_button_decoration_hover_breeze;
+}
+
+check:focus,
+radio:focus {
+  outline-color: @theme_button_decoration_focus_breeze;
+}
+
+check:checked,
+check:indeterminate,
+radio:checked,
+radio:indeterminate {
+  outline-color: @theme_button_decoration_hover_breeze;
+  background-color: alpha(@theme_button_decoration_hover_breeze, 0.333);
+}
+
+check:disabled,
+radio:disabled {
+  background-color: alpha(@theme_base_color_breeze, 0.03);
+  outline-color: alpha(@theme_button_foreground_normal_breeze, 0.222);
+}
+
+check:checked:disabled,
+check:indeterminate:disabled,
+radio:checked:disabled,
+radio:indeterminate:disabled {
+  background-color: alpha(@theme_button_foreground_normal_breeze, 0.03);
+  outline-color: alpha(@theme_button_decoration_hover_breeze, 0.3);
+}
+
+/* --- Switch --- */
+
+switch {
+  outline: 1px solid alpha(@theme_button_foreground_normal_breeze, 0.222);
+  outline-offset: -1px;
+  border-radius: 12px;
+  background-color: alpha(@theme_button_foreground_normal_breeze, 0.05);
+  color: transparent;
+}
+
+switch:checked {
+  background: alpha(@theme_button_decoration_hover_breeze, 0.333);
+  outline-color: @theme_button_decoration_hover_breeze;
+}
+
+switch:disabled {
+  background-color: alpha(@theme_button_foreground_normal_breeze, 0.03);
+}
+
+switch:checked:disabled {
+  background: alpha(@theme_button_decoration_hover_breeze, 0.222);
+  outline-color: alpha(@theme_button_decoration_hover_breeze, 0.777);
+}
+
+switch slider {
+  outline: 1px solid @borders_breeze;
+  outline-offset: -1px;
+  border-radius: 12px;
+  background: @theme_button_background_normal_breeze;
+  box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.125);
+}
+
+switch:hover slider {
+  outline-color: @theme_button_decoration_hover_breeze;
+}
+
+switch:focus slider {
+  outline-color: @theme_button_decoration_focus_breeze;
+}
+
+switch:disabled slider {
+  box-shadow: none;
+  color: @theme_button_foreground_insensitive_breeze;
+  outline-color: @insensitive_borders_breeze;
+  background: @theme_button_background_insensitive_breeze;
+}
