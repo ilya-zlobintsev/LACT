@@ -28,7 +28,7 @@ use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
     ApplicationWindow, ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog,
-    MessageType, ResponseType,
+    MessageType, ResponseType, STYLE_PROVIDER_PRIORITY_APPLICATION,
     glib::{self, ControlFlow, clone},
     prelude::{
         BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
@@ -190,7 +190,14 @@ impl AsyncComponent for AppModel {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        relm4::set_global_css(styles::COMBINED_CSS);
+        relm4::set_global_css_with_priority(
+            styles::COMBINED_CSS,
+            STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+
+        if let Err(err) = styles::apply_theme(CONFIG.read().theme.as_deref()) {
+            error!("could not apply theme: {err:#}");
+        }
 
         let (daemon_client, conn_err) = match args.tcp_address {
             Some(remote_addr) => {
