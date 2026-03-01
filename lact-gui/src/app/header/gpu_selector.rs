@@ -28,6 +28,9 @@ impl Component for GPUSelector {
     view! {
         adw::ComboRow {
             set_title: "GPU",
+            set_css_classes: &[css::CARD, "gpu-selector"],
+            set_hexpand: true,
+
             connect_selected_notify[sender] => move |_| {
                 sender.input(GPUSelectorMsg::GpuSelected);
             },

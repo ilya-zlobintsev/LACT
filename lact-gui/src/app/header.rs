@@ -73,22 +73,19 @@ impl Component for Header {
                 #[wrap(Some)]
                 set_popover = &gtk::Popover {
                     add_css_class: "gpu-profile-popover",
+                    set_autohide: false,
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 5,
 
-                        gtk::Box {
-                            add_css_class: css::CARD,
+                        #[local_ref]
+                        gpu_selector_widget -> adw::ComboRow {},
 
-                            #[local_ref]
-                            gpu_selector_widget -> adw::ComboRow {},
-                        },
-                         gtk::Label {
+                        gtk::Label {
                             set_label: &fl!(I18N, "settings-profile"),
                             add_css_class: css::HEADING,
                         },
-
 
                         gtk::Box {
                             add_css_class: "profile-picker-container",
