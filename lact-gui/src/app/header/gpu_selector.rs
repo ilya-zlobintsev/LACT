@@ -32,7 +32,7 @@ impl Component for GPUSelector {
             add_css_class: "gpu-selector",
 
             #[local_ref]
-            combo_row -> adw::ComboRow {
+            add = combo_row -> adw::ComboRow {
                 set_title: "GPU",
                 set_cursor_from_name: Some("pointer"),
                 connect_selected_notify[sender] => move |_| {
@@ -81,11 +81,11 @@ impl Component for GPUSelector {
         let list_factory = gtk::SignalListItemFactory::new();
         list_factory.connect_setup(|_, item| {
             let item = item.downcast_ref::<gtk::ListItem>().unwrap();
-            let container = gtk::Box::new(gtk::Orientation::Vertical, 0);
             let name_label = gtk::Label::new(None);
             let id_label = gtk::Label::new(None);
             id_label.add_css_class("dim-label");
             id_label.add_css_class("caption");
+            let container = gtk::Box::new(gtk::Orientation::Vertical, 0);
             container.append(&name_label);
             container.append(&id_label);
             container.set_cursor_from_name(Some("pointer"));
@@ -98,20 +98,10 @@ impl Component for GPUSelector {
                 let item = item.downcast_ref::<gtk::ListItem>().unwrap();
                 if let Some(device) = variants.get(item.position() as usize) {
                     let container = item.child().unwrap().downcast::<gtk::Box>().unwrap();
-                    let mut child = container.first_child();
-                    child
-                        .as_ref()
-                        .unwrap()
-                        .downcast_ref::<gtk::Label>()
-                        .unwrap()
-                        .set_label(&device.to_string());
-                    child = child.unwrap().next_sibling();
-                    child
-                        .as_ref()
-                        .unwrap()
-                        .downcast_ref::<gtk::Label>()
-                        .unwrap()
-                        .set_label(&device.id);
+                    let name_label = container.first_child().unwrap().downcast::<gtk::Label>().unwrap();
+                    let id_label = name_label.next_sibling().unwrap().downcast::<gtk::Label>().unwrap();
+                    name_label.set_label(&device.to_string());
+                    id_label.set_label(&device.id);
                 }
             }
         ));
