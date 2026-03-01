@@ -1,6 +1,5 @@
 .clickable-info-row {
     transition: background-color 0.1s ease-in-out;
-    border-radius: 5px;
 }
 
 .clickable-info-row:hover {
@@ -10,7 +9,7 @@
 
 /* https://gitlab.gnome.org/GNOME/libadwaita/-/issues/1119 */
 .info-row-level-bar {
-    border-radius: 99px;
+    border-radius: 5px;
 }
 
 .info-row-level-bar block {
