@@ -5,7 +5,7 @@ pub mod profile_rule_window;
 
 use crate::{
     CONFIG, I18N,
-    app::{APP_BROKER, header::profile_rule_window::ProfileEditParams, msg::AppMsg},
+    app::{APP_BROKER, header::profile_rule_window::ProfileEditParams, msg::AppMsg, styles},
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
 use glib::clone;
@@ -34,6 +34,7 @@ pub struct Header {
     selector_label: String,
     system_info: SystemInfo,
     device_flags: Vec<DeviceFlag>,
+    theme_selection: StringList,
 
     new_profile_diag: Option<relm4::Controller<NewProfileDialog>>,
 }
@@ -51,6 +52,7 @@ pub enum HeaderMsg {
     CreateProfile,
     ImportProfile,
     ClosePopover,
+    ThemeSelected(u32),
 }
 
 #[relm4::component(pub)]
@@ -229,6 +231,38 @@ impl Component for Header {
                                 }
                             },
                         },
+
+                        gtk::Separator {},
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
+                            set_halign: gtk::Align::Center,
+
+                            gtk::Label {
+                                set_markup: &format!("<b>{}</b>", &fl!(I18N, "theme")),
+                            },
+
+                            gtk::DropDown {
+                                set_margin_all: 5,
+
+                                set_model: Some(&model.theme_selection),
+                                set_selected: {
+                                    if let Some(current_theme) = &CONFIG.read().theme {
+                                        styles::theme_names()
+                                            .iter()
+                                            .position(|name| name == current_theme)
+                                            .map(|idx| idx as u32 + 1)
+                                            .unwrap_or(0)
+                                    } else {
+                                        0
+                                    }
+                                },
+                                connect_selected_notify[sender] => move |dropdown| {
+                                    sender.input(HeaderMsg::ThemeSelected(dropdown.selected()));
+                                },
+                            },
+                        },
                     }
                 },
             }
@@ -295,6 +329,11 @@ impl Component for Header {
             }
         ));
 
+        let mut theme_selection = StringList::default();
+
+        theme_selection.append(&fl!(I18N, "theme-auto"));
+        theme_selection.extend(styles::theme_names());
+
         let model = Self {
             gpu_selector,
             profile_selector,
@@ -303,6 +342,7 @@ impl Component for Header {
             system_info,
             device_flags: Vec::new(),
             new_profile_diag: None,
+            theme_selection,
         };
 
         let gpu_selector = &model.gpu_selector.view;
@@ -475,6 +515,19 @@ impl Component for Header {
             }
             HeaderMsg::DeviceInfo(info) => {
                 self.device_flags = info.flags.clone();
+            }
+            HeaderMsg::ThemeSelected(idx) => {
+                let theme = if idx == 0 {
+                    None
+                } else {
+                    Some(styles::theme_names()[idx as usize - 1].to_owned())
+                };
+
+                styles::apply_theme(theme.as_deref()).expect("Could not apply theme");
+
+                CONFIG.write().edit(|config| {
+                    config.theme = theme;
+                });
             }
         }
         self.update_label();
