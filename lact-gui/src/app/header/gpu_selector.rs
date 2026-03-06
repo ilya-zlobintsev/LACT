@@ -1,12 +1,13 @@
 use crate::{
     CONFIG,
     app::{APP_BROKER, msg::AppMsg},
+    app::header::HeaderMsg,
 };
 use adw::prelude::*;
 use gtk::glib;
 use lact_client::schema::DeviceListEntry;
 use lact_schema::DeviceType;
-use relm4::{Component, ComponentParts, ComponentSender};
+use relm4::{css, Component, ComponentParts, ComponentSender, WidgetTemplate};
 use tracing::debug;
 
 #[derive(Debug)]
@@ -16,7 +17,6 @@ pub enum GPUSelectorMsg {
 
 pub struct GPUSelector {
     devices: Vec<DeviceListEntry>,
-    selected_index: u32,
     combo_row: adw::ComboRow,
 }
 
@@ -24,7 +24,7 @@ pub struct GPUSelector {
 impl Component for GPUSelector {
     type Init = Vec<DeviceListEntry>;
     type Input = GPUSelectorMsg;
-    type Output = ();
+    type Output = HeaderMsg;
     type CommandOutput = ();
 
     view! {
@@ -43,12 +43,12 @@ impl Component for GPUSelector {
     }
 
     fn init(
-        variants: Self::Init,
+        devices: Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let string_list = gtk::StringList::new(&[]);
-        for device in &variants {
+        for device in &devices {
             string_list.append(&device.to_string());
         }
 
@@ -57,46 +57,30 @@ impl Component for GPUSelector {
             .selected_gpu
             .as_ref()
             .and_then(|selected_gpu_id| {
-                variants.iter().position(|d| {
-                    if d.id == *selected_gpu_id {
-                        debug!("selecting gpu id {selected_gpu_id}");
-                        true
-                    } else {
-                        false
-                    }
-                })
+                devices
+                    .iter()
+                    .position(|d| d.id == *selected_gpu_id)
+                    .inspect(|_| debug!("selecting gpu id {selected_gpu_id}"))
             })
             .or_else(|| {
-                variants.iter().position(|d| {
-                    if d.device_type == DeviceType::Dedicated {
-                        debug!("selecting default dedicated gpu {}", d.id);
-                        true
-                    } else {
-                        false
-                    }
-                })
+                devices
+                    .iter()
+                    .position(|d| d.device_type == DeviceType::Dedicated)
+                    .inspect(|i| debug!("selecting default dedicated gpu {}", devices[*i].id))
             })
             .unwrap_or(0) as u32;
 
         let list_factory = gtk::SignalListItemFactory::new();
         list_factory.connect_setup(|_, item| {
             let item = item.downcast_ref::<gtk::ListItem>().unwrap();
-            let name_label = gtk::Label::new(None);
-            let id_label = gtk::Label::new(None);
-            id_label.add_css_class("dim-label");
-            id_label.add_css_class("caption");
-            let container = gtk::Box::new(gtk::Orientation::Vertical, 0);
-            container.append(&name_label);
-            container.append(&id_label);
-            container.set_cursor_from_name(Some("pointer"));
-            item.set_child(Some(&container));
+            item.set_child(Some(GpuListItem::init(()).as_ref()));
         });
         list_factory.connect_bind(glib::clone!(
             #[strong]
-            variants,
+            devices,
             move |_, item| {
                 let item = item.downcast_ref::<gtk::ListItem>().unwrap();
-                if let Some(device) = variants.get(item.position() as usize) {
+                if let Some(device) = devices.get(item.position() as usize) {
                     let container = item.child().unwrap().downcast::<gtk::Box>().unwrap();
                     let name_label = container.first_child().unwrap().downcast::<gtk::Label>().unwrap();
                     let id_label = name_label.next_sibling().unwrap().downcast::<gtk::Label>().unwrap();
@@ -111,11 +95,14 @@ impl Component for GPUSelector {
         combo_row.set_list_factory(Some(&list_factory));
         combo_row.set_selected(selected_index);
 
-        sender.input(GPUSelectorMsg::GpuSelected);
+        // part of the application startup, reloads the data and cleans global set_sensetive: false
+        // might be good to refactor
+        let _ = sender.output(HeaderMsg::GpuSelected(selected_index));
+        APP_BROKER.send(AppMsg::ReloadData { full: true });
+
 
         let model = GPUSelector {
-            devices: variants,
-            selected_index,
+            devices,
             combo_row,
         };
         let combo_row = &model.combo_row;
@@ -124,25 +111,37 @@ impl Component for GPUSelector {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>, _root: &Self::Root) {
+    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         match message {
             GPUSelectorMsg::GpuSelected => {
-                self.selected_index = self.combo_row.selected();
+                let selected = self.combo_row.selected();
                 let id = self
                     .devices
-                    .get(self.selected_index as usize)
+                    .get(selected as usize)
                     .map(|d| d.id.clone());
                 CONFIG.write().edit(|config| {
                     config.selected_gpu = id;
                 });
+                let _ = sender.output(HeaderMsg::GpuSelected(selected));
                 APP_BROKER.send(AppMsg::ReloadData { full: true });
             }
         }
     }
 }
 
-impl GPUSelector {
-    pub fn selected_index(&self) -> u32 {
-        self.selected_index
+#[relm4::widget_template]
+impl WidgetTemplate for GpuListItem {
+    view! {
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            set_cursor_from_name: Some("pointer"),
+
+            gtk::Label {},
+
+            gtk::Label {
+                add_css_class: css::DIM_LABEL,
+                add_css_class: css::CAPTION,
+            },
+        }
     }
 }

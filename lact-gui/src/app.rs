@@ -282,11 +282,15 @@ impl AsyncComponent for AppModel {
                     .downcast::<gtk::HeaderBar>()
                     .unwrap();
             })
-            .launch(({
-                let mut d = devices.clone();
-                d.extend(devices.clone());
-                d
-            }, system_info))
+            .launch((
+                {
+                    let mut d = devices.clone();
+                    d.extend(devices.iter().cloned());
+                    d.extend(devices.iter().cloned());
+                    d
+                },
+                system_info,
+            ))
             .forward(sender.input_sender(), |msg| msg);
 
         let apply_revealer = ApplyRevealer::builder()
