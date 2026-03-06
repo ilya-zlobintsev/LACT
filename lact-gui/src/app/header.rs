@@ -490,6 +490,7 @@ impl Component for Header {
             }
             HeaderMsg::GpuSelected(index) => {
                 self.gpu_index = index;
+                APP_BROKER.send(AppMsg::ReloadData { full: true });
             }
         }
         self.update_label();

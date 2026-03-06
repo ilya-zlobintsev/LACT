@@ -1,6 +1,5 @@
 use crate::{
     app::header::HeaderMsg,
-    app::{msg::AppMsg, APP_BROKER},
     CONFIG,
 };
 use adw::prelude::*;
@@ -101,10 +100,9 @@ impl Component for GPUSelector {
         combo_row.set_list_factory(Some(&list_factory));
         combo_row.set_selected(selected_index);
 
-        // part of the application startup, reloads the data and cleans global set_sensetive: false
+        // part of the application startup, reloads the data which cleans global set_sensetive: false
         // might be good to refactor
         let _ = sender.output(HeaderMsg::GpuSelected(selected_index));
-        APP_BROKER.send(AppMsg::ReloadData { full: true });
 
         let model = GPUSelector { devices, combo_row };
         let combo_row = &model.combo_row;
@@ -122,7 +120,6 @@ impl Component for GPUSelector {
                     config.selected_gpu = id;
                 });
                 let _ = sender.output(HeaderMsg::GpuSelected(selected));
-                APP_BROKER.send(AppMsg::ReloadData { full: true });
             }
         }
     }
