@@ -195,7 +195,7 @@ impl AsyncComponent for AppModel {
             STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
 
-        if let Err(err) = styles::apply_theme(CONFIG.read().theme.as_deref()) {
+        if let Err(err) = styles::apply_theme(CONFIG.read().theme) {
             error!("could not apply theme: {err:#}");
         }
 

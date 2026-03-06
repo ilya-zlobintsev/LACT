@@ -5,7 +5,12 @@ pub mod profile_rule_window;
 
 use crate::{
     CONFIG, I18N,
-    app::{APP_BROKER, header::profile_rule_window::ProfileEditParams, msg::AppMsg, styles},
+    app::{
+        APP_BROKER,
+        header::profile_rule_window::ProfileEditParams,
+        msg::AppMsg,
+        styles::{self, AppTheme},
+    },
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
 use glib::clone;
@@ -247,17 +252,7 @@ impl Component for Header {
                                 set_margin_all: 5,
 
                                 set_model: Some(&model.theme_selection),
-                                set_selected: {
-                                    if let Some(current_theme) = &CONFIG.read().theme {
-                                        styles::theme_names()
-                                            .iter()
-                                            .position(|name| name == current_theme)
-                                            .map(|idx| idx as u32 + 1)
-                                            .unwrap_or(0)
-                                    } else {
-                                        0
-                                    }
-                                },
+                                set_selected: CONFIG.read().theme as u32,
                                 connect_selected_notify[sender] => move |dropdown| {
                                     sender.input(HeaderMsg::ThemeSelected(dropdown.selected()));
                                 },
@@ -330,9 +325,7 @@ impl Component for Header {
         ));
 
         let mut theme_selection = StringList::default();
-
-        theme_selection.append(&fl!(I18N, "theme-auto"));
-        theme_selection.extend(styles::theme_names());
+        theme_selection.extend(AppTheme::ALL.iter().map(|theme| theme.display_name()));
 
         let model = Self {
             gpu_selector,
@@ -517,13 +510,9 @@ impl Component for Header {
                 self.device_flags = info.flags.clone();
             }
             HeaderMsg::ThemeSelected(idx) => {
-                let theme = if idx == 0 {
-                    None
-                } else {
-                    Some(styles::theme_names()[idx as usize - 1].to_owned())
-                };
+                let theme = AppTheme::from_idx(idx).expect("Valid index");
 
-                styles::apply_theme(theme.as_deref()).expect("Could not apply theme");
+                styles::apply_theme(theme).expect("Could not apply theme");
 
                 CONFIG.write().edit(|config| {
                     config.theme = theme;
