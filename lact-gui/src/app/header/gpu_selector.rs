@@ -1,7 +1,7 @@
 use crate::{
-    CONFIG,
-    app::{APP_BROKER, msg::AppMsg},
     app::header::HeaderMsg,
+    app::{msg::AppMsg, APP_BROKER},
+    CONFIG,
 };
 use adw::prelude::*;
 use gtk::glib;
@@ -73,7 +73,11 @@ impl Component for GPUSelector {
         let list_factory = gtk::SignalListItemFactory::new();
         list_factory.connect_setup(|_, item| {
             let item = item.downcast_ref::<gtk::ListItem>().unwrap();
-            item.set_child(Some(GpuListItem::init(()).as_ref()));
+            let template = GpuListItem::init(());
+            item.set_child(Some(template.as_ref()));
+            unsafe {
+                item.set_data("template", template);
+            }
         });
         list_factory.connect_bind(glib::clone!(
             #[strong]
@@ -81,11 +85,13 @@ impl Component for GPUSelector {
             move |_, item| {
                 let item = item.downcast_ref::<gtk::ListItem>().unwrap();
                 if let Some(device) = devices.get(item.position() as usize) {
-                    let container = item.child().unwrap().downcast::<gtk::Box>().unwrap();
-                    let name_label = container.first_child().unwrap().downcast::<gtk::Label>().unwrap();
-                    let id_label = name_label.next_sibling().unwrap().downcast::<gtk::Label>().unwrap();
-                    name_label.set_label(&device.to_string());
-                    id_label.set_label(&device.id);
+                    unsafe {
+                        if let Some(template) = item.data::<GpuListItem>("template") {
+                            let template = template.as_ref();
+                            template.name_label.set_label(&device.to_string());
+                            template.id_label.set_label(&device.id);
+                        }
+                    }
                 }
             }
         ));
@@ -100,11 +106,7 @@ impl Component for GPUSelector {
         let _ = sender.output(HeaderMsg::GpuSelected(selected_index));
         APP_BROKER.send(AppMsg::ReloadData { full: true });
 
-
-        let model = GPUSelector {
-            devices,
-            combo_row,
-        };
+        let model = GPUSelector { devices, combo_row };
         let combo_row = &model.combo_row;
         let widgets = view_output!();
 
@@ -115,10 +117,7 @@ impl Component for GPUSelector {
         match message {
             GPUSelectorMsg::GpuSelected => {
                 let selected = self.combo_row.selected();
-                let id = self
-                    .devices
-                    .get(selected as usize)
-                    .map(|d| d.id.clone());
+                let id = self.devices.get(selected as usize).map(|d| d.id.clone());
                 CONFIG.write().edit(|config| {
                     config.selected_gpu = id;
                 });
@@ -136,8 +135,10 @@ impl WidgetTemplate for GpuListItem {
             set_orientation: gtk::Orientation::Vertical,
             set_cursor_from_name: Some("pointer"),
 
+            #[name = "name_label"]
             gtk::Label {},
 
+            #[name = "id_label"]
             gtk::Label {
                 add_css_class: css::DIM_LABEL,
                 add_css_class: css::CAPTION,
