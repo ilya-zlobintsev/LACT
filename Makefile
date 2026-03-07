@@ -11,10 +11,6 @@ build-release:
 build-debug:
 	cargo build -p lact
 	
-.PHONY: build-release-libadwaita
-build-release-libadwaita:
-	cargo build -p lact --release --features=adw
-	
 .PHONY: build-release-headless
 build-release-headless:
 	cargo build -p lact --release --no-default-features --features=nvidia

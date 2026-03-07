@@ -221,12 +221,6 @@ Headless build with no GUI:
 make build-release-headless
 ```
 
-Build GUI with libadwaita support:
-
-```
-make build-release-libadwaita
-```
-
 # Remote management
 
 It's possible to have the LACT daemon running on one machine, and then manage it
