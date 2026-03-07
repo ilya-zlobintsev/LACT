@@ -37,7 +37,7 @@ pub struct Header {
     gpu_selector: Controller<GPUSelector>,
     profile_selector: FactoryVecDeque<ProfileRow>,
     selector_label: String,
-    gpu_index: u32,
+    selected_gpu_index: u32,
     system_info: SystemInfo,
     device_flags: Vec<DeviceFlag>,
 
@@ -310,7 +310,7 @@ impl Component for Header {
                 .forward(sender.input_sender(), |msg| msg),
             profile_selector,
             selector_label: String::new(),
-            gpu_index: 0,
+            selected_gpu_index: 0,
             profiles_info: ProfilesInfo::default(),
             system_info,
             device_flags: Vec::new(),
@@ -489,7 +489,7 @@ impl Component for Header {
                 });
             }
             HeaderMsg::GpuSelected(index) => {
-                self.gpu_index = index;
+                self.selected_gpu_index = index;
                 APP_BROKER.send(AppMsg::ReloadData { full: true });
             }
         }
@@ -598,7 +598,7 @@ impl Header {
     }
 
     fn update_label(&mut self) {
-        let gpu_index = self.gpu_index;
+        let gpu_index = self.selected_gpu_index;
         let profile = self.selected_profile().unwrap_or("Default");
         self.selector_label = format!("GPU {gpu_index} | {profile}");
     }
