@@ -1,5 +1,4 @@
 use gtk::{
-    STYLE_PROVIDER_PRIORITY_APPLICATION,
     gio::{self, prelude::SettingsExt},
     style_context_add_provider_for_display, style_context_remove_provider_for_display,
 };
@@ -87,11 +86,7 @@ pub fn apply_theme(theme: AppTheme) -> anyhow::Result<()> {
         #[allow(deprecated)]
         provider.load_from_data(css);
 
-        style_context_add_provider_for_display(
-            &display,
-            &provider,
-            STYLE_PROVIDER_PRIORITY_APPLICATION,
-        );
+        style_context_add_provider_for_display(&display, &provider, 900);
 
         EXISTING_STYLE_PROVIDER.set(Some(provider));
     }
