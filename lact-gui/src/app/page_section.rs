@@ -32,7 +32,7 @@ impl PageSection {
 unsafe impl<T: ObjectSubclass + BoxImpl> IsSubclassable<T> for PageSection {}
 
 mod imp {
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
 
     use glib::Properties;
     use gtk::{
@@ -53,6 +53,9 @@ mod imp {
 
         #[property(get, set)]
         name: RefCell<String>,
+
+        #[property(get, set)]
+        hide_visible_container: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -97,9 +100,8 @@ mod imp {
                     #[local_ref]
                     append = content_box {
                         set_orientation: gtk::Orientation::Vertical,
-                        add_css_class: if cfg!(feature = "adw") { css::CARD } else { "page-section-content" },
-                        #[watch]
-                        add_css_class: if cfg!(feature = "adw") { "" } else { css::FRAME },
+                        add_css_class: "page-section-content" ,
+                        set_class_active: (css::CARD, !self.hide_visible_container.get()),
 
                         #[local_ref]
                         append = children_box {
@@ -120,6 +122,12 @@ mod imp {
                     Some(format!("<span font_desc='13'><b>{value}</b></span>"))
                 })
                 .build();
+
+            obj.connect_notify_local(Some("hide-visible-container"), |obj, _| {
+                obj.imp()
+                    .content_box
+                    .set_class_active(css::CARD, !obj.hide_visible_container());
+            });
         }
     }
 
