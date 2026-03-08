@@ -39,7 +39,6 @@ pub struct Header {
     selector_label: String,
     system_info: SystemInfo,
     device_flags: Vec<DeviceFlag>,
-    theme_selection: StringList,
 
     new_profile_diag: Option<relm4::Controller<NewProfileDialog>>,
 }
@@ -57,7 +56,7 @@ pub enum HeaderMsg {
     CreateProfile,
     ImportProfile,
     ClosePopover,
-    ThemeSelected(u32),
+    ThemeSelected(AppTheme),
 }
 
 #[relm4::component(pub)]
@@ -219,6 +218,7 @@ impl Component for Header {
                         gtk::Box {
                             set_orientation: gtk::Orientation::Horizontal,
                             set_spacing: 5,
+                            set_margin_vertical: 5,
 
                             gtk::Label {
                                 set_markup: &format!("<b>{}</b>", &fl!(I18N, "stats-update-interval")),
@@ -248,13 +248,45 @@ impl Component for Header {
                                 set_markup: &format!("<b>{}</b>", &fl!(I18N, "theme")),
                             },
 
-                            gtk::DropDown {
-                                set_margin_all: 5,
+                            gtk::Box {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                add_css_class: "linked",
+                                set_margin_top: 5,
 
-                                set_model: Some(&model.theme_selection),
-                                set_selected: CONFIG.read().theme as u32,
-                                connect_selected_notify[sender] => move |dropdown| {
-                                    sender.input(HeaderMsg::ThemeSelected(dropdown.selected()));
+                                #[name = "theme_auto_btn"]
+                                gtk::ToggleButton {
+                                    set_label: &fl!(I18N, "theme-auto"),
+                                    #[watch]
+                                    set_active: CONFIG.read().theme == AppTheme::Automatic,
+                                    connect_toggled[sender] => move |btn| {
+                                        if btn.is_active() {
+                                            sender.input(HeaderMsg::ThemeSelected(AppTheme::Automatic));
+                                        }
+                                    },
+                                },
+
+                                gtk::ToggleButton {
+                                    set_label: "Adwaita",
+                                    set_group: Some(&theme_auto_btn),
+                                    #[watch]
+                                    set_active: CONFIG.read().theme == AppTheme::Adwaita,
+                                    connect_toggled[sender] => move |btn| {
+                                        if btn.is_active() {
+                                            sender.input(HeaderMsg::ThemeSelected(AppTheme::Adwaita));
+                                        }
+                                    },
+                                },
+
+                                gtk::ToggleButton {
+                                    set_label: "Breeze",
+                                    set_group: Some(&theme_auto_btn),
+                                    #[watch]
+                                    set_active: CONFIG.read().theme == AppTheme::Breeze,
+                                    connect_toggled[sender] => move |btn| {
+                                        if btn.is_active() {
+                                            sender.input(HeaderMsg::ThemeSelected(AppTheme::Breeze));
+                                        }
+                                    },
                                 },
                             },
                         },
@@ -324,9 +356,6 @@ impl Component for Header {
             }
         ));
 
-        let mut theme_selection = StringList::default();
-        theme_selection.extend(AppTheme::ALL.iter().map(|theme| theme.display_name()));
-
         let model = Self {
             gpu_selector,
             profile_selector,
@@ -335,7 +364,6 @@ impl Component for Header {
             system_info,
             device_flags: Vec::new(),
             new_profile_diag: None,
-            theme_selection,
         };
 
         let gpu_selector = &model.gpu_selector.view;
@@ -509,9 +537,7 @@ impl Component for Header {
             HeaderMsg::DeviceInfo(info) => {
                 self.device_flags = info.flags.clone();
             }
-            HeaderMsg::ThemeSelected(idx) => {
-                let theme = AppTheme::from_idx(idx).expect("Valid index");
-
+            HeaderMsg::ThemeSelected(theme) => {
                 styles::apply_theme(theme).expect("Could not apply theme");
 
                 CONFIG.write().edit(|config| {

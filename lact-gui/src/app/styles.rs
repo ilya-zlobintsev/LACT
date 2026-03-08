@@ -2,11 +2,8 @@ use gtk::{
     gio::{self, prelude::SettingsExt},
     style_context_add_provider_for_display, style_context_remove_provider_for_display,
 };
-use i18n_embed_fl::fl;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-
-use crate::I18N;
 
 pub const COMBINED_CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/combined.css"));
 
@@ -22,34 +19,13 @@ macro_rules! include_theme_str {
 const BREEZE_DARK_CSS: &str = include_theme_str!("breeze-dark.css");
 const BREEZE_LIGHT_CSS: &str = include_theme_str!("breeze-light.css");
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum AppTheme {
     #[default]
     Automatic,
     Adwaita,
     Breeze,
-}
-
-impl AppTheme {
-    pub const ALL: &[Self] = &[Self::Automatic, Self::Adwaita, Self::Breeze];
-
-    pub fn display_name(&self) -> String {
-        match self {
-            AppTheme::Automatic => fl!(I18N, "theme-auto"),
-            AppTheme::Adwaita => "Adwaita".to_owned(),
-            AppTheme::Breeze => "Breeze".to_owned(),
-        }
-    }
-
-    pub fn from_idx(idx: u32) -> Option<Self> {
-        match idx {
-            0 => Some(Self::Automatic),
-            1 => Some(Self::Adwaita),
-            2 => Some(Self::Breeze),
-            _ => None,
-        }
-    }
 }
 
 thread_local! {
