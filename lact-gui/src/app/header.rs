@@ -159,7 +159,6 @@ impl Component for Header {
                 set_popover = &gtk::Popover {
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_margin_horizontal: 5,
 
                         gtk::Button {
                             set_label: &fl!(I18N, "show-historical-charts"),
@@ -219,6 +218,7 @@ impl Component for Header {
                             set_orientation: gtk::Orientation::Horizontal,
                             set_spacing: 5,
                             set_margin_vertical: 5,
+                            set_halign: gtk::Align::Center,
 
                             gtk::Label {
                                 set_markup: &format!("<b>{}</b>", &fl!(I18N, "stats-update-interval")),
@@ -243,6 +243,7 @@ impl Component for Header {
                             set_orientation: gtk::Orientation::Horizontal,
                             set_spacing: 5,
                             set_halign: gtk::Align::Center,
+                            set_margin_top: 5,
 
                             gtk::Label {
                                 set_markup: &format!("<b>{}</b>", &fl!(I18N, "theme")),
@@ -251,7 +252,6 @@ impl Component for Header {
                             gtk::Box {
                                 set_orientation: gtk::Orientation::Horizontal,
                                 add_css_class: "linked",
-                                set_margin_top: 5,
 
                                 #[name = "theme_auto_btn"]
                                 gtk::ToggleButton {
