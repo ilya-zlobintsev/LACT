@@ -97,9 +97,7 @@ mod imp {
                     #[local_ref]
                     append = content_box {
                         set_orientation: gtk::Orientation::Vertical,
-                        add_css_class: if cfg!(feature = "adw") { css::CARD } else { "page-section-content" },
-                        #[watch]
-                        add_css_class: if cfg!(feature = "adw") { "" } else { css::FRAME },
+                        add_css_class: css::CARD,
 
                         #[local_ref]
                         append = children_box {

@@ -188,6 +188,7 @@ Dependencies:
 
 - rust 1.76+
 - gtk 4.6+
+- libadwaita 1.5+
 - git
 - pkg-config
 - clang
@@ -219,12 +220,6 @@ Headless build with no GUI:
 
 ```
 make build-release-headless
-```
-
-Build GUI with libadwaita support:
-
-```
-make build-release-libadwaita
 ```
 
 # Remote management

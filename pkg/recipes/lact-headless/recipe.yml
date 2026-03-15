@@ -9,7 +9,7 @@ metadata:
   source:
     - '../../../../LACT'
   provides: [ lact ]
-  conflicts: [ lact, lact-libadwaita ]
+  conflicts: [ lact ]
   depends:
     all: [ hwdata, vulkan-tools, clinfo ]
     debian-13+ubuntu-2404: [ libdrm-amdgpu1, libdrm2 ]
