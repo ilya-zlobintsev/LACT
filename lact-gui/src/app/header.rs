@@ -162,8 +162,11 @@ impl Component for Header {
 
                 #[wrap(Some)]
                 set_popover = &gtk::Popover {
+                    set_autohide: false,
+
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
+                        add_css_class: "header-settings-popover-container",
 
                         gtk::Button {
                             set_label: &fl!(I18N, "show-historical-charts"),
@@ -222,7 +225,6 @@ impl Component for Header {
                         gtk::Box {
                             set_orientation: gtk::Orientation::Horizontal,
                             set_spacing: 5,
-                            set_margin_top: 8,
                             set_halign: gtk::Align::Center,
 
                             gtk::Label {
@@ -248,7 +250,6 @@ impl Component for Header {
                             set_orientation: gtk::Orientation::Horizontal,
                             set_spacing: 5,
                             set_halign: gtk::Align::Center,
-                            set_margin_top: 5,
 
                             gtk::Label {
                                 set_markup: &format!("<b>{}</b>", &fl!(I18N, "theme")),
