@@ -56,5 +56,5 @@ easy_fuser = { version = "0.4.2", features = ["parallel"] }
 tempfile = "3.17.1"
 
 [build-dependencies]
-bindgen = "0.71"
+bindgen = "0.72"
 serde_json = { workspace = true }
