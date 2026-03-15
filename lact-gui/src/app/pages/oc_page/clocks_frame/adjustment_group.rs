@@ -148,7 +148,7 @@ impl FactoryComponent for AdjustmentGroup {
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 5,
             set_valign: gtk::Align::Start,
-            add_css_class: css::FRAME,
+            add_css_class: css::CARD,
         }
     }
 
