@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     steps:
-      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: ./.github/actions/setup-environment
       - name: Install clang
         uses: awalsh128/cache-apt-pkgs-action@latest
@@ -83,7 +83,7 @@ jobs:
           cargo llvm-cov --no-fail-fast --include-ffi --workspace --lcov --output-path lcov.info
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v5.5.1
+        uses: codecov/codecov-action@v5.5.2
         continue-on-error: true
         with:
           files: lcov.info
