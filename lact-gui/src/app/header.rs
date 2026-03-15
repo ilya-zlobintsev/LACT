@@ -162,7 +162,6 @@ impl Component for Header {
 
                 #[wrap(Some)]
                 set_popover = &gtk::Popover {
-                    set_autohide: false,
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
