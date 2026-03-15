@@ -5,7 +5,6 @@ edition = "2024"
 
 [features]
 default = ["lact-gui", "nvidia"]
-adw = ["lact-gui/adw"]
 nvidia = ["lact-daemon/nvidia"]
 
 [dependencies]

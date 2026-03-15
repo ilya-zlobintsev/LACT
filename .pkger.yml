@@ -8,7 +8,7 @@ gpg_key: /tmp/package-signing-key.gpg
 gpg_name: Ilya Zlobintsev
 ssh: ~
 images:
-  - name: debian-12
+  - name: debian-13
     target: deb
     os: Debian
   - name: fedora-42
@@ -16,9 +16,6 @@ images:
   - name: fedora-43
     target: rpm
     os: Fedora
-  - name: ubuntu-2204
-    target: deb
-    os: Ubuntu
   - name: ubuntu-2404
     target: deb
     os: Ubuntu

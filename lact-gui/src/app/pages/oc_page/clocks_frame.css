@@ -1,7 +1,3 @@
-.clocks-frame > .page-section-content {
-    border-color: transparent;
-}
-
 .clocks-frame .page-section-children-box {
     margin: 0;
 }
@@ -14,4 +10,3 @@
     border-radius: 5px;
     padding: 10px;
 }
-

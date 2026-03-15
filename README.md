@@ -188,6 +188,7 @@ Dependencies:
 
 - rust 1.76+
 - gtk 4.6+
+- libadwaita 1.5+
 - git
 - pkg-config
 - clang
@@ -202,9 +203,9 @@ Optional Dependencies:
 Command to install all dependencies:
 
 - Fedora:
-  `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel vulkan-tools clinfo`
+  `sudo dnf install rust cargo make git clang gtk4-devel libadwaita-devel libdrm-devel vulkan-tools clinfo`
 - Arch:
-  `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata vulkan-tools clinfo`
+  `sudo pacman -S --needed base-devel git clang make rust gtk4 libadwaita hwdata vulkan-tools clinfo`
 
 Steps:
 
@@ -219,12 +220,6 @@ Headless build with no GUI:
 
 ```
 make build-release-headless
-```
-
-Build GUI with libadwaita support:
-
-```
-make build-release-libadwaita
 ```
 
 # Remote management

@@ -5,7 +5,12 @@ pub mod profile_rule_window;
 
 use crate::{
     CONFIG, I18N,
-    app::{APP_BROKER, header::profile_rule_window::ProfileEditParams, msg::AppMsg},
+    app::{
+        APP_BROKER,
+        header::profile_rule_window::ProfileEditParams,
+        msg::AppMsg,
+        styles::{self, AppTheme},
+    },
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
 use glib::clone;
@@ -51,6 +56,7 @@ pub enum HeaderMsg {
     CreateProfile,
     ImportProfile,
     ClosePopover,
+    ThemeSelected(AppTheme),
 }
 
 #[relm4::component(pub)]
@@ -153,7 +159,6 @@ impl Component for Header {
                 set_popover = &gtk::Popover {
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_margin_horizontal: 5,
 
                         gtk::Button {
                             set_label: &fl!(I18N, "show-historical-charts"),
@@ -212,6 +217,8 @@ impl Component for Header {
                         gtk::Box {
                             set_orientation: gtk::Orientation::Horizontal,
                             set_spacing: 5,
+                            set_margin_vertical: 5,
+                            set_halign: gtk::Align::Center,
 
                             gtk::Label {
                                 set_markup: &format!("<b>{}</b>", &fl!(I18N, "stats-update-interval")),
@@ -227,6 +234,60 @@ impl Component for Header {
                                         config.stats_poll_interval_ms = btn.value() as i64;
                                     })
                                 }
+                            },
+                        },
+
+                        gtk::Separator {},
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
+                            set_halign: gtk::Align::Center,
+                            set_margin_top: 5,
+
+                            gtk::Label {
+                                set_markup: &format!("<b>{}</b>", &fl!(I18N, "theme")),
+                            },
+
+                            gtk::Box {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                add_css_class: "linked",
+
+                                #[name = "theme_auto_btn"]
+                                gtk::ToggleButton {
+                                    set_label: &fl!(I18N, "theme-auto"),
+                                    #[watch]
+                                    set_active: CONFIG.read().theme == AppTheme::Automatic,
+                                    connect_toggled[sender] => move |btn| {
+                                        if btn.is_active() {
+                                            sender.input(HeaderMsg::ThemeSelected(AppTheme::Automatic));
+                                        }
+                                    },
+                                },
+
+                                gtk::ToggleButton {
+                                    set_label: "Adwaita",
+                                    set_group: Some(&theme_auto_btn),
+                                    #[watch]
+                                    set_active: CONFIG.read().theme == AppTheme::Adwaita,
+                                    connect_toggled[sender] => move |btn| {
+                                        if btn.is_active() {
+                                            sender.input(HeaderMsg::ThemeSelected(AppTheme::Adwaita));
+                                        }
+                                    },
+                                },
+
+                                gtk::ToggleButton {
+                                    set_label: "Breeze",
+                                    set_group: Some(&theme_auto_btn),
+                                    #[watch]
+                                    set_active: CONFIG.read().theme == AppTheme::Breeze,
+                                    connect_toggled[sender] => move |btn| {
+                                        if btn.is_active() {
+                                            sender.input(HeaderMsg::ThemeSelected(AppTheme::Breeze));
+                                        }
+                                    },
+                                },
                             },
                         },
                     }
@@ -475,6 +536,13 @@ impl Component for Header {
             }
             HeaderMsg::DeviceInfo(info) => {
                 self.device_flags = info.flags.clone();
+            }
+            HeaderMsg::ThemeSelected(theme) => {
+                styles::apply_theme(theme).expect("Could not apply theme");
+
+                CONFIG.write().edit(|config| {
+                    config.theme = theme;
+                });
             }
         }
         self.update_label();

@@ -248,6 +248,9 @@ profile-rule-process-name = Process Name:
 profile-rule-args-contain = Arguments Contain:
 profile-rule-specific-process = With a specific process:
 
+theme = Theme
+theme-auto = Automatic
+
 # Crash page
 crash-page-title = Application Crashed
 exit = Exit
