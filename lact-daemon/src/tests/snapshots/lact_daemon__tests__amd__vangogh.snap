@@ -7,6 +7,7 @@ expression: device_info
   "info": {
     "driver": "amdgpu",
     "drm_info": {
+      "amd_ip_info": {},
       "cache_info": {
         "Amd": [
           [

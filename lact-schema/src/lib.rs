@@ -351,8 +351,17 @@ pub struct DrmInfo {
     pub cache_info: Option<CacheInfo>,
     pub rop_info: Option<RopInfo>,
     pub memory_info: Option<DrmMemoryInfo>,
+    pub amd_ip_info: HashMap<String, AmdIpInfo>,
     #[serde(flatten)]
     pub intel: IntelDrmInfo,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct AmdIpInfo {
+    pub version_major: u32,
+    pub version_minor: u32,
+    pub queues: u32,
+    pub count: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

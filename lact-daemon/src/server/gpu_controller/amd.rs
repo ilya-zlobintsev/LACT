@@ -21,13 +21,13 @@ use amdgpu_sysfs::{
 use anyhow::{Context, anyhow, bail};
 use futures::{FutureExt, future::LocalBoxFuture, join};
 use lact_schema::{
-    AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceFlag, DeviceInfo,
-    DeviceStats, DeviceType, DrmInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo,
-    PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo,
+    AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceFlag,
+    DeviceInfo, DeviceStats, DeviceType, DrmInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
+    PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo,
     TemperatureEntry, VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
-use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit, ThrottlerType};
+use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, HW_IP::HW_IP_TYPE, ThrottlerBit, ThrottlerType};
 use libdrm_amdgpu_sys::{AMDGPU::SENSOR_INFO::SENSOR_TYPE, LibDrmAmdgpu, PCI};
 use std::{
     cell::RefCell,
@@ -65,6 +65,19 @@ const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
     ("dec", ProcessUtilizationType::Decode),
     ("enc", ProcessUtilizationType::Encode),
     ("enc_1", ProcessUtilizationType::Encode),
+];
+
+const ALL_HW_IP: &[HW_IP_TYPE] = &[
+    HW_IP_TYPE::GFX,
+    HW_IP_TYPE::COMPUTE,
+    HW_IP_TYPE::DMA,
+    HW_IP_TYPE::UVD,
+    HW_IP_TYPE::VCE,
+    HW_IP_TYPE::UVD_ENC,
+    HW_IP_TYPE::VCN_DEC,
+    HW_IP_TYPE::VCN_ENC,
+    HW_IP_TYPE::VCN_JPEG,
+    HW_IP_TYPE::VPE,
 ];
 
 pub struct AmdGpuController {
@@ -562,6 +575,21 @@ impl AmdGpuController {
                     VRAM_TYPE::GDDR6 => 2.0,
                     _ => 1.0,
                 },
+                amd_ip_info: ALL_HW_IP
+                    .iter()
+                    .filter_map(|ip_type| {
+                        let ip_info = handle.get_hw_ip_info(*ip_type).ok()?;
+
+                        let amd_ip_info = AmdIpInfo {
+                            version_major: ip_info.info.hw_ip_version_major,
+                            version_minor: ip_info.info.hw_ip_version_minor,
+                            queues: ip_info.info.num_queues(),
+                            count: ip_info.count,
+                        };
+
+                        Some((ip_info.ip_type.to_string(), amd_ip_info))
+                    })
+                    .collect(),
                 vram_bit_width: Some(drm_info.vram_bit_width),
                 vram_max_bw: Some(drm_info.peak_memory_bw_gb().to_string()),
                 cache_info,
