@@ -33,7 +33,6 @@ impl Component for GPUSelector {
             #[local_ref]
             add = combo_row -> adw::ComboRow {
                 set_title: "GPU",
-                set_cursor_from_name: Some("pointer"),
                 connect_selected_notify[sender] => move |_| {
                     sender.input(GPUSelectorMsg::GpuSelected);
                 },
