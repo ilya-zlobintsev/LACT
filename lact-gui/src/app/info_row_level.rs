@@ -26,11 +26,11 @@ impl Default for InfoRowLevel {
 mod imp {
     use std::cell::RefCell;
 
+    use adw::prelude::*;
     use glib::Properties;
-    use gtk::{glib, prelude::*, subclass::prelude::*, LevelBar};
+    use gtk::{LevelBar, glib, subclass::prelude::*};
     use relm4::view;
 
-    use crate::app::animation::LinearAnimation;
     use crate::app::info_row::{InfoRow, InfoRowExt};
 
     #[derive(Default, Properties)]
@@ -38,7 +38,7 @@ mod imp {
     pub struct InfoRowLevel {
         #[property(get, set = Self::set_level_value)]
         level_value: RefCell<f64>,
-        animation: RefCell<LinearAnimation<LevelBar>>,
+        animation: RefCell<Option<adw::SpringAnimation>>,
     }
 
     impl InfoRowLevel {
@@ -52,7 +52,12 @@ mod imp {
             }
 
             self.level_value.replace(rounded);
-            self.animation.borrow().animate_to(rounded);
+
+            if let Some(animation) = self.animation.borrow().as_ref() {
+                animation.set_value_from(old);
+                animation.set_value_to(rounded);
+                animation.play();
+            }
         }
     }
 
@@ -87,10 +92,17 @@ mod imp {
                 }
             }
 
-            let animation = LinearAnimation::new(&level_bar, |bar, v| {
-                bar.set_value(v);
-            });
-            self.animation.replace(animation);
+            let target = adw::CallbackAnimationTarget::new(glib::clone!(
+                #[weak]
+                level_bar,
+                move |value| {
+                    level_bar.set_value(value);
+                }
+            ));
+            let spring_params = adw::SpringParams::new(1.0, 1.0, 800.0);
+            let animation = adw::SpringAnimation::new(&level_bar, 0.0, 0.0, spring_params, target);
+            animation.set_clamp(true);
+            self.animation.replace(Some(animation));
         }
     }
 
