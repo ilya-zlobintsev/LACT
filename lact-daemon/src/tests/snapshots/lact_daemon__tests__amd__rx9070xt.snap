@@ -45,7 +45,6 @@ expression: device_info
   "info": {
     "driver": "amdgpu",
     "drm_info": {
-      "amd_ip_info": {},
       "vram_clock_ratio": 1.0
     },
     "flags": [
