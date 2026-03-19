@@ -46,7 +46,7 @@ jobs:
           chmod +x /usr/local/bin/pkger
       
       # A GitHub Action that implements smart caching for rust/cargo projects with sensible defaults.
-      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       - name: Build packages (with signing)
         if: ${{ (contains(matrix.target-os, 'fedora') || contains(matrix.target-os, 'opensuse') || matrix.target-os == 'rhel-9') && env.GPG_KEY_PASSWORD != '' }}
@@ -86,7 +86,7 @@ jobs:
           gpg --armor --export > $PWD/release-artifacts/lact.pubkey
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: ${{ matrix.target-os }}-${{ matrix.recipe }}
           path: release-artifacts/*
@@ -104,7 +104,7 @@ jobs:
         manifest-path: flatpak/io.github.ilya_zlobintsev.LACT.yaml
         cache-key: flatpak-builder-${{ github.sha }}
     - name: Upload artifacts
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       with:
         name: flatpak
         path: io.github.ilya_zlobintsev.LACT.flatpak
@@ -114,7 +114,7 @@ jobs:
     steps:
       - name: Log into GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -122,15 +122,15 @@ jobs:
 
       - name: Extract Docker image metadata
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6
         with:
           images: ghcr.io/${{ github.repository }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
 
       - name: Build and push
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
           file: pkg/docker/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
@@ -149,13 +149,13 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Download artifacts
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: downloaded-artifacts/
           pattern: "!*.dockerbuild"
 
       - name: Create release
-        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1.20.0
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           removeArtifacts: true
           allowUpdates: true
@@ -182,13 +182,13 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Download artifacts
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: downloaded-artifacts/
           pattern: "!*.dockerbuild"
 
       - name: Create release
-        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1.20.0
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           artifacts: "downloaded-artifacts/*/*"
           name: ${{ github.ref_name }}
