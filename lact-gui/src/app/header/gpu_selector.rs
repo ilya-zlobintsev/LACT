@@ -89,10 +89,6 @@ impl Component for GPUSelector {
                             let template = template.as_ref();
                             template.name_label.set_label(&device.to_string());
                             template.id_label.set_label(&device.id);
-                            let in_popover = item
-                                .child()
-                                .is_some_and(|w| w.ancestor(gtk::Popover::static_type()).is_some());
-                            template.id_label.set_visible(in_popover);
                         }
                     }
                 }
