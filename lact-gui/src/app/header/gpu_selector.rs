@@ -96,10 +96,6 @@ impl Component for GPUSelector {
         combo_row.set_factory(Some(&item_factory));
         combo_row.set_selected(selected_index);
 
-        // part of the application startup, reloads the data which cleans global set_sensetive: false
-        // might be good to refactor
-        let _ = sender.output(HeaderMsg::GpuSelected(selected_index));
-
         let model = GPUSelector { devices, combo_row };
         let combo_row = &model.combo_row;
         let widgets = view_output!();
