@@ -1,3 +1,6 @@
 .gpu-selector {
     margin: 0 10px;
 }
+.gpu-selector row.combo listview {
+    min-width: 0;
+}

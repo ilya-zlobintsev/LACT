@@ -5,6 +5,7 @@ authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2024"
 
 [features]
+default = []
 gtk-tests = []
 bench = ["dep:divan"]
 

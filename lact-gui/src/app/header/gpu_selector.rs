@@ -69,8 +69,8 @@ impl Component for GPUSelector {
             })
             .unwrap_or(0) as u32;
 
-        let list_factory = gtk::SignalListItemFactory::new();
-        list_factory.connect_setup(|_, item| {
+        let item_factory = gtk::SignalListItemFactory::new();
+        item_factory.connect_setup(|_, item| {
             let item = item.downcast_ref::<gtk::ListItem>().unwrap();
             let template = GpuListItem::init(());
             item.set_child(Some(template.as_ref()));
@@ -78,7 +78,7 @@ impl Component for GPUSelector {
                 item.set_data("template", template);
             }
         });
-        list_factory.connect_bind(glib::clone!(
+        item_factory.connect_bind(glib::clone!(
             #[strong]
             devices,
             move |_, item| {
@@ -89,6 +89,10 @@ impl Component for GPUSelector {
                             let template = template.as_ref();
                             template.name_label.set_label(&device.to_string());
                             template.id_label.set_label(&device.id);
+                            let in_popover = item
+                                .child()
+                                .is_some_and(|w| w.ancestor(gtk::Popover::static_type()).is_some());
+                            template.id_label.set_visible(in_popover);
                         }
                     }
                 }
@@ -97,7 +101,7 @@ impl Component for GPUSelector {
 
         let combo_row = adw::ComboRow::new();
         combo_row.set_model(Some(&string_list));
-        combo_row.set_list_factory(Some(&list_factory));
+        combo_row.set_factory(Some(&item_factory));
         combo_row.set_selected(selected_index);
 
         // part of the application startup, reloads the data which cleans global set_sensetive: false
@@ -130,13 +134,22 @@ impl WidgetTemplate for GpuListItem {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
+            set_hexpand: true,
             set_cursor_from_name: Some("pointer"),
 
             #[name = "name_label"]
-            gtk::Label {},
+            gtk::Label {
+                set_hexpand: true,
+                set_halign: gtk::Align::Fill,
+                set_xalign: 0.0,
+                set_ellipsize: gtk::pango::EllipsizeMode::End,
+            },
 
             #[name = "id_label"]
             gtk::Label {
+                set_hexpand: true,
+                set_halign: gtk::Align::Fill,
+                set_xalign: 0.0,
                 add_css_class: css::DIM_LABEL,
                 add_css_class: css::CAPTION,
             },
