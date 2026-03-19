@@ -43,21 +43,16 @@ mod imp {
 
     impl InfoRowLevel {
         fn set_level_value(&self, value: f64) {
+            let clamped = value.clamp(0.0, 1.0);
+            let rounded = (clamped * 100.0).round() / 100.0;
+
             let old = *self.level_value.borrow();
-            if (old - value).abs() < f64::EPSILON {
+            if (old - rounded).abs() < f64::EPSILON {
                 return;
             }
 
-            self.level_value.replace(value);
-            self.animation.borrow().animate_to(value);
-        }
-    }
-
-    impl InfoRowLevel {
-        fn set_level_value(&self, value: f64) {
-            let clamped = value.clamp(0.0, 1.0);
-            let rounded = (clamped * 100.0).round() / 100.0;
             self.level_value.replace(rounded);
+            self.animation.borrow().animate_to(rounded);
         }
     }
 
