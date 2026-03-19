@@ -484,7 +484,7 @@ impl GpuController for NvidiaGpuController {
                                 .map(|memory_info| bar_info.total >= memory_info.total),
                         })
                         .ok(),
-                    amd_ip_info: HashMap::new(),
+                    amd_ip_info: vec![],
                     intel: IntelDrmInfo::default(),
                 }),
                 flags: vec![

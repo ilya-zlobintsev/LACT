@@ -6,7 +6,7 @@ use crate::app::info_row::{InfoRow, InfoRowExt, InfoRowItem};
 use crate::app::page_section::PageSection;
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
-use lact_schema::{CacheInfo, CacheType, DeviceInfo, DeviceStats};
+use lact_schema::{AmdIpInfo, CacheInfo, CacheType, DeviceInfo, DeviceStats};
 use relm4::{
     ComponentParts, ComponentSender, RelmWidgetExt,
     prelude::{FactoryComponent, FactoryVecDeque},
@@ -16,6 +16,7 @@ use std::sync::Arc;
 pub struct InformationPage {
     values_list: FactoryVecDeque<InfoRowItem>,
     cache_list: FactoryVecDeque<CacheRow>,
+    ip_list: FactoryVecDeque<AmdIpRow>,
     device_info: Option<Arc<DeviceInfo>>,
     device_stats: Option<Arc<DeviceStats>>,
 }
@@ -61,6 +62,26 @@ impl relm4::SimpleComponent for InformationPage {
                         #[watch]
                         set_visible: !model.cache_list.is_empty(),
                     },
+
+                    append_child = &InfoRow {
+                        set_value: fl!(I18N, "hw-ip-info"),
+                        set_icon: "go-down-symbolic".to_string(),
+
+                        #[name = "ip_popover"]
+                        set_popover = &gtk::Popover {
+                            model.ip_list.widget().clone() -> gtk::ListBox {
+                                set_margin_all: 10,
+                                set_selection_mode: gtk::SelectionMode::None,
+                            },
+                        },
+
+                        connect_clicked[ip_popover] => move |_| {
+                            ip_popover.popup();
+                        },
+                    } -> ip_row: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: !model.ip_list.is_empty(),
+                    },
                 },
             },
         },
@@ -74,6 +95,7 @@ impl relm4::SimpleComponent for InformationPage {
         let model = Self {
             values_list: FactoryVecDeque::builder().launch_default().detach(),
             cache_list: FactoryVecDeque::builder().launch_default().detach(),
+            ip_list: FactoryVecDeque::builder().launch_default().detach(),
             device_info: None,
             device_stats: None,
         };
@@ -118,47 +140,54 @@ impl InformationPage {
                 }
             }
 
-            if let Some(drm_info) = &info.drm_info
-                && let Some(cache_info) = &drm_info.cache_info
-            {
-                match cache_info {
-                    CacheInfo::Amd(items) => {
-                        for (instance, count) in items {
-                            let cache_types = instance
-                                .types
-                                .iter()
-                                .map(|cache_type| match cache_type {
-                                    CacheType::Data => fl!(I18N, "cache-data"),
-                                    CacheType::Instruction => fl!(I18N, "cache-instruction"),
-                                    CacheType::Cpu => fl!(I18N, "cache-cpu"),
-                                })
-                                .collect::<Vec<String>>()
-                                .join("+");
+            if let Some(drm_info) = &info.drm_info {
+                if let Some(cache_info) = &drm_info.cache_info {
+                    match cache_info {
+                        CacheInfo::Amd(items) => {
+                            for (instance, count) in items {
+                                let cache_types = instance
+                                    .types
+                                    .iter()
+                                    .map(|cache_type| match cache_type {
+                                        CacheType::Data => fl!(I18N, "cache-data"),
+                                        CacheType::Instruction => fl!(I18N, "cache-instruction"),
+                                        CacheType::Cpu => fl!(I18N, "cache-cpu"),
+                                    })
+                                    .collect::<Vec<String>>()
+                                    .join("+");
 
+                                cache_list.push_back(CacheRow {
+                                    count: *count,
+                                    text: fl!(
+                                        I18N,
+                                        "amd-cache-desc",
+                                        size = fmt_human_bytes(instance.size.into(), None),
+                                        level = instance.level,
+                                        types = cache_types,
+                                        shared = instance.cu_count
+                                    ),
+                                });
+                            }
+                        }
+                        CacheInfo::Nvidia { l2 } => {
                             cache_list.push_back(CacheRow {
-                                count: *count,
+                                count: 1,
                                 text: fl!(
                                     I18N,
-                                    "amd-cache-desc",
-                                    size = fmt_human_bytes(instance.size.into(), None),
-                                    level = instance.level,
-                                    types = cache_types,
-                                    shared = instance.cu_count
+                                    "nvidia-cache-desc",
+                                    size = fmt_human_bytes((*l2).into(), None),
+                                    level = 2,
                                 ),
                             });
                         }
                     }
-                    CacheInfo::Nvidia { l2 } => {
-                        cache_list.push_back(CacheRow {
-                            count: 1,
-                            text: fl!(
-                                I18N,
-                                "nvidia-cache-desc",
-                                size = fmt_human_bytes((*l2).into(), None),
-                                level = 2,
-                            ),
-                        });
-                    }
+                }
+
+                let mut ip_list = self.ip_list.guard();
+                ip_list.clear();
+
+                for ip_info in &drm_info.amd_ip_info {
+                    ip_list.push_back(ip_info.clone());
                 }
             }
         }
@@ -193,6 +222,49 @@ impl FactoryComponent for CacheRow {
 
             gtk::Label {
                 set_label: &format!("{}x {}", self.count, self.text),
+                set_selectable: true,
+                set_halign: gtk::Align::Start,
+                set_margin_all: 5,
+            }
+        }
+    }
+}
+
+struct AmdIpRow {
+    ip: AmdIpInfo,
+}
+
+#[relm4::factory]
+impl FactoryComponent for AmdIpRow {
+    type ParentWidget = gtk::ListBox;
+    type Init = AmdIpInfo;
+    type Input = ();
+    type Output = ();
+    type CommandOutput = ();
+
+    fn init_model(
+        ip: Self::Init,
+        _index: &Self::Index,
+        _sender: relm4::FactorySender<Self>,
+    ) -> Self {
+        Self { ip }
+    }
+
+    view! {
+        gtk::ListBoxRow {
+            set_activatable: false,
+            set_selectable: false,
+
+            gtk::Label {
+                set_label: &format!(
+                    "{} {}.{} ({}x, {} {})",
+                    self.ip.ip_type,
+                    self.ip.version_major,
+                    self.ip.version_minor,
+                    self.ip.count,
+                    self.ip.queues,
+                    fl!(I18N, "hw-queues")
+                ),
                 set_selectable: true,
                 set_halign: gtk::Align::Start,
                 set_margin_all: 5,

@@ -580,14 +580,13 @@ impl AmdGpuController {
                     .filter_map(|ip_type| {
                         let ip_info = handle.get_hw_ip_info(*ip_type).ok()?;
 
-                        let amd_ip_info = AmdIpInfo {
+                        Some(AmdIpInfo {
+                            ip_type: ip_info.ip_type.to_string(),
                             version_major: ip_info.info.hw_ip_version_major,
                             version_minor: ip_info.info.hw_ip_version_minor,
                             queues: ip_info.info.num_queues(),
                             count: ip_info.count,
-                        };
-
-                        Some((ip_info.ip_type.to_string(), amd_ip_info))
+                        })
                     })
                     .collect(),
                 vram_bit_width: Some(drm_info.vram_bit_width),
