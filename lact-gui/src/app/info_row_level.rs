@@ -92,7 +92,7 @@ mod imp {
                 }
             }
 
-            let target = adw::CallbackAnimationTarget::new(glib::clone!(
+            let animation_target = adw::CallbackAnimationTarget::new(glib::clone!(
                 #[weak]
                 level_bar,
                 move |value| {
