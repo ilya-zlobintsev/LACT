@@ -1,12 +1,9 @@
-use crate::{
-    app::header::HeaderMsg,
-    CONFIG,
-};
+use crate::{CONFIG, app::header::HeaderMsg};
 use adw::prelude::*;
 use gtk::glib;
 use lact_client::schema::DeviceListEntry;
 use lact_schema::DeviceType;
-use relm4::{css, Component, ComponentParts, ComponentSender, WidgetTemplate};
+use relm4::{Component, ComponentParts, ComponentSender, WidgetTemplate, css};
 use tracing::debug;
 
 #[derive(Debug)]
