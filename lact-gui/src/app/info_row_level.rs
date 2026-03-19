@@ -100,7 +100,7 @@ mod imp {
                 }
             ));
             let spring_params = adw::SpringParams::new(1.0, 1.0, 800.0);
-            let animation = adw::SpringAnimation::new(&level_bar, 0.0, 0.0, spring_params, target);
+            let animation = adw::SpringAnimation::new(&level_bar, 0.0, 0.0, spring_params, animation_target);
             animation.set_clamp(true);
             self.animation.replace(Some(animation));
         }
