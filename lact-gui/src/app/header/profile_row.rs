@@ -58,7 +58,7 @@ impl FactoryComponent for ProfileRow {
                 set_hexpand: true,
                 set_xalign: 0.0,
                 set_ellipsize: pango::EllipsizeMode::End,
-                set_width_request: 200,
+                set_width_request: 150,
             },
 
             gtk::MenuButton {
