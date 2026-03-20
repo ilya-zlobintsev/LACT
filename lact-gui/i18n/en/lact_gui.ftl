@@ -27,6 +27,8 @@ extensions = Extensions
 show-button = Show
 device-not-found = {$kind} device not found
 cache-info = Cache Information
+hw-ip-info = Hardware IP Information
+hw-queues = Queues
 amd-cache-desc = {$size} L{$level} {$types} cache { $shared ->
     [1] local to each CU
     *[other] shared between {$shared} CUs
