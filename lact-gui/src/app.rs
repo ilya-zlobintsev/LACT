@@ -86,6 +86,8 @@ static ERROR_WINDOW_COUNT: AtomicU32 = AtomicU32::new(0);
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 
+const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
+
 pub struct AppModel {
     daemon_client: DaemonClient,
     graphs_window: relm4::Controller<GraphsWindow>,
@@ -136,29 +138,34 @@ impl AsyncComponent for AppModel {
                         set_vexpand: true,
                         set_hscrollbar_policy: gtk::PolicyType::Never,
 
-                        #[name = "root_stack"]
-                        gtk::Stack {
-                            set_vexpand: false,
-                            set_vhomogeneous: false,
+                        adw::ClampScrollable {
+                            set_maximum_size: CONTENT_MAXIMUM_WIDTH,
+                            set_hexpand: true,
 
-                            add_binding: (&model.ui_sensitive, "sensitive"),
+                            #[name = "root_stack"]
+                            gtk::Stack {
+                                set_vexpand: false,
+                                set_vhomogeneous: false,
 
-                            add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
-                            add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
-                            add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
-                            add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
-                            add_named[Some("crash_page")] = model.crash_page.widget(),
+                                add_binding: (&model.ui_sensitive, "sensitive"),
 
-                            set_visible_child_name: &CONFIG.read().selected_tab,
-                            connect_visible_child_name_notify => move |stack| {
-                                if let Some(name) = stack.visible_child_name() {
-                                    let name = name.to_string();
-                                    if name != "crash_page" {
-                                        CONFIG.write().edit(|config| {
-                                            config.selected_tab = name;
-                                        });
+                                add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
+                                add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
+                                add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
+                                add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
+                                add_named[Some("crash_page")] = model.crash_page.widget(),
+
+                                set_visible_child_name: &CONFIG.read().selected_tab,
+                                connect_visible_child_name_notify => move |stack| {
+                                    if let Some(name) = stack.visible_child_name() {
+                                        let name = name.to_string();
+                                        if name != "crash_page" {
+                                            CONFIG.write().edit(|config| {
+                                                config.selected_tab = name;
+                                            });
+                                        }
                                     }
-                                }
+                                },
                             },
                         },
                     },
