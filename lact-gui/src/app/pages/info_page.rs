@@ -38,7 +38,7 @@ impl relm4::SimpleComponent for InformationPage {
                 append_child = &model.values_list.widget().clone() -> gtk::FlowBox {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,
-                    // set_homogeneous: true,
+                    set_homogeneous: true,
                     set_min_children_per_line: 2,
                     set_max_children_per_line: 4,
                     set_selection_mode: gtk::SelectionMode::None,
@@ -64,7 +64,11 @@ impl relm4::SimpleComponent for InformationPage {
                     },
 
                     append_child = &InfoRow {
-                        set_value: fl!(I18N, "hw-ip-info"),
+                        set_name: fl!(I18N, "hw-ip-info"),
+                        #[watch]
+                        set_value: model.ip_list.iter().map(|item| {
+                            item.ip.ip_type.as_str()
+                        }).collect::<Vec<&str>>().join(", "),
                         set_icon: "go-down-symbolic".to_string(),
 
                         #[name = "ip_popover"]
