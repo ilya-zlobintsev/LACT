@@ -1,3 +1,12 @@
+flowboxchild:not(.clickable-info-row) {
+    background: none;
+    transition: none;
+}
+
+flowboxchild:not(.clickable-info-row):hover {
+    background: none;
+}
+
 .clickable-info-row {
     transition: background-color 0.1s ease-in-out;
 }
