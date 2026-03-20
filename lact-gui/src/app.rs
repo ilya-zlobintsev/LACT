@@ -85,7 +85,6 @@ static ERROR_WINDOW_COUNT: AtomicU32 = AtomicU32::new(0);
 
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
-
 const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
 
 pub struct AppModel {
