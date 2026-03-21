@@ -57,12 +57,12 @@ impl SimpleComponent for GPUSelector {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let multi_gpu = devices.len() > 1;
+        let use_dropdown = devices.len() > 1;
 
         let model = Self { devices };
         let widgets = view_output!();
 
-        if multi_gpu {
+        if use_dropdown {
             let (factory, string_list, selected_index) = Self::build_factory(&model.devices);
             widgets.dropdown.set_model(Some(&string_list));
             widgets.dropdown.set_factory(Some(&factory));
@@ -77,15 +77,7 @@ impl SimpleComponent for GPUSelector {
                 Self::select_gpu(&devices_vec, dropdown.selected(), &sender_clone);
             });
         } else {
-            CONFIG.write().edit(|config| {
-                config.selected_gpu = model.devices.first().map(|device| device.id.clone());
-            });
-
-            if !model.devices.is_empty() {
-                sender
-                    .output(HeaderMsg::GpuSelected(0))
-                    .expect("GPU selector output channel closed");
-            }
+            Self::select_gpu(&model.devices, 0, &sender);
         }
 
         ComponentParts { model, widgets }
