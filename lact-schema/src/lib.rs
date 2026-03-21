@@ -351,8 +351,19 @@ pub struct DrmInfo {
     pub cache_info: Option<CacheInfo>,
     pub rop_info: Option<RopInfo>,
     pub memory_info: Option<DrmMemoryInfo>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub amd_ip_info: Vec<AmdIpInfo>,
     #[serde(flatten)]
     pub intel: IntelDrmInfo,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct AmdIpInfo {
+    pub ip_type: String,
+    pub version_major: u32,
+    pub version_minor: u32,
+    pub queues: u32,
+    pub count: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

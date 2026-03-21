@@ -26,8 +26,9 @@ impl Default for InfoRowLevel {
 mod imp {
     use std::cell::RefCell;
 
+    use adw::prelude::*;
     use glib::Properties;
-    use gtk::{LevelBar, glib, prelude::*, subclass::prelude::*};
+    use gtk::{LevelBar, glib, subclass::prelude::*};
     use relm4::view;
 
     use crate::app::info_row::{InfoRow, InfoRowExt};
@@ -37,13 +38,26 @@ mod imp {
     pub struct InfoRowLevel {
         #[property(get, set = Self::set_level_value)]
         level_value: RefCell<f64>,
+        animation: RefCell<Option<adw::SpringAnimation>>,
     }
 
     impl InfoRowLevel {
         fn set_level_value(&self, value: f64) {
             let clamped = value.clamp(0.0, 1.0);
             let rounded = (clamped * 100.0).round() / 100.0;
+
+            let old = *self.level_value.borrow();
+            if (old - rounded).abs() < f64::EPSILON {
+                return;
+            }
+
             self.level_value.replace(rounded);
+
+            if let Some(animation) = self.animation.borrow().as_ref() {
+                animation.set_value_from(old);
+                animation.set_value_to(rounded);
+                animation.play();
+            }
         }
     }
 
@@ -78,9 +92,18 @@ mod imp {
                 }
             }
 
-            obj.bind_property("level-value", &level_bar, "value")
-                .sync_create()
-                .build();
+            let animation_target = adw::CallbackAnimationTarget::new(glib::clone!(
+                #[weak]
+                level_bar,
+                move |value| {
+                    level_bar.set_value(value);
+                }
+            ));
+            let spring_params = adw::SpringParams::new(1.0, 1.0, 800.0);
+            let animation =
+                adw::SpringAnimation::new(&level_bar, 0.0, 0.0, spring_params, animation_target);
+            animation.set_clamp(true);
+            self.animation.replace(Some(animation));
         }
     }
 
