@@ -7,9 +7,7 @@ use relm4::{ComponentParts, ComponentSender, SimpleComponent, WidgetTemplate, cs
 use tracing::debug;
 
 pub struct GPUSelector {
-    multi_gpu: bool,
-    single_gpu_name: String,
-    single_gpu_id: String,
+    devices: Vec<DeviceListEntry>,
 }
 
 #[relm4::component(pub)]
@@ -25,7 +23,7 @@ impl SimpleComponent for GPUSelector {
 
             gtk::Button {
                 #[watch]
-                set_visible: !model.multi_gpu && !model.single_gpu_id.is_empty(),
+                set_visible: model.devices.len() <= 1 && !model.devices.is_empty(),
                 set_can_focus: false,
                 set_hexpand: true,
 
@@ -34,13 +32,13 @@ impl SimpleComponent for GPUSelector {
                     #[template_child]
                     name_label {
                         #[watch]
-                        set_label: &model.single_gpu_name,
+                        set_label: &model.devices.first().map(|d| d.to_string()).unwrap_or_default(),
                     },
 
                     #[template_child]
                     id_label {
                         #[watch]
-                        set_label: &model.single_gpu_id,
+                        set_label: model.devices.first().map(|d| d.id.as_str()).unwrap_or(""),
                     },
                 }
             },
@@ -48,7 +46,7 @@ impl SimpleComponent for GPUSelector {
             #[name = "dropdown"]
             gtk::DropDown {
                 #[watch]
-                set_visible: model.multi_gpu,
+                set_visible: model.devices.len() > 1,
                 set_hexpand: true,
             },
         }
@@ -60,38 +58,30 @@ impl SimpleComponent for GPUSelector {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let multi_gpu = devices.len() > 1;
-        let (single_gpu_name, single_gpu_id) = devices
-            .first()
-            .map(|device| (device.to_string(), device.id.clone()))
-            .unwrap_or_default();
 
-        let model = Self {
-            multi_gpu,
-            single_gpu_name,
-            single_gpu_id,
-        };
+        let model = Self { devices };
         let widgets = view_output!();
 
         if multi_gpu {
-            let (factory, string_list, selected_index) = Self::build_factory(&devices);
+            let (factory, string_list, selected_index) = Self::build_factory(&model.devices);
             widgets.dropdown.set_model(Some(&string_list));
             widgets.dropdown.set_factory(Some(&factory));
             widgets.dropdown.set_list_factory(Some(&factory));
             widgets.dropdown.set_selected(selected_index);
 
-            let devices_vec = devices;
-            Self::select_gpu(&devices_vec, selected_index, &sender);
+            Self::select_gpu(&model.devices, selected_index, &sender);
 
+            let devices_vec = model.devices.clone();
             let sender_clone = sender.clone();
             widgets.dropdown.connect_selected_notify(move |dropdown| {
                 Self::select_gpu(&devices_vec, dropdown.selected(), &sender_clone);
             });
         } else {
             CONFIG.write().edit(|config| {
-                config.selected_gpu = devices.first().map(|device| device.id.clone());
+                config.selected_gpu = model.devices.first().map(|device| device.id.clone());
             });
 
-            if !devices.is_empty() {
+            if !model.devices.is_empty() {
                 sender
                     .output(HeaderMsg::GpuSelected(0))
                     .expect("GPU selector output channel closed");
