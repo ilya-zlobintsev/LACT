@@ -29,36 +29,34 @@ impl SimpleComponent for GPUSelector {
                 set_can_focus: false,
                 set_hexpand: true,
 
-                gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_hexpand: true,
-
-                    gtk::Label {
+                #[template]
+                GpuListItem {
+                    #[template_child]
+                    name_label {
                         #[watch]
                         set_label: &model.single_gpu_name,
-                        set_hexpand: true,
-                        set_halign: gtk::Align::Start,
-                        set_xalign: 0.0,
-                        set_ellipsize: gtk::pango::EllipsizeMode::End,
                     },
 
-                    gtk::Label {
+                    #[template_child]
+                    id_label {
                         #[watch]
                         set_label: &model.single_gpu_id,
-                        set_hexpand: true,
-                        set_halign: gtk::Align::Start,
-                        set_xalign: 0.0,
-                        add_css_class: css::DIM_LABEL,
-                        add_css_class: css::CAPTION,
                     },
                 }
-            }
+            },
+
+            #[name = "dropdown"]
+            gtk::DropDown {
+                #[watch]
+                set_visible: model.multi_gpu,
+                set_hexpand: true,
+            },
         }
     }
 
     fn init(
         devices: Self::Init,
-        root: Self::Root,
+        _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let multi_gpu = devices.len() > 1;
@@ -75,9 +73,19 @@ impl SimpleComponent for GPUSelector {
         let widgets = view_output!();
 
         if multi_gpu {
-            let (dropdown, selected_index) = Self::build_dropdown(&devices, sender.clone());
-            Self::select_gpu(&devices, selected_index, &sender);
-            root.append(&dropdown);
+            let (factory, string_list, selected_index) = Self::build_factory(&devices);
+            widgets.dropdown.set_model(Some(&string_list));
+            widgets.dropdown.set_factory(Some(&factory));
+            widgets.dropdown.set_list_factory(Some(&factory));
+            widgets.dropdown.set_selected(selected_index);
+
+            let devices_vec = devices;
+            Self::select_gpu(&devices_vec, selected_index, &sender);
+
+            let sender_clone = sender.clone();
+            widgets.dropdown.connect_selected_notify(move |dropdown| {
+                Self::select_gpu(&devices_vec, dropdown.selected(), &sender_clone);
+            });
         } else {
             CONFIG.write().edit(|config| {
                 config.selected_gpu = devices.first().map(|device| device.id.clone());
@@ -95,13 +103,12 @@ impl SimpleComponent for GPUSelector {
 }
 
 impl GPUSelector {
-    fn build_dropdown(
+    fn build_factory(
         devices: &[DeviceListEntry],
-        sender: ComponentSender<Self>,
-    ) -> (gtk::DropDown, u32) {
-        let devices = devices.to_vec();
+    ) -> (gtk::SignalListItemFactory, gtk::StringList, u32) {
+        let devices_vec = devices.to_vec();
         let string_list = gtk::StringList::new(&[]);
-        for device in &devices {
+        for device in &devices_vec {
             string_list.append(&device.to_string());
         }
 
@@ -110,17 +117,17 @@ impl GPUSelector {
             .selected_gpu
             .as_ref()
             .and_then(|selected_gpu_id| {
-                devices
+                devices_vec
                     .iter()
                     .position(|device| device.id == *selected_gpu_id)
                     .inspect(|_| debug!("selecting gpu id {selected_gpu_id}"))
             })
             .or_else(|| {
-                devices
+                devices_vec
                     .iter()
                     .position(|device| device.device_type == DeviceType::Dedicated)
                     .inspect(|index| {
-                        debug!("selecting default dedicated gpu {}", devices[*index].id)
+                        debug!("selecting default dedicated gpu {}", devices_vec[*index].id)
                     })
             })
             .unwrap_or(0) as u32;
@@ -136,10 +143,10 @@ impl GPUSelector {
         });
         item_factory.connect_bind(glib::clone!(
             #[strong]
-            devices,
+            devices_vec,
             move |_, list_item| {
                 let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
-                if let Some(device) = devices.get(list_item.position() as usize) {
+                if let Some(device) = devices_vec.get(list_item.position() as usize) {
                     unsafe {
                         if let Some(template) = list_item.data::<GpuListItem>("template") {
                             let template = template.as_ref();
@@ -151,19 +158,7 @@ impl GPUSelector {
             }
         ));
 
-        let dropdown = gtk::DropDown::builder()
-            .model(&string_list)
-            .selected(selected_index)
-            .build();
-        dropdown.set_factory(Some(&item_factory));
-        dropdown.set_list_factory(Some(&item_factory));
-        dropdown.set_hexpand(true);
-
-        dropdown.connect_selected_notify(move |dropdown| {
-            Self::select_gpu(&devices, dropdown.selected(), &sender);
-        });
-
-        (dropdown, selected_index)
+        (item_factory, string_list, selected_index)
     }
 
     fn select_gpu(devices: &[DeviceListEntry], selected: u32, sender: &ComponentSender<Self>) {
@@ -179,7 +174,7 @@ impl GPUSelector {
     }
 }
 
-#[relm4::widget_template]
+#[relm4::widget_template(pub)]
 impl WidgetTemplate for GpuListItem {
     view! {
         gtk::Box {
