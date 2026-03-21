@@ -133,13 +133,14 @@ impl AsyncComponent for AppModel {
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
 
-                    gtk::ScrolledWindow {
+                    adw::Clamp {
+                        set_maximum_size: CONTENT_MAXIMUM_WIDTH,
+                        set_hexpand: true,
                         set_vexpand: true,
-                        set_hscrollbar_policy: gtk::PolicyType::Never,
 
-                        adw::ClampScrollable {
-                            set_maximum_size: CONTENT_MAXIMUM_WIDTH,
-                            set_hexpand: true,
+                        gtk::ScrolledWindow {
+                            set_vexpand: true,
+                            set_hscrollbar_policy: gtk::PolicyType::Never,
 
                             #[name = "root_stack"]
                             gtk::Stack {
