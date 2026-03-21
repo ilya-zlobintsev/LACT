@@ -1,4 +1,4 @@
-pub mod gpu_selector;
+mod gpu_selector;
 mod new_profile_dialog;
 mod profile_rename_dialog;
 mod profile_row;
@@ -81,7 +81,6 @@ impl Component for Header {
                 #[wrap(Some)]
                 set_popover = &gtk::Popover {
                     add_css_class: "gpu-profile-popover",
-                    set_autohide: false,
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
@@ -491,7 +490,7 @@ impl Component for Header {
             }
             HeaderMsg::GpuSelected(index) => {
                 self.selected_gpu_index = index;
-                APP_BROKER.send(AppMsg::ReloadData { full: true });
+                sender.output(AppMsg::ReloadData { full: true }).unwrap();
             }
         }
         self.update_label();

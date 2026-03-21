@@ -324,7 +324,6 @@ impl AsyncComponent for AppModel {
             header,
             stats_task_handle: None,
         };
-        sender.input(AppMsg::ReloadData { full: true });
 
         let widgets = view_output!();
 
