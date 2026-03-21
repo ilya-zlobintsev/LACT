@@ -150,9 +150,7 @@ impl GPUSelector {
         CONFIG.write().edit(|config| {
             config.selected_gpu = id;
         });
-        sender
-            .output(HeaderMsg::GpuSelected(selected))
-            .expect("GPU selector output channel closed");
+        sender.output(HeaderMsg::GpuSelected(selected)).unwrap()
     }
 }
 
