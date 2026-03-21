@@ -119,9 +119,6 @@ impl GPUSelector {
             let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
             let template = GpuListItem::init(());
             list_item.set_child(Some(template.as_ref()));
-            unsafe {
-                list_item.set_data("template", template);
-            }
         });
         item_factory.connect_bind(glib::clone!(
             #[strong]
@@ -129,13 +126,19 @@ impl GPUSelector {
             move |_, list_item| {
                 let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
                 if let Some(device) = devices_vec.get(list_item.position() as usize) {
-                    unsafe {
-                        if let Some(template) = list_item.data::<GpuListItem>("template") {
-                            let template = template.as_ref();
-                            template.name_label.set_label(&device.to_string());
-                            template.id_label.set_label(&device.id);
-                        }
-                    }
+                    let child = list_item.child().unwrap();
+                    let name_label = child
+                        .first_child()
+                        .unwrap()
+                        .downcast::<gtk::Label>()
+                        .unwrap();
+                    let id_label = name_label
+                        .next_sibling()
+                        .unwrap()
+                        .downcast::<gtk::Label>()
+                        .unwrap();
+                    name_label.set_label(&device.to_string());
+                    id_label.set_label(&device.id);
                 }
             }
         ));
