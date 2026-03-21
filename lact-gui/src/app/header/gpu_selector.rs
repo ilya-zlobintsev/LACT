@@ -29,7 +29,6 @@ impl Component for GPUSelector {
 
             #[local_ref]
             add = combo_row -> adw::ComboRow {
-                set_title: "GPU",
                 connect_selected_notify[sender] => move |_| {
                     sender.input(GPUSelectorMsg::GpuSelected);
                 },
@@ -96,6 +95,17 @@ impl Component for GPUSelector {
         combo_row.set_factory(Some(&item_factory));
         combo_row.set_selected(selected_index);
 
+        if let Some(header) = combo_row.first_child() {
+            let mut child = header.first_child();
+            while let Some(widget) = child {
+                if widget.has_css_class("title") {
+                    widget.set_visible(false);
+                    break;
+                }
+                child = widget.next_sibling();
+            }
+        }
+
         let model = GPUSelector { devices, combo_row };
         let combo_row = &model.combo_row;
         let widgets = view_output!();
@@ -123,21 +133,18 @@ impl WidgetTemplate for GpuListItem {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
             set_hexpand: true,
-            set_cursor_from_name: Some("pointer"),
 
             #[name = "name_label"]
             gtk::Label {
                 set_hexpand: true,
-                set_halign: gtk::Align::Fill,
-                set_xalign: 0.0,
+                set_halign: gtk::Align::Center,
                 set_ellipsize: gtk::pango::EllipsizeMode::End,
             },
 
             #[name = "id_label"]
             gtk::Label {
                 set_hexpand: true,
-                set_halign: gtk::Align::Fill,
-                set_xalign: 0.0,
+                set_halign: gtk::Align::Center,
                 add_css_class: css::DIM_LABEL,
                 add_css_class: css::CAPTION,
             },
