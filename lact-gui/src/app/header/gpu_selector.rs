@@ -184,16 +184,14 @@ impl WidgetTemplate for GpuListItem {
             #[name = "name_label"]
             gtk::Label {
                 set_hexpand: true,
-                set_halign: gtk::Align::Start,
-                set_xalign: 0.0,
+                set_halign: gtk::Align::Center,
                 set_ellipsize: gtk::pango::EllipsizeMode::End,
             },
 
             #[name = "id_label"]
             gtk::Label {
                 set_hexpand: true,
-                set_halign: gtk::Align::Start,
-                set_xalign: 0.0,
+                set_halign: gtk::Align::Center,
                 add_css_class: css::DIM_LABEL,
                 add_css_class: css::CAPTION,
             },
