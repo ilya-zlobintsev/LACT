@@ -1,3 +1,4 @@
+mod gpu_selector;
 mod new_profile_dialog;
 mod profile_rename_dialog;
 mod profile_row;
@@ -14,29 +15,29 @@ use crate::{
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
 use glib::clone;
+use gpu_selector::GPUSelector;
 use gtk::prelude::*;
 use gtk::*;
 use i18n_embed_fl::fl;
 use lact_client::schema::DeviceListEntry;
-use lact_schema::{DeviceFlag, DeviceInfo, DeviceType, ProfilesInfo, SystemInfo};
+use lact_schema::{DeviceFlag, DeviceInfo, ProfilesInfo, SystemInfo};
 use new_profile_dialog::NewProfileDialog;
 use profile_rename_dialog::ProfileRenameDialog;
 use profile_row::{ProfileRow, ProfileRowType};
 use profile_rule_window::ProfileRuleWindow;
 use relm4::{
-    Component, ComponentParts, ComponentSender, RelmIterChildrenExt, RelmWidgetExt, css,
-    factory::FactoryVecDeque,
-    prelude::DynamicIndex,
-    typed_view::list::{RelmListItem, TypedListView},
+    Component, ComponentController, ComponentParts, ComponentSender, Controller,
+    RelmIterChildrenExt, RelmWidgetExt, css, factory::FactoryVecDeque, prelude::DynamicIndex,
 };
 use std::sync::Arc;
 use tracing::debug;
 
 pub struct Header {
     profiles_info: ProfilesInfo,
-    gpu_selector: TypedListView<GpuListItem, gtk::SingleSelection>,
+    gpu_selector: Controller<GPUSelector>,
     profile_selector: FactoryVecDeque<ProfileRow>,
     selector_label: String,
+    selected_gpu_index: u32,
     system_info: SystemInfo,
     device_flags: Vec<DeviceFlag>,
 
@@ -52,10 +53,10 @@ pub enum HeaderMsg {
     ExportProfile(DynamicIndex),
     RenameProfile(DynamicIndex),
     SelectProfile,
-    SelectGpu,
     CreateProfile,
     ImportProfile,
     ClosePopover,
+    GpuSelected(u32),
     ThemeSelected(AppTheme),
 }
 
@@ -85,27 +86,13 @@ impl Component for Header {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 5,
 
-                         gtk::Label {
-                            set_label: "GPU",
-                            add_css_class: css::HEADING,
-                        },
+                        #[local_ref]
+                        gpu_selector_widget -> gtk::Box {},
 
-
-                        gtk::ScrolledWindow {
-                            add_css_class: "gpu-picker-container",
-                            set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
-                            set_propagate_natural_height: true,
-
-
-                            #[local_ref]
-                            gpu_selector -> gtk::ListView {}
-                        },
-
-                         gtk::Label {
+                        gtk::Label {
                             set_label: &fl!(I18N, "settings-profile"),
                             add_css_class: css::HEADING,
                         },
-
 
                         gtk::Box {
                             add_css_class: "profile-picker-container",
@@ -302,54 +289,10 @@ impl Component for Header {
     }
 
     fn init(
-        (variants, system_info): Self::Init,
+        (device_list, system_info): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        sender.input(HeaderMsg::SelectGpu);
-
-        let mut gpu_selector = TypedListView::<_, gtk::SingleSelection>::new();
-        gpu_selector.extend_from_iter(variants.into_iter().map(GpuListItem));
-
-        gpu_selector
-            .selection_model
-            .connect_selection_changed(clone!(
-                #[strong]
-                sender,
-                move |_, _, _| {
-                    sender.input(HeaderMsg::SelectGpu);
-                }
-            ));
-
-        let idx = CONFIG
-            .read()
-            .selected_gpu
-            .as_ref()
-            .and_then(|selected_gpu_id| {
-                for idx in 0..gpu_selector.len() {
-                    let gpu_item = gpu_selector.get(idx).unwrap();
-                    if gpu_item.borrow().0.id == *selected_gpu_id {
-                        debug!("selecting gpu id {selected_gpu_id}");
-                        return Some(idx);
-                    }
-                }
-                None
-            })
-            .or_else(|| {
-                for idx in 0..gpu_selector.len() {
-                    let gpu_item = gpu_selector.get(idx).unwrap();
-                    if gpu_item.borrow().0.device_type == DeviceType::Dedicated {
-                        debug!("selecting default dedicated gpu {}", gpu_item.borrow().0.id);
-                        return Some(idx);
-                    }
-                }
-                None
-            });
-
-        if let Some(idx) = idx {
-            gpu_selector.selection_model.set_selected(idx);
-        }
-
         let profile_selector = FactoryVecDeque::<ProfileRow>::builder()
             .launch_default()
             .forward(sender.input_sender(), |msg| msg);
@@ -362,16 +305,19 @@ impl Component for Header {
         ));
 
         let model = Self {
-            gpu_selector,
+            gpu_selector: GPUSelector::builder()
+                .launch(device_list)
+                .forward(sender.input_sender(), |msg| msg),
             profile_selector,
             selector_label: String::new(),
+            selected_gpu_index: 0,
             profiles_info: ProfilesInfo::default(),
             system_info,
             device_flags: Vec::new(),
             new_profile_diag: None,
         };
 
-        let gpu_selector = &model.gpu_selector.view;
+        let gpu_selector_widget = model.gpu_selector.widget();
         let profile_selector = model.profile_selector.widget();
         let widgets = view_output!();
 
@@ -410,14 +356,7 @@ impl Component for Header {
                 widgets.menu_button.popdown();
             }
             HeaderMsg::Profiles(profiles_info) => self.set_profiles_info(*profiles_info),
-            HeaderMsg::SelectGpu => {
-                let gpu_id = self.selected_gpu_id();
-                CONFIG.write().edit(|config| {
-                    config.selected_gpu = gpu_id;
-                });
 
-                sender.output(AppMsg::ReloadData { full: true }).unwrap()
-            }
             HeaderMsg::AutoProfileSwitch(auto_switch) => {
                 let msg = AppMsg::SelectProfile {
                     profile: self
@@ -549,6 +488,10 @@ impl Component for Header {
                     config.theme = theme;
                 });
             }
+            HeaderMsg::GpuSelected(index) => {
+                self.selected_gpu_index = index;
+                sender.output(AppMsg::ReloadData { full: true }).unwrap();
+            }
         }
         self.update_label();
 
@@ -625,11 +568,7 @@ impl Header {
     }
 
     pub fn selected_gpu_id(&self) -> Option<String> {
-        let selected = self.gpu_selector.selection_model.selected();
-        self.gpu_selector
-            .get(selected)
-            .as_ref()
-            .map(|item| item.borrow().0.id.clone())
+        CONFIG.read().selected_gpu.clone()
     }
 
     pub fn auto_switch_profiles(&self) -> bool {
@@ -659,66 +598,8 @@ impl Header {
     }
 
     fn update_label(&mut self) {
-        let gpu_index = self.gpu_selector.selection_model.selected();
+        let gpu_index = self.selected_gpu_index;
         let profile = self.selected_profile().unwrap_or("Default");
-
         self.selector_label = format!("GPU {gpu_index} | {profile}");
-    }
-}
-
-struct GpuListItem(DeviceListEntry);
-
-struct GpuListItemWidgets {
-    name_label: gtk::Label,
-    id_label: gtk::Label,
-    type_label: gtk::Label,
-}
-
-impl RelmListItem for GpuListItem {
-    type Root = gtk::Box;
-    type Widgets = GpuListItemWidgets;
-
-    fn setup(_list_item: &gtk::ListItem) -> (Self::Root, Self::Widgets) {
-        relm4::view! {
-            root = gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-
-                #[name = "name_label"]
-                gtk::Label,
-
-                gtk::Box {
-                    set_spacing: 5,
-                    set_orientation: gtk::Orientation::Horizontal,
-
-                },
-
-                #[name = "id_label"]
-                gtk::Label {
-                    add_css_class: "subtitle",
-                },
-
-                #[name = "type_label"]
-                gtk::Label {
-                    add_css_class: "subtitle",
-                },
-            }
-        };
-
-        let widgets = GpuListItemWidgets {
-            name_label,
-            id_label,
-            type_label,
-        };
-        (root, widgets)
-    }
-
-    fn bind(&mut self, widgets: &mut Self::Widgets, _root: &mut Self::Root) {
-        widgets
-            .name_label
-            .set_label(self.0.name.as_deref().unwrap_or("Unknown"));
-        widgets.id_label.set_label(&self.0.id);
-        widgets
-            .type_label
-            .set_label(&self.0.device_type.to_string());
     }
 }
