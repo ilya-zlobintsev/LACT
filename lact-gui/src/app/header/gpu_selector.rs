@@ -40,6 +40,16 @@ impl SimpleComponent for GPUSelector {
                         #[watch]
                         set_label: model.devices.first().map(|d| d.id.as_str()).unwrap_or(""),
                     },
+
+                    #[template_child]
+                    type_label {
+                        #[watch]
+                        set_label: &model
+                            .devices
+                            .first()
+                            .map(|d| d.device_type.to_string())
+                            .unwrap_or_default(),
+                    },
                 }
             },
 
@@ -137,8 +147,14 @@ impl GPUSelector {
                         .unwrap()
                         .downcast::<gtk::Label>()
                         .unwrap();
+                    let type_label = id_label
+                        .next_sibling()
+                        .unwrap()
+                        .downcast::<gtk::Label>()
+                        .unwrap();
                     name_label.set_label(&device.to_string());
                     id_label.set_label(&device.id);
+                    type_label.set_label(&device.device_type.to_string());
                 }
             }
         ));
@@ -172,6 +188,14 @@ impl WidgetTemplate for GpuListItem {
             },
 
             #[name = "id_label"]
+            gtk::Label {
+                set_hexpand: true,
+                set_halign: gtk::Align::Center,
+                add_css_class: css::DIM_LABEL,
+                add_css_class: css::CAPTION,
+            },
+
+            #[name = "type_label"]
             gtk::Label {
                 set_hexpand: true,
                 set_halign: gtk::Align::Center,
