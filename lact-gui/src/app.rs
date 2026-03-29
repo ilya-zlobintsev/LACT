@@ -4,7 +4,6 @@ mod ext;
 pub(crate) mod formatting;
 mod gpu_selector;
 pub mod graphs_window;
-mod header;
 mod info_row;
 mod info_row_level;
 pub(crate) mod msg;
@@ -13,7 +12,7 @@ mod page_section;
 mod page_section_expander;
 pub(crate) mod pages;
 mod process_monitor;
-mod profile_selector;
+mod profiles;
 pub(crate) mod styles;
 
 use crate::{
@@ -22,6 +21,10 @@ use crate::{
         gpu_selector::GpuSelector,
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
+        profiles::{
+            ProfileSelector, ProfileSelectorMsg,
+            profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
+        },
         styles::AppTheme,
     },
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
@@ -41,10 +44,6 @@ use gtk::{
         BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
         OrientableExt, ToggleButtonExt as _, WidgetExt,
     },
-};
-use header::{
-    Header, HeaderMsg,
-    profile_rule_window::{ProfileRuleWindowMsg, profile_row::ProfileRuleRowMsg},
 };
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
@@ -109,8 +108,8 @@ pub struct AppModel {
     software_page: relm4::Controller<SoftwarePage>,
     crash_page: relm4::Controller<CrashPage>,
 
-    header: relm4::Controller<Header>,
     gpu_selector: relm4::Controller<GpuSelector>,
+    profile_selector: relm4::Controller<ProfileSelector>,
     apply_revealer: relm4::Controller<ApplyRevealer>,
     stats_task_handle: Option<glib::JoinHandle<()>>,
 
@@ -144,6 +143,7 @@ impl AsyncComponent for AppModel {
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
 
+                    #[name = "navbar"]
                     adw::NavigationSplitView {
                         set_expand: true,
 
@@ -164,7 +164,9 @@ impl AsyncComponent for AppModel {
 
                                     gtk::Box {
                                         set_orientation: gtk::Orientation::Vertical,
-                                        set_margin_all: 8,
+                                        set_margin_horizontal: 8,
+                                        set_margin_top: 4,
+                                        set_margin_bottom: 8,
 
                                         gtk::Label {
                                             set_label: "GPU",
@@ -177,9 +179,27 @@ impl AsyncComponent for AppModel {
                                         model.gpu_selector.widget().clone() {},
                                     },
 
+                                    gtk::Box {
+                                        set_orientation: gtk::Orientation::Vertical,
+                                        set_margin_horizontal: 8,
+                                        set_margin_top: 4,
+                                        set_margin_bottom: 8,
+
+                                        gtk::Label {
+                                            set_label: "Profile",
+                                            set_halign: gtk::Align::Start,
+                                            set_margin_start: 4,
+                                            add_css_class: relm4::css::DIM_LABEL,
+                                            add_css_class: relm4::css::CAPTION,
+                                        },
+
+                                        model.profile_selector.widget().clone() {},
+                                    },
+
                                     gtk::Separator {},
 
                                     gtk::StackSidebar {
+                                        set_margin_vertical: 1,
                                         set_stack: &root_stack,
                                         set_vexpand: true,
                                     },
@@ -485,27 +505,6 @@ impl AsyncComponent for AppModel {
             })
             .detach();
 
-        let header = Header::builder()
-            // .update_root(|headerbar| {
-            //     *headerbar = root
-            //         .titlebar()
-            //         .unwrap()
-            //         .downcast::<gtk::HeaderBar>()
-            //         .unwrap();
-            // })
-            .launch((devices.clone(), system_info.clone()))
-            // uncomment to test UI with multiple GPUs
-            // .launch((
-            //     {
-            //         let mut d = devices.clone();
-            //         d.extend(devices.iter().cloned());
-            //         d.extend(devices.iter().cloned());
-            //         d
-            //     },
-            //     system_info,
-            // ))
-            .forward(sender.input_sender(), |msg| msg);
-
         let apply_revealer = ApplyRevealer::builder()
             .launch(())
             .forward(sender.input_sender(), |msg| msg);
@@ -519,6 +518,10 @@ impl AsyncComponent for AppModel {
                 AppMsg::GpuSelected(gpu_idx)
             });
 
+        let profile_selector = ProfileSelector::builder()
+            .launch(())
+            .forward(sender.input_sender(), |msg| msg);
+
         let model = AppModel {
             daemon_client,
             graphs_window,
@@ -531,9 +534,9 @@ impl AsyncComponent for AppModel {
             crash_page,
             apply_revealer,
             gpu_selector,
+            profile_selector,
             ui_sensitive: BoolBinding::new(false),
             selected_gpu_index: 0,
-            header,
             stats_task_handle: None,
             system_info,
             device_flags: vec![],
@@ -544,12 +547,6 @@ impl AsyncComponent for AppModel {
         if let Some(err) = conn_err {
             show_embedded_info(&root, err);
         }
-
-        model
-            .header
-            .widgets()
-            .stack_switcher
-            .set_stack(Some(&widgets.root_stack));
 
         sender.input(AppMsg::ReloadProfiles { state_sender: None });
 
@@ -645,7 +642,7 @@ impl AppModel {
                     .create_profile(name.clone(), base)
                     .await?;
 
-                let auto_switch = self.header.model().auto_switch_profiles();
+                let auto_switch = self.profile_selector.model().auto_switch_profiles();
                 self.daemon_client
                     .set_profile(Some(name), auto_switch)
                     .await?;
@@ -860,7 +857,8 @@ impl AppModel {
                 // we cannot be sure that the application is fully functional after a crash
                 // even though the main loop is restored via crash handler, we want user to restart
                 // this is why header and toolbar disabled
-                self.header.widget().set_sensitive(false);
+                // TODO: make navbar not sensitive
+                // self.header.widget().set_sensitive(false);
                 self.apply_revealer.widget().set_sensitive(false);
 
                 self.ui_sensitive.set_value(true);
@@ -908,9 +906,10 @@ impl AppModel {
     }
 
     fn current_gpu_id(&self) -> anyhow::Result<String> {
-        self.header
-            .model()
-            .selected_gpu_id()
+        CONFIG
+            .read()
+            .selected_gpu
+            .clone()
             .context("No GPU selected")
     }
 
@@ -929,7 +928,8 @@ impl AppModel {
             let _ = sender.send(ProfileRuleRowMsg::WatcherState(state));
         }
 
-        self.header.emit(HeaderMsg::Profiles(Box::new(profiles)));
+        self.profile_selector
+            .emit(ProfileSelectorMsg::Profiles(Box::new(profiles)));
 
         Ok(())
     }
@@ -971,7 +971,6 @@ impl AppModel {
         });
         self.software_page
             .emit(SoftwarePageMsg::DeviceInfo(info.clone()));
-        self.header.emit(HeaderMsg::DeviceInfo(info.clone()));
         self.thermals_page.emit(ThermalsPageMsg::Update {
             update: update.clone(),
             initial: true,
@@ -1071,7 +1070,7 @@ impl AppModel {
             gpu_id.to_owned(),
             self.daemon_client.clone(),
             sender,
-            self.header.sender().clone(),
+            self.profile_selector.sender().clone(),
         ));
 
         Ok(stats)
@@ -1383,7 +1382,7 @@ fn start_stats_update_loop(
     gpu_id: String,
     daemon_client: DaemonClient,
     sender: AsyncComponentSender<AppModel>,
-    header_sender: relm4::Sender<HeaderMsg>,
+    profiles_sender: relm4::Sender<ProfileSelectorMsg>,
 ) -> glib::JoinHandle<()> {
     debug!("spawning new stats update task");
     relm4::spawn_local(async move {
@@ -1402,7 +1401,7 @@ fn start_stats_update_loop(
 
             match daemon_client.list_profiles(false).await {
                 Ok(profiles) => {
-                    let _ = header_sender.send(HeaderMsg::Profiles(Box::new(profiles)));
+                    let _ = profiles_sender.send(ProfileSelectorMsg::Profiles(Box::new(profiles)));
                 }
                 Err(err) => {
                     error!("could not fetch profile info: {err:#}");

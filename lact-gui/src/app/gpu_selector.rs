@@ -149,7 +149,7 @@ impl GpuSelector {
                         .unwrap();
                     name_label.set_label(&device.to_string());
                     id_label.set_label(&device.id);
-                    type_label.set_label(&device.device_type.to_string());
+                    type_label.set_markup(&format!("<b>{}</b>", device.device_type));
                 }
             }
         ));

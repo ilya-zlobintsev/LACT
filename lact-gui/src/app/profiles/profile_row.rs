@@ -1,5 +1,5 @@
-use super::HeaderMsg;
 use crate::I18N;
+use crate::app::profiles::ProfileSelectorMsg;
 use crate::app::{APP_BROKER, msg::AppMsg};
 use gtk::{pango, prelude::*};
 use i18n_embed_fl::fl;
@@ -39,7 +39,7 @@ impl ProfileRowType {
 impl FactoryComponent for ProfileRow {
     type Init = ProfileRowType;
     type Input = ();
-    type Output = HeaderMsg;
+    type Output = ProfileSelectorMsg;
     type CommandOutput = ();
     type ParentWidget = gtk::ListBox;
 
@@ -76,7 +76,7 @@ impl FactoryComponent for ProfileRow {
                             set_label: &fl!(I18N, "rename-profile"),
                             set_visible: matches!(self.row, ProfileRowType::Profile { .. }),
                             connect_clicked[sender, index] => move |_| {
-                                sender.output(HeaderMsg::RenameProfile(index.clone())).unwrap();
+                                sender.output(ProfileSelectorMsg::RenameProfile(index.clone())).unwrap();
                             },
                             add_css_class: css::FLAT,
                         },
@@ -97,7 +97,7 @@ impl FactoryComponent for ProfileRow {
                             inline_css: "color: @theme_text_color",
                             set_label: &fl!(I18N, "edit-rules"),
                             connect_clicked[sender, index] => move |_| {
-                                sender.output(HeaderMsg::ShowProfileEditor(index.clone())).unwrap();
+                                sender.output(ProfileSelectorMsg::ShowProfileEditor(index.clone())).unwrap();
                             },
                             add_css_class: css::FLAT,
                         },
@@ -106,7 +106,7 @@ impl FactoryComponent for ProfileRow {
                             inline_css: "color: @theme_text_color",
                             set_label: &fl!(I18N, "export-to-file"),
                             connect_clicked[sender, index] => move |_| {
-                                sender.output(HeaderMsg::ExportProfile(index.clone())).unwrap();
+                                sender.output(ProfileSelectorMsg::ExportProfile(index.clone())).unwrap();
                             },
                             add_css_class: css::FLAT,
                         },

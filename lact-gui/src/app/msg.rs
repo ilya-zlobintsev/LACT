@@ -2,7 +2,7 @@ use crate::app::styles::AppTheme;
 
 use super::{
     confirmation_dialog::ConfirmationOptions,
-    header::profile_rule_window::{ProfileRuleWindowMsg, profile_row::ProfileRuleRowMsg},
+    profiles::profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
 };
 use lact_client::ConnectionStatusMsg;
 use lact_schema::{DeviceStats, ProfileRule, config::ProfileHooks, request::ProfileBase};

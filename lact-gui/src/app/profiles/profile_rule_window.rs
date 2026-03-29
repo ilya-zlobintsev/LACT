@@ -1,4 +1,4 @@
-pub mod profile_row;
+pub mod profile_rule_row;
 
 use crate::I18N;
 use crate::app::{APP_BROKER, msg::AppMsg};
@@ -12,7 +12,7 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use lact_schema::{ProfileRule, config::ProfileHooks};
-use profile_row::ProfileRuleRow;
+use profile_rule_row::ProfileRuleRow;
 use relm4::{
     ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
     binding::BoolBinding,
