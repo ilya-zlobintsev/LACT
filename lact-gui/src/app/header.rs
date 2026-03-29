@@ -1,4 +1,3 @@
-mod gpu_selector;
 mod new_profile_dialog;
 mod profile_rename_dialog;
 mod profile_row;
@@ -15,7 +14,6 @@ use crate::{
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
 use glib::clone;
-use gpu_selector::GPUSelector;
 use gtk::prelude::*;
 use gtk::*;
 use i18n_embed_fl::fl;
@@ -26,18 +24,16 @@ use profile_rename_dialog::ProfileRenameDialog;
 use profile_row::{ProfileRow, ProfileRowType};
 use profile_rule_window::ProfileRuleWindow;
 use relm4::{
-    Component, ComponentController, ComponentParts, ComponentSender, Controller,
-    RelmIterChildrenExt, RelmWidgetExt, css, factory::FactoryVecDeque, prelude::DynamicIndex,
+    Component, ComponentParts, ComponentSender, RelmIterChildrenExt, RelmWidgetExt, css,
+    factory::FactoryVecDeque, prelude::DynamicIndex,
 };
 use std::sync::Arc;
 use tracing::debug;
 
 pub struct Header {
     profiles_info: ProfilesInfo,
-    gpu_selector: Controller<GPUSelector>,
     profile_selector: FactoryVecDeque<ProfileRow>,
     selector_label: String,
-    selected_gpu_index: u32,
     system_info: SystemInfo,
     device_flags: Vec<DeviceFlag>,
 
@@ -56,7 +52,6 @@ pub enum HeaderMsg {
     CreateProfile,
     ImportProfile,
     ClosePopover,
-    GpuSelected(u32),
     ThemeSelected(AppTheme),
 }
 
@@ -86,8 +81,6 @@ impl Component for Header {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 5,
 
-                        #[local_ref]
-                        gpu_selector_widget -> gtk::Box {},
 
                         gtk::Label {
                             set_label: &fl!(I18N, "settings-profile"),
@@ -289,7 +282,7 @@ impl Component for Header {
     }
 
     fn init(
-        (device_list, system_info): Self::Init,
+        (_device_list, system_info): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -305,19 +298,14 @@ impl Component for Header {
         ));
 
         let model = Self {
-            gpu_selector: GPUSelector::builder()
-                .launch(device_list)
-                .forward(sender.input_sender(), |msg| msg),
             profile_selector,
             selector_label: String::new(),
-            selected_gpu_index: 0,
             profiles_info: ProfilesInfo::default(),
             system_info,
             device_flags: Vec::new(),
             new_profile_diag: None,
         };
 
-        let gpu_selector_widget = model.gpu_selector.widget();
         let profile_selector = model.profile_selector.widget();
         let widgets = view_output!();
 
@@ -488,10 +476,6 @@ impl Component for Header {
                     config.theme = theme;
                 });
             }
-            HeaderMsg::GpuSelected(index) => {
-                self.selected_gpu_index = index;
-                sender.output(AppMsg::ReloadData { full: true }).unwrap();
-            }
         }
         self.update_label();
 
@@ -598,8 +582,8 @@ impl Header {
     }
 
     fn update_label(&mut self) {
-        let gpu_index = self.selected_gpu_index;
-        let profile = self.selected_profile().unwrap_or("Default");
-        self.selector_label = format!("GPU {gpu_index} | {profile}");
+        // let gpu_index = self.selected_gpu_index;
+        // let profile = self.selected_profile().unwrap_or("Default");
+        // self.selector_label = format!("GPU {gpu_index} | {profile}");
     }
 }

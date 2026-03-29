@@ -2,6 +2,7 @@ mod apply_revealer;
 mod confirmation_dialog;
 mod ext;
 pub(crate) mod formatting;
+mod gpu_selector;
 pub mod graphs_window;
 mod header;
 mod info_row;
@@ -12,27 +13,33 @@ mod page_section;
 mod page_section_expander;
 pub(crate) mod pages;
 mod process_monitor;
+mod profile_selector;
 pub(crate) mod styles;
 
 use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
     app::{
+        gpu_selector::GpuSelector,
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
+        styles::AppTheme,
     },
+    config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
+use adw::ApplicationWindow;
+use adw::prelude::NavigationPageExt as _;
 use anyhow::{Context, anyhow};
 use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use confirmation_dialog::ConfirmationDialog;
 use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
-    ApplicationWindow, ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog,
-    MessageType, ResponseType, STYLE_PROVIDER_PRIORITY_APPLICATION,
+    ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog, MessageType, ResponseType,
+    STYLE_PROVIDER_PRIORITY_APPLICATION,
     glib::{self, ControlFlow, clone},
     prelude::{
         BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
-        OrientableExt, WidgetExt,
+        OrientableExt, ToggleButtonExt as _, WidgetExt,
     },
 };
 use header::{
@@ -42,7 +49,7 @@ use header::{
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
-    DeviceStats, GIT_COMMIT,
+    DeviceFlag, DeviceStats, GIT_COMMIT, SystemInfo,
     args::GuiArgs,
     config::{GpuConfig, Profile},
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
@@ -94,6 +101,7 @@ pub struct AppModel {
     overdrive_dialog: relm4::Controller<OverdriveDialog>,
 
     ui_sensitive: BoolBinding,
+    selected_gpu_index: u32,
 
     info_page: relm4::Controller<InformationPage>,
     oc_page: relm4::Controller<OcPage>,
@@ -102,8 +110,12 @@ pub struct AppModel {
     crash_page: relm4::Controller<CrashPage>,
 
     header: relm4::Controller<Header>,
+    gpu_selector: relm4::Controller<GpuSelector>,
     apply_revealer: relm4::Controller<ApplyRevealer>,
     stats_task_handle: Option<glib::JoinHandle<()>>,
+
+    system_info: SystemInfo,
+    device_flags: Vec<DeviceFlag>,
 }
 
 #[derive(Debug)]
@@ -122,10 +134,9 @@ impl AsyncComponent for AppModel {
 
     view! {
         #[root]
-        gtk::ApplicationWindow::builder()
-            .titlebar(&gtk::HeaderBar::new())
-            .default_height(850)
-            .default_width(900)
+        adw::ApplicationWindow::builder()
+            .default_height(750)
+            .default_width(1000)
             .icon_name(APP_ID)
             .title("LACT")
             .build() {
@@ -133,41 +144,234 @@ impl AsyncComponent for AppModel {
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
 
-                    adw::Clamp {
-                        set_maximum_size: CONTENT_MAXIMUM_WIDTH,
-                        set_hexpand: true,
-                        set_vexpand: true,
+                    adw::NavigationSplitView {
+                        set_expand: true,
 
-                        gtk::ScrolledWindow {
-                            set_vexpand: true,
-                            set_hscrollbar_policy: gtk::PolicyType::Never,
+                        #[wrap(Some)]
+                        set_sidebar = &adw::NavigationPage {
+                            set_title: "LACT",
 
-                            #[name = "root_stack"]
-                            gtk::Stack {
-                                set_vexpand: false,
-                                set_vhomogeneous: false,
+                            #[wrap(Some)]
+                            set_child = &adw::ToolbarView {
+                                add_top_bar = &adw::HeaderBar {
+                                    set_show_end_title_buttons: false,
+                                },
 
-                                add_binding: (&model.ui_sensitive, "sensitive"),
+                                #[wrap(Some)]
+                                set_content = &gtk::Box {
+                                    set_orientation: gtk::Orientation::Vertical,
+                                    set_vexpand: true,
 
-                                add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
-                                add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
-                                add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
-                                add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
-                                add_named[Some("crash_page")] = model.crash_page.widget(),
+                                    gtk::Box {
+                                        set_orientation: gtk::Orientation::Vertical,
+                                        set_margin_all: 8,
 
-                                set_visible_child_name: &CONFIG.read().selected_tab,
-                                connect_visible_child_name_notify => move |stack| {
-                                    if let Some(name) = stack.visible_child_name() {
-                                        let name = name.to_string();
-                                        if name != "crash_page" {
-                                            CONFIG.write().edit(|config| {
-                                                config.selected_tab = name;
-                                            });
-                                        }
-                                    }
+                                        gtk::Label {
+                                            set_label: "GPU",
+                                            set_halign: gtk::Align::Start,
+                                            set_margin_start: 4,
+                                            add_css_class: relm4::css::DIM_LABEL,
+                                            add_css_class: relm4::css::CAPTION,
+                                        },
+
+                                        model.gpu_selector.widget().clone() {},
+                                    },
+
+                                    gtk::Separator {},
+
+                                    gtk::StackSidebar {
+                                        set_stack: &root_stack,
+                                        set_vexpand: true,
+                                    },
                                 },
                             },
                         },
+
+                        #[wrap(Some)]
+                        set_content = &adw::NavigationPage {
+                            #[wrap(Some)]
+                            set_child = &adw::ToolbarView {
+                                add_top_bar = &adw::HeaderBar {
+                                    pack_end = &gtk::MenuButton {
+                                        set_icon_name: "open-menu-symbolic",
+
+                                        #[wrap(Some)]
+                                        set_popover = &gtk::Popover {
+
+                                            gtk::Box {
+                                                set_orientation: gtk::Orientation::Vertical,
+                                                add_css_class: "header-settings-popover-container",
+
+                                                gtk::Button {
+                                                    set_label: &fl!(I18N, "show-historical-charts"),
+                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowGraphsWindow),
+                                                    add_css_class: "flat",
+                                                },
+
+                                                gtk::Button {
+                                                    set_label: &fl!(I18N, "show-process-monitor"),
+                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowProcessMonitor),
+                                                    add_css_class: "flat",
+                                                },
+
+                                                gtk::Separator {},
+
+                                                gtk::Button {
+                                                    set_label: &fl!(I18N, "generate-debug-snapshot"),
+                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::DebugSnapshot),
+                                                    add_css_class: "flat",
+                                                },
+
+                                                gtk::Button {
+                                                    set_label: &fl!(I18N, "dump-vbios"),
+                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::DumpVBios),
+                                                    add_css_class: "flat",
+                                                    #[watch]
+                                                    set_sensitive: model.device_flags.contains(&DeviceFlag::DumpableVBios),
+                                                },
+
+                                                gtk::Separator {},
+
+                                                gtk::Button {
+                                                    set_label: &fl!(I18N, "disable-amd-oc"),
+                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowOverdriveDialog),
+                                                    add_css_class: "flat",
+                                                    #[watch]
+                                                    set_sensitive: model.system_info.amdgpu_overdrive_enabled.is_some(),
+                                                },
+
+                                                gtk::Button {
+                                                    set_label: &fl!(I18N, "reset-all-config"),
+                                                    connect_clicked => move |_| {
+                                                        let msg = AppMsg::ask_confirmation(
+                                                            AppMsg::ResetConfig,
+                                                            fl!(I18N, "reset-config"),
+                                                            fl!(I18N, "reset-config-description"),
+                                                            gtk::ButtonsType::YesNo,
+                                                        );
+                                                        APP_BROKER.send(msg);
+                                                    },
+                                                    add_css_class: "flat",
+                                                },
+
+                                                gtk::Separator {},
+
+                                                gtk::Box {
+                                                    set_orientation: gtk::Orientation::Horizontal,
+                                                    set_spacing: 5,
+                                                    set_halign: gtk::Align::Center,
+
+                                                    gtk::Label {
+                                                        set_markup: &format!("<b>{}</b>", &fl!(I18N, "stats-update-interval")),
+                                                    },
+
+                                                    gtk::SpinButton {
+                                                        set_range: (MIN_STATS_POLL_INTERVAL_MS as f64, MAX_STATS_POLL_INTERVAL_MS as f64),
+                                                        set_increments: (250.0, 500.0),
+                                                        set_digits: 0,
+                                                        set_value: CONFIG.read().stats_poll_interval_ms as f64,
+                                                        connect_value_changed => move |btn| {
+                                                            CONFIG.write().edit(|config| {
+                                                                config.stats_poll_interval_ms = btn.value() as i64;
+                                                            })
+                                                        }
+                                                    },
+                                                },
+
+                                                gtk::Separator {},
+
+                                                gtk::Box {
+                                                    set_orientation: gtk::Orientation::Horizontal,
+                                                    set_spacing: 5,
+                                                    set_halign: gtk::Align::Center,
+
+                                                    gtk::Label {
+                                                        set_markup: &format!("<b>{}</b>", &fl!(I18N, "theme")),
+                                                    },
+
+                                                    gtk::Box {
+                                                        set_orientation: gtk::Orientation::Horizontal,
+                                                        add_css_class: "linked",
+
+                                                        #[name = "theme_auto_btn"]
+                                                        gtk::ToggleButton {
+                                                            set_label: &fl!(I18N, "theme-auto"),
+                                                            #[watch]
+                                                            set_active: CONFIG.read().theme == AppTheme::Automatic,
+                                                            connect_toggled[sender] => move |btn| {
+                                                                if btn.is_active() {
+                                                                    sender.input(AppMsg::ThemeSelected(AppTheme::Automatic));
+                                                                }
+                                                            },
+                                                        },
+
+                                                        gtk::ToggleButton {
+                                                            set_label: "Adwaita",
+                                                            set_group: Some(&theme_auto_btn),
+                                                            #[watch]
+                                                            set_active: CONFIG.read().theme == AppTheme::Adwaita,
+                                                            connect_toggled[sender] => move |btn| {
+                                                                if btn.is_active() {
+                                                                    sender.input(AppMsg::ThemeSelected(AppTheme::Adwaita));
+                                                                }
+                                                            },
+                                                        },
+
+                                                        gtk::ToggleButton {
+                                                            set_label: "Breeze",
+                                                            set_group: Some(&theme_auto_btn),
+                                                            #[watch]
+                                                            set_active: CONFIG.read().theme == AppTheme::Breeze,
+                                                            connect_toggled[sender] => move |btn| {
+                                                                if btn.is_active() {
+                                                                    sender.input(AppMsg::ThemeSelected(AppTheme::Breeze));
+                                                                }
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            }
+                                        },
+                                    }
+                                },
+
+                                #[wrap(Some)]
+                                set_content = &adw::Clamp {
+                                    set_maximum_size: CONTENT_MAXIMUM_WIDTH,
+
+                                    #[wrap(Some)]
+                                    set_child = &gtk::ScrolledWindow {
+                                        set_hscrollbar_policy: gtk::PolicyType::Never,
+
+                                        #[name = "root_stack"]
+                                        gtk::Stack {
+                                            set_vexpand: false,
+                                            set_vhomogeneous: false,
+
+                                            add_binding: (&model.ui_sensitive, "sensitive"),
+
+                                            add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
+                                            add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
+                                            add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
+                                            add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
+                                            add_named[Some("crash_page")] = model.crash_page.widget(),
+
+                                            set_visible_child_name: &CONFIG.read().selected_tab,
+                                            connect_visible_child_name_notify => move |stack| {
+                                                if let Some(name) = stack.visible_child_name() {
+                                                    let name = name.to_string();
+                                                    if name != "crash_page" {
+                                                        CONFIG.write().edit(|config| {
+                                                            config.selected_tab = name;
+                                                        });
+                                                    }
+                                                }
+                                            },
+                                        }
+                                    }
+                                },
+                            }
+                        }
                     },
 
                     model.apply_revealer.widget(),
@@ -282,14 +486,14 @@ impl AsyncComponent for AppModel {
             .detach();
 
         let header = Header::builder()
-            .update_root(|headerbar| {
-                *headerbar = root
-                    .titlebar()
-                    .unwrap()
-                    .downcast::<gtk::HeaderBar>()
-                    .unwrap();
-            })
-            .launch((devices, system_info))
+            // .update_root(|headerbar| {
+            //     *headerbar = root
+            //         .titlebar()
+            //         .unwrap()
+            //         .downcast::<gtk::HeaderBar>()
+            //         .unwrap();
+            // })
+            .launch((devices.clone(), system_info.clone()))
             // uncomment to test UI with multiple GPUs
             // .launch((
             //     {
@@ -309,6 +513,12 @@ impl AsyncComponent for AppModel {
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
 
+        let gpu_selector = GpuSelector::builder()
+            .launch(devices)
+            .forward(sender.input_sender(), |gpu_idx| {
+                AppMsg::GpuSelected(gpu_idx)
+            });
+
         let model = AppModel {
             daemon_client,
             graphs_window,
@@ -320,9 +530,13 @@ impl AsyncComponent for AppModel {
             software_page,
             crash_page,
             apply_revealer,
+            gpu_selector,
             ui_sensitive: BoolBinding::new(false),
+            selected_gpu_index: 0,
             header,
             stats_task_handle: None,
+            system_info,
+            device_flags: vec![],
         };
 
         let widgets = view_output!();
@@ -387,7 +601,7 @@ impl AppModel {
         &mut self,
         msg: AppMsg,
         sender: AsyncComponentSender<Self>,
-        root: &gtk::ApplicationWindow,
+        root: &adw::ApplicationWindow,
         widgets: &AppModelWidgets,
     ) -> Result<(), Arc<anyhow::Error>> {
         match msg {
@@ -398,6 +612,10 @@ impl AppModel {
             AppMsg::ReloadProfiles { state_sender } => {
                 self.reload_profiles(state_sender).await?;
                 sender.input(AppMsg::ReloadData { full: false });
+            }
+            AppMsg::GpuSelected(idx) => {
+                self.selected_gpu_index = idx;
+                sender.input(AppMsg::ReloadData { full: true });
             }
             AppMsg::ReloadData { full } => {
                 self.apply_revealer
@@ -631,6 +849,13 @@ impl AppModel {
                     .await?;
                 self.reload_profiles(None).await?;
             }
+            AppMsg::ThemeSelected(theme) => {
+                styles::apply_theme(theme).expect("Could not apply theme");
+
+                CONFIG.write().edit(|config| {
+                    config.theme = theme;
+                });
+            }
             AppMsg::Crash(message) => {
                 // we cannot be sure that the application is fully functional after a crash
                 // even though the main loop is restored via crash handler, we want user to restart
@@ -639,7 +864,7 @@ impl AppModel {
                 self.apply_revealer.widget().set_sensitive(false);
 
                 self.ui_sensitive.set_value(true);
-                widgets.root_stack.set_visible_child_name("crash_page");
+                // widgets.root_stack.set_visible_child_name("crash_page");
                 self.crash_page.emit(message);
 
                 if let Some(handle) = self.stats_task_handle.take() {
@@ -735,6 +960,8 @@ impl AppModel {
         {
             sender.input(AppMsg::Error(Arc::new(anyhow!("Old Nvidia driver version detected ({major_version}), some features might be missing. Driver version {NVIDIA_RECOMMENDED_MIN_VERSION} or newer is recommended."))));
         }
+
+        self.device_flags = info.flags.clone();
 
         let update = PageUpdate::Info(info.clone());
         self.info_page.emit(update.clone());
@@ -853,7 +1080,7 @@ impl AppModel {
     async fn apply_settings(
         &self,
         gpu_id: String,
-        root: &gtk::ApplicationWindow,
+        root: &adw::ApplicationWindow,
         sender: &AsyncComponentSender<Self>,
     ) -> anyhow::Result<()> {
         debug!("applying settings on gpu {gpu_id}");
@@ -909,7 +1136,7 @@ impl AppModel {
     async fn ask_settings_confirmation(
         &self,
         mut delay: u64,
-        window: &gtk::ApplicationWindow,
+        window: &adw::ApplicationWindow,
         sender: &AsyncComponentSender<AppModel>,
     ) {
         let text = confirmation_text(delay);
@@ -979,7 +1206,7 @@ impl AppModel {
         ));
     }
 
-    async fn dump_vbios(&self, gpu_id: &str, root: &gtk::ApplicationWindow) {
+    async fn dump_vbios(&self, gpu_id: &str, root: &adw::ApplicationWindow) {
         match self.daemon_client.dump_vbios(gpu_id).await {
             Ok(vbios_data) => {
                 let file_chooser = FileChooserDialog::new(
@@ -1026,7 +1253,7 @@ impl AppModel {
         }
     }
 
-    async fn generate_debug_snapshot(&self, root: &gtk::ApplicationWindow) {
+    async fn generate_debug_snapshot(&self, root: &adw::ApplicationWindow) {
         match self.daemon_client.generate_debug_snapshot().await {
             Ok(path) => {
                 let path_label = gtk::Label::builder()

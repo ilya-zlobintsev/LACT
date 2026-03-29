@@ -1,3 +1,5 @@
+use crate::app::styles::AppTheme;
+
 use super::{
     confirmation_dialog::ConfirmationOptions,
     header::profile_rule_window::{ProfileRuleWindowMsg, profile_row::ProfileRuleRowMsg},
@@ -9,6 +11,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub enum AppMsg {
     Error(Arc<anyhow::Error>),
+    GpuSelected(u32),
     ReloadData {
         full: bool,
     },
@@ -44,6 +47,7 @@ pub enum AppMsg {
         rule: Option<ProfileRule>,
         hooks: ProfileHooks,
     },
+    ThemeSelected(AppTheme),
     ImportProfile,
     ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),

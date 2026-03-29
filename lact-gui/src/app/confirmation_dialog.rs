@@ -12,7 +12,7 @@ pub struct ConfirmationDialog {}
 
 #[relm4::component(pub)]
 impl SimpleComponent for ConfirmationDialog {
-    type Init = (ConfirmationOptions, gtk::ApplicationWindow);
+    type Init = (ConfirmationOptions, adw::ApplicationWindow);
     type Input = ();
     type Output = gtk::ResponseType;
 
