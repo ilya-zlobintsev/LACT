@@ -1,4 +1,3 @@
-mod apply_revealer;
 mod confirmation_dialog;
 mod ext;
 pub(crate) mod formatting;
@@ -32,7 +31,6 @@ use crate::{
 use adw::ApplicationWindow;
 use adw::prelude::NavigationPageExt as _;
 use anyhow::{Context, anyhow};
-use apply_revealer::{ApplyRevealer, ApplyRevealerMsg};
 use confirmation_dialog::ConfirmationDialog;
 use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
@@ -66,6 +64,7 @@ use relm4::{
     AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
     RelmWidgetExt,
     binding::BoolBinding,
+    css,
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio::{self, time::sleep},
 };
@@ -110,8 +109,9 @@ pub struct AppModel {
 
     gpu_selector: relm4::Controller<GpuSelector>,
     profile_selector: relm4::Controller<ProfileSelector>,
-    apply_revealer: relm4::Controller<ApplyRevealer>,
     stats_task_handle: Option<glib::JoinHandle<()>>,
+
+    settings_changed: BoolBinding,
 
     system_info: SystemInfo,
     device_flags: Vec<DeviceFlag>,
@@ -146,6 +146,7 @@ impl AsyncComponent for AppModel {
                     #[name = "navbar"]
                     adw::NavigationSplitView {
                         set_expand: true,
+                        set_max_sidebar_width: 230.0,
 
                         #[wrap(Some)]
                         set_sidebar = &adw::NavigationPage {
@@ -171,7 +172,7 @@ impl AsyncComponent for AppModel {
                                         gtk::Label {
                                             set_label: "GPU",
                                             set_halign: gtk::Align::Start,
-                                            set_margin_start: 4,
+                                            set_margin_horizontal: 4,
                                             add_css_class: relm4::css::DIM_LABEL,
                                             add_css_class: relm4::css::CAPTION,
                                         },
@@ -188,7 +189,7 @@ impl AsyncComponent for AppModel {
                                         gtk::Label {
                                             set_label: "Profile",
                                             set_halign: gtk::Align::Start,
-                                            set_margin_start: 4,
+                                            set_margin_horizontal: 4,
                                             add_css_class: relm4::css::DIM_LABEL,
                                             add_css_class: relm4::css::CAPTION,
                                         },
@@ -203,6 +204,31 @@ impl AsyncComponent for AppModel {
                                         set_stack: &root_stack,
                                         set_vexpand: true,
                                     },
+
+                                    gtk::Separator {},
+
+                                    gtk::Box {
+                                        set_orientation: gtk::Orientation::Vertical,
+                                        set_spacing: 6,
+                                        set_margin_all: 8,
+                                        add_binding: (&model.settings_changed, "sensitive"),
+
+                                        gtk::Button {
+                                            set_label: &fl!(I18N, "apply-button"),
+                                            add_css_class: css::SUGGESTED_ACTION,
+                                            set_width_request: 150,
+                                            connect_clicked[sender] => move |_| {
+                                                sender.input(AppMsg::ApplyChanges);
+                                            },
+                                        },
+
+                                        gtk::Button {
+                                            set_label: &fl!(I18N, "revert-button"),
+                                            connect_clicked[sender] => move |_| {
+                                                sender.input(AppMsg::RevertChanges);
+                                            },
+                                        }
+                                    }
                                 },
                             },
                         },
@@ -393,8 +419,6 @@ impl AsyncComponent for AppModel {
                             }
                         }
                     },
-
-                    model.apply_revealer.widget(),
                 }
             },
 
@@ -505,10 +529,6 @@ impl AsyncComponent for AppModel {
             })
             .detach();
 
-        let apply_revealer = ApplyRevealer::builder()
-            .launch(())
-            .forward(sender.input_sender(), |msg| msg);
-
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
 
@@ -532,12 +552,12 @@ impl AsyncComponent for AppModel {
             thermals_page,
             software_page,
             crash_page,
-            apply_revealer,
             gpu_selector,
             profile_selector,
             ui_sensitive: BoolBinding::new(false),
             selected_gpu_index: 0,
             stats_task_handle: None,
+            settings_changed: BoolBinding::new(false),
             system_info,
             device_flags: vec![],
         };
@@ -604,7 +624,7 @@ impl AppModel {
         match msg {
             AppMsg::Error(err) => return Err(err),
             AppMsg::SettingsChanged => {
-                self.apply_revealer.emit(ApplyRevealerMsg::Show);
+                self.settings_changed.set_value(true);
             }
             AppMsg::ReloadProfiles { state_sender } => {
                 self.reload_profiles(state_sender).await?;
@@ -615,10 +635,7 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: true });
             }
             AppMsg::ReloadData { full } => {
-                self.apply_revealer
-                    .sender()
-                    .send(ApplyRevealerMsg::Hide)
-                    .unwrap();
+                self.settings_changed.set_value(false);
 
                 let gpu_id = self.current_gpu_id()?;
                 if full {
@@ -856,10 +873,9 @@ impl AppModel {
             AppMsg::Crash(message) => {
                 // we cannot be sure that the application is fully functional after a crash
                 // even though the main loop is restored via crash handler, we want user to restart
-                // this is why header and toolbar disabled
-                // TODO: make navbar not sensitive
-                // self.header.widget().set_sensitive(false);
-                self.apply_revealer.widget().set_sensitive(false);
+                // this is why navbar is disabled
+                widgets.navbar.set_sensitive(false);
+                self.settings_changed.set_value(false);
 
                 self.ui_sensitive.set_value(true);
                 // widgets.root_stack.set_visible_child_name("crash_page");
