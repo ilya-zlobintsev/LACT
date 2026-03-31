@@ -673,7 +673,8 @@ impl AmdGpuController {
 
     fn apply_clocks_config_require_manual_proformance_level(&self) -> bool {
         self.common.pci_info.device_pci_info.vendor_id == VENDOR_AMD
-            && REQUIRE_MANUAL_DEVICE_IDS.contains(&self.common.pci_info.device_pci_info.model_id.as_str())
+            && REQUIRE_MANUAL_DEVICE_IDS
+                .contains(&self.common.pci_info.device_pci_info.model_id.as_str())
     }
 
     #[cfg(not(test))]
