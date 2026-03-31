@@ -51,7 +51,7 @@ const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
-const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
+const REQUIRE_MANUAL_DEVICE_IDS: [&str; 3] = ["163F", "1435", "15BF"];
 const AMDGPU_IDS_FLAGS_FUSION: u64 = 0x1;
 const HSA_CACHE_TYPE_DATA: u32 = 0x0000_0001;
 const HSA_CACHE_TYPE_INSTRUCTION: u32 = 0x0000_0002;
@@ -671,9 +671,10 @@ impl AmdGpuController {
         None
     }
 
-    fn is_steam_deck(&self) -> bool {
+    fn apply_clocks_config_require_manual_proformance_level(&self) -> bool {
         self.common.pci_info.device_pci_info.vendor_id == VENDOR_AMD
-            && STEAM_DECK_IDS.contains(&self.common.pci_info.device_pci_info.model_id.as_str())
+            && REQUIRE_MANUAL_DEVICE_IDS
+                .contains(&self.common.pci_info.device_pci_info.model_id.as_str())
     }
 
     #[cfg(not(test))]
@@ -1104,7 +1105,7 @@ impl GpuController for AmdGpuController {
                     .context("Failed to set power performance level")?;
             }
 
-            if self.is_steam_deck() {
+            if self.apply_clocks_config_require_manual_proformance_level() {
                 // Van Gogh/Sephiroth only allow clock settings to be used with manual performance mode
                 self.handle
                     .set_power_force_performance_level(PerformanceLevel::Manual)
