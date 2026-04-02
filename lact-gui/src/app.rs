@@ -878,7 +878,7 @@ impl AppModel {
                 self.settings_changed.set_value(false);
 
                 self.ui_sensitive.set_value(true);
-                // widgets.root_stack.set_visible_child_name("crash_page");
+                widgets.root_stack.set_visible_child_name("crash_page");
                 self.crash_page.emit(message);
 
                 if let Some(handle) = self.stats_task_handle.take() {

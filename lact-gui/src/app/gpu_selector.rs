@@ -33,29 +33,23 @@ impl SimpleComponent for GpuSelector {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let use_dropdown = devices.len() > 1;
-
         let model = Self { devices };
         let widgets = view_output!();
 
-        if use_dropdown {
-            let (button_factory, list_factory, string_list, selected_index) =
-                Self::build_factories(&model.devices);
-            widgets.dropdown.set_model(Some(&string_list));
-            widgets.dropdown.set_factory(Some(&button_factory));
-            widgets.dropdown.set_list_factory(Some(&list_factory));
-            widgets.dropdown.set_selected(selected_index);
+        let (button_factory, list_factory, string_list, selected_index) =
+            Self::build_factories(&model.devices);
+        widgets.dropdown.set_model(Some(&string_list));
+        widgets.dropdown.set_factory(Some(&button_factory));
+        widgets.dropdown.set_list_factory(Some(&list_factory));
+        widgets.dropdown.set_selected(selected_index);
 
-            Self::select_gpu(&model.devices, selected_index, &sender);
+        Self::select_gpu(&model.devices, selected_index, &sender);
 
-            let devices_vec = model.devices.clone();
-            let sender_clone = sender.clone();
-            widgets.dropdown.connect_selected_notify(move |dropdown| {
-                Self::select_gpu(&devices_vec, dropdown.selected(), &sender_clone);
-            });
-        } else {
-            Self::select_gpu(&model.devices, 0, &sender);
-        }
+        let devices_vec = model.devices.clone();
+        let sender_clone = sender.clone();
+        widgets.dropdown.connect_selected_notify(move |dropdown| {
+            Self::select_gpu(&devices_vec, dropdown.selected(), &sender_clone);
+        });
 
         ComponentParts { model, widgets }
     }
@@ -118,7 +112,6 @@ impl GpuSelector {
             }
         ));
 
-        // Detailed factory for the popup list — shows name, ID, and type
         let list_factory = gtk::SignalListItemFactory::new();
         list_factory.connect_setup(|_, list_item| {
             let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();

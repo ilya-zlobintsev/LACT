@@ -57,13 +57,6 @@ impl Component for ProfileSelector {
             #[watch]
             set_label: model.selected_profile().unwrap_or("Default"),
 
-            // #[wrap(Some)]
-            // set_child = &gtk::Label {
-            //     #[watch]
-            //     set_label: model.selected_profile().unwrap_or("Default"),
-            //     set_xalign: 0.0,
-            // },
-
             #[wrap(Some)]
             set_popover = &gtk::Popover {
                 add_css_class: "gpu-profile-popover",
