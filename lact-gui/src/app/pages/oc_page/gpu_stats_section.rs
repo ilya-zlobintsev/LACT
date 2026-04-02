@@ -229,7 +229,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     append_child = &InfoRowLevel {
                         set_name: fl!(I18N, "fan-speed"),
                         #[watch]
-                        set_value: formatting::fmt_fan_speed(&model.stats, false)
+                        set_value: formatting::fmt_fan_speed(&model.stats, true)
                             .unwrap_or_else(|| fl!(I18N, "missing-stat")),
                         #[watch]
                         set_level_value: model.stats.fan.pwm_current.map(|pwm| pwm as f64 / u8::MAX as f64).unwrap_or(0.0),
