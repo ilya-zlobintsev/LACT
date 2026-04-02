@@ -1,5 +1,5 @@
 use crate::I18N;
-use crate::app::{APP_BROKER, header::profile_rule_window::ProfileRuleWindowMsg, msg::AppMsg};
+use crate::app::{APP_BROKER, ProfileRuleWindowMsg, msg::AppMsg};
 use gtk::{
     glib::GString,
     pango,

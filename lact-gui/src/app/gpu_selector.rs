@@ -1,4 +1,4 @@
-use crate::{CONFIG, app::header::HeaderMsg};
+use crate::CONFIG;
 use gtk::glib;
 use gtk::prelude::*;
 use lact_client::schema::DeviceListEntry;
@@ -6,57 +6,23 @@ use lact_schema::DeviceType;
 use relm4::{ComponentParts, ComponentSender, SimpleComponent, WidgetTemplate, css};
 use tracing::debug;
 
-pub struct GPUSelector {
+pub struct GpuSelector {
     devices: Vec<DeviceListEntry>,
 }
 
 #[relm4::component(pub)]
-impl SimpleComponent for GPUSelector {
+impl SimpleComponent for GpuSelector {
     type Init = Vec<DeviceListEntry>;
     type Input = ();
-    type Output = HeaderMsg;
+    type Output = u32;
 
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
             add_css_class: "gpu-selector",
 
-            gtk::Button {
-                #[watch]
-                set_visible: model.devices.len() <= 1 && !model.devices.is_empty(),
-                set_can_focus: false,
-                set_hexpand: true,
-
-                #[template]
-                GpuListItem {
-                    #[template_child]
-                    name_label {
-                        #[watch]
-                        set_label: &model.devices.first().map(|d| d.to_string()).unwrap_or_default(),
-                    },
-
-                    #[template_child]
-                    id_label {
-                        #[watch]
-                        set_label: model.devices.first().map(|d| d.id.as_str()).unwrap_or(""),
-                    },
-
-                    #[template_child]
-                    type_label {
-                        #[watch]
-                        set_label: &model
-                            .devices
-                            .first()
-                            .map(|d| d.device_type.to_string())
-                            .unwrap_or_default(),
-                    },
-                }
-            },
-
             #[name = "dropdown"]
             gtk::DropDown {
-                #[watch]
-                set_visible: model.devices.len() > 1,
                 set_hexpand: true,
             },
         }
@@ -67,37 +33,37 @@ impl SimpleComponent for GPUSelector {
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let use_dropdown = devices.len() > 1;
-
         let model = Self { devices };
         let widgets = view_output!();
 
-        if use_dropdown {
-            let (factory, string_list, selected_index) = Self::build_factory(&model.devices);
-            widgets.dropdown.set_model(Some(&string_list));
-            widgets.dropdown.set_factory(Some(&factory));
-            widgets.dropdown.set_list_factory(Some(&factory));
-            widgets.dropdown.set_selected(selected_index);
+        let (button_factory, list_factory, string_list, selected_index) =
+            Self::build_factories(&model.devices);
+        widgets.dropdown.set_model(Some(&string_list));
+        widgets.dropdown.set_factory(Some(&button_factory));
+        widgets.dropdown.set_list_factory(Some(&list_factory));
+        widgets.dropdown.set_selected(selected_index);
 
-            Self::select_gpu(&model.devices, selected_index, &sender);
+        Self::select_gpu(&model.devices, selected_index, &sender);
 
-            let devices_vec = model.devices.clone();
-            let sender_clone = sender.clone();
-            widgets.dropdown.connect_selected_notify(move |dropdown| {
-                Self::select_gpu(&devices_vec, dropdown.selected(), &sender_clone);
-            });
-        } else {
-            Self::select_gpu(&model.devices, 0, &sender);
-        }
+        let devices_vec = model.devices.clone();
+        let sender_clone = sender.clone();
+        widgets.dropdown.connect_selected_notify(move |dropdown| {
+            Self::select_gpu(&devices_vec, dropdown.selected(), &sender_clone);
+        });
 
         ComponentParts { model, widgets }
     }
 }
 
-impl GPUSelector {
-    fn build_factory(
+impl GpuSelector {
+    fn build_factories(
         devices: &[DeviceListEntry],
-    ) -> (gtk::SignalListItemFactory, gtk::StringList, u32) {
+    ) -> (
+        gtk::SignalListItemFactory,
+        gtk::SignalListItemFactory,
+        gtk::StringList,
+        u32,
+    ) {
         let devices_vec = devices.to_vec();
         let string_list = gtk::StringList::new(&[]);
         for device in &devices_vec {
@@ -124,13 +90,35 @@ impl GPUSelector {
             })
             .unwrap_or(0) as u32;
 
-        let item_factory = gtk::SignalListItemFactory::new();
-        item_factory.connect_setup(|_, list_item| {
+        let button_factory = gtk::SignalListItemFactory::new();
+        button_factory.connect_setup(|_, list_item| {
+            let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
+            let label = gtk::Label::builder()
+                .hexpand(true)
+                .halign(gtk::Align::Start)
+                .ellipsize(gtk::pango::EllipsizeMode::End)
+                .build();
+            list_item.set_child(Some(&label));
+        });
+        button_factory.connect_bind(glib::clone!(
+            #[strong]
+            devices_vec,
+            move |_, list_item| {
+                let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
+                if let Some(device) = devices_vec.get(list_item.position() as usize) {
+                    let label = list_item.child().unwrap().downcast::<gtk::Label>().unwrap();
+                    label.set_label(&device.to_string());
+                }
+            }
+        ));
+
+        let list_factory = gtk::SignalListItemFactory::new();
+        list_factory.connect_setup(|_, list_item| {
             let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
             let template = GpuListItem::init(());
             list_item.set_child(Some(template.as_ref()));
         });
-        item_factory.connect_bind(glib::clone!(
+        list_factory.connect_bind(glib::clone!(
             #[strong]
             devices_vec,
             move |_, list_item| {
@@ -154,12 +142,12 @@ impl GPUSelector {
                         .unwrap();
                     name_label.set_label(&device.to_string());
                     id_label.set_label(&device.id);
-                    type_label.set_label(&device.device_type.to_string());
+                    type_label.set_markup(&format!("<b>{}</b>", device.device_type));
                 }
             }
         ));
 
-        (item_factory, string_list, selected_index)
+        (button_factory, list_factory, string_list, selected_index)
     }
 
     fn select_gpu(devices: &[DeviceListEntry], selected: u32, sender: &ComponentSender<Self>) {
@@ -169,7 +157,7 @@ impl GPUSelector {
         CONFIG.write().edit(|config| {
             config.selected_gpu = id;
         });
-        sender.output(HeaderMsg::GpuSelected(selected)).unwrap()
+        sender.output(selected).unwrap()
     }
 }
 
@@ -180,14 +168,12 @@ impl WidgetTemplate for GpuListItem {
             set_orientation: gtk::Orientation::Vertical,
             set_hexpand: true,
 
-            #[name = "name_label"]
             gtk::Label {
                 set_hexpand: true,
                 set_halign: gtk::Align::Center,
                 set_ellipsize: gtk::pango::EllipsizeMode::End,
             },
 
-            #[name = "id_label"]
             gtk::Label {
                 set_hexpand: true,
                 set_halign: gtk::Align::Center,
@@ -195,7 +181,6 @@ impl WidgetTemplate for GpuListItem {
                 add_css_class: css::CAPTION,
             },
 
-            #[name = "type_label"]
             gtk::Label {
                 set_hexpand: true,
                 set_halign: gtk::Align::Center,
