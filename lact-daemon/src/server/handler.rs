@@ -338,6 +338,16 @@ impl<'a> Handler {
                 () = tokio::time::sleep(Duration::from_secs(apply_timer)) => {
                     info!("no confirmation received, reverting settings");
 
+                    let mut config_guard = handler.config.write().await;
+                    match config_guard.gpus_mut() {
+                        Ok(gpus) => {
+                            gpus.insert(id, previous_config.clone());
+                        }
+                        Err(err) => {
+                            error!("could not revert config: {err}") ;
+                        }
+                    }
+
                     if let Err(err) = controller.apply_config(&previous_config).await {
                         error!("could not revert settings: {err:#}");
                     }
