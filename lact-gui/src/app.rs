@@ -239,9 +239,13 @@ impl AsyncComponent for AppModel {
 
                         #[wrap(Some)]
                         set_content = &adw::NavigationPage {
+                            set_title: "LACT",
+
                             #[wrap(Some)]
                             set_child = &adw::ToolbarView {
                                 add_top_bar = &adw::HeaderBar {
+                                    set_show_title: false,
+
                                     pack_end = &gtk::MenuButton {
                                         set_icon_name: "open-menu-symbolic",
 
