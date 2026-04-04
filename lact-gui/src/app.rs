@@ -28,8 +28,8 @@ use crate::{
     },
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
-use adw::ApplicationWindow;
-use adw::prelude::NavigationPageExt as _;
+use adw::prelude::{AdwDialogExt as _, AlertDialogExtManual as _, NavigationPageExt as _};
+use adw::{ApplicationWindow, prelude::AlertDialogExt};
 use anyhow::{Context, anyhow};
 use confirmation_dialog::ConfirmationDialog;
 use ext::RelmDefaultLauchable;
@@ -73,13 +73,14 @@ use relm4_components::{
     save_dialog::{SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings},
 };
 use std::{
+    cell::Cell,
     fs,
     os::unix::net::UnixStream,
     path::PathBuf,
     rc::Rc,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU32, Ordering},
+        atomic::{AtomicU32, Ordering},
     },
     time::Duration,
 };
@@ -91,6 +92,9 @@ static ERROR_WINDOW_COUNT: AtomicU32 = AtomicU32::new(0);
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
+
+const CONFIRM_RESPONSE_APPLY: &str = "confirm";
+const CONFIRM_RESPONSE_REVERT: &str = "revert";
 
 pub struct AppModel {
     daemon_client: DaemonClient,
@@ -1155,14 +1159,20 @@ impl AppModel {
         sender: &AsyncComponentSender<AppModel>,
     ) {
         let text = confirmation_text(delay);
-        let dialog = MessageDialog::builder()
+        let dialog = adw::AlertDialog::builder()
             .title("Confirm settings")
-            .text(text)
-            .message_type(MessageType::Question)
-            .buttons(ButtonsType::YesNo)
-            .transient_for(window)
+            .body(text)
+            .default_response(CONFIRM_RESPONSE_REVERT)
+            .close_response(CONFIRM_RESPONSE_REVERT)
             .build();
-        let confirmed = Rc::new(AtomicBool::new(false));
+
+        dialog.add_responses(&[
+            (CONFIRM_RESPONSE_REVERT, "Revert"),
+            (CONFIRM_RESPONSE_APPLY, "Confirm"),
+        ]);
+        dialog.set_response_appearance(CONFIRM_RESPONSE_APPLY, adw::ResponseAppearance::Suggested);
+
+        let is_cancelled = Rc::new(Cell::new(false));
 
         glib::source::timeout_add_local(
             Duration::from_secs(1),
@@ -1170,22 +1180,16 @@ impl AppModel {
                 #[strong]
                 dialog,
                 #[strong]
-                sender,
-                #[strong]
-                confirmed,
+                is_cancelled,
                 move || {
-                    if confirmed.load(std::sync::atomic::Ordering::SeqCst) {
-                        return ControlFlow::Break;
-                    }
                     delay -= 1;
 
                     let text = confirmation_text(delay);
-                    dialog.set_text(Some(&text));
+                    dialog.set_body(&text);
 
                     if delay == 0 {
-                        dialog.hide();
-                        sender.input(AppMsg::ReloadData { full: false });
-
+                        is_cancelled.set(true);
+                        dialog.force_close();
                         ControlFlow::Break
                     } else {
                         ControlFlow::Continue
@@ -1194,29 +1198,27 @@ impl AppModel {
             ),
         );
 
-        dialog.run_async(clone!(
+        relm4::spawn_local(clone!(
             #[strong]
             sender,
             #[strong(rename_to = daemon_client)]
             self.daemon_client,
             #[strong]
             window,
-            move |diag, response| {
-                confirmed.store(true, std::sync::atomic::Ordering::SeqCst);
+            async move {
+                let response = dialog.choose_future(Some(&window)).await;
 
-                let command = match response {
-                    ResponseType::Yes => ConfirmCommand::Confirm,
-                    _ => ConfirmCommand::Revert,
-                };
+                if !is_cancelled.get() {
+                    let command = match response.as_str() {
+                        CONFIRM_RESPONSE_APPLY => ConfirmCommand::Confirm,
+                        _ => ConfirmCommand::Revert,
+                    };
 
-                diag.close();
-
-                relm4::spawn_local(async move {
                     if let Err(err) = daemon_client.confirm_pending_config(command).await {
                         show_error(&window, &err);
                     }
-                    sender.input(AppMsg::ReloadData { full: false });
-                });
+                }
+                sender.input(AppMsg::ReloadData { full: false });
             }
         ));
     }
