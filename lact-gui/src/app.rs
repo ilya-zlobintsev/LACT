@@ -1133,13 +1133,9 @@ impl AppModel {
 
         self.thermals_page.model().apply_config(&mut gpu_config);
 
-        let clocks_commands = self.oc_page.model().get_clocks_commands();
-
-        debug!("applying clocks commands {clocks_commands:#?}");
-
-        for command in clocks_commands {
-            gpu_config.apply_clocks_command(&command);
-        }
+        self.oc_page
+            .model()
+            .apply_clocks_config(&mut gpu_config.clocks_configuration);
 
         let enabled_power_states = self.oc_page.model().get_enabled_power_states();
         gpu_config.power_states = enabled_power_states;

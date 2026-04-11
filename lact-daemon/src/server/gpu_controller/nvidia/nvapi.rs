@@ -1,7 +1,13 @@
 #![cfg_attr(test, allow(unused))]
-#![allow(clippy::unreadable_literal, unsafe_op_in_unsafe_fn)]
+#![allow(
+    clippy::unreadable_literal,
+    unsafe_op_in_unsafe_fn,
+    clippy::large_stack_arrays
+)]
+
 use crate::bindings::nvidia::{
-    NVAPI_MAX_PHYSICAL_GPUS, NVAPI_SHORT_STRING_MAX, NvAPI_Status, NvPhysicalGpuHandle,
+    NVAPI_MAX_PHYSICAL_GPUS, NVAPI_SHORT_STRING_MAX, NvAPI_Status, NvPhysicalGpuHandle, NvS32,
+    NvU8, NvU32,
 };
 use anyhow::{Context, bail};
 use std::{
@@ -18,8 +24,15 @@ const QUERY_NVAPI_UNLOAD: u32 = 0xd22bdd7e;
 const QUERY_NVAPI_ENUM_PHYSICAL_GPUS: u32 = 0xe5ac921f;
 const QUERY_NVAPI_GET_BUS_ID: u32 = 0x1be0b8e5;
 const QUERY_NVAPI_GET_ERROR_MESSAGE: u32 = 0x6c2d048c;
-const QUERY_NVAPI_THERMALS: u32 = 0x65fe3aad; // Undocumented call
-const QUERY_NVAPI_VOLTAGE: u32 = 0x465f9bcf; // Undocumented call
+// Undocumented calls
+const QUERY_NVAPI_THERMALS: u32 = 0x65fe3aad;
+const QUERY_NVAPI_VOLTAGE: u32 = 0x465f9bcf;
+const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_STATUS: u32 = 0x21537ad4;
+const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_INFO: u32 = 0x507b4b59;
+const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL: u32 = 0x733e009;
+const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_CONTROL: u32 = 0x23f1b133;
+
+pub const CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG: NvU32 = 0;
 
 pub struct NvApi {
     lib: libloading::Library,
@@ -81,7 +94,7 @@ impl NvApi {
 
         let mut sensors = NvApiThermals {
             #[allow(clippy::cast_possible_truncation)]
-            version: (mem::size_of::<NvApiThermals>() | (2 << 16)) as u32,
+            version: make_version::<NvApiThermals>(2),
             mask,
             values: [0; 40],
         };
@@ -93,24 +106,85 @@ impl NvApi {
     }
 
     pub unsafe fn get_voltage(&self, handle: NvPhysicalGpuHandle) -> anyhow::Result<u32> {
-        let f = self.query_interface(QUERY_NVAPI_VOLTAGE)?;
-        let f: unsafe extern "C" fn(
-            handle: NvPhysicalGpuHandle,
-            data: &mut NvApiVoltage,
-        ) -> NvAPI_Status = transmute(f);
-
         let mut data = NvApiVoltage {
             #[allow(clippy::cast_possible_truncation)]
-            version: (mem::size_of::<NvApiVoltage>() | (1 << 16)) as u32,
+            version: make_version::<NvApiVoltage>(1),
             flags: 0,
             padding_1: [0; 8],
             value_uv: 0,
             padding_2: [0; 8],
         };
-        let status = f(handle, &mut data);
-        self.handle_status(status)?;
+
+        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE)?;
 
         Ok(data.value_uv)
+    }
+
+    pub unsafe fn clock_client_clk_vf_points_get_info(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<ClockClientClkVfPointsInfoV1> {
+        let mut data = ClockClientClkVfPointsInfoV1::default();
+
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_INFO,
+        )?;
+
+        Ok(data)
+    }
+
+    pub unsafe fn clock_client_clk_vf_points_get_status(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        vf_points_mask: [NvU32; 8],
+    ) -> anyhow::Result<ClockClientClkVfPointsStatusV3> {
+        let mut data = ClockClientClkVfPointsStatusV3 {
+            vf_points_mask,
+            ..Default::default()
+        };
+
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_STATUS,
+        )?;
+
+        Ok(data)
+    }
+
+    pub unsafe fn clock_client_clk_vf_get_control(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        vf_points_mask: [NvU32; 8],
+    ) -> anyhow::Result<ClockClientClkVfPointsControlV1> {
+        let mut data = ClockClientClkVfPointsControlV1 {
+            vf_points_mask,
+            ..Default::default()
+        };
+
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_CONTROL,
+        )?;
+
+        Ok(data)
+    }
+
+    pub unsafe fn clock_client_clk_vf_set_control(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        mut control: ClockClientClkVfPointsControlV1,
+    ) -> anyhow::Result<()> {
+        self.physical_gpu_query(
+            handle,
+            &mut control,
+            QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL,
+        )?;
+
+        Ok(())
     }
 
     pub unsafe fn calculate_thermals_mask(
@@ -201,6 +275,21 @@ impl NvApi {
             );
         }
     }
+
+    unsafe fn physical_gpu_query<T>(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        data: &mut T,
+        query_id: u32,
+    ) -> anyhow::Result<()> {
+        let f = self.query_interface(query_id)?;
+        let f: unsafe extern "C" fn(NvPhysicalGpuHandle, *mut T) -> NvAPI_Status = transmute(f);
+
+        let status = f(handle, data);
+        self.handle_status(status)?;
+
+        Ok(())
+    }
 }
 
 impl Drop for NvApi {
@@ -246,4 +335,138 @@ struct NvApiVoltage {
     padding_1: [u32; 8],
     value_uv: u32,
     padding_2: [u32; 8],
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ClockClientClkVfPointsStatusV3 {
+    pub version: NvU32,
+    pub vf_points_mask: [NvU32; 8],
+    pub b_vf_tuple_base_supported: NvU8,
+    pub rsvd: [NvU8; 64],
+    pub vf_points: [ClockClientClkVfPointStatusV3; 255],
+}
+
+impl Default for ClockClientClkVfPointsStatusV3 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(3),
+            vf_points_mask: [0; 8],
+            b_vf_tuple_base_supported: 0,
+            rsvd: [0; 64],
+            vf_points: [ClockClientClkVfPointStatusV3::default(); 255],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct ClockClientClkVfPointStatusV3 {
+    pub type_: NvU32,
+    pub freq_khz: NvU32,
+    pub voltage_uv: NvU32,
+    pub vf_tuple_base: ClockClientClkVfPointTupleV1,
+    pub vf_tuple_offset: ClockClientClkVfPointTupleV1,
+    pub rsvd: [NvU8; 256],
+}
+
+impl Default for ClockClientClkVfPointStatusV3 {
+    fn default() -> Self {
+        Self {
+            type_: Default::default(),
+            freq_khz: Default::default(),
+            voltage_uv: Default::default(),
+            vf_tuple_base: ClockClientClkVfPointTupleV1::default(),
+            vf_tuple_offset: ClockClientClkVfPointTupleV1::default(),
+            rsvd: [0; 256],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct ClockClientClkVfPointTupleV1 {
+    pub freq_khz: NvU32,
+    pub voltage_uv: NvU32,
+    pub rsvd: [NvU8; 32usize],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct ClockClientClkVfPointsInfoV1 {
+    pub version: NvU32,
+    pub vf_points_mask: [NvU32; 8],
+    pub rsvd: [NvU8; 32],
+    pub vf_points: [ClockClientClkVfPointInfoV1; 255],
+}
+
+impl Default for ClockClientClkVfPointsInfoV1 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            vf_points_mask: Default::default(),
+            rsvd: Default::default(),
+            vf_points: [ClockClientClkVfPointInfoV1::default(); 255],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct ClockClientClkVfPointInfoV1 {
+    pub type_: NvU32,
+    pub b_voltage_based: NvU8,
+    pub rsvd: [NvU8; 16],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct ClockClientClkVfPointsControlV1 {
+    pub version: NvU32,
+    pub vf_points_mask: [NvU32; 8],
+    pub rsvd: [NvU8; 32usize],
+    pub vf_points: [ClockClientClkVfPointControlV1; 255usize],
+}
+
+impl Default for ClockClientClkVfPointsControlV1 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            vf_points_mask: [0; 8],
+            rsvd: [0; 32],
+            vf_points: [ClockClientClkVfPointControlV1::default(); 255],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Default)]
+pub struct ClockClientClkVfPointControlV1 {
+    pub type_: NvU32,
+    pub rsvd: [NvU8; 16usize],
+    pub data: ClockClientClkVfPointControlDataV1,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union ClockClientClkVfPointControlDataV1 {
+    pub prog: ClockClientClkVfPointControlProgV1,
+    pub rsvd: [NvU8; 16usize],
+}
+
+impl Default for ClockClientClkVfPointControlDataV1 {
+    fn default() -> Self {
+        Self { rsvd: [0; 16] }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ClockClientClkVfPointControlProgV1 {
+    pub freq_offset_khz: NvS32,
+}
+
+#[allow(clippy::cast_possible_truncation)]
+const fn make_version<T>(version: usize) -> u32 {
+    (mem::size_of::<T>() | (version << 16)) as u32
 }

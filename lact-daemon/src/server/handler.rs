@@ -571,7 +571,9 @@ impl<'a> Handler {
         }
 
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
-            gpu_config.apply_clocks_command(&command);
+            gpu_config
+                .clocks_configuration
+                .apply_clocks_command(&command);
         })
         .await
         .context("Failed to edit GPU config and set clocks value")
@@ -584,7 +586,9 @@ impl<'a> Handler {
     ) -> anyhow::Result<u64> {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
             for command in commands {
-                gpu_config.apply_clocks_command(&command);
+                gpu_config
+                    .clocks_configuration
+                    .apply_clocks_command(&command);
             }
         })
         .await

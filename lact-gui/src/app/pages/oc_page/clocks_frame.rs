@@ -25,6 +25,7 @@ use relm4::{
     ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
     factory::FactoryHashMap,
 };
+use std::sync::Arc;
 
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 
@@ -40,7 +41,7 @@ pub struct ClocksFrame {
 
 #[derive(Debug)]
 pub enum ClocksFrameMsg {
-    Clocks(Option<ClocksTable>),
+    Clocks(Option<Arc<ClocksTable>>),
     VramRatio(f64),
     TogglePStatesVisibility,
 }
@@ -260,7 +261,7 @@ impl relm4::Component for ClocksFrame {
                 self.show_nvidia_options = false;
 
                 if let Some(table) = clocks_table {
-                    match table {
+                    match table.as_ref() {
                         ClocksTable::Amd(table) => self.set_amd_table(table),
                         ClocksTable::Nvidia(table) => self.set_nvidia_table(table),
                         ClocksTable::Intel(table) => self.set_intel_table(table),
@@ -352,7 +353,7 @@ impl ClocksFrame {
         }
     }
 
-    fn set_amd_table(&mut self, table: AmdClocksTable) {
+    fn set_amd_table(&mut self, table: &AmdClocksTable) {
         match table {
             AmdClocksTable::Gcn(table) => {
                 let vddc_range = table.od_range.vddc.and_then(|range| range.into_full());
@@ -534,7 +535,7 @@ impl ClocksFrame {
         }
     }
 
-    fn set_nvidia_table(&mut self, table: NvidiaClocksTable) {
+    fn set_nvidia_table(&mut self, table: &NvidiaClocksTable) {
         self.show_nvidia_options = true;
 
         let locked_clocks = [
@@ -575,21 +576,21 @@ impl ClocksFrame {
             }
         }
 
-        for (pstate, offset) in table.gpu_offsets {
+        for (pstate, offset) in &table.gpu_offsets {
             self.set_clock(
-                ClockspeedType::GpuClockOffset(pstate),
-                nvidia_clock_offset_to_data(&offset, pstate > 0),
+                ClockspeedType::GpuClockOffset(*pstate),
+                nvidia_clock_offset_to_data(offset, *pstate > 0),
             );
         }
-        for (pstate, offset) in table.mem_offsets {
+        for (pstate, offset) in &table.mem_offsets {
             self.set_clock(
-                ClockspeedType::MemClockOffset(pstate),
-                nvidia_clock_offset_to_data(&offset, pstate > 0),
+                ClockspeedType::MemClockOffset(*pstate),
+                nvidia_clock_offset_to_data(offset, *pstate > 0),
             );
         }
     }
 
-    fn set_intel_table(&mut self, table: IntelClocksTable) {
+    fn set_intel_table(&mut self, table: &IntelClocksTable) {
         self.show_all_pstates.set_value(false);
 
         if let Some((current_gt_min, current_gt_max)) = table.gt_freq

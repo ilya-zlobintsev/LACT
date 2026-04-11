@@ -18,6 +18,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use thread_priority::{ThreadBuilderExt, ThreadPriority};
 use tracing::error;
 
+#[allow(clippy::large_enum_variant)]
 enum Request {
     Terminate,
     Render(RenderRequest),

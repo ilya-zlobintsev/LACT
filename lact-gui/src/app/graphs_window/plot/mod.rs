@@ -8,7 +8,10 @@ use gtk::{
     glib::{self, Object, subclass::types::ObjectSubclassIsExt},
     prelude::StyleContextExt,
 };
-use plotters::style::{BLACK, Color, RGBAColor, WHITE, full_palette::DEEPORANGE_100};
+use plotters::style::{
+    BLACK, BLUE, Color, RGBAColor, WHITE,
+    full_palette::{DEEPORANGE_100, GREEN_500},
+};
 use std::sync::{Arc, RwLock};
 
 glib::wrapper! {
@@ -49,6 +52,8 @@ pub struct PlotColorScheme {
     pub border: RGBAColor,
     pub border_secondary: RGBAColor,
     pub throttling: RGBAColor,
+    pub success: RGBAColor,
+    pub accent_bg: RGBAColor,
 }
 
 impl Default for PlotColorScheme {
@@ -59,6 +64,8 @@ impl Default for PlotColorScheme {
             border: BLACK.mix(0.8),
             border_secondary: BLACK.mix(0.5),
             throttling: DEEPORANGE_100.into(),
+            success: GREEN_500.into(),
+            accent_bg: BLUE.mix(0.5),
         }
     }
 }
@@ -72,8 +79,12 @@ impl PlotColorScheme {
         let text = lookup_color(ctx, &["theme_text_color"])?;
         let border = lookup_color(ctx, &["borders"])?;
         let border_secondary = lookup_color(ctx, &["unfocused_borders"])?;
+
         let mut throttling = lookup_color(ctx, &["theme_unfocused_fg_color"])?;
         throttling.3 = 0.5;
+
+        let success = lookup_color(ctx, &["success_color"])?;
+        let accent_fg = lookup_color(ctx, &["accent_bg_color"])?;
 
         Some(PlotColorScheme {
             background,
@@ -81,6 +92,8 @@ impl PlotColorScheme {
             border,
             border_secondary,
             throttling,
+            success,
+            accent_bg: accent_fg,
         })
     }
 }
@@ -96,9 +109,9 @@ fn lookup_color(ctx: &gtk::StyleContext, names: &[&str]) -> Option<RGBAColor> {
 
 fn gtk_to_plotters_color(color: gtk::gdk::RGBA) -> RGBAColor {
     RGBAColor(
-        (color.blue() * u8::MAX as f32) as u8,
-        (color.green() * u8::MAX as f32) as u8,
         (color.red() * u8::MAX as f32) as u8,
+        (color.green() * u8::MAX as f32) as u8,
+        (color.blue() * u8::MAX as f32) as u8,
         color.alpha() as f64,
     )
 }
