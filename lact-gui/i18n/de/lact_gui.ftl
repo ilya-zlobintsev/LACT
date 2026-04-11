@@ -69,7 +69,7 @@ amd-oc-updating-configuration = Aktualisieren der Konfiguration (die kann etwas 
 amd-oc-updating-done = Konfiguration aktualisiert, bitte Systemneustart durchführen um die Änderungen anzuwenden.
 reset-config = Konfiguration zurücksetzen
 reset-config-description = Sind Sie sicher, dass die gesamte GPU Konfiguration zurücksetzen wollen?
-power-cap = Leistungsaufnamelimit
+power-cap = Leistungsaufnahmelimit
 watt = W
 ghz = GHz
 stats-section = Statistiken
@@ -198,3 +198,40 @@ daemon-connection-lost = Verbindung verloren
 plot-show-detailed-info = Genaue Informationen anzeigen
 workgroup-size = Arbeitsgruppengröße
 temperature-sensor = Temperatursensor
+vram-usage = VRAM Nutzung:
+hw-ip-info = Hardware IP Information
+hw-queues = Warteschlangen
+speed-change-threshold = Geschwindigkeitsänderung Schwellwert (°C)
+automatic-mode-threshold = Automatikmodus Schwellwert (°C)
+automatic-mode-threshold-tooltip =
+    Schalte Lüftersteuerung in Automatikmodus wenn die Temperatur unter diesem Wert ist.
+
+    Viele Nvidia GPUs unterstützen stoppen des Lüfters im Automatikmodus des Lüfters, während benutzerdefinierte Lüfterkurven einen begrenzten Drehzahlbereich wie zum Beispiel 30-100% haben.
+
+    Diese Option erlaubt das Umgehen dieser Einschränkung durch Nutzung der benutzerdefinierten Lüftungskurve nur oberhalb einer spezifischen Temperatur, während der in der Karte eingebaute Automatikmodus, der null Umdrehungen unterstützt, unterhalb dieser Temperatur genutzt wird.
+spindown-delay-tooltip = Wie lange die GPU bei einem niedrigeren Temperaturwert sein muss bevor der Lüfter gedrosselt wird
+apply-button = Anwenden
+revert-button = Rückgängig
+bytes = Bytes
+kibibyte = KiB
+gibibyte = GiB
+performance-level = Leistungsstufe
+show-process-monitor = Zeige Prozessmonitor
+generate-debug-snapshot = Erzeuge Debug Abbild
+dump-vbios = Dump VBIOS
+reset-all-config = Komplette Konfiguration zurücksetzen
+stats-update-interval = Aktualisierungsintervall (ms)
+historical-data-title = Historische Daten
+graphs-per-row = Graphen pro Reihe:
+time-period-seconds = Zeitperiode (Sekunden):
+reset-all-graphs-tooltip = Setzt alle Graphen auf Standard
+add-graph = Graph hinzufügen
+delete-graph = Graph löschen
+edit-graphs = Editieren
+export-csv = Als CSV exportieren
+edit-graph-sensors = Graph Sensoren editieren
+theme = Thema
+theme-auto = Automatisch
+crash-page-title = Applikation abgestürzt
+exit = Ausgang
+spindown-delay = Drosselungsverzögerung (ms)

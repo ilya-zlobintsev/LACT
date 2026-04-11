@@ -144,7 +144,7 @@ nvidia-oc-description =
     Tämä pakottaa GPU:n toimimaan lukittujen kellojen rajoittamalla jännitteellä, samalla kun saavutetaan korkeampi kellotaajuus poikkeaman ansiosta.
 
     Tämä voi aiheuttaa järjestelmän epävakautta, jos sitä painetaan liian korkeaksi.
-oc-warning = Varoitus: Näiden arvojen muuttaminen voi johtaa järjestelmän epävakauteen ja mahdollisesti vahingoittaa laitteistoasi!
+oc-warning = Näiden arvojen muuttaminen voi johtaa järjestelmän epävakauteen ja mahdollisesti vahingoittaa laitteistoasi!
 show-all-pstates = Näytä kaikki P-tilat
 enable-gpu-locked-clocks = Ota GPU:n lukitut kellotaajuudet käyttöön
 enable-vram-locked-clocks = Ota VRAM:n lukitut kellotaajuudet käyttöön
@@ -154,7 +154,7 @@ reset-oc-tooltip = Varoitus: tämä palauttaa kaikki kellojen asetukset oletusas
 pstates = Virtatilat
 gpu-pstates = GPU:n virtatilat
 vram-pstates = VRAM:n virtatilat
-pstates-manual-needed = Huomautus: suorituskykytason on oltava asetettu 'käsin':ksi virrankäyttötilojen vaihtamiseksi
+pstates-manual-needed = Suorituskykytason on oltava asetettu 'käsin':ksi virrankäyttötilojen vaihtamiseksi
 enable-pstate-config = Ota virtatilan määritys käyttöön
 show-historical-charts = Näytä historialliset kaaviot
 show-process-monitor = Näytä prosessien valvonta
@@ -229,3 +229,9 @@ nvidia-cache-desc = { $size } L{ $level }
 gibibyte = GiB
 crash-page-title = Ohjelma kaatui
 exit = Poistu
+bytes = tavua
+kibibyte = Kit
+theme-auto = Automaattinen
+hw-ip-info = Laitteiston IP-tiedot
+hw-queues = Jonot
+theme = Teema
