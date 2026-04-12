@@ -1,7 +1,9 @@
 use crate::app::{APP_BROKER, graphs_window::plot::PlotColorScheme, msg::AppMsg};
 use gtk::{
     gdk,
-    prelude::{DrawingAreaExtManual as _, GtkWindowExt as _, WidgetExt as _},
+    prelude::{
+        DrawingAreaExtManual as _, EventControllerExt as _, GtkWindowExt as _, WidgetExt as _,
+    },
 };
 use indexmap::IndexMap;
 use lact_schema::{ClocksTable, DeviceStats, NvidiaVfPoint, config};
@@ -32,13 +34,18 @@ pub struct VfCurveEditor {
     cursor_position: Rc<Cell<Option<(f64, f64)>>>,
     hovered_point: Rc<Cell<Option<usize>>>,
     dragging_point: Rc<Cell<Option<usize>>>,
+    drag_modifiers: Rc<Cell<gdk::ModifierType>>,
 }
 
 #[derive(Debug)]
 pub enum VfCurveEditorMsg {
     Clocks(Option<Arc<ClocksTable>>),
     Stats(Arc<DeviceStats>),
-    CursorUpdate(f64, f64),
+    CursorUpdate {
+        x: f64,
+        y: f64,
+        modifiers: gdk::ModifierType,
+    },
     DragStart,
     DragEnd,
 }
@@ -71,9 +78,11 @@ impl relm4::Component for VfCurveEditor {
                         },
 
                         add_controller = gtk::GestureClick {
-                            connect_pressed[sender] => move |_, _, x, y| {
+                            connect_pressed[sender] => move |gesture, _, x, y| {
+                                let modifiers = gesture.current_event_state();
+
                                 sender.input(VfCurveEditorMsg::DragStart);
-                                sender.input(VfCurveEditorMsg::CursorUpdate(x, y));
+                                sender.input(VfCurveEditorMsg::CursorUpdate { x, y, modifiers });
                             },
                             connect_released[sender] => move |_, _, _x, _y| {
                                 sender.input(VfCurveEditorMsg::DragEnd);
@@ -81,8 +90,9 @@ impl relm4::Component for VfCurveEditor {
                         },
 
                         add_controller = gtk::EventControllerMotion {
-                            connect_motion[sender] => move |_, x, y| {
-                                sender.input(VfCurveEditorMsg::CursorUpdate(x, y));
+                            connect_motion[sender] => move |motion, x, y| {
+                                let modifiers = motion.current_event_state();
+                                sender.input(VfCurveEditorMsg::CursorUpdate { x, y, modifiers });
                             },
                         },
 
@@ -109,6 +119,7 @@ impl relm4::Component for VfCurveEditor {
             cursor_position: Rc::new(Cell::new(None)),
             hovered_point: Rc::new(Cell::new(None)),
             dragging_point: Rc::new(Cell::new(None)),
+            drag_modifiers: Rc::new(Cell::new(gdk::ModifierType::empty())),
         };
 
         let widgets = view_output!();
@@ -141,8 +152,9 @@ impl relm4::Component for VfCurveEditor {
             VfCurveEditorMsg::Stats(device_stats) => {
                 *self.stats.borrow_mut() = device_stats;
             }
-            VfCurveEditorMsg::CursorUpdate(x, y) => {
+            VfCurveEditorMsg::CursorUpdate { x, y, modifiers } => {
                 self.cursor_position.set(Some((x, y)));
+                self.drag_modifiers.set(modifiers);
             }
             VfCurveEditorMsg::DragStart => {
                 if let Some(point) = self.hovered_point.get() {
@@ -391,7 +403,23 @@ impl VfCurveEditor {
         if let Some((_voltage, freq)) = hovered_coords
             && let Some(point_idx) = self.dragging_point.get()
         {
-            points[point_idx].freq = freq.clamp(freq_range.start, freq_range.end);
+            let new_freq = freq.clamp(freq_range.start, freq_range.end);
+            let drag_delta = new_freq as i32 - points[point_idx].freq as i32;
+
+            if self
+                .drag_modifiers
+                .get()
+                .contains(gdk::ModifierType::SHIFT_MASK)
+            {
+                for point in points.iter_mut() {
+                    let new_freq = (point.freq as i32 + drag_delta) as u32;
+                    if new_freq > 0 {
+                        point.freq = new_freq;
+                    }
+                }
+            } else {
+                points[point_idx].freq = new_freq;
+            }
         }
 
         root.present().unwrap();
