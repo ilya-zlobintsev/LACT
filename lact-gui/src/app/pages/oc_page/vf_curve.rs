@@ -2,7 +2,8 @@ use crate::app::{APP_BROKER, graphs_window::plot::PlotColorScheme, msg::AppMsg};
 use gtk::{
     gdk,
     prelude::{
-        DrawingAreaExtManual as _, EventControllerExt as _, GtkWindowExt as _, WidgetExt as _,
+        ButtonExt as _, DrawingAreaExtManual as _, EventControllerExt as _, GestureSingleExt as _,
+        GtkWindowExt as _, PopoverExt, WidgetExt as _,
     },
 };
 use indexmap::IndexMap;
@@ -48,6 +49,7 @@ pub enum VfCurveEditorMsg {
     },
     DragStart,
     DragEnd,
+    FlattenCurve,
 }
 
 #[relm4::component(pub)]
@@ -58,6 +60,7 @@ impl relm4::Component for VfCurveEditor {
     type CommandOutput = ();
 
     view! {
+        #[root]
         adw::Window {
             set_hide_on_close: true,
             set_default_size: (1100, 700),
@@ -71,7 +74,7 @@ impl relm4::Component for VfCurveEditor {
                     #[name = "drawing_area"]
                     gtk::DrawingArea {
                         set_expand: true,
-                        set_draw_func[model = model.clone()] => move |area, ctx, width, height| {
+                        set_draw_func[model] => move |area, ctx, width, height| {
                             let style_context = area.style_context();
                             let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
                             model.draw_chart(ctx, width, height, colors);
@@ -89,6 +92,20 @@ impl relm4::Component for VfCurveEditor {
                             }
                         },
 
+                        add_controller = gtk::GestureClick {
+                            set_button: gdk::BUTTON_SECONDARY,
+                            connect_pressed[drawing_area, point_menu, model] => move |_, _, x, y| {
+                                if model.hovered_point.get().is_none() {
+                                    return;
+                                }
+
+                                point_menu.set_parent(&drawing_area);
+                                point_menu.set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
+                                point_menu.popup();
+
+                            },
+                        },
+
                         add_controller = gtk::EventControllerMotion {
                             connect_motion[sender] => move |motion, x, y| {
                                 let modifiers = motion.current_event_state();
@@ -103,7 +120,26 @@ impl relm4::Component for VfCurveEditor {
                             None
                         }.as_ref(),
                     },
+
                 },
+            },
+        },
+
+        #[name = "point_menu"]
+        gtk::Popover {
+            add_css_class: "menu",
+
+            connect_closed => |popover| {
+                popover.unparent();
+            },
+
+            gtk::Button {
+                set_label: "Flatten curve to the right",
+                connect_clicked => VfCurveEditorMsg::FlattenCurve,
+                connect_clicked[point_menu] => move |_| {
+                    point_menu.popdown();
+                },
+                add_css_class: "flat",
             },
         }
     }
@@ -163,6 +199,22 @@ impl relm4::Component for VfCurveEditor {
             }
             VfCurveEditorMsg::DragEnd => {
                 if self.dragging_point.take().is_some() {
+                    APP_BROKER.send(AppMsg::SettingsChanged);
+                }
+            }
+            VfCurveEditorMsg::FlattenCurve => {
+                if let Some(base_point_idx) = self.hovered_point.get() {
+                    let mut points = self.points.borrow_mut();
+                    // TODO
+                    let total_len = points.len();
+                    let points = &mut points[total_len / 3..];
+
+                    let target_freq = points[base_point_idx].freq;
+
+                    for point in points.iter_mut().skip(base_point_idx) {
+                        point.freq = target_freq;
+                    }
+
                     APP_BROKER.send(AppMsg::SettingsChanged);
                 }
             }
