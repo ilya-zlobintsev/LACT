@@ -494,6 +494,8 @@ impl AsyncComponent for AppModel {
             }
         ));
 
+        let settings_changed = BoolBinding::new(false);
+
         let system_info = daemon_client
             .get_system_info()
             .await
@@ -516,7 +518,7 @@ impl AsyncComponent for AppModel {
         let info_page = InformationPage::detach_default();
 
         let oc_page = OcPage::builder()
-            .launch(system_info.clone())
+            .launch((system_info.clone(), settings_changed.clone()))
             .forward(sender.input_sender(), |msg| msg);
         let thermals_page = ThermalsPage::builder().launch(system_info.clone()).detach();
 
@@ -565,7 +567,7 @@ impl AsyncComponent for AppModel {
             ui_sensitive: BoolBinding::new(false),
             selected_gpu_index: 0,
             stats_task_handle: None,
-            settings_changed: BoolBinding::new(false),
+            settings_changed,
             system_info,
             device_flags: vec![],
         };
@@ -1221,6 +1223,8 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
             }
         ));
+
+        window.present();
     }
 
     async fn dump_vbios(&self, gpu_id: &str, root: &adw::ApplicationWindow) {

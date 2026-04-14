@@ -4,8 +4,9 @@ mod adjustment_row;
 use crate::{
     APP_BROKER, I18N,
     app::{
-        msg::AppMsg, page_section::PageSection,
-        pages::oc_page::clocks_frame::adjustment_group::AdjustmentGroup,
+        msg::AppMsg,
+        page_section::PageSection,
+        pages::oc_page::{OcPageMsg, clocks_frame::adjustment_group::AdjustmentGroup},
     },
 };
 use adjustment_group::ClockCategory;
@@ -50,7 +51,7 @@ pub enum ClocksFrameMsg {
 impl relm4::Component for ClocksFrame {
     type Init = ();
     type Input = ClocksFrameMsg;
-    type Output = ();
+    type Output = OcPageMsg;
     type CommandOutput = ();
 
     view! {
@@ -76,6 +77,18 @@ impl relm4::Component for ClocksFrame {
                             set_wrap: true,
                             set_max_width_chars: 75,
                         }
+                    }
+                },
+
+                append = &gtk::Button {
+                    set_label: &fl!(I18N, "vf-curve-editor"),
+                    add_css_class: css::WARNING,
+
+                    #[watch]
+                    set_visible: model.show_nvidia_options,
+
+                    connect_clicked[sender] => move |_| {
+                        sender.output(OcPageMsg::ShowVfCurveEditor).unwrap();
                     }
                 },
 

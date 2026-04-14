@@ -1,11 +1,16 @@
-use crate::app::{APP_BROKER, graphs_window::plot::PlotColorScheme, msg::AppMsg};
+use crate::{
+    I18N,
+    app::{APP_BROKER, graphs_window::plot::PlotColorScheme, msg::AppMsg},
+};
 use gtk::{
     gdk,
     prelude::{
-        ButtonExt as _, DrawingAreaExtManual as _, EventControllerExt as _, GestureSingleExt as _,
-        GtkWindowExt as _, PopoverExt, WidgetExt as _,
+        BoxExt as _, ButtonExt as _, CheckButtonExt as _, DrawingAreaExtManual as _,
+        EventControllerExt as _, GestureSingleExt as _, GtkWindowExt as _, OrientableExt as _,
+        PopoverExt, WidgetExt as _,
     },
 };
+use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{ClocksTable, DeviceStats, NvidiaVfPoint, config};
 use plotters::{
@@ -15,7 +20,7 @@ use plotters::{
     style::{Color as _, ShapeStyle, TextStyle, text_anchor::Pos},
 };
 use plotters_cairo::CairoBackend;
-use relm4::{ComponentParts, RelmWidgetExt as _};
+use relm4::{ComponentParts, RelmObjectExt as _, RelmWidgetExt as _, binding::BoolBinding, css};
 use std::fmt::Write as _;
 use std::{
     cell::{Cell, RefCell},
@@ -31,6 +36,10 @@ const POINT_FREQ_HOVER_MARGIN: f32 = 0.03;
 pub struct VfCurveEditor {
     points: Rc<RefCell<Vec<NvidiaVfPoint>>>,
     stats: Rc<RefCell<Arc<DeviceStats>>>,
+    allow_editing: BoolBinding,
+
+    // Passed from app
+    global_settings_changed: BoolBinding,
 
     cursor_position: Rc<Cell<Option<(f64, f64)>>>,
     hovered_point: Rc<Cell<Option<usize>>>,
@@ -40,6 +49,7 @@ pub struct VfCurveEditor {
 
 #[derive(Debug)]
 pub enum VfCurveEditorMsg {
+    Show,
     Clocks(Option<Arc<ClocksTable>>),
     Stats(Arc<DeviceStats>),
     CursorUpdate {
@@ -50,11 +60,12 @@ pub enum VfCurveEditorMsg {
     DragStart,
     DragEnd,
     FlattenCurve,
+    ResetCurve,
 }
 
 #[relm4::component(pub)]
 impl relm4::Component for VfCurveEditor {
-    type Init = ();
+    type Init = BoolBinding;
     type Input = VfCurveEditorMsg;
     type Output = ();
     type CommandOutput = ();
@@ -64,16 +75,36 @@ impl relm4::Component for VfCurveEditor {
         adw::Window {
             set_hide_on_close: true,
             set_default_size: (1100, 700),
-            set_title: Some("VF Curve Editor"),
+            set_title: Some(&fl!(I18N, "vf-curve-editor")),
 
             adw::ToolbarView {
                 add_top_bar = &adw::HeaderBar {},
 
                 #[wrap(Some)]
                 set_content = &gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_margin_all: 5,
+                    set_spacing: 10,
+
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_halign: gtk::Align::Center,
+                        set_spacing: 10,
+
+                        gtk::Label {
+                            set_markup: &fl!(I18N, "nvidia-vf-curve-warning"),
+                            add_css_class: "error",
+                            add_css_class: "heading",
+                        },
+
+                    },
+
+
                     #[name = "drawing_area"]
                     gtk::DrawingArea {
                         set_expand: true,
+                        set_margin_all: 10,
+
                         set_draw_func[model] => move |area, ctx, width, height| {
                             let style_context = area.style_context();
                             let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
@@ -121,6 +152,49 @@ impl relm4::Component for VfCurveEditor {
                         }.as_ref(),
                     },
 
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_halign: gtk::Align::End,
+                        set_spacing: 5,
+
+                        gtk::CheckButton {
+                            set_label: Some(&fl!(I18N, "vf-curve-enable-editing")),
+                            add_css_class: "warning",
+                            add_binding: (&model.allow_editing, "active"),
+
+                            connect_toggled => move |_| {
+                                APP_BROKER.send(AppMsg::SettingsChanged);
+                            }
+                        },
+
+                        gtk::Button {
+                            set_label: &fl!(I18N, "reset-button"),
+                            add_css_class: css::DESTRUCTIVE_ACTION,
+
+                            #[watch]
+                            set_sensitive: {
+                                model.points.borrow()
+                                    .iter()
+                                    .any(|point| point.freq != point.base_freq)
+                            },
+
+                            connect_clicked => VfCurveEditorMsg::ResetCurve,
+                            connect_clicked => move |_| {
+                                APP_BROKER.send(AppMsg::SettingsChanged);
+                            }
+                        },
+
+
+                        gtk::Button {
+                            set_label: &fl!(I18N, "apply-button"),
+                            add_binding: (&model.global_settings_changed, "sensitive"),
+                            add_css_class: css::SUGGESTED_ACTION,
+
+                            connect_clicked => move |_| {
+                                APP_BROKER.send(AppMsg::ApplyChanges);
+                            },
+                        },
+                    },
                 },
             },
         },
@@ -145,13 +219,15 @@ impl relm4::Component for VfCurveEditor {
     }
 
     fn init(
-        _init: Self::Init,
+        global_settings_changed: Self::Init,
         root: Self::Root,
         sender: relm4::ComponentSender<Self>,
     ) -> relm4::ComponentParts<Self> {
         let model = Self {
             points: Rc::default(),
             stats: Rc::default(),
+            global_settings_changed,
+            allow_editing: BoolBinding::new(false),
             cursor_position: Rc::new(Cell::new(None)),
             hovered_point: Rc::new(Cell::new(None)),
             dragging_point: Rc::new(Cell::new(None)),
@@ -159,8 +235,6 @@ impl relm4::Component for VfCurveEditor {
         };
 
         let widgets = view_output!();
-
-        root.present();
 
         ComponentParts { model, widgets }
     }
@@ -173,6 +247,9 @@ impl relm4::Component for VfCurveEditor {
         root: &Self::Root,
     ) {
         match msg {
+            VfCurveEditorMsg::Show => {
+                root.present();
+            }
             VfCurveEditorMsg::Clocks(clocks_table) => {
                 let mut points = self.points.borrow_mut();
                 points.clear();
@@ -193,7 +270,9 @@ impl relm4::Component for VfCurveEditor {
                 self.drag_modifiers.set(modifiers);
             }
             VfCurveEditorMsg::DragStart => {
-                if let Some(point) = self.hovered_point.get() {
+                if let Some(point) = self.hovered_point.get()
+                    && self.allow_editing.value()
+                {
                     self.dragging_point.set(Some(point));
                 }
             }
@@ -216,6 +295,12 @@ impl relm4::Component for VfCurveEditor {
                     }
 
                     APP_BROKER.send(AppMsg::SettingsChanged);
+                }
+            }
+            VfCurveEditorMsg::ResetCurve => {
+                let mut points = self.points.borrow_mut();
+                for point in points.iter_mut() {
+                    point.freq = point.base_freq;
                 }
             }
         }
@@ -266,8 +351,8 @@ impl VfCurveEditor {
             .y_label_formatter(&|clock| format!("{clock} MHz"))
             .x_label_style(("sans-serif", 14, &colors.text))
             .y_label_style(("sans-serif", 14, &colors.text))
-            .x_desc("Voltage")
-            .y_desc("Clockspeed")
+            .x_desc(fl!(I18N, "voltage"))
+            .y_desc(fl!(I18N, "frequency"))
             .draw()
             .unwrap();
 
@@ -277,7 +362,7 @@ impl VfCurveEditor {
                 &colors.success,
             ))
             .unwrap()
-            .label("Active Curve")
+            .label(fl!(I18N, "vf-active-curve"))
             .legend(move |(x, y)| {
                 Rectangle::new([(x - 15, y + 2), (x, y - 1)], colors.success.filled())
             });
@@ -290,7 +375,7 @@ impl VfCurveEditor {
                     &base_line_style,
                 ))
                 .unwrap()
-                .label("Base Curve")
+                .label(fl!(I18N, "vf-base-curve"))
                 .legend(move |(x, y)| {
                     Rectangle::new([(x - 15, y + 2), (x, y - 1)], base_line_style.filled())
                 });
@@ -478,6 +563,10 @@ impl VfCurveEditor {
     }
 
     pub fn get_configured_curve(&self) -> IndexMap<u8, config::CurvePoint> {
+        if !self.allow_editing.value() {
+            return IndexMap::new();
+        }
+
         self.points
             .borrow()
             .iter()

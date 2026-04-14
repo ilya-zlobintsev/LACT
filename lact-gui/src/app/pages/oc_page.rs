@@ -28,6 +28,7 @@ use lact_schema::{ClocksTable, DeviceInfo, PowerStates, SystemInfo};
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
+use relm4::binding::BoolBinding;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::sync::Arc;
 use tracing::debug;
@@ -58,11 +59,12 @@ pub enum OcPageMsg {
         configured: bool,
     },
     PerformanceLevelChanged,
+    ShowVfCurveEditor,
 }
 
 #[relm4::component(pub)]
 impl relm4::Component for OcPage {
-    type Init = SystemInfo;
+    type Init = (SystemInfo, BoolBinding);
     type Input = OcPageMsg;
     type Output = AppMsg;
     type CommandOutput = ();
@@ -111,19 +113,18 @@ impl relm4::Component for OcPage {
     }
 
     fn init(
-        system_info: Self::Init,
+        (system_info, settings_changed): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let stats_section = GpuStatsSection::detach_default();
         let power_cap_section = PowerCapSection::detach_default();
-        let clocks_frame = ClocksFrame::detach_default();
+        let clocks_frame = ClocksFrame::launch_default().forward(sender.input_sender(), |msg| msg);
         let power_states_frame = PowerStatesFrame::detach_default();
-        let performance_frame = PerformanceFrame::builder()
-            .launch(())
-            .forward(sender.input_sender(), |msg| msg);
+        let performance_frame =
+            PerformanceFrame::launch_default().forward(sender.input_sender(), |msg| msg);
 
-        let vf_curve_editor = VfCurveEditor::detach_default();
+        let vf_curve_editor = VfCurveEditor::builder().launch(settings_changed).detach();
 
         let model = Self {
             stats_section,
@@ -226,6 +227,9 @@ impl relm4::Component for OcPage {
                     .emit(PowerStatesFrameMsg::PerformanceLevel(
                         self.get_performance_level(),
                     ));
+            }
+            OcPageMsg::ShowVfCurveEditor => {
+                self.vf_curve_editor.emit(VfCurveEditorMsg::Show);
             }
         }
 

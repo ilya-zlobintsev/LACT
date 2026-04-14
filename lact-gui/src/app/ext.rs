@@ -20,10 +20,16 @@ impl FlowBoxExt for FlowBox {
 }
 pub trait RelmDefaultLauchable: Component {
     fn detach_default() -> relm4::Controller<Self>;
+
+    fn launch_default() -> relm4::component::Connector<Self>;
 }
 
 impl<S: Default, T: Component<Init = S>> RelmDefaultLauchable for T {
     fn detach_default() -> relm4::Controller<Self> {
         Self::builder().launch(S::default()).detach()
+    }
+
+    fn launch_default() -> relm4::component::Connector<Self> {
+        Self::builder().launch(S::default())
     }
 }
