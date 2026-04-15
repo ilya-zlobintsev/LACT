@@ -3,5 +3,5 @@ source: lact-daemon/src/tests/mod.rs
 expression: write_commands
 ---
 [
-    "card1/device/hwmon/hwmon3/power1_cap: 200000000",
+    "card1/device/hwmon/hwmon4/power1_cap: 200000000",
 ]

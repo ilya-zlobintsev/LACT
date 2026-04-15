@@ -332,19 +332,22 @@ expression: device_info
         "crit": 100.0,
         "crit_hyst": -273.1499938964844,
         "current": 34.0,
-        "display_only": false
+        "display_only": false,
+        "primary": true
       },
       "junction": {
         "crit": 100.0,
         "crit_hyst": -273.1499938964844,
         "current": 34.0,
-        "display_only": false
+        "display_only": false,
+        "primary": true
       },
       "mem": {
         "crit": 105.0,
         "crit_hyst": -273.1499938964844,
         "current": 42.0,
-        "display_only": false
+        "display_only": false,
+        "primary": true
       }
     },
     "voltage": {

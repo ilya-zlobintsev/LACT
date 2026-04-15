@@ -193,6 +193,7 @@ mod benches {
                                 crit_hyst: None,
                                 current: Some(56.0),
                             },
+                            primary: true,
                             display_only: false,
                         },
                     )]),

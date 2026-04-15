@@ -473,37 +473,43 @@ expression: device_info
         "crit": 100.0,
         "crit_hyst": -273.1499938964844,
         "current": 24.0,
-        "display_only": false
+        "display_only": false,
+        "primary": true
       },
       "junction": {
         "crit": 110.0,
         "crit_hyst": -273.1499938964844,
         "current": 31.0,
-        "display_only": false
+        "display_only": false,
+        "primary": true
       },
       "mem": {
         "crit": 108.0,
         "crit_hyst": -273.1499938964844,
         "current": 48.0,
-        "display_only": false
+        "display_only": false,
+        "primary": true
       },
       "vrgfx": {
         "crit": null,
         "crit_hyst": null,
         "current": 34.0,
-        "display_only": true
+        "display_only": true,
+        "primary": false
       },
       "vrmem": {
         "crit": null,
         "crit_hyst": null,
         "current": 34.0,
-        "display_only": true
+        "display_only": true,
+        "primary": false
       },
       "vrsoc": {
         "crit": null,
         "crit_hyst": null,
         "current": 32.0,
-        "display_only": true
+        "display_only": true,
+        "primary": false
       }
     },
     "throttle_info": {},

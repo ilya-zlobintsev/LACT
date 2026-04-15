@@ -170,7 +170,8 @@ expression: device_info
         "crit": null,
         "crit_hyst": null,
         "current": 56.0,
-        "display_only": false
+        "display_only": false,
+        "primary": true
       }
     },
     "voltage": {

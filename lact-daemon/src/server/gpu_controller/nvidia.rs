@@ -522,6 +522,7 @@ impl GpuController for NvidiaGpuController {
                 "GPU".to_owned(),
                 TemperatureEntry {
                     value,
+                    primary: true,
                     display_only: false,
                 },
             );
@@ -543,6 +544,7 @@ impl GpuController for NvidiaGpuController {
                                     crit: None,
                                     crit_hyst: None,
                                 },
+                                primary: true,
                                 display_only: true,
                             },
                         );
@@ -557,6 +559,7 @@ impl GpuController for NvidiaGpuController {
                                     crit: None,
                                     crit_hyst: None,
                                 },
+                                primary: true,
                                 display_only: true,
                             },
                         );

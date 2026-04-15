@@ -548,9 +548,16 @@ pub struct DeviceStats {
 pub struct TemperatureEntry {
     #[serde(flatten)]
     pub value: Temperature,
+    /// Classify "important" temperature values (for display purposes)
+    #[serde(default = "default_temp_primary")]
+    pub primary: bool,
     /// If the temperature can be used for fan control
     #[serde(default)]
     pub display_only: bool,
+}
+
+fn default_temp_primary() -> bool {
+    true
 }
 
 #[skip_serializing_none]

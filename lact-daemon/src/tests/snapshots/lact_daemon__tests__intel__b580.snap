@@ -8,7 +8,7 @@ expression: device_info
       "type": "intel",
       "value": {
         "gt_freq": [
-          1200,
+          400,
           2850
         ],
         "rp0_freq": 2850,
@@ -79,38 +79,136 @@ expression: device_info
   },
   "stats": {
     "clockspeed": {
-      "gpu_clockspeed": 2733,
+      "gpu_clockspeed": 400,
       "sensors": {},
-      "target_gpu_clockspeed": 2850
+      "target_gpu_clockspeed": 400
     },
     "fan": {
       "control_enabled": false,
       "pmfw_info": {},
-      "speed_current": 1292
+      "speed_current": 1002
     },
     "power": {
-      "cap_current": 180.0,
-      "cap_default": 180.0,
+      "cap_current": 190.0,
+      "cap_default": 190.0,
       "cap_max": 380.0,
       "cap_min": 0.0
     },
     "temps": {
+      "mctrl": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 54.0,
+        "display_only": true,
+        "primary": false
+      },
+      "pcie": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 58.0,
+        "display_only": true,
+        "primary": false
+      },
       "pkg": {
         "crit": null,
         "crit_hyst": null,
-        "current": 62.0,
-        "display_only": true
+        "current": 53.0,
+        "display_only": true,
+        "primary": true
       },
       "vram": {
         "crit": null,
         "crit_hyst": null,
-        "current": 64.0,
-        "display_only": true
+        "current": 54.0,
+        "display_only": true,
+        "primary": true
+      },
+      "vram_ch_0": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 48.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vram_ch_1": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 52.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vram_ch_10": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 54.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vram_ch_11": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 52.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vram_ch_2": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 50.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vram_ch_3": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 52.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vram_ch_4": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 50.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vram_ch_5": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 50.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vram_ch_6": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 52.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vram_ch_7": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 52.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vram_ch_8": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 52.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vram_ch_9": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 54.0,
+        "display_only": true,
+        "primary": false
       }
     },
-    "throttle_info": {
-      "pl2": []
-    },
+    "throttle_info": {},
     "voltage": {
       "sensors": {}
     },

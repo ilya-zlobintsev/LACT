@@ -97,13 +97,15 @@ expression: device_info
         "crit": null,
         "crit_hyst": null,
         "current": 46.0,
-        "display_only": true
+        "display_only": true,
+        "primary": true
       },
       "vram": {
         "crit": null,
         "crit_hyst": null,
         "current": 48.0,
-        "display_only": true
+        "display_only": true,
+        "primary": true
       }
     },
     "throttle_info": {},
