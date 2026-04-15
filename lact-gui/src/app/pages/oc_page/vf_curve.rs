@@ -37,6 +37,7 @@ pub struct VfCurveEditor {
     points: Rc<RefCell<Vec<NvidiaVfPoint>>>,
     stats: Rc<RefCell<Arc<DeviceStats>>>,
     allow_editing: BoolBinding,
+    locked_clocks_range: Rc<Cell<Option<(u32, u32)>>>,
 
     // Passed from app
     global_settings_changed: BoolBinding,
@@ -227,6 +228,7 @@ impl relm4::Component for VfCurveEditor {
             points: Rc::default(),
             stats: Rc::default(),
             global_settings_changed,
+            locked_clocks_range: Rc::default(),
             allow_editing: BoolBinding::new(false),
             cursor_position: Rc::new(Cell::new(None)),
             hovered_point: Rc::new(Cell::new(None)),
@@ -253,9 +255,11 @@ impl relm4::Component for VfCurveEditor {
             VfCurveEditorMsg::Clocks(clocks_table) => {
                 let mut points = self.points.borrow_mut();
                 points.clear();
+                self.locked_clocks_range.take();
 
                 if let Some(ClocksTable::Nvidia(nvidia_table)) = clocks_table.as_deref() {
                     points.extend_from_slice(&nvidia_table.gpu_vf_curve);
+                    self.locked_clocks_range.set(nvidia_table.gpu_locked_clocks)
                 }
 
                 if points.is_empty() {
@@ -379,6 +383,32 @@ impl VfCurveEditor {
                 .legend(move |(x, y)| {
                     Rectangle::new([(x - 15, y + 2), (x, y - 1)], base_line_style.filled())
                 });
+        }
+
+        if let Some((min_freq, max_freq)) = self.locked_clocks_range.get() {
+            let mut curves = vec![(
+                [(x_spec.start, max_freq), (x_spec.end, max_freq)],
+                fl!(I18N, "max-gpu-clock"),
+                colors.error,
+            )];
+
+            if min_freq >= y_spec.start {
+                curves.push((
+                    [(x_spec.start, min_freq), (x_spec.end, min_freq)],
+                    fl!(I18N, "min-gpu-clock"),
+                    colors.warning,
+                ));
+            }
+
+            for (curve, label, color) in curves {
+                chart
+                    .draw_series(LineSeries::new(curve, &color))
+                    .unwrap()
+                    .label(label)
+                    .legend(move |(x, y)| {
+                        Rectangle::new([(x - 15, y + 2), (x, y - 1)], color.filled())
+                    });
+            }
         }
 
         let mut main_label = None;

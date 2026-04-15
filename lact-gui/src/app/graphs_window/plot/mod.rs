@@ -9,7 +9,7 @@ use gtk::{
     prelude::StyleContextExt,
 };
 use plotters::style::{
-    BLACK, BLUE, Color, RGBAColor, WHITE,
+    BLACK, BLUE, Color, RED, RGBAColor, WHITE, YELLOW,
     full_palette::{DEEPORANGE_100, GREEN_500},
 };
 use std::sync::{Arc, RwLock};
@@ -54,6 +54,8 @@ pub struct PlotColorScheme {
     pub throttling: RGBAColor,
     pub success: RGBAColor,
     pub accent_bg: RGBAColor,
+    pub error: RGBAColor,
+    pub warning: RGBAColor,
 }
 
 impl Default for PlotColorScheme {
@@ -66,6 +68,8 @@ impl Default for PlotColorScheme {
             throttling: DEEPORANGE_100.into(),
             success: GREEN_500.into(),
             accent_bg: BLUE.mix(0.5),
+            error: RED.into(),
+            warning: YELLOW.into(),
         }
     }
 }
@@ -85,6 +89,8 @@ impl PlotColorScheme {
 
         let success = lookup_color(ctx, &["success_color"])?;
         let accent_fg = lookup_color(ctx, &["accent_bg_color"])?;
+        let error = lookup_color(ctx, &["error_color"])?;
+        let warning = lookup_color(ctx, &["warning_color"])?;
 
         Some(PlotColorScheme {
             background,
@@ -94,6 +100,8 @@ impl PlotColorScheme {
             throttling,
             success,
             accent_bg: accent_fg,
+            error,
+            warning,
         })
     }
 }
