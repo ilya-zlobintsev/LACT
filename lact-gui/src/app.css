@@ -2,3 +2,11 @@
 .app {
 
 }
+
+.main-sidebar-container .sidebar {
+    border-right-width: 0;
+}
+
+.main-sidebar-container separator {
+    margin: 0 2px;
+}
