@@ -130,7 +130,7 @@ impl relm4::Component for VfCurveEditor {
                         add_controller = gtk::GestureClick {
                             set_button: gdk::BUTTON_SECONDARY,
                             connect_pressed[drawing_area, point_menu, model] => move |_, _, x, y| {
-                                if model.hovered_point.get().is_none() {
+                                if model.hovered_point.get().is_none() || !model.allow_editing.value() {
                                     return;
                                 }
 
@@ -241,7 +241,7 @@ impl relm4::Component for VfCurveEditor {
             },
 
             gtk::Button {
-                set_label: "Flatten curve to the right",
+                set_label: &fl!(I18N, "vf-curve-flatten-right"),
                 connect_clicked => VfCurveEditorMsg::FlattenCurve,
                 connect_clicked[point_menu] => move |_| {
                     point_menu.popdown();

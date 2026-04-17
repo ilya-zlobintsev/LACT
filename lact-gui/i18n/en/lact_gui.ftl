@@ -172,6 +172,7 @@ vf-active-curve = Active Curve
 vf-base-curve = Base Curve
 vf-curve-visible-range = Visible Range (%):
 vf-curve-visible-range-to = to
+vf-curve-flatten-right = Flatten curve to the right
 
 gpu-clock-offset = GPU Clock Offset (MHz)
 max-gpu-clock = Maximum GPU Clock (MHz)
