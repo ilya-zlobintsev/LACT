@@ -12,13 +12,13 @@ metadata:
   conflicts: [ lact ]
   depends:
     all: [ hwdata, vulkan-tools, clinfo ]
-    debian-13+ubuntu-2404+ubuntu2604: [ libdrm-amdgpu1, libdrm2 ]
+    debian-13+ubuntu-2404+ubuntu-2604: [ libdrm-amdgpu1, libdrm2 ]
     fedora-43+fedora-44+rhel-8+rhel-9: [ libdrm ]
     arch: [ libdrm, ocl-icd ]
     opensuse-tumbleweed: [ libdrm ]
   build_depends:
     all: [ curl, make, clang, git, vulkan-tools, clinfo ]
-    debian-13+ubuntu-240+ubuntu26044: [ pkg-config, build-essential, libdrm-dev, dbus ]
+    debian-13+ubuntu-240+ubuntu-26044: [ pkg-config, build-essential, libdrm-dev, dbus ]
     fedora-43+fedora-44: [ gcc, libdrm-devel, dbus ]
     rhel-8+rhel-9: [ gcc, libdrm-devel, dbus ]
     arch: [ libdrm, dbus ]
