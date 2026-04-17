@@ -35,6 +35,7 @@ pub struct ClocksFrame {
     vram_groups: FactoryHashMap<ClockCategory, AdjustmentGroup>,
     vram_clock_ratio: f64,
     show_nvidia_options: bool,
+    vf_curve_available: bool,
     show_all_pstates: BoolBinding,
     enable_gpu_locked_clocks: BoolBinding,
     enable_vram_locked_clocks: BoolBinding,
@@ -85,7 +86,7 @@ impl relm4::Component for ClocksFrame {
                     add_css_class: css::WARNING,
 
                     #[watch]
-                    set_visible: model.show_nvidia_options,
+                    set_visible: model.show_nvidia_options && model.vf_curve_available,
 
                     connect_clicked[sender] => move |_| {
                         sender.output(OcPageMsg::ShowVfCurveEditor).unwrap();
@@ -226,6 +227,7 @@ impl relm4::Component for ClocksFrame {
             vram_groups: FactoryHashMap::builder().launch_default().detach(),
             vram_clock_ratio: 1.0,
             show_nvidia_options: false,
+            vf_curve_available: false,
             show_all_pstates: BoolBinding::new(false),
             enable_gpu_locked_clocks: BoolBinding::new(false),
             enable_vram_locked_clocks: BoolBinding::new(false),
@@ -550,6 +552,7 @@ impl ClocksFrame {
 
     fn set_nvidia_table(&mut self, table: &NvidiaClocksTable) {
         self.show_nvidia_options = true;
+        self.vf_curve_available = !table.gpu_vf_curve.is_empty();
 
         let locked_clocks = [
             (
