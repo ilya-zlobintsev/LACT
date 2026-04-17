@@ -25,7 +25,7 @@ jobs:
       - name: Docker Cache
         uses: AndreKurait/docker-cache@0.6.0
         with:
-          key: docker-${{ runner.os }}-${{ hashFiles('pkg/images/') }}
+          key: docker-${{ matrix.target-os }}-${{ hashFiles('pkg/images/') }}
 
       - name: Import gpg key
         run: |
