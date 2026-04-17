@@ -170,6 +170,8 @@ voltage = Voltage
 frequency = Frequency
 vf-active-curve = Active Curve
 vf-base-curve = Base Curve
+vf-curve-visible-range = Visible Range (%):
+vf-curve-visible-range-to = to
 
 gpu-clock-offset = GPU Clock Offset (MHz)
 max-gpu-clock = Maximum GPU Clock (MHz)

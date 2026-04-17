@@ -5,9 +5,9 @@ use crate::{
 use gtk::{
     gdk,
     prelude::{
-        BoxExt as _, ButtonExt as _, CheckButtonExt as _, DrawingAreaExtManual as _,
+        AdjustmentExt, BoxExt as _, ButtonExt as _, CheckButtonExt as _, DrawingAreaExtManual as _,
         EventControllerExt as _, GestureSingleExt as _, GtkWindowExt as _, OrientableExt as _,
-        PopoverExt, WidgetExt as _,
+        PopoverExt, RangeExt as _, ScaleExt as _, WidgetExt as _,
     },
 };
 use i18n_embed_fl::fl;
@@ -21,12 +21,12 @@ use plotters::{
 };
 use plotters_cairo::CairoBackend;
 use relm4::{ComponentParts, RelmObjectExt as _, RelmWidgetExt as _, binding::BoolBinding, css};
-use std::fmt::Write as _;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
     sync::Arc,
 };
+use std::{cmp, fmt::Write as _};
 
 // In percentage
 const POINT_VOLTAGE_HOVER_MARGIN: f32 = 0.01;
@@ -38,6 +38,9 @@ pub struct VfCurveEditor {
     stats: Rc<RefCell<Arc<DeviceStats>>>,
     allow_editing: BoolBinding,
     locked_clocks_range: Rc<Cell<Option<(u32, u32)>>>,
+
+    visible_range_start: gtk::Adjustment,
+    visible_range_end: gtk::Adjustment,
 
     // Passed from app
     global_settings_changed: BoolBinding,
@@ -155,11 +158,38 @@ impl relm4::Component for VfCurveEditor {
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Horizontal,
-                        set_halign: gtk::Align::End,
                         set_spacing: 5,
+                        set_margin_horizontal: 5,
+
+                        gtk::Label {
+                            set_label: &fl!(I18N, "vf-curve-visible-range"),
+                            add_css_class: "heading",
+                        },
+
+                        gtk::Scale {
+                            set_adjustment: &model.visible_range_start,
+                            set_draw_value: true,
+                            set_width_request: 120,
+                            set_value_pos: gtk::PositionType::Right,
+                        },
+
+
+                        gtk::Label {
+                            set_label: &fl!(I18N, "vf-curve-visible-range-to"),
+                            add_css_class: "heading",
+                        },
+
+                        gtk::Scale {
+                            set_adjustment: &model.visible_range_end,
+                            set_draw_value: true,
+                            set_width_request: 120,
+                            set_value_pos: gtk::PositionType::Right,
+                        },
 
                         gtk::CheckButton {
                             set_label: Some(&fl!(I18N, "vf-curve-enable-editing")),
+                            set_halign: gtk::Align::End,
+                            set_hexpand: true,
                             add_css_class: "warning",
                             add_binding: (&model.allow_editing, "active"),
 
@@ -170,6 +200,7 @@ impl relm4::Component for VfCurveEditor {
 
                         gtk::Button {
                             set_label: &fl!(I18N, "reset-button"),
+                            set_halign: gtk::Align::End,
                             add_css_class: css::DESTRUCTIVE_ACTION,
 
                             #[watch]
@@ -188,6 +219,7 @@ impl relm4::Component for VfCurveEditor {
 
                         gtk::Button {
                             set_label: &fl!(I18N, "apply-button"),
+                            set_halign: gtk::Align::End,
                             add_binding: (&model.global_settings_changed, "sensitive"),
                             add_css_class: css::SUGGESTED_ACTION,
 
@@ -231,6 +263,8 @@ impl relm4::Component for VfCurveEditor {
             locked_clocks_range: Rc::default(),
             allow_editing: BoolBinding::new(false),
             cursor_position: Rc::new(Cell::new(None)),
+            visible_range_start: gtk::Adjustment::new(30.0, 0.0, 100.0, 1.0, 10.0, 0.0),
+            visible_range_end: gtk::Adjustment::new(100.0, 0.0, 100.0, 1.0, 10.0, 0.0),
             hovered_point: Rc::new(Cell::new(None)),
             dragging_point: Rc::new(Cell::new(None)),
             drag_modifiers: Rc::new(Cell::new(gdk::ModifierType::empty())),
@@ -287,10 +321,9 @@ impl relm4::Component for VfCurveEditor {
             }
             VfCurveEditorMsg::FlattenCurve => {
                 if let Some(base_point_idx) = self.hovered_point.get() {
+                    let (start, end) = self.visible_points_range();
                     let mut points = self.points.borrow_mut();
-                    // TODO
-                    let total_len = points.len();
-                    let points = &mut points[total_len / 3..];
+                    let points = &mut points[start..end];
 
                     let target_freq = points[base_point_idx].freq;
 
@@ -319,14 +352,15 @@ impl relm4::Component for VfCurveEditor {
 
 impl VfCurveEditor {
     fn draw_chart(&self, ctx: &cairo::Context, width: i32, height: i32, colors: PlotColorScheme) {
+        let (visible_start, visible_end) = self.visible_points_range();
+
         let mut points = self.points.borrow_mut();
+
+        let points = &mut points[visible_start..visible_end];
 
         if points.is_empty() {
             return;
         }
-
-        let total_len = points.len();
-        let points = &mut points[total_len / 3..];
 
         let backend = CairoBackend::new(ctx, (width as u32, height as u32)).unwrap();
 
@@ -590,6 +624,17 @@ impl VfCurveEditor {
         }
 
         root.present().unwrap();
+    }
+
+    fn visible_points_range(&self) -> (usize, usize) {
+        let len = self.points.borrow().len();
+        let start = (len as f64 * (self.visible_range_start.value() / 100.0)) as usize;
+        let start = cmp::min(start, len);
+
+        let end = (len as f64 * (self.visible_range_end.value() / 100.0)) as usize;
+        let end = cmp::min(end, len);
+
+        (cmp::min(start, end), cmp::max(end, start))
     }
 
     pub fn get_configured_curve(&self) -> IndexMap<u8, config::CurvePoint> {
