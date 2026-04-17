@@ -189,6 +189,7 @@ impl relm4::Component for VfCurveEditor {
                         gtk::CheckButton {
                             set_label: Some(&fl!(I18N, "vf-curve-enable-editing")),
                             set_halign: gtk::Align::End,
+                            set_valign: gtk::Align::Center,
                             set_hexpand: true,
                             add_css_class: "warning",
                             add_binding: (&model.allow_editing, "active"),
@@ -202,6 +203,7 @@ impl relm4::Component for VfCurveEditor {
                             set_label: &fl!(I18N, "reset-button"),
                             set_halign: gtk::Align::End,
                             add_css_class: css::DESTRUCTIVE_ACTION,
+                            set_valign: gtk::Align::Center,
 
                             #[watch]
                             set_sensitive: {
@@ -222,6 +224,7 @@ impl relm4::Component for VfCurveEditor {
                             set_halign: gtk::Align::End,
                             add_binding: (&model.global_settings_changed, "sensitive"),
                             add_css_class: css::SUGGESTED_ACTION,
+                            set_valign: gtk::Align::Center,
 
                             connect_clicked => move |_| {
                                 APP_BROKER.send(AppMsg::ApplyChanges);
