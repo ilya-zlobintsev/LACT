@@ -8,10 +8,14 @@ use crate::app::{
     info_row_level::InfoRowLevel,
     page_section::PageSection,
 };
-use gtk::prelude::{BoxExt, ButtonExt, Cast, FlowBoxChildExt, OrientableExt, WidgetExt};
+use gtk::pango::AttrList;
+use gtk::prelude::{
+    BoxExt, ButtonExt, Cast, FlowBoxChildExt, OrientableExt, PopoverExt as _, WidgetExt,
+};
 use i18n_embed_fl::fl;
 use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats};
-use relm4::{ComponentParts, ComponentSender};
+use relm4::{ComponentParts, ComponentSender, RelmWidgetExt as _};
+use std::str::FromStr as _;
 use std::sync::Arc;
 
 pub struct GpuStatsSection {
@@ -89,11 +93,50 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_visible: model.stats.voltage.gpu.is_some(),
                     },
 
-                    append = &InfoRow {
+
+                    append_child = &InfoRow {
                         set_name: fl!(I18N, "gpu-temp"),
                         #[watch]
-                        set_value: formatting::fmt_temperature_text(&model.stats)
-                            .unwrap_or_else(|| "N/A".to_owned()),
+                        set_value: if primary_temperatures.is_empty() {
+                            "N/A".to_owned()
+                        } else {
+                            primary_temperatures.join(", ")
+                        },
+                    } -> basic_temps_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: secondary_temperatures.is_empty(),
+                    },
+
+                    append_child = &InfoRow {
+                        set_name: fl!(I18N, "gpu-temp"),
+                        #[watch]
+                        set_value: if primary_temperatures.is_empty() {
+                            "N/A".to_owned()
+                        } else {
+                            primary_temperatures.join(", ")
+                        },
+
+                        set_icon: "go-down-symbolic".to_string(),
+
+                        #[name = "secondary_temps_popover"]
+                        set_popover = &gtk::Popover {
+                            gtk::Label {
+                                set_margin_all: 10,
+                                set_selectable: false,
+                                set_use_markup: true,
+                                set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
+
+                                #[watch]
+                                set_label: &secondary_temperatures.join("\n"),
+                            },
+                        },
+
+                        connect_clicked[secondary_temps_popover] => move |_| {
+                            secondary_temps_popover.popup();
+                        },
+                    } -> full_temps_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: !secondary_temperatures.is_empty(),
                     },
                 },
             },
@@ -249,6 +292,9 @@ impl relm4::SimpleComponent for GpuStatsSection {
     ) -> ComponentParts<Self> {
         let value_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
 
+        let (primary_temperatures, secondary_temperatures): (Vec<String>, Vec<String>) =
+            (Vec::new(), Vec::new());
+
         let model = Self {
             stats: Arc::new(DeviceStats::default()),
             vram_clock_ratio: 1.0,
@@ -332,6 +378,11 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 self.min_vram_clock = pstates.min_vram_clock();
             }
         }
+    }
+
+    fn pre_view(&self) {
+        let (primary_temperatures, secondary_temperatures) =
+            formatting::fmt_temperature_text(&model.stats);
     }
 }
 

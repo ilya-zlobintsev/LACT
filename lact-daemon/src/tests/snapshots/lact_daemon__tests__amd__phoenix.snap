@@ -206,13 +206,15 @@ expression: device_info
         "crit": null,
         "crit_hyst": null,
         "current": 25.0,
-        "display_only": false
+        "display_only": false,
+        "primary": true
       },
       "soc": {
         "crit": null,
         "crit_hyst": null,
         "current": 27.0,
-        "display_only": true
+        "display_only": true,
+        "primary": false
       }
     },
     "throttle_info": {},

@@ -116,7 +116,8 @@ expression: device_info
         "crit": null,
         "crit_hyst": null,
         "current": 55.0,
-        "display_only": true
+        "display_only": true,
+        "primary": true
       }
     },
     "throttle_info": {},

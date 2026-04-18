@@ -236,19 +236,22 @@ expression: device_info
         "crit": null,
         "crit_hyst": null,
         "current": 38.0,
-        "display_only": false
+        "display_only": false,
+        "primary": true
       },
       "skin": {
         "crit": null,
         "crit_hyst": null,
         "current": 35.0,
-        "display_only": true
+        "display_only": true,
+        "primary": false
       },
       "soc": {
         "crit": null,
         "crit_hyst": null,
         "current": 40.0,
-        "display_only": true
+        "display_only": true,
+        "primary": false
       }
     },
     "voltage": {

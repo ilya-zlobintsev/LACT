@@ -49,6 +49,7 @@ const MAX_POWER_CAP_NAMES: &[&str] = &[
     "power1_crit",
     "power2_crit",
 ];
+const PRIMARY_TEMP_LABELS: &[&str] = &["gpu", "pkg", "vram"];
 
 #[derive(Clone, Copy)]
 enum DriverType {
@@ -382,6 +383,7 @@ impl IntelGpuController {
                 };
                 let entry = TemperatureEntry {
                     value,
+                    primary: PRIMARY_TEMP_LABELS.contains(&key.as_str()),
                     display_only: true,
                 };
                 (key, entry)

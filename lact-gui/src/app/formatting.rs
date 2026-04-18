@@ -88,22 +88,36 @@ pub fn fmt_throttling_text(stats: &DeviceStats) -> String {
     }
 }
 
-pub fn fmt_temperature_text(stats: &DeviceStats) -> Option<String> {
-    let mut temperatures: Vec<String> = stats
+const PRIMARY_TEMP_THRESHOLD: usize = 3;
+
+pub fn fmt_temperature_text(stats: &DeviceStats) -> (Vec<String>, Vec<String>) {
+    let (mut primary, mut secondary): (Vec<_>, Vec<_>) = stats
         .temps
         .iter()
+        .partition(|(_, entry)| stats.temps.len() <= PRIMARY_TEMP_THRESHOLD || entry.primary);
+
+    primary.sort_unstable_by(|lhs, rhs| lhs.0.cmp(rhs.0));
+    secondary.sort_unstable_by(|lhs, rhs| lhs.0.cmp(rhs.0));
+
+    let primary = primary
+        .into_iter()
         .filter_map(|(label, temp)| {
             temp.value
                 .current
                 .map(|current| format!("{label}: {}°C", Mono::float(current, 0)))
         })
-        .collect();
-    temperatures.sort_unstable();
-    if temperatures.is_empty() {
-        None
-    } else {
-        Some(temperatures.join(", "))
-    }
+        .collect::<Vec<_>>();
+
+    let secondary = secondary
+        .into_iter()
+        .filter_map(|(label, temp)| {
+            temp.value
+                .current
+                .map(|current| format!("{label}: {}°C", Mono::float(current, 0)))
+        })
+        .collect::<Vec<_>>();
+
+    (primary, secondary)
 }
 
 pub fn fmt_clockspeed(clock_mhz: Option<u64>, ratio: f64) -> String {
@@ -261,6 +275,7 @@ mod tests {
                             crit_hyst: None,
                             current: Some(80.0),
                         },
+                        primary: true,
                         display_only: false,
                     },
                 ),
@@ -272,6 +287,7 @@ mod tests {
                             crit_hyst: None,
                             current: Some(55.0),
                         },
+                        primary: true,
                         display_only: false,
                     },
                 ),
@@ -280,11 +296,8 @@ mod tests {
         };
 
         assert_eq!(
-            fmt_temperature_text(&stats),
-            Some(
-                "edge: <span font_family='monospace'>55</span>°C, junction: <span font_family='monospace'>80</span>°C"
-                    .to_string()
-            )
+            fmt_temperature_text(&stats).0.join(", "),
+            "edge: <span font_family='monospace'>55</span>°C, junction: <span font_family='monospace'>80</span>°C".to_string()
         );
     }
 

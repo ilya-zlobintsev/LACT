@@ -835,6 +835,7 @@ impl GpuController for AmdGpuController {
                 .map(|(name, value)| {
                     let entry = TemperatureEntry {
                         value,
+                        primary: true,
                         display_only: false,
                     };
                     (name, entry)
@@ -871,6 +872,7 @@ impl GpuController for AmdGpuController {
                                 crit: None,
                                 crit_hyst: None,
                             },
+                            primary: false,
                             display_only: true,
                         },
                     );

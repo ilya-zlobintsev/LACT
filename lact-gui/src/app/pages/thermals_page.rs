@@ -423,7 +423,12 @@ impl relm4::Component for ThermalsPage {
                 }
                 PageUpdate::Stats(stats) => {
                     self.fan_speed = fmt_fan_speed(&stats, true);
-                    self.temperatures = fmt_temperature_text(&stats);
+                    let temps = fmt_temperature_text(&stats).0;
+                    self.temperatures = if temps.is_empty() {
+                        None
+                    } else {
+                        Some(temps.join(", "))
+                    };
                     self.throttling = fmt_throttling_text(&stats);
 
                     if initial {
