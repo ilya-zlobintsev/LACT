@@ -392,9 +392,9 @@ impl AsyncComponent for AppModel {
 
                                 add_top_bar = &adw::Banner {
                                     #[watch]
-                                    set_revealed: true,
-                                    // set_revealed: model.system_info.amdgpu_overdrive_enabled == Some(false),
+                                    set_revealed: model.system_info.amdgpu_overdrive_enabled == Some(false),
                                     set_title: &fl!(I18N, "amd-oc-disabled"),
+                                    set_use_markup: true,
                                     set_button_label: Some(&fl!(I18N, "enable-amd-oc")),
 
                                     connect_button_clicked => AppMsg::ShowOverdriveDialog,
