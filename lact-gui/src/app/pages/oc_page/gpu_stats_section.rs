@@ -93,7 +93,21 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_visible: model.stats.voltage.gpu.is_some(),
                     },
 
-                    append = &InfoRow {
+
+                    append_child = &InfoRow {
+                        set_name: fl!(I18N, "gpu-temp"),
+                        #[watch]
+                        set_value: if primary_temperatures.is_empty() {
+                            "N/A".to_owned()
+                        } else {
+                            primary_temperatures.join(", ")
+                        },
+                    } -> basic_temps_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: secondary_temperatures.is_empty(),
+                    },
+
+                    append_child = &InfoRow {
                         set_name: fl!(I18N, "gpu-temp"),
                         #[watch]
                         set_value: if primary_temperatures.is_empty() {
@@ -102,7 +116,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             primary_temperatures.join(", ")
                         },
 
-                        // TODO: somehow hide all of this and remove clickable style if there are no secondary temps
                         set_icon: "go-down-symbolic".to_string(),
 
                         #[name = "secondary_temps_popover"]
@@ -121,6 +134,9 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         connect_clicked[secondary_temps_popover] => move |_| {
                             secondary_temps_popover.popup();
                         },
+                    } -> full_temps_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: !secondary_temperatures.is_empty(),
                     },
                 },
             },
