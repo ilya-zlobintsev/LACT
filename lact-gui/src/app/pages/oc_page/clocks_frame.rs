@@ -4,8 +4,9 @@ mod adjustment_row;
 use crate::{
     APP_BROKER, I18N,
     app::{
-        msg::AppMsg, page_section::PageSection,
-        pages::oc_page::clocks_frame::adjustment_group::AdjustmentGroup,
+        msg::AppMsg,
+        page_section::PageSection,
+        pages::oc_page::{OcPageMsg, clocks_frame::adjustment_group::AdjustmentGroup},
     },
 };
 use adjustment_group::ClockCategory;
@@ -25,6 +26,7 @@ use relm4::{
     ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
     factory::FactoryHashMap,
 };
+use std::sync::Arc;
 
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 
@@ -33,6 +35,7 @@ pub struct ClocksFrame {
     vram_groups: FactoryHashMap<ClockCategory, AdjustmentGroup>,
     vram_clock_ratio: f64,
     show_nvidia_options: bool,
+    vf_curve_available: bool,
     show_all_pstates: BoolBinding,
     enable_gpu_locked_clocks: BoolBinding,
     enable_vram_locked_clocks: BoolBinding,
@@ -40,7 +43,7 @@ pub struct ClocksFrame {
 
 #[derive(Debug)]
 pub enum ClocksFrameMsg {
-    Clocks(Option<ClocksTable>),
+    Clocks(Option<Arc<ClocksTable>>),
     VramRatio(f64),
     TogglePStatesVisibility,
 }
@@ -49,7 +52,7 @@ pub enum ClocksFrameMsg {
 impl relm4::Component for ClocksFrame {
     type Init = ();
     type Input = ClocksFrameMsg;
-    type Output = ();
+    type Output = OcPageMsg;
     type CommandOutput = ();
 
     view! {
@@ -75,6 +78,18 @@ impl relm4::Component for ClocksFrame {
                             set_wrap: true,
                             set_max_width_chars: 75,
                         }
+                    }
+                },
+
+                append = &gtk::Button {
+                    set_label: &fl!(I18N, "vf-curve-editor"),
+                    add_css_class: css::WARNING,
+
+                    #[watch]
+                    set_visible: model.show_nvidia_options && model.vf_curve_available,
+
+                    connect_clicked[sender] => move |_| {
+                        sender.output(OcPageMsg::ShowVfCurveEditor).unwrap();
                     }
                 },
 
@@ -212,6 +227,7 @@ impl relm4::Component for ClocksFrame {
             vram_groups: FactoryHashMap::builder().launch_default().detach(),
             vram_clock_ratio: 1.0,
             show_nvidia_options: false,
+            vf_curve_available: false,
             show_all_pstates: BoolBinding::new(false),
             enable_gpu_locked_clocks: BoolBinding::new(false),
             enable_vram_locked_clocks: BoolBinding::new(false),
@@ -260,7 +276,7 @@ impl relm4::Component for ClocksFrame {
                 self.show_nvidia_options = false;
 
                 if let Some(table) = clocks_table {
-                    match table {
+                    match table.as_ref() {
                         ClocksTable::Amd(table) => self.set_amd_table(table),
                         ClocksTable::Nvidia(table) => self.set_nvidia_table(table),
                         ClocksTable::Intel(table) => self.set_intel_table(table),
@@ -352,7 +368,7 @@ impl ClocksFrame {
         }
     }
 
-    fn set_amd_table(&mut self, table: AmdClocksTable) {
+    fn set_amd_table(&mut self, table: &AmdClocksTable) {
         match table {
             AmdClocksTable::Gcn(table) => {
                 let vddc_range = table.od_range.vddc.and_then(|range| range.into_full());
@@ -534,8 +550,9 @@ impl ClocksFrame {
         }
     }
 
-    fn set_nvidia_table(&mut self, table: NvidiaClocksTable) {
+    fn set_nvidia_table(&mut self, table: &NvidiaClocksTable) {
         self.show_nvidia_options = true;
+        self.vf_curve_available = !table.gpu_vf_curve.is_empty();
 
         let locked_clocks = [
             (
@@ -575,21 +592,21 @@ impl ClocksFrame {
             }
         }
 
-        for (pstate, offset) in table.gpu_offsets {
+        for (pstate, offset) in &table.gpu_offsets {
             self.set_clock(
-                ClockspeedType::GpuClockOffset(pstate),
-                nvidia_clock_offset_to_data(&offset, pstate > 0),
+                ClockspeedType::GpuClockOffset(*pstate),
+                nvidia_clock_offset_to_data(offset, *pstate > 0),
             );
         }
-        for (pstate, offset) in table.mem_offsets {
+        for (pstate, offset) in &table.mem_offsets {
             self.set_clock(
-                ClockspeedType::MemClockOffset(pstate),
-                nvidia_clock_offset_to_data(&offset, pstate > 0),
+                ClockspeedType::MemClockOffset(*pstate),
+                nvidia_clock_offset_to_data(offset, *pstate > 0),
             );
         }
     }
 
-    fn set_intel_table(&mut self, table: IntelClocksTable) {
+    fn set_intel_table(&mut self, table: &IntelClocksTable) {
         self.show_all_pstates.set_value(false);
 
         if let Some((current_gt_min, current_gt_max)) = table.gt_freq

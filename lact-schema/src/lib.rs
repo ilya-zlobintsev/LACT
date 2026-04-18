@@ -441,6 +441,17 @@ pub struct NvidiaClocksTable {
     pub gpu_clock_range: Option<(u32, u32)>,
     #[serde(default)]
     pub vram_clock_range: Option<(u32, u32)>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub gpu_vf_curve: Vec<NvidiaVfPoint>,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy)]
+pub struct NvidiaVfPoint {
+    pub index: u8,
+    pub freq: u32,
+    pub voltage: u32,
+    pub base_freq: u32,
+    pub base_voltage: u32,
 }
 
 /// Doc from `xe_gt_freq.c`

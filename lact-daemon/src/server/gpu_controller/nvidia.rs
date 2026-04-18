@@ -5,7 +5,11 @@ use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::{
-        gpu_controller::{NvApi, common::fan_control::FanCurveExt, common::resolve_process_name},
+        gpu_controller::{
+            NvApi,
+            common::{fan_control::FanCurveExt, resolve_process_name},
+            nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
+        },
         opencl::get_opencl_info,
         vulkan::get_vulkan_info,
     },
@@ -21,10 +25,10 @@ use indexmap::IndexMap;
 use lact_schema::{
     CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceFlag, DeviceInfo, DeviceStats,
     DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
-    NvidiaClockOffset, NvidiaClocksTable, PmfwInfo, PowerState, PowerStates, PowerStats,
-    ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats,
-    VramStats,
-    config::{FanControlSettings, FanCurve, GpuConfig},
+    NvidiaClockOffset, NvidiaClocksTable, NvidiaVfPoint, PmfwInfo, PowerState, PowerStates,
+    PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry,
+    VoltageStats, VramStats,
+    config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
 use nvml_wrapper::{
     Device, Nvml,
@@ -53,13 +57,12 @@ const SUPPORTED_UTIL_TYPES: &[ProcessUtilizationType] = &[
 
 pub struct NvidiaGpuController {
     nvml: &'static Nvml,
-    nvapi: Option<&'static NvApi>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
     initial_target_temp: Option<u32>,
 
+    nvapi: Option<(&'static NvApi, NvPhysicalGpuHandle)>,
     driver_handle: Option<DriverHandle>,
-    nvapi_handle: Option<NvPhysicalGpuHandle>,
     nvapi_thermals_mask: Option<i32>,
 
     last_util_timestamp: Cell<Option<u64>>,
@@ -67,6 +70,8 @@ pub struct NvidiaGpuController {
     last_applied_offsets: RefCell<HashMap<Clock, HashMap<PerformanceState, i32>>>,
     last_applied_gpu_locked_clocks: RefCell<Option<(u32, u32)>>,
     last_applied_vram_locked_clocks: RefCell<Option<(u32, u32)>>,
+    // Check if reset is needed to avoid unnecessarily going to nvapi
+    vf_curve_written: Cell<bool>,
 }
 
 impl NvidiaGpuController {
@@ -130,10 +135,9 @@ impl NvidiaGpuController {
 
         Ok(Self {
             nvml,
-            nvapi,
+            nvapi: nvapi.zip(nvapi_handle),
             common,
             driver_handle,
-            nvapi_handle,
             nvapi_thermals_mask,
             initial_target_temp: target_temp,
             last_util_timestamp: Cell::new(None),
@@ -141,6 +145,7 @@ impl NvidiaGpuController {
             last_applied_offsets: RefCell::new(HashMap::new()),
             last_applied_gpu_locked_clocks: RefCell::new(None),
             last_applied_vram_locked_clocks: RefCell::new(None),
+            vf_curve_written: Cell::new(false),
         })
     }
 
@@ -376,6 +381,141 @@ impl NvidiaGpuController {
 
         Ok(power_states)
     }
+
+    fn get_vf_curve(&self) -> anyhow::Result<Vec<NvidiaVfPoint>> {
+        if let Some((nvapi, handle)) = self.nvapi.as_ref() {
+            let info;
+            let status;
+
+            unsafe {
+                info = nvapi.clock_client_clk_vf_points_get_info(*handle)?;
+                status =
+                    nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)?;
+            }
+
+            let point_count = point_count_from_mask(info.vf_points_mask);
+            let mut curve = Vec::with_capacity(point_count);
+
+            for i in 0..point_count {
+                let point = status.vf_points[i];
+                let point_info = info.vf_points[i];
+
+                // Only report configurable and voltage-based points
+                if !vf_curve_point_is_editable(point_info) {
+                    continue;
+                }
+
+                curve.push(NvidiaVfPoint {
+                    index: u8::try_from(i).expect("max 255 points"),
+                    freq: point.freq_khz / 1000,
+                    voltage: point.voltage_uv / 1000,
+                    base_freq: point.vf_tuple_base.freq_khz / 1000,
+                    base_voltage: point.vf_tuple_base.voltage_uv / 1000,
+                });
+            }
+
+            Ok(curve)
+        } else {
+            Err(anyhow!("NvAPI not available"))
+        }
+    }
+
+    #[expect(clippy::similar_names)]
+    fn apply_vf_curve(&self, curve: &IndexMap<u8, CurvePoint>) -> anyhow::Result<()> {
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+
+        debug!("applying curve with {} points", curve.len());
+
+        let info = unsafe { nvapi.clock_client_clk_vf_points_get_info(*handle)? };
+        let current_vf_curve =
+            unsafe { nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)? };
+        let mut curve_control =
+            unsafe { nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)? };
+
+        let offset_info = self
+            .device()
+            .clock_offset(Clock::Graphics, PerformanceState::Zero)
+            .context("Could not get offset info")?;
+
+        for (i, configured_point) in curve {
+            let i = *i as usize;
+
+            let point_info = info.vf_points[i];
+            let current_point = current_vf_curve.vf_points[i];
+            let point_control = &mut curve_control.vf_points[i];
+
+            if !vf_curve_point_is_editable(point_info) {
+                bail!("Trying to edit non-configurable point {i}");
+            }
+
+            if let Some(configured_mv) = configured_point.voltage {
+                let current_mv = (current_point.voltage_uv / 1000).cast_signed();
+                if configured_mv != current_mv {
+                    bail!(
+                        "Voltage is immutable - point {i} was attempted to be changed from {current_mv}mV to {configured_mv}mV"
+                    );
+                }
+            }
+
+            if let Some(configured_mhz) = configured_point.clockspeed {
+                let offset_khz =
+                    configured_mhz * 1000 - current_point.vf_tuple_base.freq_khz.cast_signed();
+                let offset_mhz = offset_khz / 1000;
+
+                let min_offset = cmp::min(
+                    offset_info.min_clock_offset_mhz,
+                    -((current_point.vf_tuple_base.freq_khz / 1000).cast_signed()),
+                );
+
+                if !(min_offset..=offset_info.max_clock_offset_mhz).contains(&offset_mhz) {
+                    bail!("Configured offset {offset_mhz}MHz is outside of the allowed range",);
+                }
+
+                debug!("writing offset {offset_khz}KHz to point {i}");
+
+                point_control.data.prog.freq_offset_khz = offset_khz;
+            }
+        }
+
+        unsafe {
+            nvapi.clock_client_clk_vf_set_control(*handle, curve_control)?;
+        }
+
+        self.vf_curve_written.set(true);
+
+        Ok(())
+    }
+
+    fn reset_vf_curve(&self) -> anyhow::Result<()> {
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+
+        let info = unsafe { nvapi.clock_client_clk_vf_points_get_info(*handle)? };
+        let mut curve_control =
+            unsafe { nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)? };
+
+        for i in 0..point_count_from_mask(info.vf_points_mask) {
+            let point_info = info.vf_points[i];
+            if vf_curve_point_is_editable(point_info) {
+                curve_control.vf_points[i].data.prog.freq_offset_khz = 0;
+            }
+        }
+
+        unsafe {
+            nvapi.clock_client_clk_vf_set_control(*handle, curve_control)?;
+        }
+
+        Ok(())
+    }
+}
+
+fn vf_curve_point_is_editable(point: ClockClientClkVfPointInfoV1) -> bool {
+    point.b_voltage_based == 1 && point.type_ == CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG
+}
+
+fn point_count_from_mask(mask: [u32; 8]) -> usize {
+    let count: usize = mask.iter().map(|i| i.count_ones() as usize).sum();
+    assert!(u8::try_from(count).is_ok());
+    count
 }
 
 impl GpuController for NvidiaGpuController {
@@ -530,7 +670,7 @@ impl GpuController for NvidiaGpuController {
 
         let mut voltage = None;
 
-        if let (Some(nvapi), Some(handle)) = (self.nvapi.as_ref(), self.nvapi_handle.as_ref()) {
+        if let Some((nvapi, handle)) = self.nvapi.as_ref() {
             unsafe {
                 if let Some(mask) = self.nvapi_thermals_mask
                     && let Ok(thermals) = nvapi.get_thermals(*handle, mask)
@@ -756,6 +896,11 @@ impl GpuController for NvidiaGpuController {
             }
         }
 
+        let gpu_vf_curve = self
+            .get_vf_curve()
+            .inspect_err(|err| warn!("could not get VF curve: {err:#}"))
+            .unwrap_or_default();
+
         let table = NvidiaClocksTable {
             gpu_offsets,
             mem_offsets,
@@ -763,6 +908,7 @@ impl GpuController for NvidiaGpuController {
             vram_locked_clocks: *self.last_applied_vram_locked_clocks.borrow(),
             gpu_clock_range,
             vram_clock_range,
+            gpu_vf_curve,
         };
 
         Ok(ClocksInfo {
@@ -903,6 +1049,11 @@ impl GpuController for NvidiaGpuController {
                     .insert(pstate, *offset);
             }
 
+            if !clocks.gpu_vf_curve.is_empty() {
+                self.apply_vf_curve(&clocks.gpu_vf_curve)
+                    .context("Could not apply VF curve")?;
+            }
+
             if config.fan_control_enabled {
                 let settings = config
                     .fan_control_settings
@@ -1013,6 +1164,10 @@ impl GpuController for NvidiaGpuController {
                 .reset_mem_locked_clocks()
                 .context("Could not reset locked GPU clocks")?;
             self.last_applied_vram_locked_clocks.take();
+        }
+
+        if self.vf_curve_written.get() {
+            self.reset_vf_curve().context("Could not reset VF curve")?;
         }
 
         Ok(())

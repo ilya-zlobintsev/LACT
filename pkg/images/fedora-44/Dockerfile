@@ -1,2 +1,2 @@
-FROM quay.io/fedora/fedora:42
+FROM quay.io/fedora/fedora:44
 RUN dnf install -y gpg rpmsign
