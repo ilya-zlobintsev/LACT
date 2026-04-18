@@ -231,3 +231,7 @@ crash-page-title = تطبيق تعطل
 exit = اخرج
 bytes = بايتات
 kibibyte = ك.بايت
+hw-ip-info = معلومات ملكية فكرية العتاد
+hw-queues = قوائم الانتظار
+theme = السمة
+theme-auto = تلقائي

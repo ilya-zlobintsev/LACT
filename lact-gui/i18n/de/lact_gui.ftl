@@ -116,22 +116,22 @@ amd-oc-disabled =
 disable-amd-oc-description = Dies wird die AMD Overclocking Unterstützung (Overdrive) für den nächsten System-Neustart deaktivieren.
 amd-oc-description =
     { $config ->
-        [rpm-ostree] Diese Option aktviert/deaktiviert die AMD Overdrive Unterstützung in dem entsprechende Boot-Flags mittels  <b>rpm-ostree</b> gesetzt werden.
+        [rpm-ostree] Diese Option aktviert/deaktiviert die AMD Overdrive Unterstützung indem entsprechende Boot-Flags mittels  <b>rpm-ostree</b> gesetzt werden.
         [unsupported]
             Das System unterstützt die automatische Overdrive Funktion aktuell nicht.
-            Sie könnten versuche, Overclocking manuell in LACT zu aktivieren, aber die könnte eine manuelle Neuerstellung des initramfs erfordern. 
+            Sie können versuchen, Overclocking manuell in LACT zu aktivieren, aber dies könnte eine manuelle Neuerstellung des initramfs erfordern um aktiv zu werden. 
             Falls die nicht funktioniert, kann als Fallback Lösung der Bootparameter <b>amdgpu.ppfeaturemask=0xffffffff</b> im Bootloader hinzugefügt werden.
        *[other] Diese Option aktiviert/deaktiviert die AMD Overdrive Unterstützung, in dem die Datei  <b>{ $path }</b> erstellt und das initramfs aktualisiert wird.
     }
 
-    Für weitere Informationen besuchen sie  <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">das Wiki</a>.
+    Für weitere Informationen besuchen Sie  <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">das Wiki</a>.
 gpu-clock-avg = GPU Kern Takt (Durchschnitt)
 max-vram-clock = Maximaler VRAM Takt (MHz)
 enable-amd-oc-description = Dies wird die Overdrive Funktionen des amdgpu Treibers aktivieren indem die Datei <b>{ $path }</b> erstellt und das initramfs aktualisiert wird. Sind Sie sicher, dass die dies tun wollen?
 gpu-clock-target = GPU Kern Takt (Ziel)
 gpu-voltage = GPU Spannung
-gpu-temp = GPU Temperatur
-oc-warning = Warnung: Änderungen an diesen Werten kann zu Instabilität des Systems führen und möglicherweise die Hardware beschädigen!
+gpu-temp = Temperatur
+oc-warning = Änderungen an diesen Werten kann zu Instabilität des Systems führen und möglicherweise die Hardware beschädigen!
 enable-vram-locked-clocks = Aktiviere VRAM Takt Sperre
 no-throttling = Nein
 performance-level-auto = Automatisch
@@ -156,7 +156,7 @@ profile-activation = Aktivierung
 profile-hooks = Hooks
 move-down = Nach unten bewegen
 rename-profile = Profil umbenennen
-pstates-manual-needed = Hinweis: Um Power-States ändern zu können, muss das Performance-Level auf "manuell" gesetzt werden
+pstates-manual-needed = Um Power-States ändern zu können, muss das Performance-Level auf "manuell" gesetzt werden
 edit-rule = Regel bearbeiten
 rename-profile-from = Umbenennen des Profils <b>{ $old_name }</b> in:
 activation-settings-status =
@@ -183,7 +183,7 @@ profile-hook-note = Hinweis: Diese Befehle werden als root durch den LACT Daemon
 nvidia-oc-description =
     Die Übertaktungsfunktionen bei Nvidia beinhalten das Festlegen von Offsets für die GPU- und VRAM-Taktraten sowie das Einschränken des möglichen Taktbereichs durch die Funktion "gesperrte Takte".
 
-    Bei vielen Grafikkarten wirkt sich der VRAM-Takt-Offset nur zur Hälfte auf die tatsächlich gemessenen Speichertakt aus.
+    Bei vielen Grafikkarten wirkt sich der VRAM-Takt-Offset nur zur Hälfte auf den tatsächlichen Speichertakt aus.
     Zum Beispiel kann ein VRAM-Offset von +1000 MHz die gemessene VRAM-Takt nur um 500 MHz erhöhen.
     Das ist normal und entspricht der Art und Weise, wie Nvidia mit GDDR-Datenraten umgeht. Passe dein Overclocking entsprechend an.
 
