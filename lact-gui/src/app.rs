@@ -390,6 +390,16 @@ impl AsyncComponent for AppModel {
                                     }
                                 },
 
+                                add_top_bar = &adw::Banner {
+                                    #[watch]
+                                    set_revealed: true,
+                                    // set_revealed: model.system_info.amdgpu_overdrive_enabled == Some(false),
+                                    set_title: &fl!(I18N, "amd-oc-disabled"),
+                                    set_button_label: Some(&fl!(I18N, "enable-amd-oc")),
+
+                                    connect_button_clicked => AppMsg::ShowOverdriveDialog,
+                                },
+
                                 #[wrap(Some)]
                                 set_content = &adw::Clamp {
                                     set_maximum_size: CONTENT_MAXIMUM_WIDTH,
@@ -519,9 +529,9 @@ impl AsyncComponent for AppModel {
         let info_page = InformationPage::detach_default();
 
         let oc_page = OcPage::builder()
-            .launch((system_info.clone(), settings_changed.clone()))
+            .launch(settings_changed.clone())
             .forward(sender.input_sender(), |msg| msg);
-        let thermals_page = ThermalsPage::builder().launch(system_info.clone()).detach();
+        let thermals_page = ThermalsPage::builder().launch(()).detach();
 
         let software_page = SoftwarePage::builder()
             .launch((system_info.clone(), daemon_client.embedded))

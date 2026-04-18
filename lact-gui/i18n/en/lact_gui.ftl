@@ -69,9 +69,7 @@ automatic-mode-threshold-tooltip = Switch fan control to auto mode when the temp
     This option allows to work around this limitation by only using the custom curve when above a specific temperature, with the card's builtin auto mode that supports zero RPM being used below it.
 
 amd-oc = AMD Overclocking
-amd-oc-disabled = 
-    AMD Overclocking support is not enabled!
-    You can still change basic settings, but the more advanced clocks and voltage control will not be available.
+amd-oc-disabled = AMD Overclocking is not enabled! Some functionality unavailable
 amd-oc-status = AMD Overclocking is currently: <b>{$status ->
     [true] Enabled
     [false] Disabled

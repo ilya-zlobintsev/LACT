@@ -8,23 +8,16 @@ mod vf_curve;
 use super::PageUpdate;
 use crate::app::pages::oc_page::gpu_stats_section::GpuStatsSectionMsg;
 use crate::app::pages::oc_page::vf_curve::{VfCurveEditor, VfCurveEditorMsg};
-use crate::{
-    I18N,
-    app::{ext::RelmDefaultLauchable, msg::AppMsg},
-};
+use crate::app::{ext::RelmDefaultLauchable, msg::AppMsg};
 use amdgpu_sysfs::gpu_handle::{
     PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
 use clocks_frame::{ClocksFrame, ClocksFrameMsg};
 use gpu_stats_section::GpuStatsSection;
-use gtk::{
-    pango,
-    prelude::{BoxExt, ButtonExt, FrameExt, OrientableExt, WidgetExt},
-};
-use i18n_embed_fl::fl;
+use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use indexmap::IndexMap;
 use lact_schema::config;
-use lact_schema::{ClocksTable, DeviceInfo, PowerStates, SystemInfo};
+use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
@@ -35,7 +28,6 @@ use tracing::debug;
 
 pub struct OcPage {
     stats_section: relm4::Controller<GpuStatsSection>,
-    system_info: SystemInfo,
     device_info: Option<Arc<DeviceInfo>>,
 
     performance_frame: relm4::Controller<PerformanceFrame>,
@@ -64,7 +56,7 @@ pub enum OcPageMsg {
 
 #[relm4::component(pub)]
 impl relm4::Component for OcPage {
-    type Init = (SystemInfo, BoolBinding);
+    type Init = BoolBinding;
     type Input = OcPageMsg;
     type Output = AppMsg;
     type CommandOutput = ();
@@ -77,33 +69,6 @@ impl relm4::Component for OcPage {
             set_margin_top: 15,
             set_margin_bottom: 60,
 
-            gtk::Frame {
-                #[watch]
-                set_visible: model.system_info.amdgpu_overdrive_enabled == Some(false) && model.device_info.as_ref().is_some_and(|info| info.driver == "amdgpu"),
-                set_label_align: 0.3,
-
-                gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 2,
-                    set_margin_all: 10,
-
-                    gtk::Label {
-                        set_markup: &fl!(I18N, "amd-oc-disabled"),
-                        set_wrap: true,
-                        set_wrap_mode: pango::WrapMode::Word,
-                    },
-
-                    gtk::Button {
-                        set_label: &fl!(I18N, "enable-amd-oc"),
-                        set_halign: gtk::Align::End,
-
-                        connect_clicked[sender] => move |_| {
-                            sender.output(AppMsg::ShowOverdriveDialog).expect("Channel closed");
-                        }
-                    },
-                },
-            },
-
             model.stats_section.widget(),
             model.power_cap_section.widget(),
             model.performance_frame.widget(),
@@ -113,7 +78,7 @@ impl relm4::Component for OcPage {
     }
 
     fn init(
-        (system_info, settings_changed): Self::Init,
+        settings_changed: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -129,7 +94,6 @@ impl relm4::Component for OcPage {
         let model = Self {
             stats_section,
             device_info: None,
-            system_info,
             performance_frame,
             power_cap_section,
             power_states_frame,
