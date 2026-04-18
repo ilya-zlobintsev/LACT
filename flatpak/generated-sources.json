@@ -3161,14 +3161,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/rustls-webpki/rustls-webpki-0.103.10.crate",
-        "sha256": "df33b2b81ac578cabaf06b89b0631153a3f416b0a886e8a7a1707fb51abbd1ef",
-        "dest": "cargo/vendor/rustls-webpki-0.103.10"
+        "url": "https://static.crates.io/crates/rustls-webpki/rustls-webpki-0.103.12.crate",
+        "sha256": "8279bb85272c9f10811ae6a6c547ff594d6a7f3c6c6b02ee9726d1d0dcfcdd06",
+        "dest": "cargo/vendor/rustls-webpki-0.103.12"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"df33b2b81ac578cabaf06b89b0631153a3f416b0a886e8a7a1707fb51abbd1ef\", \"files\": {}}",
-        "dest": "cargo/vendor/rustls-webpki-0.103.10",
+        "contents": "{\"package\": \"8279bb85272c9f10811ae6a6c547ff594d6a7f3c6c6b02ee9726d1d0dcfcdd06\", \"files\": {}}",
+        "dest": "cargo/vendor/rustls-webpki-0.103.12",
         "dest-filename": ".cargo-checksum.json"
     },
     {
