@@ -642,6 +642,10 @@ impl VfCurveEditor {
         (cmp::min(start, end), cmp::max(end, start))
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.points.borrow().is_empty()
+    }
+
     pub fn get_configured_curve(&self) -> IndexMap<u8, config::CurvePoint> {
         if !self.allow_editing.value() {
             return IndexMap::new();

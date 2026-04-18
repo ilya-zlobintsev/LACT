@@ -265,7 +265,9 @@ impl OcPage {
             config.apply_clocks_command(&command);
         }
 
-        config.gpu_vf_curve = self.vf_curve_editor.model().get_configured_curve();
+        if !self.vf_curve_editor.model().is_empty() {
+            config.gpu_vf_curve = self.vf_curve_editor.model().get_configured_curve();
+        }
     }
 
     pub fn get_enabled_power_states(&self) -> IndexMap<PowerLevelKind, Vec<u8>> {
