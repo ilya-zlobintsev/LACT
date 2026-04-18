@@ -34,7 +34,7 @@ impl relm4::SimpleComponent for InformationPage {
             set_margin_vertical: 15,
             set_margin_horizontal: 30,
 
-            PageSection::new(&fl!(I18N, "hardware-info")) {
+            PageSection::new("") {
                 append_child = &model.values_list.widget().clone() -> gtk::FlowBox {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,

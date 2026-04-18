@@ -239,13 +239,12 @@ impl AsyncComponent for AppModel {
                         },
 
                         #[wrap(Some)]
+                        #[name = "content_page"]
                         set_content = &adw::NavigationPage {
-                            set_title: "LACT",
 
                             #[wrap(Some)]
                             set_child = &adw::ToolbarView {
                                 add_top_bar = &adw::HeaderBar {
-                                    set_show_title: false,
 
                                     pack_end = &gtk::MenuButton {
                                         set_icon_name: "open-menu-symbolic",
@@ -412,9 +411,12 @@ impl AsyncComponent for AppModel {
                                             add_named[Some("crash_page")] = model.crash_page.widget(),
 
                                             set_visible_child_name: &CONFIG.read().selected_tab,
-                                            connect_visible_child_name_notify => move |stack| {
-                                                if let Some(name) = stack.visible_child_name() {
-                                                    let name = name.to_string();
+                                            connect_visible_child_name_notify[content_page] => move |stack| {
+                                                if let Some(child) = stack.visible_child() {
+                                                    let page = stack.page(&child);
+                                                    content_page.set_title(&page.title().unwrap_or_default());
+
+                                                    let name = stack.visible_child_name().unwrap().to_string();
                                                     if name != "crash_page" {
                                                         CONFIG.write().edit(|config| {
                                                             config.selected_tab = name;
@@ -574,6 +576,11 @@ impl AsyncComponent for AppModel {
         };
 
         let widgets = view_output!();
+
+        if let Some(child) = widgets.root_stack.visible_child() {
+            let page = widgets.root_stack.page(&child);
+            widgets.content_page.set_title(&page.title().unwrap_or_default());
+        }
 
         if let Some(err) = conn_err {
             show_embedded_info(&root, err);

@@ -1,5 +1,5 @@
 info-page = Information 
-oc-page = OC 
+oc-page = Overclock
 thermals-page = Thermals 
 software-page = Software 
 
