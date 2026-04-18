@@ -579,7 +579,9 @@ impl AsyncComponent for AppModel {
 
         if let Some(child) = widgets.root_stack.visible_child() {
             let page = widgets.root_stack.page(&child);
-            widgets.content_page.set_title(&page.title().unwrap_or_default());
+            widgets
+                .content_page
+                .set_title(&page.title().unwrap_or_default());
         }
 
         if let Some(err) = conn_err {
