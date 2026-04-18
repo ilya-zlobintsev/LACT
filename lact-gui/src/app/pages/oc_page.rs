@@ -3,9 +3,11 @@ pub mod gpu_stats_section;
 mod performance_frame;
 mod power_cap_section;
 mod power_states;
+mod vf_curve;
 
 use super::PageUpdate;
 use crate::app::pages::oc_page::gpu_stats_section::GpuStatsSectionMsg;
+use crate::app::pages::oc_page::vf_curve::{VfCurveEditor, VfCurveEditorMsg};
 use crate::{
     I18N,
     app::{ext::RelmDefaultLauchable, msg::AppMsg},
@@ -21,12 +23,15 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use indexmap::IndexMap;
-use lact_schema::{ClocksTable, DeviceInfo, PowerStates, SystemInfo, request::SetClocksCommand};
+use lact_schema::config;
+use lact_schema::{ClocksTable, DeviceInfo, PowerStates, SystemInfo};
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
+use relm4::binding::BoolBinding;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::sync::Arc;
+use tracing::debug;
 
 pub struct OcPage {
     stats_section: relm4::Controller<GpuStatsSection>,
@@ -37,6 +42,8 @@ pub struct OcPage {
     power_cap_section: relm4::Controller<PowerCapSection>,
     power_states_frame: relm4::Controller<PowerStatesFrame>,
     clocks_frame: relm4::Controller<ClocksFrame>,
+
+    vf_curve_editor: relm4::Controller<VfCurveEditor>,
 }
 
 #[derive(Debug)]
@@ -52,11 +59,12 @@ pub enum OcPageMsg {
         configured: bool,
     },
     PerformanceLevelChanged,
+    ShowVfCurveEditor,
 }
 
 #[relm4::component(pub)]
 impl relm4::Component for OcPage {
-    type Init = SystemInfo;
+    type Init = (SystemInfo, BoolBinding);
     type Input = OcPageMsg;
     type Output = AppMsg;
     type CommandOutput = ();
@@ -105,17 +113,18 @@ impl relm4::Component for OcPage {
     }
 
     fn init(
-        system_info: Self::Init,
+        (system_info, settings_changed): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let stats_section = GpuStatsSection::detach_default();
         let power_cap_section = PowerCapSection::detach_default();
-        let clocks_frame = ClocksFrame::detach_default();
+        let clocks_frame = ClocksFrame::launch_default().forward(sender.input_sender(), |msg| msg);
         let power_states_frame = PowerStatesFrame::detach_default();
-        let performance_frame = PerformanceFrame::builder()
-            .launch(())
-            .forward(sender.input_sender(), |msg| msg);
+        let performance_frame =
+            PerformanceFrame::launch_default().forward(sender.input_sender(), |msg| msg);
+
+        let vf_curve_editor = VfCurveEditor::builder().launch(settings_changed).detach();
 
         let model = Self {
             stats_section,
@@ -125,6 +134,7 @@ impl relm4::Component for OcPage {
             power_cap_section,
             power_states_frame,
             clocks_frame,
+            vf_curve_editor,
         };
 
         let widgets = view_output!();
@@ -147,6 +157,9 @@ impl relm4::Component for OcPage {
 
                     self.stats_section
                         .emit(GpuStatsSectionMsg::Stats(stats.clone()));
+
+                    self.vf_curve_editor
+                        .emit(VfCurveEditorMsg::Stats(stats.clone()));
 
                     if initial {
                         self.power_cap_section
@@ -178,7 +191,12 @@ impl relm4::Component for OcPage {
                 }
             },
             OcPageMsg::ClocksTable(table) => {
-                self.clocks_frame.emit(ClocksFrameMsg::Clocks(table));
+                let table = table.map(Arc::new);
+
+                self.clocks_frame
+                    .emit(ClocksFrameMsg::Clocks(table.clone()));
+                self.vf_curve_editor
+                    .emit(VfCurveEditorMsg::Clocks(table.clone()));
             }
             OcPageMsg::ProfileModesTable(modes_table) => {
                 self.performance_frame
@@ -210,6 +228,9 @@ impl relm4::Component for OcPage {
                         self.get_performance_level(),
                     ));
             }
+            OcPageMsg::ShowVfCurveEditor => {
+                self.vf_curve_editor.emit(VfCurveEditorMsg::Show);
+            }
         }
 
         self.update_view(widgets, sender);
@@ -235,8 +256,16 @@ impl OcPage {
         self.power_cap_section.model().get_user_cap()
     }
 
-    pub fn get_clocks_commands(&self) -> Vec<SetClocksCommand> {
-        self.clocks_frame.model().get_commands()
+    pub fn apply_clocks_config(&self, config: &mut config::ClocksConfiguration) {
+        let commands = self.clocks_frame.model().get_commands();
+
+        debug!("applying clocks commands {commands:#?}");
+
+        for command in commands {
+            config.apply_clocks_command(&command);
+        }
+
+        config.gpu_vf_curve = self.vf_curve_editor.model().get_configured_curve();
     }
 
     pub fn get_enabled_power_states(&self) -> IndexMap<PowerLevelKind, Vec<u8>> {

@@ -494,6 +494,8 @@ impl AsyncComponent for AppModel {
             }
         ));
 
+        let settings_changed = BoolBinding::new(false);
+
         let system_info = daemon_client
             .get_system_info()
             .await
@@ -516,7 +518,7 @@ impl AsyncComponent for AppModel {
         let info_page = InformationPage::detach_default();
 
         let oc_page = OcPage::builder()
-            .launch(system_info.clone())
+            .launch((system_info.clone(), settings_changed.clone()))
             .forward(sender.input_sender(), |msg| msg);
         let thermals_page = ThermalsPage::builder().launch(system_info.clone()).detach();
 
@@ -565,7 +567,7 @@ impl AsyncComponent for AppModel {
             ui_sensitive: BoolBinding::new(false),
             selected_gpu_index: 0,
             stats_task_handle: None,
-            settings_changed: BoolBinding::new(false),
+            settings_changed,
             system_info,
             device_flags: vec![],
         };
@@ -1133,13 +1135,9 @@ impl AppModel {
 
         self.thermals_page.model().apply_config(&mut gpu_config);
 
-        let clocks_commands = self.oc_page.model().get_clocks_commands();
-
-        debug!("applying clocks commands {clocks_commands:#?}");
-
-        for command in clocks_commands {
-            gpu_config.apply_clocks_command(&command);
-        }
+        self.oc_page
+            .model()
+            .apply_clocks_config(&mut gpu_config.clocks_configuration);
 
         let enabled_power_states = self.oc_page.model().get_enabled_power_states();
         gpu_config.power_states = enabled_power_states;
@@ -1225,6 +1223,8 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
             }
         ));
+
+        window.present();
     }
 
     async fn dump_vbios(&self, gpu_id: &str, root: &adw::ApplicationWindow) {

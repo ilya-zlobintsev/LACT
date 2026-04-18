@@ -143,15 +143,13 @@ power-profile-mode = Power Profile Mode:
 manual-level-needed = Performance level has to be set to "manual" to use power states and modes
 
 overclock-section = Clockspeed and Voltage
-nvidia-oc-info = Nvidia Overclocking Information
+nvidia-oc-info = Overclocking Information
 nvidia-oc-description = 
     Overclocking functionality on Nvidia includes setting offsets for GPU/VRAM clockspeeds and limiting the potential range of clockspeeds using the "locked clocks" feature.
 
     On many cards, the VRAM clockpeed offset will only affect the actual memory clockspeed by half of the offset value.
     For example, a +1000MHz VRAM offset may only increase the measured VRAM speed by 500MHz.
     This is normal, and is how Nvidia handles GDDR data rates. Adjust your overclock accordingly.
-
-    Direct voltage control is not supported, as it does not exist in the Nvidia Linux driver.
 
     It is possible to achieve a pseudo-undervolt by combining the locked clocks option with a positive clockspeed offset.
     This will force the GPU to run at a voltage that's constrained by the locked clocks, while achieving a higher clockspeed due to the offset.
@@ -163,6 +161,18 @@ enable-vram-locked-clocks = Enable VRAM Locked Clocks
 pstate-list-description = <b>The following values are clock offsets for each P-State, going from highest to lowest.</b>
 no-clocks-data = No clocks data available
 reset-oc-tooltip = Warning: this resets all clock settings to defaults!
+vf-curve-editor = VF Curve Editor
+nvidia-vf-curve-warning = The voltage-frequency curve editor relies on undocumented driver functionality. 
+    There are no guarantees regarding its behaviour, safety or availability.
+    <span weight = "heavy" underline = "single">Use at your own risk</span>.
+vf-curve-enable-editing = Enable Editing
+voltage = Voltage
+frequency = Frequency
+vf-active-curve = Active Curve
+vf-base-curve = Base Curve
+vf-curve-visible-range = Visible Range (%):
+vf-curve-visible-range-to = to
+vf-curve-flatten-right = Flatten curve to the right
 
 gpu-clock-offset = GPU Clock Offset (MHz)
 max-gpu-clock = Maximum GPU Clock (MHz)
