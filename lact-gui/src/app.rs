@@ -166,6 +166,7 @@ impl AsyncComponent for AppModel {
                                 set_content = &gtk::Box {
                                     set_orientation: gtk::Orientation::Vertical,
                                     set_vexpand: true,
+                                    add_css_class: "main-sidebar-container",
 
                                     gtk::Box {
                                         set_orientation: gtk::Orientation::Vertical,
