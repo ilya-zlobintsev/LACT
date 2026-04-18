@@ -169,8 +169,9 @@ impl relm4::Component for VfCurveEditor {
                         gtk::Scale {
                             set_adjustment: &model.visible_range_start,
                             set_draw_value: true,
-                            set_width_request: 120,
+                            set_width_request: 150,
                             set_value_pos: gtk::PositionType::Right,
+                            set_digits: 0,
                         },
 
 
@@ -182,8 +183,9 @@ impl relm4::Component for VfCurveEditor {
                         gtk::Scale {
                             set_adjustment: &model.visible_range_end,
                             set_draw_value: true,
-                            set_width_request: 120,
+                            set_width_request: 150,
                             set_value_pos: gtk::PositionType::Right,
+                            set_digits: 0,
                         },
 
                         gtk::CheckButton {
