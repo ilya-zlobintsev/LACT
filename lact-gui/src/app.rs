@@ -545,12 +545,7 @@ impl AsyncComponent for AppModel {
             .forward(sender.input_sender(), |msg| msg);
 
         let overdrive_dialog = OverdriveDialog::builder()
-            .transient_for(&root)
-            .launch(OverdriveDialog {
-                system_info: system_info.clone(),
-                is_loading: false,
-                is_done: false,
-            })
+            .launch((system_info.clone(), root.clone().upcast()))
             .detach();
 
         let graphs_window = GraphsWindow::detach_default();

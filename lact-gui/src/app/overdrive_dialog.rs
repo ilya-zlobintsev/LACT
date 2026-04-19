@@ -2,9 +2,10 @@ use crate::{
     I18N,
     app::{APP_BROKER, msg::AppMsg},
 };
+use adw::prelude::{ActionRowExt, AdwDialogExt, PreferencesPageExt, PreferencesRowExt};
 use gtk::{
     pango,
-    prelude::{BoxExt, ButtonExt, GtkWindowExt, OrientableExt, WidgetExt},
+    prelude::{BoxExt, ButtonExt, OrientableExt, WidgetExt},
 };
 use i18n_embed_fl::fl;
 use lact_daemon::BASE_MODULE_CONF_PATH;
@@ -13,6 +14,7 @@ use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
 
 pub struct OverdriveDialog {
     pub system_info: SystemInfo,
+    pub parent: gtk::Widget,
     pub is_loading: bool,
     pub is_done: bool,
 }
@@ -26,99 +28,132 @@ pub enum OverdriveDialogMsg {
 
 #[relm4::component(pub)]
 impl relm4::Component for OverdriveDialog {
-    type Init = Self;
+    type Init = (SystemInfo, gtk::Widget);
     type Input = OverdriveDialogMsg;
     type Output = ();
     type CommandOutput = ();
 
     view! {
-        gtk::Window {
-            set_default_size: (300, 150),
-            set_title: Some(&fl!(I18N, "amd-oc")),
-            set_hide_on_close: true,
+        #[root]
+        adw::Dialog {
+            set_content_width: 500,
+            set_follows_content_size: true,
+            set_title: &fl!(I18N, "amd-oc"),
 
-            gtk::Box {
-                set_spacing: 10,
-                set_orientation: gtk::Orientation::Vertical,
-                set_margin_all: 10,
+            #[wrap(Some)]
+            set_child = &adw::ToolbarView {
+                add_top_bar = &adw::HeaderBar {},
 
-                gtk::Label {
-                    set_xalign: 0.0,
-                    set_markup: &fl!(
-                        I18N,
-                        "amd-oc-description",
-                        config = format_config(&model.system_info)
-                        path = BASE_MODULE_CONF_PATH,
-                    ),
-                    set_selectable: true,
-                    set_hexpand: true,
-                    set_wrap: true,
-                    set_wrap_mode: pango::WrapMode::Word,
-                },
-
-                gtk::Label {
-                    set_xalign: 0.0,
-                    set_hexpand: true,
-                    set_markup: &fl!(
-                        I18N,
-                        "amd-oc-status",
-                        status = model
-                            .system_info
-                            .amdgpu_overdrive_enabled
-                            .map(|s| s.to_string())
-                            .unwrap_or_default(),
-                    ),
-                },
-
-                gtk::Label {
-                    set_xalign: 0.0,
-                    set_hexpand: true,
-                    set_markup: &fl!(I18N, "amd-oc-detected-system-config", config = format_config(&model.system_info)),
-                },
-
-                gtk::Box {
-                    set_spacing: 10,
-                    set_orientation: gtk::Orientation::Horizontal,
-
-                    gtk::Button {
-                        #[watch]
-                        set_sensitive: model.system_info.amdgpu_overdrive_enabled == Some(false) && !model.is_loading && !model.is_done,
-                        set_label: &fl!(I18N, "enable-amd-oc"),
-                        connect_clicked => move |_| {
-                            APP_BROKER.send(AppMsg::EnableOverdrive);
+                #[wrap(Some)]
+                set_content = &adw::PreferencesPage {
+                    add = &adw::PreferencesGroup {
+                        gtk::Label {
+                            set_xalign: 0.0,
+                            set_markup: &fl!(
+                                I18N,
+                                "amd-oc-description",
+                                config = format_config(&model.system_info)
+                                path = BASE_MODULE_CONF_PATH,
+                            ),
+                            set_selectable: true,
+                            set_can_focus: false,
+                            set_wrap: true,
+                            set_wrap_mode: pango::WrapMode::Word,
                         },
                     },
+
+                    add = &adw::PreferencesGroup {
+                        adw::ActionRow {
+                            set_title_lines: 0,
+                            set_use_markup: true,
+                            set_title: &fl!(
+                                I18N,
+                                "amd-oc-status",
+                                status = model
+                                    .system_info
+                                    .amdgpu_overdrive_enabled
+                                    .map(|s| s.to_string())
+                                    .unwrap_or_default(),
+                            ),
+                        },
+
+                        adw::ActionRow {
+                            set_title_lines: 0,
+                            set_use_markup: true,
+                            set_title: &fl!(I18N, "amd-oc-detected-system-config", config = format_config(&model.system_info)),
+                        },
+
+                        adw::ActionRow {
+                            #[watch]
+                            set_visible: model.is_loading || model.is_done,
+                            #[watch]
+                            set_title: &if model.is_done {
+                                fl!(I18N, "amd-oc-updating-done")
+                            } else {
+                                fl!(I18N, "amd-oc-updating-configuration")
+                            },
+
+                            add_prefix = &gtk::Spinner {
+                                #[watch]
+                                set_visible: model.is_loading,
+                                set_spinning: true,
+                            },
+
+                            add_prefix = &gtk::Image {
+                                #[watch]
+                                set_visible: model.is_done,
+                                set_icon_name: Some("emblem-ok-symbolic"),
+                                add_css_class: "success",
+                            },
+                        },
+                    },
+                },
+
+                add_bottom_bar = &gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 10,
+                    set_halign: gtk::Align::Fill,
+                    set_margin_horizontal: 20,
+                    set_margin_bottom: 20,
 
                     gtk::Button {
                         #[watch]
                         set_sensitive: model.system_info.amdgpu_overdrive_enabled == Some(true) && !model.is_loading && !model.is_done,
                         set_label: &fl!(I18N, "disable-amd-oc"),
+                        add_css_class: "destructive-action",
+                        set_hexpand: true,
                         connect_clicked => move |_| {
                             APP_BROKER.send(AppMsg::DisableOverdrive);
                         },
                     },
-                },
 
-                gtk::Label {
-                    #[watch]
-                    set_visible: model.is_loading,
-                    set_label: &fl!(I18N, "amd-oc-updating-configuration"),
-                },
-
-                gtk::Label {
-                    #[watch]
-                    set_visible: model.is_done,
-                    set_label: &fl!(I18N, "amd-oc-updating-done"),
+                    gtk::Button {
+                        #[watch]
+                        set_sensitive: model.system_info.amdgpu_overdrive_enabled == Some(false) && !model.is_loading && !model.is_done,
+                        set_label: &fl!(I18N, "enable-amd-oc"),
+                        add_css_class: "suggested-action",
+                        set_hexpand: true,
+                        connect_clicked => move |_| {
+                            APP_BROKER.send(AppMsg::EnableOverdrive);
+                        },
+                    },
                 },
             },
         }
     }
 
     fn init(
-        model: Self::Init,
+        init: Self::Init,
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let (system_info, parent) = init;
+        let model = Self {
+            system_info,
+            parent,
+            is_loading: false,
+            is_done: false,
+        };
         let widgets = view_output!();
 
         ComponentParts { model, widgets }
@@ -132,7 +167,7 @@ impl relm4::Component for OverdriveDialog {
         root: &Self::Root,
     ) {
         match msg {
-            OverdriveDialogMsg::Show => root.present(),
+            OverdriveDialogMsg::Show => root.present(Some(&self.parent)),
             OverdriveDialogMsg::Loading => self.is_loading = true,
             OverdriveDialogMsg::Loaded => {
                 self.is_loading = false;
