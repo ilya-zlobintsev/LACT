@@ -1,3 +1,4 @@
+mod about_dialog;
 mod confirmation_dialog;
 mod ext;
 pub(crate) mod formatting;
@@ -19,6 +20,7 @@ pub(crate) mod styles;
 use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
     app::{
+        about_dialog::{AboutDialog, AboutDialogMsg},
         gpu_selector::GpuSelector,
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
@@ -104,6 +106,7 @@ pub struct AppModel {
     process_monitor_window: relm4::Controller<ProcessMonitorWindow>,
     overdrive_dialog: relm4::Controller<OverdriveDialog>,
     preferences_dialog: relm4::Controller<PreferencesDialog>,
+    about_dialog: relm4::Controller<AboutDialog>,
 
     ui_sensitive: BoolBinding,
     selected_gpu_index: u32,
@@ -265,6 +268,12 @@ impl AsyncComponent for AppModel {
                                                 gtk::Button {
                                                     set_label: &fl!(I18N, "preferences"),
                                                     connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowPreferencesDialog),
+                                                    add_css_class: "flat",
+                                                },
+
+                                                gtk::Button {
+                                                    set_label: &fl!(I18N, "about"),
+                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowAboutDialog),
                                                     add_css_class: "flat",
                                                 },
                                             }
@@ -434,6 +443,8 @@ impl AsyncComponent for AppModel {
             .launch((system_info.clone(), root.clone()))
             .detach();
 
+        let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
+
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
 
@@ -455,6 +466,7 @@ impl AsyncComponent for AppModel {
             process_monitor_window,
             overdrive_dialog,
             preferences_dialog,
+            about_dialog,
             info_page,
             oc_page,
             thermals_page,
@@ -562,6 +574,9 @@ impl AppModel {
             }
             AppMsg::ShowPreferencesDialog => {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
+            }
+            AppMsg::ShowAboutDialog => {
+                self.about_dialog.emit(AboutDialogMsg::Show);
             }
             AppMsg::ShowOverdriveDialog => {
                 self.overdrive_dialog.emit(OverdriveDialogMsg::Show);
