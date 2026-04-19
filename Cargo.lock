@@ -31,9 +31,9 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "amdgpu-sysfs"
-version = "0.19.3"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31655bb689eb37913111f1697f8549c3ed88d0db2f56c52a448afab4065471e4"
+checksum = "8c17fa9dd35c209d782edb0aca1bdf75ccbd37a2fcf989dfcec92733b32818de"
 dependencies = [
  "enum_dispatch",
  "serde",
