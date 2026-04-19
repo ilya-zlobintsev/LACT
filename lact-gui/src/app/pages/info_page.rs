@@ -8,7 +8,7 @@ use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use lact_schema::{AmdIpInfo, CacheInfo, CacheType, DeviceInfo, DeviceStats};
 use relm4::{
-    ComponentParts, ComponentSender, RelmWidgetExt,
+    ComponentParts, ComponentSender, RelmWidgetExt, css,
     prelude::{FactoryComponent, FactoryVecDeque},
 };
 use std::sync::Arc;
@@ -43,26 +43,6 @@ impl relm4::SimpleComponent for InformationPage {
                     set_selection_mode: gtk::SelectionMode::None,
 
                     append_child = &InfoRow {
-                        set_value: fl!(I18N, "cache-info"),
-                        set_icon: "go-down-symbolic".to_string(),
-
-                        #[name = "cache_popover"]
-                        set_popover = &gtk::Popover {
-                            model.cache_list.widget().clone() -> gtk::ListBox {
-                                set_margin_all: 10,
-                                set_selection_mode: gtk::SelectionMode::None,
-                            },
-                        },
-
-                        connect_clicked[cache_popover] => move |_| {
-                            cache_popover.popup();
-                        },
-                    } -> cache_row: gtk::FlowBoxChild {
-                        #[watch]
-                        set_visible: !model.cache_list.is_empty(),
-                    },
-
-                    append_child = &InfoRow {
                         set_name: fl!(I18N, "hw-ip-info"),
                         #[watch]
                         set_value: model.ip_list.iter().map(|item| {
@@ -85,6 +65,18 @@ impl relm4::SimpleComponent for InformationPage {
                         #[watch]
                         set_visible: !model.ip_list.is_empty(),
                     },
+                },
+            },
+
+            PageSection::new(&fl!(I18N, "cache-info")) {
+                set_hide_visible_container: true,
+                #[watch]
+                set_visible: !model.cache_list.is_empty(),
+                set_hide_visible_container: true,
+
+                append_child = &model.cache_list.widget().clone() -> gtk::ListBox {
+                    set_selection_mode: gtk::SelectionMode::None,
+                    add_css_class: css::BOXED_LIST,
                 },
             },
         },
