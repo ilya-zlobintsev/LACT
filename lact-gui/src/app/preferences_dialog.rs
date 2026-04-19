@@ -6,9 +6,7 @@ use adw::prelude::{
     ActionRowExt, AdwDialogExt, PreferencesDialogExt, PreferencesGroupExt, PreferencesPageExt,
     PreferencesRowExt,
 };
-use gtk::prelude::{
-    ButtonExt, ListBoxRowExt, OrientableExt, ToggleButtonExt, WidgetExt,
-};
+use gtk::prelude::{ButtonExt, ListBoxRowExt, OrientableExt, ToggleButtonExt, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::SystemInfo;
 use relm4::{ComponentParts, ComponentSender};

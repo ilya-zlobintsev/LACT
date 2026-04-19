@@ -7,13 +7,13 @@ mod info_row;
 mod info_row_level;
 pub(crate) mod msg;
 mod overdrive_dialog;
-mod preferences_dialog;
-mod stats_update_interval;
 mod page_section;
 mod page_section_expander;
 pub(crate) mod pages;
+mod preferences_dialog;
 mod process_monitor;
 mod profiles;
+mod stats_update_interval;
 pub(crate) mod styles;
 
 use crate::{
@@ -561,8 +561,7 @@ impl AppModel {
                 }
             }
             AppMsg::ShowPreferencesDialog => {
-                self.preferences_dialog
-                    .emit(PreferencesDialogMsg::Show);
+                self.preferences_dialog.emit(PreferencesDialogMsg::Show);
             }
             AppMsg::ShowOverdriveDialog => {
                 self.overdrive_dialog.emit(OverdriveDialogMsg::Show);
