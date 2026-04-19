@@ -395,6 +395,7 @@ impl AsyncComponent for AppModel {
 
                                     adw::Clamp {
                                         set_maximum_size: CONTENT_MAXIMUM_WIDTH,
+                                        set_tightening_threshold: CONTENT_MAXIMUM_WIDTH,
 
                                         #[name = "root_stack"]
                                         gtk::Stack {
