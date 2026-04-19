@@ -8,6 +8,7 @@ mod info_row_level;
 pub(crate) mod msg;
 mod overdrive_dialog;
 mod preferences_dialog;
+mod stats_update_interval;
 mod page_section;
 mod page_section_expander;
 pub(crate) mod pages;
@@ -26,8 +27,8 @@ use crate::{
             ProfileSelector, ProfileSelectorMsg,
             profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
         },
+        stats_update_interval::StatsUpdateInterval,
     },
-    config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
 use adw::prelude::{AdwDialogExt as _, AlertDialogExtManual as _, NavigationPageExt as _};
 use adw::{ApplicationWindow, prelude::AlertDialogExt};
@@ -115,6 +116,7 @@ pub struct AppModel {
 
     gpu_selector: relm4::Controller<GpuSelector>,
     profile_selector: relm4::Controller<ProfileSelector>,
+    stats_update_interval: relm4::Controller<StatsUpdateInterval>,
     stats_task_handle: Option<glib::JoinHandle<()>>,
 
     settings_changed: BoolBinding,
@@ -170,39 +172,11 @@ impl AsyncComponent for AppModel {
                                     set_vexpand: true,
                                     add_css_class: "main-sidebar-container",
 
-                                    gtk::Box {
-                                        set_orientation: gtk::Orientation::Vertical,
-                                        set_margin_horizontal: 8,
-                                        set_margin_top: 4,
-                                        set_margin_bottom: 8,
+                                    model.gpu_selector.widget().clone() {},
 
-                                        gtk::Label {
-                                            set_label: "GPU",
-                                            set_halign: gtk::Align::Start,
-                                            set_margin_horizontal: 4,
-                                            add_css_class: relm4::css::DIM_LABEL,
-                                            add_css_class: relm4::css::CAPTION,
-                                        },
+                                    model.profile_selector.widget().clone() {},
 
-                                        model.gpu_selector.widget().clone() {},
-                                    },
-
-                                    gtk::Box {
-                                        set_orientation: gtk::Orientation::Vertical,
-                                        set_margin_horizontal: 8,
-                                        set_margin_top: 4,
-                                        set_margin_bottom: 8,
-
-                                        gtk::Label {
-                                            set_label: "Profile",
-                                            set_halign: gtk::Align::Start,
-                                            set_margin_horizontal: 4,
-                                            add_css_class: relm4::css::DIM_LABEL,
-                                            add_css_class: relm4::css::CAPTION,
-                                        },
-
-                                        model.profile_selector.widget().clone() {},
-                                    },
+                                    model.stats_update_interval.widget().clone() {},
 
                                     gtk::Separator {},
 
@@ -284,30 +258,6 @@ impl AsyncComponent for AppModel {
                                                     add_css_class: "flat",
                                                     #[watch]
                                                     set_sensitive: model.device_flags.contains(&DeviceFlag::DumpableVBios),
-                                                },
-
-                                                gtk::Separator {},
-
-                                                gtk::Box {
-                                                    set_orientation: gtk::Orientation::Horizontal,
-                                                    set_spacing: 5,
-                                                    set_halign: gtk::Align::Center,
-
-                                                    gtk::Label {
-                                                        set_markup: &format!("<b>{}</b>", &fl!(I18N, "stats-update-interval")),
-                                                    },
-
-                                                    gtk::SpinButton {
-                                                        set_range: (MIN_STATS_POLL_INTERVAL_MS as f64, MAX_STATS_POLL_INTERVAL_MS as f64),
-                                                        set_increments: (250.0, 500.0),
-                                                        set_digits: 0,
-                                                        set_value: CONFIG.read().stats_poll_interval_ms as f64,
-                                                        connect_value_changed => move |btn| {
-                                                            CONFIG.write().edit(|config| {
-                                                                config.stats_poll_interval_ms = btn.value() as i64;
-                                                            })
-                                                        }
-                                                    },
                                                 },
 
                                                 gtk::Separator {},
@@ -497,6 +447,8 @@ impl AsyncComponent for AppModel {
             .launch(())
             .forward(sender.input_sender(), |msg| msg);
 
+        let stats_update_interval = StatsUpdateInterval::builder().launch(()).detach();
+
         let model = AppModel {
             daemon_client,
             graphs_window,
@@ -510,6 +462,7 @@ impl AsyncComponent for AppModel {
             crash_page,
             gpu_selector,
             profile_selector,
+            stats_update_interval,
             ui_sensitive: BoolBinding::new(false),
             selected_gpu_index: 0,
             stats_task_handle: None,

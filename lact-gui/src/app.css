@@ -10,3 +10,7 @@
 .main-sidebar-container separator {
     margin: 0 2px;
 }
+
+.main-sidebar-container .sidebar-section {
+    margin: 4px 8px 8px 8px;
+}

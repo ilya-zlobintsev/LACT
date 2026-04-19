@@ -3,7 +3,7 @@ use gtk::glib;
 use gtk::prelude::*;
 use lact_client::schema::DeviceListEntry;
 use lact_schema::DeviceType;
-use relm4::{ComponentParts, ComponentSender, SimpleComponent, WidgetTemplate, css};
+use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent, WidgetTemplate, css};
 use tracing::debug;
 
 pub struct GpuSelector {
@@ -19,7 +19,16 @@ impl SimpleComponent for GpuSelector {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
+            add_css_class: "sidebar-section",
             add_css_class: "gpu-selector",
+
+            gtk::Label {
+                set_label: "GPU",
+                set_halign: gtk::Align::Start,
+                set_margin_horizontal: 4,
+                add_css_class: css::DIM_LABEL,
+                add_css_class: css::CAPTION,
+            },
 
             #[name = "dropdown"]
             gtk::DropDown {
