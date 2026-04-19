@@ -25,7 +25,7 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use lact_schema::{
-    DeviceFlag, FanControlMode, SystemInfo,
+    DeviceFlag, FanControlMode,
     config::{FanControlSettings, FanCurve, GpuConfig},
     default_fan_curve,
 };
@@ -41,7 +41,6 @@ const STATIC_PAGE: &str = "static";
 
 pub struct ThermalsPage {
     fan_curve_frame: relm4::Controller<FanCurveFrame>,
-    system_info: SystemInfo,
     selected_mode: StringBinding,
 
     custom_control_supported: bool,
@@ -91,7 +90,7 @@ pub enum ThermalsPageMsg {
 
 #[relm4::component(pub)]
 impl relm4::Component for ThermalsPage {
-    type Init = SystemInfo;
+    type Init = ();
     type Input = ThermalsPageMsg;
     type Output = ();
     type CommandOutput = ();
@@ -102,17 +101,6 @@ impl relm4::Component for ThermalsPage {
             set_spacing: 15,
             set_margin_vertical: 15,
             set_margin_horizontal: 30,
-
-            gtk::Frame {
-                #[watch]
-                set_visible: model.system_info.amdgpu_overdrive_enabled == Some(false)
-                    && model.has_pmfw
-                    && model.fan_speed.is_some(),
-
-                gtk::Label {
-                    set_label: &fl!(I18N, "oc-missing-fan-control-warning"),
-                },
-            },
 
             PageSection::new(&fl!(I18N, "monitoring-section")) {
                 append_child = &gtk::FlowBox {
@@ -351,7 +339,7 @@ impl relm4::Component for ThermalsPage {
     }
 
     fn init(
-        system_info: Self::Init,
+        _init: Self::Init,
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -387,7 +375,6 @@ impl relm4::Component for ThermalsPage {
             fan_curve_frame,
             throttling: String::new(),
             temperatures: None,
-            system_info,
             pmfw_options,
             pmfw_change_signals,
             custom_control_supported: false,
