@@ -534,7 +534,6 @@ impl AsyncComponent for AppModel {
             .forward(sender.input_sender(), |msg| msg);
 
         let overdrive_dialog = OverdriveDialog::builder()
-            .transient_for(&root)
             .launch(OverdriveDialog {
                 system_info: system_info.clone(),
                 is_loading: false,
@@ -665,7 +664,8 @@ impl AppModel {
                 }
             }
             AppMsg::ShowOverdriveDialog => {
-                self.overdrive_dialog.emit(OverdriveDialogMsg::Show);
+                self.overdrive_dialog
+                    .emit(OverdriveDialogMsg::Show(root.clone().upcast()));
             }
             AppMsg::SelectProfile {
                 profile,
