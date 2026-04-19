@@ -106,7 +106,7 @@ impl FactoryComponent for ClockAdjustmentRow {
                     set_digits: 0,
                     set_round_digits: 0,
                     set_value_pos: gtk::PositionType::Right,
-                    set_width_request: 130,
+                    set_width_request: 100,
                     add_controller = make_event_controller_no_scroll(),
                 },
 

@@ -100,8 +100,7 @@ impl relm4::Component for ThermalsPage {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 15,
-            set_margin_vertical: 15,
-            set_margin_horizontal: 30,
+            set_margin_all: 15,
 
             gtk::Frame {
                 #[watch]

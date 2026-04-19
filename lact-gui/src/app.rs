@@ -139,7 +139,7 @@ impl AsyncComponent for AppModel {
         #[root]
         adw::ApplicationWindow::builder()
             .default_height(750)
-            .default_width(1000)
+            .default_width(1300)
             .icon_name(APP_ID)
             .title("LACT")
             .build() {

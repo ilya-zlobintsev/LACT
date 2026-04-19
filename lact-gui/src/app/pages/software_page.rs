@@ -46,8 +46,7 @@ impl relm4::SimpleComponent for SoftwarePage {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 15,
-            set_margin_vertical: 15,
-            set_margin_horizontal: 30,
+            set_margin_all: 15,
 
             PageSection::new(&fl!(I18N, "system-section")) {
                 append_child = &gtk::FlowBox {
