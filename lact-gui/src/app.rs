@@ -390,12 +390,11 @@ impl AsyncComponent for AppModel {
                                 },
 
                                 #[wrap(Some)]
-                                set_content = &adw::Clamp {
-                                    set_maximum_size: CONTENT_MAXIMUM_WIDTH,
+                                set_content = &gtk::ScrolledWindow {
+                                    set_hscrollbar_policy: gtk::PolicyType::Never,
 
-                                    #[wrap(Some)]
-                                    set_child = &gtk::ScrolledWindow {
-                                        set_hscrollbar_policy: gtk::PolicyType::Never,
+                                    adw::Clamp {
+                                        set_maximum_size: CONTENT_MAXIMUM_WIDTH,
 
                                         #[name = "root_stack"]
                                         gtk::Stack {
