@@ -260,6 +260,7 @@ profile-rule-specific-process = With a specific process:
 
 theme = Theme
 theme-auto = Automatic
+preferences = Preferences
 
 # Crash page
 crash-page-title = Application Crashed

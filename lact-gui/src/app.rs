@@ -7,6 +7,7 @@ mod info_row;
 mod info_row_level;
 pub(crate) mod msg;
 mod overdrive_dialog;
+mod preferences_dialog;
 mod page_section;
 mod page_section_expander;
 pub(crate) mod pages;
@@ -19,12 +20,12 @@ use crate::{
     app::{
         gpu_selector::GpuSelector,
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
+        preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
         profiles::{
             ProfileSelector, ProfileSelectorMsg,
             profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
         },
-        styles::AppTheme,
     },
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
@@ -40,13 +41,13 @@ use gtk::{
     glib::{self, ControlFlow, clone},
     prelude::{
         BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
-        OrientableExt, ToggleButtonExt as _, WidgetExt,
+        OrientableExt, WidgetExt,
     },
 };
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
-    DeviceFlag, DeviceStats, GIT_COMMIT, SystemInfo,
+    DeviceFlag, DeviceStats, GIT_COMMIT,
     args::GuiArgs,
     config::{GpuConfig, Profile},
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
@@ -101,6 +102,7 @@ pub struct AppModel {
     graphs_window: relm4::Controller<GraphsWindow>,
     process_monitor_window: relm4::Controller<ProcessMonitorWindow>,
     overdrive_dialog: relm4::Controller<OverdriveDialog>,
+    preferences_dialog: relm4::Controller<PreferencesDialog>,
 
     ui_sensitive: BoolBinding,
     selected_gpu_index: u32,
@@ -117,7 +119,6 @@ pub struct AppModel {
 
     settings_changed: BoolBinding,
 
-    system_info: SystemInfo,
     device_flags: Vec<DeviceFlag>,
     device_driver: String,
 }
@@ -287,30 +288,6 @@ impl AsyncComponent for AppModel {
 
                                                 gtk::Separator {},
 
-                                                gtk::Button {
-                                                    set_label: &fl!(I18N, "disable-amd-oc"),
-                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowOverdriveDialog),
-                                                    add_css_class: "flat",
-                                                    #[watch]
-                                                    set_sensitive: model.system_info.amdgpu_overdrive_enabled.is_some(),
-                                                },
-
-                                                gtk::Button {
-                                                    set_label: &fl!(I18N, "reset-all-config"),
-                                                    connect_clicked => move |_| {
-                                                        let msg = AppMsg::ask_confirmation(
-                                                            AppMsg::ResetConfig,
-                                                            fl!(I18N, "reset-config"),
-                                                            fl!(I18N, "reset-config-description"),
-                                                            gtk::ButtonsType::YesNo,
-                                                        );
-                                                        APP_BROKER.send(msg);
-                                                    },
-                                                    add_css_class: "flat",
-                                                },
-
-                                                gtk::Separator {},
-
                                                 gtk::Box {
                                                     set_orientation: gtk::Orientation::Horizontal,
                                                     set_spacing: 5,
@@ -335,55 +312,10 @@ impl AsyncComponent for AppModel {
 
                                                 gtk::Separator {},
 
-                                                gtk::Box {
-                                                    set_orientation: gtk::Orientation::Horizontal,
-                                                    set_spacing: 5,
-                                                    set_halign: gtk::Align::Center,
-
-                                                    gtk::Label {
-                                                        set_markup: &format!("<b>{}</b>", &fl!(I18N, "theme")),
-                                                    },
-
-                                                    gtk::Box {
-                                                        set_orientation: gtk::Orientation::Horizontal,
-                                                        add_css_class: "linked",
-
-                                                        #[name = "theme_auto_btn"]
-                                                        gtk::ToggleButton {
-                                                            set_label: &fl!(I18N, "theme-auto"),
-                                                            #[watch]
-                                                            set_active: CONFIG.read().theme == AppTheme::Automatic,
-                                                            connect_toggled[sender] => move |btn| {
-                                                                if btn.is_active() {
-                                                                    sender.input(AppMsg::ThemeSelected(AppTheme::Automatic));
-                                                                }
-                                                            },
-                                                        },
-
-                                                        gtk::ToggleButton {
-                                                            set_label: "Adwaita",
-                                                            set_group: Some(&theme_auto_btn),
-                                                            #[watch]
-                                                            set_active: CONFIG.read().theme == AppTheme::Adwaita,
-                                                            connect_toggled[sender] => move |btn| {
-                                                                if btn.is_active() {
-                                                                    sender.input(AppMsg::ThemeSelected(AppTheme::Adwaita));
-                                                                }
-                                                            },
-                                                        },
-
-                                                        gtk::ToggleButton {
-                                                            set_label: "Breeze",
-                                                            set_group: Some(&theme_auto_btn),
-                                                            #[watch]
-                                                            set_active: CONFIG.read().theme == AppTheme::Breeze,
-                                                            connect_toggled[sender] => move |btn| {
-                                                                if btn.is_active() {
-                                                                    sender.input(AppMsg::ThemeSelected(AppTheme::Breeze));
-                                                                }
-                                                            },
-                                                        },
-                                                    },
+                                                gtk::Button {
+                                                    set_label: &fl!(I18N, "preferences"),
+                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowPreferencesDialog),
+                                                    add_css_class: "flat",
                                                 },
                                             }
                                         },
@@ -548,6 +480,10 @@ impl AsyncComponent for AppModel {
             .launch((system_info.clone(), root.clone().upcast()))
             .detach();
 
+        let preferences_dialog = PreferencesDialog::builder()
+            .launch((system_info.clone(), root.clone()))
+            .detach();
+
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
 
@@ -566,6 +502,7 @@ impl AsyncComponent for AppModel {
             graphs_window,
             process_monitor_window,
             overdrive_dialog,
+            preferences_dialog,
             info_page,
             oc_page,
             thermals_page,
@@ -577,7 +514,6 @@ impl AsyncComponent for AppModel {
             selected_gpu_index: 0,
             stats_task_handle: None,
             settings_changed,
-            system_info,
             device_flags: vec![],
             device_driver: String::new(),
         };
@@ -670,6 +606,10 @@ impl AppModel {
                 } else {
                     self.update_gpu_data(gpu_id, sender).await?;
                 }
+            }
+            AppMsg::ShowPreferencesDialog => {
+                self.preferences_dialog
+                    .emit(PreferencesDialogMsg::Show);
             }
             AppMsg::ShowOverdriveDialog => {
                 self.overdrive_dialog.emit(OverdriveDialogMsg::Show);
@@ -889,13 +829,6 @@ impl AppModel {
                     .set_profile_rule(name, rule, hooks)
                     .await?;
                 self.reload_profiles(None).await?;
-            }
-            AppMsg::ThemeSelected(theme) => {
-                styles::apply_theme(theme).expect("Could not apply theme");
-
-                CONFIG.write().edit(|config| {
-                    config.theme = theme;
-                });
             }
             AppMsg::Crash(message) => {
                 // we cannot be sure that the application is fully functional after a crash

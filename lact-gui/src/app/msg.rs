@@ -1,5 +1,3 @@
-use crate::app::styles::AppTheme;
-
 use super::{
     confirmation_dialog::ConfirmationOptions,
     profiles::profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
@@ -25,6 +23,7 @@ pub enum AppMsg {
     ShowProcessMonitor,
     DumpVBios,
     DebugSnapshot,
+    ShowPreferencesDialog,
     ShowOverdriveDialog,
     EnableOverdrive,
     DisableOverdrive,
@@ -47,7 +46,6 @@ pub enum AppMsg {
         rule: Option<ProfileRule>,
         hooks: ProfileHooks,
     },
-    ThemeSelected(AppTheme),
     ImportProfile,
     ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
