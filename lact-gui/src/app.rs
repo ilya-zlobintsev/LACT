@@ -534,11 +534,7 @@ impl AsyncComponent for AppModel {
             .forward(sender.input_sender(), |msg| msg);
 
         let overdrive_dialog = OverdriveDialog::builder()
-            .launch(OverdriveDialog {
-                system_info: system_info.clone(),
-                is_loading: false,
-                is_done: false,
-            })
+            .launch((system_info.clone(), root.clone().upcast()))
             .detach();
 
         let graphs_window = GraphsWindow::detach_default();
@@ -664,8 +660,7 @@ impl AppModel {
                 }
             }
             AppMsg::ShowOverdriveDialog => {
-                self.overdrive_dialog
-                    .emit(OverdriveDialogMsg::Show(root.clone().upcast()));
+                self.overdrive_dialog.emit(OverdriveDialogMsg::Show);
             }
             AppMsg::SelectProfile {
                 profile,

@@ -14,20 +14,21 @@ use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
 
 pub struct OverdriveDialog {
     pub system_info: SystemInfo,
+    pub parent: gtk::Widget,
     pub is_loading: bool,
     pub is_done: bool,
 }
 
 #[derive(Debug)]
 pub enum OverdriveDialogMsg {
-    Show(gtk::Widget),
+    Show,
     Loading,
     Loaded,
 }
 
 #[relm4::component(pub)]
 impl relm4::Component for OverdriveDialog {
-    type Init = Self;
+    type Init = (SystemInfo, gtk::Widget);
     type Input = OverdriveDialogMsg;
     type Output = ();
     type CommandOutput = ();
@@ -142,10 +143,17 @@ impl relm4::Component for OverdriveDialog {
     }
 
     fn init(
-        model: Self::Init,
+        init: Self::Init,
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let (system_info, parent) = init;
+        let model = Self {
+            system_info,
+            parent,
+            is_loading: false,
+            is_done: false,
+        };
         let widgets = view_output!();
 
         ComponentParts { model, widgets }
@@ -159,7 +167,7 @@ impl relm4::Component for OverdriveDialog {
         root: &Self::Root,
     ) {
         match msg {
-            OverdriveDialogMsg::Show(parent) => root.present(Some(&parent)),
+            OverdriveDialogMsg::Show => root.present(Some(&self.parent)),
             OverdriveDialogMsg::Loading => self.is_loading = true,
             OverdriveDialogMsg::Loaded => {
                 self.is_loading = false;
