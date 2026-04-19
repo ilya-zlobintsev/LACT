@@ -119,6 +119,7 @@ pub struct AppModel {
 
     system_info: SystemInfo,
     device_flags: Vec<DeviceFlag>,
+    device_driver: String,
 }
 
 #[derive(Debug)]
@@ -391,7 +392,7 @@ impl AsyncComponent for AppModel {
 
                                 add_top_bar = &adw::Banner {
                                     #[watch]
-                                    set_revealed: model.system_info.amdgpu_overdrive_enabled == Some(false),
+                                    set_revealed: model.system_info.amdgpu_overdrive_enabled == Some(false) && model.device_driver == "amdgpu",
                                     set_title: &fl!(I18N, "amd-oc-disabled"),
                                     set_use_markup: true,
                                     set_button_label: Some(&fl!(I18N, "enable-amd-oc")),
@@ -583,6 +584,7 @@ impl AsyncComponent for AppModel {
             settings_changed,
             system_info,
             device_flags: vec![],
+            device_driver: String::new(),
         };
 
         let widgets = view_output!();
@@ -1008,6 +1010,7 @@ impl AppModel {
         }
 
         self.device_flags = info.flags.clone();
+        self.device_driver = info.driver.clone();
 
         let update = PageUpdate::Info(info.clone());
         self.info_page.emit(update.clone());
