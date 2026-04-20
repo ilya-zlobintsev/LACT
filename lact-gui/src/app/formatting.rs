@@ -129,8 +129,8 @@ pub fn fmt_clockspeed(clock_mhz: Option<u64>, ratio: f64) -> String {
 }
 
 pub fn fmt_timestamp_to_dt(timestamp_ms: &i64) -> String {
-    let date_time = chrono::DateTime::from_timestamp_millis(*timestamp_ms).unwrap();
-    date_time.format("%H:%M:%S").to_string()
+    let date_time = jiff::Timestamp::from_millisecond(*timestamp_ms).unwrap();
+    date_time.strftime("%H:%M:%S").to_string()
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

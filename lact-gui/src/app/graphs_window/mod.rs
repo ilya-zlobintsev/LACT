@@ -5,9 +5,9 @@ pub mod stat;
 use super::{APP_BROKER, msg::AppMsg};
 use crate::{CONFIG, I18N};
 use anyhow::Context;
-use chrono::Local;
 use gtk::{glib, prelude::*};
 use i18n_embed_fl::fl;
+use jiff::Zoned;
 use lact_schema::DeviceStats;
 use plot_component::{PlotComponent, PlotComponentConfig, PlotComponentMsg};
 use relm4::{
@@ -292,7 +292,7 @@ impl relm4::Component for GraphsWindow {
                 let save_dialog = SaveDialog::builder().launch(settings);
                 save_dialog.emit(SaveDialogMsg::SaveAs(format!(
                     "LACT-stats-{}.csv",
-                    Local::now().format("%Y%m%d-%H%M%S")
+                    Zoned::now().strftime("%Y%m%d-%H%M%S")
                 )));
                 let save_dialog_stream = save_dialog.into_stream();
 

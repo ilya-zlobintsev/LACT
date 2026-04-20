@@ -4,8 +4,8 @@ use crate::{
     config,
     server::{handler::Handler, metrics::schema::NumberValue},
 };
-use chrono::Local;
 use indexmap::IndexMap;
+use jiff::Zoned;
 use lact_schema::DeviceStats;
 use schema::{
     Attribute, Gauge, GaugeDataPoint, Metric, MetricsPayload, Resource, ResourceMetric, Scope,
@@ -36,10 +36,7 @@ pub fn setup(handler: Handler, config: config::Metrics) {
                 Ok(devices) => {
                     debug!("collecting metrics for {} devices", devices.len());
                     let mut metrics = Vec::with_capacity(10);
-                    let timestamp = Local::now()
-                        .timestamp_nanos_opt()
-                        .expect("Invalid timestamp")
-                        .to_string();
+                    let timestamp = Zoned::now().timestamp().as_nanosecond().to_string();
 
                     for (gpu_id, (gpu_name, stats)) in &devices {
                         collect_metrics(gpu_id, gpu_name, stats, &mut metrics, &timestamp);

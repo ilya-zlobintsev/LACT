@@ -26,7 +26,7 @@ futures = { version = "0.3.30", features = [
 ], default-features = false }
 tokio = { version = "1.35.1", default-features = false }
 nix = { version = "0.31.1", default-features = false }
-chrono = "0.4.31"
+jiff = "0.2"
 indexmap = { version = "2.5.0", features = ["serde"] }
 pretty_assertions = "1.4.0"
 divan = "0.1"
