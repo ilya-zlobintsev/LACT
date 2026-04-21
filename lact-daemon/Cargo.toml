@@ -1,7 +1,7 @@
 [package]
 name = "lact-daemon"
 version = "0.9.0"
-edition = "2024"
+edition.workspace = true
 
 [features]
 default = ["nvidia"]
@@ -33,27 +33,27 @@ indexmap = { workspace = true }
 divan = { workspace = true, optional = true }
 serde_norway = { workspace = true }
 
-nvml-wrapper = "0.12.0"
-bitflags = "2.6.0"
+nvml-wrapper = "0.12.1"
+bitflags = "2.11.1"
 pciid-parser = { version = "0.8", features = ["serde"] }
-zbus = { version = "5.3.1", default-features = false, features = ["tokio"] }
-libdrm_amdgpu_sys = { version = "0.8.8", default-features = false, features = [
+zbus = { version = "5.14.0", default-features = false, features = ["tokio"] }
+libdrm_amdgpu_sys = { version = "0.8.13", default-features = false, features = [
     "dynamic_loading",
 ] }
-tar = "0.4.40"
-libflate = "2.0.0"
+tar = "0.4.45"
+libflate = "2.3.0"
 os-release = "0.1.0"
-notify = { version = "8.0.0", default-features = false }
+notify = { version = "8.2.0", default-features = false }
 libcopes = "1.0.0"
-libloading = "0.8.6" # Can be updated when https://github.com/rust-lang/rust-bindgen/issues/3332 is released
+libloading = "0.8.9" # Can be updated when https://github.com/rust-lang/rust-bindgen/issues/3332 is released
 
-ureq = { version = "3.1.2", features = ["json", "rustls"] }
+ureq = { version = "3.3.0", features = ["json", "rustls"] }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
-insta = { version = "1.41.1", features = ["json", "yaml"] }
-easy_fuser = { version = "0.4.2", features = ["parallel"] }
-tempfile = "3.17.1"
+insta = { version = "1.47.2", features = ["json", "yaml"] }
+easy_fuser = { version = "0.4.5", features = ["parallel"] }
+tempfile = "3.27.0"
 
 [build-dependencies]
 bindgen = "0.72"
