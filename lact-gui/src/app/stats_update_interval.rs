@@ -2,7 +2,7 @@ use crate::{
     CONFIG, I18N,
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
-use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
+use gtk::prelude::{BoxExt, EditableExt, OrientableExt, WidgetExt};
 use i18n_embed_fl::fl;
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent, css};
 
@@ -32,6 +32,7 @@ impl SimpleComponent for StatsUpdateInterval {
                 set_range: (MIN_STATS_POLL_INTERVAL_MS as f64, MAX_STATS_POLL_INTERVAL_MS as f64),
                 set_increments: (250.0, 500.0),
                 set_digits: 0,
+                set_alignment: 0.5,
                 set_value: CONFIG.read().stats_poll_interval_ms as f64,
                 connect_value_changed => move |btn| {
                     CONFIG.write().edit(|config| {
