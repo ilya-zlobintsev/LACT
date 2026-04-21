@@ -50,7 +50,7 @@ use gtk::{
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
-    DeviceFlag, DeviceStats, GIT_COMMIT,
+    DeviceFlag, DeviceStats, GIT_COMMIT, SystemInfo,
     args::GuiArgs,
     config::{GpuConfig, Profile},
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
@@ -124,6 +124,7 @@ pub struct AppModel {
 
     settings_changed: BoolBinding,
 
+    system_info: SystemInfo,
     device_flags: Vec<DeviceFlag>,
     device_driver: String,
 }
@@ -479,6 +480,7 @@ impl AsyncComponent for AppModel {
             selected_gpu_index: 0,
             stats_task_handle: None,
             settings_changed,
+            system_info,
             device_flags: vec![],
             device_driver: String::new(),
         };
