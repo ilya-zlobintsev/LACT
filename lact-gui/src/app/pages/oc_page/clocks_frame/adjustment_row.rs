@@ -70,7 +70,6 @@ impl FactoryComponent for ClockAdjustmentRow {
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
-                set_spacing: 5,
 
                 #[name = "title_label"]
                 gtk::Label {
