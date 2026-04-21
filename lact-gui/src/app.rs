@@ -140,7 +140,7 @@ impl AsyncComponent for AppModel {
         #[root]
         adw::ApplicationWindow::builder()
             .default_height(750)
-            .default_width(1000)
+            .default_width(1100)
             .icon_name(APP_ID)
             .title("LACT")
             .build() {
@@ -401,12 +401,12 @@ impl AsyncComponent for AppModel {
                                 },
 
                                 #[wrap(Some)]
-                                set_content = &adw::Clamp {
-                                    set_maximum_size: CONTENT_MAXIMUM_WIDTH,
+                                set_content = &gtk::ScrolledWindow {
+                                    set_hscrollbar_policy: gtk::PolicyType::Never,
 
-                                    #[wrap(Some)]
-                                    set_child = &gtk::ScrolledWindow {
-                                        set_hscrollbar_policy: gtk::PolicyType::Never,
+                                    adw::Clamp {
+                                        set_maximum_size: CONTENT_MAXIMUM_WIDTH,
+                                        set_tightening_threshold: CONTENT_MAXIMUM_WIDTH,
 
                                         #[name = "root_stack"]
                                         gtk::Stack {
