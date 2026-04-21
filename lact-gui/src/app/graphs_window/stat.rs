@@ -10,8 +10,7 @@ pub struct StatsData {
 
 impl StatsData {
     pub fn update(&mut self, stats: &DeviceStats, vram_clock_ratio: f64) {
-        let time = chrono::Local::now().naive_local();
-        let timestamp = time.and_utc().timestamp_millis();
+        let timestamp = jiff::Timestamp::now().as_millisecond();
         self.update_with_timestamp(stats, vram_clock_ratio, timestamp);
     }
 

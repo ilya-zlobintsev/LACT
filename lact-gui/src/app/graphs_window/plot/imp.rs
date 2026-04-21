@@ -102,8 +102,8 @@ mod benches {
         stat::{StatType, StatsData},
     };
     use amdgpu_sysfs::{gpu_handle::PerformanceLevel, hw_mon::Temperature};
-    use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
     use divan::{Bencher, counter::ItemsCount};
+    use jiff::Timestamp;
     use lact_schema::{
         ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats, TemperatureEntry,
         VoltageStats, VramStats,
@@ -148,10 +148,7 @@ mod benches {
         // Simulate 1 minute plot with 4 values per second
         for sec in 0..60 {
             for milli in [0, 250, 500, 750] {
-                let datetime = NaiveDateTime::new(
-                    NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(),
-                    NaiveTime::from_hms_milli_opt(0, 0, sec, milli).unwrap(),
-                );
+                let timestamp = Timestamp::from_millisecond(sec * 1000 + milli).unwrap();
 
                 let stats = DeviceStats {
                     busy_percent: Some(3),
@@ -205,7 +202,7 @@ mod benches {
                     throttle_info: None,
                 };
 
-                data.update_with_timestamp(&stats, 1.0, datetime.and_utc().timestamp_millis());
+                data.update_with_timestamp(&stats, 1.0, timestamp.as_millisecond());
             }
         }
 
