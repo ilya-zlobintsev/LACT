@@ -44,7 +44,7 @@ use gtk::{
     glib::{self, ControlFlow, clone},
     prelude::{
         BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
-        OrientableExt, WidgetExt,
+        OrientableExt, PopoverExt, WidgetExt,
     },
 };
 use i18n_embed_fl::fl;
@@ -230,6 +230,7 @@ impl AsyncComponent for AppModel {
                                         set_icon_name: "open-menu-symbolic",
 
                                         #[wrap(Some)]
+                                        #[name = "header_menu_popover"]
                                         set_popover = &gtk::Popover {
 
                                             gtk::Box {
@@ -238,13 +239,19 @@ impl AsyncComponent for AppModel {
 
                                                 gtk::Button {
                                                     set_label: &fl!(I18N, "show-historical-charts"),
-                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowGraphsWindow),
+                                                    connect_clicked[header_menu_popover] => move |_| {
+                                                        header_menu_popover.popdown();
+                                                        APP_BROKER.send(AppMsg::ShowGraphsWindow);
+                                                    },
                                                     add_css_class: "flat",
                                                 },
 
                                                 gtk::Button {
                                                     set_label: &fl!(I18N, "show-process-monitor"),
-                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowProcessMonitor),
+                                                    connect_clicked[header_menu_popover] => move |_| {
+                                                        header_menu_popover.popdown();
+                                                        APP_BROKER.send(AppMsg::ShowProcessMonitor);
+                                                    },
                                                     add_css_class: "flat",
                                                 },
 
@@ -252,13 +259,19 @@ impl AsyncComponent for AppModel {
 
                                                 gtk::Button {
                                                     set_label: &fl!(I18N, "generate-debug-snapshot"),
-                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::DebugSnapshot),
+                                                    connect_clicked[header_menu_popover] => move |_| {
+                                                        header_menu_popover.popdown();
+                                                        APP_BROKER.send(AppMsg::DebugSnapshot);
+                                                    },
                                                     add_css_class: "flat",
                                                 },
 
                                                 gtk::Button {
                                                     set_label: &fl!(I18N, "dump-vbios"),
-                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::DumpVBios),
+                                                    connect_clicked[header_menu_popover] => move |_| {
+                                                        header_menu_popover.popdown();
+                                                        APP_BROKER.send(AppMsg::DumpVBios);
+                                                    },
                                                     add_css_class: "flat",
                                                     #[watch]
                                                     set_sensitive: model.device_flags.contains(&DeviceFlag::DumpableVBios),
@@ -268,13 +281,19 @@ impl AsyncComponent for AppModel {
 
                                                 gtk::Button {
                                                     set_label: &fl!(I18N, "preferences"),
-                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowPreferencesDialog),
+                                                    connect_clicked[header_menu_popover] => move |_| {
+                                                        header_menu_popover.popdown();
+                                                        APP_BROKER.send(AppMsg::ShowPreferencesDialog);
+                                                    },
                                                     add_css_class: "flat",
                                                 },
 
                                                 gtk::Button {
                                                     set_label: &fl!(I18N, "about"),
-                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowAboutDialog),
+                                                    connect_clicked[header_menu_popover] => move |_| {
+                                                        header_menu_popover.popdown();
+                                                        APP_BROKER.send(AppMsg::ShowAboutDialog);
+                                                    },
                                                     add_css_class: "flat",
                                                 },
                                             }
