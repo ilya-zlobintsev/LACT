@@ -2,7 +2,6 @@ use crate::{
     APP_BROKER, I18N,
     app::{msg::AppMsg, pages::oc_adjustment::OcAdjustment},
 };
-use gtk::prelude::BoxExt;
 use gtk::{
     glib::{
         SignalHandlerId,

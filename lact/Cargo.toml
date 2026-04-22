@@ -1,7 +1,7 @@
 [package]
 name = "lact"
 version = "0.9.0"
-edition = "2024"
+edition.workspace = true
 
 [features]
 default = ["lact-gui", "nvidia"]

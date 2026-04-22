@@ -2,7 +2,7 @@
 name = "lact-gui"
 version = "0.9.0"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
-edition = "2024"
+edition.workspace = true
 
 [features]
 default = []
@@ -24,19 +24,19 @@ serde_with = { workspace = true }
 serde_norway = { workspace = true }
 serde_json = { workspace = true }
 indexmap = { workspace = true }
-gtk = { version = "0.10.0", package = "gtk4", features = [
+gtk = { version = "0.10.3", package = "gtk4", features = [
     "v4_6",
 ] } # TODO: bump the feature to 4_14 and figure out all the deprecations
 
-adw = { package = "libadwaita", version = "0.8.0", features = ["v1_5"] }
-relm4 = { version = "0.10.0", features = ["libadwaita"] }
-relm4-components = "0.10.0"
+adw = { package = "libadwaita", version = "0.8.1", features = ["v1_5"] }
+relm4 = { version = "0.10.1", features = ["libadwaita"] }
+relm4-components = "0.10.1"
 
 i18n-embed = { workspace = true }
 i18n-embed-fl = { workspace = true }
 rust-embed = { workspace = true }
 
-plotters = { version = "0.3.5", default-features = false, features = [
+plotters = { version = "0.3.7", default-features = false, features = [
     "line_series",
     "full_palette",
     "point_series",
@@ -49,4 +49,4 @@ thread-priority = "3.0.0"
 divan = { workspace = true, optional = true }
 
 [dev-dependencies]
-pretty_assertions = "1.4.0"
+pretty_assertions = "1.4.1"
