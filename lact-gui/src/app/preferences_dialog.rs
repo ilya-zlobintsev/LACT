@@ -1,12 +1,15 @@
 use crate::{
     CONFIG, I18N,
     app::{APP_BROKER, msg::AppMsg, styles, styles::AppTheme},
+    config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
 use adw::prelude::{
     ActionRowExt, AdwDialogExt, PreferencesDialogExt, PreferencesGroupExt, PreferencesPageExt,
     PreferencesRowExt,
 };
-use gtk::prelude::{ButtonExt, ListBoxRowExt, OrientableExt, ToggleButtonExt, WidgetExt};
+use gtk::prelude::{
+    ButtonExt, EditableExt, ListBoxRowExt, OrientableExt, ToggleButtonExt, WidgetExt,
+};
 use i18n_embed_fl::fl;
 use lact_schema::SystemInfo;
 use relm4::{ComponentParts, ComponentSender};
@@ -36,7 +39,7 @@ impl relm4::Component for PreferencesDialog {
 
             add = &adw::PreferencesPage {
                 add = &adw::PreferencesGroup {
-                    set_title: &fl!(I18N, "theme"),
+                    set_title: &fl!(I18N, "ui"),
 
                     adw::ActionRow {
                         set_title: &fl!(I18N, "theme"),
@@ -83,9 +86,29 @@ impl relm4::Component for PreferencesDialog {
                             },
                         },
                     },
+
+                    adw::ActionRow {
+                        set_title: &fl!(I18N, "stats-update-interval"),
+
+                        add_suffix = &gtk::SpinButton {
+                            set_range: (MIN_STATS_POLL_INTERVAL_MS as f64, MAX_STATS_POLL_INTERVAL_MS as f64),
+                            set_increments: (250.0, 500.0),
+                            set_digits: 0,
+                            set_width_chars: 5,
+                            set_valign: gtk::Align::Center,
+                            set_value: CONFIG.read().stats_poll_interval_ms as f64,
+                            connect_value_changed => move |btn| {
+                                CONFIG.write().edit(|config| {
+                                    config.stats_poll_interval_ms = btn.value() as i64;
+                                })
+                            },
+                        },
+                    },
                 },
 
                 add = &adw::PreferencesGroup {
+                    set_title: &fl!(I18N, "daemon"),
+
                     adw::ActionRow {
                         set_title: &fl!(I18N, "disable-amd-oc"),
                         set_activatable: true,

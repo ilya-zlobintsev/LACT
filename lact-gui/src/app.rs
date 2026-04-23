@@ -14,7 +14,6 @@ pub(crate) mod pages;
 mod preferences_dialog;
 mod process_monitor;
 mod profiles;
-mod stats_update_interval;
 pub(crate) mod styles;
 
 use crate::{
@@ -29,7 +28,6 @@ use crate::{
             ProfileSelector, ProfileSelectorMsg,
             profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
         },
-        stats_update_interval::StatsUpdateInterval,
     },
 };
 use adw::prelude::{AdwDialogExt as _, AlertDialogExtManual as _, NavigationPageExt as _};
@@ -119,7 +117,6 @@ pub struct AppModel {
 
     gpu_selector: relm4::Controller<GpuSelector>,
     profile_selector: relm4::Controller<ProfileSelector>,
-    stats_update_interval: relm4::Controller<StatsUpdateInterval>,
     stats_task_handle: Option<glib::JoinHandle<()>>,
 
     settings_changed: BoolBinding,
@@ -179,8 +176,6 @@ impl AsyncComponent for AppModel {
                                     model.gpu_selector.widget().clone() {},
 
                                     model.profile_selector.widget().clone() {},
-
-                                    model.stats_update_interval.widget().clone() {},
 
                                     gtk::Separator {},
 
@@ -478,8 +473,6 @@ impl AsyncComponent for AppModel {
             .launch(())
             .forward(sender.input_sender(), |msg| msg);
 
-        let stats_update_interval = StatsUpdateInterval::builder().launch(()).detach();
-
         let model = AppModel {
             daemon_client,
             graphs_window,
@@ -494,7 +487,6 @@ impl AsyncComponent for AppModel {
             crash_page,
             gpu_selector,
             profile_selector,
-            stats_update_interval,
             ui_sensitive: BoolBinding::new(false),
             selected_gpu_index: 0,
             stats_task_handle: None,
