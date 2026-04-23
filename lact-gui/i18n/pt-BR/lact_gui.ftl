@@ -1,8 +1,8 @@
-oc-page = OC
+oc-page = Overclocking
 thermals-page = Térmicos
-software-page = Software
+software-page = Informações de software
 hardware-info = Informação de hardware
-info-page = Informações
+info-page = Informações do hardware
 lact-gui = LACT GUI
 lact-daemon = Daemon do LACT
 kernel-version = Versão do kernel
