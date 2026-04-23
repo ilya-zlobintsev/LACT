@@ -48,14 +48,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 10,
 
-            PageSection::new(&fl!(I18N, "stats-section")) {
-                append_header = &gtk::Button {
-                    set_label: &fl!(I18N, "show-historical-charts"),
-                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowGraphsWindow),
-                    set_halign: gtk::Align::End,
-                    set_hexpand: true,
-                },
-
+            PageSection::new("") {
                 append_child = &gtk::FlowBox {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,
