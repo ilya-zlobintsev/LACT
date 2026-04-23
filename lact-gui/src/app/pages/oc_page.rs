@@ -66,6 +66,7 @@ impl relm4::Component for OcPage {
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 10,
             set_margin_all: 15,
+            set_margin_top: 20, // align with gpu picker
 
             model.stats_section.widget(),
             model.power_cap_section.widget(),

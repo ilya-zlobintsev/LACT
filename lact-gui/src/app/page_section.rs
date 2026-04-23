@@ -101,6 +101,7 @@ mod imp {
                         set_orientation: gtk::Orientation::Vertical,
                         add_css_class: "page-section-content" ,
                         set_class_active: (css::CARD, !self.hide_visible_container.get()),
+                        set_class_active: ("page-section-no-container", self.hide_visible_container.get()),
 
                         #[local_ref]
                         append = children_box {
@@ -123,9 +124,10 @@ mod imp {
                 .build();
 
             obj.connect_notify_local(Some("hide-visible-container"), |obj, _| {
-                obj.imp()
-                    .content_box
-                    .set_class_active(css::CARD, !obj.hide_visible_container());
+                let hidden = obj.hide_visible_container();
+                let content_box = &obj.imp().content_box;
+                content_box.set_class_active(css::CARD, !hidden);
+                content_box.set_class_active("page-section-no-container", hidden);
             });
         }
     }

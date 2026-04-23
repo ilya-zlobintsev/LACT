@@ -233,15 +233,6 @@ impl AsyncComponent for AppModel {
                                                 add_css_class: "header-settings-popover-container",
 
                                                 gtk::Button {
-                                                    set_label: &fl!(I18N, "show-historical-charts"),
-                                                    connect_clicked[header_menu_popover] => move |_| {
-                                                        header_menu_popover.popdown();
-                                                        APP_BROKER.send(AppMsg::ShowGraphsWindow);
-                                                    },
-                                                    add_css_class: "flat",
-                                                },
-
-                                                gtk::Button {
                                                     set_label: &fl!(I18N, "show-process-monitor"),
                                                     connect_clicked[header_menu_popover] => move |_| {
                                                         header_menu_popover.popdown();
@@ -293,7 +284,12 @@ impl AsyncComponent for AppModel {
                                                 },
                                             }
                                         },
-                                    }
+                                    },
+
+                                    pack_end = &gtk::Button {
+                                        set_label: &fl!(I18N, "show-historical-charts"),
+                                        connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowGraphsWindow),
+                                    },
                                 },
 
                                 add_top_bar = &adw::Banner {
