@@ -193,7 +193,7 @@ vram-pstates = VRAM Power States
 pstates-manual-needed = Performance level must be set to 'manual' to toggle power states
 enable-pstate-config = Enable power state configuration
 
-show-historical-charts = Show Historical Charts
+show-historical-charts = Show Graphs
 show-process-monitor = Show Process Monitor
 generate-debug-snapshot = Generate Debug Snapshot
 dump-vbios = Dump VBIOS

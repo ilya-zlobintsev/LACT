@@ -100,8 +100,9 @@ impl relm4::Component for ThermalsPage {
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 15,
             set_margin_all: 15,
+            set_margin_top: 20, // align with gpu picker
 
-            PageSection::new(&fl!(I18N, "monitoring-section")) {
+            PageSection::new("") {
                 append_child = &gtk::FlowBox {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,

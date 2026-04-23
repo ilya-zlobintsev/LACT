@@ -1,6 +1,4 @@
 use crate::I18N;
-use crate::app::APP_BROKER;
-use crate::app::msg::AppMsg;
 use crate::app::{
     ext::FlowBoxExt,
     formatting::{self, Mono},
@@ -9,9 +7,7 @@ use crate::app::{
     page_section::PageSection,
 };
 use gtk::pango::AttrList;
-use gtk::prelude::{
-    BoxExt, ButtonExt, Cast, FlowBoxChildExt, OrientableExt, PopoverExt as _, WidgetExt,
-};
+use gtk::prelude::{BoxExt, Cast, FlowBoxChildExt, OrientableExt, PopoverExt as _, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt as _};
@@ -48,14 +44,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 10,
 
-            PageSection::new(&fl!(I18N, "stats-section")) {
-                append_header = &gtk::Button {
-                    set_label: &fl!(I18N, "show-historical-charts"),
-                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowGraphsWindow),
-                    set_halign: gtk::Align::End,
-                    set_hexpand: true,
-                },
-
+            PageSection::new("") {
                 append_child = &gtk::FlowBox {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,
