@@ -133,7 +133,6 @@ impl relm4::Component for GraphsWindow {
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 5,
-                        set_margin_all: 10,
 
                         append = model.plots.widget() {
                             set_margin_all: 10,
