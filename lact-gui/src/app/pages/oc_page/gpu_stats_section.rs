@@ -1,6 +1,4 @@
 use crate::I18N;
-use crate::app::APP_BROKER;
-use crate::app::msg::AppMsg;
 use crate::app::{
     ext::FlowBoxExt,
     formatting::{self, Mono},
@@ -9,9 +7,7 @@ use crate::app::{
     page_section::PageSection,
 };
 use gtk::pango::AttrList;
-use gtk::prelude::{
-    BoxExt, ButtonExt, Cast, FlowBoxChildExt, OrientableExt, PopoverExt as _, WidgetExt,
-};
+use gtk::prelude::{BoxExt, Cast, FlowBoxChildExt, OrientableExt, PopoverExt as _, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt as _};
