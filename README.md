@@ -55,6 +55,7 @@ The service can also be used standalone with a config file, for example in headl
 - [Power profiles daemon note](#power-profiles-daemon-note)
 - [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock)
 - [Metrics exporter](./docs/EXPORTER.md)
+- [Contribute code](./docs/CONTRIBUTING.md)
 - [Contribute translations](#localization)
 - [Support the project](#support-the-project)
 
@@ -186,7 +187,7 @@ systemd, as it relies on the `org.freedesktop.login2` DBus interface.
 
 Dependencies:
 
-- rust 1.76+
+- rust 1.93+
 - gtk 4.6+
 - libadwaita 1.5+
 - git
