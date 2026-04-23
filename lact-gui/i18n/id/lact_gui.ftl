@@ -1,7 +1,7 @@
 info-page = Informasi
-oc-page = OC
+oc-page = Overclocking
 thermals-page = Termal
-software-page = Perangkat Lunak
+software-page = Info Perangkat Lunak
 hardware-info = Informasi Perangkat Keras
 system-section = Sistem
 lact-daemon = Daemon LACT
@@ -131,18 +131,16 @@ performance-level = Level Performa
 power-profile-mode = Mode Profil Daya:
 manual-level-needed = Level performa harus diatur ke "manual" untuk menggunakan status daya dan mode
 overclock-section = Kecepatan Clock dan Tegangan
-nvidia-oc-info = Informasi Overclocking Nvidia
+nvidia-oc-info = Informasi Overclocking
 nvidia-oc-description =
-    Fungsi overclocking pada Nvidia mencakup pengaturan offset untuk kecepatan clock GPU/VRAM dan pembatasan rentang kecepatan clock yang memungkinkan menggunakan fitur "locked clocks".
+    Fungsionalitas overclocking pada Nvidia mencakup pengaturan offset untuk kecepatan clock GPU/VRAM dan pembatasan rentang potensial kecepatan clock menggunakan fitur "locked clocks".
 
     Pada banyak kartu, offset kecepatan clock VRAM hanya akan memengaruhi kecepatan memori aktual sebesar setengah dari nilai offset.
     Misalnya, offset VRAM +1000MHz mungkin hanya meningkatkan kecepatan VRAM yang terukur sebesar 500MHz.
-    Ini normal, dan merupakan cara Nvidia menangani kecepatan data GDDR. Sesuaikan overclock Anda dengan tepat.
-
-    Kontrol tegangan langsung tidak didukung, karena tidak tersedia dalam driver Linux Nvidia.
+    Ini normal, dan merupakan cara Nvidia menangani kecepatan data GDDR. Sesuaikan overclock Anda.
 
     Dimungkinkan untuk mencapai pseudo-undervolt dengan menggabungkan opsi locked clocks dengan offset kecepatan clock positif.
-    Ini akan memaksa GPU berjalan pada tegangan yang dibatasi oleh locked clocks, sambil mencapai kecepatan clock yang lebih tinggi karena offset.
+    Ini akan memaksa GPU berjalan pada tegangan yang dibatasi oleh locked clocks, sekaligus mencapai kecepatan clock yang lebih tinggi berkat offset tersebut.
     Hal ini dapat menyebabkan ketidakstabilan sistem jika didorong terlalu tinggi.
 oc-warning = Mengubah nilai-nilai ini dapat menyebabkan ketidakstabilan sistem dan berpotensi merusak perangkat keras Anda!
 show-all-pstates = Tampilkan Semua P-State
@@ -231,3 +229,20 @@ profile-rule-args-contain = Argumen Mengandung:
 profile-rule-specific-process = Dengan proses tertentu:
 crash-page-title = Aplikasi Mengalami Crash
 exit = Keluar
+hw-ip-info = Informasi IP Perangkat Keras
+hw-queues = Antrean
+vf-curve-editor = Editor Kurva VF
+nvidia-vf-curve-warning =
+    Editor kurva tegangan-frekuensi mengandalkan fungsionalitas driver yang tidak terdokumentasi.
+    Tidak ada jaminan mengenai perilaku, keamanan, atau ketersediaannya.
+    <span weight = "heavy" underline = "single">Gunakan dengan risiko Anda sendiri</span>.
+vf-curve-enable-editing = Aktifkan Pengeditan
+voltage = Tegangan
+frequency = Frekuensi
+vf-active-curve = Kurva Aktif
+vf-base-curve = Kurva Dasar
+vf-curve-visible-range = Rentang Terlihat (%):
+vf-curve-visible-range-to = hingga
+vf-curve-flatten-right = Ratakan kurva ke kanan
+theme = Tema
+theme-auto = Otomatis
