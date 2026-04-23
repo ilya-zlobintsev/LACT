@@ -616,7 +616,6 @@ fn draw_chart<const I: usize>(
     speed_range: &RangeInclusive<f32>,
 ) -> [Option<(f32, f32)>; I] {
     let root = backend.into_drawing_area();
-    root.fill(&colors.background).unwrap();
 
     let mut chart = ChartBuilder::on(&root)
         .x_label_area_size(45)
