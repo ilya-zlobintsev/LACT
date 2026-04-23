@@ -87,7 +87,7 @@ impl relm4::Component for GraphsWindow {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_spacing: 10,
                     set_margin_horizontal: 10,
-                    set_margin_vertical: 5,
+                    set_margin_top: 5,
                     set_halign: gtk::Align::End,
                     #[watch]
                     set_visible: model.edit_mode.value(),
@@ -136,6 +136,7 @@ impl relm4::Component for GraphsWindow {
 
                         append = model.plots.widget() {
                             set_margin_all: 10,
+                            set_margin_top: 7,
                             set_row_spacing: 10,
                             set_column_spacing: 10,
                         },

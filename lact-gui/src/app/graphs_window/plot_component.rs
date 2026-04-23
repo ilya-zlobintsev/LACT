@@ -57,118 +57,121 @@ impl relm4::factory::FactoryComponent for PlotComponent {
     type CommandOutput = ();
 
     view! {
-        gtk::Overlay {
-            #[name = "plot"]
-            Plot {
-                set_data: self.data.clone(),
-                set_margin_all: 5,
-                add_css_class: "plot-component",
+        gtk::Box {
+            add_css_class: css::CARD,
 
-                #[watch]
-                set_cursor: self.get_cursor().as_ref(),
-                #[watch]
-                set_time_period_seconds: self.time_period.value() as i64,
-                add_binding: (&self.print_extra_info, "print-extra-info"),
+            gtk::Overlay {
+                #[name = "plot"]
+                Plot {
+                    set_data: self.data.clone(),
+                    set_margin_all: 5,
 
-                connect_frame_rendered[sender] => move || {
-                    sender.input(PlotComponentMsg::FrameRendered);
-                },
-            },
+                    #[watch]
+                    set_cursor: self.get_cursor().as_ref(),
+                    #[watch]
+                    set_time_period_seconds: self.time_period.value() as i64,
+                    add_binding: (&self.print_extra_info, "print-extra-info"),
 
-            add_overlay = &gtk::ToggleButton {
-                set_halign: gtk::Align::End,
-                set_valign: gtk::Align::Start,
-                set_margin_all: 20,
-                set_icon_name: "info-outline-symbolic",
-                set_tooltip: &fl!(I18N, "plot-show-detailed-info"),
-                set_opacity: 0.9,
-                bind: &self.print_extra_info,
-            },
-
-            add_overlay = &gtk::Box {
-                set_orientation: gtk::Orientation::Horizontal,
-                set_spacing: 5,
-                set_halign: gtk::Align::End,
-                set_valign: gtk::Align::End,
-                set_margin_all: 20,
-                #[watch]
-                set_visible: self.edit_mode.value(),
-
-                gtk::MenuButton {
-                    set_icon_name: "view-list-symbolic",
-                    set_tooltip: &fl!(I18N, "edit-graph-sensors"),
-
-                    #[wrap(Some)]
-                    set_popover = &gtk::Popover {
-                        #[wrap(Some)]
-                        set_child = &gtk::ScrolledWindow {
-                            set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
-                            set_propagate_natural_height: true,
-                            set_max_content_height: 200,
-
-                            self.stats.widget() {
-                                set_orientation: gtk::Orientation::Vertical,
-                                set_margin_all: 10,
-                            }
-                        },
+                    connect_frame_rendered[sender] => move || {
+                        sender.input(PlotComponentMsg::FrameRendered);
                     },
                 },
 
-                gtk::Button {
-                    set_icon_name: "edit-delete-symbolic",
-                    add_css_class: css::DESTRUCTIVE_ACTION,
-                    set_tooltip: &fl!(I18N, "delete-graph"),
-
-                    connect_clicked[sender, index] => move |_| {
-                        sender.output(GraphsWindowMsg::RemovePlot(index.clone())).unwrap();
-                    }
+                add_overlay = &gtk::ToggleButton {
+                    set_halign: gtk::Align::End,
+                    set_valign: gtk::Align::Start,
+                    set_margin_all: 20,
+                    set_icon_name: "info-outline-symbolic",
+                    set_tooltip: &fl!(I18N, "plot-show-detailed-info"),
+                    set_opacity: 0.9,
+                    bind: &self.print_extra_info,
                 },
-            },
 
-            #[wrap(Clone::clone)]
-            add_controller = &gtk::DragSource {
-                #[watch]
-                set_actions: if self.edit_mode.value() { gdk::DragAction::MOVE } else { gdk::DragAction::empty() },
+                add_overlay = &gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 5,
+                    set_halign: gtk::Align::End,
+                    set_valign: gtk::Align::End,
+                    set_margin_all: 20,
+                    #[watch]
+                    set_visible: self.edit_mode.value(),
 
-                connect_prepare[plot, index, edit_mode = self.edit_mode.clone()] => move |drag_source, _, _| {
-                    if edit_mode.value() {
-                        if let Some(texture) = plot.imp().get_last_texture() {
-                            drag_source.set_icon(Some(&texture), 0, 0);
+                    gtk::MenuButton {
+                        set_icon_name: "view-list-symbolic",
+                        set_tooltip: &fl!(I18N, "edit-graph-sensors"),
+
+                        #[wrap(Some)]
+                        set_popover = &gtk::Popover {
+                            #[wrap(Some)]
+                            set_child = &gtk::ScrolledWindow {
+                                set_policy: (gtk::PolicyType::Never, gtk::PolicyType::Automatic),
+                                set_propagate_natural_height: true,
+                                set_max_content_height: 200,
+
+                                self.stats.widget() {
+                                    set_orientation: gtk::Orientation::Vertical,
+                                    set_margin_all: 10,
+                                }
+                            },
+                        },
+                    },
+
+                    gtk::Button {
+                        set_icon_name: "edit-delete-symbolic",
+                        add_css_class: css::DESTRUCTIVE_ACTION,
+                        set_tooltip: &fl!(I18N, "delete-graph"),
+
+                        connect_clicked[sender, index] => move |_| {
+                            sender.output(GraphsWindowMsg::RemovePlot(index.clone())).unwrap();
                         }
-                        Some(gdk::ContentProvider::for_value(&DynamicIndexValue(index.clone()).to_value()))
-                    } else {
-                        None
-                    }
-                }
-            },
-
-            add_controller = gtk::DropTarget {
-                set_actions: gdk::DragAction::MOVE,
-                set_types: &[DynamicIndexValue::static_type()],
-
-                connect_enter[root = root.downgrade()] => move |_, _, _| {
-                    if let Some(root) = root.upgrade() {
-                        root.set_opacity(0.5);
-                    }
-                    gdk::DragAction::MOVE
+                    },
                 },
 
-                connect_leave[root = root.downgrade()] => move |_| {
-                    if let Some(root) = root.upgrade() {
-                        root.set_opacity(1.0);
+                #[wrap(Clone::clone)]
+                add_controller = &gtk::DragSource {
+                    #[watch]
+                    set_actions: if self.edit_mode.value() { gdk::DragAction::MOVE } else { gdk::DragAction::empty() },
+
+                    connect_prepare[plot, index, edit_mode = self.edit_mode.clone()] => move |drag_source, _, _| {
+                        if edit_mode.value() {
+                            if let Some(texture) = plot.imp().get_last_texture() {
+                                drag_source.set_icon(Some(&texture), 0, 0);
+                            }
+                            Some(gdk::ContentProvider::for_value(&DynamicIndexValue(index.clone()).to_value()))
+                        } else {
+                            None
+                        }
                     }
                 },
 
-                connect_drop[root = root.downgrade(), index, sender] => move |_, value, _, _| {
-                    if let Some(root) = root.upgrade() {
-                        root.set_opacity(1.0);
-                    }
+                add_controller = gtk::DropTarget {
+                    set_actions: gdk::DragAction::MOVE,
+                    set_types: &[DynamicIndexValue::static_type()],
 
-                    if let Ok(DynamicIndexValue(source_index)) = value.get::<DynamicIndexValue>() {
-                        sender.output(GraphsWindowMsg::SwapPlots(index.clone(), source_index)).unwrap();
-                    }
+                    connect_enter[root = root.downgrade()] => move |_, _, _| {
+                        if let Some(root) = root.upgrade() {
+                            root.set_opacity(0.5);
+                        }
+                        gdk::DragAction::MOVE
+                    },
 
-                    true
+                    connect_leave[root = root.downgrade()] => move |_| {
+                        if let Some(root) = root.upgrade() {
+                            root.set_opacity(1.0);
+                        }
+                    },
+
+                    connect_drop[root = root.downgrade(), index, sender] => move |_, value, _, _| {
+                        if let Some(root) = root.upgrade() {
+                            root.set_opacity(1.0);
+                        }
+
+                        if let Ok(DynamicIndexValue(source_index)) = value.get::<DynamicIndexValue>() {
+                            sender.output(GraphsWindowMsg::SwapPlots(index.clone(), source_index)).unwrap();
+                        }
+
+                        true
+                    },
                 },
             },
         },

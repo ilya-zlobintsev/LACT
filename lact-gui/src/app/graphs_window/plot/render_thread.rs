@@ -240,8 +240,6 @@ impl RenderRequest {
             maximum_value = 100.0;
         }
 
-        root.fill(&self.colors.background)?; // Fill the background with white color.
-
         let y_label_style = TextStyle {
             font: ("sans-serif", 18).into(),
             color: self.colors.text.to_backend_color(),
