@@ -1,7 +1,7 @@
 mod fan_curve_frame;
 
 use super::{PageUpdate, oc_adjustment::OcAdjustment};
-use crate::app::ext::FlowBoxExt;
+use crate::app::ext::{FlowBoxExt, make_event_controller_no_scroll};
 use crate::{
     APP_BROKER, I18N,
     app::{
@@ -593,11 +593,13 @@ impl relm4::WidgetTemplate for FanSettingRow {
                 set_round_digits: 0,
                 set_value_pos: gtk::PositionType::Right,
                 set_margin_horizontal: 5,
+                add_controller = make_event_controller_no_scroll(),
             },
 
             #[name = "spinbutton"]
             gtk::SpinButton {
                 set_width_request: 120,
+                add_controller = make_event_controller_no_scroll(),
             },
         },
     }
