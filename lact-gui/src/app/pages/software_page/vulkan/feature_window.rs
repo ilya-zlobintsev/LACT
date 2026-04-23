@@ -1,7 +1,8 @@
+use adw::prelude::{AdwWindowExt, ObjectExt};
 use gtk::{
     NoSelection,
     glib::GString,
-    prelude::{EditableExt, GtkWindowExt, ObjectExt, OrientableExt, WidgetExt},
+    prelude::{EditableExt, GtkWindowExt, WidgetExt},
 };
 use relm4::{
     ComponentParts, ComponentSender, SimpleComponent,
@@ -26,16 +27,17 @@ impl SimpleComponent for VulkanFeaturesWindow {
     type Output = ();
 
     view! {
-        gtk::Window {
+        adw::Window {
             set_title: Some(&title),
             set_default_width: 500,
             set_default_height: 700,
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
+            #[wrap(Some)]
+            set_content = &adw::ToolbarView {
+                add_top_bar = &adw::HeaderBar {},
 
                 #[name = "search_entry"]
-                gtk::SearchEntry {
+                add_top_bar = &gtk::SearchEntry {
                     connect_search_changed[sender] => move |entry| {
                         sender.input(AppMsg::FilterChanged(entry.text()));
                     },
@@ -47,16 +49,16 @@ impl SimpleComponent for VulkanFeaturesWindow {
                     },
                 },
 
-                gtk::ScrolledWindow {
+                #[wrap(Some)]
+                set_content = &gtk::ScrolledWindow {
+                    set_vexpand: true,
+
                     #[local_ref]
                     features_list -> gtk::ListView {
                         set_show_separators: true,
                     },
-
-                    set_vexpand: true,
-                }
+                },
             },
-
 
             add_controller = gtk::ShortcutController {
                 set_scope: gtk::ShortcutScope::Global,
