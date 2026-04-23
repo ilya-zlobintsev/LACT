@@ -1,3 +1,4 @@
+mod about_dialog;
 mod confirmation_dialog;
 mod ext;
 pub(crate) mod formatting;
@@ -10,6 +11,7 @@ mod overdrive_dialog;
 mod page_section;
 mod page_section_expander;
 pub(crate) mod pages;
+mod preferences_dialog;
 mod process_monitor;
 mod profiles;
 pub(crate) mod styles;
@@ -17,16 +19,16 @@ pub(crate) mod styles;
 use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
     app::{
+        about_dialog::{AboutDialog, AboutDialogMsg},
         gpu_selector::GpuSelector,
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
+        preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
         profiles::{
             ProfileSelector, ProfileSelectorMsg,
             profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
         },
-        styles::AppTheme,
     },
-    config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
 use adw::prelude::{AdwDialogExt as _, AlertDialogExtManual as _, NavigationPageExt as _};
 use adw::{ApplicationWindow, prelude::AlertDialogExt};
@@ -40,7 +42,7 @@ use gtk::{
     glib::{self, ControlFlow, clone},
     prelude::{
         BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
-        OrientableExt, ToggleButtonExt as _, WidgetExt,
+        OrientableExt, PopoverExt, WidgetExt,
     },
 };
 use i18n_embed_fl::fl;
@@ -101,6 +103,8 @@ pub struct AppModel {
     graphs_window: relm4::Controller<GraphsWindow>,
     process_monitor_window: relm4::Controller<ProcessMonitorWindow>,
     overdrive_dialog: relm4::Controller<OverdriveDialog>,
+    preferences_dialog: relm4::Controller<PreferencesDialog>,
+    about_dialog: relm4::Controller<AboutDialog>,
 
     ui_sensitive: BoolBinding,
     selected_gpu_index: u32,
@@ -169,39 +173,9 @@ impl AsyncComponent for AppModel {
                                     set_vexpand: true,
                                     add_css_class: "main-sidebar-container",
 
-                                    gtk::Box {
-                                        set_orientation: gtk::Orientation::Vertical,
-                                        set_margin_horizontal: 8,
-                                        set_margin_top: 4,
-                                        set_margin_bottom: 8,
+                                    model.gpu_selector.widget().clone() {},
 
-                                        gtk::Label {
-                                            set_label: "GPU",
-                                            set_halign: gtk::Align::Start,
-                                            set_margin_horizontal: 4,
-                                            add_css_class: relm4::css::DIM_LABEL,
-                                            add_css_class: relm4::css::CAPTION,
-                                        },
-
-                                        model.gpu_selector.widget().clone() {},
-                                    },
-
-                                    gtk::Box {
-                                        set_orientation: gtk::Orientation::Vertical,
-                                        set_margin_horizontal: 8,
-                                        set_margin_top: 4,
-                                        set_margin_bottom: 8,
-
-                                        gtk::Label {
-                                            set_label: "Profile",
-                                            set_halign: gtk::Align::Start,
-                                            set_margin_horizontal: 4,
-                                            add_css_class: relm4::css::DIM_LABEL,
-                                            add_css_class: relm4::css::CAPTION,
-                                        },
-
-                                        model.profile_selector.widget().clone() {},
-                                    },
+                                    model.profile_selector.widget().clone() {},
 
                                     gtk::Separator {},
 
@@ -251,6 +225,7 @@ impl AsyncComponent for AppModel {
                                         set_icon_name: "open-menu-symbolic",
 
                                         #[wrap(Some)]
+                                        #[name = "header_menu_popover"]
                                         set_popover = &gtk::Popover {
 
                                             gtk::Box {
@@ -259,7 +234,10 @@ impl AsyncComponent for AppModel {
 
                                                 gtk::Button {
                                                     set_label: &fl!(I18N, "show-process-monitor"),
-                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowProcessMonitor),
+                                                    connect_clicked[header_menu_popover] => move |_| {
+                                                        header_menu_popover.popdown();
+                                                        APP_BROKER.send(AppMsg::ShowProcessMonitor);
+                                                    },
                                                     add_css_class: "flat",
                                                 },
 
@@ -267,13 +245,19 @@ impl AsyncComponent for AppModel {
 
                                                 gtk::Button {
                                                     set_label: &fl!(I18N, "generate-debug-snapshot"),
-                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::DebugSnapshot),
+                                                    connect_clicked[header_menu_popover] => move |_| {
+                                                        header_menu_popover.popdown();
+                                                        APP_BROKER.send(AppMsg::DebugSnapshot);
+                                                    },
                                                     add_css_class: "flat",
                                                 },
 
                                                 gtk::Button {
                                                     set_label: &fl!(I18N, "dump-vbios"),
-                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::DumpVBios),
+                                                    connect_clicked[header_menu_popover] => move |_| {
+                                                        header_menu_popover.popdown();
+                                                        APP_BROKER.send(AppMsg::DumpVBios);
+                                                    },
                                                     add_css_class: "flat",
                                                     #[watch]
                                                     set_sensitive: model.device_flags.contains(&DeviceFlag::DumpableVBios),
@@ -282,102 +266,21 @@ impl AsyncComponent for AppModel {
                                                 gtk::Separator {},
 
                                                 gtk::Button {
-                                                    set_label: &fl!(I18N, "disable-amd-oc"),
-                                                    connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowOverdriveDialog),
+                                                    set_label: &fl!(I18N, "preferences"),
+                                                    connect_clicked[header_menu_popover] => move |_| {
+                                                        header_menu_popover.popdown();
+                                                        APP_BROKER.send(AppMsg::ShowPreferencesDialog);
+                                                    },
                                                     add_css_class: "flat",
-                                                    #[watch]
-                                                    set_sensitive: model.system_info.amdgpu_overdrive_enabled.is_some(),
                                                 },
 
                                                 gtk::Button {
-                                                    set_label: &fl!(I18N, "reset-all-config"),
-                                                    connect_clicked => move |_| {
-                                                        let msg = AppMsg::ask_confirmation(
-                                                            AppMsg::ResetConfig,
-                                                            fl!(I18N, "reset-config"),
-                                                            fl!(I18N, "reset-config-description"),
-                                                            gtk::ButtonsType::YesNo,
-                                                        );
-                                                        APP_BROKER.send(msg);
+                                                    set_label: &fl!(I18N, "about"),
+                                                    connect_clicked[header_menu_popover] => move |_| {
+                                                        header_menu_popover.popdown();
+                                                        APP_BROKER.send(AppMsg::ShowAboutDialog);
                                                     },
                                                     add_css_class: "flat",
-                                                },
-
-                                                gtk::Separator {},
-
-                                                gtk::Box {
-                                                    set_orientation: gtk::Orientation::Horizontal,
-                                                    set_spacing: 5,
-                                                    set_halign: gtk::Align::Center,
-
-                                                    gtk::Label {
-                                                        set_markup: &format!("<b>{}</b>", &fl!(I18N, "stats-update-interval")),
-                                                    },
-
-                                                    gtk::SpinButton {
-                                                        set_range: (MIN_STATS_POLL_INTERVAL_MS as f64, MAX_STATS_POLL_INTERVAL_MS as f64),
-                                                        set_increments: (250.0, 500.0),
-                                                        set_digits: 0,
-                                                        set_value: CONFIG.read().stats_poll_interval_ms as f64,
-                                                        connect_value_changed => move |btn| {
-                                                            CONFIG.write().edit(|config| {
-                                                                config.stats_poll_interval_ms = btn.value() as i64;
-                                                            })
-                                                        }
-                                                    },
-                                                },
-
-                                                gtk::Separator {},
-
-                                                gtk::Box {
-                                                    set_orientation: gtk::Orientation::Horizontal,
-                                                    set_spacing: 5,
-                                                    set_halign: gtk::Align::Center,
-
-                                                    gtk::Label {
-                                                        set_markup: &format!("<b>{}</b>", &fl!(I18N, "theme")),
-                                                    },
-
-                                                    gtk::Box {
-                                                        set_orientation: gtk::Orientation::Horizontal,
-                                                        add_css_class: "linked",
-
-                                                        #[name = "theme_auto_btn"]
-                                                        gtk::ToggleButton {
-                                                            set_label: &fl!(I18N, "theme-auto"),
-                                                            #[watch]
-                                                            set_active: CONFIG.read().theme == AppTheme::Automatic,
-                                                            connect_toggled[sender] => move |btn| {
-                                                                if btn.is_active() {
-                                                                    sender.input(AppMsg::ThemeSelected(AppTheme::Automatic));
-                                                                }
-                                                            },
-                                                        },
-
-                                                        gtk::ToggleButton {
-                                                            set_label: "Adwaita",
-                                                            set_group: Some(&theme_auto_btn),
-                                                            #[watch]
-                                                            set_active: CONFIG.read().theme == AppTheme::Adwaita,
-                                                            connect_toggled[sender] => move |btn| {
-                                                                if btn.is_active() {
-                                                                    sender.input(AppMsg::ThemeSelected(AppTheme::Adwaita));
-                                                                }
-                                                            },
-                                                        },
-
-                                                        gtk::ToggleButton {
-                                                            set_label: "Breeze",
-                                                            set_group: Some(&theme_auto_btn),
-                                                            #[watch]
-                                                            set_active: CONFIG.read().theme == AppTheme::Breeze,
-                                                            connect_toggled[sender] => move |btn| {
-                                                                if btn.is_active() {
-                                                                    sender.input(AppMsg::ThemeSelected(AppTheme::Breeze));
-                                                                }
-                                                            },
-                                                        },
-                                                    },
                                                 },
                                             }
                                         },
@@ -547,6 +450,12 @@ impl AsyncComponent for AppModel {
             .launch((system_info.clone(), root.clone().upcast()))
             .detach();
 
+        let preferences_dialog = PreferencesDialog::builder()
+            .launch((system_info.clone(), root.clone()))
+            .detach();
+
+        let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
+
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
 
@@ -565,6 +474,8 @@ impl AsyncComponent for AppModel {
             graphs_window,
             process_monitor_window,
             overdrive_dialog,
+            preferences_dialog,
+            about_dialog,
             info_page,
             oc_page,
             thermals_page,
@@ -669,6 +580,12 @@ impl AppModel {
                 } else {
                     self.update_gpu_data(gpu_id, sender).await?;
                 }
+            }
+            AppMsg::ShowPreferencesDialog => {
+                self.preferences_dialog.emit(PreferencesDialogMsg::Show);
+            }
+            AppMsg::ShowAboutDialog => {
+                self.about_dialog.emit(AboutDialogMsg::Show);
             }
             AppMsg::ShowOverdriveDialog => {
                 self.overdrive_dialog.emit(OverdriveDialogMsg::Show);
@@ -888,13 +805,6 @@ impl AppModel {
                     .set_profile_rule(name, rule, hooks)
                     .await?;
                 self.reload_profiles(None).await?;
-            }
-            AppMsg::ThemeSelected(theme) => {
-                styles::apply_theme(theme).expect("Could not apply theme");
-
-                CONFIG.write().edit(|config| {
-                    config.theme = theme;
-                });
             }
             AppMsg::Crash(message) => {
                 // we cannot be sure that the application is fully functional after a crash

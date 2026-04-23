@@ -52,18 +52,30 @@ impl Component for ProfileSelector {
     type CommandOutput = ();
 
     view! {
-        #[name = "root_menubutton"]
-        gtk::MenuButton {
-            #[watch]
-            set_label: model.selected_profile().unwrap_or("Default"),
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            add_css_class: "sidebar-section",
 
-            #[wrap(Some)]
-            set_popover = &gtk::Popover {
-                add_css_class: "gpu-profile-popover",
+            gtk::Label {
+                set_label: "Profile",
+                set_halign: gtk::Align::Start,
+                set_margin_horizontal: 4,
+                add_css_class: css::DIM_LABEL,
+                add_css_class: css::CAPTION,
+            },
 
-                gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 5,
+            #[name = "root_menubutton"]
+            gtk::MenuButton {
+                #[watch]
+                set_label: model.selected_profile().unwrap_or("Default"),
+
+                #[wrap(Some)]
+                set_popover = &gtk::Popover {
+                    add_css_class: "gpu-profile-popover",
+
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 5,
 
 
                     gtk::Label {
@@ -117,10 +129,10 @@ impl Component for ProfileSelector {
                             }
                         },
                     },
+                    }
                 }
             },
         },
-
     }
 
     fn init(
@@ -178,7 +190,7 @@ impl Component for ProfileSelector {
     ) {
         match msg {
             ProfileSelectorMsg::ClosePopover => {
-                root.popdown();
+                widgets.root_menubutton.popdown();
             }
             ProfileSelectorMsg::Profiles(profiles_info) => {
                 self.set_profiles_info(&sender, *profiles_info)
