@@ -3,7 +3,9 @@ use adw::prelude::{AdwDialogExt, EntryRowExt, PreferencesPageExt, PreferencesRow
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use lact_schema::request::ProfileBase;
-use relm4::{css, Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt};
+use relm4::{
+    Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt, css,
+};
 use relm4_components::simple_combo_box::SimpleComboBox;
 
 pub struct NewProfileDialog {

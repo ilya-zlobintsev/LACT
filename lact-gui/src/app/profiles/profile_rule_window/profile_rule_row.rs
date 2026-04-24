@@ -53,6 +53,8 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
 
     view! {
         gtk::Box {
+            set_spacing: 10,
+
             gtk::Label {
                 set_hexpand: true,
                 set_halign: gtk::Align::Start,
