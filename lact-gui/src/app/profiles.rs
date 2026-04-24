@@ -240,7 +240,7 @@ impl Component for ProfileSelector {
                 sender.input(ProfileSelectorMsg::ClosePopover);
 
                 let diag_controller = NewProfileDialog::builder()
-                    .launch(self.custom_profiles())
+                    .launch((self.custom_profiles(), root.clone().upcast::<gtk::Widget>()))
                     .forward(sender.output_sender(), |(name, base)| {
                         AppMsg::CreateProfile(name, base)
                     });
@@ -258,10 +258,7 @@ impl Component for ProfileSelector {
                 let sender = sender.clone();
                 if let ProfileRowType::Profile { name, .. } = profile.row.clone() {
                     let stream = ProfileRenameDialog::builder()
-                        .launch((
-                            name.clone(),
-                            root.toplevel_window().expect("Widget not in a window"),
-                        ))
+                        .launch((name.clone(), root.clone().upcast::<gtk::Widget>()))
                         .into_stream();
 
                     sender.clone().oneshot_command(async move {
@@ -299,7 +296,7 @@ impl Component for ProfileSelector {
                         rule: rule.clone().unwrap_or_default(),
                         hooks: hooks.clone(),
                         auto_switch: *auto,
-                        root_window: root.toplevel_window().expect("Widget not in a window"),
+                        parent: root.clone().upcast::<gtk::Widget>(),
                     };
                     let rule_window = ProfileRuleWindow::builder().launch(params).into_stream();
 

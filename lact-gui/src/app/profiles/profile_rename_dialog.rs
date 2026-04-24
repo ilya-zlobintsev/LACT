@@ -1,69 +1,106 @@
 use crate::I18N;
-use gtk::prelude::{
-    BoxExt, DialogExt, DialogExtManual, EditableExt, EntryExt, GtkWindowExt, OrientableExt,
-    WidgetExt,
-};
+use adw::prelude::{AdwDialogExt, EntryRowExt, PreferencesPageExt, PreferencesRowExt};
+use gtk::prelude::{BoxExt, ButtonExt, EditableExt, ObjectExt, OrientableExt, WidgetExt};
 use i18n_embed_fl::fl;
-use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{css, ComponentParts, ComponentSender, RelmWidgetExt};
 
-pub struct ProfileRenameDialog {}
+pub struct ProfileRenameDialog {
+    old_name: String,
+    parent: gtk::Widget,
+}
+
+#[derive(Debug)]
+pub enum ProfileRenameDialogMsg {
+    Save,
+}
 
 #[relm4::component(pub)]
-impl relm4::SimpleComponent for ProfileRenameDialog {
-    type Init = (String, gtk::Window);
-    type Input = ();
+impl relm4::Component for ProfileRenameDialog {
+    type Init = (String, gtk::Widget);
+    type Input = ProfileRenameDialogMsg;
     type Output = String;
+    type CommandOutput = ();
 
     view! {
-        gtk::Dialog {
-            set_default_size: (400, 50),
-            set_title: Some(&fl!(I18N, "rename-profile")),
-            set_transient_for: Some(&root_window),
-            set_hide_on_close: true,
-            connect_response[root, sender, name_entry] => move |_, response| {
-                match response {
-                    gtk::ResponseType::Accept => {
-                        sender.output(name_entry.text().to_string()).unwrap();
-                        root.close();
-                    }
-                    gtk::ResponseType::Cancel => root.close(),
-                    _ => (),
-                }
-            },
-            add_buttons: &[(&fl!(I18N, "cancel"), gtk::ResponseType::Cancel), (&fl!(I18N, "save"), gtk::ResponseType::Accept)],
+        #[root]
+        adw::Dialog {
+            set_content_width: 420,
+            set_title: &fl!(I18N, "rename-profile"),
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Horizontal,
-                set_margin_all: 5,
-                set_spacing: 5,
+            #[wrap(Some)]
+            set_child = &adw::ToolbarView {
+                add_top_bar = &adw::HeaderBar {},
 
-                gtk::Label {
-                    set_markup: &fl!(I18N, "rename-profile-from", old_name = old_name.clone()),
+                #[wrap(Some)]
+                set_content = &adw::PreferencesPage {
+                    add = &adw::PreferencesGroup {
+                        #[name = "name_entry"]
+                        adw::EntryRow {
+                            set_title: &fl!(I18N, "name"),
+                            set_text: &model.old_name,
+                            connect_entry_activated => ProfileRenameDialogMsg::Save,
+                        },
+                    },
                 },
 
-                #[name = "name_entry"]
-                gtk::Entry {
-                    set_text: &old_name,
-                    set_hexpand: true,
-                    connect_activate[root] => move |_| {
-                        root.response(gtk::ResponseType::Accept);
-                    }
+                add_bottom_bar = &gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 10,
+                    set_margin_horizontal: 10,
+                    set_margin_bottom: 10,
+
+                    gtk::Button {
+                        set_label: &fl!(I18N, "cancel"),
+                        set_hexpand: true,
+                        connect_clicked[root = root.downgrade()] => move |_| {
+                            if let Some(root) = root.upgrade() {
+                                root.close();
+                            }
+                        },
+                    },
+
+                    gtk::Button {
+                        set_label: &fl!(I18N, "save"),
+                        set_hexpand: true,
+                        add_css_class: css::SUGGESTED_ACTION,
+                        connect_clicked => ProfileRenameDialogMsg::Save,
+                    },
                 },
             }
         },
     }
 
     fn init(
-        (old_name, root_window): Self::Init,
+        (old_name, parent): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let model = Self {};
+        let model = Self { old_name, parent };
 
         let widgets = view_output!();
 
-        root.present();
+        root.set_focus(Some(&widgets.name_entry));
+        root.present(Some(&model.parent));
 
         ComponentParts { widgets, model }
+    }
+
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: ComponentSender<Self>,
+        root: &Self::Root,
+    ) {
+        match msg {
+            ProfileRenameDialogMsg::Save => {
+                sender
+                    .output(widgets.name_entry.text().to_string())
+                    .unwrap();
+                root.close();
+            }
+        }
+
+        self.update_view(widgets, sender);
     }
 }
