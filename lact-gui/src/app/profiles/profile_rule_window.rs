@@ -158,41 +158,47 @@ impl relm4::Component for ProfileRuleWindow {
                         add = &adw::PreferencesGroup {
                             set_description: Some(&fl!(I18N, "profile-hook-command", cmd = model.profile_name.as_str())),
 
-                            gtk::Box {
-                                set_orientation: gtk::Orientation::Vertical,
-                                set_spacing: 10,
+                            gtk::ListBox {
+                                set_selection_mode: gtk::SelectionMode::None,
+                                add_css_class: css::BOXED_LIST,
 
-                                gtk::Box {
-                                    set_orientation: gtk::Orientation::Horizontal,
-                                    set_spacing: 5,
+                                gtk::ListBoxRow {
+                                    gtk::Box {
+                                        set_orientation: gtk::Orientation::Horizontal,
+                                        set_spacing: 10,
+                                        set_margin_all: 10,
 
-                                    gtk::CheckButton {
-                                        set_label: Some(&fl!(I18N, "profile-hook-activated")),
-                                        add_binding: (&model.activated_hook_enabled, "active"),
-                                        set_size_group: &hook_command_size_group,
-                                    },
+                                        gtk::CheckButton {
+                                            set_label: Some(&fl!(I18N, "profile-hook-activated")),
+                                            add_binding: (&model.activated_hook_enabled, "active"),
+                                            set_size_group: &hook_command_size_group,
+                                        },
 
-                                    gtk::Entry {
-                                        add_binding: (&model.activated_hook_enabled, "sensitive"),
-                                        set_buffer: &model.activated_hook,
-                                        set_hexpand: true,
+                                        gtk::Entry {
+                                            add_binding: (&model.activated_hook_enabled, "sensitive"),
+                                            set_buffer: &model.activated_hook,
+                                            set_hexpand: true,
+                                        },
                                     },
                                 },
 
-                                gtk::Box {
-                                    set_orientation: gtk::Orientation::Horizontal,
-                                    set_spacing: 5,
+                                gtk::ListBoxRow {
+                                    gtk::Box {
+                                        set_orientation: gtk::Orientation::Horizontal,
+                                        set_spacing: 10,
+                                        set_margin_all: 10,
 
-                                    gtk::CheckButton {
-                                        set_label: Some(&fl!(I18N, "profile-hook-deactivated")),
-                                        add_binding: (&model.deactivated_hook_enabled, "active"),
-                                        set_size_group: &hook_command_size_group,
-                                    },
+                                        gtk::CheckButton {
+                                            set_label: Some(&fl!(I18N, "profile-hook-deactivated")),
+                                            add_binding: (&model.deactivated_hook_enabled, "active"),
+                                            set_size_group: &hook_command_size_group,
+                                        },
 
-                                    gtk::Entry {
-                                        add_binding: (&model.deactivated_hook_enabled, "sensitive"),
-                                        set_buffer: &model.deactivated_hook,
-                                        set_hexpand: true,
+                                        gtk::Entry {
+                                            add_binding: (&model.deactivated_hook_enabled, "sensitive"),
+                                            set_buffer: &model.deactivated_hook,
+                                            set_hexpand: true,
+                                        },
                                     },
                                 },
                             },
