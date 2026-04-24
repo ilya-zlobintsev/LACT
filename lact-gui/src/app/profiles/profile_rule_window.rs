@@ -80,7 +80,6 @@ impl relm4::Component for ProfileRuleWindow {
                 #[wrap(Some)]
                 set_content = &gtk::Stack {
                     add_titled[None, &fl!(I18N, "profile-activation")] = &adw::PreferencesPage {
-                        set_margin_all: 10,
 
                         add = &adw::PreferencesGroup {
                             set_description: Some(&fl!(I18N, "profile-activation-desc", name = model.profile_name.as_str())),
@@ -150,7 +149,6 @@ impl relm4::Component for ProfileRuleWindow {
                     },
 
                     add_titled[None, &fl!(I18N, "profile-hooks")] = &adw::PreferencesPage {
-                        set_margin_all: 10,
 
                         add = &adw::PreferencesGroup {
                             set_description: Some(&fl!(I18N, "profile-hook-command", cmd = model.profile_name.as_str())),
