@@ -82,16 +82,17 @@ impl relm4::Component for ProfileRuleWindow {
                     add_titled[None, &fl!(I18N, "profile-activation")] = &adw::PreferencesPage {
 
                         add = &adw::PreferencesGroup {
-                            set_description: Some(&fl!(I18N, "profile-activation-desc", name = model.profile_name.as_str())),
+                            set_title: &fl!(I18N, "profile-activation-desc", name = model.profile_name.as_str()),
 
-                            gtk::Box {
-                                set_orientation: gtk::Orientation::Vertical,
-                                set_spacing: 10,
+                            gtk::ListBox {
+                                set_selection_mode: gtk::SelectionMode::None,
+                                add_css_class: css::BOXED_LIST,
 
                                 #[name = "multi_or_checkbutton"]
                                 gtk::CheckButton {
                                     set_label: Some(&fl!(I18N, "any-rules-matched")),
                                     set_active: !matches!(rule, ProfileRule::And(_)),
+                                    set_margin_all: 10,
                                     connect_toggled => ProfileRuleWindowMsg::Evaluate,
                                 },
 
@@ -100,23 +101,27 @@ impl relm4::Component for ProfileRuleWindow {
                                     set_label: Some(&fl!(I18N, "all-rules-matched")),
                                     set_group: Some(&multi_or_checkbutton),
                                     set_active: matches!(rule, ProfileRule::And(_)),
+                                    set_margin_all: 10,
                                     connect_toggled => ProfileRuleWindowMsg::Evaluate,
                                 },
+                            },
+                        },
 
-                                gtk::Separator {},
+                        add = &adw::PreferencesGroup {
+                            set_title: &fl!(I18N, "profile-rules"),
 
-                                #[local_ref]
-                                sub_rules_listview -> gtk::Box {
-                                    set_orientation: gtk::Orientation::Vertical,
-                                    set_spacing: 5,
-                                },
+                            #[wrap(Some)]
+                            set_header_suffix = &gtk::Button {
+                                set_icon_name: "list-add-symbolic",
+                                set_tooltip: &fl!(I18N, "profile-rules"),
+                                add_css_class: "flat",
+                                connect_clicked => ProfileRuleWindowMsg::AddSubrule,
+                            },
 
-                                gtk::Button {
-                                    set_icon_name: "list-add-symbolic",
-                                    set_hexpand: true,
-                                    set_halign: gtk::Align::End,
-                                    connect_clicked => ProfileRuleWindowMsg::AddSubrule,
-                                },
+                            #[local_ref]
+                            sub_rules_listview -> gtk::ListBox {
+                                set_selection_mode: gtk::SelectionMode::None,
+                                add_css_class: css::BOXED_LIST,
                             },
                         },
 

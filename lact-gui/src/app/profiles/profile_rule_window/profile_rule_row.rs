@@ -49,169 +49,172 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
     type Input = ProfileRuleRowMsg;
     type Output = ProfileRuleWindowMsg;
     type CommandOutput = ();
-    type ParentWidget = gtk::Box;
+    type ParentWidget = gtk::ListBox;
 
     view! {
-        gtk::Box {
-            set_spacing: 10,
+        gtk::ListBoxRow {
+            gtk::Box {
+                set_spacing: 10,
+                set_margin_all: 12,
 
-            gtk::Label {
-                set_hexpand: true,
-                set_halign: gtk::Align::Start,
-                set_ellipsize: pango::EllipsizeMode::End,
-                #[watch]
-                set_markup: &format_rule(&self.get_configured_rule()),
-            },
+                gtk::Label {
+                    set_hexpand: true,
+                    set_halign: gtk::Align::Start,
+                    set_ellipsize: pango::EllipsizeMode::End,
+                    #[watch]
+                    set_markup: &format_rule(&self.get_configured_rule()),
+                },
 
-            gtk::MenuButton {
-                set_icon_name: "open-menu-symbolic",
-                set_tooltip: &fl!(I18N, "edit-rule"),
+                gtk::MenuButton {
+                    set_icon_name: "open-menu-symbolic",
+                    set_tooltip: &fl!(I18N, "edit-rule"),
 
-                #[wrap(Some)]
-                set_popover: main_popover = &gtk::Popover {
-                    gtk::Box {
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_spacing: 10,
-                        set_size_request: (300, 120),
-
-                        gtk::StackSidebar {
-                            set_stack: &stack,
-                        },
-
+                    #[wrap(Some)]
+                    set_popover: main_popover = &gtk::Popover {
                         gtk::Box {
-                            set_orientation: gtk::Orientation::Vertical,
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 10,
+                            set_size_request: (300, 120),
 
-                            #[name = "stack"]
-                            gtk::Stack {
-                                connect_visible_child_name_notify => ProfileRuleRowMsg::Changed,
+                            gtk::StackSidebar {
+                                set_stack: &stack,
+                            },
 
-                                add_titled[Some(PROCESS_PAGE), &fl!(I18N, "profile-rule-process-tab")] = &gtk::Grid {
-                                    set_row_spacing: 5,
-                                    set_column_spacing: 5,
+                            gtk::Box {
+                                set_orientation: gtk::Orientation::Vertical,
 
-                                    attach[0, 0, 1, 1] = &gtk::Label {
-                                        set_label: &fl!(I18N, "profile-rule-process-name"),
-                                        set_halign: gtk::Align::Start,
-                                    },
+                                #[name = "stack"]
+                                gtk::Stack {
+                                    connect_visible_child_name_notify => ProfileRuleRowMsg::Changed,
 
-                                    attach[2, 0, 1, 1] = &gtk::Entry {
-                                        set_buffer: &self.process_name_buffer,
-                                        set_hexpand: true,
-                                        set_placeholder_text: Some("Cyberpunk2077.exe"),
-                                    },
+                                    add_titled[Some(PROCESS_PAGE), &fl!(I18N, "profile-rule-process-tab")] = &gtk::Grid {
+                                        set_row_spacing: 5,
+                                        set_column_spacing: 5,
 
-                                    attach[3, 0, 1, 1] = &gtk::MenuButton {
-                                        set_icon_name: "view-list-symbolic",
+                                        attach[0, 0, 1, 1] = &gtk::Label {
+                                            set_label: &fl!(I18N, "profile-rule-process-name"),
+                                            set_halign: gtk::Align::Start,
+                                        },
 
-                                        #[wrap(Some)]
-                                        set_popover: process_filter_popover = &gtk::Popover {
-                                            gtk::Box {
-                                                set_orientation: gtk::Orientation::Vertical,
-                                                set_spacing: 5,
+                                        attach[2, 0, 1, 1] = &gtk::Entry {
+                                            set_buffer: &self.process_name_buffer,
+                                            set_hexpand: true,
+                                            set_placeholder_text: Some("Cyberpunk2077.exe"),
+                                        },
 
-                                                gtk::SearchEntry {
-                                                    connect_search_changed[sender] => move |entry| {
-                                                        sender.input(ProfileRuleRowMsg::ProcessFilterChanged(entry.text()));
+                                        attach[3, 0, 1, 1] = &gtk::MenuButton {
+                                            set_icon_name: "view-list-symbolic",
+
+                                            #[wrap(Some)]
+                                            set_popover: process_filter_popover = &gtk::Popover {
+                                                gtk::Box {
+                                                    set_orientation: gtk::Orientation::Vertical,
+                                                    set_spacing: 5,
+
+                                                    gtk::SearchEntry {
+                                                        connect_search_changed[sender] => move |entry| {
+                                                            sender.input(ProfileRuleRowMsg::ProcessFilterChanged(entry.text()));
+                                                        },
                                                     },
+
+                                                    gtk::ScrolledWindow {
+                                                        set_size_request: (400, 350),
+
+                                                        self.process_listview.view.clone() -> gtk::ListView {
+                                                            set_show_separators: true,
+                                                        },
+                                                    }
                                                 },
 
-                                                gtk::ScrolledWindow {
-                                                    set_size_request: (400, 350),
-
-                                                    self.process_listview.view.clone() -> gtk::ListView {
-                                                        set_show_separators: true,
-                                                    },
-                                                }
+                                                connect_visible_notify[sender] => move |_| {
+                                                    debug!("requesting profile watcher state");
+                                                    APP_BROKER.send(AppMsg::ReloadProfiles { state_sender: Some(sender.input_sender().clone())});
+                                                },
                                             },
+                                        },
 
-                                            connect_visible_notify[sender] => move |_| {
-                                                debug!("requesting profile watcher state");
-                                                APP_BROKER.send(AppMsg::ReloadProfiles { state_sender: Some(sender.input_sender().clone())});
-                                            },
+                                        attach[0, 1, 1, 1] = &gtk::Label {
+                                            set_label: &fl!(I18N, "profile-rule-args-contain"),
+                                            set_halign: gtk::Align::Start,
+                                        },
+
+
+                                        attach[1, 1, 1, 1]: filter_by_args_checkbutton = &gtk::CheckButton {
+                                            connect_toggled => ProfileRuleRowMsg::Changed,
+                                            add_binding: (&self.filter_by_args, "active"),
+                                        },
+
+                                        attach[2, 1, 2, 1]: args_entry = &gtk::Entry {
+                                            set_buffer: &self.args_buffer,
+                                            set_hexpand: true,
+                                            set_sensitive: false,
+                                            add_binding: (&self.filter_by_args, "sensitive"),
                                         },
                                     },
 
-                                    attach[0, 1, 1, 1] = &gtk::Label {
-                                        set_label: &fl!(I18N, "profile-rule-args-contain"),
-                                        set_halign: gtk::Align::Start,
+                                    add_titled[Some(GAMEMODE_PAGE), &fl!(I18N, "profile-rule-gamemode-tab")] = &gtk::Grid {
+                                        set_row_spacing: 5,
+                                        set_column_spacing: 10,
+
+                                        attach[0, 0, 1, 1] = &gtk::Label {
+                                            set_label: &fl!(I18N, "profile-rule-specific-process"),
+                                            set_halign: gtk::Align::Start,
+                                        },
+
+                                        attach[1, 0, 1, 1]: gamemode_filter_by_process_checkbutton = &gtk::CheckButton {
+                                            connect_toggled => ProfileRuleRowMsg::Changed,
+                                            add_binding: (&self.gamemode_filter_by_process, "active"),
+                                        },
+
+                                        attach[2, 0, 1, 1]: gamemode_process_name_entry = &gtk::Entry {
+                                            set_buffer: &self.process_name_buffer,
+                                            set_hexpand: true,
+                                            set_placeholder_text: Some("Cyberpunk2077.exe"),
+                                            set_sensitive: false,
+                                            add_binding: (&self.gamemode_filter_by_process, "sensitive"),
+                                        },
+
+                                        attach[0, 1, 1, 1] = &gtk::Label {
+                                            set_label: &fl!(I18N, "profile-rule-args-contain"),
+                                            set_halign: gtk::Align::Start,
+                                        },
+
+                                        attach[1, 1, 1, 1]: gamemode_filter_by_args_checkbutton = &gtk::CheckButton {
+                                            connect_toggled => ProfileRuleRowMsg::Changed,
+                                            add_binding: (&self.filter_by_args, "active"),
+                                        },
+
+                                        attach[2, 1, 1, 1]: gamemode_args_entry = &gtk::Entry {
+                                            set_buffer: &self.args_buffer,
+                                            set_hexpand: true,
+                                            set_sensitive: false,
+                                            add_binding: (&self.filter_by_args, "sensitive"),
+                                        },
                                     },
 
-
-                                    attach[1, 1, 1, 1]: filter_by_args_checkbutton = &gtk::CheckButton {
-                                        connect_toggled => ProfileRuleRowMsg::Changed,
-                                        add_binding: (&self.filter_by_args, "active"),
-                                    },
-
-                                    attach[2, 1, 2, 1]: args_entry = &gtk::Entry {
-                                        set_buffer: &self.args_buffer,
-                                        set_hexpand: true,
-                                        set_sensitive: false,
-                                        add_binding: (&self.filter_by_args, "sensitive"),
-                                    },
+                                    add_binding: (&self.selected_page, "visible-child-name"),
                                 },
 
-                                add_titled[Some(GAMEMODE_PAGE), &fl!(I18N, "profile-rule-gamemode-tab")] = &gtk::Grid {
-                                    set_row_spacing: 5,
-                                    set_column_spacing: 10,
-
-                                    attach[0, 0, 1, 1] = &gtk::Label {
-                                        set_label: &fl!(I18N, "profile-rule-specific-process"),
-                                        set_halign: gtk::Align::Start,
-                                    },
-
-                                    attach[1, 0, 1, 1]: gamemode_filter_by_process_checkbutton = &gtk::CheckButton {
-                                        connect_toggled => ProfileRuleRowMsg::Changed,
-                                        add_binding: (&self.gamemode_filter_by_process, "active"),
-                                    },
-
-                                    attach[2, 0, 1, 1]: gamemode_process_name_entry = &gtk::Entry {
-                                        set_buffer: &self.process_name_buffer,
-                                        set_hexpand: true,
-                                        set_placeholder_text: Some("Cyberpunk2077.exe"),
-                                        set_sensitive: false,
-                                        add_binding: (&self.gamemode_filter_by_process, "sensitive"),
-                                    },
-
-                                    attach[0, 1, 1, 1] = &gtk::Label {
-                                        set_label: &fl!(I18N, "profile-rule-args-contain"),
-                                        set_halign: gtk::Align::Start,
-                                    },
-
-                                    attach[1, 1, 1, 1]: gamemode_filter_by_args_checkbutton = &gtk::CheckButton {
-                                        connect_toggled => ProfileRuleRowMsg::Changed,
-                                        add_binding: (&self.filter_by_args, "active"),
-                                    },
-
-                                    attach[2, 1, 1, 1]: gamemode_args_entry = &gtk::Entry {
-                                        set_buffer: &self.args_buffer,
-                                        set_hexpand: true,
-                                        set_sensitive: false,
-                                        add_binding: (&self.filter_by_args, "sensitive"),
-                                    },
-                                },
-
-                                add_binding: (&self.selected_page, "visible-child-name"),
-                            },
-
-                            gtk::Button {
-                                set_label: "OK",
-                                set_align: gtk::Align::End,
-                                set_expand: true,
-                                connect_clicked[main_popover] => move |_| {
-                                    main_popover.popdown();
+                                gtk::Button {
+                                    set_label: "OK",
+                                    set_align: gtk::Align::End,
+                                    set_expand: true,
+                                    connect_clicked[main_popover] => move |_| {
+                                        main_popover.popdown();
+                                    }
                                 }
-                            }
+                            },
                         },
                     },
                 },
-            },
 
-            gtk::Button {
-                set_icon_name: "list-remove-symbolic",
-                set_tooltip: &fl!(I18N, "remove-rule"),
-                connect_clicked[sender, index] => move |_| {
-                    let _ = sender.output(ProfileRuleWindowMsg::RemoveSubrule(index.clone()));
-                }
+                gtk::Button {
+                    set_icon_name: "list-remove-symbolic",
+                    set_tooltip: &fl!(I18N, "remove-rule"),
+                    connect_clicked[sender, index] => move |_| {
+                        let _ = sender.output(ProfileRuleWindowMsg::RemoveSubrule(index.clone()));
+                    }
+                },
             },
         }
     }
