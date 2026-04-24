@@ -57,9 +57,7 @@ impl relm4::factory::FactoryComponent for PlotComponent {
     type CommandOutput = ();
 
     view! {
-        gtk::Box {
-            add_css_class: css::CARD,
-
+        gtk::Frame {
             gtk::Overlay {
                 #[name = "plot"]
                 Plot {

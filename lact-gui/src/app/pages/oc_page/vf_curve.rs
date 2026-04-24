@@ -374,6 +374,7 @@ impl VfCurveEditor {
         let backend = CairoBackend::new(ctx, (width as u32, height as u32)).unwrap();
 
         let root = backend.into_drawing_area();
+        root.fill(&colors.background).unwrap();
 
         let min_point = points.first().unwrap();
         let max_point = points.last().unwrap();
