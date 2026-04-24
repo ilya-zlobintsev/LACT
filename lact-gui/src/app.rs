@@ -162,6 +162,7 @@ impl AsyncComponent for AppModel {
                             set_title: "LACT",
 
                             #[wrap(Some)]
+                            #[name = "sidebar_view"]
                             set_child = &adw::ToolbarView {
                                 add_top_bar = &adw::HeaderBar {
                                     set_show_end_title_buttons: false,
@@ -219,6 +220,7 @@ impl AsyncComponent for AppModel {
 
                             #[wrap(Some)]
                             set_child = &adw::ToolbarView {
+                                #[name = "content_header"]
                                 add_top_bar = &adw::HeaderBar {
 
                                     pack_end = &gtk::MenuButton {
@@ -809,8 +811,9 @@ impl AppModel {
             AppMsg::Crash(message) => {
                 // we cannot be sure that the application is fully functional after a crash
                 // even though the main loop is restored via crash handler, we want user to restart
-                // this is why navbar is disabled
-                widgets.navbar.set_sensitive(false);
+                // this is why navigation controls are disabled
+                widgets.sidebar_view.set_sensitive(false);
+                widgets.content_header.set_sensitive(false);
                 self.settings_changed.set_value(false);
 
                 self.ui_sensitive.set_value(true);
