@@ -104,60 +104,56 @@ impl relm4::Component for VfCurveEditor {
                     },
 
 
-                    gtk::Box {
-                        add_css_class: css::CARD,
+                    #[name = "drawing_area"]
+                    gtk::DrawingArea {
+                        set_expand: true,
                         set_margin_all: 10,
 
-                        #[name = "drawing_area"]
-                        gtk::DrawingArea {
-                            set_expand: true,
-
-                            set_draw_func[model] => move |area, ctx, width, height| {
-                                let style_context = area.style_context();
-                                let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
-                                model.draw_chart(ctx, width, height, colors);
-                            },
-
-                            add_controller = gtk::GestureClick {
-                                connect_pressed[sender] => move |gesture, _, x, y| {
-                                    let modifiers = gesture.current_event_state();
-
-                                    sender.input(VfCurveEditorMsg::DragStart);
-                                    sender.input(VfCurveEditorMsg::CursorUpdate { x, y, modifiers });
-                                },
-                                connect_released[sender] => move |_, _, _x, _y| {
-                                    sender.input(VfCurveEditorMsg::DragEnd);
-                                }
-                            },
-
-                            add_controller = gtk::GestureClick {
-                                set_button: gdk::BUTTON_SECONDARY,
-                                connect_pressed[drawing_area, point_menu, model] => move |_, _, x, y| {
-                                    if model.hovered_point.get().is_none() || !model.allow_editing.value() {
-                                        return;
-                                    }
-
-                                    point_menu.set_parent(&drawing_area);
-                                    point_menu.set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
-                                    point_menu.popup();
-
-                                },
-                            },
-
-                            add_controller = gtk::EventControllerMotion {
-                                connect_motion[sender] => move |motion, x, y| {
-                                    let modifiers = motion.current_event_state();
-                                    sender.input(VfCurveEditorMsg::CursorUpdate { x, y, modifiers });
-                                },
-                            },
-
-                            #[watch]
-                            set_cursor: if model.dragging_point.get().is_some() {
-                                gdk::Cursor::from_name("move", None)
-                            } else {
-                                None
-                            }.as_ref(),
+                        set_draw_func[model] => move |area, ctx, width, height| {
+                            let style_context = area.style_context();
+                            let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
+                            model.draw_chart(ctx, width, height, colors);
                         },
+
+                        add_controller = gtk::GestureClick {
+                            connect_pressed[sender] => move |gesture, _, x, y| {
+                                let modifiers = gesture.current_event_state();
+
+                                sender.input(VfCurveEditorMsg::DragStart);
+                                sender.input(VfCurveEditorMsg::CursorUpdate { x, y, modifiers });
+                            },
+                            connect_released[sender] => move |_, _, _x, _y| {
+                                sender.input(VfCurveEditorMsg::DragEnd);
+                            }
+                        },
+
+                        add_controller = gtk::GestureClick {
+                            set_button: gdk::BUTTON_SECONDARY,
+                            connect_pressed[drawing_area, point_menu, model] => move |_, _, x, y| {
+                                if model.hovered_point.get().is_none() || !model.allow_editing.value() {
+                                    return;
+                                }
+
+                                point_menu.set_parent(&drawing_area);
+                                point_menu.set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
+                                point_menu.popup();
+
+                            },
+                        },
+
+                        add_controller = gtk::EventControllerMotion {
+                            connect_motion[sender] => move |motion, x, y| {
+                                let modifiers = motion.current_event_state();
+                                sender.input(VfCurveEditorMsg::CursorUpdate { x, y, modifiers });
+                            },
+                        },
+
+                        #[watch]
+                        set_cursor: if model.dragging_point.get().is_some() {
+                            gdk::Cursor::from_name("move", None)
+                        } else {
+                            None
+                        }.as_ref(),
                     },
 
                     gtk::Box {
