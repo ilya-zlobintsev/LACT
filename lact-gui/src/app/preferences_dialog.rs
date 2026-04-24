@@ -33,7 +33,6 @@ impl relm4::Component for PreferencesDialog {
     type CommandOutput = ();
 
     view! {
-        #[root]
         adw::PreferencesDialog {
             set_title: &fl!(I18N, "preferences"),
 

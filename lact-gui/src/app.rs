@@ -349,17 +349,14 @@ impl AsyncComponent for AppModel {
             },
 
         #[name = "reconnecting_dialog"]
-        gtk::Window {
-            set_transient_for: Some(&root),
-            set_modal: true,
-            set_title: Some(&fl!(I18N, "daemon-connection-lost")),
-            set_destroy_with_parent: true,
-            connect_close_request[root] => move |_| {
-                root.close();
-                glib::Propagation::Stop
-            },
+        adw::Dialog {
+            set_title: &fl!(I18N, "daemon-connection-lost"),
+            set_content_width: 300,
+            set_content_height: 80,
+            set_can_close: false,
 
-            gtk::Label {
+            #[wrap(Some)]
+            set_child = &gtk::Label {
                 set_margin_all: 10,
                 set_label: &fl!(I18N, "reconnecting-to-daemon"),
             }
@@ -777,8 +774,10 @@ impl AppModel {
                 }
             }
             AppMsg::ConnectionStatus(status) => match status {
-                ConnectionStatusMsg::Disconnected => widgets.reconnecting_dialog.present(),
-                ConnectionStatusMsg::Reconnected => widgets.reconnecting_dialog.hide(),
+                ConnectionStatusMsg::Disconnected => {
+                    widgets.reconnecting_dialog.present(Some(root))
+                }
+                ConnectionStatusMsg::Reconnected => widgets.reconnecting_dialog.force_close(),
             },
             AppMsg::AskConfirmation(options, confirmed_msg) => {
                 let sender = sender.clone();

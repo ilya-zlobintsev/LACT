@@ -34,7 +34,6 @@ impl relm4::Component for OverdriveDialog {
     type CommandOutput = ();
 
     view! {
-        #[root]
         adw::Dialog {
             set_content_width: 500,
             set_follows_content_size: true,

@@ -21,7 +21,6 @@ impl relm4::Component for AboutDialog {
     type CommandOutput = ();
 
     view! {
-        #[root]
         adw::AboutDialog {
             set_application_name: &fl!(I18N, "lact-gui"),
             set_application_icon: APP_ID,

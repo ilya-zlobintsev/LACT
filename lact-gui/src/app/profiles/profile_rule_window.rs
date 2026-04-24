@@ -61,7 +61,6 @@ impl relm4::Component for ProfileRuleWindow {
     type CommandOutput = ();
 
     view! {
-        #[root]
         adw::Dialog {
             set_content_width: 640,
             set_follows_content_size: true,
