@@ -17,6 +17,7 @@ use i18n_embed_fl::fl;
 use relm4::{
     RelmObjectExt, RelmWidgetExt,
     binding::{BoolBinding, ConnectBinding, F64Binding},
+    css,
     factory::positions::GridPosition,
     prelude::{DynamicIndex, FactoryVecDeque},
 };
@@ -57,93 +58,40 @@ impl relm4::factory::FactoryComponent for PlotComponent {
 
     view! {
         gtk::Frame {
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
+            gtk::Overlay {
+                #[name = "plot"]
+                Plot {
+                    set_data: self.data.clone(),
+                    set_margin_all: 5,
 
-                gtk::Overlay {
-                    #[name = "plot"]
-                    Plot {
-                        set_data: self.data.clone(),
-                        set_margin_all: 5,
+                    #[watch]
+                    set_cursor: self.get_cursor().as_ref(),
+                    #[watch]
+                    set_time_period_seconds: self.time_period.value() as i64,
+                    add_binding: (&self.print_extra_info, "print-extra-info"),
 
-                        #[watch]
-                        set_cursor: self.get_cursor().as_ref(),
-                        #[watch]
-                        set_time_period_seconds: self.time_period.value() as i64,
-                        add_binding: (&self.print_extra_info, "print-extra-info"),
-
-                        connect_frame_rendered[sender] => move || {
-                            sender.input(PlotComponentMsg::FrameRendered);
-                        },
-                    },
-
-                    add_overlay = &gtk::ToggleButton {
-                        set_halign: gtk::Align::End,
-                        set_valign: gtk::Align::Start,
-                        set_margin_all: 20,
-                        set_icon_name: "info-outline-symbolic",
-                        set_tooltip: &fl!(I18N, "plot-show-detailed-info"),
-                        set_opacity: 0.8,
-                        bind: &self.print_extra_info,
-                    },
-
-                    #[wrap(Clone::clone)]
-                    add_controller = &gtk::DragSource {
-                        #[watch]
-                        set_actions: if self.edit_mode.value() { gdk::DragAction::MOVE } else { gdk::DragAction::empty() },
-
-                        connect_prepare[plot, index, edit_mode = self.edit_mode.clone()] => move |drag_source, _, _| {
-                            if edit_mode.value() {
-                                if let Some(texture) = plot.imp().get_last_texture() {
-                                    drag_source.set_icon(Some(&texture), 0, 0);
-                                }
-                                Some(gdk::ContentProvider::for_value(&DynamicIndexValue(index.clone()).to_value()))
-                            } else {
-                                None
-                            }
-                        }
-                    },
-
-                    add_controller = gtk::DropTarget {
-                        set_actions: gdk::DragAction::MOVE,
-                        set_types: &[DynamicIndexValue::static_type()],
-
-                        connect_enter[root = root.downgrade()] => move |_, _, _| {
-                            if let Some(root) = root.upgrade() {
-                                root.set_opacity(0.5);
-                            }
-                            gdk::DragAction::MOVE
-                        },
-
-                        connect_leave[root = root.downgrade()] => move |_| {
-                            if let Some(root) = root.upgrade() {
-                                root.set_opacity(1.0);
-                            }
-                        },
-
-                        connect_drop[root = root.downgrade(), index, sender] => move |_, value, _, _| {
-                            if let Some(root) = root.upgrade() {
-                                root.set_opacity(1.0);
-                            }
-
-                            if let Ok(DynamicIndexValue(source_index)) = value.get::<DynamicIndexValue>() {
-                                sender.output(GraphsWindowMsg::SwapPlots(index.clone(), source_index)).unwrap();
-                            }
-
-                            true
-                        },
+                    connect_frame_rendered[sender] => move || {
+                        sender.input(PlotComponentMsg::FrameRendered);
                     },
                 },
 
-                gtk::Box {
+                add_overlay = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_spacing: 5,
-                    #[watch]
-                    set_visible: self.edit_mode.value(),
-                    set_align: gtk::Align::End,
+                    set_halign: gtk::Align::End,
+                    set_valign: gtk::Align::Start,
+                    set_margin_all: 20,
+                    set_opacity: 0.9,
 
-                    append = &gtk::MenuButton  {
+                    gtk::ToggleButton {
+                        set_icon_name: "info-outline-symbolic",
+                        set_tooltip: &fl!(I18N, "plot-show-detailed-info"),
+                        bind: &self.print_extra_info,
+                    },
+
+                    gtk::MenuButton {
+                        #[watch]
+                        set_visible: self.edit_mode.value(),
                         set_icon_name: "view-list-symbolic",
                         set_tooltip: &fl!(I18N, "edit-graph-sensors"),
 
@@ -159,17 +107,67 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                                     set_orientation: gtk::Orientation::Vertical,
                                     set_margin_all: 10,
                                 }
-                            } ,
+                            },
                         },
                     },
 
-                    append = &gtk::Button  {
+                    gtk::Button {
+                        #[watch]
+                        set_visible: self.edit_mode.value(),
                         set_icon_name: "edit-delete-symbolic",
+                        add_css_class: css::DESTRUCTIVE_ACTION,
                         set_tooltip: &fl!(I18N, "delete-graph"),
 
                         connect_clicked[sender, index] => move |_| {
                             sender.output(GraphsWindowMsg::RemovePlot(index.clone())).unwrap();
                         }
+                    },
+                },
+
+                #[wrap(Clone::clone)]
+                add_controller = &gtk::DragSource {
+                    #[watch]
+                    set_actions: if self.edit_mode.value() { gdk::DragAction::MOVE } else { gdk::DragAction::empty() },
+
+                    connect_prepare[plot, index, edit_mode = self.edit_mode.clone()] => move |drag_source, _, _| {
+                        if edit_mode.value() {
+                            if let Some(texture) = plot.imp().get_last_texture() {
+                                drag_source.set_icon(Some(&texture), 0, 0);
+                            }
+                            Some(gdk::ContentProvider::for_value(&DynamicIndexValue(index.clone()).to_value()))
+                        } else {
+                            None
+                        }
+                    }
+                },
+
+                add_controller = gtk::DropTarget {
+                    set_actions: gdk::DragAction::MOVE,
+                    set_types: &[DynamicIndexValue::static_type()],
+
+                    connect_enter[root = root.downgrade()] => move |_, _, _| {
+                        if let Some(root) = root.upgrade() {
+                            root.set_opacity(0.5);
+                        }
+                        gdk::DragAction::MOVE
+                    },
+
+                    connect_leave[root = root.downgrade()] => move |_| {
+                        if let Some(root) = root.upgrade() {
+                            root.set_opacity(1.0);
+                        }
+                    },
+
+                    connect_drop[root = root.downgrade(), index, sender] => move |_, value, _, _| {
+                        if let Some(root) = root.upgrade() {
+                            root.set_opacity(1.0);
+                        }
+
+                        if let Ok(DynamicIndexValue(source_index)) = value.get::<DynamicIndexValue>() {
+                            sender.output(GraphsWindowMsg::SwapPlots(index.clone(), source_index)).unwrap();
+                        }
+
+                        true
                     },
                 },
             },

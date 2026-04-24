@@ -63,83 +63,84 @@ impl relm4::Component for GraphsWindow {
     type CommandOutput = ();
 
     view! {
-        gtk::Window {
+        adw::Window {
             set_default_height: 700,
             set_default_width: 1200,
             set_title: Some(&fl!(I18N, "historical-data-title")),
             set_hide_on_close: true,
 
-            gtk::ScrolledWindow {
-                gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 5,
-                    set_margin_all: 10,
-
-                    append = model.plots.widget() {
-                        set_margin_all: 10,
-                        set_row_spacing: 10,
-                        set_column_spacing: 10,
+            adw::ToolbarView {
+                add_top_bar = &adw::HeaderBar {
+                    pack_end = &gtk::Button {
+                        set_label: &fl!(I18N, "export-csv"),
+                        connect_clicked => GraphsWindowMsg::ExportData,
                     },
 
-                    append = &gtk::Box {
-                        set_halign: gtk::Align::End,
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_spacing: 10,
+                    pack_end = &gtk::ToggleButton {
+                        set_label: &fl!(I18N, "edit-graphs"),
+                        bind: &model.edit_mode,
+                        connect_active_notify => GraphsWindowMsg::NotifyEditing,
+                    },
+                },
 
-                        append = &gtk::Box {
-                            set_halign: gtk::Align::End,
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_spacing: 5,
-                            #[watch]
-                            set_visible: model.edit_mode.value(),
+                add_top_bar = &gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 10,
+                    set_margin_horizontal: 10,
+                    set_margin_top: 5,
+                    set_halign: gtk::Align::End,
+                    #[watch]
+                    set_visible: model.edit_mode.value(),
 
-                            append = &gtk::Label {
-                                set_label: &fl!(I18N, "graphs-per-row"),
-                            },
+                    gtk::Label {
+                        set_label: &fl!(I18N, "graphs-per-row"),
+                    },
 
-                            append = &gtk::SpinButton {
-                                set_numeric: true,
-                                set_snap_to_ticks: true,
-                                set_range: (1.0, 5.0),
-                                set_increments: (1.0, 1.0),
-                                bind: &model.plots_per_row,
-                                connect_value_notify => GraphsWindowMsg::NotifyPlotsPerRow,
-                            },
+                    gtk::SpinButton {
+                        set_numeric: true,
+                        set_snap_to_ticks: true,
+                        set_range: (1.0, 5.0),
+                        set_increments: (1.0, 1.0),
+                        bind: &model.plots_per_row,
+                        connect_value_notify => GraphsWindowMsg::NotifyPlotsPerRow,
+                    },
 
-                            append = &gtk::Label {
-                                set_label: &fl!(I18N, "time-period-seconds"),
-                            },
+                    gtk::Label {
+                        set_label: &fl!(I18N, "time-period-seconds"),
+                    },
 
-                            append = &gtk::SpinButton {
-                                set_adjustment: &model.time_period_seconds_adj,
-                                connect_value_notify => GraphsWindowMsg::NotifyPlotsPerRow,
-                            },
+                    gtk::SpinButton {
+                        set_adjustment: &model.time_period_seconds_adj,
+                        connect_value_notify => GraphsWindowMsg::NotifyPlotsPerRow,
+                    },
 
-                            append = &gtk::Button {
-                                set_label: &fl!(I18N, "reset-button"),
-                                set_tooltip: &fl!(I18N, "reset-all-graphs-tooltip"),
-                                set_css_classes: &["destructive-action"],
-                                connect_clicked => GraphsWindowMsg::SetConfig(default_plots()),
-                            },
+                    gtk::Button {
+                        set_label: &fl!(I18N, "reset-button"),
+                        set_tooltip: &fl!(I18N, "reset-all-graphs-tooltip"),
+                        add_css_class: "destructive-action",
+                        connect_clicked => GraphsWindowMsg::SetConfig(default_plots()),
+                    },
 
-                            append = &gtk::Button {
-                                set_icon_name: "list-add-symbolic",
-                                connect_clicked => GraphsWindowMsg::AddPlot,
-                                set_tooltip: &fl!(I18N, "add-graph"),
-                            },
+                    gtk::Button {
+                        set_icon_name: "list-add-symbolic",
+                        connect_clicked => GraphsWindowMsg::AddPlot,
+                        set_tooltip: &fl!(I18N, "add-graph"),
+                    },
+                },
+
+                #[wrap(Some)]
+                set_content = &gtk::ScrolledWindow {
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 5,
+
+                        append = model.plots.widget() {
+                            set_margin_all: 10,
+                            set_margin_top: 7,
+                            set_row_spacing: 10,
+                            set_column_spacing: 10,
                         },
-
-                        append = &gtk::ToggleButton {
-                            set_label: &fl!(I18N, "edit-graphs"),
-                            bind: &model.edit_mode,
-                            connect_active_notify => GraphsWindowMsg::NotifyEditing,
-                        },
-
-                        append = &gtk::Button {
-                            set_label: &fl!(I18N, "export-csv"),
-                            connect_clicked => GraphsWindowMsg::ExportData,
-                        }
-                    }
+                    },
                 },
             },
         }
