@@ -1,17 +1,18 @@
 use std::collections::HashMap;
 
 use crate::app::{APP_BROKER, formatting, msg::AppMsg};
+use adw::prelude::AdwWindowExt;
 use gtk::{
     glib::{
         GString,
         object::{Cast, ObjectExt},
     },
     pango,
-    prelude::{EditableExt, GtkWindowExt, OrientableExt, SorterExt, WidgetExt},
+    prelude::{EditableExt, GtkWindowExt, SorterExt, WidgetExt},
 };
 use lact_schema::{ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType};
 use relm4::{
-    ComponentParts, ComponentSender, RelmObjectExt,
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
     binding::{Binding, StringBinding, U32Binding, U64Binding},
     typed_view::{
         OrdFn,
@@ -38,17 +39,21 @@ impl relm4::Component for ProcessMonitorWindow {
     type CommandOutput = ();
 
     view! {
-        gtk::Window {
+        adw::Window {
             set_title: Some("Process Monitor"),
             set_default_height: 600,
             set_default_width: 900,
             set_hide_on_close: true,
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
+            #[wrap(Some)]
+            set_content = &adw::ToolbarView {
+                add_top_bar = &adw::HeaderBar {},
 
                 #[name = "search_entry"]
-                gtk::SearchEntry {
+                add_top_bar = &gtk::SearchEntry {
+                    set_margin_all: 10,
+                    set_margin_top: 0,
+
                     connect_search_changed[sender] => move |entry| {
                         sender.input(ProcessMonitorWindowMsg::FilterChanged(entry.text()));
                     },
@@ -58,7 +63,8 @@ impl relm4::Component for ProcessMonitorWindow {
                     },
                 },
 
-                gtk::ScrolledWindow {
+                #[wrap(Some)]
+                set_content = &gtk::ScrolledWindow {
                     set_hscrollbar_policy: gtk::PolicyType::Automatic,
                     set_vscrollbar_policy: gtk::PolicyType::Automatic,
                     set_vexpand: true,
