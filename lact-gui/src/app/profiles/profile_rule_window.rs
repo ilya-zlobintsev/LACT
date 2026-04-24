@@ -2,12 +2,11 @@ pub mod profile_rule_row;
 
 use crate::I18N;
 use crate::app::{APP_BROKER, msg::AppMsg};
-use gtk::prelude::ObjectExt;
+use adw::prelude::{AdwDialogExt, ObjectExt, PreferencesGroupExt, PreferencesPageExt};
 use gtk::{
     pango,
     prelude::{
-        BoxExt, ButtonExt, CheckButtonExt, DialogExt, DialogExtManual, EntryBufferExtManual,
-        EntryExt, GtkWindowExt, OrientableExt, WidgetExt,
+        BoxExt, ButtonExt, CheckButtonExt, EntryBufferExtManual, EntryExt, OrientableExt, WidgetExt,
     },
 };
 use i18n_embed_fl::fl;
@@ -16,6 +15,7 @@ use profile_rule_row::ProfileRuleRow;
 use relm4::{
     ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
     binding::BoolBinding,
+    css,
     prelude::{DynamicIndex, FactoryVecDeque},
     tokio::time::sleep,
 };
@@ -41,7 +41,7 @@ pub struct ProfileEditParams {
     pub rule: ProfileRule,
     pub hooks: ProfileHooks,
     pub auto_switch: bool,
-    pub root_window: gtk::Window,
+    pub parent: gtk::Widget,
 }
 
 #[derive(Debug)]
@@ -61,59 +61,38 @@ impl relm4::Component for ProfileRuleWindow {
     type CommandOutput = ();
 
     view! {
-        gtk::Dialog {
-            set_default_size: (600, 300),
-            set_title: Some(&fl!(I18N, "profile-rules")),
-            set_transient_for: Some(&root_window),
-            connect_response[root = root.downgrade(), sender] => move |_, response| {
-                if let Some(root) = root.upgrade() {
-                    match response {
-                        gtk::ResponseType::Accept => {
-                            sender.input(ProfileRuleWindowMsg::Save);
-                            root.close();
-                        }
-                        gtk::ResponseType::Cancel => root.close(),
-                        _ => (),
-                    }
-                }
-            },
+        #[root]
+        adw::Dialog {
+            set_content_width: 640,
+            set_follows_content_size: true,
+            set_title: &fl!(I18N, "profile-rules"),
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_margin_all: 5,
-
-                append = &gtk::StackSwitcher {
-                    set_stack: Some(&stack),
+            #[wrap(Some)]
+            set_child = &adw::ToolbarView {
+                add_top_bar = &adw::HeaderBar {
+                    #[wrap(Some)]
+                    set_title_widget = &gtk::StackSwitcher {
+                        set_stack: Some(&stack),
+                    },
                 },
 
                 #[name = "stack"]
-                append = &gtk::Stack {
-                    add_titled[None, &fl!(I18N, "profile-activation")] = &gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_margin_all: 5,
+                #[wrap(Some)]
+                set_content = &gtk::Stack {
+                    add_titled[None, &fl!(I18N, "profile-activation")] = &adw::PreferencesPage {
 
-                        gtk::Label {
-                            #[watch]
-                            set_markup: &format!("<span font_desc='11'><b>{}</b></span>", fl!(I18N, "profile-activation-desc", name = model.profile_name.as_str())),
-                            set_halign: gtk::Align::Start,
-                            set_margin_all: 10,
-                        },
+                        add = &adw::PreferencesGroup {
+                            set_title: &fl!(I18N, "profile-activation-desc", name = model.profile_name.as_str()),
 
-                        gtk::Separator {},
-
-                        gtk::Box {
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_expand: true,
-
-                            gtk::Box {
-                                set_orientation: gtk::Orientation::Vertical,
-                                set_margin_all: 10,
-                                set_spacing: 10,
+                            gtk::ListBox {
+                                set_selection_mode: gtk::SelectionMode::None,
+                                add_css_class: css::BOXED_LIST,
 
                                 #[name = "multi_or_checkbutton"]
                                 gtk::CheckButton {
                                     set_label: Some(&fl!(I18N, "any-rules-matched")),
                                     set_active: !matches!(rule, ProfileRule::And(_)),
+                                    set_margin_all: 10,
                                     connect_toggled => ProfileRuleWindowMsg::Evaluate,
                                 },
 
@@ -122,133 +101,152 @@ impl relm4::Component for ProfileRuleWindow {
                                     set_label: Some(&fl!(I18N, "all-rules-matched")),
                                     set_group: Some(&multi_or_checkbutton),
                                     set_active: matches!(rule, ProfileRule::And(_)),
+                                    set_margin_all: 10,
                                     connect_toggled => ProfileRuleWindowMsg::Evaluate,
                                 },
+                            },
+                        },
 
-                                gtk::Separator {},
+                        add = &adw::PreferencesGroup {
+                            set_title: &fl!(I18N, "profile-rules"),
 
-                                #[local_ref]
-                                sub_rules_listview -> gtk::Box {
-                                    set_orientation: gtk::Orientation::Vertical,
-                                    set_spacing: 5,
+                            #[wrap(Some)]
+                            set_header_suffix = &gtk::Button {
+                                set_icon_name: "list-add-symbolic",
+                                set_tooltip: &fl!(I18N, "profile-rules"),
+                                add_css_class: "flat",
+                                connect_clicked => ProfileRuleWindowMsg::AddSubrule,
+                            },
+
+                            #[local_ref]
+                            sub_rules_listview -> gtk::ListBox {
+                                set_selection_mode: gtk::SelectionMode::None,
+                                add_css_class: css::BOXED_LIST,
+                            },
+                        },
+
+                        add = &adw::PreferencesGroup {
+                            gtk::Box {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_spacing: 5,
+
+                                gtk::Image {
+                                    #[watch]
+                                    set_icon_name: match model.currently_matches {
+                                        true => Some("object-select-symbolic"),
+                                        false => Some("list-remove-symbolic"),
+                                    },
                                 },
 
-                                gtk::Button {
-                                    set_icon_name: "list-add-symbolic",
+                                gtk::Label {
+                                    #[watch]
+                                    set_markup: &if model.auto_switch {
+                                        fl!(I18N, "activation-settings-status", matched = model.currently_matches.to_string())
+                                    } else {
+                                        format!(
+                                            "<b>{}</b>",
+                                            fl!(I18N, "activation-auto-switching-disabled")
+                                        )
+                                    },
+                                },
+                            },
+                        },
+                    },
+
+                    add_titled[None, &fl!(I18N, "profile-hooks")] = &adw::PreferencesPage {
+
+                        add = &adw::PreferencesGroup {
+                            set_description: Some(&fl!(I18N, "profile-hook-command", cmd = model.profile_name.as_str())),
+
+                            gtk::ListBox {
+                                set_selection_mode: gtk::SelectionMode::None,
+                                add_css_class: css::BOXED_LIST,
+
+                                gtk::ListBoxRow {
+                                    gtk::Box {
+                                        set_orientation: gtk::Orientation::Horizontal,
+                                        set_spacing: 10,
+                                        set_margin_all: 10,
+
+                                        gtk::CheckButton {
+                                            set_label: Some(&fl!(I18N, "profile-hook-activated")),
+                                            add_binding: (&model.activated_hook_enabled, "active"),
+                                            set_size_group: &hook_command_size_group,
+                                        },
+
+                                        gtk::Entry {
+                                            add_binding: (&model.activated_hook_enabled, "sensitive"),
+                                            set_buffer: &model.activated_hook,
+                                            set_hexpand: true,
+                                        },
+                                    },
+                                },
+
+                                gtk::ListBoxRow {
+                                    gtk::Box {
+                                        set_orientation: gtk::Orientation::Horizontal,
+                                        set_spacing: 10,
+                                        set_margin_all: 10,
+
+                                        gtk::CheckButton {
+                                            set_label: Some(&fl!(I18N, "profile-hook-deactivated")),
+                                            add_binding: (&model.deactivated_hook_enabled, "active"),
+                                            set_size_group: &hook_command_size_group,
+                                        },
+
+                                        gtk::Entry {
+                                            add_binding: (&model.deactivated_hook_enabled, "sensitive"),
+                                            set_buffer: &model.deactivated_hook,
+                                            set_hexpand: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+
+                        add = &adw::PreferencesGroup {
+                            gtk::Box {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_spacing: 5,
+
+                                gtk::Image {
+                                    set_icon_name: Some("dialog-warning-symbolic"),
+                                },
+
+                                gtk::Label {
+                                    set_label: &fl!(I18N, "profile-hook-note"),
+                                    set_wrap: true,
+                                    set_wrap_mode: pango::WrapMode::Word,
+                                    add_css_class: "caption-heading",
                                     set_hexpand: true,
-                                    set_halign: gtk::Align::End,
-                                    connect_clicked => ProfileRuleWindowMsg::AddSubrule,
                                 },
-
-                                gtk::Separator {},
-
-                                gtk::Box {
-                                    set_orientation: gtk::Orientation::Horizontal,
-                                    set_spacing: 5,
-
-                                    gtk::Label {
-                                        #[watch]
-                                        set_markup: &if model.auto_switch {
-                                            fl!(I18N, "activation-settings-status", matched = model.currently_matches.to_string())
-                                        } else {
-                                            format!(
-                                                "<b>{}</b>",
-                                                fl!(I18N, "activation-auto-switching-disabled")
-                                            )
-                                        },
-                                    },
-
-                                    gtk::Image {
-                                        #[watch]
-                                        set_icon_name: match model.currently_matches {
-                                            true => Some("object-select-symbolic"),
-                                            false => Some("list-remove-symbolic"),
-                                        },
-                                    },
-                                }
-                            },
+                            }
                         },
+                    },
+                },
 
-                        gtk::Separator {},
+                add_bottom_bar = &gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 10,
+                    set_margin_all: 10,
+                    set_halign: gtk::Align::End,
+
+                    gtk::Button {
+                        set_label: &fl!(I18N, "cancel"),
+                        connect_clicked[root = root.downgrade()] => move |_| {
+                            if let Some(root) = root.upgrade() {
+                                root.close();
+                            }
+                        },
                     },
 
-                    add_titled[None, &fl!(I18N, "profile-hooks")] = &gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_margin_all: 5,
-
-                        gtk::Label {
-                            #[watch]
-                            set_markup: &format!("<span font_desc='11'><b>{}</b></span>", fl!(I18N, "profile-hook-command", cmd = model.profile_name.as_str())),
-                            set_halign: gtk::Align::Start,
-                            set_margin_all: 10,
-                        },
-
-                        gtk::Separator {},
-
-                        gtk::Box {
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_spacing: 5,
-                            set_margin_vertical: 5,
-                            set_margin_horizontal: 10,
-
-
-                            gtk::CheckButton {
-                                set_label: Some(&fl!(I18N, "profile-hook-activated")),
-                                add_binding: (&model.activated_hook_enabled, "active"),
-                                set_size_group: &hook_command_size_group,
-                            },
-
-                            gtk::Entry {
-                                add_binding: (&model.activated_hook_enabled, "sensitive"),
-                                set_buffer: &model.activated_hook,
-                                set_hexpand: true,
-                            },
-                        },
-
-                        gtk::Box {
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_spacing: 5,
-                            set_margin_vertical: 5,
-                            set_margin_horizontal: 10,
-
-                            gtk::CheckButton {
-                                set_label: Some(&fl!(I18N, "profile-hook-deactivated")),
-                                add_binding: (&model.deactivated_hook_enabled, "active"),
-                                set_size_group: &hook_command_size_group,
-                            },
-
-                            gtk::Entry {
-                                add_binding: (&model.deactivated_hook_enabled, "sensitive"),
-                                set_buffer: &model.deactivated_hook,
-                                set_hexpand: true,
-                            },
-                        },
-
-                        gtk::Separator {},
-
-                        gtk::Box {
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_spacing: 5,
-                            set_margin_vertical: 5,
-                            set_margin_horizontal: 10,
-
-                            gtk::Image {
-                                set_icon_name: Some("dialog-warning-symbolic"),
-                            },
-
-                            gtk::Label {
-                                set_label: &fl!(I18N, "profile-hook-note"),
-                                set_wrap: true,
-                                set_wrap_mode: pango::WrapMode::Word,
-                                add_css_class: "caption-heading",
-                                set_hexpand: true,
-                            },
-                        }
+                    gtk::Button {
+                        set_label: &fl!(I18N, "save"),
+                        add_css_class: css::SUGGESTED_ACTION,
+                        connect_clicked => ProfileRuleWindowMsg::Save,
                     },
-                }
-            },
-
-            add_buttons: &[("Cancel", gtk::ResponseType::Cancel), ("Save", gtk::ResponseType::Accept)],
+                },
+            }
         }
     }
 
@@ -263,7 +261,7 @@ impl relm4::Component for ProfileRuleWindow {
             rule,
             hooks,
             auto_switch,
-            root_window,
+            parent,
         } = params;
 
         sender.command(move |_, shutdown| {
@@ -307,7 +305,7 @@ impl relm4::Component for ProfileRuleWindow {
         let hook_command_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         let widgets = view_output!();
 
-        root.present();
+        root.present(Some(&parent));
 
         ComponentParts { model, widgets }
     }
@@ -347,6 +345,7 @@ impl relm4::Component for ProfileRuleWindow {
                         self.get_hooks(),
                     ))
                     .unwrap();
+                root.close();
             }
         }
 
