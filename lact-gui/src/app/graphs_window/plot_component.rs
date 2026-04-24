@@ -75,26 +75,23 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                     },
                 },
 
-                add_overlay = &gtk::ToggleButton {
-                    set_halign: gtk::Align::End,
-                    set_valign: gtk::Align::Start,
-                    set_margin_all: 20,
-                    set_icon_name: "info-outline-symbolic",
-                    set_tooltip: &fl!(I18N, "plot-show-detailed-info"),
-                    set_opacity: 0.9,
-                    bind: &self.print_extra_info,
-                },
-
                 add_overlay = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_spacing: 5,
                     set_halign: gtk::Align::End,
-                    set_valign: gtk::Align::End,
+                    set_valign: gtk::Align::Start,
                     set_margin_all: 20,
-                    #[watch]
-                    set_visible: self.edit_mode.value(),
+                    set_opacity: 0.9,
+
+                    gtk::ToggleButton {
+                        set_icon_name: "info-outline-symbolic",
+                        set_tooltip: &fl!(I18N, "plot-show-detailed-info"),
+                        bind: &self.print_extra_info,
+                    },
 
                     gtk::MenuButton {
+                        #[watch]
+                        set_visible: self.edit_mode.value(),
                         set_icon_name: "view-list-symbolic",
                         set_tooltip: &fl!(I18N, "edit-graph-sensors"),
 
@@ -115,6 +112,8 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                     },
 
                     gtk::Button {
+                        #[watch]
+                        set_visible: self.edit_mode.value(),
                         set_icon_name: "edit-delete-symbolic",
                         add_css_class: css::DESTRUCTIVE_ACTION,
                         set_tooltip: &fl!(I18N, "delete-graph"),
