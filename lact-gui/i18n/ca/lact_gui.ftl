@@ -1,8 +1,8 @@
 compute-units = Unitats de càlcul
-info-page = Informació
-oc-page = OC
+info-page = Informació de maquinari
+oc-page = Overclocking
 thermals-page = Tèrmics
-software-page = Programari
+software-page = Informació del programari
 hardware-info = Informació del maquinari
 system-section = Sistema
 lact-daemon = Dimoni LACT
@@ -63,9 +63,7 @@ automatic-mode-threshold-tooltip =
 
     Aquesta opció permet eludir aquesta limitació utilitzant només la corba personalitzada quan es supera una temperatura específica, utilitzant el mode automàtic integrat de la targeta que admet zero RPM per sota d'ella.
 amd-oc = Overclocking d'AMD
-amd-oc-disabled =
-    El suport d'Overclocking d'AMD no està habilitat!
-    Encara podeu canviar la configuració bàsica, però els rellotges més avançats i el control de voltatge no estaran disponibles.
+amd-oc-disabled = L’overclocking d’AMD no està habilitat! <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Algunes funcionalitats no estaran disponibles.</a>
 amd-oc-status =
     L'Overclocking d'AMD està actualment: <b>{ $status ->
         [true] Habilitat
@@ -116,7 +114,7 @@ performance-level-manual-description = Control de rendiment manual.
 performance-level = Nivell de rendiment
 power-profile-mode = Mode de perfil d'energia:
 overclock-section = Velocitat de rellotge i voltatge
-nvidia-oc-info = Informació d'Overclocking de Nvidia
+nvidia-oc-info = Informació d'Overclocking
 oc-warning = Canviar aquests valors pot provocar inestabilitat del sistema i pot danyar potencialment el vostre maquinari!
 show-all-pstates = Mostra tots els estats P
 enable-gpu-locked-clocks = Habilita els rellotges bloquejats de la GPU
@@ -221,8 +219,6 @@ nvidia-oc-description =
     Per exemple, un increment de +1000MHz a la VRAM podria augmentar la velocitat mesurada de la VRAM només 500MHz.
     Això és normal i és com Nvidia gestiona les velocitats de dades GDDR. Ajusta el teu overclocking en conseqüència.
 
-    El control directe de voltatge no està suportat, ja que no existeix en el controlador Nvidia per a Linux.
-
     És possible aconseguir un pseudo-undervolt combinant l'opció de rellotges bloquejats amb un increment de la velocitat de rellotge.
     Això forçarà la GPU a funcionar a un voltatge que està limitat pels rellotges bloquejats, mentre s'aconsegueix una velocitat de rellotge més alta a causa de l'increment.
     Això pot causar inestabilitat del sistema si s'augmenta massa.
@@ -235,3 +231,16 @@ theme-auto = Automàtic
 hw-ip-info = Informació IP del maquinari
 hw-queues = Cues
 theme = Tema
+vf-curve-editor = Editor de corba VF
+nvidia-vf-curve-warning =
+    L’editor de corba tensió-freqüència depèn de funcionalitats del controlador que no estan documentades. 
+    No hi ha garanties pel que fa al seu comportament, seguretat o disponibilitat. 
+    <span weight="heavy" underline="single">Usa-ho sota la teva pròpia responsabilitat</span>.
+vf-curve-enable-editing = Activa l’Edició
+voltage = Voltatge
+frequency = Freqüència
+vf-active-curve = Corba Activa
+vf-base-curve = Corba Base
+vf-curve-visible-range = Rang Visible (%):
+vf-curve-visible-range-to = a
+vf-curve-flatten-right = Aplanar la corba cap a la dreta

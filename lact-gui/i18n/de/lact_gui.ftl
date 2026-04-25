@@ -1,6 +1,6 @@
-oc-page = OC
+oc-page = Übertakten
 thermals-page = Thermik
-software-page = Software
+software-page = Software Info
 lact-gui = LACT GUI
 kernel-version = Kernelversion
 instance = Instanz
@@ -45,7 +45,7 @@ cache-instruction = Daten
 cache-cpu = CPU
 static-page = Statisch
 version = Version
-info-page = Informationen
+info-page = Hardware Info
 zero-rpm-stop-temp = Zero RPM Stop Temperatur (°C)
 static-speed = Konstante Geschwindigkeit (%)
 reset-button = Zurücksetzen
@@ -235,3 +235,16 @@ theme-auto = Automatisch
 crash-page-title = Applikation abgestürzt
 exit = Ausgang
 spindown-delay = Drosselungsverzögerung (ms)
+vf-curve-editor = VF Kurven Editor
+nvidia-vf-curve-warning =
+    Der Spannungs-Frequenzkurveneditor beruht auf undokumentierten Treiberfunktionalitäten.
+    Es gibt keine Garantien betreffend seines Verhaltens, Sicherheit oder Verfügbarkeit.
+    <span weight="heavy" underline="single">Benutzung auf eigene Gefahr</span>.
+vf-curve-enable-editing = Ermögliche Editieren
+voltage = Spannung
+frequency = Frequenz
+vf-active-curve = Aktive Kurve
+vf-base-curve = Basiskurve
+vf-curve-visible-range = Sichtbare Spanne (%):
+vf-curve-visible-range-to = zu
+vf-curve-flatten-right = Kurve rechts glätten

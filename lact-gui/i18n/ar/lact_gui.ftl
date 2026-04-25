@@ -18,7 +18,7 @@ api-version = إصدار API
 monitoring-section = المراقبة
 kernel-version = إصدار النواة
 oc-page = رفع تردد التشغيل
-software-page = البرمجية
+software-page = معلومات البرمجية
 hardware-info = معلومات العتاد
 lact-daemon = عفريت LACT
 lact-gui = واجهة المستخدم الرسومية LACT
@@ -40,7 +40,7 @@ temperatures = درجات الحرارة
 fan-speed = سرعة المروحة
 throttling = الاختناق
 curve-page = المنحنى
-info-page = المعلومات
+info-page = معلومات العتاد
 acoustic-target = الهدف الصوتي (دورة في الدقيقة)
 zero-rpm-stop-temp = درجة حرارة توقف المروحة عند صفر دورة في الدقيقة (°م)
 target-temp = درجة الحرارة المستهدفة (°م)
@@ -73,7 +73,7 @@ performance-level-low = أقل ترددات
 performance-level-low-description = استخدم دائمًا أقل سرعات تردد المعالج لبطاقة الرسوميات وذاكرة الفيديو.
 performance-level-manual-description = التحكم اليدوي في الأداء.
 overclock-section = سرعة التردد والجهد
-nvidia-oc-info = معلومات رفع تردد تشغيل Nvidia
+nvidia-oc-info = معلومات رفع تردد التشغيل
 show-all-pstates = عرض جميع حالات P
 enable-vram-locked-clocks = مكّن ترددات ذاكرة الفيديو المقفلة
 no-clocks-data = لا توجد بيانات توقيت متاحة
@@ -92,9 +92,7 @@ auto-switch-profiles = بدّل تلقائيًا
 add-profile = أضف ملف تعريف جديد
 import-profile = استورد ملف التعريف من ملف
 reset-config-description = هل أنت متأكد أنك تريد تصفير كل إعدادات معالج الرسوميات؟
-amd-oc-disabled =
-    دعم رفع تردد تشغيل معالج AMD غير مُفعّل!
-    لا يزال بإمكانك تغيير الإعدادات الأساسية، ولكن لن تتوفر أدوات التحكم المتقدمة في الترددات والفولتية.
+amd-oc-disabled = رفع تردد تشغيل معالج AMD غير مُفعّل! <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">لن تتوفر بعض الوظائف.</a>
 pstates = حالات الطاقة
 enable-amd-oc-description = سيؤدي هذا إلى تمكين ميزة زيادة سرعة التشغيل (overdrive) لمُشغّل amdgpu عن طريق إنشاء ملف في <b>{ $path }</b> وتحديث initramfs. هل أنت متأكد أنك تريد القيام بذلك؟
 oc-warning = قد يؤدي تغيير هذه القيم إلى عدم استقرار النظام وقد يتسبب في تلف عتادك!
@@ -108,8 +106,6 @@ nvidia-oc-description =
     في العديد من البطاقات، ستؤثر إزاحة سرعة ساعة ذاكرة الفيديو على سرعة تردد الذاكرة الفعلية بنصف قيمة الإزاحة فقط.
     على سبيل المثال، قد تؤدي إزاحة ذاكرة الفيديو بمقدار +1000 ميجاهرتز إلى زيادة سرعة ذاكرة الفيديو المقاسة بمقدار 500 ميجاهرتز فقط.
     هذا أمر طبيعي، وهي الطريقة التي تتعامل بها Nvidia مع معدلات بيانات GDDR. اضبط كسر السرعة الخاص بك وفقًا لذلك.
-
-    التحكم المباشر في الجهد غير مدعوم، لأنه غير موجود في مُشغّل Nvidia Linux.
 
     من الممكن تحقيق خفض جهد زائف من خلال الجمع بين خيار الساعات المقفلة وإزاحة سرعة تردد إيجابية.
     سيؤدي هذا إلى إجبار وحدة معالجة الرسوميات على العمل بجهد مقيد بالساعات المقفلة، مع تحقيق سرعة تردد أعلى بسبب الإزاحة.
@@ -235,3 +231,16 @@ hw-ip-info = معلومات ملكية فكرية العتاد
 hw-queues = قوائم الانتظار
 theme = السمة
 theme-auto = تلقائي
+vf-curve-editor = محرّر منحنى VF
+nvidia-vf-curve-warning =
+    يعتمد محرّر منحنى الجهد والتردد على وظائف غير موثقة في المُشغّل.
+    لا توجد أي ضمانات فيما يتعلق بسلوكه أو سلامته أو توفره.
+    <span weight = "heavy" underline = "single">استخدمه على مسؤوليتك الخاصة</span>.
+vf-curve-enable-editing = فعّل التحرير
+voltage = الجهد
+frequency = التردد
+vf-active-curve = المنحنى النشط
+vf-base-curve = منحنى القاعدة
+vf-curve-visible-range = النطاق المرئي (%):
+vf-curve-visible-range-to = إلى
+vf-curve-flatten-right = تسطيح المنحنى جهة اليمين
