@@ -268,3 +268,17 @@ about = About
 # Crash page
 crash-page-title = Application Crashed
 exit = Exit
+
+# 12V-2x6 Power Connector
+connector-section-title = 12V-2x6 Connector
+connector-total-current = Total Current
+connector-total-power = Total Power
+connector-pin = Pin { $n }
+connector-alarm-group = 12V-2x6 Connector Alarm
+connector-alarm-threshold = Pin current threshold (A)
+connector-alarm-threshold-subtitle = Alarm triggers when any pin exceeds this value
+connector-alarm-notify = Show notification
+connector-alarm-command = Run command on alarm
+connector-alarm-command-subtitle = Leave empty to disable
+connector-alarm-message = ⚠️ 12V-2x6 connector alarm!\nPin current { $current }A exceeds threshold { $threshold }A
+connector-alarm-command-placeholder = e.g. systemctl poweroff

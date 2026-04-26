@@ -1,3 +1,5 @@
+#[cfg(feature = "nvidia")]
+use super::gpu_controller::nvidia::NvidiaGpuController;
 use super::{
     gpu_controller::{DynGpuController, GpuController, common::fan_control::FanCurveExt},
     profiles::ProfileWatcherCommand,
@@ -133,6 +135,24 @@ impl<'a> Handler {
         }
         info!("initialized {} GPUs", controllers.len());
 
+        // Apply per-GPU power connector config
+        #[cfg(feature = "nvidia")]
+        {
+            if let Ok(gpus) = config.gpus() {
+                for (gpu_id, controller) in controllers.iter_mut() {
+                    if let Some(gpu_config) = gpus.get(gpu_id) {
+                        if let Some(pc) = &gpu_config.power_connector {
+                            if let Some(nvidia) = controller.as_any_mut().downcast_mut::<NvidiaGpuController>() {
+                                nvidia.set_power_connector_config(pc.i2c_bus, pc.i2c_addr, pc.reg_base);
+                            }
+                        }
+                    }
+                }
+            } else {
+                error!("Could not read GPU config for power connector setup");
+            }
+        }
+
         match fs::read_to_string("/proc/cmdline") {
             Ok(cmdline) => {
                 if cmdline
@@ -226,6 +246,21 @@ impl<'a> Handler {
                 }
 
                 *controllers_guard = new_controllers;
+                // Apply per-GPU power connector config
+                #[cfg(feature = "nvidia")]
+                {
+                    if let Ok(gpus) = config.gpus() {
+                        for (gpu_id, controller) in controllers_guard.iter_mut() {
+                            if let Some(gpu_config) = gpus.get(gpu_id) {
+                                if let Some(pc) = &gpu_config.power_connector {
+                                    if let Some(nvidia) = controller.as_any_mut().downcast_mut::<NvidiaGpuController>() {
+                                        nvidia.set_power_connector_config(pc.i2c_bus, pc.i2c_addr, pc.reg_base);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 match apply_config_to_controllers(&controllers_guard, &config).await {
                     Ok(()) => {
@@ -1179,7 +1214,7 @@ fn load_controllers(
             let device_path = entry.path().join("device");
 
             match init_controller(device_path.clone(), pci_db) {
-                Ok(controller) => {
+                Ok(mut controller) => {
                     let info = controller.controller_info();
                     let id = info.build_id();
 
@@ -1188,6 +1223,7 @@ fn load_controllers(
                         info.driver,
                         info.sysfs_path.display()
                     );
+
 
                     controllers.insert(id, controller);
                 }

@@ -8,7 +8,7 @@ use adw::prelude::{
     PreferencesRowExt,
 };
 use gtk::prelude::{
-    ButtonExt, EditableExt, ListBoxRowExt, OrientableExt, ToggleButtonExt, WidgetExt,
+    ButtonExt, EditableExt, EntryExt, ListBoxRowExt, OrientableExt, ToggleButtonExt, WidgetExt,
 };
 use i18n_embed_fl::fl;
 use lact_schema::SystemInfo;
@@ -23,6 +23,10 @@ pub struct PreferencesDialog {
 pub enum PreferencesDialogMsg {
     Show,
     ThemeSelected(AppTheme),
+    AlarmThresholdChanged(f64),
+    AlarmNotifyToggled(bool),
+    AlarmCommandChanged(String),
+    AlarmCommandToggled(bool),
 }
 
 #[relm4::component(pub)]
@@ -141,6 +145,51 @@ impl relm4::Component for PreferencesDialog {
                         },
                     },
                 },
+
+                add = &adw::PreferencesGroup {
+                    set_title: &fl!(I18N, "connector-alarm-group"),
+
+                    adw::ActionRow {
+                        set_title: &fl!(I18N, "connector-alarm-threshold"),
+                        set_subtitle: &fl!(I18N, "connector-alarm-threshold-subtitle"),
+
+                        add_suffix = &gtk::SpinButton {
+                            set_range: (1.0, 10.0),
+                            set_increments: (0.5, 1.0),
+                            set_digits: 1,
+                            set_width_chars: 4,
+                            set_valign: gtk::Align::Center,
+                            set_value: CONFIG.read().connector_alarm.as_ref().map(|a| a.pin_current_threshold_a).unwrap_or(8.0),
+                            connect_value_changed[sender] => move |btn| {
+                                sender.input(PreferencesDialogMsg::AlarmThresholdChanged(btn.value()));
+                            },
+                        },
+                    },
+
+                    adw::SwitchRow {
+                        set_title: &fl!(I18N, "connector-alarm-notify"),
+                        #[watch]
+                        set_active: CONFIG.read().connector_alarm.as_ref().map(|a| a.notify).unwrap_or(true),
+                        connect_active_notify[sender] => move |row| {
+                            sender.input(PreferencesDialogMsg::AlarmNotifyToggled(row.is_active()));
+                        },
+                    },
+
+                    adw::ActionRow {
+                        set_title: &fl!(I18N, "connector-alarm-command"),
+                        set_subtitle: &fl!(I18N, "connector-alarm-command-subtitle"),
+
+                        add_suffix = &gtk::Entry {
+                            set_placeholder_text: Some(&fl!(I18N, "connector-alarm-command-placeholder")),
+                            set_width_chars: 30,
+                            set_valign: gtk::Align::Center,
+                            set_text: &CONFIG.read().connector_alarm.as_ref().and_then(|a| a.command.clone()).unwrap_or_default(),
+                            connect_changed[sender] => move |entry| {
+                                sender.input(PreferencesDialogMsg::AlarmCommandChanged(entry.text().to_string()));
+                            },
+                        },
+                    },
+                },
             },
         }
     }
@@ -176,6 +225,23 @@ impl relm4::Component for PreferencesDialog {
                     config.theme = theme;
                 });
             }
+            PreferencesDialogMsg::AlarmThresholdChanged(value) => {
+                CONFIG.write().edit(|config| {
+                    config.connector_alarm.get_or_insert_with(Default::default).pin_current_threshold_a = value;
+                });
+            }
+            PreferencesDialogMsg::AlarmNotifyToggled(active) => {
+                CONFIG.write().edit(|config| {
+                    config.connector_alarm.get_or_insert_with(Default::default).notify = active;
+                });
+            }
+            PreferencesDialogMsg::AlarmCommandChanged(cmd) => {
+                CONFIG.write().edit(|config| {
+                    let alarm = config.connector_alarm.get_or_insert_with(Default::default);
+                    alarm.command = if cmd.is_empty() { None } else { Some(cmd) };
+                });
+            }
+            PreferencesDialogMsg::AlarmCommandToggled(_) => {}
         }
         self.update_view(widgets, sender);
     }

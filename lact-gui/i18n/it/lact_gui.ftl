@@ -235,3 +235,17 @@ hw-ip-info = Informazioni IP Hardware
 hw-queues = Code
 theme = tema
 theme-auto = Automatico
+
+# Connettore di alimentazione 12V-2x6
+connector-section-title = Connettore 12V-2x6
+connector-total-current = Corrente Totale
+connector-total-power = Potenza Totale
+connector-pin = Pin { $n }
+connector-alarm-group = Allarme Connettore 12V-2x6
+connector-alarm-threshold = Soglia corrente per pin (A)
+connector-alarm-threshold-subtitle = L'allarme scatta quando un pin supera questo valore
+connector-alarm-notify = Mostra notifica
+connector-alarm-command = Esegui comando all'allarme
+connector-alarm-command-subtitle = Lascia vuoto per disabilitare
+connector-alarm-message = ⚠️ Allarme connettore 12V-2x6!\nCorrente pin { $current }A supera la soglia { $threshold }A
+connector-alarm-command-placeholder = es. systemctl poweroff
