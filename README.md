@@ -85,6 +85,7 @@ The service can also be used standalone with a config file, for example in headl
 - Flatpak (universal): Available on [Flathub](https://flathub.org/apps/io.github.ilya_zlobintsev.LACT) and in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
   See the [Flatpak documentation](./flatpak/README.md) for additional notes.
+- Solus: lact is available in the offical repository `eopkg it lact`
 - Docker (service only, no GUI): See [DOCKER.md](./docs/DOCKER.md)
 - Build from source.
 
