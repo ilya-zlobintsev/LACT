@@ -82,10 +82,10 @@ The service can also be used standalone with a config file, for example in headl
   in the repos.
 - NixOS: There is a package available in
   [nixpkgs](https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=lact).
+- Solus: Available in the offical repository: `eopkg it lact`
 - Flatpak (universal): Available on [Flathub](https://flathub.org/apps/io.github.ilya_zlobintsev.LACT) and in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
   See the [Flatpak documentation](./flatpak/README.md) for additional notes.
-- Solus: lact is available in the offical repository `eopkg it lact`
 - Docker (service only, no GUI): See [DOCKER.md](./docs/DOCKER.md)
 - Build from source.
 
