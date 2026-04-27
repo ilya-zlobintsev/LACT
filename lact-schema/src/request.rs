@@ -85,6 +85,13 @@ pub enum Request<'a> {
         name: String,
         new_position: usize,
     },
+    HoldProfile {
+        name: String,
+        requester: String,
+    },
+    ReleaseProfile {
+        cookie: u64,
+    },
     EvaluateProfileRule {
         rule: ProfileRule,
     },
