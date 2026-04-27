@@ -718,6 +718,10 @@ impl AmdGpuController {
 }
 
 impl GpuController for AmdGpuController {
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
     }
@@ -1032,6 +1036,7 @@ impl GpuController for AmdGpuController {
                 .ok()
                 .and_then(|levels| levels.active),
             throttle_info,
+            power_connector: None,
         }
     }
 
