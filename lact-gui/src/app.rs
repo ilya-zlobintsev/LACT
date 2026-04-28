@@ -412,14 +412,16 @@ impl AsyncComponent for AppModel {
             .await
             .expect("Could not list devices");
 
-        if system_info.version != GUI_VERSION || system_info.commit.as_deref() != Some(GIT_COMMIT) {
-            let err = anyhow!(
-                "Version mismatch between GUI and daemon ({GUI_VERSION}-{GIT_COMMIT} vs {}-{})! If you have updated LACT, you need to restart the service with `sudo systemctl restart lactd`.",
-                system_info.version,
-                system_info.commit.as_deref().unwrap_or_default()
-            );
-            sender.input(AppMsg::Error(err.into()));
-        }
+        let version_mismatch_info = (system_info.version != GUI_VERSION
+            || system_info.commit.as_deref() != Some(GIT_COMMIT))
+        .then(|| {
+            InfoDialogData::version_mismatch(
+                GUI_VERSION,
+                GIT_COMMIT,
+                &system_info.version,
+                system_info.commit.as_deref().unwrap_or_default(),
+            )
+        });
 
         let info_page = InformationPage::detach_default();
 
@@ -499,6 +501,10 @@ impl AsyncComponent for AppModel {
                 .emit(InfoDialogMsg::Show(InfoDialogData::embedded_daemon_info(
                     err,
                 )));
+        }
+
+        if let Some(info) = version_mismatch_info {
+            model.info_dialog.emit(InfoDialogMsg::Show(info));
         }
 
         sender.input(AppMsg::ReloadProfiles { state_sender: None });

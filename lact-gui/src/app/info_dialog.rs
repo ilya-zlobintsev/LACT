@@ -11,6 +11,7 @@ const RESPONSE_CLOSE: &str = "close";
 pub enum InfoDialogId {
     Error,
     EmbeddedDaemonInfo,
+    VersionMismatch,
 }
 
 #[derive(Debug)]
@@ -49,6 +50,25 @@ impl InfoDialogData {
             body,
             stacktrace: None,
             selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
+        }
+    }
+
+    pub fn version_mismatch(
+        gui_version: &str,
+        gui_commit: &str,
+        daemon_version: &str,
+        daemon_commit: &str,
+    ) -> Self {
+        Self {
+            id: InfoDialogId::VersionMismatch,
+            heading: "Version mismatch".to_string(),
+            body: format!(
+                "Version mismatch between GUI and daemon ({gui_version}-{gui_commit} vs \
+                {daemon_version}-{daemon_commit})! If you have updated LACT, you need to restart \
+                the service with:"
+            ),
+            stacktrace: None,
+            selectable_text: Some("sudo systemctl restart lactd".to_string()),
         }
     }
 }
