@@ -1,8 +1,8 @@
 use crate::I18N;
 use adw::prelude::*;
 use i18n_embed_fl::fl;
-use relm4::{ComponentParts, ComponentSender};
-use std::{collections::HashMap, sync::Arc};
+use relm4::{Component, ComponentParts, ComponentSender};
+use std::{collections::HashMap, fmt, sync::Arc};
 use tracing::warn;
 
 const RESPONSE_CLOSE: &str = "close";
@@ -105,23 +105,29 @@ pub struct InfoDialog {
     active_dialogs: HashMap<InfoDialogId, relm4::Controller<InfoDialogEntry>>,
 }
 
-#[derive(Debug)]
 pub enum InfoDialogMsg {
     Show(InfoDialogData),
+    ShowConfirmation(InfoDialogData, Box<dyn FnOnce() + 'static>),
     Response(InfoDialogEntryResponse),
 }
 
-#[derive(Clone, Debug)]
-pub enum InfoDialogOutput {
-    Closed(InfoDialogId),
-    Confirmed(InfoDialogId),
+impl fmt::Debug for InfoDialogMsg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Show(data) => f.debug_tuple("Show").field(data).finish(),
+            Self::ShowConfirmation(data, _) => {
+                f.debug_tuple("ShowConfirmation").field(data).finish()
+            }
+            Self::Response(response) => f.debug_tuple("Response").field(response).finish(),
+        }
+    }
 }
 
 #[relm4::component(pub)]
 impl relm4::Component for InfoDialog {
     type Init = adw::ApplicationWindow;
     type Input = InfoDialogMsg;
-    type Output = InfoDialogOutput;
+    type Output = ();
     type CommandOutput = ();
 
     view! {
@@ -146,26 +152,45 @@ impl relm4::Component for InfoDialog {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         match msg {
             InfoDialogMsg::Show(data) => {
-                if self.active_dialogs.contains_key(&data.id) {
-                    return;
-                }
-
-                let id = data.id;
-                let dialog = InfoDialogEntry::builder()
-                    .launch((self.parent.clone(), data))
-                    .forward(sender.input_sender(), InfoDialogMsg::Response);
-                self.active_dialogs.insert(id, dialog);
+                self.show(data, None, sender);
+            }
+            InfoDialogMsg::ShowConfirmation(data, on_confirmed) => {
+                self.show(data, Some(on_confirmed), sender);
             }
             InfoDialogMsg::Response(response) => {
-                let id = response.id();
-                self.active_dialogs.remove(&id);
-                sender.output(response.into()).unwrap();
+                self.active_dialogs.remove(&response.id());
             }
         }
     }
 }
 
-#[derive(Clone, Debug)]
+impl InfoDialog {
+    fn show(
+        &mut self,
+        data: InfoDialogData,
+        on_confirmed: Option<Box<dyn FnOnce() + 'static>>,
+        sender: ComponentSender<Self>,
+    ) {
+        if self.active_dialogs.contains_key(&data.id) {
+            return;
+        }
+
+        let id = data.id;
+        let mut on_confirmed = on_confirmed;
+        let dialog = InfoDialogEntry::builder()
+            .launch((self.parent.clone(), data))
+            .connect_receiver(move |_, response| {
+                let confirmed = matches!(response, InfoDialogEntryResponse::Confirmed(_));
+                sender.input(InfoDialogMsg::Response(response));
+                if confirmed && let Some(on_confirmed) = on_confirmed.take() {
+                    on_confirmed();
+                }
+            });
+        self.active_dialogs.insert(id, dialog);
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum InfoDialogEntryResponse {
     Closed(InfoDialogId),
     Confirmed(InfoDialogId),
@@ -175,15 +200,6 @@ impl InfoDialogEntryResponse {
     fn id(&self) -> InfoDialogId {
         match self {
             Self::Closed(id) | Self::Confirmed(id) => *id,
-        }
-    }
-}
-
-impl From<InfoDialogEntryResponse> for InfoDialogOutput {
-    fn from(value: InfoDialogEntryResponse) -> Self {
-        match value {
-            InfoDialogEntryResponse::Closed(id) => Self::Closed(id),
-            InfoDialogEntryResponse::Confirmed(id) => Self::Confirmed(id),
         }
     }
 }

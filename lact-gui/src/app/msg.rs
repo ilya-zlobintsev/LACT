@@ -1,5 +1,5 @@
 use super::{
-    info_dialog::{InfoDialogData, InfoDialogOutput},
+    info_dialog::InfoDialogData,
     profiles::profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
 };
 use lact_client::ConnectionStatusMsg;
@@ -51,7 +51,6 @@ pub enum AppMsg {
     ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
     AskConfirmation(InfoDialogData, Box<AppMsg>),
-    InfoDialog(InfoDialogOutput),
     Crash(String),
 }
 
