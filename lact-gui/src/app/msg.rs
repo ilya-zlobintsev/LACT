@@ -1,5 +1,5 @@
 use super::{
-    confirmation_dialog::ConfirmationOptions,
+    info_dialog::{InfoDialogData, InfoDialogOutput},
     profiles::profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
 };
 use lact_client::ConnectionStatusMsg;
@@ -50,7 +50,8 @@ pub enum AppMsg {
     ImportProfile,
     ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
-    AskConfirmation(ConfirmationOptions, Box<AppMsg>),
+    AskConfirmation(InfoDialogData, Box<AppMsg>),
+    InfoDialog(InfoDialogOutput),
     Crash(String),
 }
 
@@ -59,14 +60,10 @@ impl AppMsg {
         inner: AppMsg,
         title: String,
         message: impl Into<String>,
-        buttons_type: gtk::ButtonsType,
+        confirm_label: String,
     ) -> Self {
         Self::AskConfirmation(
-            ConfirmationOptions {
-                title,
-                message: message.into(),
-                buttons_type,
-            },
+            InfoDialogData::reset_config_confirmation(title, message.into(), confirm_label),
             Box::new(inner),
         )
     }

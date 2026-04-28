@@ -135,7 +135,7 @@ impl relm4::Component for PreferencesDialog {
                                 AppMsg::ResetConfig,
                                 fl!(I18N, "reset-config"),
                                 fl!(I18N, "reset-config-description"),
-                                gtk::ButtonsType::YesNo,
+                                fl!(I18N, "reset-button"),
                             );
                             APP_BROKER.send(msg);
                         },

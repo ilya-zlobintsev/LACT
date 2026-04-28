@@ -6,21 +6,31 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::warn;
 
 const RESPONSE_CLOSE: &str = "close";
+const RESPONSE_CANCEL: &str = "cancel";
+const RESPONSE_CONFIRM: &str = "confirm";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum InfoDialogId {
     Error,
     EmbeddedDaemonInfo,
+    ResetConfigConfirmation,
     VersionMismatch,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InfoDialogData {
     pub id: InfoDialogId,
     pub heading: String,
     pub body: String,
     pub stacktrace: Option<String>,
     pub selectable_text: Option<String>,
+    pub confirmation: Option<InfoDialogConfirmation>,
+}
+
+#[derive(Clone, Debug)]
+pub struct InfoDialogConfirmation {
+    pub confirm_label: String,
+    pub destructive: bool,
 }
 
 impl InfoDialogData {
@@ -31,6 +41,7 @@ impl InfoDialogData {
             body: format!("{err:#}"),
             stacktrace: Some(format!("{err:?}")),
             selectable_text: None,
+            confirmation: None,
         }
     }
 
@@ -50,6 +61,21 @@ impl InfoDialogData {
             body,
             stacktrace: None,
             selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
+            confirmation: None,
+        }
+    }
+
+    pub fn reset_config_confirmation(heading: String, body: String, confirm_label: String) -> Self {
+        Self {
+            id: InfoDialogId::ResetConfigConfirmation,
+            heading,
+            body,
+            stacktrace: None,
+            selectable_text: None,
+            confirmation: Some(InfoDialogConfirmation {
+                confirm_label,
+                destructive: true,
+            }),
         }
     }
 
@@ -69,6 +95,7 @@ impl InfoDialogData {
             ),
             stacktrace: None,
             selectable_text: Some("sudo systemctl restart lactd".to_string()),
+            confirmation: None,
         }
     }
 }
@@ -81,14 +108,20 @@ pub struct InfoDialog {
 #[derive(Debug)]
 pub enum InfoDialogMsg {
     Show(InfoDialogData),
+    Response(InfoDialogEntryResponse),
+}
+
+#[derive(Clone, Debug)]
+pub enum InfoDialogOutput {
     Closed(InfoDialogId),
+    Confirmed(InfoDialogId),
 }
 
 #[relm4::component(pub)]
 impl relm4::Component for InfoDialog {
     type Init = adw::ApplicationWindow;
     type Input = InfoDialogMsg;
-    type Output = ();
+    type Output = InfoDialogOutput;
     type CommandOutput = ();
 
     view! {
@@ -120,12 +153,37 @@ impl relm4::Component for InfoDialog {
                 let id = data.id;
                 let dialog = InfoDialogEntry::builder()
                     .launch((self.parent.clone(), data))
-                    .forward(sender.input_sender(), InfoDialogMsg::Closed);
+                    .forward(sender.input_sender(), InfoDialogMsg::Response);
                 self.active_dialogs.insert(id, dialog);
             }
-            InfoDialogMsg::Closed(id) => {
+            InfoDialogMsg::Response(response) => {
+                let id = response.id();
                 self.active_dialogs.remove(&id);
+                sender.output(response.into()).unwrap();
             }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum InfoDialogEntryResponse {
+    Closed(InfoDialogId),
+    Confirmed(InfoDialogId),
+}
+
+impl InfoDialogEntryResponse {
+    fn id(&self) -> InfoDialogId {
+        match self {
+            Self::Closed(id) | Self::Confirmed(id) => *id,
+        }
+    }
+}
+
+impl From<InfoDialogEntryResponse> for InfoDialogOutput {
+    fn from(value: InfoDialogEntryResponse) -> Self {
+        match value {
+            InfoDialogEntryResponse::Closed(id) => Self::Closed(id),
+            InfoDialogEntryResponse::Confirmed(id) => Self::Confirmed(id),
         }
     }
 }
@@ -140,17 +198,12 @@ struct InfoDialogEntry {
 impl relm4::Component for InfoDialogEntry {
     type Init = (adw::ApplicationWindow, InfoDialogData);
     type Input = ();
-    type Output = InfoDialogId;
+    type Output = InfoDialogEntryResponse;
     type CommandOutput = ();
 
     view! {
         adw::AlertDialog {
             set_heading: Some(&model.data.heading),
-            set_close_response: RESPONSE_CLOSE,
-            set_default_response: Some(RESPONSE_CLOSE),
-
-            add_response: (RESPONSE_CLOSE, &fl!(I18N, "close")),
-
             #[wrap(Some)]
             set_extra_child = &gtk::Box {
                 set_width_request: 500,
@@ -209,8 +262,36 @@ impl relm4::Component for InfoDialogEntry {
 
         let widgets = view_output!();
         let id = model.data.id;
-        root.connect_response(Some(RESPONSE_CLOSE), move |_, _| {
-            sender.output(id).unwrap();
+
+        match &model.data.confirmation {
+            None => {
+                root.add_response(RESPONSE_CLOSE, &fl!(I18N, "close"));
+                root.set_close_response(RESPONSE_CLOSE);
+                root.set_default_response(Some(RESPONSE_CLOSE));
+            }
+            Some(InfoDialogConfirmation {
+                confirm_label,
+                destructive,
+            }) => {
+                root.add_response(RESPONSE_CANCEL, &fl!(I18N, "cancel"));
+                root.add_response(RESPONSE_CONFIRM, confirm_label);
+                root.set_close_response(RESPONSE_CANCEL);
+                root.set_default_response(Some(RESPONSE_CANCEL));
+                if *destructive {
+                    root.set_response_appearance(
+                        RESPONSE_CONFIRM,
+                        adw::ResponseAppearance::Destructive,
+                    );
+                }
+            }
+        }
+
+        root.connect_response(None, move |_, response| {
+            let output = match response {
+                RESPONSE_CONFIRM => InfoDialogEntryResponse::Confirmed(id),
+                _ => InfoDialogEntryResponse::Closed(id),
+            };
+            sender.output(output).unwrap();
         });
         root.present(Some(&model.parent));
 

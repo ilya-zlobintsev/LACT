@@ -1,5 +1,4 @@
 mod about_dialog;
-mod confirmation_dialog;
 mod ext;
 pub(crate) mod formatting;
 mod gpu_selector;
@@ -22,7 +21,7 @@ use crate::{
     app::{
         about_dialog::{AboutDialog, AboutDialogMsg},
         gpu_selector::GpuSelector,
-        info_dialog::{InfoDialog, InfoDialogData, InfoDialogMsg},
+        info_dialog::{InfoDialog, InfoDialogData, InfoDialogId, InfoDialogMsg, InfoDialogOutput},
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
@@ -34,7 +33,6 @@ use crate::{
 };
 use adw::prelude::*;
 use anyhow::{Context, anyhow};
-use confirmation_dialog::ConfirmationDialog;
 use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
@@ -71,7 +69,8 @@ use relm4_components::{
     save_dialog::{SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings},
 };
 use std::{
-    cell::Cell, fs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, sync::Arc, time::Duration,
+    cell::Cell, collections::HashMap, fs, os::unix::net::UnixStream, path::PathBuf, rc::Rc,
+    sync::Arc, time::Duration,
 };
 use tracing::{debug, error, info, trace, warn};
 
@@ -92,6 +91,7 @@ pub struct AppModel {
     preferences_dialog: relm4::Controller<PreferencesDialog>,
     about_dialog: relm4::Controller<AboutDialog>,
     info_dialog: relm4::Controller<InfoDialog>,
+    pending_confirmations: HashMap<InfoDialogId, Box<AppMsg>>,
 
     ui_sensitive: BoolBinding,
     selected_gpu_index: u32,
@@ -447,7 +447,9 @@ impl AsyncComponent for AppModel {
             .detach();
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
-        let info_dialog = InfoDialog::builder().launch(root.clone()).detach();
+        let info_dialog = InfoDialog::builder()
+            .launch(root.clone())
+            .forward(sender.input_sender(), AppMsg::InfoDialog);
 
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
@@ -470,6 +472,7 @@ impl AsyncComponent for AppModel {
             preferences_dialog,
             about_dialog,
             info_dialog,
+            pending_confirmations: HashMap::new(),
             info_page,
             oc_page,
             thermals_page,
@@ -786,17 +789,21 @@ impl AppModel {
                 }
                 ConnectionStatusMsg::Reconnected => widgets.reconnecting_dialog.force_close(),
             },
-            AppMsg::AskConfirmation(options, confirmed_msg) => {
-                let sender = sender.clone();
-
-                let mut controller = ConfirmationDialog::builder()
-                    .launch((options, root.clone()))
-                    .connect_receiver(move |_, response| {
-                        if let gtk::ResponseType::Ok | gtk::ResponseType::Yes = response {
-                            sender.input(*confirmed_msg.clone());
-                        }
-                    });
-                controller.detach_runtime();
+            AppMsg::AskConfirmation(data, confirmed_msg) => {
+                if let std::collections::hash_map::Entry::Vacant(entry) =
+                    self.pending_confirmations.entry(data.id)
+                {
+                    entry.insert(confirmed_msg);
+                    self.info_dialog.emit(InfoDialogMsg::Show(data));
+                }
+            }
+            AppMsg::InfoDialog(InfoDialogOutput::Closed(id)) => {
+                self.pending_confirmations.remove(&id);
+            }
+            AppMsg::InfoDialog(InfoDialogOutput::Confirmed(id)) => {
+                if let Some(msg) = self.pending_confirmations.remove(&id) {
+                    sender.input(*msg);
+                }
             }
             AppMsg::EvaluateProfile(rule, sender) => {
                 match self.daemon_client.evaluate_profile_rule(rule).await {
