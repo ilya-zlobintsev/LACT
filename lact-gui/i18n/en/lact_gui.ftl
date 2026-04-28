@@ -225,6 +225,7 @@ name = Name
 profile-copy-from = Copy settings from:
 create = Create
 cancel = Cancel
+close = Close
 save = Save
 default-profile = Default
 rename-profile = Rename Profile

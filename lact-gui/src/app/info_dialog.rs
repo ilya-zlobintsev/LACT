@@ -1,0 +1,199 @@
+use crate::I18N;
+use adw::prelude::*;
+use i18n_embed_fl::fl;
+use relm4::{ComponentParts, ComponentSender};
+use std::{collections::HashMap, sync::Arc};
+use tracing::warn;
+
+const RESPONSE_CLOSE: &str = "close";
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum InfoDialogId {
+    Error,
+    EmbeddedDaemonInfo,
+}
+
+#[derive(Debug)]
+pub struct InfoDialogData {
+    pub id: InfoDialogId,
+    pub heading: String,
+    pub body: String,
+    pub stacktrace: Option<String>,
+    pub selectable_text: Option<String>,
+}
+
+impl InfoDialogData {
+    pub fn error(err: Arc<anyhow::Error>) -> Self {
+        Self {
+            id: InfoDialogId::Error,
+            heading: "Error".to_string(),
+            body: format!("{err:#}"),
+            stacktrace: Some(format!("{err:?}")),
+            selectable_text: None,
+        }
+    }
+
+    pub fn embedded_daemon_info(err: anyhow::Error) -> Self {
+        let error_text = format!("Error info: {err:#}\n\n");
+        let body = format!(
+            "Could not connect to daemon, running in embedded mode. \n\
+            Please make sure the lactd service is running. \n\
+            Using embedded mode, you will not be able to change any settings. \n\n\
+            {error_text}\
+            To enable the daemon, run the following command, then restart LACT:"
+        );
+
+        Self {
+            id: InfoDialogId::EmbeddedDaemonInfo,
+            heading: "Daemon info".to_string(),
+            body,
+            stacktrace: None,
+            selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
+        }
+    }
+}
+
+pub struct InfoDialog {
+    parent: adw::ApplicationWindow,
+    active_dialogs: HashMap<InfoDialogId, relm4::Controller<InfoDialogEntry>>,
+}
+
+#[derive(Debug)]
+pub enum InfoDialogMsg {
+    Show(InfoDialogData),
+    Closed(InfoDialogId),
+}
+
+#[relm4::component(pub)]
+impl relm4::Component for InfoDialog {
+    type Init = adw::ApplicationWindow;
+    type Input = InfoDialogMsg;
+    type Output = ();
+    type CommandOutput = ();
+
+    view! {
+        gtk::Box {}
+    }
+
+    fn init(
+        parent: Self::Init,
+        _root: Self::Root,
+        _sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let model = Self {
+            parent,
+            active_dialogs: HashMap::new(),
+        };
+
+        let widgets = view_output!();
+
+        ComponentParts { model, widgets }
+    }
+
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
+        match msg {
+            InfoDialogMsg::Show(data) => {
+                if self.active_dialogs.contains_key(&data.id) {
+                    return;
+                }
+
+                let id = data.id;
+                let dialog = InfoDialogEntry::builder()
+                    .launch((self.parent.clone(), data))
+                    .forward(sender.input_sender(), InfoDialogMsg::Closed);
+                self.active_dialogs.insert(id, dialog);
+            }
+            InfoDialogMsg::Closed(id) => {
+                self.active_dialogs.remove(&id);
+            }
+        }
+    }
+}
+
+struct InfoDialogEntry {
+    parent: adw::ApplicationWindow,
+    data: InfoDialogData,
+    stacktrace_buffer: gtk::TextBuffer,
+}
+
+#[relm4::component]
+impl relm4::Component for InfoDialogEntry {
+    type Init = (adw::ApplicationWindow, InfoDialogData);
+    type Input = ();
+    type Output = InfoDialogId;
+    type CommandOutput = ();
+
+    view! {
+        adw::AlertDialog {
+            set_heading: Some(&model.data.heading),
+            set_close_response: RESPONSE_CLOSE,
+            set_default_response: Some(RESPONSE_CLOSE),
+
+            add_response: (RESPONSE_CLOSE, &fl!(I18N, "close")),
+
+            #[wrap(Some)]
+            set_extra_child = &gtk::Box {
+                set_width_request: 500,
+                set_orientation: gtk::Orientation::Vertical,
+                set_spacing: 10,
+
+                gtk::Label {
+                    set_label: &model.data.body,
+                    set_wrap: true,
+                    set_xalign: 0.0,
+                },
+
+                gtk::Entry {
+                    set_visible: model.data.selectable_text.is_some(),
+                    set_text: model.data.selectable_text.as_deref().unwrap_or_default(),
+                    set_editable: false,
+                },
+
+                gtk::ScrolledWindow {
+                    set_visible: cfg!(debug_assertions) && model.data.stacktrace.is_some(),
+                    set_min_content_width: 600,
+                    set_min_content_height: 240,
+                    set_max_content_height: 360,
+                    set_hscrollbar_policy: gtk::PolicyType::Automatic,
+                    set_vscrollbar_policy: gtk::PolicyType::Automatic,
+
+                    gtk::TextView {
+                        set_buffer: Some(&model.stacktrace_buffer),
+                        set_editable: false,
+                        set_cursor_visible: true,
+                        set_monospace: true,
+                        set_wrap_mode: gtk::WrapMode::None,
+                    }
+                }
+            }
+        }
+    }
+
+    fn init(
+        (parent, data): Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let details_buffer = gtk::TextBuffer::new(None);
+
+        if let Some(stacktrace) = &data.stacktrace {
+            warn!("{stacktrace}");
+            details_buffer.set_text(stacktrace);
+        }
+
+        let model = Self {
+            parent,
+            data,
+            stacktrace_buffer: details_buffer,
+        };
+
+        let widgets = view_output!();
+        let id = model.data.id;
+        root.connect_response(Some(RESPONSE_CLOSE), move |_, _| {
+            sender.output(id).unwrap();
+        });
+        root.present(Some(&model.parent));
+
+        ComponentParts { model, widgets }
+    }
+}

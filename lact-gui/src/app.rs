@@ -1,10 +1,10 @@
 mod about_dialog;
 mod confirmation_dialog;
-mod error_dialog;
 mod ext;
 pub(crate) mod formatting;
 mod gpu_selector;
 pub mod graphs_window;
+mod info_dialog;
 mod info_row;
 mod info_row_level;
 pub(crate) mod msg;
@@ -21,8 +21,8 @@ use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
     app::{
         about_dialog::{AboutDialog, AboutDialogMsg},
-        error_dialog::{ErrorDialog, ErrorDialogMsg},
         gpu_selector::GpuSelector,
+        info_dialog::{InfoDialog, InfoDialogData, InfoDialogMsg},
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
@@ -32,7 +32,7 @@ use crate::{
         },
     },
 };
-use adw::{ApplicationWindow, prelude::*};
+use adw::prelude::*;
 use anyhow::{Context, anyhow};
 use confirmation_dialog::ConfirmationDialog;
 use ext::RelmDefaultLauchable;
@@ -91,7 +91,7 @@ pub struct AppModel {
     overdrive_dialog: relm4::Controller<OverdriveDialog>,
     preferences_dialog: relm4::Controller<PreferencesDialog>,
     about_dialog: relm4::Controller<AboutDialog>,
-    error_dialog: relm4::Controller<ErrorDialog>,
+    info_dialog: relm4::Controller<InfoDialog>,
 
     ui_sensitive: BoolBinding,
     selected_gpu_index: u32,
@@ -445,7 +445,7 @@ impl AsyncComponent for AppModel {
             .detach();
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
-        let error_dialog = ErrorDialog::builder().launch(root.clone()).detach();
+        let info_dialog = InfoDialog::builder().launch(root.clone()).detach();
 
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
@@ -467,7 +467,7 @@ impl AsyncComponent for AppModel {
             overdrive_dialog,
             preferences_dialog,
             about_dialog,
-            error_dialog,
+            info_dialog,
             info_page,
             oc_page,
             thermals_page,
@@ -494,7 +494,11 @@ impl AsyncComponent for AppModel {
         }
 
         if let Some(err) = conn_err {
-            show_embedded_info(&root, err);
+            model
+                .info_dialog
+                .emit(InfoDialogMsg::Show(InfoDialogData::embedded_daemon_info(
+                    err,
+                )));
         }
 
         sender.input(AppMsg::ReloadProfiles { state_sender: None });
@@ -523,7 +527,8 @@ impl AsyncComponent for AppModel {
     ) {
         trace!("processing state update");
         if let Err(err) = self.handle_msg(msg, sender.clone(), root, widgets).await {
-            self.error_dialog.emit(ErrorDialogMsg::Show(err));
+            self.info_dialog
+                .emit(InfoDialogMsg::Show(InfoDialogData::error(err)));
         }
         self.update_view(widgets, sender);
     }
@@ -1230,58 +1235,6 @@ impl AppModel {
 
         Ok(())
     }
-}
-
-fn show_embedded_info(parent: &ApplicationWindow, err: anyhow::Error) {
-    let error_text = format!("Error info: {err:#}\n\n");
-
-    let text = format!(
-        "Could not connect to daemon, running in embedded mode. \n\
-                        Please make sure the lactd service is running. \n\
-                        Using embedded mode, you will not be able to change any settings. \n\n\
-                        {error_text}\
-                        To enable the daemon, run the following command, then restart LACT:"
-    );
-
-    let text_label = gtk::Label::new(Some(&text));
-    let enable_label = gtk::Entry::builder()
-        .text("sudo systemctl enable --now lactd")
-        .editable(false)
-        .build();
-
-    let vbox = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .margin_top(10)
-        .margin_bottom(10)
-        .margin_start(10)
-        .margin_end(10)
-        .build();
-
-    let close_button = gtk::Button::builder().label("Close").build();
-
-    vbox.append(&text_label);
-    vbox.append(&enable_label);
-    vbox.append(&close_button);
-
-    let diag = gtk::MessageDialog::new(
-        Some(parent),
-        gtk::DialogFlags::MODAL,
-        gtk::MessageType::Question,
-        gtk::ButtonsType::Ok,
-        "",
-    );
-    diag.set_title(Some("Daemon info"));
-    diag.set_child(Some(&vbox));
-
-    close_button.connect_clicked(clone!(
-        #[strong]
-        diag,
-        move |_| diag.hide()
-    ));
-
-    diag.run_async(|diag, _| {
-        diag.hide();
-    })
 }
 
 fn start_stats_update_loop(
