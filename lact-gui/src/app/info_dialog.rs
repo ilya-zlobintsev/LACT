@@ -89,8 +89,9 @@ impl InfoDialogData {
             id: InfoDialogId::VersionMismatch,
             heading: "Version mismatch".to_string(),
             body: format!(
-                "Version mismatch between GUI and daemon ({gui_version}-{gui_commit} vs \
-                {daemon_version}-{daemon_commit})! If you have updated LACT, you need to restart \
+                "Version mismatch between GUI and Daemon ({gui_version}-{gui_commit} vs \
+                {daemon_version}-{daemon_commit})! \n\
+                If you have updated LACT, you need to restart \
                 the service with:"
             ),
             stacktrace: None,
