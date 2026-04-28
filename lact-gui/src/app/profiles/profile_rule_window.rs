@@ -2,13 +2,8 @@ pub mod profile_rule_row;
 
 use crate::I18N;
 use crate::app::{APP_BROKER, msg::AppMsg};
-use adw::prelude::{AdwDialogExt, ObjectExt, PreferencesGroupExt, PreferencesPageExt};
-use gtk::{
-    pango,
-    prelude::{
-        BoxExt, ButtonExt, CheckButtonExt, EntryBufferExtManual, EntryExt, OrientableExt, WidgetExt,
-    },
-};
+use adw::prelude::*;
+use gtk::pango;
 use i18n_embed_fl::fl;
 use lact_schema::{ProfileRule, config::ProfileHooks};
 use profile_rule_row::ProfileRuleRow;

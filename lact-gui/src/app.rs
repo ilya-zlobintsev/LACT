@@ -32,8 +32,7 @@ use crate::{
         },
     },
 };
-use adw::prelude::{AdwDialogExt as _, AlertDialogExtManual as _, NavigationPageExt as _};
-use adw::{ApplicationWindow, prelude::AlertDialogExt};
+use adw::{ApplicationWindow, prelude::*};
 use anyhow::{Context, anyhow};
 use confirmation_dialog::ConfirmationDialog;
 use ext::RelmDefaultLauchable;
@@ -41,10 +40,6 @@ use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
     FileChooserAction, FileChooserDialog, ResponseType, STYLE_PROVIDER_PRIORITY_APPLICATION,
     glib::{self, ControlFlow, clone},
-    prelude::{
-        BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
-        OrientableExt, PopoverExt, WidgetExt,
-    },
 };
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};

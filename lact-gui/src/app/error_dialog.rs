@@ -1,5 +1,4 @@
-use adw::prelude::{AdwDialogExt, AlertDialogExt};
-use gtk::prelude::*;
+use adw::prelude::*;
 use relm4::{ComponentParts, ComponentSender};
 use std::sync::Arc;
 use tracing::warn;

@@ -1,6 +1,5 @@
 use crate::I18N;
-use adw::prelude::{AdwDialogExt, EntryRowExt, PreferencesPageExt, PreferencesRowExt};
-use gtk::prelude::{BoxExt, ButtonExt, EditableExt, ObjectExt, OrientableExt, WidgetExt};
+use adw::prelude::*;
 use i18n_embed_fl::fl;
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, css};
 
