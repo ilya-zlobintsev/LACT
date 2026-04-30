@@ -37,7 +37,7 @@ use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
     FileChooserAction, FileChooserDialog, ResponseType, STYLE_PROVIDER_PRIORITY_APPLICATION,
-    glib::{self, ControlFlow, clone},
+    glib::{self, clone},
 };
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
@@ -68,9 +68,7 @@ use relm4_components::{
     open_dialog::{OpenDialog, OpenDialogMsg, OpenDialogResponse, OpenDialogSettings},
     save_dialog::{SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings},
 };
-use std::{
-    cell::Cell, fs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, sync::Arc, time::Duration,
-};
+use std::{fs, os::unix::net::UnixStream, path::PathBuf, sync::Arc, time::Duration};
 use tracing::{debug, error, info, trace, warn};
 
 pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
@@ -78,9 +76,6 @@ pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
-
-const CONFIRM_RESPONSE_APPLY: &str = "confirm";
-const CONFIRM_RESPONSE_REVERT: &str = "revert";
 
 pub struct AppModel {
     daemon_client: DaemonClient,
@@ -1036,7 +1031,7 @@ impl AppModel {
     async fn apply_settings(
         &self,
         gpu_id: String,
-        root: &adw::ApplicationWindow,
+        _root: &adw::ApplicationWindow,
         sender: &AsyncComponentSender<Self>,
     ) -> anyhow::Result<()> {
         debug!("applying settings on gpu {gpu_id}");
@@ -1078,84 +1073,40 @@ impl AppModel {
             .set_gpu_config(&gpu_id, gpu_config)
             .await
             .context("Could not apply settings")?;
-        self.ask_settings_confirmation(delay, root, sender).await;
+        self.ask_settings_confirmation(delay, sender);
 
         sender.input(AppMsg::ReloadData { full: false });
 
         Ok(())
     }
 
-    async fn ask_settings_confirmation(
-        &self,
-        mut delay: u64,
-        window: &adw::ApplicationWindow,
-        sender: &AsyncComponentSender<AppModel>,
-    ) {
-        let text = confirmation_text(delay);
-        let dialog = adw::AlertDialog::builder()
-            .title("Confirm settings")
-            .body(text)
-            .default_response(CONFIRM_RESPONSE_REVERT)
-            .close_response(CONFIRM_RESPONSE_REVERT)
-            .build();
+    fn ask_settings_confirmation(&self, delay: u64, sender: &AsyncComponentSender<AppModel>) {
+        let confirm_pending_config = |command| {
+            let sender = sender.clone();
+            let daemon_client = self.daemon_client.clone();
 
-        dialog.add_responses(&[
-            (CONFIRM_RESPONSE_REVERT, "Revert"),
-            (CONFIRM_RESPONSE_APPLY, "Confirm"),
-        ]);
-        dialog.set_response_appearance(CONFIRM_RESPONSE_APPLY, adw::ResponseAppearance::Suggested);
-
-        let is_cancelled = Rc::new(Cell::new(false));
-
-        glib::source::timeout_add_local(
-            Duration::from_secs(1),
-            clone!(
-                #[strong]
-                dialog,
-                #[strong]
-                is_cancelled,
-                move || {
-                    delay -= 1;
-
-                    let text = confirmation_text(delay);
-                    dialog.set_body(&text);
-
-                    if delay == 0 {
-                        is_cancelled.set(true);
-                        dialog.force_close();
-                        ControlFlow::Break
-                    } else {
-                        ControlFlow::Continue
-                    }
-                }
-            ),
-        );
-
-        relm4::spawn_local(clone!(
-            #[strong]
-            sender,
-            #[strong(rename_to = daemon_client)]
-            self.daemon_client,
-            #[strong]
-            window,
-            async move {
-                let response = dialog.choose_future(Some(&window)).await;
-
-                if !is_cancelled.get() {
-                    let command = match response.as_str() {
-                        CONFIRM_RESPONSE_APPLY => ConfirmCommand::Confirm,
-                        _ => ConfirmCommand::Revert,
-                    };
-
+            Box::new(move || {
+                relm4::spawn_local(async move {
                     if let Err(err) = daemon_client.confirm_pending_config(command).await {
                         sender.input(AppMsg::Error(Arc::new(err)));
                     }
-                }
-                sender.input(AppMsg::ReloadData { full: false });
-            }
-        ));
+                    sender.input(AppMsg::ReloadData { full: false });
+                });
+            }) as Box<dyn FnOnce()>
+        };
 
-        window.present();
+        self.info_dialog.emit(InfoDialogMsg::ShowTimedConfirmation {
+            data: InfoDialogData::settings_confirmation(delay),
+            on_confirmed: confirm_pending_config(ConfirmCommand::Confirm),
+            on_closed: confirm_pending_config(ConfirmCommand::Revert),
+            on_timed_out: Box::new({
+                let sender = sender.clone();
+
+                move || {
+                    sender.input(AppMsg::ReloadData { full: false });
+                }
+            }),
+        });
     }
 
     async fn dump_vbios(
@@ -1269,10 +1220,6 @@ fn start_stats_update_loop(
             }
         }
     })
-}
-
-fn confirmation_text(seconds_left: u64) -> String {
-    format!("Do you want to keep the new settings? (Reverting in {seconds_left} seconds)")
 }
 
 async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
