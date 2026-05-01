@@ -3,7 +3,7 @@ use adw::prelude::*;
 use gtk::glib::{self, ControlFlow, clone};
 use i18n_embed_fl::fl;
 use relm4::{ComponentParts, ComponentSender};
-use std::{collections::HashMap, fmt, sync::Arc, time::Duration};
+use std::{cell::Cell, collections::HashMap, fmt, rc::Rc, sync::Arc, time::Duration};
 use tracing::warn;
 
 const RESPONSE_CLOSE: &str = "close";
@@ -284,7 +284,7 @@ impl InfoDialogEntryResponse {
 struct InfoDialogEntry {
     data: InfoDialogData,
     stacktrace_buffer: gtk::TextBuffer,
-    completed: bool,
+    completed: Rc<Cell<bool>>,
     seconds_left: Option<u64>,
 }
 
@@ -359,11 +359,12 @@ impl relm4::Component for InfoDialogEntry {
         let model = Self {
             data,
             stacktrace_buffer,
-            completed: false,
+            completed: Rc::new(Cell::new(false)),
             seconds_left,
         };
 
         let widgets = view_output!();
+        let completed = model.completed.clone();
 
         match &model.data.confirmation {
             None => {
@@ -385,7 +386,13 @@ impl relm4::Component for InfoDialogEntry {
                         clone!(
                             #[strong]
                             sender,
+                            #[strong]
+                            completed,
                             move || {
+                                if completed.get() {
+                                    return ControlFlow::Break;
+                                }
+
                                 remaining -= 1;
                                 sender.input(InfoDialogEntryMsg::Tick);
                                 if remaining == 0 {
@@ -422,7 +429,7 @@ impl relm4::Component for InfoDialogEntry {
         sender: ComponentSender<Self>,
         root: &Self::Root,
     ) {
-        if self.completed {
+        if self.completed.get() {
             return;
         }
 
@@ -439,14 +446,14 @@ impl relm4::Component for InfoDialogEntry {
                         seconds_left = secs
                     ));
                     if secs == 0 {
-                        self.completed = true;
+                        self.completed.set(true);
                         let _ = sender.output(InfoDialogEntryResponse::TimedOut(id));
                         root.force_close();
                     }
                 }
             }
             InfoDialogEntryMsg::Response(response) => {
-                self.completed = true;
+                self.completed.set(true);
                 let output = match response.as_str() {
                     RESPONSE_CONFIRM => InfoDialogEntryResponse::Confirmed(id),
                     _ => InfoDialogEntryResponse::Closed(id),
