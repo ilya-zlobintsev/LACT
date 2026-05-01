@@ -1,6 +1,5 @@
-use super::{
-    info_dialog::InfoDialogData,
-    profiles::profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
+use super::profiles::profile_rule_window::{
+    ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg,
 };
 use lact_client::ConnectionStatusMsg;
 use lact_schema::{DeviceStats, ProfileRule, config::ProfileHooks, request::ProfileBase};
@@ -29,6 +28,7 @@ pub enum AppMsg {
     EnableOverdrive,
     DisableOverdrive,
     ResetConfig,
+    ResetConfigConfirmed,
     FetchProcessList,
     ReloadProfiles {
         state_sender: Option<relm4::Sender<ProfileRuleRowMsg>>,
@@ -50,20 +50,5 @@ pub enum AppMsg {
     ImportProfile,
     ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
-    AskConfirmation(InfoDialogData, Box<AppMsg>),
     Crash(String),
-}
-
-impl AppMsg {
-    pub fn ask_confirmation(
-        inner: AppMsg,
-        title: String,
-        message: impl Into<String>,
-        confirm_label: String,
-    ) -> Self {
-        Self::AskConfirmation(
-            InfoDialogData::reset_config_confirmation(title, message.into(), confirm_label),
-            Box::new(inner),
-        )
-    }
 }

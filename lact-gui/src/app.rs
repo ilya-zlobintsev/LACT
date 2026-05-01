@@ -21,7 +21,9 @@ use crate::{
     app::{
         about_dialog::{AboutDialog, AboutDialogMsg},
         gpu_selector::GpuSelector,
-        info_dialog::{InfoDialog, InfoDialogData, InfoDialogMsg},
+        info_dialog::{
+            InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
+        },
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
@@ -407,13 +409,20 @@ impl AsyncComponent for AppModel {
 
         let version_mismatch_info = (system_info.version != GUI_VERSION
             || system_info.commit.as_deref() != Some(GIT_COMMIT))
-        .then(|| {
-            InfoDialogData::version_mismatch(
-                GUI_VERSION,
-                GIT_COMMIT,
-                &system_info.version,
-                system_info.commit.as_deref().unwrap_or_default(),
-            )
+        .then(|| InfoDialogData {
+            id: InfoDialogId::VersionMismatch,
+            heading: fl!(I18N, "version-mismatch"),
+            body: fl!(
+                I18N,
+                "version-mismatch-description",
+                gui_version = GUI_VERSION,
+                gui_commit = GIT_COMMIT,
+                daemon_version = system_info.version.as_str(),
+                daemon_commit = system_info.commit.as_deref().unwrap_or_default()
+            ),
+            stacktrace: None,
+            selectable_text: Some("sudo systemctl restart lactd".to_string()),
+            confirmation: None,
         });
 
         let info_page = InformationPage::detach_default();
@@ -489,11 +498,16 @@ impl AsyncComponent for AppModel {
         }
 
         if let Some(err) = conn_err {
-            model
-                .info_dialog
-                .emit(InfoDialogMsg::Show(InfoDialogData::embedded_daemon_info(
-                    err,
-                )));
+            let error_text = format!("Error info: {err:#}\n\n");
+
+            model.info_dialog.emit(InfoDialogMsg::Show(InfoDialogData {
+                id: InfoDialogId::EmbeddedDaemonInfo,
+                heading: fl!(I18N, "daemon-info-heading"),
+                body: fl!(I18N, "embedded-daemon-info", error_info = error_text),
+                stacktrace: None,
+                selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
+                confirmation: None,
+            }));
         }
 
         if let Some(info) = version_mismatch_info {
@@ -526,8 +540,14 @@ impl AsyncComponent for AppModel {
     ) {
         trace!("processing state update");
         if let Err(err) = self.handle_msg(msg, sender.clone(), root, widgets).await {
-            self.info_dialog
-                .emit(InfoDialogMsg::Show(InfoDialogData::error(err)));
+            self.info_dialog.emit(InfoDialogMsg::Show(InfoDialogData {
+                id: InfoDialogId::Error,
+                heading: fl!(I18N, "error-heading"),
+                body: format!("{err:#}"),
+                stacktrace: Some(format!("{err:?}")),
+                selectable_text: None,
+                confirmation: None,
+            }));
         }
         self.update_view(widgets, sender);
     }
@@ -755,6 +775,25 @@ impl AppModel {
                 result?;
             }
             AppMsg::ResetConfig => {
+                let sender = sender.clone();
+                self.info_dialog.emit(InfoDialogMsg::ShowConfirmation(
+                    InfoDialogData {
+                        id: InfoDialogId::ResetConfigConfirmation,
+                        heading: fl!(I18N, "reset-config"),
+                        body: fl!(I18N, "reset-config-description"),
+                        stacktrace: None,
+                        selectable_text: None,
+                        confirmation: Some(InfoDialogConfirmation {
+                            confirm_label: fl!(I18N, "reset-button"),
+                            cancel_label: fl!(I18N, "cancel"),
+                            appearance: adw::ResponseAppearance::Destructive,
+                            timeout_seconds: None,
+                        }),
+                    },
+                    Box::new(move || sender.input(AppMsg::ResetConfigConfirmed)),
+                ));
+            }
+            AppMsg::ResetConfigConfirmed => {
                 self.daemon_client.reset_config().await?;
                 sender.input(AppMsg::ReloadData { full: true });
             }
@@ -779,13 +818,6 @@ impl AppModel {
                 }
                 ConnectionStatusMsg::Reconnected => widgets.reconnecting_dialog.force_close(),
             },
-            AppMsg::AskConfirmation(data, confirmed_msg) => {
-                let sender = sender.clone();
-                self.info_dialog.emit(InfoDialogMsg::ShowConfirmation(
-                    data,
-                    Box::new(move || sender.input(*confirmed_msg)),
-                ));
-            }
             AppMsg::EvaluateProfile(rule, sender) => {
                 match self.daemon_client.evaluate_profile_rule(rule).await {
                     Ok(matches) => {
@@ -1094,7 +1126,19 @@ impl AppModel {
         };
 
         self.info_dialog.emit(InfoDialogMsg::ShowTimedConfirmation {
-            data: InfoDialogData::settings_confirmation(delay),
+            data: InfoDialogData {
+                id: InfoDialogId::SettingsConfirmation,
+                heading: fl!(I18N, "confirm-settings"),
+                body: fl!(I18N, "settings-confirmation", seconds_left = delay),
+                stacktrace: None,
+                selectable_text: None,
+                confirmation: Some(InfoDialogConfirmation {
+                    confirm_label: fl!(I18N, "confirm"),
+                    cancel_label: fl!(I18N, "revert-button"),
+                    appearance: adw::ResponseAppearance::Suggested,
+                    timeout_seconds: Some(delay),
+                }),
+            },
             on_confirmed: confirm_pending_config(ConfirmCommand::Confirm),
             on_closed: confirm_pending_config(ConfirmCommand::Revert),
             on_timed_out: Box::new({

@@ -3,7 +3,7 @@ use adw::prelude::*;
 use gtk::glib::{self, ControlFlow, clone};
 use i18n_embed_fl::fl;
 use relm4::{ComponentParts, ComponentSender};
-use std::{cell::Cell, collections::HashMap, fmt, rc::Rc, sync::Arc, time::Duration};
+use std::{cell::Cell, collections::HashMap, fmt, rc::Rc, time::Duration};
 use tracing::warn;
 
 const RESPONSE_CLOSE: &str = "close";
@@ -35,88 +35,6 @@ pub struct InfoDialogConfirmation {
     pub cancel_label: String,
     pub appearance: adw::ResponseAppearance,
     pub timeout_seconds: Option<u64>,
-}
-
-impl InfoDialogData {
-    pub fn error(err: Arc<anyhow::Error>) -> Self {
-        Self {
-            id: InfoDialogId::Error,
-            heading: fl!(I18N, "error-heading"),
-            body: format!("{err:#}"),
-            stacktrace: Some(format!("{err:?}")),
-            selectable_text: None,
-            confirmation: None,
-        }
-    }
-
-    pub fn embedded_daemon_info(err: anyhow::Error) -> Self {
-        let error_text = format!("Error info: {err:#}\n\n");
-        let body = fl!(I18N, "embedded-daemon-info", error_info = error_text);
-
-        Self {
-            id: InfoDialogId::EmbeddedDaemonInfo,
-            heading: fl!(I18N, "daemon-info-heading"),
-            body,
-            stacktrace: None,
-            selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
-            confirmation: None,
-        }
-    }
-
-    pub fn reset_config_confirmation(heading: String, body: String, confirm_label: String) -> Self {
-        Self {
-            id: InfoDialogId::ResetConfigConfirmation,
-            heading,
-            body,
-            stacktrace: None,
-            selectable_text: None,
-            confirmation: Some(InfoDialogConfirmation {
-                confirm_label,
-                cancel_label: fl!(I18N, "cancel"),
-                appearance: adw::ResponseAppearance::Destructive,
-                timeout_seconds: None,
-            }),
-        }
-    }
-
-    pub fn settings_confirmation(delay: u64) -> Self {
-        Self {
-            id: InfoDialogId::SettingsConfirmation,
-            heading: fl!(I18N, "confirm-settings"),
-            body: fl!(I18N, "settings-confirmation", seconds_left = delay),
-            stacktrace: None,
-            selectable_text: None,
-            confirmation: Some(InfoDialogConfirmation {
-                confirm_label: fl!(I18N, "confirm"),
-                cancel_label: fl!(I18N, "revert-button"),
-                appearance: adw::ResponseAppearance::Suggested,
-                timeout_seconds: Some(delay),
-            }),
-        }
-    }
-
-    pub fn version_mismatch(
-        gui_version: &str,
-        gui_commit: &str,
-        daemon_version: &str,
-        daemon_commit: &str,
-    ) -> Self {
-        Self {
-            id: InfoDialogId::VersionMismatch,
-            heading: fl!(I18N, "version-mismatch"),
-            body: fl!(
-                I18N,
-                "version-mismatch-description",
-                gui_version = gui_version,
-                gui_commit = gui_commit,
-                daemon_version = daemon_version,
-                daemon_commit = daemon_commit
-            ),
-            stacktrace: None,
-            selectable_text: Some("sudo systemctl restart lactd".to_string()),
-            confirmation: None,
-        }
-    }
 }
 
 pub struct InfoDialog {
