@@ -62,27 +62,35 @@ pub struct InfoDialog {
 }
 
 pub enum InfoDialogMsg {
-    Show(InfoDialogData),
-    ShowConfirmation(InfoDialogData, Box<dyn FnOnce() + 'static>),
-    ShowTimedConfirmation {
-        data: InfoDialogData,
-        on_confirmed: Box<dyn FnOnce() + 'static>,
-        on_closed: Box<dyn FnOnce() + 'static>,
-        on_timed_out: Box<dyn FnOnce() + 'static>,
-    },
+    Show(Box<InfoDialogRequest>),
     Response(InfoDialogEntryResponse),
+}
+
+pub struct InfoDialogRequest {
+    pub data: InfoDialogData,
+    pub callbacks: InfoDialogCallbacks,
+}
+
+impl InfoDialogRequest {
+    pub fn new(data: InfoDialogData) -> Self {
+        Self {
+            data,
+            callbacks: InfoDialogCallbacks::default(),
+        }
+    }
+
+    pub fn confirmed(data: InfoDialogData, on_confirmed: Box<dyn FnOnce() + 'static>) -> Self {
+        Self {
+            data,
+            callbacks: InfoDialogCallbacks::confirmed(on_confirmed),
+        }
+    }
 }
 
 impl fmt::Debug for InfoDialogMsg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Show(data) => f.debug_tuple("Show").field(data).finish(),
-            Self::ShowConfirmation(data, _) => {
-                f.debug_tuple("ShowConfirmation").field(data).finish()
-            }
-            Self::ShowTimedConfirmation { data, .. } => {
-                f.debug_tuple("ShowTimedConfirmation").field(data).finish()
-            }
+            Self::Show(request) => f.debug_tuple("Show").field(&request.data).finish(),
             Self::Response(resp) => f.debug_tuple("Response").field(resp).finish(),
         }
     }
@@ -116,31 +124,9 @@ impl relm4::Component for InfoDialog {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         match msg {
-            InfoDialogMsg::Show(data) => {
-                self.show_entry(data, None, &sender);
-            }
-            InfoDialogMsg::ShowConfirmation(data, callback) => {
-                self.show_entry(
-                    data,
-                    Some(InfoDialogCallbacks::confirmed(callback)),
-                    &sender,
-                );
-            }
-            InfoDialogMsg::ShowTimedConfirmation {
-                data,
-                on_confirmed,
-                on_closed,
-                on_timed_out,
-            } => {
-                self.show_entry(
-                    data,
-                    Some(InfoDialogCallbacks {
-                        on_confirmed: Some(on_confirmed),
-                        on_closed: Some(on_closed),
-                        on_timed_out: Some(on_timed_out),
-                    }),
-                    &sender,
-                );
+            InfoDialogMsg::Show(request) => {
+                let InfoDialogRequest { data, callbacks } = *request;
+                self.show_entry(data, callbacks, &sender);
             }
             InfoDialogMsg::Response(response) => {
                 self.active_dialogs.remove(&response.id());
@@ -153,7 +139,7 @@ impl InfoDialog {
     fn show_entry(
         &mut self,
         data: InfoDialogData,
-        callbacks: Option<InfoDialogCallbacks>,
+        callbacks: InfoDialogCallbacks,
         sender: &ComponentSender<Self>,
     ) {
         if self.active_dialogs.contains_key(&data.id) {
@@ -161,25 +147,23 @@ impl InfoDialog {
         }
 
         let id = data.id;
-        let mut callbacks = callbacks;
 
         let dialog = <InfoDialogEntry as relm4::Component>::builder()
             .launch((self.parent.clone(), data))
             .connect_receiver({
                 let sender = sender.clone();
+                let mut callbacks = callbacks;
                 move |_, response| {
                     let confirmed = matches!(response, InfoDialogEntryResponse::Confirmed(_));
                     let closed = matches!(response, InfoDialogEntryResponse::Closed(_));
                     let timed_out = matches!(response, InfoDialogEntryResponse::TimedOut(_));
                     sender.input(InfoDialogMsg::Response(response));
-                    if let Some(callbacks) = callbacks.as_mut() {
-                        if confirmed && let Some(callback) = callbacks.on_confirmed.take() {
-                            callback();
-                        } else if closed && let Some(callback) = callbacks.on_closed.take() {
-                            callback();
-                        } else if timed_out && let Some(callback) = callbacks.on_timed_out.take() {
-                            callback();
-                        }
+                    if confirmed && let Some(callback) = callbacks.on_confirmed.take() {
+                        callback();
+                    } else if closed && let Some(callback) = callbacks.on_closed.take() {
+                        callback();
+                    } else if timed_out && let Some(callback) = callbacks.on_timed_out.take() {
+                        callback();
                     }
                 }
             });
@@ -187,14 +171,15 @@ impl InfoDialog {
     }
 }
 
-struct InfoDialogCallbacks {
-    on_confirmed: Option<Box<dyn FnOnce() + 'static>>,
-    on_closed: Option<Box<dyn FnOnce() + 'static>>,
-    on_timed_out: Option<Box<dyn FnOnce() + 'static>>,
+#[derive(Default)]
+pub struct InfoDialogCallbacks {
+    pub on_confirmed: Option<Box<dyn FnOnce() + 'static>>,
+    pub on_closed: Option<Box<dyn FnOnce() + 'static>>,
+    pub on_timed_out: Option<Box<dyn FnOnce() + 'static>>,
 }
 
 impl InfoDialogCallbacks {
-    fn confirmed(on_confirmed: Box<dyn FnOnce() + 'static>) -> Self {
+    pub fn confirmed(on_confirmed: Box<dyn FnOnce() + 'static>) -> Self {
         Self {
             on_confirmed: Some(on_confirmed),
             on_closed: None,

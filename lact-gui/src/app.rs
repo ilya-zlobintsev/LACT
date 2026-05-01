@@ -22,7 +22,8 @@ use crate::{
         about_dialog::{AboutDialog, AboutDialogMsg},
         gpu_selector::GpuSelector,
         info_dialog::{
-            InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
+            InfoDialog, InfoDialogCallbacks, InfoDialogConfirmation, InfoDialogData, InfoDialogId,
+            InfoDialogMsg, InfoDialogRequest,
         },
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
@@ -504,24 +505,30 @@ impl AsyncComponent for AppModel {
         }
 
         if let Some(err) = conn_err {
-            model.info_dialog.emit(InfoDialogMsg::Show(InfoDialogData {
-                id: InfoDialogId::EmbeddedDaemonInfo,
-                heading: fl!(I18N, "daemon-info-heading"),
-                body: Arc::new(move |_| {
-                    fl!(
-                        I18N,
-                        "embedded-daemon-info",
-                        error_info = format!("Error info: {err:#}\n\n")
-                    )
-                }),
-                stacktrace: None,
-                selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
-                confirmation: None,
-            }));
+            model
+                .info_dialog
+                .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::new(
+                    InfoDialogData {
+                        id: InfoDialogId::EmbeddedDaemonInfo,
+                        heading: fl!(I18N, "daemon-info-heading"),
+                        body: Arc::new(move |_| {
+                            fl!(
+                                I18N,
+                                "embedded-daemon-info",
+                                error_info = format!("Error info: {err:#}\n\n")
+                            )
+                        }),
+                        stacktrace: None,
+                        selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
+                        confirmation: None,
+                    },
+                ))));
         }
 
         if let Some(info) = version_mismatch_info {
-            model.info_dialog.emit(InfoDialogMsg::Show(info));
+            model
+                .info_dialog
+                .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::new(info))));
         }
 
         sender.input(AppMsg::ReloadProfiles { state_sender: None });
@@ -550,14 +557,17 @@ impl AsyncComponent for AppModel {
     ) {
         trace!("processing state update");
         if let Err(err) = self.handle_msg(msg, sender.clone(), root, widgets).await {
-            self.info_dialog.emit(InfoDialogMsg::Show(InfoDialogData {
-                id: InfoDialogId::Error,
-                heading: fl!(I18N, "error-heading"),
-                stacktrace: Some(format!("{err:?}")),
-                body: Arc::new(move |_| format!("{err:#}")),
-                selectable_text: None,
-                confirmation: None,
-            }));
+            self.info_dialog
+                .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::new(
+                    InfoDialogData {
+                        id: InfoDialogId::Error,
+                        heading: fl!(I18N, "error-heading"),
+                        stacktrace: Some(format!("{err:?}")),
+                        body: Arc::new(move |_| format!("{err:#}")),
+                        selectable_text: None,
+                        confirmation: None,
+                    },
+                ))));
         }
         self.update_view(widgets, sender);
     }
@@ -787,31 +797,32 @@ impl AppModel {
             AppMsg::ResetConfig => {
                 let sender = sender.clone();
                 let daemon_client = self.daemon_client.clone();
-                self.info_dialog.emit(InfoDialogMsg::ShowConfirmation(
-                    InfoDialogData {
-                        id: InfoDialogId::ResetConfigConfirmation,
-                        heading: fl!(I18N, "reset-config"),
-                        body: Arc::new(|_| fl!(I18N, "reset-config-description")),
-                        stacktrace: None,
-                        selectable_text: None,
-                        confirmation: Some(InfoDialogConfirmation {
-                            confirm_label: fl!(I18N, "reset-button"),
-                            cancel_label: fl!(I18N, "cancel"),
-                            appearance: adw::ResponseAppearance::Destructive,
-                            timeout_seconds: None,
-                        }),
-                    },
-                    Box::new(move || {
-                        relm4::spawn_local(async move {
-                            if let Err(err) = daemon_client.reset_config().await {
-                                sender.input(AppMsg::Error(Arc::new(err)));
-                                return;
-                            }
+                self.info_dialog
+                    .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::confirmed(
+                        InfoDialogData {
+                            id: InfoDialogId::ResetConfigConfirmation,
+                            heading: fl!(I18N, "reset-config"),
+                            body: Arc::new(|_| fl!(I18N, "reset-config-description")),
+                            stacktrace: None,
+                            selectable_text: None,
+                            confirmation: Some(InfoDialogConfirmation {
+                                confirm_label: fl!(I18N, "reset-button"),
+                                cancel_label: fl!(I18N, "cancel"),
+                                appearance: adw::ResponseAppearance::Destructive,
+                                timeout_seconds: None,
+                            }),
+                        },
+                        Box::new(move || {
+                            relm4::spawn_local(async move {
+                                if let Err(err) = daemon_client.reset_config().await {
+                                    sender.input(AppMsg::Error(Arc::new(err)));
+                                    return;
+                                }
 
-                            sender.input(AppMsg::ReloadData { full: true });
-                        });
-                    }),
-                ));
+                                sender.input(AppMsg::ReloadData { full: true });
+                            });
+                        }),
+                    ))));
             }
             AppMsg::FetchProcessList => {
                 if self.process_monitor_window.widget().is_visible()
@@ -1140,32 +1151,35 @@ impl AppModel {
             }) as Box<dyn FnOnce()>
         };
 
-        self.info_dialog.emit(InfoDialogMsg::ShowTimedConfirmation {
-            data: InfoDialogData {
-                id: InfoDialogId::SettingsConfirmation,
-                heading: fl!(I18N, "confirm-settings"),
-                body: Arc::new(|seconds_left| {
-                    fl!(I18N, "settings-confirmation", seconds_left = seconds_left)
-                }),
-                stacktrace: None,
-                selectable_text: None,
-                confirmation: Some(InfoDialogConfirmation {
-                    confirm_label: fl!(I18N, "confirm"),
-                    cancel_label: fl!(I18N, "revert-button"),
-                    appearance: adw::ResponseAppearance::Suggested,
-                    timeout_seconds: Some(delay),
-                }),
-            },
-            on_confirmed: confirm_pending_config(ConfirmCommand::Confirm),
-            on_closed: confirm_pending_config(ConfirmCommand::Revert),
-            on_timed_out: Box::new({
-                let sender = sender.clone();
+        self.info_dialog
+            .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest {
+                data: InfoDialogData {
+                    id: InfoDialogId::SettingsConfirmation,
+                    heading: fl!(I18N, "confirm-settings"),
+                    body: Arc::new(|seconds_left| {
+                        fl!(I18N, "settings-confirmation", seconds_left = seconds_left)
+                    }),
+                    stacktrace: None,
+                    selectable_text: None,
+                    confirmation: Some(InfoDialogConfirmation {
+                        confirm_label: fl!(I18N, "confirm"),
+                        cancel_label: fl!(I18N, "revert-button"),
+                        appearance: adw::ResponseAppearance::Suggested,
+                        timeout_seconds: Some(delay),
+                    }),
+                },
+                callbacks: InfoDialogCallbacks {
+                    on_confirmed: Some(confirm_pending_config(ConfirmCommand::Confirm)),
+                    on_closed: Some(confirm_pending_config(ConfirmCommand::Revert)),
+                    on_timed_out: Some(Box::new({
+                        let sender = sender.clone();
 
-                move || {
-                    sender.input(AppMsg::ReloadData { full: false });
-                }
-            }),
-        });
+                        move || {
+                            sender.input(AppMsg::ReloadData { full: false });
+                        }
+                    })),
+                },
+            })));
     }
 
     async fn dump_vbios(
