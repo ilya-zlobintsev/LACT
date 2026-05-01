@@ -3,7 +3,7 @@ use adw::prelude::*;
 use gtk::glib::{self, ControlFlow, clone};
 use i18n_embed_fl::fl;
 use relm4::{ComponentParts, ComponentSender};
-use std::{cell::Cell, collections::HashMap, fmt, rc::Rc, time::Duration};
+use std::{cell::Cell, collections::HashMap, fmt, rc::Rc, sync::Arc, time::Duration};
 use tracing::warn;
 
 const RESPONSE_CLOSE: &str = "close";
@@ -19,14 +19,33 @@ pub enum InfoDialogId {
     VersionMismatch,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct InfoDialogData {
     pub id: InfoDialogId,
     pub heading: String,
-    pub body: String,
+    pub body: Arc<dyn Fn(u64) -> String + Send + Sync>,
     pub stacktrace: Option<String>,
     pub selectable_text: Option<String>,
     pub confirmation: Option<InfoDialogConfirmation>,
+}
+
+impl InfoDialogData {
+    fn body_text(&self, seconds_left: u64) -> String {
+        (self.body)(seconds_left)
+    }
+}
+
+impl fmt::Debug for InfoDialogData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("InfoDialogData")
+            .field("id", &self.id)
+            .field("heading", &self.heading)
+            .field("body", &"<body callback>")
+            .field("stacktrace", &self.stacktrace)
+            .field("selectable_text", &self.selectable_text)
+            .field("confirmation", &self.confirmation)
+            .finish()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -230,7 +249,7 @@ impl relm4::Component for InfoDialogEntry {
 
                 #[name = "body_label"]
                 gtk::Label {
-                    set_label: &model.data.body,
+                    set_label: &model.data.body_text(model.seconds_left.unwrap_or_default()),
                     set_wrap: true,
                     set_xalign: 0.0,
                 },
@@ -298,7 +317,7 @@ impl relm4::Component for InfoDialogEntry {
 
                 root.set_response_appearance(RESPONSE_CONFIRM, confirmation.appearance);
 
-                if let Some(mut remaining) = seconds_left {
+                if let Some(mut remaining) = seconds_left.filter(|seconds_left| *seconds_left > 0) {
                     glib::source::timeout_add_local(
                         Duration::from_secs(1),
                         clone!(
@@ -356,13 +375,9 @@ impl relm4::Component for InfoDialogEntry {
         match msg {
             InfoDialogEntryMsg::Tick => {
                 if let Some(seconds_left) = &mut self.seconds_left {
-                    *seconds_left -= 1;
+                    *seconds_left = seconds_left.saturating_sub(1);
                     let secs = *seconds_left;
-                    widgets.body_label.set_label(&fl!(
-                        I18N,
-                        "settings-confirmation",
-                        seconds_left = secs
-                    ));
+                    widgets.body_label.set_label(&self.data.body_text(secs));
                     if secs == 0 {
                         self.completed.set(true);
                         let _ = sender.output(InfoDialogEntryResponse::TimedOut(id));

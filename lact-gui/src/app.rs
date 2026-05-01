@@ -412,14 +412,20 @@ impl AsyncComponent for AppModel {
         .then(|| InfoDialogData {
             id: InfoDialogId::VersionMismatch,
             heading: fl!(I18N, "version-mismatch"),
-            body: fl!(
-                I18N,
-                "version-mismatch-description",
-                gui_version = GUI_VERSION,
-                gui_commit = GIT_COMMIT,
-                daemon_version = system_info.version.as_str(),
-                daemon_commit = system_info.commit.as_deref().unwrap_or_default()
-            ),
+            body: Arc::new({
+                let daemon_version = system_info.version.clone();
+                let daemon_commit = system_info.commit.clone();
+                move |_| {
+                    fl!(
+                        I18N,
+                        "version-mismatch-description",
+                        gui_version = GUI_VERSION,
+                        gui_commit = GIT_COMMIT,
+                        daemon_version = daemon_version.as_str(),
+                        daemon_commit = daemon_commit.as_deref().unwrap_or_default()
+                    )
+                }
+            }),
             stacktrace: None,
             selectable_text: Some("sudo systemctl restart lactd".to_string()),
             confirmation: None,
@@ -498,12 +504,16 @@ impl AsyncComponent for AppModel {
         }
 
         if let Some(err) = conn_err {
-            let error_text = format!("Error info: {err:#}\n\n");
-
             model.info_dialog.emit(InfoDialogMsg::Show(InfoDialogData {
                 id: InfoDialogId::EmbeddedDaemonInfo,
                 heading: fl!(I18N, "daemon-info-heading"),
-                body: fl!(I18N, "embedded-daemon-info", error_info = error_text),
+                body: Arc::new(move |_| {
+                    fl!(
+                        I18N,
+                        "embedded-daemon-info",
+                        error_info = format!("Error info: {err:#}\n\n")
+                    )
+                }),
                 stacktrace: None,
                 selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
                 confirmation: None,
@@ -543,8 +553,8 @@ impl AsyncComponent for AppModel {
             self.info_dialog.emit(InfoDialogMsg::Show(InfoDialogData {
                 id: InfoDialogId::Error,
                 heading: fl!(I18N, "error-heading"),
-                body: format!("{err:#}"),
                 stacktrace: Some(format!("{err:?}")),
+                body: Arc::new(move |_| format!("{err:#}")),
                 selectable_text: None,
                 confirmation: None,
             }));
@@ -780,7 +790,7 @@ impl AppModel {
                     InfoDialogData {
                         id: InfoDialogId::ResetConfigConfirmation,
                         heading: fl!(I18N, "reset-config"),
-                        body: fl!(I18N, "reset-config-description"),
+                        body: Arc::new(|_| fl!(I18N, "reset-config-description")),
                         stacktrace: None,
                         selectable_text: None,
                         confirmation: Some(InfoDialogConfirmation {
@@ -1129,7 +1139,9 @@ impl AppModel {
             data: InfoDialogData {
                 id: InfoDialogId::SettingsConfirmation,
                 heading: fl!(I18N, "confirm-settings"),
-                body: fl!(I18N, "settings-confirmation", seconds_left = delay),
+                body: Arc::new(|seconds_left| {
+                    fl!(I18N, "settings-confirmation", seconds_left = seconds_left)
+                }),
                 stacktrace: None,
                 selectable_text: None,
                 confirmation: Some(InfoDialogConfirmation {
