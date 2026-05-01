@@ -21,14 +21,6 @@ pub enum InfoDialogId {
     VersionMismatch,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub enum ConfirmAppearance {
-    #[default]
-    Default,
-    Destructive,
-    Suggested,
-}
-
 #[derive(Clone, Debug)]
 pub struct InfoDialogData {
     pub id: InfoDialogId,
@@ -43,7 +35,7 @@ pub struct InfoDialogData {
 pub struct InfoDialogConfirmation {
     pub confirm_label: String,
     pub cancel_label: String,
-    pub appearance: ConfirmAppearance,
+    pub appearance: adw::ResponseAppearance,
     pub timeout_seconds: Option<u64>,
 }
 
@@ -83,7 +75,7 @@ impl InfoDialogData {
             confirmation: Some(InfoDialogConfirmation {
                 confirm_label,
                 cancel_label: fl!(I18N, "cancel"),
-                appearance: ConfirmAppearance::Destructive,
+                appearance: adw::ResponseAppearance::Destructive,
                 timeout_seconds: None,
             }),
         }
@@ -99,7 +91,7 @@ impl InfoDialogData {
             confirmation: Some(InfoDialogConfirmation {
                 confirm_label: fl!(I18N, "confirm"),
                 cancel_label: fl!(I18N, "revert-button"),
-                appearance: ConfirmAppearance::Suggested,
+                appearance: adw::ResponseAppearance::Suggested,
                 timeout_seconds: Some(delay),
             }),
         }
@@ -358,21 +350,7 @@ impl relm4::Component for InfoDialogEntry {
                 root.set_close_response(RESPONSE_CANCEL);
                 root.set_default_response(Some(RESPONSE_CANCEL));
 
-                match confirmation.appearance {
-                    ConfirmAppearance::Destructive => {
-                        root.set_response_appearance(
-                            RESPONSE_CONFIRM,
-                            adw::ResponseAppearance::Destructive,
-                        );
-                    }
-                    ConfirmAppearance::Suggested => {
-                        root.set_response_appearance(
-                            RESPONSE_CONFIRM,
-                            adw::ResponseAppearance::Suggested,
-                        );
-                    }
-                    ConfirmAppearance::Default => {}
-                }
+                root.set_response_appearance(RESPONSE_CONFIRM, confirmation.appearance);
 
                 if let Some(mut remaining) = seconds_left {
                     glib::source::timeout_add_local(
