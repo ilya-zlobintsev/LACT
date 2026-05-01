@@ -729,7 +729,7 @@ impl AppModel {
                 });
             }
             AppMsg::ApplyChanges => {
-                self.apply_settings(self.current_gpu_id()?, root, &sender)
+                self.apply_settings(self.current_gpu_id()?, &sender)
                     .await
                     .inspect_err(|_| {
                         sender.input(AppMsg::ReloadData { full: false });
@@ -786,6 +786,7 @@ impl AppModel {
             }
             AppMsg::ResetConfig => {
                 let sender = sender.clone();
+                let daemon_client = self.daemon_client.clone();
                 self.info_dialog.emit(InfoDialogMsg::ShowConfirmation(
                     InfoDialogData {
                         id: InfoDialogId::ResetConfigConfirmation,
@@ -800,12 +801,17 @@ impl AppModel {
                             timeout_seconds: None,
                         }),
                     },
-                    Box::new(move || sender.input(AppMsg::ResetConfigConfirmed)),
+                    Box::new(move || {
+                        relm4::spawn_local(async move {
+                            if let Err(err) = daemon_client.reset_config().await {
+                                sender.input(AppMsg::Error(Arc::new(err)));
+                                return;
+                            }
+
+                            sender.input(AppMsg::ReloadData { full: true });
+                        });
+                    }),
                 ));
-            }
-            AppMsg::ResetConfigConfirmed => {
-                self.daemon_client.reset_config().await?;
-                sender.input(AppMsg::ReloadData { full: true });
             }
             AppMsg::FetchProcessList => {
                 if self.process_monitor_window.widget().is_visible()
@@ -1071,7 +1077,6 @@ impl AppModel {
     async fn apply_settings(
         &self,
         gpu_id: String,
-        _root: &adw::ApplicationWindow,
         sender: &AsyncComponentSender<Self>,
     ) -> anyhow::Result<()> {
         debug!("applying settings on gpu {gpu_id}");
