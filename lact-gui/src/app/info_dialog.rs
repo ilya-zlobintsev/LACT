@@ -2,8 +2,10 @@ use crate::I18N;
 use adw::prelude::*;
 use gtk::glib::{self, ControlFlow, clone};
 use i18n_embed_fl::fl;
-use relm4::{Component, ComponentParts, ComponentSender};
-use std::{cell::Cell, collections::HashMap, fmt, rc::Rc, sync::Arc, time::Duration};
+use lact_client::DaemonClient;
+use lact_schema::request::ConfirmCommand;
+use relm4::{ComponentParts, ComponentSender};
+use std::{collections::HashMap, fmt, sync::Arc, time::Duration};
 use tracing::warn;
 
 const RESPONSE_CLOSE: &str = "close";
@@ -17,6 +19,14 @@ pub enum InfoDialogId {
     ResetConfigConfirmation,
     SettingsConfirmation,
     VersionMismatch,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub enum ConfirmAppearance {
+    #[default]
+    Default,
+    Destructive,
+    Suggested,
 }
 
 #[derive(Clone, Debug)]
@@ -33,8 +43,7 @@ pub struct InfoDialogData {
 pub struct InfoDialogConfirmation {
     pub confirm_label: String,
     pub cancel_label: String,
-    pub destructive: bool,
-    pub suggested: bool,
+    pub appearance: ConfirmAppearance,
     pub timeout_seconds: Option<u64>,
 }
 
@@ -42,7 +51,7 @@ impl InfoDialogData {
     pub fn error(err: Arc<anyhow::Error>) -> Self {
         Self {
             id: InfoDialogId::Error,
-            heading: "Error".to_string(),
+            heading: fl!(I18N, "error-heading"),
             body: format!("{err:#}"),
             stacktrace: Some(format!("{err:?}")),
             selectable_text: None,
@@ -56,7 +65,7 @@ impl InfoDialogData {
 
         Self {
             id: InfoDialogId::EmbeddedDaemonInfo,
-            heading: "Daemon info".to_string(),
+            heading: fl!(I18N, "daemon-info-heading"),
             body,
             stacktrace: None,
             selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
@@ -74,8 +83,7 @@ impl InfoDialogData {
             confirmation: Some(InfoDialogConfirmation {
                 confirm_label,
                 cancel_label: fl!(I18N, "cancel"),
-                destructive: true,
-                suggested: false,
+                appearance: ConfirmAppearance::Destructive,
                 timeout_seconds: None,
             }),
         }
@@ -91,8 +99,7 @@ impl InfoDialogData {
             confirmation: Some(InfoDialogConfirmation {
                 confirm_label: fl!(I18N, "confirm"),
                 cancel_label: fl!(I18N, "revert-button"),
-                destructive: false,
-                suggested: true,
+                appearance: ConfirmAppearance::Suggested,
                 timeout_seconds: Some(delay),
             }),
         }
@@ -124,18 +131,14 @@ impl InfoDialogData {
 
 pub struct InfoDialog {
     parent: adw::ApplicationWindow,
+    daemon_client: DaemonClient,
     active_dialogs: HashMap<InfoDialogId, relm4::Controller<InfoDialogEntry>>,
+    pending_callback: Option<Box<dyn FnOnce() + 'static>>,
 }
 
 pub enum InfoDialogMsg {
     Show(InfoDialogData),
     ShowConfirmation(InfoDialogData, Box<dyn FnOnce() + 'static>),
-    ShowTimedConfirmation {
-        data: InfoDialogData,
-        on_confirmed: Box<dyn FnOnce() + 'static>,
-        on_closed: Box<dyn FnOnce() + 'static>,
-        on_timed_out: Box<dyn FnOnce() + 'static>,
-    },
     Response(InfoDialogEntryResponse),
 }
 
@@ -146,19 +149,22 @@ impl fmt::Debug for InfoDialogMsg {
             Self::ShowConfirmation(data, _) => {
                 f.debug_tuple("ShowConfirmation").field(data).finish()
             }
-            Self::ShowTimedConfirmation { data, .. } => {
-                f.debug_tuple("ShowTimedConfirmation").field(data).finish()
-            }
-            Self::Response(response) => f.debug_tuple("Response").field(response).finish(),
+            Self::Response(resp) => f.debug_tuple("Response").field(resp).finish(),
         }
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum InfoDialogOutput {
+    ReloadData,
+    Error(Arc<anyhow::Error>),
+}
+
 #[relm4::component(pub)]
 impl relm4::Component for InfoDialog {
-    type Init = adw::ApplicationWindow;
+    type Init = (adw::ApplicationWindow, DaemonClient);
     type Input = InfoDialogMsg;
-    type Output = ();
+    type Output = InfoDialogOutput;
     type CommandOutput = ();
 
     view! {
@@ -166,13 +172,15 @@ impl relm4::Component for InfoDialog {
     }
 
     fn init(
-        parent: Self::Init,
+        (parent, daemon_client): Self::Init,
         _root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = Self {
             parent,
+            daemon_client,
             active_dialogs: HashMap::new(),
+            pending_callback: None,
         };
 
         let widgets = view_output!();
@@ -183,90 +191,64 @@ impl relm4::Component for InfoDialog {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         match msg {
             InfoDialogMsg::Show(data) => {
-                self.show(data, None, sender);
+                self.show_entry(data, &sender);
             }
-            InfoDialogMsg::ShowConfirmation(data, on_confirmed) => {
-                self.show(
-                    data,
-                    Some(InfoDialogCallbacks::confirmed(on_confirmed)),
-                    sender,
-                );
-            }
-            InfoDialogMsg::ShowTimedConfirmation {
-                data,
-                on_confirmed,
-                on_closed,
-                on_timed_out,
-            } => {
-                self.show(
-                    data,
-                    Some(InfoDialogCallbacks {
-                        on_confirmed: Some(on_confirmed),
-                        on_closed: Some(on_closed),
-                        on_timed_out: Some(on_timed_out),
-                    }),
-                    sender,
-                );
+            InfoDialogMsg::ShowConfirmation(data, callback) => {
+                self.pending_callback = Some(callback);
+                self.show_entry(data, &sender);
             }
             InfoDialogMsg::Response(response) => {
                 self.active_dialogs.remove(&response.id());
+
+                match response {
+                    InfoDialogEntryResponse::Confirmed(InfoDialogId::ResetConfigConfirmation) => {
+                        if let Some(callback) = self.pending_callback.take() {
+                            callback();
+                        }
+                    }
+                    InfoDialogEntryResponse::Confirmed(InfoDialogId::SettingsConfirmation) => {
+                        self.confirm_pending_config(ConfirmCommand::Confirm, &sender);
+                    }
+                    InfoDialogEntryResponse::Closed(InfoDialogId::SettingsConfirmation) => {
+                        self.confirm_pending_config(ConfirmCommand::Revert, &sender);
+                    }
+                    InfoDialogEntryResponse::TimedOut(InfoDialogId::SettingsConfirmation) => {
+                        let _ = sender.output(InfoDialogOutput::ReloadData);
+                    }
+                    _ => {}
+                }
             }
         }
     }
 }
 
 impl InfoDialog {
-    fn show(
-        &mut self,
-        data: InfoDialogData,
-        callbacks: Option<InfoDialogCallbacks>,
-        sender: ComponentSender<Self>,
-    ) {
+    fn show_entry(&mut self, data: InfoDialogData, sender: &ComponentSender<Self>) {
         if self.active_dialogs.contains_key(&data.id) {
             return;
         }
 
         let id = data.id;
-        let mut callbacks = callbacks;
-        let dialog = InfoDialogEntry::builder()
+        let dialog = <InfoDialogEntry as relm4::Component>::builder()
             .launch((self.parent.clone(), data))
-            .connect_receiver(move |_, response| {
-                let confirmed = matches!(response, InfoDialogEntryResponse::Confirmed(_));
-                let closed = matches!(response, InfoDialogEntryResponse::Closed(_));
-                let timed_out = matches!(response, InfoDialogEntryResponse::TimedOut(_));
-                sender.input(InfoDialogMsg::Response(response));
-                if let Some(callbacks) = callbacks.as_mut() {
-                    if confirmed && let Some(on_confirmed) = callbacks.on_confirmed.take() {
-                        on_confirmed();
-                    } else if closed && let Some(on_closed) = callbacks.on_closed.take() {
-                        on_closed();
-                    } else if timed_out && let Some(on_timed_out) = callbacks.on_timed_out.take() {
-                        on_timed_out();
-                    }
-                }
-            });
+            .forward(sender.input_sender(), InfoDialogMsg::Response);
         self.active_dialogs.insert(id, dialog);
     }
-}
 
-struct InfoDialogCallbacks {
-    on_confirmed: Option<Box<dyn FnOnce() + 'static>>,
-    on_closed: Option<Box<dyn FnOnce() + 'static>>,
-    on_timed_out: Option<Box<dyn FnOnce() + 'static>>,
-}
-
-impl InfoDialogCallbacks {
-    fn confirmed(on_confirmed: Box<dyn FnOnce() + 'static>) -> Self {
-        Self {
-            on_confirmed: Some(on_confirmed),
-            on_closed: None,
-            on_timed_out: None,
-        }
+    fn confirm_pending_config(&self, command: ConfirmCommand, sender: &ComponentSender<Self>) {
+        let daemon_client = self.daemon_client.clone();
+        let output_sender = sender.output_sender().clone();
+        relm4::spawn_local(async move {
+            if let Err(err) = daemon_client.confirm_pending_config(command).await {
+                let _ = output_sender.send(InfoDialogOutput::Error(Arc::new(err)));
+            }
+            let _ = output_sender.send(InfoDialogOutput::ReloadData);
+        });
     }
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum InfoDialogEntryResponse {
+pub(super) enum InfoDialogEntryResponse {
     Closed(InfoDialogId),
     Confirmed(InfoDialogId),
     TimedOut(InfoDialogId),
@@ -281,16 +263,22 @@ impl InfoDialogEntryResponse {
 }
 
 struct InfoDialogEntry {
-    parent: adw::ApplicationWindow,
     data: InfoDialogData,
     stacktrace_buffer: gtk::TextBuffer,
-    completed: Rc<Cell<bool>>,
+    completed: bool,
+    seconds_left: Option<u64>,
+}
+
+#[derive(Debug)]
+enum InfoDialogEntryMsg {
+    Tick,
+    Response(String),
 }
 
 #[relm4::component]
 impl relm4::Component for InfoDialogEntry {
     type Init = (adw::ApplicationWindow, InfoDialogData);
-    type Input = ();
+    type Input = InfoDialogEntryMsg;
     type Output = InfoDialogEntryResponse;
     type CommandOutput = ();
 
@@ -327,7 +315,6 @@ impl relm4::Component for InfoDialogEntry {
                     gtk::TextView {
                         set_buffer: Some(&model.stacktrace_buffer),
                         set_editable: false,
-                        set_cursor_visible: true,
                         set_monospace: true,
                         set_wrap_mode: gtk::WrapMode::None,
                     }
@@ -341,23 +328,23 @@ impl relm4::Component for InfoDialogEntry {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let details_buffer = gtk::TextBuffer::new(None);
+        let stacktrace_buffer = gtk::TextBuffer::new(None);
 
         if let Some(stacktrace) = &data.stacktrace {
             warn!("{stacktrace}");
-            details_buffer.set_text(stacktrace);
+            stacktrace_buffer.set_text(stacktrace);
         }
 
+        let seconds_left = data.confirmation.as_ref().and_then(|c| c.timeout_seconds);
+
         let model = Self {
-            parent,
             data,
-            stacktrace_buffer: details_buffer,
-            completed: Rc::new(Cell::new(false)),
+            stacktrace_buffer,
+            completed: false,
+            seconds_left,
         };
 
         let widgets = view_output!();
-        let id = model.data.id;
-        let completed = model.completed.clone();
 
         match &model.data.confirmation {
             None => {
@@ -365,55 +352,38 @@ impl relm4::Component for InfoDialogEntry {
                 root.set_close_response(RESPONSE_CLOSE);
                 root.set_default_response(Some(RESPONSE_CLOSE));
             }
-            Some(InfoDialogConfirmation {
-                confirm_label,
-                cancel_label,
-                destructive,
-                suggested,
-                timeout_seconds,
-            }) => {
-                root.add_response(RESPONSE_CANCEL, cancel_label);
-                root.add_response(RESPONSE_CONFIRM, confirm_label);
+            Some(confirmation) => {
+                root.add_response(RESPONSE_CANCEL, &confirmation.cancel_label);
+                root.add_response(RESPONSE_CONFIRM, &confirmation.confirm_label);
                 root.set_close_response(RESPONSE_CANCEL);
                 root.set_default_response(Some(RESPONSE_CANCEL));
-                if *destructive {
-                    root.set_response_appearance(
-                        RESPONSE_CONFIRM,
-                        adw::ResponseAppearance::Destructive,
-                    );
-                } else if *suggested {
-                    root.set_response_appearance(
-                        RESPONSE_CONFIRM,
-                        adw::ResponseAppearance::Suggested,
-                    );
+
+                match confirmation.appearance {
+                    ConfirmAppearance::Destructive => {
+                        root.set_response_appearance(
+                            RESPONSE_CONFIRM,
+                            adw::ResponseAppearance::Destructive,
+                        );
+                    }
+                    ConfirmAppearance::Suggested => {
+                        root.set_response_appearance(
+                            RESPONSE_CONFIRM,
+                            adw::ResponseAppearance::Suggested,
+                        );
+                    }
+                    ConfirmAppearance::Default => {}
                 }
 
-                if let Some(mut seconds_left) = *timeout_seconds {
+                if let Some(mut remaining) = seconds_left {
                     glib::source::timeout_add_local(
                         Duration::from_secs(1),
                         clone!(
                             #[strong]
-                            root,
-                            #[strong]
                             sender,
-                            #[strong]
-                            completed,
-                            #[strong(rename_to = body_label)]
-                            widgets.body_label,
                             move || {
-                                seconds_left -= 1;
-                                body_label.set_label(&fl!(
-                                    I18N,
-                                    "settings-confirmation",
-                                    seconds_left = seconds_left
-                                ));
-
-                                if seconds_left == 0 {
-                                    completed.set(true);
-                                    sender
-                                        .output(InfoDialogEntryResponse::TimedOut(id))
-                                        .unwrap();
-                                    root.force_close();
+                                remaining -= 1;
+                                sender.input(InfoDialogEntryMsg::Tick);
+                                if remaining == 0 {
                                     ControlFlow::Break
                                 } else {
                                     ControlFlow::Continue
@@ -425,19 +395,59 @@ impl relm4::Component for InfoDialogEntry {
             }
         }
 
-        root.connect_response(None, move |_, response| {
-            if completed.replace(true) {
-                return;
-            }
-
-            let output = match response {
-                RESPONSE_CONFIRM => InfoDialogEntryResponse::Confirmed(id),
-                _ => InfoDialogEntryResponse::Closed(id),
-            };
-            sender.output(output).unwrap();
-        });
-        root.present(Some(&model.parent));
+        root.connect_response(
+            None,
+            clone!(
+                #[strong]
+                sender,
+                move |_, response| {
+                    sender.input(InfoDialogEntryMsg::Response(response.to_owned()));
+                }
+            ),
+        );
+        root.present(Some(&parent));
 
         ComponentParts { model, widgets }
+    }
+
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: ComponentSender<Self>,
+        root: &Self::Root,
+    ) {
+        if self.completed {
+            return;
+        }
+
+        let id = self.data.id;
+
+        match msg {
+            InfoDialogEntryMsg::Tick => {
+                if let Some(seconds_left) = &mut self.seconds_left {
+                    *seconds_left -= 1;
+                    let secs = *seconds_left;
+                    widgets.body_label.set_label(&fl!(
+                        I18N,
+                        "settings-confirmation",
+                        seconds_left = secs
+                    ));
+                    if secs == 0 {
+                        self.completed = true;
+                        let _ = sender.output(InfoDialogEntryResponse::TimedOut(id));
+                        root.force_close();
+                    }
+                }
+            }
+            InfoDialogEntryMsg::Response(response) => {
+                self.completed = true;
+                let output = match response.as_str() {
+                    RESPONSE_CONFIRM => InfoDialogEntryResponse::Confirmed(id),
+                    _ => InfoDialogEntryResponse::Closed(id),
+                };
+                let _ = sender.output(output);
+            }
+        }
     }
 }

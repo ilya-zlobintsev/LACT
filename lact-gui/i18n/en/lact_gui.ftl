@@ -213,6 +213,9 @@ edit-graphs = Edit
 export-csv = Export as CSV
 edit-graph-sensors = Edit Graph Sensors
 
+error-heading = Error
+daemon-info-heading = Daemon info
+
 reconnecting-to-daemon = Daemon connection lost, reconnecting...
 daemon-connection-lost = Connection Lost
 embedded-daemon-info =

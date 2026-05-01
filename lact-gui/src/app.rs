@@ -21,7 +21,7 @@ use crate::{
     app::{
         about_dialog::{AboutDialog, AboutDialogMsg},
         gpu_selector::GpuSelector,
-        info_dialog::{InfoDialog, InfoDialogData, InfoDialogMsg},
+        info_dialog::{InfoDialog, InfoDialogData, InfoDialogMsg, InfoDialogOutput},
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
@@ -440,7 +440,12 @@ impl AsyncComponent for AppModel {
             .detach();
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
-        let info_dialog = InfoDialog::builder().launch(root.clone()).detach();
+        let info_dialog = InfoDialog::builder()
+            .launch((root.clone(), daemon_client.clone()))
+            .forward(sender.input_sender(), |output| match output {
+                InfoDialogOutput::ReloadData => AppMsg::ReloadData { full: false },
+                InfoDialogOutput::Error(err) => AppMsg::Error(err),
+            });
 
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
@@ -783,9 +788,7 @@ impl AppModel {
                 let sender = sender.clone();
                 self.info_dialog.emit(InfoDialogMsg::ShowConfirmation(
                     data,
-                    Box::new(move || {
-                        sender.input(*confirmed_msg);
-                    }),
+                    Box::new(move || sender.input(*confirmed_msg)),
                 ));
             }
             AppMsg::EvaluateProfile(rule, sender) => {
@@ -1073,40 +1076,18 @@ impl AppModel {
             .set_gpu_config(&gpu_id, gpu_config)
             .await
             .context("Could not apply settings")?;
-        self.ask_settings_confirmation(delay, sender);
+        self.ask_settings_confirmation(delay);
 
         sender.input(AppMsg::ReloadData { full: false });
 
         Ok(())
     }
 
-    fn ask_settings_confirmation(&self, delay: u64, sender: &AsyncComponentSender<AppModel>) {
-        let confirm_pending_config = |command| {
-            let sender = sender.clone();
-            let daemon_client = self.daemon_client.clone();
-
-            Box::new(move || {
-                relm4::spawn_local(async move {
-                    if let Err(err) = daemon_client.confirm_pending_config(command).await {
-                        sender.input(AppMsg::Error(Arc::new(err)));
-                    }
-                    sender.input(AppMsg::ReloadData { full: false });
-                });
-            }) as Box<dyn FnOnce()>
-        };
-
-        self.info_dialog.emit(InfoDialogMsg::ShowTimedConfirmation {
-            data: InfoDialogData::settings_confirmation(delay),
-            on_confirmed: confirm_pending_config(ConfirmCommand::Confirm),
-            on_closed: confirm_pending_config(ConfirmCommand::Revert),
-            on_timed_out: Box::new({
-                let sender = sender.clone();
-
-                move || {
-                    sender.input(AppMsg::ReloadData { full: false });
-                }
-            }),
-        });
+    fn ask_settings_confirmation(&self, delay: u64) {
+        self.info_dialog
+            .emit(InfoDialogMsg::Show(InfoDialogData::settings_confirmation(
+                delay,
+            )));
     }
 
     async fn dump_vbios(
