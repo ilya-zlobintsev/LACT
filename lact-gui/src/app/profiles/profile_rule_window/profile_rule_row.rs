@@ -271,7 +271,13 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
 
         process_listview.add_filter({
             let process_filter = process_search_filter.clone();
-            move |process| process.0.cmdline.contains(process_filter.value().as_str())
+            move |process| {
+                process
+                    .0
+                    .cmdline
+                    .to_ascii_lowercase()
+                    .contains(process_filter.value().as_str())
+            }
         });
         process_listview
             .selection_model
@@ -303,7 +309,8 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
                     .extend_from_iter(state.process_list.into_values().map(ProcessListItem).rev());
             }
             ProfileRuleRowMsg::ProcessFilterChanged(filter) => {
-                self.process_search_filter.set_value(filter.as_str());
+                self.process_search_filter
+                    .set_value(filter.to_ascii_lowercase());
 
                 self.process_listview.set_filter_status(0, false);
                 if !filter.is_empty() {
@@ -323,7 +330,13 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
                     // Indexing is not aware of filters, so we have to apply the filter here to find a matching index
                     (0..self.process_listview.len())
                         .map(|i| self.process_listview.get(i).unwrap())
-                        .filter(|item| item.borrow().0.cmdline.contains(filter_text.as_str()))
+                        .filter(|item| {
+                            item.borrow()
+                                .0
+                                .cmdline
+                                .to_ascii_lowercase()
+                                .contains(filter_text.as_str())
+                        })
                         .nth(index as usize)
                 };
                 if let Some(item) = item {
