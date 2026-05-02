@@ -276,7 +276,7 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
                     .0
                     .cmdline
                     .to_ascii_lowercase()
-                    .contains(process_filter.value().to_ascii_lowercase().as_str())
+                    .contains(process_filter.value().as_str())
             }
         });
         process_listview
@@ -309,7 +309,8 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
                     .extend_from_iter(state.process_list.into_values().map(ProcessListItem).rev());
             }
             ProfileRuleRowMsg::ProcessFilterChanged(filter) => {
-                self.process_search_filter.set_value(filter.as_str());
+                self.process_search_filter
+                    .set_value(filter.to_ascii_lowercase());
 
                 self.process_listview.set_filter_status(0, false);
                 if !filter.is_empty() {
@@ -322,7 +323,7 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
             ProfileRuleRowMsg::SetFromSelectedProcess => {
                 let index = self.process_listview.selection_model.selected();
 
-                let filter_text = self.process_search_filter.value().to_ascii_lowercase();
+                let filter_text = self.process_search_filter.value();
                 let item = if filter_text.is_empty() {
                     self.process_listview.get(index)
                 } else {
@@ -333,7 +334,7 @@ impl relm4::factory::FactoryComponent for ProfileRuleRow {
                             item.borrow()
                                 .0
                                 .cmdline
-                                .to_lowercase()
+                                .to_ascii_lowercase()
                                 .contains(filter_text.as_str())
                         })
                         .nth(index as usize)
