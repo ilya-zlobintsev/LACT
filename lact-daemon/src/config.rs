@@ -1,7 +1,7 @@
 use crate::server::gpu_controller::{GpuController, VENDOR_NVIDIA};
 use anyhow::Context;
 use indexmap::IndexMap;
-use lact_schema::config::{GpuConfig, Profile, ProfileHooks};
+use lact_schema::config::{GpuConfig, PowerConnectorConfig, Profile, ProfileHooks};
 use nix::unistd::{Group, getuid};
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
@@ -553,3 +553,5 @@ mod tests {
         );
     }
 }
+
+// PowerConnectorConfig moved to lact-schema

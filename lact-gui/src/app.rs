@@ -687,6 +687,42 @@ impl AppModel {
                 }
             }
             AppMsg::Stats(stats) => {
+                // Check connector alarm
+                if let Some(connector) = &stats.power_connector {
+                    if let Some(alarm) = CONFIG.read().connector_alarm.clone() {
+                        let max_pin_current = connector.pins.iter()
+                            .map(|p| p.current_a())
+                            .fold(f64::NAN, f64::max);
+                        if max_pin_current > alarm.pin_current_threshold_a {
+                            if alarm.notify {
+                                let msg = fl!(
+                                    I18N,
+                                    "connector-alarm-message",
+                                    current = format!("{:.3}", max_pin_current),
+                                    threshold = format!("{:.1}", alarm.pin_current_threshold_a)
+                                );
+                                relm4::spawn_local(async move {
+                                    let _ = tokio::process::Command::new("pw-play")
+                                        .arg("/usr/share/sounds/freedesktop/stereo/dialog-warning.oga")
+                                        .spawn();
+                                });
+                                show_error(root, &anyhow::anyhow!("{}", msg));
+                            }
+                            if let Some(cmd) = &alarm.command {
+                                if !cmd.is_empty() {
+                                    let cmd = cmd.clone();
+                                    relm4::spawn_local(async move {
+                                        let _ = tokio::process::Command::new("sh")
+                                            .arg("-c")
+                                            .arg(&cmd)
+                                            .spawn();
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
                 let update = PageUpdate::Stats(stats.clone());
                 self.oc_page.emit(OcPageMsg::Update {
                     update: update.clone(),

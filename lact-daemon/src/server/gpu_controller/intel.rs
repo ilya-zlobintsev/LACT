@@ -576,6 +576,10 @@ impl IntelGpuController {
 }
 
 impl GpuController for IntelGpuController {
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
     }

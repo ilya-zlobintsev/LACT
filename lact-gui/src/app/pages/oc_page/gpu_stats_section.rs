@@ -9,7 +9,7 @@ use crate::app::{
 use gtk::pango::AttrList;
 use gtk::prelude::{BoxExt, Cast, FlowBoxChildExt, OrientableExt, PopoverExt as _, WidgetExt};
 use i18n_embed_fl::fl;
-use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats};
+use lact_schema::{DeviceInfo, DeviceStats, PowerConnectorStats, PowerStates, PowerStats};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt as _};
 use std::str::FromStr as _;
 use std::sync::Arc;
@@ -23,6 +23,7 @@ pub struct GpuStatsSection {
     max_vram_clock: Option<u64>,
     min_gpu_clock: Option<u64>,
     min_vram_clock: Option<u64>,
+    power_connector: Option<PowerConnectorStats>,
 }
 
 #[derive(Debug)]
@@ -271,7 +272,87 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     },
                 },
             },
-        }
+
+            PageSection::new(&fl!(I18N, "connector-section-title")) {
+                #[watch]
+                set_visible: model.power_connector.is_some(),
+                append_child = &gtk::FlowBox {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_column_spacing: 10,
+                    set_row_spacing: 10,
+                    set_homogeneous: true,
+                    set_selection_mode: gtk::SelectionMode::None,
+                    set_max_children_per_line: 2,
+
+                    append = &InfoRow {
+                        set_name: fl!(I18N, "connector-total-current"),
+                        #[watch]
+                        set_value: format!(
+                            "{} A",
+                            Mono::float(model.power_connector.as_ref().map(|c| c.total_current_a()).unwrap_or(0.0), 3)
+                        ),
+                    },
+
+                    append = &InfoRow {
+                        set_name: fl!(I18N, "connector-total-power"),
+                        #[watch]
+                        set_value: format!(
+                            "{} W",
+                            Mono::float(model.power_connector.as_ref().map(|c| c.total_power_w()).unwrap_or(0.0), 1)
+                        ),
+                    },
+
+                    append = &InfoRow {
+                        set_name: fl!(I18N, "connector-pin", n = 1),
+                        #[watch]
+                        set_value: model.power_connector.as_ref()
+                            .and_then(|c| c.pins.get(0))
+                            .map(|p| format!("{:.3} A", p.current_a()))
+                            .unwrap_or_default(),
+                    },
+                    append = &InfoRow {
+                        set_name: fl!(I18N, "connector-pin", n = 2),
+                        #[watch]
+                        set_value: model.power_connector.as_ref()
+                            .and_then(|c| c.pins.get(1))
+                            .map(|p| format!("{:.3} A", p.current_a()))
+                            .unwrap_or_default(),
+                    },
+                    append = &InfoRow {
+                        set_name: fl!(I18N, "connector-pin", n = 3),
+                        #[watch]
+                        set_value: model.power_connector.as_ref()
+                            .and_then(|c| c.pins.get(2))
+                            .map(|p| format!("{:.3} A", p.current_a()))
+                            .unwrap_or_default(),
+                    },
+                    append = &InfoRow {
+                        set_name: fl!(I18N, "connector-pin", n = 4),
+                        #[watch]
+                        set_value: model.power_connector.as_ref()
+                            .and_then(|c| c.pins.get(3))
+                            .map(|p| format!("{:.3} A", p.current_a()))
+                            .unwrap_or_default(),
+                    },
+                    append = &InfoRow {
+                        set_name: fl!(I18N, "connector-pin", n = 5),
+                        #[watch]
+                        set_value: model.power_connector.as_ref()
+                            .and_then(|c| c.pins.get(4))
+                            .map(|p| format!("{:.3} A", p.current_a()))
+                            .unwrap_or_default(),
+                    },
+                    append = &InfoRow {
+                        set_name: fl!(I18N, "connector-pin", n = 6),
+                        #[watch]
+                        set_value: model.power_connector.as_ref()
+                            .and_then(|c| c.pins.get(5))
+                            .map(|p| format!("{:.3} A", p.current_a()))
+                            .unwrap_or_default(),
+                    },
+                },
+            },
+        },
     }
 
     fn init(
@@ -293,6 +374,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
             max_vram_clock: None,
             min_gpu_clock: None,
             min_vram_clock: None,
+            power_connector: None,
         };
 
         let widgets = view_output!();
@@ -358,6 +440,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                 }
             }
             GpuStatsSectionMsg::Stats(stats) => {
+                self.power_connector = stats.power_connector.clone();
                 self.stats = stats;
             }
             GpuStatsSectionMsg::PowerStates(pstates) => {

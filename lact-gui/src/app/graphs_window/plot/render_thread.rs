@@ -236,8 +236,13 @@ impl RenderRequest {
             .max_by(|x, y| x.partial_cmp(y).unwrap_or(cmp::Ordering::Equal))
             .unwrap_or_default();
 
-        if maximum_value < 100.0 {
-            maximum_value = 100.0;
+        let y_minimum = if self.stats.iter().all(|s| matches!(s, StatType::ConnectorPin(_))) {
+            10.0
+        } else {
+            100.0
+        };
+        if maximum_value < y_minimum {
+            maximum_value = y_minimum;
         }
 
         root.fill(&self.colors.background)?; // Fill the background with white color.

@@ -49,6 +49,7 @@ pub struct GpuConfig {
     pub custom_power_profile_mode_hueristics: Vec<Vec<Option<i32>>>,
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub power_states: IndexMap<PowerLevelKind, Vec<u8>>,
+    pub power_connector: Option<PowerConnectorConfig>,
 }
 
 #[skip_serializing_none]
@@ -238,3 +239,16 @@ mod tests {
         );
     }
 }
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PowerConnectorConfig {
+    pub i2c_bus: u8,
+    #[serde(default = "default_i2c_addr")]
+    pub i2c_addr: u8,
+    #[serde(default = "default_reg_base")]
+    pub reg_base: u8,
+}
+
+fn default_i2c_addr() -> u8 { 0x2b }
+fn default_reg_base() -> u8 { 0x80 }

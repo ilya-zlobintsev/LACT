@@ -24,6 +24,8 @@ pub struct UiConfig {
     pub gpus: HashMap<String, UiGpuConfig>,
     #[serde(default)]
     pub theme: AppTheme,
+    #[serde(default)]
+    pub connector_alarm: Option<ConnectorAlarmConfig>,
 }
 
 impl Default for UiConfig {
@@ -36,6 +38,7 @@ impl Default for UiConfig {
             stats_poll_interval_ms: default_stats_poll_interval(),
             gpus: HashMap::new(),
             theme: AppTheme::Automatic,
+            connector_alarm: None,
         }
     }
 }
@@ -110,4 +113,22 @@ fn deserialize_poll_interval<'de, D: Deserializer<'de>>(deserializer: D) -> Resu
 
 fn default_tab() -> String {
     "info_page".to_owned()
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ConnectorAlarmConfig {
+    pub pin_current_threshold_a: f64,
+    pub notify: bool,
+    pub command: Option<String>,
+}
+
+impl Default for ConnectorAlarmConfig {
+    fn default() -> Self {
+        Self {
+            pin_current_threshold_a: 8.0,
+            notify: true,
+            command: None,
+        }
+    }
 }

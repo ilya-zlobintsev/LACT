@@ -48,6 +48,7 @@ libcopes = "1.0.0"
 libloading = "0.8.9" # Can be updated when https://github.com/rust-lang/rust-bindgen/issues/3332 is released
 
 ureq = { version = "3.3.0", features = ["json", "rustls"] }
+i2cdev = "0.6.2"
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
