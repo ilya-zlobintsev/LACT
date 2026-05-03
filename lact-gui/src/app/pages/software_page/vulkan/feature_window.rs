@@ -1,9 +1,5 @@
-use adw::prelude::{AdwWindowExt, ObjectExt};
-use gtk::{
-    NoSelection,
-    glib::GString,
-    prelude::{EditableExt, GtkWindowExt, WidgetExt},
-};
+use adw::prelude::*;
+use gtk::{NoSelection, glib::GString};
 use relm4::{
     ComponentParts, ComponentSender, SimpleComponent,
     typed_view::list::{RelmListItem, TypedListView},

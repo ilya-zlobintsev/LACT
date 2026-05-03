@@ -101,7 +101,10 @@ reset-config = Reset Configuration
 reset-config-description = Are you sure you want to reset all GPU configuration?
 
 apply-button = Apply
+confirm = Confirm
+confirm-settings = Confirm Settings
 revert-button = Revert
+settings-confirmation = Do you want to keep the new settings? (Reverting in {$seconds_left} seconds)
 
 power-cap = Power Usage Limit
 
@@ -210,8 +213,21 @@ edit-graphs = Edit
 export-csv = Export as CSV
 edit-graph-sensors = Edit Graph Sensors
 
+error-heading = Error
+daemon-info-heading = Daemon info
+
 reconnecting-to-daemon = Daemon connection lost, reconnecting...
 daemon-connection-lost = Connection Lost
+embedded-daemon-info =
+    Could not connect to daemon, running in embedded mode.
+    Please make sure the lactd service is running.
+    Using embedded mode, you will not be able to change any settings.
+
+    {$error_info}To enable the daemon, run the following command, then restart LACT:
+version-mismatch = Version mismatch
+version-mismatch-description =
+    Version mismatch between GUI and Daemon ({$gui_version}-{$gui_commit} vs {$daemon_version}-{$daemon_commit})!
+    If you have updated LACT, you need to restart the service with:
 
 plot-show-detailed-info = Show detailed info
 
@@ -225,6 +241,7 @@ name = Name
 profile-copy-from = Copy settings from:
 create = Create
 cancel = Cancel
+close = Close
 save = Save
 default-profile = Default
 rename-profile = Rename Profile

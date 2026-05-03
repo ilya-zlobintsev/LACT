@@ -131,13 +131,7 @@ impl relm4::Component for PreferencesDialog {
                             set_icon_name: Some("go-next-symbolic"),
                         },
                         connect_activated => move |_| {
-                            let msg = AppMsg::ask_confirmation(
-                                AppMsg::ResetConfig,
-                                fl!(I18N, "reset-config"),
-                                fl!(I18N, "reset-config-description"),
-                                gtk::ButtonsType::YesNo,
-                            );
-                            APP_BROKER.send(msg);
+                            APP_BROKER.send(AppMsg::ResetConfig);
                         },
                     },
                 },

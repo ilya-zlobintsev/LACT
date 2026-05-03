@@ -1,9 +1,9 @@
 mod about_dialog;
-mod confirmation_dialog;
 mod ext;
 pub(crate) mod formatting;
 mod gpu_selector;
 pub mod graphs_window;
+mod info_dialog;
 mod info_row;
 mod info_row_level;
 pub(crate) mod msg;
@@ -21,6 +21,10 @@ use crate::{
     app::{
         about_dialog::{AboutDialog, AboutDialogMsg},
         gpu_selector::GpuSelector,
+        info_dialog::{
+            InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
+            InfoDialogRequest,
+        },
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
@@ -30,20 +34,13 @@ use crate::{
         },
     },
 };
-use adw::prelude::{AdwDialogExt as _, AlertDialogExtManual as _, NavigationPageExt as _};
-use adw::{ApplicationWindow, prelude::AlertDialogExt};
+use adw::prelude::*;
 use anyhow::{Context, anyhow};
-use confirmation_dialog::ConfirmationDialog;
 use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
-    ButtonsType, FileChooserAction, FileChooserDialog, MessageDialog, MessageType, ResponseType,
-    STYLE_PROVIDER_PRIORITY_APPLICATION,
+    FileChooserAction, FileChooserDialog, ResponseType, STYLE_PROVIDER_PRIORITY_APPLICATION,
     glib::{self, ControlFlow, clone},
-    prelude::{
-        BoxExt, ButtonExt, Cast, DialogExtManual, FileChooserExt, FileExt, GtkWindowExt,
-        OrientableExt, PopoverExt, WidgetExt,
-    },
 };
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
@@ -75,26 +72,15 @@ use relm4_components::{
     save_dialog::{SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings},
 };
 use std::{
-    cell::Cell,
-    fs,
-    os::unix::net::UnixStream,
-    path::PathBuf,
-    rc::Rc,
-    sync::{
-        Arc,
-        atomic::{AtomicU32, Ordering},
-    },
-    time::Duration,
+    cell::Cell, fs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, sync::Arc, time::Duration,
 };
 use tracing::{debug, error, info, trace, warn};
 
 pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
-static ERROR_WINDOW_COUNT: AtomicU32 = AtomicU32::new(0);
 
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
-
 const CONFIRM_RESPONSE_APPLY: &str = "confirm";
 const CONFIRM_RESPONSE_REVERT: &str = "revert";
 
@@ -105,6 +91,7 @@ pub struct AppModel {
     overdrive_dialog: relm4::Controller<OverdriveDialog>,
     preferences_dialog: relm4::Controller<PreferencesDialog>,
     about_dialog: relm4::Controller<AboutDialog>,
+    info_dialog: relm4::Controller<InfoDialog>,
 
     ui_sensitive: BoolBinding,
     selected_gpu_index: u32,
@@ -148,8 +135,11 @@ impl AsyncComponent for AppModel {
             .icon_name(APP_ID)
             .title("LACT")
             .build() {
-                #[name = "root_box"]
-                gtk::Box {
+                #[name = "toast_overlay"]
+                adw::ToastOverlay {
+                    #[wrap(Some)]
+                    #[name = "root_box"]
+                    set_child = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
 
                     #[name = "navbar"]
@@ -346,6 +336,7 @@ impl AsyncComponent for AppModel {
                         }
                     },
                 }
+                }
             },
 
         #[name = "reconnecting_dialog"]
@@ -421,14 +412,23 @@ impl AsyncComponent for AppModel {
             .await
             .expect("Could not list devices");
 
-        if system_info.version != GUI_VERSION || system_info.commit.as_deref() != Some(GIT_COMMIT) {
-            let err = anyhow!(
-                "Version mismatch between GUI and daemon ({GUI_VERSION}-{GIT_COMMIT} vs {}-{})! If you have updated LACT, you need to restart the service with `sudo systemctl restart lactd`.",
-                system_info.version,
-                system_info.commit.as_deref().unwrap_or_default()
-            );
-            sender.input(AppMsg::Error(err.into()));
-        }
+        let version_mismatch_info = (system_info.version != GUI_VERSION
+            || system_info.commit.as_deref() != Some(GIT_COMMIT))
+        .then(|| InfoDialogData {
+            id: InfoDialogId::VersionMismatch,
+            heading: fl!(I18N, "version-mismatch"),
+            body: fl!(
+                I18N,
+                "version-mismatch-description",
+                gui_version = GUI_VERSION,
+                gui_commit = GIT_COMMIT,
+                daemon_version = system_info.version.as_str(),
+                daemon_commit = system_info.commit.as_deref().unwrap_or_default()
+            ),
+            stacktrace: None,
+            selectable_text: Some("sudo systemctl restart lactd".to_string()),
+            confirmation: None,
+        });
 
         let info_page = InformationPage::detach_default();
 
@@ -454,6 +454,7 @@ impl AsyncComponent for AppModel {
             .detach();
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
+        let info_dialog = InfoDialog::builder().launch(root.clone()).detach();
 
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
@@ -475,6 +476,7 @@ impl AsyncComponent for AppModel {
             overdrive_dialog,
             preferences_dialog,
             about_dialog,
+            info_dialog,
             info_page,
             oc_page,
             thermals_page,
@@ -501,7 +503,28 @@ impl AsyncComponent for AppModel {
         }
 
         if let Some(err) = conn_err {
-            show_embedded_info(&root, err);
+            model
+                .info_dialog
+                .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::new(
+                    InfoDialogData {
+                        id: InfoDialogId::EmbeddedDaemonInfo,
+                        heading: fl!(I18N, "daemon-info-heading"),
+                        body: fl!(
+                            I18N,
+                            "embedded-daemon-info",
+                            error_info = format!("Error info: {err:#}\n\n")
+                        ),
+                        stacktrace: None,
+                        selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
+                        confirmation: None,
+                    },
+                ))));
+        }
+
+        if let Some(info) = version_mismatch_info {
+            model
+                .info_dialog
+                .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::new(info))));
         }
 
         sender.input(AppMsg::ReloadProfiles { state_sender: None });
@@ -530,7 +553,17 @@ impl AsyncComponent for AppModel {
     ) {
         trace!("processing state update");
         if let Err(err) = self.handle_msg(msg, sender.clone(), root, widgets).await {
-            show_error(root, &err);
+            self.info_dialog
+                .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::new(
+                    InfoDialogData {
+                        id: InfoDialogId::Error,
+                        heading: fl!(I18N, "error-heading"),
+                        stacktrace: Some(format!("{err:?}")),
+                        body: format!("{err:#}"),
+                        selectable_text: None,
+                        confirmation: None,
+                    },
+                ))));
         }
         self.update_view(widgets, sender);
     }
@@ -737,10 +770,13 @@ impl AppModel {
                     .emit(ProcessMonitorWindowMsg::Show);
             }
             AppMsg::DumpVBios => {
-                self.dump_vbios(&self.current_gpu_id()?, root).await;
+                self.dump_vbios(&self.current_gpu_id()?, root, sender.clone())
+                    .await?;
             }
             AppMsg::DebugSnapshot => {
-                self.generate_debug_snapshot(root).await;
+                self.generate_debug_snapshot(root, widgets)
+                    .await
+                    .context("Could not generate snapshot")?;
             }
             AppMsg::EnableOverdrive => {
                 self.overdrive_dialog.emit(OverdriveDialogMsg::Loading);
@@ -755,8 +791,33 @@ impl AppModel {
                 result?;
             }
             AppMsg::ResetConfig => {
-                self.daemon_client.reset_config().await?;
-                sender.input(AppMsg::ReloadData { full: true });
+                let sender = sender.clone();
+                let daemon_client = self.daemon_client.clone();
+                self.info_dialog
+                    .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::confirmed(
+                        InfoDialogData {
+                            id: InfoDialogId::ResetConfigConfirmation,
+                            heading: fl!(I18N, "reset-config"),
+                            body: fl!(I18N, "reset-config-description"),
+                            stacktrace: None,
+                            selectable_text: None,
+                            confirmation: Some(InfoDialogConfirmation {
+                                confirm_label: fl!(I18N, "reset-button"),
+                                cancel_label: fl!(I18N, "cancel"),
+                                appearance: adw::ResponseAppearance::Destructive,
+                            }),
+                        },
+                        Box::new(move || {
+                            relm4::spawn_local(async move {
+                                if let Err(err) = daemon_client.reset_config().await {
+                                    sender.input(AppMsg::Error(Arc::new(err)));
+                                    return;
+                                }
+
+                                sender.input(AppMsg::ReloadData { full: true });
+                            });
+                        }),
+                    ))));
             }
             AppMsg::FetchProcessList => {
                 if self.process_monitor_window.widget().is_visible()
@@ -779,18 +840,6 @@ impl AppModel {
                 }
                 ConnectionStatusMsg::Reconnected => widgets.reconnecting_dialog.force_close(),
             },
-            AppMsg::AskConfirmation(options, confirmed_msg) => {
-                let sender = sender.clone();
-
-                let mut controller = ConfirmationDialog::builder()
-                    .launch((options, root.clone()))
-                    .connect_receiver(move |_, response| {
-                        if let gtk::ResponseType::Ok | gtk::ResponseType::Yes = response {
-                            sender.input(*confirmed_msg.clone());
-                        }
-                    });
-                controller.detach_runtime();
-            }
             AppMsg::EvaluateProfile(rule, sender) => {
                 match self.daemon_client.evaluate_profile_rule(rule).await {
                     Ok(matches) => {
@@ -1076,58 +1125,65 @@ impl AppModel {
             .set_gpu_config(&gpu_id, gpu_config)
             .await
             .context("Could not apply settings")?;
-        self.ask_settings_confirmation(delay, root, sender).await;
+        self.ask_settings_confirmation(delay, root, sender);
 
         sender.input(AppMsg::ReloadData { full: false });
 
         Ok(())
     }
 
-    async fn ask_settings_confirmation(
+    fn ask_settings_confirmation(
         &self,
         mut delay: u64,
         window: &adw::ApplicationWindow,
         sender: &AsyncComponentSender<AppModel>,
     ) {
-        let text = confirmation_text(delay);
         let dialog = adw::AlertDialog::builder()
-            .title("Confirm settings")
-            .body(text)
+            .heading(fl!(I18N, "confirm-settings"))
+            .body(fl!(I18N, "settings-confirmation", seconds_left = delay))
             .default_response(CONFIRM_RESPONSE_REVERT)
             .close_response(CONFIRM_RESPONSE_REVERT)
             .build();
 
         dialog.add_responses(&[
-            (CONFIRM_RESPONSE_REVERT, "Revert"),
-            (CONFIRM_RESPONSE_APPLY, "Confirm"),
+            (CONFIRM_RESPONSE_REVERT, &fl!(I18N, "revert-button")),
+            (CONFIRM_RESPONSE_APPLY, &fl!(I18N, "confirm")),
         ]);
         dialog.set_response_appearance(CONFIRM_RESPONSE_APPLY, adw::ResponseAppearance::Suggested);
 
-        let is_cancelled = Rc::new(Cell::new(false));
+        let completed = Rc::new(Cell::new(false));
+        let timed_out = Rc::new(Cell::new(false));
 
-        glib::source::timeout_add_local(
-            Duration::from_secs(1),
-            clone!(
-                #[strong]
-                dialog,
-                #[strong]
-                is_cancelled,
-                move || {
-                    delay -= 1;
+        if delay > 0 {
+            glib::source::timeout_add_local(
+                Duration::from_secs(1),
+                clone!(
+                    #[strong]
+                    dialog,
+                    #[strong]
+                    completed,
+                    #[strong]
+                    timed_out,
+                    move || {
+                        if completed.get() {
+                            return ControlFlow::Break;
+                        }
 
-                    let text = confirmation_text(delay);
-                    dialog.set_body(&text);
+                        delay -= 1;
+                        dialog.set_body(&fl!(I18N, "settings-confirmation", seconds_left = delay));
 
-                    if delay == 0 {
-                        is_cancelled.set(true);
-                        dialog.force_close();
-                        ControlFlow::Break
-                    } else {
-                        ControlFlow::Continue
+                        if delay == 0 {
+                            completed.set(true);
+                            timed_out.set(true);
+                            dialog.force_close();
+                            ControlFlow::Break
+                        } else {
+                            ControlFlow::Continue
+                        }
                     }
-                }
-            ),
-        );
+                ),
+            );
+        }
 
         relm4::spawn_local(clone!(
             #[strong]
@@ -1138,195 +1194,102 @@ impl AppModel {
             window,
             async move {
                 let response = dialog.choose_future(Some(&window)).await;
+                completed.set(true);
 
-                if !is_cancelled.get() {
+                if !timed_out.get() {
                     let command = match response.as_str() {
                         CONFIRM_RESPONSE_APPLY => ConfirmCommand::Confirm,
                         _ => ConfirmCommand::Revert,
                     };
 
                     if let Err(err) = daemon_client.confirm_pending_config(command).await {
-                        show_error(&window, &err);
+                        sender.input(AppMsg::Error(Arc::new(err)));
                     }
                 }
+
                 sender.input(AppMsg::ReloadData { full: false });
             }
         ));
-
-        window.present();
     }
 
-    async fn dump_vbios(&self, gpu_id: &str, root: &adw::ApplicationWindow) {
-        match self.daemon_client.dump_vbios(gpu_id).await {
-            Ok(vbios_data) => {
-                let file_chooser = FileChooserDialog::new(
-                    Some("Save VBIOS file"),
-                    Some(root),
-                    FileChooserAction::Save,
-                    &[
-                        ("Save", ResponseType::Accept),
-                        ("Cancel", ResponseType::Cancel),
-                    ],
-                );
+    async fn dump_vbios(
+        &self,
+        gpu_id: &str,
+        root: &adw::ApplicationWindow,
+        sender: AsyncComponentSender<Self>,
+    ) -> anyhow::Result<()> {
+        let vbios_data = self.daemon_client.dump_vbios(gpu_id).await?;
 
-                let file_name_suffix = gpu_id
-                    .split_once('-')
-                    .map(|(id, _)| id.replace(':', "_"))
-                    .unwrap_or_default();
-                file_chooser.set_current_name(&format!("{file_name_suffix}_vbios_dump.rom"));
-                file_chooser.run_async(clone!(
-                    #[strong]
-                    root,
-                    move |diag, response| {
-                        diag.close();
+        let file_chooser = FileChooserDialog::new(
+            Some("Save VBIOS file"),
+            Some(root),
+            FileChooserAction::Save,
+            &[
+                ("Save", ResponseType::Accept),
+                ("Cancel", ResponseType::Cancel),
+            ],
+        );
 
-                        if response == gtk::ResponseType::Accept
-                            && let Some(file) = diag.file()
-                        {
-                            match file.path() {
-                                Some(path) => {
-                                    if let Err(err) = std::fs::write(path, vbios_data)
-                                        .context("Could not save vbios file")
-                                    {
-                                        show_error(&root, &err);
-                                    }
-                                }
-                                None => {
-                                    show_error(&root, &anyhow!("Selected file has an invalid path"))
-                                }
+        let file_name_suffix = gpu_id
+            .split_once('-')
+            .map(|(id, _)| id.replace(':', "_"))
+            .unwrap_or_default();
+        file_chooser.set_current_name(&format!("{file_name_suffix}_vbios_dump.rom"));
+        file_chooser.run_async(clone!(
+            #[strong]
+            sender,
+            move |diag, response| {
+                diag.close();
+
+                if response == gtk::ResponseType::Accept
+                    && let Some(file) = diag.file()
+                {
+                    match file.path() {
+                        Some(path) => {
+                            if let Err(err) = std::fs::write(path, vbios_data)
+                                .context("Could not save vbios file")
+                            {
+                                sender.input(AppMsg::Error(Arc::new(err)));
                             }
                         }
-                    }
-                ));
-            }
-            Err(err) => show_error(root, &err),
-        }
-    }
-
-    async fn generate_debug_snapshot(&self, root: &adw::ApplicationWindow) {
-        match self.daemon_client.generate_debug_snapshot().await {
-            Ok(path) => {
-                let path_label = gtk::Label::builder()
-                    .use_markup(true)
-                    .label(format!("<b>{path}</b>"))
-                    .selectable(true)
-                    .build();
-
-                let vbox = gtk::Box::builder()
-                    .orientation(gtk::Orientation::Vertical)
-                    .margin_top(10)
-                    .margin_bottom(10)
-                    .margin_start(10)
-                    .margin_end(10)
-                    .build();
-
-                vbox.append(&gtk::Label::new(Some("Debug snapshot saved at:")));
-                vbox.append(&path_label);
-
-                let diag = MessageDialog::builder()
-                    .title("Snapshot generated")
-                    .message_type(MessageType::Info)
-                    .use_markup(true)
-                    .text(format!("Debug snapshot saved at <b>{path}</b>"))
-                    .buttons(ButtonsType::Ok)
-                    .transient_for(root)
-                    .build();
-
-                let message_box = diag.message_area().downcast::<gtk::Box>().unwrap();
-                for child in message_box.observe_children().into_iter().flatten() {
-                    if let Ok(label) = child.downcast::<gtk::Label>() {
-                        label.set_selectable(true);
+                        None => {
+                            sender.input(AppMsg::Error(Arc::new(anyhow!(
+                                "Selected file has an invalid path"
+                            ))));
+                        }
                     }
                 }
-
-                diag.run_async(|diag, _| {
-                    diag.hide();
-                })
             }
-            Err(err) => show_error(root, &err.context("Could not generate snapshot")),
-        }
-    }
-}
+        ));
 
-fn show_error(parent: &ApplicationWindow, err: &anyhow::Error) {
-    let text = format!("{err:?}")
-        .lines()
-        .map(str::trim)
-        .collect::<Vec<&str>>()
-        .join("\n");
-    warn!("{text}");
-
-    let errors_count = ERROR_WINDOW_COUNT.load(Ordering::SeqCst);
-    if errors_count > 2 {
-        warn!("Not showing error window, too many already open");
-        return;
+        Ok(())
     }
 
-    ERROR_WINDOW_COUNT.fetch_add(1, Ordering::SeqCst);
+    async fn generate_debug_snapshot(
+        &self,
+        root: &adw::ApplicationWindow,
+        widgets: &AppModelWidgets,
+    ) -> anyhow::Result<()> {
+        let path = self.daemon_client.generate_debug_snapshot().await?;
 
-    let diag = MessageDialog::builder()
-        .title("Error")
-        .message_type(MessageType::Error)
-        .text(text)
-        .buttons(ButtonsType::Close)
-        .transient_for(parent)
-        .build();
-    diag.run_async(|diag, _| {
-        diag.close();
-        ERROR_WINDOW_COUNT.fetch_sub(1, Ordering::SeqCst);
-    })
-}
+        let toast = adw::Toast::builder()
+            .title(format!("Debug snapshot saved at {path}"))
+            .button_label("Copy path")
+            .use_markup(false)
+            .build();
+        toast.connect_button_clicked(clone!(
+            #[strong]
+            root,
+            #[strong]
+            path,
+            move |_| {
+                root.clipboard().set_text(&path);
+            }
+        ));
+        widgets.toast_overlay.add_toast(toast);
 
-fn show_embedded_info(parent: &ApplicationWindow, err: anyhow::Error) {
-    let error_text = format!("Error info: {err:#}\n\n");
-
-    let text = format!(
-        "Could not connect to daemon, running in embedded mode. \n\
-                        Please make sure the lactd service is running. \n\
-                        Using embedded mode, you will not be able to change any settings. \n\n\
-                        {error_text}\
-                        To enable the daemon, run the following command, then restart LACT:"
-    );
-
-    let text_label = gtk::Label::new(Some(&text));
-    let enable_label = gtk::Entry::builder()
-        .text("sudo systemctl enable --now lactd")
-        .editable(false)
-        .build();
-
-    let vbox = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .margin_top(10)
-        .margin_bottom(10)
-        .margin_start(10)
-        .margin_end(10)
-        .build();
-
-    let close_button = gtk::Button::builder().label("Close").build();
-
-    vbox.append(&text_label);
-    vbox.append(&enable_label);
-    vbox.append(&close_button);
-
-    let diag = gtk::MessageDialog::new(
-        Some(parent),
-        gtk::DialogFlags::MODAL,
-        gtk::MessageType::Question,
-        gtk::ButtonsType::Ok,
-        "",
-    );
-    diag.set_title(Some("Daemon info"));
-    diag.set_child(Some(&vbox));
-
-    close_button.connect_clicked(clone!(
-        #[strong]
-        diag,
-        move |_| diag.hide()
-    ));
-
-    diag.run_async(|diag, _| {
-        diag.hide();
-    })
+        Ok(())
+    }
 }
 
 fn start_stats_update_loop(
@@ -1360,10 +1323,6 @@ fn start_stats_update_loop(
             }
         }
     })
-}
-
-fn confirmation_text(seconds_left: u64) -> String {
-    format!("Do you want to keep the new settings? (Reverting in {seconds_left} seconds)")
 }
 
 async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
