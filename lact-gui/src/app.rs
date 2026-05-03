@@ -22,8 +22,8 @@ use crate::{
         about_dialog::{AboutDialog, AboutDialogMsg},
         gpu_selector::GpuSelector,
         info_dialog::{
-            InfoDialog, InfoDialogCallbacks, InfoDialogConfirmation, InfoDialogData, InfoDialogId,
-            InfoDialogMsg, InfoDialogRequest,
+            InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
+            InfoDialogRequest,
         },
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
@@ -40,7 +40,7 @@ use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
     FileChooserAction, FileChooserDialog, ResponseType, STYLE_PROVIDER_PRIORITY_APPLICATION,
-    glib::{self, clone},
+    glib::{self, ControlFlow, clone},
 };
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
@@ -71,7 +71,9 @@ use relm4_components::{
     open_dialog::{OpenDialog, OpenDialogMsg, OpenDialogResponse, OpenDialogSettings},
     save_dialog::{SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings},
 };
-use std::{fs, os::unix::net::UnixStream, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    cell::Cell, fs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, sync::Arc, time::Duration,
+};
 use tracing::{debug, error, info, trace, warn};
 
 pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
@@ -79,6 +81,8 @@ pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
+const CONFIRM_RESPONSE_APPLY: &str = "confirm";
+const CONFIRM_RESPONSE_REVERT: &str = "revert";
 
 pub struct AppModel {
     daemon_client: DaemonClient,
@@ -413,20 +417,14 @@ impl AsyncComponent for AppModel {
         .then(|| InfoDialogData {
             id: InfoDialogId::VersionMismatch,
             heading: fl!(I18N, "version-mismatch"),
-            body: Arc::new({
-                let daemon_version = system_info.version.clone();
-                let daemon_commit = system_info.commit.clone();
-                move |_| {
-                    fl!(
-                        I18N,
-                        "version-mismatch-description",
-                        gui_version = GUI_VERSION,
-                        gui_commit = GIT_COMMIT,
-                        daemon_version = daemon_version.as_str(),
-                        daemon_commit = daemon_commit.as_deref().unwrap_or_default()
-                    )
-                }
-            }),
+            body: fl!(
+                I18N,
+                "version-mismatch-description",
+                gui_version = GUI_VERSION,
+                gui_commit = GIT_COMMIT,
+                daemon_version = system_info.version.as_str(),
+                daemon_commit = system_info.commit.as_deref().unwrap_or_default()
+            ),
             stacktrace: None,
             selectable_text: Some("sudo systemctl restart lactd".to_string()),
             confirmation: None,
@@ -511,13 +509,11 @@ impl AsyncComponent for AppModel {
                     InfoDialogData {
                         id: InfoDialogId::EmbeddedDaemonInfo,
                         heading: fl!(I18N, "daemon-info-heading"),
-                        body: Arc::new(move |_| {
-                            fl!(
-                                I18N,
-                                "embedded-daemon-info",
-                                error_info = format!("Error info: {err:#}\n\n")
-                            )
-                        }),
+                        body: fl!(
+                            I18N,
+                            "embedded-daemon-info",
+                            error_info = format!("Error info: {err:#}\n\n")
+                        ),
                         stacktrace: None,
                         selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
                         confirmation: None,
@@ -563,7 +559,7 @@ impl AsyncComponent for AppModel {
                         id: InfoDialogId::Error,
                         heading: fl!(I18N, "error-heading"),
                         stacktrace: Some(format!("{err:?}")),
-                        body: Arc::new(move |_| format!("{err:#}")),
+                        body: format!("{err:#}"),
                         selectable_text: None,
                         confirmation: None,
                     },
@@ -739,7 +735,7 @@ impl AppModel {
                 });
             }
             AppMsg::ApplyChanges => {
-                self.apply_settings(self.current_gpu_id()?, &sender)
+                self.apply_settings(self.current_gpu_id()?, root, &sender)
                     .await
                     .inspect_err(|_| {
                         sender.input(AppMsg::ReloadData { full: false });
@@ -802,14 +798,13 @@ impl AppModel {
                         InfoDialogData {
                             id: InfoDialogId::ResetConfigConfirmation,
                             heading: fl!(I18N, "reset-config"),
-                            body: Arc::new(|_| fl!(I18N, "reset-config-description")),
+                            body: fl!(I18N, "reset-config-description"),
                             stacktrace: None,
                             selectable_text: None,
                             confirmation: Some(InfoDialogConfirmation {
                                 confirm_label: fl!(I18N, "reset-button"),
                                 cancel_label: fl!(I18N, "cancel"),
                                 appearance: adw::ResponseAppearance::Destructive,
-                                timeout_seconds: None,
                             }),
                         },
                         Box::new(move || {
@@ -1088,6 +1083,7 @@ impl AppModel {
     async fn apply_settings(
         &self,
         gpu_id: String,
+        root: &adw::ApplicationWindow,
         sender: &AsyncComponentSender<Self>,
     ) -> anyhow::Result<()> {
         debug!("applying settings on gpu {gpu_id}");
@@ -1129,57 +1125,91 @@ impl AppModel {
             .set_gpu_config(&gpu_id, gpu_config)
             .await
             .context("Could not apply settings")?;
-        self.ask_settings_confirmation(delay, sender);
+        self.ask_settings_confirmation(delay, root, sender);
 
         sender.input(AppMsg::ReloadData { full: false });
 
         Ok(())
     }
 
-    fn ask_settings_confirmation(&self, delay: u64, sender: &AsyncComponentSender<AppModel>) {
-        let confirm_pending_config = |command| {
-            let sender = sender.clone();
-            let daemon_client = self.daemon_client.clone();
+    fn ask_settings_confirmation(
+        &self,
+        mut delay: u64,
+        window: &adw::ApplicationWindow,
+        sender: &AsyncComponentSender<AppModel>,
+    ) {
+        let dialog = adw::AlertDialog::builder()
+            .heading(fl!(I18N, "confirm-settings"))
+            .body(fl!(I18N, "settings-confirmation", seconds_left = delay))
+            .default_response(CONFIRM_RESPONSE_REVERT)
+            .close_response(CONFIRM_RESPONSE_REVERT)
+            .build();
 
-            Box::new(move || {
-                relm4::spawn_local(async move {
+        dialog.add_responses(&[
+            (CONFIRM_RESPONSE_REVERT, &fl!(I18N, "revert-button")),
+            (CONFIRM_RESPONSE_APPLY, &fl!(I18N, "confirm")),
+        ]);
+        dialog.set_response_appearance(CONFIRM_RESPONSE_APPLY, adw::ResponseAppearance::Suggested);
+
+        let completed = Rc::new(Cell::new(false));
+        let timed_out = Rc::new(Cell::new(false));
+
+        if delay > 0 {
+            glib::source::timeout_add_local(
+                Duration::from_secs(1),
+                clone!(
+                    #[strong]
+                    dialog,
+                    #[strong]
+                    completed,
+                    #[strong]
+                    timed_out,
+                    move || {
+                        if completed.get() {
+                            return ControlFlow::Break;
+                        }
+
+                        delay -= 1;
+                        dialog.set_body(&fl!(I18N, "settings-confirmation", seconds_left = delay));
+
+                        if delay == 0 {
+                            completed.set(true);
+                            timed_out.set(true);
+                            dialog.force_close();
+                            ControlFlow::Break
+                        } else {
+                            ControlFlow::Continue
+                        }
+                    }
+                ),
+            );
+        }
+
+        relm4::spawn_local(clone!(
+            #[strong]
+            sender,
+            #[strong(rename_to = daemon_client)]
+            self.daemon_client,
+            #[strong]
+            window,
+            async move {
+                let response = dialog.choose_future(Some(&window)).await;
+                completed.set(true);
+
+                if !timed_out.get() {
+                    let command = match response.as_str() {
+                        CONFIRM_RESPONSE_APPLY => ConfirmCommand::Confirm,
+                        _ => ConfirmCommand::Revert,
+                    };
+
                     if let Err(err) = daemon_client.confirm_pending_config(command).await {
                         sender.input(AppMsg::Error(Arc::new(err)));
                     }
-                    sender.input(AppMsg::ReloadData { full: false });
-                });
-            }) as Box<dyn FnOnce()>
-        };
+                }
 
-        self.info_dialog
-            .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest {
-                data: InfoDialogData {
-                    id: InfoDialogId::SettingsConfirmation,
-                    heading: fl!(I18N, "confirm-settings"),
-                    body: Arc::new(|seconds_left| {
-                        fl!(I18N, "settings-confirmation", seconds_left = seconds_left)
-                    }),
-                    stacktrace: None,
-                    selectable_text: None,
-                    confirmation: Some(InfoDialogConfirmation {
-                        confirm_label: fl!(I18N, "confirm"),
-                        cancel_label: fl!(I18N, "revert-button"),
-                        appearance: adw::ResponseAppearance::Suggested,
-                        timeout_seconds: Some(delay),
-                    }),
-                },
-                callbacks: InfoDialogCallbacks {
-                    on_confirmed: Some(confirm_pending_config(ConfirmCommand::Confirm)),
-                    on_closed: Some(confirm_pending_config(ConfirmCommand::Revert)),
-                    on_timed_out: Some(Box::new({
-                        let sender = sender.clone();
-
-                        move || {
-                            sender.input(AppMsg::ReloadData { full: false });
-                        }
-                    })),
-                },
-            })));
+                sender.input(AppMsg::ReloadData { full: false });
+            }
+        ));
     }
 
     async fn dump_vbios(

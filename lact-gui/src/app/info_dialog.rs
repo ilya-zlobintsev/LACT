@@ -1,9 +1,9 @@
 use crate::I18N;
 use adw::prelude::*;
-use gtk::glib::{self, ControlFlow, clone};
+use gtk::glib::clone;
 use i18n_embed_fl::fl;
 use relm4::{ComponentParts, ComponentSender};
-use std::{cell::Cell, collections::HashMap, fmt, rc::Rc, sync::Arc, time::Duration};
+use std::{collections::HashMap, fmt};
 use tracing::warn;
 
 const RESPONSE_CLOSE: &str = "close";
@@ -15,7 +15,6 @@ pub enum InfoDialogId {
     Error,
     EmbeddedDaemonInfo,
     ResetConfigConfirmation,
-    SettingsConfirmation,
     VersionMismatch,
 }
 
@@ -23,16 +22,10 @@ pub enum InfoDialogId {
 pub struct InfoDialogData {
     pub id: InfoDialogId,
     pub heading: String,
-    pub body: Arc<dyn Fn(u64) -> String + Send + Sync>,
+    pub body: String,
     pub stacktrace: Option<String>,
     pub selectable_text: Option<String>,
     pub confirmation: Option<InfoDialogConfirmation>,
-}
-
-impl InfoDialogData {
-    fn body_text(&self, seconds_left: u64) -> String {
-        (self.body)(seconds_left)
-    }
 }
 
 impl fmt::Debug for InfoDialogData {
@@ -40,7 +33,7 @@ impl fmt::Debug for InfoDialogData {
         f.debug_struct("InfoDialogData")
             .field("id", &self.id)
             .field("heading", &self.heading)
-            .field("body", &"<body callback>")
+            .field("body", &self.body)
             .field("stacktrace", &self.stacktrace)
             .field("selectable_text", &self.selectable_text)
             .field("confirmation", &self.confirmation)
@@ -53,7 +46,6 @@ pub struct InfoDialogConfirmation {
     pub confirm_label: String,
     pub cancel_label: String,
     pub appearance: adw::ResponseAppearance,
-    pub timeout_seconds: Option<u64>,
 }
 
 pub struct InfoDialog {
@@ -156,13 +148,10 @@ impl InfoDialog {
                 move |_, response| {
                     let confirmed = matches!(response, InfoDialogEntryResponse::Confirmed(_));
                     let closed = matches!(response, InfoDialogEntryResponse::Closed(_));
-                    let timed_out = matches!(response, InfoDialogEntryResponse::TimedOut(_));
                     sender.input(InfoDialogMsg::Response(response));
                     if confirmed && let Some(callback) = callbacks.on_confirmed.take() {
                         callback();
                     } else if closed && let Some(callback) = callbacks.on_closed.take() {
-                        callback();
-                    } else if timed_out && let Some(callback) = callbacks.on_timed_out.take() {
                         callback();
                     }
                 }
@@ -175,7 +164,6 @@ impl InfoDialog {
 pub struct InfoDialogCallbacks {
     pub on_confirmed: Option<Box<dyn FnOnce() + 'static>>,
     pub on_closed: Option<Box<dyn FnOnce() + 'static>>,
-    pub on_timed_out: Option<Box<dyn FnOnce() + 'static>>,
 }
 
 impl InfoDialogCallbacks {
@@ -183,7 +171,6 @@ impl InfoDialogCallbacks {
         Self {
             on_confirmed: Some(on_confirmed),
             on_closed: None,
-            on_timed_out: None,
         }
     }
 }
@@ -192,13 +179,12 @@ impl InfoDialogCallbacks {
 pub(super) enum InfoDialogEntryResponse {
     Closed(InfoDialogId),
     Confirmed(InfoDialogId),
-    TimedOut(InfoDialogId),
 }
 
 impl InfoDialogEntryResponse {
     fn id(&self) -> InfoDialogId {
         match self {
-            Self::Closed(id) | Self::Confirmed(id) | Self::TimedOut(id) => *id,
+            Self::Closed(id) | Self::Confirmed(id) => *id,
         }
     }
 }
@@ -206,13 +192,10 @@ impl InfoDialogEntryResponse {
 struct InfoDialogEntry {
     data: InfoDialogData,
     stacktrace_buffer: gtk::TextBuffer,
-    completed: Rc<Cell<bool>>,
-    seconds_left: Option<u64>,
 }
 
 #[derive(Debug)]
 enum InfoDialogEntryMsg {
-    Tick,
     Response(String),
 }
 
@@ -231,10 +214,9 @@ impl relm4::Component for InfoDialogEntry {
                 set_width_request: 500,
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 10,
-
-                #[name = "body_label"]
+                
                 gtk::Label {
-                    set_label: &model.data.body_text(model.seconds_left.unwrap_or_default()),
+                    set_label: &model.data.body,
                     set_wrap: true,
                     set_xalign: 0.0,
                 },
@@ -276,17 +258,12 @@ impl relm4::Component for InfoDialogEntry {
             stacktrace_buffer.set_text(stacktrace);
         }
 
-        let seconds_left = data.confirmation.as_ref().and_then(|c| c.timeout_seconds);
-
         let model = Self {
             data,
             stacktrace_buffer,
-            completed: Rc::new(Cell::new(false)),
-            seconds_left,
         };
 
         let widgets = view_output!();
-        let completed = model.completed.clone();
 
         match &model.data.confirmation {
             None => {
@@ -301,31 +278,6 @@ impl relm4::Component for InfoDialogEntry {
                 root.set_default_response(Some(RESPONSE_CANCEL));
 
                 root.set_response_appearance(RESPONSE_CONFIRM, confirmation.appearance);
-
-                if let Some(mut remaining) = seconds_left.filter(|seconds_left| *seconds_left > 0) {
-                    glib::source::timeout_add_local(
-                        Duration::from_secs(1),
-                        clone!(
-                            #[strong]
-                            sender,
-                            #[strong]
-                            completed,
-                            move || {
-                                if completed.get() {
-                                    return ControlFlow::Break;
-                                }
-
-                                remaining -= 1;
-                                sender.input(InfoDialogEntryMsg::Tick);
-                                if remaining == 0 {
-                                    ControlFlow::Break
-                                } else {
-                                    ControlFlow::Continue
-                                }
-                            }
-                        ),
-                    );
-                }
             }
         }
 
@@ -346,32 +298,15 @@ impl relm4::Component for InfoDialogEntry {
 
     fn update_with_view(
         &mut self,
-        widgets: &mut Self::Widgets,
+        _widgets: &mut Self::Widgets,
         msg: Self::Input,
         sender: ComponentSender<Self>,
-        root: &Self::Root,
+        _root: &Self::Root,
     ) {
-        if self.completed.get() {
-            return;
-        }
-
         let id = self.data.id;
 
         match msg {
-            InfoDialogEntryMsg::Tick => {
-                if let Some(seconds_left) = &mut self.seconds_left {
-                    *seconds_left = seconds_left.saturating_sub(1);
-                    let secs = *seconds_left;
-                    widgets.body_label.set_label(&self.data.body_text(secs));
-                    if secs == 0 {
-                        self.completed.set(true);
-                        let _ = sender.output(InfoDialogEntryResponse::TimedOut(id));
-                        root.force_close();
-                    }
-                }
-            }
             InfoDialogEntryMsg::Response(response) => {
-                self.completed.set(true);
                 let output = match response.as_str() {
                     RESPONSE_CONFIRM => InfoDialogEntryResponse::Confirmed(id),
                     _ => InfoDialogEntryResponse::Closed(id),
