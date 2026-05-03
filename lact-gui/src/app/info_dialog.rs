@@ -214,7 +214,7 @@ impl relm4::Component for InfoDialogEntry {
                 set_width_request: 500,
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 10,
-                
+
                 gtk::Label {
                     set_label: &model.data.body,
                     set_wrap: true,
