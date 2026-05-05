@@ -4,7 +4,7 @@ use crate::{
 };
 use gtk::{
     glib::{SignalHandlerId, object::ObjectExt},
-    prelude::{AdjustmentExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
+    prelude::{AdjustmentExt, EditableExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
 };
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
@@ -108,6 +108,9 @@ impl FactoryComponent for ClockAdjustmentRow {
                 gtk::SpinButton {
                     set_adjustment: &self.adjustment,
                     add_controller = make_event_controller_no_scroll(),
+                    connect_changed => move |_| {
+                        APP_BROKER.send(AppMsg::SettingsChanged);
+                    } @ text_change_signal,
                 },
             },
         }
@@ -149,6 +152,7 @@ impl FactoryComponent for ClockAdjustmentRow {
         match msg {
             ClockAdjustmentRowMsg::ValueRatio(ratio) => {
                 self.adjustment.block_signal(&self.change_signal);
+                widgets.input_button.block_signal(&widgets.text_change_signal);
 
                 let raw_current = self.adjustment.value() / self.value_ratio;
                 let raw_min = self.adjustment.lower() / self.value_ratio;
@@ -160,6 +164,7 @@ impl FactoryComponent for ClockAdjustmentRow {
 
                 self.value_ratio = ratio;
 
+                widgets.input_button.unblock_signal(&widgets.text_change_signal);
                 self.adjustment.unblock_signal(&self.change_signal);
             }
             ClockAdjustmentRowMsg::AddSizeGroup {
