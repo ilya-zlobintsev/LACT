@@ -83,7 +83,7 @@ performance-level-manual = Manuell
 power-profile-mode = Leistungsprofil Modus:
 manual-level-needed = Um Energiezustände und -modi nutzen zu können, muss die Leistungsstufe auf „manuell“ eingestellt werden
 overclock-section = Takt und Spannung
-nvidia-oc-info = Nvidia Overclocking Informationen
+nvidia-oc-info = Overclocking Informationen
 show-all-pstates = Zeige alle P-States
 enable-gpu-locked-clocks = Aktiviere GPU Takt Sperre
 pstate-list-description = <b>Die folgenden Werte zeigen den Taktraten Versatz für jeden P-State, von Höchstem zu Niedrigstem.</b>
@@ -110,9 +110,7 @@ gpu-pstate-clock-offset = GPU P-State { $pstate } Takt-Offset (MHz)
 gpu-usage = GPU Auslastung
 min-gpu-voltage = Minimale GPU Spannung (mV)
 performance-level-auto-description = Automatische Anpassung des GPU und VRAM Takts. (Standard)
-amd-oc-disabled =
-    AMD Overclocking Unterstützung ist nicht aktiv!
-    Sie können immer noch Basis-Einstellungen anpassen, aber die erweiterten Takt- und Spannungseinstellungen werden nicht verfügbar sein.
+amd-oc-disabled = AMD Overclocking ist nicht aktiv!<a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Einige Funktionen werden nicht verfügbar sein.</a>
 disable-amd-oc-description = Dies wird die AMD Overclocking Unterstützung (Overdrive) für den nächsten System-Neustart deaktivieren.
 amd-oc-description =
     { $config ->
@@ -142,7 +140,7 @@ all-rules-matched = Alle der folgenden Regeln treffen zu:
 any-rules-matched = Jeder der folgenden Regeln trifft zu:
 profile-activation-desc = Aktiviere Profil '{ $name }' wenn:
 enable-pstate-config = Power-State Konfiguration aktivieren
-show-historical-charts = Zeige historische Daten
+show-historical-charts = Zeige Graphen
 create-profile = Profil erstellen
 profile-copy-from = Einstellungen übernehmen von:
 create = Erstelle
@@ -186,8 +184,6 @@ nvidia-oc-description =
     Bei vielen Grafikkarten wirkt sich der VRAM-Takt-Offset nur zur Hälfte auf den tatsächlichen Speichertakt aus.
     Zum Beispiel kann ein VRAM-Offset von +1000 MHz die gemessene VRAM-Takt nur um 500 MHz erhöhen.
     Das ist normal und entspricht der Art und Weise, wie Nvidia mit GDDR-Datenraten umgeht. Passe dein Overclocking entsprechend an.
-
-    Eine direkte Spannungsregelung wird nicht unterstützt, da sie im Nvidia-Linux-Treiber nicht existiert.
 
     Ein sogenanntes „Pseudo-Undervolting“ ist möglich, indem man die Option „gesperrten Takte“ mit einem positiven Takt-Offset kombiniert.
     Dies zwingt die GPU dazu, mit einer durch die gesperrten Takte begrenzten Spannung zu arbeiten, während durch den Offset eine höhere Taktrate erreicht wird.
@@ -248,3 +244,7 @@ vf-base-curve = Basiskurve
 vf-curve-visible-range = Sichtbare Spanne (%):
 vf-curve-visible-range-to = zu
 vf-curve-flatten-right = Kurve rechts glätten
+preferences = Einstellungen
+ui = Benutzeroberfläche
+daemon = Daemon
+about = Über
