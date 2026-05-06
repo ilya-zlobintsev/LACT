@@ -4,7 +4,7 @@ gpu-usage = Użycie GPU
 workgroup-size = Rozmiar Grupy
 hardware-info = Informacje o sprzęcie
 thermals-page = Zarządzanie temperaturą
-software-page = Oprogramowanie
+software-page = Informacje o oprogramowaniu
 system-section = System
 lact-daemon = LACT Demon
 lact-gui = Środowisko Graficzne LACT
@@ -57,7 +57,7 @@ performance-level-auto-description = Automatycznie dopasuj zegary GPU I VRAM. (P
 reset-oc-tooltip = Ostrzeżenie: to spowoduje zresetowanie wszystkich zegarów do domyślnych!
 max-gpu-clock = Maksymalne Zegary Offset GPU (MHz)
 all-rules-matched = Jeśli spełnione są wszystkie z poniższych warunków:
-pstates-manual-needed = Informacja: tryb wydajności musi zostać ustawiony jako 'Ręczny' aby zmienić stan zasilania
+pstates-manual-needed = Poziom wydajności musi być ustawiony na „ręczny”, aby można było przełączać stany zasilania
 settings-profile = Profile Ustawień
 save = Zapisz
 rename-profile-from = Zmień nazwę profilu <b>{ $old_name }</b> na:
@@ -74,7 +74,7 @@ nvidia-oc-description =
     Wymusza to pracę GPU przy napięciu ograniczonym przez ustawione zegary, ale jednocześnie umożliwia wyższą częstotliwość dzięki offsetowi.
     Zbyt duża wartość może prowadzić do niestabilności systemu.
 profile-hook-deactivated = Dezaktywowana:
-info-page = Informacje
+info-page = Informacje o sprzęcie
 oc-page = Tryb OC
 fan-control-section = Sterowanie chłodzenia
 nvidia-cache-desc = { $size } L{ $level }
@@ -120,7 +120,7 @@ performance-level-manual-description = Ręczne sterowanie wydajnością.
 power-profile-mode = Profil Trybu Zasilania:
 manual-level-needed = Poziom wydajności został ustawiony jako Ręczny aby uaktywnić profile mocy
 overclock-section = Częstotliwość Zegarów oraz Napieć
-nvidia-oc-info = Zarządzanie informacjami Nvidia
+nvidia-oc-info = Zarządzanie informacjami OC Nvidia
 show-all-pstates = Pokaż wszystkie P-States
 enable-gpu-locked-clocks = Odblokuj Zablokowane Zegary GPU
 enable-vram-locked-clocks = Odblokuj Zablokowane Zegary VRAM
@@ -139,7 +139,7 @@ pstates = Stany Zasilania
 gpu-pstates = Stany Zasilania GPU
 vram-pstates = Stany Zasilania VRAN
 enable-pstate-config = Aktywuj konfiguracje stanów zasilania
-show-historical-charts = Pokaż wykres historyczny
+show-historical-charts = Pokaż wykres
 add-profile = Dodaj nowy profil
 import-profile = Importuj profil z pliku
 create-profile = Utwórz profil
@@ -177,7 +177,7 @@ profile-rule-specific-process = Z określonym procesem:
 pmfw-reset-warning = UWAGA: To zresetuje ustawienia sterownika wentylatora!
 pstate-list-description = <b>Widoczne wartości są zegarami z offsetem dla każdego P-State, pogrupowane od największych do najniższych.</b>
 amd-oc-disabled =
-    Zarządzanie ustawieniami AMD nie dostępne!
+    Zarządzanie ustawieniami AMD OC nie dostępne!
     W dalszym ciągu może dokonać zmian podstawowych, lecz zaawansowane ustawienia częstotliwości oraz energii nie będą dostępne.
 enable-amd-oc-description = Ta czynność odblokuje zaawansowane ustawienie w sterowniku amdgpu poprzez utworzenie pliku w <b>{ $path }</b> oraz zaktualizowaniu initramfs. Czy jesteś tego pewien?
 amd-oc-description =
@@ -200,3 +200,55 @@ revert-button = Cofnij
 vram-usage = Użycie VRAM:
 performance-level = Poziom Wydajności
 spindown-delay-tooltip = Jak długo GPU musi utrzymać niską temperaturę aby obniżyć prędkość wentylatorów
+hw-queues = Kolejki
+temperature-sensor = Czujnik temperatury
+spindown-delay = Opóźnienie zatrzymania (ms)
+speed-change-threshold = Próg zmiany prędkości (°C)
+automatic-mode-threshold = Próg trybu automatycznego (°C)
+automatic-mode-threshold-tooltip =
+    Przełącz sterowanie wentylatorem w tryb automatyczny, gdy temperatura spadnie poniżej tej wartości.
+
+    Wiele kart graficznych Nvidia obsługuje zatrzymanie wentylatora tylko w trybie automatycznego sterowania, podczas gdy własna (niestandardowa) krzywa ma ograniczony zakres prędkości, np. 30–100%.
+
+    Ta opcja pozwala obejść to ograniczenie, używając niestandardowej krzywej tylko powyżej określonej temperatury, a poniżej niej korzystając z wbudowanego trybu automatycznego karty, który obsługuje tryb zero RPM.
+bytes = bajty
+kibibyte = kibibajty
+gibibyte = gibibajty
+vf-curve-editor = Edytor krzywej VF
+nvidia-vf-curve-warning =
+    Edytor krzywej napięcia–częstotliwości opiera się na nieudokumentowanej funkcjonalności sterownika.
+    Nie ma żadnych gwarancji dotyczących jego działania, bezpieczeństwa ani dostępności.
+    <span weight = "heavy" underline = "single">Używasz na własne ryzyko</span>.
+vf-curve-enable-editing = Włącz edycje
+voltage = Napięcie
+frequency = Częstotliwość
+vf-active-curve = aktywna krzywa
+vf-base-curve = krzywa bazowa
+vf-curve-visible-range = Zakres widoczny (%):
+vf-curve-visible-range-to = do
+vf-curve-flatten-right = wyrównaj krzywą w prawo
+generate-debug-snapshot = wygeneruj zrzut diagnostyczny
+dump-vbios = wyeksportuj VBIOS
+reset-all-config = Zresetuj całą konfiguracje
+stats-update-interval = Interwał aktualizacji (ms)
+historical-data-title = Dane historyczne
+graphs-per-row = Wykresy w jednym rzędzie:
+time-period-seconds = Okres czasu (sekundy):
+reset-all-graphs-tooltip = przywróć wszystkie wykresy do ustawień domyślnych
+add-graph = dodaj wykres
+delete-graph = usuń wykres
+edit-graphs = edytuj
+export-csv = wyeksportuj jako CSV
+edit-graph-sensors = edytuj czujniki wykresu
+reconnecting-to-daemon = Utracono połączenie z usługą (daemon), ponowne łączenie...
+daemon-connection-lost = Utracono połączenie
+plot-show-detailed-info = pokaż szczegółowe informacje
+theme = motyw
+theme-auto = automatycznie
+preferences = preferencje
+daemon = Daemon
+about = O
+crash-page-title = Aplikacja uległa awarii
+exit = Wyjście
+hw-ip-info = Informacje o sprzętowym adresie IP
+ui = Interfejs użytkownika
