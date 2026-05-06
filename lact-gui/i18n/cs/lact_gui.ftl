@@ -28,10 +28,10 @@ edit-rule = Upravit pravidlo
 remove-rule = Odebrat pravidlo
 profile-hook-activated = Aktivováno:
 profile-hook-deactivated = Deaktivováno:
-info-page = Informace
-oc-page = Přetakt.
+info-page = Informace o hardware
+oc-page = Přetaktování
 thermals-page = Teplotní
-software-page = Software
+software-page = Informace o software
 lact-daemon = Proces služby LACT
 lact-gui = Grafické uživ. rozhraní LACT
 instance = Instance
@@ -106,7 +106,7 @@ performance-level = Výkonnostní stupeň
 power-profile-mode = Režim profilu napájení:
 manual-level-needed = Výkonnostní stupeň byl nastaven na „ručně“, aby bylo možné používat stavy a režimy napájení
 overclock-section = Takt a napětí
-nvidia-oc-info = Informace o přetaktování Nvidia
+nvidia-oc-info = Informace o přetaktování
 oc-warning = Změna těchto hodnot může vést k nestabilitě systému a případně poškodit váš hardware!
 show-all-pstates = Zobrazit veškeré P-stavy
 enable-gpu-locked-clocks = Povolit GPU uzamčené takty
@@ -181,9 +181,7 @@ automatic-mode-threshold-tooltip =
     Mnohá GPU od Nvidia podporují zastavení ventilátorů pouze v režimu automatického řízení ventilátorů, zatímco uživatelsky určená křivka má omezený rozsah otáček jako např. 30-100%.
 
     Tato předvolba umožňuje toto omezení obejít použitím uživatelsky určené křivky pouze při překročení určité teploty s tím, že pod ní je použit automatický režim vestavěný v kartě, který podporuje nulové otáčky.
-amd-oc-disabled =
-    Podpora pro přetaktování AMD není zapnutá.
-    I tak je možné měnit základní nastavení, ale pokročilejší řízení taktů a napětí nebude k dispozici.
+amd-oc-disabled = Podpora pro přetaktování AMD není zapnutá.<a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Některé funkce nebudou k dispozici.</a>
 amd-oc-status =
     Přetaktování AMD je v tuto chvíli: <b>{ $status ->
         [true] Zapnuto
@@ -221,8 +219,6 @@ nvidia-oc-description =
     Například, posun +1000MHz videopaměti může zvýšit měřenou rychlost paměti pouze o 500MHz.
     Toto je normální a plyne z toho, jak Nvidia zachází s takty GDDR. Přizpůsobte tomu příslušně svá nastavení přetaktování.
 
-    Přímé ovládání napětí není podporováno, protože v linuxovém ovladači od Nvidia není přítomno.
-
     Je možné dosáhnout svého druhu snížení napětí kombinací předvolby uzamčené takt a kladného posunu taktu.
     Toto GPU přinutí běžet na napětí, které je omezeno uzamčenými takty a přitom dosahovat vyšších taktů (díky posunu).
     Pokud nastaveno příliš vysoko, může toto ale způsobovat nestabilitu systému.
@@ -235,3 +231,16 @@ hw-ip-info = Informace o licencovaných obvodech
 hw-queues = Fronty
 theme = Motiv vzhledu
 theme-auto = Automatické
+vf-curve-editor = Editor křivky napětí-frekvence
+vf-curve-enable-editing = Zapnout upravování
+voltage = Napětí
+frequency = Frekvence
+vf-active-curve = Aktivní křivka
+vf-base-curve = Základní křivka
+vf-curve-visible-range = Viditelný rozsah (%):
+vf-curve-visible-range-to = k
+vf-curve-flatten-right = Zploštit křivku doprava
+nvidia-vf-curve-warning =
+    Editor křivky napětí-frekvence využívá nedokumentovanou funkci ovladače. 
+    Není nijak zaručeno jeho chování, bezpečnost nebo dostupnost.
+    <span weight = "heavy" underline = "single">Použijte jen na vlastní nebezpečí</span>.

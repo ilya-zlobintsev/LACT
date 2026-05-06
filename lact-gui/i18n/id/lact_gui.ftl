@@ -1,4 +1,4 @@
-info-page = Informasi
+info-page = Info Perangkat Keras
 oc-page = Overclocking
 thermals-page = Termal
 software-page = Info Perangkat Lunak
@@ -63,9 +63,7 @@ automatic-mode-threshold-tooltip =
 
     Opsi ini memungkinkan untuk mengatasi keterbatasan ini dengan hanya menggunakan kurva kustom ketika suhu di atas nilai tertentu, dengan mode otomatis bawaan kartu yang mendukung Zero RPM digunakan di bawahnya.
 amd-oc = Overclocking AMD
-amd-oc-disabled =
-    Dukungan Overclocking AMD tidak diaktifkan!
-    Anda masih dapat mengubah pengaturan dasar, tetapi kontrol clock dan tegangan yang lebih canggih tidak akan tersedia.
+amd-oc-disabled = Overclocking AMD tidak diaktifkan! <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Beberapa fungsionalitas tidak akan tersedia.</a>
 amd-oc-status =
     Overclocking AMD saat ini: <b>{ $status ->
         [true] Diaktifkan
@@ -168,7 +166,7 @@ gpu-pstates = Status Daya GPU
 vram-pstates = Status Daya VRAM
 pstates-manual-needed = Level performa harus diatur ke 'manual' untuk mengaktifkan/menonaktifkan status daya
 enable-pstate-config = Aktifkan konfigurasi status daya
-show-historical-charts = Tampilkan Grafik Historis
+show-historical-charts = Tampilkan Grafik
 show-process-monitor = Tampilkan Monitor Proses
 generate-debug-snapshot = Buat Snapshot Debug
 dump-vbios = Dump VBIOS
@@ -246,3 +244,7 @@ vf-curve-visible-range-to = hingga
 vf-curve-flatten-right = Ratakan kurva ke kanan
 theme = Tema
 theme-auto = Otomatis
+preferences = Preferensi
+ui = UI
+daemon = Daemon
+about = Tentang

@@ -6,7 +6,7 @@ cache-info = Informazioni Cache
 watt = W
 power-usage = Consumo Energetico
 power-profile-mode = Modalità Profilo Di Alimentazione:
-software-page = Software
+software-page = Informazioni Software
 hardware-info = Informazioni Hardware
 system-section = Sistema
 lact-gui = GUI LACT
@@ -54,7 +54,7 @@ performance-level-low = Frequenze Più Basse
 performance-level-high-description = Utilizza sempre le frequenze più elevate per GPU e VRAM.
 performance-level-manual-description = Controllo manuale delle prestazioni.
 overclock-section = Frequenze e Voltaggio
-nvidia-oc-info = Informazioni Overclocking Nvidia
+nvidia-oc-info = Informazioni Overclocking
 driver-version = Versione Driver
 amd-cache-desc =
     { $size } L{ $level } { $types } cache { $shared ->
@@ -77,9 +77,7 @@ oc-page = Oc
 temperatures = Temperature
 oc-missing-fan-control-warning = Avvertenza: Il supporto all'overclocking è disattivato, la funzionalità di controllo delle ventole non è disponibile.
 min-fan-speed = Velocità Minima Ventole (%)
-amd-oc-disabled =
-    Il supporto all'Overclocking AMD non è abilitato!
-    Puoi comunque cambiare le impostazioni di base, ma il controllo avanzato delle frequenze e del voltaggio non sarà disponibile.
+amd-oc-disabled = L'overclocking AMD non è abilitato! Alcune funzionalità non saranno disponibili.
 compute-units = Unità Di Calcolo
 show-button = Mostra
 unknown-throttling = Sconosciuto
@@ -100,7 +98,7 @@ nvidia-oc-description =
 missing-stat = N/D
 performance-level-auto = Automatico
 performance-level-manual = Manuale
-info-page = Informazioni
+info-page = Informazioni Hardware
 amd-oc = AMD Overclocking
 enable-vram-locked-clocks = Abilita Frequenze Bloccate VRAM
 enable-gpu-locked-clocks = Abilita Frequenze Bloccate GPU
@@ -148,7 +146,7 @@ mem-pstate-clock-voltage = Voltaggio P-State { $pstate } VRAM (mV)
 pstates = Stati di Alimentazione (P-States)
 vram-pstates = Stati di Alimentazione VRAM
 enable-pstate-config = Abilita configurazione degli stati di alimentazione
-show-historical-charts = Mostra Grafici Storici
+show-historical-charts = Mostra grafici storici
 settings-profile = Impostazioni Profilo
 add-profile = Aggiungi nuovo profilo
 import-profile = Importa profilo da file
@@ -235,3 +233,20 @@ hw-ip-info = Informazioni IP Hardware
 hw-queues = Code
 theme = tema
 theme-auto = Automatico
+vf-curve-editor = Editor della curva VF
+nvidia-vf-curve-warning =
+    The voltage-frequency curve editor relies on undocumented driver functionality. 
+    There are no guarantees regarding its behaviour, safety or availability.
+    <span weight = "heavy" underline = "single">Use at your own risk</span>.
+vf-curve-enable-editing = Abilita modifiche
+voltage = Tensione
+frequency = Frequenza
+vf-active-curve = Curva attiva
+vf-base-curve = Curva di base
+vf-curve-visible-range = Intervallo visibile (%):
+vf-curve-visible-range-to = to
+vf-curve-flatten-right = Appiattisci la curva verso destra
+ui = UI
+preferences = Preferenze
+daemon = demone
+about = Informazioni

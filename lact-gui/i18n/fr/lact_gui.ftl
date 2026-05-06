@@ -115,7 +115,7 @@ mem-pstate-clock = P-State VRAM { $pstate } Fréquence d’horloge (MHz)
 gpu-pstate-clock-voltage = P-State GPU { $pstate } Tension (mV)
 gpu-pstates = États de puissance GPU
 vram-pstates = États de puissance VRAM
-show-historical-charts = Afficher les graphiques historiques
+show-historical-charts = Afficher les graphiques
 auto-switch-profiles = Basculer automatiquement
 nvidia-oc-description =
     La fonctionnalité d’overclocking NVIDIA comprend le réglage des fréquences d’horloge GPU/VRAM et la limitation de la plage potentielle des fréquences d’horloge à l’aide de la fonctionnalité « locked clocks ».
@@ -244,3 +244,7 @@ vf-base-curve = Courbe de base
 vf-curve-visible-range = Intervalle visible (%) :
 vf-curve-visible-range-to = à
 vf-curve-flatten-right = Aplatir la courbe sur la droite
+preferences = Préférences
+ui = Interface
+daemon = Démon
+about = À propos
