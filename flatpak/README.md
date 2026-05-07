@@ -39,7 +39,7 @@ sudo rm /etc/systemd/system/lactd.service
 
 ## Implementation details
 
-The service uses [flatbox](github.com/ilya-zlobintsev/flatbox) in order to create a flatpak-like environment for the service that still has the permissions it needs to function (such as write access to various sysfs paths). Flatbox itself is shipped as a static binary with the flatpak and is executed on the host, which then discovers flatpak application/runtime/extension paths and sets them up for the service.
+The service uses [flatbox](https://github.com/ilya-zlobintsev/flatbox) in order to create a flatpak-like environment for the service that still has the permissions it needs to function (such as write access to various sysfs paths). Flatbox itself is shipped as a static binary with the flatpak and is executed on the host, which then discovers flatpak application/runtime/extension paths and sets them up for the service.
 
 This approach allows the service to avoid any dependence on system libraries and commands for its functionality. The only exception are distro-specific commands for AMD overdrive setup.
 
