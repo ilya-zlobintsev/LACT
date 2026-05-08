@@ -1013,6 +1013,7 @@ impl AppModel {
 
         match self.daemon_client.get_power_states(&gpu_id).await {
             Ok(power_states) => {
+                trace!("got power states: {power_states:?}");
                 self.oc_page.emit(OcPageMsg::PowerStates {
                     pstates: power_states,
                     configured: gpu_config.is_some_and(|config| !config.power_states.is_empty()),
