@@ -23,7 +23,6 @@ use crate::{
         gpu_selector::GpuSelector,
         info_dialog::{
             InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
-            InfoDialogRequest,
         },
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
@@ -425,9 +424,8 @@ impl AsyncComponent for AppModel {
                 daemon_version = system_info.version.as_str(),
                 daemon_commit = system_info.commit.as_deref().unwrap_or_default()
             ),
-            stacktrace: None,
             selectable_text: Some("sudo systemctl restart lactd".to_string()),
-            confirmation: None,
+            ..Default::default()
         });
 
         let info_page = InformationPage::detach_default();
@@ -454,7 +452,9 @@ impl AsyncComponent for AppModel {
             .detach();
 
         let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
-        let info_dialog = InfoDialog::builder().launch(root.clone()).detach();
+        let info_dialog = InfoDialog::builder()
+            .launch(root.clone())
+            .forward(sender.input_sender(), |msg| msg);
 
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
@@ -505,26 +505,21 @@ impl AsyncComponent for AppModel {
         if let Some(err) = conn_err {
             model
                 .info_dialog
-                .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::new(
-                    InfoDialogData {
-                        id: InfoDialogId::EmbeddedDaemonInfo,
-                        heading: fl!(I18N, "daemon-info-heading"),
-                        body: fl!(
-                            I18N,
-                            "embedded-daemon-info",
-                            error_info = format!("Error info: {err:#}\n\n")
-                        ),
-                        stacktrace: None,
-                        selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
-                        confirmation: None,
-                    },
-                ))));
+                .emit(InfoDialogMsg::Show(Box::new(InfoDialogData {
+                    id: InfoDialogId::EmbeddedDaemonInfo,
+                    heading: fl!(I18N, "daemon-info-heading"),
+                    body: fl!(
+                        I18N,
+                        "embedded-daemon-info",
+                        error_info = format!("Error info: {err:#}\n\n")
+                    ),
+                    selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
+                    ..Default::default()
+                })));
         }
 
         if let Some(info) = version_mismatch_info {
-            model
-                .info_dialog
-                .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::new(info))));
+            model.info_dialog.emit(InfoDialogMsg::Show(Box::new(info)));
         }
 
         sender.input(AppMsg::ReloadProfiles { state_sender: None });
@@ -554,16 +549,13 @@ impl AsyncComponent for AppModel {
         trace!("processing state update");
         if let Err(err) = self.handle_msg(msg, sender.clone(), root, widgets).await {
             self.info_dialog
-                .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::new(
-                    InfoDialogData {
-                        id: InfoDialogId::Error,
-                        heading: fl!(I18N, "error-heading"),
-                        stacktrace: Some(format!("{err:?}")),
-                        body: format!("{err:#}"),
-                        selectable_text: None,
-                        confirmation: None,
-                    },
-                ))));
+                .emit(InfoDialogMsg::Show(Box::new(InfoDialogData {
+                    id: InfoDialogId::Error,
+                    heading: fl!(I18N, "error-heading"),
+                    stacktrace: Some(format!("{err:?}")),
+                    body: format!("{err:#}"),
+                    ..Default::default()
+                })));
         }
         self.update_view(widgets, sender);
     }
@@ -791,33 +783,23 @@ impl AppModel {
                 result?;
             }
             AppMsg::ResetConfig => {
-                let sender = sender.clone();
-                let daemon_client = self.daemon_client.clone();
                 self.info_dialog
-                    .emit(InfoDialogMsg::Show(Box::new(InfoDialogRequest::confirmed(
-                        InfoDialogData {
-                            id: InfoDialogId::ResetConfigConfirmation,
-                            heading: fl!(I18N, "reset-config"),
-                            body: fl!(I18N, "reset-config-description"),
-                            stacktrace: None,
-                            selectable_text: None,
-                            confirmation: Some(InfoDialogConfirmation {
-                                confirm_label: fl!(I18N, "reset-button"),
-                                cancel_label: fl!(I18N, "cancel"),
-                                appearance: adw::ResponseAppearance::Destructive,
-                            }),
-                        },
-                        Box::new(move || {
-                            relm4::spawn_local(async move {
-                                if let Err(err) = daemon_client.reset_config().await {
-                                    sender.input(AppMsg::Error(Arc::new(err)));
-                                    return;
-                                }
-
-                                sender.input(AppMsg::ReloadData { full: true });
-                            });
+                    .emit(InfoDialogMsg::Show(Box::new(InfoDialogData {
+                        id: InfoDialogId::ResetConfigConfirmation,
+                        heading: fl!(I18N, "reset-config"),
+                        body: fl!(I18N, "reset-config-description"),
+                        confirmation: Some(InfoDialogConfirmation {
+                            confirm_label: fl!(I18N, "reset-button"),
+                            cancel_label: fl!(I18N, "cancel"),
+                            appearance: adw::ResponseAppearance::Destructive,
+                            confirm_msg: AppMsg::ResetConfigConfirmed,
                         }),
-                    ))));
+                        ..Default::default()
+                    })));
+            }
+            AppMsg::ResetConfigConfirmed => {
+                self.daemon_client.reset_config().await?;
+                sender.input(AppMsg::ReloadData { full: true });
             }
             AppMsg::FetchProcessList => {
                 if self.process_monitor_window.widget().is_visible()

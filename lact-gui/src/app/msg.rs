@@ -28,6 +28,7 @@ pub enum AppMsg {
     EnableOverdrive,
     DisableOverdrive,
     ResetConfig,
+    ResetConfigConfirmed,
     FetchProcessList,
     ReloadProfiles {
         state_sender: Option<relm4::Sender<ProfileRuleRowMsg>>,
