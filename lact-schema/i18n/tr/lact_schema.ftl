@@ -1,0 +1,24 @@
+gpu-model = GPU Modeli
+subvendor = Kart Üreticisi
+subdevice = Kart Modeli
+driver-used = Kullanılan Sürücü
+vbios-version = VBIOS Sürümü
+vram-size = VRAM Boyutu
+vram-type = VRAM Türü
+gpu-family = GPU Ailesi
+asic-name = ASIC Adı
+compute-units = Hesaplama Birimleri
+execution-units = Yürütme Birimleri
+subslices = Subslices
+cuda-cores = CUDA Çekirdekleri
+hardware-count = {$name} Sayısı
+isa = Komut Kümesi
+l1-cache-per-cu = L1 Önbellek (CU Başına)
+l2-cache = L2 Önbellek
+l3-cache = L3 Önbellek
+rebar = Resizable BAR
+cpu-vram = CPU'nun Erişebildiği VRAM
+pcie-speed = PCIe Bağlantı Hızı
+
+enabled = Etkin
+disabled = Devre dışı
