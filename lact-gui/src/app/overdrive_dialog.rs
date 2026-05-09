@@ -2,11 +2,8 @@ use crate::{
     I18N,
     app::{APP_BROKER, msg::AppMsg},
 };
-use adw::prelude::{ActionRowExt, AdwDialogExt, PreferencesPageExt, PreferencesRowExt};
-use gtk::{
-    pango,
-    prelude::{BoxExt, ButtonExt, OrientableExt, WidgetExt},
-};
+use adw::prelude::*;
+use gtk::pango;
 use i18n_embed_fl::fl;
 use lact_daemon::BASE_MODULE_CONF_PATH;
 use lact_schema::{AmdgpuParamsConfigurator, BootArgConfigurator, SystemInfo};

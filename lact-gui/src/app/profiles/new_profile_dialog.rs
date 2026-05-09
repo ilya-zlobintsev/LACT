@@ -1,6 +1,5 @@
 use crate::I18N;
-use adw::prelude::{AdwDialogExt, EntryRowExt, PreferencesPageExt, PreferencesRowExt};
-use gtk::prelude::*;
+use adw::prelude::*;
 use i18n_embed_fl::fl;
 use lact_schema::request::ProfileBase;
 use relm4::{
