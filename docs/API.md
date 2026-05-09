@@ -8,7 +8,7 @@ The general format of requests looks like:
 ```
 {"command": "command_name", "args": {}}
 ```
-Note that the type of `args` depends on the specific request, and may be ommited in some cases.
+Note that the type of `args` depends on the specific request, and may be omitted in some cases.
 
 The response looks like this:
 ```
@@ -69,7 +69,7 @@ The `power_cap` field has been changed from the previous config
 {"status":"ok","data":null}
 ```
 
-For the full list of available commands and responses, you can look at the source code of the schema: [requests](lact-schema/src/request.rs), [the basic response structure](lact-schema/src/response.rs) and [all possible types](lact-schema/src/lib.rs).
+For the full list of available commands and responses, you can look at the source code of the schema: [requests](../lact-schema/src/request.rs), [the basic response structure](../lact-schema/src/response.rs) and [all possible types](../lact-schema/src/lib.rs).
 
 It should also be fairly easy to figure out the API by trial and error, as the error message are quite verbose:
 
