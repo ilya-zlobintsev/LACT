@@ -35,7 +35,7 @@ system.
   - GPU firmware thermal options such as thermal and acoustic target/limit (AMD RDNA3+ only)
 - #### Overclocking
   - GPU/VRAM clocks configuration
-  - GPU undervolting (via voltage offset on AMD, [indirectly](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions#how-to-undervolt-nvidia-gpus) on Nvidia)
+  - GPU undervolting (via voltage offset on AMD, VF curve on Nvidia)
 - #### Settings profiles
   - Automatic profile activation based on running processes or gamemode status
 - #### [OpenTelemetry metrics exporter](./docs/EXPORTER.md)
