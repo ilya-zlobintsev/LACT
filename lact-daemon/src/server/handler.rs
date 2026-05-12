@@ -83,6 +83,9 @@ const SNAPSHOT_EXCLUDED_FILENAME_PREFIXES: &[&str] = &[
 ];
 const CONFIG_RESET_CMDLINE_ARG: &str = "lact-reset";
 
+type ProfileHolds = Rc<RefCell<Vec<(u64, Rc<str>, oneshot::Sender<()>)>>>;
+type ProfileHoldSnapshot = Rc<RefCell<Option<(Option<Rc<str>>, bool)>>>;
+
 #[derive(Clone)]
 pub struct Handler {
     pub config: Rc<RwLock<Config>>,
@@ -92,8 +95,8 @@ pub struct Handler {
     profile_watcher_tx: Rc<RefCell<Option<mpsc::Sender<ProfileWatcherCommand>>>>,
     pub profile_watcher_state: Rc<RefCell<Option<ProfileWatcherState>>>,
     profile_watcher_join_handle: Rc<RefCell<Option<JoinHandle<()>>>>,
-    profile_holds: Rc<RefCell<Vec<(u64, Rc<str>, oneshot::Sender<()>)>>>,
-    profile_hold_snapshot: Rc<RefCell<Option<(Option<Rc<str>>, bool)>>>,
+    profile_holds: ProfileHolds,
+    profile_hold_snapshot: ProfileHoldSnapshot,
     next_hold_cookie: Rc<Cell<u64>>,
 }
 
