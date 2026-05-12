@@ -10,7 +10,7 @@ use crate::server::{
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
-        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
+        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind,
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
         power_profile_mode::PowerProfileModesTable,
@@ -436,14 +436,13 @@ impl AmdGpuController {
         attempt: u32,
     ) -> Vec<PowerState> {
         let enabled_states = gpu_config.and_then(|gpu| gpu.power_states.get(&kind));
-        let levels = self
-            .handle
-            .get_clock_levels(kind)
-            .unwrap_or_else(|_| PowerLevels {
-                levels: Vec::new(),
-                active: None,
-            })
-            .levels;
+        let levels = match self.handle.get_clock_levels(kind) {
+            Ok(levels) => levels.levels,
+            Err(err) => {
+                debug!("could not read AMD {kind:?} power states: {err:#}");
+                Vec::new()
+            }
+        };
 
         if attempt < MAX_PSTATE_READ_ATTEMPTS
             && levels.iter().any(|value| *value >= u64::from(u16::MAX))
@@ -1016,21 +1015,27 @@ impl GpuController for AmdGpuController {
             temps,
             busy_percent: self.handle.get_busy_percent().ok(),
             performance_level: self.handle.get_power_force_performance_level().ok(),
-            core_power_state: self
-                .handle
-                .get_core_clock_levels()
-                .ok()
-                .and_then(|levels| levels.active),
-            memory_power_state: self
-                .handle
-                .get_memory_clock_levels()
-                .ok()
-                .and_then(|levels| levels.active),
-            pcie_power_state: self
-                .handle
-                .get_pcie_clock_levels()
-                .ok()
-                .and_then(|levels| levels.active),
+            core_power_state: match self.handle.get_core_clock_levels() {
+                Ok(levels) => levels.active,
+                Err(err) => {
+                    debug!("could not read active AMD core power state: {err:#}");
+                    None
+                }
+            },
+            memory_power_state: match self.handle.get_memory_clock_levels() {
+                Ok(levels) => levels.active,
+                Err(err) => {
+                    debug!("could not read active AMD memory power state: {err:#}");
+                    None
+                }
+            },
+            pcie_power_state: match self.handle.get_pcie_clock_levels() {
+                Ok(levels) => levels.active,
+                Err(err) => {
+                    debug!("could not read active AMD PCIe power state: {err:#}");
+                    None
+                }
+            },
             throttle_info,
         }
     }
