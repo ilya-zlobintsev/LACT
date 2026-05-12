@@ -10,7 +10,7 @@ use crate::server::{
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
-        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
+        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind,
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
         power_profile_mode::PowerProfileModesTable,
@@ -439,16 +439,15 @@ impl AmdGpuController {
         let levels = self
             .handle
             .get_clock_levels(kind)
-            .unwrap_or_else(|_| PowerLevels {
-                levels: Vec::new(),
-                active: None,
-            })
-            .levels;
+            .inspect(|power_levels| trace!("{kind:?} power states: {power_levels:?}"))
+            .inspect_err(|err| debug!("could not get {kind:?} power states: {err:#}"))
+            .map(|power_levels| power_levels.levels)
+            .unwrap_or_default();
 
         if attempt < MAX_PSTATE_READ_ATTEMPTS
             && levels.iter().any(|value| *value >= u64::from(u16::MAX))
         {
-            debug!("GPU reported nonsensical p-state value, retrying");
+            debug!("GPU reported nonsensical {kind:?} power state values, retrying: {levels:?}");
             return self.get_power_states_kind(gpu_config, kind, attempt + 1);
         }
 
@@ -1019,16 +1018,19 @@ impl GpuController for AmdGpuController {
             core_power_state: self
                 .handle
                 .get_core_clock_levels()
+                .inspect_err(|err| debug!("could not get active core power state: {err:#}"))
                 .ok()
                 .and_then(|levels| levels.active),
             memory_power_state: self
                 .handle
                 .get_memory_clock_levels()
+                .inspect_err(|err| debug!("could not get active memory power state: {err:#}"))
                 .ok()
                 .and_then(|levels| levels.active),
             pcie_power_state: self
                 .handle
                 .get_pcie_clock_levels()
+                .inspect_err(|err| debug!("could not get active PCIe power state: {err:#}"))
                 .ok()
                 .and_then(|levels| levels.active),
             throttle_info,
