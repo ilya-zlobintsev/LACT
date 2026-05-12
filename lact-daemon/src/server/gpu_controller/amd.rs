@@ -436,16 +436,13 @@ impl AmdGpuController {
         attempt: u32,
     ) -> Vec<PowerState> {
         let enabled_states = gpu_config.and_then(|gpu| gpu.power_states.get(&kind));
-        let levels = match self.handle.get_clock_levels(kind) {
-            Ok(power_levels) => {
-                trace!("{kind:?} power states: {power_levels:?}");
-                power_levels.levels
-            }
-            Err(err) => {
-                debug!("could not get {kind:?} power states: {err:#}");
-                Vec::new()
-            }
-        };
+        let levels = self
+            .handle
+            .get_clock_levels(kind)
+            .inspect(|power_levels| trace!("{kind:?} power states: {power_levels:?}"))
+            .inspect_err(|err| debug!("could not get {kind:?} power states: {err:#}"))
+            .map(|power_levels| power_levels.levels)
+            .unwrap_or_default();
 
         if attempt < MAX_PSTATE_READ_ATTEMPTS
             && levels.iter().any(|value| *value >= u64::from(u16::MAX))
@@ -1018,27 +1015,24 @@ impl GpuController for AmdGpuController {
             temps,
             busy_percent: self.handle.get_busy_percent().ok(),
             performance_level: self.handle.get_power_force_performance_level().ok(),
-            core_power_state: match self.handle.get_core_clock_levels() {
-                Ok(levels) => levels.active,
-                Err(err) => {
-                    debug!("could not get active core power state: {err:#}");
-                    None
-                }
-            },
-            memory_power_state: match self.handle.get_memory_clock_levels() {
-                Ok(levels) => levels.active,
-                Err(err) => {
-                    debug!("could not get active memory power state: {err:#}");
-                    None
-                }
-            },
-            pcie_power_state: match self.handle.get_pcie_clock_levels() {
-                Ok(levels) => levels.active,
-                Err(err) => {
-                    debug!("could not get active PCIe power state: {err:#}");
-                    None
-                }
-            },
+            core_power_state: self
+                .handle
+                .get_core_clock_levels()
+                .inspect_err(|err| debug!("could not get active core power state: {err:#}"))
+                .ok()
+                .and_then(|levels| levels.active),
+            memory_power_state: self
+                .handle
+                .get_memory_clock_levels()
+                .inspect_err(|err| debug!("could not get active memory power state: {err:#}"))
+                .ok()
+                .and_then(|levels| levels.active),
+            pcie_power_state: self
+                .handle
+                .get_pcie_clock_levels()
+                .inspect_err(|err| debug!("could not get active PCIe power state: {err:#}"))
+                .ok()
+                .and_then(|levels| levels.active),
             throttle_info,
         }
     }
