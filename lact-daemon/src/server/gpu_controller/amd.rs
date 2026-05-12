@@ -437,9 +437,12 @@ impl AmdGpuController {
     ) -> Vec<PowerState> {
         let enabled_states = gpu_config.and_then(|gpu| gpu.power_states.get(&kind));
         let levels = match self.handle.get_clock_levels(kind) {
-            Ok(levels) => levels.levels,
+            Ok(power_levels) => {
+                trace!("{kind:?} power states: {power_levels:?}");
+                power_levels.levels
+            }
             Err(err) => {
-                debug!("could not read AMD {kind:?} power states: {err:#}");
+                debug!("could not get {kind:?} power states: {err:#}");
                 Vec::new()
             }
         };
@@ -447,7 +450,9 @@ impl AmdGpuController {
         if attempt < MAX_PSTATE_READ_ATTEMPTS
             && levels.iter().any(|value| *value >= u64::from(u16::MAX))
         {
-            debug!("GPU reported nonsensical p-state value, retrying");
+            debug!(
+                "GPU reported nonsensical {kind:?} power state values, retrying: {levels:?}"
+            );
             return self.get_power_states_kind(gpu_config, kind, attempt + 1);
         }
 
@@ -1018,21 +1023,21 @@ impl GpuController for AmdGpuController {
             core_power_state: match self.handle.get_core_clock_levels() {
                 Ok(levels) => levels.active,
                 Err(err) => {
-                    debug!("could not read active AMD core power state: {err:#}");
+                    debug!("could not get active core power state: {err:#}");
                     None
                 }
             },
             memory_power_state: match self.handle.get_memory_clock_levels() {
                 Ok(levels) => levels.active,
                 Err(err) => {
-                    debug!("could not read active AMD memory power state: {err:#}");
+                    debug!("could not get active memory power state: {err:#}");
                     None
                 }
             },
             pcie_power_state: match self.handle.get_pcie_clock_levels() {
                 Ok(levels) => levels.active,
                 Err(err) => {
-                    debug!("could not read active AMD PCIe power state: {err:#}");
+                    debug!("could not get active PCIe power state: {err:#}");
                     None
                 }
             },
