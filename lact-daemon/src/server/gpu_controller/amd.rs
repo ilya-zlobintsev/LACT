@@ -450,9 +450,7 @@ impl AmdGpuController {
         if attempt < MAX_PSTATE_READ_ATTEMPTS
             && levels.iter().any(|value| *value >= u64::from(u16::MAX))
         {
-            debug!(
-                "GPU reported nonsensical {kind:?} power state values, retrying: {levels:?}"
-            );
+            debug!("GPU reported nonsensical {kind:?} power state values, retrying: {levels:?}");
             return self.get_power_states_kind(gpu_config, kind, attempt + 1);
         }
 
