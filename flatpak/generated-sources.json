@@ -2173,14 +2173,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/libdrm_amdgpu_sys/libdrm_amdgpu_sys-0.8.13.crate",
-        "sha256": "380c3cfe531e0237f58a16c75710b17eaa006614c6ab115efa921ac8b019c25b",
-        "dest": "cargo/vendor/libdrm_amdgpu_sys-0.8.13"
+        "url": "https://static.crates.io/crates/libdrm_amdgpu_sys/libdrm_amdgpu_sys-0.8.14.crate",
+        "sha256": "3b63f219bdee8484c65e0f54f81b6c671f1ab433f460e40c3174dea688abf31b",
+        "dest": "cargo/vendor/libdrm_amdgpu_sys-0.8.14"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"380c3cfe531e0237f58a16c75710b17eaa006614c6ab115efa921ac8b019c25b\", \"files\": {}}",
-        "dest": "cargo/vendor/libdrm_amdgpu_sys-0.8.13",
+        "contents": "{\"package\": \"3b63f219bdee8484c65e0f54f81b6c671f1ab433f460e40c3174dea688abf31b\", \"files\": {}}",
+        "dest": "cargo/vendor/libdrm_amdgpu_sys-0.8.14",
         "dest-filename": ".cargo-checksum.json"
     },
     {
