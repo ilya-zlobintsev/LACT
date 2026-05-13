@@ -15,7 +15,7 @@ use std::fmt::Debug;
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     net::{TcpListener, UnixListener},
-    sync::watch,
+    sync::Notify,
 };
 use tracing::{debug, error, info, instrument, trace};
 
@@ -117,7 +117,7 @@ pub async fn handle_stream<T: AsyncRead + AsyncWrite + Unpin>(
     stream: T,
     handler: Handler,
 ) -> anyhow::Result<()> {
-    let (_disconnect_tx, disconnect_rx) = watch::channel(false);
+    let disconnect_notify = std::sync::Arc::new(Notify::new());
 
     let mut stream = BufReader::new(stream);
 
@@ -127,7 +127,7 @@ pub async fn handle_stream<T: AsyncRead + AsyncWrite + Unpin>(
 
         let maybe_request = serde_json::from_str(&buf);
         let response = match maybe_request {
-            Ok(request) => match handle_request(request, &handler, &disconnect_rx).await {
+            Ok(request) => match handle_request(request, &handler, &disconnect_notify).await {
                 Ok(response) => response,
                 Err(error) => serde_json::to_vec(&Response::<()>::from(error))?,
             },
@@ -142,14 +142,16 @@ pub async fn handle_stream<T: AsyncRead + AsyncWrite + Unpin>(
         buf.clear();
     }
 
+    disconnect_notify.notify_waiters();
+
     Ok(())
 }
 
-#[instrument(level = "debug", skip(handler, disconnect_rx))]
+#[instrument(level = "debug", skip(handler, disconnect_notify))]
 async fn handle_request<'a>(
     request: Request<'a>,
     handler: &'a Handler,
-    disconnect_rx: &watch::Receiver<bool>,
+    disconnect_notify: &std::sync::Arc<Notify>,
 ) -> anyhow::Result<Vec<u8>> {
     match request {
         Request::Ping => ok_response(ping()),
@@ -206,9 +208,11 @@ async fn handle_request<'a>(
         Request::MoveProfile { name, new_position } => {
             ok_response(handler.move_profile(&name, new_position).await?)
         }
-        Request::HoldProfile { name } => {
-            ok_response(handler.hold_profile(name, disconnect_rx.clone()).await?)
-        }
+        Request::HoldProfile { name } => ok_response(
+            handler
+                .hold_profile(name, disconnect_notify.clone())
+                .await?,
+        ),
         Request::ReleaseProfile { cookie } => ok_response(handler.release_profile(cookie).await?),
         Request::EvaluateProfileRule { rule } => ok_response(handler.evaluate_profile_rule(&rule)?),
         Request::SetProfileRule { name, rule, hooks } => {

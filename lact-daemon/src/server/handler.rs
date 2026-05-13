@@ -47,7 +47,7 @@ use std::{
 };
 use tokio::{
     process::Command,
-    sync::{RwLock, RwLockReadGuard, mpsc, oneshot, watch},
+    sync::{RwLock, RwLockReadGuard, mpsc, oneshot},
     task::JoinHandle,
     time::sleep,
 };
@@ -83,7 +83,7 @@ const SNAPSHOT_EXCLUDED_FILENAME_PREFIXES: &[&str] = &[
 ];
 const CONFIG_RESET_CMDLINE_ARG: &str = "lact-reset";
 
-type ProfileHolds = Rc<RefCell<Vec<(u64, Rc<str>, oneshot::Sender<()>)>>>;
+type ProfileHolds = Rc<RefCell<Vec<(u64, Rc<str>, mpsc::Sender<()>)>>>;
 type ProfileHoldSnapshot = Rc<RefCell<Option<(Option<Rc<str>>, bool)>>>;
 
 #[derive(Clone)]
@@ -1022,7 +1022,7 @@ impl<'a> Handler {
     pub async fn hold_profile(
         &self,
         name: String,
-        mut disconnect_rx: watch::Receiver<bool>,
+        disconnect_notify: std::sync::Arc<tokio::sync::Notify>,
     ) -> anyhow::Result<u64> {
         {
             let config = self.config.read().await;
@@ -1046,10 +1046,10 @@ impl<'a> Handler {
         let cookie = self.next_hold_cookie.get();
         self.next_hold_cookie.set(cookie + 1);
 
-        let (drop_guard_tx, drop_guard_rx) = oneshot::channel::<()>();
+        let (release_tx, mut release_rx) = mpsc::channel::<()>(1);
         self.profile_holds
             .borrow_mut()
-            .push((cookie, name_rc.clone(), drop_guard_tx));
+            .push((cookie, name_rc.clone(), release_tx));
 
         if let Err(err) = self.set_current_profile(Some(name_rc)).await {
             self.profile_holds
@@ -1066,10 +1066,10 @@ impl<'a> Handler {
         let handler = self.clone();
         tokio::task::spawn_local(async move {
             tokio::select! {
-                _ = disconnect_rx.wait_for(|_| false) => {
+                () = disconnect_notify.notified() => {
                     debug!("connection for profile hold {cookie} dropped, auto-releasing");
                 }
-                _ = drop_guard_rx => {
+                _ = release_rx.recv() => {
                     return;
                 }
             }
@@ -1082,17 +1082,16 @@ impl<'a> Handler {
     }
 
     pub async fn release_profile(&self, cookie: u64) -> anyhow::Result<()> {
-        let was_top = {
+        let (idx, was_top) = {
             let holds = self.profile_holds.borrow();
             match holds.iter().rposition(|(c, _, _)| *c == cookie) {
-                Some(idx) => idx == holds.len() - 1,
+                Some(idx) => (idx, idx == holds.len() - 1),
                 None => bail!("Unknown profile hold cookie {cookie}"),
             }
         };
 
-        self.profile_holds
-            .borrow_mut()
-            .retain(|(c, _, _)| *c != cookie);
+        let (_, _, release_tx) = self.profile_holds.borrow_mut().remove(idx);
+        let _ = release_tx.send(()).await;
 
         info!("releasing profile hold {cookie}");
 
