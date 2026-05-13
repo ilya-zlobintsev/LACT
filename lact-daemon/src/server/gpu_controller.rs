@@ -3,7 +3,7 @@ mod amd;
 pub mod common;
 mod intel;
 #[cfg(feature = "nvidia")]
-mod nvidia;
+pub mod nvidia;
 
 use amd::AmdGpuController;
 use intel::IntelGpuController;
@@ -39,6 +39,7 @@ pub type DynGpuController = Box<dyn GpuController>;
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 
 pub trait GpuController {
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
     fn controller_info(&self) -> &CommonControllerInfo;
 
     fn device_type(&self) -> DeviceType;

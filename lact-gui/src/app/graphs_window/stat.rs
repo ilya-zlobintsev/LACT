@@ -103,6 +103,14 @@ impl StatsData {
                     .push((timestamp, value));
             }
         }
+        if let Some(connector) = &stats.power_connector {
+            for (i, pin) in connector.pins.iter().enumerate() {
+                self.stats
+                    .entry(StatType::ConnectorPin(i))
+                    .or_default()
+                    .push((timestamp, pin.current_a()));
+            }
+        }
 
         let is_throttling = stats
             .throttle_info
@@ -229,6 +237,7 @@ pub enum StatType {
     GpuVoltage,
     Clockspeed(String),
     Voltage(String),
+    ConnectorPin(usize),
 }
 
 impl StatType {
@@ -251,6 +260,7 @@ impl StatType {
             PowerCurrent => "Power Draw".into(),
             PowerAverage => "Power Draw (Avg)".into(),
             PowerCap => "Power Cap".into(),
+            ConnectorPin(n) => format!("Connector Pin {}", n + 1).into(),
         }
     }
 
@@ -265,11 +275,12 @@ impl StatType {
             FanPwm => "%",
             GpuUsage => "%",
             PowerCurrent | PowerAverage | PowerCap | Power(_) => "W",
+            ConnectorPin(_) => "A",
         }
     }
 
     pub fn show_peak(&self) -> bool {
         use StatType::*;
-        !matches!(self, VramSize | PowerCap)
+!matches!(self, VramSize | PowerCap | ConnectorPin(_))
     }
 }

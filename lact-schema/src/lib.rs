@@ -553,6 +553,8 @@ pub struct DeviceStats {
     pub memory_power_state: Option<usize>,
     pub pcie_power_state: Option<usize>,
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
+    #[serde(default)]
+    pub power_connector: Option<PowerConnectorStats>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -851,4 +853,36 @@ impl ProcessUtilizationType {
 pub enum ProcessType {
     Graphics,
     Compute,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ConnectorPinStats {
+    pub voltage_mv: u32,
+    pub current_ma: u32,
+}
+
+impl ConnectorPinStats {
+    pub fn voltage_v(&self) -> f64 {
+        self.voltage_mv as f64 / 1000.0
+    }
+    pub fn current_a(&self) -> f64 {
+        self.current_ma as f64 / 1000.0
+    }
+    pub fn power_w(&self) -> f64 {
+        self.voltage_v() * self.current_a()
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct PowerConnectorStats {
+    pub pins: Vec<ConnectorPinStats>,
+}
+
+impl PowerConnectorStats {
+    pub fn total_current_a(&self) -> f64 {
+        self.pins.iter().map(|p| p.current_a()).sum()
+    }
+    pub fn total_power_w(&self) -> f64 {
+        self.pins.iter().map(|p| p.power_w()).sum()
+    }
 }

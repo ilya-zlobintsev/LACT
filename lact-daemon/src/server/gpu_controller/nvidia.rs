@@ -19,6 +19,10 @@ use amdgpu_sysfs::{
     hw_mon::Temperature,
 };
 use anyhow::{Context, anyhow, bail};
+use i2cdev::core::I2CDevice;
+use i2cdev::linux::LinuxI2CDevice;
+use lact_schema::PowerConnectorStats;
+use lact_schema::ConnectorPinStats;
 use driver::DriverHandle;
 use futures::{FutureExt, future::LocalBoxFuture, join};
 use indexmap::IndexMap;
@@ -72,6 +76,9 @@ pub struct NvidiaGpuController {
     last_applied_vram_locked_clocks: RefCell<Option<(u32, u32)>>,
     // Check if reset is needed to avoid unnecessarily going to nvapi
     vf_curve_written: Cell<bool>,
+    pub power_connector_i2c_bus: Option<u8>,
+    pub power_connector_i2c_addr: u8,
+    pub power_connector_reg_base: u8,
 }
 
 impl NvidiaGpuController {
@@ -146,6 +153,9 @@ impl NvidiaGpuController {
             last_applied_gpu_locked_clocks: RefCell::new(None),
             last_applied_vram_locked_clocks: RefCell::new(None),
             vf_curve_written: Cell::new(false),
+            power_connector_i2c_bus: None,
+            power_connector_i2c_addr: 0x2b,
+            power_connector_reg_base: 0x80,
         })
     }
 
@@ -518,7 +528,37 @@ fn point_count_from_mask(mask: [u32; 8]) -> usize {
     count
 }
 
+impl NvidiaGpuController {
+    pub fn set_power_connector_config(&mut self, bus: u8, addr: u8, reg_base: u8) {
+        self.power_connector_i2c_bus = Some(bus);
+        self.power_connector_i2c_addr = addr;
+        self.power_connector_reg_base = reg_base;
+    }
+
+    fn read_power_connector(i2c_bus: u8, i2c_addr: u8, reg_base: u8) -> Option<PowerConnectorStats> {
+        let path = format!("/dev/i2c-{}", i2c_bus);
+        let mut dev = LinuxI2CDevice::new(&path, u16::from(i2c_addr)).ok()?;
+        let mut pins = Vec::new();
+        for i in 0..6u8 {
+            let offset = reg_base + i * 4;
+            let v_hi = dev.smbus_read_byte_data(offset).ok()? as u32;
+            let v_lo = dev.smbus_read_byte_data(offset + 1).ok()? as u32;
+            let c_hi = dev.smbus_read_byte_data(offset + 2).ok()? as u32;
+            let c_lo = dev.smbus_read_byte_data(offset + 3).ok()? as u32;
+            pins.push(ConnectorPinStats {
+                voltage_mv: (v_hi << 8) | v_lo,
+                current_ma: (c_hi << 8) | c_lo,
+            });
+        }
+        Some(PowerConnectorStats { pins })
+    }
+}
+
 impl GpuController for NvidiaGpuController {
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
     }
@@ -641,6 +681,7 @@ impl GpuController for NvidiaGpuController {
         clippy::cast_sign_loss,
         clippy::too_many_lines
     )]
+
     fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let device = self.device();
 
@@ -838,6 +879,9 @@ impl GpuController for NvidiaGpuController {
             core_power_state: active_pstate,
             memory_power_state: active_pstate,
             pcie_power_state: None,
+            power_connector: self.power_connector_i2c_bus.and_then(|bus| {
+                Self::read_power_connector(bus, self.power_connector_i2c_addr, self.power_connector_reg_base)
+            }),
         }
     }
 

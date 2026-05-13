@@ -27,6 +27,7 @@ use std::{
 };
 
 pub struct GraphsWindow {
+    has_connector: bool,
     time_period_seconds_adj: gtk::Adjustment,
     gpu_id: Option<String>,
     edit_mode: BoolBinding,
@@ -53,6 +54,7 @@ pub enum GraphsWindowMsg {
     SaveConfig,
     Show,
     ExportData,
+    AddConnectorPlot,
 }
 
 #[relm4::component(pub)]
@@ -118,7 +120,7 @@ impl relm4::Component for GraphsWindow {
                         set_label: &fl!(I18N, "reset-button"),
                         set_tooltip: &fl!(I18N, "reset-all-graphs-tooltip"),
                         add_css_class: "destructive-action",
-                        connect_clicked => GraphsWindowMsg::SetConfig(default_plots()),
+                        connect_clicked => GraphsWindowMsg::SetConfig(default_plots(false)),
                     },
 
                     gtk::Button {
@@ -176,6 +178,7 @@ impl relm4::Component for GraphsWindow {
             edit_mode,
             plots,
             gpu_id: None,
+            has_connector: false,
             vram_clock_ratio: 1.0,
             stats_data,
         };
@@ -204,6 +207,10 @@ impl relm4::Component for GraphsWindow {
                 stats,
                 selected_gpu_id,
             } => {
+                // Update has_connector before computing default plots
+                if stats.power_connector.is_some() && !self.has_connector {
+                    self.has_connector = true;
+                }
                 if let Some(selected_gpu_id) = selected_gpu_id {
                     self.stats_data.write().unwrap().clear();
 
@@ -213,10 +220,18 @@ impl relm4::Component for GraphsWindow {
                         .get(&selected_gpu_id)
                         .map(|config| config.plots.clone())
                         .filter(|plots| !plots.is_empty())
-                        .unwrap_or_else(default_plots);
+                        .unwrap_or_else(|| default_plots(self.has_connector));
 
                     self.gpu_id = Some(selected_gpu_id);
                     sender.input(GraphsWindowMsg::SetConfig(plots_config));
+                } else if stats.power_connector.is_some() {
+                    // GPU already selected: add connector plot if not present yet
+                    let already_present = self.plots.iter().any(|p| {
+                        p.selected_stats().iter().any(|s| matches!(s, StatType::ConnectorPin(_)))
+                    });
+                    if !already_present {
+                        sender.input(GraphsWindowMsg::AddConnectorPlot);
+                    }
                 }
 
                 let mut data = self.stats_data.write().unwrap();
@@ -281,6 +296,24 @@ impl relm4::Component for GraphsWindow {
                     });
                 }
             }
+            GraphsWindowMsg::AddConnectorPlot => {
+                let connector_plot = vec![
+                    StatType::ConnectorPin(0),
+                    StatType::ConnectorPin(1),
+                    StatType::ConnectorPin(2),
+                    StatType::ConnectorPin(3),
+                    StatType::ConnectorPin(4),
+                    StatType::ConnectorPin(5),
+                ];
+                sender.input(GraphsWindowMsg::SetConfig({
+                    let mut current: Vec<Vec<StatType>> = self.plots
+                        .iter()
+                        .map(|p| p.selected_stats())
+                        .collect();
+                    current.push(connector_plot);
+                    current
+                }));
+            }
             GraphsWindowMsg::ExportData => {
                 let settings = SaveDialogSettings {
                     cancel_label: "Cancel".to_owned(),
@@ -342,8 +375,8 @@ impl GraphsWindow {
 #[boxed_type(name = "DynamicIndexValue")]
 pub struct DynamicIndexValue(DynamicIndex);
 
-fn default_plots() -> Vec<Vec<StatType>> {
-    vec![
+fn default_plots(has_connector: bool) -> Vec<Vec<StatType>> {
+    let mut plots = vec![
         vec![
             StatType::Temperature("GPU".into()),
             StatType::Temperature("GPU Hotspot".into()),
@@ -363,7 +396,18 @@ fn default_plots() -> Vec<Vec<StatType>> {
             StatType::PowerCurrent,
             StatType::PowerCap,
         ],
-    ]
+    ];
+    if has_connector {
+        plots.push(vec![
+            StatType::ConnectorPin(0),
+            StatType::ConnectorPin(1),
+            StatType::ConnectorPin(2),
+            StatType::ConnectorPin(3),
+            StatType::ConnectorPin(4),
+            StatType::ConnectorPin(5),
+        ]);
+    }
+    plots
 }
 
 fn export_to_file(data: &StatsData, path: &Path) -> anyhow::Result<()> {
