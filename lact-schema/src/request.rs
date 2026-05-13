@@ -87,7 +87,6 @@ pub enum Request<'a> {
     },
     HoldProfile {
         name: String,
-        requester: String,
     },
     ReleaseProfile {
         cookie: u64,

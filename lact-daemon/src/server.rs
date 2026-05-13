@@ -206,12 +206,10 @@ async fn handle_request<'a>(
         Request::MoveProfile { name, new_position } => {
             ok_response(handler.move_profile(&name, new_position).await?)
         }
-        Request::HoldProfile { name, requester } => {
-            ok_response(handler.hold_profile(name, requester, disconnect_rx.clone()).await?)
+        Request::HoldProfile { name } => {
+            ok_response(handler.hold_profile(name, disconnect_rx.clone()).await?)
         }
-        Request::ReleaseProfile { cookie } => {
-            ok_response(handler.release_profile(cookie).await?)
-        }
+        Request::ReleaseProfile { cookie } => ok_response(handler.release_profile(cookie).await?),
         Request::EvaluateProfileRule { rule } => ok_response(handler.evaluate_profile_rule(&rule)?),
         Request::SetProfileRule { name, rule, hooks } => {
             ok_response(handler.set_profile_rule(&name, rule, hooks).await?)

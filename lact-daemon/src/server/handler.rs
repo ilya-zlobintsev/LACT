@@ -1022,7 +1022,6 @@ impl<'a> Handler {
     pub async fn hold_profile(
         &self,
         name: String,
-        requester: String,
         mut disconnect_rx: watch::Receiver<bool>,
     ) -> anyhow::Result<u64> {
         {
@@ -1038,7 +1037,8 @@ impl<'a> Handler {
             };
             self.config.write().await.auto_switch_profiles = false;
             self.stop_profile_watcher().await;
-            *self.profile_hold_snapshot.borrow_mut() = Some((snapshot_profile, snapshot_auto_switch));
+            *self.profile_hold_snapshot.borrow_mut() =
+                Some((snapshot_profile, snapshot_auto_switch));
         }
 
         let name_rc: Rc<str> = Rc::from(name.as_str());
@@ -1052,14 +1052,16 @@ impl<'a> Handler {
             .push((cookie, name_rc.clone(), drop_guard_tx));
 
         if let Err(err) = self.set_current_profile(Some(name_rc)).await {
-            self.profile_holds.borrow_mut().retain(|(c, _, _)| *c != cookie);
+            self.profile_holds
+                .borrow_mut()
+                .retain(|(c, _, _)| *c != cookie);
             if self.profile_holds.borrow().is_empty() {
                 self.profile_hold_snapshot.borrow_mut().take();
             }
             return Err(err);
         }
 
-        info!("profile hold {cookie} acquired by '{requester}' for profile '{name}'");
+        info!("profile hold {cookie} acquired for profile '{name}'");
 
         let handler = self.clone();
         tokio::task::spawn_local(async move {
@@ -1088,7 +1090,9 @@ impl<'a> Handler {
             }
         };
 
-        self.profile_holds.borrow_mut().retain(|(c, _, _)| *c != cookie);
+        self.profile_holds
+            .borrow_mut()
+            .retain(|(c, _, _)| *c != cookie);
 
         info!("releasing profile hold {cookie}");
 
