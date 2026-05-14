@@ -83,6 +83,9 @@ const SNAPSHOT_EXCLUDED_FILENAME_PREFIXES: &[&str] = &[
 ];
 const CONFIG_RESET_CMDLINE_ARG: &str = "lact-reset";
 
+type ProfileHolds = Rc<RefCell<Vec<(u64, Rc<str>, mpsc::Sender<()>)>>>;
+type ProfileHoldSnapshot = Rc<RefCell<Option<(Option<Rc<str>>, bool)>>>;
+
 #[derive(Clone)]
 pub struct Handler {
     pub config: Rc<RwLock<Config>>,
@@ -92,6 +95,9 @@ pub struct Handler {
     profile_watcher_tx: Rc<RefCell<Option<mpsc::Sender<ProfileWatcherCommand>>>>,
     pub profile_watcher_state: Rc<RefCell<Option<ProfileWatcherState>>>,
     profile_watcher_join_handle: Rc<RefCell<Option<JoinHandle<()>>>>,
+    profile_holds: ProfileHolds,
+    profile_hold_snapshot: ProfileHoldSnapshot,
+    next_hold_cookie: Rc<Cell<u64>>,
 }
 
 impl<'a> Handler {
@@ -177,6 +183,9 @@ impl<'a> Handler {
             profile_watcher_tx: Rc::new(RefCell::new(None)),
             profile_watcher_state: Rc::new(RefCell::new(None)),
             profile_watcher_join_handle: Rc::new(RefCell::new(None)),
+            profile_holds: Rc::new(RefCell::new(Vec::new())),
+            profile_hold_snapshot: Rc::new(RefCell::new(None)),
+            next_hold_cookie: Rc::new(Cell::new(1)),
         };
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
@@ -817,6 +826,9 @@ impl<'a> Handler {
         name: Option<Rc<str>>,
         auto_switch: bool,
     ) -> anyhow::Result<()> {
+        if !self.profile_holds.borrow().is_empty() {
+            bail!("Cannot change profile while a hold is active");
+        }
         if auto_switch {
             self.start_profile_watcher().await;
         } else {
@@ -890,6 +902,14 @@ impl<'a> Handler {
     }
 
     pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
+        if self
+            .profile_holds
+            .borrow()
+            .iter()
+            .any(|(_, n, _)| n.as_ref() == name.as_str())
+        {
+            bail!("Cannot delete profile '{name}' while it is held");
+        }
         if self.config.read().await.current_profile.as_deref() == Some(&name) {
             self.set_current_profile(None).await?;
         }
@@ -997,6 +1017,113 @@ impl<'a> Handler {
         } else {
             Err(anyhow!("No pending config changes"))
         }
+    }
+
+    pub async fn hold_profile(
+        &self,
+        name: String,
+        disconnect_notify: std::sync::Arc<tokio::sync::Notify>,
+    ) -> anyhow::Result<u64> {
+        {
+            let config = self.config.read().await;
+            config.profile(&name)?;
+        }
+
+        // On the first hold, snapshot the current state and stop the watcher.
+        if self.profile_holds.borrow().is_empty() {
+            let (snapshot_profile, snapshot_auto_switch) = {
+                let config = self.config.read().await;
+                (config.current_profile.clone(), config.auto_switch_profiles)
+            };
+            self.config.write().await.auto_switch_profiles = false;
+            self.stop_profile_watcher().await;
+            *self.profile_hold_snapshot.borrow_mut() =
+                Some((snapshot_profile, snapshot_auto_switch));
+        }
+
+        let name_rc: Rc<str> = Rc::from(name.as_str());
+
+        let cookie = self.next_hold_cookie.get();
+        self.next_hold_cookie.set(cookie + 1);
+
+        let (release_tx, mut release_rx) = mpsc::channel::<()>(1);
+        self.profile_holds
+            .borrow_mut()
+            .push((cookie, name_rc.clone(), release_tx));
+
+        if let Err(err) = self.set_current_profile(Some(name_rc)).await {
+            self.profile_holds
+                .borrow_mut()
+                .retain(|(c, _, _)| *c != cookie);
+            if self.profile_holds.borrow().is_empty() {
+                self.profile_hold_snapshot.borrow_mut().take();
+            }
+            return Err(err);
+        }
+
+        info!("profile hold {cookie} acquired for profile '{name}'");
+
+        let handler = self.clone();
+        tokio::task::spawn_local(async move {
+            tokio::select! {
+                () = disconnect_notify.notified() => {
+                    debug!("connection for profile hold {cookie} dropped, auto-releasing");
+                }
+                _ = release_rx.recv() => {
+                    return;
+                }
+            }
+            if let Err(err) = handler.release_profile(cookie).await {
+                error!("could not auto-release profile hold {cookie}: {err:#}");
+            }
+        });
+
+        Ok(cookie)
+    }
+
+    pub async fn release_profile(&self, cookie: u64) -> anyhow::Result<()> {
+        let (idx, was_top) = {
+            let holds = self.profile_holds.borrow();
+            match holds.iter().rposition(|(c, _, _)| *c == cookie) {
+                Some(idx) => (idx, idx == holds.len() - 1),
+                None => bail!("Unknown profile hold cookie {cookie}"),
+            }
+        };
+
+        let (_, _, release_tx) = self.profile_holds.borrow_mut().remove(idx);
+        let _ = release_tx.send(()).await;
+
+        info!("releasing profile hold {cookie}");
+
+        if self.profile_holds.borrow().is_empty() {
+            // Last hold released, restore the previous state.
+            let (profile, auto_switch) = self
+                .profile_hold_snapshot
+                .borrow_mut()
+                .take()
+                .expect("snapshot missing while holds were active");
+
+            self.set_current_profile(profile).await?;
+
+            if auto_switch {
+                self.start_profile_watcher().await;
+            }
+
+            let mut config = self.config.write().await;
+            config.auto_switch_profiles = auto_switch;
+            config.save(&self.config_last_saved)?;
+        } else if was_top {
+            // Active hold released, activate the hold beneath it.
+            let target = self
+                .profile_holds
+                .borrow()
+                .last()
+                .map(|(_, name, _)| name.clone())
+                .unwrap();
+            self.set_current_profile(Some(target)).await?;
+        }
+
+        Ok(())
     }
 
     pub async fn reset_config(&self) {

@@ -172,6 +172,14 @@ impl DaemonClient {
             .await
     }
 
+    pub async fn hold_profile(&self, name: String) -> anyhow::Result<u64> {
+        self.make_request(Request::HoldProfile { name }).await
+    }
+
+    pub async fn release_profile(&self, cookie: u64) -> anyhow::Result<()> {
+        self.make_request(Request::ReleaseProfile { cookie }).await
+    }
+
     pub async fn evaluate_profile_rule(&self, rule: ProfileRule) -> anyhow::Result<bool> {
         self.make_request(Request::EvaluateProfileRule { rule })
             .await
