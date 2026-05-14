@@ -45,7 +45,7 @@ use gtk::{
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient, schema::DeviceListEntry};
 use lact_schema::{
-    DeviceFlag, DeviceStats, GIT_COMMIT, SystemInfo,
+    DeviceFlag, DeviceStats, DeviceType, GIT_COMMIT, SystemInfo,
     args::GuiArgs,
     config::{GpuConfig, Profile},
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
@@ -952,6 +952,12 @@ impl AppModel {
 
         let selected_gpu_id = configured_gpu_id
             .filter(|gpu_id| devices.iter().any(|device| device.id == *gpu_id))
+            .or_else(|| {
+                devices
+                    .iter()
+                    .find(|device| device.device_type == DeviceType::Dedicated)
+                    .map(|device| device.id.clone())
+            })
             .or_else(|| devices.first().map(|device| device.id.clone()))?;
 
         debug!("selecting gpu id {selected_gpu_id}");
