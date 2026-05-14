@@ -1,6 +1,6 @@
 use gtk::glib;
 use gtk::prelude::*;
-use lact_client::schema::DeviceListEntry;
+use lact_schema::DeviceListEntry;
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent, WidgetTemplate, css};
 
 pub struct GpuSelector {

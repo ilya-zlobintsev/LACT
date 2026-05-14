@@ -43,9 +43,9 @@ use gtk::{
     glib::{self, ControlFlow, clone},
 };
 use i18n_embed_fl::fl;
-use lact_client::{ConnectionStatusMsg, DaemonClient, schema::DeviceListEntry};
+use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
-    DeviceFlag, DeviceStats, DeviceType, GIT_COMMIT, SystemInfo,
+    DeviceFlag, DeviceListEntry, DeviceStats, DeviceType, GIT_COMMIT, SystemInfo,
     args::GuiArgs,
     config::{GpuConfig, Profile},
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
@@ -442,7 +442,7 @@ impl AsyncComponent for AppModel {
             .list_devices()
             .await
             .expect("Could not list devices");
-        let initial_gpu_id = AppModel::initial_gpu_selection(&devices);
+        let initial_gpu_id = AppModel::init_gpu_selection(&devices);
 
         let version_mismatch_info = (system_info.version != GUI_VERSION
             || system_info.commit.as_deref() != Some(GIT_COMMIT))
@@ -954,7 +954,7 @@ impl AppModel {
         Ok(())
     }
 
-    fn initial_gpu_selection(devices: &[DeviceListEntry]) -> Option<String> {
+    fn init_gpu_selection(devices: &[DeviceListEntry]) -> Option<String> {
         let configured_gpu_id = CONFIG.read().selected_gpu.clone();
 
         let selected_gpu_id = configured_gpu_id
