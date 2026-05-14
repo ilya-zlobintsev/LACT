@@ -32,6 +32,7 @@ use crate::{
             profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
         },
     },
+    config::WindowSize,
 };
 use adw::prelude::*;
 use anyhow::{Context, anyhow};
@@ -80,6 +81,8 @@ pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
+const DEFAULT_WINDOW_WIDTH: i32 = 1100;
+const DEFAULT_WINDOW_HEIGHT: i32 = 750;
 const CONFIRM_RESPONSE_APPLY: &str = "confirm";
 const CONFIRM_RESPONSE_REVERT: &str = "revert";
 
@@ -129,8 +132,8 @@ impl AsyncComponent for AppModel {
     view! {
         #[root]
         adw::ApplicationWindow::builder()
-            .default_height(750)
-            .default_width(1100)
+            .default_height(CONFIG.read().window_size.map_or(DEFAULT_WINDOW_HEIGHT, |size| size.height))
+            .default_width(CONFIG.read().window_size.map_or(DEFAULT_WINDOW_WIDTH, |size| size.width))
             .icon_name(APP_ID)
             .title("LACT")
             .build() {
@@ -494,6 +497,19 @@ impl AsyncComponent for AppModel {
         };
 
         let widgets = view_output!();
+
+        root.connect_close_request(|root| {
+            let width = root.width();
+            let height = root.height();
+
+            if width > 0 && height > 0 {
+                CONFIG.write().edit(|config| {
+                    config.window_size = Some(WindowSize { width, height });
+                });
+            }
+
+            glib::Propagation::Proceed
+        });
 
         if let Some(child) = widgets.root_stack.visible_child() {
             let page = widgets.root_stack.page(&child);

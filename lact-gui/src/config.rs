@@ -24,6 +24,7 @@ pub struct UiConfig {
     pub gpus: HashMap<String, UiGpuConfig>,
     #[serde(default)]
     pub theme: AppTheme,
+    pub window_size: Option<WindowSize>,
 }
 
 impl Default for UiConfig {
@@ -36,8 +37,15 @@ impl Default for UiConfig {
             stats_poll_interval_ms: default_stats_poll_interval(),
             gpus: HashMap::new(),
             theme: AppTheme::Automatic,
+            window_size: None,
         }
     }
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub struct WindowSize {
+    pub width: i32,
+    pub height: i32,
 }
 
 #[derive(Default, Serialize, Deserialize)]
