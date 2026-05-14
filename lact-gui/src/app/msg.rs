@@ -8,7 +8,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub enum AppMsg {
     Error(Arc<anyhow::Error>),
-    GpuSelected(u32),
+    SelectGpu(String),
     ReloadData {
         full: bool,
     },

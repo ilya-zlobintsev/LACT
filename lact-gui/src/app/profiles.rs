@@ -330,7 +330,10 @@ impl ProfileSelector {
         }
         debug!("setting new profiles info: {profiles_info:?}");
 
-        sender.output(AppMsg::ReloadData { full: false }).unwrap();
+        let initial_load = self.profile_selector.is_empty();
+        if !initial_load {
+            sender.output(AppMsg::ReloadData { full: false }).unwrap();
+        }
 
         let mut profiles = self.profile_selector.guard();
         profiles.clear();
