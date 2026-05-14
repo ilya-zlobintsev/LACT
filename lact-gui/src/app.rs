@@ -361,10 +361,6 @@ impl AsyncComponent for AppModel {
         view! {
             #[local]
             root {
-                set_title: Some("LACT"),
-                set_default_size: (1100, 750),
-                set_icon_name: Some(APP_ID),
-
                 #[name = "loading_box"]
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
@@ -372,6 +368,7 @@ impl AsyncComponent for AppModel {
                     set_halign: gtk::Align::Center,
 
                     gtk::Spinner {
+                        add_css_class: "bootstrap-spinner-large",
                         start: (),
                     }
                 }
