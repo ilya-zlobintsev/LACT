@@ -534,8 +534,6 @@ impl AsyncComponent for AppModel {
             if let Err(err) = model.update_gpu_data_full(gpu_id, sender.clone()).await {
                 sender.input(AppMsg::Error(Arc::new(err)));
             }
-        } else {
-            warn!("no GPUs found during startup");
         }
 
         let widgets = view_output!();
