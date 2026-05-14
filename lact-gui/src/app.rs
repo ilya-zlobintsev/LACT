@@ -648,6 +648,18 @@ impl AppModel {
                 self.reload_profiles(state_sender).await?;
                 sender.input(AppMsg::ReloadData { full: false });
             }
+            AppMsg::ProfilesPolled(profiles) => {
+                let profiles_changed = self
+                    .profile_selector
+                    .model()
+                    .profiles_info_changed(profiles.as_ref());
+                self.profile_selector
+                    .emit(ProfileSelectorMsg::Profiles(profiles));
+
+                if profiles_changed {
+                    sender.input(AppMsg::ReloadData { full: false });
+                }
+            }
             AppMsg::SelectGpu(gpu_id) => {
                 Self::set_selected_gpu_id(gpu_id);
                 sender.input(AppMsg::ReloadData { full: true });
@@ -995,7 +1007,7 @@ impl AppModel {
         }
 
         self.profile_selector
-            .emit(ProfileSelectorMsg::Profiles(Box::new(profiles)));
+            .emit(ProfileSelectorMsg::Profiles(Arc::new(profiles)));
 
         Ok(())
     }
@@ -1138,7 +1150,6 @@ impl AppModel {
             gpu_id.to_owned(),
             self.daemon_client.clone(),
             sender,
-            self.profile_selector.sender().clone(),
         ));
 
         Ok(stats)
@@ -1360,7 +1371,6 @@ fn start_stats_update_loop(
     gpu_id: String,
     daemon_client: DaemonClient,
     sender: AsyncComponentSender<AppModel>,
-    profiles_sender: relm4::Sender<ProfileSelectorMsg>,
 ) -> glib::JoinHandle<()> {
     debug!("spawning new stats update task");
     relm4::spawn_local(async move {
@@ -1379,7 +1389,7 @@ fn start_stats_update_loop(
 
             match daemon_client.list_profiles(false).await {
                 Ok(profiles) => {
-                    let _ = profiles_sender.send(ProfileSelectorMsg::Profiles(Box::new(profiles)));
+                    sender.input(AppMsg::ProfilesPolled(Arc::new(profiles)));
                 }
                 Err(err) => {
                     error!("could not fetch profile info: {err:#}");
