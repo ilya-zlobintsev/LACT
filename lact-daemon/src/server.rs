@@ -1,3 +1,4 @@
+mod display;
 pub mod gpu_controller;
 pub mod handler;
 mod metrics;

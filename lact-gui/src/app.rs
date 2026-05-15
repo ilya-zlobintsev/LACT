@@ -527,10 +527,10 @@ impl AsyncComponent for AppModel {
             sender.input(AppMsg::Error(Arc::new(err)));
         }
 
-        if let Some(gpu_id) = initial_gpu_id {
-            if let Err(err) = model.update_gpu_data_full(gpu_id, sender.clone()).await {
-                sender.input(AppMsg::Error(Arc::new(err)));
-            }
+        if let Some(gpu_id) = initial_gpu_id
+            && let Err(err) = model.update_gpu_data_full(gpu_id, sender.clone()).await
+        {
+            sender.input(AppMsg::Error(Arc::new(err)));
         }
 
         let widgets = view_output!();

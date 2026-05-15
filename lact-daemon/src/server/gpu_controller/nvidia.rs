@@ -5,6 +5,7 @@ use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::{
+        display::get_display_info,
         gpu_controller::{
             NvApi,
             common::{fan_control::FanCurveExt, resolve_process_name},
@@ -548,6 +549,8 @@ impl GpuController for NvidiaGpuController {
 
             let device = self.device();
             let driver_handle = self.driver_handle.as_ref();
+
+            get_display_info(&self.common.sysfs_path);
 
             DeviceInfo {
                 pci_info: Some(self.common.pci_info.clone()),
