@@ -1,10 +1,7 @@
-use crate::CONFIG;
 use gtk::glib;
 use gtk::prelude::*;
-use lact_client::schema::DeviceListEntry;
-use lact_schema::DeviceType;
+use lact_schema::DeviceListEntry;
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent, WidgetTemplate, css};
-use tracing::debug;
 
 pub struct GpuSelector {
     devices: Vec<DeviceListEntry>,
@@ -12,9 +9,9 @@ pub struct GpuSelector {
 
 #[relm4::component(pub)]
 impl SimpleComponent for GpuSelector {
-    type Init = Vec<DeviceListEntry>;
+    type Init = (Vec<DeviceListEntry>, Option<String>);
     type Input = ();
-    type Output = u32;
+    type Output = String;
 
     view! {
         gtk::Box {
@@ -38,21 +35,25 @@ impl SimpleComponent for GpuSelector {
     }
 
     fn init(
-        devices: Self::Init,
+        (devices, selected_gpu_id): Self::Init,
         _root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = Self { devices };
         let widgets = view_output!();
 
-        let (button_factory, list_factory, string_list, selected_index) =
-            Self::build_factories(&model.devices);
+        let (button_factory, list_factory, string_list) = Self::build_factories(&model.devices);
         widgets.dropdown.set_model(Some(&string_list));
         widgets.dropdown.set_factory(Some(&button_factory));
         widgets.dropdown.set_list_factory(Some(&list_factory));
-        widgets.dropdown.set_selected(selected_index);
-
-        Self::select_gpu(&model.devices, selected_index, &sender);
+        if let Some(selected_gpu_id) = selected_gpu_id
+            && let Some(index) = model
+                .devices
+                .iter()
+                .position(|device| device.id == selected_gpu_id)
+        {
+            widgets.dropdown.set_selected(index as u32);
+        }
 
         let devices_vec = model.devices.clone();
         let sender_clone = sender.clone();
@@ -71,33 +72,12 @@ impl GpuSelector {
         gtk::SignalListItemFactory,
         gtk::SignalListItemFactory,
         gtk::StringList,
-        u32,
     ) {
         let devices_vec = devices.to_vec();
         let string_list = gtk::StringList::new(&[]);
         for device in &devices_vec {
             string_list.append(&device.to_string());
         }
-
-        let selected_index = CONFIG
-            .read()
-            .selected_gpu
-            .as_ref()
-            .and_then(|selected_gpu_id| {
-                devices_vec
-                    .iter()
-                    .position(|device| device.id == *selected_gpu_id)
-                    .inspect(|_| debug!("selecting gpu id {selected_gpu_id}"))
-            })
-            .or_else(|| {
-                devices_vec
-                    .iter()
-                    .position(|device| device.device_type == DeviceType::Dedicated)
-                    .inspect(|index| {
-                        debug!("selecting default dedicated gpu {}", devices_vec[*index].id)
-                    })
-            })
-            .unwrap_or(0) as u32;
 
         let button_factory = gtk::SignalListItemFactory::new();
         button_factory.connect_setup(|_, list_item| {
@@ -156,17 +136,13 @@ impl GpuSelector {
             }
         ));
 
-        (button_factory, list_factory, string_list, selected_index)
+        (button_factory, list_factory, string_list)
     }
 
     fn select_gpu(devices: &[DeviceListEntry], selected: u32, sender: &ComponentSender<Self>) {
-        let id = devices
-            .get(selected as usize)
-            .map(|device| device.id.clone());
-        CONFIG.write().edit(|config| {
-            config.selected_gpu = id;
-        });
-        sender.output(selected).unwrap()
+        if let Some(device) = devices.get(selected as usize) {
+            sender.output(device.id.clone()).unwrap();
+        }
     }
 }
 

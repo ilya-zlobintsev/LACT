@@ -22,10 +22,11 @@ use relm4::css;
 use relm4::prelude::DynamicIndex;
 use relm4::prelude::FactoryVecDeque;
 use relm4::{ComponentParts, ComponentSender};
+use std::sync::Arc;
 use tracing::debug;
 
 pub struct ProfileSelector {
-    profiles_info: ProfilesInfo,
+    profiles_info: Arc<ProfilesInfo>,
     profile_selector: FactoryVecDeque<ProfileRow>,
 
     new_profile_diag: Option<relm4::Controller<NewProfileDialog>>,
@@ -34,7 +35,7 @@ pub struct ProfileSelector {
 #[derive(Debug)]
 pub enum ProfileSelectorMsg {
     ClosePopover,
-    Profiles(Box<ProfilesInfo>),
+    Profiles(Arc<ProfilesInfo>),
     AutoProfileSwitch(bool),
     ShowProfileEditor(DynamicIndex),
     ExportProfile(DynamicIndex),
@@ -154,7 +155,7 @@ impl Component for ProfileSelector {
         ));
 
         let model = Self {
-            profiles_info: ProfilesInfo::default(),
+            profiles_info: Arc::new(ProfilesInfo::default()),
             profile_selector,
             new_profile_diag: None,
         };
@@ -193,7 +194,7 @@ impl Component for ProfileSelector {
                 widgets.root_menubutton.popdown();
             }
             ProfileSelectorMsg::Profiles(profiles_info) => {
-                self.set_profiles_info(&sender, *profiles_info)
+                self.set_profiles_info(profiles_info);
             }
             ProfileSelectorMsg::AutoProfileSwitch(auto_switch) => {
                 let msg = AppMsg::SelectProfile {
@@ -324,13 +325,17 @@ impl ProfileSelector {
         self.profiles_info.auto_switch
     }
 
-    fn set_profiles_info(&mut self, sender: &ComponentSender<Self>, profiles_info: ProfilesInfo) {
-        if self.profiles_info == profiles_info && !self.profile_selector.is_empty() {
+    pub fn profiles_info_changed(&self, profiles_info: &ProfilesInfo) -> bool {
+        self.profiles_info.as_ref() != profiles_info
+    }
+
+    fn set_profiles_info(&mut self, profiles_info: Arc<ProfilesInfo>) {
+        if self.profiles_info.as_ref() == profiles_info.as_ref()
+            && !self.profile_selector.is_empty()
+        {
             return;
         }
         debug!("setting new profiles info: {profiles_info:?}");
-
-        sender.output(AppMsg::ReloadData { full: false }).unwrap();
 
         let mut profiles = self.profile_selector.guard();
         profiles.clear();

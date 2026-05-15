@@ -45,7 +45,7 @@ use gtk::{
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
-    DeviceFlag, DeviceStats, GIT_COMMIT, SystemInfo,
+    DeviceFlag, DeviceListEntry, DeviceStats, DeviceType, GIT_COMMIT, SystemInfo,
     args::GuiArgs,
     config::{GpuConfig, Profile},
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
@@ -64,8 +64,10 @@ use relm4::{
     RelmWidgetExt,
     binding::BoolBinding,
     css,
+    loading_widgets::LoadingWidgets,
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio::{self, time::sleep},
+    view,
 };
 use relm4_components::{
     open_dialog::{OpenDialog, OpenDialogMsg, OpenDialogResponse, OpenDialogSettings},
@@ -96,7 +98,6 @@ pub struct AppModel {
     info_dialog: relm4::Controller<InfoDialog>,
 
     ui_sensitive: BoolBinding,
-    selected_gpu_index: u32,
 
     info_page: relm4::Controller<InformationPage>,
     oc_page: relm4::Controller<OcPage>,
@@ -356,11 +357,39 @@ impl AsyncComponent for AppModel {
         },
     }
 
+    fn init_loading_widgets(root: Self::Root) -> Option<LoadingWidgets> {
+        view! {
+            #[local]
+            root {
+                #[name = "loading_box"]
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_valign: gtk::Align::Center,
+                    set_halign: gtk::Align::Center,
+
+                    gtk::Spinner {
+                        add_css_class: "bootstrap-spinner-large",
+                        start: (),
+                    }
+                }
+            }
+        }
+
+        Some(LoadingWidgets::new(root, loading_box))
+    }
+
     async fn init(
         args: Self::Init,
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
+        // 1. apply UI styles,
+        // 2. connect to daemon,
+        // 3. fetch system/device info,
+        // 4. resolve selected GPU,
+        // 5. build child components,
+        // 6. load profiles and initial GPU data.
+
         relm4::set_global_css_with_priority(
             styles::COMBINED_CSS,
             STYLE_PROVIDER_PRIORITY_APPLICATION,
@@ -413,6 +442,7 @@ impl AsyncComponent for AppModel {
             .list_devices()
             .await
             .expect("Could not list devices");
+        let initial_gpu_id = AppModel::init_gpu_selection(&devices);
 
         let version_mismatch_info = (system_info.version != GUI_VERSION
             || system_info.commit.as_deref() != Some(GIT_COMMIT))
@@ -463,16 +493,14 @@ impl AsyncComponent for AppModel {
         let process_monitor_window = ProcessMonitorWindow::detach_default();
 
         let gpu_selector = GpuSelector::builder()
-            .launch(devices)
-            .forward(sender.input_sender(), |gpu_idx| {
-                AppMsg::GpuSelected(gpu_idx)
-            });
+            .launch((devices, initial_gpu_id.clone()))
+            .forward(sender.input_sender(), AppMsg::SelectGpu);
 
         let profile_selector = ProfileSelector::builder()
             .launch(())
             .forward(sender.input_sender(), |msg| msg);
 
-        let model = AppModel {
+        let mut model = AppModel {
             daemon_client,
             graphs_window,
             process_monitor_window,
@@ -488,13 +516,22 @@ impl AsyncComponent for AppModel {
             gpu_selector,
             profile_selector,
             ui_sensitive: BoolBinding::new(false),
-            selected_gpu_index: 0,
             stats_task_handle: None,
             settings_changed,
             system_info,
             device_flags: vec![],
             device_driver: String::new(),
         };
+
+        if let Err(err) = model.reload_profiles(None).await {
+            sender.input(AppMsg::Error(Arc::new(err)));
+        }
+
+        if let Some(gpu_id) = initial_gpu_id {
+            if let Err(err) = model.update_gpu_data_full(gpu_id, sender.clone()).await {
+                sender.input(AppMsg::Error(Arc::new(err)));
+            }
+        }
 
         let widgets = view_output!();
 
@@ -537,8 +574,6 @@ impl AsyncComponent for AppModel {
         if let Some(info) = version_mismatch_info {
             model.info_dialog.emit(InfoDialogMsg::Show(Box::new(info)));
         }
-
-        sender.input(AppMsg::ReloadProfiles { state_sender: None });
 
         let task_sender = sender.clone();
         sender.command(move |_, shutdown| {
@@ -600,6 +635,7 @@ impl AppModel {
     ) -> Result<(), Arc<anyhow::Error>> {
         match msg {
             AppMsg::Error(err) => return Err(err),
+
             AppMsg::SettingsChanged => {
                 self.settings_changed.set_value(true);
             }
@@ -607,14 +643,26 @@ impl AppModel {
                 self.reload_profiles(state_sender).await?;
                 sender.input(AppMsg::ReloadData { full: false });
             }
-            AppMsg::GpuSelected(idx) => {
-                self.selected_gpu_index = idx;
+            AppMsg::ProfilesPolled(profiles) => {
+                let profiles_changed = self
+                    .profile_selector
+                    .model()
+                    .profiles_info_changed(profiles.as_ref());
+                self.profile_selector
+                    .emit(ProfileSelectorMsg::Profiles(profiles));
+
+                if profiles_changed {
+                    sender.input(AppMsg::ReloadData { full: false });
+                }
+            }
+            AppMsg::SelectGpu(gpu_id) => {
+                Self::set_selected_gpu_id(gpu_id);
                 sender.input(AppMsg::ReloadData { full: true });
             }
             AppMsg::ReloadData { full } => {
                 self.settings_changed.set_value(false);
 
-                let gpu_id = self.current_gpu_id()?;
+                let gpu_id = self.get_selected_gpu_id()?;
                 if full {
                     self.update_gpu_data_full(gpu_id, sender).await?;
                 } else {
@@ -743,7 +791,7 @@ impl AppModel {
                 });
             }
             AppMsg::ApplyChanges => {
-                self.apply_settings(self.current_gpu_id()?, root, &sender)
+                self.apply_settings(self.get_selected_gpu_id()?, root, &sender)
                     .await
                     .inspect_err(|_| {
                         sender.input(AppMsg::ReloadData { full: false });
@@ -753,7 +801,7 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ResetClocks => {
-                let gpu_id = self.current_gpu_id()?;
+                let gpu_id = self.get_selected_gpu_id()?;
                 self.daemon_client
                     .set_clocks_value(&gpu_id, SetClocksCommand::reset())
                     .await?;
@@ -763,7 +811,7 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ResetPmfw => {
-                let gpu_id = self.current_gpu_id()?;
+                let gpu_id = self.get_selected_gpu_id()?;
                 self.daemon_client.reset_pmfw(&gpu_id).await?;
                 self.daemon_client
                     .confirm_pending_config(ConfirmCommand::Confirm)
@@ -778,7 +826,7 @@ impl AppModel {
                     .emit(ProcessMonitorWindowMsg::Show);
             }
             AppMsg::DumpVBios => {
-                self.dump_vbios(&self.current_gpu_id()?, root, sender.clone())
+                self.dump_vbios(&self.get_selected_gpu_id()?, root, sender.clone())
                     .await?;
             }
             AppMsg::DebugSnapshot => {
@@ -819,7 +867,7 @@ impl AppModel {
             }
             AppMsg::FetchProcessList => {
                 if self.process_monitor_window.widget().is_visible()
-                    && let Ok(gpu_id) = self.current_gpu_id()
+                    && let Ok(gpu_id) = self.get_selected_gpu_id()
                 {
                     match self.daemon_client.get_process_list(&gpu_id).await {
                         Ok(process_list) => {
@@ -906,7 +954,31 @@ impl AppModel {
         Ok(())
     }
 
-    fn current_gpu_id(&self) -> anyhow::Result<String> {
+    fn init_gpu_selection(devices: &[DeviceListEntry]) -> Option<String> {
+        let configured_gpu_id = CONFIG.read().selected_gpu.clone();
+
+        let selected_gpu_id = configured_gpu_id
+            .filter(|gpu_id| devices.iter().any(|device| device.id == *gpu_id))
+            .or_else(|| {
+                devices
+                    .iter()
+                    .find(|device| device.device_type == DeviceType::Dedicated)
+                    .map(|device| device.id.clone())
+            })
+            .or_else(|| devices.first().map(|device| device.id.clone()))?;
+
+        debug!("selecting gpu id {selected_gpu_id}");
+        Self::set_selected_gpu_id(selected_gpu_id.clone());
+        Some(selected_gpu_id)
+    }
+
+    fn set_selected_gpu_id(gpu_id: String) {
+        CONFIG.write().edit(|config| {
+            config.selected_gpu = Some(gpu_id);
+        });
+    }
+
+    fn get_selected_gpu_id(&self) -> anyhow::Result<String> {
         CONFIG
             .read()
             .selected_gpu
@@ -930,7 +1002,7 @@ impl AppModel {
         }
 
         self.profile_selector
-            .emit(ProfileSelectorMsg::Profiles(Box::new(profiles)));
+            .emit(ProfileSelectorMsg::Profiles(Arc::new(profiles)));
 
         Ok(())
     }
@@ -1073,7 +1145,6 @@ impl AppModel {
             gpu_id.to_owned(),
             self.daemon_client.clone(),
             sender,
-            self.profile_selector.sender().clone(),
         ));
 
         Ok(stats)
@@ -1295,7 +1366,6 @@ fn start_stats_update_loop(
     gpu_id: String,
     daemon_client: DaemonClient,
     sender: AsyncComponentSender<AppModel>,
-    profiles_sender: relm4::Sender<ProfileSelectorMsg>,
 ) -> glib::JoinHandle<()> {
     debug!("spawning new stats update task");
     relm4::spawn_local(async move {
@@ -1314,7 +1384,7 @@ fn start_stats_update_loop(
 
             match daemon_client.list_profiles(false).await {
                 Ok(profiles) => {
-                    let _ = profiles_sender.send(ProfileSelectorMsg::Profiles(Box::new(profiles)));
+                    sender.input(AppMsg::ProfilesPolled(Arc::new(profiles)));
                 }
                 Err(err) => {
                     error!("could not fetch profile info: {err:#}");

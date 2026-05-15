@@ -2,17 +2,20 @@ use super::profiles::profile_rule_window::{
     ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg,
 };
 use lact_client::ConnectionStatusMsg;
-use lact_schema::{DeviceStats, ProfileRule, config::ProfileHooks, request::ProfileBase};
+use lact_schema::{
+    DeviceStats, ProfileRule, ProfilesInfo, config::ProfileHooks, request::ProfileBase,
+};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum AppMsg {
     Error(Arc<anyhow::Error>),
-    GpuSelected(u32),
+    SelectGpu(String),
     ReloadData {
         full: bool,
     },
     Stats(Arc<DeviceStats>),
+    ProfilesPolled(Arc<ProfilesInfo>),
     ApplyChanges,
     RevertChanges,
     SettingsChanged,
