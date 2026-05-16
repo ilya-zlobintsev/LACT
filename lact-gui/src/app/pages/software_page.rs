@@ -20,6 +20,8 @@ use std::{fmt::Write, sync::Arc};
 use vulkan::feature_window::{VulkanFeature, VulkanFeaturesWindow};
 
 pub struct SoftwarePage {
+    system_info: Arc<SystemInfo>,
+    daemon_embedded: bool,
     device_info: Option<Arc<DeviceInfo>>,
 
     vulkan_driver_selector: relm4::Controller<SimpleComboBox<String>>,
@@ -30,6 +32,10 @@ pub struct SoftwarePage {
 
 #[derive(Debug)]
 pub enum SoftwarePageMsg {
+    SystemInfo {
+        info: Arc<SystemInfo>,
+        daemon_embedded: bool,
+    },
     DeviceInfo(Arc<DeviceInfo>),
     ShowVulkanFeatures,
     ShowVulkanExtensions,
@@ -38,7 +44,7 @@ pub enum SoftwarePageMsg {
 
 #[relm4::component(pub)]
 impl relm4::SimpleComponent for SoftwarePage {
-    type Init = (SystemInfo, bool);
+    type Init = ();
     type Input = SoftwarePageMsg;
     type Output = ();
 
@@ -57,9 +63,51 @@ impl relm4::SimpleComponent for SoftwarePage {
                     set_max_children_per_line: 4,
                     set_selection_mode: gtk::SelectionMode::None,
 
-                    append_child = &InfoRow::new_selectable(&fl!(I18N, "lact-daemon"), &daemon_version),
-                    append_child = &InfoRow::new_selectable(&fl!(I18N, "lact-gui"), &gui_version),
-                    append_child = &InfoRow::new_selectable(&fl!(I18N, "kernel-version"), &system_info.kernel_version),
+                    append_child = &InfoRow {
+                        set_name: fl!(I18N, "lact-daemon"),
+                        set_selectable: true,
+
+                        #[watch]
+                        set_value: {
+                            let mut daemon_version = format!("{}-{}", model.system_info.version, model.system_info.profile);
+                            if model.daemon_embedded {
+                                daemon_version.push_str("-embedded");
+                            }
+                            if let Some(commit) = &model.system_info.commit {
+                                let daemon_commit_link = format!("{REPO_URL}/commit/{commit}");
+                                write!(
+                                    daemon_version,
+                                    " (commit <a href=\"{daemon_commit_link}\">{commit}</a>)"
+                                )
+                                .unwrap();
+                            }
+                            daemon_version
+                        },
+                    },
+                    append_child = &InfoRow {
+                        set_name: fl!(I18N, "lact-gui"),
+                        set_selectable: true,
+
+                        #[watch]
+                        set_value: {
+                            let gui_profile = if cfg!(debug_assertions) {
+                                "debug"
+                            } else {
+                                "release"
+                            };
+                            let gui_commit_link = format!("{REPO_URL}/commit/{GIT_COMMIT}");
+                            format!(
+                                "{GUI_VERSION}-{gui_profile} (commit <a href=\"{gui_commit_link}\">{GIT_COMMIT}</a>)"
+                            )
+                        }
+                    },
+                    append_child = &InfoRow {
+                        set_name: fl!(I18N, "kernel-version"),
+                        set_selectable: true,
+
+                        #[watch]
+                        set_value: model.system_info.kernel_version.clone(),
+                    },
                 },
             },
 
@@ -225,7 +273,7 @@ impl relm4::SimpleComponent for SoftwarePage {
     }
 
     fn init(
-        (system_info, embedded): Self::Init,
+        _: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -244,34 +292,13 @@ impl relm4::SimpleComponent for SoftwarePage {
             .forward(sender.input_sender(), |_| SoftwarePageMsg::SelectionChanged);
 
         let model = Self {
+            system_info: Arc::default(),
+            daemon_embedded: false,
             device_info: None,
             vulkan_driver_selector,
             opencl_platform_selector,
             vulkan_window: None,
         };
-
-        let mut daemon_version = format!("{}-{}", system_info.version, system_info.profile);
-        if embedded {
-            daemon_version.push_str("-embedded");
-        }
-        if let Some(commit) = &system_info.commit {
-            let daemon_commit_link = format!("{REPO_URL}/commit/{commit}");
-            write!(
-                daemon_version,
-                " (commit <a href=\"{daemon_commit_link}\">{commit}</a>)"
-            )
-            .unwrap();
-        }
-
-        let gui_profile = if cfg!(debug_assertions) {
-            "debug"
-        } else {
-            "release"
-        };
-        let gui_commit_link = format!("{REPO_URL}/commit/{GIT_COMMIT}");
-        let gui_version = format!(
-            "{GUI_VERSION}-{gui_profile} (commit <a href=\"{gui_commit_link}\">{GIT_COMMIT}</a>)"
-        );
 
         let widgets = view_output!();
 
@@ -324,6 +351,13 @@ impl relm4::SimpleComponent for SoftwarePage {
                     }));
 
                 self.device_info = Some(info);
+            }
+            SoftwarePageMsg::SystemInfo {
+                info,
+                daemon_embedded,
+            } => {
+                self.system_info = info;
+                self.daemon_embedded = daemon_embedded;
             }
             SoftwarePageMsg::ShowVulkanFeatures => {
                 if let Some(vulkan_info) = &self.selected_vulkan_info() {

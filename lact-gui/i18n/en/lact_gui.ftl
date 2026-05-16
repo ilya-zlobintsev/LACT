@@ -227,7 +227,10 @@ embedded-daemon-info =
 version-mismatch = Version mismatch
 version-mismatch-description =
     Version mismatch between GUI and Daemon ({$gui_version}-{$gui_commit} vs {$daemon_version}-{$daemon_commit})!
-    If you have updated LACT, you need to restart the service with:
+    If you have updated LACT, you need to restart the system service with:
+version-mismatch-restart-prompt =
+    Version mismatch between GUI and Daemon ({$gui_version}-{$gui_commit} vs {$daemon_version}-{$daemon_commit})!
+    This usually happens when LACT was updated, and the system service has not yet been restarted. Do you want to restart the service?
 
 plot-show-detailed-info = Show detailed info
 
@@ -243,6 +246,7 @@ create = Create
 cancel = Cancel
 close = Close
 save = Save
+restart = Restart
 default-profile = Default
 rename-profile = Rename Profile
 rename-profile-from = Rename profile <b>{$old_name}</b> to:

@@ -14,12 +14,14 @@ pub(crate) mod pages;
 mod preferences_dialog;
 mod process_monitor;
 mod profiles;
+mod service_setup;
 pub(crate) mod styles;
 
 use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
     app::{
         about_dialog::{AboutDialog, AboutDialogMsg},
+        ext::RelmLaunchable as _,
         gpu_selector::GpuSelector,
         info_dialog::{
             InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
@@ -111,7 +113,7 @@ pub struct AppModel {
 
     settings_changed: BoolBinding,
 
-    system_info: SystemInfo,
+    system_info: Arc<SystemInfo>,
     device_flags: Vec<DeviceFlag>,
     device_driver: String,
 }
@@ -433,72 +435,38 @@ impl AsyncComponent for AppModel {
 
         let settings_changed = BoolBinding::new(false);
 
-        let system_info = daemon_client
-            .get_system_info()
-            .await
-            .expect("Could not fetch system info");
-
         let devices = daemon_client
             .list_devices()
             .await
             .expect("Could not list devices");
         let initial_gpu_id = AppModel::init_gpu_selection(&devices);
 
-        let version_mismatch_info = (system_info.version != GUI_VERSION
-            || system_info.commit.as_deref() != Some(GIT_COMMIT))
-        .then(|| InfoDialogData {
-            id: InfoDialogId::VersionMismatch,
-            heading: fl!(I18N, "version-mismatch"),
-            body: fl!(
-                I18N,
-                "version-mismatch-description",
-                gui_version = GUI_VERSION,
-                gui_commit = GIT_COMMIT,
-                daemon_version = system_info.version.as_str(),
-                daemon_commit = system_info.commit.as_deref().unwrap_or_default()
-            ),
-            selectable_text: Some("sudo systemctl restart lactd".to_string()),
-            ..Default::default()
-        });
-
         let info_page = InformationPage::detach_default();
 
-        let oc_page = OcPage::builder()
-            .launch(settings_changed.clone())
-            .forward(sender.input_sender(), |msg| msg);
-        let thermals_page = ThermalsPage::builder().launch(()).detach();
+        let oc_page =
+            OcPage::launch(settings_changed.clone()).forward(sender.input_sender(), |msg| msg);
+        let thermals_page = ThermalsPage::detach_default();
 
-        let software_page = SoftwarePage::builder()
-            .launch((system_info.clone(), daemon_client.embedded))
-            .detach();
+        let software_page = SoftwarePage::detach_default();
 
-        let crash_page = CrashPage::builder()
-            .launch(String::new())
-            .forward(sender.input_sender(), |msg| msg);
+        let crash_page = CrashPage::launch_default().forward(sender.input_sender(), |msg| msg);
 
-        let overdrive_dialog = OverdriveDialog::builder()
-            .launch((system_info.clone(), root.clone().upcast()))
-            .detach();
+        let overdrive_dialog = OverdriveDialog::detach(root.clone().upcast());
 
-        let preferences_dialog = PreferencesDialog::builder()
-            .launch((system_info.clone(), root.clone()))
-            .detach();
+        let preferences_dialog = PreferencesDialog::detach(root.clone());
 
-        let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
-        let info_dialog = InfoDialog::builder()
-            .launch(root.clone())
-            .forward(sender.input_sender(), |msg| msg);
+        let about_dialog = AboutDialog::detach(root.clone());
+        let info_dialog =
+            InfoDialog::launch(root.clone()).forward(sender.input_sender(), |msg| msg);
 
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
 
-        let gpu_selector = GpuSelector::builder()
-            .launch((devices, initial_gpu_id.clone()))
+        let gpu_selector = GpuSelector::launch((devices, initial_gpu_id.clone()))
             .forward(sender.input_sender(), AppMsg::SelectGpu);
 
-        let profile_selector = ProfileSelector::builder()
-            .launch(())
-            .forward(sender.input_sender(), |msg| msg);
+        let profile_selector =
+            ProfileSelector::launch(()).forward(sender.input_sender(), |msg| msg);
 
         let mut model = AppModel {
             daemon_client,
@@ -518,19 +486,23 @@ impl AsyncComponent for AppModel {
             ui_sensitive: BoolBinding::new(false),
             stats_task_handle: None,
             settings_changed,
-            system_info,
+            system_info: Arc::default(),
             device_flags: vec![],
             device_driver: String::new(),
         };
+
+        if let Err(err) = model.update_system_info(true).await {
+            sender.input(AppMsg::Error(Arc::new(err)));
+        }
 
         if let Err(err) = model.reload_profiles(None).await {
             sender.input(AppMsg::Error(Arc::new(err)));
         }
 
-        if let Some(gpu_id) = initial_gpu_id {
-            if let Err(err) = model.update_gpu_data_full(gpu_id, sender.clone()).await {
-                sender.input(AppMsg::Error(Arc::new(err)));
-            }
+        if let Some(gpu_id) = initial_gpu_id
+            && let Err(err) = model.update_gpu_data_full(gpu_id, sender.clone()).await
+        {
+            sender.input(AppMsg::Error(Arc::new(err)));
         }
 
         let widgets = view_output!();
@@ -569,10 +541,6 @@ impl AsyncComponent for AppModel {
                     selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
                     ..Default::default()
                 })));
-        }
-
-        if let Some(info) = version_mismatch_info {
-            model.info_dialog.emit(InfoDialogMsg::Show(Box::new(info)));
         }
 
         let task_sender = sender.clone();
@@ -884,7 +852,10 @@ impl AppModel {
                 ConnectionStatusMsg::Disconnected => {
                     widgets.reconnecting_dialog.present(Some(root))
                 }
-                ConnectionStatusMsg::Reconnected => widgets.reconnecting_dialog.force_close(),
+                ConnectionStatusMsg::Reconnected => {
+                    self.update_system_info(false).await?;
+                    widgets.reconnecting_dialog.force_close();
+                }
             },
             AppMsg::EvaluateProfile(rule, sender) => {
                 match self.daemon_client.evaluate_profile_rule(rule).await {
@@ -901,6 +872,12 @@ impl AppModel {
                     .set_profile_rule(name, rule, hooks)
                     .await?;
                 self.reload_profiles(None).await?;
+            }
+            AppMsg::RestartDaemon(proxy) => {
+                proxy
+                    .restart("replace")
+                    .await
+                    .context("Could not restart daemon")?;
             }
             AppMsg::Crash(message) => {
                 // we cannot be sure that the application is fully functional after a crash
@@ -1150,6 +1127,28 @@ impl AppModel {
         Ok(stats)
     }
 
+    async fn update_system_info(&mut self, init: bool) -> anyhow::Result<()> {
+        let info = self.daemon_client.get_system_info().await?;
+        let info = Arc::new(info);
+
+        self.preferences_dialog
+            .emit(PreferencesDialogMsg::SystemInfo(info.clone()));
+
+        self.overdrive_dialog
+            .emit(OverdriveDialogMsg::SystemInfo(info.clone()));
+
+        self.software_page.emit(SoftwarePageMsg::SystemInfo {
+            info: info.clone(),
+            daemon_embedded: self.daemon_client.embedded,
+        });
+
+        if init && (info.version != GUI_VERSION || info.commit.as_deref() != Some(GIT_COMMIT)) {
+            self.handle_mismatched_dameon_version().await;
+        }
+
+        Ok(())
+    }
+
     async fn apply_settings(
         &self,
         gpu_id: String,
@@ -1200,6 +1199,51 @@ impl AppModel {
         sender.input(AppMsg::ReloadData { full: false });
 
         Ok(())
+    }
+
+    async fn handle_mismatched_dameon_version(&self) {
+        let dialog = match service_setup::systemd::connect_unit_proxy().await {
+            Ok(proxy) => InfoDialogData {
+                id: InfoDialogId::VersionMismatch,
+                heading: fl!(I18N, "version-mismatch"),
+                body: fl!(
+                    I18N,
+                    "version-mismatch-restart-prompt",
+                    gui_version = GUI_VERSION,
+                    gui_commit = GIT_COMMIT,
+                    daemon_version = self.system_info.version.as_str(),
+                    daemon_commit = self.system_info.commit.as_deref().unwrap_or_default()
+                ),
+                confirmation: Some(InfoDialogConfirmation {
+                    confirm_label: fl!(I18N, "restart"),
+                    cancel_label: fl!(I18N, "cancel"),
+                    appearance: adw::ResponseAppearance::Suggested,
+                    confirm_msg: AppMsg::RestartDaemon(proxy),
+                }),
+                ..Default::default()
+            },
+            Err(err) => {
+                warn!(
+                    "could not connect to SystemD for unit management: {err:#}, falling back to just showing an error"
+                );
+
+                InfoDialogData {
+                    id: InfoDialogId::VersionMismatch,
+                    heading: fl!(I18N, "version-mismatch"),
+                    body: fl!(
+                        I18N,
+                        "version-mismatch-description",
+                        gui_version = GUI_VERSION,
+                        gui_commit = GIT_COMMIT,
+                        daemon_version = self.system_info.version.as_str(),
+                        daemon_commit = self.system_info.commit.as_deref().unwrap_or_default()
+                    ),
+                    selectable_text: Some("sudo systemctl restart lactd".to_string()),
+                    ..Default::default()
+                }
+            }
+        };
+        self.info_dialog.emit(InfoDialogMsg::Show(Box::new(dialog)));
     }
 
     fn ask_settings_confirmation(

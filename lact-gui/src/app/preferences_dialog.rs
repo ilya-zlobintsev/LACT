@@ -13,21 +13,23 @@ use gtk::prelude::{
 use i18n_embed_fl::fl;
 use lact_schema::SystemInfo;
 use relm4::{ComponentParts, ComponentSender};
+use std::sync::Arc;
 
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
-    system_info: SystemInfo,
+    system_info: Arc<SystemInfo>,
 }
 
 #[derive(Debug)]
 pub enum PreferencesDialogMsg {
     Show,
     ThemeSelected(AppTheme),
+    SystemInfo(Arc<SystemInfo>),
 }
 
 #[relm4::component(pub)]
 impl relm4::Component for PreferencesDialog {
-    type Init = (SystemInfo, adw::ApplicationWindow);
+    type Init = adw::ApplicationWindow;
     type Input = PreferencesDialogMsg;
     type Output = ();
     type CommandOutput = ();
@@ -140,13 +142,13 @@ impl relm4::Component for PreferencesDialog {
     }
 
     fn init(
-        (system_info, parent): Self::Init,
+        parent: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = PreferencesDialog {
             parent,
-            system_info,
+            system_info: Arc::default(),
         };
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -169,6 +171,9 @@ impl relm4::Component for PreferencesDialog {
                 CONFIG.write().edit(|config| {
                     config.theme = theme;
                 });
+            }
+            PreferencesDialogMsg::SystemInfo(info) => {
+                self.system_info = info;
             }
         }
         self.update_view(widgets, sender);

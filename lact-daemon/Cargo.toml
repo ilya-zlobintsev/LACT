@@ -32,11 +32,11 @@ futures = { workspace = true }
 indexmap = { workspace = true }
 divan = { workspace = true, optional = true }
 serde_norway = { workspace = true }
+zbus = { workspace = true }
 
 nvml-wrapper = "0.12.1"
 bitflags = "2.11.1"
 pciid-parser = { version = "0.8", features = ["serde"] }
-zbus = { version = "5.14.0", default-features = false, features = ["tokio"] }
 libdrm_amdgpu_sys = { version = "0.8.13", default-features = false, features = [
     "dynamic_loading",
 ] }
