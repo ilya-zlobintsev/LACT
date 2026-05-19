@@ -54,4 +54,5 @@ pub enum AppMsg {
     ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
     Crash(String),
+    Quit,
 }
