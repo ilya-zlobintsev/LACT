@@ -83,49 +83,51 @@ impl relm4::Component for GraphsWindow {
                     },
                 },
 
-                add_top_bar = &gtk::Box {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_spacing: 10,
-                    set_margin_horizontal: 10,
-                    set_margin_top: 5,
-                    set_halign: gtk::Align::End,
+                add_top_bar = &gtk::Revealer {
                     #[watch]
-                    set_visible: model.edit_mode.value(),
+                    set_reveal_child: model.edit_mode.value(),
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 10,
+                        set_margin_horizontal: 10,
+                        set_margin_top: 5,
+                        set_halign: gtk::Align::End,
 
-                    gtk::Label {
-                        set_label: &fl!(I18N, "graphs-per-row"),
-                    },
+                        gtk::Label {
+                            set_label: &fl!(I18N, "graphs-per-row"),
+                        },
 
-                    gtk::SpinButton {
-                        set_numeric: true,
-                        set_snap_to_ticks: true,
-                        set_range: (1.0, 5.0),
-                        set_increments: (1.0, 1.0),
-                        bind: &model.plots_per_row,
-                        connect_value_notify => GraphsWindowMsg::NotifyPlotsPerRow,
-                    },
+                        gtk::SpinButton {
+                            set_numeric: true,
+                            set_snap_to_ticks: true,
+                            set_range: (1.0, 5.0),
+                            set_increments: (1.0, 1.0),
+                            bind: &model.plots_per_row,
+                            connect_value_notify => GraphsWindowMsg::NotifyPlotsPerRow,
+                        },
 
-                    gtk::Label {
-                        set_label: &fl!(I18N, "time-period-seconds"),
-                    },
+                        gtk::Label {
+                            set_label: &fl!(I18N, "time-period-seconds"),
+                        },
 
-                    gtk::SpinButton {
-                        set_adjustment: &model.time_period_seconds_adj,
-                        connect_value_notify => GraphsWindowMsg::NotifyPlotsPerRow,
-                    },
+                        gtk::SpinButton {
+                            set_adjustment: &model.time_period_seconds_adj,
+                            connect_value_notify => GraphsWindowMsg::NotifyPlotsPerRow,
+                        },
 
-                    gtk::Button {
-                        set_label: &fl!(I18N, "reset-button"),
-                        set_tooltip: &fl!(I18N, "reset-all-graphs-tooltip"),
-                        add_css_class: "destructive-action",
-                        connect_clicked => GraphsWindowMsg::SetConfig(default_plots()),
-                    },
+                        gtk::Button {
+                            set_label: &fl!(I18N, "reset-button"),
+                            set_tooltip: &fl!(I18N, "reset-all-graphs-tooltip"),
+                            add_css_class: "destructive-action",
+                            connect_clicked => GraphsWindowMsg::SetConfig(default_plots()),
+                        },
 
-                    gtk::Button {
-                        set_icon_name: "list-add-symbolic",
-                        connect_clicked => GraphsWindowMsg::AddPlot,
-                        set_tooltip: &fl!(I18N, "add-graph"),
-                    },
+                        gtk::Button {
+                            set_icon_name: "list-add-symbolic",
+                            connect_clicked => GraphsWindowMsg::AddPlot,
+                            set_tooltip: &fl!(I18N, "add-graph"),
+                        },
+                    }
                 },
 
                 #[wrap(Some)]
