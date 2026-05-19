@@ -327,27 +327,7 @@ impl relm4::Component for FanCurveFrame {
         let temp_keys = gtk::StringList::default();
         let current_temp_key = U32Binding::new(0u32);
 
-        let change_signals = [
-            &spindown_delay_adj,
-            &change_threshold_adj,
-            &auto_threshold_adj,
-        ]
-        .into_iter()
-        .map(|adj| {
-            let signal = adj.connect_value_changed(|_| {
-                APP_BROKER.send(AppMsg::SettingsChanged);
-            });
-            (adj.clone().upcast(), signal)
-        })
-        .chain([(
-            current_temp_key.clone().upcast(),
-            current_temp_key.connect_value_notify(|_| {
-                APP_BROKER.send(AppMsg::SettingsChanged);
-            }),
-        )])
-        .collect();
-
-        let model = Self {
+        let mut model = Self {
             pmfw_options,
             is_dragging: Rc::new(AtomicBool::new(false)),
             speed_range: Rc::new(RefCell::new(DEFAULT_SPEED_RANGE)),
@@ -357,7 +337,7 @@ impl relm4::Component for FanCurveFrame {
             auto_threshold_adj,
             temp_keys,
             current_temp_key,
-            change_signals,
+            change_signals: Rc::default(),
             data: Rc::default(),
             drag_coord: Rc::default(),
             drag_point: Rc::default(),
@@ -368,14 +348,27 @@ impl relm4::Component for FanCurveFrame {
         let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         let spin_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
 
-        // blocking around view_output prevents SettingsChanged from being emitted during init
-        for (obj, signal) in model.change_signals.iter() {
-            obj.block_signal(signal);
-        }
         let widgets = view_output!();
-        for (obj, signal) in model.change_signals.iter() {
-            obj.unblock_signal(signal);
-        }
+
+        model.change_signals = [
+            &model.spindown_delay_adj,
+            &model.change_threshold_adj,
+            &model.auto_threshold_adj,
+        ]
+        .into_iter()
+        .map(|adj| {
+            let signal = adj.connect_value_changed(|_| {
+                APP_BROKER.send(AppMsg::SettingsChanged);
+            });
+            (adj.clone().upcast(), signal)
+        })
+        .chain([(
+            model.current_temp_key.clone().upcast(),
+            model.current_temp_key.connect_value_notify(|_| {
+                APP_BROKER.send(AppMsg::SettingsChanged);
+            }),
+        )])
+        .collect();
 
         ComponentParts { model, widgets }
     }
