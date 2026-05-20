@@ -6,6 +6,7 @@ pub mod graphs_window;
 mod info_dialog;
 mod info_row;
 mod info_row_level;
+mod loader;
 pub(crate) mod msg;
 mod overdrive_dialog;
 mod page_section;
@@ -81,6 +82,7 @@ use tracing::{debug, error, info, trace, warn};
 pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
+const MINIMUM_INIT_DURATION: Duration = Duration::from_millis(250);
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
 const DEFAULT_WINDOW_WIDTH: i32 = 1100;
@@ -358,6 +360,8 @@ impl AsyncComponent for AppModel {
     }
 
     fn init_loading_widgets(root: Self::Root) -> Option<LoadingWidgets> {
+        let loader_picture = loader::new();
+
         view! {
             #[local]
             root {
@@ -367,9 +371,8 @@ impl AsyncComponent for AppModel {
                     set_valign: gtk::Align::Center,
                     set_halign: gtk::Align::Center,
 
-                    gtk::Spinner {
-                        add_css_class: "bootstrap-spinner-large",
-                        start: (),
+                    #[local_ref]
+                    loader_picture -> gtk::Picture {
                     }
                 }
             }
@@ -389,6 +392,8 @@ impl AsyncComponent for AppModel {
         // 4. resolve selected GPU,
         // 5. build child components,
         // 6. load profiles and initial GPU data.
+
+        let init_start = tokio::time::Instant::now();
 
         relm4::set_global_css_with_priority(
             styles::COMBINED_CSS,
@@ -586,6 +591,10 @@ impl AsyncComponent for AppModel {
                 })
                 .drop_on_shutdown()
         });
+
+        if let Some(remaining) = MINIMUM_INIT_DURATION.checked_sub(init_start.elapsed()) {
+            sleep(remaining).await;
+        }
 
         AsyncComponentParts { model, widgets }
     }
