@@ -46,9 +46,13 @@ pub struct VfCurveEditor {
     global_settings_changed: BoolBinding,
 
     cursor_position: Rc<Cell<Option<(f64, f64)>>>,
+    hovered_coords: Rc<Cell<Option<(u32, u32)>>>,
     hovered_point: Rc<Cell<Option<usize>>>,
     dragging_point: Rc<Cell<Option<usize>>>,
     drag_modifiers: Rc<Cell<gdk::ModifierType>>,
+
+    selected_range_start: Rc<Cell<Option<usize>>>,
+    selected_range_end: Rc<Cell<Option<usize>>>,
 }
 
 #[derive(Debug)]
@@ -270,9 +274,12 @@ impl relm4::Component for VfCurveEditor {
             cursor_position: Rc::new(Cell::new(None)),
             visible_range_start: gtk::Adjustment::new(30.0, 0.0, 100.0, 1.0, 10.0, 0.0),
             visible_range_end: gtk::Adjustment::new(100.0, 0.0, 100.0, 1.0, 10.0, 0.0),
+            hovered_coords: Rc::new(Cell::new(None)),
             hovered_point: Rc::new(Cell::new(None)),
             dragging_point: Rc::new(Cell::new(None)),
             drag_modifiers: Rc::new(Cell::new(gdk::ModifierType::empty())),
+            selected_range_start: Rc::new(Cell::new(None)),
+            selected_range_end: Rc::new(Cell::new(None)),
         };
 
         let widgets = view_output!();
@@ -313,15 +320,30 @@ impl relm4::Component for VfCurveEditor {
                 self.drag_modifiers.set(modifiers);
             }
             VfCurveEditorMsg::DragStart => {
-                if let Some(point) = self.hovered_point.get()
-                    && self.allow_editing.value()
-                {
+                if !self.allow_editing.value() {
+                    return;
+                }
+
+                if let Some(point) = self.hovered_point.get() {
                     self.dragging_point.set(Some(point));
+                } else {
+                    self.selected_range_start.set(
+                        self.hovered_coords
+                            .get()
+                            .map(|(x, _)| x as usize),
+                    );
+                    self.selected_range_end.set(None);
                 }
             }
             VfCurveEditorMsg::DragEnd => {
                 if self.dragging_point.take().is_some() {
                     APP_BROKER.send(AppMsg::SettingsChanged);
+                } else if self.selected_range_start.get().is_some() {
+                    self.selected_range_end.set(
+                        self.hovered_coords
+                            .get()
+                            .map(|(x, _)| x as usize),
+                    );
                 }
             }
             VfCurveEditorMsg::FlattenCurve => {
@@ -491,6 +513,7 @@ impl VfCurveEditor {
 
         let active_style = colors.text;
         let hovered_style = colors.accent_bg;
+        let selected_style = colors.accent_bg.mix(0.5);
 
         let hovered_point = self
             .dragging_point
@@ -503,6 +526,14 @@ impl VfCurveEditor {
                 3,
                 ShapeStyle::from(&colors.success).filled(),
                 &|(i, coord), mut size, mut style| {
+                    if let Some((selected_start, selected_end)) = self.get_selected_range() {
+                        let voltage = coord.0 as usize;
+                        if selected_start < voltage && voltage < selected_end {
+                            style.color = selected_style.to_rgba();
+                            size *= 2;
+                        }
+                    }
+
                     let is_active = self.stats.borrow().voltage.gpu == Some(coord.0 as u64);
                     if is_active {
                         style.color = active_style.to_rgba();
@@ -588,6 +619,7 @@ impl VfCurveEditor {
             .cursor_position
             .get()
             .and_then(|(x, y)| translate((x as i32, y as i32)));
+        self.hovered_coords.set(hovered_coords);
 
         let hovered_point = hovered_coords.and_then(|(voltage, freq)| {
             points
@@ -606,6 +638,16 @@ impl VfCurveEditor {
         });
         self.hovered_point.set(hovered_point);
 
+        if let Some(point_idx) = self.dragging_point.get()
+            && let Some((selected_start, selected_end)) = self.get_selected_range()
+        {
+            let voltage = points[point_idx].voltage as usize;
+            if voltage < selected_start || voltage > selected_end {
+                self.selected_range_start.set(None);
+                self.selected_range_end.set(None);
+            }
+        }
+
         if let Some((_voltage, freq)) = hovered_coords
             && let Some(point_idx) = self.dragging_point.get()
         {
@@ -621,6 +663,16 @@ impl VfCurveEditor {
                     let new_freq = (point.freq as i32 + drag_delta) as u32;
                     if new_freq > 0 {
                         point.freq = new_freq;
+                    }
+                }
+            } else if let Some((selected_start, selected_end)) = self.get_selected_range() {
+                for point in points.iter_mut() {
+                    let voltage = point.voltage as usize;
+                    if selected_start < voltage && voltage < selected_end {
+                        let new_freq = (point.freq as i32 + drag_delta) as u32;
+                        if new_freq > 0 {
+                            point.freq = new_freq;
+                        }
                     }
                 }
             } else {
@@ -640,6 +692,30 @@ impl VfCurveEditor {
         let end = cmp::min(end, len);
 
         (cmp::min(start, end), cmp::max(end, start))
+    }
+
+    fn get_selected_range(&self) -> Option<(usize, usize)> {
+        match (
+            self.selected_range_start.get(),
+            self.selected_range_end.get(),
+        ) {
+            (Some(selected_start), Some(selected_end)) => Some((
+                cmp::min(selected_start, selected_end),
+                cmp::max(selected_start, selected_end),
+            )),
+            (Some(selected_start), None) => {
+                let selected_end = self
+                    .hovered_coords
+                    .get()
+                    .map(|(x, _)| x as usize)
+                    .unwrap_or(selected_start);
+                Some((
+                    cmp::min(selected_start, selected_end),
+                    cmp::max(selected_start, selected_end),
+                ))
+            }
+            _ => None,
+        }
     }
 
     pub fn is_empty(&self) -> bool {
