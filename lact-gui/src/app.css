@@ -13,9 +13,3 @@
 .main-sidebar-container .sidebar-section {
     margin: 4px 8px 8px 8px;
 }
-
-.bootstrap-spinner-large {
-    min-width: 64px;
-    min-height: 64px;
-    -gtk-icon-size: 64px;
-}
