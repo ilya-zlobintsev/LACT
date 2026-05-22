@@ -353,24 +353,36 @@ expression: device_info
     "core": [
       {
         "enabled": true,
+        "id": "Sleep",
+        "value": 19
+      },
+      {
+        "enabled": true,
         "id": {
           "Index": 0
         },
-        "value": 500
+        "value": 615
       },
       {
         "enabled": true,
         "id": {
           "Index": 1
         },
-        "value": 16
+        "value": 800
       },
       {
         "enabled": true,
         "id": {
           "Index": 2
         },
-        "value": 2400
+        "value": 888
+      },
+      {
+        "enabled": true,
+        "id": {
+          "Index": 3
+        },
+        "value": 1000
       }
     ],
     "vram": [
@@ -420,9 +432,7 @@ expression: device_info
   },
   "stats": {
     "active_power_states": {
-      "core": {
-        "Index": 1
-      },
+      "core": "Sleep",
       "memory": {
         "Index": 5
       },
