@@ -1747,6 +1747,7 @@ dependencies = [
  "i18n-embed",
  "i18n-embed-fl",
  "indexmap",
+ "insta",
  "jiff",
  "lact-client",
  "lact-daemon",

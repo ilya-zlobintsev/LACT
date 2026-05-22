@@ -51,7 +51,7 @@ ureq = { version = "3.3.0", features = ["json", "rustls"] }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
-insta = { version = "1.47.2", features = ["json", "yaml"] }
+insta = { workspace = true }
 easy_fuser = { version = "0.4.5", features = ["parallel"] }
 tempfile = "3.27.0"
 
