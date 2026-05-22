@@ -15,6 +15,8 @@ mod preferences_dialog;
 mod process_monitor;
 mod profiles;
 pub(crate) mod styles;
+#[cfg(all(test, feature = "gtk-tests"))]
+mod tests;
 
 use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
@@ -528,10 +530,10 @@ impl AsyncComponent for AppModel {
             sender.input(AppMsg::Error(Arc::new(err)));
         }
 
-        if let Some(gpu_id) = initial_gpu_id {
-            if let Err(err) = model.update_gpu_data_full(gpu_id, sender.clone()).await {
-                sender.input(AppMsg::Error(Arc::new(err)));
-            }
+        if let Some(gpu_id) = initial_gpu_id
+            && let Err(err) = model.update_gpu_data_full(gpu_id, sender.clone()).await
+        {
+            sender.input(AppMsg::Error(Arc::new(err)));
         }
 
         let widgets = view_output!();
@@ -918,6 +920,10 @@ impl AppModel {
                 if let Some(handle) = self.stats_task_handle.take() {
                     handle.abort();
                 }
+            }
+            #[cfg(test)]
+            AppMsg::SelectPage(name) => {
+                widgets.root_stack.set_visible_child_name(&name);
             }
             AppMsg::Quit => {
                 self.application.quit();
@@ -1400,6 +1406,7 @@ fn start_stats_update_loop(
     })
 }
 
+#[cfg(not(test))]
 async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
     match DaemonClient::connect().await {
         Ok(connection) => {
@@ -1424,6 +1431,22 @@ async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Err
             Ok((client, Some(err)))
         }
     }
+}
+
+#[cfg(test)]
+async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
+    let (server_stream, client_stream) = UnixStream::pair()?;
+    client_stream.set_nonblocking(true)?;
+    server_stream.set_nonblocking(true)?;
+
+    std::thread::spawn(move || {
+        if let Err(err) = lact_daemon::run_embedded(server_stream) {
+            panic!("Builtin daemon error: {err}");
+        }
+    });
+
+    let client = DaemonClient::from_stream(client_stream, true)?;
+    Ok((client, None))
 }
 
 new_action_group!(pub AppActionGroup, "app");
