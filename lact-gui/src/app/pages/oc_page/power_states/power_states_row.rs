@@ -62,7 +62,7 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
                     let index_text = match self.power_state.id {
                         Some(PowerLevelId::Index(index)) => index.to_string(),
                         Some(PowerLevelId::Sleep) => "S".to_owned(),
-                        None => "?".to_owned(),
+                        None => String::new(),
                     };
                     let value_text = match self.power_state.min_value {
                         Some(min) if min != self.power_state.value => format!("{min}-{}", self.power_state.value),

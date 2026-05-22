@@ -556,11 +556,8 @@ pub struct DeviceStats {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct ActivePowerStates {
-    #[serde(default)]
     pub core: Option<PowerLevelId>,
-    #[serde(default)]
     pub memory: Option<PowerLevelId>,
-    #[serde(default)]
     pub pcie: Option<PowerLevelId>,
 }
 
@@ -702,7 +699,6 @@ pub struct PowerState {
     pub enabled: bool,
     pub min_value: Option<u64>,
     pub value: u64,
-    #[serde(default)]
     pub id: Option<PowerLevelId>,
 }
 
