@@ -16,7 +16,7 @@ use lact_schema::{ClocksTable, DeviceStats, NvidiaVfPoint, config};
 use plotters::{
     chart::{ChartBuilder, SeriesLabelPosition},
     prelude::{Circle, EmptyElement, IntoDrawingArea as _, Rectangle, Text},
-    series::{DashedLineSeries, LineSeries, PointSeries},
+    series::{AreaSeries, DashedLineSeries, LineSeries, PointSeries},
     style::{Color as _, ShapeStyle, TextStyle, text_anchor::Pos},
 };
 use plotters_cairo::CairoBackend;
@@ -155,6 +155,8 @@ impl relm4::Component for VfCurveEditor {
                         #[watch]
                         set_cursor: if model.dragging_point.get().is_some() {
                             gdk::Cursor::from_name("move", None)
+                        } else if model.selected_range_start.get().is_some() && model.selected_range_end.get().is_none() {
+                            gdk::Cursor::from_name("col-resize", None)
                         } else {
                             None
                         }.as_ref(),
@@ -327,11 +329,8 @@ impl relm4::Component for VfCurveEditor {
                 if let Some(point) = self.hovered_point.get() {
                     self.dragging_point.set(Some(point));
                 } else {
-                    self.selected_range_start.set(
-                        self.hovered_coords
-                            .get()
-                            .map(|(x, _)| x as usize),
-                    );
+                    self.selected_range_start
+                        .set(self.hovered_coords.get().map(|(x, _)| x as usize));
                     self.selected_range_end.set(None);
                 }
             }
@@ -339,11 +338,8 @@ impl relm4::Component for VfCurveEditor {
                 if self.dragging_point.take().is_some() {
                     APP_BROKER.send(AppMsg::SettingsChanged);
                 } else if self.selected_range_start.get().is_some() {
-                    self.selected_range_end.set(
-                        self.hovered_coords
-                            .get()
-                            .map(|(x, _)| x as usize),
-                    );
+                    self.selected_range_end
+                        .set(self.hovered_coords.get().map(|(x, _)| x as usize));
                 }
             }
             VfCurveEditorMsg::FlattenCurve => {
@@ -513,12 +509,24 @@ impl VfCurveEditor {
 
         let active_style = colors.text;
         let hovered_style = colors.accent_bg;
-        let selected_style = colors.accent_bg.mix(0.5);
+        let selected_style = colors.accent_bg.mix(0.8);
+        let selected_area_style = colors.text.mix(0.1);
 
         let hovered_point = self
             .dragging_point
             .get()
             .or_else(|| self.hovered_point.get());
+
+        if let Some((selected_start, selected_end)) = self.get_selected_range() {
+            let x_values = [selected_start, selected_end];
+            chart
+                .draw_series(AreaSeries::new(
+                    x_values.map(|x| (x as u32, y_spec.end)),
+                    0,
+                    selected_area_style,
+                ))
+                .unwrap();
+        }
 
         let main_series = chart
             .draw_series(PointSeries::of_element(
@@ -530,7 +538,6 @@ impl VfCurveEditor {
                         let voltage = coord.0 as usize;
                         if selected_start < voltage && voltage < selected_end {
                             style.color = selected_style.to_rgba();
-                            size *= 2;
                         }
                     }
 
