@@ -467,6 +467,7 @@ impl relm4::Component for ThermalsPage {
 
                         let msg = CurveSetupMsg {
                             curve: stats.fan.curve.clone().unwrap_or_else(default_fan_curve),
+                            hw_based: self.has_pmfw,
                             current_temperatures: stats.temps.clone(),
                             temperature_key: stats.fan.temperature_key.clone(),
                             spindown_delay: stats.fan.spindown_delay_ms,
