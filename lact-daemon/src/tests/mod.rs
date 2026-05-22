@@ -25,7 +25,7 @@ fn init_tracing() {
 async fn snapshot_everything() {
     init_tracing();
 
-    let test_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/data");
+    let test_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/data");
     let pci_db = read_pci_db();
 
     for vendor_dir in fs::read_dir(test_data_dir).unwrap().flatten() {

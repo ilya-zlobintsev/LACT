@@ -1,6 +1,0 @@
----
-source: lact-gui/src/app/tests.rs
-expression: widget_to_png(widget)
-extension: png
-snapshot_kind: binary
----

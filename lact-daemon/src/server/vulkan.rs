@@ -7,7 +7,6 @@ use tokio::process::Command;
 use tracing::{error, trace};
 
 use crate::server::gpu_controller::{CommonControllerInfo, PciSlotInfo};
-use crate::server::handler::DRM_PATH_OVERRIDE_ENV;
 use crate::system::IS_FLATBOX;
 
 include!(concat!(env!("OUT_DIR"), "/vulkan_constants.rs"));
@@ -18,10 +17,6 @@ const VULKAN_ICD_DIR: &str = "/usr/share/vulkan/icd.d";
 pub async fn get_vulkan_info(info: &CommonControllerInfo) -> anyhow::Result<Vec<VulkanInfo>> {
     #[cfg(test)]
     return Ok(vec![]);
-
-    if env::var(DRM_PATH_OVERRIDE_ENV).is_ok() {
-        return Ok(vec![]);
-    }
 
     let mut results = Vec::new();
 

@@ -21,13 +21,7 @@ async fn try_get_opencl_info(
     info: &CommonControllerInfo,
     unique_vendor: bool,
 ) -> anyhow::Result<Vec<OpenCLInfo>> {
-    use crate::server::handler::DRM_PATH_OVERRIDE_ENV;
-    use std::env;
     use tokio::process::Command;
-
-    if env::var(DRM_PATH_OVERRIDE_ENV).is_ok() {
-        return Ok(vec![]);
-    }
 
     let clinfo_output = Command::new("clinfo")
         .arg("--json")

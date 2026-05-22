@@ -49,5 +49,4 @@ thread-priority = "3.0.0"
 divan = { workspace = true, optional = true }
 
 [dev-dependencies]
-insta = { workspace = true }
 pretty_assertions = "1.4.1"

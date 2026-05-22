@@ -1181,13 +1181,13 @@ async fn apply_config_to_controllers(
 
 #[cfg(all(test, not(miri)))]
 pub(crate) fn read_pci_db() -> Database {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/data/pci.ids");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/data/pci.ids");
     Database::read_from_file(&path).unwrap()
 }
 
 #[cfg(all(test, miri))]
 pub(crate) fn read_pci_db() -> Database {
-    let bytes = include_bytes!("../../../tests/data/pci.ids");
+    let bytes = include_bytes!("../../src/tests/data/pci.ids");
     Database::parse_db(std::io::Cursor::new(bytes)).unwrap()
 }
 
@@ -1412,10 +1412,8 @@ fn add_path_to_archive(
     Ok(())
 }
 
-pub(crate) const DRM_PATH_OVERRIDE_ENV: &str = "_LACT_DRM_SYSFS_PATH";
-
 fn drm_base_path() -> PathBuf {
-    match env::var(DRM_PATH_OVERRIDE_ENV) {
+    match env::var("_LACT_DRM_SYSFS_PATH") {
         Ok(custom_path) => PathBuf::from(custom_path),
         Err(_) => PathBuf::from("/sys/class/drm"),
     }
