@@ -298,6 +298,8 @@ fn level_friendly_name(level: PerformanceLevel) -> String {
         | PerformanceLevel::ProfileMinMclk
         | PerformanceLevel::ProfilePeak
         | PerformanceLevel::PerfDeterminism
-        | PerformanceLevel::ProfileExit => unreachable!("unsupported performance level in selector"),
+        | PerformanceLevel::ProfileExit => {
+            unreachable!("unsupported performance level in selector")
+        }
     }
 }
