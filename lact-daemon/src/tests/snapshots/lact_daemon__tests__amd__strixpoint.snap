@@ -178,45 +178,61 @@ expression: device_info
     "core": [
       {
         "enabled": true,
-        "index": 0,
+        "id": {
+          "Index": 0
+        },
         "value": 600
       },
       {
         "enabled": true,
-        "index": 1,
+        "id": {
+          "Index": 1
+        },
         "value": 848
       },
       {
         "enabled": true,
-        "index": 2,
+        "id": {
+          "Index": 2
+        },
         "value": 2900
       }
     ],
     "vram": [
       {
         "enabled": true,
-        "index": 0,
+        "id": {
+          "Index": 0
+        },
         "value": 400
       },
       {
         "enabled": true,
-        "index": 1,
+        "id": {
+          "Index": 1
+        },
         "value": 800
       },
       {
         "enabled": true,
-        "index": 2,
+        "id": {
+          "Index": 2
+        },
         "value": 1000
       }
     ]
   },
   "stats": {
+    "active_power_states": {
+      "core": {
+        "Index": 1
+      }
+    },
     "busy_percent": 3,
     "clockspeed": {
       "gpu_clockspeed": 848,
       "sensors": {}
     },
-    "core_power_state": 1,
     "fan": {
       "control_enabled": false,
       "pmfw_info": {}

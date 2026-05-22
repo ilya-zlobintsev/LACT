@@ -772,7 +772,7 @@ impl GpuController for IntelGpuController {
                 enabled: true,
                 min_value: None,
                 value,
-                index: None,
+                id: None,
             })
         })
         .collect();

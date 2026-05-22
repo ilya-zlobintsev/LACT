@@ -101,12 +101,15 @@ mod benches {
         },
         stat::{StatType, StatsData},
     };
-    use amdgpu_sysfs::{gpu_handle::PerformanceLevel, hw_mon::Temperature};
+    use amdgpu_sysfs::{
+        gpu_handle::{PerformanceLevel, PowerLevelId},
+        hw_mon::Temperature,
+    };
     use divan::{Bencher, counter::ItemsCount};
     use jiff::Timestamp;
     use lact_schema::{
-        ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats, TemperatureEntry,
-        VoltageStats, VramStats,
+        ActivePowerStates, ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats,
+        TemperatureEntry, VoltageStats, VramStats,
     };
     use std::{
         collections::HashMap,
@@ -158,7 +161,11 @@ mod benches {
                         target_gpu_clockspeed: None,
                         sensors: HashMap::new(),
                     },
-                    core_power_state: Some(0),
+                    active_power_states: Some(ActivePowerStates {
+                        core: Some(PowerLevelId::Index(0)),
+                        memory: Some(PowerLevelId::Index(3)),
+                        pcie: Some(PowerLevelId::Index(1)),
+                    }),
                     fan: FanStats {
                         control_enabled: false,
                         pmfw_info: PmfwInfo::default(),
@@ -170,8 +177,6 @@ mod benches {
                         speed_min: Some(0),
                         ..Default::default()
                     },
-                    memory_power_state: Some(3),
-                    pcie_power_state: Some(1),
                     performance_level: Some(PerformanceLevel::Auto),
                     power: PowerStats {
                         average: Some(36.0),

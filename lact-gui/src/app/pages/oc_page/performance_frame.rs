@@ -293,5 +293,6 @@ fn level_friendly_name(level: PerformanceLevel) -> String {
         PerformanceLevel::Low => fl!(I18N, "performance-level-low"),
         PerformanceLevel::High => fl!(I18N, "performance-level-high"),
         PerformanceLevel::Manual => fl!(I18N, "performance-level-manual"),
+        _ => level.to_string(),
     }
 }

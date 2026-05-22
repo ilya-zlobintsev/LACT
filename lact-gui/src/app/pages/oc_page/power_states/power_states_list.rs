@@ -1,6 +1,7 @@
 use crate::app::pages::oc_page::power_states::power_states_row::{
     PowerStateRow, PowerStateRowMsg, PowerStateRowOptions,
 };
+use amdgpu_sysfs::gpu_handle::PowerLevelId;
 use gtk::prelude::{FrameExt, WidgetExt};
 use lact_schema::PowerState;
 use relm4::{
@@ -23,7 +24,7 @@ pub struct PowerStatesListOptions {
 #[derive(Debug)]
 pub enum PowerStatesListMsg {
     PowerStates(Vec<PowerState>, f64),
-    ActiveState(Option<usize>),
+    ActiveState(Option<PowerLevelId>),
     Configurable(bool),
 }
 
@@ -92,10 +93,7 @@ impl relm4::SimpleComponent for PowerStatesList {
                 self.is_active_indicator_visible
                     .set_value(active_idx.is_some());
                 for (i, row) in self.states.iter().enumerate() {
-                    let is_active = row
-                        .power_state
-                        .index
-                        .is_some_and(|index| Some(usize::from(index)) == active_idx);
+                    let is_active = row.power_state.id == active_idx;
 
                     self.states.send(i, PowerStateRowMsg::Active(is_active));
                 }
@@ -112,7 +110,10 @@ impl PowerStatesList {
         self.states
             .iter()
             .filter(|row| row.enabled.value())
-            .filter_map(|row| row.power_state.index)
+            .filter_map(|row| match row.power_state.id? {
+                PowerLevelId::Index(index) => Some(index),
+                PowerLevelId::Sleep => None,
+            })
             .collect()
     }
 
