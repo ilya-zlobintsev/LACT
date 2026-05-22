@@ -82,7 +82,6 @@ use tracing::{debug, error, info, trace, warn};
 pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
-const MINIMUM_INIT_DURATION: Duration = Duration::from_millis(250);
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
 const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
 const DEFAULT_WINDOW_WIDTH: i32 = 1100;
@@ -393,8 +392,6 @@ impl AsyncComponent for AppModel {
         // 5. build child components,
         // 6. load profiles and initial GPU data.
 
-        let init_start = tokio::time::Instant::now();
-
         relm4::set_global_css_with_priority(
             styles::COMBINED_CSS,
             STYLE_PROVIDER_PRIORITY_APPLICATION,
@@ -591,10 +588,6 @@ impl AsyncComponent for AppModel {
                 })
                 .drop_on_shutdown()
         });
-
-        if let Some(remaining) = MINIMUM_INIT_DURATION.checked_sub(init_start.elapsed()) {
-            sleep(remaining).await;
-        }
 
         AsyncComponentParts { model, widgets }
     }
