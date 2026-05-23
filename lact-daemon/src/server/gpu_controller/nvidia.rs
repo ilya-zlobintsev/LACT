@@ -15,7 +15,7 @@ use crate::{
     },
 };
 use amdgpu_sysfs::{
-    gpu_handle::{fan_control::FanInfo, power_profile_mode::PowerProfileModesTable},
+    gpu_handle::{PowerLevelId, fan_control::FanInfo, power_profile_mode::PowerProfileModesTable},
     hw_mon::Temperature,
 };
 use anyhow::{Context, anyhow, bail};
@@ -23,11 +23,11 @@ use driver::DriverHandle;
 use futures::{FutureExt, future::LocalBoxFuture, join};
 use indexmap::IndexMap;
 use lact_schema::{
-    CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceFlag, DeviceInfo, DeviceStats,
-    DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
-    NvidiaClockOffset, NvidiaClocksTable, NvidiaVfPoint, PmfwInfo, PowerState, PowerStates,
-    PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry,
-    VoltageStats, VramStats,
+    ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceFlag, DeviceInfo,
+    DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo,
+    LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaVfPoint, PmfwInfo, PowerState,
+    PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType,
+    TemperatureEntry, VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
 use nvml_wrapper::{
@@ -354,12 +354,12 @@ impl NvidiaGpuController {
                 enabled: true,
                 min_value: Some(u64::from(gpu_min)),
                 value: u64::from(gpu_max),
-                index: Some(
+                id: Some(PowerLevelId::Index(
                     pstate
                         .as_c()
                         .try_into()
                         .expect("Power state always fits in u8"),
-                ),
+                )),
             });
 
             let (mem_min, mem_max) = device
@@ -370,12 +370,12 @@ impl NvidiaGpuController {
                 enabled: true,
                 min_value: Some(u64::from(mem_min)),
                 value: u64::from(mem_max),
-                index: Some(
+                id: Some(PowerLevelId::Index(
                     pstate
                         .as_c()
                         .try_into()
                         .expect("Power state always fits in u8"),
-                ),
+                )),
             });
         }
 
@@ -753,7 +753,14 @@ impl GpuController for NvidiaGpuController {
 
         let active_pstate = device
             .performance_state()
-            .map(|pstate| pstate.as_c() as usize)
+            .map(|pstate| {
+                PowerLevelId::Index(
+                    pstate
+                        .as_c()
+                        .try_into()
+                        .expect("Power state always fits in u8"),
+                )
+            })
             .ok();
 
         let fan_range = device.min_max_fan_speed().ok();
@@ -835,9 +842,11 @@ impl GpuController for NvidiaGpuController {
                 ..Default::default()
             },
             performance_level: None,
-            core_power_state: active_pstate,
-            memory_power_state: active_pstate,
-            pcie_power_state: None,
+            active_power_states: active_pstate.map(|active_pstate| ActivePowerStates {
+                core: Some(active_pstate),
+                memory: Some(active_pstate),
+                pcie: None,
+            }),
         }
     }
 

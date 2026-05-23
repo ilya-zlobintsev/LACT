@@ -54,14 +54,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/amdgpu-sysfs/amdgpu-sysfs-0.20.1.crate",
-        "sha256": "e50f319907827f2c8dcd43fd1472e6103384bc3e8764a370db3db7a4e983817f",
-        "dest": "cargo/vendor/amdgpu-sysfs-0.20.1"
+        "url": "https://static.crates.io/crates/amdgpu-sysfs/amdgpu-sysfs-0.21.0.crate",
+        "sha256": "4c67148270d0240773b7c69d6a98949a0f1e20fe91a756add562b5e6d3de3cf2",
+        "dest": "cargo/vendor/amdgpu-sysfs-0.21.0"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"e50f319907827f2c8dcd43fd1472e6103384bc3e8764a370db3db7a4e983817f\", \"files\": {}}",
-        "dest": "cargo/vendor/amdgpu-sysfs-0.20.1",
+        "contents": "{\"package\": \"4c67148270d0240773b7c69d6a98949a0f1e20fe91a756add562b5e6d3de3cf2\", \"files\": {}}",
+        "dest": "cargo/vendor/amdgpu-sysfs-0.21.0",
         "dest-filename": ".cargo-checksum.json"
     },
     {

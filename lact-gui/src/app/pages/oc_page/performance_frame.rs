@@ -293,5 +293,13 @@ fn level_friendly_name(level: PerformanceLevel) -> String {
         PerformanceLevel::Low => fl!(I18N, "performance-level-low"),
         PerformanceLevel::High => fl!(I18N, "performance-level-high"),
         PerformanceLevel::Manual => fl!(I18N, "performance-level-manual"),
+        PerformanceLevel::ProfileStandard
+        | PerformanceLevel::ProfileMinSclk
+        | PerformanceLevel::ProfileMinMclk
+        | PerformanceLevel::ProfilePeak
+        | PerformanceLevel::PerfDeterminism
+        | PerformanceLevel::ProfileExit => {
+            unreachable!("unsupported performance level in selector")
+        }
     }
 }
