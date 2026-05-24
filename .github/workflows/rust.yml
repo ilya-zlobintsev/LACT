@@ -43,7 +43,7 @@ jobs:
       - name: Install clippy
         run: rustup component add clippy
       - name: Run clippy
-        run: cargo clippy --all --all-features --verbose
+        run: cargo clippy --all --all-features -- --deny clippy::all
 
   check-audit:
     runs-on: ubuntu-24.04

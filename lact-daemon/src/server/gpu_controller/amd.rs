@@ -1032,7 +1032,7 @@ impl GpuController for AmdGpuController {
                         .handle
                         .get_memory_clock_levels()
                         .inspect_err(|err| {
-                            debug!("could not get active memory power state: {err:#}")
+                            debug!("could not get active memory power state: {err:#}");
                         })
                         .ok()
                         .and_then(|levels| levels.active),
