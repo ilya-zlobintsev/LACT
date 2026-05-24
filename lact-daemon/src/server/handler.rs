@@ -1181,13 +1181,13 @@ async fn apply_config_to_controllers(
 
 #[cfg(all(test, not(miri)))]
 pub(crate) fn read_pci_db() -> Database {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/data/pci.ids");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/snapshots/pci.ids");
     Database::read_from_file(&path).unwrap()
 }
 
 #[cfg(all(test, miri))]
 pub(crate) fn read_pci_db() -> Database {
-    let bytes = include_bytes!("../../../tests/data/pci.ids");
+    let bytes = include_bytes!("../../../tests/snapshots/pci.ids");
     Database::parse_db(std::io::Cursor::new(bytes)).unwrap()
 }
 
