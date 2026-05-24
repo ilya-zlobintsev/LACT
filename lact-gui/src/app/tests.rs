@@ -59,7 +59,7 @@ async fn snapshot_app() {
     widget.present();
 
     let test_data_dir =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/data/amd/rx6900xt");
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/snapshots/amd/rx6900xt");
 
     unsafe {
         std::env::set_var("_LACT_DRM_SYSFS_PATH", test_data_dir.to_str().unwrap());
