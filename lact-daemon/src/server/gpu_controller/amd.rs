@@ -10,7 +10,7 @@ use crate::server::{
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
-        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind,
+        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelId, PowerLevelKind,
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
         power_profile_mode::PowerProfileModesTable,
@@ -21,10 +21,10 @@ use amdgpu_sysfs::{
 use anyhow::{Context, anyhow, bail};
 use futures::{FutureExt, future::LocalBoxFuture, join};
 use lact_schema::{
-    AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceFlag,
-    DeviceInfo, DeviceStats, DeviceType, DrmInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
-    PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo,
-    TemperatureEntry, VoltageStats, VramStats,
+    ActivePowerStates, AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo,
+    ClockspeedStats, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, FanControlMode,
+    FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList,
+    ProcessUtilizationType, RopInfo, TemperatureEntry, VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, HW_IP::HW_IP_TYPE, ThrottlerBit, ThrottlerType};
@@ -445,7 +445,9 @@ impl AmdGpuController {
             .unwrap_or_default();
 
         if attempt < MAX_PSTATE_READ_ATTEMPTS
-            && levels.iter().any(|value| *value >= u64::from(u16::MAX))
+            && levels
+                .iter()
+                .any(|level| level.value >= u64::from(u16::MAX))
         {
             debug!("GPU reported nonsensical {kind:?} power state values, retrying: {levels:?}");
             return self.get_power_states_kind(gpu_config, kind, attempt + 1);
@@ -453,15 +455,18 @@ impl AmdGpuController {
 
         levels
             .into_iter()
-            .enumerate()
-            .map(|(i, value)| {
-                let i = u8::try_from(i).unwrap();
-                let enabled = enabled_states.is_none_or(|enabled| enabled.contains(&i));
+            .map(|level| {
+                let enabled = match level.id {
+                    PowerLevelId::Index(index) => {
+                        enabled_states.is_none_or(|enabled| enabled.contains(&index))
+                    }
+                    PowerLevelId::Sleep => true,
+                };
                 PowerState {
                     enabled,
                     min_value: None,
-                    value,
-                    index: Some(i),
+                    value: level.value,
+                    id: Some(level.id),
                 }
             })
             .collect()
@@ -1015,24 +1020,34 @@ impl GpuController for AmdGpuController {
             temps,
             busy_percent: self.handle.get_busy_percent().ok(),
             performance_level: self.handle.get_power_force_performance_level().ok(),
-            core_power_state: self
-                .handle
-                .get_core_clock_levels()
-                .inspect_err(|err| debug!("could not get active core power state: {err:#}"))
-                .ok()
-                .and_then(|levels| levels.active),
-            memory_power_state: self
-                .handle
-                .get_memory_clock_levels()
-                .inspect_err(|err| debug!("could not get active memory power state: {err:#}"))
-                .ok()
-                .and_then(|levels| levels.active),
-            pcie_power_state: self
-                .handle
-                .get_pcie_clock_levels()
-                .inspect_err(|err| debug!("could not get active PCIe power state: {err:#}"))
-                .ok()
-                .and_then(|levels| levels.active),
+            active_power_states: {
+                let active_power_states = ActivePowerStates {
+                    core: self
+                        .handle
+                        .get_core_clock_levels()
+                        .inspect_err(|err| debug!("could not get active core power state: {err:#}"))
+                        .ok()
+                        .and_then(|levels| levels.active),
+                    memory: self
+                        .handle
+                        .get_memory_clock_levels()
+                        .inspect_err(|err| {
+                            debug!("could not get active memory power state: {err:#}")
+                        })
+                        .ok()
+                        .and_then(|levels| levels.active),
+                    pcie: self
+                        .handle
+                        .get_pcie_clock_levels()
+                        .inspect_err(|err| debug!("could not get active PCIe power state: {err:#}"))
+                        .ok()
+                        .and_then(|levels| levels.active),
+                };
+                (active_power_states.core.is_some()
+                    || active_power_states.memory.is_some()
+                    || active_power_states.pcie.is_some())
+                .then_some(active_power_states)
+            },
             throttle_info,
         }
     }
@@ -1162,7 +1177,7 @@ impl GpuController for AmdGpuController {
                                 .set_power_force_performance_level(performance_level)
                                 .context("Failed to set power performance level")?;
                         }
-                        PerformanceLevel::High | PerformanceLevel::Low => {
+                        _ => {
                             deferred_performance_level = Some(performance_level);
                         }
                     }

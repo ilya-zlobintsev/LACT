@@ -6,6 +6,7 @@ pub mod graphs_window;
 mod info_dialog;
 mod info_row;
 mod info_row_level;
+mod loader;
 pub(crate) mod msg;
 mod overdrive_dialog;
 mod page_section;
@@ -331,6 +332,8 @@ impl AsyncComponent for AppModel {
     }
 
     fn init_loading_widgets(root: Self::Root) -> Option<LoadingWidgets> {
+        let loader_picture = loader::new();
+
         view! {
             #[local]
             root {
@@ -340,9 +343,8 @@ impl AsyncComponent for AppModel {
                     set_valign: gtk::Align::Center,
                     set_halign: gtk::Align::Center,
 
-                    gtk::Spinner {
-                        add_css_class: "bootstrap-spinner-large",
-                        start: (),
+                    #[local_ref]
+                    loader_picture -> gtk::Picture {
                     }
                 }
             }
@@ -921,12 +923,13 @@ impl AppModel {
                     handle.abort();
                 }
             }
-            #[cfg(test)]
-            AppMsg::SelectPage(name) => {
-                widgets.root_stack.set_visible_child_name(&name);
-            }
             AppMsg::Quit => {
                 self.application.quit();
+            }
+
+            #[cfg(all(test, feature = "gtk-tests"))]
+            AppMsg::SelectPage(name) => {
+                widgets.root_stack.set_visible_child_name(&name);
             }
         }
         Ok(())

@@ -2,6 +2,7 @@ use crate::{
     I18N,
     app::{APP_BROKER, graphs_window::plot::PlotColorScheme, msg::AppMsg},
 };
+use amdgpu_sysfs::gpu_handle::PowerLevelId;
 use gtk::{
     gdk,
     prelude::{
@@ -458,7 +459,11 @@ impl VfCurveEditor {
         {
             let mut label = format!("Current: {current_clock} MHz @ {current_voltage} mV");
 
-            if stats.core_power_state != Some(0) {
+            if stats
+                .active_power_states
+                .and_then(|states| states.core)
+                .is_some_and(|state| state != PowerLevelId::Index(0))
+            {
                 label.push_str(" (Idle)");
             }
 

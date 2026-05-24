@@ -15,7 +15,7 @@ pub use response::Response;
 
 use amdgpu_sysfs::{
     gpu_handle::{
-        PerformanceLevel,
+        PerformanceLevel, PowerLevelId,
         fan_control::FanInfo,
         overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTableGen},
     },
@@ -549,10 +549,16 @@ pub struct DeviceStats {
     pub temps: HashMap<String, TemperatureEntry>,
     pub busy_percent: Option<u8>,
     pub performance_level: Option<PerformanceLevel>,
-    pub core_power_state: Option<usize>,
-    pub memory_power_state: Option<usize>,
-    pub pcie_power_state: Option<usize>,
+    pub active_power_states: Option<ActivePowerStates>,
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+pub struct ActivePowerStates {
+    pub core: Option<PowerLevelId>,
+    pub memory: Option<PowerLevelId>,
+    pub pcie: Option<PowerLevelId>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -693,7 +699,7 @@ pub struct PowerState {
     pub enabled: bool,
     pub min_value: Option<u64>,
     pub value: u64,
-    pub index: Option<u8>,
+    pub id: Option<PowerLevelId>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
