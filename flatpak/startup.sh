@@ -45,7 +45,7 @@ After=multi-user.target
 
 [Service]
 Environment=FLATPAK_INSTALL_USER=$USER
-ExecStart=$DAEMON_SH_PATH
+ExecStart=bash $DAEMON_SH_PATH
 Nice=-10
 Restart=on-failure
 
