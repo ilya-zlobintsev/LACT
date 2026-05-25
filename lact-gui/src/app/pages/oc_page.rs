@@ -6,6 +6,7 @@ mod power_states;
 mod vf_curve;
 
 use super::PageUpdate;
+use crate::app::ext::RelmLaunchable as _;
 use crate::app::pages::oc_page::gpu_stats_section::GpuStatsSectionMsg;
 use crate::app::pages::oc_page::vf_curve::{VfCurveEditor, VfCurveEditorMsg};
 use crate::app::{ext::RelmDefaultLauchable, msg::AppMsg};
@@ -88,7 +89,7 @@ impl relm4::Component for OcPage {
         let performance_frame =
             PerformanceFrame::launch_default().forward(sender.input_sender(), |msg| msg);
 
-        let vf_curve_editor = VfCurveEditor::builder().launch(settings_changed).detach();
+        let vf_curve_editor = VfCurveEditor::detach(settings_changed);
 
         let model = Self {
             stats_section,

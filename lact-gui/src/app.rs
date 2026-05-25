@@ -21,6 +21,7 @@ use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
     app::{
         about_dialog::{AboutDialog, AboutDialogMsg},
+        ext::RelmLaunchable as _,
         gpu_selector::GpuSelector,
         info_dialog::{
             InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
@@ -436,31 +437,23 @@ impl AsyncComponent for AppModel {
 
         let info_page = InformationPage::detach_default();
 
-        let oc_page = OcPage::builder()
-            .launch(settings_changed.clone())
-            .forward(sender.input_sender(), |msg| msg);
-        let thermals_page = ThermalsPage::builder().launch(()).detach();
+        let oc_page =
+            OcPage::launch(settings_changed.clone()).forward(sender.input_sender(), |msg| msg);
+        let thermals_page = ThermalsPage::detach_default();
 
-        let software_page = SoftwarePage::builder()
-            .launch((system_info.clone(), daemon_client.embedded))
-            .detach();
+        let software_page = SoftwarePage::detach((system_info.clone(), daemon_client.embedded));
 
-        let crash_page = CrashPage::builder()
-            .launch(String::new())
-            .forward(sender.input_sender(), |msg| msg);
+        let crash_page = CrashPage::launch_default().forward(sender.input_sender(), |msg| msg);
 
-        let overdrive_dialog = OverdriveDialog::builder()
-            .launch((system_info.clone(), root.clone().upcast()))
-            .detach();
+        let overdrive_dialog =
+            OverdriveDialog::detach((system_info.clone(), root.clone().upcast()));
 
-        let preferences_dialog = PreferencesDialog::builder()
-            .launch((system_info.clone(), root.clone()))
-            .detach();
+        let preferences_dialog = PreferencesDialog::detach((system_info.clone(), root.clone()));
 
-        let about_dialog = AboutDialog::builder().launch(root.clone()).detach();
-        let info_dialog = InfoDialog::builder()
-            .launch(root.clone())
-            .forward(sender.input_sender(), |msg| msg);
+        let about_dialog = AboutDialog::detach(root.clone());
+
+        let info_dialog =
+            InfoDialog::launch(root.clone()).forward(sender.input_sender(), |msg| msg);
 
         let graphs_window = GraphsWindow::detach_default();
         let process_monitor_window = ProcessMonitorWindow::detach_default();
@@ -469,9 +462,8 @@ impl AsyncComponent for AppModel {
             .launch((devices, initial_gpu_id.clone()))
             .forward(sender.input_sender(), AppMsg::SelectGpu);
 
-        let profile_selector = ProfileSelector::builder()
-            .launch(())
-            .forward(sender.input_sender(), |msg| msg);
+        let profile_selector =
+            ProfileSelector::launch_default().forward(sender.input_sender(), |msg| msg);
 
         // create action group and actions for app menu
         // action group and actions are declared at the bottom of the file
@@ -736,7 +728,7 @@ impl AppModel {
                     filters: vec![json_filter],
                     ..Default::default()
                 };
-                let file_picker = OpenDialog::builder().launch(settings);
+                let file_picker = OpenDialog::launch(settings);
                 file_picker.emit(OpenDialogMsg::Open);
                 let stream = file_picker.into_stream();
 
@@ -755,7 +747,7 @@ impl AppModel {
                         is_modal: true,
                         ..Default::default()
                     };
-                    let diag = SaveDialog::builder().launch(settings);
+                    let diag = SaveDialog::launch(settings);
                     diag.emit(SaveDialogMsg::SaveAs(format!(
                         "LACT-profile-{}.json",
                         name.as_deref().unwrap_or("default")
