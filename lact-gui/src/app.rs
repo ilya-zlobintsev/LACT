@@ -665,7 +665,7 @@ impl AppModel {
             AppMsg::ReloadData { full } => {
                 self.settings_changed.set_value(false);
 
-                let gpu_id = self.get_selected_gpu_id()?;
+                let gpu_id = Self::get_selected_gpu_id()?;
                 if full {
                     self.update_gpu_data_full(gpu_id, sender).await?;
                 } else {
@@ -794,7 +794,7 @@ impl AppModel {
                 });
             }
             AppMsg::ApplyChanges => {
-                self.apply_settings(self.get_selected_gpu_id()?, root, &sender)
+                self.apply_settings(Self::get_selected_gpu_id()?, root, &sender)
                     .await
                     .inspect_err(|_| {
                         sender.input(AppMsg::ReloadData { full: false });
@@ -804,7 +804,7 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ResetClocks => {
-                let gpu_id = self.get_selected_gpu_id()?;
+                let gpu_id = Self::get_selected_gpu_id()?;
                 self.daemon_client
                     .set_clocks_value(&gpu_id, SetClocksCommand::reset())
                     .await?;
@@ -814,7 +814,7 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ResetPmfw => {
-                let gpu_id = self.get_selected_gpu_id()?;
+                let gpu_id = Self::get_selected_gpu_id()?;
                 self.daemon_client.reset_pmfw(&gpu_id).await?;
                 self.daemon_client
                     .confirm_pending_config(ConfirmCommand::Confirm)
@@ -829,7 +829,7 @@ impl AppModel {
                     .emit(ProcessMonitorWindowMsg::Show);
             }
             AppMsg::DumpVBios => {
-                self.dump_vbios(&self.get_selected_gpu_id()?, root, sender.clone())
+                self.dump_vbios(&Self::get_selected_gpu_id()?, root, sender.clone())
                     .await?;
             }
             AppMsg::DebugSnapshot => {
@@ -870,7 +870,7 @@ impl AppModel {
             }
             AppMsg::FetchProcessList => {
                 if self.process_monitor_window.widget().is_visible()
-                    && let Ok(gpu_id) = self.get_selected_gpu_id()
+                    && let Ok(gpu_id) = Self::get_selected_gpu_id()
                 {
                     match self.daemon_client.get_process_list(&gpu_id).await {
                         Ok(process_list) => {
@@ -979,12 +979,14 @@ impl AppModel {
     }
 
     fn set_selected_gpu_id(gpu_id: String) {
-        CONFIG.write().edit(|config| {
-            config.selected_gpu = Some(gpu_id);
-        });
+        if !Self::get_selected_gpu_id().is_ok_and(|current_id| current_id == gpu_id) {
+            CONFIG.write().edit(|config| {
+                config.selected_gpu = Some(gpu_id);
+            });
+        }
     }
 
-    fn get_selected_gpu_id(&self) -> anyhow::Result<String> {
+    fn get_selected_gpu_id() -> anyhow::Result<String> {
         CONFIG
             .read()
             .selected_gpu
