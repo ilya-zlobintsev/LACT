@@ -157,10 +157,12 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 ));
             }
             PowerStatesFrameMsg::Stats(stats) => {
-                self.core_states_list
-                    .emit(PowerStatesListMsg::ActiveState(stats.core_power_state));
-                self.vram_states_list
-                    .emit(PowerStatesListMsg::ActiveState(stats.memory_power_state));
+                self.core_states_list.emit(PowerStatesListMsg::ActiveState(
+                    stats.active_power_states.and_then(|states| states.core),
+                ));
+                self.vram_states_list.emit(PowerStatesListMsg::ActiveState(
+                    stats.active_power_states.and_then(|states| states.memory),
+                ));
             }
             PowerStatesFrameMsg::VramClockRatio(ratio) => {
                 self.vram_clock_ratio = ratio;

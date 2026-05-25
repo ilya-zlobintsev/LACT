@@ -70,6 +70,8 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                     set_time_period_seconds: self.time_period.value() as i64,
                     add_binding: (&self.print_extra_info, "print-extra-info"),
 
+                    set_stats: self.selected_stats(),
+
                     connect_frame_rendered[sender] => move || {
                         sender.input(PlotComponentMsg::FrameRendered);
                     },
@@ -192,8 +194,6 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                 stats_guard.push_back((stat.clone(), enabled));
             }
         }
-
-        sender.input(PlotComponentMsg::UpdatedSelection);
 
         let print_extra_info = BoolBinding::new(false);
         print_extra_info.connect_value_notify(move |_| {

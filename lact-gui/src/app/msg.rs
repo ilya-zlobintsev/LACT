@@ -56,4 +56,5 @@ pub enum AppMsg {
     ConnectionStatus(ConnectionStatusMsg),
     RestartDaemon(UnitProxy<'static>),
     Crash(String),
+    Quit,
 }

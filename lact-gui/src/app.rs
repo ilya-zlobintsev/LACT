@@ -6,6 +6,7 @@ pub mod graphs_window;
 mod info_dialog;
 mod info_row;
 mod info_row_level;
+mod loader;
 pub(crate) mod msg;
 mod overdrive_dialog;
 mod page_section;
@@ -64,9 +65,11 @@ use pages::{
 use relm4::{
     AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
     RelmWidgetExt,
+    actions::{AccelsPlus, ActionGroupName, RelmAction, RelmActionGroup},
     binding::BoolBinding,
     css,
     loading_widgets::LoadingWidgets,
+    new_action_group, new_stateless_action,
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio::{self, time::sleep},
     view,
@@ -89,6 +92,14 @@ const DEFAULT_WINDOW_WIDTH: i32 = 1100;
 const DEFAULT_WINDOW_HEIGHT: i32 = 750;
 const CONFIRM_RESPONSE_APPLY: &str = "confirm";
 const CONFIRM_RESPONSE_REVERT: &str = "revert";
+
+macro_rules! setup_actions {
+    ($(($grp:ident, $action:ty, $callback:expr),)*) => {
+        $(
+            $grp.add_action(RelmAction::<$action>::new_stateless(move |_| $callback));
+        )*
+    };
+}
 
 pub struct AppModel {
     daemon_client: DaemonClient,
@@ -116,6 +127,10 @@ pub struct AppModel {
     system_info: Arc<SystemInfo>,
     device_flags: Vec<DeviceFlag>,
     device_driver: String,
+
+    application: gtk::Application,
+
+    dump_vbios_action: gtk::gio::SimpleAction,
 }
 
 #[derive(Debug)]
@@ -131,6 +146,22 @@ impl AsyncComponent for AppModel {
     type Input = AppMsg;
     type Output = ();
     type CommandOutput = Option<CommandOutput>;
+
+    menu! {
+        app_menu: {
+            section! {
+                &fl!(I18N, "show-process-monitor") => ProcessMonitorAction,
+            },
+            section! {
+                &fl!(I18N, "generate-debug-snapshot") => GenerateDebugSnapshotAction,
+                &fl!(I18N, "dump-vbios") => DumpVBiosAction,
+            },
+            section! {
+                &fl!(I18N, "preferences") => PreferencesAction,
+                &fl!(I18N, "about") => AboutAction,
+            },
+        }
+    }
 
     view! {
         #[root]
@@ -220,67 +251,8 @@ impl AsyncComponent for AppModel {
 
                                     pack_end = &gtk::MenuButton {
                                         set_icon_name: "open-menu-symbolic",
-
-                                        #[wrap(Some)]
-                                        #[name = "header_menu_popover"]
-                                        set_popover = &gtk::Popover {
-
-                                            gtk::Box {
-                                                set_orientation: gtk::Orientation::Vertical,
-                                                add_css_class: "header-settings-popover-container",
-
-                                                gtk::Button {
-                                                    set_label: &fl!(I18N, "show-process-monitor"),
-                                                    connect_clicked[header_menu_popover] => move |_| {
-                                                        header_menu_popover.popdown();
-                                                        APP_BROKER.send(AppMsg::ShowProcessMonitor);
-                                                    },
-                                                    add_css_class: "flat",
-                                                },
-
-                                                gtk::Separator {},
-
-                                                gtk::Button {
-                                                    set_label: &fl!(I18N, "generate-debug-snapshot"),
-                                                    connect_clicked[header_menu_popover] => move |_| {
-                                                        header_menu_popover.popdown();
-                                                        APP_BROKER.send(AppMsg::DebugSnapshot);
-                                                    },
-                                                    add_css_class: "flat",
-                                                },
-
-                                                gtk::Button {
-                                                    set_label: &fl!(I18N, "dump-vbios"),
-                                                    connect_clicked[header_menu_popover] => move |_| {
-                                                        header_menu_popover.popdown();
-                                                        APP_BROKER.send(AppMsg::DumpVBios);
-                                                    },
-                                                    add_css_class: "flat",
-                                                    #[watch]
-                                                    set_sensitive: model.device_flags.contains(&DeviceFlag::DumpableVBios),
-                                                },
-
-                                                gtk::Separator {},
-
-                                                gtk::Button {
-                                                    set_label: &fl!(I18N, "preferences"),
-                                                    connect_clicked[header_menu_popover] => move |_| {
-                                                        header_menu_popover.popdown();
-                                                        APP_BROKER.send(AppMsg::ShowPreferencesDialog);
-                                                    },
-                                                    add_css_class: "flat",
-                                                },
-
-                                                gtk::Button {
-                                                    set_label: &fl!(I18N, "about"),
-                                                    connect_clicked[header_menu_popover] => move |_| {
-                                                        header_menu_popover.popdown();
-                                                        APP_BROKER.send(AppMsg::ShowAboutDialog);
-                                                    },
-                                                    add_css_class: "flat",
-                                                },
-                                            }
-                                        },
+                                        set_tooltip_text: Some(&fl!(I18N, "menu")),
+                                        set_menu_model: Some(&app_menu),
                                     },
 
                                     pack_end = &gtk::Button {
@@ -360,6 +332,8 @@ impl AsyncComponent for AppModel {
     }
 
     fn init_loading_widgets(root: Self::Root) -> Option<LoadingWidgets> {
+        let loader_picture = loader::new();
+
         view! {
             #[local]
             root {
@@ -369,9 +343,8 @@ impl AsyncComponent for AppModel {
                     set_valign: gtk::Align::Center,
                     set_halign: gtk::Align::Center,
 
-                    gtk::Spinner {
-                        add_css_class: "bootstrap-spinner-large",
-                        start: (),
+                    #[local_ref]
+                    loader_picture -> gtk::Picture {
                     }
                 }
             }
@@ -468,6 +441,34 @@ impl AsyncComponent for AppModel {
         let profile_selector =
             ProfileSelector::launch(()).forward(sender.input_sender(), |msg| msg);
 
+        // create action group and actions for app menu
+        // action group and actions are declared at the bottom of the file
+        let mut actions = RelmActionGroup::<AppActionGroup>::new();
+        let application = root
+            .application()
+            .expect("Failed to get application from root window");
+        setup_actions! {
+            (actions, ProcessMonitorAction, APP_BROKER.send(AppMsg::ShowProcessMonitor)),
+            (actions, GenerateDebugSnapshotAction, APP_BROKER.send(AppMsg::DebugSnapshot)),
+            (actions, PreferencesAction, APP_BROKER.send(AppMsg::ShowPreferencesDialog)),
+            (actions, AboutAction, APP_BROKER.send(AppMsg::ShowAboutDialog)),
+            (actions, QuitAction, APP_BROKER.send(AppMsg::Quit)),
+        }
+        // this action is enabled/disabled conditionally in [Self::update_gpu_data_full]
+        // when the device flags are set, only if the device contains the DumpableVBios flag
+        let dump_vbios_action = {
+            let action = RelmAction::<DumpVBiosAction>::new_stateless(move |_| {
+                APP_BROKER.send(AppMsg::DumpVBios);
+            });
+            let gio_action = action.gio_action().clone();
+            actions.add_action(action);
+            gio_action.set_enabled(false);
+            gio_action
+        };
+        application.set_accelerators_for_action::<PreferencesAction>(&["<Control>comma"]);
+        application.set_accelerators_for_action::<QuitAction>(&["<Control>q"]);
+        root.insert_action_group(AppActionGroup::NAME, Some(&actions.into_action_group()));
+
         let mut model = AppModel {
             daemon_client,
             graphs_window,
@@ -489,6 +490,8 @@ impl AsyncComponent for AppModel {
             system_info: Arc::default(),
             device_flags: vec![],
             device_driver: String::new(),
+            dump_vbios_action,
+            application,
         };
 
         if let Err(err) = model.update_system_info(true).await {
@@ -630,7 +633,7 @@ impl AppModel {
             AppMsg::ReloadData { full } => {
                 self.settings_changed.set_value(false);
 
-                let gpu_id = self.get_selected_gpu_id()?;
+                let gpu_id = Self::get_selected_gpu_id()?;
                 if full {
                     self.update_gpu_data_full(gpu_id, sender).await?;
                 } else {
@@ -759,7 +762,7 @@ impl AppModel {
                 });
             }
             AppMsg::ApplyChanges => {
-                self.apply_settings(self.get_selected_gpu_id()?, root, &sender)
+                self.apply_settings(Self::get_selected_gpu_id()?, root, &sender)
                     .await
                     .inspect_err(|_| {
                         sender.input(AppMsg::ReloadData { full: false });
@@ -769,7 +772,7 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ResetClocks => {
-                let gpu_id = self.get_selected_gpu_id()?;
+                let gpu_id = Self::get_selected_gpu_id()?;
                 self.daemon_client
                     .set_clocks_value(&gpu_id, SetClocksCommand::reset())
                     .await?;
@@ -779,7 +782,7 @@ impl AppModel {
                 sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ResetPmfw => {
-                let gpu_id = self.get_selected_gpu_id()?;
+                let gpu_id = Self::get_selected_gpu_id()?;
                 self.daemon_client.reset_pmfw(&gpu_id).await?;
                 self.daemon_client
                     .confirm_pending_config(ConfirmCommand::Confirm)
@@ -794,7 +797,7 @@ impl AppModel {
                     .emit(ProcessMonitorWindowMsg::Show);
             }
             AppMsg::DumpVBios => {
-                self.dump_vbios(&self.get_selected_gpu_id()?, root, sender.clone())
+                self.dump_vbios(&Self::get_selected_gpu_id()?, root, sender.clone())
                     .await?;
             }
             AppMsg::DebugSnapshot => {
@@ -835,7 +838,7 @@ impl AppModel {
             }
             AppMsg::FetchProcessList => {
                 if self.process_monitor_window.widget().is_visible()
-                    && let Ok(gpu_id) = self.get_selected_gpu_id()
+                    && let Ok(gpu_id) = Self::get_selected_gpu_id()
                 {
                     match self.daemon_client.get_process_list(&gpu_id).await {
                         Ok(process_list) => {
@@ -895,6 +898,9 @@ impl AppModel {
                     handle.abort();
                 }
             }
+            AppMsg::Quit => {
+                self.application.quit();
+            }
         }
         Ok(())
     }
@@ -950,12 +956,14 @@ impl AppModel {
     }
 
     fn set_selected_gpu_id(gpu_id: String) {
-        CONFIG.write().edit(|config| {
-            config.selected_gpu = Some(gpu_id);
-        });
+        if !Self::get_selected_gpu_id().is_ok_and(|current_id| current_id == gpu_id) {
+            CONFIG.write().edit(|config| {
+                config.selected_gpu = Some(gpu_id);
+            });
+        }
     }
 
-    fn get_selected_gpu_id(&self) -> anyhow::Result<String> {
+    fn get_selected_gpu_id() -> anyhow::Result<String> {
         CONFIG
             .read()
             .selected_gpu
@@ -1012,6 +1020,8 @@ impl AppModel {
         }
 
         self.device_flags = info.flags.clone();
+        self.dump_vbios_action
+            .set_enabled(self.device_flags.contains(&DeviceFlag::DumpableVBios));
         self.device_driver = info.driver.clone();
 
         let update = PageUpdate::Info(info.clone());
@@ -1463,3 +1473,11 @@ async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Err
         }
     }
 }
+
+new_action_group!(pub AppActionGroup, "app");
+new_stateless_action!(pub ProcessMonitorAction, AppActionGroup, "show-process-monitor");
+new_stateless_action!(pub GenerateDebugSnapshotAction, AppActionGroup, "generate-debug-snapshot");
+new_stateless_action!(pub DumpVBiosAction, AppActionGroup, "dump-vbios");
+new_stateless_action!(pub PreferencesAction, AppActionGroup, "preferences");
+new_stateless_action!(pub AboutAction, AppActionGroup, "about");
+new_stateless_action!(pub QuitAction, AppActionGroup, "quit");

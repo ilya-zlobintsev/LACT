@@ -1,4 +1,5 @@
 use crate::{APP_BROKER, app::msg::AppMsg};
+use amdgpu_sysfs::gpu_handle::PowerLevelId;
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use lact_schema::PowerState;
 use relm4::{RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css};
@@ -50,6 +51,7 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
             append = &gtk::CheckButton {
                 add_binding: (&self.enabled, "active"),
                 add_binding: (&self.configurable, "visible"),
+                set_sensitive: matches!(self.power_state.id, Some(PowerLevelId::Index(_))),
             },
 
             append = &gtk::Label {
@@ -57,11 +59,16 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
                 #[watch]
                 set_class_active: (css::DIM_LABEL, !self.active.value()),
                 set_label: &{
+                    let index_text = match self.power_state.id {
+                        Some(PowerLevelId::Index(index)) => index.to_string(),
+                        Some(PowerLevelId::Sleep) => "S".to_owned(),
+                        None => String::new(),
+                    };
                     let value_text = match self.power_state.min_value {
                         Some(min) if min != self.power_state.value => format!("{min}-{}", self.power_state.value),
                         _ => self.power_state.value.to_string(),
                     };
-                    format!("{}: {value_text} {}", index.current_index(), self.value_suffix)
+                    format!("{index_text}: {value_text} {}", self.value_suffix)
                 },
             },
         }
