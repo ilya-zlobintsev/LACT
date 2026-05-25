@@ -48,5 +48,7 @@ thread-priority = "3.0.0"
 
 divan = { workspace = true, optional = true }
 
+zbus = { workspace = true }
+
 [dev-dependencies]
 pretty_assertions = "1.4.1"

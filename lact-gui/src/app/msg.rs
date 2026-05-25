@@ -1,6 +1,7 @@
 use super::profiles::profile_rule_window::{
     ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg,
 };
+use crate::app::service_setup::systemd::UnitProxy;
 use lact_client::ConnectionStatusMsg;
 use lact_schema::{
     DeviceStats, ProfileRule, ProfilesInfo, config::ProfileHooks, request::ProfileBase,
@@ -53,6 +54,7 @@ pub enum AppMsg {
     ImportProfile,
     ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
+    RestartDaemon(UnitProxy<'static>),
     Crash(String),
     Quit,
 }

@@ -69,7 +69,7 @@ pub fn bytes_to_mib(bytes: u64) -> f64 {
 pub struct Pong;
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct SystemInfo {
     pub version: String,
     pub commit: Option<String>,

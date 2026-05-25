@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     I18N,
     app::{APP_BROKER, msg::AppMsg},
@@ -10,7 +12,7 @@ use lact_schema::{AmdgpuParamsConfigurator, BootArgConfigurator, SystemInfo};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt};
 
 pub struct OverdriveDialog {
-    pub system_info: SystemInfo,
+    pub system_info: Arc<SystemInfo>,
     pub parent: gtk::Widget,
     pub is_loading: bool,
     pub is_done: bool,
@@ -21,11 +23,12 @@ pub enum OverdriveDialogMsg {
     Show,
     Loading,
     Loaded,
+    SystemInfo(Arc<SystemInfo>),
 }
 
 #[relm4::component(pub)]
 impl relm4::Component for OverdriveDialog {
-    type Init = (SystemInfo, gtk::Widget);
+    type Init = gtk::Widget;
     type Input = OverdriveDialogMsg;
     type Output = ();
     type CommandOutput = ();
@@ -45,6 +48,7 @@ impl relm4::Component for OverdriveDialog {
                     add = &adw::PreferencesGroup {
                         gtk::Label {
                             set_xalign: 0.0,
+                            #[watch]
                             set_markup: &fl!(
                                 I18N,
                                 "amd-oc-description",
@@ -62,6 +66,7 @@ impl relm4::Component for OverdriveDialog {
                         adw::ActionRow {
                             set_title_lines: 0,
                             set_use_markup: true,
+                            #[watch]
                             set_title: &fl!(
                                 I18N,
                                 "amd-oc-status",
@@ -76,6 +81,7 @@ impl relm4::Component for OverdriveDialog {
                         adw::ActionRow {
                             set_title_lines: 0,
                             set_use_markup: true,
+                            #[watch]
                             set_title: &fl!(I18N, "amd-oc-detected-system-config", config = format_config(&model.system_info)),
                         },
 
@@ -139,13 +145,12 @@ impl relm4::Component for OverdriveDialog {
     }
 
     fn init(
-        init: Self::Init,
+        parent: Self::Init,
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let (system_info, parent) = init;
         let model = Self {
-            system_info,
+            system_info: Arc::default(),
             parent,
             is_loading: false,
             is_done: false,
@@ -168,6 +173,9 @@ impl relm4::Component for OverdriveDialog {
             OverdriveDialogMsg::Loaded => {
                 self.is_loading = false;
                 self.is_done = true;
+            }
+            OverdriveDialogMsg::SystemInfo(info) => {
+                self.system_info = info;
             }
         }
 
