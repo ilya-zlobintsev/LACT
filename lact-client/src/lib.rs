@@ -19,7 +19,7 @@ use schema::{
 };
 use serde::de::DeserializeOwned;
 use std::{
-    future::Future, os::unix::net::UnixStream, path::PathBuf, pin::Pin, rc::Rc, time::Duration,
+    fmt, future::Future, os::unix::net::UnixStream, path::PathBuf, pin::Pin, rc::Rc, time::Duration,
 };
 use tokio::{
     net::ToSocketAddrs,
@@ -219,6 +219,14 @@ impl DaemonClient {
     pub async fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
         self.make_request(Request::ConfirmPendingConfig(command))
             .await
+    }
+}
+
+impl fmt::Debug for DaemonClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DaemonClient")
+            .field("embedded", &self.embedded)
+            .finish()
     }
 }
 

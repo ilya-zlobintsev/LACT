@@ -1743,6 +1743,7 @@ dependencies = [
  "anyhow",
  "cairo-rs",
  "divan",
+ "futures",
  "gtk4",
  "i18n-embed",
  "i18n-embed-fl",
@@ -1765,6 +1766,7 @@ dependencies = [
  "thread-priority",
  "tracing",
  "tracing-subscriber",
+ "zbus",
 ]
 
 [[package]]
