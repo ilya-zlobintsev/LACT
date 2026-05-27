@@ -337,7 +337,7 @@ impl relm4::Component for VfCurveEditor {
             VfCurveEditorMsg::DragEnd => {
                 if self.dragging_point.take().is_some() {
                     APP_BROKER.send(AppMsg::SettingsChanged);
-                } else if self.selected_range_start.get().is_some() {
+                } else if self.allow_editing.value() && self.selected_range_start.get().is_some() {
                     self.selected_range_end
                         .set(self.hovered_coords.get().map(|(x, _)| x as usize));
                 }
