@@ -1,6 +1,7 @@
 use crate::app::ext::FlowBoxExt;
 mod vulkan;
 
+use crate::app::loader;
 use crate::{
     GUI_VERSION, I18N, REPO_URL,
     app::{
@@ -13,14 +14,14 @@ use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_client::schema::{GIT_COMMIT, SystemInfo};
-use lact_schema::{DeviceInfo, OpenCLInfo, VulkanInfo};
+use lact_schema::{DeviceApiInfo, OpenCLInfo, VulkanInfo};
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use relm4_components::simple_combo_box::{SimpleComboBox, SimpleComboBoxMsg};
-use std::{fmt::Write, sync::Arc};
+use std::fmt::Write as _;
 use vulkan::feature_window::{VulkanFeature, VulkanFeaturesWindow};
 
 pub struct SoftwarePage {
-    device_info: Option<Arc<DeviceInfo>>,
+    device_api_info: Option<DeviceApiInfo>,
 
     vulkan_driver_selector: relm4::Controller<SimpleComboBox<String>>,
     opencl_platform_selector: relm4::Controller<SimpleComboBox<String>>,
@@ -30,7 +31,7 @@ pub struct SoftwarePage {
 
 #[derive(Debug)]
 pub enum SoftwarePageMsg {
-    DeviceInfo(Arc<DeviceInfo>),
+    DeviceApiInfo(Option<DeviceApiInfo>),
     ShowVulkanFeatures,
     ShowVulkanExtensions,
     SelectionChanged,
@@ -63,163 +64,179 @@ impl relm4::SimpleComponent for SoftwarePage {
                 },
             },
 
-            #[name = "vulkan_stack"]
-            match model.selected_vulkan_info() {
-                Some(info) => {
-                    PageSection::new("Vulkan") {
-                        append_child = &gtk::FlowBox {
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_column_spacing: 10,
-                            set_homogeneous: true,
-                            set_min_children_per_line: 2,
-                            set_max_children_per_line: 4,
-                            set_selection_mode: gtk::SelectionMode::None,
-
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "instance"),
-                                append_child = model.vulkan_driver_selector.widget(),
-                            } -> vulkan_instance_item: gtk::FlowBoxChild {
-                                #[watch]
-                                set_visible: model.vulkan_driver_selector.model().variants.len() > 1,
-                            },
-
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "device-name"),
-                                #[watch]
-                                set_value: info.device_name.as_str(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "api-version"),
-                                #[watch]
-                                set_value: info.api_version.as_str(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "driver-name"),
-                                #[watch]
-                                set_value: info.driver.name.as_deref().unwrap_or_default(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "driver-version"),
-                                #[watch]
-                                set_value: info.driver.info.as_deref().unwrap_or_default(),
-                                set_selectable: true,
-                            },
-
-                            append_child = &InfoRow {
-                                set_value: fl!(I18N, "features"),
-                                set_icon: "go-next-symbolic".to_string(),
-                                connect_clicked => SoftwarePageMsg::ShowVulkanFeatures,
-                            },
-
-                            append_child = &InfoRow {
-                                set_value: fl!(I18N, "extensions"),
-                                set_icon: "go-next-symbolic".to_string(),
-                                connect_clicked => SoftwarePageMsg::ShowVulkanExtensions,
-                            },
-                        },
-                    }
-                }
-                None => {
-                    PageSection::new("Vulkan") {
-                        append_child = &gtk::Label {
-                            set_label: &fl!(I18N, "device-not-found", kind = "Vulkan"),
-                            set_halign: gtk::Align::Start,
-                        },
-                    }
-                }
+            #[local_ref]
+            loader_picture -> gtk::Picture {
+                set_halign: gtk::Align::Center,
+                set_valign: gtk::Align::Start,
+                #[watch]
+                set_visible: model.device_api_info.is_none(),
             },
 
-            #[name = "opencl_stack"]
-            match model.selected_opencl_info() {
-                Some(info) => {
-                    PageSection::new("OpenCL") {
-                        append_child = &gtk::FlowBox {
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_column_spacing: 10,
-                            set_homogeneous: true,
-                            set_min_children_per_line: 2,
-                            set_max_children_per_line: 4,
-                            set_selection_mode: gtk::SelectionMode::None,
+            gtk::Box {
+                set_spacing: 15,
+                set_orientation: gtk::Orientation::Vertical,
+                #[watch]
+                set_visible: model.device_api_info.is_some(),
+                set_visible: false,
 
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "platform-name"),
-                                append_child = model.opencl_platform_selector.widget(),
-                            } -> opencl_platform_item: gtk::FlowBoxChild {
-                                #[watch]
-                                set_visible: model.opencl_platform_selector.model().variants.len() > 1,
-                            },
+                #[name = "vulkan_stack"]
+                match model.selected_vulkan_info() {
+                    Some(info) => {
+                        PageSection::new("Vulkan") {
+                            append_child = &gtk::FlowBox {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_column_spacing: 10,
+                                set_homogeneous: true,
+                                set_min_children_per_line: 2,
+                                set_max_children_per_line: 4,
+                                set_selection_mode: gtk::SelectionMode::None,
 
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "platform-name"),
-                                #[watch]
-                                set_value: info.platform_name.as_str(),
-                                set_selectable: true,
-                            } -> opencl_platform_name_item: gtk::FlowBoxChild {
-                                #[watch]
-                                set_visible: model.opencl_platform_selector.model().variants.len() == 1,
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "instance"),
+                                    append_child = model.vulkan_driver_selector.widget(),
+                                } -> vulkan_instance_item: gtk::FlowBoxChild {
+                                    #[watch]
+                                    set_visible: model.vulkan_driver_selector.model().variants.len() > 1,
+                                },
+
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "device-name"),
+                                    #[watch]
+                                    set_value: info.device_name.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "api-version"),
+                                    #[watch]
+                                    set_value: info.api_version.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "driver-name"),
+                                    #[watch]
+                                    set_value: info.driver.name.as_deref().unwrap_or_default(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "driver-version"),
+                                    #[watch]
+                                    set_value: info.driver.info.as_deref().unwrap_or_default(),
+                                    set_selectable: true,
+                                },
+
+                                append_child = &InfoRow {
+                                    set_value: fl!(I18N, "features"),
+                                    set_icon: "go-next-symbolic".to_string(),
+                                    connect_clicked => SoftwarePageMsg::ShowVulkanFeatures,
+                                },
+
+                                append_child = &InfoRow {
+                                    set_value: fl!(I18N, "extensions"),
+                                    set_icon: "go-next-symbolic".to_string(),
+                                    connect_clicked => SoftwarePageMsg::ShowVulkanExtensions,
+                                },
                             },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "device-name"),
-                                #[watch]
-                                set_value: info.device_name.as_str(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "version"),
-                                #[watch]
-                                set_value: info.version.as_str(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "driver-version"),
-                                #[watch]
-                                set_value: info.driver_version.as_str(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "cl-c-version"),
-                                #[watch]
-                                set_value: info.c_version.as_str(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "compute-units"),
-                                #[watch]
-                                set_value: info.compute_units.to_string(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "workgroup-size"),
-                                #[watch]
-                                set_value: info.workgroup_size.to_string(),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "global-memory"),
-                                #[watch]
-                                set_value: formatting::fmt_human_bytes(info.global_memory, None),
-                                set_selectable: true,
-                            },
-                            append_child = &InfoRow {
-                                set_name: fl!(I18N, "local-memory"),
-                                #[watch]
-                                set_value: formatting::fmt_human_bytes(info.local_memory, None),
-                                set_selectable: true,
-                            },
-                        },
+                        }
                     }
-                }
-                None => {
-                    PageSection::new("OpenCL") {
-                        append_child = &gtk::Label {
-                            set_label: &fl!(I18N, "device-not-found", kind = "OpenCL"),
-                            set_halign: gtk::Align::Start,
-                        },
+                    None => {
+                        PageSection::new("Vulkan") {
+                            append_child = &gtk::Label {
+                                set_label: &fl!(I18N, "device-not-found", kind = "Vulkan"),
+                                set_halign: gtk::Align::Start,
+                            },
+                        }
                     }
-                }
+                },
+
+                #[name = "opencl_stack"]
+                match model.selected_opencl_info() {
+                    Some(info) => {
+                        PageSection::new("OpenCL") {
+                            append_child = &gtk::FlowBox {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_column_spacing: 10,
+                                set_homogeneous: true,
+                                set_min_children_per_line: 2,
+                                set_max_children_per_line: 4,
+                                set_selection_mode: gtk::SelectionMode::None,
+
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "platform-name"),
+                                    append_child = model.opencl_platform_selector.widget(),
+                                } -> opencl_platform_item: gtk::FlowBoxChild {
+                                    #[watch]
+                                    set_visible: model.opencl_platform_selector.model().variants.len() > 1,
+                                },
+
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "platform-name"),
+                                    #[watch]
+                                    set_value: info.platform_name.as_str(),
+                                    set_selectable: true,
+                                } -> opencl_platform_name_item: gtk::FlowBoxChild {
+                                    #[watch]
+                                    set_visible: model.opencl_platform_selector.model().variants.len() == 1,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "device-name"),
+                                    #[watch]
+                                    set_value: info.device_name.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "version"),
+                                    #[watch]
+                                    set_value: info.version.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "driver-version"),
+                                    #[watch]
+                                    set_value: info.driver_version.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "cl-c-version"),
+                                    #[watch]
+                                    set_value: info.c_version.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "compute-units"),
+                                    #[watch]
+                                    set_value: info.compute_units.to_string(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "workgroup-size"),
+                                    #[watch]
+                                    set_value: info.workgroup_size.to_string(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "global-memory"),
+                                    #[watch]
+                                    set_value: formatting::fmt_human_bytes(info.global_memory, None),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "local-memory"),
+                                    #[watch]
+                                    set_value: formatting::fmt_human_bytes(info.local_memory, None),
+                                    set_selectable: true,
+                                },
+                            },
+                        }
+                    }
+                    None => {
+                        PageSection::new("OpenCL") {
+                            append_child = &gtk::Label {
+                                set_label: &fl!(I18N, "device-not-found", kind = "OpenCL"),
+                                set_halign: gtk::Align::Start,
+                            },
+                        }
+                    }
+                },
             },
         }
     }
@@ -244,10 +261,10 @@ impl relm4::SimpleComponent for SoftwarePage {
             .forward(sender.input_sender(), |_| SoftwarePageMsg::SelectionChanged);
 
         let model = Self {
-            device_info: None,
             vulkan_driver_selector,
             opencl_platform_selector,
             vulkan_window: None,
+            device_api_info: None,
         };
 
         let mut daemon_version = format!("{}-{}", system_info.version, system_info.profile);
@@ -273,6 +290,8 @@ impl relm4::SimpleComponent for SoftwarePage {
             "{GUI_VERSION}-{gui_profile} (commit <a href=\"{gui_commit_link}\">{GIT_COMMIT}</a>)"
         );
 
+        let loader_picture = loader::new();
+
         let widgets = view_output!();
 
         widgets.vulkan_stack.set_vhomogeneous(false);
@@ -283,7 +302,7 @@ impl relm4::SimpleComponent for SoftwarePage {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            SoftwarePageMsg::DeviceInfo(info) => {
+            SoftwarePageMsg::DeviceApiInfo(Some(info)) => {
                 let mut vulkan_drivers = Vec::new();
 
                 for info in &info.vulkan_instances {
@@ -323,7 +342,10 @@ impl relm4::SimpleComponent for SoftwarePage {
                         active_index: selected_platform,
                     }));
 
-                self.device_info = Some(info);
+                self.device_api_info = Some(info);
+            }
+            SoftwarePageMsg::DeviceApiInfo(None) => {
+                self.device_api_info = None;
             }
             SoftwarePageMsg::ShowVulkanFeatures => {
                 if let Some(vulkan_info) = &self.selected_vulkan_info() {
@@ -352,7 +374,7 @@ impl SoftwarePage {
             .model()
             .active_index
             .and_then(|idx| {
-                self.device_info
+                self.device_api_info
                     .as_ref()
                     .and_then(|info| info.vulkan_instances.get(idx))
             })
@@ -363,7 +385,7 @@ impl SoftwarePage {
             .model()
             .active_index
             .and_then(|idx| {
-                self.device_info
+                self.device_api_info
                     .as_ref()
                     .and_then(|info| info.opencl_instances.get(idx))
             })

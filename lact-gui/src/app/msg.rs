@@ -14,6 +14,7 @@ pub enum AppMsg {
     ReloadData {
         full: bool,
     },
+    ReloadApiInfo,
     Stats(Arc<DeviceStats>),
     ProfilesPolled(Arc<ProfilesInfo>),
     ApplyChanges,
