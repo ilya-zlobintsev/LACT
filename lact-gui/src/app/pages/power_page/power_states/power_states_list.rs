@@ -33,7 +33,7 @@ impl relm4::SimpleComponent for PowerStatesList {
     type Output = ();
 
     view! {
-        gtk::Frame {
+        gtk::Frame { // TODO: replace with card
             set_hexpand: true,
             #[wrap(Some)]
             set_label_widget = &gtk::Label {

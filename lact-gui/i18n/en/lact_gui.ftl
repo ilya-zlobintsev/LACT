@@ -1,5 +1,6 @@
 info-page = Hardware Info
 oc-page = Overclocking
+power-page = Power
 thermals-page = Thermals 
 software-page = Software Info
 
