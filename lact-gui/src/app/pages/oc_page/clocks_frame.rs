@@ -4,8 +4,8 @@ mod adjustment_row;
 use crate::{
     APP_BROKER, I18N,
     app::{
+        components::page_section::PageSection,
         msg::AppMsg,
-        page_section::PageSection,
         pages::oc_page::{OcPageMsg, clocks_frame::adjustment_group::AdjustmentGroup},
     },
 };

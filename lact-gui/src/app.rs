@@ -1,16 +1,12 @@
 mod about_dialog;
+pub(crate) mod components;
 mod ext;
 pub(crate) mod formatting;
 mod gpu_selector;
 pub mod graphs_window;
 mod info_dialog;
-mod info_row;
-mod info_row_level;
-mod loader;
 pub(crate) mod msg;
 mod overdrive_dialog;
-mod page_section;
-mod page_section_expander;
 pub(crate) mod pages;
 mod preferences_dialog;
 mod process_monitor;
@@ -21,6 +17,7 @@ use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
     app::{
         about_dialog::{AboutDialog, AboutDialogMsg},
+        components::loader,
         ext::RelmLaunchable as _,
         gpu_selector::GpuSelector,
         info_dialog::{

@@ -1,4 +1,4 @@
-use crate::app::info_row::InfoRow;
+use crate::app::components::info_row::InfoRow;
 use gtk::glib::{self, Object};
 
 glib::wrapper! {
@@ -31,7 +31,7 @@ mod imp {
     use gtk::{LevelBar, glib, subclass::prelude::*};
     use relm4::view;
 
-    use crate::app::info_row::{InfoRow, InfoRowExt};
+    use crate::app::components::info_row::{InfoRow, InfoRowExt};
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::InfoRowLevel)]

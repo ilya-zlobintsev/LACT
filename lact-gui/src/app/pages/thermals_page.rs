@@ -5,10 +5,9 @@ use crate::app::ext::{FlowBoxExt, make_event_controller_no_scroll};
 use crate::{
     APP_BROKER, I18N,
     app::{
+        components::{info_row::InfoRow, page_section::PageSection},
         formatting::{fmt_fan_speed, fmt_temperature_text, fmt_throttling_text},
-        info_row::InfoRow,
         msg::AppMsg,
-        page_section::PageSection,
     },
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;

@@ -1,8 +1,8 @@
 use crate::{
     APP_BROKER, I18N,
     app::{
+        components::page_section::PageSection,
         msg::AppMsg,
-        page_section::PageSection,
         pages::{PageUpdate, oc_adjustment::OcAdjustment},
     },
 };

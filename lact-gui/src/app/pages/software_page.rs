@@ -1,13 +1,15 @@
 use crate::app::ext::FlowBoxExt;
 mod vulkan;
 
-use crate::app::loader;
 use crate::{
     GUI_VERSION, I18N, REPO_URL,
     app::{
+        components::{
+            info_row::{InfoRow, InfoRowExt},
+            loader,
+            page_section::PageSection,
+        },
         formatting,
-        info_row::{InfoRow, InfoRowExt},
-        page_section::PageSection,
     },
 };
 use gtk::prelude::*;

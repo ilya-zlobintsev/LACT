@@ -2,9 +2,9 @@ use super::power_states_list::PowerStatesList;
 use crate::{
     APP_BROKER, I18N,
     app::{
+        components::page_section_expander::PageSectionExpander,
         ext::RelmLaunchable as _,
         msg::AppMsg,
-        page_section_expander::PageSectionExpander,
         pages::oc_page::power_states::power_states_list::{
             PowerStatesListMsg, PowerStatesListOptions,
         },
