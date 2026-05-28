@@ -1,10 +1,12 @@
 mod performance_frame;
 mod power_cap_section;
 mod power_states;
-mod stats_section;
 
 use super::PageUpdate;
-use crate::app::ext::RelmDefaultLauchable;
+use crate::app::ext::{RelmDefaultLauchable, RelmLaunchable as _};
+use crate::app::pages::gpu_stats_section::{
+    GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
+};
 use adw::prelude::*;
 use amdgpu_sysfs::gpu_handle::{
     PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
@@ -15,10 +17,9 @@ use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
-use stats_section::{PowerStatsSection, PowerStatsSectionMsg};
 
 pub struct PowerPage {
-    stats_section: relm4::Controller<PowerStatsSection>,
+    stats_section: relm4::Controller<GpuStatsSection>,
     performance_frame: relm4::Controller<PerformanceFrame>,
     power_cap_section: relm4::Controller<PowerCapSection>,
     power_states_frame: relm4::Controller<PowerStatesFrame>,
@@ -66,7 +67,16 @@ impl relm4::Component for PowerPage {
     ) -> ComponentParts<Self> {
         let power_cap_section = PowerCapSection::detach_default();
         let power_states_frame = PowerStatesFrame::detach_default();
-        let stats_section = PowerStatsSection::detach_default();
+        let stats_section = GpuStatsSection::detach(GpuStatsSectionConfig {
+            stats: vec![
+                GpuStat::Throttling,
+                GpuStat::GpuVoltage,
+                GpuStat::Temperature,
+                GpuStat::GpuUsage,
+                GpuStat::PowerUsage,
+                GpuStat::FanSpeed,
+            ],
+        });
         let performance_frame =
             PerformanceFrame::launch_default().forward(sender.input_sender(), |msg| msg);
 
@@ -93,7 +103,7 @@ impl relm4::Component for PowerPage {
             PowerPageMsg::Update { update, initial } => match &update {
                 PageUpdate::Stats(stats) => {
                     self.stats_section
-                        .emit(PowerStatsSectionMsg::Stats(stats.clone()));
+                        .emit(GpuStatsSectionMsg::Stats(stats.clone()));
                     self.power_states_frame
                         .emit(PowerStatesFrameMsg::Stats(stats.clone()));
 

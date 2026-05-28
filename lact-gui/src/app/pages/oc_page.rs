@@ -1,12 +1,13 @@
 mod clocks_frame;
-mod gpu_stats_section;
 mod vf_curve;
 
 use crate::app::pages::PageUpdate;
+use crate::app::pages::gpu_stats_section::{
+    GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
+};
 use crate::app::utils::ext::RelmLaunchable as _;
 use crate::app::{msg::AppMsg, utils::ext::RelmDefaultLauchable};
 use clocks_frame::{ClocksFrame, ClocksFrameMsg};
-use gpu_stats_section::{GpuStatsSection, GpuStatsSectionMsg};
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use lact_schema::config;
 use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
@@ -57,7 +58,21 @@ impl relm4::Component for OcPage {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let stats_section = GpuStatsSection::detach_default();
+        let stats_section = GpuStatsSection::detach(GpuStatsSectionConfig {
+            stats: vec![
+                GpuStat::DeviceName,
+                GpuStat::Throttling,
+                GpuStat::GpuClockTarget,
+                GpuStat::GpuVoltage,
+                GpuStat::Temperature,
+                GpuStat::GpuClock,
+                GpuStat::VramClock,
+                GpuStat::GpuUsage,
+                GpuStat::VramUsage,
+                GpuStat::PowerUsage,
+                GpuStat::FanSpeed,
+            ],
+        });
         let clocks_frame = ClocksFrame::launch_default().forward(sender.input_sender(), |msg| msg);
 
         let vf_curve_editor = VfCurveEditor::detach(settings_changed);
