@@ -205,7 +205,7 @@ impl ServiceSetupDialog {
             }
             ServiceSetupDialogMsg::Close => {
                 let client = self.current_client.as_ref().ok().cloned();
-                sender.output(client).unwrap();
+                let _ = sender.output(client);
                 return Ok(());
             }
         }
