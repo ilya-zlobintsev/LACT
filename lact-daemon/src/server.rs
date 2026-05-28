@@ -157,7 +157,11 @@ async fn handle_request<'a>(
         Request::Ping => ok_response(ping()),
         Request::SystemInfo => ok_response(system::info().await?),
         Request::ListDevices => ok_response(handler.list_devices().await),
-        Request::DeviceInfo { id } => ok_response(handler.get_device_info(id).await?),
+        Request::DeviceInfo {
+            id,
+            include_api_info,
+        } => ok_response(handler.get_device_info(id, include_api_info).await?),
+        Request::DeviceApiInfo { id } => ok_response(handler.get_device_api_info(id).await?),
         Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id).await?),
         Request::DeviceClocksInfo { id } => ok_response(handler.get_clocks_info(id).await?),
         Request::DevicePowerProfileModes { id } => {

@@ -69,7 +69,7 @@ use relm4::{
     AsyncComponentSender, Component, ComponentController, MessageBroker, RelmObjectExt,
     RelmWidgetExt,
     actions::{AccelsPlus, ActionGroupName, RelmAction, RelmActionGroup},
-    binding::BoolBinding,
+    binding::{Binding as _, BoolBinding},
     css,
     loading_widgets::LoadingWidgets,
     new_action_group, new_stateless_action,
@@ -114,6 +114,7 @@ pub struct AppModel {
     info_dialog: relm4::Controller<InfoDialog>,
 
     ui_sensitive: BoolBinding,
+    is_reconnecting: BoolBinding,
 
     info_page: relm4::Controller<InformationPage>,
     oc_page: relm4::Controller<OcPage>,
@@ -203,6 +204,7 @@ impl AsyncComponent for AppModel {
                                     set_orientation: gtk::Orientation::Vertical,
                                     set_vexpand: true,
                                     add_css_class: "main-sidebar-container",
+                                    add_binding: (&model.ui_sensitive, "sensitive"),
 
                                     model.gpu_selector.widget().clone() {},
 
@@ -252,16 +254,17 @@ impl AsyncComponent for AppModel {
                             set_child = &adw::ToolbarView {
                                 #[name = "content_header"]
                                 add_top_bar = &adw::HeaderBar {
-
                                     pack_end = &gtk::MenuButton {
                                         set_icon_name: "open-menu-symbolic",
                                         set_tooltip_text: Some(&fl!(I18N, "menu")),
                                         set_menu_model: Some(&app_menu),
+                                        add_binding: (&model.ui_sensitive, "sensitive"),
                                     },
 
                                     pack_end = &gtk::Button {
                                         set_label: &fl!(I18N, "show-historical-charts"),
                                         connect_clicked => move |_| APP_BROKER.send(AppMsg::ShowGraphsWindow),
+                                        add_binding: (&model.ui_sensitive, "sensitive"),
                                     },
                                 },
 
@@ -273,6 +276,11 @@ impl AsyncComponent for AppModel {
                                     set_button_label: Some(&fl!(I18N, "enable-amd-oc")),
 
                                     connect_button_clicked => AppMsg::ShowOverdriveDialog,
+                                },
+
+                                add_top_bar = &adw::Banner {
+                                    set_title: &fl!(I18N, "reconnecting-to-daemon"),
+                                    add_binding: (&model.is_reconnecting, "revealed"),
                                 },
 
                                 #[wrap(Some)]
@@ -319,20 +327,6 @@ impl AsyncComponent for AppModel {
                 }
                 }
             },
-
-        #[name = "reconnecting_dialog"]
-        adw::Dialog {
-            set_title: &fl!(I18N, "daemon-connection-lost"),
-            set_content_width: 300,
-            set_content_height: 80,
-            set_can_close: false,
-
-            #[wrap(Some)]
-            set_child = &gtk::Label {
-                set_margin_all: 10,
-                set_label: &fl!(I18N, "reconnecting-to-daemon"),
-            }
-        },
     }
 
     fn init_loading_widgets(root: Self::Root) -> Option<LoadingWidgets> {
@@ -549,6 +543,7 @@ impl AsyncComponent for AppModel {
             gpu_selector,
             profile_selector,
             ui_sensitive: BoolBinding::new(false),
+            is_reconnecting: BoolBinding::new(false),
             stats_task_handle: None,
             settings_changed,
             system_info,
@@ -703,6 +698,12 @@ impl AppModel {
                 } else {
                     self.update_gpu_data(gpu_id, sender).await?;
                 }
+            }
+            AppMsg::ReloadApiInfo => {
+                let gpu_id = Self::get_selected_gpu_id()?;
+                let api_info = self.daemon_client.get_device_api_info(&gpu_id).await?;
+                self.software_page
+                    .emit(SoftwarePageMsg::DeviceApiInfo(Some(api_info)));
             }
             AppMsg::ShowPreferencesDialog => {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
@@ -926,9 +927,13 @@ impl AppModel {
             }
             AppMsg::ConnectionStatus(status) => match status {
                 ConnectionStatusMsg::Disconnected => {
-                    // widgets.reconnecting_dialog.present(Some(root))
+                    self.ui_sensitive.set(false);
+                    self.is_reconnecting.set(true);
                 }
-                ConnectionStatusMsg::Reconnected => widgets.reconnecting_dialog.force_close(),
+                ConnectionStatusMsg::Reconnected => {
+                    self.ui_sensitive.set(true);
+                    self.is_reconnecting.set(false);
+                }
             },
             AppMsg::EvaluateProfile(rule, sender) => {
                 match self.daemon_client.evaluate_profile_rule(rule).await {
@@ -1062,10 +1067,12 @@ impl AppModel {
         sender: AsyncComponentSender<AppModel>,
     ) -> anyhow::Result<()> {
         self.ui_sensitive.set_value(false);
+        self.software_page
+            .emit(SoftwarePageMsg::DeviceApiInfo(None));
 
         let daemon_client = self.daemon_client.clone();
         let info_buf = daemon_client
-            .get_device_info(&gpu_id)
+            .get_device_info(&gpu_id, Some(false))
             .await
             .context("Could not fetch info")?;
         let info = Arc::new(info_buf);
@@ -1094,8 +1101,9 @@ impl AppModel {
             update: update.clone(),
             initial: true,
         });
-        self.software_page
-            .emit(SoftwarePageMsg::DeviceInfo(info.clone()));
+
+        sender.input(AppMsg::ReloadApiInfo);
+
         self.thermals_page.emit(ThermalsPageMsg::Update {
             update: update.clone(),
             initial: true,

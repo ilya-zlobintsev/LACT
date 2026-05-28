@@ -1,11 +1,7 @@
 use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
-use crate::server::{
-    gpu_controller::common::{
-        fan_control::FanCurveExt,
-        fdinfo::{self, DrmUtilMap},
-    },
-    opencl::get_opencl_info,
-    vulkan::get_vulkan_info,
+use crate::server::gpu_controller::common::{
+    fan_control::FanCurveExt,
+    fdinfo::{self, DrmUtilMap},
 };
 use amdgpu_sysfs::{
     error::Error,
@@ -19,12 +15,13 @@ use amdgpu_sysfs::{
     sysfs::SysFS,
 };
 use anyhow::{Context, anyhow, bail};
-use futures::{FutureExt, future::LocalBoxFuture, join};
+use futures::{FutureExt, future::LocalBoxFuture};
 use lact_schema::{
     ActivePowerStates, AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo,
-    ClockspeedStats, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, FanControlMode,
-    FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList,
-    ProcessUtilizationType, RopInfo, TemperatureEntry, VoltageStats, VramStats,
+    ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
+    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates,
+    PowerStats, ProcessList, ProcessUtilizationType, RopInfo, TemperatureEntry, VoltageStats,
+    VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, HW_IP::HW_IP_TYPE, ThrottlerBit, ThrottlerType};
@@ -739,16 +736,17 @@ impl GpuController for AmdGpuController {
             })
     }
 
-    fn get_info(&self, unique_vendor: bool) -> LocalBoxFuture<'_, DeviceInfo> {
+    fn get_info(
+        &self,
+        unique_vendor: bool,
+        include_api_info: bool,
+    ) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let (vulkan_result, opencl_instances) = join!(
-                get_vulkan_info(&self.common),
-                get_opencl_info(&self.common, unique_vendor)
-            );
-            let vulkan_instances = vulkan_result.unwrap_or_else(|err| {
-                warn!("could not load vulkan info: {err:#}");
-                vec![]
-            });
+            let api_info = if include_api_info {
+                self.get_api_info(unique_vendor).await
+            } else {
+                DeviceApiInfo::default()
+            };
 
             let pci_info = Some(self.common.pci_info.clone());
             let driver = self.handle.get_driver().to_owned();
@@ -787,11 +785,10 @@ impl GpuController for AmdGpuController {
 
             DeviceInfo {
                 pci_info,
-                vulkan_instances,
+                api_info,
                 driver,
                 vbios_version,
                 link_info,
-                opencl_instances,
                 drm_info,
                 flags,
             }
@@ -1427,8 +1424,6 @@ fn get_drm_handle(
     common: &CommonControllerInfo,
     libdrm_amdgpu: &LibDrmAmdgpu,
 ) -> anyhow::Result<DrmHandle> {
-    use std::os::unix::io::AsRawFd;
-
     let path = common.get_drm_render()?;
     let drm_file = fs::OpenOptions::new()
         .read(true)
@@ -1436,7 +1431,7 @@ fn get_drm_handle(
         .open(&path)
         .with_context(|| format!("Could not open drm file at {}", path.display()))?;
     let (handle, _, _) = libdrm_amdgpu
-        .init_device_handle(drm_file.as_raw_fd())
+        .init_device_handle_with_fd(drm_file)
         .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
     Ok(handle)
 }
