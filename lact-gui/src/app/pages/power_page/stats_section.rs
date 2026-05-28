@@ -97,6 +97,18 @@ impl relm4::SimpleComponent for PowerStatsSection {
                         #[watch]
                         set_visible: model.stats.power.average.is_some() || model.stats.power.current.is_some(),
                     },
+
+                    append_child = &InfoRowLevel {
+                        set_name: fl!(I18N, "fan-speed"),
+                        #[watch]
+                        set_value: formatting::fmt_fan_speed(&model.stats, true)
+                            .unwrap_or_else(|| fl!(I18N, "missing-stat")),
+                        #[watch]
+                        set_level_value: model.stats.fan.pwm_current.map(|pwm| pwm as f64 / u8::MAX as f64).unwrap_or(0.0),
+                    } -> fan_speed_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: model.stats.fan.pwm_current.is_some() || model.stats.fan.speed_current.is_some(),
+                    },
                 },
             },
         }
@@ -123,6 +135,13 @@ impl relm4::SimpleComponent for PowerStatsSection {
             .set_value_size_group(&model.value_size_group);
         widgets
             .power_usage_item
+            .child()
+            .unwrap()
+            .downcast::<InfoRowLevel>()
+            .unwrap()
+            .set_value_size_group(&model.value_size_group);
+        widgets
+            .fan_speed_item
             .child()
             .unwrap()
             .downcast::<InfoRowLevel>()
