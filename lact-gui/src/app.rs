@@ -51,7 +51,7 @@ use gtk::{
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
-    DeviceFlag, DeviceListEntry, DeviceStats, DeviceType, GIT_COMMIT, SystemInfo,
+    DeviceApiInfo, DeviceFlag, DeviceListEntry, DeviceStats, DeviceType, GIT_COMMIT, SystemInfo,
     args::GuiArgs,
     config::{GpuConfig, Profile},
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
@@ -701,9 +701,18 @@ impl AppModel {
             }
             AppMsg::ReloadApiInfo => {
                 let gpu_id = Self::get_selected_gpu_id()?;
-                let api_info = self.daemon_client.get_device_api_info(&gpu_id).await?;
-                self.software_page
-                    .emit(SoftwarePageMsg::DeviceApiInfo(Some(api_info)));
+                match self.daemon_client.get_device_api_info(&gpu_id).await {
+                    Ok(api_info) => {
+                        self.software_page
+                            .emit(SoftwarePageMsg::DeviceApiInfo(Some(api_info)));
+                    }
+                    Err(err) => {
+                        error!("could not fetch API info: {err:#}");
+                        self.software_page.emit(SoftwarePageMsg::DeviceApiInfo(Some(
+                            DeviceApiInfo::default(),
+                        )));
+                    }
+                }
             }
             AppMsg::ShowPreferencesDialog => {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
