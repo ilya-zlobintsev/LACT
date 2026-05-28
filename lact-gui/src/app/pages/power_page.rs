@@ -1,6 +1,7 @@
 mod performance_frame;
 mod power_cap_section;
 mod power_states;
+mod stats_section;
 
 use super::PageUpdate;
 use crate::app::ext::RelmDefaultLauchable;
@@ -14,8 +15,10 @@ use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
+use stats_section::{PowerStatsSection, PowerStatsSectionMsg};
 
 pub struct PowerPage {
+    stats_section: relm4::Controller<PowerStatsSection>,
     performance_frame: relm4::Controller<PerformanceFrame>,
     power_cap_section: relm4::Controller<PowerCapSection>,
     power_states_frame: relm4::Controller<PowerStatesFrame>,
@@ -49,6 +52,7 @@ impl relm4::Component for PowerPage {
             set_margin_all: 15,
             set_margin_top: 20,
 
+            model.stats_section.widget(),
             model.power_cap_section.widget(),
             model.performance_frame.widget(),
             model.power_states_frame.widget(),
@@ -62,10 +66,12 @@ impl relm4::Component for PowerPage {
     ) -> ComponentParts<Self> {
         let power_cap_section = PowerCapSection::detach_default();
         let power_states_frame = PowerStatesFrame::detach_default();
+        let stats_section = PowerStatsSection::detach_default();
         let performance_frame =
             PerformanceFrame::launch_default().forward(sender.input_sender(), |msg| msg);
 
         let model = Self {
+            stats_section,
             performance_frame,
             power_cap_section,
             power_states_frame,
@@ -86,6 +92,8 @@ impl relm4::Component for PowerPage {
         match msg {
             PowerPageMsg::Update { update, initial } => match &update {
                 PageUpdate::Stats(stats) => {
+                    self.stats_section
+                        .emit(PowerStatsSectionMsg::Stats(stats.clone()));
                     self.power_states_frame
                         .emit(PowerStatesFrameMsg::Stats(stats.clone()));
 
