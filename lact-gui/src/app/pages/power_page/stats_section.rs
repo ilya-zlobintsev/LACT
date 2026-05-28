@@ -32,6 +32,7 @@ impl relm4::SimpleComponent for PowerStatsSection {
 
     view! {
         gtk::Box {
+            add_css_class: "gpu-stats-section",
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 10,
 
