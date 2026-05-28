@@ -661,9 +661,15 @@ impl AppModel {
             }
             AppMsg::ReloadApiInfo => {
                 let gpu_id = Self::get_selected_gpu_id()?;
-                let api_info = self.daemon_client.get_device_api_info(&gpu_id).await?;
-                self.software_page
-                    .emit(SoftwarePageMsg::DeviceApiInfo(Some(api_info)));
+                match self.daemon_client.get_device_api_info(&gpu_id).await {
+                    Ok(api_info) => {
+                        self.software_page
+                            .emit(SoftwarePageMsg::DeviceApiInfo(Some(api_info)));
+                    }
+                    Err(err) => {
+                        error!("could not fetch API info: {err:#}");
+                    }
+                }
             }
             AppMsg::ShowPreferencesDialog => {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
