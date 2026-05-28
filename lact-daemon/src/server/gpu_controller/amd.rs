@@ -1427,8 +1427,6 @@ fn get_drm_handle(
     common: &CommonControllerInfo,
     libdrm_amdgpu: &LibDrmAmdgpu,
 ) -> anyhow::Result<DrmHandle> {
-    use std::os::unix::io::AsRawFd;
-
     let path = common.get_drm_render()?;
     let drm_file = fs::OpenOptions::new()
         .read(true)
@@ -1436,7 +1434,7 @@ fn get_drm_handle(
         .open(&path)
         .with_context(|| format!("Could not open drm file at {}", path.display()))?;
     let (handle, _, _) = libdrm_amdgpu
-        .init_device_handle(drm_file.as_raw_fd())
+        .init_device_handle_with_fd(drm_file)
         .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
     Ok(handle)
 }

@@ -1848,9 +1848,9 @@ dependencies = [
 
 [[package]]
 name = "libdrm_amdgpu_sys"
-version = "0.8.14"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b63f219bdee8484c65e0f54f81b6c671f1ab433f460e40c3174dea688abf31b"
+checksum = "1e11704169b7b5a043ec5627aa0433019cf67d07f233002e1233edf67c2e662b"
 dependencies = [
  "libc",
  "libloading",
