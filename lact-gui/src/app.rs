@@ -659,6 +659,12 @@ impl AppModel {
                     self.update_gpu_data(gpu_id, sender).await?;
                 }
             }
+            AppMsg::ReloadApiInfo => {
+                let gpu_id = Self::get_selected_gpu_id()?;
+                let api_info = self.daemon_client.get_device_api_info(&gpu_id).await?;
+                self.software_page
+                    .emit(SoftwarePageMsg::DeviceApiInfo(Some(api_info)));
+            }
             AppMsg::ShowPreferencesDialog => {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
             }
@@ -1012,10 +1018,12 @@ impl AppModel {
         sender: AsyncComponentSender<AppModel>,
     ) -> anyhow::Result<()> {
         self.ui_sensitive.set_value(false);
+        self.software_page
+            .emit(SoftwarePageMsg::DeviceApiInfo(None));
 
         let daemon_client = self.daemon_client.clone();
         let info_buf = daemon_client
-            .get_device_info(&gpu_id)
+            .get_device_info(&gpu_id, Some(false))
             .await
             .context("Could not fetch info")?;
         let info = Arc::new(info_buf);
@@ -1044,8 +1052,9 @@ impl AppModel {
             update: update.clone(),
             initial: true,
         });
-        self.software_page
-            .emit(SoftwarePageMsg::DeviceInfo(info.clone()));
+
+        sender.input(AppMsg::ReloadApiInfo);
+
         self.thermals_page.emit(ThermalsPageMsg::Update {
             update: update.clone(),
             initial: true,

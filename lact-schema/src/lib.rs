@@ -133,10 +133,8 @@ pub enum DeviceFlag {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceInfo {
     pub pci_info: Option<GpuPciInfo>,
-    #[serde(default)]
-    pub vulkan_instances: Vec<VulkanInfo>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub opencl_instances: Vec<OpenCLInfo>,
+    #[serde(flatten)]
+    pub api_info: DeviceApiInfo,
     pub driver: String,
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,
@@ -328,6 +326,14 @@ impl DeviceInfo {
 
         elements
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct DeviceApiInfo {
+    #[serde(default)]
+    pub vulkan_instances: Vec<VulkanInfo>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub opencl_instances: Vec<OpenCLInfo>,
 }
 
 #[skip_serializing_none]
