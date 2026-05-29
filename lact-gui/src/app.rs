@@ -1,6 +1,7 @@
 mod about_dialog;
 pub(crate) mod components;
 mod gpu_selector;
+mod gpu_stats_section;
 pub mod graphs_window;
 mod info_dialog;
 pub(crate) mod msg;

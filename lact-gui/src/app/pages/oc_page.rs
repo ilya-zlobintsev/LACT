@@ -2,7 +2,7 @@ mod clocks_frame;
 mod vf_curve;
 
 use crate::app::pages::PageUpdate;
-use crate::app::pages::gpu_stats_section::{
+use crate::app::gpu_stats_section::{
     GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
 };
 use crate::app::utils::ext::RelmLaunchable as _;

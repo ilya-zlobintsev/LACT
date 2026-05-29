@@ -1,5 +1,4 @@
 pub mod crash_page;
-pub mod gpu_stats_section;
 pub mod info_page;
 pub mod oc_page;
 pub mod power_page;
