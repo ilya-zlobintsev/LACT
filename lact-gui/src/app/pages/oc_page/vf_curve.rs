@@ -337,9 +337,21 @@ impl relm4::Component for VfCurveEditor {
             VfCurveEditorMsg::DragEnd => {
                 if self.dragging_point.take().is_some() {
                     APP_BROKER.send(AppMsg::SettingsChanged);
-                } else if self.allow_editing.value() && self.selected_range_start.get().is_some() {
-                    self.selected_range_end
-                        .set(self.hovered_coords.get().map(|(x, _)| x as usize));
+                } else if self.allow_editing.value()
+                    && let Some(selected_start) = self.selected_range_start.get()
+                {
+                    // let selected_end = self.hovered_coords.get().map(|(x, _)| x as usize);
+                    if let Some(selected_end) = self.hovered_coords.get().map(|(x, _)| x as usize)
+                        && self.points.borrow().iter().any(|p| {
+                            cmp::min(selected_start, selected_end) < (p.voltage as usize)
+                                && (p.voltage as usize) < cmp::max(selected_start, selected_end)
+                        })
+                    {
+                        self.selected_range_end.set(Some(selected_end));
+                    } else {
+                        self.selected_range_start.set(None);
+                        self.selected_range_end.set(None);
+                    }
                 }
             }
             VfCurveEditorMsg::FlattenCurve => {
