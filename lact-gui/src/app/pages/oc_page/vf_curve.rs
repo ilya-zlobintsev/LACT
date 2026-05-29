@@ -202,8 +202,9 @@ impl relm4::Component for VfCurveEditor {
                             add_css_class: "warning",
                             add_binding: (&model.allow_editing, "active"),
 
-                            connect_toggled => move |_| {
+                            connect_toggled[drawing_area] => move |_| {
                                 APP_BROKER.send(AppMsg::SettingsChanged);
+                                drawing_area.queue_draw();
                             }
                         },
 
