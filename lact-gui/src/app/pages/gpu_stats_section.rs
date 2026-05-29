@@ -426,6 +426,10 @@ impl relm4::SimpleComponent for GpuStatsSection {
 }
 
 impl GpuStatsSection {
+    pub fn has_fan_speed(&self) -> bool {
+        self.stats.fan.pwm_current.is_some() || self.stats.fan.speed_current.is_some()
+    }
+
     fn has_stat(&self, stat: GpuStat) -> bool {
         self.stats_to_show.contains(&stat)
     }
