@@ -340,7 +340,6 @@ impl relm4::Component for VfCurveEditor {
                 } else if self.allow_editing.value()
                     && let Some(selected_start) = self.selected_range_start.get()
                 {
-                    // let selected_end = self.hovered_coords.get().map(|(x, _)| x as usize);
                     if let Some(selected_end) = self.hovered_coords.get().map(|(x, _)| x as usize)
                         && self.points.borrow().iter().any(|p| {
                             cmp::min(selected_start, selected_end) < (p.voltage as usize)
@@ -528,6 +527,11 @@ impl VfCurveEditor {
             .dragging_point
             .get()
             .or_else(|| self.hovered_point.get());
+
+        if !self.allow_editing.value() {
+            self.selected_range_start.set(None);
+            self.selected_range_end.set(None);
+        }
 
         if let Some((selected_start, selected_end)) = self.get_selected_range() {
             let x_values = [selected_start, selected_end];
