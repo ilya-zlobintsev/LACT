@@ -1,5 +1,5 @@
-use super::msg::AppMsg;
 use crate::I18N;
+use crate::app::msg::AppMsg;
 use adw::prelude::*;
 use gtk::glib::clone;
 use i18n_embed_fl::fl;
@@ -116,7 +116,7 @@ impl InfoDialog {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(super) enum InfoDialogEntryResponse {
+pub(crate) enum InfoDialogEntryResponse {
     Closed(InfoDialogId),
     Confirmed(InfoDialogId),
 }

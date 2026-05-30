@@ -1,4 +1,3 @@
-use crate::app::ext::FlowBoxExt;
 mod vulkan;
 
 use crate::{
@@ -9,7 +8,7 @@ use crate::{
             loader,
             page_section::PageSection,
         },
-        formatting,
+        utils::{ext::FlowBoxExt, formatting},
     },
 };
 use gtk::prelude::*;

@@ -1,42 +1,28 @@
-mod about_dialog;
 pub(crate) mod components;
-mod ext;
-pub(crate) mod formatting;
-mod gpu_selector;
-pub mod graphs_window;
-mod info_dialog;
+pub(crate) mod features;
 pub(crate) mod msg;
-mod overdrive_dialog;
 pub(crate) mod pages;
-mod preferences_dialog;
-mod process_monitor;
-mod profiles;
-pub(crate) mod styles;
+pub(crate) mod utils;
 
 use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
     app::{
-        about_dialog::{AboutDialog, AboutDialogMsg},
         components::loader,
-        ext::RelmLaunchable as _,
-        gpu_selector::GpuSelector,
-        info_dialog::{
-            InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
+        features::{
+            AboutDialog, AboutDialogMsg, GpuSelector, GraphsWindow, GraphsWindowMsg, InfoDialog,
+            InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg, OverdriveDialog,
+            OverdriveDialogMsg, PreferencesDialog, PreferencesDialogMsg, ProcessMonitorWindow,
+            ProcessMonitorWindowMsg, ProfileSelector, ProfileSelectorMsg,
+            profiles::profile_rule_window::{
+                ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg,
+            },
         },
-        overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
-        preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
-        process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
-        profiles::{
-            ProfileSelector, ProfileSelectorMsg,
-            profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
-        },
+        utils::ext::RelmLaunchable as _,
     },
     config::WindowSize,
 };
 use adw::prelude::*;
 use anyhow::{Context, anyhow};
-use ext::RelmDefaultLauchable;
-use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
     FileChooserAction, FileChooserDialog, ResponseType, STYLE_PROVIDER_PRIORITY_APPLICATION,
     glib::{self, ControlFlow, clone},
@@ -78,6 +64,8 @@ use std::{
     cell::Cell, fs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, sync::Arc, time::Duration,
 };
 use tracing::{debug, error, info, trace, warn};
+use utils::ext::RelmDefaultLauchable;
+use utils::styles;
 
 pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 

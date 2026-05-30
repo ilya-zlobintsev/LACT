@@ -1,5 +1,5 @@
 use crate::I18N;
-use crate::app::profiles::ProfileSelectorMsg;
+use crate::app::features::profiles::ProfileSelectorMsg;
 use crate::app::{APP_BROKER, msg::AppMsg};
 use gtk::{pango, prelude::*};
 use i18n_embed_fl::fl;

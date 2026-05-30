@@ -5,8 +5,10 @@ use crate::app::{
         info_row_level::InfoRowLevel,
         page_section::PageSection,
     },
-    ext::FlowBoxExt,
-    formatting::{self, Mono},
+    utils::{
+        ext::FlowBoxExt,
+        formatting::{self, Mono},
+    },
 };
 use gtk::pango::AttrList;
 use gtk::prelude::{BoxExt, Cast, FlowBoxChildExt, OrientableExt, PopoverExt as _, WidgetExt};

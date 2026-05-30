@@ -1,13 +1,10 @@
 use super::power_states_list::PowerStatesList;
+use super::power_states_list::{PowerStatesListMsg, PowerStatesListOptions};
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::page_section_expander::PageSectionExpander,
-        ext::RelmLaunchable as _,
-        msg::AppMsg,
-        pages::oc_page::power_states::power_states_list::{
-            PowerStatesListMsg, PowerStatesListOptions,
-        },
+        components::page_section_expander::PageSectionExpander, msg::AppMsg,
+        utils::ext::RelmLaunchable as _,
     },
 };
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};

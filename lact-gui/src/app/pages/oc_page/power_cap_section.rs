@@ -1,9 +1,9 @@
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::page_section::PageSection,
+        components::{oc_adjustment::OcAdjustment, page_section::PageSection},
         msg::AppMsg,
-        pages::{PageUpdate, oc_adjustment::OcAdjustment},
+        pages::PageUpdate,
     },
 };
 use gtk::{

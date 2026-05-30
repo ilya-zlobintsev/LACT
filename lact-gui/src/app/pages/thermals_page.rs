@@ -1,13 +1,15 @@
 mod fan_curve_frame;
 
-use super::{PageUpdate, oc_adjustment::OcAdjustment};
-use crate::app::ext::{FlowBoxExt, make_event_controller_no_scroll};
+use crate::app::pages::PageUpdate;
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::{info_row::InfoRow, page_section::PageSection},
-        formatting::{fmt_fan_speed, fmt_temperature_text, fmt_throttling_text},
+        components::{info_row::InfoRow, oc_adjustment::OcAdjustment, page_section::PageSection},
         msg::AppMsg,
+        utils::{
+            ext::{FlowBoxExt, make_event_controller_no_scroll},
+            formatting::{fmt_fan_speed, fmt_temperature_text, fmt_throttling_text},
+        },
     },
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
@@ -56,14 +58,14 @@ pub struct ThermalsPage {
 }
 
 #[derive(Clone, Default)]
-struct PmfwOptions {
+pub(in crate::app::pages::thermals_page) struct PmfwOptions {
     target_temperature: OcAdjustment,
     acoustic_limit: OcAdjustment,
     acoustic_target: OcAdjustment,
     minimum_pwm: OcAdjustment,
-    zero_rpm_temperature: OcAdjustment,
-    zero_rpm_available: Rc<Cell<bool>>,
-    zero_rpm: BoolBinding,
+    pub(in crate::app::pages::thermals_page) zero_rpm_temperature: OcAdjustment,
+    pub(in crate::app::pages::thermals_page) zero_rpm_available: Rc<Cell<bool>>,
+    pub(in crate::app::pages::thermals_page) zero_rpm: BoolBinding,
 }
 
 impl PmfwOptions {
@@ -605,7 +607,7 @@ impl relm4::WidgetTemplate for FanSettingRow {
     }
 }
 
-fn adj_is_empty(adj: &OcAdjustment) -> bool {
+pub(in crate::app::pages::thermals_page) fn adj_is_empty(adj: &OcAdjustment) -> bool {
     adj.lower() == 0.0 && adj.upper() == 0.0
 }
 

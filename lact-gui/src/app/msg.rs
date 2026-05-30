@@ -1,4 +1,4 @@
-use super::profiles::profile_rule_window::{
+use super::features::profiles::profile_rule_window::{
     ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg,
 };
 use lact_client::ConnectionStatusMsg;

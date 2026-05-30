@@ -3,13 +3,9 @@ mod adjustment_row;
 
 use crate::{
     APP_BROKER, I18N,
-    app::{
-        components::page_section::PageSection,
-        msg::AppMsg,
-        pages::oc_page::{OcPageMsg, clocks_frame::adjustment_group::AdjustmentGroup},
-    },
+    app::{components::page_section::PageSection, msg::AppMsg, pages::oc_page::OcPageMsg},
 };
-use adjustment_group::ClockCategory;
+use adjustment_group::{AdjustmentGroup, ClockCategory};
 use adjustment_row::ClocksData;
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
 use gtk::{

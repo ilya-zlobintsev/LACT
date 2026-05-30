@@ -1,6 +1,6 @@
 use crate::{
     I18N,
-    app::{APP_BROKER, graphs_window::plot::PlotColorScheme, msg::AppMsg},
+    app::{APP_BROKER, features::graphs_window::plot::PlotColorScheme, msg::AppMsg},
 };
 use amdgpu_sysfs::gpu_handle::PowerLevelId;
 use gtk::{

@@ -1,7 +1,10 @@
 use super::{FanSettingRow, PmfwOptions, adj_is_empty};
 use crate::{
     APP_BROKER, I18N,
-    app::{graphs_window::plot::PlotColorScheme, msg::AppMsg, pages::oc_adjustment::OcAdjustment},
+    app::{
+        components::oc_adjustment::OcAdjustment, features::graphs_window::plot::PlotColorScheme,
+        msg::AppMsg,
+    },
 };
 use gtk::{
     gdk,
@@ -49,7 +52,7 @@ const TEMPERATURE_DRAG_MARGIN: f32 = 4.0;
 const PERCENTAGE_DRAG_MARGIN: f32 = 0.04;
 
 #[derive(Clone)]
-pub(super) struct FanCurveFrame {
+pub(in crate::app::pages::thermals_page) struct FanCurveFrame {
     pmfw_options: PmfwOptions,
     /// PMFW fan control on AMD RDNA3+ with fixed length
     hw_based_fan_curve: Rc<AtomicBool>,
@@ -78,7 +81,7 @@ pub(super) struct FanCurveFrame {
 }
 
 #[derive(Debug)]
-pub(super) enum FanCurveFrameMsg {
+pub(in crate::app::pages::thermals_page) enum FanCurveFrameMsg {
     Curve(CurveSetupMsg),
     DragStart,
     DragUpdate(f64, f64),
@@ -89,7 +92,7 @@ pub(super) enum FanCurveFrameMsg {
 }
 
 #[derive(Debug)]
-pub(super) struct CurveSetupMsg {
+pub(in crate::app::pages::thermals_page) struct CurveSetupMsg {
     pub curve: FanCurveMap,
     pub hw_based: bool,
     pub current_temperatures: HashMap<String, TemperatureEntry>,
