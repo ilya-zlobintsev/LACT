@@ -341,7 +341,12 @@ impl relm4::Component for ThermalsPage {
             .launch(pmfw_options.clone())
             .detach();
         let stats_section = GpuStatsSection::detach(GpuStatsSectionConfig {
-            stats: vec![GpuStat::Throttling, GpuStat::Temperature, GpuStat::FanSpeed],
+            stats: vec![
+                GpuStat::Throttling,
+                GpuStat::Temperature,
+                GpuStat::PowerUsage,
+                GpuStat::FanSpeed,
+            ],
         });
 
         let model = Self {
