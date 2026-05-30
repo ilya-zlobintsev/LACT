@@ -58,14 +58,14 @@ pub struct ThermalsPage {
 }
 
 #[derive(Clone, Default)]
-pub(in crate::app::pages::thermals_page) struct PmfwOptions {
+struct PmfwOptions {
     target_temperature: OcAdjustment,
     acoustic_limit: OcAdjustment,
     acoustic_target: OcAdjustment,
     minimum_pwm: OcAdjustment,
-    pub(in crate::app::pages::thermals_page) zero_rpm_temperature: OcAdjustment,
-    pub(in crate::app::pages::thermals_page) zero_rpm_available: Rc<Cell<bool>>,
-    pub(in crate::app::pages::thermals_page) zero_rpm: BoolBinding,
+    zero_rpm_temperature: OcAdjustment,
+    zero_rpm_available: Rc<Cell<bool>>,
+    zero_rpm: BoolBinding,
 }
 
 impl PmfwOptions {
@@ -607,7 +607,7 @@ impl relm4::WidgetTemplate for FanSettingRow {
     }
 }
 
-pub(in crate::app::pages::thermals_page) fn adj_is_empty(adj: &OcAdjustment) -> bool {
+fn adj_is_empty(adj: &OcAdjustment) -> bool {
     adj.lower() == 0.0 && adj.upper() == 0.0
 }
 
