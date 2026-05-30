@@ -52,7 +52,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
     type Output = ();
 
     view! {
-        PageSection::new(&fl!(I18N, "pstates")) {
+        PageSection::new("") {
             set_hide_visible_container: true,
             append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,

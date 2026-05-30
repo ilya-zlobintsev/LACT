@@ -1,10 +1,12 @@
 use super::power_states_row::{PowerStateRow, PowerStateRowMsg, PowerStateRowOptions};
 use amdgpu_sysfs::gpu_handle::PowerLevelId;
-use gtk::prelude::{FrameExt, WidgetExt};
+use gtk::{
+    glib,
+    prelude::{BoxExt, OrientableExt, WidgetExt},
+};
 use lact_schema::PowerState;
 use relm4::{
-    ComponentParts, ComponentSender, RelmWidgetExt, binding::BoolBinding, css,
-    prelude::FactoryVecDeque,
+    ComponentParts, ComponentSender, RelmWidgetExt, binding::BoolBinding, prelude::FactoryVecDeque,
 };
 
 pub struct PowerStatesList {
@@ -33,17 +35,27 @@ impl relm4::SimpleComponent for PowerStatesList {
     type Output = ();
 
     view! {
-        gtk::Frame { // TODO: replace with card
+        gtk::Box {
             set_hexpand: true,
-            #[wrap(Some)]
-            set_label_widget = &gtk::Label {
-                set_label: &opts.title,
-                set_margin_horizontal: 5,
-                add_css_class: css::CAPTION_HEADING,
+            set_orientation: gtk::Orientation::Vertical,
+            set_spacing: 5,
+
+            gtk::Label {
+                set_use_markup: true,
+                set_label: &format!(
+                    "<span font_desc='13'><b>{}</b></span>",
+                    glib::markup_escape_text(&opts.title)
+                ),
+                set_halign: gtk::Align::Start,
+                set_margin_vertical: 5,
             },
-            #[local_ref]
-            states_widget -> gtk::ListBox {
-                set_selection_mode: gtk::SelectionMode::None,
+
+            gtk::Frame {
+                set_hexpand: true,
+                #[local_ref]
+                states_widget -> gtk::ListBox {
+                    set_selection_mode: gtk::SelectionMode::None,
+                },
             },
         }
     }
