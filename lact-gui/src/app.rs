@@ -16,6 +16,8 @@ mod preferences_dialog;
 mod process_monitor;
 mod profiles;
 pub(crate) mod styles;
+#[cfg(all(test, feature = "gtk-tests"))]
+mod tests;
 
 use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
@@ -930,6 +932,11 @@ impl AppModel {
             AppMsg::Quit => {
                 self.application.quit();
             }
+
+            #[cfg(all(test, feature = "gtk-tests"))]
+            AppMsg::SelectPage(name) => {
+                widgets.root_stack.set_visible_child_name(&name);
+            }
         }
         Ok(())
     }
@@ -1413,6 +1420,7 @@ fn start_stats_update_loop(
     })
 }
 
+#[cfg(not(test))]
 async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
     match DaemonClient::connect().await {
         Ok(connection) => {
@@ -1437,6 +1445,22 @@ async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Err
             Ok((client, Some(err)))
         }
     }
+}
+
+#[cfg(test)]
+async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
+    let (server_stream, client_stream) = UnixStream::pair()?;
+    client_stream.set_nonblocking(true)?;
+    server_stream.set_nonblocking(true)?;
+
+    std::thread::spawn(move || {
+        if let Err(err) = lact_daemon::run_embedded(server_stream) {
+            panic!("Builtin daemon error: {err}");
+        }
+    });
+
+    let client = DaemonClient::from_stream(client_stream, true)?;
+    Ok((client, None))
 }
 
 new_action_group!(pub AppActionGroup, "app");

@@ -39,6 +39,7 @@ i18n-embed = { version = "0.16.0", features = [
 ] }
 i18n-embed-fl = "0.10.0"
 rust-embed = { version = "8.11.0", features = ["debug-embed"] }
+insta = { version = "1.47.2", features = ["json", "yaml"] }
 
 [profile.release]
 strip = "symbols"

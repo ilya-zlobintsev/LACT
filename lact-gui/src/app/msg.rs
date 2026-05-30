@@ -56,4 +56,7 @@ pub enum AppMsg {
     ConnectionStatus(ConnectionStatusMsg),
     Crash(String),
     Quit,
+
+    #[cfg(all(test, feature = "gtk-tests"))]
+    SelectPage(String),
 }

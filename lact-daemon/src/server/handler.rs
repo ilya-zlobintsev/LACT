@@ -1429,8 +1429,10 @@ fn add_path_to_archive(
     Ok(())
 }
 
+pub(crate) const DRM_PATH_OVERRIDE_ENV: &str = "_LACT_DRM_SYSFS_PATH";
+
 fn drm_base_path() -> PathBuf {
-    match env::var("_LACT_DRM_SYSFS_PATH") {
+    match env::var(DRM_PATH_OVERRIDE_ENV) {
         Ok(custom_path) => PathBuf::from(custom_path),
         Err(_) => PathBuf::from("/sys/class/drm"),
     }
