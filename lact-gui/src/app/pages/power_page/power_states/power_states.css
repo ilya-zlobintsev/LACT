@@ -1,0 +1,8 @@
+.pstate-active-indicator,
+.pstate-label {
+    transition: opacity 150ms ease-in-out;
+}
+
+.pstate-inactive {
+    opacity: 0;
+}
