@@ -17,12 +17,12 @@ use server::{Server, handle_stream, handler::Handler};
 use std::sync::Arc;
 use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
 use tokio::net::UnixStream;
+use tokio::runtime::LocalOptions;
 use tokio::sync::Notify;
 use tokio::time::timeout;
 use tokio::{
     runtime,
     signal::unix::{SignalKind, signal},
-    task::LocalSet,
 };
 use tracing::level_filters::LevelFilter;
 use tracing::{Instrument, debug, debug_span, error, info, warn};
@@ -46,7 +46,7 @@ const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
 pub fn run() -> anyhow::Result<()> {
     let rt = runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
+        .build_local(LocalOptions::default())
         .expect("Could not initialize tokio runtime");
     rt.block_on(async {
         let config = Config::load_or_create()?;
@@ -59,20 +59,16 @@ pub fn run() -> anyhow::Result<()> {
 
         ensure_sufficient_uptime().await;
 
-        LocalSet::new()
-            .run_until(async move {
-                let server = Server::new(config).await?;
-                let handler = server.handler.clone();
+        let server = Server::new(config).await?;
+        let handler = server.handler.clone();
 
-                tokio::task::spawn_local(listen_config_changes(handler.clone()));
-                tokio::task::spawn_local(listen_exit_signals(handler.clone()));
-                tokio::task::spawn_local(listen_device_events(handler.clone()));
-                tokio::task::spawn_local(suspend::listen_events(handler));
+        tokio::task::spawn_local(listen_config_changes(handler.clone()));
+        tokio::task::spawn_local(listen_exit_signals(handler.clone()));
+        tokio::task::spawn_local(listen_device_events(handler.clone()));
+        tokio::task::spawn_local(suspend::listen_events(handler));
 
-                server.run().await;
-                Ok(())
-            })
-            .await
+        server.run().await;
+        Ok(())
     })
 }
 
@@ -84,18 +80,14 @@ pub fn run() -> anyhow::Result<()> {
 pub fn run_embedded(stream: StdUnixStream) -> anyhow::Result<()> {
     let rt = runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
+        .build_local(LocalOptions::default())
         .expect("Could not initialize tokio runtime");
     rt.block_on(async {
-        LocalSet::new()
-            .run_until(async move {
-                let config = Config::default();
-                let handler = Handler::new(config).await?;
-                let stream = UnixStream::try_from(stream)?;
+        let config = Config::default();
+        let handler = Handler::new(config).await?;
+        let stream = UnixStream::try_from(stream)?;
 
-                handle_stream(stream, handler).await
-            })
-            .await
+        handle_stream(stream, handler).await
     })
 }
 
