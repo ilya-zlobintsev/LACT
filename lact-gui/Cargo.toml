@@ -36,6 +36,9 @@ i18n-embed = { workspace = true }
 i18n-embed-fl = { workspace = true }
 rust-embed = { workspace = true }
 
+futures = { workspace = true }
+zbus = { workspace = true }
+
 plotters = { version = "0.3.7", default-features = false, features = [
     "area_series",
     "line_series",

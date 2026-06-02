@@ -267,11 +267,14 @@ impl relm4::SimpleComponent for SoftwarePage {
             device_api_info: None,
         };
 
-        let mut daemon_version = format!("{}-{}", system_info.version, system_info.profile);
+        let mut daemon_version = format!(
+            "{}-{}",
+            system_info.version.version, system_info.version.profile
+        );
         if embedded {
             daemon_version.push_str("-embedded");
         }
-        if let Some(commit) = &system_info.commit {
+        if let Some(commit) = &system_info.version.commit {
             let daemon_commit_link = format!("{REPO_URL}/commit/{commit}");
             write!(
                 daemon_version,

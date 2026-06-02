@@ -35,6 +35,10 @@ use crate::{
         },
     },
     config::WindowSize,
+    service_setup::{
+        ServiceSetupDialog, ServiceSetupDialogParams,
+        systemd::{self, connect_unit_proxy},
+    },
 };
 use adw::prelude::*;
 use anyhow::{Context, anyhow};
@@ -69,7 +73,7 @@ use relm4::{
     css,
     loading_widgets::LoadingWidgets,
     new_action_group, new_stateless_action,
-    prelude::{AsyncComponent, AsyncComponentParts},
+    prelude::{AsyncComponent, AsyncComponentController, AsyncComponentParts},
     tokio::{self, time::sleep},
     view,
 };
@@ -80,7 +84,7 @@ use relm4_components::{
 use std::{
     cell::Cell, fs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, sync::Arc, time::Duration,
 };
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, trace, warn};
 
 pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 
@@ -157,6 +161,7 @@ impl AsyncComponent for AppModel {
                 &fl!(I18N, "dump-vbios") => DumpVBiosAction,
             },
             section! {
+                "Service Setup" => ServiceSetupAction,
                 &fl!(I18N, "preferences") => PreferencesAction,
                 &fl!(I18N, "about") => AboutAction,
             },
@@ -358,6 +363,10 @@ impl AsyncComponent for AppModel {
         // 5. build child components,
         // 6. load profiles and initial GPU data.
 
+        let application = root
+            .application()
+            .expect("Failed to get application from root window");
+
         relm4::set_global_css_with_priority(
             styles::COMBINED_CSS,
             STYLE_PROVIDER_PRIORITY_APPLICATION,
@@ -367,7 +376,40 @@ impl AsyncComponent for AppModel {
             error!("could not apply theme: {err:#}");
         }
 
-        let (daemon_client, conn_err) = match args.tcp_address {
+        let daemon_client = match DaemonClient::connect().await {
+            Ok(client) => client,
+            Err(err) => {
+                let configured_client = match connect_unit_proxy().await {
+                    Ok(unit_proxy) => {
+                        let params = ServiceSetupDialogParams {
+                            parent: root.clone().upcast(),
+                            initial_error: err,
+                            unit_proxy,
+                        };
+                        let service_setup =
+                            ServiceSetupDialog::builder().launch(params).into_stream();
+
+                        service_setup
+                            .recv_one()
+                            .await
+                            .expect("Could not get client")
+                    }
+                    Err(_err) => {
+                        // TODO: show error about no systemd
+                        None
+                    }
+                };
+
+                match configured_client {
+                    Some(client) => client,
+                    None => create_embedded_connection()
+                        .await
+                        .expect("Could not spawn embedded daemon"),
+                }
+            }
+        };
+
+        /*let (daemon_client, conn_err) = match args.tcp_address {
             Some(remote_addr) => {
                 info!("establishing connection to {remote_addr}");
                 match DaemonClient::connect_tcp(&remote_addr).await {
@@ -384,7 +426,7 @@ impl AsyncComponent for AppModel {
             None => create_connection()
                 .await
                 .expect("Could not establish any daemon connection"),
-        };
+        };*/
 
         let mut conn_status_rx = daemon_client.status_receiver();
         relm4::spawn_local(clone!(
@@ -462,13 +504,11 @@ impl AsyncComponent for AppModel {
         // create action group and actions for app menu
         // action group and actions are declared at the bottom of the file
         let mut actions = RelmActionGroup::<AppActionGroup>::new();
-        let application = root
-            .application()
-            .expect("Failed to get application from root window");
         setup_actions! {
             (actions, ProcessMonitorAction, APP_BROKER.send(AppMsg::ShowProcessMonitor)),
             (actions, GenerateDebugSnapshotAction, APP_BROKER.send(AppMsg::DebugSnapshot)),
             (actions, PreferencesAction, APP_BROKER.send(AppMsg::ShowPreferencesDialog)),
+            (actions, ServiceSetupAction, APP_BROKER.send(AppMsg::ShowServiceSetupDialog)),
             (actions, AboutAction, APP_BROKER.send(AppMsg::ShowAboutDialog)),
             (actions, QuitAction, APP_BROKER.send(AppMsg::Quit)),
         }
@@ -545,21 +585,21 @@ impl AsyncComponent for AppModel {
                 .set_title(&page.title().unwrap_or_default());
         }
 
-        if let Some(err) = conn_err {
-            model
-                .info_dialog
-                .emit(InfoDialogMsg::Show(Box::new(InfoDialogData {
-                    id: InfoDialogId::EmbeddedDaemonInfo,
-                    heading: fl!(I18N, "daemon-info-heading"),
-                    body: fl!(
-                        I18N,
-                        "embedded-daemon-info",
-                        error_info = format!("Error info: {err:#}\n\n")
-                    ),
-                    selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
-                    ..Default::default()
-                })));
-        }
+        // if let Some(err) = conn_err {
+        //     model
+        //         .info_dialog
+        //         .emit(InfoDialogMsg::Show(Box::new(InfoDialogData {
+        //             id: InfoDialogId::EmbeddedDaemonInfo,
+        //             heading: fl!(I19N, "daemon-info-heading"),
+        //             body: fl!(
+        //                 I19N,
+        //                 "embedded-daemon-info",
+        //                 error_info = format!("Error info: {err:#}\n\n")
+        //             ),
+        //             selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
+        //             ..Default::default()
+        //         })));
+        // }
 
         if let Some(info) = version_mismatch_info {
             model.info_dialog.emit(InfoDialogMsg::Show(Box::new(info)));
@@ -682,6 +722,15 @@ impl AppModel {
             }
             AppMsg::ShowOverdriveDialog => {
                 self.overdrive_dialog.emit(OverdriveDialogMsg::Show);
+            }
+            AppMsg::ShowServiceSetupDialog => {
+                let params = ServiceSetupDialogParams {
+                    parent: root.clone().upcast(),
+                    initial_error: anyhow!("TODO"),
+                    unit_proxy: systemd::connect_unit_proxy().await?,
+                };
+                let mut controller = ServiceSetupDialog::builder().launch(params).detach();
+                controller.detach_runtime();
             }
             AppMsg::SelectProfile {
                 profile,
@@ -1413,36 +1462,25 @@ fn start_stats_update_loop(
     })
 }
 
-async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
-    match DaemonClient::connect().await {
-        Ok(connection) => {
-            debug!("Established daemon connection");
-            Ok((connection, None))
+async fn create_embedded_connection() -> anyhow::Result<DaemonClient> {
+    let (server_stream, client_stream) = UnixStream::pair()?;
+    client_stream.set_nonblocking(true)?;
+    server_stream.set_nonblocking(true)?;
+
+    std::thread::spawn(move || {
+        if let Err(err) = lact_daemon::run_embedded(server_stream) {
+            error!("Builtin daemon error: {err}");
         }
-        Err(err) => {
-            info!("could not connect to socket: {err:#}");
-            info!("using a local daemon");
+    });
 
-            let (server_stream, client_stream) = UnixStream::pair()?;
-            client_stream.set_nonblocking(true)?;
-            server_stream.set_nonblocking(true)?;
-
-            std::thread::spawn(move || {
-                if let Err(err) = lact_daemon::run_embedded(server_stream) {
-                    error!("Builtin daemon error: {err}");
-                }
-            });
-
-            let client = DaemonClient::from_stream(client_stream, true)?;
-            Ok((client, Some(err)))
-        }
-    }
+    Ok(DaemonClient::from_stream(client_stream, true)?)
 }
 
 new_action_group!(pub AppActionGroup, "app");
 new_stateless_action!(pub ProcessMonitorAction, AppActionGroup, "show-process-monitor");
 new_stateless_action!(pub GenerateDebugSnapshotAction, AppActionGroup, "generate-debug-snapshot");
 new_stateless_action!(pub DumpVBiosAction, AppActionGroup, "dump-vbios");
+new_stateless_action!(pub ServiceSetupAction, AppActionGroup, "service-setup");
 new_stateless_action!(pub PreferencesAction, AppActionGroup, "preferences");
 new_stateless_action!(pub AboutAction, AppActionGroup, "about");
 new_stateless_action!(pub QuitAction, AppActionGroup, "quit");

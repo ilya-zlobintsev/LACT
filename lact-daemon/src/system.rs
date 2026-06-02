@@ -2,7 +2,7 @@ pub mod power_profiles_daemon;
 
 use anyhow::{Context, anyhow, bail, ensure};
 use lact_schema::{
-    AmdgpuParamsConfigurator, BootArgConfigurator, GIT_COMMIT, InitramfsType, SystemInfo,
+    AmdgpuParamsConfigurator, BootArgConfigurator, InitramfsType, SystemInfo, VersionInfo,
 };
 use nix::sys::{
     socket::{
@@ -45,14 +45,6 @@ static MODULE_CONF_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
 });
 
 pub async fn info() -> anyhow::Result<SystemInfo> {
-    let version = DAEMON_VERSION.to_owned();
-    let profile = if cfg!(debug_assertions) {
-        "debug"
-    } else {
-        "release"
-    }
-    .to_owned();
-
     let kernel_version = uname().map_or_else(
         |err| {
             error!("could not fetch kernel version: {err}");
@@ -70,12 +62,10 @@ pub async fn info() -> anyhow::Result<SystemInfo> {
     let os_release = get_os_release().inspect_err(|err| error!("Could not detect distro: {err}"));
 
     Ok(SystemInfo {
-        version,
-        profile,
+        version: VersionInfo::current(),
         kernel_version,
         distro: os_release.as_ref().map(|release| release.name.clone()).ok(),
         amdgpu_overdrive_enabled,
-        commit: Some(GIT_COMMIT.to_owned()),
         amdgpu_params_configurator: match os_release {
             Ok(release) => detect_amdgpu_configurator(&release).await.ok(),
             Err(_) => None,

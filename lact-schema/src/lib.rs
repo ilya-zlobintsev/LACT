@@ -66,18 +66,44 @@ pub fn bytes_to_mib(bytes: u64) -> f64 {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Pong;
+pub struct Pong {
+    #[serde(flatten)]
+    pub version: VersionInfo,
+}
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemInfo {
-    pub version: String,
-    pub commit: Option<String>,
-    pub profile: String,
+    #[serde(flatten)]
+    pub version: VersionInfo,
     pub distro: Option<String>,
     pub kernel_version: String,
     pub amdgpu_overdrive_enabled: Option<bool>,
     pub amdgpu_params_configurator: Option<AmdgpuParamsConfigurator>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VersionInfo {
+    pub version: String,
+    pub commit: Option<String>,
+    pub profile: String,
+}
+
+impl VersionInfo {
+    pub fn current() -> Self {
+        let profile = if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        }
+        .to_owned();
+        Self {
+            version: env!("CARGO_PKG_VERSION").to_owned(),
+            commit: Some(GIT_COMMIT.to_owned()),
+            profile,
+        }
+    }
 }
 
 #[skip_serializing_none]
