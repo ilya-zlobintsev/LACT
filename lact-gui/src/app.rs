@@ -74,7 +74,7 @@ use relm4::{
     loading_widgets::LoadingWidgets,
     new_action_group, new_stateless_action,
     prelude::{AsyncComponent, AsyncComponentController, AsyncComponentParts},
-    tokio::{self, sync::oneshot, time::sleep},
+    tokio::{self, time::sleep},
     view,
 };
 use relm4_components::{
@@ -84,7 +84,7 @@ use relm4_components::{
 use std::{
     cell::Cell, fs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, sync::Arc, time::Duration,
 };
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, trace, warn};
 
 pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 

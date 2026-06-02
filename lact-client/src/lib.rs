@@ -4,7 +4,7 @@ mod macros;
 
 pub use lact_schema as schema;
 use lact_schema::{
-    DeviceApiInfo, ProcessList, ProfileRule,
+    DeviceApiInfo, Pong, ProcessList, ProfileRule,
     config::{GpuConfig, Profile, ProfileHooks},
 };
 
@@ -19,7 +19,8 @@ use schema::{
 };
 use serde::de::DeserializeOwned;
 use std::{
-    fmt, future::Future, os::unix::net::UnixStream, path::PathBuf, pin::Pin, rc::Rc, time::Duration,
+    fmt, future::Future, io, os::unix::net::UnixStream, path::PathBuf, pin::Pin, rc::Rc,
+    time::Duration,
 };
 use tokio::{
     net::ToSocketAddrs,
@@ -39,8 +40,8 @@ pub struct DaemonClient {
 
 impl DaemonClient {
     pub async fn connect() -> anyhow::Result<Self> {
-        let path =
-            get_socket_path().context("Could not connect to daemon: socket file not found")?;
+        let path = get_socket_path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "socket file not found"))?;
         let stream = UnixConnection::connect(&path).await?;
 
         Ok(Self {
@@ -120,6 +121,10 @@ impl DaemonClient {
                 }
             }
         })
+    }
+
+    pub async fn ping(&self) -> anyhow::Result<Pong> {
+        self.make_request(Request::Ping).await
     }
 
     pub async fn list_devices(&self) -> anyhow::Result<Vec<DeviceListEntry>> {

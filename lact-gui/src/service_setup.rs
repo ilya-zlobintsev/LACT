@@ -1,14 +1,17 @@
 pub mod systemd;
 
+use std::io;
 use std::time::Duration;
 
+use crate::I18N;
 use crate::service_setup::systemd::{START_MODE_REPLACE, UnitProxy};
 use adw::prelude::*;
-use anyhow::{Context as _, anyhow};
 use futures::StreamExt as _;
+use i18n_embed_fl::fl;
 use lact_client::DaemonClient;
 use relm4::{
     AsyncComponentSender, RelmWidgetExt,
+    css::{ERROR, SUCCESS},
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio,
 };
@@ -16,10 +19,12 @@ use tracing::{debug, warn};
 
 pub struct ServiceSetupDialog {
     current_client: anyhow::Result<DaemonClient>,
+    connection_status: ConnectionStatus,
     unit_proxy: UnitProxy<'static>,
 
     service_state: String,
 }
+
 
 pub struct ServiceSetupDialogParams {
     pub parent: gtk::ApplicationWindow,
@@ -38,6 +43,12 @@ pub enum ServiceSetupDialogMsg {
     // Show,
 }
 
+enum ConnectionStatus {
+    Connected,
+    ConnectedMismatched,
+    Error(String),
+}
+
 #[relm4::component(pub, async)]
 impl AsyncComponent for ServiceSetupDialog {
     type Init = ServiceSetupDialogParams;
@@ -48,7 +59,7 @@ impl AsyncComponent for ServiceSetupDialog {
     view! {
         adw::Dialog {
             set_content_width: 500,
-            set_follows_content_size: true,
+            // set_follows_content_size: true,
             set_title: "Service Setup",
 
             connect_closed => ServiceSetupDialogMsg::Close,
@@ -60,46 +71,83 @@ impl AsyncComponent for ServiceSetupDialog {
                 #[wrap(Some)]
                 set_content = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 10,
-                    set_margin_all: 10,
+                    set_spacing: 5,
+                    set_margin_all: 15,
 
                     gtk::Label {
-                        #[watch]
-                        set_markup: &format!("Service Status: <tt>{}</tt>", model.service_state),
+                        set_markup: &fl!(I18N, "service-explanation"),
+                        set_wrap: true,
+                        set_xalign: 0.0,
+                        set_margin_bottom: 10,
                     },
 
-                    gtk::Label {
-                        #[watch]
-                        set_markup: &format!("Connection ok: <tt>{}</tt>", model.current_client.is_ok()),
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 5,
+                        set_hexpand: true,
+
+                        gtk::Label {
+                            set_markup: &format!("<b>{}</b>", fl!(I18N, "service-connection-status")),
+                            set_size_group: &label_size_group,
+                            set_xalign: 0.0,
+                            set_yalign: 0.0,
+                        },
+
+                        gtk::Label {
+                            #[watch]
+                            set_markup: &model.connection_status_text(),
+                            #[watch]
+                            set_css_classes: if model.current_client.is_ok() { &[SUCCESS] } else { &[ERROR] },
+                        },
                     },
 
-                    gtk::Button {
-                        set_label: "Start Service",
-                        connect_clicked => ServiceSetupDialogMsg::StartService,
-                    },
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 5,
+                        set_hexpand: true,
 
-                    gtk::Button {
-                        set_label: "Stop Service",
-                        connect_clicked => ServiceSetupDialogMsg::StopService,
-                    },
+                        gtk::Label {
+                            set_markup: &format!("<b>{}</b>", fl!(I18N, "service-status")),
+                            set_size_group: &label_size_group,
+                            set_xalign: 0.0,
+                            set_yalign: 0.0,
+                        },
 
-                    gtk::Button {
-                        set_label: "Restart Service",
-                        connect_clicked => ServiceSetupDialogMsg::RestartService,
+                        gtk::Label {
+                            #[watch]
+                            set_markup: &format!("<tt>{}</tt>", model.service_state),
+                            set_wrap: true,
+                        },
                     },
                 },
 
                 add_bottom_bar = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
-                    set_spacing: 10,
+                    set_spacing: 5,
                     set_halign: gtk::Align::Fill,
                     set_margin_horizontal: 10,
                     set_margin_bottom: 10,
 
                     gtk::Button {
+                        set_label: &fl!(I18N, "service-start"),
+                        connect_clicked => ServiceSetupDialogMsg::StartService,
+                        add_css_class: "suggested-action",
+                    },
+
+                    gtk::Button {
+                        set_label: &fl!(I18N, "service-stop"),
+                        connect_clicked => ServiceSetupDialogMsg::StopService,
+                    },
+
+                    gtk::Button {
+                        set_label: &fl!(I18N, "service-restart"),
+                        connect_clicked => ServiceSetupDialogMsg::RestartService,
+                    },
+
+                    gtk::Button {
                         set_halign: gtk::Align::End,
                         set_hexpand: true,
-                        set_label: "Close",
+                        set_label: &fl!(I18N, "close"),
 
                         connect_clicked[root] => move |_| {
                             root.close();
@@ -163,6 +211,9 @@ impl AsyncComponent for ServiceSetupDialog {
             unit_proxy: params.unit_proxy,
             service_state,
         };
+
+        let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+
         let widgets = view_output!();
 
         root.present(Some(&params.parent));
@@ -218,5 +269,31 @@ impl ServiceSetupDialog {
         self.current_client = DaemonClient::connect().await;
 
         Ok(())
+    }
+
+    fn connection_status_style(&self) -> &'static str {
+        match &self.current_client {
+            Ok(client) => {
+                let pong = client.ping()
+            }
+            Err(_) => ERROR,
+        }
+    }
+
+    fn connection_status_text(&self) -> String {
+        match &self.current_client {
+            Ok(_client) => fl!(I18N, "service-connected"),
+            Err(err) => {
+                if let Some(io_err) = err.downcast_ref::<std::io::Error>() {
+                    match io_err.kind() {
+                        io::ErrorKind::NotFound => fl!(I18N, "service-not-running"),
+                        io::ErrorKind::PermissionDenied => fl!(I18N, "service-permission-denied"),
+                        _ => format!("{} (IO {io_err:#})", fl!(I18N, "error-heading")),
+                    }
+                } else {
+                    format!("{} ({err:#})", fl!(I18N, "error-heading"))
+                }
+            }
+        }
     }
 }

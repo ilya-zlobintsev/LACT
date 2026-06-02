@@ -9,7 +9,7 @@ use self::handler::Handler;
 use crate::{config::Config, socket, system};
 use anyhow::Context;
 use futures::future::join_all;
-use lact_schema::{Pong, Request, Response};
+use lact_schema::{Pong, Request, Response, VersionInfo};
 use serde::Serialize;
 use std::fmt::Debug;
 use tokio::{
@@ -246,5 +246,7 @@ fn ok_response<T: Serialize + Debug>(data: T) -> anyhow::Result<Vec<u8>> {
 }
 
 fn ping() -> Pong {
-    Pong
+    Pong {
+        version: VersionInfo::current(),
+    }
 }
