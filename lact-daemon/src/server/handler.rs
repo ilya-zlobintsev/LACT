@@ -14,8 +14,9 @@ use amdgpu_sysfs::gpu_handle::{
 };
 use anyhow::{Context, anyhow, bail};
 use lact_schema::{
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, DisplaysInfo, FanControlMode, FanOptions,
-    PmfwOptions, PowerStates, ProcessList, ProfileRule, ProfileWatcherState, ProfilesInfo,
+    ClocksInfo, DeviceApiInfo, DeviceInfo, DeviceListEntry, DeviceStats, DisplaysInfo,
+    FanControlMode, FanOptions, PmfwOptions, PowerStates, ProcessList, ProfileRule,
+    ProfileWatcherState, ProfilesInfo,
     config::{
         FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks, default_fan_static_speed,
     },
@@ -423,7 +424,23 @@ impl<'a> Handler {
         entries
     }
 
-    pub async fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo> {
+    pub async fn get_device_info(
+        &'a self,
+        id: &str,
+        include_api_info: Option<bool>,
+    ) -> anyhow::Result<DeviceInfo> {
+        let controllers = self.gpu_controllers.read().await;
+        let controller = controllers
+            .get(id)
+            .ok_or_else(|| anyhow!("Controller '{id}' not found"))?;
+
+        let unique_vendor = controller_vendor_is_unique(controller, id, &controllers);
+        let include_api_info = include_api_info.unwrap_or(true);
+
+        Ok(controller.get_info(unique_vendor, include_api_info).await)
+    }
+
+    pub async fn get_device_api_info(&'a self, id: &str) -> anyhow::Result<DeviceApiInfo> {
         let controllers = self.gpu_controllers.read().await;
         let controller = controllers
             .get(id)
@@ -431,7 +448,7 @@ impl<'a> Handler {
 
         let unique_vendor = controller_vendor_is_unique(controller, id, &controllers);
 
-        Ok(controller.get_info(unique_vendor).await)
+        Ok(controller.get_api_info(unique_vendor).await)
     }
 
     pub async fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
@@ -785,7 +802,7 @@ impl<'a> Handler {
 
             let data = json!({
                 "pci_info": controller.controller_info().pci_info.clone(),
-                "info": controller.get_info(unique_vendor).await,
+                "info": controller.get_info(unique_vendor, true).await,
                 "stats": controller.get_stats(gpu_config),
                 "clocks_info": controller.get_clocks_info(gpu_config).ok(),
                 "power_profile_modes": controller.get_power_profile_modes().ok(),
@@ -1193,13 +1210,13 @@ async fn apply_config_to_controllers(
 
 #[cfg(all(test, not(miri)))]
 pub(crate) fn read_pci_db() -> Database {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/data/pci.ids");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/snapshots/pci.ids");
     Database::read_from_file(&path).unwrap()
 }
 
 #[cfg(all(test, miri))]
 pub(crate) fn read_pci_db() -> Database {
-    let bytes = include_bytes!("../../src/tests/data/pci.ids");
+    let bytes = include_bytes!("../../../tests/snapshots/pci.ids");
     Database::parse_db(std::io::Cursor::new(bytes)).unwrap()
 }
 

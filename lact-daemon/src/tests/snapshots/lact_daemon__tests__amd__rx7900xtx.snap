@@ -354,51 +354,72 @@ expression: device_info
     "core": [
       {
         "enabled": true,
-        "index": 0,
+        "id": {
+          "Index": 0
+        },
         "value": 500
       },
       {
         "enabled": true,
-        "index": 1,
+        "id": {
+          "Index": 1
+        },
         "value": 31
       },
       {
         "enabled": true,
-        "index": 2,
+        "id": {
+          "Index": 2
+        },
         "value": 2219
       }
     ],
     "vram": [
       {
         "enabled": true,
-        "index": 0,
+        "id": {
+          "Index": 0
+        },
         "value": 96
       },
       {
         "enabled": true,
-        "index": 1,
+        "id": {
+          "Index": 1
+        },
         "value": 456
       },
       {
         "enabled": true,
-        "index": 2,
+        "id": {
+          "Index": 2
+        },
         "value": 772
       },
       {
         "enabled": true,
-        "index": 3,
+        "id": {
+          "Index": 3
+        },
         "value": 1249
       }
     ]
   },
   "stats": {
+    "active_power_states": {
+      "core": {
+        "Index": 1
+      },
+      "memory": {
+        "Index": 3
+      }
+    },
     "busy_percent": 3,
     "clockspeed": {
       "gpu_clockspeed": 31,
       "sensors": {},
       "vram_clockspeed": 1249
     },
-    "core_power_state": 1,
     "fan": {
       "control_enabled": false,
       "pmfw_info": {
@@ -442,7 +463,6 @@ expression: device_info
         100
       ]
     },
-    "memory_power_state": 3,
     "performance_level": "auto",
     "power": {
       "average": 68.0,

@@ -30,7 +30,7 @@ pub async fn info(ctx: CliContext<'_>) -> Result<()> {
     println!("{gpu_line}");
     println!("{}", "=".repeat(gpu_line.len()));
 
-    let info = ctx.client.get_device_info(&id).await?;
+    let info = ctx.client.get_device_info(&id, Some(false)).await?;
     let stats = ctx.client.get_device_stats(&id).await?;
 
     let elements = info.info_elements(Some(&stats));

@@ -353,61 +353,99 @@ expression: device_info
     "core": [
       {
         "enabled": true,
-        "index": 0,
-        "value": 500
+        "id": "Sleep",
+        "value": 19
       },
       {
         "enabled": true,
-        "index": 1,
-        "value": 16
+        "id": {
+          "Index": 0
+        },
+        "value": 615
       },
       {
         "enabled": true,
-        "index": 2,
-        "value": 2400
+        "id": {
+          "Index": 1
+        },
+        "value": 800
+      },
+      {
+        "enabled": true,
+        "id": {
+          "Index": 2
+        },
+        "value": 888
+      },
+      {
+        "enabled": true,
+        "id": {
+          "Index": 3
+        },
+        "value": 1000
       }
     ],
     "vram": [
       {
         "enabled": true,
-        "index": 0,
+        "id": {
+          "Index": 0
+        },
         "value": 96
       },
       {
         "enabled": true,
-        "index": 1,
+        "id": {
+          "Index": 1
+        },
         "value": 456
       },
       {
         "enabled": true,
-        "index": 2,
+        "id": {
+          "Index": 2
+        },
         "value": 772
       },
       {
         "enabled": true,
-        "index": 3,
+        "id": {
+          "Index": 3
+        },
         "value": 875
       },
       {
         "enabled": true,
-        "index": 4,
+        "id": {
+          "Index": 4
+        },
         "value": 1124
       },
       {
         "enabled": true,
-        "index": 5,
+        "id": {
+          "Index": 5
+        },
         "value": 1258
       }
     ]
   },
   "stats": {
+    "active_power_states": {
+      "core": "Sleep",
+      "memory": {
+        "Index": 5
+      },
+      "pcie": {
+        "Index": 1
+      }
+    },
     "busy_percent": 3,
     "clockspeed": {
       "gpu_clockspeed": 167,
       "sensors": {},
       "vram_clockspeed": 1258
     },
-    "core_power_state": 1,
     "fan": {
       "control_enabled": false,
       "pmfw_info": {
@@ -459,8 +497,6 @@ expression: device_info
         100
       ]
     },
-    "memory_power_state": 5,
-    "pcie_power_state": 1,
     "performance_level": "auto",
     "power": {
       "average": 55.0,

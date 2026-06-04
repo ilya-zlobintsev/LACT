@@ -15,7 +15,7 @@ pub use response::Response;
 
 use amdgpu_sysfs::{
     gpu_handle::{
-        PerformanceLevel,
+        PerformanceLevel, PowerLevelId,
         fan_control::FanInfo,
         overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTableGen},
     },
@@ -133,10 +133,8 @@ pub enum DeviceFlag {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceInfo {
     pub pci_info: Option<GpuPciInfo>,
-    #[serde(default)]
-    pub vulkan_instances: Vec<VulkanInfo>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub opencl_instances: Vec<OpenCLInfo>,
+    #[serde(flatten)]
+    pub api_info: DeviceApiInfo,
     pub driver: String,
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,
@@ -328,6 +326,14 @@ impl DeviceInfo {
 
         elements
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct DeviceApiInfo {
+    #[serde(default)]
+    pub vulkan_instances: Vec<VulkanInfo>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub opencl_instances: Vec<OpenCLInfo>,
 }
 
 #[skip_serializing_none]
@@ -549,10 +555,16 @@ pub struct DeviceStats {
     pub temps: HashMap<String, TemperatureEntry>,
     pub busy_percent: Option<u8>,
     pub performance_level: Option<PerformanceLevel>,
-    pub core_power_state: Option<usize>,
-    pub memory_power_state: Option<usize>,
-    pub pcie_power_state: Option<usize>,
+    pub active_power_states: Option<ActivePowerStates>,
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+pub struct ActivePowerStates {
+    pub core: Option<PowerLevelId>,
+    pub memory: Option<PowerLevelId>,
+    pub pcie: Option<PowerLevelId>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -693,7 +705,7 @@ pub struct PowerState {
     pub enabled: bool,
     pub min_value: Option<u64>,
     pub value: u64,
-    pub index: Option<u8>,
+    pub id: Option<PowerLevelId>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]

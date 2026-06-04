@@ -4,30 +4,26 @@ pub mod nvapi;
 use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
-    server::{
-        gpu_controller::{
-            NvApi,
-            common::{fan_control::FanCurveExt, resolve_process_name},
-            nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
-        },
-        opencl::get_opencl_info,
-        vulkan::get_vulkan_info,
+    server::gpu_controller::{
+        NvApi,
+        common::{fan_control::FanCurveExt, resolve_process_name},
+        nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
     },
 };
 use amdgpu_sysfs::{
-    gpu_handle::{fan_control::FanInfo, power_profile_mode::PowerProfileModesTable},
+    gpu_handle::{PowerLevelId, fan_control::FanInfo, power_profile_mode::PowerProfileModesTable},
     hw_mon::Temperature,
 };
 use anyhow::{Context, anyhow, bail};
 use driver::DriverHandle;
-use futures::{FutureExt, future::LocalBoxFuture, join};
+use futures::{FutureExt, future::LocalBoxFuture};
 use indexmap::IndexMap;
 use lact_schema::{
-    CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceFlag, DeviceInfo, DeviceStats,
-    DeviceType, DisplaysInfo, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo,
-    LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaVfPoint, PmfwInfo, PowerState,
-    PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType,
-    TemperatureEntry, VoltageStats, VramStats,
+    ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
+    DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DisplaysInfo, DrmInfo, DrmMemoryInfo,
+    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable,
+    NvidiaVfPoint, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList,
+    ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
 use nvml_wrapper::{
@@ -354,12 +350,12 @@ impl NvidiaGpuController {
                 enabled: true,
                 min_value: Some(u64::from(gpu_min)),
                 value: u64::from(gpu_max),
-                index: Some(
+                id: Some(PowerLevelId::Index(
                     pstate
                         .as_c()
                         .try_into()
                         .expect("Power state always fits in u8"),
-                ),
+                )),
             });
 
             let (mem_min, mem_max) = device
@@ -370,12 +366,12 @@ impl NvidiaGpuController {
                 enabled: true,
                 min_value: Some(u64::from(mem_min)),
                 value: u64::from(mem_max),
-                index: Some(
+                id: Some(PowerLevelId::Index(
                     pstate
                         .as_c()
                         .try_into()
                         .expect("Power state always fits in u8"),
-                ),
+                )),
             });
         }
 
@@ -535,23 +531,24 @@ impl GpuController for NvidiaGpuController {
             .or_else(|| self.common.pci_info.device_pci_info.model.clone())
     }
 
-    fn get_info(&self, unique_vendor: bool) -> LocalBoxFuture<'_, DeviceInfo> {
+    fn get_info(
+        &self,
+        unique_vendor: bool,
+        include_api_info: bool,
+    ) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let (vulkan_result, opencl_instances) = join!(
-                get_vulkan_info(&self.common),
-                get_opencl_info(&self.common, unique_vendor)
-            );
-            let vulkan_instances = vulkan_result.unwrap_or_else(|err| {
-                warn!("could not load vulkan info: {err:#}");
-                vec![]
-            });
+            let api_info = if include_api_info {
+                self.get_api_info(unique_vendor).await
+            } else {
+                DeviceApiInfo::default()
+            };
 
             let device = self.device();
             let driver_handle = self.driver_handle.as_ref();
 
             DeviceInfo {
                 pci_info: Some(self.common.pci_info.clone()),
-                vulkan_instances,
+                api_info,
                 driver: format!(
                     "nvidia {}",
                     self.nvml.sys_driver_version().unwrap_or_default()
@@ -585,7 +582,6 @@ impl GpuController for NvidiaGpuController {
                             output
                         }),
                 },
-                opencl_instances,
                 drm_info: Some(DrmInfo {
                     device_name: device.name().ok(),
                     pci_revision_id: None,
@@ -753,7 +749,14 @@ impl GpuController for NvidiaGpuController {
 
         let active_pstate = device
             .performance_state()
-            .map(|pstate| pstate.as_c() as usize)
+            .map(|pstate| {
+                PowerLevelId::Index(
+                    pstate
+                        .as_c()
+                        .try_into()
+                        .expect("Power state always fits in u8"),
+                )
+            })
             .ok();
 
         let fan_range = device.min_max_fan_speed().ok();
@@ -835,9 +838,11 @@ impl GpuController for NvidiaGpuController {
                 ..Default::default()
             },
             performance_level: None,
-            core_power_state: active_pstate,
-            memory_power_state: active_pstate,
-            pcie_power_state: None,
+            active_power_states: active_pstate.map(|active_pstate| ActivePowerStates {
+                core: Some(active_pstate),
+                memory: Some(active_pstate),
+                pcie: None,
+            }),
         }
     }
 

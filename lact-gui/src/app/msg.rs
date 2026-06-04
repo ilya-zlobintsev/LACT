@@ -14,6 +14,7 @@ pub enum AppMsg {
     ReloadData {
         full: bool,
     },
+    ReloadApiInfo,
     Stats(Arc<DeviceStats>),
     ProfilesPolled(Arc<ProfilesInfo>),
     ApplyChanges,
@@ -54,4 +55,5 @@ pub enum AppMsg {
     ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
     Crash(String),
+    Quit,
 }

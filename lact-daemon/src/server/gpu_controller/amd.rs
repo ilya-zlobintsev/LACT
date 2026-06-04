@@ -1,16 +1,12 @@
 use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
-use crate::server::{
-    gpu_controller::common::{
-        fan_control::FanCurveExt,
-        fdinfo::{self, DrmUtilMap},
-    },
-    opencl::get_opencl_info,
-    vulkan::get_vulkan_info,
+use crate::server::gpu_controller::common::{
+    fan_control::FanCurveExt,
+    fdinfo::{self, DrmUtilMap},
 };
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
-        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind,
+        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelId, PowerLevelKind,
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
         power_profile_mode::PowerProfileModesTable,
@@ -19,12 +15,13 @@ use amdgpu_sysfs::{
     sysfs::SysFS,
 };
 use anyhow::{Context, anyhow, bail};
-use futures::{FutureExt, future::LocalBoxFuture, join};
+use futures::{FutureExt, future::LocalBoxFuture};
 use lact_schema::{
-    AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceFlag,
-    DeviceInfo, DeviceStats, DeviceType, DisplayConnector, DisplaysInfo, DrmInfo, FanControlMode,
-    FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList,
-    ProcessUtilizationType, RopInfo, TemperatureEntry, VoltageStats, VramStats,
+    ActivePowerStates, AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo,
+    ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType,
+    DisplayConnector, DisplaysInfo, DrmInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
+    PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo,
+    TemperatureEntry, VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, HW_IP::HW_IP_TYPE, ThrottlerBit, ThrottlerType};
@@ -445,7 +442,9 @@ impl AmdGpuController {
             .unwrap_or_default();
 
         if attempt < MAX_PSTATE_READ_ATTEMPTS
-            && levels.iter().any(|value| *value >= u64::from(u16::MAX))
+            && levels
+                .iter()
+                .any(|level| level.value >= u64::from(u16::MAX))
         {
             debug!("GPU reported nonsensical {kind:?} power state values, retrying: {levels:?}");
             return self.get_power_states_kind(gpu_config, kind, attempt + 1);
@@ -453,15 +452,18 @@ impl AmdGpuController {
 
         levels
             .into_iter()
-            .enumerate()
-            .map(|(i, value)| {
-                let i = u8::try_from(i).unwrap();
-                let enabled = enabled_states.is_none_or(|enabled| enabled.contains(&i));
+            .map(|level| {
+                let enabled = match level.id {
+                    PowerLevelId::Index(index) => {
+                        enabled_states.is_none_or(|enabled| enabled.contains(&index))
+                    }
+                    PowerLevelId::Sleep => true,
+                };
                 PowerState {
                     enabled,
                     min_value: None,
-                    value,
-                    index: Some(i),
+                    value: level.value,
+                    id: Some(level.id),
                 }
             })
             .collect()
@@ -734,16 +736,17 @@ impl GpuController for AmdGpuController {
             })
     }
 
-    fn get_info(&self, unique_vendor: bool) -> LocalBoxFuture<'_, DeviceInfo> {
+    fn get_info(
+        &self,
+        unique_vendor: bool,
+        include_api_info: bool,
+    ) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let (vulkan_result, opencl_instances) = join!(
-                get_vulkan_info(&self.common),
-                get_opencl_info(&self.common, unique_vendor)
-            );
-            let vulkan_instances = vulkan_result.unwrap_or_else(|err| {
-                warn!("could not load vulkan info: {err:#}");
-                vec![]
-            });
+            let api_info = if include_api_info {
+                self.get_api_info(unique_vendor).await
+            } else {
+                DeviceApiInfo::default()
+            };
 
             let pci_info = Some(self.common.pci_info.clone());
             let driver = self.handle.get_driver().to_owned();
@@ -782,11 +785,10 @@ impl GpuController for AmdGpuController {
 
             DeviceInfo {
                 pci_info,
-                vulkan_instances,
+                api_info,
                 driver,
                 vbios_version,
                 link_info,
-                opencl_instances,
                 drm_info,
                 flags,
             }
@@ -1015,24 +1017,34 @@ impl GpuController for AmdGpuController {
             temps,
             busy_percent: self.handle.get_busy_percent().ok(),
             performance_level: self.handle.get_power_force_performance_level().ok(),
-            core_power_state: self
-                .handle
-                .get_core_clock_levels()
-                .inspect_err(|err| debug!("could not get active core power state: {err:#}"))
-                .ok()
-                .and_then(|levels| levels.active),
-            memory_power_state: self
-                .handle
-                .get_memory_clock_levels()
-                .inspect_err(|err| debug!("could not get active memory power state: {err:#}"))
-                .ok()
-                .and_then(|levels| levels.active),
-            pcie_power_state: self
-                .handle
-                .get_pcie_clock_levels()
-                .inspect_err(|err| debug!("could not get active PCIe power state: {err:#}"))
-                .ok()
-                .and_then(|levels| levels.active),
+            active_power_states: {
+                let active_power_states = ActivePowerStates {
+                    core: self
+                        .handle
+                        .get_core_clock_levels()
+                        .inspect_err(|err| debug!("could not get active core power state: {err:#}"))
+                        .ok()
+                        .and_then(|levels| levels.active),
+                    memory: self
+                        .handle
+                        .get_memory_clock_levels()
+                        .inspect_err(|err| {
+                            debug!("could not get active memory power state: {err:#}");
+                        })
+                        .ok()
+                        .and_then(|levels| levels.active),
+                    pcie: self
+                        .handle
+                        .get_pcie_clock_levels()
+                        .inspect_err(|err| debug!("could not get active PCIe power state: {err:#}"))
+                        .ok()
+                        .and_then(|levels| levels.active),
+                };
+                (active_power_states.core.is_some()
+                    || active_power_states.memory.is_some()
+                    || active_power_states.pcie.is_some())
+                .then_some(active_power_states)
+            },
             throttle_info,
         }
     }
@@ -1162,7 +1174,7 @@ impl GpuController for AmdGpuController {
                                 .set_power_force_performance_level(performance_level)
                                 .context("Failed to set power performance level")?;
                         }
-                        PerformanceLevel::High | PerformanceLevel::Low => {
+                        _ => {
                             deferred_performance_level = Some(performance_level);
                         }
                     }
@@ -1452,8 +1464,6 @@ fn get_drm_handle(
     common: &CommonControllerInfo,
     libdrm_amdgpu: &LibDrmAmdgpu,
 ) -> anyhow::Result<DrmHandle> {
-    use std::os::unix::io::AsRawFd;
-
     let path = common.get_drm_render()?;
     let drm_file = fs::OpenOptions::new()
         .read(true)
@@ -1461,7 +1471,7 @@ fn get_drm_handle(
         .open(&path)
         .with_context(|| format!("Could not open drm file at {}", path.display()))?;
     let (handle, _, _) = libdrm_amdgpu
-        .init_device_handle(drm_file.as_raw_fd())
+        .init_device_handle_with_fd(drm_file)
         .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
     Ok(handle)
 }

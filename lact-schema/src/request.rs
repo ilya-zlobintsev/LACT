@@ -15,6 +15,11 @@ pub enum Request<'a> {
     SystemInfo,
     DeviceInfo {
         id: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        include_api_info: Option<bool>,
+    },
+    DeviceApiInfo {
+        id: &'a str,
     },
     DeviceStats {
         id: &'a str,

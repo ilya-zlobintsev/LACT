@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Docker Cache
-        uses: AndreKurait/docker-cache@0.6.0
+        uses: AndreKurait/docker-cache@eb0683e3972ed3066587b7199d3a0e9bd114bd3c #0.6.0
         with:
           key: docker-${{ matrix.target-os }}-${{ hashFiles('pkg/images/') }}
 

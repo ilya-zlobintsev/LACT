@@ -4,6 +4,7 @@ mod profile_row;
 pub mod profile_rule_window;
 
 use crate::I18N;
+use crate::app::ext::RelmLaunchable as _;
 use crate::app::msg::AppMsg;
 use crate::app::profiles::new_profile_dialog::NewProfileDialog;
 use crate::app::profiles::profile_rename_dialog::ProfileRenameDialog;
@@ -299,7 +300,7 @@ impl Component for ProfileSelector {
                         auto_switch: *auto,
                         parent: root.clone().upcast::<gtk::Widget>(),
                     };
-                    let rule_window = ProfileRuleWindow::builder().launch(params).into_stream();
+                    let rule_window = ProfileRuleWindow::launch(params).into_stream();
 
                     sender.clone().oneshot_command(async move {
                         if let Some((name, rule, hooks)) = rule_window.recv_one().await {

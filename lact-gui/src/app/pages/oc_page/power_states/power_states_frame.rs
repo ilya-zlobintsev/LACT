@@ -2,6 +2,7 @@ use super::power_states_list::PowerStatesList;
 use crate::{
     APP_BROKER, I18N,
     app::{
+        ext::RelmLaunchable as _,
         msg::AppMsg,
         page_section_expander::PageSectionExpander,
         pages::oc_page::power_states::power_states_list::{
@@ -18,7 +19,7 @@ use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
-    Component, ComponentController, ComponentParts, ComponentSender, RelmObjectExt,
+    ComponentController, ComponentParts, ComponentSender, RelmObjectExt,
     binding::{Binding, BoolBinding},
     css,
 };
@@ -101,18 +102,14 @@ impl relm4::SimpleComponent for PowerStatesFrame {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let core_states_list = PowerStatesList::builder()
-            .launch(PowerStatesListOptions {
-                title: fl!(I18N, "gpu-pstates"),
-                value_suffix: fl!(I18N, "mhz"),
-            })
-            .detach();
-        let vram_states_list = PowerStatesList::builder()
-            .launch(PowerStatesListOptions {
-                title: fl!(I18N, "vram-pstates"),
-                value_suffix: fl!(I18N, "mhz"),
-            })
-            .detach();
+        let core_states_list = PowerStatesList::detach(PowerStatesListOptions {
+            title: fl!(I18N, "gpu-pstates"),
+            value_suffix: fl!(I18N, "mhz"),
+        });
+        let vram_states_list = PowerStatesList::detach(PowerStatesListOptions {
+            title: fl!(I18N, "vram-pstates"),
+            value_suffix: fl!(I18N, "mhz"),
+        });
 
         let states_configured = BoolBinding::new(false);
 
@@ -157,10 +154,12 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 ));
             }
             PowerStatesFrameMsg::Stats(stats) => {
-                self.core_states_list
-                    .emit(PowerStatesListMsg::ActiveState(stats.core_power_state));
-                self.vram_states_list
-                    .emit(PowerStatesListMsg::ActiveState(stats.memory_power_state));
+                self.core_states_list.emit(PowerStatesListMsg::ActiveState(
+                    stats.active_power_states.and_then(|states| states.core),
+                ));
+                self.vram_states_list.emit(PowerStatesListMsg::ActiveState(
+                    stats.active_power_states.and_then(|states| states.memory),
+                ));
             }
             PowerStatesFrameMsg::VramClockRatio(ratio) => {
                 self.vram_clock_ratio = ratio;
