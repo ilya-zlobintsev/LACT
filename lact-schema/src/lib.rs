@@ -885,5 +885,7 @@ pub struct DisplayInfo {
 pub enum DisplayConnector {
     DisplayPort { lanes: u16, rate: u32 },
     Hdmi,
+    Dvi,
+    Vga,
     Other,
 }

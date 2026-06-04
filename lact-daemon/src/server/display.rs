@@ -72,6 +72,8 @@ fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
     {
         "DP" | "eDP" => DisplayConnector::DisplayPort { lanes: 0, rate: 0 },
         "HDMI" => DisplayConnector::Hdmi,
+        "DVI" => DisplayConnector::Dvi,
+        "VGA" => DisplayConnector::Vga,
         _ => DisplayConnector::Other,
     };
 
