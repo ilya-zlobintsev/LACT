@@ -19,6 +19,9 @@ pub enum Request<'a> {
     DeviceStats {
         id: &'a str,
     },
+    DisplaysInfo {
+        id: &'a str,
+    },
     DeviceClocksInfo {
         id: &'a str,
     },

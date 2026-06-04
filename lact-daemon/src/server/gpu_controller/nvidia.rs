@@ -5,7 +5,6 @@ use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::{
-        display::get_display_info,
         gpu_controller::{
             NvApi,
             common::{fan_control::FanCurveExt, resolve_process_name},
@@ -25,10 +24,10 @@ use futures::{FutureExt, future::LocalBoxFuture, join};
 use indexmap::IndexMap;
 use lact_schema::{
     CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceFlag, DeviceInfo, DeviceStats,
-    DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
-    NvidiaClockOffset, NvidiaClocksTable, NvidiaVfPoint, PmfwInfo, PowerState, PowerStates,
-    PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry,
-    VoltageStats, VramStats,
+    DeviceType, DisplaysInfo, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo,
+    LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaVfPoint, PmfwInfo, PowerState,
+    PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType,
+    TemperatureEntry, VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
 use nvml_wrapper::{
@@ -549,8 +548,6 @@ impl GpuController for NvidiaGpuController {
 
             let device = self.device();
             let driver_handle = self.driver_handle.as_ref();
-
-            get_display_info(&self.common.sysfs_path);
 
             DeviceInfo {
                 pci_info: Some(self.common.pci_info.clone()),
@@ -1262,5 +1259,9 @@ impl GpuController for NvidiaGpuController {
             processes,
             supported_util_types: SUPPORTED_UTIL_TYPES.iter().copied().collect(),
         })
+    }
+
+    fn populate_displays_info(&self, _info: &mut DisplaysInfo) -> anyhow::Result<()> {
+        Ok(())
     }
 }

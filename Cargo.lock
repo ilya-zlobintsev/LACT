@@ -609,6 +609,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "edidkit"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9830c5359b290f9eab7417018ed74688b8187604ed1fad6da05aeed1cde31943"
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1707,13 +1713,13 @@ dependencies = [
  "bitflags 2.11.1",
  "divan",
  "easy_fuser",
+ "edidkit",
  "futures",
  "indexmap",
  "insta",
  "jiff",
  "lact-schema",
  "libcopes",
- "libdisplay-info",
  "libdrm_amdgpu_sys",
  "libflate",
  "libloading",
@@ -1845,40 +1851,6 @@ dependencies = [
  "bindgen 0.71.1",
  "libc",
  "log",
-]
-
-[[package]]
-name = "libdisplay-info"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59fd96dbb2381ff31f314f07accbdf8550febdcc5cd8761ecaf7c1763361c359"
-dependencies = [
- "bitflags 2.11.1",
- "libc",
- "libdisplay-info-derive",
- "libdisplay-info-sys",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "libdisplay-info-derive"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8dc2c710cf5819e91220a446d9e64acc6814386cc22c509c3f0df83c0b874a98"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "libdisplay-info-sys"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26590d55b8819f9c6b0d95d9d12dc9edbfd1f2413e88814a33b631ac049bb51f"
-dependencies = [
- "semver",
- "system-deps",
 ]
 
 [[package]]

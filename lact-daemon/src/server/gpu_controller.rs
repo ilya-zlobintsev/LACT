@@ -8,6 +8,7 @@ mod nvidia;
 use amd::AmdGpuController;
 use intel::IntelGpuController;
 use lact_schema::DeviceType;
+use lact_schema::DisplaysInfo;
 use lact_schema::ProcessList;
 #[cfg(feature = "nvidia")]
 use nvidia::NvidiaGpuController;
@@ -68,6 +69,8 @@ pub trait GpuController {
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>>;
 
     fn process_list(&self) -> anyhow::Result<ProcessList>;
+
+    fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()>;
 }
 
 #[derive(Clone, Debug)]

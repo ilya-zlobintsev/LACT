@@ -1,16 +1,9 @@
 use anyhow::Context;
-use std::{fs, path::Path};
+use lact_schema::{DisplayConnector, DisplayInfo, DisplaysInfo};
+use std::{collections::BTreeMap, fs, path::Path};
 use tracing::warn;
 
-pub fn get_display_info(device_path: &Path) -> Option<()> {
-    try_get_display_info(device_path)
-        .inspect_err(|err| {
-            warn!("could not fetch displays info: {err:#}");
-        })
-        .ok()
-}
-
-fn try_get_display_info(device_path: &Path) -> anyhow::Result<()> {
+pub fn get_base_displays_info(device_path: &Path) -> anyhow::Result<DisplaysInfo> {
     let path_parent = device_path.parent().context("Invalid path")?;
     let card_entry_name = path_parent
         .file_name()
@@ -18,6 +11,8 @@ fn try_get_display_info(device_path: &Path) -> anyhow::Result<()> {
         .context("Invalid path")?;
 
     let entries = fs::read_dir(path_parent)?;
+
+    let mut displays = BTreeMap::new();
 
     for entry in entries {
         let entry = entry?;
@@ -36,11 +31,16 @@ fn try_get_display_info(device_path: &Path) -> anyhow::Result<()> {
 
             match fs::read_to_string(&status_path) {
                 Ok(status) if status.trim_ascii() == "connected" => {
-                    if let Err(err) = get_display_entry(&display_entry_path) {
-                        warn!(
-                            "could not parse display info at {}: {err:#}",
-                            display_entry_path.display()
-                        );
+                    match get_display_entry(&display_entry_path) {
+                        Ok((key, info)) => {
+                            displays.insert(key, info);
+                        }
+                        Err(err) => {
+                            warn!(
+                                "could not parse display info at {}: {err:#}",
+                                display_entry_path.display()
+                            );
+                        }
                     }
                 }
                 Ok(_) => (),
@@ -52,21 +52,36 @@ fn try_get_display_info(device_path: &Path) -> anyhow::Result<()> {
         }
     }
 
-    Ok(())
+    Ok(DisplaysInfo { displays })
 }
 
-fn get_display_entry(path: &Path) -> anyhow::Result<()> {
+fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
     let edid_data = fs::read(path.join("edid")).context("Could not read edid")?;
-    let info =
-        libdisplay_info::info::Info::parse_edid(&edid_data).context("Could not parse edid")?;
+    let edid = edidkit::Edid::parse(&edid_data).context("Could not parse edid")?;
 
-    println!(
-        "{:?} {:?} {:?} {:?}",
-        info.make(),
-        info.serial(),
-        info.model(),
-        info.failure_msg()
-    );
+    let (_, connector) = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|part| part.split_once('-'))
+        .with_context(|| format!("Unexpected display connector path {}", path.display()))?;
 
-    Ok(())
+    let connector_type = match connector
+        .split_once('-')
+        .context("Unexpected connector name")?
+        .0
+    {
+        "DP" | "eDP" => DisplayConnector::DisplayPort { lanes: 0, rate: 0 },
+        "HDMI" => DisplayConnector::Hdmi,
+        _ => DisplayConnector::Other,
+    };
+
+    let info = DisplayInfo {
+        name: edid.monitor_name().map(str::to_owned),
+        manufacturer: edid.base.manufacturer_id.0,
+        product_code: edid.base.product_code,
+        manufacture_year: edid.base.manufacture_date.year,
+        manufacture_week: edid.base.manufacture_date.week,
+        connector_type,
+    };
+    Ok((connector.to_owned(), info))
 }

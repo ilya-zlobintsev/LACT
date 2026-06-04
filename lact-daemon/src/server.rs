@@ -161,6 +161,7 @@ async fn handle_request<'a>(
         Request::DeviceInfo { id } => ok_response(handler.get_device_info(id).await?),
         Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id).await?),
         Request::DeviceClocksInfo { id } => ok_response(handler.get_clocks_info(id).await?),
+        Request::DisplaysInfo { id } => ok_response(handler.get_displays_info(id).await?),
         Request::DevicePowerProfileModes { id } => {
             ok_response(handler.get_power_profile_modes(id).await?)
         }

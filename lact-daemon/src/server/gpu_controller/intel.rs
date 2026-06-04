@@ -16,10 +16,10 @@ use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mo
 use anyhow::{Context, anyhow, bail};
 use futures::{future::LocalBoxFuture, join};
 use lact_schema::{
-    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
-    DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState, PowerStates,
-    PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
-    config::GpuConfig,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats, DeviceType, DisplaysInfo,
+    DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState,
+    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats,
+    VramStats, config::GpuConfig,
 };
 use std::{
     borrow::Cow,
@@ -815,6 +815,10 @@ impl GpuController for IntelGpuController {
             DRM_ENGINES,
             &mut last_total_time_map,
         )
+    }
+
+    fn populate_displays_info(&self, _info: &mut DisplaysInfo) -> anyhow::Result<()> {
+        Ok(())
     }
 }
 
