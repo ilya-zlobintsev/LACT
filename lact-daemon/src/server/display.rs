@@ -57,7 +57,9 @@ pub fn get_base_displays_info(device_path: &Path) -> anyhow::Result<DisplaysInfo
 
 fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
     let edid_data = fs::read(path.join("edid")).context("Could not read edid")?;
-    let edid = edidkit::Edid::parse(&edid_data).context("Could not parse edid")?;
+    let info =
+        libdisplay_info::info::Info::parse_edid(&edid_data).context("Could not parse edid")?;
+    let edid = info.edid().context("Missing edid in parsed info")?;
 
     let (_, connector) = path
         .file_name()
@@ -78,11 +80,16 @@ fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
     };
 
     let info = DisplayInfo {
-        name: edid.monitor_name().map(str::to_owned),
-        manufacturer: edid.base.manufacturer_id.0,
-        product_code: edid.base.product_code,
-        manufacture_year: edid.base.manufacture_date.year,
-        manufacture_week: edid.base.manufacture_date.week,
+        model: info.model(),
+        manufacturer: info.make(),
+        product_code: edid.vendor_product().product,
+        manufacture_year: edid.vendor_product().manufacture_year as u16,
+        manufacture_week: edid.vendor_product().manufacture_week as u8,
+        size: edid
+            .screen_size()
+            .width_cm
+            .zip(edid.screen_size().height_cm)
+            .map(|(width, height)| (width as u32, height as u32)),
         connector_type,
     };
     Ok((connector.to_owned(), info))

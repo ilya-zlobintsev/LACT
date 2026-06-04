@@ -873,11 +873,12 @@ pub struct DisplaysInfo {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DisplayInfo {
-    pub name: Option<String>,
-    pub manufacturer: String,
+    pub model: Option<String>,
+    pub manufacturer: Option<String>,
     pub product_code: u16,
     pub manufacture_year: u16,
     pub manufacture_week: u8,
+    pub size: Option<(u32, u32)>,
     pub connector_type: DisplayConnector,
 }
 
