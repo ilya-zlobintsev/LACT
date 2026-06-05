@@ -13,9 +13,9 @@ use anyhow::{Context, anyhow, bail};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceInfo, DeviceStats, DeviceType,
-    DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState,
-    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats,
-    VramStats, config::GpuConfig,
+    DisplaysInfo, DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo,
+    PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry,
+    VoltageStats, VramStats, config::GpuConfig,
 };
 use std::{
     borrow::Cow,
@@ -811,6 +811,10 @@ impl GpuController for IntelGpuController {
             DRM_ENGINES,
             &mut last_total_time_map,
         )
+    }
+
+    fn populate_displays_info(&self, _info: &mut DisplaysInfo) -> anyhow::Result<()> {
+        Ok(())
     }
 }
 

@@ -6,7 +6,7 @@ use super::{
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
-    server::{gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
+    server::{display, gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
 };
 use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
@@ -14,9 +14,9 @@ use amdgpu_sysfs::gpu_handle::{
 };
 use anyhow::{Context, anyhow, bail};
 use lact_schema::{
-    ClocksInfo, DeviceApiInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode,
-    FanOptions, PmfwOptions, PowerStates, ProcessList, ProfileRule, ProfileWatcherState,
-    ProfilesInfo,
+    ClocksInfo, DeviceApiInfo, DeviceInfo, DeviceListEntry, DeviceStats, DisplaysInfo,
+    FanControlMode, FanOptions, PmfwOptions, PowerStates, ProcessList, ProfileRule,
+    ProfileWatcherState, ProfilesInfo,
     config::{
         FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks, default_fan_static_speed,
     },
@@ -461,6 +461,18 @@ impl<'a> Handler {
         let config = self.config.read().await;
         let gpu_config = config.gpus()?.get(id);
         self.controller_by_id(id).await?.get_clocks_info(gpu_config)
+    }
+
+    pub async fn get_displays_info(&'a self, id: &str) -> anyhow::Result<DisplaysInfo> {
+        let controller = self.controller_by_id(id).await?;
+        let common = controller.controller_info();
+
+        let mut info = display::get_base_displays_info(&common.sysfs_path)?;
+        controller
+            .populate_displays_info(&mut info)
+            .context("Failed to populate info")?;
+
+        Ok(info)
     }
 
     pub async fn set_fan_control(&'a self, opts: FanOptions<'_>) -> anyhow::Result<u64> {

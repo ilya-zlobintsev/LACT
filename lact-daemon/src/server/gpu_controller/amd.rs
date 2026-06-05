@@ -18,10 +18,10 @@ use anyhow::{Context, anyhow, bail};
 use futures::{FutureExt, future::LocalBoxFuture};
 use lact_schema::{
     ActivePowerStates, AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo,
-    ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
-    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates,
-    PowerStats, ProcessList, ProcessUtilizationType, RopInfo, TemperatureEntry, VoltageStats,
-    VramStats,
+    ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType,
+    DisplayConnector, DisplaysInfo, DrmInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
+    PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo,
+    TemperatureEntry, VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, HW_IP::HW_IP_TYPE, ThrottlerBit, ThrottlerType};
@@ -1416,6 +1416,51 @@ impl GpuController for AmdGpuController {
             DRM_ENGINES,
             &mut last_total_time_map,
         )
+    }
+
+    fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()> {
+        let debugfs = self.debugfs_path().context("Could not get debugfs")?;
+
+        for (connector, info) in &mut info.displays {
+            let link_settings_path = debugfs.join(connector).join("link_settings");
+            let link_settings = fs::read_to_string(link_settings_path)?;
+
+            if let DisplayConnector::DisplayPort {
+                lanes,
+                rate,
+                embedded: _,
+            } = &mut info.connector_type
+            {
+                let mut parts = link_settings.split_ascii_whitespace().skip(1);
+
+                *lanes = parts
+                    .next()
+                    .context("Missing lane count")?
+                    .parse::<u16>()
+                    .context("Invalid lane count")?;
+
+                let bw_enum = parts
+                    .next()
+                    .context("Missing bandwidth")?
+                    .strip_prefix("0x")
+                    .and_then(|value| u32::from_str_radix(value, 16).ok())
+                    .context("Invalid bandwidth value")?;
+
+                // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
+                // Values are for conversion to Mbps
+                const BASE_RATE_MULTIPLIER: u32 = 270;
+                const UHBR_RATE_MULTIPLIER: u32 = 10;
+                const UHBR_RATE_THRESHOLD: u32 = 1000;
+
+                *rate = if bw_enum < UHBR_RATE_THRESHOLD {
+                    bw_enum * BASE_RATE_MULTIPLIER
+                } else {
+                    bw_enum * UHBR_RATE_MULTIPLIER
+                };
+            }
+        }
+
+        Ok(())
     }
 }
 
