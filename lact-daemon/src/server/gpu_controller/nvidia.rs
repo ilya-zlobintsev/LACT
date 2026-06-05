@@ -744,6 +744,8 @@ impl GpuController for NvidiaGpuController {
             .map(|info| VramStats {
                 total: Some(info.total),
                 used: Some(info.used),
+                gtt_total_usable: None,
+                gtt_used: None,
             })
             .unwrap_or_default();
 

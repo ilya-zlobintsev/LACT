@@ -7,7 +7,7 @@ use crate::app::{
     page_section::PageSection,
 };
 use gtk::pango::AttrList;
-use gtk::prelude::{BoxExt, Cast, FlowBoxChildExt, OrientableExt, PopoverExt as _, WidgetExt};
+use gtk::prelude::{BoxExt, OrientableExt, PopoverExt as _, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt as _};
@@ -217,6 +217,27 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             .map(|(used, total)| used as f64 / total as f64)
                             .unwrap_or(0.0),
                     } -> vram_usage_item: gtk::FlowBoxChild {},
+
+                    append_child = &InfoRowLevel {
+                        set_name: fl!(I18N, "gtt-usage"),
+                        set_value_size_group: &value_size_group,
+                        #[watch]
+                        set_value: formatting::fmt_human_bytes(
+                            model.stats.vram.gtt_used.unwrap_or(0),
+                            Some(formatting::ByteUnit::Gibibyte),
+                        ),
+                        #[watch]
+                        set_level_value: model
+                            .stats
+                            .vram
+                            .gtt_used
+                            .zip(model.stats.vram.gtt_total_usable)
+                            .map(|(used, total)| used as f64 / total as f64)
+                            .unwrap_or(0.0),
+                    } -> gtt_usage_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: model.stats.vram.gtt_used.is_some(),
+                    },
 
                     append_child = &InfoRowLevel {
                         set_name: fl!(I18N, "power-usage"),
