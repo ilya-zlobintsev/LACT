@@ -27,6 +27,7 @@ use crate::{
             InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
         },
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
+        pages::displays_page::DisplaysPage,
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
         profiles::{
@@ -116,6 +117,7 @@ pub struct AppModel {
     oc_page: relm4::Controller<OcPage>,
     thermals_page: relm4::Controller<ThermalsPage>,
     software_page: relm4::Controller<SoftwarePage>,
+    displays_page: relm4::Controller<DisplaysPage>,
     crash_page: relm4::Controller<CrashPage>,
 
     gpu_selector: relm4::Controller<GpuSelector>,
@@ -297,6 +299,7 @@ impl AsyncComponent for AppModel {
                                             add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
                                             add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
                                             add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
+                                            add_titled[Some("displays_page"), &fl!(I18N, "displays-page")] = model.displays_page.widget(),
                                             add_named[Some("crash_page")] = model.crash_page.widget(),
 
                                             set_visible_child_name: &CONFIG.read().selected_tab,
@@ -437,6 +440,8 @@ impl AsyncComponent for AppModel {
 
         let software_page = SoftwarePage::detach((system_info.clone(), daemon_client.embedded));
 
+        let displays_page = DisplaysPage::detach_default();
+
         let crash_page = CrashPage::launch_default().forward(sender.input_sender(), |msg| msg);
 
         let overdrive_dialog =
@@ -500,6 +505,7 @@ impl AsyncComponent for AppModel {
             thermals_page,
             software_page,
             crash_page,
+            displays_page,
             gpu_selector,
             profile_selector,
             ui_sensitive: BoolBinding::new(false),
@@ -1076,6 +1082,16 @@ impl AppModel {
             .unwrap_or(1.0);
         self.graphs_window
             .emit(GraphsWindowMsg::VramClockRatio(vram_clock_ratio));
+
+        let displays_info = self
+            .daemon_client
+            .get_displays_info(&gpu_id)
+            .await
+            .inspect_err(|err| {
+                warn!("could not fetch displays info: {err:#}");
+            })
+            .unwrap_or_default();
+        self.displays_page.emit(displays_info);
 
         let stats = self.update_gpu_data(gpu_id.clone(), sender).await?;
 

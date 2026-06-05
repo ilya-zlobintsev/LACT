@@ -1,5 +1,5 @@
 use anyhow::Context;
-use lact_schema::{DisplayConnector, DisplayInfo, DisplaysInfo};
+use lact_schema::{DisplayConnector, DisplayInfo, DisplayManufactureDate, DisplaysInfo};
 use std::{collections::BTreeMap, fs, path::Path};
 use tracing::warn;
 
@@ -72,7 +72,16 @@ fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
         .context("Unexpected connector name")?
         .0
     {
-        "DP" | "eDP" => DisplayConnector::DisplayPort { lanes: 0, rate: 0 },
+        "DP" => DisplayConnector::DisplayPort {
+            lanes: 0,
+            rate: 0,
+            embedded: false,
+        },
+        "eDP" => DisplayConnector::DisplayPort {
+            lanes: 0,
+            rate: 0,
+            embedded: true,
+        },
         "HDMI" => DisplayConnector::Hdmi,
         "DVI" => DisplayConnector::Dvi,
         "VGA" => DisplayConnector::Vga,
@@ -83,8 +92,10 @@ fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
         model: info.model(),
         manufacturer: info.make(),
         product_code: edid.vendor_product().product,
-        manufacture_year: edid.vendor_product().manufacture_year as u16,
-        manufacture_week: edid.vendor_product().manufacture_week as u8,
+        manufacture_date: Some(DisplayManufactureDate {
+            year: edid.vendor_product().manufacture_year as u16,
+            week: edid.vendor_product().manufacture_week as u8,
+        }),
         size: edid
             .screen_size()
             .width_cm
