@@ -1,6 +1,4 @@
-use crate::app::pages::oc_page::power_states::power_states_row::{
-    PowerStateRow, PowerStateRowMsg, PowerStateRowOptions,
-};
+use super::power_states_row::{PowerStateRow, PowerStateRowMsg, PowerStateRowOptions};
 use amdgpu_sysfs::gpu_handle::PowerLevelId;
 use gtk::prelude::{FrameExt, WidgetExt};
 use lact_schema::PowerState;

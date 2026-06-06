@@ -1,10 +1,14 @@
 use crate::I18N;
 use crate::app::{
-    ext::FlowBoxExt,
-    formatting::{self, Mono},
-    info_row::{InfoRow, InfoRowExt},
-    info_row_level::InfoRowLevel,
-    page_section::PageSection,
+    components::{
+        info_row::{InfoRow, InfoRowExt},
+        info_row_level::InfoRowLevel,
+        page_section::PageSection,
+    },
+    utils::{
+        ext::FlowBoxExt,
+        formatting::{self, Mono},
+    },
 };
 use gtk::pango::AttrList;
 use gtk::prelude::{BoxExt, Cast, FlowBoxChildExt, OrientableExt, PopoverExt as _, WidgetExt};

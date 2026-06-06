@@ -1,14 +1,15 @@
 mod fan_curve_frame;
 
-use super::{PageUpdate, oc_adjustment::OcAdjustment};
-use crate::app::ext::{FlowBoxExt, make_event_controller_no_scroll};
+use crate::app::pages::PageUpdate;
 use crate::{
     APP_BROKER, I18N,
     app::{
-        formatting::{fmt_fan_speed, fmt_temperature_text, fmt_throttling_text},
-        info_row::InfoRow,
+        components::{info_row::InfoRow, oc_adjustment::OcAdjustment, page_section::PageSection},
         msg::AppMsg,
-        page_section::PageSection,
+        utils::{
+            ext::{FlowBoxExt, make_event_controller_no_scroll},
+            formatting::{fmt_fan_speed, fmt_temperature_text, fmt_throttling_text},
+        },
     },
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;

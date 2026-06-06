@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::app::{APP_BROKER, formatting, msg::AppMsg};
+use crate::app::{APP_BROKER, msg::AppMsg, utils::formatting};
 use adw::prelude::AdwWindowExt;
 use gtk::{
     glib::{
