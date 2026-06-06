@@ -2,10 +2,7 @@ use super::power_states_list::PowerStatesList;
 use super::power_states_list::{PowerStatesListMsg, PowerStatesListOptions};
 use crate::{
     APP_BROKER, I18N,
-    app::{
-        components::page_section::PageSection, msg::AppMsg,
-        utils::ext::RelmLaunchable as _,
-    },
+    app::{components::page_section::PageSection, msg::AppMsg, utils::ext::RelmLaunchable as _},
 };
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use gtk::{
