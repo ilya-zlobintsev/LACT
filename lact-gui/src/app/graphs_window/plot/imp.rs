@@ -1,7 +1,7 @@
 use super::PlotColorScheme;
 use super::render_thread::{RenderRequest, RenderThread};
-use crate::app::features::graphs_window::stat::StatType;
-use crate::app::features::graphs_window::stat::StatsData;
+use crate::app::graphs_window::stat::StatType;
+use crate::app::graphs_window::stat::StatsData;
 use glib::Properties;
 use gtk::gdk::MemoryTexture;
 use gtk::{glib, prelude::*, subclass::prelude::*};
@@ -94,7 +94,7 @@ impl Plot {
 }
 #[cfg(feature = "bench")]
 mod benches {
-    use crate::app::features::graphs_window::{
+    use crate::app::graphs_window::{
         plot::{
             PlotColorScheme,
             render_thread::{RenderRequest, process_request},

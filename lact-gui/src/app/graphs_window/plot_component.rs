@@ -4,7 +4,7 @@ use super::{
     stat::{StatType, StatsData},
 };
 use crate::I18N;
-use crate::app::features::graphs_window::DynamicIndexValue;
+use crate::app::graphs_window::DynamicIndexValue;
 use gtk::{
     gdk,
     glib::{subclass::types::ObjectSubclassIsExt, types::StaticType, value::ToValue},

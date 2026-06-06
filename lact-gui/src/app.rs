@@ -1,21 +1,31 @@
+mod about_dialog;
 pub(crate) mod components;
-pub(crate) mod features;
+mod gpu_selector;
+pub mod graphs_window;
+mod info_dialog;
 pub(crate) mod msg;
+mod overdrive_dialog;
 pub(crate) mod pages;
+mod preferences_dialog;
+mod process_monitor;
+mod profiles;
 pub(crate) mod utils;
 
 use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
     app::{
+        about_dialog::{AboutDialog, AboutDialogMsg},
         components::loader,
-        features::{
-            AboutDialog, AboutDialogMsg, GpuSelector, GraphsWindow, GraphsWindowMsg, InfoDialog,
-            InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg, OverdriveDialog,
-            OverdriveDialogMsg, PreferencesDialog, PreferencesDialogMsg, ProcessMonitorWindow,
-            ProcessMonitorWindowMsg, ProfileSelector, ProfileSelectorMsg,
-            profiles::profile_rule_window::{
-                ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg,
-            },
+        gpu_selector::GpuSelector,
+        info_dialog::{
+            InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
+        },
+        overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
+        preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
+        process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
+        profiles::{
+            ProfileSelector, ProfileSelectorMsg,
+            profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
         },
         utils::ext::RelmLaunchable as _,
     },
@@ -23,6 +33,7 @@ use crate::{
 };
 use adw::prelude::*;
 use anyhow::{Context, anyhow};
+use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
     FileChooserAction, FileChooserDialog, ResponseType, STYLE_PROVIDER_PRIORITY_APPLICATION,
     glib::{self, ControlFlow, clone},
