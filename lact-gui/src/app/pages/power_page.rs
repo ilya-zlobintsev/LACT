@@ -3,7 +3,7 @@ mod power_cap_section;
 mod power_states;
 
 use super::PageUpdate;
-use crate::app::gpu_stats_section::{
+use crate::app::components::gpu_stats_section::{
     GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
 };
 use crate::app::utils::ext::{RelmDefaultLauchable, RelmLaunchable as _};

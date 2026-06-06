@@ -1,6 +1,6 @@
 mod fan_curve_frame;
 
-use crate::app::gpu_stats_section::{
+use crate::app::components::gpu_stats_section::{
     GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
 };
 use crate::app::pages::PageUpdate;

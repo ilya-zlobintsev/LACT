@@ -1,3 +1,4 @@
+pub(crate) mod gpu_stats_section;
 pub(crate) mod info_row;
 pub(crate) mod info_row_level;
 pub(crate) mod loader;
