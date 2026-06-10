@@ -50,9 +50,8 @@ use msg::AppMsg;
 use pages::{
     PageUpdate,
     crash_page::CrashPage,
-    info_page::InformationPage,
+    info_page::{InfoPage, SoftwarePageMsg},
     oc_page::{OcPage, OcPageMsg},
-    software_page::{SoftwarePage, SoftwarePageMsg},
     thermals_page::{ThermalsPage, ThermalsPageMsg},
 };
 use relm4::{
@@ -108,10 +107,9 @@ pub struct AppModel {
     ui_sensitive: BoolBinding,
     is_reconnecting: BoolBinding,
 
-    info_page: relm4::Controller<InformationPage>,
     oc_page: relm4::Controller<OcPage>,
     thermals_page: relm4::Controller<ThermalsPage>,
-    software_page: relm4::Controller<SoftwarePage>,
+    info_page: relm4::Controller<InfoPage>,
     crash_page: relm4::Controller<CrashPage>,
 
     gpu_selector: relm4::Controller<GpuSelector>,
@@ -289,10 +287,9 @@ impl AsyncComponent for AppModel {
 
                                             add_binding: (&model.ui_sensitive, "sensitive"),
 
-                                            add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
+                                            add_titled[Some("info_page"), &fl!(I18N, "information-page")] = model.info_page.widget(),
                                             add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
                                             add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
-                                            add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
                                             add_named[Some("crash_page")] = model.crash_page.widget(),
 
                                             set_visible_child_name: &CONFIG.read().selected_tab,
@@ -425,13 +422,11 @@ impl AsyncComponent for AppModel {
             ..Default::default()
         });
 
-        let info_page = InformationPage::detach_default();
-
         let oc_page =
             OcPage::launch(settings_changed.clone()).forward(sender.input_sender(), |msg| msg);
         let thermals_page = ThermalsPage::detach_default();
 
-        let software_page = SoftwarePage::detach((system_info.clone(), daemon_client.embedded));
+        let info_page = InfoPage::detach((system_info.clone(), daemon_client.embedded));
 
         let crash_page = CrashPage::launch_default().forward(sender.input_sender(), |msg| msg);
 
@@ -491,10 +486,9 @@ impl AsyncComponent for AppModel {
             preferences_dialog,
             about_dialog,
             info_dialog,
-            info_page,
             oc_page,
             thermals_page,
-            software_page,
+            info_page,
             crash_page,
             gpu_selector,
             profile_selector,
@@ -659,12 +653,12 @@ impl AppModel {
                 let gpu_id = Self::get_selected_gpu_id()?;
                 match self.daemon_client.get_device_api_info(&gpu_id).await {
                     Ok(api_info) => {
-                        self.software_page
+                        self.info_page
                             .emit(SoftwarePageMsg::DeviceApiInfo(Some(api_info)));
                     }
                     Err(err) => {
                         error!("could not fetch API info: {err:#}");
-                        self.software_page.emit(SoftwarePageMsg::DeviceApiInfo(Some(
+                        self.info_page.emit(SoftwarePageMsg::DeviceApiInfo(Some(
                             DeviceApiInfo::default(),
                         )));
                     }
@@ -1023,8 +1017,7 @@ impl AppModel {
         sender: AsyncComponentSender<AppModel>,
     ) -> anyhow::Result<()> {
         self.ui_sensitive.set_value(false);
-        self.software_page
-            .emit(SoftwarePageMsg::DeviceApiInfo(None));
+        self.info_page.emit(SoftwarePageMsg::DeviceApiInfo(None));
 
         let daemon_client = self.daemon_client.clone();
         let info_buf = daemon_client
@@ -1052,7 +1045,8 @@ impl AppModel {
         self.device_driver = info.driver.clone();
 
         let update = PageUpdate::Info(info.clone());
-        self.info_page.emit(update.clone());
+        self.info_page
+            .emit(SoftwarePageMsg::HardwareSectionUpdate(update.clone()));
         self.oc_page.emit(OcPageMsg::Update {
             update: update.clone(),
             initial: true,
@@ -1111,7 +1105,8 @@ impl AppModel {
         let stats = Arc::new(stats);
 
         let update = PageUpdate::Stats(stats.clone());
-        self.info_page.emit(update.clone());
+        self.info_page
+            .emit(SoftwarePageMsg::HardwareSectionUpdate(update.clone()));
         self.thermals_page.emit(ThermalsPageMsg::Update {
             update: update.clone(),
             initial: true,

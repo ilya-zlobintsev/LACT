@@ -1,32 +1,52 @@
-use crate::I18N;
-use crate::app::components::{
-    info_row::{InfoRow, InfoRowExt, InfoRowItem},
-    page_section::PageSection,
+mod hardware_info_section;
+mod vulkan;
+
+use crate::{
+    GUI_VERSION, I18N, REPO_URL,
+    app::{
+        components::{
+            info_row::{InfoRow, InfoRowExt},
+            loader,
+            page_section::PageSection,
+        },
+        pages::{PageUpdate, info_page::hardware_info_section::HardwareInfoSection},
+        utils::{ext::FlowBoxExt, formatting},
+    },
 };
-use crate::app::pages::PageUpdate;
-use crate::app::utils::ext::FlowBoxExt;
-use crate::app::utils::formatting::fmt_human_bytes;
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
-use lact_schema::{AmdIpInfo, CacheInfo, CacheType, DeviceInfo, DeviceStats};
-use relm4::{
-    ComponentParts, ComponentSender, RelmWidgetExt,
-    prelude::{FactoryComponent, FactoryVecDeque},
-};
-use std::sync::Arc;
+use indexmap::IndexMap;
+use lact_client::schema::{GIT_COMMIT, SystemInfo};
+use lact_schema::{DeviceApiInfo, OpenCLInfo, VulkanInfo};
+use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4_components::simple_combo_box::{SimpleComboBox, SimpleComboBoxMsg};
+use std::fmt::Write as _;
+use vulkan::feature_window::{VulkanFeature, VulkanFeaturesWindow};
 
-pub struct InformationPage {
-    values_list: FactoryVecDeque<InfoRowItem>,
-    cache_list: FactoryVecDeque<CacheRow>,
-    ip_list: FactoryVecDeque<AmdIpRow>,
-    device_info: Option<Arc<DeviceInfo>>,
-    device_stats: Option<Arc<DeviceStats>>,
+pub struct InfoPage {
+    device_api_info: Option<DeviceApiInfo>,
+
+    vulkan_driver_selector: relm4::Controller<SimpleComboBox<String>>,
+    opencl_platform_selector: relm4::Controller<SimpleComboBox<String>>,
+
+    vulkan_window: Option<relm4::Controller<VulkanFeaturesWindow>>,
+
+    hardware_info_section: relm4::Controller<HardwareInfoSection>,
+}
+
+#[derive(Debug)]
+pub enum SoftwarePageMsg {
+    DeviceApiInfo(Option<DeviceApiInfo>),
+    HardwareSectionUpdate(PageUpdate),
+    ShowVulkanFeatures,
+    ShowVulkanExtensions,
+    SelectionChanged,
 }
 
 #[relm4::component(pub)]
-impl relm4::SimpleComponent for InformationPage {
-    type Init = ();
-    type Input = PageUpdate;
+impl relm4::SimpleComponent for InfoPage {
+    type Init = (SystemInfo, bool);
+    type Input = SoftwarePageMsg;
     type Output = ();
 
     view! {
@@ -34,10 +54,13 @@ impl relm4::SimpleComponent for InformationPage {
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 15,
             set_margin_all: 15,
-            set_margin_top: 20, // align with gpu picker
 
-            PageSection::new("") {
-                append_child = &model.values_list.widget().clone() -> gtk::FlowBox {
+            PageSection::new(&fl!(I18N, "hardware-section")) {
+                append_child = model.hardware_info_section.widget(),
+            },
+
+            PageSection::new(&fl!(I18N, "system-section")) {
+                append_child = &gtk::FlowBox {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,
                     set_homogeneous: true,
@@ -45,236 +68,359 @@ impl relm4::SimpleComponent for InformationPage {
                     set_max_children_per_line: 4,
                     set_selection_mode: gtk::SelectionMode::None,
 
-                    append_child = &InfoRow {
-                        set_value: fl!(I18N, "cache-info"),
-                        set_icon: "go-down-symbolic".to_string(),
-
-                        #[name = "cache_popover"]
-                        set_popover = &gtk::Popover {
-                            model.cache_list.widget().clone() -> gtk::ListBox {
-                                set_margin_all: 10,
-                                set_selection_mode: gtk::SelectionMode::None,
-                            },
-                        },
-
-                        connect_clicked[cache_popover] => move |_| {
-                            cache_popover.popup();
-                        },
-                    } -> cache_row: gtk::FlowBoxChild {
-                        #[watch]
-                        set_visible: !model.cache_list.is_empty(),
-                    },
-
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "hw-ip-info"),
-                        #[watch]
-                        set_value: model.ip_list.iter().map(|item| {
-                            item.ip.ip_type.as_str()
-                        }).collect::<Vec<&str>>().join(", "),
-                        set_icon: "go-down-symbolic".to_string(),
-
-                        #[name = "ip_popover"]
-                        set_popover = &gtk::Popover {
-                            model.ip_list.widget().clone() -> gtk::ListBox {
-                                set_margin_all: 10,
-                                set_selection_mode: gtk::SelectionMode::None,
-                            },
-                        },
-
-                        connect_clicked[ip_popover] => move |_| {
-                            ip_popover.popup();
-                        },
-                    } -> ip_row: gtk::FlowBoxChild {
-                        #[watch]
-                        set_visible: !model.ip_list.is_empty(),
-                    },
+                    append_child = &InfoRow::new_selectable(&fl!(I18N, "lact-daemon"), &daemon_version),
+                    append_child = &InfoRow::new_selectable(&fl!(I18N, "lact-gui"), &gui_version),
+                    append_child = &InfoRow::new_selectable(&fl!(I18N, "kernel-version"), &system_info.kernel_version),
                 },
             },
-        },
+
+            #[local_ref]
+            loader_picture -> gtk::Picture {
+                set_halign: gtk::Align::Center,
+                set_valign: gtk::Align::Start,
+                #[watch]
+                set_visible: model.device_api_info.is_none(),
+            },
+
+            gtk::Box {
+                set_spacing: 15,
+                set_orientation: gtk::Orientation::Vertical,
+                #[watch]
+                set_visible: model.device_api_info.is_some(),
+                set_visible: false,
+
+                #[name = "vulkan_stack"]
+                match model.selected_vulkan_info() {
+                    Some(info) => {
+                        PageSection::new("Vulkan") {
+                            append_child = &gtk::FlowBox {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_column_spacing: 10,
+                                set_homogeneous: true,
+                                set_min_children_per_line: 2,
+                                set_max_children_per_line: 4,
+                                set_selection_mode: gtk::SelectionMode::None,
+
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "instance"),
+                                    append_child = model.vulkan_driver_selector.widget(),
+                                } -> vulkan_instance_item: gtk::FlowBoxChild {
+                                    #[watch]
+                                    set_visible: model.vulkan_driver_selector.model().variants.len() > 1,
+                                },
+
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "device-name"),
+                                    #[watch]
+                                    set_value: info.device_name.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "api-version"),
+                                    #[watch]
+                                    set_value: info.api_version.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "driver-name"),
+                                    #[watch]
+                                    set_value: info.driver.name.as_deref().unwrap_or_default(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "driver-version"),
+                                    #[watch]
+                                    set_value: info.driver.info.as_deref().unwrap_or_default(),
+                                    set_selectable: true,
+                                },
+
+                                append_child = &InfoRow {
+                                    set_value: fl!(I18N, "features"),
+                                    set_icon: "go-next-symbolic".to_string(),
+                                    connect_clicked => SoftwarePageMsg::ShowVulkanFeatures,
+                                },
+
+                                append_child = &InfoRow {
+                                    set_value: fl!(I18N, "extensions"),
+                                    set_icon: "go-next-symbolic".to_string(),
+                                    connect_clicked => SoftwarePageMsg::ShowVulkanExtensions,
+                                },
+                            },
+                        }
+                    }
+                    None => {
+                        PageSection::new("Vulkan") {
+                            append_child = &gtk::Label {
+                                set_label: &fl!(I18N, "device-not-found", kind = "Vulkan"),
+                                set_halign: gtk::Align::Start,
+                            },
+                        }
+                    }
+                },
+
+                #[name = "opencl_stack"]
+                match model.selected_opencl_info() {
+                    Some(info) => {
+                        PageSection::new("OpenCL") {
+                            append_child = &gtk::FlowBox {
+                                set_orientation: gtk::Orientation::Horizontal,
+                                set_column_spacing: 10,
+                                set_homogeneous: true,
+                                set_min_children_per_line: 2,
+                                set_max_children_per_line: 4,
+                                set_selection_mode: gtk::SelectionMode::None,
+
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "platform-name"),
+                                    append_child = model.opencl_platform_selector.widget(),
+                                } -> opencl_platform_item: gtk::FlowBoxChild {
+                                    #[watch]
+                                    set_visible: model.opencl_platform_selector.model().variants.len() > 1,
+                                },
+
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "platform-name"),
+                                    #[watch]
+                                    set_value: info.platform_name.as_str(),
+                                    set_selectable: true,
+                                } -> opencl_platform_name_item: gtk::FlowBoxChild {
+                                    #[watch]
+                                    set_visible: model.opencl_platform_selector.model().variants.len() == 1,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "device-name"),
+                                    #[watch]
+                                    set_value: info.device_name.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "version"),
+                                    #[watch]
+                                    set_value: info.version.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "driver-version"),
+                                    #[watch]
+                                    set_value: info.driver_version.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "cl-c-version"),
+                                    #[watch]
+                                    set_value: info.c_version.as_str(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "compute-units"),
+                                    #[watch]
+                                    set_value: info.compute_units.to_string(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "workgroup-size"),
+                                    #[watch]
+                                    set_value: info.workgroup_size.to_string(),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "global-memory"),
+                                    #[watch]
+                                    set_value: formatting::fmt_human_bytes(info.global_memory, None),
+                                    set_selectable: true,
+                                },
+                                append_child = &InfoRow {
+                                    set_name: fl!(I18N, "local-memory"),
+                                    #[watch]
+                                    set_value: formatting::fmt_human_bytes(info.local_memory, None),
+                                    set_selectable: true,
+                                },
+                            },
+                        }
+                    }
+                    None => {
+                        PageSection::new("OpenCL") {
+                            append_child = &gtk::Label {
+                                set_label: &fl!(I18N, "device-not-found", kind = "OpenCL"),
+                                set_halign: gtk::Align::Start,
+                            },
+                        }
+                    }
+                },
+            },
+        }
     }
 
     fn init(
-        _init: Self::Init,
+        (system_info, embedded): Self::Init,
         root: Self::Root,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let vulkan_driver_selector = SimpleComboBox::builder()
+            .launch(SimpleComboBox {
+                variants: vec![],
+                active_index: None,
+            })
+            .forward(sender.input_sender(), |_| SoftwarePageMsg::SelectionChanged);
+
+        let opencl_platform_selector = SimpleComboBox::builder()
+            .launch(SimpleComboBox {
+                variants: vec![],
+                active_index: None,
+            })
+            .forward(sender.input_sender(), |_| SoftwarePageMsg::SelectionChanged);
+
         let model = Self {
-            values_list: FactoryVecDeque::builder().launch_default().detach(),
-            cache_list: FactoryVecDeque::builder().launch_default().detach(),
-            ip_list: FactoryVecDeque::builder().launch_default().detach(),
-            device_info: None,
-            device_stats: None,
+            vulkan_driver_selector,
+            opencl_platform_selector,
+            vulkan_window: None,
+            device_api_info: None,
+            hardware_info_section: HardwareInfoSection::builder().launch(()).detach(),
         };
 
+        let mut daemon_version = format!("{}-{}", system_info.version, system_info.profile);
+        if embedded {
+            daemon_version.push_str("-embedded");
+        }
+        if let Some(commit) = &system_info.commit {
+            let daemon_commit_link = format!("{REPO_URL}/commit/{commit}");
+            write!(
+                daemon_version,
+                " (commit <a href=\"{daemon_commit_link}\">{commit}</a>)"
+            )
+            .unwrap();
+        }
+
+        let gui_profile = if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        };
+        let gui_commit_link = format!("{REPO_URL}/commit/{GIT_COMMIT}");
+        let gui_version = format!(
+            "{GUI_VERSION}-{gui_profile} (commit <a href=\"{gui_commit_link}\">{GIT_COMMIT}</a>)"
+        );
+
+        let loader_picture = loader::new();
+
         let widgets = view_output!();
+
+        widgets.vulkan_stack.set_vhomogeneous(false);
+        widgets.opencl_stack.set_vhomogeneous(false);
 
         ComponentParts { model, widgets }
     }
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            PageUpdate::Info(device_info) => {
-                self.device_info = Some(device_info);
-            }
-            PageUpdate::Stats(device_stats) => {
-                self.device_stats = Some(device_stats);
-            }
-        }
-        self.update_items();
-    }
-}
+            SoftwarePageMsg::DeviceApiInfo(Some(info)) => {
+                let mut vulkan_drivers = Vec::new();
 
-impl InformationPage {
-    fn update_items(&mut self) {
-        let mut values_list = self.values_list.guard();
-        values_list.clear();
-        let mut cache_list = self.cache_list.guard();
-        cache_list.clear();
-
-        if let Some(info) = &self.device_info {
-            for (name, value) in info.info_elements(self.device_stats.as_deref()) {
-                if let Some(value) = value {
-                    let note = if name == "Card Model" && !value.starts_with("Unknown ") {
-                        Some(
-                            "The card displayed here may be of a sibling model, e.g. XT vs XTX variety. This is normal, as such models often use the same device ID, and it is not possible to differentiate between them.",
-                        )
-                    } else {
-                        None
-                    };
-
-                    values_list.push_back(InfoRowItem { name, value, note });
-                }
-            }
-
-            if let Some(drm_info) = &info.drm_info {
-                if let Some(cache_info) = &drm_info.cache_info {
-                    match cache_info {
-                        CacheInfo::Amd(items) => {
-                            for (instance, count) in items {
-                                let cache_types = instance
-                                    .types
-                                    .iter()
-                                    .map(|cache_type| match cache_type {
-                                        CacheType::Data => fl!(I18N, "cache-data"),
-                                        CacheType::Instruction => fl!(I18N, "cache-instruction"),
-                                        CacheType::Cpu => fl!(I18N, "cache-cpu"),
-                                    })
-                                    .collect::<Vec<String>>()
-                                    .join("+");
-
-                                cache_list.push_back(CacheRow {
-                                    count: *count,
-                                    text: fl!(
-                                        I18N,
-                                        "amd-cache-desc",
-                                        size = fmt_human_bytes(instance.size.into(), None),
-                                        level = instance.level,
-                                        types = cache_types,
-                                        shared = instance.cu_count
-                                    ),
-                                });
-                            }
-                        }
-                        CacheInfo::Nvidia { l2 } => {
-                            cache_list.push_back(CacheRow {
-                                count: 1,
-                                text: fl!(
-                                    I18N,
-                                    "nvidia-cache-desc",
-                                    size = fmt_human_bytes((*l2).into(), None),
-                                    level = 2,
-                                ),
-                            });
-                        }
-                    }
+                for info in &info.vulkan_instances {
+                    let name = format!(
+                        "{} ({})",
+                        info.device_name,
+                        info.driver.name.as_deref().unwrap_or_default()
+                    );
+                    vulkan_drivers.push(name);
                 }
 
-                let mut ip_list = self.ip_list.guard();
-                ip_list.clear();
+                let selected_driver = if vulkan_drivers.is_empty() {
+                    None
+                } else {
+                    Some(0)
+                };
+                self.vulkan_driver_selector
+                    .emit(SimpleComboBoxMsg::UpdateData(SimpleComboBox {
+                        variants: vulkan_drivers,
+                        active_index: selected_driver,
+                    }));
 
-                for ip_info in &drm_info.amd_ip_info {
-                    ip_list.push_back(ip_info.clone());
+                let mut opencl_platforms = Vec::new();
+
+                for info in &info.opencl_instances {
+                    opencl_platforms.push(info.platform_name.clone());
+                }
+
+                let selected_platform = if opencl_platforms.is_empty() {
+                    None
+                } else {
+                    Some(0)
+                };
+                self.opencl_platform_selector
+                    .emit(SimpleComboBoxMsg::UpdateData(SimpleComboBox {
+                        variants: opencl_platforms,
+                        active_index: selected_platform,
+                    }));
+
+                self.device_api_info = Some(info);
+            }
+            SoftwarePageMsg::HardwareSectionUpdate(msg) => {
+                self.hardware_info_section.emit(msg);
+            }
+            SoftwarePageMsg::DeviceApiInfo(None) => {
+                self.device_api_info = None;
+            }
+            SoftwarePageMsg::ShowVulkanFeatures => {
+                if let Some(vulkan_info) = &self.selected_vulkan_info() {
+                    self.vulkan_window = Some(show_features_window(
+                        "Vulkan Features",
+                        &vulkan_info.features,
+                    ));
                 }
             }
-        }
-    }
-}
-
-struct CacheRow {
-    count: u16,
-    text: String,
-}
-
-#[relm4::factory]
-impl FactoryComponent for CacheRow {
-    type ParentWidget = gtk::ListBox;
-    type Init = Self;
-    type Input = ();
-    type Output = ();
-    type CommandOutput = ();
-
-    fn init_model(
-        init: Self::Init,
-        _index: &Self::Index,
-        _sender: relm4::FactorySender<Self>,
-    ) -> Self {
-        init
-    }
-
-    view! {
-        gtk::ListBoxRow {
-            set_activatable: false,
-            set_selectable: false,
-
-            gtk::Label {
-                set_label: &format!("{}x {}", self.count, self.text),
-                set_selectable: true,
-                set_halign: gtk::Align::Start,
-                set_margin_all: 5,
+            SoftwarePageMsg::ShowVulkanExtensions => {
+                if let Some(vulkan_info) = self.selected_vulkan_info() {
+                    self.vulkan_window = Some(show_features_window(
+                        "Vulkan Extensions",
+                        &vulkan_info.extensions,
+                    ));
+                }
             }
+            SoftwarePageMsg::SelectionChanged => (),
         }
     }
 }
 
-struct AmdIpRow {
-    ip: AmdIpInfo,
+impl InfoPage {
+    fn selected_vulkan_info(&self) -> Option<&VulkanInfo> {
+        self.vulkan_driver_selector
+            .model()
+            .active_index
+            .and_then(|idx| {
+                self.device_api_info
+                    .as_ref()
+                    .and_then(|info| info.vulkan_instances.get(idx))
+            })
+    }
+
+    fn selected_opencl_info(&self) -> Option<&OpenCLInfo> {
+        self.opencl_platform_selector
+            .model()
+            .active_index
+            .and_then(|idx| {
+                self.device_api_info
+                    .as_ref()
+                    .and_then(|info| info.opencl_instances.get(idx))
+            })
+    }
 }
 
-#[relm4::factory]
-impl FactoryComponent for AmdIpRow {
-    type ParentWidget = gtk::ListBox;
-    type Init = AmdIpInfo;
-    type Input = ();
-    type Output = ();
-    type CommandOutput = ();
+fn show_features_window(
+    title: &str,
+    values: &IndexMap<String, bool>,
+) -> relm4::Controller<VulkanFeaturesWindow> {
+    let values = values
+        .into_iter()
+        .map(|(name, &supported)| VulkanFeature {
+            name: name.clone(),
+            supported,
+        })
+        .collect();
 
-    fn init_model(
-        ip: Self::Init,
-        _index: &Self::Index,
-        _sender: relm4::FactorySender<Self>,
-    ) -> Self {
-        Self { ip }
-    }
-
-    view! {
-        gtk::ListBoxRow {
-            set_activatable: false,
-            set_selectable: false,
-
-            gtk::Label {
-                set_label: &format!(
-                    "{} {}.{} ({}x, {} {})",
-                    self.ip.ip_type,
-                    self.ip.version_major,
-                    self.ip.version_minor,
-                    self.ip.count,
-                    self.ip.queues,
-                    fl!(I18N, "hw-queues")
-                ),
-                set_selectable: true,
-                set_halign: gtk::Align::Start,
-                set_margin_all: 5,
-            }
-        }
-    }
+    let window_controller = VulkanFeaturesWindow::builder()
+        .launch((values, title.to_owned()))
+        .detach();
+    window_controller.widget().present();
+    window_controller
 }
