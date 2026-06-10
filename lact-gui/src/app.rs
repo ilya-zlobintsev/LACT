@@ -52,6 +52,7 @@ use pages::{
     crash_page::CrashPage,
     info_page::InformationPage,
     oc_page::{OcPage, OcPageMsg},
+    power_page::{PowerPage, PowerPageMsg},
     software_page::{SoftwarePage, SoftwarePageMsg},
     thermals_page::{ThermalsPage, ThermalsPageMsg},
 };
@@ -110,6 +111,7 @@ pub struct AppModel {
 
     info_page: relm4::Controller<InformationPage>,
     oc_page: relm4::Controller<OcPage>,
+    power_page: relm4::Controller<PowerPage>,
     thermals_page: relm4::Controller<ThermalsPage>,
     software_page: relm4::Controller<SoftwarePage>,
     crash_page: relm4::Controller<CrashPage>,
@@ -291,6 +293,7 @@ impl AsyncComponent for AppModel {
 
                                             add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
                                             add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
+                                            add_titled[Some("power_page"), &fl!(I18N, "power-page")] = model.power_page.widget(),
                                             add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
                                             add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
                                             add_named[Some("crash_page")] = model.crash_page.widget(),
@@ -427,9 +430,11 @@ impl AsyncComponent for AppModel {
 
         let info_page = InformationPage::detach_default();
 
-        let oc_page =
-            OcPage::launch(settings_changed.clone()).forward(sender.input_sender(), |msg| msg);
-        let thermals_page = ThermalsPage::detach_default();
+        let oc_page = OcPage::builder()
+            .launch(settings_changed.clone())
+            .forward(sender.input_sender(), |msg| msg);
+        let power_page = PowerPage::detach_default();
+        let thermals_page = ThermalsPage::builder().launch(()).detach();
 
         let software_page = SoftwarePage::detach((system_info.clone(), daemon_client.embedded));
 
@@ -493,6 +498,7 @@ impl AsyncComponent for AppModel {
             info_dialog,
             info_page,
             oc_page,
+            power_page,
             thermals_page,
             software_page,
             crash_page,
@@ -782,6 +788,10 @@ impl AppModel {
                     update: update.clone(),
                     initial: false,
                 });
+                self.power_page.emit(PowerPageMsg::Update {
+                    update: update.clone(),
+                    initial: false,
+                });
                 self.thermals_page.emit(ThermalsPageMsg::Update {
                     update: update.clone(),
                     initial: false,
@@ -1060,6 +1070,10 @@ impl AppModel {
 
         sender.input(AppMsg::ReloadApiInfo);
 
+        self.power_page.emit(PowerPageMsg::Update {
+            update: update.clone(),
+            initial: true,
+        });
         self.thermals_page.emit(ThermalsPageMsg::Update {
             update: update.clone(),
             initial: true,
@@ -1117,6 +1131,10 @@ impl AppModel {
             initial: true,
         });
         self.oc_page.emit(OcPageMsg::Update {
+            update: update.clone(),
+            initial: true,
+        });
+        self.power_page.emit(PowerPageMsg::Update {
             update,
             initial: true,
         });
@@ -1142,13 +1160,16 @@ impl AppModel {
                 None
             }
         };
-        self.oc_page
-            .emit(OcPageMsg::ProfileModesTable(maybe_modes_table));
+        self.power_page
+            .emit(PowerPageMsg::ProfileModesTable(maybe_modes_table));
 
         match self.daemon_client.get_power_states(&gpu_id).await {
             Ok(power_states) => {
                 debug!("PowerStates init value: {power_states:?}");
                 self.oc_page.emit(OcPageMsg::PowerStates {
+                    pstates: power_states.clone(),
+                });
+                self.power_page.emit(PowerPageMsg::PowerStates {
                     pstates: power_states,
                     configured: gpu_config.is_some_and(|config| !config.power_states.is_empty()),
                 });
@@ -1180,31 +1201,13 @@ impl AppModel {
             .context("Could not get gpu config")?
             .unwrap_or_else(GpuConfig::default);
 
-        let cap = self.oc_page.model().get_power_cap();
-        if let Some(cap) = cap {
-            gpu_config.power_cap = Some(cap);
-        }
-
-        let performance_level = self.oc_page.model().get_performance_level();
-        if let Some(level) = performance_level {
-            gpu_config.performance_level = Some(level);
-            gpu_config.power_profile_mode_index = self.oc_page.model().get_power_profile_mode();
-
-            gpu_config.custom_power_profile_mode_hueristics = self
-                .oc_page
-                .model()
-                .get_power_profile_mode_custom_heuristics();
-        }
+        self.power_page.model().apply_config(&mut gpu_config);
 
         self.thermals_page.model().apply_config(&mut gpu_config);
 
         self.oc_page
             .model()
             .apply_clocks_config(&mut gpu_config.clocks_configuration);
-
-        let enabled_power_states = self.oc_page.model().get_enabled_power_states();
-        gpu_config.power_states = enabled_power_states;
-
         let delay = self
             .daemon_client
             .set_gpu_config(&gpu_id, gpu_config)

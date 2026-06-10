@@ -1,8 +1,9 @@
 mod heuristics_list;
 
+use super::PowerPageMsg;
 use crate::{
     APP_BROKER, I18N,
-    app::{components::page_section::PageSection, msg::AppMsg, pages::oc_page::OcPageMsg},
+    app::{components::page_section::PageSection, msg::AppMsg},
 };
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, power_profile_mode::PowerProfileModesTable};
 use gtk::{
@@ -40,7 +41,7 @@ pub enum PerformanceFrameMsg {
 impl relm4::Component for PerformanceFrame {
     type Init = ();
     type Input = PerformanceFrameMsg;
-    type Output = OcPageMsg;
+    type Output = PowerPageMsg;
     type CommandOutput = ();
 
     view! {
@@ -78,7 +79,7 @@ impl relm4::Component for PerformanceFrame {
                         let idx = dropdown.selected();
                         if let Some(level) = PERFORMANCE_LEVELS.get(idx as usize) {
                             sender.input(PerformanceFrameMsg::PerformanceLevel(Some(*level)));
-                            sender.output(OcPageMsg::PerformanceLevelChanged).unwrap();
+                            sender.output(PowerPageMsg::PerformanceLevelChanged).unwrap();
                             APP_BROKER.send(AppMsg::SettingsChanged);
                         }
                     } @ level_select_handler,

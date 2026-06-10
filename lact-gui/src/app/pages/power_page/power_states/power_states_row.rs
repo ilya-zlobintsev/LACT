@@ -43,9 +43,10 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
 
              append: image = &gtk::Image {
                 set_icon_name: Some("pan-end-symbolic"),
+                add_css_class: "pstate-active-indicator",
                 add_binding: (&self.show_active_indicator, "visible"),
                 #[watch]
-                set_opacity: if self.active.value() { 1.0 } else { 0.0 },
+                set_class_active: ("pstate-inactive", !self.active.value()),
             },
 
             append = &gtk::CheckButton {
@@ -55,6 +56,7 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
             },
 
             append = &gtk::Label {
+                add_css_class: "pstate-label",
                 add_css_class: css::MONOSPACE,
                 #[watch]
                 set_class_active: (css::DIM_LABEL, !self.active.value()),
