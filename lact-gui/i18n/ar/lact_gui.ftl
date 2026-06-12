@@ -20,7 +20,7 @@ kernel-version = إصدار النواة
 oc-page = رفع تردد التشغيل
 software-page = معلومات البرمجية
 hardware-info = معلومات العتاد
-lact-daemon = عفريت LACT
+lact-daemon = خدمة خلفية LACT
 lact-gui = واجهة المستخدم الرسومية LACT
 instance = نُسخة
 platform-name = اسم المنصة
@@ -86,7 +86,7 @@ gpu-voltage-offset = إزاحة جهد معالج الرسوميات (mV)
 vram-pstate-clock-offset = إزاحة تردد ذاكرة الفيديو في حالة { $pstate } (ميجاهرتز)
 vram-pstates = حالات طاقة معالج الفيديو
 enable-pstate-config = مكّن تضبيط حالة الطاقة
-show-historical-charts = أظهر الرسوم البيانية التاريخية
+show-historical-charts = أظهر الرسوم البيانية
 settings-profile = إعدادات ملف التعريف
 auto-switch-profiles = بدّل تلقائيًا
 add-profile = أضف ملف تعريف جديد
@@ -163,7 +163,7 @@ activation-settings-status =
         [true] متطابقة
        *[false] غير متطابقة
     }</b>
-profile-hook-note = ملاحظة: يتم تنفيذ هذه الأوامر بصلاحيات الجذز بواسطة خفي LACT، وليس لديها وصول إلى بيئة سطح المكتب. وبالتالي، لا يمكن استخدامها مباشرةً لتشغيل التطبيقات الرسومية.
+profile-hook-note = ملاحظة: يتم تنفيذ هذه الأوامر بصلاحيات الجذز بواسطة خدمة خلفية LACT، وليس لديها وصول إلى بيئة سطح المكتب. وبالتالي، لا يمكن استخدامها مباشرةً لتشغيل التطبيقات الرسومية.
 profile-rule-gamemode-tab = وضع ال Gamemode نشط
 amd-oc-updating-configuration = جارٍ تحديث التضبيط (قد يستغرق هذا بعض الوقت)
 amd-oc-updating-done = حُدث التضبيط، يُرجى إعادة التشغيل لتطبيق التغييرات.
@@ -190,7 +190,7 @@ amd-oc-description =
     }
 
     انظر <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">الويكي</a> لمزيد من المعلومات.
-reconnecting-to-daemon = فُقد الاتصال بالعفريب، جارٍ إعادة الاتصال...
+reconnecting-to-daemon = فُقد الاتصال بخدمة الخلفية، جارٍ إعادة الاتصال...
 daemon-connection-lost = فُقد الاتصال
 plot-show-detailed-info = أظهر معلومات مفصلة
 generate-debug-snapshot = ولّد لقطة تصحيح
@@ -244,3 +244,24 @@ vf-base-curve = منحنى القاعدة
 vf-curve-visible-range = النطاق المرئي (%):
 vf-curve-visible-range-to = إلى
 vf-curve-flatten-right = تسطيح المنحنى جهة اليمين
+preferences = التفضيلات
+ui = الواجهة
+daemon = خدمة الخلفية
+about = عن
+confirm = أكِّد
+confirm-settings = أكِّد الإعدادات
+settings-confirmation = أتريد الاحتفاظ بالإعدادات الجديدة؟ (سيتم التراجع خلال { $seconds_left } ثانية)
+error-heading = خطأ
+daemon-info-heading = معلومات خدمة الخلفية
+embedded-daemon-info =
+    تعذر الاتصال بالخدمة الخلفية (daemon)، يتم التشغيل في الوضع المدمج.
+    يُرجى التأكد من أن خدمة lactd قيد التشغيل.
+    باستخدام الوضع المدمج، لن تتمكن من تغيير أي إعدادات.
+
+    { $error_info }لتفعيل الخدمة الخلفية، شغّل الأمر التالي، ثم أعد تشغيل LACT:
+version-mismatch = عدم تطابق الإصدار
+version-mismatch-description =
+    عدم تطابق في الإصدار بين واجهة المستخدم الرسومية والخدمة الخلفية (Daemon) ({ $gui_version }-{ $gui_commit } مقابل { $daemon_version }-{ $daemon_commit })!
+    إذا حدثت LACT، فأنت بحاجة إلى إعادة تشغيل الخدمة باستخدام:
+close = أغلِق
+menu = القائمة

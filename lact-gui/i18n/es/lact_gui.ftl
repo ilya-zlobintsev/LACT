@@ -204,7 +204,7 @@ gpu-pstates = Estados de Energía GPU
 vram-pstates = Estados de Energía VRAM
 pstates-manual-needed = Nivel de rendimiento debe ajustarse en 'manual' para conmutar los estados de energía
 enable-pstate-config = Habilitar configuración de estado de energía
-show-historical-charts = Mostrar Cartas Históricas
+show-historical-charts = Mostrar Gráficos
 show-process-monitor = Mostrar Monitor de Proceso
 generate-debug-snapshot = Generar Capturas Depuradoras
 gpu-clock-offset = Desplazamiento de Reloj GPU (MHz)
@@ -244,3 +244,24 @@ vf-base-curve = Curva de base
 vf-curve-visible-range = Intervalo visible (%):
 vf-curve-visible-range-to = A
 vf-curve-flatten-right = a
+preferences = Preferencias
+ui = IU
+daemon = Demonio
+about = Acerca de
+confirm = Confirmar
+confirm-settings = Confirmar Ajustes
+settings-confirmation = ¿Desea mantener los ajustes nuevos? (Se revierte en { $seconds_left } segundos)
+error-heading = Error
+daemon-info-heading = Informe del demonio
+embedded-daemon-info =
+    No se pudo conectar la demonio, ejecutando en modo embebido.
+    Asegúrese que el servicio lactd está en ejecución.
+    Se utiliza el modo embebido, no será capaz de cambiar ningún ajuste.
+
+    { $error_info } Para habilitar el demonio, ejecute el comando siguiente, después reinicie LACT:
+version-mismatch = Versión no coincidente
+version-mismatch-description =
+    Versión no coincidente entre IGU y DEmonio ({ $gui_version }-{ $gui_commit } vs { $daemon_version }-{ $daemon_commit })!
+    Si has actualizado LACT, necesita reiniciar el servicio con:
+close = Cerrar
+menu = Menú
