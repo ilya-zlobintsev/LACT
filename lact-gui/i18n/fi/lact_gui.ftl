@@ -1,7 +1,7 @@
-info-page = Tiedot
+info-page = Laitteistotiedot
 oc-page = Ylikellotus
 thermals-page = Lämmönhallintaan liittyvät näkökohdat
-software-page = Ohjelmisto
+software-page = Ohjelmistotiedot
 hardware-info = Laitteistotiedot
 system-section = Järjestelmä
 lact-daemon = LACT-daemon
@@ -59,9 +59,7 @@ automatic-mode-threshold-tooltip =
 
     Tämän asetuksen avulla voidaan kiertää tämä rajoitus käyttämällä mukautettua käyrää vain tietyn lämpötilan yläpuolella, kortin sisäänrakennetulla automaattitilalla, joka tukee nollan kierroksen minuutissa käyttöä sen alapuolella.
 amd-oc = AMD-ylikellotus
-amd-oc-disabled =
-    AMD-ylikellotustukea ei ole otettu käyttöön!
-    Voit edelleen muuttaa perusasetuksia, mutta edistyneemmät kellotaajuudet ja jännitteen säätö eivät ole käytettävissä.
+amd-oc-disabled = AMD:n ylikellotus ei ole käytössä! <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Jotkin toiminnot eivät ole käytettävissä.</a>
 amd-oc-status =
     AMD-ylikellotus on tällä hetkellä: <b>{ $status ->
         [true] otettu käyttöön
@@ -131,16 +129,18 @@ performance-level = Suorituskykytaso
 power-profile-mode = Virtaprofiilitila:
 manual-level-needed = Suorituskykytaso on asetettava "käsin":ksi, virrankäyttötilojen ja -tilojen käyttämiseksi
 overclock-section = Kellotaajuus ja jännite
-nvidia-oc-info = Nvidia-ylikellotustiedot
+nvidia-oc-info = Ylikellotustiedot
 nvidia-oc-description =
-    Nvidian ylikellotustoimintoihin kuuluu GPU/VRAM-kellotaajuuspoikkeamien asettaminen ja mahdollisen kellotaajuuksien alueen rajoittaminen "lukitut kellotaajuudet" -ominaisuuden avulla.
+    Nvidian ylikellotustoimintoihin kuuluu GPU/VRAM-kellotaajuuspoikkeamien asettaminen ja mahdollisen kellotaajuuksien alueen rajoittaminen "lukitut kellot" -ominaisuuden avulla.
 
-    Monilla korteilla VRAM-kellotaajuuspoikkeama vaikuttaa muistin todelliseen kellotaajuuteen vain puolella poikkeaman arvosta.
+    Monilla näytönohjaimilla VRAM-kellotaajuuspoikkeama vaikuttaa muistin todelliseen kellotaajuuteen vain puolella poikkeaman arvosta.
+
     Esimerkiksi +1000 MHz:n VRAM-poikkeama voi lisätä mitattua VRAM-nopeutta vain 500 MHz:llä.
+
     Tämä on normaalia, ja näin Nvidia käsittelee GDDR-tiedonsiirtonopeuksia. Säädä ylikellotusta vastaavasti.
 
-    Suoraa jännitteen säätöä ei tueta, koska sitä ei ole Nvidian Linux-ajurissa.
-    On mahdollista saavuttaa näennäisalijännite yhdistämällä lukittujen kellojen asetus positiiviseen kellotaajuuspoikkeamaan.
+    On mahdollista saavuttaa näennäisalijännite yhdistämällä lukitut kellot -vaihtoehto positiiviseen kellotaajuuspoikkeamaan.
+
     Tämä pakottaa GPU:n toimimaan lukittujen kellojen rajoittamalla jännitteellä, samalla kun saavutetaan korkeampi kellotaajuus poikkeaman ansiosta.
 
     Tämä voi aiheuttaa järjestelmän epävakautta, jos sitä painetaan liian korkeaksi.
@@ -156,7 +156,7 @@ gpu-pstates = GPU:n virtatilat
 vram-pstates = VRAM:n virtatilat
 pstates-manual-needed = Suorituskykytason on oltava asetettu 'käsin':ksi virrankäyttötilojen vaihtamiseksi
 enable-pstate-config = Ota virtatilan määritys käyttöön
-show-historical-charts = Näytä historialliset kaaviot
+show-historical-charts = Näytä kaaviot
 show-process-monitor = Näytä prosessien valvonta
 generate-debug-snapshot = Luo viankorjaustilannevedos
 reset-all-config = Nollaa koko kokoonpano
@@ -235,3 +235,18 @@ theme-auto = Automaattinen
 hw-ip-info = Laitteiston IP-tiedot
 hw-queues = Jonot
 theme = Teema
+vf-curve-editor = VF-käyrän muokkain
+nvidia-vf-curve-warning =
+    Jännite-taajuuskäyrän muokkain perustuu dokumentoimattomaan ajuritoimintoon.
+    Sen toiminnasta, turvallisuudesta tai saatavuudesta ei ole takeita.
+    <span weight = "heavy" underline = "single">Käytä omalla vastuullasi</span>.
+vf-curve-enable-editing = Ota muokkaus käyttöön
+voltage = Jännite
+frequency = Taajuus
+vf-active-curve = Aktiivinen käyrä
+vf-base-curve = Peruskäyrä
+vf-curve-visible-range = Näkyvä alue (%):
+vf-curve-visible-range-to = asti
+vf-curve-flatten-right = Litistä käyrää oikealle
+preferences = Asetukset
+about = Tietoja
