@@ -5,6 +5,7 @@ use crate::server::{handler::Handler, profiles::gamemode::GameModeConnector};
 use lact_schema::{ProfileRule, ProfileWatcherState};
 use libcopes::PEvent;
 use std::{
+    collections::HashMap,
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -24,6 +25,18 @@ const PROFILE_WATCHER_MAX_DELAY_MS: u64 = 500;
 enum ProfileWatcherEvent {
     Process(PEvent),
     Gamemode(PEvent),
+}
+
+impl ProfileWatcherEvent {
+    fn get_pid(&self) -> libcopes::PID {
+        match self {
+            ProfileWatcherEvent::Process(pevent) | ProfileWatcherEvent::Gamemode(pevent) => {
+                match pevent {
+                    PEvent::Exec(pid) | PEvent::Exit(pid) => *pid,
+                }
+            }
+        }
+    }
 }
 
 pub enum ProfileWatcherCommand {
@@ -98,6 +111,7 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
     update_profile(&handler).await;
 
     let mut should_reload = false;
+    let mut staged_events = HashMap::new();
 
     loop {
         select! {
@@ -110,12 +124,13 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
                 }
             }
             Some(event) = event_rx.recv() => {
-                handle_profile_event(&event, &handler, &mut should_reload);
+                staged_events.insert(event.get_pid(), event);
 
                 // It is very common during system usage that multiple processes start at the same time, or there are processes
                 // that start and exit right away.
                 // Due to this, it does not make sense to re-evaluate profile rules as soon as there is a process event.
-                // Instead, we accumulate multiple events that come in quick succession, and only evaluate the rules once.
+                // Instead, we accumulate multiple events that come in quick succession, handle them after, and only evaluate the rules once.
+                // Staging the events into a deduplicated map avoids unnecessarily querying the process info for short lived processes.
                 //
                 // After getting an event we wait for a period of time (the minimum delay option).
                 // If there are no new events since, rules are evaluated. If there are,
@@ -139,9 +154,15 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
                         Some(event) = event_rx.recv() => {
                             trace!("got another process event, delaying profile update");
                             min_timeout.as_mut().reset(tokio::time::Instant::now() + Duration::from_millis(PROFILE_WATCHER_MIN_DELAY_MS));
-                            handle_profile_event(&event, &handler, &mut should_reload);
+                            staged_events.insert(event.get_pid(), event);
                         }
                     }
+                }
+
+                trace!("handling {} staged process events", staged_events.len());
+
+                for (_, event) in staged_events.drain() {
+                    handle_profile_event(&event, &handler, &mut should_reload);
                 }
 
                 update_profile(&handler).await;
