@@ -1,7 +1,10 @@
 use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
-use crate::server::gpu_controller::common::{
-    fan_control::FanCurveExt,
-    fdinfo::{self, DrmUtilMap},
+use crate::server::{
+    display::dp_rate_to_bandwidth,
+    gpu_controller::common::{
+        fan_control::FanCurveExt,
+        fdinfo::{self, DrmUtilMap},
+    },
 };
 use amdgpu_sysfs::{
     error::Error,
@@ -1427,7 +1430,7 @@ impl GpuController for AmdGpuController {
 
             if let DisplayConnector::DisplayPort {
                 lanes,
-                rate,
+                bandwidth,
                 embedded: _,
             } = &mut info.connector_type
             {
@@ -1446,17 +1449,7 @@ impl GpuController for AmdGpuController {
                     .and_then(|value| u32::from_str_radix(value, 16).ok())
                     .context("Invalid bandwidth value")?;
 
-                // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
-                // Values are for conversion to Mbps
-                const BASE_RATE_MULTIPLIER: u32 = 270;
-                const UHBR_RATE_MULTIPLIER: u32 = 10;
-                const UHBR_RATE_THRESHOLD: u32 = 1000;
-
-                *rate = if bw_enum < UHBR_RATE_THRESHOLD {
-                    bw_enum * BASE_RATE_MULTIPLIER
-                } else {
-                    bw_enum * UHBR_RATE_MULTIPLIER
-                };
+                *bandwidth = dp_rate_to_bandwidth(bw_enum);
             }
         }
 

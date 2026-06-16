@@ -4,10 +4,13 @@ pub mod nvapi;
 use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
-    server::gpu_controller::{
-        NvApi,
-        common::{fan_control::FanCurveExt, resolve_process_name},
-        nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
+    server::{
+        display::dp_rate_to_bandwidth,
+        gpu_controller::{
+            NvApi,
+            common::{fan_control::FanCurveExt, resolve_process_name},
+            nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
+        },
     },
 };
 use amdgpu_sysfs::{
@@ -20,10 +23,10 @@ use futures::{FutureExt, future::LocalBoxFuture};
 use indexmap::IndexMap;
 use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
-    DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DisplaysInfo, DrmInfo, DrmMemoryInfo,
-    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable,
-    NvidiaVfPoint, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList,
-    ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
+    DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DisplayConnector, DisplaysInfo, DrmInfo,
+    DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset,
+    NvidiaClocksTable, NvidiaVfPoint, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo,
+    ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
 use nvml_wrapper::{
@@ -38,6 +41,8 @@ use std::{
     cmp,
     collections::{BTreeMap, HashMap, btree_map::Entry},
     fmt::Write,
+    fs,
+    os::fd::AsRawFd,
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -1266,7 +1271,45 @@ impl GpuController for NvidiaGpuController {
         })
     }
 
-    fn populate_displays_info(&self, _info: &mut DisplaysInfo) -> anyhow::Result<()> {
+    fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()> {
+        if let Some(handle) = &self.driver_handle {
+            let drm_path = self.common.get_drm_render()?;
+            let drm_file = fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(drm_path)
+                .context("Could not open DRM file")?;
+
+            for (key, display_info) in &mut info.displays {
+                match driver::connector_id_to_display_id(
+                    display_info.connector_id,
+                    drm_file.as_raw_fd(),
+                ) {
+                    Ok(display_id) => {
+                        if let DisplayConnector::DisplayPort {
+                            lanes, bandwidth, ..
+                        } = &mut display_info.connector_type
+                        {
+                            match handle.get_dp_link_config(display_id) {
+                                Ok(params) => {
+                                    *lanes = params.laneCount.try_into()?;
+                                    *bandwidth = dp_rate_to_bandwidth(params.linkBW);
+                                }
+                                Err(err) => {
+                                    warn!("could not fetch DP info for display {key}: {err:#}");
+                                }
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        warn!(
+                            "could not resolve display '{key}' into the driver display id: {err:#}"
+                        );
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 }

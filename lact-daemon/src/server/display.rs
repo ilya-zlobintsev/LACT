@@ -3,6 +3,10 @@ use lact_schema::{DisplayConnector, DisplayInfo, DisplayManufactureDate, Display
 use std::{collections::BTreeMap, fs, path::Path};
 use tracing::warn;
 
+const BASE_RATE_MULTIPLIER: u32 = 270;
+const UHBR_RATE_MULTIPLIER: u32 = 10;
+const UHBR_RATE_THRESHOLD: u32 = 1000;
+
 pub fn get_base_displays_info(device_path: &Path) -> anyhow::Result<DisplaysInfo> {
     let path_parent = device_path.parent().context("Invalid path")?;
     let card_entry_name = path_parent
@@ -61,6 +65,12 @@ fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
         libdisplay_info::info::Info::parse_edid(&edid_data).context("Could not parse edid")?;
     let edid = info.edid().context("Missing edid in parsed info")?;
 
+    let connector_id = fs::read_to_string(path.join("connector_id"))
+        .context("Could not read connector_id")?
+        .trim_ascii()
+        .parse()
+        .context("Invalid connector_id")?;
+
     let (_, connector) = path
         .file_name()
         .and_then(|name| name.to_str())
@@ -74,12 +84,12 @@ fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
     {
         "DP" => DisplayConnector::DisplayPort {
             lanes: 0,
-            rate: 0,
+            bandwidth: 0,
             embedded: false,
         },
         "eDP" => DisplayConnector::DisplayPort {
             lanes: 0,
-            rate: 0,
+            bandwidth: 0,
             embedded: true,
         },
         "HDMI" => DisplayConnector::Hdmi,
@@ -102,6 +112,18 @@ fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
             .zip(edid.screen_size().height_cm)
             .map(|(width, height)| (width as u32, height as u32)),
         connector_type,
+        connector_id,
     };
     Ok((connector.to_owned(), info))
+}
+
+pub fn dp_rate_to_bandwidth(value: u32) -> u32 {
+    // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
+    // Applies not only to AMD, as this is from the DP spec
+    // Values are for conversion to Mbps
+    if value < UHBR_RATE_THRESHOLD {
+        value * BASE_RATE_MULTIPLIER
+    } else {
+        value * UHBR_RATE_MULTIPLIER
+    }
 }

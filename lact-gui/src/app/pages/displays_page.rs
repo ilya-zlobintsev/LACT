@@ -146,14 +146,14 @@ impl DisplayComponent {
         match self.info.connector_type {
             DisplayConnector::DisplayPort {
                 lanes,
-                rate,
+                bandwidth,
                 embedded,
             } => {
                 let mut text = "DisplayPort".to_owned();
                 if embedded {
                     text.push_str(" (Internal)")
                 }
-                let lane_rate = rate as f64 / 1000.0;
+                let lane_rate = bandwidth as f64 / 1000.0;
                 write!(
                     text,
                     " @ {} Gbps ({lane_rate} Gbps x {lanes} lanes)",

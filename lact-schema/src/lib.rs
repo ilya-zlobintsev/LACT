@@ -879,6 +879,7 @@ pub struct DisplayInfo {
     pub manufacture_date: Option<DisplayManufactureDate>,
     pub size: Option<(u32, u32)>,
     pub connector_type: DisplayConnector,
+    pub connector_id: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -891,7 +892,8 @@ pub struct DisplayManufactureDate {
 pub enum DisplayConnector {
     DisplayPort {
         lanes: u16,
-        rate: u32,
+        /// Per-lane bandwidth in Mbps
+        bandwidth: u32,
         embedded: bool,
     },
     Hdmi,
