@@ -118,6 +118,26 @@ impl AmdGpuController {
         self.handle.hw_monitors.first().and_then(|mon| f(mon).ok())
     }
 
+    fn get_mem_fast_timing(&self) -> anyhow::Result<bool> {
+        let content = self.handle.read_file("gpu_od/mem_ctrl/mem_fast_timing")?;
+        let mut lines = content.lines();
+        let header = lines.next().context("Empty file")?;
+        if !header.starts_with("MEM_FAST_TIMING") {
+            bail!("Invalid header: {header}");
+        }
+        let value_str = lines.next().context("Value line not found")?;
+        let value: u32 = value_str.trim().parse()?;
+        Ok(value == 1)
+    }
+
+    fn set_mem_fast_timing(&self, enabled: bool) -> anyhow::Result<()> {
+        let path = "gpu_od/mem_ctrl/mem_fast_timing";
+        let value = if enabled { "1\n" } else { "0\n" };
+        self.handle.write_file(path, value)?;
+        self.handle.write_file(path, "c\n")?;
+        Ok(())
+    }
+
     async fn set_static_fan_control(&self, static_speed: f32) -> anyhow::Result<Vec<CommitHandle>> {
         // Stop existing task to set static speed
         self.stop_fan_control(false).await?;
@@ -1055,7 +1075,13 @@ impl GpuController for AmdGpuController {
             .get_clocks_table()
             .context("Clocks table not available")?;
 
-        Ok(clocks_table.into())
+        let mut clocks_info = ClocksInfo::from(clocks_table);
+
+        if self.handle.read_file("gpu_od/mem_ctrl/mem_fast_timing").is_ok() {
+            clocks_info.mem_fast_timing_active = self.get_mem_fast_timing().ok();
+        }
+
+        Ok(clocks_info)
     }
 
     fn get_power_states(&self, gpu_config: Option<&GpuConfig>) -> PowerStates {
@@ -1340,6 +1366,22 @@ impl GpuController for AmdGpuController {
                             error!(
                                 "zero RPM threshold is present in the config, but not available on the GPU: {err}"
                             );
+                        }
+                    }
+                }
+            }
+
+            if let Some(mem_fast_timing) = config.clocks_configuration.mem_fast_timing {
+                if self.handle.read_file("gpu_od/mem_ctrl/mem_fast_timing").is_ok() {
+                    match self.get_mem_fast_timing() {
+                        Ok(current) => {
+                            if current != mem_fast_timing {
+                                self.set_mem_fast_timing(mem_fast_timing)
+                                    .context("Failed to set memory fast timing")?;
+                            }
+                        }
+                        Err(err) => {
+                            warn!("Failed to read memory fast timing: {err:#}");
                         }
                     }
                 }

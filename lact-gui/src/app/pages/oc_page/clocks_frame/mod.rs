@@ -15,11 +15,13 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use lact_schema::{
-    ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
+    ClocksInfo, ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
     request::{ClockspeedType, SetClocksCommand},
 };
 use relm4::{
-    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
+    binding::{BoolBinding, ConnectBinding},
+    css,
     factory::FactoryHashMap,
 };
 use std::sync::Arc;
@@ -35,11 +37,14 @@ pub struct ClocksFrame {
     show_all_pstates: BoolBinding,
     enable_gpu_locked_clocks: BoolBinding,
     enable_vram_locked_clocks: BoolBinding,
+    mem_fast_timing: BoolBinding,
+    mem_fast_timing_visible: std::rc::Rc<std::cell::Cell<bool>>,
+    mem_fast_timing_signal: gtk::glib::SignalHandlerId,
 }
 
 #[derive(Debug)]
 pub enum ClocksFrameMsg {
-    Clocks(Option<Arc<ClocksTable>>),
+    Clocks(Option<Arc<ClocksInfo>>),
     VramRatio(f64),
     TogglePStatesVisibility,
 }
@@ -199,6 +204,24 @@ impl relm4::Component for ClocksFrame {
                         set_valign: gtk::Align::Start,
                         set_spacing: 10,
                         set_hexpand: true,
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
+                            #[watch]
+                            set_visible: model.mem_fast_timing_visible.get(),
+
+                            gtk::Label {
+                                set_label: &fl!(I18N, "fast-timing"),
+                                set_xalign: 0.0,
+                            },
+
+                            gtk::Switch {
+                                bind: &model.mem_fast_timing,
+                                set_hexpand: true,
+                                set_halign: gtk::Align::End,
+                            },
+                        },
                     },
                 },
             },
@@ -218,6 +241,11 @@ impl relm4::Component for ClocksFrame {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let mem_fast_timing = BoolBinding::new(false);
+        let mem_fast_timing_signal = mem_fast_timing.connect_value_notify(move |_| {
+            APP_BROKER.send(AppMsg::SettingsChanged);
+        });
+
         let model = Self {
             core_groups: FactoryHashMap::builder().launch_default().detach(),
             vram_groups: FactoryHashMap::builder().launch_default().detach(),
@@ -227,6 +255,9 @@ impl relm4::Component for ClocksFrame {
             show_all_pstates: BoolBinding::new(false),
             enable_gpu_locked_clocks: BoolBinding::new(false),
             enable_vram_locked_clocks: BoolBinding::new(false),
+            mem_fast_timing,
+            mem_fast_timing_visible: std::rc::Rc::new(std::cell::Cell::new(false)),
+            mem_fast_timing_signal,
         };
 
         for binding in [
@@ -271,12 +302,25 @@ impl relm4::Component for ClocksFrame {
                 self.enable_vram_locked_clocks.set_value(false);
                 self.show_nvidia_options = false;
 
-                if let Some(table) = clocks_table {
-                    match table.as_ref() {
-                        ClocksTable::Amd(table) => self.set_amd_table(table),
-                        ClocksTable::Nvidia(table) => self.set_nvidia_table(table),
-                        ClocksTable::Intel(table) => self.set_intel_table(table),
+                if let Some(ref clocks_info) = clocks_table {
+                    if let Some(ref table) = clocks_info.table {
+                        match table {
+                            ClocksTable::Amd(table) => self.set_amd_table(table),
+                            ClocksTable::Nvidia(table) => self.set_nvidia_table(table),
+                            ClocksTable::Intel(table) => self.set_intel_table(table),
+                        }
                     }
+
+                    if let Some(active) = clocks_info.mem_fast_timing_active {
+                        self.mem_fast_timing_visible.set(true);
+                        self.mem_fast_timing.set_value(active);
+                    } else {
+                        self.mem_fast_timing_visible.set(false);
+                        self.mem_fast_timing.set_value(false);
+                    }
+                } else {
+                    self.mem_fast_timing_visible.set(false);
+                    self.mem_fast_timing.set_value(false);
                 }
 
                 let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
@@ -292,6 +336,7 @@ impl relm4::Component for ClocksFrame {
                 widgets
                     .vram_locked_clocks_togglebutton
                     .unblock_signal(&widgets.vram_locked_clock_signal);
+                self.mem_fast_timing.unblock_signal(&self.mem_fast_timing_signal);
 
                 self.update_vram_clock_ratio();
                 sender.input(ClocksFrameMsg::TogglePStatesVisibility);
@@ -343,7 +388,7 @@ impl ClocksFrame {
     }
 
     fn has_any_clocks(&self) -> bool {
-        self.core_groups.values().any(|group| !group.is_empty())
+        self.core_groups.values().any(|group| !group.is_empty()) || self.mem_fast_timing_visible.get()
     }
 
     fn any_is_secondary(&self) -> bool {
@@ -355,7 +400,7 @@ impl ClocksFrame {
     }
 
     fn vram_any_visible(&self) -> bool {
-        self.vram_groups.values().any(|group| !group.is_empty())
+        self.vram_groups.values().any(|group| !group.is_empty()) || self.mem_fast_timing_visible.get()
     }
 
     fn update_vram_clock_ratio(&self) {
@@ -620,7 +665,7 @@ impl ClocksFrame {
     }
 
     pub fn get_commands(&self) -> Vec<SetClocksCommand> {
-        self.all_groups()
+        let mut commands: Vec<SetClocksCommand> = self.all_groups()
             .flat_map(|group| group.get_commands())
             .filter_map(|(clock_type, configured_value)| {
                 // If nvidia options are enabled, we always set locked clocks to None or Some
@@ -655,7 +700,16 @@ impl ClocksFrame {
                     value,
                 })
             })
-            .collect()
+            .collect();
+
+        if self.mem_fast_timing_visible.get() {
+            commands.push(SetClocksCommand {
+                r#type: ClockspeedType::MemoryFastTiming,
+                value: Some(if self.mem_fast_timing.value() { 1 } else { 0 }),
+            });
+        }
+
+        commands
     }
 }
 

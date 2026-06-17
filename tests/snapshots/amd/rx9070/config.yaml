@@ -22,3 +22,5 @@ performance_level: auto
 gpu_clock_offsets:
   0: 0
 voltage_offset: 0
+mem_fast_timing: true
+

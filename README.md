@@ -35,6 +35,7 @@ system.
   - GPU firmware thermal options such as thermal and acoustic target/limit (AMD RDNA3+ only)
 - #### Overclocking
   - GPU/VRAM clocks configuration
+  - VRAM Fast Timing (AMD RDNA4 only)
   - GPU undervolting (via voltage offset on AMD, VF curve on Nvidia)
 - #### Settings profiles
   - Automatic profile activation based on running processes or gamemode status

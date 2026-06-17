@@ -30,7 +30,7 @@ impl ClockCategory {
             ClockspeedType::MemVfCurveClock(_) => ClockCategory::VramCurveClock,
             ClockspeedType::GpuVfCurveVoltage(_) => ClockCategory::CoreCurveVoltage,
             ClockspeedType::MemVfCurveVoltage(_) => ClockCategory::VramCurveVoltage,
-            ClockspeedType::Reset => unreachable!(),
+            ClockspeedType::Reset | ClockspeedType::MemoryFastTiming => unreachable!(),
         }
     }
 

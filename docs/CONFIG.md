@@ -181,6 +181,9 @@ gpus:
     max_voltage: 1200
     # Voltage offset value in mV for RDNA and newer AMD GPUs.
     voltage_offset: 0
+    # Enable VRAM Fast Timing. Applicable on AMD RDNA4.
+    mem_fast_timing: true
+
 
     # GPU V/F curve with voltage and frequency points per each power state.
     # Applicable only to AMD GCN and RDNA1 GPUs. Overrides the values of min/max clock/voltage fields.

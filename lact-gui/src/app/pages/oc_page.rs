@@ -16,7 +16,7 @@ use gpu_stats_section::{GpuStatsSection, GpuStatsSectionMsg};
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use indexmap::IndexMap;
 use lact_schema::config;
-use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
+use lact_schema::{ClocksInfo, DeviceInfo, PowerStates};
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
@@ -44,7 +44,7 @@ pub enum OcPageMsg {
         update: PageUpdate,
         initial: bool,
     },
-    ClocksTable(Option<ClocksTable>),
+    ClocksInfo(Option<ClocksInfo>),
     ProfileModesTable(Option<PowerProfileModesTable>),
     PowerStates {
         pstates: PowerStates,
@@ -153,13 +153,15 @@ impl relm4::Component for OcPage {
                         .emit(ClocksFrameMsg::VramRatio(vram_clock_ratio));
                 }
             },
-            OcPageMsg::ClocksTable(table) => {
-                let table = table.map(Arc::new);
+            OcPageMsg::ClocksInfo(clocks_info) => {
+                let clocks_info = clocks_info.map(Arc::new);
+                let clocks_table = clocks_info.as_ref()
+                    .and_then(|info| info.table.as_ref().map(|table| Arc::new(table.clone())));
 
                 self.clocks_frame
-                    .emit(ClocksFrameMsg::Clocks(table.clone()));
+                    .emit(ClocksFrameMsg::Clocks(clocks_info));
                 self.vf_curve_editor
-                    .emit(VfCurveEditorMsg::Clocks(table.clone()));
+                    .emit(VfCurveEditorMsg::Clocks(clocks_table));
             }
             OcPageMsg::ProfileModesTable(modes_table) => {
                 self.performance_frame

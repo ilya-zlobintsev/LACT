@@ -48,6 +48,7 @@ acoustic-target = Acústicas objetivo (RPM)
 min-fan-speed = Velocidad mínima (%)
 zero-rpm = Cero RPM
 zero-rpm-stop-temp = Temperatura para activar ventiladores (°C)
+fast-timing = Fast Timing
 static-speed = Velocidad estática (%)
 reset-button = Restablecer
 pmfw-reset-warning = Advertencia: esto reiniciará los ajustes de firmware de los ventiladores!

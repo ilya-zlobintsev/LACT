@@ -90,7 +90,7 @@ impl FactoryComponent for ClockAdjustmentRow {
                                 ClockspeedType::MemVfCurveClock(pstate) => fl!(I18N, "mem-pstate-clock", pstate = pstate),
                                 ClockspeedType::GpuVfCurveVoltage(pstate) => fl!(I18N, "gpu-pstate-clock-voltage", pstate = pstate),
                                 ClockspeedType::MemVfCurveVoltage(pstate) => fl!(I18N, "mem-pstate-clock-voltage", pstate = pstate),
-                                ClockspeedType::Reset => unreachable!(),
+                                ClockspeedType::Reset | ClockspeedType::MemoryFastTiming => unreachable!(),
                             }
                         }
                     }

@@ -53,6 +53,7 @@ acoustic-target = Acoustic Target (RPM)
 min-fan-speed = Minimum Fan Speed (%)
 zero-rpm = Zero RPM
 zero-rpm-stop-temp = Zero RPM stop temperature (°C)
+fast-timing = Fast Timing
 static-speed = Static Speed (%)
 reset-button = Reset
 pmfw-reset-warning = Warning: this resets the fan firmware settings!

@@ -1121,15 +1121,15 @@ impl AppModel {
             initial: true,
         });
 
-        let maybe_clocks_table = match self.daemon_client.get_device_clocks_info(&gpu_id).await {
-            Ok(info) => info.table,
+        let maybe_clocks_info = match self.daemon_client.get_device_clocks_info(&gpu_id).await {
+            Ok(info) => Some(info),
             Err(err) => {
                 debug!("could not fetch clocks info: {err:?}");
                 None
             }
         };
         self.oc_page
-            .emit(OcPageMsg::ClocksTable(maybe_clocks_table));
+            .emit(OcPageMsg::ClocksInfo(maybe_clocks_info));
 
         let maybe_modes_table = match self
             .daemon_client

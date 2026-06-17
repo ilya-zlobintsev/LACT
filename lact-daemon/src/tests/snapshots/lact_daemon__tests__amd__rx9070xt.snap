@@ -5,6 +5,7 @@ expression: device_info
 {
   "clocks_info": {
     "max_mclk": 1259,
+    "mem_fast_timing_active": true,
     "table": {
       "type": "amd",
       "value": {

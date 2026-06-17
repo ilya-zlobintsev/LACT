@@ -422,6 +422,7 @@ pub struct ClocksInfo {
     pub max_mclk: Option<i32>,
     pub max_voltage: Option<i32>,
     pub table: Option<ClocksTable>,
+    pub mem_fast_timing_active: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -490,6 +491,7 @@ impl From<AmdClocksTableGen> for ClocksInfo {
             max_mclk,
             max_voltage,
             table: Some(ClocksTable::Amd(table)),
+            mem_fast_timing_active: None,
         }
     }
 }

@@ -85,6 +85,7 @@ pub struct ClocksConfiguration {
     )]
     pub mem_vf_curve: IndexMap<u8, CurvePoint>,
     pub voltage_offset: Option<i32>,
+    pub mem_fast_timing: Option<bool>,
 }
 
 impl ClocksConfiguration {
@@ -125,6 +126,9 @@ impl ClocksConfiguration {
             }
             ClockspeedType::MemVfCurveVoltage(point) => {
                 self.mem_vf_curve.entry(point).or_default().voltage = value;
+            }
+            ClockspeedType::MemoryFastTiming => {
+                self.mem_fast_timing = value.map(|val| val == 1);
             }
             ClockspeedType::Reset => {
                 *self = ClocksConfiguration::default();

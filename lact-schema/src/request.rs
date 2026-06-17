@@ -165,6 +165,8 @@ pub enum ClockspeedType {
     MemVfCurveClock(u8),
     MemVfCurveVoltage(u8),
 
+    MemoryFastTiming,
+
     Reset,
 }
 
