@@ -21,5 +21,6 @@ pmfw_options:
   acoustic_target: 1250
   minimum_pwm: 15
   target_temperature: 82
-mem_fast_timing: true
+mem_fast_timing: false
+
 

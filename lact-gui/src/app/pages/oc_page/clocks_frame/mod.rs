@@ -40,6 +40,7 @@ pub struct ClocksFrame {
     mem_fast_timing: BoolBinding,
     mem_fast_timing_visible: std::rc::Rc<std::cell::Cell<bool>>,
     mem_fast_timing_signal: gtk::glib::SignalHandlerId,
+    mem_fast_timing_changed: std::rc::Rc<std::cell::Cell<bool>>,
 }
 
 #[derive(Debug)]
@@ -242,7 +243,10 @@ impl relm4::Component for ClocksFrame {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let mem_fast_timing = BoolBinding::new(false);
+        let mem_fast_timing_changed = std::rc::Rc::new(std::cell::Cell::new(false));
+        let mem_fast_timing_changed_clone = mem_fast_timing_changed.clone();
         let mem_fast_timing_signal = mem_fast_timing.connect_value_notify(move |_| {
+            mem_fast_timing_changed_clone.set(true);
             APP_BROKER.send(AppMsg::SettingsChanged);
         });
 
@@ -258,6 +262,7 @@ impl relm4::Component for ClocksFrame {
             mem_fast_timing,
             mem_fast_timing_visible: std::rc::Rc::new(std::cell::Cell::new(false)),
             mem_fast_timing_signal,
+            mem_fast_timing_changed,
         };
 
         for binding in [
@@ -294,6 +299,7 @@ impl relm4::Component for ClocksFrame {
                 widgets
                     .vram_locked_clocks_togglebutton
                     .block_signal(&widgets.vram_locked_clock_signal);
+                self.mem_fast_timing.block_signal(&self.mem_fast_timing_signal);
 
                 self.core_groups.clear();
                 self.vram_groups.clear();
@@ -322,6 +328,8 @@ impl relm4::Component for ClocksFrame {
                     self.mem_fast_timing_visible.set(false);
                     self.mem_fast_timing.set_value(false);
                 }
+
+                self.mem_fast_timing_changed.set(false);
 
                 let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                 let input_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
@@ -702,7 +710,7 @@ impl ClocksFrame {
             })
             .collect();
 
-        if self.mem_fast_timing_visible.get() {
+        if self.mem_fast_timing_visible.get() && self.mem_fast_timing_changed.get() {
             commands.push(SetClocksCommand {
                 r#type: ClockspeedType::MemoryFastTiming,
                 value: Some(if self.mem_fast_timing.value() { 1 } else { 0 }),

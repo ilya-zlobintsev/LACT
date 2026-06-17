@@ -58,6 +58,7 @@ gpus:
       3:
         clockspeed: 920
     voltage_offset: 0
+    mem_fast_timing: true
     power_profile_mode_index: 0
     custom_power_profile_mode_hueristics:
       - - 0

@@ -1077,9 +1077,7 @@ impl GpuController for AmdGpuController {
 
         let mut clocks_info = ClocksInfo::from(clocks_table);
 
-        if self.handle.read_file("gpu_od/mem_ctrl/mem_fast_timing").is_ok() {
-            clocks_info.mem_fast_timing_active = self.get_mem_fast_timing().ok();
-        }
+        clocks_info.mem_fast_timing_active = self.get_mem_fast_timing().ok();
 
         Ok(clocks_info)
     }
@@ -1372,15 +1370,19 @@ impl GpuController for AmdGpuController {
             }
 
             if let Some(mem_fast_timing) = config.clocks_configuration.mem_fast_timing {
-                if self.handle.read_file("gpu_od/mem_ctrl/mem_fast_timing").is_ok() {
-                    match self.get_mem_fast_timing() {
-                        Ok(current) => {
-                            if current != mem_fast_timing {
-                                self.set_mem_fast_timing(mem_fast_timing)
-                                    .context("Failed to set memory fast timing")?;
-                            }
+                match self.get_mem_fast_timing() {
+                    Ok(current) => {
+                        if current != mem_fast_timing {
+                            self.set_mem_fast_timing(mem_fast_timing)
+                                .context("Failed to set memory fast timing")?;
                         }
-                        Err(err) => {
+                    }
+                    Err(err) => {
+                        let is_not_found = err
+                            .root_cause()
+                            .downcast_ref::<std::io::Error>()
+                            .map_or(false, |io_err| io_err.kind() == std::io::ErrorKind::NotFound);
+                        if !is_not_found {
                             warn!("Failed to read memory fast timing: {err:#}");
                         }
                     }
