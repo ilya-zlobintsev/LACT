@@ -7,7 +7,10 @@ use crate::{
     server::gpu_controller::{
         NvApi,
         common::{fan_control::FanCurveExt, resolve_process_name},
-        nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
+        nvidia::nvapi::{
+            CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointControlV1,
+            ClockClientClkVfPointInfoV1, ClockClientClkVfPointStatusV3,
+        },
     },
 };
 use amdgpu_sysfs::{
@@ -382,11 +385,13 @@ impl NvidiaGpuController {
         if let Some((nvapi, handle)) = self.nvapi.as_ref() {
             let info;
             let status;
+            let control;
 
             unsafe {
                 info = nvapi.clock_client_clk_vf_points_get_info(*handle)?;
                 status =
                     nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)?;
+                control = nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)?;
             }
 
             let point_count = point_count_from_mask(info.vf_points_mask);
@@ -401,12 +406,17 @@ impl NvidiaGpuController {
                     continue;
                 }
 
+                let base_freq =
+                    unsafe { vf_curve_base_freq_khz_from_control(point, control.vf_points[i]) };
+
                 curve.push(NvidiaVfPoint {
                     index: u8::try_from(i).expect("max 255 points"),
                     freq: point.freq_khz / 1000,
                     voltage: point.voltage_uv / 1000,
-                    base_freq: point.vf_tuple_base.freq_khz / 1000,
-                    base_voltage: point.vf_tuple_base.voltage_uv / 1000,
+                    // base_freq: point.vf_tuple_base.freq_khz / 1000,
+                    // base_voltage: point.vf_tuple_base.voltage_uv / 1000,
+                    base_freq: (base_freq / 1000).try_into()?,
+                    base_voltage: point.voltage_uv / 1000,
                 });
             }
 
@@ -454,14 +464,12 @@ impl NvidiaGpuController {
             }
 
             if let Some(configured_mhz) = configured_point.clockspeed {
-                let offset_khz =
-                    configured_mhz * 1000 - current_point.vf_tuple_base.freq_khz.cast_signed();
+                let base_freq =
+                    unsafe { vf_curve_base_freq_khz_from_control(current_point, *point_control) };
+                let offset_khz = configured_mhz * 1000 - base_freq;
                 let offset_mhz = offset_khz / 1000;
 
-                let min_offset = cmp::min(
-                    offset_info.min_clock_offset_mhz,
-                    -((current_point.vf_tuple_base.freq_khz / 1000).cast_signed()),
-                );
+                let min_offset = cmp::min(offset_info.min_clock_offset_mhz, -(base_freq / 1000));
 
                 if !(min_offset..=offset_info.max_clock_offset_mhz).contains(&offset_mhz) {
                     bail!("Configured offset {offset_mhz}MHz is outside of the allowed range",);
@@ -506,6 +514,15 @@ impl NvidiaGpuController {
 
 fn vf_curve_point_is_editable(point: ClockClientClkVfPointInfoV1) -> bool {
     point.b_voltage_based == 1 && point.type_ == CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG
+}
+
+/// Unsafe union access, point needs to be an editable point
+unsafe fn vf_curve_base_freq_khz_from_control(
+    point: ClockClientClkVfPointStatusV3,
+    control_point: ClockClientClkVfPointControlV1,
+) -> i32 {
+    let offset = unsafe { control_point.data.prog.freq_offset_khz };
+    point.freq_khz as i32 - offset
 }
 
 fn point_count_from_mask(mask: [u32; 8]) -> usize {
