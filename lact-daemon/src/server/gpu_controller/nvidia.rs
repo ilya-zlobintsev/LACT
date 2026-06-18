@@ -385,13 +385,17 @@ impl NvidiaGpuController {
         if let Some((nvapi, handle)) = self.nvapi.as_ref() {
             let info;
             let status;
-            let control;
+            let mut control = None;
 
             unsafe {
                 info = nvapi.clock_client_clk_vf_points_get_info(*handle)?;
                 status =
                     nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)?;
-                control = nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)?;
+
+                if status.b_vf_tuple_base_supported == 0 {
+                    control =
+                        Some(nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)?);
+                }
             }
 
             let point_count = point_count_from_mask(info.vf_points_mask);
@@ -406,17 +410,28 @@ impl NvidiaGpuController {
                     continue;
                 }
 
-                let base_freq =
-                    unsafe { vf_curve_base_freq_khz_from_control(point, control.vf_points[i]) };
+                let (base_freq, base_voltage) = if status.b_vf_tuple_base_supported == 0 {
+                    let control = control.as_ref().context("VF control needs to be present")?;
+
+                    let base_freq: u32 =
+                        unsafe { vf_curve_base_freq_khz_from_control(point, control.vf_points[i]) }
+                            .try_into()
+                            .context("Invalid base frequency")?;
+
+                    (base_freq / 1000, point.voltage_uv / 1000)
+                } else {
+                    (
+                        point.vf_tuple_base.freq_khz / 1000,
+                        point.vf_tuple_base.voltage_uv / 1000,
+                    )
+                };
 
                 curve.push(NvidiaVfPoint {
                     index: u8::try_from(i).expect("max 255 points"),
                     freq: point.freq_khz / 1000,
                     voltage: point.voltage_uv / 1000,
-                    // base_freq: point.vf_tuple_base.freq_khz / 1000,
-                    // base_voltage: point.vf_tuple_base.voltage_uv / 1000,
-                    base_freq: (base_freq / 1000).try_into()?,
-                    base_voltage: point.voltage_uv / 1000,
+                    base_freq,
+                    base_voltage,
                 });
             }
 
@@ -464,8 +479,11 @@ impl NvidiaGpuController {
             }
 
             if let Some(configured_mhz) = configured_point.clockspeed {
-                let base_freq =
-                    unsafe { vf_curve_base_freq_khz_from_control(current_point, *point_control) };
+                let base_freq: i32 = if current_vf_curve.b_vf_tuple_base_supported == 0 {
+                    unsafe { vf_curve_base_freq_khz_from_control(current_point, *point_control) }
+                } else {
+                    current_point.vf_tuple_base.freq_khz.try_into()?
+                };
                 let offset_khz = configured_mhz * 1000 - base_freq;
                 let offset_mhz = offset_khz / 1000;
 
