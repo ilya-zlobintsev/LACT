@@ -103,9 +103,10 @@ fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
         manufacturer: info.make(),
         product_code: edid.vendor_product().product,
         manufacture_date: Some(DisplayManufactureDate {
-            year: edid.vendor_product().manufacture_year as u16,
-            week: edid.vendor_product().manufacture_week as u8,
+            year: edid.vendor_product().manufacture_year.try_into()?,
+            week: edid.vendor_product().manufacture_week.try_into()?,
         }),
+        #[allow(clippy::cast_sign_loss)]
         size: edid
             .screen_size()
             .width_cm

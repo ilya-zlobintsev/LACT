@@ -288,7 +288,7 @@ pub fn connector_id_to_display_id(connector_id: u32, drm_device: RawFd) -> anyho
         dpyId: 0,
     };
     unsafe {
-        get_dpy_id_for_connector_id(drm_device, &mut params)?;
+        get_dpy_id_for_connector_id(drm_device, &raw mut params)?;
     }
     Ok(params.dpyId)
 }
@@ -307,8 +307,7 @@ unsafe fn alloc_object<T>(
         hObjectNew: 0,
         hClass: class,
         pAllocParms: alloc_params
-            .map(|params| ptr::from_mut(params).cast())
-            .unwrap_or(ptr::null_mut()),
+            .map_or(ptr::null_mut(), |params| ptr::from_mut(params).cast()),
         pRightsRequested: ptr::null_mut(),
         paramsSize: 0,
         flags: 0,
