@@ -38,6 +38,7 @@ use crate::bindings::nvidia::{
 use anyhow::{Context, bail};
 use lact_schema::RopInfo;
 use nix::ioctl_readwrite;
+use tracing::warn;
 
 pub struct DriverHandle {
     nvidiactl_fd: OwnedFd,
@@ -48,6 +49,7 @@ pub struct DriverHandle {
     #[allow(dead_code)]
     device_handle: NvHandle,
     subdevice_handle: NvHandle,
+    display_handle: Option<NvHandle>,
 }
 
 impl DriverHandle {
@@ -99,12 +101,27 @@ impl DriverHandle {
             )?
         };
 
+        let display_handle = unsafe {
+            alloc_object::<()>(
+                client_handle,
+                device_handle,
+                NV04_DISPLAY_COMMON,
+                None,
+                nvidiactl_fd.as_raw_fd(),
+            )
+            .inspect_err(|err| {
+                warn!("could not allocate display handle: {err:#}");
+            })
+            .ok()
+        };
+
         Ok(Self {
             nvidiactl_fd,
             device_fd,
             client_handle,
             device_handle,
             subdevice_handle,
+            display_handle,
         })
     }
 
@@ -193,15 +210,9 @@ impl DriverHandle {
         &self,
         display_id: u32,
     ) -> anyhow::Result<NV0073_CTRL_DP_GET_LINK_CONFIG_PARAMS> {
-        let display_obj = unsafe {
-            alloc_object::<()>(
-                self.client_handle,
-                self.device_handle,
-                NV04_DISPLAY_COMMON,
-                None,
-                self.nvidiactl_fd.as_raw_fd(),
-            )?
-        };
+        let display_obj = self
+            .display_handle
+            .context("Display object not available")?;
 
         let mut params = NV0073_CTRL_DP_GET_LINK_CONFIG_PARAMS {
             subDeviceInstance: 0,
@@ -217,16 +228,6 @@ impl DriverHandle {
                 NV0073_CTRL_CMD_DP_GET_LINK_CONFIG,
                 display_obj,
                 &mut params,
-            )?;
-        }
-
-        // TODO: proper RAII free!!!!
-        unsafe {
-            free_object(
-                self.client_handle,
-                self.device_handle,
-                display_obj,
-                self.nvidiactl_fd.as_raw_fd(),
             )?;
         }
 
@@ -324,28 +325,6 @@ unsafe fn alloc_object<T>(
     }
 
     Ok(request.hObjectNew)
-}
-
-#[allow(unsafe_op_in_unsafe_fn)]
-unsafe fn free_object(
-    root: NvU32,
-    parent: NvU32,
-    object: NvU32,
-    nvidiactl_fd: RawFd,
-) -> anyhow::Result<()> {
-    let mut params = NVOS00_PARAMETERS {
-        hRoot: root,
-        hObjectParent: parent,
-        hObjectOld: object,
-        status: 0,
-    };
-    rm_free(nvidiactl_fd, &mut params)?;
-
-    if params.status != 0 {
-        bail!("Got error status {} on Nvidia object free", params.status);
-    }
-
-    Ok(())
 }
 
 ioctl_readwrite!(
