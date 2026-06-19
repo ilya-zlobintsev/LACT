@@ -107,6 +107,17 @@ modules:
         strip-components: 0
         sha256: 25856d4e64bb87de1f85af93b184a9d65177eacfde0ae4bad9a397797633c02b
 
+  - name: hwdata
+    config-opts:
+      - --datarootdir=/app/share
+    sources:
+      - type: git
+        url: https://github.com/vcrhonek/hwdata.git
+        tag: v0.408
+        commit: 4456b256a1a5b1d1c1c1a60a9f69c59f7743c522
+        x-checker-data:
+          type: git
+
   - name: libdisplay-info
     buildsystem: meson
     sources:
