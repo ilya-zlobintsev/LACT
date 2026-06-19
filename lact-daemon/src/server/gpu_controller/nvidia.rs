@@ -1265,4 +1265,52 @@ impl GpuController for NvidiaGpuController {
             supported_util_types: SUPPORTED_UTIL_TYPES.iter().copied().collect(),
         })
     }
+
+    #[cfg(feature = "display-info")]
+    fn populate_displays_info(&self, info: &mut lact_schema::DisplaysInfo) -> anyhow::Result<()> {
+        use lact_schema::DisplayConnector;
+        use std::fs;
+        use std::os::fd::AsRawFd as _;
+
+        if let Some(handle) = &self.driver_handle {
+            let drm_path = self.common.get_drm_render()?;
+            let drm_file = fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(drm_path)
+                .context("Could not open DRM file")?;
+
+            for (key, display_info) in &mut info.displays {
+                match driver::connector_id_to_display_id(
+                    display_info.connector_id,
+                    drm_file.as_raw_fd(),
+                ) {
+                    Ok(display_id) => {
+                        if let DisplayConnector::DisplayPort {
+                            lanes, bandwidth, ..
+                        } = &mut display_info.connector_type
+                        {
+                            match handle.get_dp_link_config(display_id) {
+                                Ok(params) => {
+                                    *lanes = params.laneCount.try_into()?;
+                                    *bandwidth =
+                                        crate::server::display::dp_rate_to_bandwidth(params.linkBW);
+                                }
+                                Err(err) => {
+                                    warn!("could not fetch DP info for display {key}: {err:#}");
+                                }
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        warn!(
+                            "could not resolve display '{key}' into the driver display id: {err:#}"
+                        );
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }

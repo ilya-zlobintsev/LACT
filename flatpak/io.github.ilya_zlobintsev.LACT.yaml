@@ -107,6 +107,29 @@ modules:
         strip-components: 0
         sha256: 25856d4e64bb87de1f85af93b184a9d65177eacfde0ae4bad9a397797633c02b
 
+  - name: hwdata
+    config-opts:
+      - --datarootdir=/app/share
+    sources:
+      - type: git
+        url: https://github.com/vcrhonek/hwdata.git
+        tag: v0.408
+        commit: 4456b256a1a5b1d1c1c1a60a9f69c59f7743c522
+        x-checker-data:
+          type: git
+
+  - name: libdisplay-info
+    buildsystem: meson
+    sources:
+      - type: archive
+        url: https://gitlab.freedesktop.org/emersion/libdisplay-info/-/archive/0.3.0/libdisplay-info-0.3.0.tar.gz
+        sha256: 2b467e3336aec63819d6aca28d7310d3dc7415b2b3a3c3a5aec9d3727053c078
+        x-checker-data:
+          type: anitya
+          project-id: 326668
+          stable-only: true
+          url-template: https://gitlab.freedesktop.org/emersion/libdisplay-info/-/archive/$version/libdisplay-info-$version.tar.gz
+
   - name: lact
     buildsystem: simple
     sources:

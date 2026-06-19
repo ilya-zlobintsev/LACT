@@ -864,3 +864,40 @@ pub enum ProcessType {
     Graphics,
     Compute,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct DisplaysInfo {
+    pub displays: BTreeMap<String, DisplayInfo>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DisplayInfo {
+    pub model: Option<String>,
+    pub manufacturer: Option<String>,
+    pub product_code: u16,
+    pub manufacture_date: Option<DisplayManufactureDate>,
+    pub size: Option<(u32, u32)>,
+    pub connector_type: DisplayConnector,
+    pub connector_id: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct DisplayManufactureDate {
+    pub year: u16,
+    pub week: u8,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum DisplayConnector {
+    DisplayPort {
+        lanes: u16,
+        /// Per-lane bandwidth in Mbps
+        bandwidth: u32,
+        embedded: bool,
+    },
+    Hdmi,
+    Dvi,
+    Vga,
+    Other,
+}
