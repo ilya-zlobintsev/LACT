@@ -1,6 +1,10 @@
 use crate::{
     CONFIG, I18N,
-    app::{APP_BROKER, msg::AppMsg, styles, styles::AppTheme},
+    app::{
+        APP_BROKER,
+        msg::AppMsg,
+        utils::styles::{self, AppTheme},
+    },
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
 use adw::prelude::{

@@ -285,7 +285,7 @@ impl NvidiaGpuController {
                 for fan in 0..fan_count {
                     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                     if let Err(err) =
-                        device.set_fan_speed(fan, (f64::from(target_pwm) / 2.5) as u32)
+                        device.set_fan_speed(fan, (f64::from(target_pwm) / 2.55) as u32)
                     {
                         error!("could not set fan speed: {err}, disabling fan control");
                         break;
