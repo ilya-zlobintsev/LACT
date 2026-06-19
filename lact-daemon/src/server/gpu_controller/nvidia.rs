@@ -4,13 +4,10 @@ pub mod nvapi;
 use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
-    server::{
-        display::dp_rate_to_bandwidth,
-        gpu_controller::{
-            NvApi,
-            common::{fan_control::FanCurveExt, resolve_process_name},
-            nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
-        },
+    server::gpu_controller::{
+        NvApi,
+        common::{fan_control::FanCurveExt, resolve_process_name},
+        nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
     },
 };
 use amdgpu_sysfs::{
@@ -23,10 +20,10 @@ use futures::{FutureExt, future::LocalBoxFuture};
 use indexmap::IndexMap;
 use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
-    DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DisplayConnector, DisplaysInfo, DrmInfo,
-    DrmMemoryInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset,
-    NvidiaClocksTable, NvidiaVfPoint, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo,
-    ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
+    DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
+    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaVfPoint,
+    PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType,
+    ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
 use nvml_wrapper::{
@@ -41,8 +38,6 @@ use std::{
     cmp,
     collections::{BTreeMap, HashMap, btree_map::Entry},
     fmt::Write,
-    fs,
-    os::fd::AsRawFd,
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -1271,7 +1266,12 @@ impl GpuController for NvidiaGpuController {
         })
     }
 
-    fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()> {
+    #[cfg(feature = "display-info")]
+    fn populate_displays_info(&self, info: &mut lact_schema::DisplaysInfo) -> anyhow::Result<()> {
+        use lact_schema::DisplayConnector;
+        use std::fs;
+        use std::os::fd::AsRawFd as _;
+
         if let Some(handle) = &self.driver_handle {
             let drm_path = self.common.get_drm_render()?;
             let drm_file = fs::OpenOptions::new()
@@ -1293,7 +1293,8 @@ impl GpuController for NvidiaGpuController {
                             match handle.get_dp_link_config(display_id) {
                                 Ok(params) => {
                                     *lanes = params.laneCount.try_into()?;
-                                    *bandwidth = dp_rate_to_bandwidth(params.linkBW);
+                                    *bandwidth =
+                                        crate::server::display::dp_rate_to_bandwidth(params.linkBW);
                                 }
                                 Err(err) => {
                                     warn!("could not fetch DP info for display {key}: {err:#}");

@@ -3,10 +3,12 @@ use super::{
     profiles::ProfileWatcherCommand,
     system::{self},
 };
+#[cfg(feature = "display-info")]
+use crate::server::display;
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
-    server::{display, gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
+    server::{gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
 };
 use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
@@ -463,6 +465,7 @@ impl<'a> Handler {
         self.controller_by_id(id).await?.get_clocks_info(gpu_config)
     }
 
+    #[cfg(feature = "display-info")]
     pub async fn get_displays_info(&'a self, id: &str) -> anyhow::Result<DisplaysInfo> {
         let controller = self.controller_by_id(id).await?;
         let common = controller.controller_info();
@@ -473,6 +476,11 @@ impl<'a> Handler {
         }
 
         Ok(info)
+    }
+
+    #[cfg(not(feature = "display-info"))]
+    pub async fn get_displays_info(&'a self, _id: &str) -> anyhow::Result<DisplaysInfo> {
+        Err(anyhow!("Daemon is compiled without display info support"))
     }
 
     pub async fn set_fan_control(&'a self, opts: FanOptions<'_>) -> anyhow::Result<u64> {

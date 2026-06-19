@@ -1,3 +1,4 @@
+#[cfg(feature = "display-info")]
 mod display;
 pub mod gpu_controller;
 pub mod handler;

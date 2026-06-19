@@ -197,6 +197,7 @@ Dependencies:
 - make
 - hwdata
 - libdrm
+- libdisplay-info
 
 Optional Dependencies:
 - vulkan-tools
@@ -205,9 +206,9 @@ Optional Dependencies:
 Command to install all dependencies:
 
 - Fedora:
-  `sudo dnf install rust cargo make git clang gtk4-devel libadwaita-devel libdrm-devel vulkan-tools clinfo`
+  `sudo dnf install rust cargo make git clang gtk4-devel libadwaita-devel libdrm-devel vulkan-tools libdisplay-info-devel clinfo`
 - Arch:
-  `sudo pacman -S --needed base-devel git clang make rust gtk4 libadwaita hwdata vulkan-tools clinfo`
+  `sudo pacman -S --needed base-devel git clang make rust gtk4 libadwaita hwdata vulkan-tools clinfo libdisplay-info`
 
 Steps:
 

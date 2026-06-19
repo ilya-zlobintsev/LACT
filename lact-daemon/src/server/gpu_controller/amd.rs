@@ -1,10 +1,7 @@
 use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
-use crate::server::{
-    display::dp_rate_to_bandwidth,
-    gpu_controller::common::{
-        fan_control::FanCurveExt,
-        fdinfo::{self, DrmUtilMap},
-    },
+use crate::server::gpu_controller::common::{
+    fan_control::FanCurveExt,
+    fdinfo::{self, DrmUtilMap},
 };
 use amdgpu_sysfs::{
     error::Error,
@@ -21,12 +18,14 @@ use anyhow::{Context, anyhow, bail};
 use futures::{FutureExt, future::LocalBoxFuture};
 use lact_schema::{
     ActivePowerStates, AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo,
-    ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType,
-    DisplayConnector, DisplaysInfo, DrmInfo, FanControlMode, FanStats, IntelDrmInfo, LinkInfo,
-    PmfwInfo, PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo,
-    TemperatureEntry, VoltageStats, VramStats,
+    ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
+    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates,
+    PowerStats, ProcessList, ProcessUtilizationType, RopInfo, TemperatureEntry, VoltageStats,
+    VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
+#[cfg(feature = "display-info")]
+use lact_schema::{DisplayConnector, DisplaysInfo};
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, HW_IP::HW_IP_TYPE, ThrottlerBit, ThrottlerType};
 use libdrm_amdgpu_sys::{AMDGPU::SENSOR_INFO::SENSOR_TYPE, LibDrmAmdgpu, PCI};
 use std::{
@@ -1421,6 +1420,7 @@ impl GpuController for AmdGpuController {
         )
     }
 
+    #[cfg(feature = "display-info")]
     fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()> {
         let debugfs = self.debugfs_path().context("Could not get debugfs")?;
 
@@ -1449,7 +1449,7 @@ impl GpuController for AmdGpuController {
                     .and_then(|value| u32::from_str_radix(value, 16).ok())
                     .context("Invalid bandwidth value")?;
 
-                *bandwidth = dp_rate_to_bandwidth(bw_enum);
+                *bandwidth = crate::server::display::dp_rate_to_bandwidth(bw_enum);
             }
         }
 

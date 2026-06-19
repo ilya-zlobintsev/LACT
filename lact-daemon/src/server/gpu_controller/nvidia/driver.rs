@@ -7,8 +7,7 @@ use std::{
 
 use crate::bindings::nvidia::{
     DRM_COMMAND_BASE, DRM_IOCTL_BASE, DRM_NVIDIA_GET_DPY_ID_FOR_CONNECTOR_ID, NV_ESC_REGISTER_FD,
-    NV_ESC_RM_ALLOC, NV_ESC_RM_CONTROL, NV_IOCTL_MAGIC, NV01_DEVICE_0, NV04_DISPLAY_COMMON,
-    NV20_SUBDEVICE_0, NV0073_CTRL_CMD_DP_GET_LINK_CONFIG, NV0073_CTRL_DP_GET_LINK_CONFIG_PARAMS,
+    NV_ESC_RM_ALLOC, NV_ESC_RM_CONTROL, NV_IOCTL_MAGIC, NV01_DEVICE_0, NV20_SUBDEVICE_0,
     NV0080_ALLOC_PARAMETERS, NV2080_ALLOC_PARAMETERS, NV2080_CTRL_CMD_FB_GET_INFO,
     NV2080_CTRL_CMD_GR_GET_GLOBAL_SM_ORDER, NV2080_CTRL_CMD_GR_GET_ROP_INFO,
     NV2080_CTRL_FB_GET_INFO_PARAMS, NV2080_CTRL_FB_INFO, NV2080_CTRL_FB_INFO_INDEX_BUS_WIDTH,
@@ -35,10 +34,13 @@ use crate::bindings::nvidia::{
     NV2080_CTRL_GR_GET_ROP_INFO_PARAMS, NVOS21_PARAMETERS, NVOS54_PARAMETERS, NVOS64_PARAMETERS,
     NvHandle, NvU32, drm_nvidia_get_dpy_id_for_connector_id_params,
 };
+#[cfg(feature = "display-info")]
+use crate::bindings::nvidia::{
+    NV04_DISPLAY_COMMON, NV0073_CTRL_CMD_DP_GET_LINK_CONFIG, NV0073_CTRL_DP_GET_LINK_CONFIG_PARAMS,
+};
 use anyhow::{Context, bail};
 use lact_schema::RopInfo;
 use nix::ioctl_readwrite;
-use tracing::warn;
 
 pub struct DriverHandle {
     nvidiactl_fd: OwnedFd,
@@ -49,6 +51,7 @@ pub struct DriverHandle {
     #[allow(dead_code)]
     device_handle: NvHandle,
     subdevice_handle: NvHandle,
+    #[cfg(feature = "display-info")]
     display_handle: Option<NvHandle>,
 }
 
@@ -101,7 +104,10 @@ impl DriverHandle {
             )?
         };
 
+        #[cfg(feature = "display-info")]
         let display_handle = unsafe {
+            use tracing::warn;
+
             alloc_object::<()>(
                 client_handle,
                 device_handle,
@@ -121,6 +127,7 @@ impl DriverHandle {
             client_handle,
             device_handle,
             subdevice_handle,
+            #[cfg(feature = "display-info")]
             display_handle,
         })
     }
@@ -206,6 +213,7 @@ impl DriverHandle {
         self.get_fb_info(NV2080_CTRL_FB_INFO_INDEX_L2CACHE_SIZE)
     }
 
+    #[cfg(feature = "display-info")]
     pub fn get_dp_link_config(
         &self,
         display_id: u32,
@@ -282,6 +290,7 @@ impl DriverHandle {
     }
 }
 
+#[cfg(feature = "display-info")]
 pub fn connector_id_to_display_id(connector_id: u32, drm_device: RawFd) -> anyhow::Result<u32> {
     let mut params = drm_nvidia_get_dpy_id_for_connector_id_params {
         connectorId: connector_id,

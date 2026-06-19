@@ -9,7 +9,6 @@ use amd::AmdGpuController;
 use intel::IntelGpuController;
 use lact_schema::DeviceApiInfo;
 use lact_schema::DeviceType;
-use lact_schema::DisplaysInfo;
 use lact_schema::ProcessList;
 #[cfg(feature = "nvidia")]
 use nvidia::NvidiaGpuController;
@@ -99,7 +98,8 @@ pub trait GpuController {
 
     fn process_list(&self) -> anyhow::Result<ProcessList>;
 
-    fn populate_displays_info(&self, _info: &mut DisplaysInfo) -> anyhow::Result<()> {
+    #[cfg(feature = "display-info")]
+    fn populate_displays_info(&self, _info: &mut lact_schema::DisplaysInfo) -> anyhow::Result<()> {
         Ok(())
     }
 }

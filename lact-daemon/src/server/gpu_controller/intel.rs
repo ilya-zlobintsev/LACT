@@ -13,9 +13,9 @@ use anyhow::{Context, anyhow, bail};
 use futures::future::LocalBoxFuture;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceInfo, DeviceStats, DeviceType,
-    DisplaysInfo, DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo,
-    PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry,
-    VoltageStats, VramStats, config::GpuConfig,
+    DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState,
+    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats,
+    VramStats, config::GpuConfig,
 };
 use std::{
     borrow::Cow,
