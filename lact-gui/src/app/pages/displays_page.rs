@@ -1,6 +1,9 @@
 use crate::{
     I18N,
-    app::{ext::FlowBoxExt as _, info_row::InfoRow, page_section::PageSection},
+    app::{
+        components::{info_row::InfoRow, page_section::PageSection},
+        utils::ext::FlowBoxExt as _,
+    },
 };
 use gtk::prelude::{BoxExt as _, OrientableExt as _, WidgetExt as _};
 use i18n_embed_fl::fl;
