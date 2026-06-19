@@ -812,10 +812,6 @@ impl GpuController for IntelGpuController {
             &mut last_total_time_map,
         )
     }
-
-    fn populate_displays_info(&self, _info: &mut DisplaysInfo) -> anyhow::Result<()> {
-        Ok(())
-    }
 }
 
 #[derive(Clone, Copy)]

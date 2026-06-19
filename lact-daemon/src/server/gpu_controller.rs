@@ -99,7 +99,9 @@ pub trait GpuController {
 
     fn process_list(&self) -> anyhow::Result<ProcessList>;
 
-    fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()>;
+    fn populate_displays_info(&self, _info: &mut DisplaysInfo) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug)]

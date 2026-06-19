@@ -468,9 +468,9 @@ impl<'a> Handler {
         let common = controller.controller_info();
 
         let mut info = display::get_base_displays_info(&common.sysfs_path)?;
-        controller
-            .populate_displays_info(&mut info)
-            .context("Failed to populate info")?;
+        if let Err(err) = controller.populate_displays_info(&mut info) {
+            warn!("failed to populate displays info: {err:#}");
+        }
 
         Ok(info)
     }

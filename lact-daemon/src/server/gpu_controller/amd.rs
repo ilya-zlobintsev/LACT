@@ -1425,15 +1425,15 @@ impl GpuController for AmdGpuController {
         let debugfs = self.debugfs_path().context("Could not get debugfs")?;
 
         for (connector, info) in &mut info.displays {
-            let link_settings_path = debugfs.join(connector).join("link_settings");
-            let link_settings = fs::read_to_string(link_settings_path)?;
-
             if let DisplayConnector::DisplayPort {
                 lanes,
                 bandwidth,
                 embedded: _,
             } = &mut info.connector_type
             {
+                let link_settings_path = debugfs.join(connector).join("link_settings");
+                let link_settings = fs::read_to_string(link_settings_path)?;
+
                 let mut parts = link_settings.split_ascii_whitespace().skip(1);
 
                 *lanes = parts
