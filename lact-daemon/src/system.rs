@@ -251,9 +251,18 @@ pub async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<Output> {
 
     let mut command;
     if *IS_FLATBOX {
+        let host_path = env::var("FLATBOX_HOST_PATH").context("FLATBOX_HOST_PATH not present")?;
+
         command = Command::new("nsenter");
         command
-            .args(["--target", "1", "--all", "--"])
+            .args([
+                "--target",
+                "1",
+                "--all",
+                "--",
+                "env",
+                &format!("PATH={host_path}"),
+            ])
             .arg(exec)
             .args(args);
     } else {
