@@ -252,6 +252,9 @@ impl relm4::SimpleComponent for GpuStatsSection {
                                 .filter(|value| *value != 0.0)
                                 .or(power_average);
 
+                            let power_cap_current = power_cap_current
+                                .filter(|value| *value != 0.0);
+
                             power_current
                                 .zip(power_cap_current)
                                 .map(|(current, cap)| current / cap)
