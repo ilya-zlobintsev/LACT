@@ -1230,6 +1230,8 @@ impl AppModel {
 
         sender.input(AppMsg::ReloadData { full: false });
 
+        root.present();
+
         Ok(())
     }
 
