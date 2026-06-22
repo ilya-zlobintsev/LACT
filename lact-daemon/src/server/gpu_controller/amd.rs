@@ -1350,9 +1350,24 @@ impl GpuController for AmdGpuController {
             if let Some(configured_cap) = config.power_cap {
                 let hw_mon = self.first_hw_mon()?;
 
-                hw_mon
-                    .set_power_cap(configured_cap)
-                    .with_context(|| format!("Failed to set power cap: {configured_cap}"))?;
+                match (hw_mon.get_power_cap_min(), hw_mon.get_power_cap_max()) {
+                    (Ok(min), Ok(max)) => {
+                        let clamped_cap = configured_cap.clamp(min, max);
+
+                        if clamped_cap != configured_cap {
+                            warn!(
+                                "Power cap {configured_cap}W was outside of the allowed range, clamped to {clamped_cap}W"
+                            );
+                        }
+
+                        hw_mon.set_power_cap(clamped_cap).with_context(|| {
+                            format!("Failed to set power cap: {configured_cap}")
+                        })?;
+                    }
+                    (Err(err), _) | (_, Err(err)) => {
+                        bail!("Could not read allowed power cap range: {err:#}");
+                    }
+                }
             } else if let Ok(hw_mon) = self.first_hw_mon()
                 && let Ok(default_cap) = hw_mon.get_power_cap_default()
                 && Ok(default_cap) != hw_mon.get_power_cap()
