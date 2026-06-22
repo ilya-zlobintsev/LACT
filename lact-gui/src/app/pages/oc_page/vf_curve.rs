@@ -415,10 +415,9 @@ impl VfCurveEditor {
         let max_point = points.last().unwrap();
 
         let x_spec = min_point.base_voltage..max_point.base_voltage;
-        let Some((y_start, y_end)) = self.freq_range.get() else {
+        let Some(y_spec) = self.freq_range.get().map(|(start, end)| start..end) else {
             return;
         };
-        let y_spec = y_start..y_end;
 
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(45)
