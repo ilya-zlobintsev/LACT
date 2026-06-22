@@ -39,6 +39,7 @@ pub struct VfCurveEditor {
     stats: Rc<RefCell<Arc<DeviceStats>>>,
     allow_editing: BoolBinding,
     locked_clocks_range: Rc<Cell<Option<(u32, u32)>>>,
+    freq_range: Rc<Cell<Option<(u32, u32)>>>,
 
     visible_range_start: gtk::Adjustment,
     visible_range_end: gtk::Adjustment,
@@ -274,6 +275,7 @@ impl relm4::Component for VfCurveEditor {
             stats: Rc::default(),
             global_settings_changed,
             locked_clocks_range: Rc::default(),
+            freq_range: Rc::default(),
             allow_editing: BoolBinding::new(false),
             cursor_position: Rc::new(Cell::new(None)),
             visible_range_start: gtk::Adjustment::new(30.0, 0.0, 100.0, 1.0, 10.0, 0.0),
@@ -306,10 +308,16 @@ impl relm4::Component for VfCurveEditor {
                 let mut points = self.points.borrow_mut();
                 points.clear();
                 self.locked_clocks_range.take();
+                self.freq_range.take();
 
                 if let Some(ClocksTable::Nvidia(nvidia_table)) = clocks_table.as_deref() {
                     points.extend_from_slice(&nvidia_table.gpu_vf_curve);
-                    self.locked_clocks_range.set(nvidia_table.gpu_locked_clocks)
+                    self.locked_clocks_range.set(nvidia_table.gpu_locked_clocks);
+                    let offset_range = nvidia_table
+                        .gpu_offsets
+                        .get(&0)
+                        .map(|offset| (offset.min, offset.max));
+                    self.freq_range.set(Self::freq_range(&points, offset_range));
                 }
 
                 if points.is_empty() {
@@ -407,7 +415,10 @@ impl VfCurveEditor {
         let max_point = points.last().unwrap();
 
         let x_spec = min_point.base_voltage..max_point.base_voltage;
-        let y_spec = min_point.base_freq..(max_point.base_freq as f64 * 1.1) as u32;
+        let Some((y_start, y_end)) = self.freq_range.get() else {
+            return;
+        };
+        let y_spec = y_start..y_end;
 
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(45)
@@ -689,19 +700,17 @@ impl VfCurveEditor {
                 .contains(gdk::ModifierType::SHIFT_MASK)
             {
                 for point in points.iter_mut() {
-                    let new_freq = (point.freq as i32 + drag_delta) as u32;
-                    if new_freq > 0 {
-                        point.freq = new_freq;
-                    }
+                    point.freq = (point.freq as i32 + drag_delta)
+                        .clamp(freq_range.start as i32, freq_range.end as i32)
+                        as u32;
                 }
             } else if let Some((selected_start, selected_end)) = self.get_selected_range() {
                 for point in points.iter_mut() {
                     let voltage = point.voltage as usize;
                     if selected_start < voltage && voltage < selected_end {
-                        let new_freq = (point.freq as i32 + drag_delta) as u32;
-                        if new_freq > 0 {
-                            point.freq = new_freq;
-                        }
+                        point.freq = (point.freq as i32 + drag_delta)
+                            .clamp(freq_range.start as i32, freq_range.end as i32)
+                            as u32;
                     }
                 }
             } else {
@@ -747,6 +756,24 @@ impl VfCurveEditor {
         }
     }
 
+    fn freq_range(
+        points: &[NvidiaVfPoint],
+        offset_range: Option<(i32, i32)>,
+    ) -> Option<(u32, u32)> {
+        let (min_offset, max_offset) = offset_range?;
+        let first_point = points.first()?;
+        let last_point = points.last()?;
+
+        let min_freq = offset_freq(first_point.base_freq, min_offset);
+        let mut max_freq = offset_freq(last_point.base_freq, max_offset);
+
+        if min_freq >= max_freq {
+            max_freq = min_freq.saturating_add(1);
+        }
+
+        Some((min_freq, max_freq))
+    }
+
     pub fn is_empty(&self) -> bool {
         self.points.borrow().is_empty()
     }
@@ -776,4 +803,12 @@ fn vf_point_coords(point: &NvidiaVfPoint) -> (u32, u32) {
 
 fn vf_point_base_coords(point: &NvidiaVfPoint) -> (u32, u32) {
     (point.base_voltage, point.base_freq)
+}
+
+fn offset_freq(base_freq: u32, offset: i32) -> u32 {
+    if offset.is_negative() {
+        base_freq.saturating_sub(offset.unsigned_abs())
+    } else {
+        base_freq.saturating_add(offset as u32)
+    }
 }
