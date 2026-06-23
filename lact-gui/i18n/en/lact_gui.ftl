@@ -40,6 +40,7 @@ cache-instruction = Data
 cache-cpu = CPU
 
 monitoring-section = Monitoring
+general-section = General
 fan-control-section = Fan Control
 temperatures = Temperatures
 oc-missing-fan-control-warning = Warning: Overclocking support is disabled, fan control functionality is not available.

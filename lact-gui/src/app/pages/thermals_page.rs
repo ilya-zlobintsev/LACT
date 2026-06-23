@@ -48,7 +48,9 @@ pub struct ThermalsPage {
     has_pmfw: bool,
     has_auto_threshold: bool,
     pmfw_options: PmfwOptions,
+    nvidia_thermal_options: NvidiaThermalOptions,
     pmfw_change_signals: Vec<(glib::Object, SignalHandlerId)>,
+    nvidia_thermal_change_signals: Vec<(glib::Object, SignalHandlerId)>,
 
     temperatures: Option<String>,
     fan_speed: Option<String>,
@@ -81,6 +83,17 @@ impl PmfwOptions {
 
     fn is_empty(&self) -> bool {
         self.adjustments().iter().all(|adj| adj_is_empty(adj)) && !self.zero_rpm.get()
+    }
+}
+
+#[derive(Clone, Default)]
+struct NvidiaThermalOptions {
+    target_temperature: OcAdjustment,
+}
+
+impl NvidiaThermalOptions {
+    fn adjustments(&self) -> [&OcAdjustment; 1] {
+        [&self.target_temperature]
     }
 }
 
@@ -130,6 +143,41 @@ impl relm4::Component for ThermalsPage {
                         set_value: model.throttling.as_str(),
                     },
                 }
+            },
+
+            PageSection::new(&fl!(I18N, "general-section")) {
+                #[watch]
+                set_visible: !adj_is_empty(&model.nvidia_thermal_options.target_temperature),
+
+                append_header = &gtk::Button {
+                    set_label: &fl!(I18N, "reset-button"),
+                    set_halign: gtk::Align::End,
+                    set_hexpand: true,
+                    add_css_class: "destructive-action",
+                    connect_clicked => move |_| {
+                        APP_BROKER.send(AppMsg::ResetPmfw);
+                    }
+                },
+
+                #[template]
+                append_child = &FanSettingRow {
+                    #[template_child]
+                    label {
+                        set_label: &fl!(I18N, "target-temp"),
+                        set_size_group: &label_size_group,
+                    },
+
+                    #[template_child]
+                    scale {
+                        set_adjustment: &model.nvidia_thermal_options.target_temperature,
+                    },
+
+                    #[template_child]
+                    spinbutton {
+                        set_adjustment: &model.nvidia_thermal_options.target_temperature,
+                        set_size_group: &spin_size_group,
+                    },
+                },
             },
 
             PageSection::new(&fl!(I18N, "fan-control-section")) {
@@ -345,8 +393,14 @@ impl relm4::Component for ThermalsPage {
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let pmfw_options = PmfwOptions::default();
+        let nvidia_thermal_options = NvidiaThermalOptions::default();
 
         for adj in pmfw_options.adjustments() {
+            adj.set_step_increment(1.0);
+            adj.set_page_increment(5.0);
+        }
+
+        for adj in nvidia_thermal_options.adjustments() {
             adj.set_step_increment(1.0);
             adj.set_page_increment(5.0);
         }
@@ -368,6 +422,17 @@ impl relm4::Component for ThermalsPage {
             )])
             .collect::<Vec<(glib::Object, SignalHandlerId)>>();
 
+        let nvidia_thermal_change_signals = nvidia_thermal_options
+            .adjustments()
+            .into_iter()
+            .map(|adj| {
+                let signal = adj.connect_value_changed(|_| {
+                    APP_BROKER.send(AppMsg::SettingsChanged);
+                });
+                (adj.clone().upcast(), signal)
+            })
+            .collect::<Vec<(glib::Object, SignalHandlerId)>>();
+
         let fan_curve_frame = FanCurveFrame::builder()
             .launch(pmfw_options.clone())
             .detach();
@@ -377,7 +442,9 @@ impl relm4::Component for ThermalsPage {
             throttling: String::new(),
             temperatures: None,
             pmfw_options,
+            nvidia_thermal_options,
             pmfw_change_signals,
+            nvidia_thermal_change_signals,
             custom_control_supported: false,
             has_pmfw: false,
             has_auto_threshold: false,
@@ -482,8 +549,12 @@ impl relm4::Component for ThermalsPage {
 
                         let info = stats.fan.pmfw_info;
                         let pmfw_options = &mut self.pmfw_options;
+                        let nvidia_thermal_options = &mut self.nvidia_thermal_options;
 
                         for (obj, signal) in &self.pmfw_change_signals {
+                            obj.block_signal(signal);
+                        }
+                        for (obj, signal) in &self.nvidia_thermal_change_signals {
                             obj.block_signal(signal);
                         }
 
@@ -491,6 +562,10 @@ impl relm4::Component for ThermalsPage {
                         set_fan_info(&pmfw_options.acoustic_target, info.acoustic_target);
                         set_fan_info(&pmfw_options.minimum_pwm, info.minimum_pwm);
                         set_fan_info(&pmfw_options.target_temperature, info.target_temp);
+                        set_fan_info(
+                            &nvidia_thermal_options.target_temperature,
+                            stats.nvidia_thermal_info.target_temp,
+                        );
                         set_fan_info(
                             &pmfw_options.zero_rpm_temperature,
                             info.zero_rpm_temperature,
@@ -504,6 +579,9 @@ impl relm4::Component for ThermalsPage {
                             .set(info.zero_rpm_enable.unwrap_or(false));
 
                         for (obj, signal) in &self.pmfw_change_signals {
+                            obj.unblock_signal(signal);
+                        }
+                        for (obj, signal) in &self.nvidia_thermal_change_signals {
                             obj.unblock_signal(signal);
                         }
                     }
@@ -553,14 +631,19 @@ impl ThermalsPage {
         }
 
         let pmfw = &self.pmfw_options;
-        let config = &mut config.pmfw_options;
-
+        let pmfw_config = &mut config.pmfw_options;
         let options = [
-            (&pmfw.acoustic_limit, &mut config.acoustic_limit),
-            (&pmfw.acoustic_target, &mut config.acoustic_target),
-            (&pmfw.target_temperature, &mut config.target_temperature),
-            (&pmfw.minimum_pwm, &mut config.minimum_pwm),
-            (&pmfw.zero_rpm_temperature, &mut config.zero_rpm_threshold),
+            (&pmfw.acoustic_limit, &mut pmfw_config.acoustic_limit),
+            (&pmfw.acoustic_target, &mut pmfw_config.acoustic_target),
+            (
+                &pmfw.target_temperature,
+                &mut pmfw_config.target_temperature,
+            ),
+            (&pmfw.minimum_pwm, &mut pmfw_config.minimum_pwm),
+            (
+                &pmfw.zero_rpm_temperature,
+                &mut pmfw_config.zero_rpm_threshold,
+            ),
         ];
 
         for (adj, config_value) in options {
@@ -570,7 +653,15 @@ impl ThermalsPage {
         }
 
         if pmfw.zero_rpm_available.get() {
-            config.zero_rpm = Some(pmfw.zero_rpm.value());
+            pmfw_config.zero_rpm = Some(pmfw.zero_rpm.value());
+        }
+
+        if let Some(value) = self
+            .nvidia_thermal_options
+            .target_temperature
+            .get_changed_value(false)
+        {
+            config.nvidia_thermal_options.target_temperature = Some(value as u32);
         }
     }
 }
@@ -625,6 +716,7 @@ fn set_fan_info(adjustment: &OcAdjustment, info: Option<FanInfo>) {
             adjustment.set_initial_value(info.current as f64);
         }
         None => {
+            adjustment.set_lower(0.0);
             adjustment.set_upper(0.0);
             adjustment.set_initial_value(0.0);
         }
