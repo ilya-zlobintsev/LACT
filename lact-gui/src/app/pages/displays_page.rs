@@ -26,6 +26,25 @@ impl relm4::SimpleComponent for DisplaysPage {
 
     view! {
         gtk::Box {
+            set_expand: true,
+            #[watch]
+            set_align: if model.displays.is_empty() { gtk::Align::Center } else { gtk::Align::Fill },
+            set_orientation: gtk::Orientation::Vertical,
+
+            gtk::Image {
+                set_icon_name: Some("action-unavailable-symbolic"),
+                set_align: gtk::Align::Center,
+                set_pixel_size: 64,
+                #[watch]
+                set_visible: model.displays.is_empty(),
+            },
+
+            gtk::Label {
+                set_markup: &format!("<b><span size='large'>{}</span></b>", fl!(I18N, "displays-missing")),
+                #[watch]
+                set_visible: model.displays.is_empty(),
+            },
+
             #[local_ref]
             displays_list -> gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
