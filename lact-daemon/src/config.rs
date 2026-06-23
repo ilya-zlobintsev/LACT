@@ -50,7 +50,7 @@ impl Default for Config {
             profiles: IndexMap::new(),
             current_profile: None,
             auto_switch_profiles: false,
-            version: 5,
+            version: 6,
         }
     }
 }
@@ -223,6 +223,18 @@ impl Config {
                         && self.daemon.admin_user.is_none()
                     {
                         self.daemon.admin_user = Some(admin_user);
+                    }
+                }
+                6 => {
+                    for (id, gpu) in gpu_configs {
+                        if id.starts_with(VENDOR_NVIDIA)
+                            && let Some(target_temperature) =
+                                gpu.pmfw_options.target_temperature.take()
+                        {
+                            gpu.nvidia_thermal_options
+                                .target_temperature
+                                .get_or_insert(target_temperature);
+                        }
                     }
                 }
                 _ => break,
@@ -474,6 +486,7 @@ mod tests {
             fan_control_enabled: false,
             fan_control_settings: None,
             pmfw_options: PmfwOptions::default(),
+            nvidia_thermal_options: Default::default(),
             power_cap: None,
             performance_level: None,
             clocks_configuration: ClocksConfiguration::default(),
@@ -502,6 +515,10 @@ mod tests {
                             max_memory_clock: Some(10_000),
                             ..Default::default()
                         },
+                        pmfw_options: PmfwOptions {
+                            target_temperature: Some(70),
+                            ..Default::default()
+                        },
                         ..Default::default()
                     },
                 ),
@@ -511,6 +528,10 @@ mod tests {
                         clocks_configuration: ClocksConfiguration {
                             max_core_clock: Some(1500),
                             max_memory_clock: Some(920),
+                            ..Default::default()
+                        },
+                        pmfw_options: PmfwOptions {
+                            target_temperature: Some(83),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -550,6 +571,33 @@ mod tests {
                 .clocks_configuration
                 .max_memory_clock,
             Some(920),
+        );
+        assert_eq!(
+            config
+                .gpus
+                .get("10DE:2704-1462:5110-0000:09:00.0")
+                .unwrap()
+                .pmfw_options
+                .target_temperature,
+            None,
+        );
+        assert_eq!(
+            config
+                .gpus
+                .get("10DE:2704-1462:5110-0000:09:00.0")
+                .unwrap()
+                .nvidia_thermal_options
+                .target_temperature,
+            Some(70),
+        );
+        assert_eq!(
+            config
+                .gpus
+                .get("1002:687F-1043:0555-0000:0b:00.0")
+                .unwrap()
+                .pmfw_options
+                .target_temperature,
+            Some(83),
         );
     }
 }

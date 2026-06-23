@@ -556,6 +556,7 @@ impl<'a> Handler {
                 config.fan_control_settings = Some(settings);
             }
             config.pmfw_options = opts.pmfw;
+            config.nvidia_thermal_options = opts.nvidia_thermal;
         })
         .await
         .context("Failed to edit GPU config")
@@ -567,6 +568,7 @@ impl<'a> Handler {
 
         self.edit_gpu_config(id.to_owned(), |config| {
             config.pmfw_options = PmfwOptions::default();
+            config.nvidia_thermal_options = Default::default();
         })
         .await
         .context("Failed to edit GPU config and reset pmfw")

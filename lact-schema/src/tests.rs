@@ -1,4 +1,6 @@
-use crate::{FanControlMode, FanOptions, PmfwOptions, Pong, Request, Response};
+use crate::{
+    FanControlMode, FanOptions, NvidiaThermalOptions, PmfwOptions, Pong, Request, Response,
+};
 use anyhow::anyhow;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -81,6 +83,7 @@ fn set_fan_clocks() {
         static_speed: None,
         curve: Some(BTreeMap::from([(30, 30.0), (50, 50.0)])),
         pmfw: PmfwOptions::default(),
+        nvidia_thermal: NvidiaThermalOptions::default(),
         spindown_delay_ms: None,
         change_threshold: None,
     });

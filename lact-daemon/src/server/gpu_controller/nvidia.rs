@@ -21,8 +21,8 @@ use indexmap::IndexMap;
 use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
     DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
-    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaVfPoint,
-    PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType,
+    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaThermalInfo,
+    NvidiaVfPoint, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType,
     ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
@@ -818,10 +818,10 @@ impl GpuController for NvidiaGpuController {
                 pwm_max: fan_range.map(|(_, max)| (f64::from(max) * 2.55).round() as u32),
                 pwm_min: fan_range.map(|(min, _)| (f64::from(min) * 2.55).round() as u32),
                 temperature_range: None,
-                pmfw_info: PmfwInfo {
-                    target_temp: self.get_target_temp(),
-                    ..Default::default()
-                },
+                pmfw_info: Default::default(),
+            },
+            nvidia_thermal_info: NvidiaThermalInfo {
+                target_temp: self.get_target_temp(),
             },
             power: PowerStats {
                 average: None,
@@ -1145,7 +1145,7 @@ impl GpuController for NvidiaGpuController {
                     .context("Could not reset fan control")?;
             }
 
-            if let Some(target_temp) = config.pmfw_options.target_temperature
+            if let Some(target_temp) = config.nvidia_thermal_options.target_temperature
                 && let Some(info) = self.get_target_temp()
                 && let Some((min, max)) = info.allowed_range
             {
