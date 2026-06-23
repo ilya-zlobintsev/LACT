@@ -1451,11 +1451,13 @@ impl GpuController for AmdGpuController {
 
                 let mut parts = link_settings.split_ascii_whitespace().skip(1);
 
-                *lanes = parts
-                    .next()
-                    .context("Missing lane count")?
-                    .parse::<u16>()
-                    .context("Invalid lane count")?;
+                *lanes = Some(
+                    parts
+                        .next()
+                        .context("Missing lane count")?
+                        .parse::<u16>()
+                        .context("Invalid lane count")?,
+                );
 
                 let bw_enum = parts
                     .next()
@@ -1464,7 +1466,7 @@ impl GpuController for AmdGpuController {
                     .and_then(|value| u32::from_str_radix(value, 16).ok())
                     .context("Invalid bandwidth value")?;
 
-                *bandwidth = crate::server::display::dp_rate_to_bandwidth(bw_enum);
+                *bandwidth = Some(crate::server::display::dp_rate_to_bandwidth(bw_enum));
             }
         }
 

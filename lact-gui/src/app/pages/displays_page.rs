@@ -175,13 +175,19 @@ impl DisplayComponent {
                 if embedded {
                     text.push_str(" (Internal)")
                 }
-                let lane_rate = bandwidth as f64 / 1000.0;
-                write!(
-                    text,
-                    " @ {} Gbps ({lane_rate} Gbps x {lanes} lanes)",
-                    lane_rate * lanes as f64
-                )
-                .unwrap();
+
+                if let Some(bandwidth) = bandwidth
+                    && let Some(lanes) = lanes
+                {
+                    let lane_rate = bandwidth as f64 / 1000.0;
+                    write!(
+                        text,
+                        " @ {} Gbps ({lane_rate} Gbps x {lanes} lanes)",
+                        lane_rate * lanes as f64
+                    )
+                    .unwrap();
+                }
+
                 text
             }
             DisplayConnector::Hdmi => "HDMI".to_owned(),
