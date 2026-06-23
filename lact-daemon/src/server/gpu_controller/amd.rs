@@ -1098,6 +1098,8 @@ impl GpuController for AmdGpuController {
         }
     }
 
+    fn reset_nvidia_target_temp(&self) {}
+
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
         let debugfs = self.debugfs_path().context("DebugFS not found")?;
         fs::read(debugfs.join("amdgpu_vbios")).context("Could not read VBIOS file")

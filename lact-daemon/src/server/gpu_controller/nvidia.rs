@@ -972,7 +972,9 @@ impl GpuController for NvidiaGpuController {
         Err(anyhow!("Not supported on Nvidia"))
     }
 
-    fn reset_pmfw_settings(&self) {
+    fn reset_pmfw_settings(&self) {}
+
+    fn reset_nvidia_target_temp(&self) {
         if let Some(initial) = self.initial_target_temp {
             let device = self.device();
             if let Ok(current) = device.temperature_threshold(TemperatureThreshold::AcousticCurr)

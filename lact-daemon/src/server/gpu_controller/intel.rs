@@ -778,6 +778,8 @@ impl GpuController for IntelGpuController {
 
     fn reset_pmfw_settings(&self) {}
 
+    fn reset_nvidia_target_temp(&self) {}
+
     #[allow(clippy::cast_possible_truncation)]
     fn reset_clocks(&self) -> anyhow::Result<()> {
         if let Some(rp0) = self.read_freq(FrequencyType::Rp0)

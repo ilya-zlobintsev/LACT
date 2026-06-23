@@ -155,7 +155,7 @@ impl relm4::Component for ThermalsPage {
                     set_hexpand: true,
                     add_css_class: "destructive-action",
                     connect_clicked => move |_| {
-                        APP_BROKER.send(AppMsg::ResetPmfw);
+                        APP_BROKER.send(AppMsg::ResetNvidiaTargetTemp);
                     }
                 },
 

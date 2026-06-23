@@ -86,6 +86,8 @@ pub trait GpuController {
 
     fn reset_pmfw_settings(&self);
 
+    fn reset_nvidia_target_temp(&self);
+
     fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
         async {}.boxed_local()
     }
