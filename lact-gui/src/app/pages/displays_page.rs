@@ -128,6 +128,8 @@ impl relm4::factory::FactoryComponent for DisplayComponent {
                         format!("{width}cm x {height}cm")
                     }).unwrap_or_default(),
                     set_selectable: true,
+                } -> physical_size_row: gtk::FlowBoxChild {
+                    #[watch]
                     set_visible: self.info.size.is_some(),
                 },
 
@@ -147,7 +149,31 @@ impl relm4::factory::FactoryComponent for DisplayComponent {
                         }
                     }).unwrap_or_default(),
                     set_selectable: true,
+                } -> manufacture_date_row: gtk::FlowBoxChild {
+                    #[watch]
                     set_visible: self.info.manufacture_date.is_some(),
+                },
+
+                append_child = &InfoRow {
+                    set_name: fl!(I18N, "display-bit-depth"),
+                    set_value: self.info.bit_depth.map(|depth| {
+                        format!("{depth} bpc")
+                    }).unwrap_or_default(),
+                    set_selectable: true,
+                } -> bit_depth_row: gtk::FlowBoxChild {
+                    #[watch]
+                    set_visible: self.info.bit_depth.is_some(),
+                },
+
+                append_child = &InfoRow {
+                    set_name: fl!(I18N, "display-refresh-rate-range"),
+                    set_value: self.info.refresh_rate_range.map(|range| {
+                        format!("{}-{} Hz", range.min_hz, range.max_hz)
+                    }).unwrap_or_default(),
+                    set_selectable: true,
+                } -> refresh_rate_range_row: gtk::FlowBoxChild {
+                    #[watch]
+                    set_visible: self.info.refresh_rate_range.is_some(),
                 },
 
             },

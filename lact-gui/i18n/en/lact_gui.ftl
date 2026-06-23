@@ -240,6 +240,8 @@ display-model = Model
 display-physical-size = Physical Size
 display-connection = Connection
 display-manufacture-date = Manufacture Date
+display-bit-depth = Bit Depth
+display-refresh-rate-range = Refresh Range
 displays-missing = No Displays Detected
 
 settings-profile = Settings Profile

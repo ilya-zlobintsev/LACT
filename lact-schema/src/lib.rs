@@ -880,12 +880,20 @@ pub struct DisplayInfo {
     pub size: Option<(u32, u32)>,
     pub connector_type: DisplayConnector,
     pub connector_id: u32,
+    pub bit_depth: Option<u8>,
+    pub refresh_rate_range: Option<DisplayRefreshRateRange>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct DisplayManufactureDate {
     pub year: u16,
     pub week: u8,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct DisplayRefreshRateRange {
+    pub min_hz: u16,
+    pub max_hz: u16,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

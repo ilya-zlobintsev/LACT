@@ -1,5 +1,7 @@
 use anyhow::Context;
-use lact_schema::{DisplayConnector, DisplayInfo, DisplayManufactureDate, DisplaysInfo};
+use lact_schema::{
+    DisplayConnector, DisplayInfo, DisplayManufactureDate, DisplayRefreshRateRange, DisplaysInfo,
+};
 use std::{collections::BTreeMap, fs, path::Path};
 use tracing::warn;
 
@@ -114,8 +116,28 @@ fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
             .map(|(width, height)| (width as u32, height as u32)),
         connector_type,
         connector_id,
+        bit_depth: edid
+            .video_input_digital()
+            .and_then(|input| input.color_bit_depth)
+            .and_then(|depth| depth.try_into().ok()),
+        refresh_rate_range: get_refresh_rate_range(&edid),
     };
     Ok((connector.to_owned(), info))
+}
+
+fn get_refresh_rate_range(
+    edid: &libdisplay_info::edid::Edid<'_>,
+) -> Option<DisplayRefreshRateRange> {
+    edid.display_descriptors()
+        .iter()
+        .find_map(libdisplay_info::edid::DisplayDescriptorRef::range_limits)
+        .and_then(|range| {
+            (range.min_vert_rate_hz > 0 && range.max_vert_rate_hz >= range.min_vert_rate_hz)
+                .then_some(DisplayRefreshRateRange {
+                    min_hz: range.min_vert_rate_hz.try_into().ok()?,
+                    max_hz: range.max_vert_rate_hz.try_into().ok()?,
+                })
+        })
 }
 
 pub fn dp_rate_to_bandwidth(value: u32) -> u32 {
