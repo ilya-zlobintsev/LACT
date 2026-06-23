@@ -83,13 +83,13 @@ fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
         .0
     {
         "DP" => DisplayConnector::DisplayPort {
-            lanes: 0,
-            bandwidth: 0,
+            lanes: None,
+            bandwidth: None,
             embedded: false,
         },
         "eDP" => DisplayConnector::DisplayPort {
-            lanes: 0,
-            bandwidth: 0,
+            lanes: None,
+            bandwidth: None,
             embedded: true,
         },
         "HDMI" => DisplayConnector::Hdmi,
