@@ -26,6 +26,25 @@ impl relm4::SimpleComponent for DisplaysPage {
 
     view! {
         gtk::Box {
+            set_expand: true,
+            #[watch]
+            set_align: if model.displays.is_empty() { gtk::Align::Center } else { gtk::Align::Fill },
+            set_orientation: gtk::Orientation::Vertical,
+
+            gtk::Image {
+                set_icon_name: Some("action-unavailable-symbolic"),
+                set_align: gtk::Align::Center,
+                set_pixel_size: 64,
+                #[watch]
+                set_visible: model.displays.is_empty(),
+            },
+
+            gtk::Label {
+                set_markup: &format!("<b><span size='large'>{}</span></b>", fl!(I18N, "displays-missing")),
+                #[watch]
+                set_visible: model.displays.is_empty(),
+            },
+
             #[local_ref]
             displays_list -> gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
@@ -156,13 +175,19 @@ impl DisplayComponent {
                 if embedded {
                     text.push_str(" (Internal)")
                 }
-                let lane_rate = bandwidth as f64 / 1000.0;
-                write!(
-                    text,
-                    " @ {} Gbps ({lane_rate} Gbps x {lanes} lanes)",
-                    lane_rate * lanes as f64
-                )
-                .unwrap();
+
+                if let Some(bandwidth) = bandwidth
+                    && let Some(lanes) = lanes
+                {
+                    let lane_rate = bandwidth as f64 / 1000.0;
+                    write!(
+                        text,
+                        " @ {} Gbps ({lane_rate} Gbps x {lanes} lanes)",
+                        lane_rate * lanes as f64
+                    )
+                    .unwrap();
+                }
+
                 text
             }
             DisplayConnector::Hdmi => "HDMI".to_owned(),

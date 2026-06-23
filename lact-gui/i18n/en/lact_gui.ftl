@@ -240,6 +240,7 @@ display-model = Model
 display-physical-size = Physical Size
 display-connection = Connection
 display-manufacture-date = Manufacture Date
+displays-missing = No Displays Detected
 
 settings-profile = Settings Profile
 auto-switch-profiles = Switch automatically

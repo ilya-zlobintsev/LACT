@@ -68,6 +68,8 @@ pub struct NvidiaGpuController {
     last_applied_vram_locked_clocks: RefCell<Option<(u32, u32)>>,
     // Check if reset is needed to avoid unnecessarily going to nvapi
     vf_curve_written: Cell<bool>,
+    // Used as the initial value on cards which do not report base VF points themselves (Turing)
+    base_vf_curve: RefCell<Option<Vec<NvidiaVfPoint>>>,
 }
 
 impl NvidiaGpuController {
@@ -142,6 +144,7 @@ impl NvidiaGpuController {
             last_applied_gpu_locked_clocks: RefCell::new(None),
             last_applied_vram_locked_clocks: RefCell::new(None),
             vf_curve_written: Cell::new(false),
+            base_vf_curve: RefCell::new(None),
         })
     }
 
@@ -389,6 +392,7 @@ impl NvidiaGpuController {
                     nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)?;
             }
 
+            let base_vf_curve = self.base_vf_curve.borrow();
             let point_count = point_count_from_mask(info.vf_points_mask);
             let mut curve = Vec::with_capacity(point_count);
 
@@ -401,12 +405,31 @@ impl NvidiaGpuController {
                     continue;
                 }
 
+                let (base_freq, base_voltage) = if status.b_vf_tuple_base_supported == 0 {
+                    // If vf_tuple_base is not supported, base_vf_curve must be populated before any write
+                    // Otherwise, current values are base
+                    if let Some(base_curve) = &*base_vf_curve {
+                        let base_point = base_curve
+                            .iter()
+                            .find(|point| point.index as usize == i)
+                            .expect("Mismatched base point");
+                        (base_point.base_freq, base_point.base_voltage)
+                    } else {
+                        (point.freq_khz / 1000, point.voltage_uv / 1000)
+                    }
+                } else {
+                    (
+                        point.vf_tuple_base.freq_khz / 1000,
+                        point.vf_tuple_base.voltage_uv / 1000,
+                    )
+                };
+
                 curve.push(NvidiaVfPoint {
                     index: u8::try_from(i).expect("max 255 points"),
                     freq: point.freq_khz / 1000,
                     voltage: point.voltage_uv / 1000,
-                    base_freq: point.vf_tuple_base.freq_khz / 1000,
-                    base_voltage: point.vf_tuple_base.voltage_uv / 1000,
+                    base_freq,
+                    base_voltage,
                 });
             }
 
@@ -433,6 +456,17 @@ impl NvidiaGpuController {
             .clock_offset(Clock::Graphics, PerformanceState::Zero)
             .context("Could not get offset info")?;
 
+        // If a base curve is needed, we should get a clean unmodified version
+        if current_vf_curve.b_vf_tuple_base_supported == 0 && self.base_vf_curve.borrow().is_none()
+        {
+            self.reset_vf_curve().context("Could not reset curve")?;
+            self.base_vf_curve.replace(Some(self.get_vf_curve()?));
+
+            return self.apply_vf_curve(curve);
+        }
+
+        let base_vf_curve = self.base_vf_curve.borrow();
+
         for (i, configured_point) in curve {
             let i = *i as usize;
 
@@ -454,14 +488,19 @@ impl NvidiaGpuController {
             }
 
             if let Some(configured_mhz) = configured_point.clockspeed {
-                let offset_khz =
-                    configured_mhz * 1000 - current_point.vf_tuple_base.freq_khz.cast_signed();
+                let base_freq: i32 = if let Some(base_points) = &*base_vf_curve {
+                    let base_point = base_points
+                        .iter()
+                        .find(|point| point.index as usize == i)
+                        .expect("Mismatched base point");
+                    base_point.base_freq.cast_signed() * 1000
+                } else {
+                    current_point.vf_tuple_base.freq_khz.try_into()?
+                };
+                let offset_khz = configured_mhz * 1000 - base_freq;
                 let offset_mhz = offset_khz / 1000;
 
-                let min_offset = cmp::min(
-                    offset_info.min_clock_offset_mhz,
-                    -((current_point.vf_tuple_base.freq_khz / 1000).cast_signed()),
-                );
+                let min_offset = cmp::min(offset_info.min_clock_offset_mhz, -(base_freq / 1000));
 
                 if !(min_offset..=offset_info.max_clock_offset_mhz).contains(&offset_mhz) {
                     bail!("Configured offset {offset_mhz}MHz is outside of the allowed range",);
@@ -1292,9 +1331,10 @@ impl GpuController for NvidiaGpuController {
                         {
                             match handle.get_dp_link_config(display_id) {
                                 Ok(params) => {
-                                    *lanes = params.laneCount.try_into()?;
-                                    *bandwidth =
-                                        crate::server::display::dp_rate_to_bandwidth(params.linkBW);
+                                    *lanes = Some(params.laneCount.try_into()?);
+                                    *bandwidth = Some(
+                                        crate::server::display::dp_rate_to_bandwidth(params.linkBW),
+                                    );
                                 }
                                 Err(err) => {
                                     warn!("could not fetch DP info for display {key}: {err:#}");
