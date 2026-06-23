@@ -8,8 +8,8 @@ use crate::{
         NvApi,
         common::{fan_control::FanCurveExt, resolve_process_name},
         nvidia::nvapi::{
-            CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointControlV1,
-            ClockClientClkVfPointInfoV1, ClockClientClkVfPointStatusV3,
+            CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1,
+            ClockClientClkVfPointsInfoV1, ClockClientClkVfPointsStatusV3,
         },
     },
 };
@@ -71,6 +71,8 @@ pub struct NvidiaGpuController {
     last_applied_vram_locked_clocks: RefCell<Option<(u32, u32)>>,
     // Check if reset is needed to avoid unnecessarily going to nvapi
     vf_curve_written: Cell<bool>,
+    // Used as the initial value on cards which do not report base VF points themselves (Turing)
+    base_vf_curve: RefCell<Option<Vec<NvidiaVfPoint>>>,
 }
 
 impl NvidiaGpuController {
@@ -145,6 +147,7 @@ impl NvidiaGpuController {
             last_applied_gpu_locked_clocks: RefCell::new(None),
             last_applied_vram_locked_clocks: RefCell::new(None),
             vf_curve_written: Cell::new(false),
+            base_vf_curve: RefCell::new(None),
         })
     }
 
@@ -385,57 +388,15 @@ impl NvidiaGpuController {
         if let Some((nvapi, handle)) = self.nvapi.as_ref() {
             let info;
             let status;
-            let mut control = None;
 
             unsafe {
                 info = nvapi.clock_client_clk_vf_points_get_info(*handle)?;
                 status =
                     nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)?;
-
-                if status.b_vf_tuple_base_supported == 0 {
-                    control =
-                        Some(nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)?);
-                }
             }
 
-            let point_count = point_count_from_mask(info.vf_points_mask);
-            let mut curve = Vec::with_capacity(point_count);
-
-            for i in 0..point_count {
-                let point = status.vf_points[i];
-                let point_info = info.vf_points[i];
-
-                // Only report configurable and voltage-based points
-                if !vf_curve_point_is_editable(point_info) {
-                    continue;
-                }
-
-                let (base_freq, base_voltage) = if status.b_vf_tuple_base_supported == 0 {
-                    let control = control.as_ref().context("VF control needs to be present")?;
-
-                    let base_freq: u32 =
-                        unsafe { vf_curve_base_freq_khz_from_control(point, control.vf_points[i]) }
-                            .try_into()
-                            .context("Invalid base frequency")?;
-
-                    (base_freq / 1000, point.voltage_uv / 1000)
-                } else {
-                    (
-                        point.vf_tuple_base.freq_khz / 1000,
-                        point.vf_tuple_base.voltage_uv / 1000,
-                    )
-                };
-
-                curve.push(NvidiaVfPoint {
-                    index: u8::try_from(i).expect("max 255 points"),
-                    freq: point.freq_khz / 1000,
-                    voltage: point.voltage_uv / 1000,
-                    base_freq,
-                    base_voltage,
-                });
-            }
-
-            Ok(curve)
+            let base_vf_curve = self.base_vf_curve.borrow();
+            Ok(vf_points_to_curve(&info, &status, base_vf_curve.as_deref()))
         } else {
             Err(anyhow!("NvAPI not available"))
         }
@@ -458,6 +419,12 @@ impl NvidiaGpuController {
             .clock_offset(Clock::Graphics, PerformanceState::Zero)
             .context("Could not get offset info")?;
 
+        let mut base_vf_curve = self.base_vf_curve.borrow_mut();
+        // Save base curve for devices which do not report base points
+        if current_vf_curve.b_vf_tuple_base_supported == 0 && base_vf_curve.is_none() {
+            *base_vf_curve = Some(vf_points_to_curve(&info, &current_vf_curve, None));
+        }
+
         for (i, configured_point) in curve {
             let i = *i as usize;
 
@@ -479,8 +446,12 @@ impl NvidiaGpuController {
             }
 
             if let Some(configured_mhz) = configured_point.clockspeed {
-                let base_freq: i32 = if current_vf_curve.b_vf_tuple_base_supported == 0 {
-                    unsafe { vf_curve_base_freq_khz_from_control(current_point, *point_control) }
+                let base_freq: i32 = if let Some(base_points) = &*base_vf_curve {
+                    let base_point = base_points
+                        .iter()
+                        .find(|point| point.index as usize == i)
+                        .expect("Mismatched base point");
+                    base_point.base_freq.cast_signed() * 1000
                 } else {
                     current_point.vf_tuple_base.freq_khz.try_into()?
                 };
@@ -532,15 +503,6 @@ impl NvidiaGpuController {
 
 fn vf_curve_point_is_editable(point: ClockClientClkVfPointInfoV1) -> bool {
     point.b_voltage_based == 1 && point.type_ == CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG
-}
-
-/// Unsafe union access, point needs to be an editable point
-unsafe fn vf_curve_base_freq_khz_from_control(
-    point: ClockClientClkVfPointStatusV3,
-    control_point: ClockClientClkVfPointControlV1,
-) -> i32 {
-    let offset = unsafe { control_point.data.prog.freq_offset_khz };
-    point.freq_khz as i32 - offset
 }
 
 fn point_count_from_mask(mask: [u32; 8]) -> usize {
@@ -1300,4 +1262,52 @@ impl GpuController for NvidiaGpuController {
             supported_util_types: SUPPORTED_UTIL_TYPES.iter().copied().collect(),
         })
     }
+}
+
+fn vf_points_to_curve(
+    info: &ClockClientClkVfPointsInfoV1,
+    status: &ClockClientClkVfPointsStatusV3,
+    base_vf_curve: Option<&[NvidiaVfPoint]>,
+) -> Vec<NvidiaVfPoint> {
+    let point_count = point_count_from_mask(info.vf_points_mask);
+    let mut curve = Vec::with_capacity(point_count);
+
+    for i in 0..point_count {
+        let point = status.vf_points[i];
+        let point_info = info.vf_points[i];
+
+        // Only report configurable and voltage-based points
+        if !vf_curve_point_is_editable(point_info) {
+            continue;
+        }
+
+        let (base_freq, base_voltage) = if status.b_vf_tuple_base_supported == 0 {
+            // If vf_tuple_base is not supported, base_vf_curve must be populated before any write
+            // Otherwise, current values are base
+            if let Some(base_curve) = base_vf_curve {
+                let base_point = base_curve
+                    .iter()
+                    .find(|point| point.index as usize == i)
+                    .expect("Mismatched base point");
+                (base_point.base_freq, base_point.base_voltage)
+            } else {
+                (point.freq_khz / 1000, point.voltage_uv / 1000)
+            }
+        } else {
+            (
+                point.vf_tuple_base.freq_khz / 1000,
+                point.vf_tuple_base.voltage_uv / 1000,
+            )
+        };
+
+        curve.push(NvidiaVfPoint {
+            index: u8::try_from(i).expect("max 255 points"),
+            freq: point.freq_khz / 1000,
+            voltage: point.voltage_uv / 1000,
+            base_freq,
+            base_voltage,
+        });
+    }
+
+    curve
 }
