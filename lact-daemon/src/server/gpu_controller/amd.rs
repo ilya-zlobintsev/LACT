@@ -1354,6 +1354,10 @@ impl GpuController for AmdGpuController {
                     (Ok(min), Ok(max)) => {
                         let clamped_cap = configured_cap.clamp(min, max);
 
+                        #[expect(
+                            clippy::float_cmp,
+                            reason = "we care if the value was chagned at all"
+                        )]
                         if clamped_cap != configured_cap {
                             warn!(
                                 "Power cap {configured_cap}W was outside of the allowed range, clamped to {clamped_cap}W"
