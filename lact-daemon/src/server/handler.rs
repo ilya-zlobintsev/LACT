@@ -3,6 +3,8 @@ use super::{
     profiles::ProfileWatcherCommand,
     system::{self},
 };
+#[cfg(feature = "display-info")]
+use crate::server::display;
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
@@ -14,9 +16,9 @@ use amdgpu_sysfs::gpu_handle::{
 };
 use anyhow::{Context, anyhow, bail};
 use lact_schema::{
-    ClocksInfo, DeviceApiInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode,
-    FanOptions, PmfwOptions, PowerStates, ProcessList, ProfileRule, ProfileWatcherState,
-    ProfilesInfo,
+    ClocksInfo, DeviceApiInfo, DeviceInfo, DeviceListEntry, DeviceStats, DisplaysInfo,
+    FanControlMode, FanOptions, PmfwOptions, PowerStates, ProcessList, ProfileRule,
+    ProfileWatcherState, ProfilesInfo,
     config::{
         FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks, default_fan_static_speed,
     },
@@ -461,6 +463,24 @@ impl<'a> Handler {
         let config = self.config.read().await;
         let gpu_config = config.gpus()?.get(id);
         self.controller_by_id(id).await?.get_clocks_info(gpu_config)
+    }
+
+    #[cfg(feature = "display-info")]
+    pub async fn get_displays_info(&'a self, id: &str) -> anyhow::Result<DisplaysInfo> {
+        let controller = self.controller_by_id(id).await?;
+        let common = controller.controller_info();
+
+        let mut info = display::get_base_displays_info(&common.sysfs_path)?;
+        if let Err(err) = controller.populate_displays_info(&mut info) {
+            warn!("failed to populate displays info: {err:#}");
+        }
+
+        Ok(info)
+    }
+
+    #[cfg(not(feature = "display-info"))]
+    pub async fn get_displays_info(&'a self, _id: &str) -> anyhow::Result<DisplaysInfo> {
+        Err(anyhow!("Daemon is compiled without display info support"))
     }
 
     pub async fn set_fan_control(&'a self, opts: FanOptions<'_>) -> anyhow::Result<u64> {

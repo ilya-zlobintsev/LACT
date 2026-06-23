@@ -1,3 +1,5 @@
+#[cfg(feature = "display-info")]
+mod display;
 pub mod gpu_controller;
 pub mod handler;
 mod metrics;
@@ -164,6 +166,7 @@ async fn handle_request<'a>(
         Request::DeviceApiInfo { id } => ok_response(handler.get_device_api_info(id).await?),
         Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id).await?),
         Request::DeviceClocksInfo { id } => ok_response(handler.get_clocks_info(id).await?),
+        Request::DisplaysInfo { id } => ok_response(handler.get_displays_info(id).await?),
         Request::DevicePowerProfileModes { id } => {
             ok_response(handler.get_power_profile_modes(id).await?)
         }

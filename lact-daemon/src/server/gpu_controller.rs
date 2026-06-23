@@ -97,6 +97,11 @@ pub trait GpuController {
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>>;
 
     fn process_list(&self) -> anyhow::Result<ProcessList>;
+
+    #[cfg(feature = "display-info")]
+    fn populate_displays_info(&self, _info: &mut lact_schema::DisplaysInfo) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug)]

@@ -24,6 +24,8 @@ use lact_schema::{
     VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
+#[cfg(feature = "display-info")]
+use lact_schema::{DisplayConnector, DisplaysInfo};
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, HW_IP::HW_IP_TYPE, ThrottlerBit, ThrottlerType};
 use libdrm_amdgpu_sys::{AMDGPU::SENSOR_INFO::SENSOR_TYPE, LibDrmAmdgpu, PCI};
 use std::{
@@ -1416,6 +1418,42 @@ impl GpuController for AmdGpuController {
             DRM_ENGINES,
             &mut last_total_time_map,
         )
+    }
+
+    #[cfg(feature = "display-info")]
+    fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()> {
+        let debugfs = self.debugfs_path().context("Could not get debugfs")?;
+
+        for (connector, info) in &mut info.displays {
+            if let DisplayConnector::DisplayPort {
+                lanes,
+                bandwidth,
+                embedded: _,
+            } = &mut info.connector_type
+            {
+                let link_settings_path = debugfs.join(connector).join("link_settings");
+                let link_settings = fs::read_to_string(link_settings_path)?;
+
+                let mut parts = link_settings.split_ascii_whitespace().skip(1);
+
+                *lanes = parts
+                    .next()
+                    .context("Missing lane count")?
+                    .parse::<u16>()
+                    .context("Invalid lane count")?;
+
+                let bw_enum = parts
+                    .next()
+                    .context("Missing bandwidth")?
+                    .strip_prefix("0x")
+                    .and_then(|value| u32::from_str_radix(value, 16).ok())
+                    .context("Invalid bandwidth value")?;
+
+                *bandwidth = crate::server::display::dp_rate_to_bandwidth(bw_enum);
+            }
+        }
+
+        Ok(())
     }
 }
 

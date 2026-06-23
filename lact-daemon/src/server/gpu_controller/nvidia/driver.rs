@@ -1,20 +1,20 @@
 use std::{
-    ffi::c_void,
     fs::File,
     mem,
-    os::fd::{AsRawFd, RawFd},
+    os::fd::{AsRawFd, OwnedFd, RawFd},
     ptr,
 };
 
 use crate::bindings::nvidia::{
-    NV_ESC_REGISTER_FD, NV_ESC_RM_ALLOC, NV_ESC_RM_CONTROL, NV_IOCTL_MAGIC, NV01_DEVICE_0,
-    NV20_SUBDEVICE_0, NV0080_ALLOC_PARAMETERS, NV2080_ALLOC_PARAMETERS,
-    NV2080_CTRL_CMD_FB_GET_INFO, NV2080_CTRL_CMD_GR_GET_GLOBAL_SM_ORDER,
-    NV2080_CTRL_CMD_GR_GET_ROP_INFO, NV2080_CTRL_FB_GET_INFO_PARAMS, NV2080_CTRL_FB_INFO,
-    NV2080_CTRL_FB_INFO_INDEX_BUS_WIDTH, NV2080_CTRL_FB_INFO_INDEX_L2CACHE_SIZE,
-    NV2080_CTRL_FB_INFO_INDEX_MEMORYINFO_VENDOR_ID, NV2080_CTRL_FB_INFO_INDEX_RAM_TYPE,
-    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ELPIDA, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ESMT,
-    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ETRON, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_HYNIX,
+    DRM_COMMAND_BASE, DRM_IOCTL_BASE, DRM_NVIDIA_GET_DPY_ID_FOR_CONNECTOR_ID, NV_ESC_REGISTER_FD,
+    NV_ESC_RM_ALLOC, NV_ESC_RM_CONTROL, NV_IOCTL_MAGIC, NV01_DEVICE_0, NV20_SUBDEVICE_0,
+    NV0080_ALLOC_PARAMETERS, NV2080_ALLOC_PARAMETERS, NV2080_CTRL_CMD_FB_GET_INFO,
+    NV2080_CTRL_CMD_GR_GET_GLOBAL_SM_ORDER, NV2080_CTRL_CMD_GR_GET_ROP_INFO,
+    NV2080_CTRL_FB_GET_INFO_PARAMS, NV2080_CTRL_FB_INFO, NV2080_CTRL_FB_INFO_INDEX_BUS_WIDTH,
+    NV2080_CTRL_FB_INFO_INDEX_L2CACHE_SIZE, NV2080_CTRL_FB_INFO_INDEX_MEMORYINFO_VENDOR_ID,
+    NV2080_CTRL_FB_INFO_INDEX_RAM_TYPE, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ELPIDA,
+    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ESMT, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ETRON,
+    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_HYNIX,
     NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_MICRON,
     NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_MOSEL, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_NANYA,
     NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_QIMONDA,
@@ -32,30 +32,37 @@ use crate::bindings::nvidia::{
     NV2080_CTRL_FB_INFO_RAM_TYPE_SDDR4, NV2080_CTRL_FB_INFO_RAM_TYPE_SDRAM,
     NV2080_CTRL_FB_INFO_RAM_TYPE_UNKNOWN, NV2080_CTRL_GR_GET_GLOBAL_SM_ORDER_PARAMS,
     NV2080_CTRL_GR_GET_ROP_INFO_PARAMS, NVOS21_PARAMETERS, NVOS54_PARAMETERS, NVOS64_PARAMETERS,
-    NvHandle,
+    NvHandle, NvU32, drm_nvidia_get_dpy_id_for_connector_id_params,
+};
+#[cfg(feature = "display-info")]
+use crate::bindings::nvidia::{
+    NV04_DISPLAY_COMMON, NV0073_CTRL_CMD_DP_GET_LINK_CONFIG, NV0073_CTRL_DP_GET_LINK_CONFIG_PARAMS,
 };
 use anyhow::{Context, bail};
 use lact_schema::RopInfo;
 use nix::ioctl_readwrite;
 
 pub struct DriverHandle {
-    nvidiactl_fd: File,
+    nvidiactl_fd: OwnedFd,
     #[allow(dead_code)]
-    device_fd: File,
+    device_fd: OwnedFd,
 
     client_handle: NvHandle,
     #[allow(dead_code)]
     device_handle: NvHandle,
     subdevice_handle: NvHandle,
+    #[cfg(feature = "display-info")]
+    display_handle: Option<NvHandle>,
 }
 
 impl DriverHandle {
     pub fn open(minor_number: u32) -> anyhow::Result<Self> {
-        let nvidiactl_fd = File::options()
+        let nvidiactl_fd: OwnedFd = File::options()
             .read(true)
             .write(true)
             .open("/dev/nvidiactl")
-            .context("Could not open nvidiactl")?;
+            .context("Could not open nvidiactl")?
+            .into();
 
         let client_handle: NvHandle = unsafe {
             let mut client_request: NVOS21_PARAMETERS = mem::zeroed();
@@ -63,66 +70,55 @@ impl DriverHandle {
             client_request.hObjectNew
         };
 
-        let device_fd = File::options()
+        let device_fd: OwnedFd = File::options()
             .read(true)
             .write(true)
             .open(format!("/dev/nvidia{minor_number}"))
-            .context("Could not open nvidia device")?;
+            .context("Could not open nvidia device")?
+            .into();
 
         let device_handle: NvHandle = unsafe {
             register_fd(device_fd.as_raw_fd(), &mut nvidiactl_fd.as_raw_fd())?;
 
             let mut alloc_params: NV0080_ALLOC_PARAMETERS = mem::zeroed();
             alloc_params.deviceId = minor_number;
-            let mut request = NVOS64_PARAMETERS {
-                hRoot: client_handle,
-                hObjectParent: client_handle,
-                hObjectNew: 0,
-                hClass: NV01_DEVICE_0,
-                pAllocParms: ptr::from_mut(&mut alloc_params).cast::<c_void>(),
-                pRightsRequested: ptr::null_mut(),
-                paramsSize: 0,
-                flags: 0,
-                status: 0,
-            };
 
-            rm_alloc_nvos64(nvidiactl_fd.as_raw_fd(), &raw mut request)?;
-
-            if request.status != 0 {
-                bail!(
-                    "Got error status {} on Nvidia device handle creation",
-                    request.status
-                );
-            }
-
-            request.hObjectNew
+            alloc_object(
+                client_handle,
+                client_handle,
+                NV01_DEVICE_0,
+                Some(&mut alloc_params),
+                nvidiactl_fd.as_raw_fd(),
+            )?
         };
 
         let subdevice_handle: NvHandle = unsafe {
             let mut alloc_params: NV2080_ALLOC_PARAMETERS = mem::zeroed();
 
-            let mut request = NVOS64_PARAMETERS {
-                hRoot: client_handle,
-                hObjectParent: device_handle,
-                hObjectNew: 0,
-                hClass: NV20_SUBDEVICE_0,
-                pAllocParms: ptr::from_mut(&mut alloc_params).cast(),
-                pRightsRequested: ptr::null_mut(),
-                paramsSize: 0,
-                flags: 0,
-                status: 0,
-            };
+            alloc_object(
+                client_handle,
+                device_handle,
+                NV20_SUBDEVICE_0,
+                Some(&mut alloc_params),
+                nvidiactl_fd.as_raw_fd(),
+            )?
+        };
 
-            rm_alloc_nvos64(nvidiactl_fd.as_raw_fd(), &raw mut request)?;
+        #[cfg(feature = "display-info")]
+        let display_handle = unsafe {
+            use tracing::warn;
 
-            if request.status != 0 {
-                bail!(
-                    "Got error status {} on Nvidia subdevice handle creation",
-                    request.status
-                );
-            }
-
-            request.hObjectNew
+            alloc_object::<()>(
+                client_handle,
+                device_handle,
+                NV04_DISPLAY_COMMON,
+                None,
+                nvidiactl_fd.as_raw_fd(),
+            )
+            .inspect_err(|err| {
+                warn!("could not allocate display handle: {err:#}");
+            })
+            .ok()
         };
 
         Ok(Self {
@@ -131,6 +127,8 @@ impl DriverHandle {
             client_handle,
             device_handle,
             subdevice_handle,
+            #[cfg(feature = "display-info")]
+            display_handle,
         })
     }
 
@@ -215,6 +213,35 @@ impl DriverHandle {
         self.get_fb_info(NV2080_CTRL_FB_INFO_INDEX_L2CACHE_SIZE)
     }
 
+    #[cfg(feature = "display-info")]
+    pub fn get_dp_link_config(
+        &self,
+        display_id: u32,
+    ) -> anyhow::Result<NV0073_CTRL_DP_GET_LINK_CONFIG_PARAMS> {
+        let display_obj = self
+            .display_handle
+            .context("Display object not available")?;
+
+        let mut params = NV0073_CTRL_DP_GET_LINK_CONFIG_PARAMS {
+            subDeviceInstance: 0,
+            displayId: display_id,
+            laneCount: 0,
+            linkBW: 0,
+            dp2LinkBW: 0,
+            bFECEnabled: 0,
+        };
+
+        unsafe {
+            self.query_rm_control_on_object(
+                NV0073_CTRL_CMD_DP_GET_LINK_CONFIG,
+                display_obj,
+                &mut params,
+            )?;
+        }
+
+        Ok(params)
+    }
+
     fn get_fb_info(&self, stat_index: u32) -> anyhow::Result<u32> {
         let mut info_list = vec![NV2080_CTRL_FB_INFO {
             index: stat_index,
@@ -225,15 +252,26 @@ impl DriverHandle {
             fbInfoList: info_list.as_mut_ptr().cast(),
         };
 
-        self.query_rm_control(NV2080_CTRL_CMD_FB_GET_INFO, &mut params)?;
+        unsafe {
+            self.query_rm_control(NV2080_CTRL_CMD_FB_GET_INFO, &mut params)?;
+        }
 
         Ok(info_list[0].data)
     }
 
-    fn query_rm_control<T: Copy>(&self, cmd: u32, params: &mut T) -> anyhow::Result<()> {
+    unsafe fn query_rm_control<T: Copy>(&self, cmd: u32, params: &mut T) -> anyhow::Result<()> {
+        unsafe { self.query_rm_control_on_object(cmd, self.subdevice_handle, params) }
+    }
+
+    unsafe fn query_rm_control_on_object<T: Copy>(
+        &self,
+        cmd: u32,
+        object: u32,
+        params: &mut T,
+    ) -> anyhow::Result<()> {
         let mut request = NVOS54_PARAMETERS {
             hClient: self.client_handle,
-            hObject: self.subdevice_handle,
+            hObject: object,
             cmd,
             flags: 0,
             params: ptr::from_mut(params).cast(),
@@ -250,6 +288,50 @@ impl DriverHandle {
 
         Ok(())
     }
+}
+
+#[cfg(feature = "display-info")]
+pub fn connector_id_to_display_id(connector_id: u32, drm_device: RawFd) -> anyhow::Result<u32> {
+    let mut params = drm_nvidia_get_dpy_id_for_connector_id_params {
+        connectorId: connector_id,
+        dpyId: 0,
+    };
+    unsafe {
+        get_dpy_id_for_connector_id(drm_device, &raw mut params)?;
+    }
+    Ok(params.dpyId)
+}
+
+#[allow(unsafe_op_in_unsafe_fn)]
+unsafe fn alloc_object<T>(
+    root: NvU32,
+    parent: NvU32,
+    class: NvU32,
+    alloc_params: Option<&mut T>,
+    nvidiactl_fd: RawFd,
+) -> anyhow::Result<NvU32> {
+    let mut request = NVOS64_PARAMETERS {
+        hRoot: root,
+        hObjectParent: parent,
+        hObjectNew: 0,
+        hClass: class,
+        pAllocParms: alloc_params.map_or(ptr::null_mut(), |params| ptr::from_mut(params).cast()),
+        pRightsRequested: ptr::null_mut(),
+        paramsSize: 0,
+        flags: 0,
+        status: 0,
+    };
+
+    rm_alloc_nvos64(nvidiactl_fd, &raw mut request)?;
+
+    if request.status != 0 {
+        bail!(
+            "Got error status {} on Nvidia object class {class} allocation",
+            request.status
+        );
+    }
+
+    Ok(request.hObjectNew)
 }
 
 ioctl_readwrite!(
@@ -273,4 +355,11 @@ ioctl_readwrite!(
     NV_IOCTL_MAGIC,
     NV_ESC_RM_CONTROL,
     NVOS54_PARAMETERS
+);
+
+ioctl_readwrite!(
+    get_dpy_id_for_connector_id,
+    DRM_IOCTL_BASE,
+    DRM_COMMAND_BASE + DRM_NVIDIA_GET_DPY_ID_FOR_CONNECTOR_ID,
+    drm_nvidia_get_dpy_id_for_connector_id_params
 );
