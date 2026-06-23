@@ -69,6 +69,7 @@ pub enum VfCurveEditorMsg {
     DragStart,
     DragEnd,
     FlattenCurve,
+    FlattenSelection,
     ResetCurve,
 }
 
@@ -253,13 +254,29 @@ impl relm4::Component for VfCurveEditor {
                 popover.unparent();
             },
 
-            gtk::Button {
-                set_label: &fl!(I18N, "vf-curve-flatten-right"),
-                connect_clicked => VfCurveEditorMsg::FlattenCurve,
-                connect_clicked[point_menu] => move |_| {
-                    point_menu.popdown();
-                },
+            gtk::Box {
                 add_css_class: "flat",
+                set_orientation: gtk::Orientation::Vertical,
+
+                gtk::Button {
+                    set_label: &fl!(I18N, "vf-curve-flatten-selection"),
+                    connect_clicked => VfCurveEditorMsg::FlattenSelection,
+                    connect_clicked[point_menu] => move |_| {
+                        point_menu.popdown();
+                    },
+                    add_css_class: "flat",
+                    #[watch]
+                    set_visible: model.selected_range_start.get().is_some() && model.selected_range_end.get().is_some(),
+                },
+
+                gtk::Button {
+                    set_label: &fl!(I18N, "vf-curve-flatten-right"),
+                    connect_clicked => VfCurveEditorMsg::FlattenCurve,
+                    connect_clicked[point_menu] => move |_| {
+                        point_menu.popdown();
+                    },
+                    add_css_class: "flat",
+                },
             },
         }
     }
@@ -365,6 +382,29 @@ impl relm4::Component for VfCurveEditor {
 
                     for point in points.iter_mut().skip(base_point_idx) {
                         point.freq = target_freq;
+                    }
+
+                    APP_BROKER.send(AppMsg::SettingsChanged);
+                }
+            }
+
+            VfCurveEditorMsg::FlattenSelection => {
+                if let Some(base_point_idx) = self.hovered_point.get()
+                    && let Some((selected_volt_start, selected_volt_end)) =
+                        self.get_selected_voltage_range()
+                {
+                    let (start, end) = self.visible_points_range();
+                    let mut points = self.points.borrow_mut();
+                    let points = &mut points[start..end];
+
+                    let target_freq = points[base_point_idx].freq;
+
+                    for point in points.iter_mut() {
+                        if (selected_volt_start..=selected_volt_end)
+                            .contains(&(point.voltage as usize))
+                        {
+                            point.freq = target_freq;
+                        }
                     }
 
                     APP_BROKER.send(AppMsg::SettingsChanged);
@@ -539,7 +579,7 @@ impl VfCurveEditor {
             self.selected_range_end.set(None);
         }
 
-        if let Some((selected_start, selected_end)) = self.get_selected_range() {
+        if let Some((selected_start, selected_end)) = self.get_selected_voltage_range() {
             let x_values = [selected_start, selected_end];
             chart
                 .draw_series(AreaSeries::new(
@@ -556,7 +596,8 @@ impl VfCurveEditor {
                 3,
                 ShapeStyle::from(&colors.success).filled(),
                 &|(i, coord), mut size, mut style| {
-                    if let Some((selected_start, selected_end)) = self.get_selected_range() {
+                    if let Some((selected_start, selected_end)) = self.get_selected_voltage_range()
+                    {
                         let voltage = coord.0 as usize;
                         if selected_start < voltage && voltage < selected_end {
                             style.color = selected_style.to_rgba();
@@ -668,7 +709,7 @@ impl VfCurveEditor {
         self.hovered_point.set(hovered_point);
 
         if let Some(point_idx) = self.dragging_point.get()
-            && let Some((selected_start, selected_end)) = self.get_selected_range()
+            && let Some((selected_start, selected_end)) = self.get_selected_voltage_range()
         {
             let voltage = points[point_idx].voltage as usize;
             if voltage < selected_start || voltage > selected_end {
@@ -694,7 +735,7 @@ impl VfCurveEditor {
                         point.freq = new_freq;
                     }
                 }
-            } else if let Some((selected_start, selected_end)) = self.get_selected_range() {
+            } else if let Some((selected_start, selected_end)) = self.get_selected_voltage_range() {
                 for point in points.iter_mut() {
                     let voltage = point.voltage as usize;
                     if selected_start < voltage && voltage < selected_end {
@@ -723,7 +764,7 @@ impl VfCurveEditor {
         (cmp::min(start, end), cmp::max(end, start))
     }
 
-    fn get_selected_range(&self) -> Option<(usize, usize)> {
+    fn get_selected_voltage_range(&self) -> Option<(usize, usize)> {
         match (
             self.selected_range_start.get(),
             self.selected_range_end.get(),
