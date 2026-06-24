@@ -21,9 +21,9 @@ use indexmap::IndexMap;
 use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
     DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
-    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaVfPoint,
-    PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType,
-    ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
+    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaThermalInfo,
+    NvidiaVfPoint, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList,
+    ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
 use nvml_wrapper::{
@@ -152,6 +152,13 @@ impl NvidiaGpuController {
         self.nvml
             .device_by_pci_bus_id(self.common.pci_slot_name.as_str())
             .expect("Can no longer get device")
+    }
+
+    fn get_nvidia_thermal_info(&self) -> NvidiaThermalInfo {
+        NvidiaThermalInfo {
+            target_temp: self.get_target_temp(),
+            target_temp_default: self.initial_target_temp,
+        }
     }
 
     fn get_target_temp(&self) -> Option<FanInfo> {
@@ -541,6 +548,26 @@ impl NvidiaGpuController {
 
         Ok(())
     }
+
+    fn reset_target_temp(&self) -> anyhow::Result<()> {
+        if let Some(initial) = self.initial_target_temp {
+            let device = self.device();
+
+            let current = device.temperature_threshold(TemperatureThreshold::AcousticCurr)?;
+
+            if current != initial {
+                debug!("resetting target temperature to {initial}");
+                device.set_temperature_threshold(
+                    TemperatureThreshold::AcousticCurr,
+                    initial.cast_signed(),
+                )?;
+            }
+        } else {
+            debug!("no initial target temperature was read, skipping reset");
+        }
+
+        Ok(())
+    }
 }
 
 fn vf_curve_point_is_editable(point: ClockClientClkVfPointInfoV1) -> bool {
@@ -818,11 +845,9 @@ impl GpuController for NvidiaGpuController {
                 pwm_max: fan_range.map(|(_, max)| (f64::from(max) * 2.55).round() as u32),
                 pwm_min: fan_range.map(|(min, _)| (f64::from(min) * 2.55).round() as u32),
                 temperature_range: None,
-                pmfw_info: PmfwInfo {
-                    target_temp: self.get_target_temp(),
-                    ..Default::default()
-                },
+                pmfw_info: PmfwInfo::default(),
             },
+            nvidia_thermal_info: self.get_nvidia_thermal_info(),
             power: PowerStats {
                 average: None,
                 current: device.power_usage().map(|mw| f64::from(mw) / 1000.0).ok(),
@@ -970,23 +995,6 @@ impl GpuController for NvidiaGpuController {
 
     fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable> {
         Err(anyhow!("Not supported on Nvidia"))
-    }
-
-    fn reset_pmfw_settings(&self) {
-        if let Some(initial) = self.initial_target_temp {
-            let device = self.device();
-            if let Ok(current) = device.temperature_threshold(TemperatureThreshold::AcousticCurr)
-                && current != initial
-            {
-                debug!("resetting target temperature to {initial}");
-                if let Err(err) = device.set_temperature_threshold(
-                    TemperatureThreshold::AcousticCurr,
-                    initial.cast_signed(),
-                ) {
-                    warn!("Could not reset target temperature: {err:#}");
-                }
-            }
-        }
     }
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
@@ -1145,20 +1153,23 @@ impl GpuController for NvidiaGpuController {
                     .context("Could not reset fan control")?;
             }
 
-            if let Some(target_temp) = config.pmfw_options.target_temperature
-                && let Some(info) = self.get_target_temp()
-                && let Some((min, max)) = info.allowed_range
+            if let Some(target_temp_info) = self.get_target_temp()
+                && let Some((min, max)) = target_temp_info.allowed_range
             {
-                let target_temp = target_temp.clamp(min, max);
+                if let Some(target_temp) = config.nvidia_thermal_options.target_temperature {
+                    let target_temp = target_temp.clamp(min, max);
 
-                if info.current != target_temp {
-                    debug!("setting target temperature to {target_temp}");
-                    if let Err(err) = device.set_temperature_threshold(
-                        TemperatureThreshold::AcousticCurr,
-                        target_temp.cast_signed(),
-                    ) {
-                        warn!("Could not set target temperature: {err:#}");
+                    if target_temp_info.current != target_temp {
+                        debug!("setting target temperature to {target_temp}");
+                        if let Err(err) = device.set_temperature_threshold(
+                            TemperatureThreshold::AcousticCurr,
+                            target_temp.cast_signed(),
+                        ) {
+                            warn!("Could not set target temperature: {err:#}");
+                        }
                     }
+                } else if let Err(err) = self.reset_target_temp() {
+                    warn!("could not reset target temperature: {err:#}");
                 }
             }
 

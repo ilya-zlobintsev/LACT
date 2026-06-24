@@ -177,6 +177,7 @@ mod benches {
                         speed_min: Some(0),
                         ..Default::default()
                     },
+                    nvidia_thermal_info: Default::default(),
                     performance_level: Some(PerformanceLevel::Auto),
                     power: PowerStats {
                         average: Some(36.0),
