@@ -631,6 +631,7 @@ pub struct PmfwInfo {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct NvidiaThermalInfo {
     pub target_temp: Option<FanInfo>,
+    pub target_temp_default: Option<u32>,
 }
 
 impl NvidiaThermalInfo {

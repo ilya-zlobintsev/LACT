@@ -776,9 +776,7 @@ impl GpuController for IntelGpuController {
         PowerStates { core, vram: vec![] }
     }
 
-    fn reset_pmfw_settings(&self) {}
-
-    fn reset_nvidia_target_temp(&self) {}
+    fn reset_thermal_settings(&self) {}
 
     #[allow(clippy::cast_possible_truncation)]
     fn reset_clocks(&self) -> anyhow::Result<()> {

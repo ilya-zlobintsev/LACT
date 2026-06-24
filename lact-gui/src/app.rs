@@ -825,14 +825,6 @@ impl AppModel {
                     .await?;
                 sender.input(AppMsg::ReloadData { full: false });
             }
-            AppMsg::ResetNvidiaTargetTemp => {
-                let gpu_id = Self::get_selected_gpu_id()?;
-                self.daemon_client.reset_nvidia_target_temp(&gpu_id).await?;
-                self.daemon_client
-                    .confirm_pending_config(ConfirmCommand::Confirm)
-                    .await?;
-                sender.input(AppMsg::ReloadData { full: false });
-            }
             AppMsg::ShowGraphsWindow => {
                 self.graphs_window.emit(GraphsWindowMsg::Show);
             }

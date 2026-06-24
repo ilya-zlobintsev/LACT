@@ -37,9 +37,6 @@ pub enum Request<'a> {
     ResetPmfw {
         id: &'a str,
     },
-    ResetNvidiaTargetTemp {
-        id: &'a str,
-    },
     SetPowerCap {
         id: &'a str,
         cap: Option<f64>,

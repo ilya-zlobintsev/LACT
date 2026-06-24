@@ -19,9 +19,9 @@ use futures::{FutureExt, future::LocalBoxFuture};
 use lact_schema::{
     ActivePowerStates, AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo,
     ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
-    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates,
-    PowerStats, ProcessList, ProcessUtilizationType, RopInfo, TemperatureEntry, VoltageStats,
-    VramStats,
+    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaThermalInfo, PmfwInfo, PowerState,
+    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo, TemperatureEntry,
+    VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
 #[cfg(feature = "display-info")]
@@ -998,7 +998,7 @@ impl GpuController for AmdGpuController {
                     zero_rpm_temperature: self.handle.get_fan_zero_rpm_stop_temperature().ok(),
                 },
             },
-            nvidia_thermal_info: Default::default(),
+            nvidia_thermal_info: NvidiaThermalInfo::default(),
             clockspeed: self.get_clockspeed(metrics),
             voltage: VoltageStats {
                 gpu: self.hw_mon_and_then(HwMon::get_gpu_voltage),
@@ -1071,7 +1071,7 @@ impl GpuController for AmdGpuController {
         Ok(self.handle.get_power_profile_modes()?)
     }
 
-    fn reset_pmfw_settings(&self) {
+    fn reset_thermal_settings(&self) {
         let handle = &self.handle;
         if self.handle.get_fan_target_temperature().is_ok()
             && let Err(err) = handle.reset_fan_target_temperature()
@@ -1097,8 +1097,6 @@ impl GpuController for AmdGpuController {
             warn!("Could not reset minimum pwm: {err:#}");
         }
     }
-
-    fn reset_nvidia_target_temp(&self) {}
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
         let debugfs = self.debugfs_path().context("DebugFS not found")?;

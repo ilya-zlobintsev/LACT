@@ -428,7 +428,7 @@ mod tests {
     use indexmap::IndexMap;
     use insta::assert_yaml_snapshot;
     use lact_schema::{
-        FanControlMode, PmfwOptions,
+        FanControlMode, NvidiaThermalOptions, PmfwOptions,
         config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
     };
     use std::collections::BTreeMap;
@@ -486,7 +486,7 @@ mod tests {
             fan_control_enabled: false,
             fan_control_settings: None,
             pmfw_options: PmfwOptions::default(),
-            nvidia_thermal_options: Default::default(),
+            nvidia_thermal_options: NvidiaThermalOptions::default(),
             power_cap: None,
             performance_level: None,
             clocks_configuration: ClocksConfiguration::default(),

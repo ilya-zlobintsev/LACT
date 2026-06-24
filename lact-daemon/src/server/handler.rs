@@ -564,24 +564,13 @@ impl<'a> Handler {
 
     pub async fn reset_pmfw(&self, id: &str) -> anyhow::Result<u64> {
         info!("Resetting PMFW settings");
-        self.controller_by_id(id).await?.reset_pmfw_settings();
+        self.controller_by_id(id).await?.reset_thermal_settings();
 
         self.edit_gpu_config(id.to_owned(), |config| {
             config.pmfw_options = PmfwOptions::default();
         })
         .await
         .context("Failed to edit GPU config and reset pmfw")
-    }
-
-    pub async fn reset_nvidia_target_temp(&self, id: &str) -> anyhow::Result<u64> {
-        info!("Resetting Nvidia target temperature");
-        self.controller_by_id(id).await?.reset_nvidia_target_temp();
-
-        self.edit_gpu_config(id.to_owned(), |config| {
-            config.nvidia_thermal_options = Default::default();
-        })
-        .await
-        .context("Failed to edit GPU config and reset Nvidia target temperature")
     }
 
     pub async fn set_power_cap(&'a self, id: &str, maybe_cap: Option<f64>) -> anyhow::Result<u64> {
@@ -1198,8 +1187,7 @@ impl<'a> Handler {
                 }
             }
 
-            controller.reset_pmfw_settings();
-            controller.reset_nvidia_target_temp();
+            controller.reset_thermal_settings();
 
             if let Err(err) = controller.apply_config(&GpuConfig::default()).await {
                 error!("Could not reset settings for controller {id}: {err:#}");

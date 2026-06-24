@@ -22,7 +22,6 @@ pub enum AppMsg {
     SettingsChanged,
     ResetClocks,
     ResetPmfw,
-    ResetNvidiaTargetTemp,
     ShowGraphsWindow,
     ShowProcessMonitor,
     DumpVBios,

@@ -13,6 +13,7 @@ use crate::{
     },
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
+use anyhow::anyhow;
 use fan_curve_frame::{
     CurveSetupMsg, DEFAULT_SPEED_RANGE, DEFAULT_TEMP_RANGE, FanCurveFrame, FanCurveFrameMsg,
 };
@@ -34,6 +35,7 @@ use relm4::{
     ComponentController, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
     binding::{Binding, BoolBinding, ConnectBinding, StringBinding},
 };
+use std::sync::Arc;
 use std::{cell::Cell, rc::Rc};
 
 const AUTO_PAGE: &str = "automatic";
@@ -49,8 +51,7 @@ pub struct ThermalsPage {
     has_auto_threshold: bool,
     pmfw_options: PmfwOptions,
     nvidia_thermal_options: NvidiaThermalOptions,
-    pmfw_change_signals: Vec<(glib::Object, SignalHandlerId)>,
-    nvidia_thermal_change_signals: Vec<(glib::Object, SignalHandlerId)>,
+    option_change_signals: Vec<(glib::Object, SignalHandlerId)>,
 
     temperatures: Option<String>,
     fan_speed: Option<String>,
@@ -89,6 +90,7 @@ impl PmfwOptions {
 #[derive(Clone, Default)]
 struct NvidiaThermalOptions {
     target_temperature: OcAdjustment,
+    target_temperaure_default: Option<u32>,
 }
 
 impl NvidiaThermalOptions {
@@ -100,6 +102,7 @@ impl NvidiaThermalOptions {
 #[derive(Debug)]
 pub enum ThermalsPageMsg {
     Update { update: PageUpdate, initial: bool },
+    RestNvidiaOptions,
 }
 
 #[relm4::component(pub)]
@@ -145,7 +148,7 @@ impl relm4::Component for ThermalsPage {
                 }
             },
 
-            PageSection::new(&fl!(I18N, "general-section")) {
+            PageSection::new(&fl!(I18N, "thresholds-section")) {
                 #[watch]
                 set_visible: !adj_is_empty(&model.nvidia_thermal_options.target_temperature),
 
@@ -153,10 +156,7 @@ impl relm4::Component for ThermalsPage {
                     set_label: &fl!(I18N, "reset-button"),
                     set_halign: gtk::Align::End,
                     set_hexpand: true,
-                    add_css_class: "destructive-action",
-                    connect_clicked => move |_| {
-                        APP_BROKER.send(AppMsg::ResetNvidiaTargetTemp);
-                    }
+                    connect_clicked => ThermalsPageMsg::RestNvidiaOptions,
                 },
 
                 #[template]
@@ -419,19 +419,19 @@ impl relm4::Component for ThermalsPage {
                 pmfw_options.zero_rpm.connect_value_notify(|_| {
                     APP_BROKER.send(AppMsg::SettingsChanged);
                 }),
-            )])
-            .collect::<Vec<(glib::Object, SignalHandlerId)>>();
+            )]);
 
-        let nvidia_thermal_change_signals = nvidia_thermal_options
-            .adjustments()
-            .into_iter()
-            .map(|adj| {
+        let nvidia_thermal_change_signals =
+            nvidia_thermal_options.adjustments().into_iter().map(|adj| {
                 let signal = adj.connect_value_changed(|_| {
                     APP_BROKER.send(AppMsg::SettingsChanged);
                 });
                 (adj.clone().upcast(), signal)
-            })
-            .collect::<Vec<(glib::Object, SignalHandlerId)>>();
+            });
+
+        let option_change_signals = pmfw_change_signals
+            .chain(nvidia_thermal_change_signals)
+            .collect();
 
         let fan_curve_frame = FanCurveFrame::builder()
             .launch(pmfw_options.clone())
@@ -443,8 +443,7 @@ impl relm4::Component for ThermalsPage {
             temperatures: None,
             pmfw_options,
             nvidia_thermal_options,
-            pmfw_change_signals,
-            nvidia_thermal_change_signals,
+            option_change_signals,
             custom_control_supported: false,
             has_pmfw: false,
             has_auto_threshold: false,
@@ -551,10 +550,7 @@ impl relm4::Component for ThermalsPage {
                         let pmfw_options = &mut self.pmfw_options;
                         let nvidia_thermal_options = &mut self.nvidia_thermal_options;
 
-                        for (obj, signal) in &self.pmfw_change_signals {
-                            obj.block_signal(signal);
-                        }
-                        for (obj, signal) in &self.nvidia_thermal_change_signals {
+                        for (obj, signal) in &self.option_change_signals {
                             obj.block_signal(signal);
                         }
 
@@ -566,6 +562,8 @@ impl relm4::Component for ThermalsPage {
                             &nvidia_thermal_options.target_temperature,
                             stats.nvidia_thermal_info.target_temp,
                         );
+                        nvidia_thermal_options.target_temperaure_default =
+                            stats.nvidia_thermal_info.target_temp_default;
                         set_fan_info(
                             &pmfw_options.zero_rpm_temperature,
                             info.zero_rpm_temperature,
@@ -578,15 +576,23 @@ impl relm4::Component for ThermalsPage {
                             .zero_rpm
                             .set(info.zero_rpm_enable.unwrap_or(false));
 
-                        for (obj, signal) in &self.pmfw_change_signals {
-                            obj.unblock_signal(signal);
-                        }
-                        for (obj, signal) in &self.nvidia_thermal_change_signals {
+                        for (obj, signal) in &self.option_change_signals {
                             obj.unblock_signal(signal);
                         }
                     }
                 }
             },
+            ThermalsPageMsg::RestNvidiaOptions => {
+                if let Some(default) = self.nvidia_thermal_options.target_temperaure_default {
+                    self.nvidia_thermal_options
+                        .target_temperature
+                        .set_value(default as f64);
+                } else {
+                    APP_BROKER.send(AppMsg::Error(Arc::new(anyhow!(
+                        "No default target temperature present"
+                    ))));
+                }
+            }
         }
 
         self.update_view(widgets, sender);
