@@ -781,8 +781,6 @@ pub struct FanOptions<'a> {
     pub curve: Option<FanCurveMap>,
     #[serde(default)]
     pub pmfw: PmfwOptions,
-    #[serde(default)]
-    pub nvidia_thermal: NvidiaThermalOptions,
     pub spindown_delay_ms: Option<u64>,
     pub change_threshold: Option<u64>,
 }

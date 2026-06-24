@@ -556,7 +556,6 @@ impl<'a> Handler {
                 config.fan_control_settings = Some(settings);
             }
             config.pmfw_options = opts.pmfw;
-            config.nvidia_thermal_options = opts.nvidia_thermal;
         })
         .await
         .context("Failed to edit GPU config")
