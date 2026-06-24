@@ -997,8 +997,6 @@ impl GpuController for NvidiaGpuController {
         Err(anyhow!("Not supported on Nvidia"))
     }
 
-    fn reset_thermal_settings(&self) {}
-
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
         Err(anyhow!("Not supported on Nvidia"))
     }

@@ -564,7 +564,7 @@ impl<'a> Handler {
 
     pub async fn reset_pmfw(&self, id: &str) -> anyhow::Result<u64> {
         info!("Resetting PMFW settings");
-        self.controller_by_id(id).await?.reset_thermal_settings();
+        self.controller_by_id(id).await?.reset_pmfw_settings();
 
         self.edit_gpu_config(id.to_owned(), |config| {
             config.pmfw_options = PmfwOptions::default();
@@ -1187,7 +1187,7 @@ impl<'a> Handler {
                 }
             }
 
-            controller.reset_thermal_settings();
+            controller.reset_pmfw_settings();
 
             if let Err(err) = controller.apply_config(&GpuConfig::default()).await {
                 error!("Could not reset settings for controller {id}: {err:#}");

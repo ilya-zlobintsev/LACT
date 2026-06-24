@@ -84,7 +84,7 @@ pub trait GpuController {
 
     fn get_power_states(&self, gpu_config: Option<&GpuConfig>) -> PowerStates;
 
-    fn reset_thermal_settings(&self);
+    fn reset_pmfw_settings(&self) {}
 
     fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
         async {}.boxed_local()
