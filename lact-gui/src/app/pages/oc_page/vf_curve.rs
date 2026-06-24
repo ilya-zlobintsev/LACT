@@ -53,6 +53,7 @@ pub struct VfCurveEditor {
     hovered_point: Rc<Cell<Option<usize>>>,
     dragging_point: Rc<Cell<Option<usize>>>,
     drag_modifiers: Rc<Cell<gdk::ModifierType>>,
+    // This is stored to avoid updating the range mid-drag
     cached_y_spec: Rc<Cell<Option<(u32, u32)>>>,
 
     selected_range_start: Rc<Cell<Option<usize>>>,
