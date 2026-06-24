@@ -599,6 +599,8 @@ impl AsyncComponent for AppModel {
                     body: format!("{err:#}"),
                     ..Default::default()
                 })));
+
+            root.present();
         }
         self.update_view(widgets, sender);
     }
