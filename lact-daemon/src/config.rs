@@ -487,6 +487,7 @@ mod tests {
             fan_control_settings: None,
             pmfw_options: PmfwOptions::default(),
             nvidia_thermal_options: NvidiaThermalOptions::default(),
+            nvidia_power_mizer_mode: None,
             power_cap: None,
             performance_level: None,
             clocks_configuration: ClocksConfiguration::default(),

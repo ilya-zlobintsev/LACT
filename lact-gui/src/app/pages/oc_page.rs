@@ -16,7 +16,7 @@ use gpu_stats_section::{GpuStatsSection, GpuStatsSectionMsg};
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use indexmap::IndexMap;
 use lact_schema::config;
-use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
+use lact_schema::{ClocksTable, DeviceInfo, NvidiaPowerMizerMode, PowerStates};
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
@@ -138,6 +138,10 @@ impl relm4::Component for OcPage {
                             .emit(PerformanceFrameMsg::PerformanceLevel(
                                 stats.performance_level,
                             ));
+                        self.performance_frame
+                            .emit(PerformanceFrameMsg::NvidiaPowerMizerInfo(
+                                stats.nvidia_power_mizer_info.clone(),
+                            ));
                         sender.input(OcPageMsg::PerformanceLevelChanged);
                     }
                 }
@@ -203,6 +207,10 @@ impl relm4::Component for OcPage {
 impl OcPage {
     pub fn get_performance_level(&self) -> Option<PerformanceLevel> {
         self.performance_frame.model().performance_level()
+    }
+
+    pub fn get_nvidia_power_mizer_mode(&self) -> Option<NvidiaPowerMizerMode> {
+        self.performance_frame.model().nvidia_power_mizer_mode()
     }
 
     pub fn get_power_profile_mode(&self) -> Option<u16> {

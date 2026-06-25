@@ -550,6 +550,7 @@ pub struct DeviceStats {
     pub fan: FanStats,
     #[serde(default, skip_serializing_if = "NvidiaThermalInfo::is_empty")]
     pub nvidia_thermal_info: NvidiaThermalInfo,
+    pub nvidia_power_mizer_info: Option<NvidiaPowerMizerInfo>,
     pub clockspeed: ClockspeedStats,
     pub voltage: VoltageStats,
     pub vram: VramStats,
@@ -638,6 +639,21 @@ impl NvidiaThermalInfo {
     pub fn is_empty(&self) -> bool {
         *self == Self::default()
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum NvidiaPowerMizerMode {
+    Auto,
+    Adaptive,
+    PreferMaximumPerformance,
+    PreferConsistentPerformance,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct NvidiaPowerMizerInfo {
+    pub current: NvidiaPowerMizerMode,
+    pub supported: Vec<NvidiaPowerMizerMode>,
 }
 
 #[skip_serializing_none]
