@@ -21,16 +21,17 @@ use indexmap::IndexMap;
 use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
     DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
-    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaThermalInfo,
-    NvidiaVfPoint, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList,
-    ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
+    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaPowerMizerInfo,
+    NvidiaPowerMizerMode, NvidiaThermalInfo, NvidiaVfPoint, PmfwInfo, PowerState, PowerStates,
+    PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry,
+    VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
 use nvml_wrapper::{
     Device, Nvml,
-    bitmasks::device::ThrottleReasons,
+    bitmasks::device::{PowerMizerModes, ThrottleReasons},
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
-    enums::device::{GpuLockedClocksSetting, UsedGpuMemory},
+    enums::device::{GpuLockedClocksSetting, PowerMizerMode, UsedGpuMemory},
     error::NvmlError,
 };
 use std::{
@@ -159,6 +160,15 @@ impl NvidiaGpuController {
             target_temp: self.get_target_temp(),
             target_temp_default: self.initial_target_temp,
         }
+    }
+
+    fn get_nvidia_power_mizer_info(device: &Device<'_>) -> Option<NvidiaPowerMizerInfo> {
+        let info = device.power_mizer_mode().ok()?;
+
+        Some(NvidiaPowerMizerInfo {
+            current: from_nvml_power_mizer_mode(info.current),
+            supported: supported_power_mizer_modes(info.supported),
+        })
     }
 
     fn get_target_temp(&self) -> Option<FanInfo> {
@@ -580,6 +590,99 @@ fn point_count_from_mask(mask: [u32; 8]) -> usize {
     count
 }
 
+fn from_nvml_power_mizer_mode(mode: PowerMizerMode) -> NvidiaPowerMizerMode {
+    match mode {
+        PowerMizerMode::Auto => NvidiaPowerMizerMode::Auto,
+        PowerMizerMode::Adaptive => NvidiaPowerMizerMode::Adaptive,
+        PowerMizerMode::PreferMaximumPerformance => NvidiaPowerMizerMode::PreferMaximumPerformance,
+        PowerMizerMode::PreferConsistentPerformance => {
+            NvidiaPowerMizerMode::PreferConsistentPerformance
+        }
+    }
+}
+
+fn to_nvml_power_mizer_mode(mode: NvidiaPowerMizerMode) -> PowerMizerMode {
+    match mode {
+        NvidiaPowerMizerMode::Auto => PowerMizerMode::Auto,
+        NvidiaPowerMizerMode::Adaptive => PowerMizerMode::Adaptive,
+        NvidiaPowerMizerMode::PreferMaximumPerformance => PowerMizerMode::PreferMaximumPerformance,
+        NvidiaPowerMizerMode::PreferConsistentPerformance => {
+            PowerMizerMode::PreferConsistentPerformance
+        }
+    }
+}
+
+fn apply_power_mizer_mode(
+    device: &mut Device<'_>,
+    mode: NvidiaPowerMizerMode,
+) -> anyhow::Result<()> {
+    let mode_info = device
+        .power_mizer_mode()
+        .context("Could not get PowerMizer mode")?;
+    let supported = supported_power_mizer_modes(mode_info.supported);
+
+    if !supported.contains(&mode) {
+        bail!("PowerMizer mode {mode:?} is not supported by this GPU");
+    }
+
+    debug!("setting PowerMizer mode to {mode:?}");
+    device
+        .set_power_mizer_mode(to_nvml_power_mizer_mode(mode))
+        .context("Could not set PowerMizer mode")?;
+
+    Ok(())
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn apply_power_cap(device: &mut Device<'_>, power_cap: Option<f64>) -> anyhow::Result<()> {
+    if let Some(cap) = power_cap {
+        let cap = (cap * 1000.0) as u32;
+
+        let current_cap = device
+            .power_management_limit()
+            .context("Could not get current cap")?;
+
+        if current_cap != cap {
+            debug!("setting power cap to {cap}");
+            device
+                .set_power_management_limit(cap)
+                .context("Could not set power cap")?;
+        }
+    } else {
+        let current_cap = device.power_management_limit();
+        let default_cap = device.power_management_limit_default();
+
+        if let (Ok(current_cap), Ok(default_cap)) = (current_cap, default_cap)
+            && current_cap != default_cap
+        {
+            debug!("resetting power cap to {default_cap}");
+            device
+                .set_power_management_limit(default_cap)
+                .context("Could not reset power cap")?;
+        }
+    }
+
+    Ok(())
+}
+
+fn supported_power_mizer_modes(modes: PowerMizerModes) -> Vec<NvidiaPowerMizerMode> {
+    [
+        (NvidiaPowerMizerMode::Auto, PowerMizerModes::AUTO),
+        (NvidiaPowerMizerMode::Adaptive, PowerMizerModes::ADAPTIVE),
+        (
+            NvidiaPowerMizerMode::PreferMaximumPerformance,
+            PowerMizerModes::PREFER_MAXIMUM_PERFORMANCE,
+        ),
+        (
+            NvidiaPowerMizerMode::PreferConsistentPerformance,
+            PowerMizerModes::PREFER_CONSISTENT_PERFORMANCE,
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(mode, flag)| modes.contains(flag).then_some(mode))
+    .collect()
+}
+
 impl GpuController for NvidiaGpuController {
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
@@ -855,6 +958,7 @@ impl GpuController for NvidiaGpuController {
                 pmfw_info: PmfwInfo::default(),
             },
             nvidia_thermal_info: self.get_nvidia_thermal_info(),
+            nvidia_power_mizer_info: Self::get_nvidia_power_mizer_info(&device),
             power: PowerStats {
                 average: None,
                 current: device.power_usage().map(|mw| f64::from(mw) / 1000.0).ok(),
@@ -1013,32 +1117,10 @@ impl GpuController for NvidiaGpuController {
         Box::pin(async {
             let mut device = self.device();
 
-            if let Some(cap) = config.power_cap {
-                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                let cap = (cap * 1000.0) as u32;
+            apply_power_cap(&mut device, config.power_cap)?;
 
-                let current_cap = device
-                    .power_management_limit()
-                    .context("Could not get current cap")?;
-
-                if current_cap != cap {
-                    debug!("setting power cap to {cap}");
-                    device
-                        .set_power_management_limit(cap)
-                        .context("Could not set power cap")?;
-                }
-            } else {
-                let current_cap = device.power_management_limit();
-                let default_cap = device.power_management_limit_default();
-
-                if let (Ok(current_cap), Ok(default_cap)) = (current_cap, default_cap)
-                    && current_cap != default_cap
-                {
-                    debug!("resetting power cap to {default_cap}");
-                    device
-                        .set_power_management_limit(default_cap)
-                        .context("Could not reset power cap")?;
-                }
+            if let Some(mode) = config.nvidia_power_mizer_mode {
+                apply_power_mizer_mode(&mut device, mode)?;
             }
 
             self.reset_clocks()?;
