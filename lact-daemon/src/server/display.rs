@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, fs, path::Path};
 use tracing::warn;
 
 const BASE_RATE_MULTIPLIER: u32 = 270;
-const UHBR_RATE_MULTIPLIER: u32 = 10;
+pub const UHBR_RATE_MULTIPLIER: u32 = 10;
 const UHBR_RATE_THRESHOLD: u32 = 1000;
 
 pub fn get_base_displays_info(device_path: &Path) -> anyhow::Result<DisplaysInfo> {
