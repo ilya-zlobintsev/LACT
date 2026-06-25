@@ -1,11 +1,11 @@
-info-page = 信息
-oc-page = OC
+info-page = 硬件信息
+oc-page = 超频
 thermals-page = 散热
-software-page = 软件
+software-page = 软件信息
 hardware-info = 硬件信息
 system-section = 系统
 lact-daemon = LACT 守护进程
-lact-gui = LACT图形用户界面
+lact-gui = LACT 图形用户界面
 kernel-version = 内核版本
 instance = 实例
 compute-units = 计算单元数
@@ -55,9 +55,7 @@ automatic-mode-threshold-tooltip =
 
     此选项通过仅在高于该温度时使用自定义曲线来绕过此限制，而在低于该温度时使用显卡内置且支持零转速的自动模式。
 amd-oc = AMD 超频
-amd-oc-disabled =
-    未启用 AMD 超频支持！
-    您仍可修改基本设置，但高级时钟和电压控制将不可用。
+amd-oc-disabled = 未启用 AMD 超频支持！<a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">一些功能将不可用。</a>
 amd-oc-status =
     AMD 超频当前状态 : <b>{ $status ->
         [true] 已启用
@@ -84,15 +82,15 @@ cache-instruction = 指令
 cache-cpu = 处理器
 amd-oc-description =
     { $config ->
-        [rpm-ostree] 此选项通过 <b>rpm-ostree</b>启动标志来切换 AMD Overdrive 支持。
+        [rpm-ostree] 此选项通过 <b>rpm-ostree</b> 启动标志来切换 AMD overdrive 支持。
         [unsupported]
-            当前系统未被识别为支持自动 Overdrive 配置。
+            当前系统未被识别为支持自动 overdrive 配置。
             您可以尝试通过 LACT 启用超频，但可能需要手动重新生成 initramfs 才能生效。
             如果仍无法生效，备用方案是在引导程序中添加 <b>amdgpu.ppfeaturemask=0xffffffff</b> 启动参数。
-       *[other] 此选项通过在 <b>{ $path }</b> 创建文件并更新 initramfs 来切换 AMD Overdrive 支持。
+       *[other] 此选项通过在 <b>{ $path }</b> 创建文件并更新 initramfs 来切换 AMD overdrive 支持。
     }
 
-    更多信息详见 <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)"> Wiki 文档</a> 。
+    可通过 <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)"> Wiki 文档</a> 查阅更多信息。
 enable-amd-oc-description = 此操作将通过在 <b>{ $path }</b> 创建文件并更新 initramfs 来启用 amdgpu 驱动的 Overdrive 特性。您确定要继续吗？
 disable-amd-oc-description = 此操作将在下一次重启时禁用 AMD 超频 (Overdrive) 支持。
 amd-oc-updating-configuration = 正在更新配置 (可能需要一些时间)
@@ -127,7 +125,7 @@ performance-level = 性能等级
 power-profile-mode = 功耗模式:
 manual-level-needed = 必须将性能等级设置为“手动”，才能使用电源状态和模式
 overclock-section = 时钟速度和电压
-nvidia-oc-info = 英伟达超频信息
+nvidia-oc-info = 超频信息
 oc-warning = 更改这些数值可能导致系统不稳定，并存在损坏硬件的风险！
 show-all-pstates = 显示所有 P-State
 enable-gpu-locked-clocks = 启用 GPU 时钟锁定
@@ -160,7 +158,7 @@ gpu-pstates = GPU 电源状态
 vram-pstates = 显存电源状态
 pstates-manual-needed = 必须将性能等级设置为“手动”，才能切换电源状态
 enable-pstate-config = 启用电源状态配置
-show-historical-charts = 显示历史图表
+show-historical-charts = 显示图表
 show-process-monitor = 显示进程监视器
 generate-debug-snapshot = 生成调试快照
 dump-vbios = 转储 VBIOS
@@ -221,8 +219,6 @@ nvidia-oc-description =
     例如， +1000MHz 的显存偏移可能只会使测得的显存速度增加 500MHz.
     这是正常现象，因为英伟达处理 GDDR 数据速率的方式就是如此。请据此调整你的超频设置。
 
-    不支持直接电压控制，因为英伟达 Linux 驱动中不存在此功能。
-
     可通过将锁定时钟选项与正时钟偏移结合使用，实现类似降压效果。
     这种方式会强制 GPU 在受锁定时钟限制的电压下运行，同时通过偏移实现更高的时钟速度。
     如果偏移过高，可能会导致系统不稳定。
@@ -230,8 +226,50 @@ gibibyte = GiB
 crash-page-title = 应用程序崩溃
 exit = 退出
 kibibyte = KiB
-bytes = 字节
+displays-page = 显示信息
 hw-ip-info = 硬件 IP 信息
-hw-queues = 队列
+confirm-settings = 确认设置
+settings-confirmation = 您想保存新设置吗？（在{ $seconds_left }秒后自动复原）
+bytes = 字节
+vf-curve-editor = 电压/频率曲线编辑器
+nvidia-vf-curve-warning =
+    电压/频率曲线编辑器依赖于未公开的驱动程序功能。
+    对其行为、安全性或可用性不作任何保证。
+    <span weight = "heavy" underline = "single">风险自负</span>。
+vf-curve-enable-editing = 启用编辑
+voltage = 电压
+frequency = 频率
+vf-active-curve = 有效曲线
+vf-base-curve = 基础曲线
+vf-curve-visible-range = 可视范围 (%):
+vf-curve-visible-range-to = 到
+vf-curve-flatten-right = 向右压平曲线
+menu = 菜单
+daemon-info-heading = 守护进程信息
+embedded-daemon-info =
+    无法连接到守护进程，正在以嵌入式模式运行。
+    请确保 lactd 服务正在运行。
+    使用嵌入式模式时，您将无法更改任何设置。
+
+    { $error_info }要启用守护进程，请运行以下命令，然后重启 LACT：
+version-mismatch = 版本不匹配
+version-mismatch-description =
+    图形用户界面和守护进程间版本不匹配 ({ $gui_version }-{ $gui_commit } 对比 { $daemon_version }-{ $daemon_commit })！
+    如果您更新过 LACT ，则您需要重启后台服务：
+display-title = 显示 { $identifier }
+display-manufacturer = 制造商
+display-product-code = 产品代码
+display-model = 型号
+display-physical-size = 物理大小
+display-connection = 连接
+display-manufacture-date = 生产日期
+close = 关闭
 theme = 主题
 theme-auto = 自动
+preferences = 偏好设置
+ui = 用户界面
+daemon = 守护进程
+about = 关于
+hw-queues = 队列
+confirm = 确认
+error-heading = 错误
