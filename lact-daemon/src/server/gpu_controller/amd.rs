@@ -51,6 +51,7 @@ const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const REQUIRE_MANUAL_DEVICE_IDS: [&str; 3] = ["163F", "1435", "15BF"];
+const UHBR_RATE_THRESHOLD: u32 = 1000;
 const AMDGPU_IDS_FLAGS_FUSION: u64 = 0x1;
 const HSA_CACHE_TYPE_DATA: u32 = 0x0000_0001;
 const HSA_CACHE_TYPE_INSTRUCTION: u32 = 0x0000_0002;
@@ -1471,7 +1472,14 @@ impl GpuController for AmdGpuController {
                     .and_then(|value| u32::from_str_radix(value, 16).ok())
                     .context("Invalid bandwidth value")?;
 
-                *bandwidth = Some(crate::server::display::dp_rate_to_bandwidth(bw_enum));
+                // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
+                // AMD reports legacy DP link rates as DP spec codes, while DP2 UHBR
+                // rates are reported in 10 Mbps units. UHBR10 starts at 1000.
+                *bandwidth = Some(if bw_enum < UHBR_RATE_THRESHOLD {
+                    crate::server::display::dp1_rate_to_bandwidth(bw_enum)
+                } else {
+                    crate::server::display::dp2_rate_to_bandwidth(bw_enum)
+                });
             }
         }
 

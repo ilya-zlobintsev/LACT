@@ -1344,11 +1344,11 @@ impl GpuController for NvidiaGpuController {
                                 Ok(params) => {
                                     *lanes = Some(params.laneCount.try_into()?);
                                     *bandwidth = Some(if params.linkBW != 0 {
-                                        crate::server::display::dp_rate_to_bandwidth(params.linkBW)
+                                        crate::server::display::dp1_rate_to_bandwidth(params.linkBW)
                                     } else {
-                                        use crate::server::display::UHBR_RATE_MULTIPLIER;
-
-                                        params.dp2LinkBW * UHBR_RATE_MULTIPLIER
+                                        crate::server::display::dp2_rate_to_bandwidth(
+                                            params.dp2LinkBW,
+                                        )
                                     });
                                 }
                                 Err(err) => {

@@ -4,8 +4,7 @@ use std::{collections::BTreeMap, fs, path::Path};
 use tracing::warn;
 
 const BASE_RATE_MULTIPLIER: u32 = 270;
-pub const UHBR_RATE_MULTIPLIER: u32 = 10;
-const UHBR_RATE_THRESHOLD: u32 = 1000;
+const UHBR_RATE_MULTIPLIER: u32 = 10;
 
 pub fn get_base_displays_info(device_path: &Path) -> anyhow::Result<DisplaysInfo> {
     let path_parent = device_path.parent().context("Invalid path")?;
@@ -118,13 +117,12 @@ fn get_display_entry(path: &Path) -> anyhow::Result<(String, DisplayInfo)> {
     Ok((connector.to_owned(), info))
 }
 
-pub fn dp_rate_to_bandwidth(value: u32) -> u32 {
-    // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
-    // Applies not only to AMD, as this is from the DP spec
-    // Values are for conversion to Mbps
-    if value < UHBR_RATE_THRESHOLD {
-        value * BASE_RATE_MULTIPLIER
-    } else {
-        value * UHBR_RATE_MULTIPLIER
-    }
+// Values are for conversion to Mbps
+pub fn dp1_rate_to_bandwidth(value: u32) -> u32 {
+    value * BASE_RATE_MULTIPLIER
+}
+
+// Values are for conversion to Mbps
+pub fn dp2_rate_to_bandwidth(value: u32) -> u32 {
+    value * UHBR_RATE_MULTIPLIER
 }
