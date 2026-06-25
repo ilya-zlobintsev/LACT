@@ -34,7 +34,7 @@ indexmap = { workspace = true }
 divan = { workspace = true, optional = true }
 serde_norway = { workspace = true }
 
-nvml-wrapper = "0.12.1"
+nvml-wrapper = { git = "https://github.com/Cldfire/nvml-wrapper.git", rev = "eb47417eede43443f139053479618e96ad32893d" }
 bitflags = "2.11.1"
 pciid-parser = { version = "0.8", features = ["serde"] }
 zbus = { version = "5.14.0", default-features = false, features = ["tokio"] }
