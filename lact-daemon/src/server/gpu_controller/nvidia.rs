@@ -1343,9 +1343,13 @@ impl GpuController for NvidiaGpuController {
                             match handle.get_dp_link_config(display_id) {
                                 Ok(params) => {
                                     *lanes = Some(params.laneCount.try_into()?);
-                                    *bandwidth = Some(
-                                        crate::server::display::dp_rate_to_bandwidth(params.linkBW),
-                                    );
+                                    *bandwidth = Some(if params.linkBW != 0 {
+                                        crate::server::display::dp1_rate_to_bandwidth(params.linkBW)
+                                    } else {
+                                        crate::server::display::dp2_rate_to_bandwidth(
+                                            params.dp2LinkBW,
+                                        )
+                                    });
                                 }
                                 Err(err) => {
                                     warn!("could not fetch DP info for display {key}: {err:#}");
