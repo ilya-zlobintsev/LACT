@@ -273,3 +273,6 @@ display-model = მოდელი
 display-physical-size = ფიზიკური ზომა
 display-connection = კავშირი
 display-manufacture-date = წარმოების თარიღი
+thresholds-section = ზღვრები &amp; ლიმიტები
+vf-curve-flatten-selection = მონიშნულის გაბრტყელება
+displays-missing = ეკრანები აღმოჩენილი არაა

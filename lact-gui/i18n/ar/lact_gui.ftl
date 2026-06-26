@@ -273,3 +273,6 @@ display-model = النموذج
 display-physical-size = الحجم الملموس
 display-connection = الاتصال
 display-manufacture-date = تاريخ التصنيع
+thresholds-section = عتبة والحدود
+vf-curve-flatten-selection = تسوية التحديد
+displays-missing = لم يكتشف أي شاشات
