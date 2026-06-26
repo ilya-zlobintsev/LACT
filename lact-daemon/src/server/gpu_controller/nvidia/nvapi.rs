@@ -10,6 +10,7 @@ use crate::bindings::nvidia::{
     NvU8, NvU32,
 };
 use anyhow::{Context, bail};
+use nvml_wrapper::enums::device::DeviceArchitecture;
 use std::{
     ffi::{CStr, c_char},
     mem::{self, transmute},
@@ -318,12 +319,18 @@ impl NvApiThermals {
             .filter(|&value| value > 0 && value < 255)
     }
 
-    pub fn hotspot(&self) -> Option<i32> {
-        self.get_value(9)
+    pub fn hotspot(&self, arch: Option<&DeviceArchitecture>) -> Option<i32> {
+        match arch {
+            Some(DeviceArchitecture::Blackwell) => None,
+            _ => self.get_value(9),
+        }
     }
 
-    pub fn vram(&self) -> Option<i32> {
-        self.get_value(15)
+    pub fn vram(&self, arch: Option<&DeviceArchitecture>) -> Option<i32> {
+        match arch {
+            Some(DeviceArchitecture::Blackwell) => self.get_value(10),
+            _ => self.get_value(15),
+        }
     }
 }
 

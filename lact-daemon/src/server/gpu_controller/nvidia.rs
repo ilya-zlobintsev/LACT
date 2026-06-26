@@ -733,11 +733,13 @@ impl GpuController for NvidiaGpuController {
         let mut voltage = None;
 
         if let Some((nvapi, handle)) = self.nvapi.as_ref() {
+            let arch = device.architecture().ok();
+
             unsafe {
                 if let Some(mask) = self.nvapi_thermals_mask
                     && let Ok(thermals) = nvapi.get_thermals(*handle, mask)
                 {
-                    if let Some(hotspot) = thermals.hotspot() {
+                    if let Some(hotspot) = thermals.hotspot(arch.as_ref()) {
                         temps.insert(
                             "GPU Hotspot".to_owned(),
                             TemperatureEntry {
@@ -752,7 +754,7 @@ impl GpuController for NvidiaGpuController {
                         );
                     }
 
-                    if let Some(vram) = thermals.vram() {
+                    if let Some(vram) = thermals.vram(arch.as_ref()) {
                         temps.insert(
                             "VRAM".to_owned(),
                             TemperatureEntry {
