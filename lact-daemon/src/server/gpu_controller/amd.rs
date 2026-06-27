@@ -6,7 +6,7 @@ use crate::server::gpu_controller::common::{
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
-        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelId, PowerLevelKind,
+        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelId, PowerLevelKind, PowerLevels,
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
         power_profile_mode::PowerProfileModesTable,
@@ -441,11 +441,12 @@ impl AmdGpuController {
             .get_clock_levels(kind)
             .inspect(|power_levels| trace!("{kind:?} power states: {power_levels:?}"))
             .inspect_err(|err| debug!("could not get {kind:?} power states: {err:#}"))
-            .map(|power_levels| power_levels.levels)
+            .map(Self::normalize_power_level_indexes)
             .unwrap_or_default();
 
         if attempt < MAX_PSTATE_READ_ATTEMPTS
             && levels
+                .levels
                 .iter()
                 .any(|level| level.value >= u64::from(u16::MAX))
         {
@@ -454,6 +455,7 @@ impl AmdGpuController {
         }
 
         levels
+            .levels
             .into_iter()
             .map(|level| {
                 let enabled = match level.id {
@@ -470,6 +472,33 @@ impl AmdGpuController {
                 }
             })
             .collect()
+    }
+
+    // workaround for https://gitlab.freedesktop.org/drm/amd/-/work_items/5295
+    fn normalize_power_level_indexes<T>(mut power_levels: PowerLevels<T>) -> PowerLevels<T> {
+        // first numeric is not 1
+        if !matches!(
+            power_levels.levels.iter().find_map(|level| match level.id {
+                PowerLevelId::Index(index) => Some(index),
+                PowerLevelId::Sleep => None,
+            }),
+            Some(1)
+        ) {
+            return power_levels;
+        }
+
+        for level in &mut power_levels.levels {
+            level.id = Self::shift_power_level_index(level.id);
+        }
+        power_levels.active = power_levels.active.map(Self::shift_power_level_index);
+        power_levels
+    }
+
+    fn shift_power_level_index(id: PowerLevelId) -> PowerLevelId {
+        match id {
+            PowerLevelId::Index(index) => PowerLevelId::Index(index.saturating_sub(1)),
+            PowerLevelId::Sleep => PowerLevelId::Sleep,
+        }
     }
 
     fn first_hw_mon(&self) -> anyhow::Result<&HwMon> {
@@ -718,6 +747,100 @@ impl AmdGpuController {
             .parent()
             .and_then(|path| path.parent())
             .map(|path| path.join("kfd/topology/nodes/1"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use amdgpu_sysfs::gpu_handle::PowerLevel;
+
+    #[test]
+    fn normalize_power_level_indexes_keeps_zero_based_indexes_after_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+            ],
+            Some(PowerLevelId::Index(1)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(1)));
+    }
+
+    #[test]
+    fn normalize_power_level_indexes_keeps_zero_based_indexes_without_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+            ],
+            Some(PowerLevelId::Index(2)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(2)));
+    }
+
+    #[test]
+    fn normalize_power_level_indexes_shifts_one_based_indexes_after_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+                PowerLevelId::Index(3),
+            ],
+            Some(PowerLevelId::Index(2)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(1)));
+    }
+
+    fn normalize_indexes(ids: Vec<PowerLevelId>, active: Option<PowerLevelId>) -> PowerLevels<u64> {
+        AmdGpuController::normalize_power_level_indexes(PowerLevels {
+            levels: ids
+                .into_iter()
+                .enumerate()
+                .map(|(value, id)| PowerLevel {
+                    id,
+                    value: value as u64,
+                })
+                .collect(),
+            active,
+        })
+    }
+
+    fn level_ids<T>(levels: &PowerLevels<T>) -> Vec<PowerLevelId> {
+        levels.levels.iter().map(|level| level.id).collect()
     }
 }
 
@@ -1028,6 +1151,7 @@ impl GpuController for AmdGpuController {
                         .get_core_clock_levels()
                         .inspect_err(|err| debug!("could not get active core power state: {err:#}"))
                         .ok()
+                        .map(Self::normalize_power_level_indexes)
                         .and_then(|levels| levels.active),
                     memory: self
                         .handle
@@ -1036,12 +1160,14 @@ impl GpuController for AmdGpuController {
                             debug!("could not get active memory power state: {err:#}");
                         })
                         .ok()
+                        .map(Self::normalize_power_level_indexes)
                         .and_then(|levels| levels.active),
                     pcie: self
                         .handle
                         .get_pcie_clock_levels()
                         .inspect_err(|err| debug!("could not get active PCIe power state: {err:#}"))
                         .ok()
+                        .map(Self::normalize_power_level_indexes)
                         .and_then(|levels| levels.active),
                 };
                 (active_power_states.core.is_some()
