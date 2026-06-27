@@ -20,7 +20,7 @@ impl StatsData {
         vram_clock_ratio: f64,
         timestamp: i64,
     ) {
-        for (stat_type, value) in StatType::graph_values(stats, vram_clock_ratio) {
+        for (stat_type, value) in StatType::graph_samples(stats, vram_clock_ratio) {
             self.stats
                 .entry(stat_type)
                 .or_default()

@@ -54,7 +54,7 @@ pub enum StatType {
 }
 
 impl StatType {
-    pub(crate) fn graph_values(stats: &DeviceStats, vram_clock_ratio: f64) -> Vec<(Self, f64)> {
+    pub(crate) fn graph_samples(stats: &DeviceStats, vram_clock_ratio: f64) -> Vec<(Self, f64)> {
         let mut values = Vec::new();
 
         for (name, temperature) in &stats.temps {
@@ -91,7 +91,7 @@ impl StatType {
             Self::GttSize,
             Self::GttUsed,
         ] {
-            if let Some(value) = stat_type.graph_value(stats, vram_clock_ratio) {
+            if let Some(value) = stat_type.graph_sample(stats, vram_clock_ratio) {
                 values.push((stat_type, value));
             }
         }
@@ -99,7 +99,7 @@ impl StatType {
         values
     }
 
-    pub(crate) fn graph_value(&self, stats: &DeviceStats, vram_clock_ratio: f64) -> Option<f64> {
+    pub(crate) fn graph_sample(&self, stats: &DeviceStats, vram_clock_ratio: f64) -> Option<f64> {
         match self {
             Self::GpuClock => stats.clockspeed.gpu_clockspeed.map(|val| val as f64),
             Self::GpuTargetClock => stats.clockspeed.target_gpu_clockspeed.map(|val| val as f64),
@@ -159,7 +159,7 @@ impl StatType {
         }
     }
 
-    pub(crate) fn gui_value(&self, context: &StatContext<'_>) -> String {
+    pub(crate) fn display_value(&self, context: &StatContext<'_>) -> String {
         let stats = context.stats;
         match self {
             Self::DeviceName => context.gpu_model.to_owned(),
@@ -216,7 +216,7 @@ impl StatType {
                 .map(|percent| format!("{}%", Mono::uint(percent)))
                 .unwrap_or_else(|| fl!(I18N, "missing-stat")),
             Self::PowerCurrent | Self::PowerAverage | Self::PowerCap | Self::Power(_) => self
-                .graph_value(stats, context.vram_clock_ratio)
+                .graph_sample(stats, context.vram_clock_ratio)
                 .map(|value| format!("{} {}", Mono::float(value, 1), fl!(I18N, "watt")))
                 .unwrap_or_else(|| fl!(I18N, "missing-stat")),
             Self::VramSize | Self::VramUsed | Self::GttSize | Self::GttUsed => {
@@ -232,11 +232,11 @@ impl StatType {
                     .unwrap_or_else(|| fl!(I18N, "missing-stat"))
             }
             Self::Clockspeed(_) => self
-                .graph_value(stats, context.vram_clock_ratio)
+                .graph_sample(stats, context.vram_clock_ratio)
                 .map(|value| formatting::fmt_clockspeed(Some(value as u64), 1.0))
                 .unwrap_or_else(|| fl!(I18N, "missing-stat")),
             Self::Voltage(_) => self
-                .graph_value(stats, context.vram_clock_ratio)
+                .graph_sample(stats, context.vram_clock_ratio)
                 .map(|value| format!("{} mV", Mono::float(value, 0)))
                 .unwrap_or_else(|| fl!(I18N, "missing-stat")),
         }
@@ -254,11 +254,11 @@ impl StatType {
             Self::GpuUsage => stats.busy_percent.is_some(),
             Self::PowerUsage => stats.power.average.is_some() || stats.power.current.is_some(),
             Self::FanSpeed => stats.fan.pwm_current.is_some() || stats.fan.speed_current.is_some(),
-            _ => self.graph_value(stats, context.vram_clock_ratio).is_some(),
+            _ => self.graph_sample(stats, context.vram_clock_ratio).is_some(),
         }
     }
 
-    pub(crate) fn gui_level(&self, context: &StatContext<'_>) -> Option<f64> {
+    pub(crate) fn level_value(&self, context: &StatContext<'_>) -> Option<f64> {
         if self.stat_view() != Some(StatView::Level) {
             return None;
         }
