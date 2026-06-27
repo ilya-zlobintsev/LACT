@@ -1,6 +1,6 @@
+use crate::StatType;
 use lact_schema::DeviceStats;
-use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::BTreeMap};
+use std::collections::BTreeMap;
 
 #[derive(Default, Debug)]
 pub struct StatsData {
@@ -20,99 +20,11 @@ impl StatsData {
         vram_clock_ratio: f64,
         timestamp: i64,
     ) {
-        for (name, temperature) in &stats.temps {
-            if let Some(value) = temperature.value.current {
-                self.stats
-                    .entry(StatType::Temperature(name.to_owned()))
-                    .or_default()
-                    .push((timestamp, value.into()));
-            }
-        }
-
-        for (name, value) in &stats.voltage.sensors {
+        for (stat_type, value) in StatType::graph_values(stats, vram_clock_ratio) {
             self.stats
-                .entry(StatType::Voltage(name.clone()))
+                .entry(stat_type)
                 .or_default()
-                .push((timestamp, *value as f64));
-        }
-
-        for (name, value) in &stats.clockspeed.sensors {
-            self.stats
-                .entry(StatType::Clockspeed(name.clone()))
-                .or_default()
-                .push((timestamp, *value as f64));
-        }
-
-        for (name, value) in &stats.power.sensors {
-            self.stats
-                .entry(StatType::Power(name.clone()))
-                .or_default()
-                .push((timestamp, *value));
-        }
-
-        let stats_values = [
-            (
-                StatType::GpuClock,
-                stats.clockspeed.gpu_clockspeed.map(|val| val as f64),
-            ),
-            (
-                StatType::GpuTargetClock,
-                stats.clockspeed.target_gpu_clockspeed.map(|val| val as f64),
-            ),
-            (
-                StatType::VramClock,
-                stats
-                    .clockspeed
-                    .vram_clockspeed
-                    .map(|val| val as f64 * vram_clock_ratio),
-            ),
-            (
-                StatType::GpuVoltage,
-                stats.voltage.gpu.map(|val| val as f64),
-            ),
-            (StatType::PowerAverage, stats.power.average),
-            (StatType::PowerCurrent, stats.power.current),
-            (StatType::PowerCap, stats.power.cap_current),
-            (
-                StatType::FanPwm,
-                stats
-                    .fan
-                    .pwm_current
-                    .map(|val| (val as f64) / u8::MAX as f64 * 100.0),
-            ),
-            (
-                StatType::FanRpm,
-                stats.fan.speed_current.map(|val| val as f64),
-            ),
-            (StatType::GpuUsage, stats.busy_percent.map(|val| val as f64)),
-            (
-                StatType::VramSize,
-                stats.vram.total.map(|val| (val / 1024 / 1024) as f64),
-            ),
-            (
-                StatType::VramUsed,
-                stats.vram.used.map(|val| (val / 1024 / 1024) as f64),
-            ),
-            (
-                StatType::GttSize,
-                stats
-                    .vram
-                    .gtt_total_usable
-                    .map(|val| (val / 1024 / 1024) as f64),
-            ),
-            (
-                StatType::GttUsed,
-                stats.vram.gtt_used.map(|val| (val / 1024 / 1024) as f64),
-            ),
-        ];
-
-        for (stat_type, value) in stats_values {
-            if let Some(value) = value {
-                self.stats
-                    .entry(stat_type)
-                    .or_default()
-                    .push((timestamp, value));
-            }
+                .push((timestamp, value));
         }
 
         let is_throttling = stats
@@ -219,87 +131,5 @@ impl StatsData {
                 true
             }
         });
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub enum StatType {
-    GpuClock,
-    GpuTargetClock,
-    GpuUsage,
-    Temperature(String),
-    FanRpm,
-    FanPwm,
-    PowerCurrent,
-    PowerAverage,
-    PowerCap,
-    Power(String),
-    VramClock,
-    VramSize,
-    VramUsed,
-    GttSize,
-    GttUsed,
-    GpuVoltage,
-    Clockspeed(String),
-    Voltage(String),
-}
-
-impl StatType {
-    pub fn display(&self) -> Cow<'static, str> {
-        use StatType::*;
-        match self {
-            GpuClock => "Clockspeed (GPU)".into(),
-            GpuTargetClock => "Clockspeed (GPU Target)".into(),
-            GpuVoltage => "GPU Voltage".into(),
-            VramClock => "Clockspeed (VRAM)".into(),
-            VramSize => "VRAM Size".into(),
-            VramUsed => "VRAM Used".into(),
-            GttSize => "GTT Size".into(),
-            GttUsed => "GTT Used".into(),
-            GpuUsage => "GPU Usage".into(),
-            Temperature(name) => format!("Temp ({name})").into(),
-            Clockspeed(name) => format!("Clockspeed ({name})").into(),
-            Voltage(name) => format!("Voltage ({name})").into(),
-            Power(name) => format!("Power ({name})").into(),
-            FanRpm => "Fan RPM".into(),
-            FanPwm => "Fan".into(),
-            PowerCurrent => "Power Draw".into(),
-            PowerAverage => "Power Draw (Avg)".into(),
-            PowerCap => "Power Cap".into(),
-        }
-    }
-
-    pub fn metric(&self) -> &'static str {
-        use StatType::*;
-        match self {
-            GpuClock | GpuTargetClock | VramClock | Clockspeed(_) => "MHz",
-            VramSize | VramUsed | GttSize | GttUsed => "MiB",
-            GpuVoltage | Voltage(_) => "mV",
-            Temperature(_) => "℃",
-            FanRpm => "RPM",
-            FanPwm => "%",
-            GpuUsage => "%",
-            PowerCurrent | PowerAverage | PowerCap | Power(_) => "W",
-        }
-    }
-
-    /// How many digits should be formatted
-    pub fn precision(&self) -> usize {
-        use StatType::*;
-        match self {
-            GpuClock | GpuTargetClock | VramClock | Clockspeed(_) => 0,
-            FanPwm => 1,
-            FanRpm => 0,
-            PowerCurrent | PowerAverage | Power(_) => 1,
-            PowerCap => 0,
-            Temperature(_) => 1,
-            GpuUsage | VramSize | VramUsed | GttSize | GttUsed => 0,
-            GpuVoltage | Voltage(_) => 0,
-        }
-    }
-
-    pub fn show_peak(&self) -> bool {
-        use StatType::*;
-        !matches!(self, VramSize | PowerCap)
     }
 }

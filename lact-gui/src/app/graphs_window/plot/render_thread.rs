@@ -1,8 +1,8 @@
 use super::PlotColorScheme;
 use super::cubic_spline::cubic_spline_interpolation;
 use super::to_texture_ext::ToTextureExt;
-use crate::app::graphs_window::stat::{StatType, StatsData};
 use crate::app::utils::formatting;
+use crate::{StatType, app::graphs_window::stat::StatsData};
 use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
 use gtk::gdk::MemoryTexture;
@@ -213,10 +213,10 @@ impl RenderRequest {
         let data = data_guard.get_stats(&self.stats).collect::<Vec<_>>();
 
         let value_suffix = if self.stats.len() >= 2 {
-            let mut metric = self.stats[0].metric();
+            let mut metric = self.stats[0].unit_label();
             // Only display a suffix if it's the same across all metrics on the plot
             for stat in &self.stats[1..] {
-                if stat.metric() != metric {
+                if stat.unit_label() != metric {
                     metric = "";
                     break;
                 }
@@ -225,7 +225,7 @@ impl RenderRequest {
         } else {
             self.stats
                 .first()
-                .map(|stat| stat.metric())
+                .map(|stat| stat.unit_label())
                 .unwrap_or_default()
         };
 
@@ -287,12 +287,12 @@ impl RenderRequest {
                 .unwrap_or(0.0);
             let avg_value = data.iter().map(|(_, val)| *val).sum::<f64>() / data.len() as f64;
 
-            let stat_suffix = stat_type.metric();
+            let stat_suffix = stat_type.unit_label();
             let precision = stat_type.precision();
 
             let mut stat_label = format!(
                 "{}: {current_value:.*}{stat_suffix}",
-                stat_type.display(),
+                stat_type.graph_label(),
                 precision
             );
             if self.print_extra_info {

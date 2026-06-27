@@ -1,6 +1,6 @@
-use crate::app::{
-    graphs_window::stat::StatType,
-    utils::{color_scheme::AppColorScheme, styles::AppTheme},
+use crate::{
+    StatType,
+    app::utils::{color_scheme::AppColorScheme, styles::AppTheme},
 };
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_with::skip_serializing_none;

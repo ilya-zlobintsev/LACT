@@ -1,9 +1,6 @@
-use super::{
-    GraphsWindowMsg,
-    plot::Plot,
-    stat::{StatType, StatsData},
-};
+use super::{GraphsWindowMsg, plot::Plot, stat::StatsData};
 use crate::I18N;
+use crate::StatType;
 use crate::app::graphs_window::DynamicIndexValue;
 use gtk::{
     gdk,
@@ -291,7 +288,7 @@ impl relm4::factory::FactoryComponent for StatTypeRow {
     view! {
         gtk::CheckButton {
             add_binding: (&self.enabled, "active"),
-            set_label: Some(&self.stat.display()),
+            set_label: Some(&self.stat.graph_label()),
         }
     }
 

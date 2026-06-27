@@ -3,7 +3,8 @@ mod imp;
 mod render_thread;
 mod to_texture_ext;
 
-use super::stat::{StatType, StatsData};
+use super::stat::StatsData;
+use crate::StatType;
 use gtk::{
     glib::{self, Object, subclass::types::ObjectSubclassIsExt},
     prelude::StyleContextExt,

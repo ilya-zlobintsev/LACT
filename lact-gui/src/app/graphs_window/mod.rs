@@ -2,6 +2,7 @@ pub mod plot;
 mod plot_component;
 pub mod stat;
 
+use crate::StatType;
 use crate::app::{APP_BROKER, msg::AppMsg};
 use crate::{CONFIG, I18N};
 use anyhow::Context;
@@ -18,7 +19,7 @@ use relm4::{
 use relm4_components::save_dialog::{
     SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings,
 };
-use stat::{StatType, StatsData};
+use stat::StatsData;
 use std::{
     fs::File,
     io::{BufWriter, Write},
@@ -374,7 +375,7 @@ fn export_to_file(data: &StatsData, path: &Path) -> anyhow::Result<()> {
 
     let header = data
         .list_stats()
-        .map(|stat| stat.display())
+        .map(|stat| stat.graph_label())
         .collect::<Vec<_>>()
         .join(",");
     writeln!(output, "timestamp,{header}")?;

@@ -1,19 +1,15 @@
-use crate::I18N;
 use crate::app::{
     components::{
         info_row::{InfoRow, InfoRowExt},
         info_row_level::InfoRowLevel,
         page_section::PageSection,
     },
-    utils::{
-        ext::FlowBoxExt,
-        formatting::{self, Mono},
-    },
+    utils::ext::FlowBoxExt,
 };
+use crate::{StatContext, StatType};
 use gtk::pango::AttrList;
 use gtk::prelude::{BoxExt, OrientableExt, PopoverExt as _, WidgetExt};
-use i18n_embed_fl::fl;
-use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats};
+use lact_schema::{DeviceInfo, DeviceStats, PowerStates};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt as _};
 use std::str::FromStr as _;
 use std::sync::Arc;
@@ -56,57 +52,56 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     set_selection_mode: gtk::SelectionMode::None,
 
                     append = &InfoRow {
-                        set_name: fl!(I18N, "device-name"),
                         #[watch]
-                        set_value: model.gpu_model.clone(),
+                        set_name: StatType::DeviceName.gui_label(&context),
+                        #[watch]
+                        set_value: StatType::DeviceName.gui_value(&context),
                     },
 
                     append = &InfoRow {
-                        set_name: fl!(I18N, "throttling"),
                         #[watch]
-                        set_value: formatting::fmt_throttling_text(&model.stats),
+                        set_name: StatType::Throttling.gui_label(&context),
+                        #[watch]
+                        set_value: StatType::Throttling.gui_value(&context),
                     },
 
                     append_child = &InfoRow {
-                        set_name: fl!(I18N, "gpu-clock-target"),
                         #[watch]
-                        set_value: format_current_gfxclk(model.stats.clockspeed.target_gpu_clockspeed),
+                        set_name: StatType::GpuTargetClock.gui_label(&context),
+                        #[watch]
+                        set_value: StatType::GpuTargetClock.gui_value(&context),
                     } -> clockspeed_target_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.clockspeed.target_gpu_clockspeed.is_some(),
+                        set_visible: StatType::GpuTargetClock.gui_visible(&context),
                     },
 
                     append_child = &InfoRow {
-                        set_name: fl!(I18N, "gpu-voltage"),
                         #[watch]
-                        set_value: format!("{} V", Mono::float(model.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64, 3)),
+                        set_name: StatType::GpuVoltage.gui_label(&context),
+                        #[watch]
+                        set_value: StatType::GpuVoltage.gui_value(&context),
                     } -> gpu_voltage_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.voltage.gpu.is_some(),
+                        set_visible: StatType::GpuVoltage.gui_visible(&context),
                     },
 
 
                     append_child = &InfoRow {
-                        set_name: fl!(I18N, "gpu-temp"),
                         #[watch]
-                        set_value: if primary_temperatures.is_empty() {
-                            "N/A".to_owned()
-                        } else {
-                            primary_temperatures.join(", ")
-                        },
+                        set_name: StatType::Temperatures.gui_label(&context),
+                        #[watch]
+                        set_value: StatType::Temperatures.gui_value(&context),
                     } -> basic_temps_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: secondary_temperatures.is_empty(),
+                        set_visible: StatType::Temperatures.gui_visible(&context)
+                            && secondary_temperatures.is_empty(),
                     },
 
                     append_child = &InfoRow {
-                        set_name: fl!(I18N, "gpu-temp"),
                         #[watch]
-                        set_value: if primary_temperatures.is_empty() {
-                            "N/A".to_owned()
-                        } else {
-                            primary_temperatures.join(", ")
-                        },
+                        set_name: StatType::Temperatures.gui_label(&context),
+                        #[watch]
+                        set_value: StatType::Temperatures.gui_value(&context),
 
                         set_icon: "go-down-symbolic".to_string(),
 
@@ -128,7 +123,8 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         },
                     } -> full_temps_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: !secondary_temperatures.is_empty(),
+                        set_visible: StatType::Temperatures.gui_visible(&context)
+                            && !secondary_temperatures.is_empty(),
                     },
                 },
             },
@@ -142,165 +138,83 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
                     append_child = &InfoRowLevel {
                         #[watch]
-                        set_name: {
-                            if model.stats.clockspeed.gpu_clockspeed.is_some()
-                                && model.stats.clockspeed.target_gpu_clockspeed.is_some() {
-                                    fl!(I18N, "gpu-clock-avg")
-                                } else {
-                                    fl!(I18N, "gpu-clock")
-                                }
-                        },
+                        set_name: StatType::GpuClock.gui_label(&context),
                         #[watch]
-                        set_value: formatting::fmt_clockspeed(
-                            model.stats.clockspeed.gpu_clockspeed,
-                            1.0,
-                        ),
+                        set_value: StatType::GpuClock.gui_value(&context),
                         #[watch]
-                        set_level_value: {
-                            match (&model.stats.clockspeed.gpu_clockspeed, model.max_gpu_clock, model.min_gpu_clock) {
-                                (Some(cur), Some(max), Some(min)) if max > min => {
-                                    (cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64)
-                                }
-                                _ => 0.0,
-                            }
-                        },
-                        set_value_size_group: &value_size_group,
+                        set_level_value: StatType::GpuClock.gui_level(&context).unwrap_or(0.0),
                     } -> gpu_clock_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.clockspeed.gpu_clockspeed.is_some(),
+                        set_visible: StatType::GpuClock.gui_visible(&context),
                     },
 
                     append_child = &InfoRowLevel {
-                        set_name: fl!(I18N, "vram-clock"),
-                        set_value_size_group: &value_size_group,
                         #[watch]
-                        set_value: formatting::fmt_clockspeed(
-                            model.stats.clockspeed.vram_clockspeed,
-                            model.vram_clock_ratio,
-                        ),
+                        set_name: StatType::VramClock.gui_label(&context),
                         #[watch]
-                        set_level_value: {
-                            match (&model.stats.clockspeed.vram_clockspeed, model.max_vram_clock, model.min_vram_clock) {
-                                (Some(cur), Some(max), Some(min)) if max > min => {
-                                    (cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64)
-                                }
-                                _ => 0.0,
-                            }
-                        }
+                        set_value: StatType::VramClock.gui_value(&context),
+                        #[watch]
+                        set_level_value: StatType::VramClock.gui_level(&context).unwrap_or(0.0),
                     } -> vram_clock_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.clockspeed.vram_clockspeed.is_some(),
+                        set_visible: StatType::VramClock.gui_visible(&context),
                     },
 
                     append_child = &InfoRowLevel {
-                        set_name: fl!(I18N, "gpu-usage"),
-                        set_value_size_group: &value_size_group,
                         #[watch]
-                        set_value: format!("{}%", Mono::uint(model.stats.busy_percent.unwrap_or(0))),
+                        set_name: StatType::GpuUsage.gui_label(&context),
                         #[watch]
-                        set_level_value: model.stats.busy_percent.unwrap_or(0) as f64 / 100.0,
+                        set_value: StatType::GpuUsage.gui_value(&context),
+                        #[watch]
+                        set_level_value: StatType::GpuUsage.gui_level(&context).unwrap_or(0.0),
                     } -> gpu_usage_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.busy_percent.is_some(),
+                        set_visible: StatType::GpuUsage.gui_visible(&context),
                     },
 
                     append_child = &InfoRowLevel {
-                        set_name: fl!(I18N, "vram-usage"),
-                        set_value_size_group: &value_size_group,
                         #[watch]
-                        set_value: formatting::fmt_human_bytes(
-                            model.stats.vram.used.unwrap_or(0),
-                            Some(formatting::ByteUnit::Gibibyte),
-                        ),
+                        set_name: StatType::VramUsage.gui_label(&context),
                         #[watch]
-                        set_level_value: model
-                            .stats
-                            .vram
-                            .used
-                            .zip(model.stats.vram.total)
-                            .map(|(used, total)| used as f64 / total as f64)
-                            .unwrap_or(0.0),
+                        set_value: StatType::VramUsage.gui_value(&context),
+                        #[watch]
+                        set_level_value: StatType::VramUsage.gui_level(&context).unwrap_or(0.0),
                     } -> vram_usage_item: gtk::FlowBoxChild {},
 
                     append_child = &InfoRowLevel {
-                        set_name: fl!(I18N, "gtt-usage"),
-                        set_value_size_group: &value_size_group,
                         #[watch]
-                        set_value: formatting::fmt_human_bytes(
-                            model.stats.vram.gtt_used.unwrap_or(0),
-                            Some(formatting::ByteUnit::Gibibyte),
-                        ),
+                        set_name: StatType::GttUsage.gui_label(&context),
                         #[watch]
-                        set_level_value: model
-                            .stats
-                            .vram
-                            .gtt_used
-                            .zip(model.stats.vram.gtt_total_usable)
-                            .map(|(used, total)| used as f64 / total as f64)
-                            .unwrap_or(0.0),
+                        set_value: StatType::GttUsage.gui_value(&context),
+                        #[watch]
+                        set_level_value: StatType::GttUsage.gui_level(&context).unwrap_or(0.0),
                     } -> gtt_usage_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.vram.gtt_used.is_some(),
+                        set_visible: StatType::GttUsage.gui_visible(&context),
                     },
 
                     append_child = &InfoRowLevel {
-                        set_name: fl!(I18N, "power-usage"),
-                        set_value_size_group: &value_size_group,
                         #[watch]
-                        set_value: {
-                            let PowerStats {
-                                average: power_average,
-                                current: power_current,
-                                ..
-                            } = model.stats.power;
-
-                            let power_current = power_current
-                                .filter(|value| *value != 0.0)
-                                .or(power_average);
-
-                            format!(
-                                "{} {}",
-                                Mono::float(power_current.unwrap_or(0.0), 1),
-                                fl!(I18N, "watt")
-                            )
-                        },
+                        set_name: StatType::PowerUsage.gui_label(&context),
                         #[watch]
-                        set_level_value: {
-                            let PowerStats {
-                                average: power_average,
-                                current: power_current,
-                                cap_current: power_cap_current,
-                                ..
-                            } = model.stats.power;
-
-                            let power_current = power_current
-                                .filter(|value| *value != 0.0)
-                                .or(power_average);
-
-                            let power_cap_current = power_cap_current
-                                .filter(|value| *value != 0.0);
-
-                            power_current
-                                .zip(power_cap_current)
-                                .map(|(current, cap)| current / cap)
-                                .unwrap_or(0.0)
-                        },
+                        set_value: StatType::PowerUsage.gui_value(&context),
+                        #[watch]
+                        set_level_value: StatType::PowerUsage.gui_level(&context).unwrap_or(0.0),
                     } -> power_usage_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.power.average.is_some() || model.stats.power.current.is_some(),
+                        set_visible: StatType::PowerUsage.gui_visible(&context),
                     },
 
                     append_child = &InfoRowLevel {
-                        set_name: fl!(I18N, "fan-speed"),
-                        set_value_size_group: &value_size_group,
                         #[watch]
-                        set_value: formatting::fmt_fan_speed(&model.stats, true)
-                            .unwrap_or_else(|| fl!(I18N, "missing-stat")),
+                        set_name: StatType::FanSpeed.gui_label(&context),
                         #[watch]
-                        set_level_value: model.stats.fan.pwm_current.map(|pwm| pwm as f64 / u8::MAX as f64).unwrap_or(0.0),
+                        set_value: StatType::FanSpeed.gui_value(&context),
+                        #[watch]
+                        set_level_value: StatType::FanSpeed.gui_level(&context).unwrap_or(0.0),
                     } -> fan_speed_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.fan.pwm_current.is_some() || model.stats.fan.speed_current.is_some(),
+                        set_visible: StatType::FanSpeed.gui_visible(&context),
                     },
                 },
             },
@@ -312,11 +226,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let value_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
-
-        let (primary_temperatures, secondary_temperatures): (Vec<String>, Vec<String>) =
-            (Vec::new(), Vec::new());
-
         let model = Self {
             stats: Arc::new(DeviceStats::default()),
             vram_clock_ratio: 1.0,
@@ -326,6 +235,10 @@ impl relm4::SimpleComponent for GpuStatsSection {
             min_gpu_clock: None,
             min_vram_clock: None,
         };
+        let context = model.stat_context();
+        let (_, secondary_temperatures) = StatType::Temperatures
+            .temperature_values(model.stats.as_ref())
+            .unwrap_or_default();
 
         let widgets = view_output!();
 
@@ -359,21 +272,23 @@ impl relm4::SimpleComponent for GpuStatsSection {
     }
 
     fn pre_view(&self) {
-        let (primary_temperatures, secondary_temperatures) =
-            formatting::fmt_temperature_text(&model.stats);
+        let context = model.stat_context();
+        let (_, secondary_temperatures) = StatType::Temperatures
+            .temperature_values(model.stats.as_ref())
+            .unwrap_or_default();
     }
 }
 
-fn format_current_gfxclk(value: Option<u64>) -> String {
-    if let Some(v) = value {
-        // if the APU/GPU does not actually support current_gfxclk,
-        // the value will be `u16::MAX (65535)`
-        if v >= u16::MAX as u64 || v == 0 {
-            fl!(I18N, "missing-stat")
-        } else {
-            formatting::fmt_clockspeed(Some(v), 1.0)
+impl GpuStatsSection {
+    fn stat_context(&self) -> StatContext<'_> {
+        StatContext {
+            stats: self.stats.as_ref(),
+            gpu_model: &self.gpu_model,
+            vram_clock_ratio: self.vram_clock_ratio,
+            max_gpu_clock: self.max_gpu_clock,
+            max_vram_clock: self.max_vram_clock,
+            min_gpu_clock: self.min_gpu_clock,
+            min_vram_clock: self.min_vram_clock,
         }
-    } else {
-        fl!(I18N, "missing-stat")
     }
 }
