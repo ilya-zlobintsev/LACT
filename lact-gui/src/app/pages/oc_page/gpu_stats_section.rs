@@ -1,12 +1,12 @@
+use crate::StatType;
 use crate::app::{
     components::{
         info_row::{InfoRow, InfoRowExt},
         info_row_level::InfoRowLevel,
         page_section::PageSection,
     },
-    utils::ext::FlowBoxExt,
+    utils::{ext::FlowBoxExt, stat_view::StatContext},
 };
-use crate::{StatContext, StatType};
 use gtk::pango::AttrList;
 use gtk::prelude::{BoxExt, OrientableExt, PopoverExt as _, WidgetExt};
 use lact_schema::{DeviceInfo, DeviceStats, PowerStates};
