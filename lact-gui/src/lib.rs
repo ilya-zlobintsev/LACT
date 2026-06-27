@@ -16,7 +16,6 @@ use relm4::{
     gtk::{glib, glib::MainContext},
 };
 use rust_embed::RustEmbed;
-use serde::{Deserialize, Serialize};
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -38,35 +37,6 @@ pub(crate) static I18N: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
 #[derive(RustEmbed)]
 #[folder = "i18n"]
 pub struct Localizations;
-
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub enum StatType {
-    GpuClock,
-    GpuTargetClock,
-    GpuUsage,
-    Temperature(String),
-    FanRpm,
-    FanPwm,
-    PowerCurrent,
-    PowerAverage,
-    PowerCap,
-    Power(String),
-    VramClock,
-    VramSize,
-    VramUsed,
-    GttSize,
-    GttUsed,
-    GpuVoltage,
-    Clockspeed(String),
-    Voltage(String),
-    DeviceName,
-    Throttling,
-    Temperatures,
-    VramUsage,
-    GttUsage,
-    PowerUsage,
-    FanSpeed,
-}
 
 pub fn run(args: GuiArgs) -> anyhow::Result<()> {
     let env_filter = EnvFilter::builder()

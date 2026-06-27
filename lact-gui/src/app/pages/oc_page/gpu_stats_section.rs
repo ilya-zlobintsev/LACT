@@ -1,4 +1,4 @@
-use crate::StatType;
+use crate::app::utils::stat_view::StatType;
 use crate::app::{
     components::{
         info_row::{InfoRow, InfoRowExt},

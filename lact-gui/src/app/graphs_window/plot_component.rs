@@ -1,7 +1,7 @@
 use super::{GraphsWindowMsg, plot::Plot, stat::StatsData};
 use crate::I18N;
-use crate::StatType;
 use crate::app::graphs_window::DynamicIndexValue;
+use crate::app::utils::stat_view::StatType;
 use gtk::{
     gdk,
     glib::{subclass::types::ObjectSubclassIsExt, types::StaticType, value::ToValue},

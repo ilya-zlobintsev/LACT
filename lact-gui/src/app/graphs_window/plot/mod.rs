@@ -4,7 +4,7 @@ mod render_thread;
 mod to_texture_ext;
 
 use super::stat::StatsData;
-use crate::StatType;
+use crate::app::utils::stat_view::StatType;
 use gtk::{
     glib::{self, Object, subclass::types::ObjectSubclassIsExt},
     prelude::StyleContextExt,

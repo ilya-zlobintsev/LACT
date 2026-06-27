@@ -1,4 +1,4 @@
-use crate::StatType;
+use crate::app::utils::stat_view::StatType;
 use lact_schema::DeviceStats;
 use std::collections::BTreeMap;
 

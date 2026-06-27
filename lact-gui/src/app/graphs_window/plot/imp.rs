@@ -1,7 +1,7 @@
 use super::PlotColorScheme;
 use super::render_thread::{RenderRequest, RenderThread};
-use crate::StatType;
 use crate::app::graphs_window::stat::StatsData;
+use crate::app::utils::stat_view::StatType;
 use glib::Properties;
 use gtk::gdk::MemoryTexture;
 use gtk::{glib, prelude::*, subclass::prelude::*};
@@ -94,7 +94,6 @@ impl Plot {
 }
 #[cfg(feature = "bench")]
 mod benches {
-    use crate::StatType;
     use crate::app::graphs_window::{
         plot::{
             PlotColorScheme,
@@ -102,6 +101,7 @@ mod benches {
         },
         stat::StatsData,
     };
+    use crate::app::utils::stat_view::StatType;
     use amdgpu_sysfs::{
         gpu_handle::{PerformanceLevel, PowerLevelId},
         hw_mon::Temperature,

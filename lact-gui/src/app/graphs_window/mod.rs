@@ -2,7 +2,7 @@ pub mod plot;
 mod plot_component;
 pub mod stat;
 
-use crate::StatType;
+use crate::app::utils::stat_view::StatType;
 use crate::app::{APP_BROKER, msg::AppMsg};
 use crate::{CONFIG, I18N};
 use anyhow::Context;

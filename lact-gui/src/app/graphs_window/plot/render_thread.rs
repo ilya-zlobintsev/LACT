@@ -2,7 +2,7 @@ use super::PlotColorScheme;
 use super::cubic_spline::cubic_spline_interpolation;
 use super::to_texture_ext::ToTextureExt;
 use crate::app::utils::formatting;
-use crate::{StatType, app::graphs_window::stat::StatsData};
+use crate::app::{graphs_window::stat::StatsData, utils::stat_view::StatType};
 use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
 use gtk::gdk::MemoryTexture;

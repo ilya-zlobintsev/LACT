@@ -2,8 +2,9 @@ use std::borrow::Cow;
 
 use i18n_embed_fl::fl;
 use lact_schema::DeviceStats;
+use serde::{Deserialize, Serialize};
 
-use crate::{I18N, StatType};
+use crate::I18N;
 
 use super::formatting::{self, Mono};
 
@@ -23,6 +24,35 @@ pub(crate) struct StatContext<'a> {
     pub max_vram_clock: Option<u64>,
     pub min_gpu_clock: Option<u64>,
     pub min_vram_clock: Option<u64>,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+pub enum StatType {
+    GpuClock,
+    GpuTargetClock,
+    GpuUsage,
+    Temperature(String),
+    FanRpm,
+    FanPwm,
+    PowerCurrent,
+    PowerAverage,
+    PowerCap,
+    Power(String),
+    VramClock,
+    VramSize,
+    VramUsed,
+    GttSize,
+    GttUsed,
+    GpuVoltage,
+    Clockspeed(String),
+    Voltage(String),
+    DeviceName,
+    Throttling,
+    Temperatures,
+    VramUsage,
+    GttUsage,
+    PowerUsage,
+    FanSpeed,
 }
 
 impl StatType {
