@@ -288,7 +288,7 @@ impl relm4::factory::FactoryComponent for StatTypeRow {
     view! {
         gtk::CheckButton {
             add_binding: (&self.enabled, "active"),
-            set_label: Some(&self.stat.graph_label()),
+            set_label: Some(&self.stat.label()),
         }
     }
 

@@ -375,7 +375,7 @@ fn export_to_file(data: &StatsData, path: &Path) -> anyhow::Result<()> {
 
     let header = data
         .list_stats()
-        .map(|stat| stat.graph_label())
+        .map(|stat| stat.label())
         .collect::<Vec<_>>()
         .join(",");
     writeln!(output, "timestamp,{header}")?;

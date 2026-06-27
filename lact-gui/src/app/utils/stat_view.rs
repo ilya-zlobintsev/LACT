@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use i18n_embed_fl::fl;
 use lact_schema::DeviceStats;
 use serde::{Deserialize, Serialize};
@@ -161,32 +159,6 @@ impl StatType {
         }
     }
 
-    pub(crate) fn gui_label(&self, context: &StatContext<'_>) -> String {
-        match self {
-            Self::DeviceName => fl!(I18N, "device-name"),
-            Self::Throttling => fl!(I18N, "throttling"),
-            Self::GpuTargetClock => fl!(I18N, "gpu-clock-target"),
-            Self::GpuVoltage => fl!(I18N, "gpu-voltage"),
-            Self::Temperatures => fl!(I18N, "gpu-temp"),
-            Self::GpuClock => {
-                if context.stats.clockspeed.gpu_clockspeed.is_some()
-                    && context.stats.clockspeed.target_gpu_clockspeed.is_some()
-                {
-                    fl!(I18N, "gpu-clock-avg")
-                } else {
-                    fl!(I18N, "gpu-clock")
-                }
-            }
-            Self::VramClock => fl!(I18N, "vram-clock"),
-            Self::GpuUsage => fl!(I18N, "gpu-usage"),
-            Self::VramUsage => fl!(I18N, "vram-usage"),
-            Self::GttUsage => fl!(I18N, "gtt-usage"),
-            Self::PowerUsage => fl!(I18N, "power-usage"),
-            Self::FanSpeed => fl!(I18N, "fan-speed"),
-            _ => self.graph_label().into_owned(),
-        }
-    }
-
     pub(crate) fn gui_value(&self, context: &StatContext<'_>) -> String {
         let stats = context.stats;
         match self {
@@ -344,34 +316,34 @@ impl StatType {
         matches!(self, Self::Temperatures).then(|| formatting::fmt_temperature_text(stats))
     }
 
-    pub(crate) fn graph_label(&self) -> Cow<'static, str> {
+    pub(crate) fn label(&self) -> String {
         use StatType::*;
         match self {
-            GpuClock => "Clockspeed (GPU)".into(),
-            GpuTargetClock => "Clockspeed (GPU Target)".into(),
-            GpuVoltage => "GPU Voltage".into(),
-            VramClock => "Clockspeed (VRAM)".into(),
+            GpuClock => fl!(I18N, "gpu-clock"),
+            GpuTargetClock => fl!(I18N, "gpu-clock-target"),
+            GpuVoltage => fl!(I18N, "gpu-voltage"),
+            VramClock => fl!(I18N, "vram-clock"),
             VramSize => "VRAM Size".into(),
             VramUsed => "VRAM Used".into(),
             GttSize => "GTT Size".into(),
             GttUsed => "GTT Used".into(),
-            GpuUsage => "GPU Usage".into(),
-            Temperature(name) => format!("Temp ({name})").into(),
-            Clockspeed(name) => format!("Clockspeed ({name})").into(),
-            Voltage(name) => format!("Voltage ({name})").into(),
-            Power(name) => format!("Power ({name})").into(),
+            GpuUsage => fl!(I18N, "gpu-usage"),
+            Temperature(name) => format!("{} ({name})", fl!(I18N, "gpu-temp")),
+            Clockspeed(name) => format!("Clockspeed ({name})"),
+            Voltage(name) => format!("{} ({name})", fl!(I18N, "voltage")),
+            Power(name) => format!("{} ({name})", fl!(I18N, "power-usage")),
             FanRpm => "Fan RPM".into(),
             FanPwm => "Fan".into(),
             PowerCurrent => "Power Draw".into(),
             PowerAverage => "Power Draw (Avg)".into(),
-            PowerCap => "Power Cap".into(),
-            DeviceName => "Device Name".into(),
-            Throttling => "Throttling".into(),
-            Temperatures => "Temperature".into(),
-            VramUsage => "VRAM Usage".into(),
-            GttUsage => "GTT Usage".into(),
-            PowerUsage => "Power Usage".into(),
-            FanSpeed => "Fan Speed".into(),
+            PowerCap => fl!(I18N, "power-cap"),
+            DeviceName => fl!(I18N, "device-name"),
+            Throttling => fl!(I18N, "throttling"),
+            Temperatures => fl!(I18N, "gpu-temp"),
+            VramUsage => fl!(I18N, "vram-usage"),
+            GttUsage => fl!(I18N, "gtt-usage"),
+            PowerUsage => fl!(I18N, "power-usage"),
+            FanSpeed => fl!(I18N, "fan-speed"),
         }
     }
 

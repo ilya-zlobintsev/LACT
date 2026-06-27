@@ -292,7 +292,7 @@ impl RenderRequest {
 
             let mut stat_label = format!(
                 "{}: {current_value:.*}{stat_suffix}",
-                stat_type.graph_label(),
+                stat_type.label(),
                 precision
             );
             if self.print_extra_info {
