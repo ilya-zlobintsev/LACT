@@ -273,3 +273,6 @@ display-model = Modelo
 display-physical-size = Medida física
 display-connection = Conexión
 display-manufacture-date = Datos del fabricante
+thresholds-section = Umbrales y Límites
+displays-missing = No se detectaron pantallas
+vf-curve-flatten-selection = Aplanar selección
