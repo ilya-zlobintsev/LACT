@@ -231,8 +231,8 @@ hw-ip-info = Informasi IP Perangkat Keras
 hw-queues = Antrean
 vf-curve-editor = Editor Kurva VF
 nvidia-vf-curve-warning =
-    Editor kurva tegangan-frekuensi mengandalkan fungsionalitas driver yang tidak terdokumentasi.
-    Tidak ada jaminan mengenai perilaku, keamanan, atau ketersediaannya.
+    Editor kurva tegangan-frekuensi bergantung pada fungsionalitas driver yang tidak terdokumentasi.
+    Tidak ada jaminan terkait perilaku, keamanan, atau ketersediaannya.
     <span weight = "heavy" underline = "single">Gunakan dengan risiko Anda sendiri</span>.
 vf-curve-enable-editing = Aktifkan Pengeditan
 voltage = Tegangan
@@ -248,3 +248,31 @@ preferences = Preferensi
 ui = UI
 daemon = Daemon
 about = Tentang
+displays-page = Info Tampilan
+thresholds-section = Ambang &amp; Batas
+confirm = Konfirmasi
+confirm-settings = Konfirmasi Pengaturan
+settings-confirmation = Apakah Anda ingin mempertahankan pengaturan baru? (Akan dikembalikan dalam { $seconds_left } detik)
+vf-curve-flatten-selection = Ratakkan pilihan
+menu = Menu
+error-heading = Kesalahan
+daemon-info-heading = Info daemon
+embedded-daemon-info =
+    Tidak dapat terhubung ke daemon, berjalan dalam mode embedded.
+    Harap pastikan layanan lactd sedang berjalan.
+    Dengan menggunakan mode embedded, Anda tidak akan dapat mengubah pengaturan apa pun.
+
+    { $error_info }Untuk mengaktifkan daemon, jalankan perintah berikut, lalu mulai ulang LACT:
+version-mismatch = Versi tidak cocok
+version-mismatch-description =
+    Versi GUI dan Daemon tidak cocok ({ $gui_version }-{ $gui_commit } vs { $daemon_version }-{ $daemon_commit })!
+    Jika Anda telah memperbarui LACT, Anda perlu memulai ulang layanan dengan:
+display-title = Tampilan { $identifier }
+display-manufacturer = Produsen
+display-product-code = Kode Produk
+display-model = Model
+display-physical-size = Ukuran Fisik
+display-connection = Koneksi
+display-manufacture-date = Tanggal Produksi
+displays-missing = Tidak Ada Tampilan Terdeteksi
+close = Tutup
