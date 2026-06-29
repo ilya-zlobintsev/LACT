@@ -6,9 +6,8 @@ use crate::app::{
     },
     utils::{
         ext::FlowBoxExt,
-        stat_view::{
-            StatConfig, StatConfigMap, StatContext, StatType, StatViewConfig, fixed_stat_configs,
-        },
+        formatting,
+        stat_view::{StatConfig, StatConfigMap, StatContext, StatType, fixed_stat_configs},
     },
 };
 use gtk::pango::AttrList;
@@ -61,34 +60,34 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         #[watch]
                         set_name: model.stat_label(&StatType::DeviceName).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::DeviceName, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::DeviceName, &context),
                     },
 
                     append = &InfoRow {
                         #[watch]
                         set_name: model.stat_label(&StatType::Throttling).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::Throttling, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::Throttling, &context),
                     },
 
                     append_child = &InfoRow {
                         #[watch]
                         set_name: model.stat_label(&StatType::GpuTargetClock).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::GpuTargetClock, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::GpuTargetClock, &context),
                     } -> clockspeed_target_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_view(&StatType::GpuTargetClock, &context).visible(),
+                        set_visible: model.stat_visible(&StatType::GpuTargetClock, &context),
                     },
 
                     append_child = &InfoRow {
                         #[watch]
                         set_name: model.stat_label(&StatType::GpuVoltage).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::GpuVoltage, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::GpuVoltage, &context),
                     } -> gpu_voltage_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_view(&StatType::GpuVoltage, &context).visible(),
+                        set_visible: model.stat_visible(&StatType::GpuVoltage, &context),
                     },
 
 
@@ -96,10 +95,10 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         #[watch]
                         set_name: model.stat_label(&StatType::Temperatures).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::Temperatures, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::Temperatures, &context),
                     } -> basic_temps_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_view(&StatType::Temperatures, &context).visible()
+                        set_visible: model.stat_visible(&StatType::Temperatures, &context)
                             && secondary_temperatures.is_empty(),
                     },
 
@@ -107,7 +106,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         #[watch]
                         set_name: model.stat_label(&StatType::Temperatures).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::Temperatures, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::Temperatures, &context),
 
                         set_icon: "go-down-symbolic".to_string(),
 
@@ -129,7 +128,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         },
                     } -> full_temps_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_view(&StatType::Temperatures, &context).visible()
+                        set_visible: model.stat_visible(&StatType::Temperatures, &context)
                             && !secondary_temperatures.is_empty(),
                     },
                 },
@@ -146,45 +145,45 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         #[watch]
                         set_name: model.stat_label(&StatType::GpuClock).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::GpuClock, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::GpuClock, &context),
                         #[watch]
-                        set_level_value: model.stat_view(&StatType::GpuClock, &context).level_value(),
+                        set_level_value: model.stat_level(&StatType::GpuClock, &context),
                     } -> gpu_clock_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_view(&StatType::GpuClock, &context).visible(),
+                        set_visible: model.stat_visible(&StatType::GpuClock, &context),
                     },
 
                     append_child = &InfoRowLevel {
                         #[watch]
                         set_name: model.stat_label(&StatType::VramClock).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::VramClock, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::VramClock, &context),
                         #[watch]
-                        set_level_value: model.stat_view(&StatType::VramClock, &context).level_value(),
+                        set_level_value: model.stat_level(&StatType::VramClock, &context),
                     } -> vram_clock_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_view(&StatType::VramClock, &context).visible(),
+                        set_visible: model.stat_visible(&StatType::VramClock, &context),
                     },
 
                     append_child = &InfoRowLevel {
                         #[watch]
                         set_name: model.stat_label(&StatType::GpuUsage).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::GpuUsage, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::GpuUsage, &context),
                         #[watch]
-                        set_level_value: model.stat_view(&StatType::GpuUsage, &context).level_value(),
+                        set_level_value: model.stat_level(&StatType::GpuUsage, &context),
                     } -> gpu_usage_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_view(&StatType::GpuUsage, &context).visible(),
+                        set_visible: model.stat_visible(&StatType::GpuUsage, &context),
                     },
 
                     append_child = &InfoRowLevel {
                         #[watch]
                         set_name: model.stat_label(&StatType::VramUsage).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::VramUsage, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::VramUsage, &context),
                         #[watch]
-                        set_level_value: model.stat_view(&StatType::VramUsage, &context).level_value(),
+                        set_level_value: model.stat_level(&StatType::VramUsage, &context),
                     } -> vram_usage_item: gtk::FlowBoxChild {},
 
                     append_child = &InfoRowLevel {
@@ -203,24 +202,24 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         #[watch]
                         set_name: model.stat_label(&StatType::PowerUsage).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::PowerUsage, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::PowerUsage, &context),
                         #[watch]
-                        set_level_value: model.stat_view(&StatType::PowerUsage, &context).level_value(),
+                        set_level_value: model.stat_level(&StatType::PowerUsage, &context),
                     } -> power_usage_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_view(&StatType::PowerUsage, &context).visible(),
+                        set_visible: model.stat_visible(&StatType::PowerUsage, &context),
                     },
 
                     append_child = &InfoRowLevel {
                         #[watch]
                         set_name: model.stat_label(&StatType::FanSpeed).to_owned(),
                         #[watch]
-                        set_value: model.stat_view(&StatType::FanSpeed, &context).display_value().to_owned(),
+                        set_value: model.stat_format(&StatType::FanSpeed, &context),
                         #[watch]
-                        set_level_value: model.stat_view(&StatType::FanSpeed, &context).level_value(),
+                        set_level_value: model.stat_level(&StatType::FanSpeed, &context),
                     } -> fan_speed_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_view(&StatType::FanSpeed, &context).visible(),
+                        set_visible: model.stat_visible(&StatType::FanSpeed, &context),
                     },
                 },
             },
@@ -245,10 +244,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
             stat_configs: fixed_stat_configs().clone(),
         };
         let context = model.stat_context();
-        let secondary_temperatures = model
-            .stat_view(&StatType::Temperatures, &context)
-            .secondary_temperatures()
-            .to_owned();
+        let secondary_temperatures = model.secondary_temperatures(&context);
 
         let widgets = view_output!();
 
@@ -326,10 +322,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
     fn pre_view(&self) {
         let context = model.stat_context();
-        let secondary_temperatures = model
-            .stat_view(&StatType::Temperatures, &context)
-            .secondary_temperatures()
-            .to_owned();
+        let secondary_temperatures = model.secondary_temperatures(&context);
     }
 }
 
@@ -356,9 +349,26 @@ impl GpuStatsSection {
         &self.stat_config(stat_type).label
     }
 
-    fn stat_view(&self, stat_type: &StatType, context: &StatContext<'_>) -> StatViewConfig {
+    fn stat_format(&self, stat_type: &StatType, context: &StatContext<'_>) -> String {
         self.stat_config(stat_type)
-            .view(stat_type, context)
-            .expect("fixed stat view missing")
+            .format(stat_type, context)
+            .expect("fixed stat format missing")
+    }
+
+    fn stat_visible(&self, stat_type: &StatType, context: &StatContext<'_>) -> bool {
+        self.stat_config(stat_type)
+            .visible(stat_type, context)
+            .expect("fixed stat visibility missing")
+    }
+
+    fn stat_level(&self, stat_type: &StatType, context: &StatContext<'_>) -> f64 {
+        self.stat_config(stat_type)
+            .level(stat_type, context)
+            .expect("fixed stat level missing")
+    }
+
+    fn secondary_temperatures(&self, context: &StatContext<'_>) -> Vec<String> {
+        let (_, secondary) = formatting::fmt_temperature_text(context.stats);
+        secondary
     }
 }
