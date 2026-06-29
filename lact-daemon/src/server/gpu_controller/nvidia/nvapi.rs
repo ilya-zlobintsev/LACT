@@ -320,15 +320,16 @@ impl NvApiThermals {
     }
 
     pub fn hotspot(&self, arch: Option<&DeviceArchitecture>) -> Option<i32> {
-        match arch {
-            Some(DeviceArchitecture::Blackwell) => None,
-            _ => self.get_value(9),
+        if arch.is_some_and(|arch| arch.as_c() >= DeviceArchitecture::Blackwell.as_c()) {
+            None
+        } else {
+            self.get_value(9)
         }
     }
 
-    pub fn vram(&self, arch: Option<&DeviceArchitecture>) -> Option<i32> {
-        match arch {
-            Some(DeviceArchitecture::Blackwell) => self.get_value(10),
+    pub fn vram(&self, vram_type: Option<&str>) -> Option<i32> {
+        match vram_type {
+            Some("GDDR7") => self.get_value(10),
             _ => self.get_value(15),
         }
     }

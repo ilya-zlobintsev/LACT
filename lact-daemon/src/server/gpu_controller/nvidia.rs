@@ -754,7 +754,12 @@ impl GpuController for NvidiaGpuController {
                         );
                     }
 
-                    if let Some(vram) = thermals.vram(arch.as_ref()) {
+                    let vram_type = self
+                        .driver_handle
+                        .as_ref()
+                        .and_then(|driver| driver.get_ram_type().ok());
+
+                    if let Some(vram) = thermals.vram(vram_type) {
                         temps.insert(
                             "VRAM".to_owned(),
                             TemperatureEntry {
