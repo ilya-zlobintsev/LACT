@@ -10,12 +10,12 @@ pub struct StatsData {
 }
 
 impl StatsData {
-    pub(crate) fn update(&mut self, stats: &DeviceStats, vram_clock_ratio: f64) {
+    pub fn update(&mut self, stats: &DeviceStats, vram_clock_ratio: f64) {
         let timestamp = jiff::Timestamp::now().as_millisecond();
         self.update_with_timestamp(stats, vram_clock_ratio, timestamp);
     }
 
-    pub(crate) fn update_with_timestamp(
+    pub fn update_with_timestamp(
         &mut self,
         stats: &DeviceStats,
         vram_clock_ratio: f64,
@@ -78,7 +78,7 @@ impl StatsData {
         };
     }
 
-    pub(crate) fn list_stats(&self) -> impl Iterator<Item = &StatType> {
+    pub fn list_stats(&self) -> impl Iterator<Item = &StatType> {
         self.stats.keys()
     }
 
@@ -86,7 +86,7 @@ impl StatsData {
         self.metadata.get(stat_type)
     }
 
-    pub(crate) fn throttling_sections(&self) -> &[Vec<(i64, Vec<String>)>] {
+    pub fn throttling_sections(&self) -> &[Vec<(i64, Vec<String>)>] {
         &self.throttling
     }
 
@@ -103,11 +103,11 @@ impl StatsData {
         })
     }
 
-    pub(crate) fn all_stats(&self) -> &BTreeMap<StatType, Vec<(i64, f64)>> {
+    pub fn all_stats(&self) -> &BTreeMap<StatType, Vec<(i64, f64)>> {
         &self.stats
     }
 
-    pub(crate) fn first_timestamp(&self) -> Option<i64> {
+    pub fn first_timestamp(&self) -> Option<i64> {
         self.stats
             .values()
             .filter_map(|points| points.first())
@@ -115,7 +115,7 @@ impl StatsData {
             .min()
     }
 
-    pub(crate) fn last_timestamp(&self) -> Option<i64> {
+    pub fn last_timestamp(&self) -> Option<i64> {
         self.stats
             .values()
             .filter_map(|points| points.last())
@@ -123,13 +123,13 @@ impl StatsData {
             .max()
     }
 
-    pub(crate) fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.stats.clear();
         self.metadata.clear();
         self.throttling.clear();
     }
 
-    pub(crate) fn trim(&mut self, last_seconds: i64) {
+    pub fn trim(&mut self, last_seconds: i64) {
         // Limit data to N seconds
         for data in self.stats.values_mut() {
             let maximum_point = data
