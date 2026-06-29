@@ -25,12 +25,11 @@ use tokio::{
     signal::unix::{SignalKind, signal},
 };
 use tracing::level_filters::LevelFilter;
-use tracing::{Instrument, debug, debug_span, error, info, warn};
+use tracing::{Instrument, debug_span, error, info, warn};
 use tracing_subscriber::EnvFilter;
 
 pub use system::BASE_MODULE_CONF_PATH;
 
-const MIN_SYSTEM_UPTIME_SECS: f32 = 15.0;
 const DRM_EVENT_TIMEOUT_PERIOD_MS: u64 = 100;
 const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
     SignalKind::terminate(),
@@ -56,8 +55,6 @@ pub fn run() -> anyhow::Result<()> {
             .parse(&config.daemon.log_level)
             .context("Invalid log level")?;
         tracing_subscriber::fmt().with_env_filter(env_filter).init();
-
-        ensure_sufficient_uptime().await;
 
         let server = Server::new(config).await?;
         let handler = server.handler.clone();
@@ -147,33 +144,4 @@ async fn listen_device_events(handler: Handler) {
         info!("got kernel drm subsystem event, reloading GPUs");
         handler.reload_gpus().await;
     }
-}
-
-async fn ensure_sufficient_uptime() {
-    match get_uptime() {
-        Ok(current_uptime) => {
-            debug!("current system uptime: {current_uptime:.1}s");
-
-            let diff = MIN_SYSTEM_UPTIME_SECS - current_uptime;
-            if diff > 0.0 {
-                info!("service started too early, waiting {diff:.1} seconds");
-
-                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                tokio::time::sleep(Duration::from_millis((diff * 1000.0) as u64)).await;
-            }
-        }
-        Err(err) => {
-            warn!("could not get system uptime: {err:#?}");
-        }
-    }
-}
-
-fn get_uptime() -> anyhow::Result<f32> {
-    let raw_uptime = std::fs::read_to_string("/proc/uptime").context("Could not read uptime")?;
-    raw_uptime
-        .split_whitespace()
-        .next()
-        .context("Could not parse the uptime file")?
-        .parse()
-        .context("Invalid uptime value")
 }
