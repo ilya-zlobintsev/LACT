@@ -1,16 +1,117 @@
 use i18n_embed_fl::fl;
 use lact_schema::DeviceStats;
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, sync::LazyLock};
 
 use crate::I18N;
 
 use super::formatting::{self, Mono};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum StatView {
-    Info,
-    Level,
-    Temperatures,
+pub(crate) type StatConfigMap = HashMap<StatType, StatConfig>;
+type GraphSampleFn = fn(&StatType, &StatContext<'_>) -> Option<f64>;
+type ViewConfigFn = fn(&StatType, &StatContext<'_>) -> StatViewConfig;
+
+#[derive(Debug, Clone)]
+pub(crate) struct StatConfig {
+    pub label: String,
+    pub unit_label: &'static str,
+    pub show_peak: bool,
+    graph_sample: GraphSampleFn,
+    view: Option<ViewConfigFn>,
+}
+
+impl StatConfig {
+    pub(crate) fn graph_sample(
+        &self,
+        stat_type: &StatType,
+        context: &StatContext<'_>,
+    ) -> Option<f64> {
+        (self.graph_sample)(stat_type, context)
+    }
+
+    pub(crate) fn view(
+        &self,
+        stat_type: &StatType,
+        context: &StatContext<'_>,
+    ) -> Option<StatViewConfig> {
+        self.view.map(|view| view(stat_type, context))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum StatViewConfig {
+    Info(InfoStatConfig),
+    Level(LevelStatConfig),
+    Temperatures(TemperatureStatConfig),
+}
+
+impl StatViewConfig {
+    pub(crate) fn display_value(&self) -> &str {
+        match self {
+            StatViewConfig::Info(config) => &config.display_value,
+            StatViewConfig::Level(config) => &config.display_value,
+            StatViewConfig::Temperatures(config) => &config.display_value,
+        }
+    }
+
+    pub(crate) fn visible(&self) -> bool {
+        match self {
+            StatViewConfig::Info(config) => config.visible,
+            StatViewConfig::Level(config) => config.visible,
+            StatViewConfig::Temperatures(config) => config.visible,
+        }
+    }
+
+    pub(crate) fn level_value(&self) -> f64 {
+        match self {
+            StatViewConfig::Level(config) => config.level_value,
+            _ => 0.0,
+        }
+    }
+
+    pub(crate) fn secondary_temperatures(&self) -> &[String] {
+        match self {
+            StatViewConfig::Temperatures(config) => &config.secondary,
+            _ => &[],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct InfoStatConfig {
+    pub visible: bool,
+    pub display_value: String,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct LevelStatConfig {
+    pub visible: bool,
+    pub display_value: String,
+    pub level_value: f64,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct TemperatureStatConfig {
+    pub visible: bool,
+    pub display_value: String,
+    pub secondary: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StatMetadata {
+    pub label: String,
+    pub unit_label: &'static str,
+    pub show_peak: bool,
+}
+
+impl From<&StatConfig> for StatMetadata {
+    fn from(config: &StatConfig) -> Self {
+        Self {
+            label: config.label.clone(),
+            unit_label: config.unit_label,
+            show_peak: config.show_peak,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -54,313 +155,6 @@ pub enum StatType {
 }
 
 impl StatType {
-    pub(crate) fn graph_samples(stats: &DeviceStats, vram_clock_ratio: f64) -> Vec<(Self, f64)> {
-        let mut values = Vec::new();
-
-        for (name, temperature) in &stats.temps {
-            if let Some(value) = temperature.value.current {
-                values.push((Self::Temperature(name.to_owned()), value.into()));
-            }
-        }
-
-        for (name, value) in &stats.voltage.sensors {
-            values.push((Self::Voltage(name.clone()), *value as f64));
-        }
-
-        for (name, value) in &stats.clockspeed.sensors {
-            values.push((Self::Clockspeed(name.clone()), *value as f64));
-        }
-
-        for (name, value) in &stats.power.sensors {
-            values.push((Self::Power(name.clone()), *value));
-        }
-
-        for stat_type in [
-            Self::GpuClock,
-            Self::GpuTargetClock,
-            Self::VramClock,
-            Self::GpuVoltage,
-            Self::PowerAverage,
-            Self::PowerCurrent,
-            Self::PowerCap,
-            Self::FanPwm,
-            Self::FanRpm,
-            Self::GpuUsage,
-            Self::VramSize,
-            Self::VramUsed,
-            Self::GttSize,
-            Self::GttUsed,
-        ] {
-            if let Some(value) = stat_type.graph_sample(stats, vram_clock_ratio) {
-                values.push((stat_type, value));
-            }
-        }
-
-        values
-    }
-
-    pub(crate) fn graph_sample(&self, stats: &DeviceStats, vram_clock_ratio: f64) -> Option<f64> {
-        match self {
-            Self::GpuClock => stats.clockspeed.gpu_clockspeed.map(|val| val as f64),
-            Self::GpuTargetClock => stats.clockspeed.target_gpu_clockspeed.map(|val| val as f64),
-            Self::GpuUsage => stats.busy_percent.map(|val| val as f64),
-            Self::Temperature(name) => stats
-                .temps
-                .get(name)
-                .and_then(|temperature| temperature.value.current)
-                .map(Into::into),
-            Self::FanRpm => stats.fan.speed_current.map(|val| val as f64),
-            Self::FanPwm => stats
-                .fan
-                .pwm_current
-                .map(|val| (val as f64) / u8::MAX as f64 * 100.0),
-            Self::PowerCurrent => stats.power.current,
-            Self::PowerAverage => stats.power.average,
-            Self::PowerCap => stats.power.cap_current,
-            Self::Power(name) => stats.power.sensors.get(name).copied(),
-            Self::VramClock => stats
-                .clockspeed
-                .vram_clockspeed
-                .map(|val| val as f64 * vram_clock_ratio),
-            Self::VramSize => stats.vram.total.map(|val| (val / 1024 / 1024) as f64),
-            Self::VramUsed => stats.vram.used.map(|val| (val / 1024 / 1024) as f64),
-            Self::GttSize => stats
-                .vram
-                .gtt_total_usable
-                .map(|val| (val / 1024 / 1024) as f64),
-            Self::GttUsed => stats.vram.gtt_used.map(|val| (val / 1024 / 1024) as f64),
-            Self::GpuVoltage => stats.voltage.gpu.map(|val| val as f64),
-            Self::Clockspeed(name) => stats.clockspeed.sensors.get(name).map(|val| *val as f64),
-            Self::Voltage(name) => stats.voltage.sensors.get(name).map(|val| *val as f64),
-            Self::DeviceName
-            | Self::Throttling
-            | Self::Temperatures
-            | Self::VramUsage
-            | Self::GttUsage
-            | Self::PowerUsage
-            | Self::FanSpeed => None,
-        }
-    }
-
-    pub(crate) fn stat_view(&self) -> Option<StatView> {
-        match self {
-            Self::DeviceName | Self::Throttling | Self::GpuTargetClock | Self::GpuVoltage => {
-                Some(StatView::Info)
-            }
-            Self::Temperatures => Some(StatView::Temperatures),
-            Self::GpuClock
-            | Self::VramClock
-            | Self::GpuUsage
-            | Self::VramUsage
-            | Self::GttUsage
-            | Self::PowerUsage
-            | Self::FanSpeed => Some(StatView::Level),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn display_value(&self, context: &StatContext<'_>) -> String {
-        let stats = context.stats;
-        match self {
-            Self::DeviceName => context.gpu_model.to_owned(),
-            Self::Throttling => formatting::fmt_throttling_text(stats),
-            Self::GpuTargetClock => format_current_gfxclk(stats.clockspeed.target_gpu_clockspeed),
-            Self::GpuVoltage => format!(
-                "{} V",
-                Mono::float(stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64, 3)
-            ),
-            Self::Temperatures => {
-                let (primary, _) = formatting::fmt_temperature_text(stats);
-                if primary.is_empty() {
-                    fl!(I18N, "missing-stat")
-                } else {
-                    primary.join(", ")
-                }
-            }
-            Self::GpuClock => formatting::fmt_clockspeed(stats.clockspeed.gpu_clockspeed, 1.0),
-            Self::VramClock => formatting::fmt_clockspeed(
-                stats.clockspeed.vram_clockspeed,
-                context.vram_clock_ratio,
-            ),
-            Self::GpuUsage => format!("{}%", Mono::uint(stats.busy_percent.unwrap_or(0))),
-            Self::VramUsage => formatting::fmt_human_bytes(
-                stats.vram.used.unwrap_or(0),
-                Some(formatting::ByteUnit::Gibibyte),
-            ),
-            Self::GttUsage => formatting::fmt_human_bytes(
-                stats.vram.gtt_used.unwrap_or(0),
-                Some(formatting::ByteUnit::Gibibyte),
-            ),
-            Self::PowerUsage => format!(
-                "{} {}",
-                Mono::float(power_usage_value(stats).unwrap_or(0.0), 1),
-                fl!(I18N, "watt")
-            ),
-            Self::FanSpeed => {
-                formatting::fmt_fan_speed(stats, true).unwrap_or_else(|| fl!(I18N, "missing-stat"))
-            }
-            Self::Temperature(name) => stats
-                .temps
-                .get(name)
-                .and_then(|temperature| temperature.value.current)
-                .map(|current| format!("{}°C", Mono::float(current, 0)))
-                .unwrap_or_else(|| fl!(I18N, "missing-stat")),
-            Self::FanRpm => stats
-                .fan
-                .speed_current
-                .map(|speed| format!("{} RPM", Mono::uint(speed)))
-                .unwrap_or_else(|| fl!(I18N, "missing-stat")),
-            Self::FanPwm => stats
-                .fan
-                .percent()
-                .map(|percent| format!("{}%", Mono::uint(percent)))
-                .unwrap_or_else(|| fl!(I18N, "missing-stat")),
-            Self::PowerCurrent | Self::PowerAverage | Self::PowerCap | Self::Power(_) => self
-                .graph_sample(stats, context.vram_clock_ratio)
-                .map(|value| format!("{} {}", Mono::float(value, 1), fl!(I18N, "watt")))
-                .unwrap_or_else(|| fl!(I18N, "missing-stat")),
-            Self::VramSize | Self::VramUsed | Self::GttSize | Self::GttUsed => {
-                let value = match self {
-                    Self::VramSize => stats.vram.total,
-                    Self::VramUsed => stats.vram.used,
-                    Self::GttSize => stats.vram.gtt_total_usable,
-                    Self::GttUsed => stats.vram.gtt_used,
-                    _ => unreachable!(),
-                };
-                value
-                    .map(|value| formatting::fmt_human_bytes(value, None))
-                    .unwrap_or_else(|| fl!(I18N, "missing-stat"))
-            }
-            Self::Clockspeed(_) => self
-                .graph_sample(stats, context.vram_clock_ratio)
-                .map(|value| formatting::fmt_clockspeed(Some(value as u64), 1.0))
-                .unwrap_or_else(|| fl!(I18N, "missing-stat")),
-            Self::Voltage(_) => self
-                .graph_sample(stats, context.vram_clock_ratio)
-                .map(|value| format!("{} mV", Mono::float(value, 0)))
-                .unwrap_or_else(|| fl!(I18N, "missing-stat")),
-        }
-    }
-
-    pub(crate) fn gui_visible(&self, context: &StatContext<'_>) -> bool {
-        let stats = context.stats;
-        match self {
-            Self::DeviceName | Self::Throttling | Self::Temperatures | Self::VramUsage => true,
-            Self::GttUsage => stats.vram.gtt_used.is_some(),
-            Self::GpuTargetClock => stats.clockspeed.target_gpu_clockspeed.is_some(),
-            Self::GpuVoltage => stats.voltage.gpu.is_some(),
-            Self::GpuClock => stats.clockspeed.gpu_clockspeed.is_some(),
-            Self::VramClock => stats.clockspeed.vram_clockspeed.is_some(),
-            Self::GpuUsage => stats.busy_percent.is_some(),
-            Self::PowerUsage => stats.power.average.is_some() || stats.power.current.is_some(),
-            Self::FanSpeed => stats.fan.pwm_current.is_some() || stats.fan.speed_current.is_some(),
-            _ => self.graph_sample(stats, context.vram_clock_ratio).is_some(),
-        }
-    }
-
-    pub(crate) fn level_value(&self, context: &StatContext<'_>) -> Option<f64> {
-        if self.stat_view() != Some(StatView::Level) {
-            return None;
-        }
-
-        let stats = context.stats;
-        match self {
-            Self::GpuClock => Some(clock_level(
-                stats.clockspeed.gpu_clockspeed,
-                context.min_gpu_clock,
-                context.max_gpu_clock,
-            )),
-            Self::VramClock => Some(clock_level(
-                stats.clockspeed.vram_clockspeed,
-                context.min_vram_clock,
-                context.max_vram_clock,
-            )),
-            Self::GpuUsage => Some(stats.busy_percent.unwrap_or(0) as f64 / 100.0),
-            Self::VramUsage => Some(
-                stats
-                    .vram
-                    .used
-                    .zip(stats.vram.total)
-                    .map(|(used, total)| used as f64 / total as f64)
-                    .unwrap_or(0.0),
-            ),
-            Self::GttUsage => Some(
-                stats
-                    .vram
-                    .gtt_used
-                    .zip(stats.vram.gtt_total_usable)
-                    .map(|(used, total)| used as f64 / total as f64)
-                    .unwrap_or(0.0),
-            ),
-            Self::PowerUsage => Some(
-                power_usage_value(stats)
-                    .zip(stats.power.cap_current.filter(|value| *value != 0.0))
-                    .map(|(current, cap)| current / cap)
-                    .unwrap_or(0.0),
-            ),
-            Self::FanSpeed => Some(
-                stats
-                    .fan
-                    .pwm_current
-                    .map(|pwm| pwm as f64 / u8::MAX as f64)
-                    .unwrap_or(0.0),
-            ),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn temperature_values(
-        &self,
-        stats: &DeviceStats,
-    ) -> Option<(Vec<String>, Vec<String>)> {
-        matches!(self, Self::Temperatures).then(|| formatting::fmt_temperature_text(stats))
-    }
-
-    pub(crate) fn label(&self) -> String {
-        use StatType::*;
-        match self {
-            GpuClock => fl!(I18N, "gpu-clock"),
-            GpuTargetClock => fl!(I18N, "gpu-clock-target"),
-            GpuVoltage => fl!(I18N, "gpu-voltage"),
-            VramClock => fl!(I18N, "vram-clock"),
-            VramSize => "VRAM Size".into(),
-            VramUsed => "VRAM Used".into(),
-            GttSize => "GTT Size".into(),
-            GttUsed => "GTT Used".into(),
-            GpuUsage => fl!(I18N, "gpu-usage"),
-            Temperature(name) => format!("{} ({name})", fl!(I18N, "gpu-temp")),
-            Clockspeed(name) => format!("Clockspeed ({name})"),
-            Voltage(name) => format!("{} ({name})", fl!(I18N, "voltage")),
-            Power(name) => format!("{} ({name})", fl!(I18N, "power-usage")),
-            FanRpm => "Fan RPM".into(),
-            FanPwm => "Fan".into(),
-            PowerCurrent => "Power Draw".into(),
-            PowerAverage => "Power Draw (Avg)".into(),
-            PowerCap => fl!(I18N, "power-cap"),
-            DeviceName => fl!(I18N, "device-name"),
-            Throttling => fl!(I18N, "throttling"),
-            Temperatures => fl!(I18N, "gpu-temp"),
-            VramUsage => fl!(I18N, "vram-usage"),
-            GttUsage => fl!(I18N, "gtt-usage"),
-            PowerUsage => fl!(I18N, "power-usage"),
-            FanSpeed => fl!(I18N, "fan-speed"),
-        }
-    }
-
-    pub(crate) fn unit_label(&self) -> &'static str {
-        use StatType::*;
-        match self {
-            GpuClock | GpuTargetClock | VramClock | Clockspeed(_) => "MHz",
-            VramSize | VramUsed | GttSize | GttUsed => "MiB",
-            GpuVoltage | Voltage(_) => "mV",
-            Temperature(_) | Temperatures => "℃",
-            FanRpm => "RPM",
-            FanPwm | GpuUsage => "%",
-            PowerCurrent | PowerAverage | PowerCap | Power(_) | PowerUsage => "W",
-            DeviceName | Throttling | VramUsage | GttUsage | FanSpeed => "",
-        }
-    }
-
     pub(crate) fn precision(&self) -> usize {
         use StatType::*;
         match self {
@@ -376,25 +170,508 @@ impl StatType {
             | FanSpeed => 0,
         }
     }
-
-    pub(crate) fn show_peak(&self) -> bool {
-        use StatType::*;
-        !matches!(
-            self,
-            VramSize
-                | GttSize
-                | PowerCap
-                | DeviceName
-                | Throttling
-                | Temperatures
-                | VramUsage
-                | GttUsage
-                | PowerUsage
-                | FanSpeed
-        )
-    }
 }
 
+pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap {
+    let mut configs = fixed_stat_configs().clone();
+
+    for name in context.stats.temps.keys() {
+        let stat_type = StatType::Temperature(name.clone());
+        let config = StatConfig {
+            label: format!("{} ({name})", fl!(I18N, "gpu-temp")),
+            unit_label: "℃",
+            show_peak: true,
+            graph_sample: |stat_type, context| {
+                let StatType::Temperature(name) = stat_type else {
+                    return None;
+                };
+
+                context
+                    .stats
+                    .temps
+                    .get(name)
+                    .and_then(|temperature| temperature.value.current)
+                    .map(Into::into)
+            },
+            view: None,
+        };
+        configs.insert(stat_type, config);
+    }
+
+    for name in context.stats.voltage.sensors.keys() {
+        let stat_type = StatType::Voltage(name.clone());
+        let config = StatConfig {
+            label: format!("{} ({name})", fl!(I18N, "voltage")),
+            unit_label: "mV",
+            show_peak: true,
+            graph_sample: |stat_type, context| {
+                let StatType::Voltage(name) = stat_type else {
+                    return None;
+                };
+
+                context
+                    .stats
+                    .voltage
+                    .sensors
+                    .get(name)
+                    .map(|val| *val as f64)
+            },
+            view: None,
+        };
+        configs.insert(stat_type, config);
+    }
+
+    for name in context.stats.clockspeed.sensors.keys() {
+        let stat_type = StatType::Clockspeed(name.clone());
+        let config = StatConfig {
+            label: format!("Clockspeed ({name})"),
+            unit_label: "MHz",
+            show_peak: true,
+            graph_sample: |stat_type, context| {
+                let StatType::Clockspeed(name) = stat_type else {
+                    return None;
+                };
+
+                context
+                    .stats
+                    .clockspeed
+                    .sensors
+                    .get(name)
+                    .map(|val| *val as f64)
+            },
+            view: None,
+        };
+        configs.insert(stat_type, config);
+    }
+
+    for name in context.stats.power.sensors.keys() {
+        let stat_type = StatType::Power(name.clone());
+        let config = StatConfig {
+            label: format!("{} ({name})", fl!(I18N, "power-usage")),
+            unit_label: "W",
+            show_peak: true,
+            graph_sample: |stat_type, context| {
+                let StatType::Power(name) = stat_type else {
+                    return None;
+                };
+
+                context.stats.power.sensors.get(name).copied()
+            },
+            view: None,
+        };
+        configs.insert(stat_type, config);
+    }
+
+    configs
+}
+
+pub(crate) fn fixed_stat_configs() -> &'static StatConfigMap {
+    static CONFIGS: LazyLock<StatConfigMap> = LazyLock::new(|| {
+        HashMap::from([
+            (
+                StatType::GpuClock,
+                StatConfig {
+                    label: fl!(I18N, "gpu-clock"),
+                    unit_label: "MHz",
+                    show_peak: true,
+                    graph_sample: |_, context| {
+                        context
+                            .stats
+                            .clockspeed
+                            .gpu_clockspeed
+                            .map(|val| val as f64)
+                    },
+                    view: Some(|_, context| {
+                        StatViewConfig::Level(LevelStatConfig {
+                            visible: context.stats.clockspeed.gpu_clockspeed.is_some(),
+                            display_value: formatting::fmt_clockspeed(
+                                context.stats.clockspeed.gpu_clockspeed,
+                                1.0,
+                            ),
+                            level_value: clock_level(
+                                context.stats.clockspeed.gpu_clockspeed,
+                                context.min_gpu_clock,
+                                context.max_gpu_clock,
+                            ),
+                        })
+                    }),
+                },
+            ),
+            (
+                StatType::GpuTargetClock,
+                StatConfig {
+                    label: fl!(I18N, "gpu-clock-target"),
+                    unit_label: "MHz",
+                    show_peak: true,
+                    graph_sample: |_, context| {
+                        context
+                            .stats
+                            .clockspeed
+                            .target_gpu_clockspeed
+                            .map(|val| val as f64)
+                    },
+                    view: Some(|_, context| {
+                        StatViewConfig::Info(InfoStatConfig {
+                            visible: context.stats.clockspeed.target_gpu_clockspeed.is_some(),
+                            display_value: format_current_gfxclk(
+                                context.stats.clockspeed.target_gpu_clockspeed,
+                            ),
+                        })
+                    }),
+                },
+            ),
+            (
+                StatType::GpuUsage,
+                StatConfig {
+                    label: fl!(I18N, "gpu-usage"),
+                    unit_label: "%",
+                    show_peak: true,
+                    graph_sample: |_, context| context.stats.busy_percent.map(|val| val as f64),
+                    view: Some(|_, context| {
+                        StatViewConfig::Level(LevelStatConfig {
+                            visible: context.stats.busy_percent.is_some(),
+                            display_value: format!(
+                                "{}%",
+                                Mono::uint(context.stats.busy_percent.unwrap_or(0))
+                            ),
+                            level_value: context.stats.busy_percent.unwrap_or(0) as f64 / 100.0,
+                        })
+                    }),
+                },
+            ),
+            (
+                StatType::FanRpm,
+                StatConfig {
+                    label: "Fan RPM".into(),
+                    unit_label: "RPM",
+                    show_peak: true,
+                    graph_sample: |_, context| {
+                        context.stats.fan.speed_current.map(|val| val as f64)
+                    },
+                    view: None,
+                },
+            ),
+            (
+                StatType::FanPwm,
+                StatConfig {
+                    label: "Fan".into(),
+                    unit_label: "%",
+                    show_peak: true,
+                    graph_sample: |_, context| {
+                        context
+                            .stats
+                            .fan
+                            .pwm_current
+                            .map(|val| (val as f64) / u8::MAX as f64 * 100.0)
+                    },
+                    view: None,
+                },
+            ),
+            (
+                StatType::PowerCurrent,
+                StatConfig {
+                    label: "Power Draw".into(),
+                    unit_label: "W",
+                    show_peak: true,
+                    graph_sample: |_, context| context.stats.power.current,
+                    view: None,
+                },
+            ),
+            (
+                StatType::PowerAverage,
+                StatConfig {
+                    label: "Power Draw (Avg)".into(),
+                    unit_label: "W",
+                    show_peak: true,
+                    graph_sample: |_, context| context.stats.power.average,
+                    view: None,
+                },
+            ),
+            (
+                StatType::PowerCap,
+                StatConfig {
+                    label: fl!(I18N, "power-cap"),
+                    unit_label: "W",
+                    show_peak: false,
+                    graph_sample: |_, context| context.stats.power.cap_current,
+                    view: None,
+                },
+            ),
+            (
+                StatType::VramClock,
+                StatConfig {
+                    label: fl!(I18N, "vram-clock"),
+                    unit_label: "MHz",
+                    show_peak: true,
+                    graph_sample: |_, context| {
+                        context
+                            .stats
+                            .clockspeed
+                            .vram_clockspeed
+                            .map(|val| val as f64 * context.vram_clock_ratio)
+                    },
+                    view: Some(|_, context| {
+                        StatViewConfig::Level(LevelStatConfig {
+                            visible: context.stats.clockspeed.vram_clockspeed.is_some(),
+                            display_value: formatting::fmt_clockspeed(
+                                context.stats.clockspeed.vram_clockspeed,
+                                context.vram_clock_ratio,
+                            ),
+                            level_value: clock_level(
+                                context.stats.clockspeed.vram_clockspeed,
+                                context.min_vram_clock,
+                                context.max_vram_clock,
+                            ),
+                        })
+                    }),
+                },
+            ),
+            (
+                StatType::VramSize,
+                StatConfig {
+                    label: "VRAM Size".into(),
+                    unit_label: "MiB",
+                    show_peak: false,
+                    graph_sample: |_, context| {
+                        context
+                            .stats
+                            .vram
+                            .total
+                            .map(|val| (val / 1024 / 1024) as f64)
+                    },
+                    view: None,
+                },
+            ),
+            (
+                StatType::VramUsed,
+                StatConfig {
+                    label: "VRAM Used".into(),
+                    unit_label: "MiB",
+                    show_peak: true,
+                    graph_sample: |_, context| {
+                        context
+                            .stats
+                            .vram
+                            .used
+                            .map(|val| (val / 1024 / 1024) as f64)
+                    },
+                    view: None,
+                },
+            ),
+            (
+                StatType::GttSize,
+                StatConfig {
+                    label: "GTT Size".into(),
+                    unit_label: "MiB",
+                    show_peak: false,
+                    graph_sample: |_, context| {
+                        context
+                            .stats
+                            .vram
+                            .gtt_total_usable
+                            .map(|val| (val / 1024 / 1024) as f64)
+                    },
+                    view: None,
+                },
+            ),
+            (
+                StatType::GttUsed,
+                StatConfig {
+                    label: "GTT Used".into(),
+                    unit_label: "MiB",
+                    show_peak: true,
+                    graph_sample: |_, context| {
+                        context
+                            .stats
+                            .vram
+                            .gtt_used
+                            .map(|val| (val / 1024 / 1024) as f64)
+                    },
+                    view: None,
+                },
+            ),
+            (
+                StatType::GpuVoltage,
+                StatConfig {
+                    label: fl!(I18N, "gpu-voltage"),
+                    unit_label: "mV",
+                    show_peak: true,
+                    graph_sample: |_, context| context.stats.voltage.gpu.map(|val| val as f64),
+                    view: Some(|_, context| {
+                        StatViewConfig::Info(InfoStatConfig {
+                            visible: context.stats.voltage.gpu.is_some(),
+                            display_value: format!(
+                                "{} V",
+                                Mono::float(
+                                    context.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64,
+                                    3
+                                )
+                            ),
+                        })
+                    }),
+                },
+            ),
+            (
+                StatType::DeviceName,
+                StatConfig {
+                    label: fl!(I18N, "device-name"),
+                    unit_label: "",
+                    show_peak: false,
+                    graph_sample: |_, _| None,
+                    view: Some(|_, context| {
+                        StatViewConfig::Info(InfoStatConfig {
+                            visible: true,
+                            display_value: context.gpu_model.to_owned(),
+                        })
+                    }),
+                },
+            ),
+            (
+                StatType::Throttling,
+                StatConfig {
+                    label: fl!(I18N, "throttling"),
+                    unit_label: "",
+                    show_peak: false,
+                    graph_sample: |_, _| None,
+                    view: Some(|_, context| {
+                        StatViewConfig::Info(InfoStatConfig {
+                            visible: true,
+                            display_value: formatting::fmt_throttling_text(context.stats),
+                        })
+                    }),
+                },
+            ),
+            (
+                StatType::Temperatures,
+                StatConfig {
+                    label: fl!(I18N, "gpu-temp"),
+                    unit_label: "℃",
+                    show_peak: false,
+                    graph_sample: |_, _| None,
+                    view: Some(|_, context| {
+                        let (primary, secondary) = formatting::fmt_temperature_text(context.stats);
+                        let display_value = if primary.is_empty() {
+                            fl!(I18N, "missing-stat")
+                        } else {
+                            primary.join(", ")
+                        };
+
+                        StatViewConfig::Temperatures(TemperatureStatConfig {
+                            visible: true,
+                            display_value,
+                            secondary,
+                        })
+                    }),
+                },
+            ),
+            (
+                StatType::VramUsage,
+                StatConfig {
+                    label: fl!(I18N, "vram-usage"),
+                    unit_label: "",
+                    show_peak: false,
+                    graph_sample: |_, _| None,
+                    view: Some(|_, context| {
+                        StatViewConfig::Level(LevelStatConfig {
+                            visible: true,
+                            display_value: formatting::fmt_human_bytes(
+                                context.stats.vram.used.unwrap_or(0),
+                                Some(formatting::ByteUnit::Gibibyte),
+                            ),
+                            level_value: context
+                                .stats
+                                .vram
+                                .used
+                                .zip(context.stats.vram.total)
+                                .map(|(used, total)| used as f64 / total as f64)
+                                .unwrap_or(0.0),
+                        })
+                    }),
+                },
+            ),
+            (
+                StatType::PowerUsage,
+                StatConfig {
+                    label: fl!(I18N, "power-usage"),
+                    unit_label: "W",
+                    show_peak: false,
+                    graph_sample: |_, _| None,
+                    view: Some(|_, context| {
+                        StatViewConfig::Level(LevelStatConfig {
+                            visible: context.stats.power.average.is_some()
+                                || context.stats.power.current.is_some(),
+                            display_value: format!(
+                                "{} {}",
+                                Mono::float(power_usage_value(context.stats).unwrap_or(0.0), 1),
+                                fl!(I18N, "watt")
+                            ),
+                            level_value: power_usage_value(context.stats)
+                                .zip(
+                                    context
+                                        .stats
+                                        .power
+                                        .cap_current
+                                        .filter(|value| *value != 0.0),
+                                )
+                                .map(|(current, cap)| current / cap)
+                                .unwrap_or(0.0),
+                        })
+                    }),
+                },
+            ),
+            (
+                StatType::GttUsage,
+                StatConfig {
+                    label: fl!(I18N, "gtt-usage"),
+                    unit_label: "",
+                    show_peak: false,
+                    graph_sample: |_, _| None,
+                    view: Some(|_, context| {
+                        StatViewConfig::Level(LevelStatConfig {
+                            visible: context.stats.vram.gtt_used.is_some(),
+                            display_value: formatting::fmt_human_bytes(
+                                context.stats.vram.gtt_used.unwrap_or(0),
+                                Some(formatting::ByteUnit::Gibibyte),
+                            ),
+                            level_value: context
+                                .stats
+                                .vram
+                                .gtt_used
+                                .zip(context.stats.vram.gtt_total_usable)
+                                .map(|(used, total)| used as f64 / total as f64)
+                                .unwrap_or(0.0),
+                        })
+                    }),
+                },
+            ),
+            (
+                StatType::FanSpeed,
+                StatConfig {
+                    label: fl!(I18N, "fan-speed"),
+                    unit_label: "",
+                    show_peak: false,
+                    graph_sample: |_, _| None,
+                    view: Some(|_, context| {
+                        StatViewConfig::Level(LevelStatConfig {
+                            visible: context.stats.fan.pwm_current.is_some()
+                                || context.stats.fan.speed_current.is_some(),
+                            display_value: formatting::fmt_fan_speed(context.stats, true)
+                                .unwrap_or_else(|| fl!(I18N, "missing-stat")),
+                            level_value: context
+                                .stats
+                                .fan
+                                .pwm_current
+                                .map(|pwm| pwm as f64 / u8::MAX as f64)
+                                .unwrap_or(0.0),
+                        })
+                    }),
+                },
+            ),
+        ])
+    });
+
+    &CONFIGS
+}
 fn power_usage_value(stats: &DeviceStats) -> Option<f64> {
     stats
         .power

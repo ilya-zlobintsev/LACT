@@ -212,27 +212,26 @@ impl RenderRequest {
 
         let data = data_guard.get_stats(&self.stats).collect::<Vec<_>>();
 
-        let value_suffix = if self.stats.len() >= 2 {
-            let mut metric = self.stats[0].unit_label();
+        let value_suffix = if data.len() >= 2 {
+            let mut metric = data[0].1.unit_label;
             // Only display a suffix if it's the same across all metrics on the plot
-            for stat in &self.stats[1..] {
-                if stat.unit_label() != metric {
+            for (_, metadata, _) in &data[1..] {
+                if metadata.unit_label != metric {
                     metric = "";
                     break;
                 }
             }
             metric
         } else {
-            self.stats
-                .first()
-                .map(|stat| stat.unit_label())
+            data.first()
+                .map(|(_, metadata, _)| metadata.unit_label)
                 .unwrap_or_default()
         };
 
         // Calculate the maximum value for the y-axis.
         let mut maximum_value = data
             .iter()
-            .flat_map(|(_, list)| list.iter().map(|(_, value)| *value))
+            .flat_map(|(_, _, list)| list.iter().map(|(_, value)| *value))
             .max_by(|x, y| x.partial_cmp(y).unwrap_or(cmp::Ordering::Equal))
             .unwrap_or_default();
 
@@ -278,7 +277,7 @@ impl RenderRequest {
             .context("Failed to draw mesh")?;
 
         // Draw the main line series using cubic spline interpolation.
-        for (idx, (stat_type, data)) in data.iter().enumerate() {
+        for (idx, (stat_type, metadata, data)) in data.iter().enumerate() {
             let current_value = data.last().map(|(_, val)| *val).unwrap_or(0.0);
             let max_value = data
                 .iter()
@@ -287,16 +286,15 @@ impl RenderRequest {
                 .unwrap_or(0.0);
             let avg_value = data.iter().map(|(_, val)| *val).sum::<f64>() / data.len() as f64;
 
-            let stat_suffix = stat_type.unit_label();
+            let stat_suffix = metadata.unit_label;
             let precision = stat_type.precision();
 
             let mut stat_label = format!(
                 "{}: {current_value:.*}{stat_suffix}",
-                stat_type.label(),
-                precision
+                metadata.label, precision
             );
             if self.print_extra_info {
-                if stat_type.show_peak() {
+                if metadata.show_peak {
                     write!(stat_label, ", Peak {max_value:.*}{stat_suffix}", precision).unwrap();
                 }
 

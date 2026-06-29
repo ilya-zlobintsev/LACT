@@ -188,7 +188,11 @@ impl relm4::factory::FactoryComponent for PlotComponent {
 
             for stat in data_guard.list_stats() {
                 let enabled = init.selected_stats.contains(stat);
-                stats_guard.push_back((stat.clone(), enabled));
+                let label = data_guard
+                    .stat_metadata(stat)
+                    .map(|metadata| metadata.label.clone())
+                    .unwrap_or_else(|| format!("{stat:?}"));
+                stats_guard.push_back((stat.clone(), label, enabled));
             }
         }
 
@@ -274,13 +278,14 @@ impl PlotComponent {
 
 struct StatTypeRow {
     stat: StatType,
+    label: String,
     enabled: BoolBinding,
 }
 
 #[relm4::factory]
 impl relm4::factory::FactoryComponent for StatTypeRow {
     type ParentWidget = gtk::Box;
-    type Init = (StatType, bool);
+    type Init = (StatType, String, bool);
     type Input = ();
     type Output = PlotComponentMsg;
     type CommandOutput = ();
@@ -288,12 +293,12 @@ impl relm4::factory::FactoryComponent for StatTypeRow {
     view! {
         gtk::CheckButton {
             add_binding: (&self.enabled, "active"),
-            set_label: Some(&self.stat.label()),
+            set_label: Some(&self.label),
         }
     }
 
     fn init_model(
-        (stat, enabled): Self::Init,
+        (stat, label, enabled): Self::Init,
         _index: &Self::Index,
         sender: relm4::FactorySender<Self>,
     ) -> Self {
@@ -303,6 +308,10 @@ impl relm4::factory::FactoryComponent for StatTypeRow {
             sender.output(PlotComponentMsg::UpdatedSelection).unwrap();
         });
 
-        Self { stat, enabled }
+        Self {
+            stat,
+            label,
+            enabled,
+        }
     }
 }
