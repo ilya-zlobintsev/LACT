@@ -42,7 +42,7 @@ pub struct GpuConfig {
     pub pmfw_options: PmfwOptions,
     #[serde(default, skip_serializing_if = "NvidiaThermalOptions::is_empty")]
     pub nvidia_thermal_options: NvidiaThermalOptions,
-    pub nvidia_power_mizer_mode: Option<PowerMizerMode>,
+    pub power_mizer_mode: Option<PowerMizerMode>,
     pub power_cap: Option<f64>,
     pub performance_level: Option<PerformanceLevel>,
     #[serde(default, flatten)]
