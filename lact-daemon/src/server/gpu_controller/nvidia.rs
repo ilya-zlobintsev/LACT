@@ -32,7 +32,6 @@ use nvml_wrapper::{
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
     enums::device::{GpuLockedClocksSetting, PowerMizerMode, UsedGpuMemory},
     error::NvmlError,
-    structs::device::PowerMizerModeInfo,
 };
 use std::{
     cell::{Cell, RefCell},
@@ -160,15 +159,6 @@ impl NvidiaGpuController {
             target_temp: self.get_target_temp(),
             target_temp_default: self.initial_target_temp,
         }
-    }
-
-    fn get_nvidia_power_mizer_info(&self) -> Option<PowerMizerModeInfo> {
-        let pm_info = self.device().power_mizer_mode().ok()?;
-
-        Some(PowerMizerModeInfo {
-            current: pm_info.current,
-            supported: pm_info.supported,
-        })
     }
 
     fn get_target_temp(&self) -> Option<FanInfo> {
@@ -911,7 +901,7 @@ impl GpuController for NvidiaGpuController {
             .ok();
 
         let fan_range = device.min_max_fan_speed().ok();
-        let power_mizer_info = self.get_nvidia_power_mizer_info();
+        let power_mizer_info = self.device().power_mizer_mode().ok();
 
         DeviceStats {
             temps,
