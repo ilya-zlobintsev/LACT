@@ -1215,7 +1215,7 @@ impl AppModel {
         }
 
         if let Some(mode) = self.oc_page.model().get_nvidia_power_mizer_mode() {
-            gpu_config.nvidia_power_mizer_mode = Some(mode);
+            gpu_config.power_mizer_mode = Some(mode);
         }
 
         self.thermals_page.model().apply_config(&mut gpu_config);

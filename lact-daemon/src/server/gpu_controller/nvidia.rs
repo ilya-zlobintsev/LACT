@@ -1097,7 +1097,7 @@ impl GpuController for NvidiaGpuController {
 
             apply_power_cap(&mut device, config.power_cap)?;
 
-            if let Some(mode) = config.nvidia_power_mizer_mode {
+            if let Some(mode) = config.power_mizer_mode {
                 apply_power_mizer_mode(&mut device, mode)?;
             }
 

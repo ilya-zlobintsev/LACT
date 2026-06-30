@@ -126,7 +126,7 @@ gpus:
     performance_level: auto
     # PowerMizer mode for Nvidia GPUs.
     # Can be `auto`, `adaptive`, `prefer_maximum_performance` or `prefer_consistent_performance`.
-    nvidia_power_mizer_mode: auto
+    power_mizer_mode: auto
     # Index of an AMD power profile mode.
     # Setting this requires `performance_level` to be set to `manual`.
     power_profile_mode_index: 0
