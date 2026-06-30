@@ -14,6 +14,7 @@ edition = "2024"
 
 [workspace.dependencies]
 amdgpu-sysfs = { version = "0.21.0", features = ["serde"] }
+nvml-wrapper = { git = "https://github.com/Cldfire/nvml-wrapper.git", rev = "eb47417eede43443f139053479618e96ad32893d" }
 serde = { version = "1.0", features = ["derive"] }
 serde_with = { version = "3.18.0", default-features = false, features = [
     "macros",

@@ -178,7 +178,8 @@ mod benches {
                         ..Default::default()
                     },
                     nvidia_thermal_info: Default::default(),
-                    nvidia_power_mizer_info: None,
+                    active_power_mizer_mode: None,
+                    supported_power_mizer_modes: None,
                     performance_level: Some(PerformanceLevel::Auto),
                     power: PowerStats {
                         average: Some(36.0),
