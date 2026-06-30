@@ -295,6 +295,11 @@ ui = UI
 daemon = Daemon
 about = About
 
+color-scheme = Color Scheme
+color-scheme-auto = System
+color-scheme-light = Light
+color-scheme-dark = Dark
+
 # Crash page
 crash-page-title = Application Crashed
 exit = Exit
