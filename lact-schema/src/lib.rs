@@ -22,6 +22,8 @@ use amdgpu_sysfs::{
     hw_mon::Temperature,
 };
 use indexmap::{IndexMap, IndexSet};
+use nvml_wrapper::enums::device::PowerMizerMode;
+
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
@@ -550,7 +552,6 @@ pub struct DeviceStats {
     pub fan: FanStats,
     #[serde(default, skip_serializing_if = "NvidiaThermalInfo::is_empty")]
     pub nvidia_thermal_info: NvidiaThermalInfo,
-    pub nvidia_power_mizer_info: Option<NvidiaPowerMizerInfo>,
     pub clockspeed: ClockspeedStats,
     pub voltage: VoltageStats,
     pub vram: VramStats,
@@ -558,6 +559,8 @@ pub struct DeviceStats {
     pub temps: HashMap<String, TemperatureEntry>,
     pub busy_percent: Option<u8>,
     pub performance_level: Option<PerformanceLevel>,
+    pub active_power_mizer_mode: Option<PowerMizerMode>,
+    pub supported_power_mizer_modes: Option<Vec<PowerMizerMode>>,
     pub active_power_states: Option<ActivePowerStates>,
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
 }
@@ -639,21 +642,6 @@ impl NvidiaThermalInfo {
     pub fn is_empty(&self) -> bool {
         *self == Self::default()
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum NvidiaPowerMizerMode {
-    Auto,
-    Adaptive,
-    PreferMaximumPerformance,
-    PreferConsistentPerformance,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct NvidiaPowerMizerInfo {
-    pub current: NvidiaPowerMizerMode,
-    pub supported: Vec<NvidiaPowerMizerMode>,
 }
 
 #[skip_serializing_none]

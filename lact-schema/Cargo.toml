@@ -8,6 +8,7 @@ args = ["clap"]
 
 [dependencies]
 amdgpu-sysfs = { workspace = true }
+nvml-wrapper = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_with = { workspace = true }
 serde_json = { workspace = true }

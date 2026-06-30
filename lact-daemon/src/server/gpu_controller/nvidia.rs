@@ -21,10 +21,9 @@ use indexmap::IndexMap;
 use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
     DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
-    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaPowerMizerInfo,
-    NvidiaPowerMizerMode, NvidiaThermalInfo, NvidiaVfPoint, PmfwInfo, PowerState, PowerStates,
-    PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry,
-    VoltageStats, VramStats,
+    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaThermalInfo,
+    NvidiaVfPoint, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList,
+    ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
 use nvml_wrapper::{
@@ -33,6 +32,7 @@ use nvml_wrapper::{
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
     enums::device::{GpuLockedClocksSetting, PowerMizerMode, UsedGpuMemory},
     error::NvmlError,
+    structs::device::PowerMizerModeInfo,
 };
 use std::{
     cell::{Cell, RefCell},
@@ -162,12 +162,12 @@ impl NvidiaGpuController {
         }
     }
 
-    fn get_nvidia_power_mizer_info(device: &Device<'_>) -> Option<NvidiaPowerMizerInfo> {
-        let info = device.power_mizer_mode().ok()?;
+    fn get_nvidia_power_mizer_info(&self) -> Option<PowerMizerModeInfo> {
+        let pm_info = self.device().power_mizer_mode().ok()?;
 
-        Some(NvidiaPowerMizerInfo {
-            current: from_nvml_power_mizer_mode(info.current),
-            supported: supported_power_mizer_modes(info.supported),
+        Some(PowerMizerModeInfo {
+            current: pm_info.current,
+            supported: pm_info.supported,
         })
     }
 
@@ -590,32 +590,7 @@ fn point_count_from_mask(mask: [u32; 8]) -> usize {
     count
 }
 
-fn from_nvml_power_mizer_mode(mode: PowerMizerMode) -> NvidiaPowerMizerMode {
-    match mode {
-        PowerMizerMode::Auto => NvidiaPowerMizerMode::Auto,
-        PowerMizerMode::Adaptive => NvidiaPowerMizerMode::Adaptive,
-        PowerMizerMode::PreferMaximumPerformance => NvidiaPowerMizerMode::PreferMaximumPerformance,
-        PowerMizerMode::PreferConsistentPerformance => {
-            NvidiaPowerMizerMode::PreferConsistentPerformance
-        }
-    }
-}
-
-fn to_nvml_power_mizer_mode(mode: NvidiaPowerMizerMode) -> PowerMizerMode {
-    match mode {
-        NvidiaPowerMizerMode::Auto => PowerMizerMode::Auto,
-        NvidiaPowerMizerMode::Adaptive => PowerMizerMode::Adaptive,
-        NvidiaPowerMizerMode::PreferMaximumPerformance => PowerMizerMode::PreferMaximumPerformance,
-        NvidiaPowerMizerMode::PreferConsistentPerformance => {
-            PowerMizerMode::PreferConsistentPerformance
-        }
-    }
-}
-
-fn apply_power_mizer_mode(
-    device: &mut Device<'_>,
-    mode: NvidiaPowerMizerMode,
-) -> anyhow::Result<()> {
+fn apply_power_mizer_mode(device: &mut Device<'_>, mode: PowerMizerMode) -> anyhow::Result<()> {
     let mode_info = device
         .power_mizer_mode()
         .context("Could not get PowerMizer mode")?;
@@ -627,10 +602,28 @@ fn apply_power_mizer_mode(
 
     debug!("setting PowerMizer mode to {mode:?}");
     device
-        .set_power_mizer_mode(to_nvml_power_mizer_mode(mode))
+        .set_power_mizer_mode(mode)
         .context("Could not set PowerMizer mode")?;
 
     Ok(())
+}
+
+fn supported_power_mizer_modes(modes: PowerMizerModes) -> Vec<PowerMizerMode> {
+    [
+        (PowerMizerMode::Auto, PowerMizerModes::AUTO),
+        (PowerMizerMode::Adaptive, PowerMizerModes::ADAPTIVE),
+        (
+            PowerMizerMode::PreferMaximumPerformance,
+            PowerMizerModes::PREFER_MAXIMUM_PERFORMANCE,
+        ),
+        (
+            PowerMizerMode::PreferConsistentPerformance,
+            PowerMizerModes::PREFER_CONSISTENT_PERFORMANCE,
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(mode, flag)| modes.contains(flag).then_some(mode))
+    .collect()
 }
 
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
@@ -663,24 +656,6 @@ fn apply_power_cap(device: &mut Device<'_>, power_cap: Option<f64>) -> anyhow::R
     }
 
     Ok(())
-}
-
-fn supported_power_mizer_modes(modes: PowerMizerModes) -> Vec<NvidiaPowerMizerMode> {
-    [
-        (NvidiaPowerMizerMode::Auto, PowerMizerModes::AUTO),
-        (NvidiaPowerMizerMode::Adaptive, PowerMizerModes::ADAPTIVE),
-        (
-            NvidiaPowerMizerMode::PreferMaximumPerformance,
-            PowerMizerModes::PREFER_MAXIMUM_PERFORMANCE,
-        ),
-        (
-            NvidiaPowerMizerMode::PreferConsistentPerformance,
-            PowerMizerModes::PREFER_CONSISTENT_PERFORMANCE,
-        ),
-    ]
-    .into_iter()
-    .filter_map(|(mode, flag)| modes.contains(flag).then_some(mode))
-    .collect()
 }
 
 impl GpuController for NvidiaGpuController {
@@ -936,6 +911,7 @@ impl GpuController for NvidiaGpuController {
             .ok();
 
         let fan_range = device.min_max_fan_speed().ok();
+        let power_mizer_info = self.get_nvidia_power_mizer_info();
 
         DeviceStats {
             temps,
@@ -958,7 +934,9 @@ impl GpuController for NvidiaGpuController {
                 pmfw_info: PmfwInfo::default(),
             },
             nvidia_thermal_info: self.get_nvidia_thermal_info(),
-            nvidia_power_mizer_info: Self::get_nvidia_power_mizer_info(&device),
+            active_power_mizer_mode: power_mizer_info.as_ref().map(|info| info.current),
+            supported_power_mizer_modes: power_mizer_info
+                .map(|info| supported_power_mizer_modes(info.supported)),
             power: PowerStats {
                 average: None,
                 current: device.power_usage().map(|mw| f64::from(mw) / 1000.0).ok(),

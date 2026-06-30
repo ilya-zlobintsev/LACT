@@ -216,6 +216,9 @@ name = "bitflags"
 version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4512299f36f043ab09a583e57bceb5a5aab7a73db1805848e8fef3c9e8c78b3"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "block-buffer"
@@ -1753,6 +1756,7 @@ dependencies = [
  "lact-daemon",
  "lact-schema",
  "libadwaita",
+ "nvml-wrapper",
  "plotters",
  "plotters-cairo",
  "pretty_assertions",
@@ -1778,6 +1782,7 @@ dependencies = [
  "i18n-embed",
  "i18n-embed-fl",
  "indexmap",
+ "nvml-wrapper",
  "rust-embed",
  "serde",
  "serde-error",
@@ -2143,6 +2148,8 @@ dependencies = [
  "bitflags 2.11.1",
  "libloading",
  "nvml-wrapper-sys",
+ "serde",
+ "serde_derive",
  "static_assertions",
  "thiserror 1.0.69",
  "wrapcenum-derive",

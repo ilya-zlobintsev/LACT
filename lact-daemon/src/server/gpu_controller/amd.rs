@@ -1000,7 +1000,8 @@ impl GpuController for AmdGpuController {
                 },
             },
             nvidia_thermal_info: NvidiaThermalInfo::default(),
-            nvidia_power_mizer_info: None,
+            active_power_mizer_mode: None,
+            supported_power_mizer_modes: None,
             clockspeed: self.get_clockspeed(metrics),
             voltage: VoltageStats {
                 gpu: self.hw_mon_and_then(HwMon::get_gpu_voltage),
