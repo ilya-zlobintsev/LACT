@@ -171,16 +171,16 @@ impl relm4::Component for PerformanceFrame {
                 set_visible: model.active_power_mizer_mode.is_some(),
 
                 gtk::Label {
-                    set_label: &fl!(I18N, "nvidia-power-mizer-mode"),
+                    set_label: &fl!(I18N, "power-mizer-mode"),
                 },
 
                 gtk::Label {
                     #[watch]
                     set_label: &match model.active_power_mizer_mode {
-                        Some(PowerMizerMode::Auto) => fl!(I18N, "nvidia-power-mizer-mode-auto-description"),
-                        Some(PowerMizerMode::Adaptive) => fl!(I18N, "nvidia-power-mizer-mode-adaptive-description"),
-                        Some(PowerMizerMode::PreferMaximumPerformance) => fl!(I18N, "nvidia-power-mizer-mode-prefer-maximum-performance-description"),
-                        Some(PowerMizerMode::PreferConsistentPerformance) => fl!(I18N, "nvidia-power-mizer-mode-prefer-consistent-performance-description"),
+                        Some(PowerMizerMode::Auto) => fl!(I18N, "power-mizer-mode-auto-description"),
+                        Some(PowerMizerMode::Adaptive) => fl!(I18N, "power-mizer-mode-adaptive-description"),
+                        Some(PowerMizerMode::PreferMaximumPerformance) => fl!(I18N, "power-mizer-mode-prefer-maximum-performance-description"),
+                        Some(PowerMizerMode::PreferConsistentPerformance) => fl!(I18N, "power-mizer-mode-prefer-consistent-performance-description"),
                         None => String::new(),
                     },
                     set_hexpand: true,
@@ -331,7 +331,7 @@ impl PerformanceFrame {
         self.performance_level
     }
 
-    pub fn nvidia_power_mizer_mode(&self) -> Option<PowerMizerMode> {
+    pub fn active_power_mizer_mode(&self) -> Option<PowerMizerMode> {
         self.active_power_mizer_mode
     }
 
@@ -380,16 +380,13 @@ fn level_friendly_name(level: PerformanceLevel) -> String {
 
 fn power_mizer_mode_friendly_name(mode: PowerMizerMode) -> String {
     match mode {
-        PowerMizerMode::Auto => fl!(I18N, "nvidia-power-mizer-mode-auto"),
-        PowerMizerMode::Adaptive => fl!(I18N, "nvidia-power-mizer-mode-adaptive"),
+        PowerMizerMode::Auto => fl!(I18N, "power-mizer-mode-auto"),
+        PowerMizerMode::Adaptive => fl!(I18N, "power-mizer-mode-adaptive"),
         PowerMizerMode::PreferMaximumPerformance => {
-            fl!(I18N, "nvidia-power-mizer-mode-prefer-maximum-performance")
+            fl!(I18N, "power-mizer-mode-prefer-maximum-performance")
         }
         PowerMizerMode::PreferConsistentPerformance => {
-            fl!(
-                I18N,
-                "nvidia-power-mizer-mode-prefer-consistent-performance"
-            )
+            fl!(I18N, "power-mizer-mode-prefer-consistent-performance")
         }
     }
 }
