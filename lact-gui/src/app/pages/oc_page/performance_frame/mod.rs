@@ -29,7 +29,6 @@ pub struct PerformanceFrame {
     power_profile_modes: gtk::StringList,
     active_power_mizer_mode: Option<PowerMizerMode>,
     supported_power_mizer_modes: Vec<PowerMizerMode>,
-    nvidia_power_mizer_modes: gtk::StringList,
     heuristics_components: Vec<relm4::Controller<PowerProfileHeuristicsList>>,
 }
 
@@ -42,7 +41,7 @@ pub enum PerformanceFrameMsg {
         active: Option<PowerMizerMode>,
         supported: Option<Vec<PowerMizerMode>>,
     },
-    NvidiaPowerMizerSelected(u32),
+    PowerMizerSelected(u32),
 }
 
 #[relm4::component(pub)]
@@ -188,10 +187,8 @@ impl relm4::Component for PerformanceFrame {
                     set_halign: gtk::Align::End,
                 },
 
+                #[name = "power_mizer_dropdown"]
                 gtk::DropDown {
-                    #[watch]
-                    #[block_signal(power_mizer_select_handler)]
-                    set_model: Some(&model.nvidia_power_mizer_modes),
                     #[watch]
                     #[block_signal(power_mizer_select_handler)]
                     set_selected: model.active_power_mizer_mode
@@ -199,7 +196,7 @@ impl relm4::Component for PerformanceFrame {
                         .unwrap_or(0) as u32,
 
                     connect_selected_notify[sender] => move |dropdown| {
-                        sender.input(PerformanceFrameMsg::NvidiaPowerMizerSelected(dropdown.selected()));
+                        sender.input(PerformanceFrameMsg::PowerMizerSelected(dropdown.selected()));
                     } @ power_mizer_select_handler,
                 },
             },
@@ -223,7 +220,6 @@ impl relm4::Component for PerformanceFrame {
             power_profile_modes: gtk::StringList::new(&[]),
             active_power_mizer_mode: None,
             supported_power_mizer_modes: vec![],
-            nvidia_power_mizer_modes: gtk::StringList::new(&[]),
             heuristics_components: vec![],
         };
 
@@ -274,11 +270,11 @@ impl relm4::Component for PerformanceFrame {
                     modes.append(&power_mizer_mode_friendly_name(*mode));
                 }
 
-                self.nvidia_power_mizer_modes = modes;
+                widgets.power_mizer_dropdown.set_model(Some(&modes));
                 self.active_power_mizer_mode = active;
                 self.supported_power_mizer_modes = supported;
             }
-            PerformanceFrameMsg::NvidiaPowerMizerSelected(idx) => {
+            PerformanceFrameMsg::PowerMizerSelected(idx) => {
                 if let Some(mode) = self.supported_power_mizer_modes.get(idx as usize)
                     && self.active_power_mizer_mode != Some(*mode)
                 {
