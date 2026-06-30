@@ -211,8 +211,8 @@ impl OcPage {
         self.performance_frame.model().performance_level()
     }
 
-    pub fn get_nvidia_power_mizer_mode(&self) -> Option<PowerMizerMode> {
-        self.performance_frame.model().nvidia_power_mizer_mode()
+    pub fn get_active_power_mizer_mode(&self) -> Option<PowerMizerMode> {
+        self.performance_frame.model().active_power_mizer_mode()
     }
 
     pub fn get_power_profile_mode(&self) -> Option<u16> {
