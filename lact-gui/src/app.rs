@@ -469,6 +469,7 @@ impl AsyncComponent for AppModel {
             .expect("Failed to get application from root window");
         setup_actions! {
             (actions, ProcessMonitorAction, APP_BROKER.send(AppMsg::ShowProcessMonitor)),
+            (actions, HistoricalGraphsAction, APP_BROKER.send(AppMsg::ShowGraphsWindow)),
             (actions, GenerateDebugSnapshotAction, APP_BROKER.send(AppMsg::DebugSnapshot)),
             (actions, PreferencesAction, APP_BROKER.send(AppMsg::ShowPreferencesDialog)),
             (actions, AboutAction, APP_BROKER.send(AppMsg::ShowAboutDialog)),
@@ -486,6 +487,8 @@ impl AsyncComponent for AppModel {
             gio_action
         };
         application.set_accelerators_for_action::<PreferencesAction>(&["<Control>comma"]);
+        application.set_accelerators_for_action::<HistoricalGraphsAction>(&["<Control>g"]);
+        application.set_accelerators_for_action::<ProcessMonitorAction>(&["<Control>p"]);
         application.set_accelerators_for_action::<QuitAction>(&["<Control>q"]);
         root.insert_action_group(AppActionGroup::NAME, Some(&actions.into_action_group()));
 
@@ -1458,6 +1461,7 @@ async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Err
 
 new_action_group!(pub AppActionGroup, "app");
 new_stateless_action!(pub ProcessMonitorAction, AppActionGroup, "show-process-monitor");
+new_stateless_action!(pub HistoricalGraphsAction, AppActionGroup, "show-historical-graphs");
 new_stateless_action!(pub GenerateDebugSnapshotAction, AppActionGroup, "generate-debug-snapshot");
 new_stateless_action!(pub DumpVBiosAction, AppActionGroup, "dump-vbios");
 new_stateless_action!(pub PreferencesAction, AppActionGroup, "preferences");

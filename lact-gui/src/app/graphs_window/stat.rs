@@ -283,6 +283,21 @@ impl StatType {
         }
     }
 
+    /// How many digits should be formatted
+    pub fn precision(&self) -> usize {
+        use StatType::*;
+        match self {
+            GpuClock | GpuTargetClock | VramClock | Clockspeed(_) => 0,
+            FanPwm => 1,
+            FanRpm => 0,
+            PowerCurrent | PowerAverage | Power(_) => 1,
+            PowerCap => 0,
+            Temperature(_) => 1,
+            GpuUsage | VramSize | VramUsed | GttSize | GttUsed => 0,
+            GpuVoltage | Voltage(_) => 0,
+        }
+    }
+
     pub fn show_peak(&self) -> bool {
         use StatType::*;
         !matches!(self, VramSize | PowerCap)

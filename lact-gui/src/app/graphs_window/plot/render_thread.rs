@@ -288,15 +288,19 @@ impl RenderRequest {
             let avg_value = data.iter().map(|(_, val)| *val).sum::<f64>() / data.len() as f64;
 
             let stat_suffix = stat_type.metric();
+            let precision = stat_type.precision();
 
-            let mut stat_label =
-                format!("{}: {current_value:.1}{stat_suffix}", stat_type.display(),);
+            let mut stat_label = format!(
+                "{}: {current_value:.*}{stat_suffix}",
+                stat_type.display(),
+                precision
+            );
             if self.print_extra_info {
                 if stat_type.show_peak() {
-                    write!(stat_label, ", Peak {max_value:.1}{stat_suffix}").unwrap();
+                    write!(stat_label, ", Peak {max_value:.*}{stat_suffix}", precision).unwrap();
                 }
 
-                write!(stat_label, ", Avg {avg_value:.1}{stat_suffix}").unwrap();
+                write!(stat_label, ", Avg {avg_value:.*}{stat_suffix}", precision).unwrap();
             }
 
             // Evaluate fixed number of points per spline segment
