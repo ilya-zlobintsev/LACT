@@ -548,6 +548,8 @@ pub struct PciInfo {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DeviceStats {
     pub fan: FanStats,
+    #[serde(default, skip_serializing_if = "NvidiaThermalInfo::is_empty")]
+    pub nvidia_thermal_info: NvidiaThermalInfo,
     pub clockspeed: ClockspeedStats,
     pub voltage: VoltageStats,
     pub vram: VramStats,
@@ -623,6 +625,19 @@ pub struct PmfwInfo {
     pub minimum_pwm: Option<FanInfo>,
     pub zero_rpm_enable: Option<bool>,
     pub zero_rpm_temperature: Option<FanInfo>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct NvidiaThermalInfo {
+    pub target_temp: Option<FanInfo>,
+    pub target_temp_default: Option<u32>,
+}
+
+impl NvidiaThermalInfo {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 #[skip_serializing_none]
@@ -747,6 +762,18 @@ impl PmfwOptions {
 }
 
 #[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct NvidiaThermalOptions {
+    pub target_temperature: Option<u32>,
+}
+
+impl NvidiaThermalOptions {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct FanOptions<'a> {
     pub id: &'a str,
@@ -865,4 +892,41 @@ impl ProcessUtilizationType {
 pub enum ProcessType {
     Graphics,
     Compute,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct DisplaysInfo {
+    pub displays: BTreeMap<String, DisplayInfo>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DisplayInfo {
+    pub model: Option<String>,
+    pub manufacturer: Option<String>,
+    pub product_code: u16,
+    pub manufacture_date: Option<DisplayManufactureDate>,
+    pub size: Option<(u32, u32)>,
+    pub connector_type: DisplayConnector,
+    pub connector_id: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct DisplayManufactureDate {
+    pub year: u16,
+    pub week: u8,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum DisplayConnector {
+    DisplayPort {
+        lanes: Option<u16>,
+        /// Per-lane bandwidth in Mbps
+        bandwidth: Option<u32>,
+        embedded: bool,
+    },
+    Hdmi,
+    Dvi,
+    Vga,
+    Other,
 }

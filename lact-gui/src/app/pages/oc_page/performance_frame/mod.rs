@@ -1,9 +1,8 @@
 mod heuristics_list;
 
-use super::OcPageMsg;
 use crate::{
     APP_BROKER, I18N,
-    app::{msg::AppMsg, page_section::PageSection},
+    app::{components::page_section::PageSection, msg::AppMsg, pages::oc_page::OcPageMsg},
 };
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, power_profile_mode::PowerProfileModesTable};
 use gtk::{

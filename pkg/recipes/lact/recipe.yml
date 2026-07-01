@@ -13,15 +13,18 @@ metadata:
   depends:
     all: [ hwdata, vulkan-tools, clinfo ]
     debian-13+ubuntu-2404+ubuntu-2604: [ libgtk-4-1, libdrm2, libdrm-amdgpu1, libadwaita-1-0 ]
-    fedora-43+fedora-44: [ gtk4, libdrm, libadwaita ]
-    arch: [ gtk4, ocl-icd, libadwaita ]
-    opensuse-tumbleweed: [ gtk4, libadwaita-1-0 ]
+    debian-13: [ libdisplay-info2 ]
+    ubuntu-2404: [ libdisplay-info1 ]
+    ubuntu-2604: [ libdisplay-info3 ]
+    fedora-43+fedora-44: [ gtk4, libdrm, libadwaita, libdisplay-info ]
+    arch: [ gtk4, ocl-icd, libadwaita, libdisplay-info ]
+    opensuse-tumbleweed: [ gtk4, libadwaita-1-0, libdisplay-info ]
   build_depends:
     all: [ curl, make, clang, git, vulkan-tools, clinfo ]
-    debian-13+ubuntu-2404+ubuntu-2604: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus, libadwaita-1-dev ]
-    fedora-43+fedora-44: [ gtk4-devel, gcc, libdrm-devel, dbus, libadwaita-devel ]
-    arch: [ gtk4, dbus, ocl-icd, libadwaita ]
-    opensuse-tumbleweed: [ gtk4-devel, libdrm-devel, libadwaita-devel ]
+    debian-13+ubuntu-2404+ubuntu-2604: [ libgtk-4-dev, pkg-config, build-essential, libdrm-dev, dbus, libadwaita-1-dev, libdisplay-info-dev ]
+    fedora-43+fedora-44: [ gtk4-devel, gcc, libdrm-devel, dbus, libadwaita-devel, libdisplay-info-devel  ]
+    arch: [ gtk4, dbus, ocl-icd, libadwaita, libdisplay-info ]
+    opensuse-tumbleweed: [ gtk4-devel, libdrm-devel, libadwaita-devel, libdisplay-info-devel ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs

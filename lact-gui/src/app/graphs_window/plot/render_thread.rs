@@ -1,8 +1,8 @@
 use super::PlotColorScheme;
 use super::cubic_spline::cubic_spline_interpolation;
 use super::to_texture_ext::ToTextureExt;
-use crate::app::formatting;
 use crate::app::graphs_window::stat::{StatType, StatsData};
+use crate::app::utils::formatting;
 use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
 use gtk::gdk::MemoryTexture;

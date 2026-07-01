@@ -5,6 +5,8 @@ use gtk::{
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 
+use crate::{CONFIG, app::utils::color_scheme::AppColorScheme};
+
 pub const COMBINED_CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/combined.css"));
 
 macro_rules! include_theme_str {
@@ -72,9 +74,13 @@ pub fn apply_theme(theme: AppTheme) -> anyhow::Result<()> {
 
 fn breeze_css() -> &'static str {
     let settings = gio::Settings::new("org.gnome.desktop.interface");
-    match settings.string("color-scheme").as_str() {
-        "prefer-dark" => BREEZE_DARK_CSS,
-        "prefer-light" => BREEZE_LIGHT_CSS,
+    let system_colors = settings.string("color-scheme");
+
+    let app_colors = CONFIG.read().color_scheme;
+
+    match (app_colors, system_colors.as_str()) {
+        (AppColorScheme::Dark, _) | (AppColorScheme::Auto, "prefer-dark") => BREEZE_DARK_CSS,
+        (AppColorScheme::Light, _) | (AppColorScheme::Auto, "prefer-light") => BREEZE_LIGHT_CSS,
         _ => BREEZE_LIGHT_CSS,
     }
 }

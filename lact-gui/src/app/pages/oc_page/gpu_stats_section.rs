@@ -1,10 +1,14 @@
 use crate::I18N;
 use crate::app::{
-    ext::FlowBoxExt,
-    formatting::{self, Mono},
-    info_row::{InfoRow, InfoRowExt},
-    info_row_level::InfoRowLevel,
-    page_section::PageSection,
+    components::{
+        info_row::{InfoRow, InfoRowExt},
+        info_row_level::InfoRowLevel,
+        page_section::PageSection,
+    },
+    utils::{
+        ext::FlowBoxExt,
+        formatting::{self, Mono},
+    },
 };
 use gtk::pango::AttrList;
 use gtk::prelude::{BoxExt, OrientableExt, PopoverExt as _, WidgetExt};
@@ -272,6 +276,9 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             let power_current = power_current
                                 .filter(|value| *value != 0.0)
                                 .or(power_average);
+
+                            let power_cap_current = power_cap_current
+                                .filter(|value| *value != 0.0);
 
                             power_current
                                 .zip(power_cap_current)

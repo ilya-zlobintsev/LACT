@@ -19,11 +19,13 @@ use futures::{FutureExt, future::LocalBoxFuture};
 use lact_schema::{
     ActivePowerStates, AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo,
     ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
-    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates,
-    PowerStats, ProcessList, ProcessUtilizationType, RopInfo, TemperatureEntry, VoltageStats,
-    VramStats,
+    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaThermalInfo, PmfwInfo, PowerState,
+    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo, TemperatureEntry,
+    VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
+#[cfg(feature = "display-info")]
+use lact_schema::{DisplayConnector, DisplaysInfo};
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, HW_IP::HW_IP_TYPE, ThrottlerBit, ThrottlerType};
 use libdrm_amdgpu_sys::{AMDGPU::SENSOR_INFO::SENSOR_TYPE, LibDrmAmdgpu, PCI};
 use std::{
@@ -49,6 +51,7 @@ const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const REQUIRE_MANUAL_DEVICE_IDS: [&str; 3] = ["163F", "1435", "15BF"];
+const UHBR_RATE_THRESHOLD: u32 = 1000;
 const AMDGPU_IDS_FLAGS_FUSION: u64 = 0x1;
 const HSA_CACHE_TYPE_DATA: u32 = 0x0000_0001;
 const HSA_CACHE_TYPE_INSTRUCTION: u32 = 0x0000_0002;
@@ -996,6 +999,7 @@ impl GpuController for AmdGpuController {
                     zero_rpm_temperature: self.handle.get_fan_zero_rpm_stop_temperature().ok(),
                 },
             },
+            nvidia_thermal_info: NvidiaThermalInfo::default(),
             clockspeed: self.get_clockspeed(metrics),
             voltage: VoltageStats {
                 gpu: self.hw_mon_and_then(HwMon::get_gpu_voltage),
@@ -1357,9 +1361,28 @@ impl GpuController for AmdGpuController {
             if let Some(configured_cap) = config.power_cap {
                 let hw_mon = self.first_hw_mon()?;
 
-                hw_mon
-                    .set_power_cap(configured_cap)
-                    .with_context(|| format!("Failed to set power cap: {configured_cap}"))?;
+                match (hw_mon.get_power_cap_min(), hw_mon.get_power_cap_max()) {
+                    (Ok(min), Ok(max)) => {
+                        let clamped_cap = configured_cap.clamp(min, max);
+
+                        #[expect(
+                            clippy::float_cmp,
+                            reason = "we care if the value was chagned at all"
+                        )]
+                        if clamped_cap != configured_cap {
+                            warn!(
+                                "Power cap {configured_cap}W was outside of the allowed range, clamped to {clamped_cap}W"
+                            );
+                        }
+
+                        hw_mon.set_power_cap(clamped_cap).with_context(|| {
+                            format!("Failed to set power cap: {configured_cap}")
+                        })?;
+                    }
+                    (Err(err), _) | (_, Err(err)) => {
+                        bail!("Could not read allowed power cap range: {err:#}");
+                    }
+                }
             } else if let Ok(hw_mon) = self.first_hw_mon()
                 && let Ok(default_cap) = hw_mon.get_power_cap_default()
                 && Ok(default_cap) != hw_mon.get_power_cap()
@@ -1425,6 +1448,51 @@ impl GpuController for AmdGpuController {
             DRM_ENGINES,
             &mut last_total_time_map,
         )
+    }
+
+    #[cfg(feature = "display-info")]
+    fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()> {
+        let debugfs = self.debugfs_path().context("Could not get debugfs")?;
+
+        for (connector, info) in &mut info.displays {
+            if let DisplayConnector::DisplayPort {
+                lanes,
+                bandwidth,
+                embedded: _,
+            } = &mut info.connector_type
+            {
+                let link_settings_path = debugfs.join(connector).join("link_settings");
+                let link_settings = fs::read_to_string(link_settings_path)?;
+
+                let mut parts = link_settings.split_ascii_whitespace().skip(1);
+
+                *lanes = Some(
+                    parts
+                        .next()
+                        .context("Missing lane count")?
+                        .parse::<u16>()
+                        .context("Invalid lane count")?,
+                );
+
+                let bw_enum = parts
+                    .next()
+                    .context("Missing bandwidth")?
+                    .strip_prefix("0x")
+                    .and_then(|value| u32::from_str_radix(value, 16).ok())
+                    .context("Invalid bandwidth value")?;
+
+                // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
+                // AMD reports legacy DP link rates as DP spec codes, while DP2 UHBR
+                // rates are reported in 10 Mbps units. UHBR10 starts at 1000.
+                *bandwidth = Some(if bw_enum < UHBR_RATE_THRESHOLD {
+                    crate::server::display::dp1_rate_to_bandwidth(bw_enum)
+                } else {
+                    crate::server::display::dp2_rate_to_bandwidth(bw_enum)
+                });
+            }
+        }
+
+        Ok(())
     }
 }
 

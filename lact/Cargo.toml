@@ -1,11 +1,12 @@
 [package]
 name = "lact"
-version = "0.9.1"
+version = "0.9.2"
 edition.workspace = true
 
 [features]
-default = ["lact-gui", "nvidia"]
+default = ["lact-gui", "nvidia", "display-info"]
 nvidia = ["lact-daemon/nvidia"]
+display-info = ["lact-daemon/display-info"]
 
 [dependencies]
 lact-daemon = { path = "../lact-daemon", default-features = false }

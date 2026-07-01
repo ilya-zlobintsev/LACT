@@ -2,6 +2,7 @@ info-page = Hardware Info
 oc-page = Overclocking
 thermals-page = Thermals
 software-page = Software Info
+displays-page = Display Info
 
 hardware-info = Hardware Information
 
@@ -39,6 +40,7 @@ cache-instruction = Data
 cache-cpu = CPU
 
 monitoring-section = Monitoring
+thresholds-section = Thresholds &amp; Limits
 fan-control-section = Fan Control
 temperatures = Temperatures
 oc-missing-fan-control-warning = Warning: Overclocking support is disabled, fan control functionality is not available.
@@ -175,6 +177,7 @@ vf-base-curve = Base Curve
 vf-curve-visible-range = Visible Range (%):
 vf-curve-visible-range-to = to
 vf-curve-flatten-right = Flatten curve to the right
+vf-curve-flatten-selection = Flatten selection
 
 gpu-clock-offset = GPU Clock Offset (MHz)
 max-gpu-clock = Maximum GPU Clock (MHz)
@@ -233,6 +236,15 @@ version-mismatch-description =
 
 plot-show-detailed-info = Show detailed info
 
+display-title = Display {$identifier}
+display-manufacturer = Manufacturer
+display-product-code = Product Code
+display-model = Model
+display-physical-size = Physical Size
+display-connection = Connection
+display-manufacture-date = Manufacture Date
+displays-missing = No Displays Detected
+
 settings-profile = Settings Profile
 auto-switch-profiles = Switch automatically
 add-profile = Add new profile
@@ -283,6 +295,11 @@ preferences = Preferences
 ui = UI
 daemon = Daemon
 about = About
+
+color-scheme = Color Scheme
+color-scheme-auto = System
+color-scheme-light = Light
+color-scheme-dark = Dark
 
 # Crash page
 crash-page-title = Application Crashed

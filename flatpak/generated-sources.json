@@ -2173,6 +2173,45 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/libdisplay-info/libdisplay-info-0.3.0.crate",
+        "sha256": "59fd96dbb2381ff31f314f07accbdf8550febdcc5cd8761ecaf7c1763361c359",
+        "dest": "cargo/vendor/libdisplay-info-0.3.0"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": \"59fd96dbb2381ff31f314f07accbdf8550febdcc5cd8761ecaf7c1763361c359\", \"files\": {}}",
+        "dest": "cargo/vendor/libdisplay-info-0.3.0",
+        "dest-filename": ".cargo-checksum.json"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/libdisplay-info-derive/libdisplay-info-derive-0.1.1.crate",
+        "sha256": "8dc2c710cf5819e91220a446d9e64acc6814386cc22c509c3f0df83c0b874a98",
+        "dest": "cargo/vendor/libdisplay-info-derive-0.1.1"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": \"8dc2c710cf5819e91220a446d9e64acc6814386cc22c509c3f0df83c0b874a98\", \"files\": {}}",
+        "dest": "cargo/vendor/libdisplay-info-derive-0.1.1",
+        "dest-filename": ".cargo-checksum.json"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/libdisplay-info-sys/libdisplay-info-sys-0.3.0.crate",
+        "sha256": "26590d55b8819f9c6b0d95d9d12dc9edbfd1f2413e88814a33b631ac049bb51f",
+        "dest": "cargo/vendor/libdisplay-info-sys-0.3.0"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": \"26590d55b8819f9c6b0d95d9d12dc9edbfd1f2413e88814a33b631ac049bb51f\", \"files\": {}}",
+        "dest": "cargo/vendor/libdisplay-info-sys-0.3.0",
+        "dest-filename": ".cargo-checksum.json"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/libdrm_amdgpu_sys/libdrm_amdgpu_sys-0.8.16.crate",
         "sha256": "1e11704169b7b5a043ec5627aa0433019cf67d07f233002e1233edf67c2e662b",
         "dest": "cargo/vendor/libdrm_amdgpu_sys-0.8.16"
@@ -3668,14 +3707,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/tar/tar-0.4.45.crate",
-        "sha256": "22692a6476a21fa75fdfc11d452fda482af402c008cdbaf3476414e122040973",
-        "dest": "cargo/vendor/tar-0.4.45"
+        "url": "https://static.crates.io/crates/tar/tar-0.4.46.crate",
+        "sha256": "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840",
+        "dest": "cargo/vendor/tar-0.4.46"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"22692a6476a21fa75fdfc11d452fda482af402c008cdbaf3476414e122040973\", \"files\": {}}",
-        "dest": "cargo/vendor/tar-0.4.45",
+        "contents": "{\"package\": \"3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840\", \"files\": {}}",
+        "dest": "cargo/vendor/tar-0.4.46",
         "dest-filename": ".cargo-checksum.json"
     },
     {
