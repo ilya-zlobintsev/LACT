@@ -3,7 +3,10 @@ use crate::{
     app::{
         APP_BROKER,
         msg::AppMsg,
-        utils::styles::{self, AppTheme},
+        utils::{
+            color_scheme::AppColorScheme,
+            styles::{self, AppTheme},
+        },
     },
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
@@ -27,6 +30,7 @@ pub struct PreferencesDialog {
 pub enum PreferencesDialogMsg {
     Show,
     ThemeSelected(AppTheme),
+    ColorSchemeSelected(AppColorScheme),
 }
 
 #[relm4::component(pub)]
@@ -84,6 +88,52 @@ impl relm4::Component for PreferencesDialog {
                                 connect_toggled[sender] => move |btn| {
                                     if btn.is_active() {
                                         sender.input(PreferencesDialogMsg::ThemeSelected(AppTheme::Breeze));
+                                    }
+                                },
+                            },
+                        },
+                    },
+
+                    adw::ActionRow {
+                        set_title: &fl!(I18N, "color-scheme"),
+
+                        add_suffix = &gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            add_css_class: "linked",
+                            set_valign: gtk::Align::Center,
+
+                            #[name = "color_scheme_auto_btn"]
+                            gtk::ToggleButton {
+                                set_label: &fl!(I18N, "color-scheme-auto"),
+                                #[watch]
+                                set_active: CONFIG.read().color_scheme == AppColorScheme::Auto,
+                                connect_toggled[sender] => move |btn| {
+                                    if btn.is_active() {
+                                        sender.input(PreferencesDialogMsg::ColorSchemeSelected(AppColorScheme::Auto));
+                                    }
+                                },
+                            },
+
+                            gtk::ToggleButton {
+                                set_label: &fl!(I18N, "color-scheme-light"),
+                                set_group: Some(&color_scheme_auto_btn),
+                                #[watch]
+                                set_active: CONFIG.read().color_scheme == AppColorScheme::Light,
+                                connect_toggled[sender] => move |btn| {
+                                    if btn.is_active() {
+                                        sender.input(PreferencesDialogMsg::ColorSchemeSelected(AppColorScheme::Light));
+                                    }
+                                },
+                            },
+
+                            gtk::ToggleButton {
+                                set_label: &fl!(I18N, "color-scheme-dark"),
+                                set_group: Some(&color_scheme_auto_btn),
+                                #[watch]
+                                set_active: CONFIG.read().color_scheme == AppColorScheme::Dark,
+                                connect_toggled[sender] => move |btn| {
+                                    if btn.is_active() {
+                                        sender.input(PreferencesDialogMsg::ColorSchemeSelected(AppColorScheme::Dark));
                                     }
                                 },
                             },
@@ -173,6 +223,14 @@ impl relm4::Component for PreferencesDialog {
                 CONFIG.write().edit(|config| {
                     config.theme = theme;
                 });
+            }
+            PreferencesDialogMsg::ColorSchemeSelected(scheme) => {
+                scheme.apply();
+                CONFIG.write().edit(|config| {
+                    config.color_scheme = scheme;
+                });
+
+                styles::apply_theme(CONFIG.read().theme).expect("Could not apply theme");
             }
         }
         self.update_view(widgets, sender);

@@ -365,6 +365,7 @@ impl AsyncComponent for AppModel {
         if let Err(err) = styles::apply_theme(CONFIG.read().theme) {
             error!("could not apply theme: {err:#}");
         }
+        CONFIG.read().color_scheme.apply();
 
         let (daemon_client, conn_err) = match args.tcp_address {
             Some(remote_addr) => {

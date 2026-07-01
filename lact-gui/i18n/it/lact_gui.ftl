@@ -267,3 +267,7 @@ version-mismatch-description =
     Se hai aggiornato LACT, è necessario riavviare il servizio con:
 close = Chiudi
 menu = Menu
+color-scheme = Schema di Colori
+color-scheme-auto = Sistema
+color-scheme-light = Chiaro
+color-scheme-dark = Scuro
