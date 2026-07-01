@@ -40,6 +40,7 @@ gpus:
       zero_rpm_threshold: 50
     nvidia_thermal_options:
       target_temperature: 83
+    power_mizer_mode: Auto
     power_cap: 320
     performance_level: auto
     min_core_clock: 300

@@ -17,6 +17,7 @@ use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use indexmap::IndexMap;
 use lact_schema::config;
 use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
+use nvml_wrapper::enums::device::PowerMizerMode;
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
@@ -138,6 +139,11 @@ impl relm4::Component for OcPage {
                             .emit(PerformanceFrameMsg::PerformanceLevel(
                                 stats.performance_level,
                             ));
+                        self.performance_frame
+                            .emit(PerformanceFrameMsg::PowerMizerInfo {
+                                active: stats.active_power_mizer_mode,
+                                supported: stats.supported_power_mizer_modes.clone(),
+                            });
                         sender.input(OcPageMsg::PerformanceLevelChanged);
                     }
                 }
@@ -203,6 +209,10 @@ impl relm4::Component for OcPage {
 impl OcPage {
     pub fn get_performance_level(&self) -> Option<PerformanceLevel> {
         self.performance_frame.model().performance_level()
+    }
+
+    pub fn get_active_power_mizer_mode(&self) -> Option<PowerMizerMode> {
+        self.performance_frame.model().active_power_mizer_mode()
     }
 
     pub fn get_power_profile_mode(&self) -> Option<u16> {

@@ -1215,6 +1215,10 @@ impl AppModel {
                 .get_power_profile_mode_custom_heuristics();
         }
 
+        if let Some(mode) = self.oc_page.model().get_active_power_mizer_mode() {
+            gpu_config.power_mizer_mode = Some(mode);
+        }
+
         self.thermals_page.model().apply_config(&mut gpu_config);
 
         self.oc_page

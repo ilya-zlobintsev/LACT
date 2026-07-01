@@ -144,6 +144,15 @@ performance-level-manual-description = Manual performance control.
 performance-level = Performance Level
 power-profile-mode = Power Profile Mode:
 manual-level-needed = Performance level has to be set to "manual" to use power states and modes
+power-mizer-mode = PowerMizer Mode
+power-mizer-mode-auto = Auto
+power-mizer-mode-adaptive = Adaptive
+power-mizer-mode-prefer-maximum-performance = Prefer Maximum Performance
+power-mizer-mode-prefer-consistent-performance = Prefer Consistent Performance
+power-mizer-mode-auto-description = Let the driver choose the performance policy.
+power-mizer-mode-adaptive-description = Adjust GPU clocks based on GPU usage.
+power-mizer-mode-prefer-maximum-performance-description = Favor maximum performance within driver limits.
+power-mizer-mode-prefer-consistent-performance-description = Lock to GPU base clocks.
 
 overclock-section = Clockspeed and Voltage
 nvidia-oc-info = Overclocking Information

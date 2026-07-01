@@ -28,9 +28,9 @@ use lact_schema::{
 };
 use nvml_wrapper::{
     Device, Nvml,
-    bitmasks::device::ThrottleReasons,
+    bitmasks::device::{PowerMizerModes, ThrottleReasons},
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
-    enums::device::{GpuLockedClocksSetting, UsedGpuMemory},
+    enums::device::{GpuLockedClocksSetting, PowerMizerMode, UsedGpuMemory},
     error::NvmlError,
 };
 use std::{
@@ -580,6 +580,74 @@ fn point_count_from_mask(mask: [u32; 8]) -> usize {
     count
 }
 
+fn apply_power_mizer_mode(device: &mut Device<'_>, mode: PowerMizerMode) -> anyhow::Result<()> {
+    let mode_info = device
+        .power_mizer_mode()
+        .context("Could not get PowerMizer mode")?;
+    let supported = supported_power_mizer_modes(mode_info.supported);
+
+    if !supported.contains(&mode) {
+        bail!("PowerMizer mode {mode:?} is not supported by this GPU");
+    }
+
+    debug!("setting PowerMizer mode to {mode:?}");
+    device
+        .set_power_mizer_mode(mode)
+        .context("Could not set PowerMizer mode")?;
+
+    Ok(())
+}
+
+fn supported_power_mizer_modes(modes: PowerMizerModes) -> Vec<PowerMizerMode> {
+    [
+        (PowerMizerMode::Auto, PowerMizerModes::AUTO),
+        (PowerMizerMode::Adaptive, PowerMizerModes::ADAPTIVE),
+        (
+            PowerMizerMode::PreferMaximumPerformance,
+            PowerMizerModes::PREFER_MAXIMUM_PERFORMANCE,
+        ),
+        (
+            PowerMizerMode::PreferConsistentPerformance,
+            PowerMizerModes::PREFER_CONSISTENT_PERFORMANCE,
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(mode, flag)| modes.contains(flag).then_some(mode))
+    .collect()
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn apply_power_cap(device: &mut Device<'_>, power_cap: Option<f64>) -> anyhow::Result<()> {
+    if let Some(cap) = power_cap {
+        let cap = (cap * 1000.0) as u32;
+
+        let current_cap = device
+            .power_management_limit()
+            .context("Could not get current cap")?;
+
+        if current_cap != cap {
+            debug!("setting power cap to {cap}");
+            device
+                .set_power_management_limit(cap)
+                .context("Could not set power cap")?;
+        }
+    } else {
+        let current_cap = device.power_management_limit();
+        let default_cap = device.power_management_limit_default();
+
+        if let (Ok(current_cap), Ok(default_cap)) = (current_cap, default_cap)
+            && current_cap != default_cap
+        {
+            debug!("resetting power cap to {default_cap}");
+            device
+                .set_power_management_limit(default_cap)
+                .context("Could not reset power cap")?;
+        }
+    }
+
+    Ok(())
+}
+
 impl GpuController for NvidiaGpuController {
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
@@ -833,6 +901,7 @@ impl GpuController for NvidiaGpuController {
             .ok();
 
         let fan_range = device.min_max_fan_speed().ok();
+        let power_mizer_info = self.device().power_mizer_mode().ok();
 
         DeviceStats {
             temps,
@@ -855,6 +924,9 @@ impl GpuController for NvidiaGpuController {
                 pmfw_info: PmfwInfo::default(),
             },
             nvidia_thermal_info: self.get_nvidia_thermal_info(),
+            active_power_mizer_mode: power_mizer_info.as_ref().map(|info| info.current),
+            supported_power_mizer_modes: power_mizer_info
+                .map(|info| supported_power_mizer_modes(info.supported)),
             power: PowerStats {
                 average: None,
                 current: device.power_usage().map(|mw| f64::from(mw) / 1000.0).ok(),
@@ -1013,32 +1085,10 @@ impl GpuController for NvidiaGpuController {
         Box::pin(async {
             let mut device = self.device();
 
-            if let Some(cap) = config.power_cap {
-                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                let cap = (cap * 1000.0) as u32;
+            apply_power_cap(&mut device, config.power_cap)?;
 
-                let current_cap = device
-                    .power_management_limit()
-                    .context("Could not get current cap")?;
-
-                if current_cap != cap {
-                    debug!("setting power cap to {cap}");
-                    device
-                        .set_power_management_limit(cap)
-                        .context("Could not set power cap")?;
-                }
-            } else {
-                let current_cap = device.power_management_limit();
-                let default_cap = device.power_management_limit_default();
-
-                if let (Ok(current_cap), Ok(default_cap)) = (current_cap, default_cap)
-                    && current_cap != default_cap
-                {
-                    debug!("resetting power cap to {default_cap}");
-                    device
-                        .set_power_management_limit(default_cap)
-                        .context("Could not reset power cap")?;
-                }
+            if let Some(mode) = config.power_mizer_mode {
+                apply_power_mizer_mode(&mut device, mode)?;
             }
 
             self.reset_clocks()?;

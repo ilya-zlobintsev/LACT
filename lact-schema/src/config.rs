@@ -1,5 +1,6 @@
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use indexmap::IndexMap;
+use nvml_wrapper::enums::device::PowerMizerMode;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
@@ -41,6 +42,7 @@ pub struct GpuConfig {
     pub pmfw_options: PmfwOptions,
     #[serde(default, skip_serializing_if = "NvidiaThermalOptions::is_empty")]
     pub nvidia_thermal_options: NvidiaThermalOptions,
+    pub power_mizer_mode: Option<PowerMizerMode>,
     pub power_cap: Option<f64>,
     pub performance_level: Option<PerformanceLevel>,
     #[serde(default, flatten)]
