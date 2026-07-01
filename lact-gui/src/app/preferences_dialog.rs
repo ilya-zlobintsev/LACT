@@ -229,6 +229,8 @@ impl relm4::Component for PreferencesDialog {
                 CONFIG.write().edit(|config| {
                     config.color_scheme = scheme;
                 });
+
+                styles::apply_theme(CONFIG.read().theme).expect("Could not apply theme");
             }
         }
         self.update_view(widgets, sender);
