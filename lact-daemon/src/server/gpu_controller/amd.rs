@@ -1008,6 +1008,15 @@ impl GpuController for AmdGpuController {
             vram: VramStats {
                 total: self.handle.get_total_vram().ok(),
                 used: self.handle.get_used_vram().ok(),
+                gtt_total_usable: self
+                    .drm_handle
+                    .as_ref()
+                    .and_then(|handle| handle.vram_gtt_info().ok())
+                    .map(|info| info.gtt_size),
+                gtt_used: self
+                    .drm_handle
+                    .as_ref()
+                    .and_then(|handle| handle.gtt_usage_info().ok()),
             },
             power: PowerStats {
                 average: self.hw_mon_and_then(HwMon::get_power_average),

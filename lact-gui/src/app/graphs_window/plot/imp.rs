@@ -204,6 +204,8 @@ mod benches {
                     vram: VramStats {
                         total: Some(17163091968),
                         used: Some(668274688),
+                        gtt_total_usable: None,
+                        gtt_used: None,
                     },
                     throttle_info: None,
                 };

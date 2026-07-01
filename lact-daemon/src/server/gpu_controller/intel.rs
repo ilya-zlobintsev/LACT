@@ -717,6 +717,9 @@ impl GpuController for IntelGpuController {
                 0 => None,
                 used => Some(used),
             },
+            // TODO
+            gtt_total_usable: None,
+            gtt_used: None,
         };
 
         DeviceStats {

@@ -665,6 +665,8 @@ pub struct VoltageStats {
 pub struct VramStats {
     pub total: Option<u64>,
     pub used: Option<u64>,
+    pub gtt_total_usable: Option<u64>,
+    pub gtt_used: Option<u64>,
 }
 
 #[skip_serializing_none]
