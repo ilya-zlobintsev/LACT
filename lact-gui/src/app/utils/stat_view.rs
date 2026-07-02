@@ -9,6 +9,7 @@ use super::formatting::{self, Mono};
 
 pub(crate) type StatConfigMap = HashMap<StatType, StatConfig>;
 type ValueFn = fn(&StatType, &StatContext<'_>) -> Option<f64>;
+type FormatDirectFn = fn(f64) -> String;
 type FormatFn = fn(&StatType, Option<f64>, &StatContext<'_>) -> String;
 type VisibleFn = fn(&StatType, Option<f64>, &StatContext<'_>) -> bool;
 type LevelFn = fn(&StatType, Option<f64>, &StatContext<'_>) -> f64;
@@ -19,6 +20,7 @@ pub(crate) struct StatConfig {
     pub unit_label: &'static str,
     pub show_peak: bool,
     pub graphable: bool,
+    format_direct: FormatDirectFn,
     value: ValueFn,
     format: Option<FormatFn>,
     visible: Option<VisibleFn>,
@@ -28,6 +30,10 @@ pub(crate) struct StatConfig {
 impl StatConfig {
     pub(crate) fn value(&self, stat_type: &StatType, context: &StatContext<'_>) -> Option<f64> {
         (self.value)(stat_type, context)
+    }
+
+    pub(crate) fn format_direct(&self, value: f64) -> String {
+        (self.format_direct)(value)
     }
 
     pub(crate) fn format(&self, stat_type: &StatType, context: &StatContext<'_>) -> Option<String> {
@@ -77,29 +83,11 @@ pub enum StatType {
     GpuVoltage,
     Clockspeed(String),
     Voltage(String),
-    Throttling,
     Temperatures,
     VramUsage,
     GttUsage,
     PowerUsage,
     FanSpeed,
-}
-
-impl StatType {
-    pub(crate) fn precision(&self) -> usize {
-        use StatType::*;
-        match self {
-            GpuClock | GpuTargetClock | VramClock | Clockspeed(_) => 0,
-            FanPwm => 1,
-            FanRpm => 0,
-            PowerCurrent | PowerAverage | Power(_) => 1,
-            PowerCap => 0,
-            Temperature(_) => 1,
-            GpuUsage | VramSize | VramUsed | GttSize | GttUsed => 0,
-            GpuVoltage | Voltage(_) => 0,
-            Throttling | Temperatures | VramUsage | GttUsage | PowerUsage | FanSpeed => 0,
-        }
-    }
 }
 
 pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap {
@@ -112,6 +100,7 @@ pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap 
             unit_label: "℃",
             show_peak: true,
             graphable: true,
+            format_direct: format_direct_1,
             value: |stat_type, context| {
                 let StatType::Temperature(name) = stat_type else {
                     return None;
@@ -138,6 +127,7 @@ pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap 
             unit_label: "mV",
             show_peak: true,
             graphable: true,
+            format_direct: format_direct_0,
             value: |stat_type, context| {
                 let StatType::Voltage(name) = stat_type else {
                     return None;
@@ -164,6 +154,7 @@ pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap 
             unit_label: "MHz",
             show_peak: true,
             graphable: true,
+            format_direct: format_direct_0,
             value: |stat_type, context| {
                 let StatType::Clockspeed(name) = stat_type else {
                     return None;
@@ -190,6 +181,7 @@ pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap 
             unit_label: "W",
             show_peak: true,
             graphable: true,
+            format_direct: format_direct_1,
             value: |stat_type, context| {
                 let StatType::Power(name) = stat_type else {
                     return None;
@@ -217,6 +209,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "MHz",
                     show_peak: true,
                     graphable: true,
+                    format_direct: format_direct_0,
                     value: |_, context| {
                         context
                             .stats
@@ -242,6 +235,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "MHz",
                     show_peak: true,
                     graphable: true,
+                    format_direct: format_direct_0,
                     value: |_, context| {
                         context
                             .stats
@@ -261,9 +255,11 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "%",
                     show_peak: true,
                     graphable: true,
+                    format_direct: format_direct_0,
                     value: |_, context| context.stats.busy_percent.map(|val| val as f64),
                     format: Some(|_, value, _| {
-                        format!("{}%", Mono::uint(value.unwrap_or(0.0) as u64))
+                        let value = value.unwrap_or(0.0) as u64;
+                        format!("{}%", Mono::uint(value))
                     }),
                     visible: Some(|_, value, _| value.is_some()),
                     level: Some(|_, value, _| value.unwrap_or(0.0) / 100.0),
@@ -276,6 +272,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "RPM",
                     show_peak: true,
                     graphable: true,
+                    format_direct: format_direct_0,
                     value: |_, context| context.stats.fan.speed_current.map(|val| val as f64),
                     format: None,
                     visible: None,
@@ -289,6 +286,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "%",
                     show_peak: true,
                     graphable: true,
+                    format_direct: format_direct_1,
                     value: |_, context| {
                         context
                             .stats
@@ -308,6 +306,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "W",
                     show_peak: true,
                     graphable: true,
+                    format_direct: format_direct_1,
                     value: |_, context| context.stats.power.current,
                     format: None,
                     visible: None,
@@ -321,6 +320,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "W",
                     show_peak: true,
                     graphable: true,
+                    format_direct: format_direct_1,
                     value: |_, context| context.stats.power.average,
                     format: None,
                     visible: None,
@@ -334,6 +334,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "W",
                     show_peak: false,
                     graphable: true,
+                    format_direct: format_direct_0,
                     value: |_, context| context.stats.power.cap_current,
                     format: None,
                     visible: None,
@@ -347,6 +348,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "MHz",
                     show_peak: true,
                     graphable: true,
+                    format_direct: format_direct_0,
                     value: |_, context| {
                         context
                             .stats
@@ -376,6 +378,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "MiB",
                     show_peak: false,
                     graphable: true,
+                    format_direct: format_direct_0,
                     value: |_, context| {
                         context
                             .stats
@@ -395,6 +398,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "MiB",
                     show_peak: true,
                     graphable: true,
+                    format_direct: format_direct_0,
                     value: |_, context| {
                         context
                             .stats
@@ -414,6 +418,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "MiB",
                     show_peak: false,
                     graphable: true,
+                    format_direct: format_direct_0,
                     value: |_, context| {
                         context
                             .stats
@@ -433,6 +438,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "MiB",
                     show_peak: true,
                     graphable: true,
+                    format_direct: format_direct_0,
                     value: |_, context| {
                         context
                             .stats
@@ -452,26 +458,12 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "mV",
                     show_peak: true,
                     graphable: true,
+                    format_direct: format_direct_0,
                     value: |_, context| context.stats.voltage.gpu.map(|val| val as f64),
                     format: Some(|_, value, _| {
                         format!("{} V", Mono::float(value.unwrap_or(0.0) / 1000f64, 3))
                     }),
                     visible: Some(|_, value, _| value.is_some()),
-                    level: None,
-                },
-            ),
-            (
-                StatType::Throttling,
-                StatConfig {
-                    label: fl!(I18N, "throttling"),
-                    unit_label: "",
-                    show_peak: false,
-                    graphable: false,
-                    value: |_, _| None,
-                    format: Some(|_, _value, context| {
-                        formatting::fmt_throttling_text(context.stats)
-                    }),
-                    visible: Some(|_, _value, _| true),
                     level: None,
                 },
             ),
@@ -482,6 +474,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "℃",
                     show_peak: false,
                     graphable: false,
+                    format_direct: format_direct_0,
                     value: |_, _| None,
                     format: Some(|_, _value, context| {
                         let (primary, _) = formatting::fmt_temperature_text(context.stats);
@@ -502,6 +495,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "",
                     show_peak: false,
                     graphable: false,
+                    format_direct: format_direct_0,
                     value: |_, context| {
                         context
                             .stats
@@ -527,6 +521,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "W",
                     show_peak: false,
                     graphable: false,
+                    format_direct: format_direct_0,
                     value: |_, context| power_usage_value(context.stats),
                     format: Some(|_, value, _| {
                         format!(
@@ -557,6 +552,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "",
                     show_peak: false,
                     graphable: false,
+                    format_direct: format_direct_0,
                     value: |_, context| {
                         context
                             .stats
@@ -582,6 +578,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     unit_label: "",
                     show_peak: false,
                     graphable: false,
+                    format_direct: format_direct_0,
                     value: |_, context| {
                         context
                             .stats
@@ -622,6 +619,14 @@ fn clock_level(current: Option<f64>, min: Option<f64>, max: Option<f64>) -> f64 
 
 fn format_mhz_value(value: Option<f64>) -> String {
     formatting::fmt_clockspeed(value, 1.0)
+}
+
+fn format_direct_0(value: f64) -> String {
+    format!("{value:.0}")
+}
+
+fn format_direct_1(value: f64) -> String {
+    format!("{value:.1}")
 }
 
 fn format_current_gfxclk(value: Option<f64>) -> String {

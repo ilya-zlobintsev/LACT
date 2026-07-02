@@ -1,17 +1,21 @@
-use crate::app::{
-    components::{
-        info_row::{InfoRow, InfoRowExt},
-        info_row_level::InfoRowLevel,
-        page_section::PageSection,
-    },
-    utils::{
-        ext::FlowBoxExt,
-        formatting,
-        stat_view::{StatConfig, StatConfigMap, StatContext, StatType, static_stat_configs},
+use crate::{
+    I18N,
+    app::{
+        components::{
+            info_row::{InfoRow, InfoRowExt},
+            info_row_level::InfoRowLevel,
+            page_section::PageSection,
+        },
+        utils::{
+            ext::FlowBoxExt,
+            formatting,
+            stat_view::{StatConfig, StatConfigMap, StatContext, StatType, static_stat_configs},
+        },
     },
 };
 use gtk::pango::AttrList;
 use gtk::prelude::{BoxExt, Cast, FlowBoxChildExt, OrientableExt, PopoverExt as _, WidgetExt};
+use i18n_embed_fl::fl;
 use lact_schema::{DeviceInfo, DeviceStats, PowerStates};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt as _};
 use std::str::FromStr as _;
@@ -58,9 +62,9 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
                     append = &InfoRow {
                         #[watch]
-                        set_name: model.stat_label(&StatType::Throttling).to_owned(),
+                        set_name: fl!(I18N, "throttling"),
                         #[watch]
-                        set_value: model.stat_format(&StatType::Throttling, &context),
+                        set_value: formatting::fmt_throttling_text(context.stats.throttle_info.as_ref()),
                     },
 
                     append_child = &InfoRow {

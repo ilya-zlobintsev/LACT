@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::BTreeMap, fmt};
 
 use i18n_embed_fl::fl;
 use lact_schema::DeviceStats;
@@ -62,8 +62,8 @@ pub fn fmt_fan_speed(stats: &DeviceStats, show_percent: bool) -> Option<String> 
     Some(format!("<b>{}</b>", content))
 }
 
-pub fn fmt_throttling_text(stats: &DeviceStats) -> String {
-    match &stats.throttle_info {
+pub fn fmt_throttling_text(throttle_info: Option<&BTreeMap<String, Vec<String>>>) -> String {
+    match throttle_info {
         Some(throttle_info) => {
             if throttle_info.is_empty() {
                 fl!(I18N, "no-throttling")
@@ -251,16 +251,17 @@ mod tests {
 
     #[test]
     fn fmt_throttling_text_formats_details() {
-        let mut stats = DeviceStats::default();
         let mut throttle_info = BTreeMap::new();
         throttle_info.insert(
             "Thermal".to_string(),
             vec!["GPU".to_string(), "VRAM".to_string()],
         );
         throttle_info.insert("Power".to_string(), vec![]);
-        stats.throttle_info = Some(throttle_info);
 
-        assert_eq!(fmt_throttling_text(&stats), "Power, Thermal (GPU, VRAM)");
+        assert_eq!(
+            fmt_throttling_text(Some(&throttle_info)),
+            "Power, Thermal (GPU, VRAM)"
+        );
     }
 
     #[test]

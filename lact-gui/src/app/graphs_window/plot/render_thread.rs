@@ -12,7 +12,6 @@ use plotters::style::text_anchor::Pos;
 use plotters_cairo::CairoBackend;
 use relm4::tokio::sync::broadcast;
 use std::cmp::{self, max};
-use std::fmt::Write;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex, RwLock};
 use thread_priority::{ThreadBuilderExt, ThreadPriority};
@@ -277,7 +276,7 @@ impl RenderRequest {
             .context("Failed to draw mesh")?;
 
         // Draw the main line series using cubic spline interpolation.
-        for (idx, (stat_type, config, data)) in data.iter().enumerate() {
+        for (idx, (_, config, data)) in data.iter().enumerate() {
             let current_value = data.last().map(|(_, val)| *val).unwrap_or(0.0);
             let max_value = data
                 .iter()
@@ -286,19 +285,26 @@ impl RenderRequest {
                 .unwrap_or(0.0);
             let avg_value = data.iter().map(|(_, val)| *val).sum::<f64>() / data.len() as f64;
 
-            let stat_suffix = config.unit_label;
-            let precision = stat_type.precision();
-
             let mut stat_label = format!(
-                "{}: {current_value:.*}{stat_suffix}",
-                config.label, precision
+                "{}: {}{}",
+                config.label,
+                config.format_direct(current_value),
+                config.unit_label
             );
             if self.print_extra_info {
                 if config.show_peak {
-                    write!(stat_label, ", Peak {max_value:.*}{stat_suffix}", precision).unwrap();
+                    stat_label.push_str(&format!(
+                        ", Peak {}{}",
+                        config.format_direct(max_value),
+                        config.unit_label
+                    ));
                 }
 
-                write!(stat_label, ", Avg {avg_value:.*}{stat_suffix}", precision).unwrap();
+                stat_label.push_str(&format!(
+                    ", Avg {}{}",
+                    config.format_direct(avg_value),
+                    config.unit_label
+                ));
             }
 
             // Evaluate fixed number of points per spline segment

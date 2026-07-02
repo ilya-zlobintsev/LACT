@@ -483,7 +483,7 @@ impl relm4::Component for ThermalsPage {
                     } else {
                         Some(temps.join(", "))
                     };
-                    self.throttling = fmt_throttling_text(&stats);
+                    self.throttling = fmt_throttling_text(stats.throttle_info.as_ref());
 
                     if initial {
                         let page_name = match stats.fan.control_mode {
