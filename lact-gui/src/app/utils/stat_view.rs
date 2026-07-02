@@ -9,6 +9,7 @@ use super::formatting::{self, Mono};
 
 pub(crate) type StatConfigMap = HashMap<StatType, StatConfig>;
 type ValueFn = fn(&StatType, &StatContext<'_>) -> Option<f64>;
+type SampleFn = fn(&StatType, Option<f64>, &StatContext<'_>) -> Option<f64>;
 type FormatDirectFn = fn(f64) -> String;
 type FormatFn = fn(&StatType, Option<f64>, &StatContext<'_>) -> String;
 type VisibleFn = fn(&StatType, Option<f64>, &StatContext<'_>) -> bool;
@@ -21,15 +22,27 @@ pub(crate) struct StatConfig {
     pub show_peak: bool,
     pub graphable: bool,
     format_direct: FormatDirectFn,
+    // raw value
     value: ValueFn,
+    // value adjusted for graph
+    sample: Option<SampleFn>,
+    // formatted value
     format: Option<FormatFn>,
+    // should the stat be visible
     visible: Option<VisibleFn>,
+    // percentage value of the stat
     level: Option<LevelFn>,
 }
 
 impl StatConfig {
     pub(crate) fn value(&self, stat_type: &StatType, context: &StatContext<'_>) -> Option<f64> {
         (self.value)(stat_type, context)
+    }
+
+    pub(crate) fn sample(&self, stat_type: &StatType, context: &StatContext<'_>) -> Option<f64> {
+        let value = self.value(stat_type, context);
+        self.sample
+            .map_or(value, |sample| sample(stat_type, value, context))
     }
 
     pub(crate) fn format_direct(&self, value: f64) -> String {
@@ -111,6 +124,7 @@ pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap 
                     .and_then(|temperature| temperature.value.current)
                     .map(Into::into)
             },
+            sample: None,
             format: None,
             visible: None,
             level: None,
@@ -138,6 +152,7 @@ pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap 
                     .get(name)
                     .map(|val| *val as f64)
             },
+            sample: None,
             format: None,
             visible: None,
             level: None,
@@ -165,6 +180,7 @@ pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap 
                     .get(name)
                     .map(|val| *val as f64)
             },
+            sample: None,
             format: None,
             visible: None,
             level: None,
@@ -187,6 +203,7 @@ pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap 
 
                 context.stats.power.sensors.get(name).copied()
             },
+            sample: None,
             format: None,
             visible: None,
             level: None,
@@ -215,6 +232,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                             .gpu_clockspeed
                             .map(|val| val as f64)
                     },
+                    sample: None,
                     format: Some(|_, value, _| format_mhz_value(value)),
                     visible: Some(|_, value, _| value.is_some()),
                     level: Some(|_, value, context| {
@@ -241,6 +259,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                             .target_gpu_clockspeed
                             .map(|val| val as f64)
                     },
+                    sample: None,
                     format: Some(|_, value, _| format_current_gfxclk(value)),
                     visible: Some(|_, value, _| value.is_some()),
                     level: None,
@@ -255,6 +274,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     graphable: true,
                     format_direct: format_direct_0,
                     value: |_, context| context.stats.busy_percent.map(|val| val as f64),
+                    sample: None,
                     format: Some(|_, value, _| {
                         let value = value.unwrap_or(0.0) as u64;
                         format!("{}%", Mono::uint(value))
@@ -272,6 +292,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     graphable: true,
                     format_direct: format_direct_0,
                     value: |_, context| context.stats.fan.speed_current.map(|val| val as f64),
+                    sample: None,
                     format: None,
                     visible: None,
                     level: None,
@@ -285,13 +306,8 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     show_peak: true,
                     graphable: true,
                     format_direct: format_direct_1,
-                    value: |_, context| {
-                        context
-                            .stats
-                            .fan
-                            .pwm_current
-                            .map(|val| (val as f64) / u8::MAX as f64 * 100.0)
-                    },
+                    value: |_, context| context.stats.fan.pwm_current.map(|val| val as f64),
+                    sample: Some(|_, value, _| value.map(|value| value / u8::MAX as f64 * 100.0)),
                     format: None,
                     visible: None,
                     level: None,
@@ -306,6 +322,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     graphable: true,
                     format_direct: format_direct_1,
                     value: |_, context| context.stats.power.current,
+                    sample: None,
                     format: None,
                     visible: None,
                     level: None,
@@ -320,6 +337,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     graphable: true,
                     format_direct: format_direct_1,
                     value: |_, context| context.stats.power.average,
+                    sample: None,
                     format: None,
                     visible: None,
                     level: None,
@@ -334,6 +352,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     graphable: true,
                     format_direct: format_direct_0,
                     value: |_, context| context.stats.power.cap_current,
+                    sample: None,
                     format: None,
                     visible: None,
                     level: None,
@@ -352,19 +371,20 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                             .stats
                             .clockspeed
                             .vram_clockspeed
-                            .map(|val| val as f64 * context.vram_clock_ratio)
+                            .map(|val| val as f64)
                     },
-                    format: Some(|_, value, _| format_mhz_value(value)),
+                    sample: Some(|_, value, context| {
+                        value.map(|value| value * context.vram_clock_ratio)
+                    }),
+                    format: Some(|_, value, context| {
+                        formatting::fmt_clockspeed(value, context.vram_clock_ratio)
+                    }),
                     visible: Some(|_, value, _| value.is_some()),
                     level: Some(|_, value, context| {
                         clock_level(
                             value,
-                            context
-                                .min_vram_clock
-                                .map(|value| value as f64 * context.vram_clock_ratio),
-                            context
-                                .max_vram_clock
-                                .map(|value| value as f64 * context.vram_clock_ratio),
+                            context.min_vram_clock.map(|value| value as f64),
+                            context.max_vram_clock.map(|value| value as f64),
                         )
                     }),
                 },
@@ -377,13 +397,8 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     show_peak: false,
                     graphable: true,
                     format_direct: format_direct_0,
-                    value: |_, context| {
-                        context
-                            .stats
-                            .vram
-                            .total
-                            .map(|val| (val / 1024 / 1024) as f64)
-                    },
+                    value: |_, context| context.stats.vram.total.map(|val| val as f64),
+                    sample: Some(sample_bytes_as_mib),
                     format: None,
                     visible: None,
                     level: None,
@@ -397,27 +412,19 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     show_peak: true,
                     graphable: true,
                     format_direct: format_direct_0,
-                    value: |_, context| {
-                        context
-                            .stats
-                            .vram
-                            .used
-                            .map(|val| (val / 1024 / 1024) as f64)
-                    },
-                    format: Some(|_, _value, context| {
+                    value: |_, context| context.stats.vram.used.map(|val| val as f64),
+                    sample: Some(sample_bytes_as_mib),
+                    format: Some(|_, value, _| {
                         formatting::fmt_human_bytes(
-                            context.stats.vram.used.unwrap_or(0),
+                            value.unwrap_or(0.0) as u64,
                             Some(formatting::ByteUnit::Gibibyte),
                         )
                     }),
                     visible: Some(|_, _value, _| true),
-                    level: Some(|_, _value, context| {
-                        context
-                            .stats
-                            .vram
-                            .used
-                            .zip(context.stats.vram.total)
-                            .map(|(used, total)| used as f64 / total as f64)
+                    level: Some(|_, value, context| {
+                        value
+                            .zip(context.stats.vram.total.map(|total| total as f64))
+                            .map(|(used, total)| used / total)
                             .unwrap_or(0.0)
                     }),
                 },
@@ -430,13 +437,8 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     show_peak: false,
                     graphable: true,
                     format_direct: format_direct_0,
-                    value: |_, context| {
-                        context
-                            .stats
-                            .vram
-                            .gtt_total_usable
-                            .map(|val| (val / 1024 / 1024) as f64)
-                    },
+                    value: |_, context| context.stats.vram.gtt_total_usable.map(|val| val as f64),
+                    sample: Some(sample_bytes_as_mib),
                     format: None,
                     visible: None,
                     level: None,
@@ -450,34 +452,35 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     show_peak: true,
                     graphable: true,
                     format_direct: format_direct_0,
-                    value: |_, context| {
-                        context
-                            .stats
-                            .vram
-                            .gtt_used
-                            .map(|val| (val / 1024 / 1024) as f64)
-                    },
-                    format: Some(|_, _value, context| {
+                    value: |_, context| context.stats.vram.gtt_used.map(|val| val as f64),
+                    sample: Some(sample_bytes_as_mib),
+                    format: Some(|_, value, _| {
                         formatting::fmt_human_bytes(
-                            context.stats.vram.gtt_used.unwrap_or(0),
+                            value.unwrap_or(0.0) as u64,
                             Some(formatting::ByteUnit::Gibibyte),
                         )
                     }),
-                    visible: Some(|_, _value, context| {
-                        context
-                            .stats
-                            .vram
-                            .gtt_used
-                            .zip(context.stats.vram.gtt_total_usable)
+                    visible: Some(|_, value, context| {
+                        value
+                            .zip(
+                                context
+                                    .stats
+                                    .vram
+                                    .gtt_total_usable
+                                    .map(|total| total as f64),
+                            )
                             .is_some()
                     }),
-                    level: Some(|_, _value, context| {
-                        context
-                            .stats
-                            .vram
-                            .gtt_used
-                            .zip(context.stats.vram.gtt_total_usable)
-                            .map(|(used, total)| used as f64 / total as f64)
+                    level: Some(|_, value, context| {
+                        value
+                            .zip(
+                                context
+                                    .stats
+                                    .vram
+                                    .gtt_total_usable
+                                    .map(|total| total as f64),
+                            )
+                            .map(|(used, total)| used / total)
                             .unwrap_or(0.0)
                     }),
                 },
@@ -491,6 +494,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     graphable: true,
                     format_direct: format_direct_0,
                     value: |_, context| context.stats.voltage.gpu.map(|val| val as f64),
+                    sample: None,
                     format: Some(|_, value, _| {
                         format!("{} V", Mono::float(value.unwrap_or(0.0) / 1000f64, 3))
                     }),
@@ -507,6 +511,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     graphable: false,
                     format_direct: format_direct_0,
                     value: |_, _| None,
+                    sample: None,
                     format: Some(|_, _value, context| {
                         let (primary, _) = formatting::fmt_temperature_text(context.stats);
                         if primary.is_empty() {
@@ -528,6 +533,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                     graphable: false,
                     format_direct: format_direct_0,
                     value: |_, context| power_usage_value(context.stats),
+                    sample: None,
                     format: Some(|_, value, _| {
                         format!(
                             "{} {}",
@@ -565,6 +571,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                             .pwm_current
                             .map(|pwm| pwm as f64 / u8::MAX as f64)
                     },
+                    sample: None,
                     format: Some(|_, _value, context| {
                         formatting::fmt_fan_speed(context.stats, true)
                             .unwrap_or_else(|| fl!(I18N, "missing-stat"))
@@ -598,6 +605,10 @@ fn clock_level(current: Option<f64>, min: Option<f64>, max: Option<f64>) -> f64 
 
 fn format_mhz_value(value: Option<f64>) -> String {
     formatting::fmt_clockspeed(value, 1.0)
+}
+
+fn sample_bytes_as_mib(_: &StatType, value: Option<f64>, _: &StatContext<'_>) -> Option<f64> {
+    value.map(|value| value / 1024.0 / 1024.0)
 }
 
 fn format_direct_0(value: f64) -> String {

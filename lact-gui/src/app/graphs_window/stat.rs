@@ -36,7 +36,7 @@ impl StatsData {
                 continue;
             }
 
-            let Some(value) = config.value(&stat_type, &context) else {
+            let Some(sample) = config.sample(&stat_type, &context) else {
                 continue;
             };
 
@@ -44,7 +44,7 @@ impl StatsData {
             self.stats
                 .entry(stat_type)
                 .or_default()
-                .push((timestamp, value));
+                .push((timestamp, sample));
         }
 
         let is_throttling = stats
