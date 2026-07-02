@@ -77,15 +77,13 @@ pub enum StatType {
     Power(String),
     VramClock,
     VramSize,
-    VramUsed,
+    VramUsage,
     GttSize,
-    GttUsed,
+    GttUsage,
     GpuVoltage,
     Clockspeed(String),
     Voltage(String),
     Temperatures,
-    VramUsage,
-    GttUsage,
     PowerUsage,
     FanSpeed,
 }
@@ -392,9 +390,9 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                 },
             ),
             (
-                StatType::VramUsed,
+                StatType::VramUsage,
                 StatConfig {
-                    label: "VRAM Used".into(),
+                    label: fl!(I18N, "vram-usage"),
                     unit_label: "MiB",
                     show_peak: true,
                     graphable: true,
@@ -406,9 +404,22 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                             .used
                             .map(|val| (val / 1024 / 1024) as f64)
                     },
-                    format: None,
-                    visible: None,
-                    level: None,
+                    format: Some(|_, _value, context| {
+                        formatting::fmt_human_bytes(
+                            context.stats.vram.used.unwrap_or(0),
+                            Some(formatting::ByteUnit::Gibibyte),
+                        )
+                    }),
+                    visible: Some(|_, _value, _| true),
+                    level: Some(|_, _value, context| {
+                        context
+                            .stats
+                            .vram
+                            .used
+                            .zip(context.stats.vram.total)
+                            .map(|(used, total)| used as f64 / total as f64)
+                            .unwrap_or(0.0)
+                    }),
                 },
             ),
             (
@@ -432,9 +443,9 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                 },
             ),
             (
-                StatType::GttUsed,
+                StatType::GttUsage,
                 StatConfig {
-                    label: "GTT Used".into(),
+                    label: fl!(I18N, "gtt-usage"),
                     unit_label: "MiB",
                     show_peak: true,
                     graphable: true,
@@ -446,9 +457,29 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                             .gtt_used
                             .map(|val| (val / 1024 / 1024) as f64)
                     },
-                    format: None,
-                    visible: None,
-                    level: None,
+                    format: Some(|_, _value, context| {
+                        formatting::fmt_human_bytes(
+                            context.stats.vram.gtt_used.unwrap_or(0),
+                            Some(formatting::ByteUnit::Gibibyte),
+                        )
+                    }),
+                    visible: Some(|_, _value, context| {
+                        context
+                            .stats
+                            .vram
+                            .gtt_used
+                            .zip(context.stats.vram.gtt_total_usable)
+                            .is_some()
+                    }),
+                    level: Some(|_, _value, context| {
+                        context
+                            .stats
+                            .vram
+                            .gtt_used
+                            .zip(context.stats.vram.gtt_total_usable)
+                            .map(|(used, total)| used as f64 / total as f64)
+                            .unwrap_or(0.0)
+                    }),
                 },
             ),
             (
@@ -489,32 +520,6 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                 },
             ),
             (
-                StatType::VramUsage,
-                StatConfig {
-                    label: fl!(I18N, "vram-usage"),
-                    unit_label: "",
-                    show_peak: false,
-                    graphable: false,
-                    format_direct: format_direct_0,
-                    value: |_, context| {
-                        context
-                            .stats
-                            .vram
-                            .used
-                            .zip(context.stats.vram.total)
-                            .map(|(used, total)| used as f64 / total as f64)
-                    },
-                    format: Some(|_, _value, context| {
-                        formatting::fmt_human_bytes(
-                            context.stats.vram.used.unwrap_or(0),
-                            Some(formatting::ByteUnit::Gibibyte),
-                        )
-                    }),
-                    visible: Some(|_, _value, _| true),
-                    level: Some(|_, value, _| value.unwrap_or(0.0)),
-                },
-            ),
-            (
                 StatType::PowerUsage,
                 StatConfig {
                     label: fl!(I18N, "power-usage"),
@@ -543,32 +548,6 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                             .map(|(current, cap)| current / cap)
                             .unwrap_or(0.0)
                     }),
-                },
-            ),
-            (
-                StatType::GttUsage,
-                StatConfig {
-                    label: fl!(I18N, "gtt-usage"),
-                    unit_label: "",
-                    show_peak: false,
-                    graphable: false,
-                    format_direct: format_direct_0,
-                    value: |_, context| {
-                        context
-                            .stats
-                            .vram
-                            .gtt_used
-                            .zip(context.stats.vram.gtt_total_usable)
-                            .map(|(used, total)| used as f64 / total as f64)
-                    },
-                    format: Some(|_, _value, context| {
-                        formatting::fmt_human_bytes(
-                            context.stats.vram.gtt_used.unwrap_or(0),
-                            Some(formatting::ByteUnit::Gibibyte),
-                        )
-                    }),
-                    visible: Some(|_, value, _| value.is_some()),
-                    level: Some(|_, value, _| value.unwrap_or(0.0)),
                 },
             ),
             (
