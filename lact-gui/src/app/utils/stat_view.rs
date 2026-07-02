@@ -71,7 +71,7 @@ pub enum StatType {
     GttUsed,
     GpuVoltage,
     Clockspeed(String),
-    Voltage(String),,
+    Voltage(String),
     Throttling,
     Temperatures,
     VramUsage,
@@ -92,8 +92,7 @@ impl StatType {
             Temperature(_) => 1,
             GpuUsage | VramSize | VramUsed | GttSize | GttUsed => 0,
             GpuVoltage | Voltage(_) => 0,
-            Throttling | Temperatures | VramUsage | GttUsage | PowerUsage
-            | FanSpeed => 0,
+            Throttling | Temperatures | VramUsage | GttUsage | PowerUsage | FanSpeed => 0,
         }
     }
 }
