@@ -23,7 +23,6 @@ impl StatsData {
     ) {
         let context = StatContext {
             stats,
-            gpu_model: "",
             vram_clock_ratio,
             max_gpu_clock: None,
             max_vram_clock: None,

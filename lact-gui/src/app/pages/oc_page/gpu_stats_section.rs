@@ -58,13 +58,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
                     append = &InfoRow {
                         #[watch]
-                        set_name: model.stat_label(&StatType::DeviceName).to_owned(),
-                        #[watch]
-                        set_value: model.stat_format(&StatType::DeviceName, &context),
-                    },
-
-                    append = &InfoRow {
-                        #[watch]
                         set_name: model.stat_label(&StatType::Throttling).to_owned(),
                         #[watch]
                         set_value: model.stat_format(&StatType::Throttling, &context),
@@ -330,7 +323,6 @@ impl GpuStatsSection {
     fn stat_context(&self) -> StatContext<'_> {
         StatContext {
             stats: self.stats.as_ref(),
-            gpu_model: &self.gpu_model,
             vram_clock_ratio: self.vram_clock_ratio,
             max_gpu_clock: self.max_gpu_clock,
             max_vram_clock: self.max_vram_clock,

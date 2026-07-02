@@ -45,7 +45,6 @@ impl StatConfig {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct StatContext<'a> {
     pub stats: &'a DeviceStats,
-    pub gpu_model: &'a str,
     pub vram_clock_ratio: f64,
     pub max_gpu_clock: Option<u64>,
     pub max_vram_clock: Option<u64>,
@@ -72,8 +71,7 @@ pub enum StatType {
     GttUsed,
     GpuVoltage,
     Clockspeed(String),
-    Voltage(String),
-    DeviceName,
+    Voltage(String),,
     Throttling,
     Temperatures,
     VramUsage,
@@ -94,7 +92,7 @@ impl StatType {
             Temperature(_) => 1,
             GpuUsage | VramSize | VramUsed | GttSize | GttUsed => 0,
             GpuVoltage | Voltage(_) => 0,
-            DeviceName | Throttling | Temperatures | VramUsage | GttUsage | PowerUsage
+            Throttling | Temperatures | VramUsage | GttUsage | PowerUsage
             | FanSpeed => 0,
         }
     }
@@ -449,18 +447,6 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                         )
                     }),
                     visible: Some(|_, context| context.stats.voltage.gpu.is_some()),
-                    level: None,
-                },
-            ),
-            (
-                StatType::DeviceName,
-                StatConfig {
-                    label: fl!(I18N, "device-name"),
-                    unit_label: "",
-                    show_peak: false,
-                    sample: |_, _| None,
-                    format: Some(|_, context| context.gpu_model.to_owned()),
-                    visible: Some(|_, _| true),
                     level: None,
                 },
             ),
