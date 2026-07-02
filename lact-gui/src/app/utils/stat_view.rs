@@ -42,23 +42,6 @@ impl StatConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct StatMetadata {
-    pub label: String,
-    pub unit_label: &'static str,
-    pub show_peak: bool,
-}
-
-impl From<&StatConfig> for StatMetadata {
-    fn from(config: &StatConfig) -> Self {
-        Self {
-            label: config.label.clone(),
-            unit_label: config.unit_label,
-            show_peak: config.show_peak,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct StatContext<'a> {
     pub stats: &'a DeviceStats,
@@ -118,7 +101,7 @@ impl StatType {
 }
 
 pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap {
-    let mut configs = fixed_stat_configs().clone();
+    let mut configs = static_stat_configs().clone();
 
     for name in context.stats.temps.keys() {
         let stat_type = StatType::Temperature(name.clone());
@@ -218,7 +201,7 @@ pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap 
     configs
 }
 
-pub(crate) fn fixed_stat_configs() -> &'static StatConfigMap {
+pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
     static CONFIGS: LazyLock<StatConfigMap> = LazyLock::new(|| {
         HashMap::from([
             (
@@ -422,14 +405,16 @@ pub(crate) fn fixed_stat_configs() -> &'static StatConfigMap {
                     label: "GTT Size".into(),
                     unit_label: "MiB",
                     show_peak: false,
-                    graph_sample: |_, context| {
+                    sample: |_, context| {
                         context
                             .stats
                             .vram
                             .gtt_total_usable
                             .map(|val| (val / 1024 / 1024) as f64)
                     },
-                    view: None,
+                    format: None,
+                    visible: None,
+                    level: None,
                 },
             ),
             (
@@ -438,14 +423,16 @@ pub(crate) fn fixed_stat_configs() -> &'static StatConfigMap {
                     label: "GTT Used".into(),
                     unit_label: "MiB",
                     show_peak: true,
-                    graph_sample: |_, context| {
+                    sample: |_, context| {
                         context
                             .stats
                             .vram
                             .gtt_used
                             .map(|val| (val / 1024 / 1024) as f64)
                     },
-                    view: None,
+                    format: None,
+                    visible: None,
+                    level: None,
                 },
             ),
             (
@@ -571,22 +558,22 @@ pub(crate) fn fixed_stat_configs() -> &'static StatConfigMap {
                     label: fl!(I18N, "gtt-usage"),
                     unit_label: "",
                     show_peak: false,
-                    graph_sample: |_, _| None,
-                    view: Some(|_, context| {
-                        StatViewConfig::Level(LevelStatConfig {
-                            visible: context.stats.vram.gtt_used.is_some(),
-                            display_value: formatting::fmt_human_bytes(
-                                context.stats.vram.gtt_used.unwrap_or(0),
-                                Some(formatting::ByteUnit::Gibibyte),
-                            ),
-                            level_value: context
-                                .stats
-                                .vram
-                                .gtt_used
-                                .zip(context.stats.vram.gtt_total_usable)
-                                .map(|(used, total)| used as f64 / total as f64)
-                                .unwrap_or(0.0),
-                        })
+                    sample: |_, _| None,
+                    format: Some(|_, context| {
+                        formatting::fmt_human_bytes(
+                            context.stats.vram.gtt_used.unwrap_or(0),
+                            Some(formatting::ByteUnit::Gibibyte),
+                        )
+                    }),
+                    visible: Some(|_, context| context.stats.vram.gtt_used.is_some()),
+                    level: Some(|_, context| {
+                        context
+                            .stats
+                            .vram
+                            .gtt_used
+                            .zip(context.stats.vram.gtt_total_usable)
+                            .map(|(used, total)| used as f64 / total as f64)
+                            .unwrap_or(0.0)
                     }),
                 },
             ),

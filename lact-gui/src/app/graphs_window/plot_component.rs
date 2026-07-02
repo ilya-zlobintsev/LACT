@@ -189,8 +189,8 @@ impl relm4::factory::FactoryComponent for PlotComponent {
             for stat in data_guard.list_stats() {
                 let enabled = init.selected_stats.contains(stat);
                 let label = data_guard
-                    .stat_metadata(stat)
-                    .map(|metadata| metadata.label.clone())
+                    .stat_config(stat)
+                    .map(|config| config.label.clone())
                     .unwrap_or_else(|| format!("{stat:?}"));
                 stats_guard.push_back((stat.clone(), label, enabled));
             }

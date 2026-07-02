@@ -1,11 +1,11 @@
-use crate::app::utils::stat_view::{StatContext, StatMetadata, StatType, build_stat_config_map};
+use crate::app::utils::stat_view::{StatConfig, StatContext, StatType, build_stat_config_map};
 use lact_schema::DeviceStats;
 use std::collections::BTreeMap;
 
 #[derive(Default, Debug)]
 pub struct StatsData {
     stats: BTreeMap<StatType, Vec<(i64, f64)>>,
-    metadata: BTreeMap<StatType, StatMetadata>,
+    stat_configs: BTreeMap<StatType, StatConfig>,
     throttling: Vec<Vec<(i64, Vec<String>)>>,
 }
 
@@ -37,8 +37,7 @@ impl StatsData {
                 continue;
             };
 
-            self.metadata
-                .insert(stat_type.clone(), StatMetadata::from(&config));
+            self.stat_configs.insert(stat_type.clone(), config);
             self.stats
                 .entry(stat_type)
                 .or_default()
@@ -82,8 +81,8 @@ impl StatsData {
         self.stats.keys()
     }
 
-    pub(crate) fn stat_metadata(&self, stat_type: &StatType) -> Option<&StatMetadata> {
-        self.metadata.get(stat_type)
+    pub(crate) fn stat_config(&self, stat_type: &StatType) -> Option<&StatConfig> {
+        self.stat_configs.get(stat_type)
     }
 
     pub fn throttling_sections(&self) -> &[Vec<(i64, Vec<String>)>] {
@@ -93,11 +92,11 @@ impl StatsData {
     pub(crate) fn get_stats<'a>(
         &'a self,
         stats: &'a [StatType],
-    ) -> impl Iterator<Item = (&'a StatType, &'a StatMetadata, &'a [(i64, f64)])> {
+    ) -> impl Iterator<Item = (&'a StatType, &'a StatConfig, &'a [(i64, f64)])> {
         stats.iter().filter_map(|stat_type| {
             Some((
                 stat_type,
-                self.metadata.get(stat_type)?,
+                self.stat_configs.get(stat_type)?,
                 self.stats.get(stat_type)?.as_slice(),
             ))
         })
@@ -125,7 +124,7 @@ impl StatsData {
 
     pub fn clear(&mut self) {
         self.stats.clear();
-        self.metadata.clear();
+        self.stat_configs.clear();
         self.throttling.clear();
     }
 

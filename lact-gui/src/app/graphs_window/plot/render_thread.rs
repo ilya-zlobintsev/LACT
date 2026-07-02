@@ -215,8 +215,8 @@ impl RenderRequest {
         let value_suffix = if data.len() >= 2 {
             let mut metric = data[0].1.unit_label;
             // Only display a suffix if it's the same across all metrics on the plot
-            for (_, metadata, _) in &data[1..] {
-                if metadata.unit_label != metric {
+            for (_, config, _) in &data[1..] {
+                if config.unit_label != metric {
                     metric = "";
                     break;
                 }
@@ -224,7 +224,7 @@ impl RenderRequest {
             metric
         } else {
             data.first()
-                .map(|(_, metadata, _)| metadata.unit_label)
+                .map(|(_, config, _)| config.unit_label)
                 .unwrap_or_default()
         };
 
@@ -277,7 +277,7 @@ impl RenderRequest {
             .context("Failed to draw mesh")?;
 
         // Draw the main line series using cubic spline interpolation.
-        for (idx, (stat_type, metadata, data)) in data.iter().enumerate() {
+        for (idx, (stat_type, config, data)) in data.iter().enumerate() {
             let current_value = data.last().map(|(_, val)| *val).unwrap_or(0.0);
             let max_value = data
                 .iter()
@@ -286,15 +286,15 @@ impl RenderRequest {
                 .unwrap_or(0.0);
             let avg_value = data.iter().map(|(_, val)| *val).sum::<f64>() / data.len() as f64;
 
-            let stat_suffix = metadata.unit_label;
+            let stat_suffix = config.unit_label;
             let precision = stat_type.precision();
 
             let mut stat_label = format!(
                 "{}: {current_value:.*}{stat_suffix}",
-                metadata.label, precision
+                config.label, precision
             );
             if self.print_extra_info {
-                if metadata.show_peak {
+                if config.show_peak {
                     write!(stat_label, ", Peak {max_value:.*}{stat_suffix}", precision).unwrap();
                 }
 
