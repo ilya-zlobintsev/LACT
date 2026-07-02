@@ -32,7 +32,11 @@ impl StatsData {
         let stat_configs = build_stat_config_map(&context);
 
         for (stat_type, config) in stat_configs {
-            let Some(value) = config.sample(&stat_type, &context) else {
+            if !config.graphable {
+                continue;
+            }
+
+            let Some(value) = config.value(&stat_type, &context) else {
                 continue;
             };
 

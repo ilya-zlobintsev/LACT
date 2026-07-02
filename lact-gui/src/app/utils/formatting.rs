@@ -120,10 +120,10 @@ pub fn fmt_temperature_text(stats: &DeviceStats) -> (Vec<String>, Vec<String>) {
     (primary, secondary)
 }
 
-pub fn fmt_clockspeed(clock_mhz: Option<u64>, ratio: f64) -> String {
+pub fn fmt_clockspeed(clock_mhz: Option<f64>, ratio: f64) -> String {
     format!(
         "{} {}",
-        Mono::float(clock_mhz.unwrap_or(0) as f64 * ratio, 0),
+        Mono::float(clock_mhz.unwrap_or(0.0) * ratio, 0),
         fl!(I18N, "mhz")
     )
 }
@@ -304,12 +304,12 @@ mod tests {
     #[test]
     fn fmt_clockspeed_uses_localized_unit() {
         assert_eq!(
-            fmt_clockspeed(Some(1000), 1.0),
+            fmt_clockspeed(Some(1000.0), 1.0),
             "<span font_family='monospace'>1000</span> MHz"
         );
 
         assert_eq!(
-            fmt_clockspeed(Some(1000), 3.0),
+            fmt_clockspeed(Some(1000.0), 3.0),
             "<span font_family='monospace'>3000</span> MHz"
         );
     }
