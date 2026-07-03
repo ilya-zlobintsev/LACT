@@ -1646,37 +1646,6 @@ typedef struct NV0073_CTRL_CMD_SYSTEM_CONFIGURE_SAFETY_INTERRUPTS_PARAMS {
 } NV0073_CTRL_CMD_SYSTEM_CONFIGURE_SAFETY_INTERRUPTS_PARAMS;
 
 /*
- * NV0073_CTRL_CMD_DFP_SET_FORCE_BLACK_PIXELS
- *
- * This command is used to force black pixels from postcomp.
- *
- *   subDeviceInstance
- *     This parameter specifies the subdevice instance within the
- *     NV04_DISPLAY_COMMON parent device to which the operation should be
- *     directed. This parameter must specify a value between zero and the
- *     total number of subdevices within the parent device.  This parameter
- *     should be set to zero for default behavior.
- *
- *   bForceBlackPixels
- *     To enable or disable black pixel generation.
- *
- * Possible status values returned are:
- *      NV_OK
- *      NV_ERR_INVALID_ARGUMENT
- *      NV_ERR_NOT_SUPPORTED
- *
- */
-#define NV0073_CTRL_CMD_DFP_SET_FORCE_BLACK_PIXELS (0x731179U) /* finn: Evaluated from "(FINN_NV04_DISPLAY_COMMON_DFP_INTERFACE_ID << 8) | NV0073_CTRL_DFP_SET_FORCE_BLACK_PIXELS_PARAMS_MESSAGE_ID" */
-
-#define NV0073_CTRL_DFP_SET_FORCE_BLACK_PIXELS_PARAMS_MESSAGE_ID (0x79U)
-
-typedef struct NV0073_CTRL_DFP_SET_FORCE_BLACK_PIXELS_PARAMS {
-    NvU32  subDeviceInstance;
-    NvU32  head;
-    NvBool bForceBlack;
-} NV0073_CTRL_DFP_SET_FORCE_BLACK_PIXELS_PARAMS;
-
-/*
  * NV0073_CTRL_CMD_DFP_GET_DISP_PHY_INFO
  *
  * Return a high-level DISP PHY description that is independent of raw register
@@ -1837,6 +1806,13 @@ typedef enum NV0073_CTRL_DFP_DISP_PHY_PD_CBL_VCONN_SRC {
     NV0073_CTRL_DFP_DISP_PHY_PD_CBL_VCONN_SRC_DPRX = 1,
 } NV0073_CTRL_DFP_DISP_PHY_PD_CBL_VCONN_SRC;
 
+// DP mode indicating which type of DP connection is active
+typedef enum NV0073_CTRL_DFP_DISP_PHY_DP_MODE {
+    NV0073_CTRL_DFP_DISP_PHY_DP_MODE_FSDP = 0,         // Full Size DP
+    NV0073_CTRL_DFP_DISP_PHY_DP_MODE_ALT_MODE = 1,     // DP Alt Mode
+    NV0073_CTRL_DFP_DISP_PHY_DP_MODE_TUNNELING = 2,     // DP Tunneling
+} NV0073_CTRL_DFP_DISP_PHY_DP_MODE;
+
 typedef struct NV0073_CTRL_DFP_DISP_PHY_PD_CABLE_ID_A_INFO {
     NV0073_CTRL_DFP_DISP_PHY_PD_CBL_DP_PROT     dpProt;
     NV0073_CTRL_DFP_DISP_PHY_PD_CBL_PIN_CAP     srcPinSet;
@@ -1850,14 +1826,21 @@ typedef struct NV0073_CTRL_DFP_DISP_PHY_PD_CABLE_ID_B_INFO {
     NV0073_CTRL_DFP_DISP_PHY_PD_CBL_VCONN_SRC vconnSrc;    // bit 0
 } NV0073_CTRL_DFP_DISP_PHY_PD_CABLE_ID_B_INFO;
 
-typedef struct NV0073_CTRL_DFP_DISP_PHY_PADLINK_INFO {
-    // SOR routing
-    NV0073_CTRL_DFP_DISP_PHY_DP_SOR_SEL         sorSel;
+// DIA (Display Input Adapter) info for DP tunneling
+typedef struct NV0073_CTRL_DFP_DISP_PHY_DIA_INFO {
+    NV0073_CTRL_DFP_DISP_PHY_DP_SOR_SEL sorSel; // Which SOR for this DIA
+    NvBool                              bHpdActive; // HPD on the DIA (DP Tunneling Enabled)
+    NvBool                              bSorDpTunnelingEnabled; // SOR assigned to DIA (from sorSel) enabled for Tunneling
+    NvU32                               sorClkMeasuredKHz;  // Measured SOR clock rate in KHz (only valid for tunneling)
+    NvU32                               sorClkProgrammedKHz;  // Programmed SOR clock rate in KHz (only valid for tunneling)
+    NvBool                              bDownspreadEnabled; // 0.5% downspread enabled (DPCD 003h bit 0 && 107h bit 4)
+} NV0073_CTRL_DFP_DISP_PHY_DIA_INFO;
 
+typedef struct NV0073_CTRL_DFP_DISP_PHY_PADLINK_INFO {
     // Type-C mux status
     NV0073_CTRL_DFP_DISP_PHY_TYPEC_MODE         mode; // USB4_2T2R, etc
     NV0073_CTRL_DFP_DISP_PHY_CABLE_ORIENT       cableOrient;
-    NvBool                                      bModeStatusDone; // Type-C IP-MUX has finished its mode-change power-down / power-up sequence when entering or exiting an alternate mode
+    NvBool                                      bModeStatusDone; // Type-C IP-MUX has finished its "mode-change" power-down / power-up sequence when entering or exiting an alternate mode
     NV0073_CTRL_DFP_DISP_PHY_TYPEC_SAFE_MODE    safeMode;
 
     // Data-rate / PLL settings
@@ -1870,6 +1853,17 @@ typedef struct NV0073_CTRL_DFP_DISP_PHY_PADLINK_INFO {
     // USB-PD cable identification
     NV0073_CTRL_DFP_DISP_PHY_PD_CABLE_ID_A_INFO pdCableIdA;
     NV0073_CTRL_DFP_DISP_PHY_PD_CABLE_ID_B_INFO pdCableIdB;
+
+    // HPD and DP mode info
+    NvBool                                      bHpdActive; // HPD status: active (high) or inactive (low)
+    NV0073_CTRL_DFP_DISP_PHY_DP_MODE            dpMode; // DP mode: FSDP, Alt Mode, or Tunneling
+    NV0073_CTRL_DFP_DISP_PHY_DP_SOR_SEL         sorSel; // SOR connected to padlink (for Alt Mode and FSDP)
+    NV0073_CTRL_DFP_DISP_PHY_DIA_INFO           diaInfo[2];
+
+    // SOR clock rate info
+    NvU32                                       sorClkMeasuredKHz; // Measured SOR clock rate in KHz (from NV_PDISP_SOR_CLK_METER)
+    NvU32                                       sorClkProgrammedKHz; // Programmed SOR clock rate in KHz (from DPCD 00100h)
+    NvBool                                      bDownspreadEnabled; // 0.5% downspread enabled (DPCD 003h bit 0 && 107h bit 4)
 } NV0073_CTRL_DFP_DISP_PHY_PADLINK_INFO;
 
 #define NV0073_CTRL_CMD_DFP_GET_DISP_PHY_INFO (0x731180U) /* finn: Evaluated from "(FINN_NV04_DISPLAY_COMMON_DFP_INTERFACE_ID << 8) | NV0073_CTRL_DFP_GET_DISP_PHY_INFO_PARAMS_MESSAGE_ID" */

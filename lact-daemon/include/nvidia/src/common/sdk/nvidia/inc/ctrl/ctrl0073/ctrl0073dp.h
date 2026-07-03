@@ -1699,6 +1699,10 @@ typedef struct NV0073_CTRL_CMD_DP_SEND_ACT_PARAMS {
  *     Returns NV_TRUE if GPU support downspread.
  *   bAvoidHBR3
  *     Returns NV_TRUE if we need to avoid HBR3 as much as possible
+ *   bPollingEnabledForDpMstDetection
+ *     Returns NV_TRUE for N1X. 
+ *        - The Post-based approach introduced a delay in processing LAM and EDID events
+ *        - This never introduced any delay. There is some delay from an unknown source which needs to be debugged
  *   bIsDpTunnelingHwBugWarEnabled
  *     Returns NV_TRUE if USB4 DP tunneling HW bug WAR is enabled for the chip.
  *
@@ -1732,6 +1736,7 @@ typedef struct NV0073_CTRL_CMD_DP_GET_CAPS_PARAMS {
     NvBool                         bUseRgFlushSequence;
     NvBool                         bSupportDPDownSpread;
     NvBool                         bAvoidHBR3;
+    NvBool                         bPollingEnabledForDpMstDetection;
     NvBool                         bIsDpTunnelingHwBugWarEnabled;
     NV0073_CTRL_CMD_DSC_CAP_PARAMS DSC;
 } NV0073_CTRL_CMD_DP_GET_CAPS_PARAMS;
