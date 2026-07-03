@@ -162,7 +162,7 @@ pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap 
     for name in context.stats.clockspeed.sensors.keys() {
         let stat_type = StatType::Clockspeed(name.clone());
         let config = StatConfig {
-            label: format!("Clockspeed ({name})"),
+            label: format!("{} ({name})", fl!(I18N, "stat-clockspeed")),
             unit_label: "MHz",
             show_peak: true,
             graphable: true,
@@ -285,7 +285,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
             (
                 StatType::FanRpm,
                 StatConfig {
-                    label: "Fan RPM".into(),
+                    label: fl!(I18N, "stat-fan-rpm"),
                     unit_label: "RPM",
                     show_peak: true,
                     graphable: true,
@@ -300,7 +300,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
             (
                 StatType::FanPwm,
                 StatConfig {
-                    label: "Fan".into(),
+                    label: fl!(I18N, "stat-fan"),
                     unit_label: "%",
                     show_peak: true,
                     graphable: true,
@@ -315,7 +315,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
             (
                 StatType::PowerCurrent,
                 StatConfig {
-                    label: "Power Draw".into(),
+                    label: fl!(I18N, "stat-power-draw"),
                     unit_label: "W",
                     show_peak: true,
                     graphable: true,
@@ -330,7 +330,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
             (
                 StatType::PowerAverage,
                 StatConfig {
-                    label: "Power Draw (Avg)".into(),
+                    label: fl!(I18N, "stat-power-draw-avg"),
                     unit_label: "W",
                     show_peak: true,
                     graphable: true,
@@ -391,7 +391,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
             (
                 StatType::VramSize,
                 StatConfig {
-                    label: "VRAM Size".into(),
+                    label: fl!(I18N, "stat-vram-size"),
                     unit_label: "MiB",
                     show_peak: false,
                     graphable: true,
@@ -431,7 +431,7 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
             (
                 StatType::GttSize,
                 StatConfig {
-                    label: "GTT Size".into(),
+                    label: fl!(I18N, "stat-gtt-size"),
                     unit_label: "MiB",
                     show_peak: false,
                     graphable: true,
