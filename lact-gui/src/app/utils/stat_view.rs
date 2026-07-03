@@ -18,8 +18,11 @@ type LevelFn = fn(&StatType, Option<f64>, &StatContext<'_>) -> f64;
 #[derive(Debug, Clone)]
 pub(crate) struct StatConfig {
     pub label: String,
+    // mostly used for graph axis
     pub unit_label: &'static str,
+    // flag if graph should show peak value
     pub show_peak: bool,
+    // flag if the stat should be displayed on graph
     pub graphable: bool,
     format_direct: FormatDirectFn,
     // raw value
