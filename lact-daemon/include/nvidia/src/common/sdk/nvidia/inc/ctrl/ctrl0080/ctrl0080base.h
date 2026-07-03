@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2019-2020 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -47,8 +47,8 @@
 #define NV0080_CTRL_DMA                        (0x18)
 #define NV0080_CTRL_PERF                       (0x19)
 #define NV0080_CTRL_PERF_LEGACY_NON_PRIVILEGED (0x99) /* finn: Evaluated from "(NV0080_CTRL_PERF | NVxxxx_CTRL_LEGACY_NON_PRIVILEGED)" */
-#define NV0080_CTRL_MSENC                      (0x1B)
-#define NV0080_CTRL_BSP                        (0x1C)
+#define NV0080_CTRL_NVENC                      (0x1B)
+#define NV0080_CTRL_NVDEC                      (0x1C)
 #define NV0080_CTRL_RC                         (0x1D)
 #define NV0080_CTRL_OS_UNIX                    (0x1E)
 #define NV0080_CTRL_NVJPG                      (0x1F)

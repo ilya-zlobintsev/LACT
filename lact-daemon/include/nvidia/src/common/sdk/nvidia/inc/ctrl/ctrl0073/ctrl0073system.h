@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2005-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2005-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -1924,61 +1924,6 @@ typedef struct NV0073_CTRL_CMD_SYSTEM_CHECK_SIDEBAND_SR_SUPPORT_PARAMS {
 } NV0073_CTRL_CMD_SYSTEM_CHECK_SIDEBAND_SR_SUPPORT_PARAMS;
 
 /*
- * NV0073_CTRL_CMD_SYSTEM_VRR_SET_RGLINE_ACTIVE
- *
- * This command is used by client like nvkms to set up the VRR specific
- * memory operation in RM such as mapping the client created shared memory
- * into RM and reserving a RGline for processing of self-refresh timeout
- * related calculations.
- *
- * Also the expectation is that the client which calls this command with parameter
- * bEnable = TRUE, should also call this command with bEnable = FALSE on the
- * same head when VRR needs to be disabled.
- *
- * Possible status values returned are:
- *    NV_OK
- *    NV_ERR_INVALID_ARGUMENT
- *    NV_ERR_OBJECT_NOT_FOUND
- *    NV_ERR_GENERIC
- */
-
-/*
- * This is the shared structure that will be used to communicate between
- * Physical RM and clients. As of now the access relies on single source of
- * truth operation, i.e. only Physical RM writes into the shared location
- * and client (nvkms) reads from the same location.
- *
- * "dataTimeStamp" field is added to capture the timestamp before and after
- * updating the flip delay related data fields(all fields except "timeout").
- * This timestamp will be used by clients to determine if the data got updated
- * in between by RM while clients were reading it.
- * As of now "timeout" field does not have such protection, as access to
- * this field is only in response to notification from RM.
- */
-typedef struct NV0073_CTRL_RM_VRR_SHARED_DATA {
-    NvU32  expectedFrameNum;
-    NvU32  timeout;
-    NV_DECLARE_ALIGNED(NvU64 flipTimeStamp, 8);
-    NvBool bCheckFlipTime;
-    NvBool bFlipTimeAdjustment;
-    NV_DECLARE_ALIGNED(NvU64 dataTimeStamp, 8);
-} NV0073_CTRL_RM_VRR_SHARED_DATA;
-
-#define NV0073_CTRL_CMD_SYSTEM_VRR_SET_RGLINE_ACTIVE (0x73014dU) /* finn: Evaluated from "(FINN_NV04_DISPLAY_COMMON_SYSTEM_INTERFACE_ID << 8) | NV0073_CTRL_CMD_SYSTEM_VRR_SET_RGLINE_ACTIVE_PARAMS_MESSAGE_ID" */
-
-#define NV0073_CTRL_CMD_SYSTEM_VRR_SET_RGLINE_ACTIVE_PARAMS_MESSAGE_ID (0x4DU)
-
-typedef struct NV0073_CTRL_CMD_SYSTEM_VRR_SET_RGLINE_ACTIVE_PARAMS {
-    NvU32    subDeviceInstance;
-    NvBool   bEnable;
-    NvU32    head;
-    NvU32    height;
-    NvU32    maxFrameTime;
-    NvU32    minFrameTime;
-    NvHandle hMemory;
-} NV0073_CTRL_CMD_SYSTEM_VRR_SET_RGLINE_ACTIVE_PARAMS;
-
-/*
  * Maps the memory allocated in Kernel RM into Physical RM using the
  * memory descriptor information provided.
  *
@@ -2425,6 +2370,9 @@ typedef struct NV0073_CTRL_CMD_SYSTEM_NOTIFY_DRR_MSCG_WAR_PARAMS {
 /*
  * NV0073_CTRL_CMD_SYSTEM_SET_DISPLAY_PERF_LIMIT
  *
+ * Note:  This API is obsolete, replaced by
+ * NV0000_CTRL_CMD_SYSTEM_SOC_SET_PERF_LIMITS.
+ *
  * This command sets lower and/or upper bounds for a display clock (dispclk or
  * hubclk), or for the memory perf level.  When this API is called, the system
  * will immediately attempt to switch the clock or perf level to a value that
@@ -2536,6 +2484,7 @@ typedef struct NV0073_CTRL_CMD_SYSTEM_NOTIFY_DRR_MSCG_WAR_PARAMS {
 #define NV0073_CTRL_SYSTEM_SET_DISPLAY_PERF_LIMIT_ID_ISMODEPOSSIBLE   (0U)
 #define NV0073_CTRL_SYSTEM_SET_DISPLAY_PERF_LIMIT_ID_MCLK_SWITCH      (1U)
 #define NV0073_CTRL_SYSTEM_SET_DISPLAY_PERF_LIMIT_ID_MODS             (2U)
+#define NV0073_CTRL_SYSTEM_SET_DISPLAY_PERF_LIMIT_ID_TEST_PERF_LEVELS (3U)
 
 /* valid type values */
 #define NV0073_CTRL_SYSTEM_SET_DISPLAY_PERF_LIMIT_LIMITING_PERF_LEVEL (0U)
@@ -2673,15 +2622,18 @@ typedef struct NV0073_CTRL_SYSTEM_GSYNC_GET_EXACT_PIXEL_CLOCK_PARAMS {
  *   timestampBeginning
  *     This is returned by RM to specify the kernel timestamp when reading the values was started
  *     in units of nanoseconds
+ *   timestampEnd
+ *     This is returned by RM to specify the kernel timestamp when reading the values was finished
+ *     in units of nanoseconds
  *   frame
  *     This is returned by RM to give the current frame counter
  *   line
  *     This is returned by RM to give the current line number
  *   pixel
  *     This is returned by RM to give the current column in the line
- *   timestampEnd
- *     This is returned by RM to specify the kernel timestamp when reading the values was finished
- *     in units of nanoseconds
+ *   stereoPhase
+ *     This is returned by RM to give the stereo phase
+ *     (NV0073_CTRL_CMD_SYSTEM_GET_DMI_SCANLINE_LEFT_EYE or NV0073_CTRL_CMD_SYSTEM_GET_DMI_SCANLINE_RIGHT_EYE)
  *   timestampFrequency
  *     This is returned by RM to specify how many times the kernel timestamp changes per second
  *     (according to the OS)
@@ -2701,10 +2653,11 @@ typedef struct NV0073_CTRL_SYSTEM_GET_RASTER_FRAME_LINE_PIXEL_PARAMS {
     struct {
         NvU32 displayId;
         NV_DECLARE_ALIGNED(NvU64 timestampBeginning, 8);
+        NV_DECLARE_ALIGNED(NvU64 timestampEnd, 8);
         NvU32 frame;
         NvU32 line;
         NvU32 pixel;
-        NV_DECLARE_ALIGNED(NvU64 timestampEnd, 8);
+        NvU8  stereoPhase;
     } displays[NV_MAX_HEADS];
     NV_DECLARE_ALIGNED(NvU64 timestampFrequency, 8);
 } NV0073_CTRL_SYSTEM_GET_RASTER_FRAME_LINE_PIXEL_PARAMS;
