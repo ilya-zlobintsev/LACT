@@ -10,11 +10,11 @@ build-release:
 .PHONY: build-debug
 build-debug:
 	cargo build -p lact
-	
+
 .PHONY: build-release-headless
 build-release-headless:
 	cargo build -p lact --release --no-default-features --features=nvidia
-	
+
 .PHONY: install-resources
 install-resources:
 	install -Dm644 res/lactd.service $(DESTDIR)$(PREFIX)/lib/systemd/system/lactd.service
@@ -26,7 +26,7 @@ install-resources:
 .PHONY: install
 install: install-resources
 	install -Dm755 target/release/lact $(DESTDIR)$(PREFIX)/bin/lact
-	
+
 .PHONY: install-debug
 install-debug: install-resources
 	install -Dm755 target/debug/lact $(DESTDIR)$(PREFIX)/bin/lact
@@ -44,8 +44,6 @@ uninstall:
 .PHONY: update-vulkan-schema
 update-vulkan-schema:
 	curl -o lact-daemon/vulkan_schema.json https://schema.khronos.org/vulkan/profiles-0.8-latest.json
-
-NVIDIA_MODULES ?= ../open-gpu-kernel-modules
 
 .PHONY: update-nvidia-headers
 update-nvidia-headers:
