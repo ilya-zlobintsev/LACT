@@ -24,6 +24,7 @@ pub(crate) struct StatConfig {
     pub show_peak: bool,
     // flag if the stat should be displayed on graph
     pub graphable: bool,
+    // this is a hack to keep pricision correct, should be replaced with format() fn call when it won't need ctx anymore
     format_direct: FormatDirectFn,
     // raw value
     value: ValueFn,
