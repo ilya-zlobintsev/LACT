@@ -13,7 +13,9 @@ find "kernel-open" "src" -type f | while IFS= read -r relpath; do
   fi
 
   mkdir -p "$(dirname "$dst")"
-  cp "$src" "$dst"
-  echo "Updated $relpath"
-done
 
+  if ! cmp -s "$src" "$dst"; then
+    cp "$src" "$dst"
+    echo "Updated $relpath"
+  fi
+done
