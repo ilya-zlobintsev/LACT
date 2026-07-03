@@ -98,7 +98,6 @@ pub enum StatType {
     Voltage(String),
     Temperatures,
     PowerUsage,
-    FanSpeed,
 }
 
 pub(crate) fn build_stat_config_map(context: &StatContext<'_>) -> StatConfigMap {
@@ -554,33 +553,6 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                             .map(|(current, cap)| current / cap)
                             .unwrap_or(0.0)
                     }),
-                },
-            ),
-            (
-                StatType::FanSpeed,
-                StatConfig {
-                    label: fl!(I18N, "fan-speed"),
-                    unit_label: "",
-                    show_peak: false,
-                    graphable: false,
-                    format_direct: format_direct_0,
-                    value: |_, context| {
-                        context
-                            .stats
-                            .fan
-                            .pwm_current
-                            .map(|pwm| pwm as f64 / u8::MAX as f64)
-                    },
-                    sample: None,
-                    format: Some(|_, _value, context| {
-                        formatting::fmt_fan_speed(context.stats, true)
-                            .unwrap_or_else(|| fl!(I18N, "missing-stat"))
-                    }),
-                    visible: Some(|_, _value, context| {
-                        context.stats.fan.pwm_current.is_some()
-                            || context.stats.fan.speed_current.is_some()
-                    }),
-                    level: Some(|_, value, _| value.unwrap_or(0.0)),
                 },
             ),
         ])

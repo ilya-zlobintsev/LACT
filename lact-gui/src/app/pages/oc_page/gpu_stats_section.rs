@@ -209,14 +209,14 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
                     append_child = &InfoRowLevel {
                         #[watch]
-                        set_name: model.stat_label(&StatType::FanSpeed).to_owned(),
+                        set_name: fl!(I18N, "fan-speed"),
                         #[watch]
-                        set_value: model.stat_format(&StatType::FanSpeed, &context),
+                        set_value: formatting::fmt_fan_speed(context.stats, true).unwrap_or_else(|| fl!(I18N, "missing-stat")),
                         #[watch]
-                        set_level_value: model.stat_level(&StatType::FanSpeed, &context),
+                        set_level_value: context.stats.fan.pwm_current.map(|pwm| pwm as f64 / u8::MAX as f64).unwrap_or(0.0),
                     } -> fan_speed_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_visible(&StatType::FanSpeed, &context),
+                        set_visible: context.stats.fan.pwm_current.is_some() || context.stats.fan.speed_current.is_some(),
                     },
                 },
             },
