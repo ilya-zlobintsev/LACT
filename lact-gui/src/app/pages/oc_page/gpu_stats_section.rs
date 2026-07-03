@@ -90,20 +90,19 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
                     append_child = &InfoRow {
                         #[watch]
-                        set_name: model.stat_label(&StatType::Temperatures).to_owned(),
+                        set_name: fl!(I18N, "gpu-temp"),
                         #[watch]
-                        set_value: model.stat_format(&StatType::Temperatures, &context),
+                        set_value: temperatures.clone(),
                     } -> basic_temps_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_visible(&StatType::Temperatures, &context)
-                            && secondary_temperatures.is_empty(),
+                        set_visible: secondary_temperatures.is_empty(),
                     },
 
                     append_child = &InfoRow {
                         #[watch]
-                        set_name: model.stat_label(&StatType::Temperatures).to_owned(),
+                        set_name: fl!(I18N, "gpu-temp"),
                         #[watch]
-                        set_value: model.stat_format(&StatType::Temperatures, &context),
+                        set_value: temperatures.clone(),
 
                         set_icon: "go-down-symbolic".to_string(),
 
@@ -125,8 +124,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         },
                     } -> full_temps_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stat_visible(&StatType::Temperatures, &context)
-                            && !secondary_temperatures.is_empty(),
+                        set_visible: !secondary_temperatures.is_empty(),
                     },
                 },
             },
@@ -241,7 +239,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
             stat_configs: static_stat_configs().clone(),
         };
         let context = model.stat_context();
-        let secondary_temperatures = model.secondary_temperatures(&context);
+        let (temperatures, secondary_temperatures) = model.temperatures(&context);
 
         let widgets = view_output!();
 
@@ -319,7 +317,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
     fn pre_view(&self) {
         let context = model.stat_context();
-        let secondary_temperatures = model.secondary_temperatures(&context);
+        let (temperatures, secondary_temperatures) = model.temperatures(&context);
     }
 }
 
@@ -363,8 +361,14 @@ impl GpuStatsSection {
             .expect("fixed stat level missing")
     }
 
-    fn secondary_temperatures(&self, context: &StatContext<'_>) -> Vec<String> {
-        let (_, secondary) = formatting::fmt_temperature_text(context.stats);
-        secondary
+    fn temperatures(&self, context: &StatContext<'_>) -> (String, Vec<String>) {
+        let (primary, secondary) = formatting::fmt_temperature_text(context.stats);
+        let primary = if primary.is_empty() {
+            fl!(I18N, "missing-stat")
+        } else {
+            primary.join(", ")
+        };
+
+        (primary, secondary)
     }
 }

@@ -99,7 +99,6 @@ pub enum StatType {
     GpuVoltage,
     Clockspeed(String),
     Voltage(String),
-    Temperatures,
     PowerUsage,
 }
 
@@ -501,28 +500,6 @@ pub(crate) fn static_stat_configs() -> &'static StatConfigMap {
                         format!("{} V", Mono::float(value.unwrap_or(0.0) / 1000f64, 3))
                     }),
                     visible: Some(|_, value, _| value.is_some()),
-                    level: None,
-                },
-            ),
-            (
-                StatType::Temperatures,
-                StatConfig {
-                    label: fl!(I18N, "gpu-temp"),
-                    unit_label: "℃",
-                    show_peak: false,
-                    graphable: false,
-                    format_direct: format_direct_0,
-                    value: |_, _| None,
-                    sample: None,
-                    format: Some(|_, _value, context| {
-                        let (primary, _) = formatting::fmt_temperature_text(context.stats);
-                        if primary.is_empty() {
-                            fl!(I18N, "missing-stat")
-                        } else {
-                            primary.join(", ")
-                        }
-                    }),
-                    visible: Some(|_, _value, _| true),
                     level: None,
                 },
             ),
