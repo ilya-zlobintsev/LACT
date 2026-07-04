@@ -678,7 +678,11 @@ impl GpuController for IntelGpuController {
             }
 
             
-           if (config.fan_control_enabled && self.has_fan_control()) {
+            if (config.fan_control_enabled) {
+                if (!self.has_fan_control()) {
+                    bail!("Tried to control the fans when there is no available fan control");
+                }
+
                 if let Some(ref settings) = config.fan_control_settings {
                     match settings.mode {
                         lact_schema::FanControlMode::Static => {
@@ -697,6 +701,12 @@ impl GpuController for IntelGpuController {
                         _ => {
                         }
                     }
+                }
+            } else if (self.has_fan_control()) {
+                for fan_index in 1..=3 {
+                    let pwm_enable = format!("pwm{}_enable", fan_index);
+                    self.write_hwmon_file(&[&pwm_enable], "2")
+                        .context("Could not enable firmware RPM control");
                 }
             }
 
