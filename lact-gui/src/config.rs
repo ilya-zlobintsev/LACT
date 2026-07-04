@@ -1,7 +1,4 @@
-use crate::app::{
-    graphs_window::stat::StatType,
-    utils::{color_scheme::AppColorScheme, styles::AppTheme},
-};
+use crate::app::utils::{color_scheme::AppColorScheme, stats::StatIdentifier, styles::AppTheme};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_with::skip_serializing_none;
 use std::{collections::HashMap, env, fs, path::PathBuf};
@@ -57,7 +54,7 @@ pub struct WindowSize {
 #[derive(Default, Serialize, Deserialize)]
 pub struct UiGpuConfig {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub plots: Vec<Vec<StatType>>,
+    pub plots: Vec<Vec<StatIdentifier>>,
 }
 
 impl UiConfig {

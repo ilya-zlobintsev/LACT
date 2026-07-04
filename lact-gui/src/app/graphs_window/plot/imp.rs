@@ -1,7 +1,6 @@
 use super::PlotColorScheme;
 use super::render_thread::{RenderRequest, RenderThread};
-use crate::app::graphs_window::stat::StatType;
-use crate::app::graphs_window::stat::StatsData;
+use crate::app::utils::stats::{StatIdentifier, StatsData};
 use glib::Properties;
 use gtk::gdk::MemoryTexture;
 use gtk::{glib, prelude::*, subclass::prelude::*};
@@ -22,7 +21,7 @@ pub struct Plot {
     pub(super) render_thread: RenderThread,
     #[property(get, set)]
     time_period_seconds: Cell<i64>,
-    pub(super) stats: RefCell<Vec<StatType>>,
+    pub(super) stats: RefCell<Vec<StatIdentifier>>,
     pub(super) data: RefCell<Arc<RwLock<StatsData>>>,
 }
 
@@ -94,12 +93,12 @@ impl Plot {
 }
 #[cfg(feature = "bench")]
 mod benches {
-    use crate::app::graphs_window::{
-        plot::{
+    use crate::app::{
+        graphs_window::plot::{
             PlotColorScheme,
             render_thread::{RenderRequest, process_request},
         },
-        stat::{StatType, StatsData},
+        utils::stats::{StatKind, StatsData},
     };
     use amdgpu_sysfs::{
         gpu_handle::{PerformanceLevel, PowerLevelId},
@@ -134,10 +133,10 @@ mod benches {
                     time_period_seconds: 60,
                     print_extra_info: false,
                     stats: vec![
-                        StatType::GpuClock,
-                        StatType::GpuTargetClock,
-                        StatType::VramClock,
-                        StatType::GpuVoltage,
+                        StatKind::GpuClock.into(),
+                        StatKind::GpuTargetClock.into(),
+                        StatKind::VramClock.into(),
+                        StatKind::GpuVoltage.into(),
                     ],
                 };
 

@@ -2,6 +2,7 @@ pub mod plot;
 mod plot_component;
 pub mod stat;
 
+use crate::app::utils::stats::{StatIdentifier, StatKind, StatsData};
 use crate::app::{APP_BROKER, msg::AppMsg};
 use crate::{CONFIG, I18N};
 use anyhow::Context;
@@ -18,7 +19,6 @@ use relm4::{
 use relm4_components::save_dialog::{
     SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings,
 };
-use stat::{StatType, StatsData};
 use std::{
     fs::File,
     io::{BufWriter, Write},
@@ -49,7 +49,7 @@ pub enum GraphsWindowMsg {
     SwapPlots(DynamicIndex, DynamicIndex),
     RemovePlot(DynamicIndex),
     AddPlot,
-    SetConfig(Vec<Vec<StatType>>),
+    SetConfig(Vec<Vec<StatIdentifier>>),
     SaveConfig,
     Show,
     ExportData,
@@ -344,26 +344,26 @@ impl GraphsWindow {
 #[boxed_type(name = "DynamicIndexValue")]
 pub struct DynamicIndexValue(DynamicIndex);
 
-fn default_plots() -> Vec<Vec<StatType>> {
+fn default_plots() -> Vec<Vec<StatIdentifier>> {
     vec![
         vec![
-            StatType::Temperature("GPU".into()),
-            StatType::Temperature("GPU Hotspot".into()),
-            StatType::Temperature("VRAM".into()),
-            StatType::Temperature("edge".into()),
-            StatType::Temperature("junction".into()),
-            StatType::Temperature("mem".into()),
+            StatIdentifier::with_label(StatKind::Temperature, "GPU".into()),
+            StatIdentifier::with_label(StatKind::Temperature, "GPU Hotspot".into()),
+            StatIdentifier::with_label(StatKind::Temperature, "VRAM".into()),
+            StatIdentifier::with_label(StatKind::Temperature, "edge".into()),
+            StatIdentifier::with_label(StatKind::Temperature, "junction".into()),
+            StatIdentifier::with_label(StatKind::Temperature, "mem".into()),
         ],
         vec![
-            StatType::GpuClock,
-            StatType::GpuTargetClock,
-            StatType::VramClock,
+            StatKind::GpuClock.into(),
+            StatKind::GpuTargetClock.into(),
+            StatKind::VramClock.into(),
         ],
-        vec![StatType::FanPwm, StatType::FanRpm],
+        vec![StatKind::FanPwm.into(), StatKind::FanRpm.into()],
         vec![
-            StatType::PowerAverage,
-            StatType::PowerCurrent,
-            StatType::PowerCap,
+            StatKind::PowerAverage.into(),
+            StatKind::PowerCurrent.into(),
+            StatKind::PowerCap.into(),
         ],
     ]
 }
@@ -374,7 +374,7 @@ fn export_to_file(data: &StatsData, path: &Path) -> anyhow::Result<()> {
 
     let header = data
         .list_stats()
-        .map(|stat| stat.display())
+        .map(|stat| stat.to_string())
         .collect::<Vec<_>>()
         .join(",");
     writeln!(output, "timestamp,{header}")?;

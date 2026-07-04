@@ -1,8 +1,8 @@
 use super::PlotColorScheme;
 use super::cubic_spline::cubic_spline_interpolation;
 use super::to_texture_ext::ToTextureExt;
-use crate::app::graphs_window::stat::{StatType, StatsData};
 use crate::app::utils::formatting;
+use crate::app::utils::stats::{StatIdentifier, StatsData};
 use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
 use gtk::gdk::MemoryTexture;
@@ -29,7 +29,7 @@ pub struct RenderRequest {
 
     pub print_extra_info: bool,
     pub data: Arc<RwLock<StatsData>>,
-    pub stats: Vec<StatType>,
+    pub stats: Vec<StatIdentifier>,
     pub colors: PlotColorScheme,
 
     pub width: u32,
@@ -213,10 +213,10 @@ impl RenderRequest {
         let data = data_guard.get_stats(&self.stats).collect::<Vec<_>>();
 
         let value_suffix = if self.stats.len() >= 2 {
-            let mut metric = self.stats[0].metric();
+            let mut metric = self.stats[0].kind.metric();
             // Only display a suffix if it's the same across all metrics on the plot
             for stat in &self.stats[1..] {
-                if stat.metric() != metric {
+                if stat.kind.metric() != metric {
                     metric = "";
                     break;
                 }
@@ -225,7 +225,7 @@ impl RenderRequest {
         } else {
             self.stats
                 .first()
-                .map(|stat| stat.metric())
+                .map(|stat| stat.kind.metric())
                 .unwrap_or_default()
         };
 
@@ -287,16 +287,14 @@ impl RenderRequest {
                 .unwrap_or(0.0);
             let avg_value = data.iter().map(|(_, val)| *val).sum::<f64>() / data.len() as f64;
 
-            let stat_suffix = stat_type.metric();
-            let precision = stat_type.precision();
+            let stat_suffix = stat_type.kind.metric();
+            let precision = stat_type.kind.precision();
 
-            let mut stat_label = format!(
-                "{}: {current_value:.*}{stat_suffix}",
-                stat_type.display(),
-                precision
-            );
+            let mut stat_label =
+                format!("{}: {current_value:.*}{stat_suffix}", stat_type, precision);
+
             if self.print_extra_info {
-                if stat_type.show_peak() {
+                if stat_type.kind.show_peak() {
                     write!(stat_label, ", Peak {max_value:.*}{stat_suffix}", precision).unwrap();
                 }
 

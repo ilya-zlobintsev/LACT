@@ -3,7 +3,6 @@ mod imp;
 mod render_thread;
 mod to_texture_ext;
 
-use super::stat::{StatType, StatsData};
 use gtk::{
     glib::{self, Object, subclass::types::ObjectSubclassIsExt},
     prelude::StyleContextExt,
@@ -13,6 +12,8 @@ use plotters::style::{
     full_palette::{DEEPORANGE_100, GREEN_500},
 };
 use std::sync::{Arc, RwLock};
+
+use crate::app::utils::stats::{StatIdentifier, StatsData};
 
 glib::wrapper! {
     pub struct Plot(ObjectSubclass<imp::Plot>)
@@ -31,7 +32,7 @@ impl Plot {
         *self.imp().data.borrow_mut() = data;
     }
 
-    pub fn set_stats(&self, stats: Vec<StatType>) {
+    pub fn set_stats(&self, stats: Vec<StatIdentifier>) {
         *self.imp().stats.borrow_mut() = stats;
     }
 

@@ -1,10 +1,7 @@
-use super::{
-    GraphsWindowMsg,
-    plot::Plot,
-    stat::{StatType, StatsData},
-};
-use crate::I18N;
+use super::{GraphsWindowMsg, plot::Plot};
 use crate::app::graphs_window::DynamicIndexValue;
+use crate::app::utils::stats::StatIdentifier;
+use crate::{I18N, app::utils::stats::StatsData};
 use gtk::{
     gdk,
     glib::{subclass::types::ObjectSubclassIsExt, types::StaticType, value::ToValue},
@@ -33,7 +30,7 @@ pub struct PlotComponent {
 }
 
 pub struct PlotComponentConfig {
-    pub selected_stats: Vec<StatType>,
+    pub selected_stats: Vec<StatIdentifier>,
     pub data: Arc<RwLock<StatsData>>,
     pub edit_mode: BoolBinding,
     pub plots_per_row: F64Binding,
@@ -256,7 +253,7 @@ impl PlotComponent {
         }
     }
 
-    pub fn selected_stats(&self) -> Vec<StatType> {
+    pub fn selected_stats(&self) -> Vec<StatIdentifier> {
         self.stats
             .iter()
             .filter(|row| row.enabled.value())
@@ -276,14 +273,14 @@ impl PlotComponent {
 }
 
 struct StatTypeRow {
-    stat: StatType,
+    stat: StatIdentifier,
     enabled: BoolBinding,
 }
 
 #[relm4::factory]
 impl relm4::factory::FactoryComponent for StatTypeRow {
     type ParentWidget = gtk::Box;
-    type Init = (StatType, bool);
+    type Init = (StatIdentifier, bool);
     type Input = ();
     type Output = PlotComponentMsg;
     type CommandOutput = ();
@@ -291,7 +288,7 @@ impl relm4::factory::FactoryComponent for StatTypeRow {
     view! {
         gtk::CheckButton {
             add_binding: (&self.enabled, "active"),
-            set_label: Some(&self.stat.display()),
+            set_label: Some(&self.stat.to_string()),
         }
     }
 
