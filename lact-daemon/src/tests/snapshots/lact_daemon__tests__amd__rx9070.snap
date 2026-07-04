@@ -376,43 +376,41 @@ expression: device_info
     "vram": [
       {
         "enabled": true,
-        "id": {
-          "Index": 0
-        },
+        "id": "Sleep",
         "value": 96
       },
       {
         "enabled": true,
         "id": {
-          "Index": 1
+          "Index": 0
         },
         "value": 456
       },
       {
         "enabled": true,
         "id": {
-          "Index": 2
+          "Index": 1
         },
         "value": 772
       },
       {
         "enabled": true,
         "id": {
-          "Index": 3
+          "Index": 2
         },
         "value": 875
       },
       {
         "enabled": true,
         "id": {
-          "Index": 4
+          "Index": 3
         },
         "value": 1124
       },
       {
         "enabled": true,
         "id": {
-          "Index": 5
+          "Index": 4
         },
         "value": 1258
       }
@@ -424,7 +422,7 @@ expression: device_info
         "Index": 1
       },
       "memory": {
-        "Index": 4
+        "Index": 3
       },
       "pcie": {
         "Index": 1
