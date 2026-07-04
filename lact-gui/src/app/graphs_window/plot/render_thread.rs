@@ -2,7 +2,7 @@ use super::PlotColorScheme;
 use super::cubic_spline::cubic_spline_interpolation;
 use super::to_texture_ext::ToTextureExt;
 use crate::app::utils::formatting;
-use crate::app::utils::stats::{StatIdentifier, StatsData};
+use crate::app::utils::stats::{StatIdentifier, StatsHistory};
 use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
 use gtk::gdk::MemoryTexture;
@@ -28,7 +28,7 @@ pub struct RenderRequest {
     pub title: String,
 
     pub print_extra_info: bool,
-    pub data: Arc<RwLock<StatsData>>,
+    pub data: Arc<RwLock<StatsHistory>>,
     pub stats: Vec<StatIdentifier>,
     pub colors: PlotColorScheme,
 

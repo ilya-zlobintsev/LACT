@@ -1,8 +1,7 @@
 pub mod plot;
 mod plot_component;
-pub mod stat;
 
-use crate::app::utils::stats::{StatIdentifier, StatKind, StatsData};
+use crate::app::utils::stats::{StatIdentifier, StatKind, StatsHistory};
 use crate::app::{APP_BROKER, msg::AppMsg};
 use crate::{CONFIG, I18N};
 use anyhow::Context;
@@ -19,11 +18,12 @@ use relm4::{
 use relm4_components::save_dialog::{
     SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings,
 };
+use std::sync::RwLock;
 use std::{
     fs::File,
     io::{BufWriter, Write},
     path::Path,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 
 pub struct GraphsWindow {
@@ -31,9 +31,8 @@ pub struct GraphsWindow {
     gpu_id: Option<String>,
     edit_mode: BoolBinding,
     plots_per_row: F64Binding,
-    vram_clock_ratio: f64,
     plots: FactoryVecDeque<PlotComponent>,
-    stats_data: Arc<RwLock<StatsData>>,
+    stats_history: Arc<RwLock<StatsHistory>>,
 }
 
 #[derive(Debug)]
@@ -43,7 +42,6 @@ pub enum GraphsWindowMsg {
         /// Fill for initial message
         selected_gpu_id: Option<String>,
     },
-    VramClockRatio(f64),
     NotifyEditing,
     NotifyPlotsPerRow,
     SwapPlots(DynamicIndex, DynamicIndex),
@@ -57,7 +55,7 @@ pub enum GraphsWindowMsg {
 
 #[relm4::component(pub)]
 impl relm4::Component for GraphsWindow {
-    type Init = ();
+    type Init = Arc<RwLock<StatsHistory>>;
     type Input = GraphsWindowMsg;
     type Output = ();
     type CommandOutput = ();
@@ -149,7 +147,7 @@ impl relm4::Component for GraphsWindow {
     }
 
     fn init(
-        _init: Self::Init,
+        stats_history: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -159,7 +157,6 @@ impl relm4::Component for GraphsWindow {
             time_period_seconds_adj.set_value(time_period as f64);
         }
 
-        let stats_data = Arc::new(RwLock::new(StatsData::default()));
         let plots_per_row = F64Binding::new(2.0);
 
         if let Some(plot_count) = CONFIG.read().plots_per_row {
@@ -178,8 +175,7 @@ impl relm4::Component for GraphsWindow {
             edit_mode,
             plots,
             gpu_id: None,
-            vram_clock_ratio: 1.0,
-            stats_data,
+            stats_history,
         };
 
         let widgets = view_output!();
@@ -199,16 +195,11 @@ impl relm4::Component for GraphsWindow {
                 root.show();
                 self.update_plots_layout();
             }
-            GraphsWindowMsg::VramClockRatio(ratio) => {
-                self.vram_clock_ratio = ratio;
-            }
             GraphsWindowMsg::Stats {
-                stats,
+                stats: _,
                 selected_gpu_id,
             } => {
                 if let Some(selected_gpu_id) = selected_gpu_id {
-                    self.stats_data.write().unwrap().clear();
-
                     let config = CONFIG.read();
                     let plots_config = config
                         .gpus
@@ -221,11 +212,9 @@ impl relm4::Component for GraphsWindow {
                     sender.input(GraphsWindowMsg::SetConfig(plots_config));
                 }
 
-                let mut data = self.stats_data.write().unwrap();
-                data.update(&stats, self.vram_clock_ratio);
-
-                let time_period_seconds = self.time_period_seconds_adj.value() as i64;
-                data.trim(time_period_seconds);
+                // TODO
+                // let time_period_seconds = self.time_period_seconds_adj.value() as i64;
+                // self.stats_data.write().await.trim(time_period_seconds);
             }
             GraphsWindowMsg::SetConfig(configured_plots) => {
                 let mut plots = self.plots.guard();
@@ -234,7 +223,7 @@ impl relm4::Component for GraphsWindow {
                 for stats in configured_plots {
                     plots.push_back(PlotComponentConfig {
                         selected_stats: stats,
-                        data: self.stats_data.clone(),
+                        data: self.stats_history.clone(),
                         edit_mode: self.edit_mode.clone(),
                         plots_per_row: self.plots_per_row.clone(),
                         time_period: self.time_period_seconds_adj.clone(),
@@ -255,7 +244,7 @@ impl relm4::Component for GraphsWindow {
             GraphsWindowMsg::AddPlot => {
                 self.plots.guard().push_back(PlotComponentConfig {
                     selected_stats: vec![],
-                    data: self.stats_data.clone(),
+                    data: self.stats_history.clone(),
                     edit_mode: self.edit_mode.clone(),
                     plots_per_row: self.plots_per_row.clone(),
                     time_period: self.time_period_seconds_adj.clone(),
@@ -299,7 +288,7 @@ impl relm4::Component for GraphsWindow {
                 )));
                 let save_dialog_stream = save_dialog.into_stream();
 
-                let data = self.stats_data.clone();
+                let data = self.stats_history.clone();
                 relm4::spawn(async move {
                     if let Some(SaveDialogResponse::Accept(path)) =
                         save_dialog_stream.recv_one().await
@@ -368,7 +357,7 @@ fn default_plots() -> Vec<Vec<StatIdentifier>> {
     ]
 }
 
-fn export_to_file(data: &StatsData, path: &Path) -> anyhow::Result<()> {
+fn export_to_file(data: &StatsHistory, path: &Path) -> anyhow::Result<()> {
     let file = File::create(path).context("Could not create file")?;
     let mut output = BufWriter::new(file);
 

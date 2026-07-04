@@ -1,6 +1,6 @@
 use super::PlotColorScheme;
 use super::render_thread::{RenderRequest, RenderThread};
-use crate::app::utils::stats::{StatIdentifier, StatsData};
+use crate::app::utils::stats::{StatIdentifier, StatsHistory};
 use glib::Properties;
 use gtk::gdk::MemoryTexture;
 use gtk::{glib, prelude::*, subclass::prelude::*};
@@ -22,7 +22,7 @@ pub struct Plot {
     #[property(get, set)]
     time_period_seconds: Cell<i64>,
     pub(super) stats: RefCell<Vec<StatIdentifier>>,
-    pub(super) data: RefCell<Arc<RwLock<StatsData>>>,
+    pub(super) data: RefCell<Arc<RwLock<StatsHistory>>>,
 }
 
 #[glib::object_subclass]
@@ -98,7 +98,7 @@ mod benches {
             PlotColorScheme,
             render_thread::{RenderRequest, process_request},
         },
-        utils::stats::{StatKind, StatsData},
+        utils::stats::{StatKind, StatsHistory},
     };
     use amdgpu_sysfs::{
         gpu_handle::{PerformanceLevel, PowerLevelId},
@@ -144,8 +144,8 @@ mod benches {
             });
     }
 
-    fn sample_plot_data() -> Arc<RwLock<StatsData>> {
-        let mut data = StatsData::default();
+    fn sample_plot_data() -> Arc<RwLock<StatsHistory>> {
+        let mut data = StatsHistory::default();
 
         // Simulate 1 minute plot with 4 values per second
         for sec in 0..60 {
@@ -209,7 +209,7 @@ mod benches {
                     throttle_info: None,
                 };
 
-                data.update_with_timestamp(&stats, 1.0, timestamp.as_millisecond());
+                data.update_with_timestamp(&stats, timestamp.as_millisecond());
             }
         }
 

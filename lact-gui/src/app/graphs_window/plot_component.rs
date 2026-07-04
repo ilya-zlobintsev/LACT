@@ -1,7 +1,7 @@
 use super::{GraphsWindowMsg, plot::Plot};
 use crate::app::graphs_window::DynamicIndexValue;
 use crate::app::utils::stats::StatIdentifier;
-use crate::{I18N, app::utils::stats::StatsData};
+use crate::{I18N, app::utils::stats::StatsHistory};
 use gtk::{
     gdk,
     glib::{subclass::types::ObjectSubclassIsExt, types::StaticType, value::ToValue},
@@ -23,7 +23,7 @@ use std::sync::{Arc, RwLock};
 pub struct PlotComponent {
     stats: FactoryVecDeque<StatTypeRow>,
     plots_per_row: F64Binding,
-    data: Arc<RwLock<StatsData>>,
+    data: Arc<RwLock<StatsHistory>>,
     edit_mode: BoolBinding,
     print_extra_info: BoolBinding,
     time_period: gtk::Adjustment,
@@ -31,7 +31,7 @@ pub struct PlotComponent {
 
 pub struct PlotComponentConfig {
     pub selected_stats: Vec<StatIdentifier>,
-    pub data: Arc<RwLock<StatsData>>,
+    pub data: Arc<RwLock<StatsHistory>>,
     pub edit_mode: BoolBinding,
     pub plots_per_row: F64Binding,
     pub time_period: gtk::Adjustment,

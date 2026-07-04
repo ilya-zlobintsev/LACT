@@ -13,7 +13,7 @@ use plotters::style::{
 };
 use std::sync::{Arc, RwLock};
 
-use crate::app::utils::stats::{StatIdentifier, StatsData};
+use crate::app::utils::stats::{StatIdentifier, StatsHistory};
 
 glib::wrapper! {
     pub struct Plot(ObjectSubclass<imp::Plot>)
@@ -28,7 +28,7 @@ impl Default for Plot {
 }
 
 impl Plot {
-    pub fn set_data(&self, data: Arc<RwLock<StatsData>>) {
+    pub fn set_data(&self, data: Arc<RwLock<StatsHistory>>) {
         *self.imp().data.borrow_mut() = data;
     }
 

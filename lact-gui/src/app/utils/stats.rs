@@ -121,24 +121,20 @@ impl StatKind {
     }
 }
 
-#[derive(Default, Debug)]
-pub struct StatsData {
+#[derive(Debug)]
+pub struct StatsHistory {
     stats: BTreeMap<StatIdentifier, Vec<(i64, f64)>>,
     throttling: Vec<Vec<(i64, Vec<String>)>>,
+    vram_clock_ratio: f64,
 }
 
-impl StatsData {
-    pub fn update(&mut self, stats: &DeviceStats, vram_clock_ratio: f64) {
+impl StatsHistory {
+    pub fn update(&mut self, stats: &DeviceStats) {
         let timestamp = jiff::Timestamp::now().as_millisecond();
-        self.update_with_timestamp(stats, vram_clock_ratio, timestamp);
+        self.update_with_timestamp(stats, timestamp);
     }
 
-    pub fn update_with_timestamp(
-        &mut self,
-        stats: &DeviceStats,
-        vram_clock_ratio: f64,
-        timestamp: i64,
-    ) {
+    pub fn update_with_timestamp(&mut self, stats: &DeviceStats, timestamp: i64) {
         for (name, temperature) in &stats.temps {
             if let Some(value) = temperature.value.current {
                 self.stats
@@ -195,7 +191,7 @@ impl StatsData {
                 stats
                     .clockspeed
                     .vram_clockspeed
-                    .map(|val| val as f64 * vram_clock_ratio),
+                    .map(|val| val as f64 * self.vram_clock_ratio),
             ),
             (
                 StatKind::GpuVoltage,
@@ -279,6 +275,10 @@ impl StatsData {
         };
     }
 
+    pub fn set_vram_clock_ratio(&mut self, ratio: f64) {
+        self.vram_clock_ratio = ratio;
+    }
+
     pub fn list_stats(&self) -> impl Iterator<Item = &StatIdentifier> {
         self.stats.keys()
     }
@@ -317,8 +317,7 @@ impl StatsData {
     }
 
     pub fn clear(&mut self) {
-        self.stats.clear();
-        self.throttling.clear();
+        *self = Self::default();
     }
 
     pub fn trim(&mut self, last_seconds: i64) {
@@ -350,5 +349,15 @@ impl StatsData {
                 true
             }
         });
+    }
+}
+
+impl Default for StatsHistory {
+    fn default() -> Self {
+        Self {
+            stats: BTreeMap::new(),
+            throttling: Vec::new(),
+            vram_clock_ratio: 1.0,
+        }
     }
 }

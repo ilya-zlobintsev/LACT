@@ -28,7 +28,7 @@ use crate::{
             ProfileSelector, ProfileSelectorMsg,
             profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
         },
-        utils::ext::RelmLaunchable as _,
+        utils::{ext::RelmLaunchable as _, stats::StatsHistory},
     },
     config::WindowSize,
 };
@@ -73,7 +73,13 @@ use relm4_components::{
     save_dialog::{SaveDialog, SaveDialogMsg, SaveDialogResponse, SaveDialogSettings},
 };
 use std::{
-    cell::Cell, fs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, sync::Arc, time::Duration,
+    cell::Cell,
+    fs,
+    os::unix::net::UnixStream,
+    path::PathBuf,
+    rc::Rc,
+    sync::{Arc, RwLock},
+    time::Duration,
 };
 use tracing::{debug, error, info, trace, warn};
 use utils::ext::RelmDefaultLauchable;
@@ -125,6 +131,8 @@ pub struct AppModel {
     system_info: SystemInfo,
     device_flags: Vec<DeviceFlag>,
     device_driver: String,
+
+    stats_history: Arc<RwLock<StatsHistory>>,
 
     application: gtk::Application,
 
@@ -429,6 +437,8 @@ impl AsyncComponent for AppModel {
             ..Default::default()
         });
 
+        let stats_history = Arc::new(RwLock::new(StatsHistory::default()));
+
         let info_page = InformationPage::detach_default();
 
         let oc_page =
@@ -451,7 +461,7 @@ impl AsyncComponent for AppModel {
         let info_dialog =
             InfoDialog::launch(root.clone()).forward(sender.input_sender(), |msg| msg);
 
-        let graphs_window = GraphsWindow::detach_default();
+        let graphs_window = GraphsWindow::detach(stats_history.clone());
         let process_monitor_window = ProcessMonitorWindow::detach_default();
 
         let gpu_selector = GpuSelector::builder()
@@ -515,6 +525,7 @@ impl AsyncComponent for AppModel {
             system_info,
             device_flags: vec![],
             device_driver: String::new(),
+            stats_history,
             dump_vbios_action,
             application,
         };
@@ -656,6 +667,8 @@ impl AppModel {
             AppMsg::SelectGpu(gpu_id) => {
                 Self::set_selected_gpu_id(gpu_id);
                 sender.input(AppMsg::ReloadData { full: true });
+
+                self.stats_history.write().unwrap().clear();
             }
             AppMsg::ReloadData { full } => {
                 self.settings_changed.set_value(false);
@@ -789,6 +802,8 @@ impl AppModel {
                 }
             }
             AppMsg::Stats(stats) => {
+                self.stats_history.write().unwrap().update(&stats);
+
                 let update = PageUpdate::Stats(stats.clone());
                 self.oc_page.emit(OcPageMsg::Update {
                     update: update.clone(),
@@ -1082,8 +1097,11 @@ impl AppModel {
             .as_ref()
             .map(|info| info.vram_clock_ratio)
             .unwrap_or(1.0);
-        self.graphs_window
-            .emit(GraphsWindowMsg::VramClockRatio(vram_clock_ratio));
+
+        self.stats_history
+            .write()
+            .unwrap()
+            .set_vram_clock_ratio(vram_clock_ratio);
 
         let displays_info = self
             .daemon_client
@@ -1131,6 +1149,8 @@ impl AppModel {
             .await
             .context("Could not fetch stats")?;
         let stats = Arc::new(stats);
+
+        self.stats_history.write().unwrap().update(&stats);
 
         let update = PageUpdate::Stats(stats.clone());
         self.info_page.emit(update.clone());
