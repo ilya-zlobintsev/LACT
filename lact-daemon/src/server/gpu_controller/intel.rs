@@ -15,7 +15,7 @@ use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceInfo, DeviceStats, DeviceType,
     DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState,
     PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats,
-    VramStats, config::GpuConfig,
+    VramStats, config::GpuConfig, DeviceFlag
 };
 use std::{
     borrow::Cow,
@@ -569,6 +569,10 @@ impl IntelGpuController {
             .map(|value| value as f64)
             .or_else(|| self.get_power_cap().map(|_| FALLBACK_MAX_POWER_CAP))
     }
+    
+    fn has_fan_control(&self) -> bool {
+        return self.match_hwmon_files(&["pwm1"]).next().is_some();
+    }
 }
 
 impl GpuController for IntelGpuController {
@@ -611,6 +615,12 @@ impl GpuController for IntelGpuController {
                 memory_info: Some(vram_info.mem_info),
                 ..Default::default()
             };
+            
+            let mut flags = vec![];
+            
+            if (self.has_fan_control()) {
+                flags.push(DeviceFlag::ConfigurableFanControl);
+            }
 
             DeviceInfo {
                 pci_info: Some(self.common.pci_info.clone()),
@@ -619,7 +629,7 @@ impl GpuController for IntelGpuController {
                 vbios_version: None,
                 link_info: LinkInfo::default(),
                 drm_info: Some(drm_info),
-                flags: vec![],
+                flags: flags,
             }
         })
     }
