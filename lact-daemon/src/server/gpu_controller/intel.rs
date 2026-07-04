@@ -693,7 +693,7 @@ impl GpuController for IntelGpuController {
                                 let pwm_enable = format!("pwm{}_enable", fan_index);
                                 
                                 self.write_hwmon_file(&[&pwm_enable], "1")
-                                    .context("Could not enable manual RPM control"); //if it is 0 or 2, you wont be able to control the RPM
+                                    .context("Could not enable manual fan control")?; //if it is 0 or 2, you wont be able to control the RPM
                                 self.write_hwmon_file(&[&pwm], &pwm_value.to_string())
                                     .context("Could not set fan RPM")?;
                             }
@@ -706,7 +706,7 @@ impl GpuController for IntelGpuController {
                 for fan_index in 1..=3 {
                     let pwm_enable = format!("pwm{}_enable", fan_index);
                     self.write_hwmon_file(&[&pwm_enable], "2")
-                        .context("Could not enable firmware RPM control");
+                        .context("Could not enable firmware fan control");
                 }
             }
 
