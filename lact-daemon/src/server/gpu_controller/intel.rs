@@ -698,6 +698,30 @@ impl GpuController for IntelGpuController {
                                     .context("Could not set fan RPM")?;
                             }
                         },
+                        lact_schema::FanControlMode::Curve => {
+                            if (settings.curve.0.len() != 10) {
+                                return Err(anyhow!("The fan curve needs exactly 10 points"));
+                            }
+
+                            for fan_index in 1..=3 {
+                                let pwm_enable = format!("pwm{}_enable", fan_index);
+                                self.write_hwmon_file(&[&pwm_enable], "1")
+                                    .context("Could not enable manual fan control")?;
+                            }
+
+                            for (i, (temperature, speed)) in settings.curve.0.iter().enumerate() {
+                                let point = i + 1;
+                                let pwm = (*speed * 255.0) as u8;
+                                let temp = (*temperature as f64 * 1000.0) as i32;
+
+                                for fan_index in 1..=3 {
+                                    self.write_hwmon_file(&[&format!("pwm{}_auto_point{}_temp", fan_index, point)], &temp.to_string())
+                                        .context("Could not set the temperature for a point in the curve");
+                                    self.write_hwmon_file(&[&format!("pwm{}_auto_point{}_pwm", fan_index, point)], &pwm.to_string())
+                                        .context("Could not set the RPM for a point in the curve");
+                                }
+                            }
+                        }
                         _ => {
                         }
                     }
