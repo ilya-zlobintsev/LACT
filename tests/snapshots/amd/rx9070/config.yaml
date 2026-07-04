@@ -18,7 +18,11 @@ pmfw_options:
   minimum_pwm: 15
   target_temperature: 70
 power_cap: 200.0
-performance_level: auto
+performance_level: manual
 gpu_clock_offsets:
   0: 0
 voltage_offset: 0
+power_states:
+  core_clock:
+  - 0
+  - 1

@@ -353,22 +353,20 @@ expression: device_info
     "core": [
       {
         "enabled": true,
-        "id": {
-          "Index": 0
-        },
+        "id": "Sleep",
         "value": 500
       },
       {
         "enabled": true,
         "id": {
-          "Index": 1
+          "Index": 0
         },
         "value": 789
       },
       {
         "enabled": true,
         "id": {
-          "Index": 2
+          "Index": 1
         },
         "value": 2070
       }
@@ -376,41 +374,43 @@ expression: device_info
     "vram": [
       {
         "enabled": true,
-        "id": "Sleep",
-        "value": 96
-      },
-      {
-        "enabled": true,
         "id": {
           "Index": 0
         },
-        "value": 456
+        "value": 96
       },
       {
         "enabled": true,
         "id": {
           "Index": 1
         },
-        "value": 772
+        "value": 456
       },
       {
         "enabled": true,
         "id": {
           "Index": 2
         },
-        "value": 875
+        "value": 772
       },
       {
         "enabled": true,
         "id": {
           "Index": 3
         },
-        "value": 1124
+        "value": 875
       },
       {
         "enabled": true,
         "id": {
           "Index": 4
+        },
+        "value": 1124
+      },
+      {
+        "enabled": true,
+        "id": {
+          "Index": 5
         },
         "value": 1258
       }
@@ -419,10 +419,10 @@ expression: device_info
   "stats": {
     "active_power_states": {
       "core": {
-        "Index": 1
+        "Index": 0
       },
       "memory": {
-        "Index": 3
+        "Index": 4
       },
       "pcie": {
         "Index": 1
@@ -486,7 +486,7 @@ expression: device_info
         100
       ]
     },
-    "performance_level": "auto",
+    "performance_level": "manual",
     "power": {
       "average": 49.0,
       "cap_current": 200.0,
