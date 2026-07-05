@@ -17,6 +17,7 @@ amdgpu-sysfs = { version = "0.21.0", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_with = { version = "3.18.0", default-features = false, features = [
     "macros",
+    "alloc",
 ] }
 serde_json = "1.0.149"
 anyhow = "1.0.102"
