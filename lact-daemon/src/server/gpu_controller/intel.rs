@@ -716,9 +716,9 @@ impl GpuController for IntelGpuController {
 
                                 for fan_index in 1..=3 {
                                     self.write_hwmon_file(&[&format!("pwm{}_auto_point{}_temp", fan_index, point)], &temp.to_string())
-                                        .context("Could not set the temperature for a point in the curve");
+                                        .context("Could not set the temperature for a point in the curve")?;
                                     self.write_hwmon_file(&[&format!("pwm{}_auto_point{}_pwm", fan_index, point)], &pwm.to_string())
-                                        .context("Could not set the RPM for a point in the curve");
+                                        .context("Could not set the RPM for a point in the curve")?;
                                 }
                             }
                         }
