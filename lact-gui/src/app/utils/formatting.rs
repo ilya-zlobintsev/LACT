@@ -47,11 +47,12 @@ impl fmt::Display for Mono {
     }
 }
 
-pub fn fmt_fan_speed(stats: &DeviceStats, show_percent: bool) -> Option<String> {
-    let rpm = stats.fan.speed_current.map(u64::from);
-    let pct = stats.fan.percent(); // Method from Step 1
-
-    let content = match (rpm, pct) {
+pub fn fmt_fan_speed(
+    rpm: Option<impl Into<u64>>,
+    percent: Option<impl Into<u64>>,
+    show_percent: bool,
+) -> Option<String> {
+    let content = match (rpm, percent) {
         (Some(r), Some(p)) if show_percent => format!("{} RPM ({}%)", Mono::uint(r), Mono::uint(p)),
         (Some(r), _) => format!("{} RPM", Mono::uint(r)),
         (None, Some(p)) if show_percent => format!("{}%", Mono::uint(p)),
@@ -120,10 +121,10 @@ pub fn fmt_temperature_text(stats: &DeviceStats) -> (Vec<String>, Vec<String>) {
     (primary, secondary)
 }
 
-pub fn fmt_clockspeed(clock_mhz: Option<u64>, ratio: f64) -> String {
+pub fn fmt_clockspeed(clock_mhz: Option<f64>, ratio: f64) -> String {
     format!(
         "{} {}",
-        Mono::float(clock_mhz.unwrap_or(0) as f64 * ratio, 0),
+        Mono::float(clock_mhz.unwrap_or(0.0) * ratio, 0),
         fl!(I18N, "mhz")
     )
 }
@@ -207,7 +208,7 @@ mod tests {
         stats.fan.speed_current = Some(3000);
 
         assert_eq!(
-            fmt_fan_speed(&stats, true),
+            fmt_fan_speed(stats.fan.speed_current, stats.fan.percent(), true),
             Some(
                 "<b><span font_family='monospace'>3000</span> RPM (<span font_family='monospace'>50</span>%)</b>"
                     .to_string()
@@ -222,7 +223,7 @@ mod tests {
         stats.fan.speed_current = Some(3000);
 
         assert_eq!(
-            fmt_fan_speed(&stats, false),
+            fmt_fan_speed(stats.fan.speed_current, stats.fan.percent(), false),
             Some("<b><span font_family='monospace'>3000</span> RPM</b>".to_string())
         );
     }
@@ -233,7 +234,7 @@ mod tests {
         stats.fan.pwm_current = Some(255);
 
         assert_eq!(
-            fmt_fan_speed(&stats, true),
+            fmt_fan_speed(stats.fan.speed_current, stats.fan.percent(), true),
             Some("<b><span font_family='monospace'>100</span>%</b>".to_string())
         );
     }
@@ -244,7 +245,7 @@ mod tests {
         stats.fan.pwm_current = Some(255);
 
         assert_eq!(
-            fmt_fan_speed(&stats, false),
+            fmt_fan_speed(stats.fan.speed_current, stats.fan.percent(), false),
             Some("<b><span font_family='monospace'>100</span></b>".to_string())
         );
     }
@@ -304,12 +305,12 @@ mod tests {
     #[test]
     fn fmt_clockspeed_uses_localized_unit() {
         assert_eq!(
-            fmt_clockspeed(Some(1000), 1.0),
+            fmt_clockspeed(Some(1000.0), 1.0),
             "<span font_family='monospace'>1000</span> MHz"
         );
 
         assert_eq!(
-            fmt_clockspeed(Some(1000), 3.0),
+            fmt_clockspeed(Some(1000.0), 3.0),
             "<span font_family='monospace'>3000</span> MHz"
         );
     }

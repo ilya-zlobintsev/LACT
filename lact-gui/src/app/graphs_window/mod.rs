@@ -8,7 +8,6 @@ use anyhow::Context;
 use gtk::{glib, prelude::*};
 use i18n_embed_fl::fl;
 use jiff::Zoned;
-use lact_schema::DeviceStats;
 use plot_component::{PlotComponent, PlotComponentConfig, PlotComponentMsg};
 use relm4::{
     ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
@@ -37,8 +36,7 @@ pub struct GraphsWindow {
 
 #[derive(Debug)]
 pub enum GraphsWindowMsg {
-    Stats {
-        stats: Arc<DeviceStats>,
+    StatsNotify {
         /// Fill for initial message
         selected_gpu_id: Option<String>,
     },
@@ -195,10 +193,7 @@ impl relm4::Component for GraphsWindow {
                 root.show();
                 self.update_plots_layout();
             }
-            GraphsWindowMsg::Stats {
-                stats: _,
-                selected_gpu_id,
-            } => {
+            GraphsWindowMsg::StatsNotify { selected_gpu_id } => {
                 if let Some(selected_gpu_id) = selected_gpu_id {
                     let config = CONFIG.read();
                     let plots_config = config
@@ -212,9 +207,11 @@ impl relm4::Component for GraphsWindow {
                     sender.input(GraphsWindowMsg::SetConfig(plots_config));
                 }
 
-                // TODO
-                // let time_period_seconds = self.time_period_seconds_adj.value() as i64;
-                // self.stats_data.write().await.trim(time_period_seconds);
+                let time_period_seconds = self.time_period_seconds_adj.value() as i64;
+                self.stats_history
+                    .write()
+                    .unwrap()
+                    .trim(time_period_seconds);
             }
             GraphsWindowMsg::SetConfig(configured_plots) => {
                 let mut plots = self.plots.guard();
@@ -348,7 +345,7 @@ fn default_plots() -> Vec<Vec<StatIdentifier>> {
             StatKind::GpuTargetClock.into(),
             StatKind::VramClock.into(),
         ],
-        vec![StatKind::FanPwm.into(), StatKind::FanRpm.into()],
+        vec![StatKind::FanPercent.into(), StatKind::FanRpm.into()],
         vec![
             StatKind::PowerAverage.into(),
             StatKind::PowerCurrent.into(),

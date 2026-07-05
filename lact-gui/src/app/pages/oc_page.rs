@@ -5,6 +5,7 @@ mod power_cap_section;
 mod power_states;
 mod vf_curve;
 
+use crate::app::SharedStatsHistory;
 use crate::app::pages::PageUpdate;
 use crate::app::utils::ext::RelmLaunchable as _;
 use crate::app::{msg::AppMsg, utils::ext::RelmDefaultLauchable};
@@ -56,7 +57,7 @@ pub enum OcPageMsg {
 
 #[relm4::component(pub)]
 impl relm4::Component for OcPage {
-    type Init = BoolBinding;
+    type Init = (BoolBinding, SharedStatsHistory);
     type Input = OcPageMsg;
     type Output = AppMsg;
     type CommandOutput = ();
@@ -77,11 +78,11 @@ impl relm4::Component for OcPage {
     }
 
     fn init(
-        settings_changed: Self::Init,
+        (settings_changed, stats_history): Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let stats_section = GpuStatsSection::detach_default();
+        let stats_section = GpuStatsSection::detach(stats_history);
         let power_cap_section = PowerCapSection::detach_default();
         let clocks_frame = ClocksFrame::launch_default().forward(sender.input_sender(), |msg| msg);
         let power_states_frame = PowerStatesFrame::detach_default();

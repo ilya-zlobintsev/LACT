@@ -103,6 +103,8 @@ macro_rules! setup_actions {
     };
 }
 
+type SharedStatsHistory = Arc<RwLock<StatsHistory>>;
+
 pub struct AppModel {
     daemon_client: DaemonClient,
     graphs_window: relm4::Controller<GraphsWindow>,
@@ -132,7 +134,7 @@ pub struct AppModel {
     device_flags: Vec<DeviceFlag>,
     device_driver: String,
 
-    stats_history: Arc<RwLock<StatsHistory>>,
+    stats_history: SharedStatsHistory,
 
     application: gtk::Application,
 
@@ -441,8 +443,8 @@ impl AsyncComponent for AppModel {
 
         let info_page = InformationPage::detach_default();
 
-        let oc_page =
-            OcPage::launch(settings_changed.clone()).forward(sender.input_sender(), |msg| msg);
+        let oc_page = OcPage::launch((settings_changed.clone(), stats_history.clone()))
+            .forward(sender.input_sender(), |msg| msg);
         let thermals_page = ThermalsPage::detach_default();
 
         let software_page = SoftwarePage::detach((system_info.clone(), daemon_client.embedded));
@@ -667,8 +669,6 @@ impl AppModel {
             AppMsg::SelectGpu(gpu_id) => {
                 Self::set_selected_gpu_id(gpu_id);
                 sender.input(AppMsg::ReloadData { full: true });
-
-                self.stats_history.write().unwrap().clear();
             }
             AppMsg::ReloadData { full } => {
                 self.settings_changed.set_value(false);
@@ -813,8 +813,7 @@ impl AppModel {
                     update: update.clone(),
                     initial: false,
                 });
-                self.graphs_window.emit(GraphsWindowMsg::Stats {
-                    stats,
+                self.graphs_window.emit(GraphsWindowMsg::StatsNotify {
                     selected_gpu_id: None,
                 });
             }
@@ -1114,9 +1113,13 @@ impl AppModel {
         self.displays_page.emit(displays_info);
 
         let stats = self.update_gpu_data(gpu_id.clone(), sender).await?;
+        {
+            let mut stats_history = self.stats_history.write().unwrap();
+            stats_history.clear();
+            stats_history.update(&stats);
+        }
 
-        self.graphs_window.emit(GraphsWindowMsg::Stats {
-            stats,
+        self.graphs_window.emit(GraphsWindowMsg::StatsNotify {
             selected_gpu_id: Some(gpu_id),
         });
 

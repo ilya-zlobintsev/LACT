@@ -2,14 +2,14 @@ use lact_schema::DeviceStats;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt};
 
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
 pub enum StatKind {
     GpuClock,
     GpuTargetClock,
     GpuUsage,
     Temperature,
     FanRpm,
-    FanPwm,
+    FanPercent,
     PowerCurrent,
     PowerAverage,
     PowerCap,
@@ -79,7 +79,7 @@ impl StatKind {
             Voltage => "Voltage",
             Power => "Power",
             FanRpm => "Fan RPM",
-            FanPwm => "Fan",
+            FanPercent => "Fan",
             PowerCurrent => "Power Draw",
             PowerAverage => "Power Draw (Avg)",
             PowerCap => "Power Cap",
@@ -94,7 +94,7 @@ impl StatKind {
             GpuVoltage | Voltage => "mV",
             Temperature => "℃",
             FanRpm => "RPM",
-            FanPwm => "%",
+            FanPercent => "%",
             GpuUsage => "%",
             PowerCurrent | PowerAverage | PowerCap | Power => "W",
         }
@@ -105,7 +105,7 @@ impl StatKind {
         use StatKind::*;
         match self {
             GpuClock | GpuTargetClock | VramClock | Clockspeed => 0,
-            FanPwm => 1,
+            FanPercent => 1,
             FanRpm => 0,
             PowerCurrent | PowerAverage | Power => 1,
             PowerCap => 0,
@@ -201,7 +201,7 @@ impl StatsHistory {
             (StatKind::PowerCurrent, stats.power.current),
             (StatKind::PowerCap, stats.power.cap_current),
             (
-                StatKind::FanPwm,
+                StatKind::FanPercent,
                 stats
                     .fan
                     .pwm_current
@@ -294,6 +294,13 @@ impl StatsHistory {
         stats
             .iter()
             .filter_map(|stat_type| Some((stat_type, self.stats.get(stat_type)?.as_slice())))
+    }
+
+    pub fn iter_latest(&self) -> impl Iterator<Item = (&StatIdentifier, f64)> {
+        self.stats.iter().filter_map(|(key, values)| {
+            let value = values.last()?;
+            Some((key, value.1))
+        })
     }
 
     pub fn all_stats(&self) -> &BTreeMap<StatIdentifier, Vec<(i64, f64)>> {
