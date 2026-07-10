@@ -206,8 +206,8 @@ impl StatsData {
         // Limit data to N seconds
         let last_timestamp = self
             .stats
-            .iter()
-            .flat_map(|(_, stats)| stats)
+            .values()
+            .flatten()
             .map(|(date_time, _)| *date_time)
             .next_back()
             .unwrap_or_default();

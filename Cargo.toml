@@ -15,19 +15,19 @@ edition = "2024"
 [workspace.dependencies]
 amdgpu-sysfs = { version = "0.21.0", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_with = { version = "3.18.0", default-features = false, features = [
+serde_with = { version = "3.21.0", default-features = false, features = [
     "macros",
 ] }
-serde_json = "1.0.149"
-anyhow = "1.0.102"
+serde_json = "1.0.150"
+anyhow = "1.0.103"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 futures = { version = "0.3.32", features = [
     "std",
     "async-await",
 ], default-features = false }
-tokio = { version = "1.52.1", default-features = false }
-nix = { version = "0.31.2", default-features = false }
+tokio = { version = "1.52.3", default-features = false }
+nix = { version = "0.31.3", default-features = false }
 jiff = "0.2"
 indexmap = { version = "2.14.0", features = ["serde"] }
 pretty_assertions = "1.4.1"
@@ -38,7 +38,7 @@ i18n-embed = { version = "0.16.0", features = [
     "desktop-requester",
 ] }
 i18n-embed-fl = "0.10.0"
-rust-embed = { version = "8.11.0", features = ["debug-embed"] }
+rust-embed = { version = "8.12.0", features = ["debug-embed"] }
 
 [profile.release]
 strip = "symbols"

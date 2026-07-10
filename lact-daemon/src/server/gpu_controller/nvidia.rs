@@ -510,7 +510,7 @@ impl NvidiaGpuController {
                 let min_offset = cmp::min(offset_info.min_clock_offset_mhz, -(base_freq / 1000));
 
                 if !(min_offset..=offset_info.max_clock_offset_mhz).contains(&offset_mhz) {
-                    bail!("Configured offset {offset_mhz}MHz is outside of the allowed range",);
+                    bail!("Configured offset {offset_mhz}MHz is outside of the allowed range");
                 }
 
                 debug!("writing offset {offset_khz}KHz to point {i}");

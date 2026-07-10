@@ -1,5 +1,9 @@
-use vergen::EmitBuilder;
+use vergen_gitcl::{Emitter, Gitcl};
 
 fn main() {
-    EmitBuilder::builder().git_sha(true).emit().unwrap()
+    Emitter::default()
+        .add_instructions(&Gitcl::builder().sha(true).build())
+        .unwrap()
+        .emit()
+        .unwrap()
 }

@@ -22,4 +22,4 @@ clap = { version = "4.6.1", features = ["derive"], optional = true }
 
 
 [build-dependencies]
-vergen = { version = "8.3.2", features = ["git", "gitcl"] }
+vergen-gitcl = "10.0.1"
