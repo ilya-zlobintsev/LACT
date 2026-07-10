@@ -32,6 +32,7 @@ use std::{cmp, fmt::Write as _};
 // In percentage
 const POINT_VOLTAGE_HOVER_MARGIN: f32 = 0.01;
 const POINT_FREQ_HOVER_MARGIN: f32 = 0.03;
+const MIN_VISIBLE_FREQ_RANGE_PADDING: u32 = 200;
 
 #[derive(Clone)]
 pub struct VfCurveEditor {
@@ -39,6 +40,7 @@ pub struct VfCurveEditor {
     stats: Rc<RefCell<Arc<DeviceStats>>>,
     allow_editing: BoolBinding,
     locked_clocks_range: Rc<Cell<Option<(u32, u32)>>>,
+    freq_range: Rc<Cell<Option<(u32, u32)>>>,
 
     visible_range_start: gtk::Adjustment,
     visible_range_end: gtk::Adjustment,
@@ -51,6 +53,8 @@ pub struct VfCurveEditor {
     hovered_point: Rc<Cell<Option<usize>>>,
     dragging_point: Rc<Cell<Option<usize>>>,
     drag_modifiers: Rc<Cell<gdk::ModifierType>>,
+    // This is stored to avoid updating the range mid-drag
+    cached_y_spec: Rc<Cell<Option<(u32, u32)>>>,
 
     selected_range_start: Rc<Cell<Option<usize>>>,
     selected_range_end: Rc<Cell<Option<usize>>>,
@@ -69,6 +73,7 @@ pub enum VfCurveEditorMsg {
     DragStart,
     DragEnd,
     FlattenCurve,
+    FlattenSelection,
     ResetCurve,
 }
 
@@ -253,13 +258,29 @@ impl relm4::Component for VfCurveEditor {
                 popover.unparent();
             },
 
-            gtk::Button {
-                set_label: &fl!(I18N, "vf-curve-flatten-right"),
-                connect_clicked => VfCurveEditorMsg::FlattenCurve,
-                connect_clicked[point_menu] => move |_| {
-                    point_menu.popdown();
-                },
+            gtk::Box {
                 add_css_class: "flat",
+                set_orientation: gtk::Orientation::Vertical,
+
+                gtk::Button {
+                    set_label: &fl!(I18N, "vf-curve-flatten-selection"),
+                    connect_clicked => VfCurveEditorMsg::FlattenSelection,
+                    connect_clicked[point_menu] => move |_| {
+                        point_menu.popdown();
+                    },
+                    add_css_class: "flat",
+                    #[watch]
+                    set_visible: model.selected_range_start.get().is_some() && model.selected_range_end.get().is_some(),
+                },
+
+                gtk::Button {
+                    set_label: &fl!(I18N, "vf-curve-flatten-right"),
+                    connect_clicked => VfCurveEditorMsg::FlattenCurve,
+                    connect_clicked[point_menu] => move |_| {
+                        point_menu.popdown();
+                    },
+                    add_css_class: "flat",
+                },
             },
         }
     }
@@ -274,6 +295,7 @@ impl relm4::Component for VfCurveEditor {
             stats: Rc::default(),
             global_settings_changed,
             locked_clocks_range: Rc::default(),
+            freq_range: Rc::default(),
             allow_editing: BoolBinding::new(false),
             cursor_position: Rc::new(Cell::new(None)),
             visible_range_start: gtk::Adjustment::new(30.0, 0.0, 100.0, 1.0, 10.0, 0.0),
@@ -282,6 +304,7 @@ impl relm4::Component for VfCurveEditor {
             hovered_point: Rc::new(Cell::new(None)),
             dragging_point: Rc::new(Cell::new(None)),
             drag_modifiers: Rc::new(Cell::new(gdk::ModifierType::empty())),
+            cached_y_spec: Rc::new(Cell::new(None)),
             selected_range_start: Rc::new(Cell::new(None)),
             selected_range_end: Rc::new(Cell::new(None)),
         };
@@ -306,10 +329,17 @@ impl relm4::Component for VfCurveEditor {
                 let mut points = self.points.borrow_mut();
                 points.clear();
                 self.locked_clocks_range.take();
+                self.freq_range.take();
 
                 if let Some(ClocksTable::Nvidia(nvidia_table)) = clocks_table.as_deref() {
                     points.extend_from_slice(&nvidia_table.gpu_vf_curve);
-                    self.locked_clocks_range.set(nvidia_table.gpu_locked_clocks)
+                    self.locked_clocks_range.set(nvidia_table.gpu_locked_clocks);
+                    let offset_range = nvidia_table
+                        .gpu_offsets
+                        .get(&0)
+                        .map(|offset| (offset.min, offset.max));
+                    self.freq_range
+                        .set(Self::freq_limits_range(&points, offset_range));
                 }
 
                 if points.is_empty() {
@@ -328,6 +358,8 @@ impl relm4::Component for VfCurveEditor {
                     return;
                 }
 
+                self.cached_y_spec.take();
+
                 if let Some(point) = self.hovered_point.get() {
                     self.dragging_point.set(Some(point));
                 } else {
@@ -337,7 +369,10 @@ impl relm4::Component for VfCurveEditor {
                 }
             }
             VfCurveEditorMsg::DragEnd => {
-                if self.dragging_point.take().is_some() {
+                let was_dragging_point = self.dragging_point.take().is_some();
+                self.cached_y_spec.take();
+
+                if was_dragging_point {
                     APP_BROKER.send(AppMsg::SettingsChanged);
                 } else if self.allow_editing.value()
                     && let Some(selected_start) = self.selected_range_start.get()
@@ -365,6 +400,29 @@ impl relm4::Component for VfCurveEditor {
 
                     for point in points.iter_mut().skip(base_point_idx) {
                         point.freq = target_freq;
+                    }
+
+                    APP_BROKER.send(AppMsg::SettingsChanged);
+                }
+            }
+
+            VfCurveEditorMsg::FlattenSelection => {
+                if let Some(base_point_idx) = self.hovered_point.get()
+                    && let Some((selected_volt_start, selected_volt_end)) =
+                        self.get_selected_voltage_range()
+                {
+                    let (start, end) = self.visible_points_range();
+                    let mut points = self.points.borrow_mut();
+                    let points = &mut points[start..end];
+
+                    let target_freq = points[base_point_idx].freq;
+
+                    for point in points.iter_mut() {
+                        if (selected_volt_start..=selected_volt_end)
+                            .contains(&(point.voltage as usize))
+                        {
+                            point.freq = target_freq;
+                        }
                     }
 
                     APP_BROKER.send(AppMsg::SettingsChanged);
@@ -407,7 +465,23 @@ impl VfCurveEditor {
         let max_point = points.last().unwrap();
 
         let x_spec = min_point.base_voltage..max_point.base_voltage;
-        let y_spec = min_point.base_freq..(max_point.base_freq as f64 * 1.1) as u32;
+        let Some(freq_range) = self.freq_range.get() else {
+            return;
+        };
+
+        let y_range = if self.dragging_point.get().is_some() {
+            self.cached_y_spec.get().or_else(|| {
+                let y_range = Self::visible_freq_range(points, freq_range);
+                self.cached_y_spec.set(y_range);
+                y_range
+            })
+        } else {
+            Self::visible_freq_range(points, freq_range)
+        };
+        let Some((y_start, y_end)) = y_range else {
+            return;
+        };
+        let y_spec = y_start..y_end;
 
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(45)
@@ -539,7 +613,7 @@ impl VfCurveEditor {
             self.selected_range_end.set(None);
         }
 
-        if let Some((selected_start, selected_end)) = self.get_selected_range() {
+        if let Some((selected_start, selected_end)) = self.get_selected_voltage_range() {
             let x_values = [selected_start, selected_end];
             chart
                 .draw_series(AreaSeries::new(
@@ -556,7 +630,8 @@ impl VfCurveEditor {
                 3,
                 ShapeStyle::from(&colors.success).filled(),
                 &|(i, coord), mut size, mut style| {
-                    if let Some((selected_start, selected_end)) = self.get_selected_range() {
+                    if let Some((selected_start, selected_end)) = self.get_selected_voltage_range()
+                    {
                         let voltage = coord.0 as usize;
                         if selected_start < voltage && voltage < selected_end {
                             style.color = selected_style.to_rgba();
@@ -636,13 +711,13 @@ impl VfCurveEditor {
             .draw()
             .unwrap();
 
-        let freq_range = chart.as_coord_spec().get_y_range();
         let translate = chart.into_coord_trans();
 
         let voltage_hover_margin =
             ((max_point.voltage - min_point.voltage) as f32 * POINT_VOLTAGE_HOVER_MARGIN) as i32;
         let freq_hover_margin =
-            ((max_point.freq - min_point.freq) as f32 * POINT_FREQ_HOVER_MARGIN) as i32;
+            ((y_spec.end - y_spec.start) as f32 * POINT_FREQ_HOVER_MARGIN) as i32;
+        let freq_hover_margin = freq_hover_margin.max(1);
 
         let hovered_coords = self
             .cursor_position
@@ -668,7 +743,7 @@ impl VfCurveEditor {
         self.hovered_point.set(hovered_point);
 
         if let Some(point_idx) = self.dragging_point.get()
-            && let Some((selected_start, selected_end)) = self.get_selected_range()
+            && let Some((selected_start, selected_end)) = self.get_selected_voltage_range()
         {
             let voltage = points[point_idx].voltage as usize;
             if voltage < selected_start || voltage > selected_end {
@@ -680,7 +755,7 @@ impl VfCurveEditor {
         if let Some((_voltage, freq)) = hovered_coords
             && let Some(point_idx) = self.dragging_point.get()
         {
-            let new_freq = freq.clamp(freq_range.start, freq_range.end);
+            let new_freq = freq.clamp(freq_range.0, freq_range.1);
             let drag_delta = new_freq as i32 - points[point_idx].freq as i32;
 
             if self
@@ -689,19 +764,17 @@ impl VfCurveEditor {
                 .contains(gdk::ModifierType::SHIFT_MASK)
             {
                 for point in points.iter_mut() {
-                    let new_freq = (point.freq as i32 + drag_delta) as u32;
-                    if new_freq > 0 {
-                        point.freq = new_freq;
-                    }
+                    point.freq = (point.freq as i32 + drag_delta)
+                        .clamp(freq_range.0 as i32, freq_range.1 as i32)
+                        as u32;
                 }
-            } else if let Some((selected_start, selected_end)) = self.get_selected_range() {
+            } else if let Some((selected_start, selected_end)) = self.get_selected_voltage_range() {
                 for point in points.iter_mut() {
                     let voltage = point.voltage as usize;
                     if selected_start < voltage && voltage < selected_end {
-                        let new_freq = (point.freq as i32 + drag_delta) as u32;
-                        if new_freq > 0 {
-                            point.freq = new_freq;
-                        }
+                        point.freq = (point.freq as i32 + drag_delta)
+                            .clamp(freq_range.0 as i32, freq_range.1 as i32)
+                            as u32;
                     }
                 }
             } else {
@@ -723,7 +796,7 @@ impl VfCurveEditor {
         (cmp::min(start, end), cmp::max(end, start))
     }
 
-    fn get_selected_range(&self) -> Option<(usize, usize)> {
+    fn get_selected_voltage_range(&self) -> Option<(usize, usize)> {
         match (
             self.selected_range_start.get(),
             self.selected_range_end.get(),
@@ -745,6 +818,47 @@ impl VfCurveEditor {
             }
             _ => None,
         }
+    }
+
+    fn freq_limits_range(
+        points: &[NvidiaVfPoint],
+        offset_range: Option<(i32, i32)>,
+    ) -> Option<(u32, u32)> {
+        let (min_offset, max_offset) = offset_range?;
+        let first_point = points.first()?;
+        let last_point = points.last()?;
+
+        let min_freq = offset_freq(first_point.base_freq, min_offset);
+        let mut max_freq = offset_freq(last_point.base_freq, max_offset);
+
+        if min_freq >= max_freq {
+            max_freq = min_freq.saturating_add(1);
+        }
+
+        Some((min_freq, max_freq))
+    }
+
+    fn visible_freq_range(points: &[NvidiaVfPoint], freq_range: (u32, u32)) -> Option<(u32, u32)> {
+        let min_freq = points
+            .iter()
+            .flat_map(|point| [point.freq, point.base_freq])
+            .min()?;
+        let max_freq = points
+            .iter()
+            .flat_map(|point| [point.freq, point.base_freq])
+            .max()?;
+
+        let y_start = min_freq
+            .saturating_sub(MIN_VISIBLE_FREQ_RANGE_PADDING)
+            .max(freq_range.0);
+        let mut y_end = max_freq
+            .saturating_add(MIN_VISIBLE_FREQ_RANGE_PADDING)
+            .min(freq_range.1);
+        if y_start >= y_end {
+            y_end = y_start.saturating_add(1).min(freq_range.1);
+        }
+
+        Some((y_start, y_end))
     }
 
     pub fn is_empty(&self) -> bool {
@@ -776,4 +890,12 @@ fn vf_point_coords(point: &NvidiaVfPoint) -> (u32, u32) {
 
 fn vf_point_base_coords(point: &NvidiaVfPoint) -> (u32, u32) {
     (point.base_voltage, point.base_freq)
+}
+
+fn offset_freq(base_freq: u32, offset: i32) -> u32 {
+    if offset.is_negative() {
+        base_freq.saturating_sub(offset.unsigned_abs())
+    } else {
+        base_freq.saturating_add(offset as u32)
+    }
 }

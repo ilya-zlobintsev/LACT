@@ -21,6 +21,7 @@ use crate::{
             InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
         },
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
+        pages::displays_page::DisplaysPage,
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
         profiles::{
@@ -114,6 +115,7 @@ pub struct AppModel {
     power_page: relm4::Controller<PowerPage>,
     thermals_page: relm4::Controller<ThermalsPage>,
     software_page: relm4::Controller<SoftwarePage>,
+    displays_page: relm4::Controller<DisplaysPage>,
     crash_page: relm4::Controller<CrashPage>,
 
     gpu_selector: relm4::Controller<GpuSelector>,
@@ -296,6 +298,7 @@ impl AsyncComponent for AppModel {
                                             add_titled[Some("power_page"), &fl!(I18N, "power-page")] = model.power_page.widget(),
                                             add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
                                             add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
+                                            add_titled[Some("displays_page"), &fl!(I18N, "displays-page")] = model.displays_page.widget(),
                                             add_named[Some("crash_page")] = model.crash_page.widget(),
 
                                             set_visible_child_name: &CONFIG.read().selected_tab,
@@ -365,6 +368,7 @@ impl AsyncComponent for AppModel {
         if let Err(err) = styles::apply_theme(CONFIG.read().theme) {
             error!("could not apply theme: {err:#}");
         }
+        CONFIG.read().color_scheme.apply();
 
         let (daemon_client, conn_err) = match args.tcp_address {
             Some(remote_addr) => {
@@ -438,6 +442,8 @@ impl AsyncComponent for AppModel {
 
         let software_page = SoftwarePage::detach((system_info.clone(), daemon_client.embedded));
 
+        let displays_page = DisplaysPage::detach_default();
+
         let crash_page = CrashPage::launch_default().forward(sender.input_sender(), |msg| msg);
 
         let overdrive_dialog =
@@ -468,6 +474,7 @@ impl AsyncComponent for AppModel {
             .expect("Failed to get application from root window");
         setup_actions! {
             (actions, ProcessMonitorAction, APP_BROKER.send(AppMsg::ShowProcessMonitor)),
+            (actions, HistoricalGraphsAction, APP_BROKER.send(AppMsg::ShowGraphsWindow)),
             (actions, GenerateDebugSnapshotAction, APP_BROKER.send(AppMsg::DebugSnapshot)),
             (actions, PreferencesAction, APP_BROKER.send(AppMsg::ShowPreferencesDialog)),
             (actions, AboutAction, APP_BROKER.send(AppMsg::ShowAboutDialog)),
@@ -485,6 +492,8 @@ impl AsyncComponent for AppModel {
             gio_action
         };
         application.set_accelerators_for_action::<PreferencesAction>(&["<Control>comma"]);
+        application.set_accelerators_for_action::<HistoricalGraphsAction>(&["<Control>g"]);
+        application.set_accelerators_for_action::<ProcessMonitorAction>(&["<Control>p"]);
         application.set_accelerators_for_action::<QuitAction>(&["<Control>q"]);
         root.insert_action_group(AppActionGroup::NAME, Some(&actions.into_action_group()));
 
@@ -502,6 +511,7 @@ impl AsyncComponent for AppModel {
             thermals_page,
             software_page,
             crash_page,
+            displays_page,
             gpu_selector,
             profile_selector,
             ui_sensitive: BoolBinding::new(false),
@@ -599,6 +609,8 @@ impl AsyncComponent for AppModel {
                     body: format!("{err:#}"),
                     ..Default::default()
                 })));
+
+            root.present();
         }
         self.update_view(widgets, sender);
     }
@@ -1087,6 +1099,16 @@ impl AppModel {
         self.graphs_window
             .emit(GraphsWindowMsg::VramClockRatio(vram_clock_ratio));
 
+        let displays_info = self
+            .daemon_client
+            .get_displays_info(&gpu_id)
+            .await
+            .inspect_err(|err| {
+                warn!("could not fetch displays info: {err:#}");
+            })
+            .unwrap_or_default();
+        self.displays_page.emit(displays_info);
+
         let stats = self.update_gpu_data(gpu_id.clone(), sender).await?;
 
         self.graphs_window.emit(GraphsWindowMsg::Stats {
@@ -1216,6 +1238,8 @@ impl AppModel {
         self.ask_settings_confirmation(delay, root, sender);
 
         sender.input(AppMsg::ReloadData { full: false });
+
+        root.present();
 
         Ok(())
     }
@@ -1440,6 +1464,7 @@ async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Err
 
 new_action_group!(pub AppActionGroup, "app");
 new_stateless_action!(pub ProcessMonitorAction, AppActionGroup, "show-process-monitor");
+new_stateless_action!(pub HistoricalGraphsAction, AppActionGroup, "show-historical-graphs");
 new_stateless_action!(pub GenerateDebugSnapshotAction, AppActionGroup, "generate-debug-snapshot");
 new_stateless_action!(pub DumpVBiosAction, AppActionGroup, "dump-vbios");
 new_stateless_action!(pub PreferencesAction, AppActionGroup, "preferences");

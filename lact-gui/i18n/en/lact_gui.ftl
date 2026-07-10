@@ -1,8 +1,9 @@
 info-page = Hardware Info
 oc-page = Overclocking
 power-page = Power
-thermals-page = Thermals 
+thermals-page = Thermals
 software-page = Software Info
+displays-page = Display Info
 
 hardware-info = Hardware Information
 
@@ -40,6 +41,7 @@ cache-instruction = Data
 cache-cpu = CPU
 
 monitoring-section = Monitoring
+thresholds-section = Thresholds &amp; Limits
 fan-control-section = Fan Control
 temperatures = Temperatures
 oc-missing-fan-control-warning = Warning: Overclocking support is disabled, fan control functionality is not available.
@@ -80,10 +82,10 @@ amd-oc-detected-system-config = Detected system configuration: <b>{$config ->
     [unsupported] Unsupported
     *[other] {$config}
 }</b>
-amd-oc-description = 
+amd-oc-description =
     {$config ->
         [rpm-ostree] This option will toggle AMD overdrive support by setting boot flags through <b>rpm-ostree</b>.
-        [unsupported] 
+        [unsupported]
             The current system is not recognized as supported for automatic overdrive configuration.
             You may attempt to enable overclocking from LACT, but a manual initramfs regeneration may be required for it to take effect.
             If that fails, a fallback option is to add <b>amdgpu.ppfeaturemask=0xffffffff</b> as a boot parameter in your bootloader.
@@ -130,6 +132,7 @@ no-throttling = No
 unknown-throttling = Unknown
 missing-stat = N/A
 vram-usage = VRAM Usage:
+gtt-usage = GTT Usage:
 
 performance-level-auto = Automatic
 performance-level-high = Highest Clocks
@@ -146,7 +149,7 @@ manual-level-needed = Performance level has to be set to "manual" to use power s
 
 overclock-section = Clockspeed and Voltage
 nvidia-oc-info = Overclocking Information
-nvidia-oc-description = 
+nvidia-oc-description =
     Overclocking functionality on Nvidia includes setting offsets for GPU/VRAM clockspeeds and limiting the potential range of clockspeeds using the "locked clocks" feature.
 
     On many cards, the VRAM clockpeed offset will only affect the actual memory clockspeed by half of the offset value.
@@ -164,7 +167,7 @@ pstate-list-description = <b>The following values are clock offsets for each P-S
 no-clocks-data = No clocks data available
 reset-oc-tooltip = Warning: this resets all clock settings to defaults!
 vf-curve-editor = VF Curve Editor
-nvidia-vf-curve-warning = The voltage-frequency curve editor relies on undocumented driver functionality. 
+nvidia-vf-curve-warning = The voltage-frequency curve editor relies on undocumented driver functionality.
     There are no guarantees regarding its behaviour, safety or availability.
     <span weight = "heavy" underline = "single">Use at your own risk</span>.
 vf-curve-enable-editing = Enable Editing
@@ -175,14 +178,15 @@ vf-base-curve = Base Curve
 vf-curve-visible-range = Visible Range (%):
 vf-curve-visible-range-to = to
 vf-curve-flatten-right = Flatten curve to the right
+vf-curve-flatten-selection = Flatten selection
 
 gpu-clock-offset = GPU Clock Offset (MHz)
 max-gpu-clock = Maximum GPU Clock (MHz)
-max-vram-clock = Maximum VRAM Clock (MHz) 
-max-gpu-voltage = Maximum GPU Voltage (mV) 
+max-vram-clock = Maximum VRAM Clock (MHz)
+max-gpu-voltage = Maximum GPU Voltage (mV)
 min-gpu-clock = Minimum GPU Clock (MHz)
-min-vram-clock = Minimum VRAM Clock (MHz) 
-min-gpu-voltage = Minimum GPU Voltage (mV) 
+min-vram-clock = Minimum VRAM Clock (MHz)
+min-gpu-voltage = Minimum GPU Voltage (mV)
 gpu-voltage-offset = GPU voltage offset (mV)
 gpu-pstate-clock-offset = GPU P-State {$pstate} Clock Offset (MHz)
 vram-pstate-clock-offset = VRAM P-State {$pstate} Clock Offset (MHz)
@@ -232,6 +236,15 @@ version-mismatch-description =
     If you have updated LACT, you need to restart the service with:
 
 plot-show-detailed-info = Show detailed info
+
+display-title = Display {$identifier}
+display-manufacturer = Manufacturer
+display-product-code = Product Code
+display-model = Model
+display-physical-size = Physical Size
+display-connection = Connection
+display-manufacture-date = Manufacture Date
+displays-missing = No Displays Detected
 
 settings-profile = Settings Profile
 auto-switch-profiles = Switch automatically
@@ -283,6 +296,11 @@ preferences = Preferences
 ui = UI
 daemon = Daemon
 about = About
+
+color-scheme = Color Scheme
+color-scheme-auto = System
+color-scheme-light = Light
+color-scheme-dark = Dark
 
 # Crash page
 crash-page-title = Application Crashed

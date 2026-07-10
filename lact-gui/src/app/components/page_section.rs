@@ -29,6 +29,12 @@ impl PageSection {
     }
 }
 
+impl Default for PageSection {
+    fn default() -> Self {
+        Self::new("")
+    }
+}
+
 unsafe impl<T: ObjectSubclass + BoxImpl> IsSubclassable<T> for PageSection {}
 
 mod imp {

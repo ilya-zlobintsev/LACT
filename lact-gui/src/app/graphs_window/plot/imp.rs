@@ -177,6 +177,7 @@ mod benches {
                         speed_min: Some(0),
                         ..Default::default()
                     },
+                    nvidia_thermal_info: Default::default(),
                     performance_level: Some(PerformanceLevel::Auto),
                     power: PowerStats {
                         average: Some(36.0),
@@ -203,6 +204,8 @@ mod benches {
                     vram: VramStats {
                         total: Some(17163091968),
                         used: Some(668274688),
+                        gtt_total_usable: None,
+                        gtt_used: None,
                     },
                     throttle_info: None,
                 };
