@@ -12,6 +12,7 @@ use crate::{config::Config, socket, system};
 use anyhow::Context;
 use futures::future::join_all;
 use lact_schema::{Pong, Request, Response};
+use nix::sys::socket::{getsockopt, sockopt::PeerCredentials};
 use serde::Serialize;
 use std::fmt::Debug;
 use tokio::{
@@ -19,7 +20,7 @@ use tokio::{
     net::{TcpListener, UnixListener},
     sync::Notify,
 };
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 pub struct Server {
     pub handler: Handler,
@@ -74,9 +75,15 @@ impl Server {
             loop {
                 match self.unix_listener.accept().await {
                     Ok((stream, _)) => {
+                        let client_credentials = getsockopt(&stream, PeerCredentials)
+                            .inspect_err(|err| warn!("could not get client credentials: {err:#}"))
+                            .ok();
+                        let ctx = ClientContext {
+                            client_pid: client_credentials.map(|creds| creds.pid().cast_unsigned()),
+                        };
                         let handler = unix_handler.clone();
                         tokio::task::spawn_local(async move {
-                            if let Err(error) = handle_stream(stream, handler).await {
+                            if let Err(error) = handle_stream(stream, handler, ctx).await {
                                 error!("{error}");
                             }
                         });
@@ -94,9 +101,11 @@ impl Server {
                 loop {
                     match tcp_listener.accept().await {
                         Ok((stream, _)) => {
+                            let ctx = ClientContext::default();
                             let handler = self.handler.clone();
+
                             tokio::task::spawn_local(async move {
-                                if let Err(error) = handle_stream(stream, handler).await {
+                                if let Err(error) = handle_stream(stream, handler, ctx).await {
                                     error!("{error}");
                                 }
                             });
@@ -114,10 +123,16 @@ impl Server {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ClientContext {
+    pub client_pid: Option<u32>,
+}
+
 #[instrument(level = "debug", skip(stream, handler))]
 pub async fn handle_stream<T: AsyncRead + AsyncWrite + Unpin>(
     stream: T,
     handler: Handler,
+    ctx: ClientContext,
 ) -> anyhow::Result<()> {
     let disconnect_notify = std::sync::Arc::new(Notify::new());
 
@@ -129,7 +144,7 @@ pub async fn handle_stream<T: AsyncRead + AsyncWrite + Unpin>(
 
         let maybe_request = serde_json::from_str(&buf);
         let response = match maybe_request {
-            Ok(request) => match handle_request(request, &handler, &disconnect_notify).await {
+            Ok(request) => match handle_request(request, &handler, &disconnect_notify, ctx).await {
                 Ok(response) => response,
                 Err(error) => serde_json::to_vec(&Response::<()>::from(error))?,
             },
@@ -154,6 +169,7 @@ async fn handle_request<'a>(
     request: Request<'a>,
     handler: &'a Handler,
     disconnect_notify: &std::sync::Arc<Notify>,
+    ctx: ClientContext,
 ) -> anyhow::Result<Vec<u8>> {
     match request {
         Request::Ping => ok_response(ping()),
@@ -209,7 +225,7 @@ async fn handle_request<'a>(
                 .await?,
         ),
         Request::CreateProfile { name, base } => {
-            ok_response(handler.create_profile(name, base).await?)
+            ok_response(handler.create_profile(name, base, ctx).await?)
         }
         Request::DeleteProfile { name } => ok_response(handler.delete_profile(name).await?),
         Request::MoveProfile { name, new_position } => {
@@ -223,7 +239,7 @@ async fn handle_request<'a>(
         Request::ReleaseProfile { cookie } => ok_response(handler.release_profile(cookie).await?),
         Request::EvaluateProfileRule { rule } => ok_response(handler.evaluate_profile_rule(&rule)?),
         Request::SetProfileRule { name, rule, hooks } => {
-            ok_response(handler.set_profile_rule(&name, rule, hooks).await?)
+            ok_response(handler.set_profile_rule(&name, rule, hooks, ctx).await?)
         }
         Request::GetGpuConfig { id } => ok_response(handler.get_gpu_config(id).await?),
         Request::SetGpuConfig { id, config } => {

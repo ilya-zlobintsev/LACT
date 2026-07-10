@@ -28,6 +28,7 @@ use tracing::level_filters::LevelFilter;
 use tracing::{Instrument, debug_span, error, info, warn};
 use tracing_subscriber::EnvFilter;
 
+use crate::server::ClientContext;
 pub use system::BASE_MODULE_CONF_PATH;
 
 const DRM_EVENT_TIMEOUT_PERIOD_MS: u64 = 100;
@@ -83,8 +84,9 @@ pub fn run_embedded(stream: StdUnixStream) -> anyhow::Result<()> {
         let config = Config::default();
         let handler = Handler::new(config).await?;
         let stream = UnixStream::try_from(stream)?;
+        let ctx = ClientContext::default();
 
-        handle_stream(stream, handler).await
+        handle_stream(stream, handler, ctx).await
     })
 }
 
