@@ -38,6 +38,7 @@ nvml-wrapper = "0.12.1"
 bitflags = "2.11.1"
 pciid-parser = { version = "0.8", features = ["serde"] }
 zbus = { version = "5.14.0", default-features = false, features = ["tokio"] }
+zbus_polkit = { version = "5.0.0", default-features = false, features = ["tokio"] }
 libdrm_amdgpu_sys = { version = "0.8.16", default-features = false, features = [
     "dynamic_loading",
 ] }

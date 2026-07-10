@@ -5241,6 +5241,19 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/zbus_polkit/zbus_polkit-5.0.0.crate",
+        "sha256": "ad23d5c4d198c7e2641b33e6e0d1f866f117408ba66fe80bbe52e289eeb77c52",
+        "dest": "cargo/vendor/zbus_polkit-5.0.0"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": \"ad23d5c4d198c7e2641b33e6e0d1f866f117408ba66fe80bbe52e289eeb77c52\", \"files\": {}}",
+        "dest": "cargo/vendor/zbus_polkit-5.0.0",
+        "dest-filename": ".cargo-checksum.json"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/zerocopy/zerocopy-0.8.48.crate",
         "sha256": "eed437bf9d6692032087e337407a86f04cd8d6a16a37199ed57949d415bd68e9",
         "dest": "cargo/vendor/zerocopy-0.8.48"

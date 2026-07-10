@@ -22,6 +22,7 @@ install-resources:
 	install -Dm644 res/io.github.ilya_zlobintsev.LACT.png $(DESTDIR)$(PREFIX)/share/icons/hicolor/512x512/apps/io.github.ilya_zlobintsev.LACT.png
 	install -Dm644 res/io.github.ilya_zlobintsev.LACT.svg $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/io.github.ilya_zlobintsev.LACT.svg
 	install -Dm644 res/io.github.ilya_zlobintsev.LACT.metainfo.xml $(DESTDIR)$(PREFIX)/share/metainfo/io.github.ilya_zlobintsev.LACT.metainfo.xml
+	install -Dm644 res/io.github.ilya_zlobintsev.LACT.policy $(DESTDIR)$(PREFIX)/share/polkit-1/actions/io.github.ilya_zlobintsev.LACT.policy
 
 .PHONY: install
 install: install-resources
@@ -40,6 +41,7 @@ uninstall:
 	rm $(DESTDIR)$(PREFIX)/share/icons/hicolor/512x512/apps/io.github.ilya_zlobintsev.LACT.png
 	rm $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/io.github.ilya_zlobintsev.LACT.svg
 	rm $(DESTDIR)$(PREFIX)/share/metainfo/io.github.ilya_zlobintsev.LACT.metainfo.xml
+	rm $(DESTDIR)$(PREFIX)/share/polkit-1/actions/io.github.ilya_zlobintsev.LACT.policy
 
 .PHONY: update-vulkan-schema
 update-vulkan-schema:
