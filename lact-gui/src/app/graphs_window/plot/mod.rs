@@ -15,7 +15,7 @@ use std::sync::{Arc, RwLock};
 glib::wrapper! {
     pub struct Plot(ObjectSubclass<imp::Plot>)
         @extends gtk::Widget,
-        @implements gtk::Buildable, gtk::ConstraintTarget;
+        @implements gtk::Buildable, gtk::ConstraintTarget, gtk::Accessible;
 }
 
 impl Default for Plot {

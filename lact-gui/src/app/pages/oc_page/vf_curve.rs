@@ -341,7 +341,7 @@ impl relm4::Component for VfCurveEditor {
                 }
 
                 if points.is_empty() {
-                    root.hide();
+                    root.set_visible(false);
                 }
             }
             VfCurveEditorMsg::Stats(device_stats) => {
