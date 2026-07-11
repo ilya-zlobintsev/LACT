@@ -1,7 +1,7 @@
 [
     {
         "type": "git",
-        "url": "https://github.com/cldfire/nvml-wrapper",
+        "url": "https://github.com/rust-nvml/nvml-wrapper",
         "commit": "eb47417eede43443f139053479618e96ad32893d",
         "dest": "flatpak-cargo/git/nvml-wrapper-eb47417"
     },
@@ -5425,7 +5425,7 @@
     },
     {
         "type": "inline",
-        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/cldfire/nvml-wrapper\"]\ngit = \"https://github.com/cldfire/nvml-wrapper\"\nreplace-with = \"vendored-sources\"\nrev = \"eb47417eede43443f139053479618e96ad32893d\"\n",
+        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/rust-nvml/nvml-wrapper\"]\ngit = \"https://github.com/rust-nvml/nvml-wrapper\"\nreplace-with = \"vendored-sources\"\nrev = \"eb47417eede43443f139053479618e96ad32893d\"\n",
         "dest": "cargo",
         "dest-filename": "config"
     }

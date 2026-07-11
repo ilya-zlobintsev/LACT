@@ -2144,7 +2144,7 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper"
 version = "0.12.1"
-source = "git+https://github.com/Cldfire/nvml-wrapper.git?rev=eb47417eede43443f139053479618e96ad32893d#eb47417eede43443f139053479618e96ad32893d"
+source = "git+https://github.com/rust-nvml/nvml-wrapper.git?rev=eb47417eede43443f139053479618e96ad32893d#eb47417eede43443f139053479618e96ad32893d"
 dependencies = [
  "bitflags 2.11.1",
  "libloading",
@@ -2159,7 +2159,7 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper-sys"
 version = "0.9.1"
-source = "git+https://github.com/Cldfire/nvml-wrapper.git?rev=eb47417eede43443f139053479618e96ad32893d#eb47417eede43443f139053479618e96ad32893d"
+source = "git+https://github.com/rust-nvml/nvml-wrapper.git?rev=eb47417eede43443f139053479618e96ad32893d#eb47417eede43443f139053479618e96ad32893d"
 dependencies = [
  "libloading",
 ]
