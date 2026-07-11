@@ -580,14 +580,28 @@ fn point_count_from_mask(mask: [u32; 8]) -> usize {
     count
 }
 
-fn apply_power_mizer_mode(device: &mut Device<'_>, mode: PowerMizerMode) -> anyhow::Result<()> {
-    let mode_info = device
-        .power_mizer_mode()
-        .context("Could not get PowerMizer mode")?;
+fn apply_power_mizer_mode(
+    device: &mut Device<'_>,
+    configured_mode: Option<PowerMizerMode>,
+) -> anyhow::Result<()> {
+    let mode_info = match device.power_mizer_mode() {
+        Ok(info) => info,
+        Err(
+            NvmlError::NotSupported
+            | NvmlError::FunctionNotFound
+            | NvmlError::FailedToLoadSymbol(_),
+        ) if configured_mode.is_none() => return Ok(()),
+        Err(err) => return Err(err).context("Could not get PowerMizer mode"),
+    };
+    let mode = configured_mode.unwrap_or(PowerMizerMode::Auto);
     let supported = supported_power_mizer_modes(mode_info.supported);
 
     if !supported.contains(&mode) {
         bail!("PowerMizer mode {mode:?} is not supported by this GPU");
+    }
+
+    if mode_info.current == mode {
+        return Ok(());
     }
 
     debug!("setting PowerMizer mode to {mode:?}");
@@ -1088,10 +1102,7 @@ impl GpuController for NvidiaGpuController {
             let mut device = self.device();
 
             apply_power_cap(&mut device, config.power_cap)?;
-
-            if let Some(mode) = config.power_mizer_mode {
-                apply_power_mizer_mode(&mut device, mode)?;
-            }
+            apply_power_mizer_mode(&mut device, config.power_mizer_mode)?;
 
             self.reset_clocks()?;
 
