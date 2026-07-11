@@ -29,6 +29,7 @@ pub struct PerformanceFrame {
     power_profile_modes: gtk::StringList,
     active_power_mizer_mode: Option<PowerMizerMode>,
     supported_power_mizer_modes: Vec<PowerMizerMode>,
+    power_mizer_modes: gtk::StringList,
     heuristics_components: Vec<relm4::Controller<PowerProfileHeuristicsList>>,
 }
 
@@ -191,6 +192,9 @@ impl relm4::Component for PerformanceFrame {
                 gtk::DropDown {
                     #[watch]
                     #[block_signal(power_mizer_select_handler)]
+                    set_model: Some(&model.power_mizer_modes),
+                    #[watch]
+                    #[block_signal(power_mizer_select_handler)]
                     set_selected: model.active_power_mizer_mode
                         .and_then(|active| model.supported_power_mizer_modes.iter().position(|mode| *mode == active))
                         .unwrap_or(0) as u32,
@@ -220,6 +224,7 @@ impl relm4::Component for PerformanceFrame {
             power_profile_modes: gtk::StringList::new(&[]),
             active_power_mizer_mode: None,
             supported_power_mizer_modes: vec![],
+            power_mizer_modes: gtk::StringList::new(&[]),
             heuristics_components: vec![],
         };
 
@@ -270,7 +275,7 @@ impl relm4::Component for PerformanceFrame {
                     modes.append(&power_mizer_mode_friendly_name(*mode));
                 }
 
-                widgets.power_mizer_dropdown.set_model(Some(&modes));
+                self.power_mizer_modes = modes;
                 self.active_power_mizer_mode = active;
                 self.supported_power_mizer_modes = supported;
             }
