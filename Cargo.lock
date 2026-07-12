@@ -268,6 +268,9 @@ name = "bitflags"
 version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4388bee8683e3d04af747c73422af53102d2bd24d9eadb6cbc100baef4b43f8"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "block-buffer"
@@ -1853,6 +1856,7 @@ dependencies = [
  "lact-daemon",
  "lact-schema",
  "libadwaita",
+ "nvml-wrapper",
  "plotters",
  "plotters-cairo",
  "pretty_assertions",
@@ -1878,6 +1882,7 @@ dependencies = [
  "i18n-embed",
  "i18n-embed-fl",
  "indexmap",
+ "nvml-wrapper",
  "rust-embed",
  "serde",
  "serde-error",
@@ -2235,12 +2240,13 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper"
 version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f049ae562349fefb8e837eb15443da1e7c6dcbd8a11f52a228f92220c2e5c85e"
+source = "git+https://github.com/rust-nvml/nvml-wrapper.git?rev=eb47417eede43443f139053479618e96ad32893d#eb47417eede43443f139053479618e96ad32893d"
 dependencies = [
  "bitflags 2.13.0",
  "libloading",
  "nvml-wrapper-sys",
+ "serde",
+ "serde_derive",
  "static_assertions",
  "thiserror 1.0.69",
  "wrapcenum-derive",
@@ -2249,8 +2255,7 @@ dependencies = [
 [[package]]
 name = "nvml-wrapper-sys"
 version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b4d594420fcda43b1c2c4bd44d48974aa3c7a9ab2cbf10dc18e35265767bf0b"
+source = "git+https://github.com/rust-nvml/nvml-wrapper.git?rev=eb47417eede43443f139053479618e96ad32893d#eb47417eede43443f139053479618e96ad32893d"
 dependencies = [
  "libloading",
 ]
