@@ -22,6 +22,8 @@ use amdgpu_sysfs::{
     hw_mon::Temperature,
 };
 use indexmap::{IndexMap, IndexSet};
+use nvml_wrapper::enums::device::PowerMizerMode;
+
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
@@ -557,6 +559,8 @@ pub struct DeviceStats {
     pub temps: HashMap<String, TemperatureEntry>,
     pub busy_percent: Option<u8>,
     pub performance_level: Option<PerformanceLevel>,
+    pub active_power_mizer_mode: Option<PowerMizerMode>,
+    pub supported_power_mizer_modes: Option<Vec<PowerMizerMode>>,
     pub active_power_states: Option<ActivePowerStates>,
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
 }
