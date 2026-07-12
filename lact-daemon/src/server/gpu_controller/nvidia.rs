@@ -917,7 +917,7 @@ impl GpuController for NvidiaGpuController {
             .ok();
 
         let fan_range = device.min_max_fan_speed().ok();
-        let power_mizer_info = self.device().power_mizer_mode().ok();
+        let power_mizer_info = device.power_mizer_mode().ok();
 
         DeviceStats {
             temps,
