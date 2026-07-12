@@ -1,5 +1,11 @@
 [
     {
+        "type": "git",
+        "url": "https://github.com/fgardt/proc-macro-error-2",
+        "commit": "53ff94b61c678593158db1a3d50269c6f0de0db7",
+        "dest": "flatpak-cargo/git/proc-macro-error-2-53ff94b"
+    },
+    {
         "type": "archive",
         "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/adler2/adler2-2.0.1.crate",
@@ -3003,29 +3009,39 @@
         "dest-filename": ".cargo-checksum.json"
     },
     {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/proc-macro-error-attr2/proc-macro-error-attr2-2.0.0.crate",
-        "sha256": "96de42df36bb9bba5542fe9f1a054b8cc87e172759a1868aa05c1f3acc89dfc5",
-        "dest": "cargo/vendor/proc-macro-error-attr2-2.0.0"
+        "type": "shell",
+        "commands": [
+            "cp -r --reflink=auto \"flatpak-cargo/git/proc-macro-error-2-53ff94b/proc-macro-error-attr\" \"cargo/vendor/proc-macro-error-attr2\""
+        ]
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"96de42df36bb9bba5542fe9f1a054b8cc87e172759a1868aa05c1f3acc89dfc5\", \"files\": {}}",
-        "dest": "cargo/vendor/proc-macro-error-attr2-2.0.0",
+        "contents": "[package]\nname = \"proc-macro-error-attr2\"\nversion = \"2.0.0\"\nauthors = [ \"CreepySkeleton <creepy-skeleton@yandex.ru>\", \"GnomedDev <david2005thomas@gmail.com>\",]\nedition = \"2021\"\nrust-version = \"1.61\"\ndescription = \"Attribute macro for the proc-macro-error2 crate\"\nlicense = \"MIT OR Apache-2.0\"\nrepository = \"https://github.com/GnomedDev/proc-macro-error-2\"\n\n[lib]\nproc-macro = true\n\n[dependencies]\nquote = \"1\"\nproc-macro2 = \"1\"\n\n[lints.clippy.pedantic]\nlevel = \"warn\"\npriority = -1\n",
+        "dest": "cargo/vendor/proc-macro-error-attr2",
+        "dest-filename": "Cargo.toml"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": null, \"files\": {}}",
+        "dest": "cargo/vendor/proc-macro-error-attr2",
         "dest-filename": ".cargo-checksum.json"
     },
     {
-        "type": "archive",
-        "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/proc-macro-error2/proc-macro-error2-2.0.1.crate",
-        "sha256": "11ec05c52be0a07b08061f7dd003e7d7092e0472bc731b4af7bb1ef876109802",
-        "dest": "cargo/vendor/proc-macro-error2-2.0.1"
+        "type": "shell",
+        "commands": [
+            "cp -r --reflink=auto \"flatpak-cargo/git/proc-macro-error-2-53ff94b/.\" \"cargo/vendor/proc-macro-error2\""
+        ]
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"11ec05c52be0a07b08061f7dd003e7d7092e0472bc731b4af7bb1ef876109802\", \"files\": {}}",
-        "dest": "cargo/vendor/proc-macro-error2-2.0.1",
+        "contents": "[package]\nname = \"proc-macro-error2\"\nauthors = [ \"CreepySkeleton <creepy-skeleton@yandex.ru>\", \"GnomedDev <david2005thomas@gmail.com>\",]\nversion = \"2.0.1\"\ndescription = \"Almost drop-in replacement to panics in proc-macros\"\nrepository = \"https://github.com/GnomedDev/proc-macro-error-2\"\nrust-version = \"1.61\"\nkeywords = [ \"proc-macro\", \"error\", \"errors\",]\ncategories = [ \"development-tools::procedural-macro-helpers\",]\nlicense = \"MIT OR Apache-2.0\"\nedition = \"2021\"\n\n[dependencies]\nquote = \"1\"\nproc-macro2 = \"1\"\n\n[features]\ndefault = [ \"syn-error\",]\nsyn-error = [ \"dep:syn\",]\nnightly = []\n\n[dependencies.proc-macro-error-attr2]\npath = \"./proc-macro-error-attr\"\nversion = \"=2.0.0\"\n\n[dependencies.syn]\nversion = \"2\"\noptional = true\ndefault-features = false\n\n[dev-dependencies.test-crate]\npath = \"./test-crate\"\n\n[dev-dependencies.syn]\nversion = \"2\"\nfeatures = [ \"full\",]\n\n[dev-dependencies.trybuild]\nversion = \"1.0.99\"\nfeatures = [ \"diff\",]\n\n[lints.rust.unexpected_cfgs]\nlevel = \"warn\"\ncheck-cfg = [ \"cfg(run_ui_tests)\",]\n\n[lints.clippy.pedantic]\nlevel = \"warn\"\npriority = -1\n\n[lints.clippy.module_name_repetitions]\nlevel = \"allow\"\n",
+        "dest": "cargo/vendor/proc-macro-error2",
+        "dest-filename": "Cargo.toml"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": null, \"files\": {}}",
+        "dest": "cargo/vendor/proc-macro-error2",
         "dest-filename": ".cargo-checksum.json"
     },
     {
@@ -5370,7 +5386,7 @@
     },
     {
         "type": "inline",
-        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n",
+        "contents": "[source.vendored-sources]\ndirectory = \"cargo/vendor\"\n\n[source.crates-io]\nreplace-with = \"vendored-sources\"\n\n[source.\"https://github.com/fgardt/proc-macro-error-2\"]\ngit = \"https://github.com/fgardt/proc-macro-error-2\"\nreplace-with = \"vendored-sources\"\nrev = \"53ff94b61c678593158db1a3d50269c6f0de0db7\"\n",
         "dest": "cargo",
         "dest-filename": "config"
     }
