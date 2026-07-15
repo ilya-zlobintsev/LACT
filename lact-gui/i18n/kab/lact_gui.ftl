@@ -36,3 +36,4 @@ driver-version = Lqem n unuḍaf
 cl-c-version = Lqem C n OpenCL
 apply-button = Snes
 gpu-temp = Tazɣelt
+close = Mdel

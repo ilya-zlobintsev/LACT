@@ -1,38 +1,34 @@
 mod about_dialog;
-mod ext;
-pub(crate) mod formatting;
+pub(crate) mod components;
 mod gpu_selector;
 pub mod graphs_window;
 mod info_dialog;
-mod info_row;
-mod info_row_level;
-mod loader;
 pub(crate) mod msg;
 mod overdrive_dialog;
-mod page_section;
-mod page_section_expander;
 pub(crate) mod pages;
 mod preferences_dialog;
 mod process_monitor;
 mod profiles;
-pub(crate) mod styles;
+pub(crate) mod utils;
 
 use crate::{
     APP_ID, CONFIG, GUI_VERSION, I18N,
     app::{
         about_dialog::{AboutDialog, AboutDialogMsg},
-        ext::RelmLaunchable as _,
+        components::loader,
         gpu_selector::GpuSelector,
         info_dialog::{
             InfoDialog, InfoDialogConfirmation, InfoDialogData, InfoDialogId, InfoDialogMsg,
         },
         overdrive_dialog::{OverdriveDialog, OverdriveDialogMsg},
+        pages::displays_page::DisplaysPage,
         preferences_dialog::{PreferencesDialog, PreferencesDialogMsg},
         process_monitor::{ProcessMonitorWindow, ProcessMonitorWindowMsg},
         profiles::{
             ProfileSelector, ProfileSelectorMsg,
             profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
         },
+        utils::ext::RelmLaunchable as _,
     },
     config::WindowSize,
     service_setup::{
@@ -42,7 +38,6 @@ use crate::{
 };
 use adw::prelude::*;
 use anyhow::{Context, anyhow};
-use ext::RelmDefaultLauchable;
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
     FileChooserAction, FileChooserDialog, ResponseType, STYLE_PROVIDER_PRIORITY_APPLICATION,
@@ -85,6 +80,8 @@ use std::{
     cell::Cell, fs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, sync::Arc, time::Duration,
 };
 use tracing::{debug, error, trace, warn};
+use utils::ext::RelmDefaultLauchable;
+use utils::styles;
 
 pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 
@@ -120,6 +117,7 @@ pub struct AppModel {
     oc_page: relm4::Controller<OcPage>,
     thermals_page: relm4::Controller<ThermalsPage>,
     software_page: relm4::Controller<SoftwarePage>,
+    displays_page: relm4::Controller<DisplaysPage>,
     crash_page: relm4::Controller<CrashPage>,
 
     gpu_selector: relm4::Controller<GpuSelector>,
@@ -302,6 +300,7 @@ impl AsyncComponent for AppModel {
                                             add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
                                             add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
                                             add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
+                                            add_titled[Some("displays_page"), &fl!(I18N, "displays-page")] = model.displays_page.widget(),
                                             add_named[Some("crash_page")] = model.crash_page.widget(),
 
                                             set_visible_child_name: &CONFIG.read().selected_tab,
@@ -375,6 +374,7 @@ impl AsyncComponent for AppModel {
         if let Err(err) = styles::apply_theme(CONFIG.read().theme) {
             error!("could not apply theme: {err:#}");
         }
+        CONFIG.read().color_scheme.apply();
 
         let daemon_client = match DaemonClient::connect().await {
             Ok(client) => client,
@@ -454,8 +454,8 @@ impl AsyncComponent for AppModel {
             .expect("Could not list devices");
         let initial_gpu_id = AppModel::init_gpu_selection(&devices);
 
-        let version_mismatch_info = (system_info.version != GUI_VERSION
-            || system_info.commit.as_deref() != Some(GIT_COMMIT))
+        let version_mismatch_info = (system_info.version.version != GUI_VERSION
+            || system_info.version.commit.as_deref() != Some(GIT_COMMIT))
         .then(|| InfoDialogData {
             id: InfoDialogId::VersionMismatch,
             heading: fl!(I18N, "version-mismatch"),
@@ -464,8 +464,8 @@ impl AsyncComponent for AppModel {
                 "version-mismatch-description",
                 gui_version = GUI_VERSION,
                 gui_commit = GIT_COMMIT,
-                daemon_version = system_info.version.as_str(),
-                daemon_commit = system_info.commit.as_deref().unwrap_or_default()
+                daemon_version = system_info.version.version.as_str(),
+                daemon_commit = system_info.version.commit.as_deref().unwrap_or_default()
             ),
             selectable_text: Some("sudo systemctl restart lactd".to_string()),
             ..Default::default()
@@ -478,6 +478,8 @@ impl AsyncComponent for AppModel {
         let thermals_page = ThermalsPage::detach_default();
 
         let software_page = SoftwarePage::detach((system_info.clone(), daemon_client.embedded));
+
+        let displays_page = DisplaysPage::detach_default();
 
         let crash_page = CrashPage::launch_default().forward(sender.input_sender(), |msg| msg);
 
@@ -506,6 +508,7 @@ impl AsyncComponent for AppModel {
         let mut actions = RelmActionGroup::<AppActionGroup>::new();
         setup_actions! {
             (actions, ProcessMonitorAction, APP_BROKER.send(AppMsg::ShowProcessMonitor)),
+            (actions, HistoricalGraphsAction, APP_BROKER.send(AppMsg::ShowGraphsWindow)),
             (actions, GenerateDebugSnapshotAction, APP_BROKER.send(AppMsg::DebugSnapshot)),
             (actions, PreferencesAction, APP_BROKER.send(AppMsg::ShowPreferencesDialog)),
             (actions, ServiceSetupAction, APP_BROKER.send(AppMsg::ShowServiceSetupDialog)),
@@ -524,6 +527,8 @@ impl AsyncComponent for AppModel {
             gio_action
         };
         application.set_accelerators_for_action::<PreferencesAction>(&["<Control>comma"]);
+        application.set_accelerators_for_action::<HistoricalGraphsAction>(&["<Control>g"]);
+        application.set_accelerators_for_action::<ProcessMonitorAction>(&["<Control>p"]);
         application.set_accelerators_for_action::<QuitAction>(&["<Control>q"]);
         root.insert_action_group(AppActionGroup::NAME, Some(&actions.into_action_group()));
 
@@ -540,6 +545,7 @@ impl AsyncComponent for AppModel {
             thermals_page,
             software_page,
             crash_page,
+            displays_page,
             gpu_selector,
             profile_selector,
             ui_sensitive: BoolBinding::new(false),
@@ -637,6 +643,8 @@ impl AsyncComponent for AppModel {
                     body: format!("{err:#}"),
                     ..Default::default()
                 })));
+
+            root.present();
         }
         self.update_view(widgets, sender);
     }
@@ -1126,6 +1134,16 @@ impl AppModel {
         self.graphs_window
             .emit(GraphsWindowMsg::VramClockRatio(vram_clock_ratio));
 
+        let displays_info = self
+            .daemon_client
+            .get_displays_info(&gpu_id)
+            .await
+            .inspect_err(|err| {
+                warn!("could not fetch displays info: {err:#}");
+            })
+            .unwrap_or_default();
+        self.displays_page.emit(displays_info);
+
         let stats = self.update_gpu_data(gpu_id.clone(), sender).await?;
 
         self.graphs_window.emit(GraphsWindowMsg::Stats {
@@ -1249,6 +1267,10 @@ impl AppModel {
                 .get_power_profile_mode_custom_heuristics();
         }
 
+        if let Some(mode) = self.oc_page.model().get_active_power_mizer_mode() {
+            gpu_config.power_mizer_mode = Some(mode);
+        }
+
         self.thermals_page.model().apply_config(&mut gpu_config);
 
         self.oc_page
@@ -1266,6 +1288,8 @@ impl AppModel {
         self.ask_settings_confirmation(delay, root, sender);
 
         sender.input(AppMsg::ReloadData { full: false });
+
+        root.present();
 
         Ok(())
     }
@@ -1478,6 +1502,7 @@ async fn create_embedded_connection() -> anyhow::Result<DaemonClient> {
 
 new_action_group!(pub AppActionGroup, "app");
 new_stateless_action!(pub ProcessMonitorAction, AppActionGroup, "show-process-monitor");
+new_stateless_action!(pub HistoricalGraphsAction, AppActionGroup, "show-historical-graphs");
 new_stateless_action!(pub GenerateDebugSnapshotAction, AppActionGroup, "generate-debug-snapshot");
 new_stateless_action!(pub DumpVBiosAction, AppActionGroup, "dump-vbios");
 new_stateless_action!(pub ServiceSetupAction, AppActionGroup, "service-setup");

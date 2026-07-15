@@ -4,7 +4,6 @@ mod profile_row;
 pub mod profile_rule_window;
 
 use crate::I18N;
-use crate::app::ext::RelmLaunchable as _;
 use crate::app::msg::AppMsg;
 use crate::app::profiles::new_profile_dialog::NewProfileDialog;
 use crate::app::profiles::profile_rename_dialog::ProfileRenameDialog;
@@ -12,6 +11,7 @@ use crate::app::profiles::profile_row::ProfileRow;
 use crate::app::profiles::profile_row::ProfileRowType;
 use crate::app::profiles::profile_rule_window::ProfileEditParams;
 use crate::app::profiles::profile_rule_window::ProfileRuleWindow;
+use crate::app::utils::ext::RelmLaunchable as _;
 use gtk::glib::clone;
 use gtk::prelude::*;
 use i18n_embed_fl::fl;

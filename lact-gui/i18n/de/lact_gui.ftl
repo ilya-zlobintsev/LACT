@@ -20,7 +20,7 @@ fan-control-section = Lüfter Kontrolle
 temperatures = Temperaturen
 fan-speed = Lüfter Geschwindigkeit
 throttling = Drosselung
-auto-page = Automatik
+auto-page = Automatisch
 curve-page = Kurve
 acoustic-limit = Akustik Limit (RPM)
 acoustic-target = Akustik Ziel (RPM)
@@ -28,7 +28,7 @@ min-fan-speed = Minimale Lüftergeschwindigkeit (%)
 zero-rpm = Null RPM
 device-not-found = { $kind } Gerät nicht gefunden
 system-section = System
-oc-missing-fan-control-warning = Warnung: Unterstützung für Übertacktung wurde deaktiviert, Lüftersteuerung ist nicht verfügbar.
+oc-missing-fan-control-warning = Warnung: Unterstützung für Übertaktung ist deaktiviert, Lüftersteuerung ist nicht verfügbar.
 amd-cache-desc =
     { $size } L{ $level } { $types } Cache { $shared ->
         [1] lokal pro CU
@@ -45,11 +45,11 @@ cache-instruction = Daten
 cache-cpu = CPU
 static-page = Statisch
 version = Version
-info-page = Hardware Info
+info-page = Geräteinformationen
 zero-rpm-stop-temp = Zero RPM Stop Temperatur (°C)
 static-speed = Konstante Geschwindigkeit (%)
 reset-button = Zurücksetzen
-pmfw-reset-warning = Warnung: Dies setzt die Lüfter-Firmware zurück!
+pmfw-reset-warning = Warnung: Die Lüfter Firmware wird hierdurch zurückgesetzt!
 reset-oc-tooltip = Warnung: Die wird alle Takteinstellungen auf Standardwerte zurücksetzen!
 amd-oc = AMD Overclocking
 amd-oc-status =
@@ -83,7 +83,7 @@ performance-level-manual = Manuell
 power-profile-mode = Leistungsprofil Modus:
 manual-level-needed = Um Energiezustände und -modi nutzen zu können, muss die Leistungsstufe auf „manuell“ eingestellt werden
 overclock-section = Takt und Spannung
-nvidia-oc-info = Nvidia Overclocking Informationen
+nvidia-oc-info = Overclocking Informationen
 show-all-pstates = Zeige alle P-States
 enable-gpu-locked-clocks = Aktiviere GPU Takt Sperre
 pstate-list-description = <b>Die folgenden Werte zeigen den Taktraten Versatz für jeden P-State, von Höchstem zu Niedrigstem.</b>
@@ -110,21 +110,19 @@ gpu-pstate-clock-offset = GPU P-State { $pstate } Takt-Offset (MHz)
 gpu-usage = GPU Auslastung
 min-gpu-voltage = Minimale GPU Spannung (mV)
 performance-level-auto-description = Automatische Anpassung des GPU und VRAM Takts. (Standard)
-amd-oc-disabled =
-    AMD Overclocking Unterstützung ist nicht aktiv!
-    Sie können immer noch Basis-Einstellungen anpassen, aber die erweiterten Takt- und Spannungseinstellungen werden nicht verfügbar sein.
+amd-oc-disabled = AMD Overclocking ist nicht aktiv!<a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Einige Funktionen werden nicht verfügbar sein.</a>
 disable-amd-oc-description = Dies wird die AMD Overclocking Unterstützung (Overdrive) für den nächsten System-Neustart deaktivieren.
 amd-oc-description =
     { $config ->
-        [rpm-ostree] Diese Option aktviert/deaktiviert die AMD Overdrive Unterstützung indem entsprechende Boot-Flags mittels  <b>rpm-ostree</b> gesetzt werden.
+        [rpm-ostree] Diese Option aktviert/deaktiviert die AMD Overdrive Unterstützung durch setzen von Boot-Flags mittels  <b>rpm-ostree</b>.
         [unsupported]
             Das System unterstützt die automatische Overdrive Funktion aktuell nicht.
-            Sie können versuchen, Overclocking manuell in LACT zu aktivieren, aber dies könnte eine manuelle Neuerstellung des initramfs erfordern um aktiv zu werden. 
-            Falls die nicht funktioniert, kann als Fallback Lösung der Bootparameter <b>amdgpu.ppfeaturemask=0xffffffff</b> im Bootloader hinzugefügt werden.
+            Sie können versuchen, Overclocking manuell in LACT zu aktivieren, aber dies könnte eine manuelle Neuerstellung des initramfs erfordern, um aktiv zu werden. 
+            Falls dies nicht funktioniert, kann als Rückfalllösung der Bootparameter <b>amdgpu.ppfeaturemask=0xffffffff</b> im Bootloader hinzugefügt werden.
        *[other] Diese Option aktiviert/deaktiviert die AMD Overdrive Unterstützung, in dem die Datei  <b>{ $path }</b> erstellt und das initramfs aktualisiert wird.
     }
 
-    Für weitere Informationen besuchen Sie  <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">das Wiki</a>.
+    Weitere Informationen  <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">im Wiki</a>.
 gpu-clock-avg = GPU Kern Takt (Durchschnitt)
 max-vram-clock = Maximaler VRAM Takt (MHz)
 enable-amd-oc-description = Dies wird die Overdrive Funktionen des amdgpu Treibers aktivieren indem die Datei <b>{ $path }</b> erstellt und das initramfs aktualisiert wird. Sind Sie sicher, dass die dies tun wollen?
@@ -142,10 +140,10 @@ all-rules-matched = Alle der folgenden Regeln treffen zu:
 any-rules-matched = Jeder der folgenden Regeln trifft zu:
 profile-activation-desc = Aktiviere Profil '{ $name }' wenn:
 enable-pstate-config = Power-State Konfiguration aktivieren
-show-historical-charts = Zeige historische Daten
+show-historical-charts = Zeige Graphen
 create-profile = Profil erstellen
 profile-copy-from = Einstellungen übernehmen von:
-create = Erstelle
+create = Erstellen
 delete-profile = Profil löschen
 edit-rules = Regeln bearbeiten
 remove-rule = Regel löschen
@@ -156,7 +154,7 @@ profile-activation = Aktivierung
 profile-hooks = Hooks
 move-down = Nach unten bewegen
 rename-profile = Profil umbenennen
-pstates-manual-needed = Um Power-States ändern zu können, muss das Performance-Level auf "manuell" gesetzt werden
+pstates-manual-needed = Um Energiezustände und -modi nutzen zu können, muss die Leistungsstufe auf „manuell“ eingestellt werden
 edit-rule = Regel bearbeiten
 rename-profile-from = Umbenennen des Profils <b>{ $old_name }</b> in:
 activation-settings-status =
@@ -186,8 +184,6 @@ nvidia-oc-description =
     Bei vielen Grafikkarten wirkt sich der VRAM-Takt-Offset nur zur Hälfte auf den tatsächlichen Speichertakt aus.
     Zum Beispiel kann ein VRAM-Offset von +1000 MHz die gemessene VRAM-Takt nur um 500 MHz erhöhen.
     Das ist normal und entspricht der Art und Weise, wie Nvidia mit GDDR-Datenraten umgeht. Passe dein Overclocking entsprechend an.
-
-    Eine direkte Spannungsregelung wird nicht unterstützt, da sie im Nvidia-Linux-Treiber nicht existiert.
 
     Ein sogenanntes „Pseudo-Undervolting“ ist möglich, indem man die Option „gesperrten Takte“ mit einem positiven Takt-Offset kombiniert.
     Dies zwingt die GPU dazu, mit einer durch die gesperrten Takte begrenzten Spannung zu arbeiten, während durch den Offset eine höhere Taktrate erreicht wird.
@@ -227,13 +223,13 @@ time-period-seconds = Zeitperiode (Sekunden):
 reset-all-graphs-tooltip = Setzt alle Graphen auf Standard
 add-graph = Graph hinzufügen
 delete-graph = Graph löschen
-edit-graphs = Editieren
+edit-graphs = Bearbeiten
 export-csv = Als CSV exportieren
 edit-graph-sensors = Graph Sensoren editieren
 theme = Thema
 theme-auto = Automatisch
-crash-page-title = Applikation abgestürzt
-exit = Ausgang
+crash-page-title = Anwendung abgestürzt
+exit = Verlassen
 spindown-delay = Drosselungsverzögerung (ms)
 vf-curve-editor = VF Kurven Editor
 nvidia-vf-curve-warning =
@@ -248,3 +244,32 @@ vf-base-curve = Basiskurve
 vf-curve-visible-range = Sichtbare Spanne (%):
 vf-curve-visible-range-to = zu
 vf-curve-flatten-right = Kurve rechts glätten
+preferences = Einstellungen
+ui = Benutzeroberfläche
+daemon = Daemon
+about = Über
+close = Schließen
+confirm = Bestätigen
+confirm-settings = Einstellungen bestätigen
+settings-confirmation = Wollen Sie die Einstellungen behalten? (Rücksetzung in { $seconds_left } Sekunden)
+error-heading = Fehler
+daemon-info-heading = Daemon Info
+embedded-daemon-info =
+    Konnte nicht zum Daemon verbinden, laufe im eingebetteten Modus.
+    Bitte sicherstellen, dass der lactd Service läuft.
+    Benutze eingebetteten Modus, Sie können keine Einstellungen ändern.
+
+    { $error_info }Um den Daemon zu aktivieren, führen Sie den folgenden Befehl aus, dann starten Sie LACT neu:
+version-mismatch = unterschiedliche Version
+version-mismatch-description =
+    Versionunterschied zwischen GUI and Daemon ({ $gui_version }-{ $gui_commit } vs { $daemon_version }-{ $daemon_commit })!
+    Wenn Sie LACT aktualisiert haben, müssen Sie den Dienst mit folgenden Befehl neu starten:
+menu = Menü
+displays-page = Anzeigeinformationen
+display-title = Anzeige { $identifier }
+display-manufacturer = Hersteller
+display-product-code = Produkt Code
+display-model = Modell
+display-physical-size = Physische Größe
+display-connection = Verbindung
+display-manufacture-date = Herstellungsdatum

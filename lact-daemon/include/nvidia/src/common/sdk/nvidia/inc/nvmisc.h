@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 1993-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 1993-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,6 +26,8 @@
  */
 #ifndef __NV_MISC_H
 #define __NV_MISC_H
+
+#if !defined(NVRISCV_LIBFSP_BUILD) || !NVRISCV_LIBFSP_BUILD
 
 #ifdef __cplusplus
 extern "C" {
@@ -580,7 +582,6 @@ nvMaskPos32(const NvU32 mask, const NvU32 bitIdx)
     n64 = BIT_IDX_64(LOWESTBIT(n64));\
 }
 
-
 // Destructive operation on n32
 #define HIGHESTBITIDX_32(n32)   \
 {                               \
@@ -590,6 +591,17 @@ nvMaskPos32(const NvU32 mask, const NvU32 bitIdx)
         count++;                \
     }                           \
     n32 = count;                \
+}
+
+// Destructive operation on n64
+#define HIGHESTBITIDX_64(n64)   \
+{                               \
+    NvU64 count = 0;            \
+    while (n64 >>= 1)           \
+    {                           \
+        count++;                \
+    }                           \
+    n64 = count;                \
 }
 
 // Destructive operation on n32
@@ -701,11 +713,6 @@ nvPrevPow2_U64(const NvU64 x )
     }                                                       \
 }
 
-//
-// Bug 4851259: Newly added functions must be hidden from certain HS-signed
-// ucode compilers to avoid signature mismatch.
-//
-#ifndef NVDEC_1_0
 /*!
  * Returns the position of nth set bit in the given mask.
  *
@@ -734,8 +741,6 @@ nvGetNthSetBitIndex32(NvU32 mask, NvU32 n)
 
     return -1;
 }
-
-#endif // NVDEC_1_0
 
 //
 // Size to use when declaring variable-sized arrays
@@ -780,11 +785,14 @@ nvGetNthSetBitIndex32(NvU32 mask, NvU32 n)
 // Returns the offset (in bytes) of 'member' in struct 'type'.
 #ifndef NV_OFFSETOF
     #if defined(__GNUC__) && (__GNUC__ > 3)
-        #define NV_OFFSETOF(type, member)   ((NvU32)__builtin_offsetof(type, member))
+        #define NV_OFFSETOF(type, member)   ((NvUPtr) __builtin_offsetof(type, member))
     #else
-        #define NV_OFFSETOF(type, member)    ((NvU32)(NvU64)&(((type *)0)->member)) // shouldn't we use PtrToUlong? But will need to include windows header.
+        #define NV_OFFSETOF(type, member)    ((NvUPtr) &(((type *)0)->member))
     #endif
 #endif
+
+// Given a pointer and the member it is of the parent struct, return a pointer to the parent struct
+#define NV_CONTAINEROF(ptr, type, member) ((type *) (((NvUPtr) ptr) - NV_OFFSETOF(type, member)))
 
 //
 // Performs a rounded division of b into a (unsigned). For SIGNED version of
@@ -825,6 +833,18 @@ nvGetNthSetBitIndex32(NvU32 mask, NvU32 n)
  */
 #define NV_RIGHT_SHIFT_ROUNDED(a, shift)                                       \
     (((a) >> (shift)) + !!((NVBIT((shift) - 1) & (a)) == NVBIT((shift) - 1)))
+
+/*!
+ * Performs a rounded right-shift of 64-bit unsigned value "a" by "shift" bits.
+ * Will round result away from zero.
+ *
+ * @param[in] a      64-bit unsigned value to shift.
+ * @param[in] shift  Number of bits by which to shift.
+ *
+ * @return  Resulting shifted value rounded away from zero.
+ */
+#define NV_RIGHT_SHIFT_ROUNDED64(a, shift)                                     \
+    ((((NvU64)a) >> (shift)) + !!((NVBIT64((shift) - 1) & ((NvU64)a)) == NVBIT64((shift) - 1)))
 
 //
 // Power of 2 alignment.
@@ -985,10 +1005,144 @@ static NV_FORCEINLINE void *NV_NVUPTR_TO_PTR(NvUPtr address)
 #define BIT64(b) ((NvU64)1U<<(b))
 #endif
 #endif
+//! 1 if @p x needs more than @p bits to represent
+#define NV_BITFIELD_SIZE_ADD_ONE(x, bits) \
+    ((!!(((NvU64)(x)) >> (bits))) ? 1 : 0)
+
+/*!
+ * Minimum bits required to represent a value between 1 and @p x inclusive.
+ *
+ * @param[in] x Highest unsigned value to represent: 1 <= x <= NV_U64_MAX
+ *
+ * Example
+ * @code
+ * enum Foo {
+ *     E_A,
+ *     E_B,
+ *     E_C,
+ *     E_D,
+ *     E_LAST = E_D
+ * };
+ *
+ * struct Bar {
+ *     NvU32 fooValue : NV_BITFIELD_SIZE_64(E_LAST);
+ *     // note, it is the highest value of the enum that needs to be
+ *     // represented.
+ *     // If you define a _COUNT as a convenient value for declaring arrays
+ *     // indexed by the enum, remember to subtract 1.
+ * }
+ * @endcode
+ *
+ * @note This function assumes that the enums are defined from 0..x (inclusive,
+ * not necessarily contiguous) It is technically possible to have negative enum
+ * values, so to be safe, the underlying type should always be unsigned.
+ *
+ * If @p x is larger than what can fit in the underlying type, a
+ *     'width of <bitfield> exceeds its type'
+ * compiler warning is expected.
+ *
+ * @return -1 if @p x <= 0. This causes a compile time error if used as
+ *         a bitfield size.
+ */
+#define NV_BITFIELD_SIZE_64(x)                         \
+    (((x) <= 0) ? -1 :                                 \
+                  (NV_BITFIELD_SIZE_ADD_ONE((x), 0) +  \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 1) +  \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 2) +  \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 3) +  \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 4) +  \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 5) +  \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 6) +  \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 7) +  \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 8) +  \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 9) +  \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 10) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 11) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 12) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 13) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 14) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 15) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 16) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 17) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 18) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 19) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 20) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 21) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 22) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 23) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 24) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 25) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 26) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 27) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 28) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 29) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 30) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 31) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 32) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 33) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 34) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 35) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 36) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 37) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 38) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 39) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 40) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 41) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 42) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 43) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 44) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 45) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 46) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 47) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 48) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 49) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 50) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 51) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 52) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 53) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 54) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 55) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 56) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 57) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 58) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 59) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 60) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 61) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 62) + \
+                   NV_BITFIELD_SIZE_ADD_ONE((x), 63)))
+//
+// Bug 4851259: Newly added functions must be hidden from certain HS-signed
+// ucode compilers to avoid signature mismatch.
+//
+#ifndef NVDEC_1_0
+/*!
+ * Find the Greatest Common Denominator of two NvU64s
+ *
+ * @param[in] a      first number
+ * @param[in] b      second number
+ *
+ * @return  GCD of a and b *
+ */
+static NV_FORCEINLINE NvU64 nvFindGcdU64(NvU64 a, NvU64 b)
+{
+    while (1)
+    {
+        NvU64 temp;
+
+        if (a == 0)
+            return b;
+        temp = a;
+        a = b % a;
+        b = temp;
+    }
+}
+#endif // NVDEC_1_0
 
 #ifdef __cplusplus
 }
 #endif //__cplusplus
-
+#else
+#include <misc/nvmisc_drf.h>
+#include <misc/bitops.h>
+#endif // !defined(NVRISCV_LIBFSP_BUILD) || !NVRISCV_LIBFSP_BUILD
 #endif // __NV_MISC_H
-

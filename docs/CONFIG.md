@@ -115,11 +115,18 @@ gpus:
       zero_rpm: true
       # Temperature in degrees below which the fan should be turned off when `zero_rpm` is set to true.
       zero_rpm_threshold: 50
+    # Nvidia thermal options.
+    nvidia_thermal_options:
+      # Target temperature for the GPU in degrees.
+      target_temperature: 83
     # Power limit in watts.
     power_cap: 320.0
     # Performance level option for AMD GPUs.
     # Can be `auto`, `low`, `high` or `manual`.
     performance_level: auto
+    # PowerMizer mode for Nvidia GPUs.
+    # Can be `Auto`, `Adaptive`, `PreferMaximumPerformance` or `PreferConsistentPerformance`.
+    power_mizer_mode: Auto
     # Index of an AMD power profile mode.
     # Setting this requires `performance_level` to be set to `manual`.
     power_profile_mode_index: 0

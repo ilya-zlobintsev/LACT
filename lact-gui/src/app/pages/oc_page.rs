@@ -1,24 +1,23 @@
 mod clocks_frame;
-pub mod gpu_stats_section;
+mod gpu_stats_section;
 mod performance_frame;
 mod power_cap_section;
 mod power_states;
 mod vf_curve;
 
-use super::PageUpdate;
-use crate::app::ext::RelmLaunchable as _;
-use crate::app::pages::oc_page::gpu_stats_section::GpuStatsSectionMsg;
-use crate::app::pages::oc_page::vf_curve::{VfCurveEditor, VfCurveEditorMsg};
-use crate::app::{ext::RelmDefaultLauchable, msg::AppMsg};
+use crate::app::pages::PageUpdate;
+use crate::app::utils::ext::RelmLaunchable as _;
+use crate::app::{msg::AppMsg, utils::ext::RelmDefaultLauchable};
 use amdgpu_sysfs::gpu_handle::{
     PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
 use clocks_frame::{ClocksFrame, ClocksFrameMsg};
-use gpu_stats_section::GpuStatsSection;
+use gpu_stats_section::{GpuStatsSection, GpuStatsSectionMsg};
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use indexmap::IndexMap;
 use lact_schema::config;
 use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
+use nvml_wrapper::enums::device::PowerMizerMode;
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
@@ -26,6 +25,7 @@ use relm4::binding::BoolBinding;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::sync::Arc;
 use tracing::debug;
+use vf_curve::{VfCurveEditor, VfCurveEditorMsg};
 
 pub struct OcPage {
     stats_section: relm4::Controller<GpuStatsSection>,
@@ -139,6 +139,11 @@ impl relm4::Component for OcPage {
                             .emit(PerformanceFrameMsg::PerformanceLevel(
                                 stats.performance_level,
                             ));
+                        self.performance_frame
+                            .emit(PerformanceFrameMsg::PowerMizerInfo {
+                                active: stats.active_power_mizer_mode,
+                                supported: stats.supported_power_mizer_modes.clone(),
+                            });
                         sender.input(OcPageMsg::PerformanceLevelChanged);
                     }
                 }
@@ -204,6 +209,10 @@ impl relm4::Component for OcPage {
 impl OcPage {
     pub fn get_performance_level(&self) -> Option<PerformanceLevel> {
         self.performance_frame.model().performance_level()
+    }
+
+    pub fn get_active_power_mizer_mode(&self) -> Option<PowerMizerMode> {
+        self.performance_frame.model().active_power_mizer_mode()
     }
 
     pub fn get_power_profile_mode(&self) -> Option<u16> {

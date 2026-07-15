@@ -1,0 +1,8 @@
+/* https://gitlab.gnome.org/GNOME/libadwaita/-/issues/1119 */
+.info-row-level-bar {
+    border-radius: 5px;
+}
+
+.info-row-level-bar block {
+    border-radius: 0;
+}

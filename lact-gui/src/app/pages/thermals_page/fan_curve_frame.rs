@@ -1,7 +1,9 @@
 use super::{FanSettingRow, PmfwOptions, adj_is_empty};
 use crate::{
     APP_BROKER, I18N,
-    app::{graphs_window::plot::PlotColorScheme, msg::AppMsg, pages::oc_adjustment::OcAdjustment},
+    app::{
+        components::oc_adjustment::OcAdjustment, graphs_window::plot::PlotColorScheme, msg::AppMsg,
+    },
 };
 use gtk::{
     gdk,

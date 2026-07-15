@@ -10,7 +10,7 @@ use gtk::{
 glib::wrapper! {
     pub struct PageSection(ObjectSubclass<imp::PageSection>)
         @extends gtk::Box, gtk::Widget,
-        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
+        @implements gtk::Orientable, gtk::Buildable, gtk::ConstraintTarget;
 }
 
 impl PageSection {
@@ -26,6 +26,12 @@ impl PageSection {
     pub fn append_child(&self, widget: &impl IsA<gtk::Widget>) {
         use glib::subclass::types::ObjectSubclassIsExt;
         self.imp().children_box.append(widget);
+    }
+}
+
+impl Default for PageSection {
+    fn default() -> Self {
+        Self::new("")
     }
 }
 

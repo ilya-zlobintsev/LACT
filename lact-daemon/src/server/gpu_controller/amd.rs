@@ -6,7 +6,7 @@ use crate::server::gpu_controller::common::{
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
-        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelId, PowerLevelKind,
+        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelId, PowerLevelKind, PowerLevels,
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
         power_profile_mode::PowerProfileModesTable,
@@ -19,11 +19,13 @@ use futures::{FutureExt, future::LocalBoxFuture};
 use lact_schema::{
     ActivePowerStates, AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo,
     ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
-    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState, PowerStates,
-    PowerStats, ProcessList, ProcessUtilizationType, RopInfo, TemperatureEntry, VoltageStats,
-    VramStats,
+    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaThermalInfo, PmfwInfo, PowerState,
+    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo, TemperatureEntry,
+    VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
+#[cfg(feature = "display-info")]
+use lact_schema::{DisplayConnector, DisplaysInfo};
 use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, HW_IP::HW_IP_TYPE, ThrottlerBit, ThrottlerType};
 use libdrm_amdgpu_sys::{AMDGPU::SENSOR_INFO::SENSOR_TYPE, LibDrmAmdgpu, PCI};
 use std::{
@@ -49,6 +51,7 @@ const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const REQUIRE_MANUAL_DEVICE_IDS: [&str; 3] = ["163F", "1435", "15BF"];
+const UHBR_RATE_THRESHOLD: u32 = 1000;
 const AMDGPU_IDS_FLAGS_FUSION: u64 = 0x1;
 const HSA_CACHE_TYPE_DATA: u32 = 0x0000_0001;
 const HSA_CACHE_TYPE_INSTRUCTION: u32 = 0x0000_0002;
@@ -438,11 +441,12 @@ impl AmdGpuController {
             .get_clock_levels(kind)
             .inspect(|power_levels| trace!("{kind:?} power states: {power_levels:?}"))
             .inspect_err(|err| debug!("could not get {kind:?} power states: {err:#}"))
-            .map(|power_levels| power_levels.levels)
+            .map(Self::normalize_power_level_indexes)
             .unwrap_or_default();
 
         if attempt < MAX_PSTATE_READ_ATTEMPTS
             && levels
+                .levels
                 .iter()
                 .any(|level| level.value >= u64::from(u16::MAX))
         {
@@ -451,6 +455,7 @@ impl AmdGpuController {
         }
 
         levels
+            .levels
             .into_iter()
             .map(|level| {
                 let enabled = match level.id {
@@ -467,6 +472,33 @@ impl AmdGpuController {
                 }
             })
             .collect()
+    }
+
+    // workaround for https://gitlab.freedesktop.org/drm/amd/-/work_items/5295
+    fn normalize_power_level_indexes<T>(mut power_levels: PowerLevels<T>) -> PowerLevels<T> {
+        // first numeric is not 1
+        if !matches!(
+            power_levels.levels.iter().find_map(|level| match level.id {
+                PowerLevelId::Index(index) => Some(index),
+                PowerLevelId::Sleep => None,
+            }),
+            Some(1)
+        ) {
+            return power_levels;
+        }
+
+        for level in &mut power_levels.levels {
+            level.id = Self::shift_power_level_index(level.id);
+        }
+        power_levels.active = power_levels.active.map(Self::shift_power_level_index);
+        power_levels
+    }
+
+    fn shift_power_level_index(id: PowerLevelId) -> PowerLevelId {
+        match id {
+            PowerLevelId::Index(index) => PowerLevelId::Index(index.saturating_sub(1)),
+            PowerLevelId::Sleep => PowerLevelId::Sleep,
+        }
     }
 
     fn first_hw_mon(&self) -> anyhow::Result<&HwMon> {
@@ -715,6 +747,100 @@ impl AmdGpuController {
             .parent()
             .and_then(|path| path.parent())
             .map(|path| path.join("kfd/topology/nodes/1"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use amdgpu_sysfs::gpu_handle::PowerLevel;
+
+    #[test]
+    fn normalize_power_level_indexes_keeps_zero_based_indexes_after_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+            ],
+            Some(PowerLevelId::Index(1)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(1)));
+    }
+
+    #[test]
+    fn normalize_power_level_indexes_keeps_zero_based_indexes_without_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+            ],
+            Some(PowerLevelId::Index(2)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(2)));
+    }
+
+    #[test]
+    fn normalize_power_level_indexes_shifts_one_based_indexes_after_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+                PowerLevelId::Index(3),
+            ],
+            Some(PowerLevelId::Index(2)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(1)));
+    }
+
+    fn normalize_indexes(ids: Vec<PowerLevelId>, active: Option<PowerLevelId>) -> PowerLevels<u64> {
+        AmdGpuController::normalize_power_level_indexes(PowerLevels {
+            levels: ids
+                .into_iter()
+                .enumerate()
+                .map(|(value, id)| PowerLevel {
+                    id,
+                    value: value as u64,
+                })
+                .collect(),
+            active,
+        })
+    }
+
+    fn level_ids<T>(levels: &PowerLevels<T>) -> Vec<PowerLevelId> {
+        levels.levels.iter().map(|level| level.id).collect()
     }
 }
 
@@ -996,6 +1122,9 @@ impl GpuController for AmdGpuController {
                     zero_rpm_temperature: self.handle.get_fan_zero_rpm_stop_temperature().ok(),
                 },
             },
+            nvidia_thermal_info: NvidiaThermalInfo::default(),
+            active_power_mizer_mode: None,
+            supported_power_mizer_modes: None,
             clockspeed: self.get_clockspeed(metrics),
             voltage: VoltageStats {
                 gpu: self.hw_mon_and_then(HwMon::get_gpu_voltage),
@@ -1004,6 +1133,15 @@ impl GpuController for AmdGpuController {
             vram: VramStats {
                 total: self.handle.get_total_vram().ok(),
                 used: self.handle.get_used_vram().ok(),
+                gtt_total_usable: self
+                    .drm_handle
+                    .as_ref()
+                    .and_then(|handle| handle.vram_gtt_info().ok())
+                    .map(|info| info.gtt_size),
+                gtt_used: self
+                    .drm_handle
+                    .as_ref()
+                    .and_then(|handle| handle.gtt_usage_info().ok()),
             },
             power: PowerStats {
                 average: self.hw_mon_and_then(HwMon::get_power_average),
@@ -1024,6 +1162,7 @@ impl GpuController for AmdGpuController {
                         .get_core_clock_levels()
                         .inspect_err(|err| debug!("could not get active core power state: {err:#}"))
                         .ok()
+                        .map(Self::normalize_power_level_indexes)
                         .and_then(|levels| levels.active),
                     memory: self
                         .handle
@@ -1032,12 +1171,14 @@ impl GpuController for AmdGpuController {
                             debug!("could not get active memory power state: {err:#}");
                         })
                         .ok()
+                        .map(Self::normalize_power_level_indexes)
                         .and_then(|levels| levels.active),
                     pcie: self
                         .handle
                         .get_pcie_clock_levels()
                         .inspect_err(|err| debug!("could not get active PCIe power state: {err:#}"))
                         .ok()
+                        .map(Self::normalize_power_level_indexes)
                         .and_then(|levels| levels.active),
                 };
                 (active_power_states.core.is_some()
@@ -1348,9 +1489,28 @@ impl GpuController for AmdGpuController {
             if let Some(configured_cap) = config.power_cap {
                 let hw_mon = self.first_hw_mon()?;
 
-                hw_mon
-                    .set_power_cap(configured_cap)
-                    .with_context(|| format!("Failed to set power cap: {configured_cap}"))?;
+                match (hw_mon.get_power_cap_min(), hw_mon.get_power_cap_max()) {
+                    (Ok(min), Ok(max)) => {
+                        let clamped_cap = configured_cap.clamp(min, max);
+
+                        #[expect(
+                            clippy::float_cmp,
+                            reason = "we care if the value was chagned at all"
+                        )]
+                        if clamped_cap != configured_cap {
+                            warn!(
+                                "Power cap {configured_cap}W was outside of the allowed range, clamped to {clamped_cap}W"
+                            );
+                        }
+
+                        hw_mon.set_power_cap(clamped_cap).with_context(|| {
+                            format!("Failed to set power cap: {configured_cap}")
+                        })?;
+                    }
+                    (Err(err), _) | (_, Err(err)) => {
+                        bail!("Could not read allowed power cap range: {err:#}");
+                    }
+                }
             } else if let Ok(hw_mon) = self.first_hw_mon()
                 && let Ok(default_cap) = hw_mon.get_power_cap_default()
                 && Ok(default_cap) != hw_mon.get_power_cap()
@@ -1416,6 +1576,51 @@ impl GpuController for AmdGpuController {
             DRM_ENGINES,
             &mut last_total_time_map,
         )
+    }
+
+    #[cfg(feature = "display-info")]
+    fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()> {
+        let debugfs = self.debugfs_path().context("Could not get debugfs")?;
+
+        for (connector, info) in &mut info.displays {
+            if let DisplayConnector::DisplayPort {
+                lanes,
+                bandwidth,
+                embedded: _,
+            } = &mut info.connector_type
+            {
+                let link_settings_path = debugfs.join(connector).join("link_settings");
+                let link_settings = fs::read_to_string(link_settings_path)?;
+
+                let mut parts = link_settings.split_ascii_whitespace().skip(1);
+
+                *lanes = Some(
+                    parts
+                        .next()
+                        .context("Missing lane count")?
+                        .parse::<u16>()
+                        .context("Invalid lane count")?,
+                );
+
+                let bw_enum = parts
+                    .next()
+                    .context("Missing bandwidth")?
+                    .strip_prefix("0x")
+                    .and_then(|value| u32::from_str_radix(value, 16).ok())
+                    .context("Invalid bandwidth value")?;
+
+                // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
+                // AMD reports legacy DP link rates as DP spec codes, while DP2 UHBR
+                // rates are reported in 10 Mbps units. UHBR10 starts at 1000.
+                *bandwidth = Some(if bw_enum < UHBR_RATE_THRESHOLD {
+                    crate::server::display::dp1_rate_to_bandwidth(bw_enum)
+                } else {
+                    crate::server::display::dp2_rate_to_bandwidth(bw_enum)
+                });
+            }
+        }
+
+        Ok(())
     }
 }
 

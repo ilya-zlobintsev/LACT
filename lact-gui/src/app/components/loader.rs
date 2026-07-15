@@ -4,12 +4,12 @@ use gtk::{
 };
 use std::{cell::Cell, rc::Rc, time::Duration};
 
-const APP_SVG: &[u8] = include_bytes!("../../../res/io.github.ilya_zlobintsev.LACT.svg");
+const APP_SVG: &[u8] = include_bytes!("../../../../res/io.github.ilya_zlobintsev.LACT.svg");
 const FRAME_COUNT: usize = 12;
 const FRAME_INTERVAL: Duration = Duration::from_millis(65);
 const SIZE: i32 = 192;
 
-pub(super) fn new() -> gtk::Picture {
+pub(crate) fn new() -> gtk::Picture {
     let textures = Rc::new(build_textures());
     let picture = gtk::Picture::new();
 

@@ -1,6 +1,9 @@
 use crate::{
     APP_BROKER, I18N,
-    app::{ext::make_event_controller_no_scroll, msg::AppMsg, pages::oc_adjustment::OcAdjustment},
+    app::{
+        components::oc_adjustment::OcAdjustment, msg::AppMsg,
+        utils::ext::make_event_controller_no_scroll,
+    },
 };
 use gtk::{
     glib::{SignalHandlerId, object::ObjectExt},

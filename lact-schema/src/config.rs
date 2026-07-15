@@ -1,10 +1,11 @@
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use indexmap::IndexMap;
+use nvml_wrapper::enums::device::PowerMizerMode;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use crate::{
-    FanControlMode, FanCurveMap, PmfwOptions, ProfileRule, default_fan_curve,
+    FanControlMode, FanCurveMap, NvidiaThermalOptions, PmfwOptions, ProfileRule, default_fan_curve,
     request::{ClockspeedType, SetClocksCommand},
 };
 
@@ -39,6 +40,9 @@ pub struct GpuConfig {
     pub fan_control_settings: Option<FanControlSettings>,
     #[serde(default, skip_serializing_if = "PmfwOptions::is_empty")]
     pub pmfw_options: PmfwOptions,
+    #[serde(default, skip_serializing_if = "NvidiaThermalOptions::is_empty")]
+    pub nvidia_thermal_options: NvidiaThermalOptions,
+    pub power_mizer_mode: Option<PowerMizerMode>,
     pub power_cap: Option<f64>,
     pub performance_level: Option<PerformanceLevel>,
     #[serde(default, flatten)]

@@ -25,7 +25,6 @@ pub struct ServiceSetupDialog {
     service_state: String,
 }
 
-
 pub struct ServiceSetupDialogParams {
     pub parent: gtk::ApplicationWindow,
     pub initial_error: anyhow::Error,
@@ -274,7 +273,8 @@ impl ServiceSetupDialog {
     fn connection_status_style(&self) -> &'static str {
         match &self.current_client {
             Ok(client) => {
-                let pong = client.ping()
+                todo!()
+                // let pong = client.ping()
             }
             Err(_) => ERROR,
         }

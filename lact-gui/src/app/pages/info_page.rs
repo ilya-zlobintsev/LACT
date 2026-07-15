@@ -1,9 +1,11 @@
-use super::PageUpdate;
 use crate::I18N;
-use crate::app::ext::FlowBoxExt;
-use crate::app::formatting::fmt_human_bytes;
-use crate::app::info_row::{InfoRow, InfoRowExt, InfoRowItem};
-use crate::app::page_section::PageSection;
+use crate::app::components::{
+    info_row::{InfoRow, InfoRowExt, InfoRowItem},
+    page_section::PageSection,
+};
+use crate::app::pages::PageUpdate;
+use crate::app::utils::ext::FlowBoxExt;
+use crate::app::utils::formatting::fmt_human_bytes;
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use lact_schema::{AmdIpInfo, CacheInfo, CacheType, DeviceInfo, DeviceStats};

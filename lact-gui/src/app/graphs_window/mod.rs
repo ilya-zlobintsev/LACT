@@ -2,7 +2,7 @@ pub mod plot;
 mod plot_component;
 pub mod stat;
 
-use super::{APP_BROKER, msg::AppMsg};
+use crate::app::{APP_BROKER, msg::AppMsg};
 use crate::{CONFIG, I18N};
 use anyhow::Context;
 use gtk::{glib, prelude::*};

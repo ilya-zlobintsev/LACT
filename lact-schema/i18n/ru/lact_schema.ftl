@@ -1,11 +1,11 @@
 compute-units = Вычислительные блоки (Compute Units)
 disabled = Выкл.
 vram-size = Объем VRAM
-gpu-model = Модель GPU
+gpu-model = Модель ГП
 pcie-speed = Скорость соединения PCIe
 isa = Набор инструкций
 subdevice = Модель видеокарты
-gpu-family = Семейство GPU
+gpu-family = Семейство ГП
 asic-name = Имя ASIC
 vram-type = Тип VRAM
 cuda-cores = Ядра CUDA

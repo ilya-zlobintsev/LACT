@@ -1,4 +1,7 @@
-use crate::app::{graphs_window::stat::StatType, styles::AppTheme};
+use crate::app::{
+    graphs_window::stat::StatType,
+    utils::{color_scheme::AppColorScheme, styles::AppTheme},
+};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_with::skip_serializing_none;
 use std::{collections::HashMap, env, fs, path::PathBuf};
@@ -24,6 +27,8 @@ pub struct UiConfig {
     pub gpus: HashMap<String, UiGpuConfig>,
     #[serde(default)]
     pub theme: AppTheme,
+    #[serde(default)]
+    pub color_scheme: AppColorScheme,
     pub window_size: Option<WindowSize>,
 }
 
@@ -37,6 +42,7 @@ impl Default for UiConfig {
             stats_poll_interval_ms: default_stats_poll_interval(),
             gpus: HashMap::new(),
             theme: AppTheme::Automatic,
+            color_scheme: AppColorScheme::default(),
             window_size: None,
         }
     }

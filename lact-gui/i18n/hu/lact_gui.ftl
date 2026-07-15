@@ -1,8 +1,8 @@
 compute-units = Számítási egységek (CU)
-info-page = Információ
+info-page = Hardverinformációk
 oc-page = Túlhajtás
 thermals-page = Hőfokok
-software-page = Szoftver
+software-page = Szoftverinformációk
 hardware-info = Hardverinformációk
 system-section = Rendszer
 lact-daemon = LACT démon
@@ -63,9 +63,7 @@ automatic-mode-threshold-tooltip =
 
     Ez a beállítás lehetővé teszi, hogy a megkerülje ezt a korlátozást azáltal, hogy egy adott hőmérséklet felett egyéni görbét használ, míg az alatt a kártyába épített automatikus módot használja, amely támogatja a nulla RPM használatát.
 amd-oc = AMD Túlhajtás
-amd-oc-disabled =
-    Az AMD Túlhajtás támogatása nincs bekapcsolva!
-    Az alapbeállításokat megváltoztathatja, de a fejlettebb órajel- és feszültségszabályozás nem érhető el.
+amd-oc-disabled = Az AMD Túlhajtás nincs bekapcsolva! <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Egyes funkciók nem lesznek elérhetők.</a>
 amd-oc-status =
     Az AMD Túlhajtás jelenleg: <b>{ $status ->
         [true] Be van kapcsolva
@@ -129,7 +127,7 @@ performance-level = Teljesítményszint
 power-profile-mode = Fogyasztási profilmód:
 manual-level-needed = A teljesítményszintnek „kézi” módban kell lennie, hogy a teljesítmény-állapotok és -módok használhatók legyenek
 overclock-section = Órajel és feszültség
-nvidia-oc-info = Nvidia Túlhajtás információi
+nvidia-oc-info = Túlhajtási információk
 oc-warning = Ezen értékek megváltoztatása a rendszer instabilitást okozhatja, és akár kárt is tehet a hardverében!
 show-all-pstates = Összes teljesítményállapot megjelenítése
 enable-gpu-locked-clocks = Zárolt GPU órajelek bekapcsolása
@@ -156,7 +154,7 @@ gpu-pstates = GPU teljesítményállapotok
 vram-pstates = VRAM teljesítményállapotok
 pstates-manual-needed = A teljesítményszintnek „kézi” módban kell lennie, hogy a teljesítmény-állapotok kapcsolhatók legyenek
 enable-pstate-config = Teljesítményállapot-beállítás bekapcsolása
-show-historical-charts = Előzménydiagramok megjelenítése
+show-historical-charts = Diagramok megjelenítése
 show-process-monitor = Folyamatfigyelő megjelenítése
 generate-debug-snapshot = Hibakeresési pillanatkép előállítása
 dump-vbios = VBIOS kimentése
@@ -224,14 +222,46 @@ nvidia-oc-description =
     Például a +1000 MHz-es VRAM-eltolás lehet, hogy a VRAM mért sebességét csak 500 MHz-cel növeli.
     Ez normális, az Nvidia így kezeli a GDDR adatsebességeket, ennek megfelelően állítsa be a túlhajtást.
 
-    A közvetlen feszültségszabályozás nem támogatott, mivel az nem létezik az Nvidia linuxos illesztőprogramjában.
-
     A feszültségcsökkentéshez hasonló eredményt lehet elérni zárolt órajelekkel és pozitív órajelléptetéssel.
     Ez arra kényszeríti a GPU-t, hogy olyan feszültséggel fusson, melyet a zárolt órajelek korlátoznak, miközben a léptetés miatt magasabb órajelet ér el.
     Ha túl magasra van állítva, ez a rendszer instabilitását okozhatja.
 hw-ip-info = Hardver IP információi
-hw-queues = Várakozási sorok
+hw-queues = várakozási sor
 bytes = bájt
 kibibyte = KiB
 theme = Téma
 theme-auto = Automatikus
+confirm = Megerősítés
+confirm-settings = Beállítások megerősítése
+settings-confirmation = Megtartja az új beállításokat? (Visszaállítás { $seconds_left } másodperc múlva)
+vf-curve-editor = VF görbeszerkesztő
+nvidia-vf-curve-warning =
+    A feszültség-frekvencia görbe szerkesztője nem dokumentált illesztőprogram-funkcionalitásra épít. 
+    Nincsenek garanciák a viselkedésére, biztonságára és elérhetőségére vonatkozóan.
+    <span weight="heavy" underline="single">A saját felelősségére használja</span>.
+vf-curve-enable-editing = Szerkesztés engedélyezése
+voltage = Feszültség
+frequency = Frekvencia
+vf-active-curve = Aktív görbe
+vf-base-curve = Alapgörbe
+vf-curve-visible-range = Látható tartomány (%):
+vf-curve-visible-range-to = –
+vf-curve-flatten-right = Görbe lapítása jobbra
+menu = Menü
+error-heading = Hiba
+daemon-info-heading = Démon információk
+version-mismatch = Verzióeltérés
+version-mismatch-description =
+    Verzióeltérés a GUI és a démon között ({ $gui_version }-{ $gui_commit } kontra { $daemon_version }-{ $daemon_commit })!
+    Ha frissítette a LACT-t, akkor újra kell indítania a szolgáltatást ezzel:
+close = Bezárás
+preferences = Beállítások
+ui = Felület
+daemon = Démon
+about = Névjegy
+embedded-daemon-info =
+    Nem sikerült a démonhoz kapcsolódni, futtatás beágyazott módban.
+    Győződjön meg arról, hogy az lactd szolgáltatás fut.
+    A beágyazott mód használatával nem fog tudni változtatni a beállításokon.
+
+    { $error_info }A démon engedélyezéséhez futtassa a következő parancsot, majd indítsa újra az LACT-t:

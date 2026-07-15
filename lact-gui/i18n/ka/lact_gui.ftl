@@ -110,7 +110,7 @@ delete-graph = გრაფიკის წაშლა
 show-all-pstates = ყველა P-State-ის ჩვენება
 gpu-pstates = GPU-ის კვების მდგომარეობები
 vram-pstates = VRAM-ის კვების მდგომარეობები
-show-historical-charts = ისტორიული დიაგრამების ჩვენება
+show-historical-charts = გრაფიკების ჩვენება
 add-profile = ახალი პროფილის დამატება
 profile-copy-from = პარამეტრების კოპირება საიდან:
 export-to-file = გატანა ფაილში
@@ -244,3 +244,35 @@ vf-base-curve = საბაზისო მრუდი
 vf-curve-visible-range = ხილული შუალედი (%):
 vf-curve-visible-range-to = სადამდე
 vf-curve-flatten-right = მრუდის გაბრტყელება მარჯვნივ
+preferences = მორგება
+ui = UI
+daemon = დემონი
+about = შესახებ
+confirm = დადასტურება
+confirm-settings = პარამეტრების დადასტურება
+settings-confirmation = გნებავთ ახალი პარამეტრების შენარჩუნება? (დაბრუნება წინა პარამეტრებზე მოხდება { $seconds_left } წამში)
+error-heading = შეცდომა
+daemon-info-heading = ინფორმაცია დემონის შესახებ
+embedded-daemon-info =
+    დემონთან დაკავშირება შეუძლებელია. გაშვებულია ჩაშენებულ რეჟიმში.
+    დარწმუნდით, რომ სერვისი lactd გაშვებულია.
+    ჩაშენებულ რეჟიმში პარამეტრებს ვერ შეცვლით.
+
+    { $error_info }დემონის ჩასართავად გაუშვით შემდეგი ბრძანება, შემდეგ კი გადატვირთეთ LACT:
+version-mismatch = ვერსია არ ემთხვევა
+version-mismatch-description =
+    GUI-ის და დემონის ვერსიები ({ $gui_version }-{ $gui_commit }) და { $daemon_version }-{ $daemon_commit }) არ ემთხვევა!.
+    თუ LACT განაახლეთ, სერვისი უნდა გადატვირთოთ ბრძანებით:
+close = დახურვა
+menu = მენიუ
+displays-page = ინფორმაციის გამოტანა
+display-title = ჩვენება ({ $identifier })
+display-manufacturer = მწარმოებელი
+display-product-code = პროდუქტის კოდი
+display-model = მოდელი
+display-physical-size = ფიზიკური ზომა
+display-connection = კავშირი
+display-manufacture-date = წარმოების თარიღი
+thresholds-section = ზღვრები &amp; ლიმიტები
+vf-curve-flatten-selection = მონიშნულის გაბრტყელება
+displays-missing = ეკრანები აღმოჩენილი არაა
