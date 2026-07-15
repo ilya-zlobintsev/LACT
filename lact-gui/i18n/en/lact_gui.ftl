@@ -242,10 +242,12 @@ service-permission-denied =
     Permission denied, service is not configured to allow connections from your user.
     See <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> for more information
 service-connected = Connected
+service-version = Service Version
+service-version-expected = expected
 
-service-start = Start Service
-service-stop = Stop Service
-service-restart = Restart Service
+service-start = Start
+service-stop = Stop
+service-restart = Restart
 
 version-mismatch = Version mismatch
 version-mismatch-description =

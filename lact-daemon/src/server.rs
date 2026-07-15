@@ -265,7 +265,5 @@ fn ok_response<T: Serialize + Debug>(data: T) -> anyhow::Result<Vec<u8>> {
 }
 
 fn ping() -> Pong {
-    Pong {
-        version: VersionInfo::current(),
-    }
+    Pong
 }

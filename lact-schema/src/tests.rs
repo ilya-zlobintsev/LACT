@@ -1,6 +1,4 @@
-use crate::{
-    FanControlMode, FanOptions, GIT_COMMIT, PmfwOptions, Pong, Request, Response, VersionInfo,
-};
+use crate::{FanControlMode, FanOptions, GIT_COMMIT, PmfwOptions, Pong, Request, Response};
 use anyhow::anyhow;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -29,9 +27,7 @@ fn pong_response() {
             }
         }
     });
-    let response = Response::Ok(Pong {
-        version: VersionInfo::current(),
-    });
+    let response = Response::Ok(Pong);
 
     assert_eq!(serde_json::to_value(response).unwrap(), expected_response);
 }

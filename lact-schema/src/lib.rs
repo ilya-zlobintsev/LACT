@@ -68,10 +68,7 @@ pub fn bytes_to_mib(bytes: u64) -> f64 {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Pong {
-    #[serde(flatten)]
-    pub version: VersionInfo,
-}
+pub struct Pong;
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -85,7 +82,7 @@ pub struct SystemInfo {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct VersionInfo {
     pub version: String,
     pub commit: Option<String>,
@@ -105,6 +102,10 @@ impl VersionInfo {
             commit: Some(GIT_COMMIT.to_owned()),
             profile,
         }
+    }
+
+    pub fn is_current(&self) -> bool {
+        *self == Self::current()
     }
 }
 

@@ -6,19 +6,22 @@ use std::time::Duration;
 use crate::I18N;
 use crate::service_setup::systemd::{START_MODE_REPLACE, UnitProxy};
 use adw::prelude::*;
+use anyhow::Context as _;
 use futures::StreamExt as _;
 use i18n_embed_fl::fl;
 use lact_client::DaemonClient;
+use lact_schema::VersionInfo;
+use relm4::css::WARNING;
 use relm4::{
     AsyncComponentSender, RelmWidgetExt,
     css::{ERROR, SUCCESS},
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio,
 };
-use tracing::{debug, warn};
+use std::fmt::Write as _;
+use tracing::debug;
 
 pub struct ServiceSetupDialog {
-    current_client: anyhow::Result<DaemonClient>,
     connection_status: ConnectionStatus,
     unit_proxy: UnitProxy<'static>,
 
@@ -37,15 +40,8 @@ pub enum ServiceSetupDialogMsg {
     StartService,
     RestartService,
     StopService,
-    ServiceState(String),
+    ServiceStateChanged,
     Close,
-    // Show,
-}
-
-enum ConnectionStatus {
-    Connected,
-    ConnectedMismatched,
-    Error(String),
 }
 
 #[relm4::component(pub, async)]
@@ -71,19 +67,21 @@ impl AsyncComponent for ServiceSetupDialog {
                 set_content = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
                     set_spacing: 5,
-                    set_margin_all: 15,
+                    set_margin_horizontal: 15,
+                    set_margin_vertical: 5,
 
                     gtk::Label {
                         set_markup: &fl!(I18N, "service-explanation"),
                         set_wrap: true,
                         set_xalign: 0.0,
-                        set_margin_bottom: 10,
+                        set_margin_all: 10,
                     },
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Horizontal,
                         set_spacing: 5,
                         set_hexpand: true,
+                        set_margin_horizontal: 10,
 
                         gtk::Label {
                             set_markup: &format!("<b>{}</b>", fl!(I18N, "service-connection-status")),
@@ -94,9 +92,15 @@ impl AsyncComponent for ServiceSetupDialog {
 
                         gtk::Label {
                             #[watch]
-                            set_markup: &model.connection_status_text(),
+                            set_markup: &match &model.connection_status {
+                                ConnectionStatus::Connected {..} => fl!(I18N, "service-connected"),
+                                ConnectionStatus::Error(msg) => msg.clone(),
+                            },
                             #[watch]
-                            set_css_classes: if model.current_client.is_ok() { &[SUCCESS] } else { &[ERROR] },
+                            set_css_classes: if model.connection_status.is_connected() { &[SUCCESS] } else { &[ERROR] },
+                            set_selectable: true,
+                            set_hexpand: true,
+                            set_halign: gtk::Align::End,
                         },
                     },
 
@@ -104,6 +108,7 @@ impl AsyncComponent for ServiceSetupDialog {
                         set_orientation: gtk::Orientation::Horizontal,
                         set_spacing: 5,
                         set_hexpand: true,
+                        set_margin_horizontal: 10,
 
                         gtk::Label {
                             set_markup: &format!("<b>{}</b>", fl!(I18N, "service-status")),
@@ -116,6 +121,41 @@ impl AsyncComponent for ServiceSetupDialog {
                             #[watch]
                             set_markup: &format!("<tt>{}</tt>", model.service_state),
                             set_wrap: true,
+                            set_hexpand: true,
+                            set_halign: gtk::Align::End,
+                        },
+                    },
+
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 5,
+                        set_hexpand: true,
+                        set_margin_horizontal: 10,
+
+                        gtk::Label {
+                            set_markup: &format!("<b>{}</b>", fl!(I18N, "service-version")),
+                            set_size_group: &label_size_group,
+                            set_xalign: 0.0,
+                            set_yalign: 0.0,
+                        },
+
+                        gtk::Label {
+                            #[watch]
+                            set_markup: &model.service_version_text().unwrap_or_else(|| fl!(I18N, "missing-stat")),
+                            #[watch]
+                            set_css_classes: match &model.connection_status {
+                                ConnectionStatus::Connected { version, .. } => {
+                                    if version.is_current() {
+                                        &[SUCCESS]
+                                    } else {
+                                        &[WARNING]
+                                    }
+                                }
+                                ConnectionStatus::Error(_) => &[],
+                            },
+                            set_wrap: true,
+                            set_hexpand: true,
+                            set_halign: gtk::Align::End,
                         },
                     },
                 },
@@ -124,13 +164,15 @@ impl AsyncComponent for ServiceSetupDialog {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_spacing: 5,
                     set_halign: gtk::Align::Fill,
-                    set_margin_horizontal: 10,
-                    set_margin_bottom: 10,
+                    set_margin_horizontal: 25,
+                    set_margin_vertical: 20,
 
                     gtk::Button {
                         set_label: &fl!(I18N, "service-start"),
                         connect_clicked => ServiceSetupDialogMsg::StartService,
                         add_css_class: "suggested-action",
+                        set_halign: gtk::Align::End,
+                        set_hexpand: true,
                     },
 
                     gtk::Button {
@@ -141,16 +183,6 @@ impl AsyncComponent for ServiceSetupDialog {
                     gtk::Button {
                         set_label: &fl!(I18N, "service-restart"),
                         connect_clicked => ServiceSetupDialogMsg::RestartService,
-                    },
-
-                    gtk::Button {
-                        set_halign: gtk::Align::End,
-                        set_hexpand: true,
-                        set_label: &fl!(I18N, "close"),
-
-                        connect_clicked[root] => move |_| {
-                            root.close();
-                        }
                     },
                 },
             },
@@ -166,20 +198,13 @@ impl AsyncComponent for ServiceSetupDialog {
 
         let input_sender = sender.input_sender().clone();
         relm4::spawn(async move {
-            while let Some(property) = state_stream.next().await {
-                match property.get().await {
-                    Ok(state) => {
-                        if input_sender
-                            .send(ServiceSetupDialogMsg::ServiceState(state))
-                            .is_err()
-                        {
-                            debug!("service setup dialog closed, exiting service state watcher");
-                            break;
-                        }
-                    }
-                    Err(err) => {
-                        warn!("could not get service state: {err:#}");
-                    }
+            while let Some(_property) = state_stream.next().await {
+                if input_sender
+                    .send(ServiceSetupDialogMsg::ServiceStateChanged)
+                    .is_err()
+                {
+                    debug!("service setup dialog closed, exiting service state watcher");
+                    break;
                 }
             }
         });
@@ -206,7 +231,7 @@ impl AsyncComponent for ServiceSetupDialog {
             });
 
         let model = Self {
-            current_client: Err(params.initial_error),
+            connection_status: ConnectionStatus::from_err(params.initial_error),
             unit_proxy: params.unit_proxy,
             service_state,
         };
@@ -250,11 +275,12 @@ impl ServiceSetupDialog {
             ServiceSetupDialogMsg::StopService => {
                 self.unit_proxy.stop(START_MODE_REPLACE).await?;
             }
-            ServiceSetupDialogMsg::ServiceState(state) => {
-                self.service_state = state;
-            }
+            ServiceSetupDialogMsg::ServiceStateChanged => {}
             ServiceSetupDialogMsg::Close => {
-                let client = self.current_client.as_ref().ok().cloned();
+                let client = match &self.connection_status {
+                    ConnectionStatus::Connected { client, .. } => Some(client.clone()),
+                    ConnectionStatus::Error(_) => None,
+                };
                 let _ = sender.output(client);
                 return Ok(());
             }
@@ -265,35 +291,85 @@ impl ServiceSetupDialog {
     }
 
     async fn reconnect(&mut self) -> anyhow::Result<()> {
-        self.current_client = DaemonClient::connect().await;
+        self.service_state = self
+            .unit_proxy
+            .active_state()
+            .await
+            .context("Could not update unit state")?;
+
+        let client = DaemonClient::connect_with_reconnect(false).await;
+        self.connection_status = ConnectionStatus::from_result(client).await;
 
         Ok(())
     }
 
-    fn connection_status_style(&self) -> &'static str {
-        match &self.current_client {
-            Ok(client) => {
-                todo!()
-                // let pong = client.ping()
+    fn service_version_text(&self) -> Option<String> {
+        match &self.connection_status {
+            ConnectionStatus::Connected { version, .. } => {
+                let mut text = format!("<tt>{}</tt>", format_version(version));
+
+                let current_version = VersionInfo::current();
+
+                if *version != current_version {
+                    write!(
+                        text,
+                        " ({} <tt>{}</tt>)",
+                        fl!(I18N, "service-version-expected"),
+                        format_version(&current_version)
+                    )
+                    .unwrap();
+                }
+
+                Some(text)
             }
-            Err(_) => ERROR,
+            ConnectionStatus::Error(_) => None,
+        }
+    }
+}
+
+enum ConnectionStatus {
+    Connected {
+        client: DaemonClient,
+        version: VersionInfo,
+    },
+    Error(String),
+}
+
+impl ConnectionStatus {
+    async fn from_result(result: anyhow::Result<DaemonClient>) -> Self {
+        match result {
+            Ok(client) => match client.get_system_info().await {
+                Ok(info) => Self::Connected {
+                    client,
+                    version: info.version,
+                },
+                Err(err) => Self::from_err(err),
+            },
+            Err(err) => Self::from_err(err),
         }
     }
 
-    fn connection_status_text(&self) -> String {
-        match &self.current_client {
-            Ok(_client) => fl!(I18N, "service-connected"),
-            Err(err) => {
-                if let Some(io_err) = err.downcast_ref::<std::io::Error>() {
-                    match io_err.kind() {
-                        io::ErrorKind::NotFound => fl!(I18N, "service-not-running"),
-                        io::ErrorKind::PermissionDenied => fl!(I18N, "service-permission-denied"),
-                        _ => format!("{} (IO {io_err:#})", fl!(I18N, "error-heading")),
-                    }
-                } else {
-                    format!("{} ({err:#})", fl!(I18N, "error-heading"))
-                }
+    fn from_err(err: anyhow::Error) -> Self {
+        let msg = if let Some(io_err) = err.downcast_ref::<std::io::Error>() {
+            match io_err.kind() {
+                io::ErrorKind::NotFound => fl!(I18N, "service-not-running"),
+                io::ErrorKind::PermissionDenied => fl!(I18N, "service-permission-denied"),
+                _ => format!("{} (IO {io_err:#})", fl!(I18N, "error-heading")),
             }
+        } else {
+            format!("{} ({err:#})", fl!(I18N, "error-heading"))
+        };
+        Self::Error(msg)
+    }
+
+    fn is_connected(&self) -> bool {
+        match self {
+            Self::Connected { .. } => true,
+            Self::Error(_) => false,
         }
     }
+}
+
+fn format_version(version: &VersionInfo) -> String {
+    format!("{}-{}", version.version, version.profile)
 }

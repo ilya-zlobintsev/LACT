@@ -35,11 +35,16 @@ const RECONNECT_INTERVAL_MS: u64 = 500;
 pub struct DaemonClient {
     stream: Rc<Mutex<Box<dyn DaemonConnection>>>,
     status_tx: broadcast::Sender<ConnectionStatusMsg>,
+    reconnect: bool,
     pub embedded: bool,
 }
 
 impl DaemonClient {
     pub async fn connect() -> anyhow::Result<Self> {
+        Self::connect_with_reconnect(true).await
+    }
+
+    pub async fn connect_with_reconnect(reconnect: bool) -> anyhow::Result<Self> {
         let path = get_socket_path()
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "socket file not found"))?;
         let stream = UnixConnection::connect(&path).await?;
@@ -47,6 +52,7 @@ impl DaemonClient {
         Ok(Self {
             stream: Rc::new(Mutex::new(stream)),
             embedded: false,
+            reconnect,
             status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
     }
@@ -57,6 +63,7 @@ impl DaemonClient {
         Ok(Self {
             stream: Rc::new(Mutex::new(stream)),
             embedded: false,
+            reconnect: true,
             status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
     }
@@ -66,6 +73,7 @@ impl DaemonClient {
         Ok(Self {
             stream: Rc::new(Mutex::new(Box::new(connection))),
             embedded,
+            reconnect: false,
             status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
     }
@@ -95,8 +103,13 @@ impl DaemonClient {
                     }
                 }
                 Err(err) => {
-                    error!("Could not make request: {err}, reconnecting to socket");
                     let _ = self.status_tx.send(ConnectionStatusMsg::Disconnected);
+
+                    if !self.reconnect {
+                        return Err(err);
+                    }
+
+                    error!("Could not make request: {err}, reconnecting to socket");
 
                     loop {
                         match stream.new_connection().await {
