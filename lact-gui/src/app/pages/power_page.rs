@@ -72,10 +72,8 @@ impl relm4::Component for PowerPage {
             stats: vec![
                 GpuStat::Throttling,
                 GpuStat::GpuVoltage,
-                GpuStat::Temperature,
                 GpuStat::GpuUsage,
                 GpuStat::PowerUsage,
-                GpuStat::FanSpeed,
             ],
         });
         let performance_frame =
