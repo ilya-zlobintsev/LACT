@@ -28,7 +28,7 @@ use crate::{
             ProfileSelector, ProfileSelectorMsg,
             profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
         },
-        utils::ext::RelmLaunchable as _,
+        utils::{css_colors, ext::RelmLaunchable as _},
     },
     config::WindowSize,
 };
@@ -173,11 +173,11 @@ impl AsyncComponent for AppModel {
                 adw::ToastOverlay {
                     #[wrap(Some)]
                     #[name = "root_box"]
-                    set_child = &gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
+                    set_child = &gtk::Overlay {
 
+                    #[wrap(Some)]
                     #[name = "navbar"]
-                    adw::NavigationSplitView {
+                    set_child = &adw::NavigationSplitView {
                         set_expand: true,
                         set_max_sidebar_width: 230.0,
 
@@ -317,6 +317,13 @@ impl AsyncComponent for AppModel {
                                 },
                             }
                         }
+                    },
+
+                    // The probes must stay mapped so GTK refreshes their computed colors.
+                    #[local_ref]
+                    add_overlay = &color_probes -> gtk::Box {
+                        set_halign: gtk::Align::Start,
+                        set_valign: gtk::Align::Start,
                     },
                 }
                 }
@@ -529,6 +536,7 @@ impl AsyncComponent for AppModel {
             sender.input(AppMsg::Error(Arc::new(err)));
         }
 
+        let color_probes = css_colors::init_probes();
         let widgets = view_output!();
 
         root.connect_close_request(|root| {

@@ -51,8 +51,7 @@ impl WidgetImpl for Plot {
         let height = self.obj().height() as u32;
         let scale_factor = self.obj().scale_factor();
 
-        let style_context = self.obj().style_context();
-        let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
+        let colors = PlotColorScheme::current();
 
         if width == 0 || height == 0 {
             return;

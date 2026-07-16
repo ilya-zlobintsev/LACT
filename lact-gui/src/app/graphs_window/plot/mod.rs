@@ -4,10 +4,8 @@ mod render_thread;
 mod to_texture_ext;
 
 use super::stat::{StatType, StatsData};
-use gtk::{
-    glib::{self, Object, subclass::types::ObjectSubclassIsExt},
-    prelude::StyleContextExt,
-};
+use crate::app::utils::css_colors;
+use gtk::glib::{self, Object, subclass::types::ObjectSubclassIsExt};
 use plotters::style::{
     BLACK, BLUE, Color, RED, RGBAColor, WHITE, YELLOW,
     full_palette::{DEEPORANGE_100, GREEN_500},
@@ -75,44 +73,26 @@ impl Default for PlotColorScheme {
 }
 
 impl PlotColorScheme {
-    pub fn from_context(ctx: &gtk::StyleContext) -> Option<Self> {
-        let background = lookup_color(
-            ctx,
-            &["theme_base_color", "theme_bg_color", "view_bg_color"],
-        )?;
-        let text = lookup_color(ctx, &["theme_text_color"])?;
-        let border = lookup_color(ctx, &["borders"])?;
-        let border_secondary = lookup_color(ctx, &["unfocused_borders"])?;
+    pub fn current() -> Self {
+        let Some(colors) = css_colors::current() else {
+            return Self::default();
+        };
 
-        let mut throttling = lookup_color(ctx, &["theme_unfocused_fg_color"])?;
+        let mut throttling = gtk_to_plotters_color(colors.theme_unfocused_fg_color);
         throttling.3 = 0.5;
 
-        let success = lookup_color(ctx, &["success_color"])?;
-        let accent_fg = lookup_color(ctx, &["accent_bg_color"])?;
-        let error = lookup_color(ctx, &["error_color"])?;
-        let warning = lookup_color(ctx, &["warning_color"])?;
-
-        Some(PlotColorScheme {
-            background,
-            text,
-            border,
-            border_secondary,
+        Self {
+            background: gtk_to_plotters_color(colors.theme_base_color),
+            text: gtk_to_plotters_color(colors.theme_text_color),
+            border: gtk_to_plotters_color(colors.borders),
+            border_secondary: gtk_to_plotters_color(colors.unfocused_borders),
             throttling,
-            success,
-            accent_bg: accent_fg,
-            error,
-            warning,
-        })
-    }
-}
-
-fn lookup_color(ctx: &gtk::StyleContext, names: &[&str]) -> Option<RGBAColor> {
-    for name in names {
-        if let Some(color) = ctx.lookup_color(name) {
-            return Some(gtk_to_plotters_color(color));
+            success: gtk_to_plotters_color(colors.success_color),
+            accent_bg: gtk_to_plotters_color(colors.accent_bg_color),
+            error: gtk_to_plotters_color(colors.error_color),
+            warning: gtk_to_plotters_color(colors.warning_color),
         }
     }
-    None
 }
 
 fn gtk_to_plotters_color(color: gtk::gdk::RGBA) -> RGBAColor {

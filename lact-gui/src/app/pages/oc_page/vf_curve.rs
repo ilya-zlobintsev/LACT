@@ -119,10 +119,8 @@ impl relm4::Component for VfCurveEditor {
                         set_expand: true,
                         set_margin_all: 10,
 
-                        set_draw_func[model] => move |area, ctx, width, height| {
-                            let style_context = area.style_context();
-                            let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
-                            model.draw_chart(ctx, width, height, colors);
+                        set_draw_func[model] => move |_, ctx, width, height| {
+                            model.draw_chart(ctx, width, height, PlotColorScheme::current());
                         },
 
                         add_controller = gtk::GestureClick {
