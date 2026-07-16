@@ -109,15 +109,15 @@ pub fn current() -> Option<CssColors> {
         let probes = probes.as_ref()?;
 
         Some(CssColors {
-            theme_base_color: probes.theme_base_color.style_context().color(),
-            theme_text_color: probes.theme_text_color.style_context().color(),
-            borders: probes.borders.style_context().color(),
-            unfocused_borders: probes.unfocused_borders.style_context().color(),
-            theme_unfocused_fg_color: probes.theme_unfocused_fg_color.style_context().color(),
-            success_color: probes.success_color.style_context().color(),
-            accent_bg_color: probes.accent_bg_color.style_context().color(),
-            error_color: probes.error_color.style_context().color(),
-            warning_color: probes.warning_color.style_context().color(),
+            theme_base_color: probes.theme_base_color.color(),
+            theme_text_color: probes.theme_text_color.color(),
+            borders: probes.borders.color(),
+            unfocused_borders: probes.unfocused_borders.color(),
+            theme_unfocused_fg_color: probes.theme_unfocused_fg_color.color(),
+            success_color: probes.success_color.color(),
+            accent_bg_color: probes.accent_bg_color.color(),
+            error_color: probes.error_color.color(),
+            warning_color: probes.warning_color.color(),
         })
     })
 }
