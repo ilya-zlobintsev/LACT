@@ -13,6 +13,7 @@ use amdgpu_sysfs::gpu_handle::{
 };
 use indexmap::IndexMap;
 use lact_schema::{PowerStates, config};
+use nvml_wrapper::enums::device::PowerMizerMode;
 use performance_frame::{PerformanceFrame, PerformanceFrameMsg};
 use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
@@ -119,6 +120,11 @@ impl relm4::Component for PowerPage {
                             .emit(PerformanceFrameMsg::PerformanceLevel(
                                 stats.performance_level,
                             ));
+                        self.performance_frame
+                            .emit(PerformanceFrameMsg::PowerMizerInfo {
+                                active: stats.active_power_mizer_mode,
+                                supported: stats.supported_power_mizer_modes.clone(),
+                            });
                         sender.input(PowerPageMsg::PerformanceLevelChanged);
                     }
                 }
@@ -166,6 +172,10 @@ impl PowerPage {
         self.performance_frame.model().performance_level()
     }
 
+    pub fn get_active_power_mizer_mode(&self) -> Option<PowerMizerMode> {
+        self.performance_frame.model().active_power_mizer_mode()
+    }
+
     pub fn get_power_profile_mode(&self) -> Option<u16> {
         self.performance_frame.model().power_profile_mode()
     }
@@ -190,6 +200,10 @@ impl PowerPage {
             config.power_profile_mode_index = self.get_power_profile_mode();
             config.custom_power_profile_mode_hueristics =
                 self.get_power_profile_mode_custom_heuristics();
+        }
+
+        if let Some(mode) = self.get_active_power_mizer_mode() {
+            config.power_mizer_mode = Some(mode);
         }
 
         config.power_states = self.get_enabled_power_states();

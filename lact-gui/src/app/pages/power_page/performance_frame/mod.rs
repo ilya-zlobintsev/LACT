@@ -14,6 +14,7 @@ use gtk::{
 };
 use heuristics_list::PowerProfileHeuristicsList;
 use i18n_embed_fl::fl;
+use nvml_wrapper::enums::device::PowerMizerMode;
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 
 const PERFORMANCE_LEVELS: [PerformanceLevel; 4] = [
@@ -27,6 +28,9 @@ pub struct PerformanceFrame {
     performance_level: Option<PerformanceLevel>,
     power_profile_modes_table: Option<PowerProfileModesTable>,
     power_profile_modes: gtk::StringList,
+    active_power_mizer_mode: Option<PowerMizerMode>,
+    supported_power_mizer_modes: Vec<PowerMizerMode>,
+    power_mizer_modes: gtk::StringList,
     heuristics_components: Vec<relm4::Controller<PowerProfileHeuristicsList>>,
 }
 
@@ -35,6 +39,11 @@ pub enum PerformanceFrameMsg {
     PerformanceLevel(Option<PerformanceLevel>),
     PowerProfileModes(Option<PowerProfileModesTable>),
     PowerProfileSelected(u16),
+    PowerMizerInfo {
+        active: Option<PowerMizerMode>,
+        supported: Option<Vec<PowerMizerMode>>,
+    },
+    PowerMizerSelected(u32),
 }
 
 #[relm4::component(pub)]
@@ -47,11 +56,13 @@ impl relm4::Component for PerformanceFrame {
     view! {
         PageSection::new("Performance") {
             #[watch]
-            set_visible: model.performance_level.is_some(),
+            set_visible: model.performance_level.is_some() || model.active_power_mizer_mode.is_some(),
 
             append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
+                #[watch]
+                set_visible: model.performance_level.is_some(),
 
                 gtk::Label {
                     set_label: &fl!(I18N, "performance-level"),
@@ -89,6 +100,8 @@ impl relm4::Component for PerformanceFrame {
             append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
+                #[watch]
+                set_visible: model.power_profile_modes_table.is_some(),
 
                 gtk::Label {
                     set_label: &fl!(I18N, "power-profile-mode"),
@@ -152,6 +165,46 @@ impl relm4::Component for PerformanceFrame {
                     },
                 },
             },
+
+            append_child = &gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 10,
+                #[watch]
+                set_visible: model.active_power_mizer_mode.is_some(),
+
+                gtk::Label {
+                    set_label: &fl!(I18N, "power-mizer-mode"),
+                },
+
+                gtk::Label {
+                    #[watch]
+                    set_label: &match model.active_power_mizer_mode {
+                        Some(PowerMizerMode::Auto) => fl!(I18N, "power-mizer-mode-auto-description"),
+                        Some(PowerMizerMode::Adaptive) => fl!(I18N, "power-mizer-mode-adaptive-description"),
+                        Some(PowerMizerMode::PreferMaximumPerformance) => fl!(I18N, "power-mizer-mode-prefer-maximum-performance-description"),
+                        Some(PowerMizerMode::PreferConsistentPerformance) => fl!(I18N, "power-mizer-mode-prefer-consistent-performance-description"),
+                        None => String::new(),
+                    },
+                    set_hexpand: true,
+                    set_halign: gtk::Align::End,
+                },
+
+                #[name = "power_mizer_dropdown"]
+                gtk::DropDown {
+                    #[watch]
+                    #[block_signal(power_mizer_select_handler)]
+                    set_model: Some(&model.power_mizer_modes),
+                    #[watch]
+                    #[block_signal(power_mizer_select_handler)]
+                    set_selected: model.active_power_mizer_mode
+                        .and_then(|active| model.supported_power_mizer_modes.iter().position(|mode| *mode == active))
+                        .unwrap_or(0) as u32,
+
+                    connect_selected_notify[sender] => move |dropdown| {
+                        sender.input(PerformanceFrameMsg::PowerMizerSelected(dropdown.selected()));
+                    } @ power_mizer_select_handler,
+                },
+            },
         }
     }
 
@@ -170,6 +223,9 @@ impl relm4::Component for PerformanceFrame {
             performance_level: None,
             power_profile_modes_table: None,
             power_profile_modes: gtk::StringList::new(&[]),
+            active_power_mizer_mode: None,
+            supported_power_mizer_modes: vec![],
+            power_mizer_modes: gtk::StringList::new(&[]),
             heuristics_components: vec![],
         };
 
@@ -210,6 +266,26 @@ impl relm4::Component for PerformanceFrame {
                     table.active = idx;
                     APP_BROKER.send(AppMsg::SettingsChanged);
                     self.update_heuristic_components(widgets);
+                }
+            }
+            PerformanceFrameMsg::PowerMizerInfo { active, supported } => {
+                let modes = gtk::StringList::new(&[]);
+                let supported = supported.unwrap_or_default();
+
+                for mode in &supported {
+                    modes.append(&power_mizer_mode_friendly_name(*mode));
+                }
+
+                self.power_mizer_modes = modes;
+                self.active_power_mizer_mode = active;
+                self.supported_power_mizer_modes = supported;
+            }
+            PerformanceFrameMsg::PowerMizerSelected(idx) => {
+                if let Some(mode) = self.supported_power_mizer_modes.get(idx as usize)
+                    && self.active_power_mizer_mode != Some(*mode)
+                {
+                    self.active_power_mizer_mode = Some(*mode);
+                    APP_BROKER.send(AppMsg::SettingsChanged);
                 }
             }
         }
@@ -261,6 +337,10 @@ impl PerformanceFrame {
         self.performance_level
     }
 
+    pub fn active_power_mizer_mode(&self) -> Option<PowerMizerMode> {
+        self.active_power_mizer_mode
+    }
+
     pub fn power_profile_mode(&self) -> Option<u16> {
         if self.performance_level == Some(PerformanceLevel::Manual) {
             self.power_profile_modes_table
@@ -300,6 +380,19 @@ fn level_friendly_name(level: PerformanceLevel) -> String {
         | PerformanceLevel::PerfDeterminism
         | PerformanceLevel::ProfileExit => {
             unreachable!("unsupported performance level in selector")
+        }
+    }
+}
+
+fn power_mizer_mode_friendly_name(mode: PowerMizerMode) -> String {
+    match mode {
+        PowerMizerMode::Auto => fl!(I18N, "power-mizer-mode-auto"),
+        PowerMizerMode::Adaptive => fl!(I18N, "power-mizer-mode-adaptive"),
+        PowerMizerMode::PreferMaximumPerformance => {
+            fl!(I18N, "power-mizer-mode-prefer-maximum-performance")
+        }
+        PowerMizerMode::PreferConsistentPerformance => {
+            fl!(I18N, "power-mizer-mode-prefer-consistent-performance")
         }
     }
 }
