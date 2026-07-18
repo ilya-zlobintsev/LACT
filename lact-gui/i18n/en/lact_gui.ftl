@@ -244,7 +244,6 @@ service-permission-denied =
 service-connected = Connected
 service-version = Service Version
 service-logs = Service Logs
-service-version-expected = expected
 
 service-start = Start
 service-stop = Stop

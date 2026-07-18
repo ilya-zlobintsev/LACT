@@ -124,7 +124,7 @@ impl AsyncComponent for ServiceSetupDialog {
                         },
 
                         gtk::MenuButton {
-                            set_icon_name: "dialog-information-symbolic",
+                            set_icon_name: "utilities-terminal-symbolic",
                             add_css_class: css::FLAT,
                             set_valign: gtk::Align::Center,
 
@@ -133,16 +133,28 @@ impl AsyncComponent for ServiceSetupDialog {
                                 gtk::Box {
                                     set_orientation: gtk::Orientation::Vertical,
                                     set_spacing: 5,
+                                    set_margin_all: 10,
 
                                     gtk::Label {
                                         set_label: &fl!(I18N, "service-logs"),
                                     },
 
-                                    gtk::TextView {
-                                        set_editable: false,
-                                        set_buffer: Some(&model.service_logs),
+                                    gtk::ScrolledWindow {
+                                        set_min_content_width: 650,
+                                        set_min_content_height: 250,
+
+                                        gtk::TextView {
+                                            set_editable: false,
+                                            set_buffer: Some(&model.service_logs),
+                                            set_top_margin: 5,
+                                            set_bottom_margin: 5,
+                                            set_left_margin: 5,
+                                            set_right_margin: 5,
+                                        },
                                     },
                                 },
+
+                                set_position: gtk::PositionType::Top,
                             },
                         }
                     },
@@ -302,7 +314,7 @@ impl ServiceSetupDialog {
     }
 
     async fn reconnect(&mut self) -> anyhow::Result<()> {
-        let logs = tokio::spawn(service_logs_text());
+        let logs_handle = tokio::spawn(service_logs_text());
 
         self.service_state = self
             .unit_proxy
@@ -312,7 +324,18 @@ impl ServiceSetupDialog {
 
         let client = DaemonClient::connect_with_reconnect(false).await;
         self.connection_status = ConnectionStatus::from_result(client).await;
-        // self.service_logs.set_text(&logs.await.unwrap());
+
+        let logs = logs_handle.await.unwrap();
+
+        let current_text = self.service_logs.slice(
+            &self.service_logs.start_iter(),
+            &self.service_logs.end_iter(),
+            true,
+        );
+
+        if logs != current_text.as_str() {
+            self.service_logs.set_text(&logs);
+        }
 
         Ok(())
     }
@@ -320,21 +343,7 @@ impl ServiceSetupDialog {
     fn service_version_text(&self) -> Option<String> {
         match &self.connection_status {
             ConnectionStatus::Connected { version, .. } => {
-                let mut text = format!("<tt>{}</tt>", format_version(version));
-
-                let current_version = VersionInfo::current();
-
-                if *version != current_version {
-                    write!(
-                        text,
-                        " ({} <tt>{}</tt>)",
-                        fl!(I18N, "service-version-expected"),
-                        format_version(&current_version)
-                    )
-                    .unwrap();
-                }
-
-                Some(text)
+                Some(format!("<tt>{}</tt>", format_version(version)))
             }
             ConnectionStatus::Error(_) => None,
         }
