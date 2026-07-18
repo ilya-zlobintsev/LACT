@@ -243,16 +243,16 @@ service-permission-denied =
     See <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> for more information
 service-connected = Connected
 service-version = Service Version
+service-version-mismatch = mismatched
 service-logs = Service Logs
 
 service-start = Start
 service-stop = Stop
 service-restart = Restart
 
-version-mismatch = Version mismatch
 version-mismatch-description =
     Version mismatch between GUI and Daemon ({$gui_version}-{$gui_commit} vs {$daemon_version}-{$daemon_commit})!
-    If you have updated LACT, you need to restart the service with:
+    If you have updated LACT, you need to restart the service.
 
 plot-show-detailed-info = Show detailed info
 

@@ -1,15 +1,12 @@
 pub mod systemd;
 
-use std::io;
-use std::time::Duration;
-
-use crate::I18N;
 use crate::service_setup::systemd::{START_MODE_REPLACE, UnitProxy};
+use crate::{GUI_VERSION, I18N};
 use adw::prelude::*;
 use anyhow::Context as _;
 use i18n_embed_fl::fl;
 use lact_client::DaemonClient;
-use lact_schema::VersionInfo;
+use lact_schema::{GIT_COMMIT, VersionInfo};
 use relm4::css::{self, WARNING};
 use relm4::{
     AsyncComponentSender, RelmWidgetExt,
@@ -17,7 +14,9 @@ use relm4::{
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio,
 };
-use std::fmt::Write as _;
+use std::fmt::Write;
+use std::io;
+use std::time::Duration;
 use tracing::debug;
 
 pub struct ServiceSetupDialog {
@@ -39,7 +38,6 @@ pub enum ServiceSetupDialogMsg {
     StartService,
     RestartService,
     StopService,
-    ServiceStateChanged,
     Close,
 }
 
@@ -153,8 +151,6 @@ impl AsyncComponent for ServiceSetupDialog {
                                         },
                                     },
                                 },
-
-                                set_position: gtk::PositionType::Top,
                             },
                         }
                     },
@@ -190,6 +186,35 @@ impl AsyncComponent for ServiceSetupDialog {
                             set_hexpand: true,
                             set_halign: gtk::Align::End,
                         },
+
+                        gtk::MenuButton {
+                            set_icon_name: "dialog-warning-symbolic",
+                            add_css_class: css::FLAT,
+                            set_valign: gtk::Align::Center,
+                            #[watch]
+                            set_visible: model.daemon_version().is_some_and(|version| !version.is_current()),
+
+                            #[wrap(Some)]
+                            set_popover = &gtk::Popover {
+                                gtk::Box {
+                                    set_orientation: gtk::Orientation::Vertical,
+                                    set_spacing: 5,
+                                    set_margin_all: 10,
+
+                                    gtk::Label {
+                                        #[watch]
+                                        set_label: &fl!(
+                                            I18N,
+                                            "version-mismatch-description",
+                                            gui_version = GUI_VERSION,
+                                            gui_commit = GIT_COMMIT,
+                                            daemon_version = model.daemon_version().map(|version| version.version.as_str()).unwrap_or_default(),
+                                            daemon_commit = model.daemon_version().and_then(|version| version.commit.as_deref()).unwrap_or_default(),
+                                        ),
+                                    },
+                                },
+                            },
+                        }
                     },
                 },
 
@@ -298,7 +323,6 @@ impl ServiceSetupDialog {
             ServiceSetupDialogMsg::StopService => {
                 self.unit_proxy.stop(START_MODE_REPLACE).await?;
             }
-            ServiceSetupDialogMsg::ServiceStateChanged => {}
             ServiceSetupDialogMsg::Close => {
                 let client = match &self.connection_status {
                     ConnectionStatus::Connected { client, .. } => Some(client.clone()),
@@ -343,8 +367,21 @@ impl ServiceSetupDialog {
     fn service_version_text(&self) -> Option<String> {
         match &self.connection_status {
             ConnectionStatus::Connected { version, .. } => {
-                Some(format!("<tt>{}</tt>", format_version(version)))
+                let mut text = format!("<tt>{}</tt>", format_version(version));
+
+                if !version.is_current() {
+                    write!(text, " ({})", fl!(I18N, "service-version-mismatch")).unwrap();
+                }
+
+                Some(text)
             }
+            ConnectionStatus::Error(_) => None,
+        }
+    }
+
+    fn daemon_version(&self) -> Option<&VersionInfo> {
+        match &self.connection_status {
+            ConnectionStatus::Connected { version, .. } => Some(version),
             ConnectionStatus::Error(_) => None,
         }
     }

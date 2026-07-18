@@ -6,8 +6,6 @@ use zbus::{proxy, zvariant::OwnedObjectPath};
 const UNIT_NAME: &str = "lactd.service";
 
 pub const UNIT_STATE_ACTIVE: &str = "active";
-pub const UNIT_STATE_INACTIVE: &str = "inactive";
-pub const UNIT_STATE_FAILED: &str = "failed";
 
 pub const START_MODE_REPLACE: &str = "replace";
 

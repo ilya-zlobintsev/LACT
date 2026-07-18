@@ -12,7 +12,7 @@ mod profiles;
 pub(crate) mod utils;
 
 use crate::{
-    APP_ID, CONFIG, GUI_VERSION, I18N,
+    APP_ID, CONFIG, I18N,
     app::{
         about_dialog::{AboutDialog, AboutDialogMsg},
         components::loader,
@@ -46,7 +46,7 @@ use gtk::{
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
-    DeviceApiInfo, DeviceFlag, DeviceListEntry, DeviceStats, DeviceType, GIT_COMMIT, SystemInfo,
+    DeviceApiInfo, DeviceFlag, DeviceListEntry, DeviceStats, DeviceType, SystemInfo,
     args::GuiArgs,
     config::{GpuConfig, Profile},
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
@@ -454,22 +454,9 @@ impl AsyncComponent for AppModel {
             .expect("Could not list devices");
         let initial_gpu_id = AppModel::init_gpu_selection(&devices);
 
-        let version_mismatch_info = (system_info.version.version != GUI_VERSION
-            || system_info.version.commit.as_deref() != Some(GIT_COMMIT))
-        .then(|| InfoDialogData {
-            id: InfoDialogId::VersionMismatch,
-            heading: fl!(I18N, "version-mismatch"),
-            body: fl!(
-                I18N,
-                "version-mismatch-description",
-                gui_version = GUI_VERSION,
-                gui_commit = GIT_COMMIT,
-                daemon_version = system_info.version.version.as_str(),
-                daemon_commit = system_info.version.commit.as_deref().unwrap_or_default()
-            ),
-            selectable_text: Some("sudo systemctl restart lactd".to_string()),
-            ..Default::default()
-        });
+        if !system_info.version.is_current() {
+            sender.input(AppMsg::ShowServiceSetupDialog);
+        }
 
         let info_page = InformationPage::detach_default();
 
@@ -589,26 +576,6 @@ impl AsyncComponent for AppModel {
             widgets
                 .content_page
                 .set_title(&page.title().unwrap_or_default());
-        }
-
-        // if let Some(err) = conn_err {
-        //     model
-        //         .info_dialog
-        //         .emit(InfoDialogMsg::Show(Box::new(InfoDialogData {
-        //             id: InfoDialogId::EmbeddedDaemonInfo,
-        //             heading: fl!(I19N, "daemon-info-heading"),
-        //             body: fl!(
-        //                 I19N,
-        //                 "embedded-daemon-info",
-        //                 error_info = format!("Error info: {err:#}\n\n")
-        //             ),
-        //             selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
-        //             ..Default::default()
-        //         })));
-        // }
-
-        if let Some(info) = version_mismatch_info {
-            model.info_dialog.emit(InfoDialogMsg::Show(Box::new(info)));
         }
 
         let task_sender = sender.clone();
