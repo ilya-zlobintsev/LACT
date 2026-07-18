@@ -37,6 +37,16 @@ use crate::{config::ProfileHooks, i18n::LANGUAGE_LOADER};
 
 pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(feature = "args", derive(clap::ValueEnum))]
+pub enum NvidiaInitMode {
+    /// Initialize NVML using its default behavior.
+    #[default]
+    Normal,
+    /// Allow the daemon to start when NVML cannot see any Nvidia GPUs.
+    AllowNoGpus,
+}
+
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum FanControlMode {

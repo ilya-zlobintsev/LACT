@@ -7,7 +7,9 @@ fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|| Command::Gui(GuiArgs::default()));
 
     match command {
-        Command::Daemon => lact_daemon::run(),
+        Command::Daemon(daemon_args) => lact_daemon::run_with_options(lact_daemon::DaemonOptions {
+            nvidia_init_mode: daemon_args.nvidia_init_mode,
+        }),
         Command::Gui(gui_args) => run_gui(gui_args),
         Command::Cli(cli_args) => lact_cli::run(cli_args),
     }

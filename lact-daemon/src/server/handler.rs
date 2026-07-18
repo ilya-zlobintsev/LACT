@@ -29,7 +29,7 @@ use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
 #[cfg(all(not(test), feature = "nvidia"))]
-use nvml_wrapper::Nvml;
+use nvml_wrapper::{Nvml, bitmasks::InitFlags};
 use pciid_parser::Database;
 use serde_json::json;
 #[cfg(all(not(test), feature = "nvidia"))]
@@ -1324,8 +1324,13 @@ pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> = LazyLock::new(|| None);
 // Loading of shared libaries is unsafe
 // https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
 #[allow(unused_unsafe)]
-pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> =
-    LazyLock::new(|| match unsafe { Nvml::init() } {
+pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> = LazyLock::new(|| {
+    match unsafe {
+        match crate::nvidia_init_mode() {
+            lact_schema::NvidiaInitMode::Normal => Nvml::init(),
+            lact_schema::NvidiaInitMode::AllowNoGpus => Nvml::init_with_flags(InitFlags::NO_GPUS),
+        }
+    } {
         Ok(nvml) => {
             use crate::server::gpu_controller::NvApi;
 
@@ -1356,7 +1361,8 @@ pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> =
             error!("could not load Nvidia management library: {err}");
             None
         }
-    });
+    }
+});
 
 pub(crate) static AMD_DRM: LazyLock<Option<LibDrmAmdgpu>> = LazyLock::new(|| {
     // SAFETY: We use global LazyLock to make sure it's safe.

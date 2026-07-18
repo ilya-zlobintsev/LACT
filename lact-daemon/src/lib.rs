@@ -13,8 +13,9 @@ mod tests;
 use anyhow::Context;
 use config::Config;
 use futures::future::select_all;
+pub use lact_schema::NvidiaInitMode;
 use server::{Server, handle_stream, handler::Handler};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
 use tokio::net::UnixStream;
 use tokio::runtime::LocalOptions;
@@ -32,6 +33,13 @@ use crate::server::ClientContext;
 pub use system::BASE_MODULE_CONF_PATH;
 
 const DRM_EVENT_TIMEOUT_PERIOD_MS: u64 = 100;
+static NVIDIA_INIT_MODE: OnceLock<NvidiaInitMode> = OnceLock::new();
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DaemonOptions {
+    pub nvidia_init_mode: NvidiaInitMode,
+}
+
 const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
     SignalKind::terminate(),
     SignalKind::interrupt(),
@@ -44,6 +52,16 @@ const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
 /// # Errors
 /// Returns an error when the daemon cannot initialize.
 pub fn run() -> anyhow::Result<()> {
+    run_with_options(DaemonOptions::default())
+}
+
+/// Run the daemon with explicit initialization options, binding to the default socket.
+///
+/// # Errors
+/// Returns an error when the daemon cannot initialize.
+pub fn run_with_options(options: DaemonOptions) -> anyhow::Result<()> {
+    configure_nvidia_init_mode(options.nvidia_init_mode)?;
+
     let rt = runtime::Builder::new_current_thread()
         .enable_all()
         .build_local(LocalOptions::default())
@@ -68,6 +86,24 @@ pub fn run() -> anyhow::Result<()> {
         server.run().await;
         Ok(())
     })
+}
+
+fn configure_nvidia_init_mode(mode: NvidiaInitMode) -> anyhow::Result<()> {
+    if let Some(configured_mode) = NVIDIA_INIT_MODE.get() {
+        if *configured_mode == mode {
+            return Ok(());
+        }
+        anyhow::bail!("Nvidia initialization mode is already configured as {configured_mode:?}");
+    }
+
+    NVIDIA_INIT_MODE
+        .set(mode)
+        .map_err(|_| anyhow::anyhow!("Could not configure Nvidia initialization mode"))
+}
+
+#[cfg(all(not(test), feature = "nvidia"))]
+pub(crate) fn nvidia_init_mode() -> NvidiaInitMode {
+    *NVIDIA_INIT_MODE.get_or_init(NvidiaInitMode::default)
 }
 
 /// Run the daemon with a given `UnixStream`.
