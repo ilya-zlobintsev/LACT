@@ -79,7 +79,7 @@ use relm4_components::{
 use std::{
     cell::Cell, fs, os::unix::net::UnixStream, path::PathBuf, rc::Rc, sync::Arc, time::Duration,
 };
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 use utils::ext::RelmDefaultLauchable;
 use utils::styles;
 
@@ -376,57 +376,21 @@ impl AsyncComponent for AppModel {
         }
         CONFIG.read().color_scheme.apply();
 
-        let daemon_client = match DaemonClient::connect().await {
-            Ok(client) => client,
-            Err(err) => {
-                let configured_client = match connect_unit_proxy().await {
-                    Ok(unit_proxy) => {
-                        let params = ServiceSetupDialogParams {
-                            parent: root.clone().upcast(),
-                            initial_error: err,
-                            unit_proxy,
-                        };
-                        let service_setup =
-                            ServiceSetupDialog::builder().launch(params).into_stream();
-
-                        service_setup
-                            .recv_one()
-                            .await
-                            .expect("Could not get client")
-                    }
-                    Err(_err) => {
-                        // TODO: show error about no systemd
-                        None
-                    }
-                };
-
-                match configured_client {
-                    Some(client) => client,
-                    None => create_embedded_connection()
-                        .await
-                        .expect("Could not spawn embedded daemon"),
-                }
-            }
-        };
-
-        /*let (daemon_client, conn_err) = match args.tcp_address {
+        let daemon_client = match args.tcp_address {
             Some(remote_addr) => {
                 info!("establishing connection to {remote_addr}");
                 match DaemonClient::connect_tcp(&remote_addr).await {
-                    Ok(conn) => (conn, None),
+                    Ok(conn) => conn,
                     Err(err) => {
-                        error!("TCP connection error: {err:#}");
-                        let (conn, _) = create_connection()
-                            .await
-                            .expect("Could not create fallback connection");
-                        (conn, Some(err))
+                        sender.input(AppMsg::Error(
+                            anyhow!("TCP connection failed, falling back to local: {err:#}").into(),
+                        ));
+                        create_connection(&root, &sender).await
                     }
                 }
             }
-            None => create_connection()
-                .await
-                .expect("Could not establish any daemon connection"),
-        };*/
+            None => create_connection(&root, &sender).await,
+        };
 
         let mut conn_status_rx = daemon_client.status_receiver();
         relm4::spawn_local(clone!(
@@ -701,7 +665,7 @@ impl AppModel {
             AppMsg::ShowServiceSetupDialog => {
                 let params = ServiceSetupDialogParams {
                     parent: root.clone().upcast(),
-                    initial_error: anyhow!("TODO"),
+                    initial_client: Ok(self.daemon_client.clone()),
                     unit_proxy: systemd::connect_unit_proxy().await?,
                 };
                 let mut controller = ServiceSetupDialog::builder().launch(params).detach();
@@ -1453,6 +1417,43 @@ fn start_stats_update_loop(
     })
 }
 
+async fn create_connection(
+    root: &adw::ApplicationWindow,
+    sender: &relm4::AsyncComponentSender<AppModel>,
+) -> DaemonClient {
+    match DaemonClient::connect().await {
+        Ok(client) => client,
+        Err(err) => {
+            let configured_client = match connect_unit_proxy().await {
+                Ok(unit_proxy) => {
+                    let params = ServiceSetupDialogParams {
+                        parent: root.clone().upcast(),
+                        initial_client: Err(err),
+                        unit_proxy,
+                    };
+                    let service_setup = ServiceSetupDialog::builder().launch(params).into_stream();
+
+                    service_setup
+                        .recv_one()
+                        .await
+                        .expect("Could not get client")
+                }
+                Err(setup_err) => {
+                    sender.input(AppMsg::Error(anyhow!("Could not connect to daemon: {err:#}\nPlease make sure the daemon is set up and running.\nGuided setup not available: {setup_err}").into()));
+                    None
+                }
+            };
+
+            match configured_client {
+                Some(client) => client,
+                None => create_embedded_connection()
+                    .await
+                    .expect("Could not spawn embedded daemon"),
+            }
+        }
+    }
+}
+
 async fn create_embedded_connection() -> anyhow::Result<DaemonClient> {
     let (server_stream, client_stream) = UnixStream::pair()?;
     client_stream.set_nonblocking(true)?;
@@ -1464,7 +1465,7 @@ async fn create_embedded_connection() -> anyhow::Result<DaemonClient> {
         }
     });
 
-    Ok(DaemonClient::from_stream(client_stream, true)?)
+    DaemonClient::from_stream(client_stream, true)
 }
 
 new_action_group!(pub AppActionGroup, "app");

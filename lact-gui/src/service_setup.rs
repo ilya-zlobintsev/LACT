@@ -24,11 +24,12 @@ pub struct ServiceSetupDialog {
     unit_proxy: UnitProxy<'static>,
     service_logs: gtk::TextBuffer,
     service_state: String,
+    setup_error: Option<anyhow::Error>,
 }
 
 pub struct ServiceSetupDialogParams {
     pub parent: gtk::ApplicationWindow,
-    pub initial_error: anyhow::Error,
+    pub initial_client: anyhow::Result<DaemonClient>,
     pub unit_proxy: UnitProxy<'static>,
 }
 
@@ -199,7 +200,7 @@ impl AsyncComponent for ServiceSetupDialog {
                                 gtk::Box {
                                     set_orientation: gtk::Orientation::Vertical,
                                     set_spacing: 5,
-                                    set_margin_all: 10,
+                                    set_margin_all: 5,
 
                                     gtk::Label {
                                         #[watch]
@@ -275,13 +276,17 @@ impl AsyncComponent for ServiceSetupDialog {
                 panic!("{err:#}");
             });
 
-        let service_logs = service_logs_text().await;
+        let service_logs_handle = tokio::spawn(service_logs_text());
+        let connection_status = ConnectionStatus::from_result(params.initial_client).await;
 
         let model = Self {
-            connection_status: ConnectionStatus::from_err(params.initial_error),
+            connection_status,
             unit_proxy: params.unit_proxy,
-            service_logs: gtk::TextBuffer::builder().text(service_logs).build(),
+            service_logs: gtk::TextBuffer::builder()
+                .text(service_logs_handle.await.unwrap())
+                .build(),
             service_state,
+            setup_error: None,
         };
 
         let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
