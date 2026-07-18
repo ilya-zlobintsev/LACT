@@ -39,6 +39,7 @@ use std::{
     collections::{BTreeMap, HashMap, btree_map::Entry},
     fmt::Write,
     rc::Rc,
+    sync::Arc,
     time::{Duration, Instant},
 };
 use tokio::{select, sync::Notify, time::sleep};
@@ -52,12 +53,12 @@ const SUPPORTED_UTIL_TYPES: &[ProcessUtilizationType] = &[
 ];
 
 pub struct NvidiaGpuController {
-    nvml: &'static Nvml,
+    nvml: Arc<Nvml>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
     initial_target_temp: Option<u32>,
 
-    nvapi: Option<(&'static NvApi, NvPhysicalGpuHandle)>,
+    nvapi: Option<(Arc<NvApi>, NvPhysicalGpuHandle)>,
     driver_handle: Option<DriverHandle>,
     nvapi_thermals_mask: Option<i32>,
 
@@ -75,8 +76,8 @@ pub struct NvidiaGpuController {
 impl NvidiaGpuController {
     pub fn new(
         common: CommonControllerInfo,
-        nvml: &'static Nvml,
-        nvapi: Option<&'static NvApi>,
+        nvml: Arc<Nvml>,
+        nvapi: Option<Arc<NvApi>>,
     ) -> anyhow::Result<Self> {
         let device = nvml
             .device_by_pci_bus_id(common.pci_slot_name.as_str())
@@ -205,7 +206,7 @@ impl NvidiaGpuController {
         let notify = Rc::new(Notify::new());
         let task_notify = notify.clone();
 
-        let nvml = self.nvml;
+        let nvml = self.nvml.clone();
         let pci_slot_id = self.common.pci_slot_name.clone();
         debug!("spawning new fan control task");
 

@@ -296,7 +296,9 @@ impl NvApi {
 impl Drop for NvApi {
     fn drop(&mut self) {
         unsafe {
-            let unload = self.query_interface(QUERY_NVAPI_UNLOAD).unwrap();
+            let Ok(unload) = self.query_interface(QUERY_NVAPI_UNLOAD) else {
+                return;
+            };
             let unload: unsafe extern "C" fn() -> NvAPI_Status = transmute(unload);
             unload();
         }

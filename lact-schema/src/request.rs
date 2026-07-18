@@ -12,6 +12,14 @@ use serde::{Deserialize, Serialize};
 pub enum Request<'a> {
     Ping,
     ListDevices,
+    DetachGpu {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<&'a str>,
+    },
+    AttachGpu {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<&'a str>,
+    },
     SystemInfo,
     DeviceInfo {
         id: &'a str,
@@ -211,6 +219,21 @@ mod tests {
             },
             serde_json::from_str(r#"{"command": "set_clocks_value", "args": {"id": "asd", "command": {"type": "max_core_clock", "value": 2000}}}"#)
                 .unwrap()
+        );
+    }
+
+    #[test]
+    fn serialize_gpu_management_requests() {
+        assert_eq!(
+            serde_json::to_string(&Request::DetachGpu {
+                id: Some("10DE:2B85-10DE:2057-0000:03:00.0")
+            })
+            .unwrap(),
+            r#"{"command":"detach_gpu","args":{"id":"10DE:2B85-10DE:2057-0000:03:00.0"}}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&Request::AttachGpu { id: None }).unwrap(),
+            r#"{"command":"attach_gpu","args":{}}"#
         );
     }
 }

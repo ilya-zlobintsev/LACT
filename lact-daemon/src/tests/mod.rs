@@ -126,3 +126,132 @@ async fn apply_settings() {
         }
     }
 }
+
+#[tokio::test(flavor = "local")]
+#[cfg_attr(miri, ignore)]
+async fn detach_and_attach_nvidia_gpu_without_recreating_other_vendors() {
+    init_tracing();
+
+    let snapshots = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/snapshots/amd");
+    let drm_dir = tempdir().unwrap();
+    let first_card = drm_dir.path().join("card0");
+    let second_card = drm_dir.path().join("card1");
+    let third_card = drm_dir.path().join("card2");
+    copy_dir(&snapshots.join("phoenix/card1"), &first_card);
+    copy_dir(&snapshots.join("rx6600/card1"), &second_card);
+    copy_dir(&snapshots.join("rx580/card0"), &third_card);
+    set_driver(&first_card, "nvidia");
+    set_driver(&second_card, "nvidia");
+
+    let handler = Handler::with_base_path(drm_dir.path(), Config::default(), &read_pci_db())
+        .await
+        .unwrap();
+    let devices = handler.list_devices().await;
+    assert_eq!(devices.len(), 3);
+
+    let detached_id = devices
+        .iter()
+        .find(|device| device.id.ends_with("0000:64:00.0"))
+        .unwrap()
+        .id
+        .clone();
+    let detached_index = devices
+        .iter()
+        .position(|device| device.id == detached_id)
+        .unwrap()
+        .to_string();
+    let paused_id = devices
+        .iter()
+        .find(|device| device.id.ends_with("0000:12:00.0"))
+        .unwrap()
+        .id
+        .clone();
+    let retained_id = devices
+        .iter()
+        .find(|device| device.id != detached_id && device.id != paused_id)
+        .unwrap()
+        .id
+        .clone();
+    let retained_address = handler.controller_address(&retained_id).await.unwrap();
+
+    assert!(handler.detach_gpu(None).await.is_err());
+    let (first_detach, second_detach, ()) = tokio::join!(
+        handler.detach_gpu(Some(&detached_index)),
+        handler.detach_gpu(Some(&detached_id)),
+        handler.reload_gpus()
+    );
+    assert_eq!(first_detach.unwrap(), detached_id);
+    assert_eq!(second_detach.unwrap(), detached_id);
+    assert_eq!(
+        handler
+            .list_devices()
+            .await
+            .into_iter()
+            .map(|device| device.id)
+            .collect::<Vec<_>>(),
+        vec![retained_id.clone()]
+    );
+
+    handler.reload_gpus().await;
+    assert_eq!(
+        handler.controller_address(&retained_id).await,
+        Some(retained_address)
+    );
+
+    fs::remove_dir_all(&first_card).unwrap();
+    handler.reload_gpus().await;
+    assert!(
+        handler
+            .list_devices()
+            .await
+            .iter()
+            .any(|device| device.id == paused_id)
+    );
+    let (first_attach, second_attach, ()) = tokio::join!(
+        handler.attach_gpu(Some(&detached_index)),
+        handler.attach_gpu(Some(&detached_id)),
+        handler.reload_gpus()
+    );
+    assert_eq!(first_attach.unwrap(), detached_id);
+    assert_eq!(second_attach.unwrap(), detached_id);
+    assert_eq!(handler.list_devices().await.len(), 2);
+
+    copy_dir(&snapshots.join("phoenix/card1"), &first_card);
+    set_driver(&first_card, "nvidia");
+    handler.reload_gpus().await;
+    let attached_devices = handler.list_devices().await;
+    assert_eq!(attached_devices.len(), 3);
+    assert!(
+        attached_devices
+            .iter()
+            .any(|device| device.id == detached_id)
+    );
+    assert_eq!(
+        handler.controller_address(&retained_id).await,
+        Some(retained_address)
+    );
+    assert_eq!(
+        handler.attach_gpu(Some(&detached_index)).await.unwrap(),
+        detached_id
+    );
+}
+
+fn copy_dir(source: &std::path::Path, destination: &std::path::Path) {
+    fs::create_dir(destination).unwrap();
+    for entry in fs::read_dir(source).unwrap() {
+        let entry = entry.unwrap();
+        let target = destination.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
+
+fn set_driver(card_path: &std::path::Path, driver: &str) {
+    let uevent_path = card_path.join("device/uevent");
+    let uevent = fs::read_to_string(&uevent_path).unwrap();
+    let updated = uevent.replace("DRIVER=amdgpu", &format!("DRIVER={driver}"));
+    fs::write(uevent_path, updated).unwrap();
+}

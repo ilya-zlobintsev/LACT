@@ -175,6 +175,8 @@ async fn handle_request<'a>(
         Request::Ping => ok_response(ping()),
         Request::SystemInfo => ok_response(system::info().await?),
         Request::ListDevices => ok_response(handler.list_devices().await),
+        Request::DetachGpu { id } => ok_response(handler.detach_gpu(id).await?),
+        Request::AttachGpu { id } => ok_response(handler.attach_gpu(id).await?),
         Request::DeviceInfo {
             id,
             include_api_info,

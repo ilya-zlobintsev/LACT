@@ -126,6 +126,14 @@ impl DaemonClient {
         self.make_request(Request::ListDevices).await
     }
 
+    pub async fn detach_gpu(&self, id: Option<&str>) -> anyhow::Result<String> {
+        self.make_request(Request::DetachGpu { id }).await
+    }
+
+    pub async fn attach_gpu(&self, id: Option<&str>) -> anyhow::Result<String> {
+        self.make_request(Request::AttachGpu { id }).await
+    }
+
     pub async fn get_device_info(
         &self,
         id: &str,

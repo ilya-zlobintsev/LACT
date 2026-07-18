@@ -1,4 +1,5 @@
 # Linux GPU Control Application
+
 <a href="https://translate.fedoraproject.org/engage/lact/">
 <img src="https://translate.fedoraproject.org/widget/lact/svg-badge.svg" alt="Translation status" />
 </a>
@@ -9,7 +10,7 @@ This application allows you to control your AMD, Nvidia or Intel GPU on a Linux
 system.
 
 | GPU info                          | Overclocking                      | Fan control                       |
-| ----------------------------------| ----------------------------------| ----------------------------------|
+| --------------------------------- | --------------------------------- | --------------------------------- |
 | ![image](./res/screenshots/1.png) | ![image](./res/screenshots/2.png) | ![image](./res/screenshots/3.png) |
 | Software info                     | Historical data                   |                                   |
 | ![image](./res/screenshots/4.png) | ![image](./res/screenshots/5.png) |                                   |
@@ -49,7 +50,7 @@ The service can also be used standalone with a config file, for example in headl
 - [Installation](#installation)
 - [Hardware support](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Support)
 - [Frequently asked questions](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions)
-- [Enable overclocking on AMD](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD))
+- [Enable overclocking on AMD](<https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)>)
 - [Config file reference](./docs/CONFIG.md)
 - [API](./docs/API.md)
 - [Power profiles daemon note](#power-profiles-daemon-note)
@@ -68,6 +69,7 @@ The service can also be used standalone with a config file, for example in headl
 
   It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't
   ship gtk4.
+
 - Fedora: use the
   [Copr repository](https://copr.fedorainfracloud.org/coprs/ilyaz/LACT/), or
   download an RPM from
@@ -80,12 +82,14 @@ The service can also be used standalone with a config file, for example in headl
 
   Only tumbleweed is supported as leap does not have the required dependencies
   in the repos.
+
 - NixOS: There is a package available in
   [nixpkgs](https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=lact).
 - Solus: Available in the offical repository: `eopkg it lact`
 - Flatpak (universal): Available on [Flathub](https://flathub.org/apps/io.github.ilya_zlobintsev.LACT) and in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
   See the [Flatpak documentation](./flatpak/README.md) for additional notes.
+
 - Docker (service only, no GUI): See [DOCKER.md](./docs/DOCKER.md)
 - Build from source.
 
@@ -151,7 +155,7 @@ and under the `daemon` section either:
 # Overclocking (AMD)
 
 Some functionality requires enabling an option in the amdgpu driver, see the
-[wiki page](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)) for
+[wiki page](<https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)>) for
 more information.
 
 ## Power profiles daemon note!
@@ -160,7 +164,7 @@ If you are using `power-profiles-daemon` (which is installed by default on many
 distributions), by default it may override the amdgpu performance level setting
 according to its own profile.
 
-When using LACT 0.7.5+ and power-profiles-daemon 0.30+, LACT will try to connect to power-profiles-daemon 
+When using LACT 0.7.5+ and power-profiles-daemon 0.30+, LACT will try to connect to power-profiles-daemon
 and automatically disable the conflicting amdgpu action in ppd to avoid this conflict.
 
 If running older versions, you can resolve this manually by creating a file at
@@ -200,6 +204,7 @@ Dependencies:
 - libdisplay-info
 
 Optional Dependencies:
+
 - vulkan-tools
 - clinfo
 
@@ -265,6 +270,7 @@ There is also a cli available.
   ```
   10DE:2704-1462:5110-0000:09:00.0 (AD103 [GeForce RTX 4080])
   ```
+
 - Getting GPU information:
 
   `lact cli info`
@@ -293,9 +299,23 @@ There is also a cli available.
   Link Speed: 8 GT/s PCIe gen 3 x8
   ```
 
+- Release a GPU before changing its PCI driver, then restore LACT management:
+
+  ```sh
+  lact cli --gpu-id 10DE:2704-1462:5110-0000:09:00.0 detach
+  # Change the device driver here.
+  lact cli --gpu-id 10DE:2704-1462:5110-0000:09:00.0 attach
+  ```
+
+  Both commands accept the same GPU index or full GPU ID as the other CLI
+  commands. LACT remembers the selected index while the GPU is unavailable.
+  `detach` releases LACT's handles for the selected GPU without stopping
+  management of GPUs from other vendors. `attach` reapplies the saved
+  configuration when the GPU is available again. These commands do not bind or
+  unbind PCI drivers.
+
 - Profiles
   `lact cli profile [COMMAND]`
-
   - List profiles:
 
     `lact cli profile list`
@@ -331,36 +351,35 @@ There is also a cli available.
 
     - Auto switch profiles
       `lact cli profile auto-switch [COMMAND]`
+      - Get auto-switch state:
 
-        - Get auto-switch state:
+        `lact cli profile auto-switch get` or `lact cli profile auto-switch`
 
-          `lact cli profile auto-switch get` or `lact cli profile auto-switch`
+        Example output:
 
-          Example output:
+        ```
+        enabled
+        ```
 
-          ```
-          enabled
-          ```
+      - Enable auto switch:
 
-        - Enable auto switch:
+        `lact cli profile auto-switch enable`
 
-          `lact cli profile auto-switch enable`
+        Example output:
 
-          Example output:
+        ```
+        enabled
+        ```
 
-          ```
-          enabled
-          ```
+      - Disable auto switch:
 
-        - Disable auto switch:
+        `lact cli profile auto-switch disable`
 
-          `lact cli profile auto-switch disable`
+        Example output:
 
-          Example output:
-
-          ```
-          disabled
-          ```
+        ```
+        disabled
+        ```
 
 The functionality of the CLI is quite limited. If you want to integrate LACT
 with some application/script, you should use the [API](./docs/API.md) instead.
@@ -392,6 +411,7 @@ If you wish to support the project, you can do so via Patreon:
 https://www.patreon.com/IlyaZlobintsev
 
 Or using cryptocurrency:
+
 - BTC: `12FuTXZzd5peGb7QfoRkXaLnbJ1DNVW4pP`
 - ETH: `0x80875173316aa6317641bfbc50644e7ca74d6b6d`
 - XMR: `42E93NZXM7STBUsnMRGNyxKryFVgpHKNP6aza94C5hn17j2W7zUnFHe7ASQzB3KorYYnsaVzWUyHHVYfcTLQRtB63qkv5jE`

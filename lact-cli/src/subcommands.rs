@@ -23,6 +23,41 @@ pub async fn list_gpus(ctx: CliContext<'_>) -> Result<()> {
     Ok(())
 }
 
+pub async fn detach_gpu(ctx: CliContext<'_>) -> Result<()> {
+    let id = if ctx.args.gpu_id.is_some() {
+        Some(ctx.current_gpu_id().await?)
+    } else {
+        None
+    };
+    let id = ctx
+        .client
+        .detach_gpu(id.as_deref())
+        .await
+        .context("Could not detach GPU from LACT management")?;
+    println!("Detached GPU {id}");
+    Ok(())
+}
+
+pub async fn attach_gpu(ctx: CliContext<'_>) -> Result<()> {
+    let id = ctx
+        .client
+        .attach_gpu(ctx.args.gpu_id.as_deref())
+        .await
+        .context("Could not attach GPU to LACT management")?;
+    let attached = ctx
+        .client
+        .list_devices()
+        .await?
+        .into_iter()
+        .any(|device| device.id == id);
+    if attached {
+        println!("Attached GPU {id}");
+    } else {
+        println!("GPU {id} will attach when available");
+    }
+    Ok(())
+}
+
 pub async fn info(ctx: CliContext<'_>) -> Result<()> {
     let id = ctx.current_gpu_id().await?;
 

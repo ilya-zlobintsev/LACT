@@ -1,8 +1,8 @@
 mod subcommands;
 
 use crate::subcommands::{
-    current_auto_switch, current_profile, info, list_gpus, list_profiles, power_limit,
-    set_auto_switch, set_profile, snapshot, stats,
+    attach_gpu, current_auto_switch, current_profile, detach_gpu, info, list_gpus, list_profiles,
+    power_limit, set_auto_switch, set_profile, snapshot, stats,
 };
 use anyhow::{Context, Result, bail};
 use lact_client::DaemonClient;
@@ -27,6 +27,8 @@ pub fn run(args: CliArgs) -> Result<()> {
 
         match &args.subcommand {
             CliCommand::List => list_gpus(ctx).await,
+            CliCommand::Detach => detach_gpu(ctx).await,
+            CliCommand::Attach => attach_gpu(ctx).await,
             CliCommand::Info => info(ctx).await,
             CliCommand::Stats => stats(ctx).await,
             CliCommand::Snapshot => snapshot(ctx).await,

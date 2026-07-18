@@ -5,12 +5,17 @@ use super::{
 };
 #[cfg(feature = "display-info")]
 use crate::server::display;
+use crate::system::run_command;
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
-    server::{ClientContext, gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
+    server::{
+        ClientContext,
+        gpu_controller::{init_controller, read_controller_identity, release_nvidia_libs},
+        profiles,
+        system::DAEMON_VERSION,
+    },
 };
-use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
     PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
@@ -28,15 +33,11 @@ use lact_schema::{
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
-#[cfg(all(not(test), feature = "nvidia"))]
-use nvml_wrapper::Nvml;
 use pciid_parser::Database;
 use serde_json::json;
-#[cfg(all(not(test), feature = "nvidia"))]
-use std::sync::Arc;
 use std::{
     cell::{Cell, RefCell},
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     env,
     fs::{self, File, Permissions},
     io::{BufWriter, Cursor, Write},
@@ -48,7 +49,7 @@ use std::{
 };
 use tokio::{
     process::Command,
-    sync::{RwLock, RwLockReadGuard, mpsc, oneshot},
+    sync::{Mutex, RwLock, RwLockReadGuard, mpsc, oneshot},
     task::JoinHandle,
     time::sleep,
 };
@@ -92,10 +93,33 @@ mod polkit_actions {
 type ProfileHolds = Rc<RefCell<Vec<(u64, Rc<str>, mpsc::Sender<()>)>>>;
 type ProfileHoldSnapshot = Rc<RefCell<Option<(Option<Rc<str>>, bool)>>>;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum GpuManagementStatus {
+    Detached,
+    Attaching,
+}
+
+#[derive(Clone, Debug)]
+struct ManagedGpuState {
+    id: String,
+    pci_slot_name: String,
+    list_index: usize,
+    status: GpuManagementStatus,
+}
+
+#[derive(Debug)]
+struct ControllerCandidate {
+    path: PathBuf,
+    driver: String,
+}
+
 #[derive(Clone)]
 pub struct Handler {
     pub config: Rc<RwLock<Config>>,
     gpu_controllers: Rc<RwLock<BTreeMap<String, DynGpuController>>>,
+    gpu_management_states: Rc<RwLock<BTreeMap<String, ManagedGpuState>>>,
+    gpu_management_lock: Rc<Mutex<()>>,
+    drm_base_path: Rc<PathBuf>,
     confirm_config_tx: Rc<RefCell<Option<oneshot::Sender<ConfirmCommand>>>>,
     pub config_last_saved: Rc<Cell<Instant>>,
     profile_watcher_tx: Rc<RefCell<Option<mpsc::Sender<ProfileWatcherCommand>>>>,
@@ -191,6 +215,9 @@ impl<'a> Handler {
 
         let handler = Self {
             gpu_controllers: Rc::new(RwLock::new(controllers)),
+            gpu_management_states: Rc::new(RwLock::new(BTreeMap::new())),
+            gpu_management_lock: Rc::new(Mutex::new(())),
+            drm_base_path: Rc::new(base_path.to_path_buf()),
             config: Rc::new(RwLock::new(config)),
             confirm_config_tx: Rc::new(RefCell::new(None)),
             config_last_saved: Rc::new(Cell::new(Instant::now())),
@@ -226,44 +253,290 @@ impl<'a> Handler {
     }
 
     pub async fn apply_current_config(&self) -> anyhow::Result<()> {
+        let unavailable_ids = self
+            .gpu_management_states
+            .read()
+            .await
+            .keys()
+            .cloned()
+            .collect();
         let config = self.config.read().await;
         let controllers = self.gpu_controllers.read().await;
-        apply_config_to_controllers(&controllers, &config).await
+        apply_config_to_controllers(&controllers, &config, &unavailable_ids).await
     }
 
     pub async fn reload_gpus(&self) {
-        let mut controllers_guard = self.gpu_controllers.write().await;
-        let config = self.config.read().await;
+        let _management_guard = self.gpu_management_lock.lock().await;
+        if let Err(err) = self.reconcile_gpus().await {
+            error!("could not reload GPU controllers: {err:#}");
+        }
+    }
 
-        let base_path = drm_base_path();
+    async fn reconcile_gpus(&self) -> anyhow::Result<()> {
+        let candidates = discover_controller_candidates(&self.drm_base_path)?;
+        let management_states = self.gpu_management_states.read().await;
+        let detached_slots: BTreeSet<String> = management_states
+            .values()
+            .filter(|state| state.status == GpuManagementStatus::Detached)
+            .map(|state| state.pci_slot_name.clone())
+            .collect();
+        let nvidia_release_blocked = management_states.values().any(|state| {
+            state.status == GpuManagementStatus::Detached
+                && candidates
+                    .get(&state.pci_slot_name)
+                    .is_some_and(|candidate| candidate.driver == "nvidia")
+        });
+        drop(management_states);
+
+        let removed_controllers = {
+            let mut controllers = self.gpu_controllers.write().await;
+            let removed_ids: Vec<String> = controllers
+                .iter()
+                .filter_map(|(id, controller)| {
+                    let info = controller.controller_info();
+                    let should_keep =
+                        candidates
+                            .get(&info.pci_slot_name)
+                            .is_some_and(|candidate| {
+                                candidate.driver == info.driver && candidate.path == info.sysfs_path
+                            })
+                            && !detached_slots.contains(&info.pci_slot_name)
+                            && !(nvidia_release_blocked && info.driver == "nvidia");
+                    (!should_keep).then(|| id.clone())
+                })
+                .collect();
+
+            removed_ids
+                .into_iter()
+                .filter_map(|id| controllers.remove(&id).map(|controller| (id, controller)))
+                .collect::<Vec<_>>()
+        };
+
+        for (id, controller) in removed_controllers {
+            info!("removing controller for unavailable GPU {id}");
+            controller.cleanup().await;
+        }
+
+        if !self
+            .gpu_controllers
+            .read()
+            .await
+            .values()
+            .any(|controller| controller.controller_info().driver == "nvidia")
+        {
+            release_nvidia_libs();
+        }
+
+        let active_slots: BTreeSet<String> = self
+            .gpu_controllers
+            .read()
+            .await
+            .values()
+            .map(|controller| controller.controller_info().pci_slot_name.clone())
+            .collect();
         let pci_db = read_pci_db();
-        match load_controllers(&base_path, &pci_db) {
-            Ok(new_controllers) => {
-                info!(
-                    "GPU list reloaded with {} devices, reapplying configuration",
-                    new_controllers.len()
-                );
+        let mut added_controllers = Vec::new();
 
-                for old_controller in controllers_guard.values() {
-                    old_controller.cleanup().await;
-                    let _ = old_controller.reset_clocks();
-                }
-
-                *controllers_guard = new_controllers;
-
-                match apply_config_to_controllers(&controllers_guard, &config).await {
-                    Ok(()) => {
-                        info!("configuration applied");
-                    }
-                    Err(err) => {
-                        error!("could not reapply config: {err:#}");
-                    }
-                }
+        for (pci_slot_name, candidate) in candidates {
+            if active_slots.contains(&pci_slot_name)
+                || detached_slots.contains(&pci_slot_name)
+                || (nvidia_release_blocked && candidate.driver == "nvidia")
+            {
+                continue;
             }
-            Err(err) => {
-                error!("could not load GPU controllers: {err:#}");
+
+            match init_controller(candidate.path.clone(), &pci_db) {
+                Ok(controller) => {
+                    let info = controller.controller_info();
+                    let id = info.build_id();
+                    info!(
+                        "initialized {} controller for GPU {id} at '{}'",
+                        info.driver,
+                        info.sysfs_path.display()
+                    );
+                    added_controllers.push((id, controller));
+                }
+                Err(err) => {
+                    error!(
+                        "could not initialize GPU controller at '{}': {err:#}",
+                        candidate.path.display()
+                    );
+                }
             }
         }
+
+        let added_ids: Vec<String> = added_controllers.iter().map(|(id, _)| id.clone()).collect();
+        if !added_controllers.is_empty() {
+            let mut controllers = self.gpu_controllers.write().await;
+            controllers.extend(added_controllers);
+        }
+
+        if !added_ids.is_empty() {
+            let config = self.config.read().await;
+            let controllers = self.gpu_controllers.read().await;
+            apply_config_to_selected_controllers(&controllers, &config, &added_ids).await?;
+        }
+
+        let active_slots: BTreeSet<String> = self
+            .gpu_controllers
+            .read()
+            .await
+            .values()
+            .map(|controller| controller.controller_info().pci_slot_name.clone())
+            .collect();
+        self.gpu_management_states.write().await.retain(|_, state| {
+            state.status == GpuManagementStatus::Detached
+                || !active_slots.contains(&state.pci_slot_name)
+        });
+
+        info!(
+            "GPU list reloaded with {} managed devices",
+            self.gpu_controllers.read().await.len()
+        );
+        Ok(())
+    }
+
+    pub async fn detach_gpu(&self, selector: Option<&str>) -> anyhow::Result<String> {
+        let _management_guard = self.gpu_management_lock.lock().await;
+
+        let selected_id = {
+            let controllers = self.gpu_controllers.read().await;
+            match selector {
+                Some(selector) => find_controller_id(&controllers, selector),
+                None if controllers.len() == 1 => controllers.keys().next().cloned(),
+                None if controllers.is_empty() => None,
+                None => bail!("Multiple GPUs are managed; specify one with --gpu-id"),
+            }
+        };
+
+        let Some(selected_id) = selected_id else {
+            let state = {
+                let states = self.gpu_management_states.read().await;
+                select_managed_state(&states, selector)?.context("GPU not found")?
+            };
+            self.gpu_management_states
+                .write()
+                .await
+                .entry(state.id.clone())
+                .and_modify(|state| state.status = GpuManagementStatus::Detached);
+            return Ok(state.id);
+        };
+
+        let (id, pci_slot_name, list_index, driver, controller, paused_controllers) = {
+            let mut controllers = self.gpu_controllers.write().await;
+            let list_indices = controllers
+                .keys()
+                .enumerate()
+                .map(|(index, id)| (id.clone(), index))
+                .collect::<BTreeMap<_, _>>();
+            let list_index = *list_indices
+                .get(&selected_id)
+                .with_context(|| format!("Controller '{selected_id}' not found"))?;
+            let driver = controllers
+                .get(&selected_id)
+                .with_context(|| format!("Controller '{selected_id}' not found"))?
+                .controller_info()
+                .driver
+                .clone();
+            let controller = controllers
+                .remove(&selected_id)
+                .with_context(|| format!("Controller '{selected_id}' not found"))?;
+            let pci_slot_name = controller.controller_info().pci_slot_name.clone();
+            let paused_ids = if driver == "nvidia" {
+                controllers
+                    .iter()
+                    .filter(|(_, controller)| controller.controller_info().driver == "nvidia")
+                    .map(|(id, _)| id.clone())
+                    .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            };
+            let paused_controllers: Vec<(String, usize, DynGpuController)> = paused_ids
+                .into_iter()
+                .filter_map(|id| {
+                    let index = *list_indices.get(&id)?;
+                    controllers
+                        .remove(&id)
+                        .map(|controller| (id, index, controller))
+                })
+                .collect();
+
+            (
+                selected_id,
+                pci_slot_name,
+                list_index,
+                driver,
+                controller,
+                paused_controllers,
+            )
+        };
+
+        {
+            let mut states = self.gpu_management_states.write().await;
+            states.insert(
+                id.clone(),
+                ManagedGpuState {
+                    id: id.clone(),
+                    pci_slot_name: pci_slot_name.clone(),
+                    list_index,
+                    status: GpuManagementStatus::Detached,
+                },
+            );
+            for (paused_id, list_index, paused_controller) in &paused_controllers {
+                states.insert(
+                    paused_id.clone(),
+                    ManagedGpuState {
+                        id: paused_id.clone(),
+                        pci_slot_name: paused_controller.controller_info().pci_slot_name.clone(),
+                        list_index: *list_index,
+                        status: GpuManagementStatus::Attaching,
+                    },
+                );
+            }
+        }
+
+        info!("detaching GPU {id} at {pci_slot_name} from LACT management");
+        let disable_clocks_cleanup = self.config.read().await.daemon.disable_clocks_cleanup;
+        cleanup_controller(&id, controller.as_ref(), disable_clocks_cleanup).await;
+        drop(controller);
+
+        for (paused_id, _, paused_controller) in paused_controllers {
+            info!("temporarily releasing Nvidia controller for GPU {paused_id}");
+            paused_controller.cleanup().await;
+        }
+        if driver == "nvidia" {
+            release_nvidia_libs();
+        }
+        info!("detached GPU {id} from LACT management");
+
+        Ok(id)
+    }
+
+    pub async fn attach_gpu(&self, selector: Option<&str>) -> anyhow::Result<String> {
+        let _management_guard = self.gpu_management_lock.lock().await;
+
+        let state = {
+            let states = self.gpu_management_states.read().await;
+            select_managed_state(&states, selector)?
+        };
+        let Some(state) = state else {
+            let controllers = self.gpu_controllers.read().await;
+            return select_controller_id(&controllers, selector).context("No detached GPU found");
+        };
+
+        self.gpu_management_states
+            .write()
+            .await
+            .entry(state.id.clone())
+            .and_modify(|state| state.status = GpuManagementStatus::Attaching);
+
+        info!(
+            "attaching GPU {} at {} to LACT management",
+            state.id, state.pci_slot_name
+        );
+        self.reconcile_gpus().await?;
+
+        Ok(state.id)
     }
 
     async fn stop_profile_watcher(&self) {
@@ -436,6 +709,15 @@ impl<'a> Handler {
         }
 
         entries
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn controller_address(&self, id: &str) -> Option<usize> {
+        self.gpu_controllers
+            .read()
+            .await
+            .get(id)
+            .map(|controller| std::ptr::from_ref(controller.as_ref()).cast::<()>() as usize)
     }
 
     pub async fn get_device_info(
@@ -1217,20 +1499,7 @@ impl<'a> Handler {
 
         let controllers = self.gpu_controllers.read().await;
         for (id, controller) in controllers.iter() {
-            if !disable_clocks_cleanup {
-                debug!("resetting clocks table");
-                if let Err(err) = controller.reset_clocks() {
-                    error!("could not reset the clocks table: {err}");
-                }
-            }
-
-            controller.reset_pmfw_settings();
-
-            if let Err(err) = controller.apply_config(&GpuConfig::default()).await {
-                error!("Could not reset settings for controller {id}: {err:#}");
-            }
-
-            controller.cleanup().await;
+            cleanup_controller(id, controller.as_ref(), disable_clocks_cleanup).await;
         }
     }
 
@@ -1269,6 +1538,7 @@ impl<'a> Handler {
 async fn apply_config_to_controllers(
     controllers: &BTreeMap<String, Box<dyn GpuController>>,
     config: &Config,
+    unavailable_ids: &BTreeSet<String>,
 ) -> anyhow::Result<()> {
     let gpus = config.gpus()?;
     for (id, gpu_config) in gpus {
@@ -1277,12 +1547,114 @@ async fn apply_config_to_controllers(
             if let Err(err) = controller.apply_config(gpu_config).await {
                 error!("could not apply existing config for gpu {id}: {err:#}");
             }
-        } else {
+        } else if !unavailable_ids.contains(id) {
             warn!("could not find GPU with id {id} defined in configuration");
         }
     }
 
     Ok(())
+}
+
+async fn apply_config_to_selected_controllers(
+    controllers: &BTreeMap<String, Box<dyn GpuController>>,
+    config: &Config,
+    selected_ids: &[String],
+) -> anyhow::Result<()> {
+    let gpus = config.gpus()?;
+    for id in selected_ids {
+        let Some(gpu_config) = gpus.get(id) else {
+            continue;
+        };
+        let Some(controller) = controllers.get(id) else {
+            continue;
+        };
+
+        debug!("applying config {gpu_config:#?} to controller {id}");
+        if let Err(err) = controller.apply_config(gpu_config).await {
+            error!("could not apply existing config for gpu {id}: {err:#}");
+        }
+    }
+
+    Ok(())
+}
+
+async fn cleanup_controller(
+    id: &str,
+    controller: &dyn GpuController,
+    disable_clocks_cleanup: bool,
+) {
+    if !disable_clocks_cleanup {
+        debug!("resetting clocks table for controller {id}");
+        if let Err(err) = controller.reset_clocks() {
+            error!("could not reset the clocks table for controller {id}: {err}");
+        }
+    }
+
+    controller.reset_pmfw_settings();
+
+    if let Err(err) = controller.apply_config(&GpuConfig::default()).await {
+        error!("Could not reset settings for controller {id}: {err:#}");
+    }
+
+    controller.cleanup().await;
+}
+
+fn find_controller_id(
+    controllers: &BTreeMap<String, DynGpuController>,
+    selector: &str,
+) -> Option<String> {
+    if let Ok(index) = selector.parse::<usize>() {
+        return controllers.keys().nth(index).cloned();
+    }
+
+    controllers
+        .contains_key(selector)
+        .then(|| selector.to_owned())
+}
+
+fn select_controller_id(
+    controllers: &BTreeMap<String, DynGpuController>,
+    selector: Option<&str>,
+) -> anyhow::Result<String> {
+    match selector {
+        Some(selector) => find_controller_id(controllers, selector)
+            .with_context(|| format!("GPU '{selector}' not found")),
+        None if controllers.len() == 1 => Ok(controllers.keys().next().unwrap().clone()),
+        None if controllers.is_empty() => bail!("No managed GPUs found"),
+        None => bail!("Multiple GPUs are managed; specify one with --gpu-id"),
+    }
+}
+
+fn select_managed_state(
+    states: &BTreeMap<String, ManagedGpuState>,
+    selector: Option<&str>,
+) -> anyhow::Result<Option<ManagedGpuState>> {
+    if let Some(selector) = selector {
+        if let Ok(index) = selector.parse::<usize>() {
+            let matches = states
+                .values()
+                .filter(|state| state.list_index == index)
+                .collect::<Vec<_>>();
+            return match matches.as_slice() {
+                [state] => Ok(Some((*state).clone())),
+                [] => Ok(None),
+                _ => bail!("Multiple unavailable GPUs used index {index}; specify the full GPU ID"),
+            };
+        }
+
+        return Ok(states.get(selector).cloned());
+    }
+
+    let detached = states
+        .values()
+        .filter(|state| state.status == GpuManagementStatus::Detached)
+        .collect::<Vec<_>>();
+    match detached.as_slice() {
+        [state] => Ok(Some((*state).clone())),
+        [] if states.len() == 1 => Ok(states.values().next().cloned()),
+        [] if states.is_empty() => Ok(None),
+        _ => bail!("Multiple GPUs are unavailable; specify one with --gpu-id"),
+    }
 }
 
 #[cfg(all(test, not(miri)))]
@@ -1316,48 +1688,6 @@ pub(crate) fn read_pci_db() -> Database {
     })
 }
 
-#[cfg(any(test, not(feature = "nvidia")))]
-pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> = LazyLock::new(|| None);
-
-#[cfg(all(not(test), feature = "nvidia"))]
-// SAFETY: We use global LazyLock to make sure it's safe.
-// Loading of shared libaries is unsafe
-// https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
-#[allow(unused_unsafe)]
-pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> =
-    LazyLock::new(|| match unsafe { Nvml::init() } {
-        Ok(nvml) => {
-            use crate::server::gpu_controller::NvApi;
-
-            // The config has to be re-read here, because a LazyLock cannot capture external variables into the init closure
-            let disable_nvapi = Config::load()
-                .ok()
-                .flatten()
-                .and_then(|config| config.daemon.disable_nvapi);
-
-            info!("Nvidia management library loaded");
-            let nvapi = if disable_nvapi == Some(true) {
-                info!("NvAPI support is disabled");
-                None
-            } else {
-                NvApi::new()
-                    .inspect(|_| {
-                        info!("NvAPI library loaded");
-                    })
-                    .inspect_err(|err| {
-                        warn!("could not load NvAPI library: {err:#}");
-                    })
-                    .ok()
-            };
-
-            Some((Arc::new(nvml), Arc::new(nvapi)))
-        }
-        Err(err) => {
-            error!("could not load Nvidia management library: {err}");
-            None
-        }
-    });
-
 pub(crate) static AMD_DRM: LazyLock<Option<LibDrmAmdgpu>> = LazyLock::new(|| {
     // SAFETY: We use global LazyLock to make sure it's safe.
     #[allow(unused_unsafe)]
@@ -1389,6 +1719,50 @@ pub(crate) static INTEL_DRM: LazyLock<Option<IntelDrm>> = LazyLock::new(|| {
         }
     }
 });
+
+fn discover_controller_candidates(
+    base_path: &Path,
+) -> anyhow::Result<BTreeMap<String, ControllerCandidate>> {
+    let mut candidates = BTreeMap::new();
+
+    for entry in base_path
+        .read_dir()
+        .map_err(|error| anyhow!("Failed to read sysfs: {error}"))?
+    {
+        let entry = entry?;
+        let name = entry
+            .file_name()
+            .into_string()
+            .map_err(|_| anyhow!("non-utf path"))?;
+        if !name.starts_with("card") || name.contains('-') {
+            continue;
+        }
+
+        let device_path = entry.path().join("device");
+        match read_controller_identity(&device_path) {
+            Ok((pci_slot_name, driver)) => {
+                let candidate = ControllerCandidate {
+                    path: device_path,
+                    driver,
+                };
+                if candidates
+                    .insert(pci_slot_name.clone(), candidate)
+                    .is_some()
+                {
+                    warn!("multiple DRM cards found for GPU at {pci_slot_name}");
+                }
+            }
+            Err(err) => {
+                error!(
+                    "could not identify GPU controller at '{}': {err:#}",
+                    device_path.display()
+                );
+            }
+        }
+    }
+
+    Ok(candidates)
+}
 
 /// `sysfs_only` disables initialization of any external data sources, such as libdrm and nvml
 fn load_controllers(

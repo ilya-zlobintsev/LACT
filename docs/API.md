@@ -5,32 +5,40 @@ The LACT Daemon exposes a JSON API over a unix socket or TCP, available on `/run
 The API expects newline-separated JSON objects, and returns a JSON object for every request.
 
 The general format of requests looks like:
+
 ```
 {"command": "command_name", "args": {}}
 ```
+
 Note that the type of `args` depends on the specific request, and may be omitted in some cases.
 
 The response looks like this:
+
 ```
 {"status": "ok|error", "data": {}}
 ```
+
 Same as `args` in requests, `data` can be of a different type and may not be present depending on the specific request.
 
 You can try sending commands to socket interactively with `ncat`:
+
 ```
 echo '{"command": "list_devices"}' | ncat -U /run/lactd.sock
 ```
+
 Example response:
+
 ```
 {"status":"ok","data":[{"id":"1002:687F-1043:0555-0000:0b:00.0","name":"Vega 10 XL/XT [Radeon RX Vega 56/64]"}]}
 ```
 
 Here's an example of calling the API with arguments to change a profile:
+
 ```
 echo '{"command": "set_profile", "args": {"name":"name-of-the-profile"}}' | ncat -U /run/lactd.sock
 ```
-In this code, `name-of-the-profile` should be replaced with the name of a profile that you've already created in LACT.
 
+In this code, `name-of-the-profile` should be replaced with the name of a profile that you've already created in LACT.
 
 # Commands
 
@@ -41,29 +49,60 @@ Additionally, each config change must be confirmed, or it will be automatically 
 
 **Deprecated commands**: there is a number of `set_` commands in the API that change individual settings. They are still functional for backwards compatibility purposes, but the `get_gpu_config`/`set_gpu_config` commands should be preferred instead.
 
+## GPU driver changes
+
+Use `detach_gpu` before unbinding a GPU from its current PCI driver. This stops
+LACT tasks for that GPU, resets its settings, closes its device handles, and
+prevents DRM events from recreating its controller. GPUs from other vendors
+remain managed. Because NVML and NvAPI are process-wide, other Nvidia
+controllers are briefly released and recreated after the detached GPU leaves
+the Nvidia driver; their saved configurations are reapplied.
+
+```sh
+echo '{"command":"detach_gpu","args":{"id":"10DE:2704-1462:5110-0000:09:00.0"}}' | nc -U /run/lactd.sock
+```
+
+Use `attach_gpu` to allow LACT to manage the GPU again. If the GPU is already
+available, LACT immediately recreates its controller and reapplies its saved
+configuration. Otherwise, the request succeeds and LACT attaches it after a
+later DRM event.
+
+```sh
+echo '{"command":"attach_gpu","args":{"id":"10DE:2704-1462:5110-0000:09:00.0"}}' | nc -U /run/lactd.sock
+```
+
+Both commands are idempotent and return the full LACT GPU ID. The `id` field
+uses the same full GPU ID as the other API commands. It can be omitted when
+there is only one unambiguous GPU. These commands only control LACT management;
+they do not bind or unbind PCI drivers.
+
 Example: how to set the power limit through the API:
 
 1. Get GPU id
+
 ```
-> echo '{"command": "list_devices"}' | nc -U /run/lactd.sock 
+> echo '{"command": "list_devices"}' | nc -U /run/lactd.sock
 {"status":"ok","data":[{"id":"10DE:2704-1462:5110-0000:09:00.0","name":"AD103 [GeForce RTX 4080]"}]}
 ```
 
 2. Get current config
+
 ```
-> echo '{"command": "get_gpu_config", "args": {"id": "10DE:2704-1462:5110-0000:09:00.0"}}' | nc -U /run/lactd.sock 
+> echo '{"command": "get_gpu_config", "args": {"id": "10DE:2704-1462:5110-0000:09:00.0"}}' | nc -U /run/lactd.sock
 {"status":"ok","data":{"fan_control_enabled":false,"fan_control_settings":{"mode":"static","static_speed":1.0,"temperature_key":"edge","interval_ms":500,"curve":{"40":0.3,"50":0.35,"60":0.5,"70":0.75,"80":1.0},"spindown_delay_ms":2856,"change_threshold":2},"power_cap":320.0}}
 ```
 
 3. Set a new config
 
 The `power_cap` field has been changed from the previous config
+
 ```
 > echo '{"command": "set_gpu_config", "args": {"id": "10DE:2704-1462:5110-0000:09:00.0", "config": {"fan_control_enabled":false,"fan_control_settings":{"mode":"static","static_speed":1.0,"temperature_key":"edge","interval_ms":500,"curve":{"40":0.3,"50":0.35,"60":0.5,"70":0.75,"80":1.0},"spindown_delay_ms":2856,"change_threshold":2},"power_cap":340.0}}}' | nc -U /run/lactd.sock
 {"status":"ok","data":5}
 ```
 
 4. Confirm new config
+
 ```
 > echo '{"command": "confirm_pending_config", "args": {"command": "confirm"}}' | nc -U /run/lactd.sock
 {"status":"ok","data":null}

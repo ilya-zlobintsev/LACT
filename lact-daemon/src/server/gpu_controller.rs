@@ -17,7 +17,9 @@ use tokio::join;
 pub const VENDOR_AMD: &str = "1002";
 pub const VENDOR_NVIDIA: &str = "10DE";
 
-use crate::server::handler::{AMD_DRM, INTEL_DRM, NVML};
+#[cfg(all(feature = "nvidia", not(test)))]
+use crate::config::Config;
+use crate::server::handler::{AMD_DRM, INTEL_DRM};
 use crate::server::opencl::get_opencl_info;
 use crate::server::vulkan::get_vulkan_info;
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
@@ -30,8 +32,17 @@ use lact_schema::{
 use std::io;
 #[cfg(feature = "nvidia")]
 use std::sync::Arc;
-use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
+#[cfg(all(feature = "nvidia", not(test)))]
+use std::sync::{LazyLock, Mutex};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 use tokio::{sync::Notify, task::JoinHandle};
+#[cfg(all(feature = "nvidia", not(test)))]
+use tracing::info;
 use tracing::{error, warn};
 
 #[cfg(feature = "nvidia")]
@@ -167,17 +178,77 @@ pub struct PciSlotInfo {
 }
 
 #[cfg(feature = "nvidia")]
-pub type NvidiaLibs = (Arc<Nvml>, Arc<Option<NvApi>>);
-#[cfg(not(feature = "nvidia"))]
-pub type NvidiaLibs = ();
+#[derive(Clone)]
+pub struct NvidiaLibs {
+    pub nvapi: Option<Arc<NvApi>>,
+    pub nvml: Arc<Nvml>,
+}
+#[cfg(all(feature = "nvidia", not(test)))]
+static NVIDIA_LIBS: LazyLock<Mutex<Option<NvidiaLibs>>> = LazyLock::new(|| Mutex::new(None));
+
+#[cfg(all(feature = "nvidia", not(test)))]
+fn get_nvidia_libs() -> Option<NvidiaLibs> {
+    let mut guard = NVIDIA_LIBS.lock().expect("Nvidia library lock poisoned");
+    if guard.is_none() {
+        *guard = init_nvidia_libs();
+    }
+    guard.clone()
+}
+
+#[cfg(all(feature = "nvidia", test))]
+fn get_nvidia_libs() -> Option<NvidiaLibs> {
+    None
+}
+
+#[cfg(all(feature = "nvidia", not(test)))]
+fn init_nvidia_libs() -> Option<NvidiaLibs> {
+    match Nvml::init() {
+        Ok(nvml) => {
+            let disable_nvapi = Config::load()
+                .ok()
+                .flatten()
+                .and_then(|config| config.daemon.disable_nvapi);
+
+            info!("Nvidia management library loaded");
+            let nvapi = if disable_nvapi == Some(true) {
+                info!("NvAPI support is disabled");
+                None
+            } else {
+                NvApi::new()
+                    .inspect(|_| info!("NvAPI library loaded"))
+                    .inspect_err(|err| warn!("could not load NvAPI library: {err:#}"))
+                    .ok()
+                    .map(Arc::new)
+            };
+
+            Some(NvidiaLibs {
+                nvapi,
+                nvml: Arc::new(nvml),
+            })
+        }
+        Err(err) => {
+            error!("could not load Nvidia management library: {err}");
+            None
+        }
+    }
+}
+
+#[cfg(all(feature = "nvidia", not(test)))]
+pub(crate) fn release_nvidia_libs() {
+    let libs = NVIDIA_LIBS
+        .lock()
+        .expect("Nvidia library lock poisoned")
+        .take();
+    drop(libs);
+}
+
+#[cfg(any(not(feature = "nvidia"), test))]
+pub(crate) fn release_nvidia_libs() {}
 
 pub(crate) fn init_controller(
     path: PathBuf,
     pci_db: &pciid_parser::Database,
 ) -> anyhow::Result<Box<dyn GpuController>> {
-    #[cfg(not(feature = "nvidia"))]
-    let _ = NVML;
-
     let uevent_path = path.join("uevent");
     let uevent = fs::read_to_string(uevent_path).context("Could not read 'uevent'")?;
     let mut uevent_map = parse_uevent(&uevent);
@@ -265,8 +336,8 @@ pub(crate) fn init_controller(
         }
         #[cfg(feature = "nvidia")]
         "nvidia" => {
-            if let Some((nvml, nvapi)) = NVML.as_ref() {
-                match NvidiaGpuController::new(common.clone(), nvml, nvapi.as_ref().as_ref()) {
+            if let Some(libs) = get_nvidia_libs() {
+                match NvidiaGpuController::new(common.clone(), libs.nvml, libs.nvapi) {
                     Ok(controller) => {
                         return Ok(Box::new(controller));
                     }
@@ -292,6 +363,23 @@ pub(crate) fn init_controller(
         AmdGpuController::new_from_path(common, None)
             .context("Could initialize fallback controller")?,
     ))
+}
+
+pub(crate) fn read_controller_identity(path: &Path) -> anyhow::Result<(String, String)> {
+    let uevent_path = path.join("uevent");
+    let uevent = fs::read_to_string(uevent_path).context("Could not read 'uevent'")?;
+    let uevent_map = parse_uevent(&uevent);
+
+    let pci_slot_name = uevent_map
+        .get("PCI_SLOT_NAME")
+        .context("PCI_SLOT_NAME entry missing in 'uevent'")?
+        .to_string();
+    let driver = uevent_map
+        .get("DRIVER")
+        .context("DRIVER entry missing in 'uevent'")?
+        .to_string();
+
+    Ok((pci_slot_name, driver))
 }
 
 fn parse_uevent(data: &str) -> HashMap<&str, &str> {

@@ -14,6 +14,10 @@ pub enum CliCommand {
     /// List GPUs
     #[clap(alias = "list-gpus")]
     List,
+    /// Release a GPU from LACT management
+    Detach,
+    /// Restore LACT management for a GPU
+    Attach,
     /// Show GPU info
     Info,
     /// Show GPU stats
