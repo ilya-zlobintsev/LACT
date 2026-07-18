@@ -7,11 +7,10 @@ use crate::I18N;
 use crate::service_setup::systemd::{START_MODE_REPLACE, UnitProxy};
 use adw::prelude::*;
 use anyhow::Context as _;
-use futures::StreamExt as _;
 use i18n_embed_fl::fl;
 use lact_client::DaemonClient;
 use lact_schema::VersionInfo;
-use relm4::css::WARNING;
+use relm4::css::{self, WARNING};
 use relm4::{
     AsyncComponentSender, RelmWidgetExt,
     css::{ERROR, SUCCESS},
@@ -24,7 +23,7 @@ use tracing::debug;
 pub struct ServiceSetupDialog {
     connection_status: ConnectionStatus,
     unit_proxy: UnitProxy<'static>,
-
+    service_logs: gtk::TextBuffer,
     service_state: String,
 }
 
@@ -54,7 +53,6 @@ impl AsyncComponent for ServiceSetupDialog {
     view! {
         adw::Dialog {
             set_content_width: 500,
-            // set_follows_content_size: true,
             set_title: "Service Setup",
 
             connect_closed => ServiceSetupDialogMsg::Close,
@@ -124,6 +122,29 @@ impl AsyncComponent for ServiceSetupDialog {
                             set_hexpand: true,
                             set_halign: gtk::Align::End,
                         },
+
+                        gtk::MenuButton {
+                            set_icon_name: "dialog-information-symbolic",
+                            add_css_class: css::FLAT,
+                            set_valign: gtk::Align::Center,
+
+                            #[wrap(Some)]
+                            set_popover = &gtk::Popover {
+                                gtk::Box {
+                                    set_orientation: gtk::Orientation::Vertical,
+                                    set_spacing: 5,
+
+                                    gtk::Label {
+                                        set_label: &fl!(I18N, "service-logs"),
+                                    },
+
+                                    gtk::TextView {
+                                        set_editable: false,
+                                        set_buffer: Some(&model.service_logs),
+                                    },
+                                },
+                            },
+                        }
                     },
 
                     gtk::Box {
@@ -163,7 +184,7 @@ impl AsyncComponent for ServiceSetupDialog {
                 add_bottom_bar = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_spacing: 5,
-                    set_halign: gtk::Align::Fill,
+                    set_halign: gtk::Align::End,
                     set_margin_horizontal: 25,
                     set_margin_vertical: 20,
 
@@ -171,13 +192,15 @@ impl AsyncComponent for ServiceSetupDialog {
                         set_label: &fl!(I18N, "service-start"),
                         connect_clicked => ServiceSetupDialogMsg::StartService,
                         add_css_class: "suggested-action",
-                        set_halign: gtk::Align::End,
-                        set_hexpand: true,
+                        #[watch]
+                        set_visible: model.service_state != systemd::UNIT_STATE_ACTIVE,
                     },
 
                     gtk::Button {
                         set_label: &fl!(I18N, "service-stop"),
                         connect_clicked => ServiceSetupDialogMsg::StopService,
+                        #[watch]
+                        set_visible: model.service_state == systemd::UNIT_STATE_ACTIVE,
                     },
 
                     gtk::Button {
@@ -194,21 +217,6 @@ impl AsyncComponent for ServiceSetupDialog {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        let mut state_stream = params.unit_proxy.receive_active_state_changed().await;
-
-        let input_sender = sender.input_sender().clone();
-        relm4::spawn(async move {
-            while let Some(_property) = state_stream.next().await {
-                if input_sender
-                    .send(ServiceSetupDialogMsg::ServiceStateChanged)
-                    .is_err()
-                {
-                    debug!("service setup dialog closed, exiting service state watcher");
-                    break;
-                }
-            }
-        });
-
         let input_sender = sender.input_sender().clone();
         relm4::spawn(async move {
             loop {
@@ -230,9 +238,12 @@ impl AsyncComponent for ServiceSetupDialog {
                 panic!("{err:#}");
             });
 
+        let service_logs = service_logs_text().await;
+
         let model = Self {
             connection_status: ConnectionStatus::from_err(params.initial_error),
             unit_proxy: params.unit_proxy,
+            service_logs: gtk::TextBuffer::builder().text(service_logs).build(),
             service_state,
         };
 
@@ -291,6 +302,8 @@ impl ServiceSetupDialog {
     }
 
     async fn reconnect(&mut self) -> anyhow::Result<()> {
+        let logs = tokio::spawn(service_logs_text());
+
         self.service_state = self
             .unit_proxy
             .active_state()
@@ -299,6 +312,7 @@ impl ServiceSetupDialog {
 
         let client = DaemonClient::connect_with_reconnect(false).await;
         self.connection_status = ConnectionStatus::from_result(client).await;
+        // self.service_logs.set_text(&logs.await.unwrap());
 
         Ok(())
     }
@@ -372,4 +386,10 @@ impl ConnectionStatus {
 
 fn format_version(version: &VersionInfo) -> String {
     format!("{}-{}", version.version, version.profile)
+}
+
+async fn service_logs_text() -> String {
+    systemd::fetch_logs()
+        .await
+        .unwrap_or_else(|err| format!("Could not fetch logs: {err:#}"))
 }

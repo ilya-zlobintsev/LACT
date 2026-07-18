@@ -1,5 +1,6 @@
 //! # D-Bus interface proxy for: `org.freedesktop.systemd1.Manager`
-use anyhow::Context;
+use anyhow::{Context, bail};
+use relm4::tokio::process::Command;
 use zbus::{proxy, zvariant::OwnedObjectPath};
 
 const UNIT_NAME: &str = "lactd.service";
@@ -67,4 +68,26 @@ pub trait Unit {
 
     #[zbus(property)]
     fn active_state(&self) -> zbus::Result<String>;
+}
+
+pub async fn fetch_logs() -> anyhow::Result<String> {
+    let output = Command::new("journalctl")
+        .args([
+            "-I",
+            "--no-hostname",
+            "--no-pager",
+            "-o",
+            "short",
+            "-u",
+            UNIT_NAME,
+        ])
+        .output()
+        .await
+        .context("Could not run journalctl")?;
+
+    if !output.status.success() {
+        bail!("journalctl exited with status {}", output.status);
+    }
+
+    String::from_utf8(output.stdout).context("Could not parse journalctl output")
 }

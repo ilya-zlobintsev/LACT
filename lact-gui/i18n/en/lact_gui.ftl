@@ -243,6 +243,7 @@ service-permission-denied =
     See <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> for more information
 service-connected = Connected
 service-version = Service Version
+service-logs = Service Logs
 service-version-expected = expected
 
 service-start = Start
