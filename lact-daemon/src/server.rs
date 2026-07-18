@@ -11,7 +11,7 @@ use self::handler::Handler;
 use crate::{config::Config, socket, system};
 use anyhow::Context;
 use futures::future::join_all;
-use lact_schema::{Pong, Request, Response, VersionInfo};
+use lact_schema::{Pong, Request, Response};
 use nix::sys::socket::{getsockopt, sockopt::PeerCredentials};
 use serde::Serialize;
 use std::fmt::Debug;
