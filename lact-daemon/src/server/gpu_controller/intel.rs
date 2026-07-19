@@ -29,7 +29,9 @@ use std::{
     str::FromStr,
     time::Instant,
 };
+use futures::StreamExt;
 use tracing::{debug, error, info, trace, warn};
+use lact_schema::config::FanCurve;
 
 const DRM_VRAM_KEYS: &[&str] = &["drm-total-vram0", "drm-total-local0", "drm-total-system0"];
 const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
@@ -226,7 +228,7 @@ impl IntelGpuController {
                         && let Some(infix) = name
                             .strip_prefix(file_prefix)
                             .and_then(|name| name.strip_suffix(file_suffix))
-                        && !infix.contains('_')
+                        // && !infix.contains('_')
                     {
                         files.push(entry.path());
                     }
@@ -573,6 +575,38 @@ impl IntelGpuController {
     fn has_fan_control(&self) -> bool {
         return self.match_hwmon_files(&["pwm1"]).next().is_some();
     }
+
+    fn get_hwmon_controllable_points_amount(&self) -> u8 {
+        return self.read_hwmon_files::<String>("pwm1_", "_pwm").count() as u8;
+    }
+
+    fn get_hwmon_fan_curve(&self) -> Option<FanCurve> {
+        if (!self.has_fan_control()) {
+            return Option::None;
+        }
+
+        let amount: u8 = self.get_hwmon_controllable_points_amount();
+
+        let mut points: Vec<(i32, f32)> = Vec::new();
+
+        for point in 1..=amount {
+            let pwm_file: String = format!("pwm1_auto_point{}_pwm", point);
+            let temp_file: String = format!("pwm1_auto_point{}_temp", point);
+
+            let pwm: i32 = self.read_hwmon_file(&[&*pwm_file], false)
+                .map(|value: u64| value as i32)
+                .context("Could not read the curve")
+                .unwrap();
+            let temp: f32 = self.read_hwmon_file(&[&*temp_file], false)
+                .map(|value: u64| value as f32)
+                .context("Could not read the curve")
+                .unwrap();
+
+            points.push((temp as i32 / 1000, pwm as f32 / 255.0));
+        }
+
+        return Option::Some(FanCurve(points.into_iter().collect()));
+    }
 }
 
 impl GpuController for IntelGpuController {
@@ -771,6 +805,7 @@ impl GpuController for IntelGpuController {
             speed_current: self
                 .read_hwmon_file(&["fan1_input", "fan2_input", "fan3_input"], false)
                 .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
+            curve: self.get_hwmon_fan_curve().map(|curve| curve.0),
             ..Default::default()
         };
 
