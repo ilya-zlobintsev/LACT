@@ -836,6 +836,10 @@ impl GpuController for IntelGpuController {
             curve: self.get_hwmon_fan_curve().map(|curve| curve.0),
             static_speed: self.get_hwmon_fan_static_speed(),
             control_mode: self.get_hwmon_fan_control_mode(),
+            control_enabled: match self.get_hwmon_fan_control_mode() {
+                None => false,
+                Some(_) => true
+            },
             ..Default::default()
         };
 
