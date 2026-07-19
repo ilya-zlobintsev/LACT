@@ -672,6 +672,28 @@ impl IntelGpuController {
 
         return Result::Ok(true);
     }
+
+    fn set_fans_static_speed(&self, speed: f32) -> Result<bool, anyhow::Error> {
+        if (!self.has_fan_control()) {
+            return Result::Err(anyhow!("Tried to set the fans static speed when there is no fan control"));
+        }
+
+        let pwm_value:u8 = (speed * 255.0) as u8;
+
+        let fans: u8 = self.get_hwmon_fans_amount();
+
+        for fan_index in 1..=fans {
+            let pwm = format!("pwm{}", fan_index);
+            let pwm_enable = format!("pwm{}_enable", fan_index);
+
+            self.write_hwmon_file(&[&pwm_enable], "1")
+                .context("Could not enable manual fan control")?; //if it is 0 or 2, you wont be able to control the RPM
+            self.write_hwmon_file(&[&pwm], &pwm_value.to_string())
+                .context("Could not set fan RPM")?;
+        }
+
+        return Result::Ok(true);
+    }
 }
 
 impl GpuController for IntelGpuController {
@@ -785,19 +807,7 @@ impl GpuController for IntelGpuController {
                 if let Some(ref settings) = config.fan_control_settings {
                     match settings.mode {
                         lact_schema::FanControlMode::Static => {
-                            let pwm_value = (settings.static_speed * 255.0) as u8;
-
-                            let fans: u8 = self.get_hwmon_fans_amount();
-
-                            for fan_index in 1..=fans {
-                                let pwm = format!("pwm{}", fan_index);
-                                let pwm_enable = format!("pwm{}_enable", fan_index);
-                                
-                                self.write_hwmon_file(&[&pwm_enable], "1")
-                                    .context("Could not enable manual fan control")?; //if it is 0 or 2, you wont be able to control the RPM
-                                self.write_hwmon_file(&[&pwm], &pwm_value.to_string())
-                                    .context("Could not set fan RPM")?;
-                            }
+                            self.set_fans_static_speed(settings.static_speed)?;
                         },
                         lact_schema::FanControlMode::Curve => {
                             self.apply_fan_curve(settings.curve.clone())?;
