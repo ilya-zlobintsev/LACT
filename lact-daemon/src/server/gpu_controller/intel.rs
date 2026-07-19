@@ -635,6 +635,10 @@ impl IntelGpuController {
             _ => Option::None
         };
     }
+
+    fn get_hwmon_fans_amount(&self) -> u8 {
+        return self.read_hwmon_files::<String>("fan", "_input").count() as u8;
+    }
 }
 
 impl GpuController for IntelGpuController {
@@ -749,8 +753,10 @@ impl GpuController for IntelGpuController {
                     match settings.mode {
                         lact_schema::FanControlMode::Static => {
                             let pwm_value = (settings.static_speed * 255.0) as u8;
-                        
-                            for fan_index in 1..=3 {
+
+                            let fans: u8 = self.get_hwmon_fans_amount();
+
+                            for fan_index in 1..=fans {
                                 let pwm = format!("pwm{}", fan_index);
                                 let pwm_enable = format!("pwm{}_enable", fan_index);
                                 
@@ -765,7 +771,9 @@ impl GpuController for IntelGpuController {
                                 return Err(anyhow!("The fan curve needs exactly {} points", self.get_hwmon_controllable_points_amount()));
                             }
 
-                            for fan_index in 1..=3 {
+                            let fans: u8 = self.get_hwmon_fans_amount();
+
+                            for fan_index in 1..=fans {
                                 let pwm_enable = format!("pwm{}_enable", fan_index);
                                 self.write_hwmon_file(&[&pwm_enable], "1")
                                     .context("Could not enable manual fan control")?;
@@ -776,7 +784,7 @@ impl GpuController for IntelGpuController {
                                 let pwm = (*speed * 255.0) as u8;
                                 let temp = (*temperature as f64 * 1000.0) as i32;
 
-                                for fan_index in 1..=3 {
+                                for fan_index in 1..=fans {
                                     self.write_hwmon_file(&[&format!("pwm{}_auto_point{}_temp", fan_index, point)], &temp.to_string())
                                         .context("Could not set the temperature for a point in the curve")?;
                                     self.write_hwmon_file(&[&format!("pwm{}_auto_point{}_pwm", fan_index, point)], &pwm.to_string())
@@ -789,7 +797,9 @@ impl GpuController for IntelGpuController {
                     }
                 }
             } else if (self.has_fan_control()) {
-                for fan_index in 1..=3 {
+                let fans: u8 = self.get_hwmon_fans_amount();
+
+                for fan_index in 1..=fans {
                     let pwm_enable = format!("pwm{}_enable", fan_index);
                     self.write_hwmon_file(&[&pwm_enable], "2")
                         .context("Could not enable firmware fan control");
