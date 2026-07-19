@@ -645,8 +645,9 @@ impl IntelGpuController {
             return Result::Err(anyhow!("Tried to control the fan curve when there is no fan control"));
         }
 
-        if (curve.0.len() as u8 != self.get_hwmon_controllable_points_amount()) {
-            return Result::Err(anyhow!("The fan curve needs exactly {} points", self.get_hwmon_controllable_points_amount()));
+        let valid_fan_curve: (bool, String) = self.is_valid_fan_curve(curve.clone());
+        if (!valid_fan_curve.0) {
+            return Result::Err(anyhow!(valid_fan_curve.1));
         }
 
         let fans: u8 = self.get_hwmon_fans_amount();
@@ -671,6 +672,31 @@ impl IntelGpuController {
         }
 
         return Result::Ok(true);
+    }
+
+    fn is_valid_fan_curve(&self, curve: FanCurve) -> (bool, String) {
+        if (curve.0.len() < 1 || curve.0.len() > self.get_hwmon_controllable_points_amount() as usize) {
+            return (false, format!("The fan curve needs at least 1 point and up to {} points", self.get_hwmon_controllable_points_amount()));
+        }
+
+        let mut highest_temperature: i32 = 0;
+        let mut highest_speed: f32 = 0.0;
+
+        for (temperature, speed) in curve.0.iter() {
+            if (*temperature >= highest_temperature) {
+                highest_temperature = *temperature;
+            } else {
+                return (false, "The fan curve temperatures must be in increasing order".parse().unwrap());
+            }
+
+            if (*speed >= highest_speed) {
+                highest_speed = *speed;
+            } else {
+                return (false, "The fan curve speeds must be in increasing order".parse().unwrap());
+            }
+        }
+
+        return (true, "Ok".parse().unwrap());
     }
 
     fn set_fans_static_speed(&self, speed: f32) -> Result<bool, anyhow::Error> {
