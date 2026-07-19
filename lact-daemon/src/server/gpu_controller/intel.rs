@@ -720,6 +720,10 @@ impl IntelGpuController {
 
         return Result::Ok(true);
     }
+
+    fn get_hwmon_fan_max_speed(&self) -> Option<u32> {
+        return self.read_hwmon_file(&["fan1_max"], false).map(|speed| speed as u32);
+    }
 }
 
 impl GpuController for IntelGpuController {
@@ -896,6 +900,7 @@ impl GpuController for IntelGpuController {
                 None => false,
                 Some(_) => true
             },
+            speed_max: self.get_hwmon_fan_max_speed(),
             ..Default::default()
         };
 
