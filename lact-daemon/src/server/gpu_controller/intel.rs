@@ -761,8 +761,8 @@ impl GpuController for IntelGpuController {
                             }
                         },
                         lact_schema::FanControlMode::Curve => {
-                            if (settings.curve.0.len() != 10) {
-                                return Err(anyhow!("The fan curve needs exactly 10 points"));
+                            if (settings.curve.0.len() as u8 != self.get_hwmon_controllable_points_amount()) {
+                                return Err(anyhow!("The fan curve needs exactly {} points", self.get_hwmon_controllable_points_amount()));
                             }
 
                             for fan_index in 1..=3 {
