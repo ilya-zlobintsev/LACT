@@ -802,7 +802,7 @@ impl GpuController for IntelGpuController {
                 for fan_index in 1..=fans {
                     let pwm_enable = format!("pwm{}_enable", fan_index);
                     self.write_hwmon_file(&[&pwm_enable], "2")
-                        .context("Could not enable firmware fan control");
+                        .context("Could not enable firmware fan control")?;
                 }
             }
 
