@@ -607,6 +607,11 @@ impl IntelGpuController {
 
         return Option::Some(FanCurve(points.into_iter().collect()));
     }
+
+    fn get_hwmon_fan_static_speed(&self) -> Option<f32> {
+        return self.read_hwmon_file(&["pwm1"], false)
+            .map(|speed: u64| speed as f32 / 255.0)
+    }
 }
 
 impl GpuController for IntelGpuController {
@@ -806,6 +811,7 @@ impl GpuController for IntelGpuController {
                 .read_hwmon_file(&["fan1_input", "fan2_input", "fan3_input"], false)
                 .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
             curve: self.get_hwmon_fan_curve().map(|curve| curve.0),
+            static_speed: self.get_hwmon_fan_static_speed(),
             ..Default::default()
         };
 
