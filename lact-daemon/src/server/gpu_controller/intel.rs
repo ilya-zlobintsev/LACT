@@ -612,6 +612,29 @@ impl IntelGpuController {
         return self.read_hwmon_file(&["pwm1"], false)
             .map(|speed: u64| speed as f32 / 255.0)
     }
+
+    fn get_hwmon_fan_control_mode(&self) -> Option<FanControlMode> {
+        let mode: u64 = self.read_hwmon_file(&["pwm1_enable"], false)?;
+        return match mode {
+            0 => Option::Some(FanControlMode::Static),
+            1 => {
+                let mut pwm_files = self.read_hwmon_files::<String>("pwm1_", "_pwm")
+                    .map(|(pwm, _)| {
+                        return pwm;
+                    });
+                return match pwm_files.next() {
+                    None => Option::Some(FanControlMode::Static),
+                    Some(first) => {
+                        if (pwm_files.all(|pwm: String| first == pwm)) { //when you set a static speed, the xe driver will set your table points to the same pwm; if one is different, then we are in a curve
+                            return Option::Some(FanControlMode::Static);
+                        }
+                        return Option::Some(FanControlMode::Curve);
+                    }
+                };
+            },
+            _ => Option::None
+        };
+    }
 }
 
 impl GpuController for IntelGpuController {
@@ -812,6 +835,7 @@ impl GpuController for IntelGpuController {
                 .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
             curve: self.get_hwmon_fan_curve().map(|curve| curve.0),
             static_speed: self.get_hwmon_fan_static_speed(),
+            control_mode: self.get_hwmon_fan_control_mode(),
             ..Default::default()
         };
 
