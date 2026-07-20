@@ -821,7 +821,7 @@ impl GpuController for NvidiaGpuController {
                 if let Some(mask) = self.nvapi_thermals_mask
                     && let Ok(thermals) = nvapi.get_thermals(*handle, mask)
                 {
-                    if let Some(hotspot) = thermals.hotspot(arch.as_ref()) {
+                    if let Some(hotspot) = nvapi.read_hotspot(&thermals, *handle, arch.as_ref()) {
                         temps.insert(
                             "GPU Hotspot".to_owned(),
                             TemperatureEntry {
