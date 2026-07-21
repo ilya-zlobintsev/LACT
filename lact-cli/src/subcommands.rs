@@ -235,7 +235,11 @@ pub async fn set_auto_switch(
 }
 
 pub async fn detach(ctx: CliContext<'_>) -> Result<()> {
-    let id = ctx.current_gpu_id().await?;
+    let id = ctx
+        .args
+        .gpu_id
+        .as_deref()
+        .context("`--gpu-id` must be passed explicitly for reattaching")?;
     let name = ctx.name_for_id(&id).await?;
     ctx.client.detach(&id).await?;
 
