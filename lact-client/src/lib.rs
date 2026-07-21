@@ -156,6 +156,8 @@ impl DaemonClient {
     request_with_id!(dump_vbios, VbiosDump, Vec<u8>);
     request_with_id!(get_process_list, ProcessList, ProcessList);
     request_with_id!(get_displays_info, DisplaysInfo, DisplaysInfo);
+    request_with_id!(detach, DetachGpu, ());
+    request_with_id!(reattach, ReattachGpu, ());
 
     pub async fn list_profiles(&self, include_state: bool) -> anyhow::Result<ProfilesInfo> {
         self.make_request(Request::ListProfiles { include_state })

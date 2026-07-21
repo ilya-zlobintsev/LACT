@@ -171,13 +171,10 @@ pub type NvidiaLibs = (Arc<Nvml>, Arc<Option<NvApi>>);
 #[cfg(not(feature = "nvidia"))]
 pub type NvidiaLibs = ();
 
-pub(crate) fn init_controller(
+pub(crate) fn build_controller_info(
     path: PathBuf,
     pci_db: &pciid_parser::Database,
-) -> anyhow::Result<Box<dyn GpuController>> {
-    #[cfg(not(feature = "nvidia"))]
-    let _ = NVML;
-
+) -> anyhow::Result<CommonControllerInfo> {
     let uevent_path = path.join("uevent");
     let uevent = fs::read_to_string(uevent_path).context("Could not read 'uevent'")?;
     let mut uevent_map = parse_uevent(&uevent);
@@ -239,12 +236,19 @@ pub(crate) fn init_controller(
     pci_info.subsystem_pci_info.model =
         get_embedded_device_name(&pci_info).or(pci_info.subsystem_pci_info.model);
 
-    let common = CommonControllerInfo {
+    Ok(CommonControllerInfo {
         sysfs_path: path,
         pci_info,
         pci_slot_name,
         driver,
-    };
+    })
+}
+
+pub(crate) fn init_controller(
+    common: CommonControllerInfo,
+) -> anyhow::Result<Box<dyn GpuController>> {
+    #[cfg(not(feature = "nvidia"))]
+    let _ = NVML;
 
     match common.driver.as_str() {
         "amdgpu" | "radeon" => {

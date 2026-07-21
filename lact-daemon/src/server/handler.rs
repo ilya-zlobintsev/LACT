@@ -8,7 +8,12 @@ use crate::server::display;
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
-    server::{ClientContext, gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
+    server::{
+        ClientContext,
+        gpu_controller::{build_controller_info, init_controller},
+        profiles,
+        system::DAEMON_VERSION,
+    },
 };
 use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
@@ -105,6 +110,7 @@ pub struct Handler {
     profile_hold_snapshot: ProfileHoldSnapshot,
     next_hold_cookie: Rc<Cell<u64>>,
     polkit_proxy: Option<AuthorityProxy<'static>>,
+    ignored_gpu_ids: Rc<RwLock<Vec<String>>>,
 }
 
 impl<'a> Handler {
@@ -126,7 +132,7 @@ impl<'a> Handler {
         // For such scenarios there is a retry logic when no GPUs were found,
         // or if some of the PCI devices don't have a drm entry yet.
         for i in 1..=CONTROLLERS_LOAD_RETRY_ATTEMPTS {
-            controllers = load_controllers(base_path, pci_db)?;
+            controllers = load_controllers(base_path, pci_db, &[])?;
 
             let mut should_retry = false;
 
@@ -201,6 +207,7 @@ impl<'a> Handler {
             profile_hold_snapshot: Rc::new(RefCell::new(None)),
             next_hold_cookie: Rc::new(Cell::new(1)),
             polkit_proxy,
+            ignored_gpu_ids: Rc::new(RwLock::new(Vec::new())),
         };
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
@@ -234,10 +241,11 @@ impl<'a> Handler {
     pub async fn reload_gpus(&self) {
         let mut controllers_guard = self.gpu_controllers.write().await;
         let config = self.config.read().await;
+        let detached_ids = self.ignored_gpu_ids.read().await;
 
         let base_path = drm_base_path();
         let pci_db = read_pci_db();
-        match load_controllers(&base_path, &pci_db) {
+        match load_controllers(&base_path, &pci_db, &detached_ids) {
             Ok(new_controllers) => {
                 info!(
                     "GPU list reloaded with {} devices, reapplying configuration",
@@ -1080,6 +1088,24 @@ impl<'a> Handler {
         }
     }
 
+    pub async fn detach_gpu(&self, gpu_id: &str) -> anyhow::Result<()> {
+        let _ = self.controller_by_id(gpu_id).await?;
+
+        self.ignored_gpu_ids.write().await.push(gpu_id.to_owned());
+        self.reload_gpus().await;
+
+        Ok(())
+    }
+
+    pub async fn reattach_gpu(&self, gpu_id: &str) -> anyhow::Result<()> {
+        self.ignored_gpu_ids.write().await.retain(|id| id != gpu_id);
+        self.reload_gpus().await;
+
+        let _ = self.controller_by_id(gpu_id).await?;
+
+        Ok(())
+    }
+
     pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
         if let Some(tx) = self
             .confirm_config_tx
@@ -1394,6 +1420,7 @@ pub(crate) static INTEL_DRM: LazyLock<Option<IntelDrm>> = LazyLock::new(|| {
 fn load_controllers(
     base_path: &Path,
     pci_db: &Database,
+    detached_ids: &[String],
 ) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
     let mut controllers = BTreeMap::new();
 
@@ -1411,10 +1438,26 @@ fn load_controllers(
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
 
-            match init_controller(device_path.clone(), pci_db) {
+            let info = match build_controller_info(device_path.clone(), pci_db) {
+                Ok(info) => info,
+                Err(err) => {
+                    error!(
+                        "could not read GPU info at '{}': {err:#}",
+                        device_path.display()
+                    );
+                    continue;
+                }
+            };
+            let id = info.build_id();
+
+            if detached_ids.contains(&id) {
+                info!("skipping GPU '{id}', as it is currently detached");
+                continue;
+            }
+
+            match init_controller(info) {
                 Ok(controller) => {
                     let info = controller.controller_info();
-                    let id = info.build_id();
 
                     info!(
                         "initialized {} controller for GPU {id} at '{}'",

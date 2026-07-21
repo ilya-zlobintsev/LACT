@@ -27,6 +27,10 @@ pub enum CliCommand {
     },
     /// Manage profiles
     Profile(ProfileArgs),
+    /// Detach the GPU from LACT (temporarily ignore it)
+    Detach,
+    /// Reattach a previously detached GPU
+    Reattach,
 }
 
 #[derive(Parser, Clone, Copy)]
