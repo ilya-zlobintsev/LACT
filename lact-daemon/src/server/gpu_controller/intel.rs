@@ -603,6 +603,26 @@ impl IntelGpuController {
                 .unwrap();
 
             points.push((temp as i32 / 1000, pwm as f32 / 255.0));
+
+            info!("{}", temp);
+        }
+
+        let mut last_speed: f32 = (*points.last().unwrap()).1;
+        for mut point_index in (0..amount - 1).rev() {
+            let point: (i32, f32) = *points.get(point_index as usize).unwrap();
+
+            let speed: f32 = point.1;
+
+            if (last_speed != speed) {
+                last_speed = speed;
+                continue;
+            }
+
+            last_speed = speed;
+
+            points.remove(point_index as usize + 1); //if the speed is the same as the last, we probably auto completed it, so we dont need to show it here
+
+            point_index = point_index - 1;
         }
 
         return Option::Some(FanCurve(points.into_iter().collect()));
