@@ -614,8 +614,7 @@ impl IntelGpuController {
             let speed: f32 = point.1;
 
             if (last_speed != speed) {
-                last_speed = speed;
-                continue;
+                break; //we might be in the middle of the curve and we are not that smart to figure out how to handle that
             }
 
             last_speed = speed;
