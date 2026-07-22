@@ -239,6 +239,74 @@ impl NvApi {
         Ok(handles.into_iter().take(count as usize).collect())
     }
 
+    pub fn read_vram_temps(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        vram_type: Option<&str>,
+    ) -> anyhow::Result<Vec<u64>> {
+        const REG_OFFSET_GDDR_TEMP_DATA_BASE: u32 = 0x009024C0;
+        const REG_OFFSET_GDDR_TEMP_STATUS_BASE: u32 = 0x009024D0;
+        const REG_OFFSET_GDDR_CLAMSHELL: u32 = 0x00900200;
+
+        fn parse_temp(raw: u64) -> u64 {
+            2 * raw.min(0x50) - 40
+        }
+
+        let mut temps = Vec::new();
+
+        match vram_type {
+            Some("GDDR6x") => {
+                let is_clamshell = unsafe {
+                    let value = self.read_u32_register(handle, REG_OFFSET_GDDR_CLAMSHELL)?;
+                    (value >> 22) == 1
+                };
+
+                for partition in 0..=5 {
+                    let data_offset = REG_OFFSET_GDDR_TEMP_DATA_BASE + partition * 0x4000;
+                    let status_offset = REG_OFFSET_GDDR_TEMP_STATUS_BASE + partition * 0x4000;
+
+                    unsafe {
+                        let status = self.read_u32_register(handle, status_offset)?;
+
+                        // Explicit poison data
+                        if status & 0xFFFF0000 == 0xBADF0000 {
+                            continue;
+                        }
+
+                        for (slot, status_bit) in [(0x0, 24), (0x4, 25), (0x8, 26), (0xC, 27)] {
+                            if (status >> status_bit) & 1 == 1 {
+                                let data = self.read_u32_register(handle, data_offset + slot)?;
+
+                                if data == 0
+                                    || data == u64::from(u32::MAX)
+                                    || data & 0xFFFF0000 == 0xBADF0000
+                                {
+                                    continue;
+                                }
+
+                                let pc0 = (data >> 16) & 0xFF;
+                                let pc1 = (data >> 24) & 0xFF;
+
+                                if pc0 == 0 || pc0 == u64::from(u8::MAX) {
+                                    continue;
+                                }
+                                temps.push(parse_temp(pc0));
+
+                                if is_clamshell && pc1 != 0 && pc1 != u64::from(u8::MAX) {
+                                    temps.push(parse_temp(pc1));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Some("GDDR7") => todo!(),
+            _ => (),
+        }
+
+        Ok(temps)
+    }
+
     pub unsafe fn read_blackwell_hotspot(
         &self,
         handle: NvPhysicalGpuHandle,

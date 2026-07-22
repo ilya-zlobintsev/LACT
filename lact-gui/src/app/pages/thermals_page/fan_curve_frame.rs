@@ -17,6 +17,7 @@ use gtk::{
     },
 };
 use i18n_embed_fl::fl;
+use indexmap::IndexMap;
 use lact_schema::{FanCurveMap, TemperatureEntry, default_fan_curve};
 use plotters::{
     chart::ChartBuilder,
@@ -35,7 +36,6 @@ use relm4::{
 };
 use std::{
     cell::{Cell, RefCell},
-    collections::HashMap,
     ops::RangeInclusive,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
@@ -94,7 +94,7 @@ pub(super) enum FanCurveFrameMsg {
 pub(super) struct CurveSetupMsg {
     pub curve: FanCurveMap,
     pub hw_based: bool,
-    pub current_temperatures: HashMap<String, TemperatureEntry>,
+    pub current_temperatures: IndexMap<String, TemperatureEntry>,
     pub temperature_key: Option<String>,
     pub speed_range: RangeInclusive<f32>,
     pub temperature_range: RangeInclusive<f32>,

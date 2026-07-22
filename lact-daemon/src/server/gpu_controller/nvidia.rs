@@ -788,7 +788,7 @@ impl GpuController for NvidiaGpuController {
     fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let device = self.device();
 
-        let mut temps = HashMap::new();
+        let mut temps = IndexMap::new();
 
         if let Ok(temp) = device.temperature(TemperatureSensor::Gpu) {
             let crit = device
@@ -854,6 +854,28 @@ impl GpuController for NvidiaGpuController {
                                 display_only: true,
                             },
                         );
+                    }
+
+                    match nvapi.read_vram_temps(*handle, vram_type) {
+                        Ok(sensors) => {
+                            for (i, value) in sensors.into_iter().enumerate() {
+                                temps.insert(
+                                    format!("VRAM Chip {}", i + 1),
+                                    TemperatureEntry {
+                                        value: Temperature {
+                                            current: Some(value as f32),
+                                            crit: None,
+                                            crit_hyst: None,
+                                        },
+                                        primary: false,
+                                        display_only: true,
+                                    },
+                                );
+                            }
+                        }
+                        Err(err) => {
+                            warn!("could not read VRAM sensors: {err:#}");
+                        }
                     }
                 }
 

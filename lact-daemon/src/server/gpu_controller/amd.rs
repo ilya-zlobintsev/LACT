@@ -16,6 +16,7 @@ use amdgpu_sysfs::{
 };
 use anyhow::{Context, anyhow, bail};
 use futures::{FutureExt, future::LocalBoxFuture};
+use indexmap::IndexMap;
 use lact_schema::{
     ActivePowerStates, AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo,
     ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
@@ -953,7 +954,7 @@ impl GpuController for AmdGpuController {
             .map(|percent| (f64::from(percent) * 2.55) as u32)
             .or_else(|| self.hw_mon_and_then(HwMon::get_fan_min_pwm).map(u32::from));
 
-        let mut temps: HashMap<String, TemperatureEntry> = HashMap::new();
+        let mut temps: IndexMap<String, TemperatureEntry> = IndexMap::new();
 
         if let Ok(hwmon) = self.first_hw_mon() {
             temps = hwmon
@@ -968,6 +969,8 @@ impl GpuController for AmdGpuController {
                     (name, entry)
                 })
                 .collect();
+
+            temps.sort_by(|a, _, b, _| a.cmp(b));
         }
 
         let mut power_sensors = HashMap::new();

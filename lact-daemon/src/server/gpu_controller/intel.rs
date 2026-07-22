@@ -11,6 +11,7 @@ use crate::{
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{Context, anyhow, bail};
 use futures::future::LocalBoxFuture;
+use indexmap::IndexMap;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceInfo, DeviceStats, DeviceType,
     DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState,
@@ -356,7 +357,7 @@ impl IntelGpuController {
         }
     }
 
-    fn get_temperatures(&self) -> HashMap<String, TemperatureEntry> {
+    fn get_temperatures(&self) -> IndexMap<String, TemperatureEntry> {
         self.read_hwmon_files::<f32>("temp", "_input")
             .map(|(temp, file)| {
                 let mut key = None;
