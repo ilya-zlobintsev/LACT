@@ -695,7 +695,7 @@ impl IntelGpuController {
         let points_amount: usize = self.get_hwmon_controllable_points_amount() as usize;
         if (last_point.is_some() && curve.0.len() < points_amount) {
             let mut index: i32 = 1;
-            for point in curve.0.len()..=points_amount {
+            for point in curve.0.len() + 1..=points_amount {
                 let point_data: (&i32, &f32) = last_point.unwrap();
                 let pwm = (*point_data.1 * 255.0) as u8;
                 let temp = (*point_data.0 as f64 * 1000.0) as i32 + (index * 1000); //it looks like the xe driver does not accept points with the same temperature or less than 1C apart, so we make the points be 1C from each other
