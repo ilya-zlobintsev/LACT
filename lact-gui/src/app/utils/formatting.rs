@@ -262,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn fmt_temperature_text_sorts_labels() {
+    fn fmt_temperature_text_retains_order() {
         let stats = DeviceStats {
             temps: IndexMap::from([
                 (
@@ -295,7 +295,7 @@ mod tests {
 
         assert_eq!(
             fmt_temperature_text(&stats).0.join(", "),
-            "edge: <span font_family='monospace'>55</span>°C, junction: <span font_family='monospace'>80</span>°C".to_string()
+            "junction: <span font_family='monospace'>80</span>°C, edge: <span font_family='monospace'>55</span>°C".to_string()
         );
     }
 
