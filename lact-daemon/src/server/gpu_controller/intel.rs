@@ -10,12 +10,14 @@ use crate::{
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{Context, anyhow, bail};
+use futures::StreamExt;
 use futures::future::LocalBoxFuture;
+use lact_schema::config::FanCurve;
 use lact_schema::{
-    ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceInfo, DeviceStats, DeviceType,
-    DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState,
-    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats,
-    VramStats, config::GpuConfig, DeviceFlag, FanControlMode
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats,
+    DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelClocksTable, IntelDrmInfo,
+    LinkInfo, PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType,
+    TemperatureEntry, VoltageStats, VramStats, config::GpuConfig,
 };
 use std::{
     borrow::Cow,
@@ -29,9 +31,7 @@ use std::{
     str::FromStr,
     time::Instant,
 };
-use futures::StreamExt;
 use tracing::{debug, error, info, trace, warn};
-use lact_schema::config::FanCurve;
 
 const DRM_VRAM_KEYS: &[&str] = &["drm-total-vram0", "drm-total-local0", "drm-total-system0"];
 const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
@@ -228,7 +228,7 @@ impl IntelGpuController {
                         && let Some(infix) = name
                             .strip_prefix(file_prefix)
                             .and_then(|name| name.strip_suffix(file_suffix))
-                        // && !infix.contains('_')
+                    // && !infix.contains('_')
                     {
                         files.push(entry.path());
                     }
@@ -571,7 +571,7 @@ impl IntelGpuController {
             .map(|value| value as f64)
             .or_else(|| self.get_power_cap().map(|_| FALLBACK_MAX_POWER_CAP))
     }
-    
+
     fn has_fan_control(&self) -> bool {
         return self.match_hwmon_files(&["pwm1"]).next().is_some();
     }
@@ -593,11 +593,13 @@ impl IntelGpuController {
             let pwm_file: String = format!("pwm1_auto_point{}_pwm", point);
             let temp_file: String = format!("pwm1_auto_point{}_temp", point);
 
-            let pwm: i32 = self.read_hwmon_file(&[&*pwm_file], false)
+            let pwm: i32 = self
+                .read_hwmon_file(&[&*pwm_file], false)
                 .map(|value: u64| value as i32)
                 .context("Could not read the curve")
                 .unwrap();
-            let temp: f32 = self.read_hwmon_file(&[&*temp_file], false)
+            let temp: f32 = self
+                .read_hwmon_file(&[&*temp_file], false)
                 .map(|value: u64| value as f32)
                 .context("Could not read the curve")
                 .unwrap();
@@ -628,8 +630,9 @@ impl IntelGpuController {
     }
 
     fn get_hwmon_fan_static_speed(&self) -> Option<f32> {
-        return self.read_hwmon_file(&["pwm1"], false)
-            .map(|speed: u64| speed as f32 / 255.0)
+        return self
+            .read_hwmon_file(&["pwm1"], false)
+            .map(|speed: u64| speed as f32 / 255.0);
     }
 
     fn get_hwmon_fan_control_mode(&self) -> Option<FanControlMode> {
@@ -637,21 +640,23 @@ impl IntelGpuController {
         return match mode {
             0 => Option::Some(FanControlMode::Static),
             1 => {
-                let mut pwm_files = self.read_hwmon_files::<String>("pwm1_", "_pwm")
-                    .map(|(pwm, _)| {
-                        return pwm;
-                    });
+                let mut pwm_files =
+                    self.read_hwmon_files::<String>("pwm1_", "_pwm")
+                        .map(|(pwm, _)| {
+                            return pwm;
+                        });
                 return match pwm_files.next() {
                     None => Option::Some(FanControlMode::Static),
                     Some(first) => {
-                        if (pwm_files.all(|pwm: String| first == pwm)) { //when you set a static speed, the xe driver will set your table points to the same pwm; if one is different, then we are in a curve
+                        if (pwm_files.all(|pwm: String| first == pwm)) {
+                            //when you set a static speed, the xe driver will set your table points to the same pwm; if one is different, then we are in a curve
                             return Option::Some(FanControlMode::Static);
                         }
                         return Option::Some(FanControlMode::Curve);
                     }
                 };
-            },
-            _ => Option::None
+            }
+            _ => Option::None,
         };
     }
 
@@ -661,7 +666,9 @@ impl IntelGpuController {
 
     fn apply_fan_curve(&self, curve: FanCurve) -> Result<bool, anyhow::Error> {
         if (!self.has_fan_control()) {
-            return Result::Err(anyhow!("Tried to control the fan curve when there is no fan control"));
+            return Result::Err(anyhow!(
+                "Tried to control the fan curve when there is no fan control"
+            ));
         }
 
         let valid_fan_curve: (bool, String) = self.is_valid_fan_curve(curve.clone());
@@ -683,10 +690,16 @@ impl IntelGpuController {
             let temp = (*temperature as f64 * 1000.0) as i32;
 
             for fan_index in 1..=fans {
-                self.write_hwmon_file(&[&format!("pwm{}_auto_point{}_temp", fan_index, point)], &temp.to_string())
-                    .context("Could not set the temperature for a point in the curve")?;
-                self.write_hwmon_file(&[&format!("pwm{}_auto_point{}_pwm", fan_index, point)], &pwm.to_string())
-                    .context("Could not set the RPM for a point in the curve")?;
+                self.write_hwmon_file(
+                    &[&format!("pwm{}_auto_point{}_temp", fan_index, point)],
+                    &temp.to_string(),
+                )
+                .context("Could not set the temperature for a point in the curve")?;
+                self.write_hwmon_file(
+                    &[&format!("pwm{}_auto_point{}_pwm", fan_index, point)],
+                    &pwm.to_string(),
+                )
+                .context("Could not set the RPM for a point in the curve")?;
             }
         }
 
@@ -702,10 +715,16 @@ impl IntelGpuController {
                 index = index + 1;
 
                 for fan_index in 1..=fans {
-                    self.write_hwmon_file(&[&format!("pwm{}_auto_point{}_temp", fan_index, point)], &temp.to_string())
-                        .context("Could not set the temperature for a point in the curve")?;
-                    self.write_hwmon_file(&[&format!("pwm{}_auto_point{}_pwm", fan_index, point)], &pwm.to_string())
-                        .context("Could not set the RPM for a point in the curve")?;
+                    self.write_hwmon_file(
+                        &[&format!("pwm{}_auto_point{}_temp", fan_index, point)],
+                        &temp.to_string(),
+                    )
+                    .context("Could not set the temperature for a point in the curve")?;
+                    self.write_hwmon_file(
+                        &[&format!("pwm{}_auto_point{}_pwm", fan_index, point)],
+                        &pwm.to_string(),
+                    )
+                    .context("Could not set the RPM for a point in the curve")?;
                 }
             }
         }
@@ -714,8 +733,16 @@ impl IntelGpuController {
     }
 
     fn is_valid_fan_curve(&self, curve: FanCurve) -> (bool, String) {
-        if (curve.0.len() < 1 || curve.0.len() > self.get_hwmon_controllable_points_amount() as usize) {
-            return (false, format!("The fan curve needs at least 1 point and up to {} points", self.get_hwmon_controllable_points_amount()));
+        if (curve.0.len() < 1
+            || curve.0.len() > self.get_hwmon_controllable_points_amount() as usize)
+        {
+            return (
+                false,
+                format!(
+                    "The fan curve needs at least 1 point and up to {} points",
+                    self.get_hwmon_controllable_points_amount()
+                ),
+            );
         }
 
         let mut highest_temperature: i32 = 0;
@@ -725,13 +752,23 @@ impl IntelGpuController {
             if (*temperature >= highest_temperature) {
                 highest_temperature = *temperature;
             } else {
-                return (false, "The fan curve temperatures must be in increasing order".parse().unwrap());
+                return (
+                    false,
+                    "The fan curve temperatures must be in increasing order"
+                        .parse()
+                        .unwrap(),
+                );
             }
 
             if (*speed >= highest_speed) {
                 highest_speed = *speed;
             } else {
-                return (false, "The fan curve speeds must be in increasing order".parse().unwrap());
+                return (
+                    false,
+                    "The fan curve speeds must be in increasing order"
+                        .parse()
+                        .unwrap(),
+                );
             }
         }
 
@@ -740,10 +777,12 @@ impl IntelGpuController {
 
     fn set_fans_static_speed(&self, speed: f32) -> Result<bool, anyhow::Error> {
         if (!self.has_fan_control()) {
-            return Result::Err(anyhow!("Tried to set the fans static speed when there is no fan control"));
+            return Result::Err(anyhow!(
+                "Tried to set the fans static speed when there is no fan control"
+            ));
         }
 
-        let pwm_value:u8 = (speed * 255.0) as u8;
+        let pwm_value: u8 = (speed * 255.0) as u8;
 
         let fans: u8 = self.get_hwmon_fans_amount();
 
@@ -761,7 +800,9 @@ impl IntelGpuController {
     }
 
     fn get_hwmon_fan_max_speed(&self) -> Option<u32> {
-        return self.read_hwmon_file(&["fan1_max"], false).map(|speed| speed as u32);
+        return self
+            .read_hwmon_file(&["fan1_max"], false)
+            .map(|speed| speed as u32);
     }
 }
 
@@ -805,9 +846,9 @@ impl GpuController for IntelGpuController {
                 memory_info: Some(vram_info.mem_info),
                 ..Default::default()
             };
-            
+
             let mut flags = vec![];
-            
+
             if (self.has_fan_control()) {
                 flags.push(DeviceFlag::ConfigurableFanControl);
             }
@@ -867,7 +908,6 @@ impl GpuController for IntelGpuController {
                 }
             }
 
-            
             if (config.fan_control_enabled) {
                 if (!self.has_fan_control()) {
                     bail!("Tried to control the fans when there is no available fan control");
@@ -877,12 +917,11 @@ impl GpuController for IntelGpuController {
                     match settings.mode {
                         lact_schema::FanControlMode::Static => {
                             self.set_fans_static_speed(settings.static_speed)?;
-                        },
+                        }
                         lact_schema::FanControlMode::Curve => {
                             self.apply_fan_curve(settings.curve.clone())?;
                         }
-                        _ => {
-                        }
+                        _ => {}
                     }
                 }
             } else if (self.has_fan_control()) {
@@ -937,7 +976,7 @@ impl GpuController for IntelGpuController {
             control_mode: self.get_hwmon_fan_control_mode(),
             control_enabled: match self.get_hwmon_fan_control_mode() {
                 None => false,
-                Some(_) => true
+                Some(_) => true,
             },
             speed_max: self.get_hwmon_fan_max_speed(),
             ..Default::default()
