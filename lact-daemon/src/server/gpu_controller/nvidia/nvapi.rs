@@ -243,7 +243,7 @@ impl NvApi {
         &self,
         handle: NvPhysicalGpuHandle,
         vram_type: Option<&str>,
-    ) -> anyhow::Result<Vec<u64>> {
+    ) -> anyhow::Result<Vec<(String, u64)>> {
         const REG_OFFSET_GDDR_TEMP_DATA_BASE: u32 = 0x009024C0;
         const REG_OFFSET_GDDR_TEMP_STATUS_BASE: u32 = 0x009024D0;
         const REG_OFFSET_GDDR_CLAMSHELL: u32 = 0x00900200;
@@ -254,26 +254,29 @@ impl NvApi {
 
         let mut temps = Vec::new();
 
-        match vram_type {
-            Some("GDDR6x") => {
-                let is_clamshell = unsafe {
-                    let value = self.read_u32_register(handle, REG_OFFSET_GDDR_CLAMSHELL)?;
-                    (value >> 22) == 1
-                };
+        if let Some("GDDR6x" | "GDDR7") = vram_type {
+            let is_clamshell = unsafe {
+                self.read_u32_register(handle, REG_OFFSET_GDDR_CLAMSHELL)
+                    .is_ok_and(|value| (value >> 22) & 1 == 1)
+            };
 
-                for partition in 0..=5 {
-                    let data_offset = REG_OFFSET_GDDR_TEMP_DATA_BASE + partition * 0x4000;
-                    let status_offset = REG_OFFSET_GDDR_TEMP_STATUS_BASE + partition * 0x4000;
+            for partition in 0..=8 {
+                let data_offset = REG_OFFSET_GDDR_TEMP_DATA_BASE + partition * 0x4000;
+                let status_offset = REG_OFFSET_GDDR_TEMP_STATUS_BASE + partition * 0x4000;
 
-                    unsafe {
-                        let status = self.read_u32_register(handle, status_offset)?;
+                unsafe {
+                    let Ok(status) = self.read_u32_register(handle, status_offset) else {
+                        continue;
+                    };
 
-                        // Explicit poison data
-                        if status & 0xFFFF0000 == 0xBADF0000 {
-                            continue;
-                        }
+                    // Explicit poison data
+                    if status & 0xFFFF0000 == 0xBADF0000 {
+                        continue;
+                    }
 
-                        for (slot, status_bit) in [(0x0, 24), (0x4, 25), (0x8, 26), (0xC, 27)] {
+                    let mut i = 0;
+                    'pairs: for slot_pair in [[(0x0, 24), (0x8, 26)], [(0x4, 25), (0xC, 27)]] {
+                        for (slot, status_bit) in slot_pair {
                             if (status >> status_bit) & 1 == 1 {
                                 let data = self.read_u32_register(handle, data_offset + slot)?;
 
@@ -290,18 +293,25 @@ impl NvApi {
                                 if pc0 == 0 || pc0 == u64::from(u8::MAX) {
                                     continue;
                                 }
-                                temps.push(parse_temp(pc0));
+
+                                let partition_letter = char::from_u32(('A' as u32) + partition)
+                                    .context("Invalid partition")?;
+                                let label = format!("{partition_letter}{i}");
+
+                                temps.push((label.clone(), parse_temp(pc0)));
 
                                 if is_clamshell && pc1 != 0 && pc1 != u64::from(u8::MAX) {
-                                    temps.push(parse_temp(pc1));
+                                    temps.push((format!("{label} (Back)"), parse_temp(pc1)));
                                 }
+
+                                i += 1;
+
+                                continue 'pairs;
                             }
                         }
                     }
                 }
             }
-            Some("GDDR7") => todo!(),
-            _ => (),
         }
 
         Ok(temps)

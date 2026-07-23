@@ -858,9 +858,9 @@ impl GpuController for NvidiaGpuController {
 
                     match nvapi.read_vram_temps(*handle, vram_type) {
                         Ok(sensors) => {
-                            for (i, value) in sensors.into_iter().enumerate() {
+                            for (label, value) in sensors {
                                 temps.insert(
-                                    format!("VRAM Chip {}", i + 1),
+                                    format!("VRAM Chip {label}"),
                                     TemperatureEntry {
                                         value: Temperature {
                                             current: Some(value as f32),
