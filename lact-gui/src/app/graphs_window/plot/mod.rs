@@ -4,12 +4,8 @@ mod render_thread;
 mod to_texture_ext;
 
 use super::stat::{StatType, StatsData};
-use crate::app::utils::css_colors;
 use gtk::glib::{self, Object, subclass::types::ObjectSubclassIsExt};
-use plotters::style::{
-    BLACK, BLUE, Color, RED, RGBAColor, WHITE, YELLOW,
-    full_palette::{DEEPORANGE_100, GREEN_500},
-};
+use plotters::style::RGBAColor;
 use std::sync::{Arc, RwLock};
 
 glib::wrapper! {
@@ -58,48 +54,40 @@ pub struct PlotColorScheme {
 
 impl Default for PlotColorScheme {
     fn default() -> Self {
-        Self {
-            background: WHITE.into(),
-            text: BLACK.into(),
-            border: BLACK.mix(0.8),
-            border_secondary: BLACK.mix(0.5),
-            throttling: DEEPORANGE_100.into(),
-            success: GREEN_500.into(),
-            accent_bg: BLUE.mix(0.5),
-            error: RED.into(),
-            warning: YELLOW.into(),
-        }
+        Self::LIGHT
     }
 }
 
 impl PlotColorScheme {
+    const LIGHT: Self = Self {
+        background: RGBAColor(255, 255, 255, 1.0),
+        text: RGBAColor(0, 0, 0, 0.8),
+        border: RGBAColor(0, 0, 0, 0.15),
+        border_secondary: RGBAColor(0, 0, 0, 0.15),
+        throttling: RGBAColor(0, 0, 0, 0.5),
+        success: RGBAColor(27, 133, 83, 1.0),
+        accent_bg: RGBAColor(53, 132, 228, 1.0),
+        error: RGBAColor(192, 28, 40, 1.0),
+        warning: RGBAColor(156, 110, 3, 1.0),
+    };
+
+    const DARK: Self = Self {
+        background: RGBAColor(29, 29, 32, 1.0),
+        text: RGBAColor(255, 255, 255, 1.0),
+        border: RGBAColor(255, 255, 255, 0.15),
+        border_secondary: RGBAColor(255, 255, 255, 0.15),
+        throttling: RGBAColor(255, 255, 255, 0.5),
+        success: RGBAColor(143, 240, 164, 1.0),
+        accent_bg: RGBAColor(53, 132, 228, 1.0),
+        error: RGBAColor(255, 123, 99, 1.0),
+        warning: RGBAColor(248, 228, 92, 1.0),
+    };
+
     pub fn current() -> Self {
-        let Some(colors) = css_colors::current() else {
-            return Self::default();
-        };
-
-        let mut throttling = gtk_to_plotters_color(colors.theme_unfocused_fg_color);
-        throttling.3 = 0.5;
-
-        Self {
-            background: gtk_to_plotters_color(colors.theme_base_color),
-            text: gtk_to_plotters_color(colors.theme_text_color),
-            border: gtk_to_plotters_color(colors.borders),
-            border_secondary: gtk_to_plotters_color(colors.unfocused_borders),
-            throttling,
-            success: gtk_to_plotters_color(colors.success_color),
-            accent_bg: gtk_to_plotters_color(colors.accent_bg_color),
-            error: gtk_to_plotters_color(colors.error_color),
-            warning: gtk_to_plotters_color(colors.warning_color),
+        if adw::StyleManager::default().is_dark() {
+            Self::DARK
+        } else {
+            Self::LIGHT
         }
     }
-}
-
-fn gtk_to_plotters_color(color: gtk::gdk::RGBA) -> RGBAColor {
-    RGBAColor(
-        (color.red() * u8::MAX as f32) as u8,
-        (color.green() * u8::MAX as f32) as u8,
-        (color.blue() * u8::MAX as f32) as u8,
-        color.alpha() as f64,
-    )
 }
