@@ -296,12 +296,18 @@ impl NvApi {
 
                                 let partition_letter = char::from_u32(('A' as u32) + partition)
                                     .context("Invalid partition")?;
-                                let label = format!("{partition_letter}{i}");
+                                let label_base = format!("{partition_letter}{i}");
 
-                                temps.push((label.clone(), parse_temp(pc0)));
+                                let front_label = if is_clamshell {
+                                    format!("{label_base} (Front)")
+                                } else {
+                                    label_base.clone()
+                                };
+
+                                temps.push((front_label, parse_temp(pc0)));
 
                                 if is_clamshell && pc1 != 0 && pc1 != u64::from(u8::MAX) {
-                                    temps.push((format!("{label} (Back)"), parse_temp(pc1)));
+                                    temps.push((format!("{label_base} (Back)"), parse_temp(pc1)));
                                 }
 
                                 i += 1;
