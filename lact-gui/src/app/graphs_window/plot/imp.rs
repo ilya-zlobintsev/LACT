@@ -106,6 +106,7 @@ mod benches {
         hw_mon::Temperature,
     };
     use divan::{Bencher, counter::ItemsCount};
+    use indexmap::IndexMap;
     use jiff::Timestamp;
     use lact_schema::{
         ActivePowerStates, ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats,
@@ -190,7 +191,7 @@ mod benches {
                         current: None,
                         sensors: HashMap::new(),
                     },
-                    temps: HashMap::from([(
+                    temps: IndexMap::from([(
                         "edge".to_owned(),
                         TemperatureEntry {
                             value: Temperature {

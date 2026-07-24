@@ -239,6 +239,90 @@ impl NvApi {
         Ok(handles.into_iter().take(count as usize).collect())
     }
 
+    pub fn read_vram_temps(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        vram_type: Option<&str>,
+    ) -> anyhow::Result<Vec<(String, u64)>> {
+        const REG_OFFSET_GDDR_TEMP_DATA_BASE: u32 = 0x009024C0;
+        const REG_OFFSET_GDDR_TEMP_STATUS_BASE: u32 = 0x009024D0;
+        const REG_OFFSET_GDDR_CLAMSHELL: u32 = 0x00900200;
+
+        fn parse_temp(raw: u64) -> u64 {
+            2 * raw.min(0x50) - 40
+        }
+
+        let mut temps = Vec::new();
+
+        if let Some("GDDR6x" | "GDDR7") = vram_type {
+            let is_clamshell = unsafe {
+                self.read_u32_register(handle, REG_OFFSET_GDDR_CLAMSHELL)
+                    .is_ok_and(|value| (value >> 22) & 1 == 1)
+            };
+
+            for partition in 0..=8 {
+                let data_offset = REG_OFFSET_GDDR_TEMP_DATA_BASE + partition * 0x4000;
+                let status_offset = REG_OFFSET_GDDR_TEMP_STATUS_BASE + partition * 0x4000;
+
+                unsafe {
+                    let Ok(status) = self.read_u32_register(handle, status_offset) else {
+                        continue;
+                    };
+
+                    // Explicit poison data
+                    if status & 0xFFFF0000 == 0xBADF0000 {
+                        continue;
+                    }
+
+                    let mut i = 0;
+                    'pairs: for slot_pair in [[(0x0, 24), (0x8, 26)], [(0x4, 25), (0xC, 27)]] {
+                        for (slot, status_bit) in slot_pair {
+                            if (status >> status_bit) & 1 == 1 {
+                                let data = self.read_u32_register(handle, data_offset + slot)?;
+
+                                if data == 0
+                                    || data == u64::from(u32::MAX)
+                                    || data & 0xFFFF0000 == 0xBADF0000
+                                {
+                                    continue;
+                                }
+
+                                let pc0 = (data >> 16) & 0xFF;
+                                let pc1 = (data >> 24) & 0xFF;
+
+                                if pc0 == 0 || pc0 == u64::from(u8::MAX) {
+                                    continue;
+                                }
+
+                                let partition_letter = char::from_u32(('A' as u32) + partition)
+                                    .context("Invalid partition")?;
+                                let label_base = format!("{partition_letter}{i}");
+
+                                let front_label = if is_clamshell {
+                                    format!("{label_base} (Front)")
+                                } else {
+                                    label_base.clone()
+                                };
+
+                                temps.push((front_label, parse_temp(pc0)));
+
+                                if is_clamshell && pc1 != 0 && pc1 != u64::from(u8::MAX) {
+                                    temps.push((format!("{label_base} (Back)"), parse_temp(pc1)));
+                                }
+
+                                i += 1;
+
+                                continue 'pairs;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(temps)
+    }
+
     pub unsafe fn read_blackwell_hotspot(
         &self,
         handle: NvPhysicalGpuHandle,

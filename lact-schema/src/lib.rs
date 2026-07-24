@@ -556,7 +556,7 @@ pub struct DeviceStats {
     pub voltage: VoltageStats,
     pub vram: VramStats,
     pub power: PowerStats,
-    pub temps: HashMap<String, TemperatureEntry>,
+    pub temps: IndexMap<String, TemperatureEntry>,
     pub busy_percent: Option<u8>,
     pub performance_level: Option<PerformanceLevel>,
     pub active_power_mizer_mode: Option<PowerMizerMode>,
