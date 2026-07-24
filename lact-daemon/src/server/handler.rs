@@ -5,6 +5,7 @@ use super::{
 };
 #[cfg(feature = "display-info")]
 use crate::server::display;
+use crate::system::run_command;
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
@@ -15,7 +16,6 @@ use crate::{
         system::DAEMON_VERSION,
     },
 };
-use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
     PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
@@ -33,12 +33,8 @@ use lact_schema::{
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
-#[cfg(all(not(test), feature = "nvidia"))]
-use nvml_wrapper::Nvml;
 use pciid_parser::Database;
 use serde_json::json;
-#[cfg(all(not(test), feature = "nvidia"))]
-use std::sync::Arc;
 use std::{
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap},
@@ -132,7 +128,7 @@ impl<'a> Handler {
         // For such scenarios there is a retry logic when no GPUs were found,
         // or if some of the PCI devices don't have a drm entry yet.
         for i in 1..=CONTROLLERS_LOAD_RETRY_ATTEMPTS {
-            controllers = load_controllers(base_path, pci_db, &[])?;
+            controllers = load_controllers(base_path, pci_db, &[], &config)?;
 
             let mut should_retry = false;
 
@@ -245,7 +241,7 @@ impl<'a> Handler {
 
         let base_path = drm_base_path();
         let pci_db = read_pci_db();
-        match load_controllers(&base_path, &pci_db, &detached_ids) {
+        match load_controllers(&base_path, &pci_db, &detached_ids, &config) {
             Ok(new_controllers) => {
                 info!(
                     "GPU list reloaded with {} devices, reapplying configuration",
@@ -1342,48 +1338,6 @@ pub(crate) fn read_pci_db() -> Database {
     })
 }
 
-#[cfg(any(test, not(feature = "nvidia")))]
-pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> = LazyLock::new(|| None);
-
-#[cfg(all(not(test), feature = "nvidia"))]
-// SAFETY: We use global LazyLock to make sure it's safe.
-// Loading of shared libaries is unsafe
-// https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
-#[allow(unused_unsafe)]
-pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> =
-    LazyLock::new(|| match unsafe { Nvml::init() } {
-        Ok(nvml) => {
-            use crate::server::gpu_controller::NvApi;
-
-            // The config has to be re-read here, because a LazyLock cannot capture external variables into the init closure
-            let disable_nvapi = Config::load()
-                .ok()
-                .flatten()
-                .and_then(|config| config.daemon.disable_nvapi);
-
-            info!("Nvidia management library loaded");
-            let nvapi = if disable_nvapi == Some(true) {
-                info!("NvAPI support is disabled");
-                None
-            } else {
-                NvApi::new()
-                    .inspect(|_| {
-                        info!("NvAPI library loaded");
-                    })
-                    .inspect_err(|err| {
-                        warn!("could not load NvAPI library: {err:#}");
-                    })
-                    .ok()
-            };
-
-            Some((Arc::new(nvml), Arc::new(nvapi)))
-        }
-        Err(err) => {
-            error!("could not load Nvidia management library: {err}");
-            None
-        }
-    });
-
 pub(crate) static AMD_DRM: LazyLock<Option<LibDrmAmdgpu>> = LazyLock::new(|| {
     // SAFETY: We use global LazyLock to make sure it's safe.
     #[allow(unused_unsafe)]
@@ -1421,6 +1375,7 @@ fn load_controllers(
     base_path: &Path,
     pci_db: &Database,
     detached_ids: &[String],
+    config: &Config,
 ) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
     let mut controllers = BTreeMap::new();
 
@@ -1455,7 +1410,7 @@ fn load_controllers(
                 continue;
             }
 
-            match init_controller(info) {
+            match init_controller(info, config) {
                 Ok(controller) => {
                     let info = controller.controller_info();
 

@@ -16,6 +16,7 @@ use std::{
     mem::{self, transmute},
     ptr,
 };
+use tracing::error;
 
 const LIBARY_NAME: &str = "libnvidia-api.so.1";
 const QUERY_INTERFACE_FN: &[u8] = b"nvapi_QueryInterface\0";
@@ -371,7 +372,10 @@ impl Drop for NvApi {
         unsafe {
             let unload = self.query_interface(QUERY_NVAPI_UNLOAD).unwrap();
             let unload: unsafe extern "C" fn() -> NvAPI_Status = transmute(unload);
-            unload();
+            let status = unload();
+            if let Err(err) = self.handle_status(status) {
+                error!("could not unload NvAPI: {err}");
+            }
         }
     }
 }
