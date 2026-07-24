@@ -188,8 +188,8 @@ systemd, as it relies on the `org.freedesktop.login2` DBus interface.
 
 Dependencies:
 
-- rust 1.93+
-- gtk 4.6+
+- rust 1.97+
+- gtk 4.14+
 - libadwaita 1.5+
 - git
 - pkg-config

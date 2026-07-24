@@ -26,8 +26,8 @@ serde_norway = { workspace = true }
 serde_json = { workspace = true }
 indexmap = { workspace = true }
 gtk = { version = "0.11.4", package = "gtk4", features = [
-    "v4_6",
-] } # TODO: bump the feature to 4_14 and figure out all the deprecations
+    "v4_14",
+] }
 
 adw = { package = "libadwaita", version = "0.9.2", features = ["v1_5"] }
 relm4 = { version = "0.11.0", features = ["libadwaita"] }

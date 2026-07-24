@@ -122,10 +122,8 @@ impl relm4::Component for FanCurveFrame {
             gtk::DrawingArea {
                 set_expand: true,
                 set_height_request: 350,
-                set_draw_func[model = model.clone()] => move |area, ctx, width, height| {
-                    let style_context = area.style_context();
-                    let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
-                    model.draw_chart(ctx, width, height,colors);
+                set_draw_func[model = model.clone()] => move |_, ctx, width, height| {
+                    model.draw_chart(ctx, width, height, PlotColorScheme::current());
                 },
 
                 add_controller = gtk::GestureClick {
