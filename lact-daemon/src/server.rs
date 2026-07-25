@@ -238,6 +238,8 @@ async fn handle_request<'a>(
         ),
         Request::ReleaseProfile { cookie } => ok_response(handler.release_profile(cookie).await?),
         Request::EvaluateProfileRule { rule } => ok_response(handler.evaluate_profile_rule(&rule)?),
+        Request::DetachGpu { id } => ok_response(handler.detach_gpu(id).await?),
+        Request::ReattachGpu { id } => ok_response(handler.reattach_gpu(id).await?),
         Request::SetProfileRule { name, rule, hooks } => {
             ok_response(handler.set_profile_rule(&name, rule, hooks, ctx).await?)
         }

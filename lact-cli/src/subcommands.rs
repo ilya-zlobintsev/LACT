@@ -233,3 +233,40 @@ pub async fn set_auto_switch(
     }
     Ok(())
 }
+
+pub async fn detach(ctx: CliContext<'_>) -> Result<()> {
+    let id = ctx
+        .args
+        .gpu_id
+        .as_deref()
+        .context("`--gpu-id` must be passed explicitly for reattaching")?;
+    let name = ctx.name_for_id(id).await?;
+    ctx.client.detach(id).await?;
+
+    if let Some(name) = name {
+        println!("Detached GPU '{id}' ({name})");
+    } else {
+        println!("Detached GPU '{id}'");
+    }
+
+    Ok(())
+}
+
+pub async fn reattach(ctx: CliContext<'_>) -> Result<()> {
+    let id = ctx
+        .args
+        .gpu_id
+        .as_deref()
+        .context("`--gpu-id` must be passed explicitly for reattaching")?;
+    ctx.client.reattach(id).await?;
+
+    let name = ctx.name_for_id(id).await?;
+
+    if let Some(name) = name {
+        println!("Reattached GPU '{id}' ({name})");
+    } else {
+        println!("Reattached GPU '{id}'");
+    }
+
+    Ok(())
+}

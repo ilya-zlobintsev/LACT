@@ -1,8 +1,8 @@
 mod subcommands;
 
 use crate::subcommands::{
-    current_auto_switch, current_profile, info, list_gpus, list_profiles, power_limit,
-    set_auto_switch, set_profile, snapshot, stats,
+    current_auto_switch, current_profile, detach, info, list_gpus, list_profiles, power_limit,
+    reattach, set_auto_switch, set_profile, snapshot, stats,
 };
 use anyhow::{Context, Result, bail};
 use lact_client::DaemonClient;
@@ -57,6 +57,8 @@ pub fn run(args: CliArgs) -> Result<()> {
                     }
                 },
             },
+            CliCommand::Detach => detach(ctx).await,
+            CliCommand::Reattach => reattach(ctx).await,
         }
     })
 }
@@ -130,5 +132,15 @@ impl CliContext<'_> {
             .context("Failed to confirm config")?;
 
         Ok(())
+    }
+
+    async fn name_for_id(&self, gpu_id: &str) -> anyhow::Result<Option<String>> {
+        Ok(self
+            .client
+            .list_devices()
+            .await?
+            .into_iter()
+            .find(|entry| entry.id == gpu_id)
+            .and_then(|entry| entry.name))
     }
 }

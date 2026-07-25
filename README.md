@@ -362,8 +362,20 @@ There is also a cli available.
           disabled
           ```
 
-The functionality of the CLI is quite limited. If you want to integrate LACT
-with some application/script, you should use the [API](./docs/API.md) instead.
+  - Detach GPU (makes LACT temporarily ignore it):
+
+    ```
+    lact cli --gpu-id=10DE:2704-1462:5110-0000:01:00.0 detach
+    ```
+
+  - Reattach GPU:
+  
+    ```
+    lact cli --gpu-id=10DE:2704-1462:5110-0000:01:00.0 reattach
+    ```
+
+Note that not all functionality is exposed through the CLI. If you want to integrate LACT
+with some application/script, you can use the [API](./docs/API.md) instead.
 
 # Reporting issues
 

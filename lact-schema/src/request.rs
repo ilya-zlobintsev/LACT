@@ -118,6 +118,12 @@ pub enum Request<'a> {
     ProcessList {
         id: &'a str,
     },
+    DetachGpu {
+        id: &'a str,
+    },
+    ReattachGpu {
+        id: &'a str,
+    },
     EnableOverdrive,
     DisableOverdrive,
     GenerateSnapshot,

@@ -5,7 +5,6 @@ use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::gpu_controller::{
-        NvApi,
         common::{fan_control::FanCurveExt, resolve_process_name},
         nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
     },
@@ -26,6 +25,7 @@ use lact_schema::{
     ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
+use nvapi::NvApi;
 use nvml_wrapper::{
     Device, Nvml,
     bitmasks::device::{PowerMizerModes, ThrottleReasons},
@@ -52,12 +52,12 @@ const SUPPORTED_UTIL_TYPES: &[ProcessUtilizationType] = &[
 ];
 
 pub struct NvidiaGpuController {
-    nvml: &'static Nvml,
+    nvml: Rc<Nvml>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
     initial_target_temp: Option<u32>,
 
-    nvapi: Option<(&'static NvApi, NvPhysicalGpuHandle)>,
+    nvapi: Option<(Rc<NvApi>, NvPhysicalGpuHandle)>,
     driver_handle: Option<DriverHandle>,
     nvapi_thermals_mask: Option<i32>,
 
@@ -75,8 +75,8 @@ pub struct NvidiaGpuController {
 impl NvidiaGpuController {
     pub fn new(
         common: CommonControllerInfo,
-        nvml: &'static Nvml,
-        nvapi: Option<&'static NvApi>,
+        nvml: Rc<Nvml>,
+        nvapi: Option<Rc<NvApi>>,
     ) -> anyhow::Result<Self> {
         let device = nvml
             .device_by_pci_bus_id(common.pci_slot_name.as_str())
@@ -205,7 +205,7 @@ impl NvidiaGpuController {
         let notify = Rc::new(Notify::new());
         let task_notify = notify.clone();
 
-        let nvml = self.nvml;
+        let nvml = self.nvml.clone();
         let pci_slot_id = self.common.pci_slot_name.clone();
         debug!("spawning new fan control task");
 
