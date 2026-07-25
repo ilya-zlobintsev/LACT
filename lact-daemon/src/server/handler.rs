@@ -8,7 +8,7 @@ use crate::server::display;
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
-    server::{gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
+    server::{ClientContext, gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
 };
 use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
@@ -32,13 +32,11 @@ use nix::libc;
 use nvml_wrapper::Nvml;
 use pciid_parser::Database;
 use serde_json::json;
-#[cfg(not(test))]
-use std::collections::HashMap;
 #[cfg(all(not(test), feature = "nvidia"))]
 use std::sync::Arc;
 use std::{
     cell::{Cell, RefCell},
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     env,
     fs::{self, File, Permissions},
     io::{BufWriter, Cursor, Write},
@@ -55,6 +53,7 @@ use tokio::{
     time::sleep,
 };
 use tracing::{debug, error, info, trace, warn};
+use zbus_polkit::policykit1::{self, AuthorityProxy};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
 const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 3;
@@ -86,6 +85,10 @@ const SNAPSHOT_EXCLUDED_FILENAME_PREFIXES: &[&str] = &[
 ];
 const CONFIG_RESET_CMDLINE_ARG: &str = "lact-reset";
 
+mod polkit_actions {
+    pub const PROFILE_HOOK: &str = "io.github.ilya_zlobintsev.LACT.profile-hook";
+}
+
 type ProfileHolds = Rc<RefCell<Vec<(u64, Rc<str>, mpsc::Sender<()>)>>>;
 type ProfileHoldSnapshot = Rc<RefCell<Option<(Option<Rc<str>>, bool)>>>;
 
@@ -101,6 +104,7 @@ pub struct Handler {
     profile_holds: ProfileHolds,
     profile_hold_snapshot: ProfileHoldSnapshot,
     next_hold_cookie: Rc<Cell<u64>>,
+    polkit_proxy: Option<AuthorityProxy<'static>>,
 }
 
 impl<'a> Handler {
@@ -178,6 +182,13 @@ impl<'a> Handler {
             config.save(&Cell::new(Instant::now()))?;
         }
 
+        let polkit_proxy = connect_polkit_proxy()
+            .await
+            .inspect_err(|err| {
+                warn!("could not connect to polkit, admin checks will not be available: {err:#}");
+            })
+            .ok();
+
         let handler = Self {
             gpu_controllers: Rc::new(RwLock::new(controllers)),
             config: Rc::new(RwLock::new(config)),
@@ -189,6 +200,7 @@ impl<'a> Handler {
             profile_holds: Rc::new(RefCell::new(Vec::new())),
             profile_hold_snapshot: Rc::new(RefCell::new(None)),
             next_hold_cookie: Rc::new(Cell::new(1)),
+            polkit_proxy,
         };
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
@@ -913,7 +925,12 @@ impl<'a> Handler {
         Ok(())
     }
 
-    pub async fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
+    pub async fn create_profile(
+        &self,
+        name: String,
+        base: ProfileBase,
+        ctx: ClientContext,
+    ) -> anyhow::Result<()> {
         {
             let mut config = self.config.write().await;
             if config.profiles.contains_key(name.as_str()) {
@@ -924,7 +941,18 @@ impl<'a> Handler {
                 ProfileBase::Empty => Profile::default(),
                 ProfileBase::Default => config.default_profile(),
                 ProfileBase::Profile(name) => config.profile(&name)?.clone(),
-                ProfileBase::Provided(profile) => profile,
+                ProfileBase::Provided(profile) => {
+                    if !profile.hooks.is_empty() {
+                        self.check_auth(
+                            polkit_actions::PROFILE_HOOK,
+                            "User was not authorized to set profile rule hooks",
+                            ctx,
+                        )
+                        .await?;
+                    }
+
+                    profile
+                }
             };
             config.profiles.insert(name.into(), profile);
             config.save(&self.config_last_saved)?;
@@ -996,7 +1024,17 @@ impl<'a> Handler {
         name: &str,
         rule: Option<ProfileRule>,
         hooks: ProfileHooks,
+        ctx: ClientContext,
     ) -> anyhow::Result<()> {
+        if !hooks.is_empty() {
+            self.check_auth(
+                polkit_actions::PROFILE_HOOK,
+                "User was not authorized to set profile rule hooks",
+                ctx,
+            )
+            .await?;
+        }
+
         {
             let mut config = self.config.write().await;
             let profile = config
@@ -1193,6 +1231,37 @@ impl<'a> Handler {
             }
 
             controller.cleanup().await;
+        }
+    }
+
+    async fn check_auth(
+        &self,
+        action: &str,
+        error_msg: &str,
+        ctx: ClientContext,
+    ) -> anyhow::Result<()> {
+        let polkit_proxy = self
+            .polkit_proxy
+            .as_ref()
+            .context("Polkit not available, cannot ask for authorization")?;
+
+        let pid = ctx.client_pid.context("No client PID available")?;
+        let subject = policykit1::Subject::new_for_owner(pid, None, None)?;
+        let result = polkit_proxy
+            .check_authorization(
+                &subject,
+                action,
+                &HashMap::new(),
+                policykit1::CheckAuthorizationFlags::AllowUserInteraction.into(),
+                "",
+            )
+            .await
+            .context("Authorization could not be granted")?;
+
+        if result.is_authorized {
+            Ok(())
+        } else {
+            bail!("{error_msg}");
         }
     }
 }
@@ -1494,4 +1563,16 @@ fn controller_vendor_is_unique(
                 .vendor_id
                 == *vendor_id
     })
+}
+
+async fn connect_polkit_proxy() -> anyhow::Result<AuthorityProxy<'static>> {
+    let conn = zbus::Connection::system()
+        .await
+        .context("Could not establish dbus connection")?;
+
+    let proxy = AuthorityProxy::new(&conn)
+        .await
+        .context("Could not connect to polkit")?;
+
+    Ok(proxy)
 }

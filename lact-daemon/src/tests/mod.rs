@@ -87,8 +87,13 @@ async fn apply_settings() {
                     let mock_fs = MockSysfs::new(device_dir.path());
                     let writes = mock_fs.writes.clone();
 
-                    let mount = easy_fuser::spawn_mount(mock_fs, mock_fs_dir.path(), &[], 1)
-                        .expect("Could not mount mock fs");
+                    let mount = easy_fuser::fuse_parallel::spawn_mount(
+                        mock_fs,
+                        mock_fs_dir.path(),
+                        &[],
+                        Some(1),
+                    )
+                    .expect("Could not mount mock fs");
 
                     let handler =
                         Handler::with_base_path(mock_fs_dir.path(), Config::default(), &pci_db)

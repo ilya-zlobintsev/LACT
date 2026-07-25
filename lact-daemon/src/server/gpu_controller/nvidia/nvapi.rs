@@ -7,12 +7,12 @@
 
 use crate::bindings::nvidia::{
     NVAPI_MAX_PHYSICAL_GPUS, NVAPI_SHORT_STRING_MAX, NvAPI_Status, NvPhysicalGpuHandle, NvS32,
-    NvU8, NvU32,
+    NvU8, NvU16, NvU32, NvU64,
 };
 use anyhow::{Context, bail};
 use nvml_wrapper::enums::device::DeviceArchitecture;
 use std::{
-    ffi::{CStr, c_char},
+    ffi::{CStr, c_char, c_uint},
     mem::{self, transmute},
     ptr,
 };
@@ -32,6 +32,9 @@ const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_STATUS: u32 = 0x21537ad4;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_INFO: u32 = 0x507b4b59;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL: u32 = 0x733e009;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_CONTROL: u32 = 0x23f1b133;
+const QUERY_NVAPI_GPU_REGISTER_OP: u32 = 0x2eb3c140;
+
+const REG_OFFSET_BLACKWELL_HOTSPOT_AGGREGATED: u32 = 0xad0aa0;
 
 pub const CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG: NvU32 = 0;
 
@@ -236,6 +239,142 @@ impl NvApi {
         Ok(handles.into_iter().take(count as usize).collect())
     }
 
+    pub fn read_vram_temps(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        vram_type: Option<&str>,
+    ) -> anyhow::Result<Vec<(String, u64)>> {
+        const REG_OFFSET_GDDR_TEMP_DATA_BASE: u32 = 0x009024C0;
+        const REG_OFFSET_GDDR_TEMP_STATUS_BASE: u32 = 0x009024D0;
+        const REG_OFFSET_GDDR_CLAMSHELL: u32 = 0x00900200;
+
+        fn parse_temp(raw: u64) -> u64 {
+            2 * raw.min(0x50) - 40
+        }
+
+        let mut temps = Vec::new();
+
+        if let Some("GDDR6x" | "GDDR7") = vram_type {
+            let is_clamshell = unsafe {
+                self.read_u32_register(handle, REG_OFFSET_GDDR_CLAMSHELL)
+                    .is_ok_and(|value| (value >> 22) & 1 == 1)
+            };
+
+            for partition in 0..=8 {
+                let data_offset = REG_OFFSET_GDDR_TEMP_DATA_BASE + partition * 0x4000;
+                let status_offset = REG_OFFSET_GDDR_TEMP_STATUS_BASE + partition * 0x4000;
+
+                unsafe {
+                    let Ok(status) = self.read_u32_register(handle, status_offset) else {
+                        continue;
+                    };
+
+                    // Explicit poison data
+                    if status & 0xFFFF0000 == 0xBADF0000 {
+                        continue;
+                    }
+
+                    let mut i = 0;
+                    'pairs: for slot_pair in [[(0x0, 24), (0x8, 26)], [(0x4, 25), (0xC, 27)]] {
+                        for (slot, status_bit) in slot_pair {
+                            if (status >> status_bit) & 1 == 1 {
+                                let data = self.read_u32_register(handle, data_offset + slot)?;
+
+                                if data == 0
+                                    || data == u64::from(u32::MAX)
+                                    || data & 0xFFFF0000 == 0xBADF0000
+                                {
+                                    continue;
+                                }
+
+                                let pc0 = (data >> 16) & 0xFF;
+                                let pc1 = (data >> 24) & 0xFF;
+
+                                if pc0 == 0 || pc0 == u64::from(u8::MAX) {
+                                    continue;
+                                }
+
+                                let partition_letter = char::from_u32(('A' as u32) + partition)
+                                    .context("Invalid partition")?;
+                                let label_base = format!("{partition_letter}{i}");
+
+                                let front_label = if is_clamshell {
+                                    format!("{label_base} (Front)")
+                                } else {
+                                    label_base.clone()
+                                };
+
+                                temps.push((front_label, parse_temp(pc0)));
+
+                                if is_clamshell && pc1 != 0 && pc1 != u64::from(u8::MAX) {
+                                    temps.push((format!("{label_base} (Back)"), parse_temp(pc1)));
+                                }
+
+                                i += 1;
+
+                                continue 'pairs;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(temps)
+    }
+
+    pub unsafe fn read_blackwell_hotspot(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<u64> {
+        self.read_temp_register(handle, REG_OFFSET_BLACKWELL_HOTSPOT_AGGREGATED)
+    }
+
+    unsafe fn read_temp_register(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        offset: u32,
+    ) -> anyhow::Result<u64> {
+        let raw = self.read_u32_register(handle, offset)?;
+        let value = (raw & 0xFFFF) / 256;
+        if value == 0 || value >= u64::from(u8::MAX) {
+            bail!("Invalid temperature reported: {value}");
+        }
+        Ok(value)
+    }
+
+    unsafe fn read_u32_register(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        offset: u32,
+    ) -> anyhow::Result<u64> {
+        let f = self.query_interface(QUERY_NVAPI_GPU_REGISTER_OP)?;
+        let f: unsafe extern "C" fn(
+            handle: NvPhysicalGpuHandle,
+            params: &mut NvGpuRegisterOpDataV1,
+        ) -> NvAPI_Status = transmute(f);
+
+        let mut op = [NvGpuRegisterOp::default(); 256];
+        op[0] = NvGpuRegisterOp {
+            offset,
+            flags: (REG_OP_FLAG_READ | REG_OP_FLAG_32BIT | REG_OP_FLAG_TYPE_GLOBAL)
+                .try_into()
+                .unwrap(),
+            ..Default::default()
+        };
+
+        let mut params = NvGpuRegisterOpDataV1 {
+            op_count: 1,
+            op,
+            ..Default::default()
+        };
+
+        let status = f(handle, &mut params);
+        self.handle_status(status)?;
+
+        Ok(params.op[0].value)
+    }
+
     unsafe fn query_interface(&self, id: u32) -> anyhow::Result<*const ()> {
         let query_interface = self
             .lib
@@ -291,6 +430,24 @@ impl NvApi {
 
         Ok(())
     }
+
+    /// Gets the value from `NvApiThermals` if possible, otherwise reads from register
+    pub fn read_hotspot(
+        &self,
+        thermals: &NvApiThermals,
+        handle: NvPhysicalGpuHandle,
+        arch: Option<&DeviceArchitecture>,
+    ) -> Option<i32> {
+        if arch.is_some_and(|arch| arch.as_c() >= DeviceArchitecture::Blackwell.as_c()) {
+            unsafe {
+                self.read_blackwell_hotspot(handle)
+                    .ok()
+                    .and_then(|value| value.try_into().ok())
+            }
+        } else {
+            thermals.get_value(9)
+        }
+    }
 }
 
 impl Drop for NvApi {
@@ -317,14 +474,6 @@ impl NvApiThermals {
             .get(index)
             .map(|&value| value / 256)
             .filter(|&value| value > 0 && value < 255)
-    }
-
-    pub fn hotspot(&self, arch: Option<&DeviceArchitecture>) -> Option<i32> {
-        if arch.is_some_and(|arch| arch.as_c() >= DeviceArchitecture::Blackwell.as_c()) {
-            None
-        } else {
-            self.get_value(9)
-        }
     }
 
     pub fn vram(&self, vram_type: Option<&str>) -> Option<i32> {
@@ -472,6 +621,38 @@ impl Default for ClockClientClkVfPointControlDataV1 {
 #[derive(Debug, Copy, Clone)]
 pub struct ClockClientClkVfPointControlProgV1 {
     pub freq_offset_khz: NvS32,
+}
+
+const REG_OP_FLAG_READ: c_uint = 1;
+const REG_OP_FLAG_32BIT: c_uint = 4;
+const REG_OP_FLAG_TYPE_GLOBAL: c_uint = 16;
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+struct NvGpuRegisterOp {
+    pub flags: NvU16,
+    pub status: NvU16,
+    pub offset: NvU32,
+    pub write_mask: NvU64,
+    pub value: NvU64,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct NvGpuRegisterOpDataV1 {
+    pub version: NvU32,
+    pub op_count: NvU32,
+    pub op: [NvGpuRegisterOp; 256usize],
+}
+
+impl Default for NvGpuRegisterOpDataV1 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            op_count: 0,
+            op: [NvGpuRegisterOp::default(); 256],
+        }
+    }
 }
 
 #[allow(clippy::cast_possible_truncation)]

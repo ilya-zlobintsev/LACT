@@ -13,6 +13,7 @@ use anyhow::{Context, anyhow, bail};
 use futures::StreamExt;
 use futures::future::LocalBoxFuture;
 use lact_schema::config::FanCurve;
+use indexmap::IndexMap;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats,
     DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelClocksTable, IntelDrmInfo,
@@ -358,7 +359,7 @@ impl IntelGpuController {
         }
     }
 
-    fn get_temperatures(&self) -> HashMap<String, TemperatureEntry> {
+    fn get_temperatures(&self) -> IndexMap<String, TemperatureEntry> {
         self.read_hwmon_files::<f32>("temp", "_input")
             .map(|(temp, file)| {
                 let mut key = None;

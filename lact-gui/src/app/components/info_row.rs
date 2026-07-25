@@ -5,7 +5,7 @@ use gtk::subclass::prelude::*;
 glib::wrapper! {
     pub struct InfoRow(ObjectSubclass<imp::InfoRow>)
         @extends gtk::Box, gtk::Widget,
-        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
+        @implements gtk::Orientable, gtk::Buildable, gtk::ConstraintTarget, gtk::Accessible;
 }
 
 impl InfoRow {

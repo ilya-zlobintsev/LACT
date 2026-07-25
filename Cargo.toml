@@ -14,20 +14,21 @@ edition = "2024"
 
 [workspace.dependencies]
 amdgpu-sysfs = { version = "0.21.0", features = ["serde"] }
+nvml-wrapper = { git = "https://github.com/rust-nvml/nvml-wrapper.git", rev = "eb47417eede43443f139053479618e96ad32893d" }
 serde = { version = "1.0", features = ["derive"] }
-serde_with = { version = "3.18.0", default-features = false, features = [
+serde_with = { version = "3.21.0", default-features = false, features = [
     "macros",
 ] }
-serde_json = "1.0.149"
-anyhow = "1.0.102"
+serde_json = "1.0.150"
+anyhow = "1.0.103"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 futures = { version = "0.3.32", features = [
     "std",
     "async-await",
 ], default-features = false }
-tokio = { version = "1.52.1", default-features = false }
-nix = { version = "0.31.2", default-features = false }
+tokio = { version = "1.52.3", default-features = false }
+nix = { version = "0.31.3", default-features = false }
 jiff = "0.2"
 indexmap = { version = "2.14.0", features = ["serde"] }
 pretty_assertions = "1.4.1"
@@ -38,7 +39,7 @@ i18n-embed = { version = "0.16.0", features = [
     "desktop-requester",
 ] }
 i18n-embed-fl = "0.10.0"
-rust-embed = { version = "8.11.0", features = ["debug-embed"] }
+rust-embed = { version = "8.12.0", features = ["debug-embed"] }
 
 [profile.release]
 strip = "symbols"
@@ -60,3 +61,8 @@ strip = false
 debug = 1
 lto = "thin"
 codegen-units = 256
+
+[patch.crates-io]
+# Compilation warning fix from https://github.com/GnomedDev/proc-macro-error-2/pull/14
+# Can be removed when https://github.com/kellpossible/cargo-i18n/issues/172 is fixed
+proc-macro-error2 = { git = "https://github.com/fgardt/proc-macro-error-2", rev = "53ff94b61c678593158db1a3d50269c6f0de0db7" }

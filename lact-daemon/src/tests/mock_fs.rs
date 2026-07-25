@@ -1,12 +1,9 @@
 use easy_fuser::{
-    FuseHandler,
-    templates::{
+    delegate_fs,
+    fuse_parallel::prelude::*,
+    fuse_presets::{
         DefaultFuseHandler,
         mirror_fs::{MirrorFsReadOnly, MirrorFsTrait},
-    },
-    types::{
-        BorrowedFileHandle, FUSESetXAttrFlags, FUSEWriteFlags, FileAttribute, FuseResult,
-        OpenFlags, SetAttrRequest,
     },
 };
 use std::{
@@ -16,27 +13,37 @@ use std::{
 };
 
 pub struct MockSysfs {
-    inner: MirrorFsReadOnly,
+    mirror_fs: MirrorFsReadOnly,
+    default_fs: DefaultFuseHandler<PathBuf>,
     pub writes: Arc<Mutex<Vec<(PathBuf, String)>>>,
 }
 
 impl MockSysfs {
     pub fn new(source_path: PathBuf) -> Self {
         MockSysfs {
-            inner: MirrorFsReadOnly::new(source_path, DefaultFuseHandler::new()),
+            mirror_fs: MirrorFsReadOnly::new(source_path),
+            default_fs: DefaultFuseHandler::new(),
             writes: Arc::default(),
         }
     }
 }
 
-impl FuseHandler<PathBuf> for MockSysfs {
-    fn get_inner(&self) -> &dyn FuseHandler<PathBuf> {
-        &self.inner
-    }
+impl FuseHandler for MockSysfs {
+    type TId = PathBuf;
+
+    delegate_fs! { mirror_fs, [
+        flush, fsync, lseek, read, release, access, getattr, listxattr, lookup, open, readdir,
+        readlink
+    ] }
+
+    delegate_fs! { default_fs, [
+        copy_file_range, fallocate, create, mkdir, mknod, removexattr, rename, rmdir, symlink,
+        unlink, bmap, forget, fsyncdir, getlk, ioctl, link, opendir, releasedir, setlk, statfs
+    ] }
 
     fn write(
         &self,
-        _req: &easy_fuser::prelude::RequestInfo,
+        _req: &RequestInfo,
         file_id: PathBuf,
         _file_handle: BorrowedFileHandle,
         _seek: std::io::SeekFrom,
@@ -55,7 +62,7 @@ impl FuseHandler<PathBuf> for MockSysfs {
 
     fn setattr(
         &self,
-        req: &easy_fuser::prelude::RequestInfo,
+        req: &RequestInfo,
         file_id: PathBuf,
         _attrs: SetAttrRequest,
     ) -> FuseResult<FileAttribute> {
@@ -64,7 +71,7 @@ impl FuseHandler<PathBuf> for MockSysfs {
 
     fn getxattr(
         &self,
-        _req: &easy_fuser::prelude::RequestInfo,
+        _req: &RequestInfo,
         _file_id: PathBuf,
         _name: &OsStr,
         _size: u32,
@@ -74,7 +81,7 @@ impl FuseHandler<PathBuf> for MockSysfs {
 
     fn setxattr(
         &self,
-        _req: &easy_fuser::prelude::RequestInfo,
+        _req: &RequestInfo,
         _file_id: PathBuf,
         _name: &OsStr,
         _value: Vec<u8>,

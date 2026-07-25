@@ -15,7 +15,7 @@ pub(crate) fn new() -> gtk::Picture {
 
     picture.set_size_request(SIZE, SIZE);
     picture.set_can_shrink(false);
-    picture.set_keep_aspect_ratio(true);
+    picture.set_content_fit(gtk::ContentFit::Contain);
     picture.set_paintable(Some(&textures[0]));
 
     let frame = Rc::new(Cell::new(0));

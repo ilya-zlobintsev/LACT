@@ -51,8 +51,7 @@ impl WidgetImpl for Plot {
         let height = self.obj().height() as u32;
         let scale_factor = self.obj().scale_factor();
 
-        let style_context = self.obj().style_context();
-        let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
+        let colors = PlotColorScheme::current();
 
         if width == 0 || height == 0 {
             return;
@@ -106,6 +105,7 @@ mod benches {
         hw_mon::Temperature,
     };
     use divan::{Bencher, counter::ItemsCount};
+    use indexmap::IndexMap;
     use jiff::Timestamp;
     use lact_schema::{
         ActivePowerStates, ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats,
@@ -178,6 +178,8 @@ mod benches {
                         ..Default::default()
                     },
                     nvidia_thermal_info: Default::default(),
+                    active_power_mizer_mode: None,
+                    supported_power_mizer_modes: None,
                     performance_level: Some(PerformanceLevel::Auto),
                     power: PowerStats {
                         average: Some(36.0),
@@ -188,7 +190,7 @@ mod benches {
                         current: None,
                         sensors: HashMap::new(),
                     },
-                    temps: HashMap::from([(
+                    temps: IndexMap::from([(
                         "edge".to_owned(),
                         TemperatureEntry {
                             value: Temperature {
