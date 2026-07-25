@@ -51,8 +51,7 @@ impl WidgetImpl for Plot {
         let height = self.obj().height() as u32;
         let scale_factor = self.obj().scale_factor();
 
-        let style_context = self.obj().style_context();
-        let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
+        let colors = PlotColorScheme::current();
 
         if width == 0 || height == 0 {
             return;
@@ -106,6 +105,7 @@ mod benches {
         hw_mon::Temperature,
     };
     use divan::{Bencher, counter::ItemsCount};
+    use indexmap::IndexMap;
     use jiff::Timestamp;
     use lact_schema::{
         ActivePowerStates, ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats,
@@ -190,7 +190,7 @@ mod benches {
                         current: None,
                         sensors: HashMap::new(),
                     },
-                    temps: HashMap::from([(
+                    temps: IndexMap::from([(
                         "edge".to_owned(),
                         TemperatureEntry {
                             value: Temperature {

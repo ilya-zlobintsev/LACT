@@ -2,13 +2,10 @@ use crate::I18N;
 use adw::prelude::*;
 use i18n_embed_fl::fl;
 use lact_schema::request::ProfileBase;
-use relm4::{
-    Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt, css,
-};
-use relm4_components::simple_combo_box::SimpleComboBox;
+use relm4::{Component, ComponentParts, ComponentSender, RelmWidgetExt, css};
 
 pub struct NewProfileDialog {
-    base_selector: Controller<SimpleComboBox<ProfileBase>>,
+    base_options: Vec<ProfileBase>,
     parent: gtk::Widget,
 }
 
@@ -54,9 +51,10 @@ impl Component for NewProfileDialog {
                                 set_xalign: 0.0,
                             },
 
-                            #[local_ref]
-                            base_selector -> gtk::ComboBoxText {
+                            #[name = "base_selector"]
+                            gtk::DropDown::from_strings(&base_names_ref) {
                                 set_valign: gtk::Align::Center,
+                                set_selected: 1,
                             },
                         },
                     },
@@ -98,20 +96,13 @@ impl Component for NewProfileDialog {
     ) -> ComponentParts<Self> {
         let mut variants = vec![ProfileBase::Empty, ProfileBase::Default];
         variants.extend(current_profiles.into_iter().map(ProfileBase::Profile));
-
-        let base_selector = SimpleComboBox::<ProfileBase>::builder()
-            .launch(SimpleComboBox {
-                variants,
-                active_index: Some(1),
-            })
-            .detach();
+        let base_names = variants.iter().map(ToString::to_string).collect::<Vec<_>>();
+        let base_names_ref = base_names.iter().map(String::as_str).collect::<Vec<_>>();
 
         let model = Self {
-            base_selector,
+            base_options: variants,
             parent,
         };
-
-        let base_selector = model.base_selector.widget();
 
         let widgets = view_output!();
 
@@ -131,9 +122,11 @@ impl Component for NewProfileDialog {
         match msg {
             NewProfileDialogMsg::Create => {
                 if !widgets.name_entry.text().is_empty()
-                    && let Some(selected) = self.base_selector.model().active_index
+                    && let Some(base) = self
+                        .base_options
+                        .get(widgets.base_selector.selected() as usize)
+                        .cloned()
                 {
-                    let base = self.base_selector.model().variants[selected].clone();
                     sender
                         .output((widgets.name_entry.text().to_string(), base))
                         .unwrap();

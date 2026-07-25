@@ -4,7 +4,7 @@ use gtk::glib::{self, Object};
 glib::wrapper! {
     pub struct InfoRowLevel(ObjectSubclass<imp::InfoRowLevel>)
         @extends InfoRow, gtk::Box, gtk::Widget,
-        @implements gtk::Orientable, gtk::Buildable, gtk::ConstraintTarget;
+        @implements gtk::Orientable, gtk::Buildable, gtk::ConstraintTarget, gtk::Accessible;
 }
 
 impl InfoRowLevel {

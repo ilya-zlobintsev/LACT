@@ -788,7 +788,7 @@ impl GpuController for NvidiaGpuController {
     fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let device = self.device();
 
-        let mut temps = HashMap::new();
+        let mut temps = IndexMap::new();
 
         if let Ok(temp) = device.temperature(TemperatureSensor::Gpu) {
             let crit = device
@@ -821,7 +821,7 @@ impl GpuController for NvidiaGpuController {
                 if let Some(mask) = self.nvapi_thermals_mask
                     && let Ok(thermals) = nvapi.get_thermals(*handle, mask)
                 {
-                    if let Some(hotspot) = thermals.hotspot(arch.as_ref()) {
+                    if let Some(hotspot) = nvapi.read_hotspot(&thermals, *handle, arch.as_ref()) {
                         temps.insert(
                             "GPU Hotspot".to_owned(),
                             TemperatureEntry {
@@ -854,6 +854,28 @@ impl GpuController for NvidiaGpuController {
                                 display_only: true,
                             },
                         );
+                    }
+
+                    match nvapi.read_vram_temps(*handle, vram_type) {
+                        Ok(sensors) => {
+                            for (label, value) in sensors {
+                                temps.insert(
+                                    format!("VRAM Chip {label}"),
+                                    TemperatureEntry {
+                                        value: Temperature {
+                                            current: Some(value as f32),
+                                            crit: None,
+                                            crit_hyst: None,
+                                        },
+                                        primary: false,
+                                        display_only: true,
+                                    },
+                                );
+                            }
+                        }
+                        Err(err) => {
+                            warn!("could not read VRAM sensors: {err:#}");
+                        }
                     }
                 }
 
