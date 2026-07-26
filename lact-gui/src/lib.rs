@@ -1,5 +1,6 @@
 mod app;
 mod config;
+mod service_setup;
 
 use std::{
     panic,

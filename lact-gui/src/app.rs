@@ -12,7 +12,7 @@ mod profiles;
 pub(crate) mod utils;
 
 use crate::{
-    APP_ID, CONFIG, GUI_VERSION, I18N,
+    APP_ID, CONFIG, I18N,
     app::{
         about_dialog::{AboutDialog, AboutDialogMsg},
         components::loader,
@@ -31,6 +31,10 @@ use crate::{
         utils::ext::RelmLaunchable as _,
     },
     config::WindowSize,
+    service_setup::{
+        ServiceSetupDialog, ServiceSetupDialogParams,
+        systemd::{self, connect_unit_proxy},
+    },
 };
 use adw::prelude::*;
 use anyhow::{Context, anyhow};
@@ -42,7 +46,7 @@ use gtk::{
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
-    DeviceApiInfo, DeviceFlag, DeviceListEntry, DeviceStats, DeviceType, GIT_COMMIT, SystemInfo,
+    DeviceApiInfo, DeviceFlag, DeviceListEntry, DeviceStats, DeviceType, SystemInfo,
     args::GuiArgs,
     config::{GpuConfig, Profile},
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
@@ -64,7 +68,7 @@ use relm4::{
     css,
     loading_widgets::LoadingWidgets,
     new_action_group, new_stateless_action,
-    prelude::{AsyncComponent, AsyncComponentParts},
+    prelude::{AsyncComponent, AsyncComponentController, AsyncComponentParts},
     tokio::{self, time::sleep},
     view,
 };
@@ -155,6 +159,7 @@ impl AsyncComponent for AppModel {
                 &fl!(I18N, "dump-vbios") => DumpVBiosAction,
             },
             section! {
+                "Service Setup" => ServiceSetupAction,
                 &fl!(I18N, "preferences") => PreferencesAction,
                 &fl!(I18N, "about") => AboutAction,
             },
@@ -357,6 +362,10 @@ impl AsyncComponent for AppModel {
         // 5. build child components,
         // 6. load profiles and initial GPU data.
 
+        let application = root
+            .application()
+            .expect("Failed to get application from root window");
+
         relm4::set_global_css_with_priority(
             styles::COMBINED_CSS,
             STYLE_PROVIDER_PRIORITY_APPLICATION,
@@ -367,23 +376,20 @@ impl AsyncComponent for AppModel {
         }
         CONFIG.read().color_scheme.apply();
 
-        let (daemon_client, conn_err) = match args.tcp_address {
+        let daemon_client = match args.tcp_address {
             Some(remote_addr) => {
                 info!("establishing connection to {remote_addr}");
                 match DaemonClient::connect_tcp(&remote_addr).await {
-                    Ok(conn) => (conn, None),
+                    Ok(conn) => conn,
                     Err(err) => {
-                        error!("TCP connection error: {err:#}");
-                        let (conn, _) = create_connection()
-                            .await
-                            .expect("Could not create fallback connection");
-                        (conn, Some(err))
+                        sender.input(AppMsg::Error(
+                            anyhow!("TCP connection failed, falling back to local: {err:#}").into(),
+                        ));
+                        create_connection(&root, &sender).await
                     }
                 }
             }
-            None => create_connection()
-                .await
-                .expect("Could not establish any daemon connection"),
+            None => create_connection(&root, &sender).await,
         };
 
         let mut conn_status_rx = daemon_client.status_receiver();
@@ -412,22 +418,9 @@ impl AsyncComponent for AppModel {
             .expect("Could not list devices");
         let initial_gpu_id = AppModel::init_gpu_selection(&devices);
 
-        let version_mismatch_info = (system_info.version != GUI_VERSION
-            || system_info.commit.as_deref() != Some(GIT_COMMIT))
-        .then(|| InfoDialogData {
-            id: InfoDialogId::VersionMismatch,
-            heading: fl!(I18N, "version-mismatch"),
-            body: fl!(
-                I18N,
-                "version-mismatch-description",
-                gui_version = GUI_VERSION,
-                gui_commit = GIT_COMMIT,
-                daemon_version = system_info.version.as_str(),
-                daemon_commit = system_info.commit.as_deref().unwrap_or_default()
-            ),
-            selectable_text: Some("sudo systemctl restart lactd".to_string()),
-            ..Default::default()
-        });
+        if !system_info.version.is_current() {
+            sender.input(AppMsg::ShowServiceSetupDialog);
+        }
 
         let info_page = InformationPage::detach_default();
 
@@ -464,14 +457,12 @@ impl AsyncComponent for AppModel {
         // create action group and actions for app menu
         // action group and actions are declared at the bottom of the file
         let mut actions = RelmActionGroup::<AppActionGroup>::new();
-        let application = root
-            .application()
-            .expect("Failed to get application from root window");
         setup_actions! {
             (actions, ProcessMonitorAction, APP_BROKER.send(AppMsg::ShowProcessMonitor)),
             (actions, HistoricalGraphsAction, APP_BROKER.send(AppMsg::ShowGraphsWindow)),
             (actions, GenerateDebugSnapshotAction, APP_BROKER.send(AppMsg::DebugSnapshot)),
             (actions, PreferencesAction, APP_BROKER.send(AppMsg::ShowPreferencesDialog)),
+            (actions, ServiceSetupAction, APP_BROKER.send(AppMsg::ShowServiceSetupDialog)),
             (actions, AboutAction, APP_BROKER.send(AppMsg::ShowAboutDialog)),
             (actions, QuitAction, APP_BROKER.send(AppMsg::Quit)),
         }
@@ -549,26 +540,6 @@ impl AsyncComponent for AppModel {
             widgets
                 .content_page
                 .set_title(&page.title().unwrap_or_default());
-        }
-
-        if let Some(err) = conn_err {
-            model
-                .info_dialog
-                .emit(InfoDialogMsg::Show(Box::new(InfoDialogData {
-                    id: InfoDialogId::EmbeddedDaemonInfo,
-                    heading: fl!(I18N, "daemon-info-heading"),
-                    body: fl!(
-                        I18N,
-                        "embedded-daemon-info",
-                        error_info = format!("Error info: {err:#}\n\n")
-                    ),
-                    selectable_text: Some("sudo systemctl enable --now lactd".to_string()),
-                    ..Default::default()
-                })));
-        }
-
-        if let Some(info) = version_mismatch_info {
-            model.info_dialog.emit(InfoDialogMsg::Show(Box::new(info)));
         }
 
         let task_sender = sender.clone();
@@ -690,6 +661,15 @@ impl AppModel {
             }
             AppMsg::ShowOverdriveDialog => {
                 self.overdrive_dialog.emit(OverdriveDialogMsg::Show);
+            }
+            AppMsg::ShowServiceSetupDialog => {
+                let params = ServiceSetupDialogParams {
+                    parent: root.clone().upcast(),
+                    initial_client: Ok((self.daemon_client.clone(), self.system_info.clone())),
+                    unit_proxy: systemd::connect_unit_proxy().await?,
+                };
+                let mut controller = ServiceSetupDialog::builder().launch(params).detach();
+                controller.detach_runtime();
             }
             AppMsg::SelectProfile {
                 profile,
@@ -1435,30 +1415,55 @@ fn start_stats_update_loop(
     })
 }
 
-async fn create_connection() -> anyhow::Result<(DaemonClient, Option<anyhow::Error>)> {
+async fn create_connection(
+    root: &adw::ApplicationWindow,
+    sender: &relm4::AsyncComponentSender<AppModel>,
+) -> DaemonClient {
     match DaemonClient::connect().await {
-        Ok(connection) => {
-            debug!("Established daemon connection");
-            Ok((connection, None))
-        }
+        Ok(client) => client,
         Err(err) => {
-            info!("could not connect to socket: {err:#}");
-            info!("using a local daemon");
+            let configured_client = match connect_unit_proxy().await {
+                Ok(unit_proxy) => {
+                    let params = ServiceSetupDialogParams {
+                        parent: root.clone().upcast(),
+                        initial_client: Err(err),
+                        unit_proxy,
+                    };
+                    let service_setup = ServiceSetupDialog::builder().launch(params).into_stream();
 
-            let (server_stream, client_stream) = UnixStream::pair()?;
-            client_stream.set_nonblocking(true)?;
-            server_stream.set_nonblocking(true)?;
-
-            std::thread::spawn(move || {
-                if let Err(err) = lact_daemon::run_embedded(server_stream) {
-                    error!("Builtin daemon error: {err}");
+                    service_setup
+                        .recv_one()
+                        .await
+                        .expect("Could not get client")
                 }
-            });
+                Err(setup_err) => {
+                    sender.input(AppMsg::Error(anyhow!("Could not connect to daemon: {err:#}\nPlease make sure the daemon is set up and running.\nGuided setup not available: {setup_err}").into()));
+                    None
+                }
+            };
 
-            let client = DaemonClient::from_stream(client_stream, true)?;
-            Ok((client, Some(err)))
+            match configured_client {
+                Some(client) => client,
+                None => create_embedded_connection()
+                    .await
+                    .expect("Could not spawn embedded daemon"),
+            }
         }
     }
+}
+
+async fn create_embedded_connection() -> anyhow::Result<DaemonClient> {
+    let (server_stream, client_stream) = UnixStream::pair()?;
+    client_stream.set_nonblocking(true)?;
+    server_stream.set_nonblocking(true)?;
+
+    std::thread::spawn(move || {
+        if let Err(err) = lact_daemon::run_embedded(server_stream) {
+            error!("Builtin daemon error: {err}");
+        }
+    });
+
+    DaemonClient::from_stream(client_stream, true)
 }
 
 new_action_group!(pub AppActionGroup, "app");
@@ -1466,6 +1471,7 @@ new_stateless_action!(pub ProcessMonitorAction, AppActionGroup, "show-process-mo
 new_stateless_action!(pub HistoricalGraphsAction, AppActionGroup, "show-historical-graphs");
 new_stateless_action!(pub GenerateDebugSnapshotAction, AppActionGroup, "generate-debug-snapshot");
 new_stateless_action!(pub DumpVBiosAction, AppActionGroup, "dump-vbios");
+new_stateless_action!(pub ServiceSetupAction, AppActionGroup, "service-setup");
 new_stateless_action!(pub PreferencesAction, AppActionGroup, "preferences");
 new_stateless_action!(pub AboutAction, AppActionGroup, "about");
 new_stateless_action!(pub QuitAction, AppActionGroup, "quit");

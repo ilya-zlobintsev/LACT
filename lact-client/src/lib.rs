@@ -4,7 +4,7 @@ mod macros;
 
 pub use lact_schema as schema;
 use lact_schema::{
-    DeviceApiInfo, DisplaysInfo, ProcessList, ProfileRule,
+    DeviceApiInfo, DisplaysInfo, Pong, ProcessList, ProfileRule,
     config::{GpuConfig, Profile, ProfileHooks},
 };
 
@@ -19,7 +19,8 @@ use schema::{
 };
 use serde::de::DeserializeOwned;
 use std::{
-    future::Future, os::unix::net::UnixStream, path::PathBuf, pin::Pin, rc::Rc, time::Duration,
+    fmt, future::Future, io, os::unix::net::UnixStream, path::PathBuf, pin::Pin, rc::Rc,
+    time::Duration,
 };
 use tokio::{
     net::ToSocketAddrs,
@@ -34,18 +35,24 @@ const RECONNECT_INTERVAL_MS: u64 = 500;
 pub struct DaemonClient {
     stream: Rc<Mutex<Box<dyn DaemonConnection>>>,
     status_tx: broadcast::Sender<ConnectionStatusMsg>,
+    reconnect: bool,
     pub embedded: bool,
 }
 
 impl DaemonClient {
     pub async fn connect() -> anyhow::Result<Self> {
-        let path =
-            get_socket_path().context("Could not connect to daemon: socket file not found")?;
+        Self::connect_with_reconnect(true).await
+    }
+
+    pub async fn connect_with_reconnect(reconnect: bool) -> anyhow::Result<Self> {
+        let path = get_socket_path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "socket file not found"))?;
         let stream = UnixConnection::connect(&path).await?;
 
         Ok(Self {
             stream: Rc::new(Mutex::new(stream)),
             embedded: false,
+            reconnect,
             status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
     }
@@ -56,6 +63,7 @@ impl DaemonClient {
         Ok(Self {
             stream: Rc::new(Mutex::new(stream)),
             embedded: false,
+            reconnect: true,
             status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
     }
@@ -65,6 +73,7 @@ impl DaemonClient {
         Ok(Self {
             stream: Rc::new(Mutex::new(Box::new(connection))),
             embedded,
+            reconnect: false,
             status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
     }
@@ -94,8 +103,13 @@ impl DaemonClient {
                     }
                 }
                 Err(err) => {
-                    error!("Could not make request: {err}, reconnecting to socket");
                     let _ = self.status_tx.send(ConnectionStatusMsg::Disconnected);
+
+                    if !self.reconnect {
+                        return Err(err);
+                    }
+
+                    error!("Could not make request: {err}, reconnecting to socket");
 
                     loop {
                         match stream.new_connection().await {
@@ -120,6 +134,10 @@ impl DaemonClient {
                 }
             }
         })
+    }
+
+    pub async fn ping(&self) -> anyhow::Result<Pong> {
+        self.make_request(Request::Ping).await
     }
 
     pub async fn list_devices(&self) -> anyhow::Result<Vec<DeviceListEntry>> {
@@ -234,6 +252,14 @@ impl DaemonClient {
     pub async fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
         self.make_request(Request::ConfirmPendingConfig(command))
             .await
+    }
+}
+
+impl fmt::Debug for DaemonClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DaemonClient")
+            .field("embedded", &self.embedded)
+            .finish()
     }
 }
 

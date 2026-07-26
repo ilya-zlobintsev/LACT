@@ -73,13 +73,40 @@ pub struct Pong;
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemInfo {
-    pub version: String,
-    pub commit: Option<String>,
-    pub profile: String,
+    #[serde(flatten)]
+    pub version: VersionInfo,
     pub distro: Option<String>,
     pub kernel_version: String,
     pub amdgpu_overdrive_enabled: Option<bool>,
     pub amdgpu_params_configurator: Option<AmdgpuParamsConfigurator>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct VersionInfo {
+    pub version: String,
+    pub commit: Option<String>,
+    pub profile: String,
+}
+
+impl VersionInfo {
+    pub fn current() -> Self {
+        let profile = if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        }
+        .to_owned();
+        Self {
+            version: env!("CARGO_PKG_VERSION").to_owned(),
+            commit: Some(GIT_COMMIT.to_owned()),
+            profile,
+        }
+    }
+
+    pub fn is_current(&self) -> bool {
+        *self == Self::current()
+    }
 }
 
 #[skip_serializing_none]

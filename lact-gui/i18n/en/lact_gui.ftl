@@ -230,18 +230,29 @@ edit-graph-sensors = Edit Graph Sensors
 error-heading = Error
 daemon-info-heading = Daemon info
 
-reconnecting-to-daemon = Daemon connection lost, reconnecting...
+reconnecting-to-daemon = Service connection lost, reconnecting...
 daemon-connection-lost = Connection Lost
-embedded-daemon-info =
-    Could not connect to daemon, running in embedded mode.
-    Please make sure the lactd service is running.
-    Using embedded mode, you will not be able to change any settings.
+service-explanation =
+    LACT requires a system service in order to apply GPU settings.
+    It is possible to skip the setup use the application in standalone mode, if you wish to use it only for information and monitoring.
+service-connection-status = Connection Status:
+service-status = Service Status:
+service-not-running = Service is not running
+service-permission-denied =
+    Permission denied, service is not configured to allow connections from your user.
+    See <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> for more information
+service-connected = Connected
+service-version = Service Version
+service-version-mismatch = mismatched
+service-logs = Service Logs
 
-    {$error_info}To enable the daemon, run the following command, then restart LACT:
-version-mismatch = Version mismatch
+service-start = Start
+service-stop = Stop
+service-restart = Restart
+
 version-mismatch-description =
     Version mismatch between GUI and Daemon ({$gui_version}-{$gui_commit} vs {$daemon_version}-{$daemon_commit})!
-    If you have updated LACT, you need to restart the service with:
+    If you have updated LACT, you need to restart the service.
 
 plot-show-detailed-info = Show detailed info
 
