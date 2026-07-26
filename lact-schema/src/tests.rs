@@ -1,4 +1,4 @@
-use crate::{FanControlMode, FanOptions, GIT_COMMIT, PmfwOptions, Pong, Request, Response};
+use crate::{FanControlMode, FanOptions, PmfwOptions, Pong, Request, Response};
 use anyhow::anyhow;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -17,15 +17,7 @@ fn ping_requset() {
 fn pong_response() {
     let expected_response = json!({
         "status": "ok",
-        "data": {
-            "version": env!("CARGO_PKG_VERSION"),
-            "commit": GIT_COMMIT,
-            "profile": if cfg!(debug_assertions) {
-                "debug"
-            } else {
-                "release"
-            }
-        }
+        "data": null,
     });
     let response = Response::Ok(Pong);
 
