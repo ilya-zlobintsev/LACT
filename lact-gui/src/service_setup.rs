@@ -3,7 +3,7 @@ pub mod systemd;
 use crate::service_setup::systemd::{START_MODE_REPLACE, UnitProxy};
 use crate::{GUI_VERSION, I18N};
 use adw::prelude::*;
-use anyhow::Context as _;
+use anyhow::{Context as _, anyhow};
 use i18n_embed_fl::fl;
 use lact_client::DaemonClient;
 use lact_schema::{GIT_COMMIT, VersionInfo};
@@ -153,7 +153,7 @@ impl AsyncComponent for ServiceSetupDialog {
                                     },
                                 },
                             },
-                        }
+                        },
                     },
 
                     gtk::Box {
@@ -217,6 +217,16 @@ impl AsyncComponent for ServiceSetupDialog {
                             },
                         }
                     },
+
+                    gtk::Label {
+                        #[watch]
+                        set_visible: model.setup_error.is_some(),
+                        #[watch]
+                        set_text: &model.setup_error.as_ref().map(|err| format!("Setup error: {err}")).unwrap_or_default(),
+                        set_css_classes: &[ERROR],
+                        set_selectable: true,
+                        set_hexpand: true,
+                    },
                 },
 
                 add_bottom_bar = &gtk::Box {
@@ -258,22 +268,24 @@ impl AsyncComponent for ServiceSetupDialog {
         let input_sender = sender.input_sender().clone();
         relm4::spawn(async move {
             loop {
-                tokio::time::sleep(Duration::from_millis(250)).await;
                 if input_sender.send(ServiceSetupDialogMsg::Reconnect).is_err() {
                     debug!("service setup dialog closed, exiting client watcher");
                     break;
                 }
+                tokio::time::sleep(Duration::from_millis(250)).await;
             }
         });
 
-        let service_state = params
+        let (service_state, setup_error) = params
             .unit_proxy
             .active_state()
             .await
+            .map(|state| (state, None))
             .unwrap_or_else(|err| {
-                // TODO: show error, APP_BROKER does not work yet because app is not initialized
-                // APP_BROKER.send(AppMsg::Error(Arc::new(anyhow!("systemd error: {err:#}"))));
-                panic!("{err:#}");
+                (
+                    "unknown".to_owned(),
+                    Some(anyhow!("Could not fetch service status: {err}")),
+                )
             });
 
         let service_logs_handle = tokio::spawn(service_logs_text());
@@ -286,7 +298,7 @@ impl AsyncComponent for ServiceSetupDialog {
                 .text(service_logs_handle.await.unwrap())
                 .build(),
             service_state,
-            setup_error: None,
+            setup_error,
         };
 
         let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
@@ -305,8 +317,7 @@ impl AsyncComponent for ServiceSetupDialog {
         _root: &Self::Root,
     ) {
         if let Err(err) = self.handle_msg(msg, sender).await {
-            // TODO
-            panic!("{err:#}");
+            self.setup_error = Some(err);
         }
     }
 }
@@ -345,14 +356,24 @@ impl ServiceSetupDialog {
     async fn reconnect(&mut self) -> anyhow::Result<()> {
         let logs_handle = tokio::spawn(service_logs_text());
 
-        self.service_state = self
+        let mut changed = false;
+
+        let new_state = self
             .unit_proxy
             .active_state()
             .await
             .context("Could not update unit state")?;
 
+        if self.service_state != new_state {
+            self.service_state = new_state;
+            changed = true;
+        }
+
         let client = DaemonClient::connect_with_reconnect(false).await;
-        self.connection_status = ConnectionStatus::from_result(client).await;
+
+        let connection_status = ConnectionStatus::from_result(client).await;
+        changed |= !self.connection_status.roughly_eq(&connection_status);
+        self.connection_status = connection_status;
 
         let logs = logs_handle.await.unwrap();
 
@@ -364,6 +385,10 @@ impl ServiceSetupDialog {
 
         if logs != current_text.as_str() {
             self.service_logs.set_text(&logs);
+        }
+
+        if changed {
+            self.setup_error = None;
         }
 
         Ok(())
@@ -431,6 +456,21 @@ impl ConnectionStatus {
         match self {
             Self::Connected { .. } => true,
             Self::Error(_) => false,
+        }
+    }
+
+    fn roughly_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                ConnectionStatus::Connected {
+                    version: version_l, ..
+                },
+                ConnectionStatus::Connected {
+                    version: version_r, ..
+                },
+            ) => version_l == version_r,
+            (ConnectionStatus::Error(err_l), ConnectionStatus::Error(err_r)) => err_l == err_r,
+            _ => false,
         }
     }
 }
