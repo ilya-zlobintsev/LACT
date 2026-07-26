@@ -665,7 +665,7 @@ impl AppModel {
             AppMsg::ShowServiceSetupDialog => {
                 let params = ServiceSetupDialogParams {
                     parent: root.clone().upcast(),
-                    initial_client: Ok(self.daemon_client.clone()),
+                    initial_client: Ok((self.daemon_client.clone(), self.system_info.clone())),
                     unit_proxy: systemd::connect_unit_proxy().await?,
                 };
                 let mut controller = ServiceSetupDialog::builder().launch(params).detach();

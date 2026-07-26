@@ -6,7 +6,7 @@ use adw::prelude::*;
 use anyhow::{Context as _, anyhow};
 use i18n_embed_fl::fl;
 use lact_client::DaemonClient;
-use lact_schema::{GIT_COMMIT, VersionInfo};
+use lact_schema::{GIT_COMMIT, SystemInfo, VersionInfo};
 use relm4::css::{self, WARNING};
 use relm4::{
     AsyncComponentSender, RelmWidgetExt,
@@ -29,7 +29,7 @@ pub struct ServiceSetupDialog {
 
 pub struct ServiceSetupDialogParams {
     pub parent: gtk::ApplicationWindow,
-    pub initial_client: anyhow::Result<DaemonClient>,
+    pub initial_client: anyhow::Result<(DaemonClient, SystemInfo)>,
     pub unit_proxy: UnitProxy<'static>,
 }
 
@@ -289,7 +289,14 @@ impl AsyncComponent for ServiceSetupDialog {
             });
 
         let service_logs_handle = tokio::spawn(service_logs_text());
-        let connection_status = ConnectionStatus::from_result(params.initial_client).await;
+
+        let connection_status = match params.initial_client {
+            Ok((client, info)) => ConnectionStatus::Connected {
+                client: client.clone(),
+                version: info.version,
+            },
+            Err(err) => ConnectionStatus::from_result(Err(err)).await,
+        };
 
         let model = Self {
             connection_status,
