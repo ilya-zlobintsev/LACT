@@ -35,6 +35,7 @@ use relm4::{
     ComponentController, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
     binding::{Binding, BoolBinding, ConnectBinding, StringBinding},
 };
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::{cell::Cell, rc::Rc};
 
@@ -406,12 +407,12 @@ impl relm4::Component for ThermalsPage {
             .launch(pmfw_options.clone())
             .detach();
         let stats_section = GpuStatsSection::detach(GpuStatsSectionConfig {
-            stats: vec![
+            stats: HashSet::from([
                 GpuStat::Throttling,
                 GpuStat::Temperature,
                 GpuStat::PowerUsage,
                 GpuStat::FanSpeed,
-            ],
+            ]),
         });
 
         let model = Self {
@@ -445,6 +446,9 @@ impl relm4::Component for ThermalsPage {
         match msg {
             ThermalsPageMsg::Update { update, initial } => match update {
                 PageUpdate::Info(info) => {
+                    self.stats_section
+                        .emit(GpuStatsSectionMsg::Info(info.clone()));
+
                     self.custom_control_supported =
                         info.flags.contains(&DeviceFlag::ConfigurableFanControl);
                     self.has_pmfw = info.flags.contains(&DeviceFlag::HasPmfw);
