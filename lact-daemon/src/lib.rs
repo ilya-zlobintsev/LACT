@@ -31,7 +31,7 @@ use tracing_subscriber::EnvFilter;
 use crate::server::ClientContext;
 pub use system::BASE_MODULE_CONF_PATH;
 
-const DRM_EVENT_COLLECT_DURATION: Duration = Duration::from_millis(250);
+const DRM_EVENT_COLLECT_DURATION: Duration = Duration::from_millis(500);
 
 const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
     SignalKind::terminate(),
