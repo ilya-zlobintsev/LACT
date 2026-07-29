@@ -1,7 +1,10 @@
 use crate::server::handler::Handler;
 use futures::StreamExt;
+use std::time::Duration;
 use tracing::{error, info};
 use zbus::{Connection, Proxy};
+
+const SUSPEND_EVENT_COLLECT_DURATION: Duration = Duration::from_secs(3);
 
 pub async fn listen_events(handler: Handler) {
     match connect_proxy().await {
@@ -9,8 +12,10 @@ pub async fn listen_events(handler: Handler) {
         Ok(proxy) => match proxy.receive_signal("PrepareForSleep").await {
             Ok(mut stream) => {
                 while stream.next().await.is_some() {
-                    info!("suspend/resume event detected, reloading config");
-                    handler.reload_gpus().await;
+                    info!("suspend/resume event detected, queueing config reload");
+                    handler
+                        .notify_reload_gpus(SUSPEND_EVENT_COLLECT_DURATION)
+                        .await;
                 }
             }
             Err(err) => error!("could not subscribe to suspend events: {err:#}"),

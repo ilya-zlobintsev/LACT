@@ -14,12 +14,12 @@ use anyhow::Context;
 use config::Config;
 use futures::future::select_all;
 use server::{Server, handle_stream, handler::Handler};
+use std::os::unix::net::UnixStream as StdUnixStream;
 use std::sync::Arc;
-use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
+use std::time::Duration;
 use tokio::net::UnixStream;
 use tokio::runtime::LocalOptions;
 use tokio::sync::Notify;
-use tokio::time::timeout;
 use tokio::{
     runtime,
     signal::unix::{SignalKind, signal},
@@ -31,7 +31,8 @@ use tracing_subscriber::EnvFilter;
 use crate::server::ClientContext;
 pub use system::BASE_MODULE_CONF_PATH;
 
-const DRM_EVENT_TIMEOUT_PERIOD_MS: u64 = 100;
+const DRM_EVENT_COLLECT_DURATION: Duration = Duration::from_millis(250);
+
 const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
     SignalKind::terminate(),
     SignalKind::interrupt(),
@@ -134,16 +135,7 @@ async fn listen_device_events(handler: Handler) {
     loop {
         notify.notified().await;
 
-        // Wait until the timeout has passed with no new events coming in
-        while timeout(
-            Duration::from_millis(DRM_EVENT_TIMEOUT_PERIOD_MS),
-            notify.notified(),
-        )
-        .await
-        .is_ok()
-        {}
-
-        info!("got kernel drm subsystem event, reloading GPUs");
-        handler.reload_gpus().await;
+        info!("got kernel drm subsystem event, queueing GPU reload");
+        handler.notify_reload_gpus(DRM_EVENT_COLLECT_DURATION).await;
     }
 }
