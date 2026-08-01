@@ -233,8 +233,8 @@ daemon-info-heading = Daemon info
 reconnecting-to-daemon = Service connection lost, reconnecting...
 daemon-connection-lost = Connection Lost
 service-explanation =
-    LACT requires a system service in order to apply GPU settings.
-    It is possible to skip the setup use the application in standalone mode, if you wish to use it only for information and monitoring.
+    Applying GPU settings requires the LACT system service.
+    Without it, LACT runs in standalone mode, where only information and monitoring are available.
 service-connection-status = Connection Status
 service-status = Service Status
 service-permission-denied =
