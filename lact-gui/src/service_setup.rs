@@ -166,7 +166,7 @@ impl AsyncComponent for ServiceSetupDialog {
                         #[wrap(Some)]
                         set_popover = &gtk::Popover {
                             gtk::ScrolledWindow {
-                                set_min_content_width: 650,
+                                set_min_content_width: 850,
                                 set_min_content_height: 250,
 
                                 gtk::TextView {
