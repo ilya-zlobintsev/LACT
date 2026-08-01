@@ -19,7 +19,7 @@ fn init_tracing() {
     });
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "local")]
 #[cfg_attr(miri, ignore)]
 async fn snapshot_everything() {
     init_tracing();

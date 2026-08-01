@@ -49,6 +49,7 @@ use std::{
 };
 use tokio::{
     process::Command,
+    select,
     sync::{RwLock, RwLockReadGuard, mpsc, oneshot},
     task::JoinHandle,
     time::sleep,
@@ -107,6 +108,7 @@ pub struct Handler {
     next_hold_cookie: Rc<Cell<u64>>,
     polkit_proxy: Option<AuthorityProxy<'static>>,
     ignored_gpu_ids: Rc<RwLock<Vec<String>>>,
+    reload_tx: Rc<mpsc::Sender<Duration>>,
 }
 
 impl<'a> Handler {
@@ -191,6 +193,8 @@ impl<'a> Handler {
             })
             .ok();
 
+        let (reload_tx, reload_rx) = mpsc::channel(16);
+
         let handler = Self {
             gpu_controllers: Rc::new(RwLock::new(controllers)),
             config: Rc::new(RwLock::new(config)),
@@ -204,7 +208,9 @@ impl<'a> Handler {
             next_hold_cookie: Rc::new(Cell::new(1)),
             polkit_proxy,
             ignored_gpu_ids: Rc::new(RwLock::new(Vec::new())),
+            reload_tx: Rc::new(reload_tx),
         };
+
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
         }
@@ -216,6 +222,8 @@ impl<'a> Handler {
         if handler.config.read().await.auto_switch_profiles {
             handler.start_profile_watcher().await;
         }
+
+        tokio::task::spawn_local(handle_reload_events(handler.clone(), reload_rx));
 
         // Eagerly release memory
         // `load_controllers` allocates and deallocates the entire PCI ID database,
@@ -234,7 +242,11 @@ impl<'a> Handler {
         apply_config_to_controllers(&controllers, &config).await
     }
 
-    pub async fn reload_gpus(&self) {
+    pub async fn notify_reload_gpus(&self, accum_interval: Duration) {
+        self.reload_tx.send(accum_interval).await.unwrap();
+    }
+
+    async fn reload_gpus(&self) {
         let mut controllers_guard = self.gpu_controllers.write().await;
         let config = self.config.read().await;
         let detached_ids = self.ignored_gpu_ids.read().await;
@@ -1573,4 +1585,31 @@ async fn connect_polkit_proxy() -> anyhow::Result<AuthorityProxy<'static>> {
         .context("Could not connect to polkit")?;
 
     Ok(proxy)
+}
+
+async fn handle_reload_events(handler: Handler, mut rx: mpsc::Receiver<Duration>) {
+    // Reload events often come in quick succession (usually from DRM devices initializing),
+    // this accumulation avoids unnecessarily reloading multiple times in such cases.
+    while let Some(interval) = rx.recv().await {
+        let timeout = sleep(interval);
+        tokio::pin!(timeout);
+
+        loop {
+            select! {
+                () = &mut timeout => {
+                    break
+                },
+                Some(new_interval) = rx.recv() => {
+                    let new_deadline = tokio::time::Instant::now() + new_interval;
+                    if new_deadline > timeout.deadline() {
+                        debug!("got another reload event in shrot interval, delaying reload");
+                        timeout.as_mut().reset(new_deadline);
+                    }
+                }
+            }
+        }
+
+        info!("got reload event, reloading GPUs");
+        handler.reload_gpus().await;
+    }
 }
