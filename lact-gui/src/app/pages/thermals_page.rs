@@ -49,6 +49,7 @@ pub struct ThermalsPage {
     selected_mode: StringBinding,
 
     custom_control_supported: bool,
+    has_fan_speed: bool,
     has_pmfw: bool,
     has_auto_threshold: bool,
     pmfw_options: PmfwOptions,
@@ -165,7 +166,7 @@ impl relm4::Component for ThermalsPage {
                     set_vexpand: false,
                     set_vhomogeneous: false,
                     #[watch]
-                    set_visible: model.stats_section.model().has_fan_speed(),
+                    set_visible: model.has_fan_speed,
 
                     add_titled[Some(AUTO_PAGE), &fl!(I18N, "auto-page")] = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
@@ -422,6 +423,7 @@ impl relm4::Component for ThermalsPage {
             nvidia_thermal_options,
             option_change_signals,
             custom_control_supported: false,
+            has_fan_speed: false,
             has_pmfw: false,
             has_auto_threshold: false,
             static_speed_adj: Adjustment::new(50.0, 0.0, 100.0, 1.0, 5.0, 0.0),
@@ -458,6 +460,8 @@ impl relm4::Component for ThermalsPage {
                     self.stats_section
                         .emit(GpuStatsSectionMsg::Stats(stats.clone()));
 
+                    self.has_fan_speed =
+                        stats.fan.pwm_current.is_some() || stats.fan.speed_current.is_some();
                     if initial {
                         let page_name = match stats.fan.control_mode {
                             Some(mode) if stats.fan.control_enabled => match mode {

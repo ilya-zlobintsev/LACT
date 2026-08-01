@@ -436,10 +436,6 @@ impl GpuStat {
 }
 
 impl GpuStatsSection {
-    pub fn has_fan_speed(&self) -> bool {
-        self.stats.fan.pwm_current.is_some() || self.stats.fan.speed_current.is_some()
-    }
-
     /// Whether a stat is both configured to be shown and reported by this GPU.
     fn shows(&self, stat: GpuStat) -> bool {
         self.stats_to_show.contains(&stat) && self.has_data_for(stat)
@@ -461,7 +457,9 @@ impl GpuStatsSection {
             GpuStat::PowerUsage => {
                 self.stats.power.average.is_some() || self.stats.power.current.is_some()
             }
-            GpuStat::FanSpeed => self.has_fan_speed(),
+            GpuStat::FanSpeed => {
+                self.stats.fan.pwm_current.is_some() || self.stats.fan.speed_current.is_some()
+            }
         }
     }
 
