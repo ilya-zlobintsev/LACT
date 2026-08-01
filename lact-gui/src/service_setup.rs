@@ -372,8 +372,6 @@ enum ConnectionStatus {
         client: DaemonClient,
         version: VersionInfo,
     },
-    /// Holds an error description, unless the connection failure is already covered by the
-    /// connection and service status shown in the dialog.
     Error(Option<String>),
 }
 
