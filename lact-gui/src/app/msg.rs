@@ -30,6 +30,7 @@ pub enum AppMsg {
     ShowAboutDialog,
     ShowOverdriveDialog,
     ShowServiceSetupDialog,
+    ServiceSetupDialogClosed,
     EnableOverdrive,
     DisableOverdrive,
     ResetConfig,

@@ -65,10 +65,11 @@ use relm4::{
     RelmWidgetExt,
     actions::{AccelsPlus, ActionGroupName, RelmAction, RelmActionGroup},
     binding::{Binding as _, BoolBinding},
+    component::AsyncController,
     css,
     loading_widgets::LoadingWidgets,
     new_action_group, new_stateless_action,
-    prelude::{AsyncComponent, AsyncComponentController, AsyncComponentParts},
+    prelude::{AsyncComponent, AsyncComponentParts},
     tokio::{self, time::sleep},
     view,
 };
@@ -119,6 +120,7 @@ pub struct AppModel {
     software_page: relm4::Controller<SoftwarePage>,
     displays_page: relm4::Controller<DisplaysPage>,
     crash_page: relm4::Controller<CrashPage>,
+    service_setup_dialog: Option<AsyncController<ServiceSetupDialog>>,
 
     gpu_selector: relm4::Controller<GpuSelector>,
     profile_selector: relm4::Controller<ProfileSelector>,
@@ -376,11 +378,11 @@ impl AsyncComponent for AppModel {
         }
         CONFIG.read().color_scheme.apply();
 
-        let daemon_client = match args.tcp_address {
+        let (daemon_client, daemon_config_shown) = match args.tcp_address {
             Some(remote_addr) => {
                 info!("establishing connection to {remote_addr}");
                 match DaemonClient::connect_tcp(&remote_addr).await {
-                    Ok(conn) => conn,
+                    Ok(conn) => (conn, false),
                     Err(err) => {
                         sender.input(AppMsg::Error(
                             anyhow!("TCP connection failed, falling back to local: {err:#}").into(),
@@ -418,7 +420,7 @@ impl AsyncComponent for AppModel {
             .expect("Could not list devices");
         let initial_gpu_id = AppModel::init_gpu_selection(&devices);
 
-        if !system_info.version.is_current() {
+        if !system_info.version.is_current() && !daemon_config_shown {
             sender.input(AppMsg::ShowServiceSetupDialog);
         }
 
@@ -499,6 +501,7 @@ impl AsyncComponent for AppModel {
             displays_page,
             gpu_selector,
             profile_selector,
+            service_setup_dialog: None,
             ui_sensitive: BoolBinding::new(false),
             is_reconnecting: BoolBinding::new(false),
             stats_task_handle: None,
@@ -668,8 +671,13 @@ impl AppModel {
                     initial_client: Ok((self.daemon_client.clone(), self.system_info.clone())),
                     unit_proxy: systemd::connect_unit_proxy().await?,
                 };
-                let mut controller = ServiceSetupDialog::builder().launch(params).detach();
-                controller.detach_runtime();
+                let controller = ServiceSetupDialog::builder()
+                    .launch(params)
+                    .forward(sender.input_sender(), |_| AppMsg::ServiceSetupDialogClosed);
+                self.service_setup_dialog = Some(controller);
+            }
+            AppMsg::ServiceSetupDialogClosed => {
+                self.service_setup_dialog = None;
             }
             AppMsg::SelectProfile {
                 profile,
@@ -1418,9 +1426,9 @@ fn start_stats_update_loop(
 async fn create_connection(
     root: &adw::ApplicationWindow,
     sender: &relm4::AsyncComponentSender<AppModel>,
-) -> DaemonClient {
+) -> (DaemonClient, bool) {
     match DaemonClient::connect().await {
-        Ok(client) => client,
+        Ok(client) => (client, false),
         Err(err) => {
             let configured_client = match connect_unit_proxy().await {
                 Ok(unit_proxy) => {
@@ -1442,12 +1450,13 @@ async fn create_connection(
                 }
             };
 
-            match configured_client {
+            let client = match configured_client {
                 Some(client) => client,
                 None => create_embedded_connection()
                     .await
                     .expect("Could not spawn embedded daemon"),
-            }
+            };
+            (client, true)
         }
     }
 }
