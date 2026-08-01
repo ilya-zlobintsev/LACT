@@ -1,16 +1,17 @@
 pub mod systemd;
 
+use crate::I18N;
+use crate::app::components::info_row::{InfoRow, InfoRowExt};
+use crate::app::utils::ext::FlowBoxExt;
 use crate::service_setup::systemd::{START_MODE_REPLACE, UnitProxy};
-use crate::{GUI_VERSION, I18N};
 use adw::prelude::*;
 use anyhow::{Context as _, anyhow};
 use i18n_embed_fl::fl;
 use lact_client::DaemonClient;
-use lact_schema::{GIT_COMMIT, SystemInfo, VersionInfo};
-use relm4::css::{self, WARNING};
+use lact_schema::{SystemInfo, VersionInfo};
 use relm4::{
     AsyncComponentSender, RelmWidgetExt,
-    css::{ERROR, SUCCESS},
+    css::{self, ERROR, SUCCESS, WARNING},
     prelude::{AsyncComponent, AsyncComponentParts},
     tokio,
 };
@@ -51,7 +52,7 @@ impl AsyncComponent for ServiceSetupDialog {
 
     view! {
         adw::Dialog {
-            set_content_width: 500,
+            set_content_width: 600,
             set_title: "Service Setup",
 
             connect_closed => ServiceSetupDialogMsg::Close,
@@ -63,117 +64,53 @@ impl AsyncComponent for ServiceSetupDialog {
                 #[wrap(Some)]
                 set_content = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 5,
+                    set_spacing: 15,
                     set_margin_horizontal: 15,
-                    set_margin_vertical: 5,
+                    set_margin_bottom: 5,
 
                     gtk::Label {
                         set_markup: &fl!(I18N, "service-explanation"),
+                        add_css_class: css::DIM_LABEL,
                         set_wrap: true,
                         set_xalign: 0.0,
-                        set_margin_all: 10,
                     },
 
-                    gtk::Box {
+                    gtk::FlowBox {
                         set_orientation: gtk::Orientation::Horizontal,
-                        set_spacing: 5,
-                        set_hexpand: true,
-                        set_margin_horizontal: 10,
+                        set_column_spacing: 10,
+                        set_row_spacing: 15,
+                        set_homogeneous: true,
+                        set_min_children_per_line: 2,
+                        set_max_children_per_line: 2,
+                        set_selection_mode: gtk::SelectionMode::None,
 
-                        gtk::Label {
-                            set_markup: &format!("<b>{}</b>", fl!(I18N, "service-connection-status")),
-                            set_size_group: &label_size_group,
-                            set_xalign: 0.0,
-                            set_yalign: 0.0,
-                        },
-
-                        gtk::Label {
+                        append_child = &InfoRow {
+                            set_name: fl!(I18N, "service-connection-status"),
                             #[watch]
-                            set_markup: &match &model.connection_status {
-                                ConnectionStatus::Connected {..} => fl!(I18N, "service-connected"),
-                                ConnectionStatus::Error(msg) => msg.clone(),
-                            },
+                            set_value: model.connection_status.status_text(),
                             #[watch]
-                            set_css_classes: if model.connection_status.is_connected() { &[SUCCESS] } else { &[ERROR] },
+                            set_value_css_classes: if model.connection_status.is_connected() { &[SUCCESS] } else { &[ERROR] },
                             set_selectable: true,
-                            set_hexpand: true,
-                            set_halign: gtk::Align::End,
-                        },
-                    },
-
-                    gtk::Box {
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_spacing: 5,
-                        set_hexpand: true,
-                        set_margin_horizontal: 10,
-
-                        gtk::Label {
-                            set_markup: &format!("<b>{}</b>", fl!(I18N, "service-status")),
-                            set_size_group: &label_size_group,
-                            set_xalign: 0.0,
-                            set_yalign: 0.0,
                         },
 
-                        gtk::Label {
+                        append_child = &InfoRow {
+                            set_name: fl!(I18N, "service-status"),
                             #[watch]
-                            set_markup: &format!("<tt>{}</tt>", model.service_state),
-                            set_wrap: true,
-                            set_hexpand: true,
-                            set_halign: gtk::Align::End,
+                            set_value: format!("<tt>{}</tt>", model.service_state),
+                            set_selectable: true,
                         },
 
-                        gtk::MenuButton {
-                            set_icon_name: "utilities-terminal-symbolic",
-                            add_css_class: css::FLAT,
-                            set_valign: gtk::Align::Center,
-
-                            #[wrap(Some)]
-                            set_popover = &gtk::Popover {
-                                gtk::Box {
-                                    set_orientation: gtk::Orientation::Vertical,
-                                    set_spacing: 5,
-                                    set_margin_all: 10,
-
-                                    gtk::Label {
-                                        set_label: &fl!(I18N, "service-logs"),
-                                    },
-
-                                    gtk::ScrolledWindow {
-                                        set_min_content_width: 650,
-                                        set_min_content_height: 250,
-
-                                        gtk::TextView {
-                                            set_editable: false,
-                                            set_buffer: Some(&model.service_logs),
-                                            set_top_margin: 5,
-                                            set_bottom_margin: 5,
-                                            set_left_margin: 5,
-                                            set_right_margin: 5,
-                                        },
-                                    },
-                                },
+                        append_child = &InfoRow {
+                            #[watch]
+                            set_name: if model.version_mismatched() {
+                                format!("{} ({})", fl!(I18N, "service-version"), fl!(I18N, "service-version-mismatch"))
+                            } else {
+                                fl!(I18N, "service-version")
                             },
-                        },
-                    },
-
-                    gtk::Box {
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_spacing: 5,
-                        set_hexpand: true,
-                        set_margin_horizontal: 10,
-
-                        gtk::Label {
-                            set_markup: &format!("<b>{}</b>", fl!(I18N, "service-version")),
-                            set_size_group: &label_size_group,
-                            set_xalign: 0.0,
-                            set_yalign: 0.0,
-                        },
-
-                        gtk::Label {
                             #[watch]
-                            set_markup: &model.service_version_text().unwrap_or_else(|| fl!(I18N, "missing-stat")),
+                            set_value: model.service_version_text().unwrap_or_else(|| fl!(I18N, "missing-stat")),
                             #[watch]
-                            set_css_classes: match &model.connection_status {
+                            set_value_css_classes: match &model.connection_status {
                                 ConnectionStatus::Connected { version, .. } => {
                                     if version.is_current() {
                                         &[SUCCESS]
@@ -183,39 +120,25 @@ impl AsyncComponent for ServiceSetupDialog {
                                 }
                                 ConnectionStatus::Error(_) => &[],
                             },
-                            set_wrap: true,
-                            set_hexpand: true,
-                            set_halign: gtk::Align::End,
+                            set_selectable: true,
                         },
 
-                        gtk::MenuButton {
-                            set_icon_name: "dialog-warning-symbolic",
-                            add_css_class: css::FLAT,
-                            set_valign: gtk::Align::Center,
-                            #[watch]
-                            set_visible: model.daemon_version().is_some_and(|version| !version.is_current()),
+                        append_child = &InfoRow {
+                            set_name: fl!(I18N, "gui-version"),
+                            set_value: format_version(&VersionInfo::current()),
+                            set_selectable: true,
+                        },
+                    },
 
-                            #[wrap(Some)]
-                            set_popover = &gtk::Popover {
-                                gtk::Box {
-                                    set_orientation: gtk::Orientation::Vertical,
-                                    set_spacing: 5,
-                                    set_margin_all: 5,
-
-                                    gtk::Label {
-                                        #[watch]
-                                        set_label: &fl!(
-                                            I18N,
-                                            "version-mismatch-description",
-                                            gui_version = GUI_VERSION,
-                                            gui_commit = GIT_COMMIT,
-                                            daemon_version = model.daemon_version().map(|version| version.version.as_str()).unwrap_or_default(),
-                                            daemon_commit = model.daemon_version().and_then(|version| version.commit.as_deref()).unwrap_or_default(),
-                                        ),
-                                    },
-                                },
-                            },
-                        }
+                    gtk::Label {
+                        #[watch]
+                        set_visible: model.connection_status.error_text().is_some(),
+                        #[watch]
+                        set_markup: model.connection_status.error_text().unwrap_or_default(),
+                        set_css_classes: &[ERROR],
+                        set_wrap: true,
+                        set_xalign: 0.0,
+                        set_selectable: true,
                     },
 
                     gtk::Label {
@@ -224,36 +147,66 @@ impl AsyncComponent for ServiceSetupDialog {
                         #[watch]
                         set_text: &model.setup_error.as_ref().map(|err| format!("Setup error: {err}")).unwrap_or_default(),
                         set_css_classes: &[ERROR],
+                        set_wrap: true,
+                        set_xalign: 0.0,
                         set_selectable: true,
-                        set_hexpand: true,
                     },
                 },
 
                 add_bottom_bar = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
-                    set_spacing: 5,
-                    set_halign: gtk::Align::End,
-                    set_margin_horizontal: 25,
-                    set_margin_vertical: 20,
+                    set_spacing: 10,
+                    set_margin_horizontal: 15,
+                    set_margin_vertical: 15,
 
-                    gtk::Button {
-                        set_label: &fl!(I18N, "service-start"),
-                        connect_clicked => ServiceSetupDialogMsg::StartService,
-                        add_css_class: "suggested-action",
-                        #[watch]
-                        set_visible: model.service_state != systemd::UNIT_STATE_ACTIVE,
+                    gtk::MenuButton {
+                        set_label: &fl!(I18N, "service-logs"),
+                        set_valign: gtk::Align::Center,
+
+                        #[wrap(Some)]
+                        set_popover = &gtk::Popover {
+                            gtk::ScrolledWindow {
+                                set_min_content_width: 650,
+                                set_min_content_height: 250,
+
+                                gtk::TextView {
+                                    set_editable: false,
+                                    set_monospace: true,
+                                    set_buffer: Some(&model.service_logs),
+                                    set_top_margin: 5,
+                                    set_bottom_margin: 5,
+                                    set_left_margin: 5,
+                                    set_right_margin: 5,
+                                },
+                            },
+                        },
                     },
 
-                    gtk::Button {
-                        set_label: &fl!(I18N, "service-stop"),
-                        connect_clicked => ServiceSetupDialogMsg::StopService,
-                        #[watch]
-                        set_visible: model.service_state == systemd::UNIT_STATE_ACTIVE,
-                    },
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 10,
+                        set_hexpand: true,
+                        set_halign: gtk::Align::End,
 
-                    gtk::Button {
-                        set_label: &fl!(I18N, "service-restart"),
-                        connect_clicked => ServiceSetupDialogMsg::RestartService,
+                        gtk::Button {
+                            set_label: &fl!(I18N, "service-start"),
+                            connect_clicked => ServiceSetupDialogMsg::StartService,
+                            add_css_class: "suggested-action",
+                            #[watch]
+                            set_visible: model.service_state != systemd::UNIT_STATE_ACTIVE,
+                        },
+
+                        gtk::Button {
+                            set_label: &fl!(I18N, "service-stop"),
+                            connect_clicked => ServiceSetupDialogMsg::StopService,
+                            #[watch]
+                            set_visible: model.service_state == systemd::UNIT_STATE_ACTIVE,
+                        },
+
+                        gtk::Button {
+                            set_label: &fl!(I18N, "service-restart"),
+                            connect_clicked => ServiceSetupDialogMsg::RestartService,
+                        },
                     },
                 },
             },
@@ -307,8 +260,6 @@ impl AsyncComponent for ServiceSetupDialog {
             service_state,
             setup_error,
         };
-
-        let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
 
         let widgets = view_output!();
 
@@ -403,23 +354,15 @@ impl ServiceSetupDialog {
 
     fn service_version_text(&self) -> Option<String> {
         match &self.connection_status {
-            ConnectionStatus::Connected { version, .. } => {
-                let mut text = format!("<tt>{}</tt>", format_version(version));
-
-                if !version.is_current() {
-                    write!(text, " ({})", fl!(I18N, "service-version-mismatch")).unwrap();
-                }
-
-                Some(text)
-            }
+            ConnectionStatus::Connected { version, .. } => Some(format_version(version)),
             ConnectionStatus::Error(_) => None,
         }
     }
 
-    fn daemon_version(&self) -> Option<&VersionInfo> {
+    fn version_mismatched(&self) -> bool {
         match &self.connection_status {
-            ConnectionStatus::Connected { version, .. } => Some(version),
-            ConnectionStatus::Error(_) => None,
+            ConnectionStatus::Connected { version, .. } => !version.is_current(),
+            ConnectionStatus::Error(_) => false,
         }
     }
 }
@@ -429,7 +372,9 @@ enum ConnectionStatus {
         client: DaemonClient,
         version: VersionInfo,
     },
-    Error(String),
+    /// Holds an error description, unless the connection failure is already covered by the
+    /// connection and service status shown in the dialog.
+    Error(Option<String>),
 }
 
 impl ConnectionStatus {
@@ -449,14 +394,28 @@ impl ConnectionStatus {
     fn from_err(err: anyhow::Error) -> Self {
         let msg = if let Some(io_err) = err.downcast_ref::<std::io::Error>() {
             match io_err.kind() {
-                io::ErrorKind::NotFound => fl!(I18N, "service-not-running"),
-                io::ErrorKind::PermissionDenied => fl!(I18N, "service-permission-denied"),
-                _ => format!("{} (IO {io_err:#})", fl!(I18N, "error-heading")),
+                io::ErrorKind::NotFound => None,
+                io::ErrorKind::PermissionDenied => Some(fl!(I18N, "service-permission-denied")),
+                _ => Some(format!("{} (IO {io_err:#})", fl!(I18N, "error-heading"))),
             }
         } else {
-            format!("{} ({err:#})", fl!(I18N, "error-heading"))
+            Some(format!("{} ({err:#})", fl!(I18N, "error-heading")))
         };
         Self::Error(msg)
+    }
+
+    fn status_text(&self) -> String {
+        match self {
+            Self::Connected { .. } => fl!(I18N, "service-connected"),
+            Self::Error(_) => fl!(I18N, "service-disconnected"),
+        }
+    }
+
+    fn error_text(&self) -> Option<&str> {
+        match self {
+            Self::Connected { .. } => None,
+            Self::Error(msg) => msg.as_deref(),
+        }
     }
 
     fn is_connected(&self) -> bool {
@@ -483,7 +442,13 @@ impl ConnectionStatus {
 }
 
 fn format_version(version: &VersionInfo) -> String {
-    format!("{}-{}", version.version, version.profile)
+    let mut text = format!("{}-{}", version.version, version.profile);
+
+    if let Some(commit) = &version.commit {
+        write!(text, " (commit {commit})").unwrap();
+    }
+
+    text
 }
 
 async fn service_logs_text() -> String {

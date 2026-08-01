@@ -235,14 +235,15 @@ daemon-connection-lost = Connection Lost
 service-explanation =
     LACT requires a system service in order to apply GPU settings.
     It is possible to skip the setup use the application in standalone mode, if you wish to use it only for information and monitoring.
-service-connection-status = Connection Status:
-service-status = Service Status:
-service-not-running = Service is not running
+service-connection-status = Connection Status
+service-status = Service Status
 service-permission-denied =
     Permission denied, service is not configured to allow connections from your user.
     See <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> for more information
 service-connected = Connected
+service-disconnected = Not connected
 service-version = Service Version
+gui-version = GUI Version
 service-version-mismatch = mismatched
 service-logs = Service Logs
 
