@@ -240,8 +240,8 @@ service-status = Service Status
 service-permission-denied =
     Permission denied, service is not configured to allow connections from your user.
     See <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> for more information
-service-connected = Connected
-service-disconnected = Not connected
+service-connected = connected
+service-disconnected = not connected
 service-version = Service Version
 gui-version = GUI Version
 service-version-mismatch = mismatched
