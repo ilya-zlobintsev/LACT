@@ -582,7 +582,7 @@ impl IntelGpuController {
 
     fn get_hwmon_fan_curve(&self) -> Option<FanCurve> {
         if !self.has_fan_control()  {
-            return Option::None;
+            return None;
         }
 
         let amount: u8 = self.get_hwmon_controllable_points_amount();
@@ -626,7 +626,7 @@ impl IntelGpuController {
             point_index -= 1;
         }
 
-        Option::Some(FanCurve(points.into_iter().collect()))
+        Some(FanCurve(points.into_iter().collect()))
     }
 
     fn get_hwmon_fan_static_speed(&self) -> Option<f32> {
@@ -638,7 +638,7 @@ impl IntelGpuController {
     fn get_hwmon_fan_control_mode(&self) -> Option<FanControlMode> {
         let mode: u64 = self.read_hwmon_file(&["pwm1_enable"], false)?;
         match mode {
-            0 => Option::Some(FanControlMode::Static),
+            0 => Some(FanControlMode::Static),
             1 => {
                 let mut pwm_files =
                     self.read_hwmon_files::<String>("pwm1_", "_pwm")
@@ -646,17 +646,17 @@ impl IntelGpuController {
                             pwm
                         });
                 match pwm_files.next() {
-                    None => Option::Some(FanControlMode::Static),
+                    None => Some(FanControlMode::Static),
                     Some(first) => {
                         if pwm_files.all(|pwm: String| first == pwm)  {
                             //when you set a static speed, the xe driver will set your table points to the same pwm; if one is different, then we are in a curve
-                            return Option::Some(FanControlMode::Static);
+                            return Some(FanControlMode::Static);
                         }
-                        Option::Some(FanControlMode::Curve)
+                        Some(FanControlMode::Curve)
                     }
                 }
             }
-            _ => Option::None,
+            _ => None,
         }
     }
 
