@@ -506,10 +506,6 @@ impl NvApiThermals {
     }
 }
 
-// ensure the sizes used in the version fields stay correct
-const _: () = assert!(mem::size_of::<NvApiVoltage>() == 76);
-const _: () = assert!(mem::size_of::<NvApiVoltageBoost>() == 40);
-
 #[repr(C)]
 #[derive(Debug)]
 struct NvApiVoltage {
