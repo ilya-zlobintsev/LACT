@@ -538,10 +538,10 @@ struct NvApiVoltageRail {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct NvApiVoltageBoost {
-    pub version: NvU32,
-    pub percent: NvU8,
-    pub rsvd: [NvU8; 32],
+struct NvApiVoltageBoost {
+    version: NvU32,
+    percent: NvU8,
+    rsvd: [NvU8; 32],
 }
 
 impl Default for NvApiVoltageBoost {
