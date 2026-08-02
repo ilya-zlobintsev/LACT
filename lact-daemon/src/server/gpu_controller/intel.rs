@@ -605,8 +605,6 @@ impl IntelGpuController {
                 .unwrap();
 
             points.push((temp as i32 / 1000, pwm as f32 / 255.0));
-
-            info!("{}", temp);
         }
 
         let mut last_speed: f32 = points.last().unwrap().1;
