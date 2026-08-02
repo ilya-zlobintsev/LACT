@@ -129,7 +129,7 @@ impl StatsData {
                     if details.is_empty() {
                         throttle_type.clone()
                     } else {
-                        format!("{throttle_type} ({})", details.join(", "))
+                        format!("{throttle_type} ({})", details.join(","))
                     }
                 })
                 .collect();
