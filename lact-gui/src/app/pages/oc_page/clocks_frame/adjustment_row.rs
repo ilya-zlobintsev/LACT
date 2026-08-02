@@ -7,11 +7,11 @@ use crate::{
 };
 use gtk::{
     glib::{SignalHandlerId, object::ObjectExt},
-    prelude::{AdjustmentExt, EditableExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
+    prelude::{AdjustmentExt, BoxExt, EditableExt, OrientableExt, RangeExt, ScaleExt, WidgetExt},
 };
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
-use relm4::prelude::FactoryComponent;
+use relm4::{RelmWidgetExt, prelude::FactoryComponent};
 
 pub struct ClockAdjustmentRow {
     clock_type: ClockspeedType,
@@ -78,40 +78,59 @@ impl FactoryComponent for ClockAdjustmentRow {
         #[name = "root_box"]
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            set_tooltip_text: match self.clock_type {
-                ClockspeedType::VoltageBoost => Some(fl!(I18N, "gpu-voltage-boost-tooltip")),
-                _ => None,
-            }.as_deref(),
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
 
-                #[name = "title_label"]
-                gtk::Label {
-                    set_xalign: 0.0,
-                    #[watch]
-                    set_markup: &match &self.custom_title {
-                        Some(title) => title.clone(),
-                        None => {
-                            match self.clock_type {
-                                ClockspeedType::MaxCoreClock => fl!(I18N, "max-gpu-clock"),
-                                ClockspeedType::MaxMemoryClock => fl!(I18N, "max-vram-clock"),
-                                ClockspeedType::MaxVoltage => fl!(I18N, "max-gpu-voltage"),
-                                ClockspeedType::MinCoreClock => fl!(I18N, "min-gpu-clock"),
-                                ClockspeedType::MinMemoryClock => fl!(I18N, "min-vram-clock"),
-                                ClockspeedType::MinVoltage => fl!(I18N, "min-gpu-voltage"),
-                                ClockspeedType::VoltageOffset => fl!(I18N, "gpu-voltage-offset"),
-                                ClockspeedType::VoltageBoost => fl!(I18N, "gpu-voltage-boost"),
-                                ClockspeedType::GpuClockOffset(pstate) => fl!(I18N, "gpu-pstate-clock-offset", pstate = pstate),
-                                ClockspeedType::MemClockOffset(pstate) => fl!(I18N, "vram-pstate-clock-offset", pstate = pstate),
-                                ClockspeedType::GpuVfCurveClock(pstate) => fl!(I18N, "gpu-pstate-clock", pstate = pstate),
-                                ClockspeedType::MemVfCurveClock(pstate) => fl!(I18N, "mem-pstate-clock", pstate = pstate),
-                                ClockspeedType::GpuVfCurveVoltage(pstate) => fl!(I18N, "gpu-pstate-clock-voltage", pstate = pstate),
-                                ClockspeedType::MemVfCurveVoltage(pstate) => fl!(I18N, "mem-pstate-clock-voltage", pstate = pstate),
-                                ClockspeedType::Reset => unreachable!(),
+                #[name = "title_box"]
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 5,
+
+                    gtk::Label {
+                        set_xalign: 0.0,
+                        #[watch]
+                        set_markup: &match &self.custom_title {
+                            Some(title) => title.clone(),
+                            None => {
+                                match self.clock_type {
+                                    ClockspeedType::MaxCoreClock => fl!(I18N, "max-gpu-clock"),
+                                    ClockspeedType::MaxMemoryClock => fl!(I18N, "max-vram-clock"),
+                                    ClockspeedType::MaxVoltage => fl!(I18N, "max-gpu-voltage"),
+                                    ClockspeedType::MinCoreClock => fl!(I18N, "min-gpu-clock"),
+                                    ClockspeedType::MinMemoryClock => fl!(I18N, "min-vram-clock"),
+                                    ClockspeedType::MinVoltage => fl!(I18N, "min-gpu-voltage"),
+                                    ClockspeedType::VoltageOffset => fl!(I18N, "gpu-voltage-offset"),
+                                    ClockspeedType::VoltageBoost => fl!(I18N, "gpu-voltage-boost"),
+                                    ClockspeedType::GpuClockOffset(pstate) => fl!(I18N, "gpu-pstate-clock-offset", pstate = pstate),
+                                    ClockspeedType::MemClockOffset(pstate) => fl!(I18N, "vram-pstate-clock-offset", pstate = pstate),
+                                    ClockspeedType::GpuVfCurveClock(pstate) => fl!(I18N, "gpu-pstate-clock", pstate = pstate),
+                                    ClockspeedType::MemVfCurveClock(pstate) => fl!(I18N, "mem-pstate-clock", pstate = pstate),
+                                    ClockspeedType::GpuVfCurveVoltage(pstate) => fl!(I18N, "gpu-pstate-clock-voltage", pstate = pstate),
+                                    ClockspeedType::MemVfCurveVoltage(pstate) => fl!(I18N, "mem-pstate-clock-voltage", pstate = pstate),
+                                    ClockspeedType::Reset => unreachable!(),
+                                }
                             }
-                        }
-                    }
+                        },
+                    },
+
+                    gtk::MenuButton {
+                        set_icon_name: "dialog-information-symbolic",
+                        set_always_show_arrow: false,
+                        add_css_class: "flat",
+                        set_visible: self.clock_type == ClockspeedType::VoltageBoost,
+
+                        #[wrap(Some)]
+                        set_popover = &gtk::Popover {
+                            gtk::Label {
+                                set_margin_all: 5,
+                                set_label: &fl!(I18N, "gpu-voltage-boost-tooltip"),
+                                set_wrap: true,
+                                set_wrap_mode: gtk::pango::WrapMode::Word,
+                                set_max_width_chars: 55,
+                            }
+                        },
+                    },
                 },
 
                 gtk::Scale {
@@ -196,7 +215,7 @@ impl FactoryComponent for ClockAdjustmentRow {
                 label_group,
                 input_group,
             } => {
-                label_group.add_widget(&widgets.title_label);
+                label_group.add_widget(&widgets.title_box);
                 input_group.add_widget(&widgets.input_button);
             }
             ClockAdjustmentRowMsg::SetVisible(visible) => {
