@@ -72,6 +72,7 @@ pub async fn fetch_logs() -> anyhow::Result<String> {
     let output = Command::new("journalctl")
         .args([
             "-I",
+            "--reverse",
             "--no-hostname",
             "--no-pager",
             "-o",
