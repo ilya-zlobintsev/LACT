@@ -9,7 +9,7 @@ use crate::{
     server::gpu_controller::common::fdinfo::{self, DrmUtilMap},
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
-use anyhow::{Context, anyhow, bail};
+use anyhow::{Context, anyhow, bail, Error};
 use futures::StreamExt;
 use futures::future::LocalBoxFuture;
 use lact_schema::config::FanCurve;
@@ -662,16 +662,14 @@ impl IntelGpuController {
         self.read_hwmon_files::<String>("fan", "_input").count() as u8
     }
 
-    fn apply_fan_curve(&self, curve: FanCurve) -> Result<bool, anyhow::Error> {
+    fn apply_fan_curve(&self, curve: FanCurve) -> Result<String, Error> {
         if !self.has_fan_control()  {
-            return Result::Err(anyhow!(
-                "Tried to control the fan curve when there is no fan control"
-            ));
+            return Err(anyhow!("Tried to control the fan curve when there is no fan control"));
         }
 
-        let valid_fan_curve: (bool, String) = self.is_valid_fan_curve(curve.clone());
-        if !valid_fan_curve.0  {
-            return Result::Err(anyhow!(valid_fan_curve.1));
+        let valid_fan_curve: Result<String, Error> = self.is_valid_fan_curve(curve.clone());
+        if valid_fan_curve.is_err()  {
+            return valid_fan_curve;
         }
 
         let fans: u8 = self.get_hwmon_fans_amount();
@@ -727,20 +725,14 @@ impl IntelGpuController {
             }
         }
 
-        Result::Ok(true)
+        Ok(String::from("Ok"))
     }
 
-    fn is_valid_fan_curve(&self, curve: FanCurve) -> (bool, String) {
+    fn is_valid_fan_curve(&self, curve: FanCurve) -> anyhow::Result<String, Error> {
         if curve.0.is_empty()
             || curve.0.len() > self.get_hwmon_controllable_points_amount() as usize 
         {
-            return (
-                false,
-                format!(
-                    "The fan curve needs at least 1 point and up to {} points",
-                    self.get_hwmon_controllable_points_amount()
-                ),
-            );
+            return Err(anyhow!("The fan curve needs at least 1 point and up to {} points", self.get_hwmon_controllable_points_amount()))
         }
 
         let mut highest_temperature: i32 = 0;
@@ -750,27 +742,17 @@ impl IntelGpuController {
             if *temperature >= highest_temperature  {
                 highest_temperature = *temperature;
             } else {
-                return (
-                    false,
-                    "The fan curve temperatures must be in increasing order"
-                        .parse()
-                        .unwrap(),
-                );
+                return Err(anyhow!("The fan curve temperatures must be in increasing order"))
             }
 
             if *speed >= highest_speed  {
                 highest_speed = *speed;
             } else {
-                return (
-                    false,
-                    "The fan curve speeds must be in increasing order"
-                        .parse()
-                        .unwrap(),
-                );
+                return Err(anyhow!("The fan curve speeds must be in increasing order"))
             }
         }
 
-        (true, "Ok".parse().unwrap())
+        Ok(String::from("Ok"))
     }
 
     fn set_fans_static_speed(&self, speed: f32) -> Result<bool, anyhow::Error> {
