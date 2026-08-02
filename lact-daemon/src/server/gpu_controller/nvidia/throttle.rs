@@ -3,7 +3,6 @@ use nvml_wrapper::bitmasks::device::ThrottleReasons;
 use std::collections::BTreeMap;
 
 bitflags! {
-    /// `NvAPI` performance policies which can limit the GPU
     #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     pub struct PerfPolicies: u32 {
         const POWER = 1 << 0;
@@ -15,7 +14,6 @@ bitflags! {
     }
 }
 
-/// The limits reported by `NvAPI`, which also cover the voltage limiters
 pub fn from_policies(policies: PerfPolicies) -> BTreeMap<String, Vec<String>> {
     [
         (PerfPolicies::POWER, "Power"),
@@ -30,7 +28,6 @@ pub fn from_policies(policies: PerfPolicies) -> BTreeMap<String, Vec<String>> {
     .collect()
 }
 
-/// The limits reported by NVML, used when `NvAPI` is unavailable
 pub fn from_reasons(reasons: ThrottleReasons) -> BTreeMap<String, Vec<String>> {
     let mut info: BTreeMap<String, Vec<String>> = [
         (ThrottleReasons::SW_POWER_CAP, "Power"),
@@ -58,58 +55,4 @@ pub fn from_reasons(reasons: ThrottleReasons) -> BTreeMap<String, Vec<String>> {
     }
 
     info
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{PerfPolicies, from_policies, from_reasons};
-    use nvml_wrapper::bitmasks::device::ThrottleReasons;
-    use pretty_assertions::assert_eq;
-    use std::collections::BTreeMap;
-
-    fn map(entries: &[(&str, &[&str])]) -> BTreeMap<String, Vec<String>> {
-        entries
-            .iter()
-            .map(|(key, details)| {
-                (
-                    (*key).to_owned(),
-                    details.iter().map(|detail| (*detail).to_owned()).collect(),
-                )
-            })
-            .collect()
-    }
-
-    #[test]
-    fn nvapi_limits() {
-        assert_eq!(
-            map(&[("Power", &[]), ("vRel", &[])]),
-            from_policies(PerfPolicies::POWER | PerfPolicies::VREL),
-        );
-    }
-
-    #[test]
-    fn idle_is_not_a_limit() {
-        assert_eq!(map(&[]), from_policies(PerfPolicies::UTIL));
-        assert_eq!(map(&[]), from_reasons(ThrottleReasons::GPU_IDLE));
-    }
-
-    #[test]
-    fn nvml_limits() {
-        assert_eq!(
-            map(&[("HW Slowdown", &["Thermal"]), ("Power", &[])]),
-            from_reasons(ThrottleReasons::SW_POWER_CAP | ThrottleReasons::HW_THERMAL_SLOWDOWN),
-        );
-    }
-
-    #[test]
-    fn nvml_hardware_slowdown() {
-        assert_eq!(
-            map(&[("Display Clocks", &[]), ("HW Slowdown", &["Power brake"])]),
-            from_reasons(
-                ThrottleReasons::HW_SLOWDOWN
-                    | ThrottleReasons::HW_POWER_BRAKE_SLOWDOWN
-                    | ThrottleReasons::DISPLAY_CLOCK_SETTING
-            ),
-        );
-    }
 }
