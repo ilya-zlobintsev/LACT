@@ -4,13 +4,10 @@ mod throttle;
 
 use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
-    bindings::nvidia::{NvPhysicalGpuHandle, NvU32},
+    bindings::nvidia::NvPhysicalGpuHandle,
     server::gpu_controller::{
         common::{fan_control::FanCurveExt, resolve_process_name},
-        nvidia::{
-            nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
-            throttle::PerfPolicies,
-        },
+        nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
     },
 };
 use amdgpu_sysfs::{
@@ -46,6 +43,7 @@ use std::{
     rc::Rc,
     time::{Duration, Instant},
 };
+use throttle::{PerfPolicies, from_policies, from_reasons};
 use tokio::{select, sync::Notify, time::sleep};
 use tracing::{debug, error, trace, warn};
 
@@ -67,9 +65,9 @@ pub struct NvidiaGpuController {
     nvapi: Option<(Rc<NvApi>, NvPhysicalGpuHandle)>,
     driver_handle: Option<DriverHandle>,
     nvapi_thermals_mask: Option<i32>,
-    nvapi_perf_policy_mask: Cell<Option<NvU32>>,
 
     last_util_timestamp: Cell<Option<u64>>,
+    nvapi_perf_policy_mask: Cell<Option<u32>>,
     // Store last applied offsets as a workaround when the driver doesn't tell us the current offset
     last_applied_offsets: RefCell<HashMap<Clock, HashMap<PerformanceState, i32>>>,
     last_applied_gpu_locked_clocks: RefCell<Option<(u32, u32)>>,
@@ -118,20 +116,22 @@ impl NvidiaGpuController {
                 });
 
                 let perf_policy_mask = gpu_handle.and_then(|handle| unsafe {
-                    match nvapi.perf_policies_get_info(handle) {
-                        Ok(0) => {
-                            warn!("NvAPI reports no supported performance policies");
-                            None
-                        }
-                        Ok(mask) => {
-                            debug!("got NvAPI performance policy mask {mask:x}");
-                            Some(mask)
-                        }
-                        Err(err) => {
-                            warn!("could not get NvAPI performance policies: {err:#}");
-                            None
-                        }
-                    }
+                    nvapi
+                        .perf_policies_get_info(handle)
+                        .inspect(|mask| {
+                            debug!(
+                                "got NvAPI performance policy mask {mask:x} on {}",
+                                common.pci_slot_name
+                            );
+                        })
+                        .inspect_err(|err| {
+                            error!(
+                                "could not get NvAPI performance policies on {}: {err:#}",
+                                common.pci_slot_name
+                            );
+                        })
+                        .ok()
+                        .filter(|mask| *mask != 0)
                 });
 
                 (gpu_handle, thermals_mask, perf_policy_mask)
@@ -182,14 +182,17 @@ impl NvidiaGpuController {
             .expect("Can no longer get device")
     }
 
-    fn nvapi_perf_policies(&self) -> Option<PerfPolicies> {
+    fn get_nvapi_perf_policies(&self) -> Option<PerfPolicies> {
         let (nvapi, handle) = self.nvapi.as_ref()?;
         let mask = self.nvapi_perf_policy_mask.get()?;
 
         match unsafe { nvapi.perf_policies_get_status(*handle, mask) } {
             Ok(limits) => Some(PerfPolicies::from_bits_truncate(limits)),
             Err(err) => {
-                warn!("could not read NvAPI performance policies, using NVML: {err:#}");
+                warn!(
+                    "could not read NvAPI performance policies on {}, using NVML: {err:#}",
+                    self.common.pci_slot_name
+                );
                 self.nvapi_perf_policy_mask.set(None);
                 None
             }
@@ -1094,14 +1097,9 @@ impl GpuController for NvidiaGpuController {
                 .collect(),
             },
             throttle_info: self
-                .nvapi_perf_policies()
-                .map(throttle::from_policies)
-                .or_else(|| {
-                    device
-                        .current_throttle_reasons()
-                        .ok()
-                        .map(throttle::from_reasons)
-                }),
+                .get_nvapi_perf_policies()
+                .map(from_policies)
+                .or_else(|| device.current_throttle_reasons().ok().map(from_reasons)),
             voltage: VoltageStats {
                 gpu: voltage,
                 ..Default::default()

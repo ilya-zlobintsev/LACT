@@ -79,7 +79,7 @@ pub fn fmt_throttling_text(stats: &DeviceStats) -> String {
                     })
                     .collect();
 
-                type_text.join(" ")
+                type_text.join(", ")
             }
         }
         None => {
@@ -258,7 +258,7 @@ mod tests {
         throttle_info.insert("Power".to_string(), vec![]);
         stats.throttle_info = Some(throttle_info);
 
-        assert_eq!(fmt_throttling_text(&stats), "Power Thermal (GPU, VRAM)");
+        assert_eq!(fmt_throttling_text(&stats), "Power, Thermal (GPU, VRAM)");
     }
 
     #[test]

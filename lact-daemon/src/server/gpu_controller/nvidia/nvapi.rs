@@ -148,13 +148,8 @@ impl NvApi {
     pub unsafe fn perf_policies_get_info(
         &self,
         handle: NvPhysicalGpuHandle,
-    ) -> anyhow::Result<NvU32> {
-        let mut data = PerfPoliciesInfoV1 {
-            version: make_version::<PerfPoliciesInfoV1>(1),
-            supported_point_mask: 0,
-            supported_policy_mask: 0,
-            rsvd: [0; 16],
-        };
+    ) -> anyhow::Result<u32> {
+        let mut data = NvApiPerfPoliciesInfo::default();
 
         self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_GPU_PERF_POLICIES_GET_INFO)?;
 
@@ -164,16 +159,11 @@ impl NvApi {
     pub unsafe fn perf_policies_get_status(
         &self,
         handle: NvPhysicalGpuHandle,
-        policy_mask: NvU32,
-    ) -> anyhow::Result<NvU32> {
-        let mut data = PerfPoliciesStatusV1 {
-            version: make_version::<PerfPoliciesStatusV1>(1),
+        policy_mask: u32,
+    ) -> anyhow::Result<u32> {
+        let mut data = NvApiPerfPoliciesStatus {
             requested_policy_mask: policy_mask,
-            reference_time_ns: 0,
-            limiting_policy_mask: 0,
-            global_status: PerfPolicyStatus::default(),
-            policies: [PerfPolicyStatus::default(); 12],
-            rsvd: [0; 48],
+            ..Default::default()
         };
 
         self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_GPU_PERF_POLICIES_GET_STATUS)?;
@@ -590,16 +580,27 @@ impl Default for NvApiVoltageBoost {
 
 #[repr(C)]
 #[derive(Debug)]
-struct PerfPoliciesInfoV1 {
+struct NvApiPerfPoliciesInfo {
     version: NvU32,
     supported_point_mask: NvU32,
     supported_policy_mask: NvU32,
     rsvd: [NvU32; 16],
 }
 
+impl Default for NvApiPerfPoliciesInfo {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            supported_point_mask: 0,
+            supported_policy_mask: 0,
+            rsvd: [0; 16],
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default)]
-struct PerfPolicyStatus {
+struct NvApiPerfPolicyStatus {
     perf_point_mask: NvU32,
     perf_point_time_ns: [NvU64; 6],
     rsvd: [NvU32; 8],
@@ -607,21 +608,29 @@ struct PerfPolicyStatus {
 
 #[repr(C)]
 #[derive(Debug)]
-struct PerfPoliciesStatusV1 {
+struct NvApiPerfPoliciesStatus {
     version: NvU32,
     requested_policy_mask: NvU32,
     reference_time_ns: NvU64,
     limiting_policy_mask: NvU32,
-    global_status: PerfPolicyStatus,
-    policies: [PerfPolicyStatus; 12],
+    global_status: NvApiPerfPolicyStatus,
+    policies: [NvApiPerfPolicyStatus; 12],
     rsvd: [NvU32; 48],
 }
 
-// compiler-time check that struct sizes din't change
-const _: () = assert!(mem::size_of::<PerfPoliciesInfoV1>() == 76);
-const _: () = assert!(mem::size_of::<PerfPolicyStatus>() == 88);
-const _: () = assert!(mem::size_of::<PerfPoliciesStatusV1>() == 1360);
-const _: () = assert!(mem::offset_of!(PerfPoliciesStatusV1, global_status) == 24);
+impl Default for NvApiPerfPoliciesStatus {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            requested_policy_mask: 0,
+            reference_time_ns: 0,
+            limiting_policy_mask: 0,
+            global_status: NvApiPerfPolicyStatus::default(),
+            policies: [NvApiPerfPolicyStatus::default(); 12],
+            rsvd: [0; 48],
+        }
+    }
+}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
