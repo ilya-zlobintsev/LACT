@@ -9,7 +9,7 @@ use crate::{
     server::gpu_controller::common::fdinfo::{self, DrmUtilMap},
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
-use anyhow::{Context, anyhow, bail, Error};
+use anyhow::{Context, anyhow, bail, Error, ensure};
 use futures::StreamExt;
 use futures::future::LocalBoxFuture;
 use lact_schema::config::FanCurve;
@@ -663,14 +663,9 @@ impl IntelGpuController {
     }
 
     fn apply_fan_curve(&self, curve: FanCurve) -> Result<String, Error> {
-        if !self.has_fan_control()  {
-            return Err(anyhow!("Tried to control the fan curve when there is no fan control"));
-        }
+        ensure!(self.has_fan_control(), "Tried to control the fan curve when there is no fan control");
 
-        let valid_fan_curve: Result<String, Error> = self.is_valid_fan_curve(curve.clone());
-        if valid_fan_curve.is_err()  {
-            return valid_fan_curve;
-        }
+        self.is_valid_fan_curve(curve.clone())?;
 
         let fans: u8 = self.get_hwmon_fans_amount();
 
