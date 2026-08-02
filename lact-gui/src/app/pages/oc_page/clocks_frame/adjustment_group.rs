@@ -22,7 +22,8 @@ impl ClockCategory {
             | ClockspeedType::GpuClockOffset(_) => ClockCategory::CoreClock,
             ClockspeedType::MinVoltage
             | ClockspeedType::MaxVoltage
-            | ClockspeedType::VoltageOffset => ClockCategory::CoreVoltage,
+            | ClockspeedType::VoltageOffset
+            | ClockspeedType::VoltageBoost => ClockCategory::CoreVoltage,
             ClockspeedType::MaxMemoryClock
             | ClockspeedType::MinMemoryClock
             | ClockspeedType::MemClockOffset(_) => ClockCategory::VramClock,

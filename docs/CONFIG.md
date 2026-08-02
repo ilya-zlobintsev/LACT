@@ -188,6 +188,8 @@ gpus:
     max_voltage: 1200
     # Voltage offset value in mV for RDNA and newer AMD GPUs.
     voltage_offset: 0
+    # Nvidia core voltage boost, in percent (0-100
+    voltage_boost: 0
 
     # GPU V/F curve with voltage and frequency points per each power state.
     # Applicable only to AMD GCN and RDNA1 GPUs. Overrides the values of min/max clock/voltage fields.

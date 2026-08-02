@@ -28,6 +28,22 @@ pub struct ClocksData {
     pub max: i32,
     pub custom_title: Option<String>,
     pub is_secondary: bool,
+    /// Step size of the slider and spin button
+    pub step: i32,
+}
+
+impl Default for ClocksData {
+    fn default() -> Self {
+        Self {
+            current: 0,
+            min: 0,
+            max: 0,
+            custom_title: None,
+            is_secondary: false,
+            // Suitable for clockspeed and voltage values, which are the majority of rows
+            step: 10,
+        }
+    }
 }
 
 impl ClocksData {
@@ -36,8 +52,7 @@ impl ClocksData {
             current,
             min,
             max,
-            is_secondary: false,
-            custom_title: None,
+            ..Default::default()
         }
     }
 }
@@ -65,6 +80,10 @@ impl FactoryComponent for ClockAdjustmentRow {
         #[name = "root_box"]
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
+            set_tooltip_text: match self.clock_type {
+                ClockspeedType::VoltageBoost => Some(fl!(I18N, "gpu-voltage-boost-tooltip")),
+                _ => None,
+            }.as_deref(),
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
@@ -84,6 +103,7 @@ impl FactoryComponent for ClockAdjustmentRow {
                                 ClockspeedType::MinMemoryClock => fl!(I18N, "min-vram-clock"),
                                 ClockspeedType::MinVoltage => fl!(I18N, "min-gpu-voltage"),
                                 ClockspeedType::VoltageOffset => fl!(I18N, "gpu-voltage-offset"),
+                                ClockspeedType::VoltageBoost => fl!(I18N, "gpu-voltage-boost"),
                                 ClockspeedType::GpuClockOffset(pstate) => fl!(I18N, "gpu-pstate-clock-offset", pstate = pstate),
                                 ClockspeedType::MemClockOffset(pstate) => fl!(I18N, "vram-pstate-clock-offset", pstate = pstate),
                                 ClockspeedType::GpuVfCurveClock(pstate) => fl!(I18N, "gpu-pstate-clock", pstate = pstate),
@@ -128,7 +148,7 @@ impl FactoryComponent for ClockAdjustmentRow {
             data.current as f64,
             data.min as f64,
             data.max as f64,
-            10.0,
+            data.step as f64,
             10.0,
         );
 
