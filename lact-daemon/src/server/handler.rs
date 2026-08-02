@@ -507,6 +507,7 @@ impl<'a> Handler {
     }
 
     #[cfg(not(feature = "display-info"))]
+    #[expect(clippy::unused_async)]
     pub async fn get_displays_info(&'a self, _id: &str) -> anyhow::Result<DisplaysInfo> {
         Err(anyhow!("Daemon is compiled without display info support"))
     }
