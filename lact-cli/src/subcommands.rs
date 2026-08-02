@@ -111,7 +111,7 @@ pub async fn stats(ctx: CliContext<'_>) -> Result<()> {
             if type_text.is_empty() {
                 "No".to_owned()
             } else {
-                type_text.join(", ")
+                type_text.join(" ")
             }
         );
     }

@@ -368,7 +368,7 @@ impl RenderRequest {
                 .context("Failed to draw throttling histogram")?
                 .label(format!(
                     "Throttling: {}",
-                    names.into_iter().collect::<Vec<_>>().join(",")
+                    names.into_iter().collect::<Vec<_>>().join(" ")
                 ))
                 .legend(move |(x, y)| {
                     let offset = 7;

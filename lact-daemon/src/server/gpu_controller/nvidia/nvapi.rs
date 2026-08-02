@@ -36,6 +36,8 @@ const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_INFO: u32 = 0x507b4b59;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL: u32 = 0x733e009;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_CONTROL: u32 = 0x23f1b133;
 const QUERY_NVAPI_GPU_REGISTER_OP: u32 = 0x2eb3c140;
+const QUERY_NVAPI_GPU_PERF_POLICIES_GET_INFO: u32 = 0x409d9841;
+const QUERY_NVAPI_GPU_PERF_POLICIES_GET_STATUS: u32 = 0x3d358a0c;
 
 const REG_OFFSET_BLACKWELL_HOTSPOT_AGGREGATED: u32 = 0xad0aa0;
 
@@ -141,6 +143,42 @@ impl NvApi {
         self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE_BOOST_SET)?;
 
         Ok(())
+    }
+
+    pub unsafe fn perf_policies_get_info(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<NvU32> {
+        let mut data = PerfPoliciesInfoV1 {
+            version: make_version::<PerfPoliciesInfoV1>(1),
+            supported_point_mask: 0,
+            supported_policy_mask: 0,
+            rsvd: [0; 16],
+        };
+
+        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_GPU_PERF_POLICIES_GET_INFO)?;
+
+        Ok(data.supported_policy_mask)
+    }
+
+    pub unsafe fn perf_policies_get_status(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        policy_mask: NvU32,
+    ) -> anyhow::Result<NvU32> {
+        let mut data = PerfPoliciesStatusV1 {
+            version: make_version::<PerfPoliciesStatusV1>(1),
+            requested_policy_mask: policy_mask,
+            reference_time_ns: 0,
+            limiting_policy_mask: 0,
+            global_status: PerfPolicyStatus::default(),
+            policies: [PerfPolicyStatus::default(); 12],
+            rsvd: [0; 48],
+        };
+
+        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_GPU_PERF_POLICIES_GET_STATUS)?;
+
+        Ok(data.limiting_policy_mask)
     }
 
     pub unsafe fn clock_client_clk_vf_points_get_info(
@@ -549,6 +587,41 @@ impl Default for NvApiVoltageBoost {
         }
     }
 }
+
+#[repr(C)]
+#[derive(Debug)]
+struct PerfPoliciesInfoV1 {
+    version: NvU32,
+    supported_point_mask: NvU32,
+    supported_policy_mask: NvU32,
+    rsvd: [NvU32; 16],
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+struct PerfPolicyStatus {
+    perf_point_mask: NvU32,
+    perf_point_time_ns: [NvU64; 6],
+    rsvd: [NvU32; 8],
+}
+
+#[repr(C)]
+#[derive(Debug)]
+struct PerfPoliciesStatusV1 {
+    version: NvU32,
+    requested_policy_mask: NvU32,
+    reference_time_ns: NvU64,
+    limiting_policy_mask: NvU32,
+    global_status: PerfPolicyStatus,
+    policies: [PerfPolicyStatus; 12],
+    rsvd: [NvU32; 48],
+}
+
+// compiler-time check that struct sizes din't change
+const _: () = assert!(mem::size_of::<PerfPoliciesInfoV1>() == 76);
+const _: () = assert!(mem::size_of::<PerfPolicyStatus>() == 88);
+const _: () = assert!(mem::size_of::<PerfPoliciesStatusV1>() == 1360);
+const _: () = assert!(mem::offset_of!(PerfPoliciesStatusV1, global_status) == 24);
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
