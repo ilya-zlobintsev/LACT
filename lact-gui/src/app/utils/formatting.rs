@@ -91,13 +91,10 @@ pub fn fmt_throttling_text(stats: &DeviceStats) -> String {
 const PRIMARY_TEMP_THRESHOLD: usize = 3;
 
 pub fn fmt_temperature_text(stats: &DeviceStats) -> (Vec<String>, Vec<String>) {
-    let (mut primary, mut secondary): (Vec<_>, Vec<_>) = stats
+    let (primary, secondary): (Vec<_>, Vec<_>) = stats
         .temps
         .iter()
         .partition(|(_, entry)| stats.temps.len() <= PRIMARY_TEMP_THRESHOLD || entry.primary);
-
-    primary.sort_unstable_by(|lhs, rhs| lhs.0.cmp(rhs.0));
-    secondary.sort_unstable_by(|lhs, rhs| lhs.0.cmp(rhs.0));
 
     let primary = primary
         .into_iter()
@@ -181,8 +178,9 @@ pub fn fmt_human_bytes(bytes: u64, unit: Option<ByteUnit>) -> String {
 mod tests {
     use super::*;
     use amdgpu_sysfs::hw_mon::Temperature;
+    use indexmap::IndexMap;
     use lact_schema::{DeviceStats, TemperatureEntry};
-    use std::collections::{BTreeMap, HashMap};
+    use std::collections::BTreeMap;
 
     #[test]
     fn mono_display_formats_values() {
@@ -264,9 +262,9 @@ mod tests {
     }
 
     #[test]
-    fn fmt_temperature_text_sorts_labels() {
+    fn fmt_temperature_text_retains_order() {
         let stats = DeviceStats {
-            temps: HashMap::from([
+            temps: IndexMap::from([
                 (
                     "junction".to_string(),
                     TemperatureEntry {
@@ -297,7 +295,7 @@ mod tests {
 
         assert_eq!(
             fmt_temperature_text(&stats).0.join(", "),
-            "edge: <span font_family='monospace'>55</span>°C, junction: <span font_family='monospace'>80</span>°C".to_string()
+            "junction: <span font_family='monospace'>80</span>°C, edge: <span font_family='monospace'>55</span>°C".to_string()
         );
     }
 

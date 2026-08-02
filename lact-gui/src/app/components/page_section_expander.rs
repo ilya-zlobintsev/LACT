@@ -11,7 +11,7 @@ use gtk::{
 glib::wrapper! {
     pub struct PageSectionExpander(ObjectSubclass<imp::PageSectionExpander>)
         @extends gtk::Box, gtk::Widget,
-        @implements gtk::Orientable, gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
+        @implements gtk::Orientable, gtk::Buildable, gtk::ConstraintTarget, gtk::Accessible;
 }
 
 impl PageSectionExpander {

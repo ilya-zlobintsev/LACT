@@ -196,7 +196,7 @@ impl relm4::Component for GraphsWindow {
     ) {
         match msg {
             GraphsWindowMsg::Show => {
-                root.show();
+                root.set_visible(true);
                 self.update_plots_layout();
             }
             GraphsWindowMsg::VramClockRatio(ratio) => {

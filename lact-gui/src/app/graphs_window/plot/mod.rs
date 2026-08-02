@@ -4,20 +4,14 @@ mod render_thread;
 mod to_texture_ext;
 
 use super::stat::{StatType, StatsData};
-use gtk::{
-    glib::{self, Object, subclass::types::ObjectSubclassIsExt},
-    prelude::StyleContextExt,
-};
-use plotters::style::{
-    BLACK, BLUE, Color, RED, RGBAColor, WHITE, YELLOW,
-    full_palette::{DEEPORANGE_100, GREEN_500},
-};
+use gtk::glib::{self, Object, subclass::types::ObjectSubclassIsExt};
+use plotters::style::RGBAColor;
 use std::sync::{Arc, RwLock};
 
 glib::wrapper! {
     pub struct Plot(ObjectSubclass<imp::Plot>)
         @extends gtk::Widget,
-        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
+        @implements gtk::Buildable, gtk::ConstraintTarget, gtk::Accessible;
 }
 
 impl Default for Plot {
@@ -60,66 +54,40 @@ pub struct PlotColorScheme {
 
 impl Default for PlotColorScheme {
     fn default() -> Self {
-        Self {
-            background: WHITE.into(),
-            text: BLACK.into(),
-            border: BLACK.mix(0.8),
-            border_secondary: BLACK.mix(0.5),
-            throttling: DEEPORANGE_100.into(),
-            success: GREEN_500.into(),
-            accent_bg: BLUE.mix(0.5),
-            error: RED.into(),
-            warning: YELLOW.into(),
-        }
+        Self::LIGHT
     }
 }
 
 impl PlotColorScheme {
-    pub fn from_context(ctx: &gtk::StyleContext) -> Option<Self> {
-        let background = lookup_color(
-            ctx,
-            &["theme_base_color", "theme_bg_color", "view_bg_color"],
-        )?;
-        let text = lookup_color(ctx, &["theme_text_color"])?;
-        let border = lookup_color(ctx, &["borders"])?;
-        let border_secondary = lookup_color(ctx, &["unfocused_borders"])?;
+    const LIGHT: Self = Self {
+        background: RGBAColor(255, 255, 255, 1.0),
+        text: RGBAColor(0, 0, 0, 0.8),
+        border: RGBAColor(0, 0, 0, 0.15),
+        border_secondary: RGBAColor(0, 0, 0, 0.15),
+        throttling: RGBAColor(0, 0, 0, 0.5),
+        success: RGBAColor(27, 133, 83, 1.0),
+        accent_bg: RGBAColor(53, 132, 228, 1.0),
+        error: RGBAColor(192, 28, 40, 1.0),
+        warning: RGBAColor(156, 110, 3, 1.0),
+    };
 
-        let mut throttling = lookup_color(ctx, &["theme_unfocused_fg_color"])?;
-        throttling.3 = 0.5;
+    const DARK: Self = Self {
+        background: RGBAColor(29, 29, 32, 1.0),
+        text: RGBAColor(255, 255, 255, 1.0),
+        border: RGBAColor(255, 255, 255, 0.15),
+        border_secondary: RGBAColor(255, 255, 255, 0.15),
+        throttling: RGBAColor(255, 255, 255, 0.5),
+        success: RGBAColor(143, 240, 164, 1.0),
+        accent_bg: RGBAColor(53, 132, 228, 1.0),
+        error: RGBAColor(255, 123, 99, 1.0),
+        warning: RGBAColor(248, 228, 92, 1.0),
+    };
 
-        let success = lookup_color(ctx, &["success_color"])?;
-        let accent_fg = lookup_color(ctx, &["accent_bg_color"])?;
-        let error = lookup_color(ctx, &["error_color"])?;
-        let warning = lookup_color(ctx, &["warning_color"])?;
-
-        Some(PlotColorScheme {
-            background,
-            text,
-            border,
-            border_secondary,
-            throttling,
-            success,
-            accent_bg: accent_fg,
-            error,
-            warning,
-        })
-    }
-}
-
-fn lookup_color(ctx: &gtk::StyleContext, names: &[&str]) -> Option<RGBAColor> {
-    for name in names {
-        if let Some(color) = ctx.lookup_color(name) {
-            return Some(gtk_to_plotters_color(color));
+    pub fn current() -> Self {
+        if adw::StyleManager::default().is_dark() {
+            Self::DARK
+        } else {
+            Self::LIGHT
         }
     }
-    None
-}
-
-fn gtk_to_plotters_color(color: gtk::gdk::RGBA) -> RGBAColor {
-    RGBAColor(
-        (color.red() * u8::MAX as f32) as u8,
-        (color.green() * u8::MAX as f32) as u8,
-        (color.blue() * u8::MAX as f32) as u8,
-        color.alpha() as f64,
-    )
 }

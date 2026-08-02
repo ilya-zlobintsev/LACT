@@ -36,7 +36,7 @@ use adw::prelude::*;
 use anyhow::{Context, anyhow};
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
 use gtk::{
-    FileChooserAction, FileChooserDialog, ResponseType, STYLE_PROVIDER_PRIORITY_APPLICATION,
+    STYLE_PROVIDER_PRIORITY_APPLICATION,
     glib::{self, ControlFlow, clone},
 };
 use i18n_embed_fl::fl;
@@ -839,7 +839,7 @@ impl AppModel {
                     .emit(ProcessMonitorWindowMsg::Show);
             }
             AppMsg::DumpVBios => {
-                self.dump_vbios(&Self::get_selected_gpu_id()?, root, sender.clone())
+                self.dump_vbios(Self::get_selected_gpu_id()?, root, sender.clone())
                     .await?;
             }
             AppMsg::DebugSnapshot => {
@@ -1218,6 +1218,10 @@ impl AppModel {
                 .get_power_profile_mode_custom_heuristics();
         }
 
+        if let Some(mode) = self.oc_page.model().get_active_power_mizer_mode() {
+            gpu_config.power_mizer_mode = Some(mode);
+        }
+
         self.thermals_page.model().apply_config(&mut gpu_config);
 
         self.oc_page
@@ -1323,50 +1327,48 @@ impl AppModel {
 
     async fn dump_vbios(
         &self,
-        gpu_id: &str,
+        gpu_id: String,
         root: &adw::ApplicationWindow,
         sender: AsyncComponentSender<Self>,
     ) -> anyhow::Result<()> {
-        let vbios_data = self.daemon_client.dump_vbios(gpu_id).await?;
+        let vbios_data = self.daemon_client.dump_vbios(&gpu_id).await?;
 
-        let file_chooser = FileChooserDialog::new(
-            Some("Save VBIOS file"),
-            Some(root),
-            FileChooserAction::Save,
-            &[
-                ("Save", ResponseType::Accept),
-                ("Cancel", ResponseType::Cancel),
-            ],
-        );
-
-        let file_name_suffix = gpu_id
-            .split_once('-')
-            .map(|(id, _)| id.replace(':', "_"))
-            .unwrap_or_default();
-        file_chooser.set_current_name(&format!("{file_name_suffix}_vbios_dump.rom"));
-        file_chooser.run_async(clone!(
+        relm4::spawn_local(clone!(
             #[strong]
-            sender,
-            move |diag, response| {
-                diag.close();
-
-                if response == gtk::ResponseType::Accept
-                    && let Some(file) = diag.file()
+            root,
+            async move {
+                let result = match gtk::FileDialog::builder()
+                    .title("Save VBIOS file")
+                    .accept_label("Save")
+                    .initial_name(format!(
+                        "{}_vbios_dump.rom",
+                        gpu_id
+                            .split_once('-')
+                            .map(|(id, _)| id.replace(':', "_"))
+                            .unwrap_or_default()
+                    ))
+                    .modal(true)
+                    .build()
+                    .save_future(Some(&root))
+                    .await
                 {
-                    match file.path() {
-                        Some(path) => {
-                            if let Err(err) = std::fs::write(path, vbios_data)
-                                .context("Could not save vbios file")
-                            {
-                                sender.input(AppMsg::Error(Arc::new(err)));
-                            }
-                        }
-                        None => {
-                            sender.input(AppMsg::Error(Arc::new(anyhow!(
-                                "Selected file has an invalid path"
-                            ))));
-                        }
+                    Ok(file) => file
+                        .path()
+                        .context("Selected file has an invalid path")
+                        .and_then(|path| {
+                            std::fs::write(path, vbios_data).context("Could not save vbios file")
+                        }),
+                    Err(err)
+                        if err.matches(gtk::DialogError::Cancelled)
+                            || err.matches(gtk::DialogError::Dismissed) =>
+                    {
+                        Ok(())
                     }
+                    Err(err) => Err(err).context("Could not select VBIOS save destination"),
+                };
+
+                if let Err(err) = result {
+                    sender.input(AppMsg::Error(Arc::new(err)));
                 }
             }
         ));
