@@ -29,6 +29,8 @@ const QUERY_NVAPI_GET_ERROR_MESSAGE: u32 = 0x6c2d048c;
 // Undocumented calls
 const QUERY_NVAPI_THERMALS: u32 = 0x65fe3aad;
 const QUERY_NVAPI_VOLTAGE: u32 = 0x465f9bcf;
+const QUERY_NVAPI_VOLTAGE_BOOST_GET: u32 = 0x9df23ca1;
+const QUERY_NVAPI_VOLTAGE_BOOST_SET: u32 = 0xb9306d9b;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_STATUS: u32 = 0x21537ad4;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_INFO: u32 = 0x507b4b59;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL: u32 = 0x733e009;
@@ -111,18 +113,34 @@ impl NvApi {
     }
 
     pub unsafe fn get_voltage(&self, handle: NvPhysicalGpuHandle) -> anyhow::Result<u32> {
-        let mut data = NvApiVoltage {
-            #[allow(clippy::cast_possible_truncation)]
-            version: make_version::<NvApiVoltage>(1),
-            flags: 0,
-            padding_1: [0; 8],
-            value_uv: 0,
-            padding_2: [0; 8],
-        };
+        let mut data = NvApiVoltage::default();
 
         self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE)?;
 
-        Ok(data.value_uv)
+        Ok(data.rails[0].current_voltage_uv)
+    }
+
+    pub unsafe fn get_voltage_boost(&self, handle: NvPhysicalGpuHandle) -> anyhow::Result<u8> {
+        let mut data = NvApiVoltageBoost::default();
+
+        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE_BOOST_GET)?;
+
+        Ok(data.percent)
+    }
+
+    pub unsafe fn set_voltage_boost(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        percent: u8,
+    ) -> anyhow::Result<()> {
+        let mut data = NvApiVoltageBoost {
+            percent,
+            ..Default::default()
+        };
+
+        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE_BOOST_SET)?;
+
+        Ok(())
     }
 
     pub unsafe fn clock_client_clk_vf_points_get_info(
@@ -488,14 +506,52 @@ impl NvApiThermals {
     }
 }
 
+// ensure the sizes used in the version fields stay correct
+const _: () = assert!(mem::size_of::<NvApiVoltage>() == 76);
+const _: () = assert!(mem::size_of::<NvApiVoltageBoost>() == 40);
+
 #[repr(C)]
 #[derive(Debug)]
 struct NvApiVoltage {
-    version: u32,
-    flags: u32,
-    padding_1: [u32; 8],
-    value_uv: u32,
-    padding_2: [u32; 8],
+    version: NvU32,
+    rsvd: [NvU8; 32],
+    rails: [NvApiVoltageRail; 1],
+}
+
+impl Default for NvApiVoltage {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            rsvd: [0; 32],
+            rails: [NvApiVoltageRail::default()],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Default)]
+struct NvApiVoltageRail {
+    rail_id: NvU32,
+    current_voltage_uv: NvU32,
+    rsvd: [NvU8; 32],
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct NvApiVoltageBoost {
+    version: NvU32,
+    percent: NvU8,
+    rsvd: [NvU8; 32],
+}
+
+impl Default for NvApiVoltageBoost {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            percent: 0,
+            rsvd: [0; 32],
+        }
+    }
 }
 
 #[repr(C)]

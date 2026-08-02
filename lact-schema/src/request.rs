@@ -163,6 +163,7 @@ pub enum ClockspeedType {
     MinVoltage,
     MaxVoltage,
     VoltageOffset,
+    VoltageBoost,
 
     MaxMemoryClock,
     MinMemoryClock,

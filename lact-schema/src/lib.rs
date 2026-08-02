@@ -478,6 +478,16 @@ pub struct NvidiaClocksTable {
     pub vram_clock_range: Option<(u32, u32)>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub gpu_vf_curve: Vec<NvidiaVfPoint>,
+    #[serde(default)]
+    pub voltage_boost: Option<NvidiaVoltageBoost>,
+}
+
+/// Nvidia core voltage boost, in percent
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy)]
+pub struct NvidiaVoltageBoost {
+    pub current: i32,
+    pub min: i32,
+    pub max: i32,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Copy)]

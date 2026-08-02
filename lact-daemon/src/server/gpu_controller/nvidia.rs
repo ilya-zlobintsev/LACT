@@ -13,7 +13,7 @@ use amdgpu_sysfs::{
     gpu_handle::{PowerLevelId, fan_control::FanInfo, power_profile_mode::PowerProfileModesTable},
     hw_mon::Temperature,
 };
-use anyhow::{Context, anyhow, bail};
+use anyhow::{Context, anyhow, bail, ensure};
 use driver::DriverHandle;
 use futures::{FutureExt, future::LocalBoxFuture};
 use indexmap::IndexMap;
@@ -21,8 +21,8 @@ use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
     DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
     FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaThermalInfo,
-    NvidiaVfPoint, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList,
-    ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
+    NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo,
+    ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
 use nvapi::NvApi;
@@ -68,6 +68,7 @@ pub struct NvidiaGpuController {
     last_applied_vram_locked_clocks: RefCell<Option<(u32, u32)>>,
     // Check if reset is needed to avoid unnecessarily going to nvapi
     vf_curve_written: Cell<bool>,
+    voltage_boost_written: Cell<bool>,
     // Used as the initial value on cards which do not report base VF points themselves (Turing)
     base_vf_curve: RefCell<Option<Vec<NvidiaVfPoint>>>,
 }
@@ -144,6 +145,7 @@ impl NvidiaGpuController {
             last_applied_gpu_locked_clocks: RefCell::new(None),
             last_applied_vram_locked_clocks: RefCell::new(None),
             vf_curve_written: Cell::new(false),
+            voltage_boost_written: Cell::new(false),
             base_vf_curve: RefCell::new(None),
         })
     }
@@ -1087,6 +1089,17 @@ impl GpuController for NvidiaGpuController {
             .inspect_err(|err| warn!("could not get VF curve: {err:#}"))
             .unwrap_or_default();
 
+        let voltage_boost = self.nvapi.as_ref().and_then(|(nvapi, handle)| {
+            unsafe { nvapi.get_voltage_boost(*handle) }
+                .inspect_err(|err| warn!("could not get voltage boost: {err:#}"))
+                .ok()
+                .map(|current| NvidiaVoltageBoost {
+                    current: current.into(),
+                    min: 0,
+                    max: 100,
+                })
+        });
+
         let table = NvidiaClocksTable {
             gpu_offsets,
             mem_offsets,
@@ -1095,6 +1108,7 @@ impl GpuController for NvidiaGpuController {
             gpu_clock_range,
             vram_clock_range,
             gpu_vf_curve,
+            voltage_boost,
         };
 
         Ok(ClocksInfo {
@@ -1196,6 +1210,27 @@ impl GpuController for NvidiaGpuController {
             if !clocks.gpu_vf_curve.is_empty() {
                 self.apply_vf_curve(&clocks.gpu_vf_curve)
                     .context("Could not apply VF curve")?;
+            }
+
+            if let Some(percent) = clocks.voltage_boost {
+                let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+
+                // The driver field is a single byte, out of range values would be truncated instead of rejected
+                let percent =
+                    u8::try_from(percent.clamp(0, 100)).expect("Clamped value fits into u8");
+                debug!("applying voltage boost {percent}%");
+
+                unsafe { nvapi.set_voltage_boost(*handle, percent) }
+                    .context("Could not apply voltage boost")?;
+                self.voltage_boost_written.set(true);
+
+                // verify the boost was applied
+                let applied = unsafe { nvapi.get_voltage_boost(*handle) }
+                    .context("Could not verify voltage boost")?;
+                ensure!(
+                    applied == percent,
+                    "Voltage boost was not applied: requested {percent}%, driver reports {applied}%"
+                );
             }
 
             if config.fan_control_enabled {
@@ -1315,6 +1350,13 @@ impl GpuController for NvidiaGpuController {
 
         if self.vf_curve_written.get() {
             self.reset_vf_curve().context("Could not reset VF curve")?;
+        }
+
+        if self.voltage_boost_written.get() {
+            let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+            unsafe { nvapi.set_voltage_boost(*handle, 0) }
+                .context("Could not reset voltage boost")?;
+            self.voltage_boost_written.set(false);
         }
 
         Ok(())
