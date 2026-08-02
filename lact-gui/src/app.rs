@@ -382,7 +382,7 @@ impl AsyncComponent for AppModel {
             Some(remote_addr) => {
                 info!("establishing connection to {remote_addr}");
                 match DaemonClient::connect_tcp(&remote_addr).await {
-                    Ok(conn) => (conn, false),
+                    Ok(conn) => (conn, true),
                     Err(err) => {
                         sender.input(AppMsg::Error(
                             anyhow!("TCP connection failed, falling back to local: {err:#}").into(),
