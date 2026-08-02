@@ -1224,8 +1224,7 @@ impl GpuController for NvidiaGpuController {
                     .context("Could not apply voltage boost")?;
                 self.voltage_boost_written.set(true);
 
-                // There is no capability query for this interface, and the driver may report success
-                // while ignoring the write, so the value has to be read back
+                // verify the boost was applied
                 let applied = unsafe { nvapi.get_voltage_boost(*handle) }
                     .context("Could not verify voltage boost")?;
                 ensure!(

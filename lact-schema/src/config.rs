@@ -89,7 +89,6 @@ pub struct ClocksConfiguration {
     )]
     pub mem_vf_curve: IndexMap<u8, CurvePoint>,
     pub voltage_offset: Option<i32>,
-    /// Nvidia core voltage boost, in percent (0-100)
     pub voltage_boost: Option<i32>,
 }
 

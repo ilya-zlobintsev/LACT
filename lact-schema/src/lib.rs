@@ -478,7 +478,6 @@ pub struct NvidiaClocksTable {
     pub vram_clock_range: Option<(u32, u32)>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub gpu_vf_curve: Vec<NvidiaVfPoint>,
-    /// `None` means the boost is not available on this GPU
     #[serde(default)]
     pub voltage_boost: Option<NvidiaVoltageBoost>,
 }

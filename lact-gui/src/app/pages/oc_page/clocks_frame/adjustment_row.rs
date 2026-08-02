@@ -28,7 +28,6 @@ pub struct ClocksData {
     pub max: i32,
     pub custom_title: Option<String>,
     pub is_secondary: bool,
-    /// Step size of the slider and spin button
     pub step: i32,
 }
 
@@ -40,7 +39,6 @@ impl Default for ClocksData {
             max: 0,
             custom_title: None,
             is_secondary: false,
-            // Suitable for clockspeed and voltage values, which are the majority of rows
             step: 10,
         }
     }

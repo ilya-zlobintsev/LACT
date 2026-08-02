@@ -506,7 +506,7 @@ impl NvApiThermals {
     }
 }
 
-// The layouts are undocumented, ensure the sizes used in the version fields stay correct
+// ensure the sizes used in the version fields stay correct
 const _: () = assert!(mem::size_of::<NvApiVoltage>() == 76);
 const _: () = assert!(mem::size_of::<NvApiVoltageBoost>() == 40);
 

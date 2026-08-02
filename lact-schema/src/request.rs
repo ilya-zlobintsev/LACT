@@ -163,7 +163,6 @@ pub enum ClockspeedType {
     MinVoltage,
     MaxVoltage,
     VoltageOffset,
-    /// Nvidia core voltage boost, in percent
     VoltageBoost,
 
     MaxMemoryClock,
@@ -218,18 +217,6 @@ mod tests {
                 }
             },
             serde_json::from_str(r#"{"command": "set_clocks_value", "args": {"id": "asd", "command": {"type": "max_core_clock", "value": 2000}}}"#)
-                .unwrap()
-        );
-
-        assert_eq!(
-            Request::SetClocksValue {
-                id: "asd",
-                command: SetClocksCommand {
-                    r#type: ClockspeedType::VoltageBoost,
-                    value: Some(25)
-                }
-            },
-            serde_json::from_str(r#"{"command": "set_clocks_value", "args": {"id": "asd", "command": {"type": "voltage_boost", "value": 25}}}"#)
                 .unwrap()
         );
     }
