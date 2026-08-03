@@ -38,6 +38,7 @@ use std::{
     cmp,
     collections::{BTreeMap, HashMap, btree_map::Entry},
     fmt::Write,
+    ops::RangeInclusive,
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -50,6 +51,8 @@ const SUPPORTED_UTIL_TYPES: &[ProcessUtilizationType] = &[
     ProcessUtilizationType::Encode,
     ProcessUtilizationType::Decode,
 ];
+
+const VOLTAGE_BOOST_RANGE: RangeInclusive<i32> = 0..=100;
 
 pub struct NvidiaGpuController {
     nvml: Rc<Nvml>,
@@ -547,6 +550,54 @@ impl NvidiaGpuController {
         unsafe {
             nvapi.clock_client_clk_vf_set_control(*handle, curve_control)?;
         }
+
+        Ok(())
+    }
+
+    fn get_voltage_boost(&self) -> anyhow::Result<NvidiaVoltageBoost> {
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+
+        let current = unsafe { nvapi.get_voltage_boost(*handle)? };
+
+        Ok(NvidiaVoltageBoost {
+            current: current.into(),
+            min: *VOLTAGE_BOOST_RANGE.start(),
+            max: *VOLTAGE_BOOST_RANGE.end(),
+        })
+    }
+
+    fn apply_voltage_boost(&self, percent: i32) -> anyhow::Result<()> {
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+
+        if !VOLTAGE_BOOST_RANGE.contains(&percent) {
+            bail!("Configured voltage boost {percent}% is outside of the allowed range");
+        }
+        let percent = u8::try_from(percent).expect("Validated value fits into u8");
+
+        debug!("applying voltage boost {percent}%");
+
+        unsafe {
+            nvapi.set_voltage_boost(*handle, percent)?;
+        }
+        self.voltage_boost_written.set(true);
+
+        let applied = unsafe { nvapi.get_voltage_boost(*handle) }
+            .context("Could not verify voltage boost")?;
+        ensure!(
+            applied == percent,
+            "Voltage boost was not applied: requested {percent}%, driver reports {applied}%"
+        );
+
+        Ok(())
+    }
+
+    fn reset_voltage_boost(&self) -> anyhow::Result<()> {
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+
+        unsafe {
+            nvapi.set_voltage_boost(*handle, 0)?;
+        }
+        self.voltage_boost_written.set(false);
 
         Ok(())
     }
@@ -1089,16 +1140,10 @@ impl GpuController for NvidiaGpuController {
             .inspect_err(|err| warn!("could not get VF curve: {err:#}"))
             .unwrap_or_default();
 
-        let voltage_boost = self.nvapi.as_ref().and_then(|(nvapi, handle)| {
-            unsafe { nvapi.get_voltage_boost(*handle) }
-                .inspect_err(|err| warn!("could not get voltage boost: {err:#}"))
-                .ok()
-                .map(|current| NvidiaVoltageBoost {
-                    current: current.into(),
-                    min: 0,
-                    max: 100,
-                })
-        });
+        let voltage_boost = self
+            .get_voltage_boost()
+            .inspect_err(|err| warn!("could not get voltage boost: {err:#}"))
+            .ok();
 
         let table = NvidiaClocksTable {
             gpu_offsets,
@@ -1212,25 +1257,16 @@ impl GpuController for NvidiaGpuController {
                     .context("Could not apply VF curve")?;
             }
 
-            if let Some(percent) = clocks.voltage_boost {
-                let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+            if let Some(percent) = clocks.voltage_boost
+                && let Err(err) = self.apply_voltage_boost(percent)
+            {
+                warn!("could not apply voltage boost: {err:#}");
 
-                // The driver field is a single byte, out of range values would be truncated instead of rejected
-                let percent =
-                    u8::try_from(percent.clamp(0, 100)).expect("Clamped value fits into u8");
-                debug!("applying voltage boost {percent}%");
-
-                unsafe { nvapi.set_voltage_boost(*handle, percent) }
-                    .context("Could not apply voltage boost")?;
-                self.voltage_boost_written.set(true);
-
-                // verify the boost was applied
-                let applied = unsafe { nvapi.get_voltage_boost(*handle) }
-                    .context("Could not verify voltage boost")?;
-                ensure!(
-                    applied == percent,
-                    "Voltage boost was not applied: requested {percent}%, driver reports {applied}%"
-                );
+                if self.voltage_boost_written.get()
+                    && let Err(err) = self.reset_voltage_boost()
+                {
+                    warn!("could not reset voltage boost: {err:#}");
+                }
             }
 
             if config.fan_control_enabled {
@@ -1353,10 +1389,8 @@ impl GpuController for NvidiaGpuController {
         }
 
         if self.voltage_boost_written.get() {
-            let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
-            unsafe { nvapi.set_voltage_boost(*handle, 0) }
+            self.reset_voltage_boost()
                 .context("Could not reset voltage boost")?;
-            self.voltage_boost_written.set(false);
         }
 
         Ok(())
