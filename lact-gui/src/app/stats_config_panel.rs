@@ -50,7 +50,13 @@ impl relm4::SimpleComponent for StatsConfigPanel {
                 set_title_widget = &adw::WindowTitle {
                     #[watch]
                     set_title: &model.page_title(),
-                    set_subtitle: &fl!(I18N, "configure-stats"),
+                },
+
+                pack_start = &gtk::Button {
+                    set_label: &fl!(I18N, "reset-button"),
+                    set_tooltip_text: Some(&fl!(I18N, "reset-stats-layout")),
+                    add_css_class: "flat",
+                    connect_clicked => StatsConfigPanelMsg::ResetLayout,
                 },
 
                 pack_end = &gtk::Button {
@@ -64,14 +70,6 @@ impl relm4::SimpleComponent for StatsConfigPanel {
             #[wrap(Some)]
             set_content = &adw::PreferencesPage {
                 add = &adw::PreferencesGroup {
-                    set_title: &fl!(I18N, "configure-stats"),
-                    #[wrap(Some)]
-                    set_header_suffix = &gtk::Button {
-                        set_label: &fl!(I18N, "reset-button"),
-                        set_tooltip_text: Some(&fl!(I18N, "reset-stats-layout")),
-                        connect_clicked => StatsConfigPanelMsg::ResetLayout,
-                    },
-
                     #[local_ref]
                     stat_rows -> gtk::ListBox {
                         set_selection_mode: gtk::SelectionMode::None,
