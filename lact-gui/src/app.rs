@@ -724,12 +724,16 @@ impl AppModel {
             AppMsg::HideStatsConfig => {
                 widgets.stats_overlay.set_show_sidebar(false);
             }
-            AppMsg::StatsLayoutChanged(page) => match page {
-                StatsPage::OcPage => self.oc_page.emit(OcPageMsg::SetStatsLayout(page.layout())),
-                StatsPage::ThermalsPage => self
-                    .thermals_page
-                    .emit(ThermalsPageMsg::SetStatsLayout(page.layout())),
-            },
+            AppMsg::StatsLayoutChanged(page) => {
+                let layout = CONFIG.read().stats_layout_for(page);
+                match page {
+                    StatsPage::OcPage => self.oc_page.emit(OcPageMsg::SetStatsLayout(layout)),
+                    StatsPage::ThermalsPage => {
+                        self.thermals_page
+                            .emit(ThermalsPageMsg::SetStatsLayout(layout));
+                    }
+                }
+            }
             AppMsg::ShowAboutDialog => {
                 self.about_dialog.emit(AboutDialogMsg::Show);
             }

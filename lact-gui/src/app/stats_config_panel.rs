@@ -100,7 +100,7 @@ impl relm4::Component for StatsConfigPanel {
         match msg {
             StatsConfigPanelMsg::Show { page, stats } => {
                 self.page = page;
-                self.layout = page.layout();
+                self.layout = CONFIG.read().stats_layout_for(page);
                 self.stats = stats;
                 self.rebuild_rows(&widgets.stats_group, &sender);
             }

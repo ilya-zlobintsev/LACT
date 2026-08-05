@@ -1,4 +1,3 @@
-use crate::CONFIG;
 use crate::app::{
     components::gpu_stats_section::{GpuStat, GpuStatDisplay},
     graphs_window::stat::StatType,
@@ -98,11 +97,6 @@ impl StatsPage {
         StatsLayout(entries)
     }
 
-    pub fn layout(self) -> StatsLayout {
-        let stored = CONFIG.read().stats_layout.get(&self).cloned();
-        self.merge_layout(stored)
-    }
-
     fn merge_layout(self, stored: Option<StatsLayout>) -> StatsLayout {
         let defaults = self.default_layout();
         let Some(stored) = stored else {
@@ -156,6 +150,10 @@ pub struct UiGpuConfig {
 }
 
 impl UiConfig {
+    pub fn stats_layout_for(&self, page: StatsPage) -> StatsLayout {
+        page.merge_layout(self.stats_layout.get(&page).cloned())
+    }
+
     pub fn edit(&mut self, f: impl FnOnce(&mut Self)) {
         f(self);
         self.save();

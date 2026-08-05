@@ -1,5 +1,6 @@
 mod fan_curve_frame;
 
+use crate::CONFIG;
 use crate::app::components::gpu_stats_section::{GpuStatsSection, GpuStatsSectionMsg};
 use crate::app::pages::PageUpdate;
 use crate::config::{StatsLayout, StatsPage};
@@ -407,7 +408,8 @@ impl relm4::Component for ThermalsPage {
         let fan_curve_frame = FanCurveFrame::builder()
             .launch(pmfw_options.clone())
             .detach();
-        let stats_section = GpuStatsSection::detach(StatsPage::ThermalsPage.layout());
+        let stats_section =
+            GpuStatsSection::detach(CONFIG.read().stats_layout_for(StatsPage::ThermalsPage));
 
         let model = Self {
             stats_section,

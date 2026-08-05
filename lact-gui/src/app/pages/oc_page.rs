@@ -4,6 +4,7 @@ mod power_cap_section;
 mod power_states;
 mod vf_curve;
 
+use crate::CONFIG;
 use crate::app::components::gpu_stats_section::{GpuStatsSection, GpuStatsSectionMsg};
 use crate::app::pages::PageUpdate;
 use crate::app::utils::ext::RelmLaunchable as _;
@@ -83,7 +84,8 @@ impl relm4::Component for OcPage {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let stats_section = GpuStatsSection::detach(StatsPage::OcPage.layout());
+        let stats_section =
+            GpuStatsSection::detach(CONFIG.read().stats_layout_for(StatsPage::OcPage));
         let power_cap_section = PowerCapSection::detach_default();
         let clocks_frame = ClocksFrame::launch_default().forward(sender.input_sender(), |msg| msg);
         let power_states_frame = PowerStatesFrame::detach_default();
