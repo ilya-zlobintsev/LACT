@@ -1,16 +1,14 @@
-pub mod stat;
+mod stat;
 mod stat_item;
 
-pub use stat::{GpuStat, GpuStatDisplay, StatsContext};
+pub use stat::{GpuStat, GpuStatDisplay};
 
-use crate::{
-    app::components::{gpu_stats_section::stat_item::StatItem, page_section::PageSection},
-    config::StatsLayout,
-};
+use crate::{app::components::page_section::PageSection, config::StatsLayout};
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use lact_schema::{DeviceInfo, DeviceStats, PowerStates};
 use relm4::{ComponentParts, ComponentSender, prelude::FactoryVecDeque};
-use stat_item::StatItemMsg;
+use stat::StatsContext;
+use stat_item::{StatItem, StatItemMsg};
 use std::sync::Arc;
 
 pub struct GpuStatsSection {
