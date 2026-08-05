@@ -119,6 +119,143 @@ impl GpuStat {
             Self::Unknown => false,
         }
     }
+
+    pub fn name(self, ctx: &StatsContext) -> String {
+        if self == Self::GpuClock
+            && ctx.stats.clockspeed.gpu_clockspeed.is_some()
+            && ctx.stats.clockspeed.target_gpu_clockspeed.is_some()
+        {
+            fl!(I18N, "gpu-clock-avg")
+        } else {
+            self.title()
+        }
+    }
+
+    pub fn text(self, ctx: &StatsContext) -> String {
+        match self {
+            Self::DeviceName => ctx.gpu_model.clone(),
+            Self::Throttling => formatting::fmt_throttling_text(&ctx.stats),
+            Self::GpuClockTarget => {
+                format_current_gfxclk(ctx.stats.clockspeed.target_gpu_clockspeed)
+            }
+            Self::GpuVoltage => format!(
+                "{} V",
+                Mono::float(ctx.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64, 3)
+            ),
+            Self::Temperature => {
+                let (primary_temperatures, _) = formatting::fmt_temperature_text(&ctx.stats);
+                if primary_temperatures.is_empty() {
+                    "N/A".to_owned()
+                } else {
+                    primary_temperatures.join(", ")
+                }
+            }
+            Self::GpuClock => formatting::fmt_clockspeed(ctx.stats.clockspeed.gpu_clockspeed, 1.0),
+            Self::VramClock => formatting::fmt_clockspeed(
+                ctx.stats.clockspeed.vram_clockspeed,
+                ctx.vram_clock_ratio,
+            ),
+            Self::GpuUsage => format!("{}%", Mono::uint(ctx.stats.busy_percent.unwrap_or(0))),
+            Self::VramUsage => formatting::fmt_human_bytes(
+                ctx.stats.vram.used.unwrap_or(0),
+                Some(formatting::ByteUnit::Gibibyte),
+            ),
+            Self::GttUsage => formatting::fmt_human_bytes(
+                ctx.stats.vram.gtt_used.unwrap_or(0),
+                Some(formatting::ByteUnit::Gibibyte),
+            ),
+            Self::PowerUsage => {
+                let PowerStats {
+                    average: power_average,
+                    current: power_current,
+                    ..
+                } = ctx.stats.power;
+
+                let power_current = power_current
+                    .filter(|value| *value != 0.0)
+                    .or(power_average);
+
+                format!(
+                    "{} {}",
+                    Mono::float(power_current.unwrap_or(0.0), 1),
+                    fl!(I18N, "watt")
+                )
+            }
+            Self::FanSpeed => formatting::fmt_fan_speed(&ctx.stats, true)
+                .unwrap_or_else(|| fl!(I18N, "missing-stat")),
+            Self::Unknown => String::new(),
+        }
+    }
+
+    pub fn level(self, ctx: &StatsContext) -> f64 {
+        match self {
+            Self::GpuClock => match (
+                &ctx.stats.clockspeed.gpu_clockspeed,
+                ctx.max_gpu_clock,
+                ctx.min_gpu_clock,
+            ) {
+                (Some(cur), Some(max), Some(min)) if max > min => {
+                    (cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64)
+                }
+                _ => 0.0,
+            },
+            Self::VramClock => match (
+                &ctx.stats.clockspeed.vram_clockspeed,
+                ctx.max_vram_clock,
+                ctx.min_vram_clock,
+            ) {
+                (Some(cur), Some(max), Some(min)) if max > min => {
+                    (cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64)
+                }
+                _ => 0.0,
+            },
+            Self::GpuUsage => ctx.stats.busy_percent.unwrap_or(0) as f64 / 100.0,
+            Self::VramUsage => ctx
+                .stats
+                .vram
+                .used
+                .zip(ctx.stats.vram.total)
+                .map(|(used, total)| used as f64 / total as f64)
+                .unwrap_or(0.0),
+            Self::GttUsage => ctx
+                .stats
+                .vram
+                .gtt_used
+                .zip(ctx.stats.vram.gtt_total_usable)
+                .map(|(used, total)| used as f64 / total as f64)
+                .unwrap_or(0.0),
+            Self::PowerUsage => {
+                let PowerStats {
+                    average: power_average,
+                    current: power_current,
+                    cap_current: power_cap_current,
+                    ..
+                } = ctx.stats.power;
+
+                let power_current = power_current
+                    .filter(|value| *value != 0.0)
+                    .or(power_average);
+                let power_cap_current = power_cap_current.filter(|value| *value != 0.0);
+
+                power_current
+                    .zip(power_cap_current)
+                    .map(|(current, cap)| current / cap)
+                    .unwrap_or(0.0)
+            }
+            Self::FanSpeed => ctx
+                .stats
+                .fan
+                .pwm_current
+                .map(|pwm| pwm as f64 / u8::MAX as f64)
+                .unwrap_or(0.0),
+            Self::DeviceName
+            | Self::Throttling
+            | Self::GpuClockTarget
+            | Self::GpuVoltage
+            | Self::Temperature
+            | Self::Unknown => 0.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -143,143 +280,6 @@ impl Default for StatsContext {
             min_vram_clock: None,
             max_vram_clock: None,
         }
-    }
-}
-
-pub fn name(stat: GpuStat, ctx: &StatsContext) -> String {
-    if stat == GpuStat::GpuClock
-        && ctx.stats.clockspeed.gpu_clockspeed.is_some()
-        && ctx.stats.clockspeed.target_gpu_clockspeed.is_some()
-    {
-        fl!(I18N, "gpu-clock-avg")
-    } else {
-        stat.title()
-    }
-}
-
-pub fn text(stat: GpuStat, ctx: &StatsContext) -> String {
-    match stat {
-        GpuStat::DeviceName => ctx.gpu_model.clone(),
-        GpuStat::Throttling => formatting::fmt_throttling_text(&ctx.stats),
-        GpuStat::GpuClockTarget => {
-            format_current_gfxclk(ctx.stats.clockspeed.target_gpu_clockspeed)
-        }
-        GpuStat::GpuVoltage => format!(
-            "{} V",
-            Mono::float(ctx.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64, 3)
-        ),
-        GpuStat::Temperature => {
-            let (primary_temperatures, _) = formatting::fmt_temperature_text(&ctx.stats);
-            if primary_temperatures.is_empty() {
-                "N/A".to_owned()
-            } else {
-                primary_temperatures.join(", ")
-            }
-        }
-        GpuStat::GpuClock => formatting::fmt_clockspeed(ctx.stats.clockspeed.gpu_clockspeed, 1.0),
-        GpuStat::VramClock => {
-            formatting::fmt_clockspeed(ctx.stats.clockspeed.vram_clockspeed, ctx.vram_clock_ratio)
-        }
-        GpuStat::GpuUsage => format!("{}%", Mono::uint(ctx.stats.busy_percent.unwrap_or(0))),
-        GpuStat::VramUsage => formatting::fmt_human_bytes(
-            ctx.stats.vram.used.unwrap_or(0),
-            Some(formatting::ByteUnit::Gibibyte),
-        ),
-        GpuStat::GttUsage => formatting::fmt_human_bytes(
-            ctx.stats.vram.gtt_used.unwrap_or(0),
-            Some(formatting::ByteUnit::Gibibyte),
-        ),
-        GpuStat::PowerUsage => {
-            let PowerStats {
-                average: power_average,
-                current: power_current,
-                ..
-            } = ctx.stats.power;
-
-            let power_current = power_current
-                .filter(|value| *value != 0.0)
-                .or(power_average);
-
-            format!(
-                "{} {}",
-                Mono::float(power_current.unwrap_or(0.0), 1),
-                fl!(I18N, "watt")
-            )
-        }
-        GpuStat::FanSpeed => {
-            formatting::fmt_fan_speed(&ctx.stats, true).unwrap_or_else(|| fl!(I18N, "missing-stat"))
-        }
-        GpuStat::Unknown => String::new(),
-    }
-}
-
-pub fn level(stat: GpuStat, ctx: &StatsContext) -> f64 {
-    match stat {
-        GpuStat::GpuClock => match (
-            &ctx.stats.clockspeed.gpu_clockspeed,
-            ctx.max_gpu_clock,
-            ctx.min_gpu_clock,
-        ) {
-            (Some(cur), Some(max), Some(min)) if max > min => {
-                (cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64)
-            }
-            _ => 0.0,
-        },
-        GpuStat::VramClock => match (
-            &ctx.stats.clockspeed.vram_clockspeed,
-            ctx.max_vram_clock,
-            ctx.min_vram_clock,
-        ) {
-            (Some(cur), Some(max), Some(min)) if max > min => {
-                (cur.saturating_sub(min) as f64) / (max.saturating_sub(min) as f64)
-            }
-            _ => 0.0,
-        },
-        GpuStat::GpuUsage => ctx.stats.busy_percent.unwrap_or(0) as f64 / 100.0,
-        GpuStat::VramUsage => ctx
-            .stats
-            .vram
-            .used
-            .zip(ctx.stats.vram.total)
-            .map(|(used, total)| used as f64 / total as f64)
-            .unwrap_or(0.0),
-        GpuStat::GttUsage => ctx
-            .stats
-            .vram
-            .gtt_used
-            .zip(ctx.stats.vram.gtt_total_usable)
-            .map(|(used, total)| used as f64 / total as f64)
-            .unwrap_or(0.0),
-        GpuStat::PowerUsage => {
-            let PowerStats {
-                average: power_average,
-                current: power_current,
-                cap_current: power_cap_current,
-                ..
-            } = ctx.stats.power;
-
-            let power_current = power_current
-                .filter(|value| *value != 0.0)
-                .or(power_average);
-            let power_cap_current = power_cap_current.filter(|value| *value != 0.0);
-
-            power_current
-                .zip(power_cap_current)
-                .map(|(current, cap)| current / cap)
-                .unwrap_or(0.0)
-        }
-        GpuStat::FanSpeed => ctx
-            .stats
-            .fan
-            .pwm_current
-            .map(|pwm| pwm as f64 / u8::MAX as f64)
-            .unwrap_or(0.0),
-        GpuStat::DeviceName
-        | GpuStat::Throttling
-        | GpuStat::GpuClockTarget
-        | GpuStat::GpuVoltage
-        | GpuStat::Temperature
-        | GpuStat::Unknown => 0.0,
     }
 }
 
@@ -353,8 +353,8 @@ mod tests {
             ..StatsContext::default()
         };
 
-        assert_eq!(level(GpuStat::GpuClock, &ctx), 0.5);
-        assert_eq!(level(GpuStat::VramUsage, &ctx), 0.75);
-        assert_eq!(level(GpuStat::PowerUsage, &ctx), 0.75);
+        assert_eq!(GpuStat::GpuClock.level(&ctx), 0.5);
+        assert_eq!(GpuStat::VramUsage.level(&ctx), 0.75);
+        assert_eq!(GpuStat::PowerUsage.level(&ctx), 0.75);
     }
 }

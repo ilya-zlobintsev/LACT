@@ -1,4 +1,4 @@
-use super::stat::{GpuStat, GpuStatDisplay, StatsContext, level, name, text};
+use super::stat::{GpuStat, GpuStatDisplay, StatsContext};
 use crate::app::{
     components::{
         info_row::{InfoRow, InfoRowExt},
@@ -43,9 +43,9 @@ impl relm4::factory::FactoryComponent for StatItem {
                 set_visible: self.display == GpuStatDisplay::Text
                     && (self.stat != GpuStat::Temperature || !self.has_secondary_temperatures()),
                 #[watch]
-                set_name: name(self.stat, &self.ctx),
+                set_name: self.stat.name(&self.ctx),
                 #[watch]
-                set_value: text(self.stat, &self.ctx),
+                set_value: self.stat.text(&self.ctx),
             },
 
             InfoRow {
@@ -55,9 +55,9 @@ impl relm4::factory::FactoryComponent for StatItem {
                     && self.stat == GpuStat::Temperature
                     && self.has_secondary_temperatures(),
                 #[watch]
-                set_name: name(self.stat, &self.ctx),
+                set_name: self.stat.name(&self.ctx),
                 #[watch]
-                set_value: text(self.stat, &self.ctx),
+                set_value: self.stat.text(&self.ctx),
                 set_icon: "go-down-symbolic".to_owned(),
 
                 #[name = "secondary_temps_popover"]
@@ -82,11 +82,11 @@ impl relm4::factory::FactoryComponent for StatItem {
                 #[watch]
                 set_visible: self.display == GpuStatDisplay::LevelBar,
                 #[watch]
-                set_name: name(self.stat, &self.ctx),
+                set_name: self.stat.name(&self.ctx),
                 #[watch]
-                set_value: text(self.stat, &self.ctx),
+                set_value: self.stat.text(&self.ctx),
                 #[watch]
-                set_level_value: level(self.stat, &self.ctx),
+                set_level_value: self.stat.level(&self.ctx),
                 set_value_size_group: &self.value_size_group,
             },
         }
