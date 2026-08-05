@@ -221,7 +221,6 @@ impl AsyncComponent for AppModel {
                                     gtk::ListBox {
                                         add_css_class: "navigation-sidebar",
                                         set_accessible_role: gtk::AccessibleRole::List,
-                                        update_property: &[gtk::accessible::Property::Label("Sidebar")],
                                         set_margin_vertical: 1,
                                         set_selection_mode: gtk::SelectionMode::Single,
                                         set_vexpand: true,
