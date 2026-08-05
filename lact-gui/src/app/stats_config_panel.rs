@@ -29,7 +29,7 @@ pub enum StatsConfigPanelMsg {
     },
     SetEnabled(GpuStat, bool),
     SetDisplay(GpuStat, GpuStatDisplay),
-    Default,
+    ResetLayout,
 }
 
 #[relm4::component(pub)]
@@ -66,9 +66,9 @@ impl relm4::Component for StatsConfigPanel {
                     set_title: &fl!(I18N, "configure-stats"),
                     #[wrap(Some)]
                     set_header_suffix = &gtk::Button {
-                        set_label: &fl!(I18N, "default-button"),
+                        set_label: &fl!(I18N, "reset-button"),
                         set_tooltip_text: Some(&fl!(I18N, "reset-stats-layout")),
-                        connect_clicked => StatsConfigPanelMsg::Default,
+                        connect_clicked => StatsConfigPanelMsg::ResetLayout,
                     },
                 },
             },
@@ -118,7 +118,7 @@ impl relm4::Component for StatsConfigPanel {
                     self.save();
                 }
             }
-            StatsConfigPanelMsg::Default => {
+            StatsConfigPanelMsg::ResetLayout => {
                 self.layout = self.page.default_layout();
                 self.save();
                 self.rebuild_rows(&widgets.stats_group, &sender);
