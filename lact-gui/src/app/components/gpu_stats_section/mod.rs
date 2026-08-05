@@ -18,7 +18,6 @@ pub struct GpuStatsSection {
     ctx: StatsContext,
     text_items: FactoryVecDeque<StatItem>,
     level_items: FactoryVecDeque<StatItem>,
-    value_size_group: gtk::SizeGroup,
 }
 
 #[derive(Debug)]
@@ -82,7 +81,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
             ctx: StatsContext::default(),
             text_items: FactoryVecDeque::builder().launch_default().detach(),
             level_items: FactoryVecDeque::builder().launch_default().detach(),
-            value_size_group: gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal),
         };
         model.rebuild_factories();
 
@@ -144,6 +142,7 @@ impl GpuStatsSection {
 
     fn rebuild_factories(&mut self) {
         let visible_items = self.visible_items();
+        let level_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
         let mut text_items = self.text_items.guard();
         let mut level_items = self.level_items.guard();
         text_items.clear();
@@ -151,7 +150,7 @@ impl GpuStatsSection {
 
         for (stat, display) in visible_items {
             let value_size_group = if display == GpuStatDisplay::LevelBar {
-                self.value_size_group.clone()
+                level_size_group.clone()
             } else {
                 gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal)
             };
