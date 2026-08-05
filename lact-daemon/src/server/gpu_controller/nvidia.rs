@@ -962,8 +962,8 @@ impl GpuController for NvidiaGpuController {
         let (pwm_current, speed_current) = if num_fans == 0 {
             (None, None)
         } else {
-            let avg_speed = average_fan_value(num_fans, |idx| device.fan_speed(idx));
-            let pwm_current = avg_speed.map(|avg_speed| (f64::from(avg_speed) * 2.55) as u8);
+            let pwm_current = average_fan_value(num_fans, |idx| device.fan_speed(idx))
+                .map(|avg_speed| (f64::from(avg_speed) * 2.55) as u8);
 
             let speed_current = average_fan_value(num_fans, |idx| device.fan_speed_rpm(idx));
 
