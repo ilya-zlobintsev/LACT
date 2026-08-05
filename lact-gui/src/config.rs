@@ -5,6 +5,7 @@ use crate::app::{
     utils::{color_scheme::AppColorScheme, styles::AppTheme},
 };
 use serde::{Deserialize, Deserializer, Serialize};
+use serde_norway::Value;
 use serde_with::skip_serializing_none;
 use std::{
     collections::{HashMap, HashSet},
@@ -36,7 +37,7 @@ pub struct UiConfig {
     #[serde(default)]
     pub color_scheme: AppColorScheme,
     pub window_size: Option<WindowSize>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_stats_layout")]
     pub stats_layout: HashMap<StatsPage, StatsLayout>,
 }
 
@@ -58,12 +59,13 @@ impl Default for UiConfig {
 }
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum StatsPage {
     OcPage,
     ThermalsPage,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub struct StatEntry {
     pub stat: GpuStat,
     pub display: GpuStatDisplay,
@@ -72,46 +74,6 @@ pub struct StatEntry {
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize)]
 pub struct StatsLayout(pub Vec<StatEntry>);
-
-impl<'de> Deserialize<'de> for StatsLayout {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let entries = Vec::<StoredStatEntry>::deserialize(deserializer)?;
-        Ok(Self(
-            entries
-                .into_iter()
-                .filter_map(|entry| {
-                    if entry.stat == GpuStat::Unknown {
-                        return None;
-                    }
-                    Some(StatEntry {
-                        stat: entry.stat,
-                        display: match entry.display {
-                            StoredGpuStatDisplay::Text => GpuStatDisplay::Text,
-                            StoredGpuStatDisplay::LevelBar => GpuStatDisplay::LevelBar,
-                            StoredGpuStatDisplay::Unknown => entry.stat.default_display(),
-                        },
-                        enabled: entry.enabled,
-                    })
-                })
-                .collect(),
-        ))
-    }
-}
-
-#[derive(Deserialize)]
-struct StoredStatEntry {
-    stat: GpuStat,
-    display: StoredGpuStatDisplay,
-    enabled: bool,
-}
-
-#[derive(Deserialize)]
-enum StoredGpuStatDisplay {
-    Text,
-    LevelBar,
-    #[serde(other)]
-    Unknown,
-}
 
 impl StatsPage {
     pub fn default_layout(self) -> StatsLayout {
@@ -250,6 +212,29 @@ fn default_stats_poll_interval() -> i64 {
     500
 }
 
+fn deserialize_stats_layout<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<HashMap<StatsPage, StatsLayout>, D::Error> {
+    let stored = HashMap::<Value, Vec<Value>>::deserialize(deserializer)?;
+    Ok(stored
+        .into_iter()
+        .filter_map(|(page, entries)| {
+            let page = StatsPage::deserialize(page)
+                .inspect_err(|err| debug!("ignoring stats layout: {err}"))
+                .ok()?;
+            let entries = entries
+                .into_iter()
+                .filter_map(|entry| {
+                    StatEntry::deserialize(entry)
+                        .inspect_err(|err| debug!("ignoring stat entry: {err}"))
+                        .ok()
+                })
+                .collect();
+            Some((page, StatsLayout(entries)))
+        })
+        .collect())
+}
+
 fn deserialize_poll_interval<'de, D: Deserializer<'de>>(deserializer: D) -> Result<i64, D::Error> {
     let value = i64::deserialize(deserializer)?;
     Ok(value.clamp(MIN_STATS_POLL_INTERVAL_MS, MAX_STATS_POLL_INTERVAL_MS))
@@ -320,14 +305,32 @@ mod tests {
     }
 
     #[test]
-    fn unknown_stats_are_dropped_during_deserialization() {
-        let layout: StatsLayout = serde_norway::from_str(
-            "- stat: future-stat\n  display: FutureDisplay\n  enabled: true\n- stat: gpu-usage\n  display: LevelBar\n  enabled: true\n",
+    fn unknown_stats_are_dropped_from_the_layout() {
+        let config: UiConfig = serde_norway::from_str(
+            "stats_layout:\n  oc-page:\n  - stat: future-stat\n    display: text\n    enabled: true\n  - stat: gpu-usage\n    display: level-bar\n    enabled: true\n",
         )
         .unwrap();
 
+        let layout = &config.stats_layout[&StatsPage::OcPage];
+        assert_eq!(layout.0.len(), 2);
+        assert_eq!(
+            StatsPage::OcPage.merge_layout(Some(layout.clone())).0[0].stat,
+            GpuStat::DeviceName
+        );
+    }
+
+    #[test]
+    fn broken_stats_layout_does_not_discard_the_config() {
+        let config: UiConfig = serde_norway::from_str(
+            "selected_tab: oc_page\nstats_layout:\n  future-page:\n  - stat: gpu-usage\n    display: text\n    enabled: true\n  oc-page:\n  - stat: gpu-usage\n  - stat: fan-speed\n    display: text\n    enabled: false\n",
+        )
+        .unwrap();
+
+        assert_eq!(config.selected_tab, "oc_page");
+        assert_eq!(config.stats_layout.len(), 1);
+        let layout = &config.stats_layout[&StatsPage::OcPage];
         assert_eq!(layout.0.len(), 1);
-        assert_eq!(layout.0[0].stat, GpuStat::GpuUsage);
+        assert_eq!(layout.0[0].stat, GpuStat::FanSpeed);
     }
 
     #[test]
