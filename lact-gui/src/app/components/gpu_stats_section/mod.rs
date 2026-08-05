@@ -106,10 +106,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             .to_owned()
                     })
                     .unwrap_or_default();
-                self.ctx.min_gpu_clock = None;
-                self.ctx.max_gpu_clock = None;
-                self.ctx.min_vram_clock = None;
-                self.ctx.max_vram_clock = None;
                 self.broadcast_context();
             }
             GpuStatsSectionMsg::Stats(stats) => {
