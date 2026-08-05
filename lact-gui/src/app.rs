@@ -9,7 +9,7 @@ pub(crate) mod pages;
 mod preferences_dialog;
 mod process_monitor;
 mod profiles;
-mod stats_config_dialog;
+mod stats_config_panel;
 pub(crate) mod utils;
 
 use crate::{
@@ -29,7 +29,7 @@ use crate::{
             ProfileSelector, ProfileSelectorMsg,
             profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
         },
-        stats_config_dialog::{StatsConfigDialog, StatsConfigDialogMsg},
+        stats_config_panel::{StatsConfigPanel, StatsConfigPanelMsg},
         utils::ext::RelmLaunchable as _,
     },
     config::{StatsPage, WindowSize},
@@ -110,7 +110,7 @@ pub struct AppModel {
     process_monitor_window: relm4::Controller<ProcessMonitorWindow>,
     overdrive_dialog: relm4::Controller<OverdriveDialog>,
     preferences_dialog: relm4::Controller<PreferencesDialog>,
-    stats_config_dialog: relm4::Controller<StatsConfigDialog>,
+    stats_config_panel: relm4::Controller<StatsConfigPanel>,
     about_dialog: relm4::Controller<AboutDialog>,
     info_dialog: relm4::Controller<InfoDialog>,
 
@@ -274,7 +274,18 @@ impl AsyncComponent for AppModel {
                         set_content = &adw::NavigationPage {
 
                             #[wrap(Some)]
-                            set_child = &adw::ToolbarView {
+                            #[name = "stats_overlay"]
+                            set_child = &adw::OverlaySplitView {
+                                set_collapsed: true,
+                                set_enable_show_gesture: false,
+                                set_max_sidebar_width: 420.0,
+                                set_min_sidebar_width: 360.0,
+                                set_show_sidebar: false,
+                                set_sidebar_position: gtk::PackType::End,
+                                set_sidebar: Some(model.stats_config_panel.widget()),
+
+                                #[wrap(Some)]
+                                set_content = &adw::ToolbarView {
                                 #[name = "content_header"]
                                 add_top_bar = &adw::HeaderBar {
                                     pack_end = &gtk::MenuButton {
@@ -329,7 +340,8 @@ impl AsyncComponent for AppModel {
                                             add_named[Some("crash_page")] = model.crash_page.widget(),
 
                                             set_visible_child_name: &CONFIG.read().selected_tab,
-                                            connect_visible_child_name_notify[content_page, navigation_list, navigation_syncing] => move |stack| {
+                                            connect_visible_child_name_notify[content_page, navigation_list, navigation_syncing, stats_overlay] => move |stack| {
+                                                stats_overlay.set_show_sidebar(false);
                                                 if let Some(child) = stack.visible_child() {
                                                     let page = stack.page(&child);
                                                     content_page.set_title(&page.title().unwrap_or_default());
@@ -349,6 +361,7 @@ impl AsyncComponent for AppModel {
                                             },
                                         }
                                     }
+                                },
                                 },
                             }
                         }
@@ -468,7 +481,7 @@ impl AsyncComponent for AppModel {
             OverdriveDialog::detach((system_info.clone(), root.clone().upcast()));
 
         let preferences_dialog = PreferencesDialog::detach((system_info.clone(), root.clone()));
-        let stats_config_dialog = StatsConfigDialog::detach(root.clone());
+        let stats_config_panel = StatsConfigPanel::detach(());
 
         let about_dialog = AboutDialog::detach(root.clone());
 
@@ -520,7 +533,7 @@ impl AsyncComponent for AppModel {
             process_monitor_window,
             overdrive_dialog,
             preferences_dialog,
-            stats_config_dialog,
+            stats_config_panel,
             about_dialog,
             info_dialog,
             info_page,
@@ -701,11 +714,15 @@ impl AppModel {
             AppMsg::ShowPreferencesDialog => {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
             }
-            AppMsg::ShowStatsConfigDialog(page) => {
-                self.stats_config_dialog.emit(StatsConfigDialogMsg::Show {
+            AppMsg::ShowStatsConfig(page) => {
+                self.stats_config_panel.emit(StatsConfigPanelMsg::Show {
                     page,
                     stats: self.last_stats.clone(),
                 });
+                widgets.stats_overlay.set_show_sidebar(true);
+            }
+            AppMsg::HideStatsConfig => {
+                widgets.stats_overlay.set_show_sidebar(false);
             }
             AppMsg::StatsLayoutChanged(page) => match page {
                 StatsPage::OcPage => self.oc_page.emit(OcPageMsg::SetStatsLayout(page.layout())),
@@ -1549,7 +1566,7 @@ fn populate_navigation(list: &gtk::ListBox, sender: &AsyncComponentSender<AppMod
             let sender = sender.clone();
             button.connect_clicked(move |_| {
                 list.select_row(Some(&row));
-                sender.input(AppMsg::ShowStatsConfigDialog(page));
+                sender.input(AppMsg::ShowStatsConfig(page));
             });
             content.append(&button);
         }

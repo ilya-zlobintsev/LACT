@@ -7,17 +7,14 @@ use crate::{
     },
     config::{StatsLayout, StatsPage},
 };
-use adw::prelude::{
-    ActionRowExt, AdwDialogExt, PreferencesDialogExt, PreferencesGroupExt, PreferencesPageExt,
-};
+use adw::prelude::*;
 use gtk::prelude::{BoxExt, ButtonExt, ToggleButtonExt, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::DeviceStats;
 use relm4::{ComponentParts, ComponentSender};
 use std::sync::Arc;
 
-pub struct StatsConfigDialog {
-    parent: adw::ApplicationWindow,
+pub struct StatsConfigPanel {
     page: StatsPage,
     layout: StatsLayout,
     stats: Option<Arc<DeviceStats>>,
@@ -25,7 +22,7 @@ pub struct StatsConfigDialog {
 }
 
 #[derive(Debug)]
-pub enum StatsConfigDialogMsg {
+pub enum StatsConfigPanelMsg {
     Show {
         page: StatsPage,
         stats: Option<Arc<DeviceStats>>,
@@ -36,18 +33,34 @@ pub enum StatsConfigDialogMsg {
 }
 
 #[relm4::component(pub)]
-impl relm4::Component for StatsConfigDialog {
-    type Init = adw::ApplicationWindow;
-    type Input = StatsConfigDialogMsg;
+impl relm4::Component for StatsConfigPanel {
+    type Init = ();
+    type Input = StatsConfigPanelMsg;
     type Output = ();
     type CommandOutput = ();
 
     view! {
-        adw::PreferencesDialog {
-            #[watch]
-            set_title: &model.page_title(),
+        adw::ToolbarView {
+            add_top_bar = &adw::HeaderBar {
+                set_show_end_title_buttons: false,
 
-            add = &adw::PreferencesPage {
+                #[wrap(Some)]
+                set_title_widget = &adw::WindowTitle {
+                    #[watch]
+                    set_title: &model.page_title(),
+                    set_subtitle: &fl!(I18N, "configure-stats"),
+                },
+
+                pack_end = &gtk::Button {
+                    set_icon_name: "window-close-symbolic",
+                    set_tooltip_text: Some(&fl!(I18N, "close")),
+                    add_css_class: "flat",
+                    connect_clicked => move |_| APP_BROKER.send(AppMsg::HideStatsConfig),
+                },
+            },
+
+            #[wrap(Some)]
+            set_content = &adw::PreferencesPage {
                 #[name = "stats_group"]
                 add = &adw::PreferencesGroup {
                     set_title: &fl!(I18N, "configure-stats"),
@@ -55,8 +68,7 @@ impl relm4::Component for StatsConfigDialog {
                     set_header_suffix = &gtk::Button {
                         set_label: &fl!(I18N, "default-button"),
                         set_tooltip_text: Some(&fl!(I18N, "reset-stats-layout")),
-                        add_css_class: "destructive-action",
-                        connect_clicked => StatsConfigDialogMsg::Default,
+                        connect_clicked => StatsConfigPanelMsg::Default,
                     },
                 },
             },
@@ -64,12 +76,11 @@ impl relm4::Component for StatsConfigDialog {
     }
 
     fn init(
-        parent: Self::Init,
+        _init: Self::Init,
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = Self {
-            parent,
             page: StatsPage::OcPage,
             layout: StatsPage::OcPage.default_layout(),
             stats: None,
@@ -84,23 +95,22 @@ impl relm4::Component for StatsConfigDialog {
         widgets: &mut Self::Widgets,
         msg: Self::Input,
         sender: ComponentSender<Self>,
-        root: &Self::Root,
+        _root: &Self::Root,
     ) {
         match msg {
-            StatsConfigDialogMsg::Show { page, stats } => {
+            StatsConfigPanelMsg::Show { page, stats } => {
                 self.page = page;
                 self.layout = page.layout();
                 self.stats = stats;
                 self.rebuild_rows(&widgets.stats_group, &sender);
-                root.present(Some(&self.parent));
             }
-            StatsConfigDialogMsg::SetEnabled(stat, enabled) => {
+            StatsConfigPanelMsg::SetEnabled(stat, enabled) => {
                 if let Some(entry) = self.layout.0.iter_mut().find(|entry| entry.stat == stat) {
                     entry.enabled = enabled;
                     self.save();
                 }
             }
-            StatsConfigDialogMsg::SetDisplay(stat, display) => {
+            StatsConfigPanelMsg::SetDisplay(stat, display) => {
                 if stat.supported_displays().contains(&display)
                     && let Some(entry) = self.layout.0.iter_mut().find(|entry| entry.stat == stat)
                 {
@@ -108,7 +118,7 @@ impl relm4::Component for StatsConfigDialog {
                     self.save();
                 }
             }
-            StatsConfigDialogMsg::Default => {
+            StatsConfigPanelMsg::Default => {
                 self.layout = self.page.default_layout();
                 self.save();
                 self.rebuild_rows(&widgets.stats_group, &sender);
@@ -119,7 +129,7 @@ impl relm4::Component for StatsConfigDialog {
     }
 }
 
-impl StatsConfigDialog {
+impl StatsConfigPanel {
     fn page_title(&self) -> String {
         match self.page {
             StatsPage::OcPage => fl!(I18N, "oc-page"),
@@ -150,7 +160,7 @@ impl StatsConfigDialog {
             let input_sender = sender.input_sender().clone();
             enabled_switch.connect_active_notify(move |switch| {
                 let _ =
-                    input_sender.send(StatsConfigDialogMsg::SetEnabled(stat, switch.is_active()));
+                    input_sender.send(StatsConfigPanelMsg::SetEnabled(stat, switch.is_active()));
             });
             row.add_suffix(&enabled_switch);
 
@@ -169,7 +179,7 @@ impl StatsConfigDialog {
                 text_button.connect_toggled(move |button| {
                     if button.is_active() {
                         let _ = input_sender
-                            .send(StatsConfigDialogMsg::SetDisplay(stat, GpuStatDisplay::Text));
+                            .send(StatsConfigPanelMsg::SetDisplay(stat, GpuStatDisplay::Text));
                     }
                 });
                 display_box.append(&text_button);
@@ -182,7 +192,7 @@ impl StatsConfigDialog {
                 let input_sender = sender.input_sender().clone();
                 bar_button.connect_toggled(move |button| {
                     if button.is_active() {
-                        let _ = input_sender.send(StatsConfigDialogMsg::SetDisplay(
+                        let _ = input_sender.send(StatsConfigPanelMsg::SetDisplay(
                             stat,
                             GpuStatDisplay::LevelBar,
                         ));

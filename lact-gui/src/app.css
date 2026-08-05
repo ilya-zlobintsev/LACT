@@ -10,9 +10,7 @@
     opacity: 0;
 }
 
-.navigation-sidebar row:hover .stats-config-button,
-.navigation-sidebar row:selected .stats-config-button,
-.navigation-sidebar row:focus-within .stats-config-button {
+.navigation-sidebar row:selected .stats-config-button {
     opacity: 1;
 }
 
