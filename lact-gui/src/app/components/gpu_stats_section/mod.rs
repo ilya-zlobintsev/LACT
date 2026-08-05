@@ -39,6 +39,9 @@ impl relm4::SimpleComponent for GpuStatsSection {
             add_css_class: "gpu-stats-section",
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 10,
+            #[watch]
+            set_visible: model.visible_count(GpuStatDisplay::Text) > 0
+                || model.visible_count(GpuStatDisplay::LevelBar) > 0,
 
             PageSection::new("") {
                 #[watch]
