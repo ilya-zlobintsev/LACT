@@ -1526,6 +1526,12 @@ fn select_navigation_row(list: &gtk::ListBox, page_name: &str) {
     }
 }
 
+fn set_stats_config_button_revealed(button: &gtk::Button, revealed: bool) {
+    button.set_opacity(if revealed { 1.0 } else { 0.0 });
+    button.set_can_target(revealed);
+    button.set_focusable(revealed);
+}
+
 fn populate_navigation(list: &gtk::ListBox, sender: &AsyncComponentSender<AppModel>) {
     let pages = [
         ("info_page", fl!(I18N, "info-page"), None),
@@ -1559,7 +1565,16 @@ fn populate_navigation(list: &gtk::ListBox, sender: &AsyncComponentSender<AppMod
                 .tooltip_text(fl!(I18N, "configure-stats"))
                 .build();
             button.add_css_class("flat");
-            button.add_css_class("stats-config-button");
+            set_stats_config_button_revealed(&button, false);
+
+            list.connect_row_selected({
+                let button = button.clone();
+                let row = row.clone();
+                move |_, selected_row| {
+                    set_stats_config_button_revealed(&button, selected_row == Some(&row));
+                }
+            });
+
             let list = list.clone();
             let row = row.clone();
             let sender = sender.clone();
