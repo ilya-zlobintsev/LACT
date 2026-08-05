@@ -1,3 +1,5 @@
+mod stat_config_row;
+
 use crate::{
     CONFIG, I18N,
     app::{
@@ -8,17 +10,18 @@ use crate::{
     config::{StatsLayout, StatsPage},
 };
 use adw::prelude::*;
-use gtk::prelude::{BoxExt, ButtonExt, ToggleButtonExt, WidgetExt};
+use gtk::prelude::{ButtonExt, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::DeviceStats;
-use relm4::{ComponentParts, ComponentSender};
+use relm4::{ComponentParts, ComponentSender, css, prelude::FactoryVecDeque};
+use stat_config_row::StatConfigRow;
 use std::sync::Arc;
 
 pub struct StatsConfigPanel {
     page: StatsPage,
     layout: StatsLayout,
     stats: Option<Arc<DeviceStats>>,
-    rows: Vec<adw::ActionRow>,
+    rows: FactoryVecDeque<StatConfigRow>,
 }
 
 #[derive(Debug)]
@@ -33,11 +36,10 @@ pub enum StatsConfigPanelMsg {
 }
 
 #[relm4::component(pub)]
-impl relm4::Component for StatsConfigPanel {
+impl relm4::SimpleComponent for StatsConfigPanel {
     type Init = ();
     type Input = StatsConfigPanelMsg;
     type Output = ();
-    type CommandOutput = ();
 
     view! {
         adw::ToolbarView {
@@ -61,7 +63,6 @@ impl relm4::Component for StatsConfigPanel {
 
             #[wrap(Some)]
             set_content = &adw::PreferencesPage {
-                #[name = "stats_group"]
                 add = &adw::PreferencesGroup {
                     set_title: &fl!(I18N, "configure-stats"),
                     #[wrap(Some)]
@@ -69,6 +70,12 @@ impl relm4::Component for StatsConfigPanel {
                         set_label: &fl!(I18N, "reset-button"),
                         set_tooltip_text: Some(&fl!(I18N, "reset-stats-layout")),
                         connect_clicked => StatsConfigPanelMsg::ResetLayout,
+                    },
+
+                    #[local_ref]
+                    stat_rows -> gtk::ListBox {
+                        set_selection_mode: gtk::SelectionMode::None,
+                        add_css_class: css::BOXED_LIST,
                     },
                 },
             },
@@ -78,31 +85,28 @@ impl relm4::Component for StatsConfigPanel {
     fn init(
         _init: Self::Init,
         root: Self::Root,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = Self {
             page: StatsPage::OcPage,
             layout: StatsPage::OcPage.default_layout(),
             stats: None,
-            rows: Vec::new(),
+            rows: FactoryVecDeque::builder()
+                .launch_default()
+                .forward(sender.input_sender(), |msg| msg),
         };
+        let stat_rows = model.rows.widget();
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }
 
-    fn update_with_view(
-        &mut self,
-        widgets: &mut Self::Widgets,
-        msg: Self::Input,
-        sender: ComponentSender<Self>,
-        _root: &Self::Root,
-    ) {
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
             StatsConfigPanelMsg::Show { page, stats } => {
                 self.page = page;
                 self.layout = CONFIG.read().stats_layout_for(page);
                 self.stats = stats;
-                self.rebuild_rows(&widgets.stats_group, &sender);
+                self.rebuild_rows();
             }
             StatsConfigPanelMsg::SetEnabled(stat, enabled) => {
                 if let Some(entry) = self.layout.0.iter_mut().find(|entry| entry.stat == stat) {
@@ -121,11 +125,9 @@ impl relm4::Component for StatsConfigPanel {
             StatsConfigPanelMsg::ResetLayout => {
                 self.layout = self.page.default_layout();
                 self.save();
-                self.rebuild_rows(&widgets.stats_group, &sender);
+                self.rebuild_rows();
             }
         }
-
-        self.update_view(widgets, sender);
     }
 }
 
@@ -137,73 +139,19 @@ impl StatsConfigPanel {
         }
     }
 
-    fn rebuild_rows(&mut self, group: &adw::PreferencesGroup, sender: &ComponentSender<Self>) {
-        for row in self.rows.drain(..) {
-            group.remove(&row);
-        }
+    fn rebuild_rows(&mut self) {
+        let entries = self.layout.0.clone();
+        let stats = self.stats.clone();
 
-        for entry in &self.layout.0 {
-            let row = adw::ActionRow::builder().title(entry.stat.title()).build();
-            if self
-                .stats
-                .as_deref()
-                .is_some_and(|stats| !entry.stat.has_data_for(stats))
-            {
-                row.set_subtitle(&fl!(I18N, "stat-not-available"));
-            }
-
-            let enabled_switch = gtk::Switch::builder()
-                .active(entry.enabled)
-                .valign(gtk::Align::Center)
-                .build();
-            let stat = entry.stat;
-            let input_sender = sender.input_sender().clone();
-            enabled_switch.connect_active_notify(move |switch| {
-                let _ =
-                    input_sender.send(StatsConfigPanelMsg::SetEnabled(stat, switch.is_active()));
+        let mut rows = self.rows.guard();
+        rows.clear();
+        for entry in entries {
+            rows.push_back(StatConfigRow {
+                entry,
+                available: stats
+                    .as_deref()
+                    .is_none_or(|stats| entry.stat.has_data_for(stats)),
             });
-            row.add_suffix(&enabled_switch);
-
-            if entry.stat.supported_displays().len() > 1 {
-                let display_box = gtk::Box::builder()
-                    .orientation(gtk::Orientation::Horizontal)
-                    .valign(gtk::Align::Center)
-                    .css_classes(["linked"])
-                    .build();
-
-                let text_button = gtk::ToggleButton::builder()
-                    .label(fl!(I18N, "stats-display-text"))
-                    .active(entry.display == GpuStatDisplay::Text)
-                    .build();
-                let input_sender = sender.input_sender().clone();
-                text_button.connect_toggled(move |button| {
-                    if button.is_active() {
-                        let _ = input_sender
-                            .send(StatsConfigPanelMsg::SetDisplay(stat, GpuStatDisplay::Text));
-                    }
-                });
-                display_box.append(&text_button);
-
-                let bar_button = gtk::ToggleButton::builder()
-                    .label(fl!(I18N, "stats-display-bar"))
-                    .active(entry.display == GpuStatDisplay::LevelBar)
-                    .group(&text_button)
-                    .build();
-                let input_sender = sender.input_sender().clone();
-                bar_button.connect_toggled(move |button| {
-                    if button.is_active() {
-                        let _ = input_sender.send(StatsConfigPanelMsg::SetDisplay(
-                            stat,
-                            GpuStatDisplay::LevelBar,
-                        ));
-                    }
-                });
-                display_box.append(&bar_button);
-                row.add_suffix(&display_box);
-            }
-
-            group.add(&row);
-            self.rows.push(row);
         }
     }
 
