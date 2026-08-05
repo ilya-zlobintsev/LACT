@@ -1,9 +1,8 @@
 mod fan_curve_frame;
 
-use crate::app::components::gpu_stats_section::{
-    GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
-};
+use crate::app::components::gpu_stats_section::{GpuStatsSection, GpuStatsSectionMsg};
 use crate::app::pages::PageUpdate;
+use crate::config::{StatsLayout, StatsPage};
 use crate::{
     APP_BROKER, I18N,
     app::{
@@ -27,7 +26,7 @@ use gtk::{
 };
 use i18n_embed_fl::fl;
 use lact_schema::{
-    DeviceFlag, FanControlMode,
+    DeviceFlag, FanControlMode, PowerStates,
     config::{FanControlSettings, FanCurve, GpuConfig},
     default_fan_curve,
 };
@@ -35,7 +34,6 @@ use relm4::{
     ComponentController, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
     binding::{Binding, BoolBinding, ConnectBinding, StringBinding},
 };
-use std::collections::HashSet;
 use std::sync::Arc;
 use std::{cell::Cell, rc::Rc};
 
@@ -102,6 +100,8 @@ impl NvidiaThermalOptions {
 pub enum ThermalsPageMsg {
     Update { update: PageUpdate, initial: bool },
     RestNvidiaOptions,
+    PowerStates(Arc<PowerStates>),
+    SetStatsLayout(StatsLayout),
 }
 
 #[relm4::component(pub)]
@@ -407,14 +407,7 @@ impl relm4::Component for ThermalsPage {
         let fan_curve_frame = FanCurveFrame::builder()
             .launch(pmfw_options.clone())
             .detach();
-        let stats_section = GpuStatsSection::detach(GpuStatsSectionConfig {
-            stats: HashSet::from([
-                GpuStat::Throttling,
-                GpuStat::Temperature,
-                GpuStat::PowerUsage,
-                GpuStat::FanSpeed,
-            ]),
-        });
+        let stats_section = GpuStatsSection::detach(StatsPage::ThermalsPage.layout());
 
         let model = Self {
             stats_section,
@@ -569,6 +562,14 @@ impl relm4::Component for ThermalsPage {
                         "No default target temperature present"
                     ))));
                 }
+            }
+            ThermalsPageMsg::PowerStates(power_states) => {
+                self.stats_section
+                    .emit(GpuStatsSectionMsg::PowerStates(power_states));
+            }
+            ThermalsPageMsg::SetStatsLayout(layout) => {
+                self.stats_section
+                    .emit(GpuStatsSectionMsg::SetLayout(layout));
             }
         }
 

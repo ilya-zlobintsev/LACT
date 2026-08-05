@@ -60,18 +60,23 @@ impl<T: IsA<InfoRow>> InfoRowExt for T {
 
     fn connect_clicked<F: Fn(&InfoRow) + 'static>(&self, f: F) {
         let gesture = gtk::GestureClick::new();
-        let obj = self.as_ref().clone();
+        let obj = self.as_ref().downgrade();
         gesture.connect_released(move |_, _, _, _| {
-            f(&obj);
+            if let Some(obj) = obj.upgrade() {
+                f(&obj);
+            }
         });
         self.as_ref().add_controller(gesture);
         self.as_ref().set_cursor_from_name(Some("pointer"));
 
         self.as_ref().connect_map(|widget| {
-            if let Some(parent) = widget.parent()
-                && let Ok(child) = parent.downcast::<gtk::FlowBoxChild>()
-            {
-                child.add_css_class("clickable-info-row");
+            let mut parent = widget.parent();
+            while let Some(widget) = parent {
+                if let Ok(child) = widget.clone().downcast::<gtk::FlowBoxChild>() {
+                    child.add_css_class("clickable-info-row");
+                    break;
+                }
+                parent = widget.parent();
             }
         });
     }

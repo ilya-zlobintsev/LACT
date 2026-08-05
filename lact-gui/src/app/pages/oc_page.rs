@@ -4,12 +4,11 @@ mod power_cap_section;
 mod power_states;
 mod vf_curve;
 
-use crate::app::components::gpu_stats_section::{
-    GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
-};
+use crate::app::components::gpu_stats_section::{GpuStatsSection, GpuStatsSectionMsg};
 use crate::app::pages::PageUpdate;
 use crate::app::utils::ext::RelmLaunchable as _;
 use crate::app::{msg::AppMsg, utils::ext::RelmDefaultLauchable};
+use crate::config::{StatsLayout, StatsPage};
 use amdgpu_sysfs::gpu_handle::{
     PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
@@ -24,7 +23,6 @@ use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
 use relm4::binding::BoolBinding;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
-use std::collections::HashSet;
 use std::sync::Arc;
 use tracing::debug;
 use vf_curve::{VfCurveEditor, VfCurveEditorMsg};
@@ -55,6 +53,7 @@ pub enum OcPageMsg {
     },
     PerformanceLevelChanged,
     ShowVfCurveEditor,
+    SetStatsLayout(StatsLayout),
 }
 
 #[relm4::component(pub)]
@@ -84,22 +83,7 @@ impl relm4::Component for OcPage {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let stats_section = GpuStatsSection::detach(GpuStatsSectionConfig {
-            stats: HashSet::from([
-                GpuStat::DeviceName,
-                GpuStat::Throttling,
-                GpuStat::GpuClockTarget,
-                GpuStat::GpuVoltage,
-                GpuStat::Temperature,
-                GpuStat::GpuClock,
-                GpuStat::VramClock,
-                GpuStat::GpuUsage,
-                GpuStat::VramUsage,
-                GpuStat::GttUsage,
-                GpuStat::PowerUsage,
-                GpuStat::FanSpeed,
-            ]),
-        });
+        let stats_section = GpuStatsSection::detach(StatsPage::OcPage.layout());
         let power_cap_section = PowerCapSection::detach_default();
         let clocks_frame = ClocksFrame::launch_default().forward(sender.input_sender(), |msg| msg);
         let power_states_frame = PowerStatesFrame::detach_default();
@@ -216,6 +200,10 @@ impl relm4::Component for OcPage {
             }
             OcPageMsg::ShowVfCurveEditor => {
                 self.vf_curve_editor.emit(VfCurveEditorMsg::Show);
+            }
+            OcPageMsg::SetStatsLayout(layout) => {
+                self.stats_section
+                    .emit(GpuStatsSectionMsg::SetLayout(layout));
             }
         }
 

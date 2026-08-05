@@ -57,6 +57,7 @@ zero-rpm = Zero RPM
 zero-rpm-stop-temp = Zero RPM stop temperature (°C)
 static-speed = Static Speed (%)
 reset-button = Reset
+default-button = Default
 pmfw-reset-warning = Warning: this resets the fan firmware settings!
 
 temperature-sensor = Temperature Sensor
@@ -119,6 +120,11 @@ mebibyte = MiB
 gibibyte = GiB
 
 stats-section = Statistics
+configure-stats = Configure stats
+stats-display-text = Text
+stats-display-bar = Bar
+stat-not-available = Not reported by this GPU
+reset-stats-layout = Reset to default layout
 gpu-clock = GPU Core Clock
 gpu-clock-avg = GPU Core Clock (Average)
 gpu-clock-target = GPU Core Clock (Target)

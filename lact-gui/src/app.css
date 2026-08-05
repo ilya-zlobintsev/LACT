@@ -2,8 +2,18 @@
 .app {
 }
 
-.main-sidebar-container .sidebar {
+.main-sidebar-container .navigation-sidebar {
     border-right-width: 0;
+}
+
+.navigation-sidebar .stats-config-button {
+    opacity: 0;
+}
+
+.navigation-sidebar row:hover .stats-config-button,
+.navigation-sidebar row:selected .stats-config-button,
+.navigation-sidebar row:focus-within .stats-config-button {
+    opacity: 1;
 }
 
 .main-sidebar-container separator {
