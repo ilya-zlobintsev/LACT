@@ -569,7 +569,7 @@ impl AsyncComponent for AppModel {
 
         let navigation_syncing = Rc::new(Cell::new(false));
         let widgets = view_output!();
-        populate_navigation(&widgets.navigation_list, &sender);
+        populate_navigation(&widgets.navigation_list, &widgets.root_stack, &sender);
 
         root.connect_close_request(|root| {
             let width = root.width();
@@ -1537,22 +1537,23 @@ fn set_stats_config_button_revealed(button: &gtk::Button, revealed: bool) {
     button.set_focusable(revealed);
 }
 
-fn populate_navigation(list: &gtk::ListBox, sender: &AsyncComponentSender<AppModel>) {
-    let pages = [
-        ("info_page", fl!(I18N, "info-page"), None),
-        ("oc_page", fl!(I18N, "oc-page"), Some(StatsPage::OcPage)),
-        (
-            "thermals_page",
-            fl!(I18N, "thermals-page"),
-            Some(StatsPage::ThermalsPage),
-        ),
-        ("software_page", fl!(I18N, "software-page"), None),
-        ("displays_page", fl!(I18N, "displays-page"), None),
-    ];
+fn populate_navigation(
+    list: &gtk::ListBox,
+    stack: &gtk::Stack,
+    sender: &AsyncComponentSender<AppModel>,
+) {
+    for page in stack.pages().iter::<gtk::StackPage>().flatten() {
+        let (Some(stack_name), Some(title)) = (page.name(), page.title()) else {
+            continue;
+        };
+        let stats_page = match stack_name.as_str() {
+            "oc_page" => Some(StatsPage::OcPage),
+            "thermals_page" => Some(StatsPage::ThermalsPage),
+            _ => None,
+        };
 
-    for (stack_name, title, stats_page) in pages {
         let row = gtk::ListBoxRow::new();
-        row.set_widget_name(stack_name);
+        row.set_widget_name(&stack_name);
         let content = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         content.set_margin_start(12);
         content.set_margin_end(6);
