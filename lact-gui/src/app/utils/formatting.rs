@@ -91,28 +91,21 @@ pub fn fmt_throttling_text(stats: &DeviceStats) -> String {
 const PRIMARY_TEMP_THRESHOLD: usize = 3;
 
 pub fn fmt_temperature_text(stats: &DeviceStats) -> (Vec<String>, Vec<String>) {
-    let (primary, secondary): (Vec<_>, Vec<_>) = stats
-        .temps
-        .iter()
-        .partition(|(_, entry)| stats.temps.len() <= PRIMARY_TEMP_THRESHOLD || entry.primary);
+    let all_primary = stats.temps.len() <= PRIMARY_TEMP_THRESHOLD;
 
-    let primary = primary
-        .into_iter()
-        .filter_map(|(label, temp)| {
-            temp.value
-                .current
-                .map(|current| format!("{label}: {}°C", Mono::float(current, 0)))
-        })
-        .collect::<Vec<_>>();
+    let mut primary = Vec::new();
+    let mut secondary = Vec::new();
 
-    let secondary = secondary
-        .into_iter()
-        .filter_map(|(label, temp)| {
-            temp.value
-                .current
-                .map(|current| format!("{label}: {}°C", Mono::float(current, 0)))
-        })
-        .collect::<Vec<_>>();
+    for (label, entry) in &stats.temps {
+        if let Some(current) = entry.value.current {
+            let text = format!("{label}: {}°C", Mono::float(current, 0));
+            if all_primary || entry.primary {
+                primary.push(text);
+            } else {
+                secondary.push(text);
+            }
+        }
+    }
 
     (primary, secondary)
 }
