@@ -130,8 +130,8 @@ power-usage = Power Usage
 no-throttling = No
 unknown-throttling = Unknown
 missing-stat = N/A
-vram-usage = VRAM Usage:
-gtt-usage = GTT Usage:
+vram-usage = VRAM Usage
+gtt-usage = GTT Usage
 
 performance-level-auto = Automatic
 performance-level-high = Highest Clocks
