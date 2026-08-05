@@ -611,7 +611,10 @@ impl VfCurveEditor {
             self.selected_range_end.set(None);
         }
 
-        if let Some((selected_start, selected_end)) = self.get_selected_voltage_range() {
+        let selected_voltage_range = self.get_selected_voltage_range();
+        let active_voltage = self.stats.borrow().voltage.gpu;
+
+        if let Some((selected_start, selected_end)) = selected_voltage_range {
             let x_values = [selected_start, selected_end];
             chart
                 .draw_series(AreaSeries::new(
@@ -628,15 +631,14 @@ impl VfCurveEditor {
                 3,
                 ShapeStyle::from(&colors.success).filled(),
                 &|(i, coord), mut size, mut style| {
-                    if let Some((selected_start, selected_end)) = self.get_selected_voltage_range()
-                    {
+                    if let Some((selected_start, selected_end)) = selected_voltage_range {
                         let voltage = coord.0 as usize;
                         if selected_start < voltage && voltage < selected_end {
                             style.color = selected_style.to_rgba();
                         }
                     }
 
-                    let is_active = self.stats.borrow().voltage.gpu == Some(coord.0 as u64);
+                    let is_active = active_voltage == Some(coord.0 as u64);
                     if is_active {
                         style.color = active_style.to_rgba();
                         size = size * 3 / 2;
