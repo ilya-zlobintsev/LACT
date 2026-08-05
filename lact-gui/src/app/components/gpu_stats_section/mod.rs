@@ -110,11 +110,8 @@ impl relm4::SimpleComponent for GpuStatsSection {
             }
             GpuStatsSectionMsg::Stats(stats) => {
                 let old_items = self.visible_items();
-                let had_secondary_temperatures = self.has_secondary_temperatures();
                 self.ctx.stats = stats;
-                if old_items == self.visible_items()
-                    && had_secondary_temperatures == self.has_secondary_temperatures()
-                {
+                if old_items == self.visible_items() {
                     self.broadcast_context();
                 } else {
                     self.rebuild_factories();
@@ -143,12 +140,6 @@ impl GpuStatsSection {
             .filter(|entry| entry.enabled && entry.stat.has_data_for(&self.ctx.stats))
             .map(|entry| (entry.stat, entry.display))
             .collect()
-    }
-
-    fn has_secondary_temperatures(&self) -> bool {
-        !crate::app::utils::formatting::fmt_temperature_text(&self.ctx.stats)
-            .1
-            .is_empty()
     }
 
     fn rebuild_factories(&mut self) {
