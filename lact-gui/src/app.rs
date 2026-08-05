@@ -682,6 +682,7 @@ impl AppModel {
                 if let Some(handle) = self.stats_task_handle.take() {
                     handle.abort();
                 }
+                widgets.stats_overlay.set_show_sidebar(false);
                 Self::set_selected_gpu_id(gpu_id);
                 sender.input(AppMsg::ReloadData { full: true });
             }
