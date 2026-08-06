@@ -568,12 +568,14 @@ impl AmdGpuController {
         let cache_info = self
             .kfd_node_path()
             .inspect(|path| debug!("found KFD node path at '{}'", path.display()))
-            .and_then(|path| match read_cache_info_from_kfd(&path) {
-                Ok(info) => Some(info),
-                Err(err) => {
-                    warn!("could not read cache info from kfd sysfs: {err:#}");
-                    None
-                }
+            .and_then(|path| {
+                #[cfg_attr(test, allow(unused_variables))]
+                read_cache_info_from_kfd(&path)
+                    .inspect_err(|err| {
+                        #[cfg(not(test))]
+                        warn!("could not read cache info from kfd sysfs: {err:#}");
+                    })
+                    .ok()
             });
 
         trace!("Reading DRM info");
@@ -1228,6 +1230,7 @@ impl GpuController for AmdGpuController {
                         }
                     }
                 }
+                Err(err) if err.is_not_found() => (),
                 Err(err) => {
                     error!("could not get current performance level: {err}");
                 }

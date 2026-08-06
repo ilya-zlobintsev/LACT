@@ -12,6 +12,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+/// Files which are writeable as-is (reads will return last write's content)
+const WRITEABLE_FILES: &[&str] = &["power_dpm_force_performance_level"];
+
 pub struct MockSysfs {
     mirror_fs: MirrorFsReadOnly,
     default_fs: DefaultFuseHandler<PathBuf>,
@@ -32,7 +35,7 @@ impl FuseHandler for MockSysfs {
     type TId = PathBuf;
 
     delegate_fs! { mirror_fs, [
-        flush, fsync, lseek, read, release, access, getattr, listxattr, lookup, open, readdir,
+        flush, fsync, lseek, release, access, getattr, listxattr, lookup, open, readdir,
         readlink
     ] }
 
@@ -58,6 +61,28 @@ impl FuseHandler for MockSysfs {
             .push((file_id, String::from_utf8_lossy(&data).into_owned()));
 
         Ok(data.len().try_into().unwrap())
+    }
+
+    fn read(
+        &self,
+        req: &RequestInfo,
+        file_id: Self::TId,
+        file_handle: BorrowedFileHandle<'_>,
+        seek: SeekFrom,
+        size: u32,
+        flags: FUSEOpenFlags,
+        lock_owner: Option<u64>,
+    ) -> FuseResult<Vec<u8>> {
+        let file_name = file_id.file_name().unwrap().to_str().unwrap();
+        if WRITEABLE_FILES.contains(&file_name) {
+            let writes = self.writes.lock().unwrap();
+            if let Some((_, written)) = writes.iter().rfind(|(id, _)| *id == file_id) {
+                return Ok(written.as_bytes().to_vec());
+            }
+        }
+
+        self.mirror_fs
+            .read(req, file_id, file_handle, seek, size, flags, lock_owner)
     }
 
     fn setattr(

@@ -1429,9 +1429,14 @@ fn load_controllers(
                     let info = controller.controller_info();
 
                     info!(
-                        "initialized {} controller for GPU {id} at '{}'",
+                        "initialized {} controller for GPU {id} at '{}' ({})",
                         info.driver,
-                        info.sysfs_path.display()
+                        info.sysfs_path.display(),
+                        info.pci_info
+                            .device_pci_info
+                            .model
+                            .as_deref()
+                            .unwrap_or("<Unknown>"),
                     );
 
                     controllers.insert(id, controller);
