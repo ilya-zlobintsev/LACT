@@ -36,6 +36,8 @@ const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_INFO: u32 = 0x507b4b59;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL: u32 = 0x733e009;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_CONTROL: u32 = 0x23f1b133;
 const QUERY_NVAPI_GPU_REGISTER_OP: u32 = 0x2eb3c140;
+const QUERY_NVAPI_GPU_PERF_POLICIES_GET_INFO: u32 = 0x409d9841;
+const QUERY_NVAPI_GPU_PERF_POLICIES_GET_STATUS: u32 = 0x3d358a0c;
 
 const REG_OFFSET_BLACKWELL_HOTSPOT_AGGREGATED: u32 = 0xad0aa0;
 
@@ -141,6 +143,32 @@ impl NvApi {
         self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE_BOOST_SET)?;
 
         Ok(())
+    }
+
+    pub unsafe fn perf_policies_get_info(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<u32> {
+        let mut data = NvApiPerfPoliciesInfo::default();
+
+        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_GPU_PERF_POLICIES_GET_INFO)?;
+
+        Ok(data.supported_policy_mask)
+    }
+
+    pub unsafe fn perf_policies_get_status(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        policy_mask: u32,
+    ) -> anyhow::Result<u32> {
+        let mut data = NvApiPerfPoliciesStatus {
+            requested_policy_mask: policy_mask,
+            ..Default::default()
+        };
+
+        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_GPU_PERF_POLICIES_GET_STATUS)?;
+
+        Ok(data.limiting_policy_mask)
     }
 
     pub unsafe fn clock_client_clk_vf_points_get_info(
@@ -546,6 +574,60 @@ impl Default for NvApiVoltageBoost {
             version: make_version::<Self>(1),
             percent: 0,
             rsvd: [0; 32],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+struct NvApiPerfPoliciesInfo {
+    version: NvU32,
+    supported_point_mask: NvU32,
+    supported_policy_mask: NvU32,
+    rsvd: [NvU32; 16],
+}
+
+impl Default for NvApiPerfPoliciesInfo {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            supported_point_mask: 0,
+            supported_policy_mask: 0,
+            rsvd: [0; 16],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+struct NvApiPerfPolicyStatus {
+    perf_point_mask: NvU32,
+    perf_point_time_ns: [NvU64; 6],
+    rsvd: [NvU32; 8],
+}
+
+#[repr(C)]
+#[derive(Debug)]
+struct NvApiPerfPoliciesStatus {
+    version: NvU32,
+    requested_policy_mask: NvU32,
+    reference_time_ns: NvU64,
+    limiting_policy_mask: NvU32,
+    global_status: NvApiPerfPolicyStatus,
+    policies: [NvApiPerfPolicyStatus; 12],
+    rsvd: [NvU32; 48],
+}
+
+impl Default for NvApiPerfPoliciesStatus {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            requested_policy_mask: 0,
+            reference_time_ns: 0,
+            limiting_policy_mask: 0,
+            global_status: NvApiPerfPolicyStatus::default(),
+            policies: [NvApiPerfPolicyStatus::default(); 12],
+            rsvd: [0; 48],
         }
     }
 }
