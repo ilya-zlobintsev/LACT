@@ -2,10 +2,7 @@ use super::power_states_list::PowerStatesList;
 use super::power_states_list::{PowerStatesListMsg, PowerStatesListOptions};
 use crate::{
     APP_BROKER, I18N,
-    app::{
-        components::page_section_expander::PageSectionExpander, msg::AppMsg,
-        utils::ext::RelmLaunchable as _,
-    },
+    app::{components::page_section::PageSection, msg::AppMsg, utils::ext::RelmLaunchable as _},
 };
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use gtk::{
@@ -52,8 +49,9 @@ impl relm4::SimpleComponent for PowerStatesFrame {
     type Output = ();
 
     view! {
-        PageSectionExpander::new(&fl!(I18N, "pstates")) {
-            append_expandable = &gtk::Box {
+        PageSection::new("") {
+            set_hide_visible_container: true,
+            append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
 
