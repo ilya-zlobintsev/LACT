@@ -253,13 +253,6 @@ confirm-settings = Потврди подешавања
 settings-confirmation = Да ли желите сачувати нова подешавања? (Враћам за { $seconds_left } секунди)
 error-heading = Грешка
 daemon-info-heading = Подаци позадинца
-embedded-daemon-info =
-    Не могу се повезати на позадинца, покренут сам у угнежденом режиму.
-    Постарајте се да је услуга lactd покренута.
-    У угнежденом режиму нећете моћи да промените било које подешавање.
-
-    { $error_info }Да бисте омогућили позадинца, покрените следећу наредбу па поново отворите ЛАКТ:
-version-mismatch = Неподударање издања
 version-mismatch-description =
     Неподударање издања између прочеља и позадинца ({ $gui_version }-{ $gui_commit } унакрс { $daemon_version }-{ $daemon_commit })!
     Ако сте ажурирали ЛАКТ, морате поново покренути услугу са:
@@ -273,3 +266,11 @@ display-model = Модел
 display-physical-size = Физичка величина
 display-connection = Веза
 display-manufacture-date = Датум производње
+thresholds-section = Прагови и границе
+gtt-usage = GTT употреба:
+vf-curve-flatten-selection = Изравнај избор
+displays-missing = Нема уочених екрана
+color-scheme = Шема боје
+color-scheme-auto = Систем
+color-scheme-light = Светла
+color-scheme-dark = Тамна
