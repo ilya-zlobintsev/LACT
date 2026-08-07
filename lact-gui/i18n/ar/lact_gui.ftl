@@ -190,7 +190,7 @@ amd-oc-description =
     }
 
     انظر <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">الويكي</a> لمزيد من المعلومات.
-reconnecting-to-daemon = فُقد الاتصال بخدمة الخلفية، جارٍ إعادة الاتصال...
+reconnecting-to-daemon = فُقد الاتصال بالخدمة، جارٍ إعادة الاتصال...
 daemon-connection-lost = فُقد الاتصال
 plot-show-detailed-info = أظهر معلومات مفصلة
 generate-debug-snapshot = ولّد لقطة تصحيح
@@ -253,16 +253,9 @@ confirm-settings = أكِّد الإعدادات
 settings-confirmation = أتريد الاحتفاظ بالإعدادات الجديدة؟ (سيتم التراجع خلال { $seconds_left } ثانية)
 error-heading = خطأ
 daemon-info-heading = معلومات خدمة الخلفية
-embedded-daemon-info =
-    تعذر الاتصال بالخدمة الخلفية (daemon)، يتم التشغيل في الوضع المدمج.
-    يُرجى التأكد من أن خدمة lactd قيد التشغيل.
-    باستخدام الوضع المدمج، لن تتمكن من تغيير أي إعدادات.
-
-    { $error_info }لتفعيل الخدمة الخلفية، شغّل الأمر التالي، ثم أعد تشغيل LACT:
-version-mismatch = عدم تطابق الإصدار
 version-mismatch-description =
     عدم تطابق في الإصدار بين واجهة المستخدم الرسومية والخدمة الخلفية (Daemon) ({ $gui_version }-{ $gui_commit } مقابل { $daemon_version }-{ $daemon_commit })!
-    إذا حدثت LACT، فأنت بحاجة إلى إعادة تشغيل الخدمة باستخدام:
+    إذا حدثت LACT، فأنت بحاجة إلى إعادة تشغيل الخدمة.
 close = أغلِق
 menu = القائمة
 displays-page = معلومات العرض
@@ -276,3 +269,34 @@ display-manufacture-date = تاريخ التصنيع
 thresholds-section = عتبة والحدود
 vf-curve-flatten-selection = تسوية التحديد
 displays-missing = لم يكتشف أي شاشات
+gtt-usage = استخدام GTT:
+color-scheme = مخطّط الألوان
+color-scheme-auto = النظام
+color-scheme-light = فاتح
+color-scheme-dark = داكن
+power-mizer-mode = وضع PowerMizer
+power-mizer-mode-auto = تلقائي
+power-mizer-mode-adaptive = تكيفي
+power-mizer-mode-prefer-maximum-performance = فضّل الأداء الأقصى
+power-mizer-mode-prefer-consistent-performance = فضّل الأداء الثابت
+power-mizer-mode-auto-description = دع المُشغّل يختار سياسة الأداء.
+power-mizer-mode-adaptive-description = اضبط ترددات معالج الرسوميات وفقًا لمستوى استخدامها.
+power-mizer-mode-prefer-maximum-performance-description = فضّل أقصى أداء في حدود قدرات المُشغّل.
+power-mizer-mode-prefer-consistent-performance-description = ثبّت السرعات الأساسية لمعالج الرسوميات.
+service-connection-status = حالة الاتصال
+service-status = حالة الخدمة
+service-connected = متصل
+service-version = إصدار الخدمة
+service-logs = سجلات الخدمة
+service-start = ابدأ
+service-stop = توقف
+service-restart = أعد التشغيل
+service-explanation =
+    يتطلب برنامج LACT خدمة نظامية لتطبيق إعدادات معالج الرسوميات.
+    يمكن تخطي عملية الإعداد واستخدام التطبيق في الوضع المستقل، إذا كنت ترغب في استخدامه لأغراض المعلومات والمراقبة فقط.
+service-permission-denied =
+    رُفض الإذن، فالخدمة غير مضبوطة للسماح بالاتصالات من حسابك.
+    انظر <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> لمزيد من المعلومات
+service-version-mismatch = غير متطابق
+service-disconnected = غير متصل
+gui-version = إصدار الواجهة المستخدم الرسومية
