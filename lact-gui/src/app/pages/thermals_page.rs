@@ -1,15 +1,15 @@
 mod fan_curve_frame;
 
+use crate::app::components::gpu_stats_section::{
+    GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
+};
 use crate::app::pages::PageUpdate;
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::{info_row::InfoRow, oc_adjustment::OcAdjustment, page_section::PageSection},
+        components::{oc_adjustment::OcAdjustment, page_section::PageSection},
         msg::AppMsg,
-        utils::{
-            ext::{FlowBoxExt, make_event_controller_no_scroll},
-            formatting::{fmt_fan_speed, fmt_temperature_text, fmt_throttling_text},
-        },
+        utils::ext::{RelmLaunchable as _, make_event_controller_no_scroll},
     },
 };
 use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
@@ -35,6 +35,7 @@ use relm4::{
     ComponentController, ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
     binding::{Binding, BoolBinding, ConnectBinding, StringBinding},
 };
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::{cell::Cell, rc::Rc};
 
@@ -43,19 +44,17 @@ const CURVE_PAGE: &str = "curve";
 const STATIC_PAGE: &str = "static";
 
 pub struct ThermalsPage {
+    stats_section: relm4::Controller<GpuStatsSection>,
     fan_curve_frame: relm4::Controller<FanCurveFrame>,
     selected_mode: StringBinding,
 
     custom_control_supported: bool,
+    has_fan_speed: bool,
     has_pmfw: bool,
     has_auto_threshold: bool,
     pmfw_options: PmfwOptions,
     nvidia_thermal_options: NvidiaThermalOptions,
     option_change_signals: Vec<(glib::Object, SignalHandlerId)>,
-
-    temperatures: Option<String>,
-    fan_speed: Option<String>,
-    throttling: String,
 
     static_speed_adj: Adjustment,
 }
@@ -119,34 +118,7 @@ impl relm4::Component for ThermalsPage {
             set_margin_all: 15,
             set_margin_top: 20, // align with gpu picker
 
-            PageSection::new("") {
-                append_child = &gtk::FlowBox {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_column_spacing: 10,
-                    set_homogeneous: true,
-                    set_min_children_per_line: 2,
-                    set_max_children_per_line: 4,
-                    set_selection_mode: gtk::SelectionMode::None,
-
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "temperatures"),
-                        #[watch]
-                        set_value: model.temperatures.as_deref().unwrap_or("No sensors found"),
-                    },
-
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "fan-speed"),
-                        #[watch]
-                        set_value: model.fan_speed.as_deref().unwrap_or("No fan detected"),
-                    },
-
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "throttling"),
-                        #[watch]
-                        set_value: model.throttling.as_str(),
-                    },
-                }
-            },
+            model.stats_section.widget(),
 
             PageSection::new(&fl!(I18N, "thresholds-section")) {
                 #[watch]
@@ -193,9 +165,8 @@ impl relm4::Component for ThermalsPage {
                 append_child = &gtk::Stack {
                     set_vexpand: false,
                     set_vhomogeneous: false,
-
                     #[watch]
-                    set_visible: model.fan_speed.is_some(),
+                    set_visible: model.has_fan_speed,
 
                     add_titled[Some(AUTO_PAGE), &fl!(I18N, "auto-page")] = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
@@ -436,18 +407,25 @@ impl relm4::Component for ThermalsPage {
         let fan_curve_frame = FanCurveFrame::builder()
             .launch(pmfw_options.clone())
             .detach();
+        let stats_section = GpuStatsSection::detach(GpuStatsSectionConfig {
+            stats: HashSet::from([
+                GpuStat::Throttling,
+                GpuStat::Temperature,
+                GpuStat::PowerUsage,
+                GpuStat::FanSpeed,
+            ]),
+        });
 
         let model = Self {
+            stats_section,
             fan_curve_frame,
-            throttling: String::new(),
-            temperatures: None,
             pmfw_options,
             nvidia_thermal_options,
             option_change_signals,
             custom_control_supported: false,
+            has_fan_speed: false,
             has_pmfw: false,
             has_auto_threshold: false,
-            fan_speed: None,
             static_speed_adj: Adjustment::new(50.0, 0.0, 100.0, 1.0, 5.0, 0.0),
             selected_mode: StringBinding::new(AUTO_PAGE),
         };
@@ -470,21 +448,20 @@ impl relm4::Component for ThermalsPage {
         match msg {
             ThermalsPageMsg::Update { update, initial } => match update {
                 PageUpdate::Info(info) => {
+                    self.stats_section
+                        .emit(GpuStatsSectionMsg::Info(info.clone()));
+
                     self.custom_control_supported =
                         info.flags.contains(&DeviceFlag::ConfigurableFanControl);
                     self.has_pmfw = info.flags.contains(&DeviceFlag::HasPmfw);
                     self.has_auto_threshold = info.flags.contains(&DeviceFlag::AutoFanThreshold);
                 }
                 PageUpdate::Stats(stats) => {
-                    self.fan_speed = fmt_fan_speed(&stats, true);
-                    let temps = fmt_temperature_text(&stats).0;
-                    self.temperatures = if temps.is_empty() {
-                        None
-                    } else {
-                        Some(temps.join(", "))
-                    };
-                    self.throttling = fmt_throttling_text(&stats);
+                    self.stats_section
+                        .emit(GpuStatsSectionMsg::Stats(stats.clone()));
 
+                    self.has_fan_speed =
+                        stats.fan.pwm_current.is_some() || stats.fan.speed_current.is_some();
                     if initial {
                         let page_name = match stats.fan.control_mode {
                             Some(mode) if stats.fan.control_enabled => match mode {
