@@ -252,16 +252,10 @@ settings-confirmation = Haluatko säilyttää uudet asetukset? (Palautetaan { $s
 menu = Valikko
 error-heading = Virhe
 daemon-info-heading = Daemonin tiedot
-embedded-daemon-info =
-    Yhteyttä daemoniin ei saatu; toimii upotetussa tilassa.
-    Varmista, että lactd-palvelu on käynnissä.
-    Upotettua tilaa käytettäessä et voi muuttaa asetuksia.
-
-    { $error_info }Daemonin ottamiseksi käyttöön suorita seuraava komento ja käynnistä sitten LACT uudelleen:
-version-mismatch = Versioristiriita
 version-mismatch-description =
     Käyttöliittymän ja daemonin välinen versioristiriita ({ $gui_version }-{ $gui_commit } vastaan { $daemon_version }-{ $daemon_commit })!
     Jos olet päivittänyt LACT:n, sinun on käynnistettävä palvelu uudelleen näin:
 close = Sulje
 ui = Käyttöliittymä
 daemon = Daemoni
+displays-page = Näytä info

@@ -194,7 +194,7 @@ generate-debug-snapshot = Создать отладочный снимок
 dump-vbios = Сохранить дамп VBIOS
 reset-all-config = Сбросить все настройки
 stats-update-interval = Период обновления (мс)
-reconnecting-to-daemon = Потеряно соединение с сервисом, переподключение...
+reconnecting-to-daemon = Потеряно соединение со службой, переподключение…
 daemon-connection-lost = Соединение потеряно
 plot-show-detailed-info = Показать подробную информацию
 show-process-monitor = Показать диспетчер задач
@@ -217,7 +217,7 @@ graphs-per-row = Графиков в строке:
 reset-all-graphs-tooltip = Сбросить все графики к значениям по умолчанию
 add-graph = Добавить график
 delete-graph = Удалить график
-export-csv = Экспортировать в CSV
+export-csv = Экспорт в CSV
 edit-graph-sensors = Редактировать сенсоры графика
 apply-button = Применить
 edit-graphs = Редактировать
@@ -250,18 +250,55 @@ vf-curve-flatten-right = Выровнять кривую вправо
 menu = Меню
 error-heading = Ошибка
 daemon-info-heading = Информация о демоне
-embedded-daemon-info =
-    Не удалось подключиться к демону, работа во встроенном режиме.
-    Пожалуйста, убедитесь, что служба lactd запущена.
-    Во встроенном режиме вы не сможете изменять настройки.
-
-    { $error_info }Чтобы включить демон, выполните следующую команду, затем перезапустите LACT:
-version-mismatch = Несоответствие версий
 version-mismatch-description =
     Несоответствие версий между графическим интерфейсом и демоном ({ $gui_version }-{ $gui_commit } против { $daemon_version }-{ $daemon_commit })!
-    Если вы обновили LACT, вам нужно перезапустить службу с помощью:
+    Если вы обновили LACT, вам необходимо перезапустить службу.
 close = Закрыть
 preferences = Настройки
 ui = Интерфейс
 daemon = Демон
 about = О программе
+displays-page = Информация о дисплее
+thresholds-section = Пороговые значения и ограничения
+gtt-usage = Использование GTT:
+vf-curve-flatten-selection = Выровнять выделение
+display-title = Дисплей { $identifier }
+display-manufacturer = Производитель
+display-product-code = Код продукта
+display-model = Модель
+display-physical-size = Физический размер
+display-connection = Подключение
+display-manufacture-date = Дата производства
+displays-missing = Дисплеи не обнаружены
+color-scheme = Цветовая схема
+color-scheme-auto = Система
+color-scheme-light = Светлый
+color-scheme-dark = Тёмный
+power-mizer-mode = Режим PowerMizer
+power-mizer-mode-auto = Авто
+power-mizer-mode-adaptive = Адаптивный
+power-mizer-mode-prefer-maximum-performance = Предпочитать максимальную производительность
+power-mizer-mode-prefer-consistent-performance = Предпочитать стабильную производительность
+power-mizer-mode-auto-description = Позволить драйверу выбирать политику производительности.
+power-mizer-mode-adaptive-description = Регулировать частоты ГП в зависимости от нагрузки.
+power-mizer-mode-prefer-maximum-performance-description = Обеспечивать максимальную производительность в рамках ограничений драйвера.
+power-mizer-mode-prefer-consistent-performance-description = Фиксировать базовые частоты ГП.
+service-explanation =
+    Для применения настроек ГП требуется системная служба LACT.
+    Без неё LACT работает в автономном режиме, доступны только информация и мониторинг.
+service-connection-status = Состояние подключения
+service-status = Состояние службы
+service-permission-denied =
+    Отказано в доступе, служба не настроена на разрешение подключений от вашего пользователя.
+    Подробности см. на <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a>
+service-connected = подключено
+service-version = Версия службы
+service-version-mismatch = не совпадает
+service-logs = Журналы службы
+service-start = Запустить
+service-stop = Остановить
+service-restart = Перезапустить
+service-disconnected = нет подключения
+gui-version = Версия ГП
+gpu-voltage-boost = Повышение напряжения ГП (%)
+gpu-voltage-boost-tooltip = Определяет, какая часть дополнительного запаса напряжения, заданного драйвером, доступна. 100% означает весь этот запас, а не 100% общего напряжения ГП. Больший запас может поддерживать более высокие частоты, но увеличивает энергопотребление и нагрев.

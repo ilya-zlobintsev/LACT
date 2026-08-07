@@ -202,18 +202,11 @@ export-csv = CSV로 내보내기
 edit-graph-sensors = 그래프 센서 편집
 error-heading = 오류
 daemon-info-heading = 데몬 정보
-reconnecting-to-daemon = 데몬 연결이 끊어졌습니다. 재연결 중...
+reconnecting-to-daemon = 서비스 연결이 끊어졌습니다. 재연결 중...
 daemon-connection-lost = 연결 끊김
-embedded-daemon-info =
-    데몬에 연결할 수 없어 임베디드 모드로 실행합니다.
-    lactd 서비스가 실행 중인지 확인하십시오.
-    임베디드 모드에서는 설정을 변경할 수 없습니다.
-
-    { $error_info }데몬을 활성화하려면 다음 명령을 실행한 후 LACT를 다시 시작하십시오:
-version-mismatch = 버전 불일치
 version-mismatch-description =
-    GUI와 데몬 간 버전 불일치 ({ $gui_version }-{ $gui_commit } vs { $daemon_version }-{ $daemon_commit })!
-    LACT를 업데이트한 경우 다음 명령으로 서비스를 다시 시작해야 합니다:
+    GUI 및 데몬 간 버전이 일치하지 않음 ({ $gui_version }-{ $gui_commit } vs { $daemon_version }-{ $daemon_commit })!
+    만약 LACT를 최신화한 경우, 서비스를 다시 시작해야 합니다.
 plot-show-detailed-info = 상세 정보 표시
 settings-profile = 설정 프로파일
 auto-switch-profiles = 자동 전환
@@ -276,3 +269,36 @@ display-manufacture-date = 제조일
 displays-missing = 표시장치가 탐색되지 않음
 vf-curve-flatten-selection = 선택영역 평탄화
 thresholds-section = 임계값; 한계
+gtt-usage = GTT 사용량:
+color-scheme = 색상 구성표
+color-scheme-auto = 시스템
+color-scheme-light = 밝음
+color-scheme-dark = 어두움
+power-mizer-mode-auto = 자동
+power-mizer-mode = 파워마이저 방식
+power-mizer-mode-adaptive = 적응형
+power-mizer-mode-prefer-maximum-performance = 최대 성능 선호
+power-mizer-mode-prefer-consistent-performance = 지속 성능 선호
+power-mizer-mode-auto-description = 드라이버가 성능 정책을 선택하도록 합니다.
+power-mizer-mode-adaptive-description = GPU 사용량에 기반하여 GPU 클럭을 조정합니다.
+power-mizer-mode-prefer-maximum-performance-description = 드라이버 제한 내에서 선호하는 최대 성능.
+power-mizer-mode-prefer-consistent-performance-description = GPU 기본 클럭으로 잠금.
+service-connection-status = 연결 상태
+service-connected = 연결됨
+service-disconnected = 연결되지 않음
+service-version = 서비스 버전
+service-status = 서비스 상태
+service-permission-denied =
+    권한이 거부되었으며, 서비스는 사용자로부터 연결이 허용되도록 구성되지 않았습니다.
+    더 많은 정보를 위해 <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> 를 참고하세요
+gui-version = GUI 버전
+service-explanation =
+    GPU 설정을 적용하려면 LACT 시스템 서비스가 필요합니다.
+    이 부분이 없다면, LACT는 단독 방식으로 동작하고, 정보 및 모니터링만 사용 가능합니다.
+service-version-mismatch = 일치하지 않는 항목
+service-logs = 서비스 로그
+service-start = 시작
+service-stop = 중지
+service-restart = 재시작
+gpu-voltage-boost = GPU 전압 상승 (%)
+gpu-voltage-boost-tooltip = 드라이버에 의해 정의된 추가 전압의 여유 중에서 얼마나 사용 할 수 있는지를 제어합니다. 100%는 이와 같은 여유 전압을 의미하고, 총 GPU 전압을 의미하는 것은 아닙니다. 더 많은 여유 전압은 더 높은 클럭속도를 유지 할 수 있지만 전력 소모와 발열을 증가시킵니다.

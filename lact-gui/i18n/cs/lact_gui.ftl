@@ -241,7 +241,7 @@ vf-curve-visible-range = Viditelný rozsah (%):
 vf-curve-visible-range-to = k
 vf-curve-flatten-right = Zploštit křivku doprava
 nvidia-vf-curve-warning =
-    Editor křivky napětí-frekvence využívá nedokumentovanou funkci ovladače. 
+    Editor křivky napětí-frekvence využívá nedokumentovanou funkci ovladače.
     Není nijak zaručeno jeho chování, bezpečnost nebo dostupnost.
     <span weight = "heavy" underline = "single">Použijte jen na vlastní nebezpečí</span>.
 confirm = Potvrdit
@@ -249,18 +249,56 @@ confirm-settings = Potvrďte nastavení
 settings-confirmation = Chcete nová nastavení zachovat? (návrat k předchozím za { $seconds_left } sekund)
 error-heading = Chyba
 daemon-info-heading = Informace o procesu služby
-version-mismatch = Neshoda ve verzích
 close = Zavřít
 ui = Uživatelské rozhraní
 daemon = Proces služby
 about = O aplikaci
-embedded-daemon-info =
-    Nebylo možné se připojit k procesu služby, spuštěného ve vestavěném režimu.
-    Ověřte, že služba lactd je spuštěná.
-    Při používání vestavěného režimu, nebude možné měnit žádná nastavení.
-
-    { $error_info } Pro zapnutí procesu služby, spusťte následující příkaz (a poté aplikaci LACT restartujte):
 version-mismatch-description =
     Neshoda verzí mezi grafickým uživatelským rozhraním a procesem služby ({ $gui_version }-{ $gui_commit } oproti { $daemon_version }-{ $daemon_commit })!
-    Pokud jste LACT aktualizovali, je třeba službu restartovat pomocí:
+    Pokud jste LACT aktualizovali, je třeba službu restartovat.
 preferences = Předvolby
+displays-page = Informace o displeji
+thresholds-section = Prahové hodnoty a hranice
+vf-curve-flatten-selection = Zploštit výběr
+menu = Nabídka
+display-title = Displej { $identifier }
+display-product-code = Kód produktu
+display-model = Model
+display-physical-size = Fyzická velikost
+display-connection = Připojení
+display-manufacture-date = Datum výroby
+displays-missing = Nezjištěny žádné displeje
+display-manufacturer = Výrobce
+color-scheme = Schéma barev
+color-scheme-auto = Systémové
+color-scheme-light = Světlé
+color-scheme-dark = Tmavé
+gtt-usage = Využití GTT:
+power-mizer-mode = Režim PowerMizer
+power-mizer-mode-auto = Automaticky
+power-mizer-mode-adaptive = Přizpůsobivý
+power-mizer-mode-prefer-maximum-performance = Upřednostňovat co nejvyšší výkon
+power-mizer-mode-prefer-consistent-performance = Upřednostňovat konzistentní výkon
+power-mizer-mode-auto-description = Nechat ovladač zvolit zásadu pro výkon.
+power-mizer-mode-adaptive-description = Přizpůsobit frekvence GPU na základě jeho využívání.
+power-mizer-mode-prefer-maximum-performance-description = Dávat přednost co nejvyššímu výkonu (v rámci limitů ovladače).
+power-mizer-mode-prefer-consistent-performance-description = Uzamknout GPU na základních taktech.
+service-connection-status = Stav připojení
+service-connected = připojeno
+service-version = Verze služby
+service-version-mismatch = neshodné
+service-explanation =
+    Uplatnění nastavení pro GPU vyžaduje systémovou službu LACT.
+    Bez ní je LACT provozováno v samostatném režimu, kdy jsou k dispozici pouze informace a monitorování.
+service-status = Stav služby
+service-permission-denied =
+    Oprávnění odepřeno – služba není nastavená tak, aby umožňovala připojování od uživatele.
+    Další informace viz <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a>
+service-logs = Záznamy událostí služby
+service-start = Spustit
+service-stop = Zastavit
+service-restart = Restartovat
+gui-version = Verze grafického uživ. rozhraní
+service-disconnected = nepřipojeno
+gpu-voltage-boost = Posílení napětí GPU (%)
+gpu-voltage-boost-tooltip = Ovládá kolik dodatečné rezervy napětí, definované ovladačem, je k dispozici. 100% znamená všechna rezerva, nikoli 100% celkového napětí GPU. Vyšší rezerva může ustát vyšší takty, ale zvýší nároky na napájení a chlazení.

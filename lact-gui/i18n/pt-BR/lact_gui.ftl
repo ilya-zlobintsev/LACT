@@ -235,3 +235,6 @@ hw-ip-info = Informações de IP do hardware
 hw-queues = Filas
 theme = Tema
 theme-auto = Automático
+voltage = Voltagem
+display-model = Modelo
+display-manufacturer = Fabricante
