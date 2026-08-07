@@ -104,7 +104,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_name: fl!(I18N, "gpu-temp"),
                         #[watch]
                         set_value: if primary_temperatures.is_empty() {
-                            "N/A".to_owned()
+                            fl!(I18N, "no-sensors-found")
                         } else {
                             primary_temperatures.join(", ")
                         },
@@ -317,7 +317,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_value_size_group: &value_size_group,
                         #[watch]
                         set_value: formatting::fmt_fan_speed(&model.stats, true)
-                            .unwrap_or_else(|| fl!(I18N, "missing-stat")),
+                            .unwrap_or_else(|| fl!(I18N, "no-fan-detected")),
                         #[watch]
                         set_level_value: model.stats.fan.pwm_current.map(|pwm| pwm as f64 / u8::MAX as f64).unwrap_or(0.0),
                     } -> fan_speed_item: gtk::FlowBoxChild {
@@ -447,7 +447,8 @@ impl GpuStatsSection {
             GpuStat::DeviceName
             | GpuStat::Throttling
             | GpuStat::Temperature
-            | GpuStat::VramUsage => true,
+            | GpuStat::VramUsage
+            | GpuStat::FanSpeed => true,
             GpuStat::GpuClockTarget => self.stats.clockspeed.target_gpu_clockspeed.is_some(),
             GpuStat::GpuVoltage => self.stats.voltage.gpu.is_some(),
             GpuStat::GpuClock => self.stats.clockspeed.gpu_clockspeed.is_some(),
@@ -456,9 +457,6 @@ impl GpuStatsSection {
             GpuStat::GttUsage => self.stats.vram.gtt_used.is_some(),
             GpuStat::PowerUsage => {
                 self.stats.power.average.is_some() || self.stats.power.current.is_some()
-            }
-            GpuStat::FanSpeed => {
-                self.stats.fan.pwm_current.is_some() || self.stats.fan.speed_current.is_some()
             }
         }
     }
