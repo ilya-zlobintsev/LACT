@@ -213,7 +213,7 @@ impl relm4::Component for VfCurveEditor {
                         },
 
                         gtk::Button {
-                            set_label: &fl!(I18N, "default-profile"),
+                            set_label: &fl!(I18N, "default-button"),
                             set_halign: gtk::Align::End,
                             add_css_class: css::DESTRUCTIVE_ACTION,
                             set_valign: gtk::Align::Center,
