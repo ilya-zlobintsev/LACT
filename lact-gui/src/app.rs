@@ -9,6 +9,7 @@ pub(crate) mod pages;
 mod preferences_dialog;
 mod process_monitor;
 mod profiles;
+mod stats_config_panel;
 pub(crate) mod utils;
 
 use crate::{
@@ -28,9 +29,10 @@ use crate::{
             ProfileSelector, ProfileSelectorMsg,
             profile_rule_window::{ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg},
         },
+        stats_config_panel::{StatsConfigPanel, StatsConfigPanelMsg},
         utils::ext::RelmLaunchable as _,
     },
-    config::WindowSize,
+    config::{StatsPage, WindowSize},
     service_setup::{
         ServiceSetupDialog, ServiceSetupDialogParams,
         systemd::{self, connect_unit_proxy},
@@ -108,6 +110,7 @@ pub struct AppModel {
     process_monitor_window: relm4::Controller<ProcessMonitorWindow>,
     overdrive_dialog: relm4::Controller<OverdriveDialog>,
     preferences_dialog: relm4::Controller<PreferencesDialog>,
+    stats_config_panel: relm4::Controller<StatsConfigPanel>,
     about_dialog: relm4::Controller<AboutDialog>,
     info_dialog: relm4::Controller<InfoDialog>,
 
@@ -125,6 +128,8 @@ pub struct AppModel {
     gpu_selector: relm4::Controller<GpuSelector>,
     profile_selector: relm4::Controller<ProfileSelector>,
     stats_task_handle: Option<glib::JoinHandle<()>>,
+    stats_generation: u64,
+    last_stats: Option<Arc<DeviceStats>>,
 
     settings_changed: BoolBinding,
 
@@ -212,10 +217,27 @@ impl AsyncComponent for AppModel {
 
                                     gtk::Separator {},
 
-                                    gtk::StackSidebar {
+                                    #[name = "navigation_list"]
+                                    gtk::ListBox {
+                                        add_css_class: "navigation-sidebar",
+                                        set_accessible_role: gtk::AccessibleRole::List,
                                         set_margin_vertical: 1,
-                                        set_stack: &root_stack,
+                                        set_selection_mode: gtk::SelectionMode::Single,
                                         set_vexpand: true,
+
+                                        connect_row_selected[root_stack, navigation_syncing] => move |_, row| {
+                                            let Some(row) = row else {
+                                                return;
+                                            };
+                                            let name = row.widget_name();
+                                            if !navigation_syncing.get()
+                                                && root_stack.visible_child_name().as_deref() != Some(name.as_str())
+                                            {
+                                                navigation_syncing.set(true);
+                                                root_stack.set_visible_child_name(&name);
+                                                navigation_syncing.set(false);
+                                            }
+                                        },
                                     },
 
                                     gtk::Separator {},
@@ -251,7 +273,18 @@ impl AsyncComponent for AppModel {
                         set_content = &adw::NavigationPage {
 
                             #[wrap(Some)]
-                            set_child = &adw::ToolbarView {
+                            #[name = "stats_overlay"]
+                            set_child = &adw::OverlaySplitView {
+                                set_collapsed: true,
+                                set_enable_show_gesture: false,
+                                set_max_sidebar_width: 420.0,
+                                set_min_sidebar_width: 360.0,
+                                set_show_sidebar: false,
+                                set_sidebar_position: gtk::PackType::End,
+                                set_sidebar: Some(model.stats_config_panel.widget()),
+
+                                #[wrap(Some)]
+                                set_content = &adw::ToolbarView {
                                 #[name = "content_header"]
                                 add_top_bar = &adw::HeaderBar {
                                     pack_end = &gtk::MenuButton {
@@ -306,13 +339,19 @@ impl AsyncComponent for AppModel {
                                             add_named[Some("crash_page")] = model.crash_page.widget(),
 
                                             set_visible_child_name: &CONFIG.read().selected_tab,
-                                            connect_visible_child_name_notify[content_page] => move |stack| {
+                                            connect_visible_child_name_notify[content_page, navigation_list, navigation_syncing, stats_overlay] => move |stack| {
+                                                stats_overlay.set_show_sidebar(false);
                                                 if let Some(child) = stack.visible_child() {
                                                     let page = stack.page(&child);
                                                     content_page.set_title(&page.title().unwrap_or_default());
 
                                                     let name = stack.visible_child_name().unwrap().to_string();
                                                     if name != "crash_page" {
+                                                        if !navigation_syncing.get() {
+                                                            navigation_syncing.set(true);
+                                                            select_navigation_row(&navigation_list, &name);
+                                                            navigation_syncing.set(false);
+                                                        }
                                                         CONFIG.write().edit(|config| {
                                                             config.selected_tab = name;
                                                         });
@@ -321,6 +360,7 @@ impl AsyncComponent for AppModel {
                                             },
                                         }
                                     }
+                                },
                                 },
                             }
                         }
@@ -440,6 +480,7 @@ impl AsyncComponent for AppModel {
             OverdriveDialog::detach((system_info.clone(), root.clone().upcast()));
 
         let preferences_dialog = PreferencesDialog::detach((system_info.clone(), root.clone()));
+        let stats_config_panel = StatsConfigPanel::detach(());
 
         let about_dialog = AboutDialog::detach(root.clone());
 
@@ -491,6 +532,7 @@ impl AsyncComponent for AppModel {
             process_monitor_window,
             overdrive_dialog,
             preferences_dialog,
+            stats_config_panel,
             about_dialog,
             info_dialog,
             info_page,
@@ -505,6 +547,8 @@ impl AsyncComponent for AppModel {
             ui_sensitive: BoolBinding::new(false),
             is_reconnecting: BoolBinding::new(false),
             stats_task_handle: None,
+            stats_generation: 0,
+            last_stats: None,
             settings_changed,
             system_info,
             device_flags: vec![],
@@ -523,7 +567,9 @@ impl AsyncComponent for AppModel {
             sender.input(AppMsg::Error(Arc::new(err)));
         }
 
+        let navigation_syncing = Rc::new(Cell::new(false));
         let widgets = view_output!();
+        populate_navigation(&widgets.navigation_list, &widgets.root_stack, &sender);
 
         root.connect_close_request(|root| {
             let width = root.width();
@@ -543,6 +589,11 @@ impl AsyncComponent for AppModel {
             widgets
                 .content_page
                 .set_title(&page.title().unwrap_or_default());
+            if let Some(name) = widgets.root_stack.visible_child_name()
+                && name != "crash_page"
+            {
+                select_navigation_row(&widgets.navigation_list, &name);
+            }
         }
 
         let task_sender = sender.clone();
@@ -628,6 +679,10 @@ impl AppModel {
                 }
             }
             AppMsg::SelectGpu(gpu_id) => {
+                if let Some(handle) = self.stats_task_handle.take() {
+                    handle.abort();
+                }
+                widgets.stats_overlay.set_show_sidebar(false);
                 Self::set_selected_gpu_id(gpu_id);
                 sender.input(AppMsg::ReloadData { full: true });
             }
@@ -658,6 +713,26 @@ impl AppModel {
             }
             AppMsg::ShowPreferencesDialog => {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
+            }
+            AppMsg::ShowStatsConfig(page) => {
+                self.stats_config_panel.emit(StatsConfigPanelMsg::Show {
+                    page,
+                    stats: self.last_stats.clone(),
+                });
+                widgets.stats_overlay.set_show_sidebar(true);
+            }
+            AppMsg::HideStatsConfig => {
+                widgets.stats_overlay.set_show_sidebar(false);
+            }
+            AppMsg::StatsLayoutChanged(page) => {
+                let layout = CONFIG.read().stats_layout_for(page);
+                match page {
+                    StatsPage::OcPage => self.oc_page.emit(OcPageMsg::SetStatsLayout(layout)),
+                    StatsPage::ThermalsPage => {
+                        self.thermals_page
+                            .emit(ThermalsPageMsg::SetStatsLayout(layout));
+                    }
+                }
             }
             AppMsg::ShowAboutDialog => {
                 self.about_dialog.emit(AboutDialogMsg::Show);
@@ -776,7 +851,17 @@ impl AppModel {
                     });
                 }
             }
-            AppMsg::Stats(stats) => {
+            AppMsg::Stats {
+                gpu_id,
+                generation,
+                stats,
+            } => {
+                if generation != self.stats_generation
+                    || !Self::get_selected_gpu_id().is_ok_and(|selected| selected == gpu_id)
+                {
+                    return Ok(());
+                }
+                self.last_stats = Some(stats.clone());
                 let update = PageUpdate::Stats(stats.clone());
                 self.oc_page.emit(OcPageMsg::Update {
                     update: update.clone(),
@@ -1023,6 +1108,7 @@ impl AppModel {
         sender: AsyncComponentSender<AppModel>,
     ) -> anyhow::Result<()> {
         self.ui_sensitive.set_value(false);
+        self.last_stats = None;
         self.software_page
             .emit(SoftwarePageMsg::DeviceApiInfo(None));
 
@@ -1103,6 +1189,8 @@ impl AppModel {
         if let Some(stats_task) = self.stats_task_handle.take() {
             stats_task.abort();
         }
+        self.stats_generation = self.stats_generation.wrapping_add(1);
+        let stats_generation = self.stats_generation;
 
         debug!("updating info for gpu {gpu_id}");
 
@@ -1119,6 +1207,7 @@ impl AppModel {
             .await
             .context("Could not fetch stats")?;
         let stats = Arc::new(stats);
+        self.last_stats = Some(stats.clone());
 
         let update = PageUpdate::Stats(stats.clone());
         self.info_page.emit(update.clone());
@@ -1158,6 +1247,8 @@ impl AppModel {
         match self.daemon_client.get_power_states(&gpu_id).await {
             Ok(power_states) => {
                 debug!("PowerStates init value: {power_states:?}");
+                self.thermals_page
+                    .emit(ThermalsPageMsg::PowerStates(Arc::new(power_states.clone())));
                 self.oc_page.emit(OcPageMsg::PowerStates {
                     pstates: power_states,
                     configured: gpu_config.is_some_and(|config| !config.power_states.is_empty()),
@@ -1168,6 +1259,7 @@ impl AppModel {
 
         self.stats_task_handle = Some(start_stats_update_loop(
             gpu_id.to_owned(),
+            stats_generation,
             self.daemon_client.clone(),
             sender,
         ));
@@ -1393,6 +1485,7 @@ impl AppModel {
 
 fn start_stats_update_loop(
     gpu_id: String,
+    generation: u64,
     daemon_client: DaemonClient,
     sender: AsyncComponentSender<AppModel>,
 ) -> glib::JoinHandle<()> {
@@ -1404,7 +1497,11 @@ fn start_stats_update_loop(
 
             match daemon_client.get_device_stats(&gpu_id).await {
                 Ok(stats) => {
-                    sender.input(AppMsg::Stats(Arc::new(stats)));
+                    sender.input(AppMsg::Stats {
+                        gpu_id: gpu_id.clone(),
+                        generation,
+                        stats: Arc::new(stats),
+                    });
                 }
                 Err(err) => {
                     error!("could not fetch stats: {err:#}");
@@ -1421,6 +1518,82 @@ fn start_stats_update_loop(
             }
         }
     })
+}
+
+fn select_navigation_row(list: &gtk::ListBox, page_name: &str) {
+    let mut index = 0;
+    while let Some(row) = list.row_at_index(index) {
+        if row.widget_name() == page_name {
+            list.select_row(Some(&row));
+            return;
+        }
+        index += 1;
+    }
+}
+
+fn set_stats_config_button_revealed(button: &gtk::Button, revealed: bool) {
+    button.set_opacity(if revealed { 1.0 } else { 0.0 });
+    button.set_can_target(revealed);
+    button.set_focusable(revealed);
+}
+
+fn populate_navigation(
+    list: &gtk::ListBox,
+    stack: &gtk::Stack,
+    sender: &AsyncComponentSender<AppModel>,
+) {
+    for page in stack.pages().iter::<gtk::StackPage>().flatten() {
+        let (Some(stack_name), Some(title)) = (page.name(), page.title()) else {
+            continue;
+        };
+        let stats_page = match stack_name.as_str() {
+            "oc_page" => Some(StatsPage::OcPage),
+            "thermals_page" => Some(StatsPage::ThermalsPage),
+            _ => None,
+        };
+
+        let row = gtk::ListBoxRow::new();
+        row.set_widget_name(&stack_name);
+        let content = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        content.set_margin_start(12);
+        content.set_margin_end(6);
+        content.set_margin_top(4);
+        content.set_margin_bottom(4);
+
+        let label = gtk::Label::new(Some(&title));
+        label.set_hexpand(true);
+        label.set_xalign(0.0);
+        content.append(&label);
+
+        if let Some(page) = stats_page {
+            let button = gtk::Button::builder()
+                .icon_name("emblem-system-symbolic")
+                .tooltip_text(fl!(I18N, "configure-stats"))
+                .build();
+            button.add_css_class("flat");
+            set_stats_config_button_revealed(&button, false);
+
+            list.connect_row_selected({
+                let button = button.clone();
+                let row = row.clone();
+                move |_, selected_row| {
+                    set_stats_config_button_revealed(&button, selected_row == Some(&row));
+                }
+            });
+
+            let list = list.clone();
+            let row = row.clone();
+            let sender = sender.clone();
+            button.connect_clicked(move |_| {
+                list.select_row(Some(&row));
+                sender.input(AppMsg::ShowStatsConfig(page));
+            });
+            content.append(&button);
+        }
+
+        row.set_child(Some(&content));
+        list.append(&row);
+    }
 }
 
 async fn create_connection(

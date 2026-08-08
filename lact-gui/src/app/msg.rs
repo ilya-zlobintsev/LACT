@@ -1,6 +1,7 @@
 use super::profiles::profile_rule_window::{
     ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg,
 };
+use crate::config::StatsPage;
 use lact_client::ConnectionStatusMsg;
 use lact_schema::{
     DeviceStats, ProfileRule, ProfilesInfo, config::ProfileHooks, request::ProfileBase,
@@ -15,7 +16,11 @@ pub enum AppMsg {
         full: bool,
     },
     ReloadApiInfo,
-    Stats(Arc<DeviceStats>),
+    Stats {
+        gpu_id: String,
+        generation: u64,
+        stats: Arc<DeviceStats>,
+    },
     ProfilesPolled(Arc<ProfilesInfo>),
     ApplyChanges,
     RevertChanges,
@@ -27,6 +32,9 @@ pub enum AppMsg {
     DumpVBios,
     DebugSnapshot,
     ShowPreferencesDialog,
+    ShowStatsConfig(StatsPage),
+    HideStatsConfig,
+    StatsLayoutChanged(StatsPage),
     ShowAboutDialog,
     ShowOverdriveDialog,
     ShowServiceSetupDialog,

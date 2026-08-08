@@ -1,18 +1,19 @@
 mod clocks_frame;
-mod gpu_stats_section;
 mod performance_frame;
 mod power_cap_section;
 mod power_states;
 mod vf_curve;
 
+use crate::CONFIG;
+use crate::app::components::gpu_stats_section::{GpuStatsSection, GpuStatsSectionMsg};
 use crate::app::pages::PageUpdate;
 use crate::app::utils::ext::RelmLaunchable as _;
 use crate::app::{msg::AppMsg, utils::ext::RelmDefaultLauchable};
+use crate::config::{StatsLayout, StatsPage};
 use amdgpu_sysfs::gpu_handle::{
     PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
 use clocks_frame::{ClocksFrame, ClocksFrameMsg};
-use gpu_stats_section::{GpuStatsSection, GpuStatsSectionMsg};
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use indexmap::IndexMap;
 use lact_schema::config;
@@ -53,6 +54,7 @@ pub enum OcPageMsg {
     },
     PerformanceLevelChanged,
     ShowVfCurveEditor,
+    SetStatsLayout(StatsLayout),
 }
 
 #[relm4::component(pub)]
@@ -82,7 +84,8 @@ impl relm4::Component for OcPage {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let stats_section = GpuStatsSection::detach_default();
+        let stats_section =
+            GpuStatsSection::detach(CONFIG.read().stats_layout_for(StatsPage::OcPage));
         let power_cap_section = PowerCapSection::detach_default();
         let clocks_frame = ClocksFrame::launch_default().forward(sender.input_sender(), |msg| msg);
         let power_states_frame = PowerStatesFrame::detach_default();
@@ -199,6 +202,10 @@ impl relm4::Component for OcPage {
             }
             OcPageMsg::ShowVfCurveEditor => {
                 self.vf_curve_editor.emit(VfCurveEditorMsg::Show);
+            }
+            OcPageMsg::SetStatsLayout(layout) => {
+                self.stats_section
+                    .emit(GpuStatsSectionMsg::SetLayout(layout));
             }
         }
 
