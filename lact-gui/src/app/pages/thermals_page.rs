@@ -153,7 +153,7 @@ impl relm4::Component for ThermalsPage {
                 set_visible: !adj_is_empty(&model.nvidia_thermal_options.target_temperature),
 
                 append_header = &gtk::Button {
-                    set_label: &fl!(I18N, "reset-button"),
+                    set_label: &fl!(I18N, "default-button"),
                     set_halign: gtk::Align::End,
                     set_hexpand: true,
                     connect_clicked => ThermalsPageMsg::RestNvidiaOptions,

@@ -56,7 +56,8 @@ min-fan-speed = Minimum Fan Speed (%)
 zero-rpm = Zero RPM
 zero-rpm-stop-temp = Zero RPM stop temperature (°C)
 static-speed = Static Speed (%)
-reset-button = Reset
+reset-button = Reset Now
+default-button = Default
 pmfw-reset-warning = Warning: this resets the fan firmware settings!
 
 temperature-sensor = Temperature Sensor
@@ -100,7 +101,7 @@ amd-oc-updating-configuration = Updating configuration (this may take a while)
 amd-oc-updating-done = Configuration updated, please reboot to apply changes.
 
 reset-config = Reset Configuration
-reset-config-description = Are you sure you want to reset all GPU configuration?
+reset-config-description = This will reset all GPU settings to their defaults and permanently delete all profiles
 
 apply-button = Apply
 confirm = Confirm

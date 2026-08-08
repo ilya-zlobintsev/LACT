@@ -170,7 +170,7 @@ impl relm4::Component for FanCurveFrame {
                 },
 
                 gtk::Button {
-                    set_label: &fl!(I18N, "default-profile"),
+                    set_label: &fl!(I18N, "default-button"),
                     connect_clicked => FanCurveFrameMsg::DefaultCurve,
                 },
             },
