@@ -666,10 +666,13 @@ impl AppModel {
                 self.overdrive_dialog.emit(OverdriveDialogMsg::Show);
             }
             AppMsg::ShowServiceSetupDialog => {
+                let (manager_proxy, unit_proxy) = systemd::connect_unit_proxy().await?;
+
                 let params = ServiceSetupDialogParams {
                     parent: root.clone().upcast(),
                     initial_client: Ok((self.daemon_client.clone(), self.system_info.clone())),
-                    unit_proxy: systemd::connect_unit_proxy().await?,
+                    manager_proxy,
+                    unit_proxy,
                 };
                 let controller = ServiceSetupDialog::builder()
                     .launch(params)
@@ -1431,10 +1434,11 @@ async fn create_connection(
         Ok(client) => (client, false),
         Err(err) => {
             let configured_client = match connect_unit_proxy().await {
-                Ok(unit_proxy) => {
+                Ok((manager_proxy, unit_proxy)) => {
                     let params = ServiceSetupDialogParams {
                         parent: root.clone().upcast(),
                         initial_client: Err(err),
+                        manager_proxy,
                         unit_proxy,
                     };
                     let service_setup = ServiceSetupDialog::builder().launch(params).into_stream();

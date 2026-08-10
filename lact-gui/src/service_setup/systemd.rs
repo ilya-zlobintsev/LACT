@@ -3,13 +3,13 @@ use anyhow::{Context, bail};
 use relm4::tokio::process::Command;
 use zbus::{proxy, zvariant::OwnedObjectPath};
 
-const UNIT_NAME: &str = "lactd.service";
+pub const UNIT_NAME: &str = "lactd.service";
 
 pub const UNIT_STATE_ACTIVE: &str = "active";
 
 pub const START_MODE_REPLACE: &str = "replace";
 
-pub async fn connect_unit_proxy() -> anyhow::Result<UnitProxy<'static>> {
+pub async fn connect_unit_proxy() -> anyhow::Result<(ManagerProxy<'static>, UnitProxy<'static>)> {
     let conn = zbus::Connection::system()
         .await
         .context("Could not establish DBus connection")?;
@@ -19,7 +19,7 @@ pub async fn connect_unit_proxy() -> anyhow::Result<UnitProxy<'static>> {
         .context("Could not connect to systemd manager interface")?;
 
     let path = manager
-        .get_unit(UNIT_NAME)
+        .load_unit(UNIT_NAME)
         .await
         .context("Could not get lact systemd unit")?;
 
@@ -29,7 +29,7 @@ pub async fn connect_unit_proxy() -> anyhow::Result<UnitProxy<'static>> {
         .await
         .context("Could not connect to systemd unit interface")?;
 
-    Ok(unit)
+    Ok((manager, unit))
 }
 
 #[proxy(
@@ -39,7 +39,7 @@ pub async fn connect_unit_proxy() -> anyhow::Result<UnitProxy<'static>> {
 )]
 pub trait Manager {
     #[zbus(allow_interactive_auth)]
-    fn get_unit(&self, name: &str) -> zbus::Result<OwnedObjectPath>;
+    fn load_unit(&self, name: &str) -> zbus::Result<OwnedObjectPath>;
 
     #[zbus(allow_interactive_auth)]
     fn enable_unit_files(
@@ -48,6 +48,13 @@ pub trait Manager {
         runtime: bool,
         force: bool,
     ) -> zbus::Result<(bool, Vec<(String, String, String)>)>;
+
+    #[zbus(allow_interactive_auth)]
+    fn disable_unit_files(
+        &self,
+        files: &[&str],
+        runtime: bool,
+    ) -> zbus::Result<Vec<(String, String, String)>>;
 }
 
 #[proxy(

@@ -254,6 +254,8 @@ service-logs = Service Logs
 service-start = Start
 service-stop = Stop
 service-restart = Restart
+service-autostart = Autostart on boot
+service-autostart-disable = Also disable autostart
 
 version-mismatch-description =
     Version mismatch between GUI and Daemon ({$gui_version}-{$gui_commit} vs {$daemon_version}-{$daemon_commit})!
