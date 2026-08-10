@@ -193,34 +193,34 @@ impl AsyncComponent for ServiceSetupDialog {
                         set_hexpand: true,
                         set_halign: gtk::Align::End,
 
-                        adw::SplitButton {
-                            set_label: &fl!(I18N, "service-start"),
-                            connect_clicked => ServiceSetupDialogMsg::StartService,
-                            add_css_class: "suggested-action",
-
-                            #[wrap(Some)]
-                            set_popover = &gtk::Popover {
-                                gtk::CheckButton {
-                                    set_label: Some(&fl!(I18N, "service-autostart")),
-                                    bind: &model.autostart_on_start,
-                                },
-                            },
+                        gtk::CheckButton {
+                            set_label: Some(&fl!(I18N, "service-autostart")),
+                            bind: &model.autostart_on_start,
 
                             #[watch]
                             set_visible: model.service_state != systemd::UNIT_STATE_ACTIVE,
                         },
 
-                        adw::SplitButton {
+                        gtk::Button {
+                            set_label: &fl!(I18N, "service-start"),
+                            connect_clicked => ServiceSetupDialogMsg::StartService,
+                            add_css_class: "suggested-action",
+
+                            #[watch]
+                            set_visible: model.service_state != systemd::UNIT_STATE_ACTIVE,
+                        },
+
+                        gtk::CheckButton {
+                            set_label: Some(&fl!(I18N, "service-autostart-disable")),
+                            bind: &model.autostart_on_stop,
+
+                            #[watch]
+                            set_visible: model.service_state == systemd::UNIT_STATE_ACTIVE,
+                        },
+
+                        gtk::Button {
                             set_label: &fl!(I18N, "service-stop"),
                             connect_clicked => ServiceSetupDialogMsg::StopService,
-
-                            #[wrap(Some)]
-                            set_popover = &gtk::Popover {
-                                gtk::CheckButton {
-                                    set_label: Some(&fl!(I18N, "service-autostart-disable")),
-                                    bind: &model.autostart_on_stop,
-                                },
-                            },
 
                             #[watch]
                             set_visible: model.service_state == systemd::UNIT_STATE_ACTIVE,
