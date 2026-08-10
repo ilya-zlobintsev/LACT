@@ -83,7 +83,7 @@ impl PmfwOptions {
     }
 
     fn is_empty(&self) -> bool {
-        self.adjustments().iter().all(|adj| adj_is_empty(adj)) && !self.zero_rpm.get()
+        self.adjustments().iter().all(|adj| adj_is_empty(adj)) && !self.zero_rpm_available.get()
     }
 }
 
@@ -102,6 +102,7 @@ impl NvidiaThermalOptions {
 #[derive(Debug)]
 pub enum ThermalsPageMsg {
     Update { update: PageUpdate, initial: bool },
+    FanModeSelected,
     RestNvidiaOptions,
 }
 
@@ -195,7 +196,7 @@ impl relm4::Component for ThermalsPage {
                     set_vhomogeneous: false,
 
                     #[watch]
-                    set_visible: model.fan_speed.is_some(),
+                    set_visible: model.fan_settings_available(),
 
                     add_titled[Some(AUTO_PAGE), &fl!(I18N, "auto-page")] = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
@@ -379,9 +380,7 @@ impl relm4::Component for ThermalsPage {
                     },
 
                     add_binding: (&model.selected_mode, "visible-child-name"),
-                    connect_visible_child_name_notify => move |_| {
-                        APP_BROKER.send(AppMsg::SettingsChanged);
-                    } @ mode_selected_signal,
+                    connect_visible_child_name_notify => ThermalsPageMsg::FanModeSelected @ mode_selected_signal,
                 }
             }
         },
@@ -582,6 +581,9 @@ impl relm4::Component for ThermalsPage {
                     }
                 }
             },
+            ThermalsPageMsg::FanModeSelected => {
+                APP_BROKER.send(AppMsg::SettingsChanged);
+            }
             ThermalsPageMsg::RestNvidiaOptions => {
                 if let Some(default) = self.nvidia_thermal_options.target_temperaure_default {
                     self.nvidia_thermal_options
@@ -600,6 +602,11 @@ impl relm4::Component for ThermalsPage {
 }
 
 impl ThermalsPage {
+    fn fan_settings_available(&self) -> bool {
+        self.fan_speed.is_some()
+            && (self.selected_mode.value() != AUTO_PAGE || !self.pmfw_options.is_empty())
+    }
+
     pub fn apply_config(&self, config: &mut GpuConfig) {
         let selected_page = self.selected_mode.value();
 
