@@ -29,7 +29,6 @@ use lact_schema::{
     ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates, config::GpuConfig,
 };
 use std::io;
-#[cfg(feature = "nvidia")]
 use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
@@ -251,7 +250,7 @@ pub(crate) fn init_controller(
     // https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
     let _guard = INIT_MUTEX.lock().unwrap();
 
-    #[cfg(all(feature = "nvidia", not(test)))]
+    #[cfg(feature = "nvidia")]
     #[allow(unused_unsafe)]
     let nvml = LazyLock::new(|| unsafe {
         use nvml_wrapper::Nvml;
@@ -272,10 +271,10 @@ pub(crate) fn init_controller(
             .ok()
     });
 
-    #[cfg(any(not(feature = "nvidia"), test))]
-    let nvml: LazyLock<Option<Rc<nvml_wrapper::Nvml>>> = LazyLock::new(|| None);
+    #[cfg(not(feature = "nvidia"))]
+    let nvml: LazyLock<Option<()>> = LazyLock::new(|| None);
 
-    #[cfg(all(feature = "nvidia", not(test)))]
+    #[cfg(feature = "nvidia")]
     let nvapi = LazyLock::new(|| {
         use crate::server::gpu_controller::nvidia::nvapi::NvApi;
         use tracing::info;
@@ -296,8 +295,8 @@ pub(crate) fn init_controller(
         }
     });
 
-    #[cfg(any(not(feature = "nvidia"), test))]
-    let nvapi: LazyLock<Option<Rc<nvidia::nvapi::NvApi>>> = LazyLock::new(|| None);
+    #[cfg(not(feature = "nvidia"))]
+    let nvapi: LazyLock<Option<()>> = LazyLock::new(|| None);
 
     match common.driver.as_str() {
         "amdgpu" | "radeon" => {
