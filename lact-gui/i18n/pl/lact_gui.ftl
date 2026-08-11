@@ -257,13 +257,6 @@ confirm-settings = Potwierdź ustawienia
 settings-confirmation = Czy chcesz zachować nowe ustawienia? (Przywracanie za { $seconds_left } sekund)
 error-heading = Błąd
 daemon-info-heading = informacje Daemon
-embedded-daemon-info =
-    Nie można połączyć się z demonem, uruchamianie w trybie wbudowanym.
-    Upewnij się, że usługa lactd jest uruchomiona.
-    Korzystając z trybu wbudowanego, nie będzie można zmieniać żadnych ustawień.
-    { $error_info }
-    Aby włączyć demona, uruchom poniższe polecenie, a następnie zrestartuj LACT:
-version-mismatch = Niezgodność wesji
 version-mismatch-description =
     Niezgodność wersji między interfejsem GUI a demonem ({ $gui_version }-{ $gui_commit } vs { $daemon_version }-{ $daemon_commit })!
     Jeśli zaktualizowałeś LACT, musisz ponownie uruchomić usługę poleceniem:

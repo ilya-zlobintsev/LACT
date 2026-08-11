@@ -154,7 +154,7 @@ profile-activation = Aktivierung
 profile-hooks = Hooks
 move-down = Nach unten bewegen
 rename-profile = Profil umbenennen
-pstates-manual-needed = Um Energiezustände und -modi nutzen zu können, muss die Leistungsstufe auf „manuell“ eingestellt werden
+pstates-manual-needed = Um Energiezustände ändern zu können, muss die Leistungsstufe auf „manuell“ eingestellt werden
 edit-rule = Regel bearbeiten
 rename-profile-from = Umbenennen des Profils <b>{ $old_name }</b> in:
 activation-settings-status =
@@ -189,7 +189,7 @@ nvidia-oc-description =
     Dies zwingt die GPU dazu, mit einer durch die gesperrten Takte begrenzten Spannung zu arbeiten, während durch den Offset eine höhere Taktrate erreicht wird.
     Wird diese Einstellung zu aggressiv gewählt, kann sie zu Systeminstabilität führen.
 mebibyte = MiB
-reconnecting-to-daemon = Verbindung zum Daemon verloren, verbinde neu...
+reconnecting-to-daemon = Verbindung zum Dienst verloren, verbinde neu...
 daemon-connection-lost = Verbindung verloren
 plot-show-detailed-info = Genaue Informationen anzeigen
 workgroup-size = Arbeitsgruppengröße
@@ -254,16 +254,9 @@ confirm-settings = Einstellungen bestätigen
 settings-confirmation = Wollen Sie die Einstellungen behalten? (Rücksetzung in { $seconds_left } Sekunden)
 error-heading = Fehler
 daemon-info-heading = Daemon Info
-embedded-daemon-info =
-    Konnte nicht zum Daemon verbinden, laufe im eingebetteten Modus.
-    Bitte sicherstellen, dass der lactd Service läuft.
-    Benutze eingebetteten Modus, Sie können keine Einstellungen ändern.
-
-    { $error_info }Um den Daemon zu aktivieren, führen Sie den folgenden Befehl aus, dann starten Sie LACT neu:
-version-mismatch = unterschiedliche Version
 version-mismatch-description =
     Versionunterschied zwischen GUI and Daemon ({ $gui_version }-{ $gui_commit } vs { $daemon_version }-{ $daemon_commit })!
-    Wenn Sie LACT aktualisiert haben, müssen Sie den Dienst mit folgenden Befehl neu starten:
+    Wenn Sie LACT aktualisiert haben, müssen Sie den Dienst neu starten.
 menu = Menü
 displays-page = Anzeigeinformationen
 display-title = Anzeige { $identifier }
@@ -273,3 +266,39 @@ display-model = Modell
 display-physical-size = Physische Größe
 display-connection = Verbindung
 display-manufacture-date = Herstellungsdatum
+gui-version = GUI Version
+thresholds-section = Schwellwerte &amp; Limits
+gtt-usage = GTT Nutzung:
+power-mizer-mode-adaptive = Adaptiv
+power-mizer-mode-prefer-maximum-performance = Bevorzuge maximale Leistung
+power-mizer-mode-prefer-consistent-performance = Bevorzuge konsistente Leistung
+power-mizer-mode-auto-description = Den Treiber die Leistungsrichtlinie wählen lassen.
+power-mizer-mode-adaptive-description = GPU Takt basierend auf GPU Nutzung anpassen.
+power-mizer-mode-prefer-maximum-performance-description = Bevorzuge maximale Leistung innerhalb der Treiberlimits.
+power-mizer-mode-prefer-consistent-performance-description = Sperre auf GPU Basistakte.
+vf-curve-flatten-selection = Glätte Auswahl
+service-explanation =
+    Das Anwenden der GPU Einstellungen erfordert den LACT Systemdienst.
+    Ohne den Systemdienst läuft LACT nur im Standalone Modus, in welchem nur Informationen und Überwachung verfügbar sind.
+service-connection-status = Verbindungsstatus
+service-status = Dienststatus
+service-permission-denied =
+    Zugriff verweigert, der Dienst ist nicht konfiguriert, um Verbindungen von ihrem Benutzer zu erlauben.
+    Siehe <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> für mehr Informationen
+service-connected = verbunden
+service-disconnected = nicht verbunden
+service-version = Dienstversion
+service-version-mismatch = nicht zusammenpassend
+service-logs = Dienstprotokolle
+service-start = Starten
+service-stop = Stoppen
+service-restart = Neustarten
+displays-missing = Keine Anzeigen erkannt
+color-scheme = Farbschema
+color-scheme-auto = System
+color-scheme-light = Hell
+color-scheme-dark = Dunkel
+power-mizer-mode = PowerMizer Modus
+power-mizer-mode-auto = Auto
+gpu-voltage-boost = GPU Spannungsanhebung (%)
+gpu-voltage-boost-tooltip = Kontrolliert wie viel des Spielraums der zusätzlichen Spannung des Treibers verfügbar ist. 100% bedeutet den kompletten Spielraum, nicht 100% der kompletten GPU-Spannung. Mehr Spielraum kann höhere Taktraten stützen, aber Leistungsaufnahme und Hitze erhöhen.

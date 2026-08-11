@@ -250,7 +250,6 @@ vf-curve-flatten-right = Görbe lapítása jobbra
 menu = Menü
 error-heading = Hiba
 daemon-info-heading = Démon információk
-version-mismatch = Verzióeltérés
 version-mismatch-description =
     Verzióeltérés a GUI és a démon között ({ $gui_version }-{ $gui_commit } kontra { $daemon_version }-{ $daemon_commit })!
     Ha frissítette a LACT-t, akkor újra kell indítania a szolgáltatást ezzel:
@@ -259,9 +258,3 @@ preferences = Beállítások
 ui = Felület
 daemon = Démon
 about = Névjegy
-embedded-daemon-info =
-    Nem sikerült a démonhoz kapcsolódni, futtatás beágyazott módban.
-    Győződjön meg arról, hogy az lactd szolgáltatás fut.
-    A beágyazott mód használatával nem fog tudni változtatni a beállításokon.
-
-    { $error_info }A démon engedélyezéséhez futtassa a következő parancsot, majd indítsa újra az LACT-t:
