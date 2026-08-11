@@ -181,7 +181,7 @@ delete-graph = Hapus Grafik
 edit-graphs = Edit
 export-csv = Ekspor sebagai CSV
 edit-graph-sensors = Edit Sensor Grafik
-reconnecting-to-daemon = Koneksi daemon terputus, menyambung kembali...
+reconnecting-to-daemon = Koneksi layanan terputus, menyambungkan kembali...
 daemon-connection-lost = Koneksi Terputus
 plot-show-detailed-info = Tampilkan info terperinci
 settings-profile = Profil Pengaturan
@@ -231,8 +231,8 @@ hw-ip-info = Informasi IP Perangkat Keras
 hw-queues = Antrean
 vf-curve-editor = Editor Kurva VF
 nvidia-vf-curve-warning =
-    Editor kurva tegangan-frekuensi mengandalkan fungsionalitas driver yang tidak terdokumentasi.
-    Tidak ada jaminan mengenai perilaku, keamanan, atau ketersediaannya.
+    Editor kurva tegangan-frekuensi bergantung pada fungsionalitas driver yang tidak terdokumentasi.
+    Tidak ada jaminan terkait perilaku, keamanan, atau ketersediaannya.
     <span weight = "heavy" underline = "single">Gunakan dengan risiko Anda sendiri</span>.
 vf-curve-enable-editing = Aktifkan Pengeditan
 voltage = Tegangan
@@ -248,3 +248,57 @@ preferences = Preferensi
 ui = UI
 daemon = Daemon
 about = Tentang
+displays-page = Info Tampilan
+thresholds-section = Ambang &amp; Batas
+confirm = Konfirmasi
+confirm-settings = Konfirmasi Pengaturan
+settings-confirmation = Apakah Anda ingin mempertahankan pengaturan baru? (Akan dikembalikan dalam { $seconds_left } detik)
+vf-curve-flatten-selection = Ratakkan pilihan
+menu = Menu
+error-heading = Kesalahan
+daemon-info-heading = Info daemon
+version-mismatch-description =
+    Versi GUI dan Daemon tidak cocok ({ $gui_version }-{ $gui_commit } vs { $daemon_version }-{ $daemon_commit })!
+    Jika Anda telah memperbarui LACT, Anda perlu memulai ulang layanan.
+display-title = Tampilan { $identifier }
+display-manufacturer = Produsen
+display-product-code = Kode Produk
+display-model = Model
+display-physical-size = Ukuran Fisik
+display-connection = Koneksi
+display-manufacture-date = Tanggal Produksi
+displays-missing = Tidak Ada Tampilan Terdeteksi
+close = Tutup
+gtt-usage = Penggunaan GTT:
+power-mizer-mode = Mode PowerMizer
+power-mizer-mode-auto = Otomatis
+power-mizer-mode-adaptive = Adaptif
+power-mizer-mode-prefer-maximum-performance = Utamakan Performa Maksimum
+power-mizer-mode-prefer-consistent-performance = Utamakan Performa Konsisten
+power-mizer-mode-auto-description = Biarkan driver memilih kebijakan performa.
+power-mizer-mode-adaptive-description = Sesuaikan clock GPU berdasarkan penggunaan GPU.
+power-mizer-mode-prefer-maximum-performance-description = Utamakan performa maksimum dalam batas driver.
+power-mizer-mode-prefer-consistent-performance-description = Kunci pada clock dasar GPU.
+gpu-voltage-boost = Peningkatan Tegangan GPU (%)
+gpu-voltage-boost-tooltip = Mengatur seberapa besar ruang tambahan tegangan yang ditentukan oleh driver dapat digunakan. 100% berarti seluruh ruang tambahan ini, bukan 100% dari total tegangan GPU. Ruang tambahan yang lebih besar dapat mempertahankan kecepatan clock yang lebih tinggi, tetapi meningkatkan konsumsi daya dan panas.
+service-explanation =
+    Penerapan pengaturan GPU memerlukan layanan sistem LACT.
+    Tanpanya, LACT berjalan dalam mode mandiri, yang hanya menyediakan informasi dan pemantauan.
+service-connection-status = Status Koneksi
+service-status = Status Layanan
+service-permission-denied =
+    Izin ditolak, layanan tidak dikonfigurasi untuk mengizinkan koneksi dari pengguna Anda.
+    Lihat <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> untuk informasi selengkapnya
+service-connected = terhubung
+service-disconnected = tidak terhubung
+service-version = Versi Layanan
+gui-version = Versi GUI
+service-version-mismatch = tidak cocok
+service-logs = Log Layanan
+service-start = Mulai
+service-stop = Berhenti
+service-restart = Mulai ulang
+color-scheme = Skema Warna
+color-scheme-auto = Sistem
+color-scheme-light = Terang
+color-scheme-dark = Gelap
