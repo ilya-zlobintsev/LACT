@@ -246,13 +246,6 @@ vf-curve-visible-range-to = 到
 vf-curve-flatten-right = 向右压平曲线
 menu = 菜单
 daemon-info-heading = 守护进程信息
-embedded-daemon-info =
-    无法连接到守护进程，正在以嵌入式模式运行。
-    请确保 lactd 服务正在运行。
-    使用嵌入式模式时，您将无法更改任何设置。
-
-    { $error_info }要启用守护进程，请运行以下命令，然后重启 LACT：
-version-mismatch = 版本不匹配
 version-mismatch-description =
     图形用户界面和守护进程间版本不匹配 ({ $gui_version }-{ $gui_commit } 对比 { $daemon_version }-{ $daemon_commit })！
     如果您更新过 LACT ，则您需要重启后台服务：
@@ -273,3 +266,7 @@ about = 关于
 hw-queues = 队列
 confirm = 确认
 error-heading = 错误
+color-scheme-auto = 系统
+color-scheme-light = 浅色
+color-scheme-dark = 深色
+power-mizer-mode-auto = 自动
