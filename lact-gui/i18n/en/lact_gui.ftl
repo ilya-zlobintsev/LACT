@@ -45,6 +45,8 @@ fan-control-section = Fan Control
 temperatures = Temperatures
 oc-missing-fan-control-warning = Warning: Overclocking support is disabled, fan control functionality is not available.
 fan-speed = Fan Speed
+no-fan-detected = No fan detected
+no-sensors-found = No sensors found
 throttling = Throttling
 auto-page = Automatic
 curve-page = Curve
@@ -254,6 +256,8 @@ service-logs = Service Logs
 service-start = Start
 service-stop = Stop
 service-restart = Restart
+service-autostart = Autostart on boot
+service-autostart-disable = Also disable autostart
 
 version-mismatch-description =
     Version mismatch between GUI and Daemon ({$gui_version}-{$gui_commit} vs {$daemon_version}-{$daemon_commit})!

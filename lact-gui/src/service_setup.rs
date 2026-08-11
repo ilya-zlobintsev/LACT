@@ -3,12 +3,13 @@ pub mod systemd;
 use crate::I18N;
 use crate::app::components::info_row::{InfoRow, InfoRowExt};
 use crate::app::utils::ext::FlowBoxExt;
-use crate::service_setup::systemd::{START_MODE_REPLACE, UnitProxy};
+use crate::service_setup::systemd::{ManagerProxy, START_MODE_REPLACE, UNIT_NAME, UnitProxy};
 use adw::prelude::*;
 use anyhow::{Context as _, anyhow};
 use i18n_embed_fl::fl;
 use lact_client::DaemonClient;
 use lact_schema::{SystemInfo, VersionInfo};
+use relm4::binding::{BoolBinding, ConnectBinding as _};
 use relm4::{
     AsyncComponentSender, RelmWidgetExt,
     css::{self, ERROR, SUCCESS, WARNING},
@@ -22,15 +23,19 @@ use tracing::debug;
 
 pub struct ServiceSetupDialog {
     connection_status: ConnectionStatus,
+    manager_proxy: ManagerProxy<'static>,
     unit_proxy: UnitProxy<'static>,
     service_logs: gtk::TextBuffer,
     service_state: String,
+    autostart_on_start: BoolBinding,
+    autostart_on_stop: BoolBinding,
     setup_error: Option<anyhow::Error>,
 }
 
 pub struct ServiceSetupDialogParams {
     pub parent: gtk::ApplicationWindow,
     pub initial_client: anyhow::Result<(DaemonClient, SystemInfo)>,
+    pub manager_proxy: ManagerProxy<'static>,
     pub unit_proxy: UnitProxy<'static>,
 }
 
@@ -188,17 +193,35 @@ impl AsyncComponent for ServiceSetupDialog {
                         set_hexpand: true,
                         set_halign: gtk::Align::End,
 
-                        gtk::Button {
-                            set_label: &fl!(I18N, "service-start"),
-                            connect_clicked => ServiceSetupDialogMsg::StartService,
-                            add_css_class: "suggested-action",
+                        gtk::CheckButton {
+                            set_label: Some(&fl!(I18N, "service-autostart")),
+                            bind: &model.autostart_on_start,
+
                             #[watch]
                             set_visible: model.service_state != systemd::UNIT_STATE_ACTIVE,
                         },
 
                         gtk::Button {
+                            set_label: &fl!(I18N, "service-start"),
+                            connect_clicked => ServiceSetupDialogMsg::StartService,
+                            add_css_class: "suggested-action",
+
+                            #[watch]
+                            set_visible: model.service_state != systemd::UNIT_STATE_ACTIVE,
+                        },
+
+                        gtk::CheckButton {
+                            set_label: Some(&fl!(I18N, "service-autostart-disable")),
+                            bind: &model.autostart_on_stop,
+
+                            #[watch]
+                            set_visible: model.service_state == systemd::UNIT_STATE_ACTIVE,
+                        },
+
+                        gtk::Button {
                             set_label: &fl!(I18N, "service-stop"),
                             connect_clicked => ServiceSetupDialogMsg::StopService,
+
                             #[watch]
                             set_visible: model.service_state == systemd::UNIT_STATE_ACTIVE,
                         },
@@ -253,7 +276,10 @@ impl AsyncComponent for ServiceSetupDialog {
 
         let model = Self {
             connection_status,
+            manager_proxy: params.manager_proxy,
             unit_proxy: params.unit_proxy,
+            autostart_on_start: BoolBinding::new(true),
+            autostart_on_stop: BoolBinding::new(true),
             service_logs: gtk::TextBuffer::builder()
                 .text(service_logs_handle.await.unwrap())
                 .build(),
@@ -289,12 +315,30 @@ impl ServiceSetupDialog {
         match msg {
             ServiceSetupDialogMsg::Reconnect => (),
             ServiceSetupDialogMsg::StartService => {
-                self.unit_proxy.start(START_MODE_REPLACE).await?;
+                // Note: this order is important, doing it the other way around causes 2 polkit prompts
+                if self.autostart_on_start.value() {
+                    self.manager_proxy
+                        .enable_unit_files(&[UNIT_NAME], false, true)
+                        .await
+                        .context("could not enable unit")?;
+                }
+
+                self.unit_proxy
+                    .start(START_MODE_REPLACE)
+                    .await
+                    .context("could not start unit")?;
             }
             ServiceSetupDialogMsg::RestartService => {
                 self.unit_proxy.restart(START_MODE_REPLACE).await?;
             }
             ServiceSetupDialogMsg::StopService => {
+                if self.autostart_on_stop.value() {
+                    self.manager_proxy
+                        .disable_unit_files(&[UNIT_NAME], false)
+                        .await
+                        .context("could not disable unit")?;
+                }
+
                 self.unit_proxy.stop(START_MODE_REPLACE).await?;
             }
             ServiceSetupDialogMsg::Close => {
