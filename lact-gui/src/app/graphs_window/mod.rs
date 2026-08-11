@@ -116,7 +116,7 @@ impl relm4::Component for GraphsWindow {
                         },
 
                         gtk::Button {
-                            set_label: &fl!(I18N, "reset-button"),
+                            set_label: &fl!(I18N, "default-button"),
                             set_tooltip: &fl!(I18N, "reset-all-graphs-tooltip"),
                             add_css_class: "destructive-action",
                             connect_clicked => GraphsWindowMsg::SetConfig(default_plots()),

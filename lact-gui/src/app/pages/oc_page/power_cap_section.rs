@@ -40,7 +40,7 @@ impl relm4::Component for PowerCapSection {
         #[root]
         PageSection::new(&fl!(I18N, "power-cap")) {
             append_header = &gtk::Button {
-                    set_label: &fl!(I18N, "reset-button"),
+                    set_label: &fl!(I18N, "default-button"),
                     connect_clicked => PowerCapMsg::Reset,
 
                     set_halign: gtk::Align::End,
