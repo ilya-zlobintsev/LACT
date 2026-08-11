@@ -337,7 +337,7 @@ impl relm4::Component for ThermalsPage {
                         },
 
                         gtk::Button {
-                            set_label: &fl!(I18N, "reset-button"),
+                            set_label: &fl!(I18N, "reset-now-button"),
                             set_halign: gtk::Align::End,
                             set_margin_vertical: 5,
                             set_tooltip_text: Some(&fl!(I18N, "pmfw-reset-warning")),

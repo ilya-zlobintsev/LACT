@@ -90,7 +90,7 @@ impl relm4::Component for ClocksFrame {
                 },
 
                 append = &gtk::Button {
-                    set_label: &fl!(I18N, "reset-button"),
+                    set_label: &fl!(I18N, "reset-now-button"),
                     set_tooltip_text: Some(&fl!(I18N, "reset-oc-tooltip")),
 
                     add_css_class: css::DESTRUCTIVE_ACTION,

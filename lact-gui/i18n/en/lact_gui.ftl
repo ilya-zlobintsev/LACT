@@ -56,7 +56,8 @@ min-fan-speed = Minimum Fan Speed (%)
 zero-rpm = Zero RPM
 zero-rpm-stop-temp = Zero RPM stop temperature (°C)
 static-speed = Static Speed (%)
-reset-button = Reset Now
+reset-button = Reset
+reset-now-button = Reset Now
 default-button = Default
 pmfw-reset-warning = Warning: this resets the fan firmware settings!
 
