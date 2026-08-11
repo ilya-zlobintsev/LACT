@@ -142,7 +142,7 @@ enable-pstate-config = კვების მდგომარეობის �
 import-profile = პროფილის შემოტანა ფაილიდან
 profile-rule-process-tab = პროცესი გაშვებულია
 profile-rule-specific-process = სპეციფიკური პროცესით:
-reconnecting-to-daemon = დემონთან კავშირი გაწყდა. ვუკავშირდები თავიდან...
+reconnecting-to-daemon = სერვისთან კავშირი გაწყდა. ვუკავშირდები თავიდან...
 speed-change-threshold = სიჩქარის ცვლილების ზღვარი (°C)
 automatic-mode-threshold = ავტომატური რეჟიმის ზღვარი (°C)
 reset-all-graphs-tooltip = ყველა გრაფიკის ჩამოყრა ნაგულისხმევზე
@@ -253,16 +253,9 @@ confirm-settings = პარამეტრების დადასტურ
 settings-confirmation = გნებავთ ახალი პარამეტრების შენარჩუნება? (დაბრუნება წინა პარამეტრებზე მოხდება { $seconds_left } წამში)
 error-heading = შეცდომა
 daemon-info-heading = ინფორმაცია დემონის შესახებ
-embedded-daemon-info =
-    დემონთან დაკავშირება შეუძლებელია. გაშვებულია ჩაშენებულ რეჟიმში.
-    დარწმუნდით, რომ სერვისი lactd გაშვებულია.
-    ჩაშენებულ რეჟიმში პარამეტრებს ვერ შეცვლით.
-
-    { $error_info }დემონის ჩასართავად გაუშვით შემდეგი ბრძანება, შემდეგ კი გადატვირთეთ LACT:
-version-mismatch = ვერსია არ ემთხვევა
 version-mismatch-description =
     GUI-ის და დემონის ვერსიები ({ $gui_version }-{ $gui_commit }) და { $daemon_version }-{ $daemon_commit }) არ ემთხვევა!.
-    თუ LACT განაახლეთ, სერვისი უნდა გადატვირთოთ ბრძანებით:
+    თუ LACT განაახლეთ, სერვისი უნდა გადატვირთოთ.
 close = დახურვა
 menu = მენიუ
 displays-page = ინფორმაციის გამოტანა
@@ -276,3 +269,36 @@ display-manufacture-date = წარმოების თარიღი
 thresholds-section = ზღვრები &amp; ლიმიტები
 vf-curve-flatten-selection = მონიშნულის გაბრტყელება
 displays-missing = ეკრანები აღმოჩენილი არაა
+gtt-usage = GTT-ის გამოყენება:
+color-scheme = ფერის სქემა
+color-scheme-auto = სისტემა
+color-scheme-light = ღია
+color-scheme-dark = მუქი
+power-mizer-mode = PowerMizer-ის რეჟიმი
+power-mizer-mode-auto = ავტო
+power-mizer-mode-prefer-maximum-performance = პრიორიტეტი მაქს. წარმადობაზე
+power-mizer-mode-prefer-consistent-performance = პრიორიტეტი სტაბილურ წარმადობაზე
+power-mizer-mode-auto-description = წარმადობის პოლიტიკის არჩევის უფლების დრაივერისთვის მიცემა.
+power-mizer-mode-adaptive-description = GPU-ის სიხშირის გასწორება GPU-ის გამოყენების მიხედვით.
+power-mizer-mode-prefer-maximum-performance-description = პრიორიტეტი მაქს. წარმადობაზე დრაივერის ლიმიტებში.
+power-mizer-mode-prefer-consistent-performance-description = ჩაკეტვა GPU-ის საბაზისო სიხშირეებზე.
+power-mizer-mode-adaptive = ადაპტიური
+service-explanation =
+    GPU-ის პარამეტრების გადასატარებლად LACT-ს სისტემური სერვისი სჭირდება.
+    თუ მისი გამოყენება, მხოლოდ, ინფორმაციის მისაღებად და მონიტორინგისთვის გნებავთ, მისი გამოყენება ერთი პროცესის რეჟიმში, მორგების გარეშე შეგიძლიათ.
+service-connection-status = კავშირის სტატუსი
+service-status = სერვისის სტატუსი
+service-permission-denied =
+    წვდომა აკრძალულია. სერვისი მორგებული არაა, თქვენი მომხმარებლისგან კავშირი მიიღოს.
+    მეტი ინფორმაციისთვის იხილეთ <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a>
+service-connected = დაკავშირებულია
+service-version = სერვისის ვერსია
+service-version-mismatch = არ ემთხვევა
+service-logs = სერვისის ჟურნალი
+service-restart = გადატვირთვა
+service-start = გაშვება
+service-stop = გაჩერება
+service-disconnected = დაკავშირებული არაა
+gui-version = GUI-ის ვერსია
+gpu-voltage-boost = GPU-ის ძაბვის ზრდა (%)
+gpu-voltage-boost-tooltip = აკონტროლებს, რამდენი დამატებითი ძაბვაა დრაივერის მიერ დაშვებული. 100% ნიშნავს ამ ძაბვის სრულად გამოყენებას და არა GPU-ის სრული ძაბვის 100%-ს. მეტმა დამატებითმა ძაბვამ, შეიძლება, უფრო მეტი სიხშირე დაუშვას, მაგრამ ასევე იზრდება დახარჯული ენერგია და გამოყოფილი სითბოც.
