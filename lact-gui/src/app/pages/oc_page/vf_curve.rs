@@ -5,6 +5,7 @@ use crate::{
 use amdgpu_sysfs::gpu_handle::PowerLevelId;
 use gtk::{
     gdk,
+    glib::object::ObjectExt,
     prelude::{
         AdjustmentExt, BoxExt as _, ButtonExt as _, CheckButtonExt as _, DrawingAreaExtManual as _,
         EventControllerExt as _, GestureSingleExt as _, GtkWindowExt as _, OrientableExt as _,
@@ -198,6 +199,7 @@ impl relm4::Component for VfCurveEditor {
                             set_digits: 0,
                         },
 
+                        #[name = "enable_editing_button"]
                         gtk::CheckButton {
                             set_label: Some(&fl!(I18N, "vf-curve-enable-editing")),
                             set_halign: gtk::Align::End,
@@ -209,7 +211,7 @@ impl relm4::Component for VfCurveEditor {
                             connect_toggled[drawing_area] => move |_| {
                                 APP_BROKER.send(AppMsg::SettingsChanged);
                                 drawing_area.queue_draw();
-                            }
+                            } @ enable_editing_signal,
                         },
 
                         gtk::Button {
@@ -219,11 +221,7 @@ impl relm4::Component for VfCurveEditor {
                             set_valign: gtk::Align::Center,
 
                             #[watch]
-                            set_sensitive: {
-                                model.points.borrow()
-                                    .iter()
-                                    .any(|point| point.freq != point.base_freq)
-                            },
+                            set_sensitive: curve_is_configured(&model.points.borrow()),
 
                             connect_clicked => VfCurveEditorMsg::ResetCurve,
                             connect_clicked => move |_| {
@@ -339,6 +337,14 @@ impl relm4::Component for VfCurveEditor {
                     self.freq_range
                         .set(Self::freq_limits_range(&points, offset_range));
                 }
+
+                widgets
+                    .enable_editing_button
+                    .block_signal(&widgets.enable_editing_signal);
+                self.allow_editing.set_value(curve_is_configured(&points));
+                widgets
+                    .enable_editing_button
+                    .unblock_signal(&widgets.enable_editing_signal);
 
                 if points.is_empty() {
                     root.set_visible(false);
@@ -513,7 +519,7 @@ impl VfCurveEditor {
                 Rectangle::new([(x - 15, y + 2), (x, y - 1)], colors.success.filled())
             });
 
-        if points.iter().any(|point| point.freq != point.base_freq) {
+        if curve_is_configured(points) {
             let base_line_style = colors.success.mix(0.3);
             chart
                 .draw_series(LineSeries::new(
@@ -898,4 +904,8 @@ fn offset_freq(base_freq: u32, offset: i32) -> u32 {
     } else {
         base_freq.saturating_add(offset as u32)
     }
+}
+
+fn curve_is_configured(points: &[NvidiaVfPoint]) -> bool {
+    points.iter().any(|point| point.freq != point.base_freq)
 }
