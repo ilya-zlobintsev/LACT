@@ -12,6 +12,7 @@ finish-args:
   - --socket=wayland
   - --device=dri
   - --talk-name=org.freedesktop.Flatpak
+  - --system-talk-name=org.freedesktop.systemd1
   - --filesystem=/run/lactd.sock
 cleanup:
   - /include
