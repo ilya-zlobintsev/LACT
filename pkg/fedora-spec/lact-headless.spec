@@ -33,6 +33,7 @@ make install PREFIX=/usr DESTDIR=%{buildroot}
 /usr/share/icons/hicolor/512x512/apps/io.github.ilya_zlobintsev.LACT.png
 /usr/share/icons/hicolor/scalable/apps/io.github.ilya_zlobintsev.LACT.svg
 /usr/share/metainfo/io.github.ilya_zlobintsev.LACT.metainfo.xml
+/usr/share/polkit-1/actions/io.github.ilya_zlobintsev.LACT.policy
 
 %changelog
 * Wed Aug 12 2026 - ilya-zlobintsev - v0.10.0
