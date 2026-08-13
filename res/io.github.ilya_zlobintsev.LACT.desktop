@@ -2,7 +2,9 @@
 Type=Application
 Name=LACT
 Comment=Control your graphics cards
+Comment[ru]=Управление вашими видеокартами
 GenericName=GPU Control Application
+GenericName[ru]=Приложение для управления графическими процессорами
 Exec=lact gui
 Icon=io.github.ilya_zlobintsev.LACT
 Categories=System;
