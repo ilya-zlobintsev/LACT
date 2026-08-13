@@ -226,6 +226,8 @@ daemon-connection-lost = Daemon Bağlantısı Koptu
 service-explanation =
     GPU ayarlarını uygulamak LACT sistem hizmetini gerektirir.
     Bu hizmet olmadan LACT, yalnızca bilgi ve izleme özelliklerinin kullanılabildiği bağımsız modda çalışır.
+service-setup-title = Hizmet Kurulumu
+setup-error = Kurulum hatası: {$error}
 service-connection-status = Bağlantı Durumu
 service-status = Hizmet Durumu
 service-permission-denied =

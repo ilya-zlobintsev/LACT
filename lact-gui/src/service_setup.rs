@@ -58,7 +58,7 @@ impl AsyncComponent for ServiceSetupDialog {
     view! {
         adw::Dialog {
             set_content_width: 600,
-            set_title: "Service Setup",
+            set_title: &fl!(I18N, "service-setup-title"),
 
             connect_closed => ServiceSetupDialogMsg::Close,
 
@@ -150,7 +150,11 @@ impl AsyncComponent for ServiceSetupDialog {
                         #[watch]
                         set_visible: model.setup_error.is_some(),
                         #[watch]
-                        set_text: &model.setup_error.as_ref().map(|err| format!("Setup error: {err}")).unwrap_or_default(),
+                        set_text: &model
+                            .setup_error
+                            .as_ref()
+                            .map(|err| fl!(I18N, "setup-error", error = err.to_string()))
+                            .unwrap_or_default(),
                         set_css_classes: &[ERROR],
                         set_wrap: true,
                         set_xalign: 0.0,
