@@ -1154,7 +1154,7 @@ impl AppModel {
             }
         };
         self.oc_page.emit(OcPageMsg::ClocksTable {
-            table: maybe_clocks_table,
+            table: maybe_clocks_table.map(Box::new),
             vf_curve_is_configured: gpu_config
                 .as_ref()
                 .is_some_and(|config| !config.clocks_configuration.nvidia_gpu_vf_curve.is_empty()),

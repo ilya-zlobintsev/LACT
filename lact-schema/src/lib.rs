@@ -507,6 +507,23 @@ pub struct NvidiaClocksTable {
     pub gpu_vf_curve: Vec<NvidiaVfPoint>,
     #[serde(default)]
     pub voltage_boost: Option<NvidiaVoltageBoost>,
+    /// Offsets for clock domains that are not exposed through NVML, such as XBAR
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub clock_domain_offsets: Vec<NvidiaClockDomainOffset>,
+}
+
+/// Adjustable offsets of a single Nvidia clock domain
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+pub struct NvidiaClockDomainOffset {
+    /// Nvidia clock domain id, used as the key when setting offsets
+    pub domain: u32,
+    /// Human readable domain name, e.g. `XBAR`
+    pub name: String,
+    /// Frequency offset, in MHz
+    pub freq: NvidiaClockOffset,
+    /// Offset of the domain's MSVDD rail, in mV
+    pub voltage: Option<NvidiaClockOffset>,
 }
 
 /// Nvidia core voltage boost, in percent
