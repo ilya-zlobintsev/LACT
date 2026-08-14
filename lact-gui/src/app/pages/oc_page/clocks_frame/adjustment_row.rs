@@ -108,6 +108,9 @@ impl FactoryComponent for ClockAdjustmentRow {
                                     ClockspeedType::MemVfCurveClock(pstate) => fl!(I18N, "mem-pstate-clock", pstate = pstate),
                                     ClockspeedType::GpuVfCurveVoltage(pstate) => fl!(I18N, "gpu-pstate-clock-voltage", pstate = pstate),
                                     ClockspeedType::MemVfCurveVoltage(pstate) => fl!(I18N, "mem-pstate-clock-voltage", pstate = pstate),
+                                    // These always carry a custom title with the domain name
+                                    ClockspeedType::ClockDomainOffset(domain) => fl!(I18N, "clock-domain-offset", domain = domain),
+                                    ClockspeedType::ClockDomainVoltageOffset(domain) => fl!(I18N, "clock-domain-voltage-offset", domain = domain),
                                     ClockspeedType::Reset => unreachable!(),
                                 }
                             }

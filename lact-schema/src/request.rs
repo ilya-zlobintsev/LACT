@@ -175,6 +175,11 @@ pub enum ClockspeedType {
     MemVfCurveClock(u8),
     MemVfCurveVoltage(u8),
 
+    /// Frequency offset of an extra clock domain (such as XBAR), keyed by domain id
+    ClockDomainOffset(u32),
+    /// MSVDD offset of an extra clock domain, keyed by domain id
+    ClockDomainVoltageOffset(u32),
+
     Reset,
 }
 
