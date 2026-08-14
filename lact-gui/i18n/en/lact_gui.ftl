@@ -203,6 +203,10 @@ gpu-voltage-boost-tooltip = Controls how much of the additional voltage headroom
 pstate-clock-offset = P-State {$pstate} Clock Offset (MHz)
 pstate-clock = P-State {$pstate} Clock (MHz)
 pstate-clock-voltage = P-State {$pstate} Voltage (mV)
+clock-domain-offset = {$domain} Clock Offset (MHz)
+clock-domain-voltage-offset = {$domain} MSVDD Offset (mV)
+advanced-section = Advanced
+advanced-section-description = Clock domains the driver does not expose through its normal interface. Independent of the locked clock options above, so both can be used together.
 
 pstates = Power States
 gpu-pstates = GPU Power States
