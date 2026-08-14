@@ -36,6 +36,7 @@ const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_INFO: u32 = 0x507b4b59;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL: u32 = 0x733e009;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_CONTROL: u32 = 0x23f1b133;
 const QUERY_NVAPI_GPU_REGISTER_OP: u32 = 0x2eb3c140;
+const QUERY_NVAPI_GPU_GET_ALL_CLOCKS: u32 = 0x1BD69F49;
 
 const REG_OFFSET_BLACKWELL_HOTSPOT_AGGREGATED: u32 = 0xad0aa0;
 
@@ -114,7 +115,6 @@ impl NvApi {
 
     pub unsafe fn get_voltage(&self, handle: NvPhysicalGpuHandle) -> anyhow::Result<u32> {
         let mut data = NvApiVoltage::default();
-
         self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE)?;
 
         Ok(data.rails[0].current_voltage_uv)
@@ -122,10 +122,19 @@ impl NvApi {
 
     pub unsafe fn get_voltage_boost(&self, handle: NvPhysicalGpuHandle) -> anyhow::Result<u8> {
         let mut data = NvApiVoltageBoost::default();
-
         self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE_BOOST_GET)?;
 
         Ok(data.percent)
+    }
+
+    pub unsafe fn get_all_clocks(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<NvGpuClockInfoV2> {
+        let mut data = NvGpuClockInfoV2::default();
+        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_GPU_GET_ALL_CLOCKS)?;
+
+        Ok(data)
     }
 
     pub unsafe fn set_voltage_boost(
@@ -137,7 +146,6 @@ impl NvApi {
             percent,
             ..Default::default()
         };
-
         self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE_BOOST_SET)?;
 
         Ok(())
@@ -708,6 +716,133 @@ impl Default for NvGpuRegisterOpDataV1 {
             op_count: 0,
             op: [NvGpuRegisterOp::default(); 256],
         }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct NvGpuClockInfoV2 {
+    version: NvU32,
+    domain: [NvGpuClockInfoDomain; 32usize],
+    extended_domain: [NvGpuClockInfoV2ExtendedDomain; 32usize],
+}
+
+impl NvGpuClockInfoV2 {
+    pub fn get_domain(&self, domain: NvGpuClockDomainId) -> Option<NvGpuClockInfoDomain> {
+        self.domain
+            .get(domain as usize)
+            .filter(|domain| domain.bitfield & 1 != 0 && domain.frequency != 0)
+            .copied()
+    }
+}
+
+impl Default for NvGpuClockInfoV2 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(2),
+            domain: Default::default(),
+            extended_domain: Default::default(),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+pub struct NvGpuClockInfoDomain {
+    pub frequency: NvU32,
+    bitfield: NvU32,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+pub struct NvGpuClockInfoV2ExtendedDomain {
+    effective_frequency: NvU32,
+    ratio_domain: NvGpuClockDomainId,
+    ratio: NvU32,
+    reserved: [NvU32; 4usize],
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum NvGpuClockDomainId {
+    // Gpc = 0,
+    Xbar = 1,
+    Sys = 2,
+    Hub = 3,
+    // M = 4,
+    Host = 5,
+    Disp = 6,
+    Pclk0 = 8,
+    Pclk1 = 9,
+    Xclk = 11,
+    Leg = 19,
+    Pwr = 20,
+    Msd = 21,
+    Utils = 22,
+    _2D = 26,
+    _3D = 27,
+    Host1x = 28,
+    Disp0 = 29,
+    Disp1 = 30,
+    // Pciegen = 31,
+    #[default]
+    Undefined = 32,
+}
+
+impl NvGpuClockDomainId {
+    /// Excludes the domains already reported through NVML
+    pub const EXTRA: [Self; 17] = [
+        // Self::Gpc,
+        Self::Xbar,
+        Self::Sys,
+        Self::Hub,
+        // Self::M,
+        Self::Host,
+        Self::Disp,
+        Self::Pclk0,
+        Self::Pclk1,
+        Self::Xclk,
+        Self::Leg,
+        Self::Pwr,
+        Self::Msd,
+        Self::Utils,
+        Self::_2D,
+        Self::_3D,
+        Self::Host1x,
+        Self::Disp0,
+        Self::Disp1,
+    ];
+
+    pub fn into_str(self) -> &'static str {
+        match self {
+            // Self::Gpc => "GPC",
+            Self::Xbar => "XBAR",
+            Self::Sys => "SYS",
+            Self::Hub => "HUB",
+            // Self::M => "Memory",
+            Self::Host => "Host",
+            Self::Disp => "Display",
+            Self::Pclk0 => "Pixel Clock 0",
+            Self::Pclk1 => "Pixel Clock 1",
+            Self::Xclk => "External Clock",
+            Self::Leg => "Legacy",
+            Self::Pwr => "Power",
+            Self::Msd => "MSD",
+            Self::Utils => "Utils",
+            Self::_2D => "2D",
+            Self::_3D => "3D",
+            Self::Host1x => "Host1x",
+            Self::Disp0 => "Display 0",
+            Self::Disp1 => "Display 1",
+            // Self::Pciegen => "PCIe",
+            Self::Undefined => "Undefined",
+        }
+    }
+}
+
+impl std::fmt::Display for NvGpuClockDomainId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.into_str().fmt(f)
     }
 }
 
