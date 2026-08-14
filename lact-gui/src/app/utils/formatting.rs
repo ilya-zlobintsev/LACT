@@ -119,8 +119,14 @@ pub fn fmt_clockspeed(clock_mhz: Option<u64>, ratio: f64) -> String {
 }
 
 pub fn fmt_timestamp_to_dt(timestamp_ms: &i64) -> String {
+    fmt_timestamp_to_dt_with_tz(timestamp_ms, jiff::tz::TimeZone::system())
+}
+
+fn fmt_timestamp_to_dt_with_tz(timestamp_ms: &i64, tz: jiff::tz::TimeZone) -> String {
     let date_time = jiff::Timestamp::from_millisecond(*timestamp_ms).unwrap();
-    date_time.strftime("%H:%M:%S").to_string()
+    jiff::Zoned::new(date_time, tz)
+        .strftime("%H:%M:%S")
+        .to_string()
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -308,7 +314,10 @@ mod tests {
     #[test]
     fn fmt_timestamp_to_dt_formats_time() {
         let timestamp_ms = 0;
-        assert_eq!(fmt_timestamp_to_dt(&timestamp_ms), "00:00:00");
+        assert_eq!(
+            fmt_timestamp_to_dt_with_tz(&timestamp_ms, jiff::tz::TimeZone::UTC),
+            "00:00:00"
+        );
     }
 
     #[test]
