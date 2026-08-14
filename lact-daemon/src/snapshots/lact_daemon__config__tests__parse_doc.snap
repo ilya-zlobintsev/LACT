@@ -64,6 +64,10 @@ gpus:
       22:
         clockspeed_offset: 90
         voltage: 750
+    clock_domain_offsets:
+      1: 500
+    clock_domain_voltage_offsets:
+      1: -10
     voltage_offset: 0
     voltage_boost: 0
     power_profile_mode_index: 0
