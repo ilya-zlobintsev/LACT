@@ -12,6 +12,8 @@ pub enum ClockCategory {
     VramCurveClock,
     CoreCurveVoltage,
     VramCurveVoltage,
+    AdvancedClock,
+    AdvancedVoltage,
 }
 
 impl ClockCategory {
@@ -31,6 +33,8 @@ impl ClockCategory {
             ClockspeedType::MemVfCurveClock(_) => ClockCategory::VramCurveClock,
             ClockspeedType::GpuVfCurveVoltage(_) => ClockCategory::CoreCurveVoltage,
             ClockspeedType::MemVfCurveVoltage(_) => ClockCategory::VramCurveVoltage,
+            ClockspeedType::ClockDomainOffset(_) => ClockCategory::AdvancedClock,
+            ClockspeedType::ClockDomainVoltageOffset(_) => ClockCategory::AdvancedVoltage,
             ClockspeedType::Reset => unreachable!(),
         }
     }
@@ -43,12 +47,21 @@ impl ClockCategory {
         Self::VRAM.contains(self)
     }
 
+    pub fn is_advanced(&self) -> bool {
+        Self::ADVANCED.contains(self)
+    }
+
     pub const CORE: [ClockCategory; 4] = [
         ClockCategory::CoreClock,
         ClockCategory::CoreVoltage,
         ClockCategory::CoreCurveClock,
         ClockCategory::CoreCurveVoltage,
     ];
+
+    /// Controls that are not part of the core or VRAM clock story, and which live
+    /// in their own section rather than mixed into either column.
+    pub const ADVANCED: [ClockCategory; 2] =
+        [ClockCategory::AdvancedClock, ClockCategory::AdvancedVoltage];
 
     pub const VRAM: [ClockCategory; 3] = [
         ClockCategory::VramClock,

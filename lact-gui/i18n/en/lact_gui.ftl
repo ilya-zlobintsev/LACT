@@ -217,6 +217,10 @@ gpu-pstate-clock = GPU P-State {$pstate} Clock (MHz)
 mem-pstate-clock = VRAM P-State {$pstate} Clock (MHz)
 gpu-pstate-clock-voltage = GPU P-State {$pstate} Voltage (mV)
 mem-pstate-clock-voltage = VRAM P-State {$pstate} Voltage (mV)
+clock-domain-offset = {$domain} Clock Offset (MHz)
+clock-domain-voltage-offset = {$domain} MSVDD Offset (mV)
+advanced-section = Advanced
+advanced-section-description = Clock domains the driver does not expose through its normal interface. Independent of the locked clock options above, so both can be used together.
 
 pstates = Power States
 gpu-pstates = GPU Power States

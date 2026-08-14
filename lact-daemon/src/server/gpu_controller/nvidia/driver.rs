@@ -244,6 +244,105 @@ impl DriverHandle {
         Ok(params)
     }
 
+    /// Reads the offset state of every clock domain that can be adjusted.
+    ///
+    /// Domains that report a zero offset range are skipped, as they are read-only.
+    pub fn get_clock_domains(&self) -> anyhow::Result<Vec<ClockDomainState>> {
+        let mut info: ClkDomainsInfoParams = unsafe { mem::zeroed() };
+        unsafe {
+            self.query_rm_control(NV2080_CTRL_CMD_CLK_CLK_DOMAINS_GET_INFO, &mut info)?;
+        }
+
+        let control = self.get_clock_domains_control(info.domain_mask)?;
+
+        let mut domains = Vec::new();
+        for index in 0..CLK_DOMAIN_COUNT {
+            if info.domain_mask & (1 << index) == 0 {
+                continue;
+            }
+
+            let entry = &info.domains[index];
+            // A single set bit identifies the domain; anything else is not a domain
+            // we know how to name.
+            if !entry.domain_bit.is_power_of_two() {
+                continue;
+            }
+            let Some((min_offset_mhz, max_offset_mhz)) = entry.offset_range_mhz() else {
+                continue;
+            };
+
+            domains.push(ClockDomainState {
+                domain: entry.domain_bit.trailing_zeros(),
+                freq_offset_khz: control.domains[index].freq_offset_khz,
+                msvdd_offset_uv: control.domains[index].voltage_offsets_uv[MSVDD_RAIL_INDEX],
+                min_offset_mhz,
+                max_offset_mhz,
+            });
+        }
+
+        Ok(domains)
+    }
+
+    /// Applies frequency and MSVDD offsets to the given clock domains.
+    ///
+    /// The RM control writes the whole domain group in one transaction, so the
+    /// current block is read back first and domains that were not requested keep
+    /// their existing values.
+    pub fn set_clock_domain_offsets(&self, offsets: &[ClockDomainOffset]) -> anyhow::Result<()> {
+        let mut info: ClkDomainsInfoParams = unsafe { mem::zeroed() };
+        unsafe {
+            self.query_rm_control(NV2080_CTRL_CMD_CLK_CLK_DOMAINS_GET_INFO, &mut info)?;
+        }
+
+        let mut control = self.get_clock_domains_control(info.domain_mask)?;
+
+        for offset in offsets {
+            let index = (0..CLK_DOMAIN_COUNT)
+                .filter(|index| info.domain_mask & (1 << index) != 0)
+                .find(|index| info.domains[*index].domain_bit == 1 << offset.domain)
+                .with_context(|| format!("GPU has no clock domain {}", offset.domain))?;
+
+            let (min_mhz, max_mhz) = info.domains[index]
+                .offset_range_mhz()
+                .with_context(|| format!("Clock domain {} is not adjustable", offset.domain))?;
+
+            let requested_mhz = offset.freq_offset_khz / 1000;
+            if requested_mhz < min_mhz || requested_mhz > max_mhz {
+                bail!(
+                    "Clock offset {requested_mhz}MHz is outside of the range \
+                     {min_mhz}..{max_mhz} of domain {}",
+                    offset.domain,
+                );
+            }
+
+            let entry = &mut control.domains[index];
+            entry.freq_offset_mode = FREQ_OFFSET_MODE_KHZ;
+            entry.freq_offset_khz = offset.freq_offset_khz;
+            entry.voltage_offsets_uv[MSVDD_RAIL_INDEX] = offset.msvdd_offset_uv;
+        }
+
+        unsafe {
+            self.query_rm_control(NV2080_CTRL_CMD_CLK_CLK_DOMAINS_SET_CONTROL, &mut control)
+                .context("Could not apply clock domain offsets")?;
+        }
+
+        Ok(())
+    }
+
+    fn get_clock_domains_control(
+        &self,
+        domain_mask: u32,
+    ) -> anyhow::Result<ClkDomainsControlParams> {
+        let mut control: ClkDomainsControlParams = unsafe { mem::zeroed() };
+        // The driver rejects a mask with bits set for domains that do not exist,
+        // so this has to be the mask reported by GET_INFO.
+        control.domain_mask = domain_mask;
+        unsafe {
+            self.query_rm_control(NV2080_CTRL_CMD_CLK_CLK_DOMAINS_GET_CONTROL, &mut control)?;
+        }
+        Ok(control)
+    }
+
     fn get_fb_info(&self, stat_index: u32) -> anyhow::Result<u32> {
         let mut info_list = vec![NV2080_CTRL_FB_INFO {
             index: stat_index,
@@ -291,6 +390,132 @@ impl DriverHandle {
         Ok(())
     }
 }
+
+/// Undocumented RM controls for the clock domain board object group.
+///
+/// These are the same commands that `libnvidia-api.so.1` issues internally for its
+/// `ClockClientClkDomains*` entry points. They are not part of the public headers,
+/// so the parameter layouts below were recovered from the driver's own translation
+/// code and verified against an RTX 5090 on driver 610.57.04. Treat them as
+/// branch-specific: every field is validated against `GET_INFO` before use, and a
+/// layout change should surface as a failed control rather than a bad write.
+const NV2080_CTRL_CMD_CLK_CLK_DOMAINS_GET_INFO: u32 = 0x2080_9019;
+const NV2080_CTRL_CMD_CLK_CLK_DOMAINS_GET_CONTROL: u32 = 0x2080_901b;
+const NV2080_CTRL_CMD_CLK_CLK_DOMAINS_SET_CONTROL: u32 = 0x2080_d01c;
+
+const CLK_DOMAIN_COUNT: usize = 32;
+
+/// Index of the MSVDD rail within a domain's per-rail voltage offsets.
+const MSVDD_RAIL_INDEX: usize = 1;
+
+/// The only offset mode the driver accepts; the offset is a plain signed kHz value.
+const FREQ_OFFSET_MODE_KHZ: u8 = 0;
+
+/// Offsets currently applied to one adjustable clock domain.
+#[derive(Debug, Clone, Copy)]
+pub struct ClockDomainState {
+    /// NvAPI clock domain id, matching [`NvGpuClockDomainId`](super::nvapi::NvGpuClockDomainId).
+    pub domain: u32,
+    pub freq_offset_khz: i32,
+    pub msvdd_offset_uv: i32,
+    pub min_offset_mhz: i32,
+    pub max_offset_mhz: i32,
+}
+
+/// Offsets to apply to one clock domain.
+#[derive(Debug, Clone, Copy)]
+pub struct ClockDomainOffset {
+    pub domain: u32,
+    pub freq_offset_khz: i32,
+    pub msvdd_offset_uv: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct ClkDomainsInfoParams {
+    obj_mask: u32,
+    /// Bit `i` is set when entry `i` of `domains` is populated.
+    domain_mask: u32,
+    _reserved: [u8; 0x28],
+    domains: [ClkDomainInfo; CLK_DOMAIN_COUNT],
+}
+
+/// Board object type of a clock domain, at the start of every info entry.
+///
+/// The layout of the rest of the entry depends on it, and two of them are known:
+/// Blackwell reports `0x10`, while the generations before it report `0x0b` with
+/// everything after the parent object shifted four bytes back. An entry of any
+/// other type is left alone rather than read at a guessed offset.
+///
+/// The older layout was measured on an RTX 2000 Ada: with the core clock pinned
+/// at 2430MHz by a memory copy, a +300MHz offset on XBAR took it from 2130 to
+/// 2430MHz and -300MHz took it to 1830MHz, returning to 2130MHz when cleared.
+const CLK_DOMAIN_TYPE_35: u8 = 0x10;
+const CLK_DOMAIN_TYPE_3X: u8 = 0x0b;
+
+/// Offset of the frequency offset range within an info entry, per object type.
+const RANGE_OFFSET_35: usize = 0x26;
+const RANGE_OFFSET_3X: usize = 0x22;
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct ClkDomainInfo {
+    obj_type: u8,
+    _obj_reserved: [u8; 3],
+    /// `1 << domain id`, where the id matches the NvAPI clock domain enum.
+    domain_bit: u32,
+    /// Read positionally, because the field layout moves with `obj_type`.
+    tail: [u8; 0x178],
+}
+
+impl ClkDomainInfo {
+    /// The allowed frequency offset range in MHz, if the domain accepts offsets.
+    ///
+    /// Returns `None` for domains that report a zero range, and for object types
+    /// whose layout is not known.
+    fn offset_range_mhz(&self) -> Option<(i32, i32)> {
+        let range_offset = match self.obj_type {
+            CLK_DOMAIN_TYPE_35 => RANGE_OFFSET_35,
+            CLK_DOMAIN_TYPE_3X => RANGE_OFFSET_3X,
+            _ => return None,
+        };
+
+        let at = range_offset - mem::offset_of!(Self, tail);
+        let min = i16::from_le_bytes(self.tail[at..at + 2].try_into().unwrap());
+        let max = i32::from_le_bytes(self.tail[at + 2..at + 6].try_into().unwrap());
+
+        (max > 0).then_some((i32::from(min), max))
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct ClkDomainsControlParams {
+    obj_mask: u32,
+    domain_mask: u32,
+    _reserved: [u8; 0x34],
+    domains: [ClkDomainControl; CLK_DOMAIN_COUNT],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct ClkDomainControl {
+    obj_type: u32,
+    _reserved_1: u32,
+    freq_offset_mode: u8,
+    _reserved_2: [u8; 3],
+    freq_offset_khz: i32,
+    /// Per-rail voltage offsets in microvolts. Index [`MSVDD_RAIL_INDEX`] is MSVDD.
+    voltage_offsets_uv: [i32; 4],
+    _reserved_3: [u8; 0x20],
+}
+
+// The RM validates the parameter size, so a layout mistake would corrupt the
+// request rather than fail cleanly.
+const _: () = assert!(mem::size_of::<ClkDomainInfo>() == 0x180);
+const _: () = assert!(mem::size_of::<ClkDomainsInfoParams>() == 0x3030);
+const _: () = assert!(mem::size_of::<ClkDomainControl>() == 0x40);
+const _: () = assert!(mem::size_of::<ClkDomainsControlParams>() == 0x83c);
 
 #[cfg(feature = "display-info")]
 pub fn connector_id_to_display_id(connector_id: u32, drm_device: RawFd) -> anyhow::Result<u32> {
