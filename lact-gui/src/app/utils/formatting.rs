@@ -123,6 +123,31 @@ pub fn fmt_timestamp_to_dt(timestamp_ms: &i64) -> String {
     date_time.strftime("%H:%M:%S").to_string()
 }
 
+const GPU_MODEL_SERIES: &[&str] = &[
+    "RTX", "GTX", "GTS", "GT", "RX", "R9", "R7", "R5", "HD", "Arc",
+];
+
+pub fn fmt_clean_gpu_name(name: &str) -> &str {
+    let mut short = name.trim();
+
+    // PCI device names carry the marketing name in brackets, e.g. "DG2 [Arc A770]"
+    if let Some((_, bracketed)) = short.split_once('[')
+        && let Some((model, _)) = bracketed.split_once(']')
+    {
+        short = model.trim();
+    }
+
+    let mut model = short;
+    while let Some((word, rest)) = model.split_once(' ') {
+        if GPU_MODEL_SERIES.contains(&word) {
+            return model;
+        }
+        model = rest;
+    }
+
+    short
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 pub enum ByteUnit {
@@ -303,6 +328,37 @@ mod tests {
             fmt_clockspeed(Some(1000), 3.0),
             "<span font_family='monospace'>3000</span> MHz"
         );
+    }
+
+    #[test]
+    fn fmt_clean_gpu_name_drops_everything_before_the_model() {
+        assert_eq!(fmt_clean_gpu_name("AMD Radeon RX 9060 XT"), "RX 9060 XT");
+        assert_eq!(
+            fmt_clean_gpu_name("NVIDIA GeForce RTX 4070 SUPER"),
+            "RTX 4070 SUPER"
+        );
+    }
+
+    #[test]
+    fn fmt_clean_gpu_name_unwraps_pci_names() {
+        assert_eq!(
+            fmt_clean_gpu_name("Pitcairn XT [Radeon HD 7870 GHz Edition]"),
+            "HD 7870 GHz Edition"
+        );
+        assert_eq!(fmt_clean_gpu_name("DG2 [Arc A380]"), "Arc A380");
+        assert_eq!(
+            fmt_clean_gpu_name("TigerLake-LP GT2 [Iris Xe Graphics]"),
+            "Iris Xe Graphics"
+        );
+    }
+
+    #[test]
+    fn fmt_clean_gpu_name_keeps_names_without_a_series() {
+        assert_eq!(
+            fmt_clean_gpu_name("AMD Radeon 780M Graphics"),
+            "AMD Radeon 780M Graphics"
+        );
+        assert_eq!(fmt_clean_gpu_name("Phoenix1"), "Phoenix1");
     }
 
     #[test]
