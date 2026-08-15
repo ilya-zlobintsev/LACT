@@ -45,6 +45,8 @@ fan-control-section = Fan Control
 temperatures = Temperatures
 oc-missing-fan-control-warning = Warning: Overclocking support is disabled, fan control functionality is not available.
 fan-speed = Fan Speed
+no-fan-detected = No fan detected
+no-sensors-found = No sensors found
 throttling = Throttling
 auto-page = Automatic
 curve-page = Curve
@@ -57,6 +59,8 @@ zero-rpm = Zero RPM
 zero-rpm-stop-temp = Zero RPM stop temperature (°C)
 static-speed = Static Speed (%)
 reset-button = Reset
+reset-now-button = Reset Now
+default-button = Default
 pmfw-reset-warning = Warning: this resets the fan firmware settings!
 
 temperature-sensor = Temperature Sensor
@@ -100,7 +104,7 @@ amd-oc-updating-configuration = Updating configuration (this may take a while)
 amd-oc-updating-done = Configuration updated, please reboot to apply changes.
 
 reset-config = Reset Configuration
-reset-config-description = Are you sure you want to reset all GPU configuration?
+reset-config-description = This will reset all GPU settings to their defaults and permanently delete all profiles
 
 apply-button = Apply
 confirm = Confirm
@@ -237,6 +241,8 @@ daemon-connection-lost = Connection Lost
 service-explanation =
     Applying GPU settings requires the LACT system service.
     Without it, LACT runs in standalone mode, where only information and monitoring are available.
+service-setup-title = Service Setup
+setup-error = Setup error: {$error}
 service-connection-status = Connection Status
 service-status = Service Status
 service-permission-denied =
@@ -252,6 +258,8 @@ service-logs = Service Logs
 service-start = Start
 service-stop = Stop
 service-restart = Restart
+service-autostart = Autostart on boot
+service-autostart-disable = Also disable autostart
 
 version-mismatch-description =
     Version mismatch between GUI and Daemon ({$gui_version}-{$gui_commit} vs {$daemon_version}-{$daemon_commit})!

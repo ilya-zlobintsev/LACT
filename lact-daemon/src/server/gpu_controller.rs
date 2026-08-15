@@ -29,7 +29,6 @@ use lact_schema::{
     ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates, config::GpuConfig,
 };
 use std::io;
-#[cfg(feature = "nvidia")]
 use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
@@ -236,6 +235,7 @@ pub(crate) fn build_controller_info(
     })
 }
 
+#[cfg_attr(any(not(feature = "nvidia"), test), allow(unused_variables))]
 pub(crate) fn init_controller(
     common: CommonControllerInfo,
     config: &Config,
@@ -271,6 +271,9 @@ pub(crate) fn init_controller(
             .ok()
     });
 
+    #[cfg(not(feature = "nvidia"))]
+    let nvml: LazyLock<Option<()>> = LazyLock::new(|| None);
+
     #[cfg(feature = "nvidia")]
     let nvapi = LazyLock::new(|| {
         use crate::server::gpu_controller::nvidia::nvapi::NvApi;
@@ -291,6 +294,9 @@ pub(crate) fn init_controller(
                 .ok()
         }
     });
+
+    #[cfg(not(feature = "nvidia"))]
+    let nvapi: LazyLock<Option<()>> = LazyLock::new(|| None);
 
     match common.driver.as_str() {
         "amdgpu" | "radeon" => {

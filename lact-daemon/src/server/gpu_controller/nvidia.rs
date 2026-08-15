@@ -673,6 +673,23 @@ fn point_count_from_mask(mask: [u32; 8]) -> usize {
     count
 }
 
+fn average_fan_value<E>(
+    num_fans: u32,
+    mut get_value: impl FnMut(u32) -> Result<u32, E>,
+) -> Option<u32> {
+    let mut sum: u32 = 0;
+    let mut count: u32 = 0;
+
+    for idx in 0..num_fans {
+        if let Ok(value) = get_value(idx) {
+            sum = sum.saturating_add(value);
+            count += 1;
+        }
+    }
+
+    (count > 0).then(|| sum / count)
+}
+
 fn apply_power_mizer_mode(
     device: &mut Device<'_>,
     configured_mode: Option<PowerMizerMode>,
@@ -985,26 +1002,10 @@ impl GpuController for NvidiaGpuController {
         let (pwm_current, speed_current) = if num_fans == 0 {
             (None, None)
         } else {
-            let fan_speeds = (0..num_fans)
-                .flat_map(|idx| device.fan_speed(idx))
-                .collect::<Vec<_>>();
+            let pwm_current = average_fan_value(num_fans, |idx| device.fan_speed(idx))
+                .map(|avg_speed| (f64::from(avg_speed) * 2.55) as u8);
 
-            let pwm_current = if fan_speeds.is_empty() {
-                None
-            } else {
-                let avg_speed: u32 = fan_speeds.iter().sum::<u32>() / fan_speeds.len() as u32;
-                Some((f64::from(avg_speed) * 2.55) as u8)
-            };
-
-            let fan_speeds_rpm = (0..num_fans)
-                .flat_map(|idx| device.fan_speed_rpm(idx))
-                .collect::<Vec<_>>();
-
-            let speed_current = if fan_speeds_rpm.is_empty() {
-                None
-            } else {
-                Some(fan_speeds_rpm.iter().sum::<u32>() / fan_speeds_rpm.len() as u32)
-            };
+            let speed_current = average_fan_value(num_fans, |idx| device.fan_speed_rpm(idx));
 
             (pwm_current, speed_current)
         };
@@ -1033,6 +1034,7 @@ impl GpuController for NvidiaGpuController {
 
         let fan_range = device.min_max_fan_speed().ok();
         let power_mizer_info = device.power_mizer_mode().ok();
+        let power_constraints = device.power_management_limit_constraints().ok();
 
         DeviceStats {
             temps,
@@ -1065,14 +1067,12 @@ impl GpuController for NvidiaGpuController {
                     .power_management_limit()
                     .map(|mw| f64::from(mw) / 1000.0)
                     .ok(),
-                cap_max: device
-                    .power_management_limit_constraints()
-                    .map(|constraints| f64::from(constraints.max_limit) / 1000.0)
-                    .ok(),
-                cap_min: device
-                    .power_management_limit_constraints()
-                    .map(|constraints| f64::from(constraints.min_limit) / 1000.0)
-                    .ok(),
+                cap_max: power_constraints
+                    .as_ref()
+                    .map(|constraints| f64::from(constraints.max_limit) / 1000.0),
+                cap_min: power_constraints
+                    .as_ref()
+                    .map(|constraints| f64::from(constraints.min_limit) / 1000.0),
                 cap_default: device
                     .power_management_limit_default()
                     .map(|mw| f64::from(mw) / 1000.0)

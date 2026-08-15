@@ -253,13 +253,6 @@ confirm-settings = Confirmar Ajustes
 settings-confirmation = ¿Desea mantener los ajustes nuevos? (Se revierte en { $seconds_left } segundos)
 error-heading = Error
 daemon-info-heading = Informe del demonio
-embedded-daemon-info =
-    No se pudo conectar la demonio, ejecutando en modo embebido.
-    Asegúrese que el servicio lactd está en ejecución.
-    Se utiliza el modo embebido, no será capaz de cambiar ningún ajuste.
-
-    { $error_info } Para habilitar el demonio, ejecute el comando siguiente, después reinicie LACT:
-version-mismatch = Versión no coincidente
 version-mismatch-description =
     Versión no coincidente entre IGU y DEmonio ({ $gui_version }-{ $gui_commit } vs { $daemon_version }-{ $daemon_commit })!
     Si has actualizado LACT, necesita reiniciar el servicio con:
@@ -273,3 +266,11 @@ display-model = Modelo
 display-physical-size = Medida física
 display-connection = Conexión
 display-manufacture-date = Datos del fabricante
+thresholds-section = Umbrales y Límites
+displays-missing = No se detectaron pantallas
+vf-curve-flatten-selection = Aplanar selección
+gtt-usage = Modo de empleo GTT:
+color-scheme = Esquema de Color
+color-scheme-auto = Sistema
+color-scheme-light = Claro
+color-scheme-dark = Oscuro

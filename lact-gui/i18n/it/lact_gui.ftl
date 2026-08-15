@@ -7,7 +7,7 @@ watt = W
 power-usage = Consumo Energetico
 power-profile-mode = Modalità Profilo Di Alimentazione:
 software-page = Informazioni Software
-hardware-info = Informazioni Hardware
+hardware-info = Informazioni hardware
 system-section = Sistema
 lact-gui = GUI LACT
 lact-daemon = Demone LACT
@@ -255,13 +255,6 @@ confirm-settings = Conferma impostazioni
 settings-confirmation = Vuoi mantenere le nuove impostazioni? (Ripristino tra { $seconds_left } secondi)
 error-heading = Errore
 daemon-info-heading = Info Demone
-embedded-daemon-info =
-    Impossibile connettersi al demone, esecuzione in modalità incorporata.
-    Assicurati che il servizio lactd sia in esecuzione.
-    Utilizzando la modalità incorporata, non sarà possibile modificare alcuna impostazione.
-
-    { $error_info }Per abilitare il demone, esegui il seguente comando, quindi riavvia LACT:
-version-mismatch = Versione non corrispondente
 version-mismatch-description =
     Discrepanza di versione tra GUI e Demone ({ $gui_version }-{ $gui_commit } vs { $daemon_version }-{ $daemon_commit })!
     Se hai aggiornato LACT, è necessario riavviare il servizio con:
