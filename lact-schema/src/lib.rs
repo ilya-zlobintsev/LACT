@@ -68,7 +68,6 @@ pub fn bytes_to_mib(bytes: u64) -> f64 {
 }
 
 const GPU_VENDOR_PREFIXES: &[&str] = &["AMD ", "NVIDIA ", "Intel "];
-const CONSUMER_GPU_PREFIXES: &[&str] = &["GeForce ", "Radeon "];
 
 pub fn clean_gpu_name(name: &str) -> &str {
     let mut short = name.trim();
@@ -92,10 +91,7 @@ pub fn clean_gpu_name(name: &str) -> &str {
         .find_map(|&prefix| short.strip_prefix(prefix))
         .unwrap_or(short);
 
-    CONSUMER_GPU_PREFIXES
-        .iter()
-        .find_map(|&prefix| short.strip_prefix(prefix))
-        .unwrap_or(short)
+    short
 }
 
 #[derive(Serialize, Deserialize, Debug)]

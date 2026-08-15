@@ -265,7 +265,7 @@ There is also a cli available.
   Example output:
 
   ```
-  0: 10DE:2704-1462:5110-0000:09:00.0 (RTX 4080) [Dedicated]
+  0: 10DE:2704-1462:5110-0000:09:00.0 (GeForce RTX 4080) [Dedicated]
   ```
 - Getting GPU information:
 
@@ -277,7 +277,7 @@ There is also a cli available.
   $ lact cli info
   GPU 10DE:2704-1462:5110-0000:09:00.0:
   =====================================
-  GPU Model: RTX 4080 (0x10DE:0x2704)
+  GPU Model: GeForce RTX 4080 (0x10DE:0x2704)
   Card Manufacturer: Micro-Star International Co., Ltd. [MSI] (0x1462)
   Card Model: Unknown (0x5110)
   Driver Used: nvidia 570.124.04

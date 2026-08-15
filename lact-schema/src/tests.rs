@@ -89,16 +89,19 @@ fn set_fan_clocks() {
 
 #[test]
 fn clean_gpu_name_removes_vendor_prefixes() {
-    assert_eq!(clean_gpu_name("AMD Radeon RX 9070 XT"), "RX 9070 XT");
-    assert_eq!(clean_gpu_name("NVIDIA GeForce RTX 5090"), "RTX 5090");
-    assert_eq!(clean_gpu_name("NVIDIA GeForce MX450"), "MX450");
+    assert_eq!(clean_gpu_name("AMD Radeon RX 9070 XT"), "Radeon RX 9070 XT");
+    assert_eq!(
+        clean_gpu_name("NVIDIA GeForce RTX 5090"),
+        "GeForce RTX 5090"
+    );
+    assert_eq!(clean_gpu_name("NVIDIA GeForce MX450"), "GeForce MX450");
     assert_eq!(
         clean_gpu_name("NVIDIA GeForce RTX 5090 [Founders Edition]"),
-        "RTX 5090"
+        "GeForce RTX 5090"
     );
     assert_eq!(
         clean_gpu_name("NVIDIA GeForce RTX 4070 Super"),
-        "RTX 4070 Super"
+        "GeForce RTX 4070 Super"
     );
     assert_eq!(clean_gpu_name("Intel Arc A380"), "Arc A380");
 }
@@ -107,12 +110,12 @@ fn clean_gpu_name_removes_vendor_prefixes() {
 fn clean_gpu_name_unwraps_pci_names() {
     assert_eq!(
         clean_gpu_name("Pitcairn XT [Radeon HD 7870 GHz Edition]"),
-        "HD 7870 GHz Edition"
+        "Radeon HD 7870 GHz Edition"
     );
     assert_eq!(clean_gpu_name("DG2 [Arc A380]"), "Arc A380");
-    assert_eq!(clean_gpu_name("GK107M [GeForce 710A]"), "710A");
-    assert_eq!(clean_gpu_name("GK107M [GeForce 820M]"), "820M");
-    assert_eq!(clean_gpu_name("TU117M [GeForce MX450]"), "MX450");
+    assert_eq!(clean_gpu_name("GK107M [GeForce 710A]"), "GeForce 710A");
+    assert_eq!(clean_gpu_name("GK107M [GeForce 820M]"), "GeForce 820M");
+    assert_eq!(clean_gpu_name("TU117M [GeForce MX450]"), "GeForce MX450");
     assert_eq!(
         clean_gpu_name("TigerLake-LP GT2 [Iris Xe Graphics]"),
         "Iris Xe Graphics"
@@ -120,8 +123,12 @@ fn clean_gpu_name_unwraps_pci_names() {
 }
 
 #[test]
-fn clean_gpu_name_strips_consumer_brands_and_keeps_unrecognized_names() {
-    assert_eq!(clean_gpu_name("AMD Radeon 780M Graphics"), "780M Graphics");
+fn clean_gpu_name_keeps_consumer_brands_and_unrecognized_names() {
+    assert_eq!(
+        clean_gpu_name("AMD Radeon 780M Graphics"),
+        "Radeon 780M Graphics"
+    );
+    assert_eq!(clean_gpu_name("AMD Radeon VII"), "Radeon VII");
     assert_eq!(clean_gpu_name("Phoenix1"), "Phoenix1");
 }
 
