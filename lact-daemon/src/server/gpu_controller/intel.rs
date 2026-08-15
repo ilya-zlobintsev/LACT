@@ -10,9 +10,7 @@ use crate::{
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
 use anyhow::{Context, Error, anyhow, bail, ensure};
-use futures::StreamExt;
 use futures::future::LocalBoxFuture;
-use lact_schema::config::FanCurve;
 use indexmap::IndexMap;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats,
@@ -20,6 +18,7 @@ use lact_schema::{
     LinkInfo, PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType,
     TemperatureEntry, VoltageStats, VramStats, config::GpuConfig,
 };
+use lact_schema::{FanCurveMap, config::FanCurve};
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
@@ -578,15 +577,22 @@ impl IntelGpuController {
     }
 
     fn get_hwmon_controllable_points_amount(&self) -> u8 {
-        self.read_hwmon_files::<String>("pwm1_", "_pwm").count() as u8
+        self.read_hwmon_files::<String>("pwm1_", "_pwm")
+            .count()
+            .try_into()
+            .expect("invalid amount of curve points")
     }
 
-    fn get_hwmon_fan_curve(&self) -> Option<FanCurve> {
+    fn get_hwmon_fan_curve(&self, config: Option<&GpuConfig>) -> Option<FanCurveMap> {
         if !self.has_fan_control() {
             return None;
         }
 
         let amount: u8 = self.get_hwmon_controllable_points_amount();
+
+        if amount == 0 {
+            return None;
+        }
 
         let mut points: Vec<(i32, f32)> = Vec::new();
 
@@ -594,40 +600,34 @@ impl IntelGpuController {
             let pwm_file: String = format!("pwm1_auto_point{point}_pwm");
             let temp_file: String = format!("pwm1_auto_point{point}_temp");
 
-            let pwm: i32 = self
+            #[allow(clippy::cast_precision_loss)]
+            let pwm: f32 = self
                 .read_hwmon_file(&[&*pwm_file], false)
-                .map(|value: u64| value as i32)
-                .context("Could not read the curve")
-                .unwrap();
-            let temp: f32 = self
-                .read_hwmon_file(&[&*temp_file], false)
                 .map(|value: u64| value as f32)
                 .context("Could not read the curve")
                 .unwrap();
 
-            points.push((temp as i32 / 1000, pwm as f32 / 255.0));
+            #[allow(clippy::cast_possible_truncation)]
+            let temp: i32 = self
+                .read_hwmon_file(&[&*temp_file], false)
+                .map(|value: u64| value as i32)
+                .context("Could not read the curve")
+                .unwrap();
+
+            points.push((temp / 1000, pwm / 255.0));
         }
 
-        let mut last_speed: f32 = points.last().unwrap().1;
-        for mut point_index in (0..amount - 1).rev() {
-            let point: (i32, f32) = *points.get(point_index as usize).unwrap();
-
-            let speed: f32 = point.1;
-
-            if last_speed != speed {
-                break; //we might be in the middle of the curve and we are not that smart to figure out how to handle that
-            }
-
-            last_speed = speed;
-
-            points.remove(point_index as usize + 1); //if the speed is the same as the last, we probably auto completed it, so we dont need to show it here
-
-            point_index -= 1;
+        if let Some(config) = &config
+            && let Some(fan_settings) = &config.fan_control_settings
+            && !fan_settings.curve.0.is_empty()
+        {
+            points.truncate(fan_settings.curve.0.len());
         }
 
-        Some(FanCurve(points.into_iter().collect()))
+        Some(points.into_iter().collect())
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn get_hwmon_fan_static_speed(&self) -> Option<f32> {
         self.read_hwmon_file(&["pwm1"], false)
             .map(|speed: u64| speed as f32 / 255.0)
@@ -657,16 +657,20 @@ impl IntelGpuController {
     }
 
     fn get_hwmon_fans_amount(&self) -> u8 {
-        self.read_hwmon_files::<String>("fan", "_input").count() as u8
+        self.read_hwmon_files::<String>("fan", "_input")
+            .count()
+            .try_into()
+            .expect("too many fan curve points")
     }
 
-    fn apply_fan_curve(&self, curve: FanCurve) -> Result<String, Error> {
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+    fn apply_fan_curve(&self, curve: &FanCurve) -> Result<(), Error> {
         ensure!(
             self.has_fan_control(),
             "Tried to control the fan curve when there is no fan control"
         );
 
-        self.is_valid_fan_curve(curve.clone())?;
+        self.is_valid_fan_curve(curve)?;
 
         let fans: u8 = self.get_hwmon_fans_amount();
 
@@ -679,7 +683,7 @@ impl IntelGpuController {
         for (i, (temperature, speed)) in curve.0.iter().enumerate() {
             let point = i + 1;
             let pwm = (*speed * 255.0) as u8;
-            let temp = (f64::from(*temperature) * 1000.0) as i32;
+            let temp = *temperature * 1000;
 
             for fan_index in 1..=fans {
                 self.write_hwmon_file(
@@ -697,14 +701,13 @@ impl IntelGpuController {
 
         let last_point: Option<(&i32, &f32)> = curve.0.iter().last();
         let points_amount: usize = self.get_hwmon_controllable_points_amount() as usize;
-        if last_point.is_some() && curve.0.len() < points_amount {
-            let mut index: i32 = 1;
-            for point in curve.0.len() + 1..=points_amount {
-                let point_data: (&i32, &f32) = last_point.unwrap();
-                let pwm = (*point_data.1 * 255.0) as u8;
-                let temp = (f64::from(*point_data.0) * 1000.0) as i32 + (index * 1000); //it looks like the xe driver does not accept points with the same temperature or less than 1C apart, so we make the points be 1C from each other
 
-                index += 1;
+        if let Some(last_point) = last_point
+            && curve.0.len() < points_amount
+        {
+            for (point, index) in std::iter::zip(curve.0.len() + 1..=points_amount, 1..) {
+                let pwm = (*last_point.1 * 255.0) as u8;
+                let temp = (f64::from(*last_point.0) * 1000.0) as i32 + (index * 1000); //it looks like the xe driver does not accept points with the same temperature or less than 1C apart, so we make the points be 1C from each other
 
                 for fan_index in 1..=fans {
                     self.write_hwmon_file(
@@ -721,10 +724,10 @@ impl IntelGpuController {
             }
         }
 
-        Ok(String::from("Ok"))
+        Ok(())
     }
 
-    fn is_valid_fan_curve(&self, curve: FanCurve) -> anyhow::Result<String, Error> {
+    fn is_valid_fan_curve(&self, curve: &FanCurve) -> anyhow::Result<(), Error> {
         if curve.0.is_empty()
             || curve.0.len() > self.get_hwmon_controllable_points_amount() as usize
         {
@@ -753,9 +756,10 @@ impl IntelGpuController {
             }
         }
 
-        Ok(String::from("Ok"))
+        Ok(())
     }
 
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     fn set_fans_static_speed(&self, speed: f32) -> Result<bool, anyhow::Error> {
         if !self.has_fan_control() {
             return Result::Err(anyhow!(
@@ -780,6 +784,7 @@ impl IntelGpuController {
         Result::Ok(true)
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     fn get_hwmon_fan_max_speed(&self) -> Option<u32> {
         self.read_hwmon_file(&["fan1_max"], false)
             .map(|speed| speed as u32)
@@ -899,9 +904,8 @@ impl GpuController for IntelGpuController {
                             self.set_fans_static_speed(settings.static_speed)?;
                         }
                         lact_schema::FanControlMode::Curve => {
-                            self.apply_fan_curve(settings.curve.clone())?;
+                            self.apply_fan_curve(&settings.curve)?;
                         }
-                        _ => {}
                     }
                 }
             } else if self.has_fan_control() {
@@ -918,7 +922,7 @@ impl GpuController for IntelGpuController {
         })
     }
 
-    fn get_stats(&self, _gpu_config: Option<&GpuConfig>) -> DeviceStats {
+    fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let target_gpu_clockspeed = self.read_freq(FrequencyType::Cur);
         let gpu_clockspeed = self
             .read_freq(FrequencyType::Act)
@@ -951,7 +955,7 @@ impl GpuController for IntelGpuController {
             speed_current: self
                 .read_hwmon_file(&["fan1_input", "fan2_input", "fan3_input"], false)
                 .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
-            curve: self.get_hwmon_fan_curve().map(|curve| curve.0),
+            curve: self.get_hwmon_fan_curve(gpu_config),
             static_speed: self.get_hwmon_fan_static_speed(),
             control_mode: self.get_hwmon_fan_control_mode(),
             control_enabled: self.get_hwmon_fan_control_mode().is_some(),
