@@ -573,7 +573,7 @@ impl IntelGpuController {
     }
 
     fn has_fan_control(&self) -> bool {
-        return self.match_hwmon_files(&["pwm1"]).next().is_some();
+        self.match_hwmon_files(&["pwm1"]).next().is_some()
     }
 
     fn get_hwmon_controllable_points_amount(&self) -> u8 {
@@ -760,7 +760,7 @@ impl IntelGpuController {
     }
 
     #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-    fn set_fans_static_speed(&self, speed: f32) -> Result<bool, anyhow::Error> {
+    fn set_fans_static_speed(&self, speed: f32) -> Result<(), anyhow::Error> {
         if !self.has_fan_control() {
             return Result::Err(anyhow!(
                 "Tried to set the fans static speed when there is no fan control"
@@ -781,7 +781,7 @@ impl IntelGpuController {
                 .context("Could not set fan RPM")?;
         }
 
-        Result::Ok(true)
+        Ok(())
     }
 
     #[allow(clippy::cast_possible_truncation)]
