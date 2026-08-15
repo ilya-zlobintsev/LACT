@@ -1,4 +1,3 @@
-use crate::app::utils::formatting::fmt_clean_gpu_name;
 use gtk::glib;
 use gtk::prelude::*;
 use lact_schema::DeviceListEntry;
@@ -97,7 +96,7 @@ impl GpuSelector {
                 let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
                 if let Some(device) = devices_vec.get(list_item.position() as usize) {
                     let label = list_item.child().unwrap().downcast::<gtk::Label>().unwrap();
-                    label.set_label(fmt_clean_gpu_name(&device.to_string()));
+                    label.set_label(&device.to_string());
                 }
             }
         ));
@@ -130,7 +129,7 @@ impl GpuSelector {
                         .unwrap()
                         .downcast::<gtk::Label>()
                         .unwrap();
-                    name_label.set_label(fmt_clean_gpu_name(&device.to_string()));
+                    name_label.set_label(&device.to_string());
                     id_label.set_label(&device.id);
                     type_label.set_markup(&format!("<b>{}</b>", device.device_type));
                 }
