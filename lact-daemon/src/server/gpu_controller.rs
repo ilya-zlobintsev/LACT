@@ -16,8 +16,6 @@ use tokio::join;
 
 pub const VENDOR_AMD: &str = "1002";
 pub const VENDOR_NVIDIA: &str = "10DE";
-const GPU_VENDOR_PREFIXES: &[&str] = &["AMD ", "NVIDIA ", "Intel "];
-const CONSUMER_GPU_PREFIXES: &[&str] = &["GeForce ", "Radeon "];
 
 use crate::config::Config;
 use crate::server::handler::{AMD_DRM, INTEL_DRM};
@@ -39,34 +37,6 @@ use tracing::{error, warn};
 
 pub type DynGpuController = Box<dyn GpuController>;
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
-
-pub(crate) fn clean_gpu_name(name: &str) -> &str {
-    let mut short = name.trim();
-
-    if let Some(marketing_name) = GPU_VENDOR_PREFIXES
-        .iter()
-        .find_map(|&prefix| short.strip_prefix(prefix))
-    {
-        short = marketing_name
-            .split_once('[')
-            .map_or(marketing_name, |(model, _)| model.trim_end());
-    } else if let Some((_, bracketed)) = short.split_once('[')
-        && let Some((model, _)) = bracketed.split_once(']')
-    {
-        // PCI device names carry the marketing name in brackets, e.g. "DG2 [Arc A770]"
-        short = model.trim();
-    }
-
-    short = GPU_VENDOR_PREFIXES
-        .iter()
-        .find_map(|&prefix| short.strip_prefix(prefix))
-        .unwrap_or(short);
-
-    CONSUMER_GPU_PREFIXES
-        .iter()
-        .find_map(|&prefix| short.strip_prefix(prefix))
-        .unwrap_or(short)
-}
 
 pub trait GpuController {
     fn controller_info(&self) -> &CommonControllerInfo;
@@ -399,54 +369,4 @@ fn get_embedded_device_name(pci_info: &GpuPciInfo) -> Option<String> {
         })
         .and_then(|subsys_device| subsys_device.as_str())
         .map(str::to_owned)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn clean_gpu_name_removes_vendor_prefixes() {
-        assert_eq!(clean_gpu_name("AMD Radeon RX 9070 XT"), "RX 9070 XT");
-        assert_eq!(clean_gpu_name("NVIDIA GeForce RTX 5090"), "RTX 5090");
-        assert_eq!(clean_gpu_name("NVIDIA GeForce MX450"), "MX450");
-        assert_eq!(
-            clean_gpu_name("NVIDIA GeForce RTX 5090 [Founders Edition]"),
-            "RTX 5090"
-        );
-        assert_eq!(
-            clean_gpu_name("NVIDIA GeForce RTX 4070 Super"),
-            "RTX 4070 Super"
-        );
-        assert_eq!(clean_gpu_name("Intel Arc A380"), "Arc A380");
-    }
-
-    #[test]
-    fn clean_gpu_name_unwraps_pci_names() {
-        assert_eq!(
-            clean_gpu_name("Pitcairn XT [Radeon HD 7870 GHz Edition]"),
-            "HD 7870 GHz Edition"
-        );
-        assert_eq!(clean_gpu_name("DG2 [Arc A380]"), "Arc A380");
-        assert_eq!(clean_gpu_name("GK107M [GeForce 710A]"), "710A");
-        assert_eq!(clean_gpu_name("GK107M [GeForce 820M]"), "820M");
-        assert_eq!(clean_gpu_name("TU117M [GeForce MX450]"), "MX450");
-        assert_eq!(
-            clean_gpu_name("TigerLake-LP GT2 [Iris Xe Graphics]"),
-            "Iris Xe Graphics"
-        );
-    }
-
-    #[test]
-    fn clean_gpu_name_strips_consumer_brands_and_keeps_unrecognized_names() {
-        assert_eq!(clean_gpu_name("AMD Radeon 780M Graphics"), "780M Graphics");
-        assert_eq!(clean_gpu_name("Phoenix1"), "Phoenix1");
-    }
-
-    #[test]
-    fn clean_gpu_name_keeps_professional_product_brands() {
-        assert_eq!(clean_gpu_name("GK107GL [Quadro K600]"), "Quadro K600");
-        assert_eq!(clean_gpu_name("GK110GL [Tesla K20]"), "Tesla K20");
-        assert_eq!(clean_gpu_name("NVIDIA Quadro RTX 6000"), "Quadro RTX 6000");
-    }
 }

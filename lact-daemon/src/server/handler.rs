@@ -1,7 +1,5 @@
 use super::{
-    gpu_controller::{
-        DynGpuController, GpuController, clean_gpu_name, common::fan_control::FanCurveExt,
-    },
+    gpu_controller::{DynGpuController, GpuController, common::fan_control::FanCurveExt},
     profiles::ProfileWatcherCommand,
     system::{self},
 };
@@ -449,9 +447,7 @@ impl<'a> Handler {
         for (id, controller) in controllers.iter() {
             entries.push(DeviceListEntry {
                 id: id.to_owned(),
-                name: controller
-                    .friendly_name()
-                    .map(|name| clean_gpu_name(&name).to_owned()),
+                name: controller.friendly_name(),
                 device_type: controller.device_type(),
             });
         }

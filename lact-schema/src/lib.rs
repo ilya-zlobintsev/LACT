@@ -67,6 +67,37 @@ pub fn bytes_to_mib(bytes: u64) -> f64 {
     bytes as f64 / 1024.0 / 1024.0
 }
 
+const GPU_VENDOR_PREFIXES: &[&str] = &["AMD ", "NVIDIA ", "Intel "];
+const CONSUMER_GPU_PREFIXES: &[&str] = &["GeForce ", "Radeon "];
+
+pub fn clean_gpu_name(name: &str) -> &str {
+    let mut short = name.trim();
+
+    if let Some(marketing_name) = GPU_VENDOR_PREFIXES
+        .iter()
+        .find_map(|&prefix| short.strip_prefix(prefix))
+    {
+        short = marketing_name
+            .split_once('[')
+            .map_or(marketing_name, |(model, _)| model.trim_end());
+    } else if let Some((_, bracketed)) = short.split_once('[')
+        && let Some((model, _)) = bracketed.split_once(']')
+    {
+        // PCI device names carry the marketing name in brackets, e.g. "DG2 [Arc A770]"
+        short = model.trim();
+    }
+
+    short = GPU_VENDOR_PREFIXES
+        .iter()
+        .find_map(|&prefix| short.strip_prefix(prefix))
+        .unwrap_or(short);
+
+    CONSUMER_GPU_PREFIXES
+        .iter()
+        .find_map(|&prefix| short.strip_prefix(prefix))
+        .unwrap_or(short)
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Pong;
 
@@ -121,7 +152,7 @@ pub struct DeviceListEntry {
 impl Display for DeviceListEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.name {
-            Some(name) => Display::fmt(name, f),
+            Some(name) => Display::fmt(clean_gpu_name(name), f),
             None => Display::fmt(&self.id, f),
         }
     }
@@ -183,13 +214,14 @@ impl DeviceInfo {
     pub fn info_elements(&self, stats: Option<&DeviceStats>) -> Vec<(String, Option<String>)> {
         let pci_info = self.pci_info.as_ref();
 
-        let mut gpu_model = self
-            .drm_info
-            .as_ref()
-            .and_then(|drm| drm.device_name.as_deref())
-            .or_else(|| pci_info.and_then(|pci_info| pci_info.device_pci_info.model.as_deref()))
-            .unwrap_or("Unknown")
-            .to_owned();
+        let mut gpu_model = clean_gpu_name(
+            self.drm_info
+                .as_ref()
+                .and_then(|drm| drm.device_name.as_deref())
+                .or_else(|| pci_info.and_then(|pci_info| pci_info.device_pci_info.model.as_deref()))
+                .unwrap_or("Unknown"),
+        )
+        .to_owned();
 
         let mut card_manufacturer = pci_info
             .and_then(|info| info.subsystem_pci_info.vendor.as_deref())

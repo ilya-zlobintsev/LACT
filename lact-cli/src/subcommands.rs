@@ -11,13 +11,10 @@ const PROFILE_DEFAULT: &str = "Default";
 pub async fn list_gpus(ctx: CliContext<'_>) -> Result<()> {
     let entries = ctx.client.list_devices().await?;
     for (i, entry) in entries.into_iter().enumerate() {
-        let id = entry.id;
-        let device_type = entry.device_type;
-
-        if let Some(name) = entry.name {
-            println!("{i}: {id} ({name}) [{device_type}]");
+        if entry.name.is_some() {
+            println!("{i}: {} ({entry}) [{}]", entry.id, entry.device_type);
         } else {
-            println!("{i}: {id} [{device_type}]");
+            println!("{i}: {} [{}]", entry.id, entry.device_type);
         }
     }
     Ok(())
