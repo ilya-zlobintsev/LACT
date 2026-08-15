@@ -210,14 +210,13 @@ impl DeviceInfo {
     pub fn info_elements(&self, stats: Option<&DeviceStats>) -> Vec<(String, Option<String>)> {
         let pci_info = self.pci_info.as_ref();
 
-        let mut gpu_model = clean_gpu_name(
-            self.drm_info
-                .as_ref()
-                .and_then(|drm| drm.device_name.as_deref())
-                .or_else(|| pci_info.and_then(|pci_info| pci_info.device_pci_info.model.as_deref()))
-                .unwrap_or("Unknown"),
-        )
-        .to_owned();
+        let mut gpu_model = self
+            .drm_info
+            .as_ref()
+            .and_then(|drm| drm.device_name.as_deref())
+            .or_else(|| pci_info.and_then(|pci_info| pci_info.device_pci_info.model.as_deref()))
+            .unwrap_or("Unknown")
+            .to_owned();
 
         let mut card_manufacturer = pci_info
             .and_then(|info| info.subsystem_pci_info.vendor.as_deref())
