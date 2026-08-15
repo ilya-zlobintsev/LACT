@@ -241,6 +241,8 @@ daemon-connection-lost = Connection Lost
 service-explanation =
     Applying GPU settings requires the LACT system service.
     Without it, LACT runs in standalone mode, where only information and monitoring are available.
+service-setup-title = Service Setup
+setup-error = Setup error: {$error}
 service-connection-status = Connection Status
 service-status = Service Status
 service-permission-denied =
