@@ -38,8 +38,9 @@ i18n-embed = { version = "0.16.0", features = [
     "fluent-system",
     "desktop-requester",
 ] }
-i18n-embed-fl = "0.10.0"
+i18n-embed-fl = "0.10.1"
 rust-embed = { version = "8.12.0", features = ["debug-embed"] }
+zbus = { version = "5.14.0", default-features = false, features = ["tokio"] }
 
 [profile.release]
 strip = "symbols"
@@ -61,8 +62,3 @@ strip = false
 debug = 1
 lto = "thin"
 codegen-units = 256
-
-[patch.crates-io]
-# Compilation warning fix from https://github.com/GnomedDev/proc-macro-error-2/pull/14
-# Can be removed when https://github.com/kellpossible/cargo-i18n/issues/172 is fixed
-proc-macro-error2 = { git = "https://github.com/fgardt/proc-macro-error-2", rev = "53ff94b61c678593158db1a3d50269c6f0de0db7" }

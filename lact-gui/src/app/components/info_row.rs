@@ -28,6 +28,7 @@ impl InfoRow {
 pub trait InfoRowExt {
     fn append_child(&self, widget: &impl IsA<gtk::Widget>);
     fn set_value_size_group(&self, size_group: &gtk::SizeGroup);
+    fn set_value_css_classes(&self, classes: &[&str]);
 
     fn set_name(&self, name: String);
     fn set_value(&self, value: String);
@@ -44,6 +45,10 @@ impl<T: IsA<InfoRow>> InfoRowExt for T {
 
     fn set_value_size_group(&self, size_group: &gtk::SizeGroup) {
         size_group.add_widget(&self.as_ref().imp().value_label);
+    }
+
+    fn set_value_css_classes(&self, classes: &[&str]) {
+        self.as_ref().imp().value_label.set_css_classes(classes);
     }
 
     fn set_name(&self, name: String) {

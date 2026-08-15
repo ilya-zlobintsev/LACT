@@ -26,7 +26,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     fmt::{self, Display},
     fs,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, ErrorKind},
     os::{fd::AsRawFd, raw::c_int},
     path::{Path, PathBuf},
     str::FromStr,
@@ -175,21 +175,21 @@ impl IntelGpuController {
 
         trace!("reading file from '{}'", file_path.display());
 
-        if file_path.exists() {
-            match fs::read_to_string(&file_path) {
-                Ok(contents) => match contents.trim().parse() {
-                    Ok(value) => return Some(value),
-                    Err(err) => {
-                        error!(
-                            "could not parse value from '{}': {err}",
-                            file_path.display()
-                        );
-                    }
-                },
+        match fs::read_to_string(&file_path) {
+            Ok(contents) => match contents.trim().parse() {
+                Ok(value) => return Some(value),
                 Err(err) => {
-                    error!("could not read file at '{}': {err}", file_path.display());
+                    error!(
+                        "could not parse value from '{}': {err}",
+                        file_path.display()
+                    );
                 }
+            },
+
+            Err(err) if err.kind() != ErrorKind::NotFound => {
+                error!("could not read file at '{}': {err}", file_path.display());
             }
+            Err(_) => {}
         }
         None
     }

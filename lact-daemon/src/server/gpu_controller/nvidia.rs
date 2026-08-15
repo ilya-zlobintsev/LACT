@@ -5,7 +5,6 @@ use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::gpu_controller::{
-        NvApi,
         common::{fan_control::FanCurveExt, resolve_process_name},
         nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
     },
@@ -14,7 +13,7 @@ use amdgpu_sysfs::{
     gpu_handle::{PowerLevelId, fan_control::FanInfo, power_profile_mode::PowerProfileModesTable},
     hw_mon::Temperature,
 };
-use anyhow::{Context, anyhow, bail};
+use anyhow::{Context, anyhow, bail, ensure};
 use driver::DriverHandle;
 use futures::{FutureExt, future::LocalBoxFuture};
 use indexmap::IndexMap;
@@ -22,10 +21,11 @@ use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
     DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
     FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaThermalInfo,
-    NvidiaVfPoint, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo, ProcessList,
-    ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
+    NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo,
+    ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
 };
+use nvapi::NvApi;
 use nvml_wrapper::{
     Device, Nvml,
     bitmasks::device::{PowerMizerModes, ThrottleReasons},
@@ -38,6 +38,7 @@ use std::{
     cmp,
     collections::{BTreeMap, HashMap, btree_map::Entry},
     fmt::Write,
+    ops::RangeInclusive,
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -51,13 +52,15 @@ const SUPPORTED_UTIL_TYPES: &[ProcessUtilizationType] = &[
     ProcessUtilizationType::Decode,
 ];
 
+const VOLTAGE_BOOST_RANGE: RangeInclusive<i32> = 0..=100;
+
 pub struct NvidiaGpuController {
-    nvml: &'static Nvml,
+    nvml: Rc<Nvml>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
     initial_target_temp: Option<u32>,
 
-    nvapi: Option<(&'static NvApi, NvPhysicalGpuHandle)>,
+    nvapi: Option<(Rc<NvApi>, NvPhysicalGpuHandle)>,
     driver_handle: Option<DriverHandle>,
     nvapi_thermals_mask: Option<i32>,
 
@@ -68,6 +71,7 @@ pub struct NvidiaGpuController {
     last_applied_vram_locked_clocks: RefCell<Option<(u32, u32)>>,
     // Check if reset is needed to avoid unnecessarily going to nvapi
     vf_curve_written: Cell<bool>,
+    voltage_boost_written: Cell<bool>,
     // Used as the initial value on cards which do not report base VF points themselves (Turing)
     base_vf_curve: RefCell<Option<Vec<NvidiaVfPoint>>>,
 }
@@ -75,8 +79,8 @@ pub struct NvidiaGpuController {
 impl NvidiaGpuController {
     pub fn new(
         common: CommonControllerInfo,
-        nvml: &'static Nvml,
-        nvapi: Option<&'static NvApi>,
+        nvml: Rc<Nvml>,
+        nvapi: Option<Rc<NvApi>>,
     ) -> anyhow::Result<Self> {
         let device = nvml
             .device_by_pci_bus_id(common.pci_slot_name.as_str())
@@ -144,6 +148,7 @@ impl NvidiaGpuController {
             last_applied_gpu_locked_clocks: RefCell::new(None),
             last_applied_vram_locked_clocks: RefCell::new(None),
             vf_curve_written: Cell::new(false),
+            voltage_boost_written: Cell::new(false),
             base_vf_curve: RefCell::new(None),
         })
     }
@@ -205,7 +210,7 @@ impl NvidiaGpuController {
         let notify = Rc::new(Notify::new());
         let task_notify = notify.clone();
 
-        let nvml = self.nvml;
+        let nvml = self.nvml.clone();
         let pci_slot_id = self.common.pci_slot_name.clone();
         debug!("spawning new fan control task");
 
@@ -549,6 +554,54 @@ impl NvidiaGpuController {
         Ok(())
     }
 
+    fn get_voltage_boost(&self) -> anyhow::Result<NvidiaVoltageBoost> {
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+
+        let current = unsafe { nvapi.get_voltage_boost(*handle)? };
+
+        Ok(NvidiaVoltageBoost {
+            current: current.into(),
+            min: *VOLTAGE_BOOST_RANGE.start(),
+            max: *VOLTAGE_BOOST_RANGE.end(),
+        })
+    }
+
+    fn apply_voltage_boost(&self, percent: i32) -> anyhow::Result<()> {
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+
+        if !VOLTAGE_BOOST_RANGE.contains(&percent) {
+            bail!("Configured voltage boost {percent}% is outside of the allowed range");
+        }
+        let percent = u8::try_from(percent).expect("Validated value fits into u8");
+
+        debug!("applying voltage boost {percent}%");
+
+        unsafe {
+            nvapi.set_voltage_boost(*handle, percent)?;
+        }
+        self.voltage_boost_written.set(true);
+
+        let applied = unsafe { nvapi.get_voltage_boost(*handle) }
+            .context("Could not verify voltage boost")?;
+        ensure!(
+            applied == percent,
+            "Voltage boost was not applied: requested {percent}%, driver reports {applied}%"
+        );
+
+        Ok(())
+    }
+
+    fn reset_voltage_boost(&self) -> anyhow::Result<()> {
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+
+        unsafe {
+            nvapi.set_voltage_boost(*handle, 0)?;
+        }
+        self.voltage_boost_written.set(false);
+
+        Ok(())
+    }
+
     fn reset_target_temp(&self) -> anyhow::Result<()> {
         if let Some(initial) = self.initial_target_temp {
             let device = self.device();
@@ -578,6 +631,23 @@ fn point_count_from_mask(mask: [u32; 8]) -> usize {
     let count: usize = mask.iter().map(|i| i.count_ones() as usize).sum();
     assert!(u8::try_from(count).is_ok());
     count
+}
+
+fn average_fan_value<E>(
+    num_fans: u32,
+    mut get_value: impl FnMut(u32) -> Result<u32, E>,
+) -> Option<u32> {
+    let mut sum: u32 = 0;
+    let mut count: u32 = 0;
+
+    for idx in 0..num_fans {
+        if let Ok(value) = get_value(idx) {
+            sum = sum.saturating_add(value);
+            count += 1;
+        }
+    }
+
+    (count > 0).then(|| sum / count)
 }
 
 fn apply_power_mizer_mode(
@@ -892,26 +962,10 @@ impl GpuController for NvidiaGpuController {
         let (pwm_current, speed_current) = if num_fans == 0 {
             (None, None)
         } else {
-            let fan_speeds = (0..num_fans)
-                .flat_map(|idx| device.fan_speed(idx))
-                .collect::<Vec<_>>();
+            let pwm_current = average_fan_value(num_fans, |idx| device.fan_speed(idx))
+                .map(|avg_speed| (f64::from(avg_speed) * 2.55) as u8);
 
-            let pwm_current = if fan_speeds.is_empty() {
-                None
-            } else {
-                let avg_speed: u32 = fan_speeds.iter().sum::<u32>() / fan_speeds.len() as u32;
-                Some((f64::from(avg_speed) * 2.55) as u8)
-            };
-
-            let fan_speeds_rpm = (0..num_fans)
-                .flat_map(|idx| device.fan_speed_rpm(idx))
-                .collect::<Vec<_>>();
-
-            let speed_current = if fan_speeds_rpm.is_empty() {
-                None
-            } else {
-                Some(fan_speeds_rpm.iter().sum::<u32>() / fan_speeds_rpm.len() as u32)
-            };
+            let speed_current = average_fan_value(num_fans, |idx| device.fan_speed_rpm(idx));
 
             (pwm_current, speed_current)
         };
@@ -940,6 +994,7 @@ impl GpuController for NvidiaGpuController {
 
         let fan_range = device.min_max_fan_speed().ok();
         let power_mizer_info = device.power_mizer_mode().ok();
+        let power_constraints = device.power_management_limit_constraints().ok();
 
         DeviceStats {
             temps,
@@ -972,14 +1027,12 @@ impl GpuController for NvidiaGpuController {
                     .power_management_limit()
                     .map(|mw| f64::from(mw) / 1000.0)
                     .ok(),
-                cap_max: device
-                    .power_management_limit_constraints()
-                    .map(|constraints| f64::from(constraints.max_limit) / 1000.0)
-                    .ok(),
-                cap_min: device
-                    .power_management_limit_constraints()
-                    .map(|constraints| f64::from(constraints.min_limit) / 1000.0)
-                    .ok(),
+                cap_max: power_constraints
+                    .as_ref()
+                    .map(|constraints| f64::from(constraints.max_limit) / 1000.0),
+                cap_min: power_constraints
+                    .as_ref()
+                    .map(|constraints| f64::from(constraints.min_limit) / 1000.0),
                 cap_default: device
                     .power_management_limit_default()
                     .map(|mw| f64::from(mw) / 1000.0)
@@ -1087,6 +1140,11 @@ impl GpuController for NvidiaGpuController {
             .inspect_err(|err| warn!("could not get VF curve: {err:#}"))
             .unwrap_or_default();
 
+        let voltage_boost = self
+            .get_voltage_boost()
+            .inspect_err(|err| warn!("could not get voltage boost: {err:#}"))
+            .ok();
+
         let table = NvidiaClocksTable {
             gpu_offsets,
             mem_offsets,
@@ -1095,6 +1153,7 @@ impl GpuController for NvidiaGpuController {
             gpu_clock_range,
             vram_clock_range,
             gpu_vf_curve,
+            voltage_boost,
         };
 
         Ok(ClocksInfo {
@@ -1196,6 +1255,18 @@ impl GpuController for NvidiaGpuController {
             if !clocks.gpu_vf_curve.is_empty() {
                 self.apply_vf_curve(&clocks.gpu_vf_curve)
                     .context("Could not apply VF curve")?;
+            }
+
+            if let Some(percent) = clocks.voltage_boost
+                && let Err(err) = self.apply_voltage_boost(percent)
+            {
+                warn!("could not apply voltage boost: {err:#}");
+
+                if self.voltage_boost_written.get()
+                    && let Err(err) = self.reset_voltage_boost()
+                {
+                    warn!("could not reset voltage boost: {err:#}");
+                }
             }
 
             if config.fan_control_enabled {
@@ -1315,6 +1386,11 @@ impl GpuController for NvidiaGpuController {
 
         if self.vf_curve_written.get() {
             self.reset_vf_curve().context("Could not reset VF curve")?;
+        }
+
+        if self.voltage_boost_written.get() {
+            self.reset_voltage_boost()
+                .context("Could not reset voltage boost")?;
         }
 
         Ok(())

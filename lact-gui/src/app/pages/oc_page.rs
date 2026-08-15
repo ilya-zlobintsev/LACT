@@ -1,10 +1,12 @@
 mod clocks_frame;
-mod gpu_stats_section;
 mod performance_frame;
 mod power_cap_section;
 mod power_states;
 mod vf_curve;
 
+use crate::app::components::gpu_stats_section::{
+    GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
+};
 use crate::app::pages::PageUpdate;
 use crate::app::utils::ext::RelmLaunchable as _;
 use crate::app::{msg::AppMsg, utils::ext::RelmDefaultLauchable};
@@ -12,7 +14,6 @@ use amdgpu_sysfs::gpu_handle::{
     PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
 use clocks_frame::{ClocksFrame, ClocksFrameMsg};
-use gpu_stats_section::{GpuStatsSection, GpuStatsSectionMsg};
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use indexmap::IndexMap;
 use lact_schema::config;
@@ -23,6 +24,7 @@ use power_cap_section::{PowerCapMsg, PowerCapSection};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
 use relm4::binding::BoolBinding;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
+use std::collections::HashSet;
 use std::sync::Arc;
 use tracing::debug;
 use vf_curve::{VfCurveEditor, VfCurveEditorMsg};
@@ -82,7 +84,22 @@ impl relm4::Component for OcPage {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let stats_section = GpuStatsSection::detach_default();
+        let stats_section = GpuStatsSection::detach(GpuStatsSectionConfig {
+            stats: HashSet::from([
+                GpuStat::DeviceName,
+                GpuStat::Throttling,
+                GpuStat::GpuClockTarget,
+                GpuStat::GpuVoltage,
+                GpuStat::Temperature,
+                GpuStat::GpuClock,
+                GpuStat::VramClock,
+                GpuStat::GpuUsage,
+                GpuStat::VramUsage,
+                GpuStat::GttUsage,
+                GpuStat::PowerUsage,
+                GpuStat::FanSpeed,
+            ]),
+        });
         let power_cap_section = PowerCapSection::detach_default();
         let clocks_frame = ClocksFrame::launch_default().forward(sender.input_sender(), |msg| msg);
         let power_states_frame = PowerStatesFrame::detach_default();

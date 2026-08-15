@@ -17,7 +17,7 @@ fn ping_requset() {
 fn pong_response() {
     let expected_response = json!({
         "status": "ok",
-        "data": null
+        "data": null,
     });
     let response = Response::Ok(Pong);
 

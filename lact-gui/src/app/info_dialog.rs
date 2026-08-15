@@ -16,9 +16,7 @@ pub enum InfoDialogId {
     #[default]
     Unknown,
     Error,
-    EmbeddedDaemonInfo,
     ResetConfigConfirmation,
-    VersionMismatch,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -27,7 +25,6 @@ pub struct InfoDialogData {
     pub heading: String,
     pub body: String,
     pub stacktrace: Option<String>,
-    pub selectable_text: Option<String>,
     pub confirmation: Option<InfoDialogConfirmation>,
 }
 
@@ -159,12 +156,6 @@ impl relm4::Component for InfoDialogEntry {
                     set_label: &model.data.body,
                     set_wrap: true,
                     set_xalign: 0.0,
-                },
-
-                gtk::Entry {
-                    set_visible: model.data.selectable_text.is_some(),
-                    set_text: model.data.selectable_text.as_deref().unwrap_or_default(),
-                    set_editable: false,
                 },
 
                 gtk::ScrolledWindow {

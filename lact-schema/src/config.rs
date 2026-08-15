@@ -89,6 +89,7 @@ pub struct ClocksConfiguration {
     )]
     pub mem_vf_curve: IndexMap<u8, CurvePoint>,
     pub voltage_offset: Option<i32>,
+    pub voltage_boost: Option<i32>,
 }
 
 impl ClocksConfiguration {
@@ -102,6 +103,7 @@ impl ClocksConfiguration {
             ClockspeedType::MinMemoryClock => self.min_memory_clock = value,
             ClockspeedType::MinVoltage => self.min_voltage = value,
             ClockspeedType::VoltageOffset => self.voltage_offset = value,
+            ClockspeedType::VoltageBoost => self.voltage_boost = value,
             ClockspeedType::GpuClockOffset(pstate) => match value {
                 Some(value) => {
                     self.gpu_clock_offsets.insert(pstate, value);

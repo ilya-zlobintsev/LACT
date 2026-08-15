@@ -52,7 +52,6 @@ const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
 const REQUIRE_MANUAL_DEVICE_IDS: [&str; 3] = ["163F", "1435", "15BF"];
-const UHBR_RATE_THRESHOLD: u32 = 1000;
 const AMDGPU_IDS_FLAGS_FUSION: u64 = 0x1;
 const HSA_CACHE_TYPE_DATA: u32 = 0x0000_0001;
 const HSA_CACHE_TYPE_INSTRUCTION: u32 = 0x0000_0002;
@@ -569,12 +568,14 @@ impl AmdGpuController {
         let cache_info = self
             .kfd_node_path()
             .inspect(|path| debug!("found KFD node path at '{}'", path.display()))
-            .and_then(|path| match read_cache_info_from_kfd(&path) {
-                Ok(info) => Some(info),
-                Err(err) => {
-                    warn!("could not read cache info from kfd sysfs: {err:#}");
-                    None
-                }
+            .and_then(|path| {
+                #[cfg_attr(test, allow(unused_variables))]
+                read_cache_info_from_kfd(&path)
+                    .inspect_err(|err| {
+                        #[cfg(not(test))]
+                        warn!("could not read cache info from kfd sysfs: {err:#}");
+                    })
+                    .ok()
             });
 
         trace!("Reading DRM info");
@@ -748,100 +749,6 @@ impl AmdGpuController {
             .parent()
             .and_then(|path| path.parent())
             .map(|path| path.join("kfd/topology/nodes/1"))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use amdgpu_sysfs::gpu_handle::PowerLevel;
-
-    #[test]
-    fn normalize_power_level_indexes_keeps_zero_based_indexes_after_sleep_state() {
-        let levels = normalize_indexes(
-            vec![
-                PowerLevelId::Sleep,
-                PowerLevelId::Index(0),
-                PowerLevelId::Index(1),
-                PowerLevelId::Index(2),
-            ],
-            Some(PowerLevelId::Index(1)),
-        );
-
-        assert_eq!(
-            level_ids(&levels),
-            [
-                PowerLevelId::Sleep,
-                PowerLevelId::Index(0),
-                PowerLevelId::Index(1),
-                PowerLevelId::Index(2)
-            ]
-        );
-        assert_eq!(levels.active, Some(PowerLevelId::Index(1)));
-    }
-
-    #[test]
-    fn normalize_power_level_indexes_keeps_zero_based_indexes_without_sleep_state() {
-        let levels = normalize_indexes(
-            vec![
-                PowerLevelId::Index(0),
-                PowerLevelId::Index(1),
-                PowerLevelId::Index(2),
-            ],
-            Some(PowerLevelId::Index(2)),
-        );
-
-        assert_eq!(
-            level_ids(&levels),
-            [
-                PowerLevelId::Index(0),
-                PowerLevelId::Index(1),
-                PowerLevelId::Index(2)
-            ]
-        );
-        assert_eq!(levels.active, Some(PowerLevelId::Index(2)));
-    }
-
-    #[test]
-    fn normalize_power_level_indexes_shifts_one_based_indexes_after_sleep_state() {
-        let levels = normalize_indexes(
-            vec![
-                PowerLevelId::Sleep,
-                PowerLevelId::Index(1),
-                PowerLevelId::Index(2),
-                PowerLevelId::Index(3),
-            ],
-            Some(PowerLevelId::Index(2)),
-        );
-
-        assert_eq!(
-            level_ids(&levels),
-            [
-                PowerLevelId::Sleep,
-                PowerLevelId::Index(0),
-                PowerLevelId::Index(1),
-                PowerLevelId::Index(2)
-            ]
-        );
-        assert_eq!(levels.active, Some(PowerLevelId::Index(1)));
-    }
-
-    fn normalize_indexes(ids: Vec<PowerLevelId>, active: Option<PowerLevelId>) -> PowerLevels<u64> {
-        AmdGpuController::normalize_power_level_indexes(PowerLevels {
-            levels: ids
-                .into_iter()
-                .enumerate()
-                .map(|(value, id)| PowerLevel {
-                    id,
-                    value: value as u64,
-                })
-                .collect(),
-            active,
-        })
-    }
-
-    fn level_ids<T>(levels: &PowerLevels<T>) -> Vec<PowerLevelId> {
-        levels.levels.iter().map(|level| level.id).collect()
     }
 }
 
@@ -1323,6 +1230,7 @@ impl GpuController for AmdGpuController {
                         }
                     }
                 }
+                Err(err) if err.is_not_found() => (),
                 Err(err) => {
                     error!("could not get current performance level: {err}");
                 }
@@ -1583,6 +1491,8 @@ impl GpuController for AmdGpuController {
 
     #[cfg(feature = "display-info")]
     fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()> {
+        const UHBR_RATE_THRESHOLD: u32 = 1000;
+
         let debugfs = self.debugfs_path().context("Could not get debugfs")?;
 
         for (connector, info) in &mut info.displays {
@@ -1874,4 +1784,98 @@ fn read_cache_info_from_kfd(node_path: &Path) -> anyhow::Result<CacheInfo> {
     });
 
     Ok(CacheInfo::Amd(items))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use amdgpu_sysfs::gpu_handle::PowerLevel;
+
+    #[test]
+    fn normalize_power_level_indexes_keeps_zero_based_indexes_after_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+            ],
+            Some(PowerLevelId::Index(1)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(1)));
+    }
+
+    #[test]
+    fn normalize_power_level_indexes_keeps_zero_based_indexes_without_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+            ],
+            Some(PowerLevelId::Index(2)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(2)));
+    }
+
+    #[test]
+    fn normalize_power_level_indexes_shifts_one_based_indexes_after_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+                PowerLevelId::Index(3),
+            ],
+            Some(PowerLevelId::Index(2)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(1)));
+    }
+
+    fn normalize_indexes(ids: Vec<PowerLevelId>, active: Option<PowerLevelId>) -> PowerLevels<u64> {
+        AmdGpuController::normalize_power_level_indexes(PowerLevels {
+            levels: ids
+                .into_iter()
+                .enumerate()
+                .map(|(value, id)| PowerLevel {
+                    id,
+                    value: value as u64,
+                })
+                .collect(),
+            active,
+        })
+    }
+
+    fn level_ids<T>(levels: &PowerLevels<T>) -> Vec<PowerLevelId> {
+        levels.levels.iter().map(|level| level.id).collect()
+    }
 }

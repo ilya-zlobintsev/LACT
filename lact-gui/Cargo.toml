@@ -1,6 +1,6 @@
 [package]
 name = "lact-gui"
-version = "0.9.2"
+version = "0.10.1"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition.workspace = true
 
@@ -36,6 +36,9 @@ relm4-components = "0.11.0"
 i18n-embed = { workspace = true }
 i18n-embed-fl = { workspace = true }
 rust-embed = { workspace = true }
+
+futures = { workspace = true }
+zbus = { workspace = true }
 
 plotters = { version = "0.3.7", default-features = false, features = [
     "area_series",

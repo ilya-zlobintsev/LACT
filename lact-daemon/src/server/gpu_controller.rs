@@ -17,7 +17,8 @@ use tokio::join;
 pub const VENDOR_AMD: &str = "1002";
 pub const VENDOR_NVIDIA: &str = "10DE";
 
-use crate::server::handler::{AMD_DRM, INTEL_DRM, NVML};
+use crate::config::Config;
+use crate::server::handler::{AMD_DRM, INTEL_DRM};
 use crate::server::opencl::get_opencl_info;
 use crate::server::vulkan::get_vulkan_info;
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
@@ -28,16 +29,11 @@ use lact_schema::{
     ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates, config::GpuConfig,
 };
 use std::io;
-#[cfg(feature = "nvidia")]
-use std::sync::Arc;
+use std::sync::LazyLock;
+use std::sync::Mutex;
 use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, warn};
-
-#[cfg(feature = "nvidia")]
-pub use nvidia::nvapi::NvApi;
-#[cfg(feature = "nvidia")]
-use nvml_wrapper::Nvml;
 
 pub type DynGpuController = Box<dyn GpuController>;
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
@@ -166,18 +162,10 @@ pub struct PciSlotInfo {
     pub func: u16,
 }
 
-#[cfg(feature = "nvidia")]
-pub type NvidiaLibs = (Arc<Nvml>, Arc<Option<NvApi>>);
-#[cfg(not(feature = "nvidia"))]
-pub type NvidiaLibs = ();
-
-pub(crate) fn init_controller(
+pub(crate) fn build_controller_info(
     path: PathBuf,
     pci_db: &pciid_parser::Database,
-) -> anyhow::Result<Box<dyn GpuController>> {
-    #[cfg(not(feature = "nvidia"))]
-    let _ = NVML;
-
+) -> anyhow::Result<CommonControllerInfo> {
     let uevent_path = path.join("uevent");
     let uevent = fs::read_to_string(uevent_path).context("Could not read 'uevent'")?;
     let mut uevent_map = parse_uevent(&uevent);
@@ -239,12 +227,76 @@ pub(crate) fn init_controller(
     pci_info.subsystem_pci_info.model =
         get_embedded_device_name(&pci_info).or(pci_info.subsystem_pci_info.model);
 
-    let common = CommonControllerInfo {
+    Ok(CommonControllerInfo {
         sysfs_path: path,
         pci_info,
         pci_slot_name,
         driver,
-    };
+    })
+}
+
+#[cfg_attr(any(not(feature = "nvidia"), test), allow(unused_variables))]
+pub(crate) fn init_controller(
+    common: CommonControllerInfo,
+    config: &Config,
+) -> anyhow::Result<Box<dyn GpuController>> {
+    static INIT_MUTEX: Mutex<()> = Mutex::new(());
+
+    #[cfg(not(feature = "nvidia"))]
+    let _ = config;
+
+    // SAFETY: We use global LazyLock to make sure it's safe.
+    // Loading of shared libaries is unsafe
+    // https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
+    let _guard = INIT_MUTEX.lock().unwrap();
+
+    #[cfg(feature = "nvidia")]
+    #[allow(unused_unsafe)]
+    let nvml = LazyLock::new(|| unsafe {
+        use nvml_wrapper::Nvml;
+        use tracing::info;
+
+        Nvml::init()
+            .map(|nvml| {
+                info!(
+                    "Nvidia management library {} loaded",
+                    nvml.sys_nvml_version()
+                        .unwrap_or_else(|err| err.to_string())
+                );
+                Rc::new(nvml)
+            })
+            .inspect_err(|err| {
+                error!("could not load Nvidia management library: {err}");
+            })
+            .ok()
+    });
+
+    #[cfg(not(feature = "nvidia"))]
+    let nvml: LazyLock<Option<()>> = LazyLock::new(|| None);
+
+    #[cfg(feature = "nvidia")]
+    let nvapi = LazyLock::new(|| {
+        use crate::server::gpu_controller::nvidia::nvapi::NvApi;
+        use tracing::info;
+
+        if config.daemon.disable_nvapi == Some(true) {
+            info!("NvAPI support is disabled");
+            None
+        } else {
+            NvApi::new()
+                .map(|nvapi| {
+                    info!("NvAPI library loaded");
+                    Rc::new(nvapi)
+                })
+                .inspect_err(|err| {
+                    warn!("could not load NvAPI library: {err:#}");
+                })
+                .ok()
+        }
+    });
+
+    #[cfg(not(feature = "nvidia"))]
+    let nvapi: LazyLock<Option<()>> = LazyLock::new(|| None);
 
     match common.driver.as_str() {
         "amdgpu" | "radeon" => {
@@ -265,8 +317,8 @@ pub(crate) fn init_controller(
         }
         #[cfg(feature = "nvidia")]
         "nvidia" => {
-            if let Some((nvml, nvapi)) = NVML.as_ref() {
-                match NvidiaGpuController::new(common.clone(), nvml, nvapi.as_ref().as_ref()) {
+            if let Some(nvml) = nvml.clone() {
+                match NvidiaGpuController::new(common.clone(), nvml, nvapi.clone()) {
                     Ok(controller) => {
                         return Ok(Box::new(controller));
                     }

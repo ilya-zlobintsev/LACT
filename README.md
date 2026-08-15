@@ -138,6 +138,8 @@ On most desktop configurations (such as the default setup on Arch-based, most
 Debian-based or Fedora systems) this includes the default user, so you do not
 need to configure this.
 
+This is not needed if you are using the Flatpak, the flatpak service setup handles permissions.
+
 However, some systems may have different user configuration. In particular, this
 has been reported to be a problem on OpenSUSE.
 
@@ -145,7 +147,7 @@ To fix socket permissions in such configurations, edit `/etc/lact/config.yaml`
 and under the `daemon` section either:
 
 - Set `admin_user` to your username
-- Set `admin_group` to a group that your user is a part of Then restart the
+- Set `admin_group` to a group that your user is a part of, then restart the
   service (`sudo systemctl restart lactd`).
 
 # Overclocking (AMD)
@@ -362,8 +364,20 @@ There is also a cli available.
           disabled
           ```
 
-The functionality of the CLI is quite limited. If you want to integrate LACT
-with some application/script, you should use the [API](./docs/API.md) instead.
+  - Detach GPU (makes LACT temporarily ignore it):
+
+    ```
+    lact cli --gpu-id=10DE:2704-1462:5110-0000:01:00.0 detach
+    ```
+
+  - Reattach GPU:
+  
+    ```
+    lact cli --gpu-id=10DE:2704-1462:5110-0000:01:00.0 reattach
+    ```
+
+Note that not all functionality is exposed through the CLI. If you want to integrate LACT
+with some application/script, you can use the [API](./docs/API.md) instead.
 
 # Reporting issues
 

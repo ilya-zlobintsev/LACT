@@ -15,10 +15,12 @@ use gtk::prelude::{BoxExt, OrientableExt, PopoverExt as _, WidgetExt};
 use i18n_embed_fl::fl;
 use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt as _};
+use std::collections::HashSet;
 use std::str::FromStr as _;
 use std::sync::Arc;
 
 pub struct GpuStatsSection {
+    stats_to_show: HashSet<GpuStat>,
     stats: Arc<DeviceStats>,
     vram_clock_ratio: f64,
     gpu_model: String,
@@ -39,7 +41,7 @@ pub enum GpuStatsSectionMsg {
 impl relm4::SimpleComponent for GpuStatsSection {
     type Input = GpuStatsSectionMsg;
     type Output = ();
-    type Init = ();
+    type Init = GpuStatsSectionConfig;
 
     view! {
         gtk::Box {
@@ -48,23 +50,35 @@ impl relm4::SimpleComponent for GpuStatsSection {
             set_spacing: 10,
 
             PageSection::new("") {
+                #[watch]
+                set_visible: model.visible_count(GpuStatDisplay::Digits) > 0,
+
                 append_child = &gtk::FlowBox {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,
                     set_row_spacing: 10,
                     set_homogeneous: true,
+
+                    #[watch]
+                    set_max_children_per_line: model.columns(GpuStatDisplay::Digits),
                     set_selection_mode: gtk::SelectionMode::None,
 
-                    append = &InfoRow {
+                    append_child = &InfoRow {
                         set_name: fl!(I18N, "device-name"),
                         #[watch]
                         set_value: model.gpu_model.clone(),
+                    } -> device_name_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: model.shows(GpuStat::DeviceName),
                     },
 
-                    append = &InfoRow {
+                    append_child = &InfoRow {
                         set_name: fl!(I18N, "throttling"),
                         #[watch]
                         set_value: formatting::fmt_throttling_text(&model.stats),
+                    } -> throttling_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: model.shows(GpuStat::Throttling),
                     },
 
                     append_child = &InfoRow {
@@ -73,7 +87,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_value: format_current_gfxclk(model.stats.clockspeed.target_gpu_clockspeed),
                     } -> clockspeed_target_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.clockspeed.target_gpu_clockspeed.is_some(),
+                        set_visible: model.shows(GpuStat::GpuClockTarget),
                     },
 
                     append_child = &InfoRow {
@@ -82,7 +96,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_value: format!("{} V", Mono::float(model.stats.voltage.gpu.unwrap_or(0) as f64 / 1000f64, 3)),
                     } -> gpu_voltage_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.voltage.gpu.is_some(),
+                        set_visible: model.shows(GpuStat::GpuVoltage),
                     },
 
 
@@ -90,13 +104,13 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_name: fl!(I18N, "gpu-temp"),
                         #[watch]
                         set_value: if primary_temperatures.is_empty() {
-                            "N/A".to_owned()
+                            fl!(I18N, "no-sensors-found")
                         } else {
                             primary_temperatures.join(", ")
                         },
                     } -> basic_temps_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: secondary_temperatures.is_empty(),
+                        set_visible: model.shows(GpuStat::Temperature) && secondary_temperatures.is_empty(),
                     },
 
                     append_child = &InfoRow {
@@ -128,16 +142,21 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         },
                     } -> full_temps_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: !secondary_temperatures.is_empty(),
+                        set_visible: model.shows(GpuStat::Temperature) && !secondary_temperatures.is_empty(),
                     },
                 },
             },
 
             PageSection::new("") {
+                #[watch]
+                set_visible: model.visible_count(GpuStatDisplay::LevelBar) > 0,
+
                 append_child = &gtk::FlowBox {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,
                     set_homogeneous: true,
+                    #[watch]
+                    set_max_children_per_line: model.columns(GpuStatDisplay::LevelBar),
                     set_selection_mode: gtk::SelectionMode::None,
 
                     append_child = &InfoRowLevel {
@@ -167,7 +186,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_value_size_group: &value_size_group,
                     } -> gpu_clock_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.clockspeed.gpu_clockspeed.is_some(),
+                        set_visible: model.shows(GpuStat::GpuClock),
                     },
 
                     append_child = &InfoRowLevel {
@@ -189,7 +208,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         }
                     } -> vram_clock_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.clockspeed.vram_clockspeed.is_some(),
+                        set_visible: model.shows(GpuStat::VramClock),
                     },
 
                     append_child = &InfoRowLevel {
@@ -201,7 +220,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_level_value: model.stats.busy_percent.unwrap_or(0) as f64 / 100.0,
                     } -> gpu_usage_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.busy_percent.is_some(),
+                        set_visible: model.shows(GpuStat::GpuUsage),
                     },
 
                     append_child = &InfoRowLevel {
@@ -220,7 +239,10 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             .zip(model.stats.vram.total)
                             .map(|(used, total)| used as f64 / total as f64)
                             .unwrap_or(0.0),
-                    } -> vram_usage_item: gtk::FlowBoxChild {},
+                    } -> vram_usage_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: model.shows(GpuStat::VramUsage),
+                    },
 
                     append_child = &InfoRowLevel {
                         set_name: fl!(I18N, "gtt-usage"),
@@ -240,7 +262,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                             .unwrap_or(0.0),
                     } -> gtt_usage_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.vram.gtt_used.is_some(),
+                        set_visible: model.shows(GpuStat::GttUsage),
                     },
 
                     append_child = &InfoRowLevel {
@@ -287,7 +309,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         },
                     } -> power_usage_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.power.average.is_some() || model.stats.power.current.is_some(),
+                        set_visible: model.shows(GpuStat::PowerUsage),
                     },
 
                     append_child = &InfoRowLevel {
@@ -295,12 +317,12 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         set_value_size_group: &value_size_group,
                         #[watch]
                         set_value: formatting::fmt_fan_speed(&model.stats, true)
-                            .unwrap_or_else(|| fl!(I18N, "missing-stat")),
+                            .unwrap_or_else(|| fl!(I18N, "no-fan-detected")),
                         #[watch]
                         set_level_value: model.stats.fan.pwm_current.map(|pwm| pwm as f64 / u8::MAX as f64).unwrap_or(0.0),
                     } -> fan_speed_item: gtk::FlowBoxChild {
                         #[watch]
-                        set_visible: model.stats.fan.pwm_current.is_some() || model.stats.fan.speed_current.is_some(),
+                        set_visible: model.shows(GpuStat::FanSpeed),
                     },
                 },
             },
@@ -308,7 +330,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
     }
 
     fn init(
-        _init: Self::Init,
+        config: Self::Init,
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -318,6 +340,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
             (Vec::new(), Vec::new());
 
         let model = Self {
+            stats_to_show: config.stats,
             stats: Arc::new(DeviceStats::default()),
             vram_clock_ratio: 1.0,
             gpu_model: String::new(),
@@ -361,6 +384,92 @@ impl relm4::SimpleComponent for GpuStatsSection {
     fn pre_view(&self) {
         let (primary_temperatures, secondary_temperatures) =
             formatting::fmt_temperature_text(&model.stats);
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GpuStatsSectionConfig {
+    pub stats: HashSet<GpuStat>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GpuStat {
+    DeviceName,
+    Throttling,
+    GpuClockTarget,
+    GpuVoltage,
+    Temperature,
+    GpuClock,
+    VramClock,
+    GpuUsage,
+    VramUsage,
+    GttUsage,
+    PowerUsage,
+    FanSpeed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GpuStatDisplay {
+    Digits,
+    LevelBar,
+}
+
+impl GpuStat {
+    /// Exhaustive on purpose: a new stat does not compile until it has been
+    /// given a display.
+    fn display(self) -> GpuStatDisplay {
+        match self {
+            Self::DeviceName
+            | Self::Throttling
+            | Self::GpuClockTarget
+            | Self::GpuVoltage
+            | Self::Temperature => GpuStatDisplay::Digits,
+            Self::GpuClock
+            | Self::VramClock
+            | Self::GpuUsage
+            | Self::VramUsage
+            | Self::GttUsage
+            | Self::PowerUsage
+            | Self::FanSpeed => GpuStatDisplay::LevelBar,
+        }
+    }
+}
+
+impl GpuStatsSection {
+    /// Whether a stat is both configured to be shown and reported by this GPU.
+    fn shows(&self, stat: GpuStat) -> bool {
+        self.stats_to_show.contains(&stat) && self.has_data_for(stat)
+    }
+
+    fn has_data_for(&self, stat: GpuStat) -> bool {
+        match stat {
+            // Rendered with a placeholder when unavailable
+            GpuStat::DeviceName
+            | GpuStat::Throttling
+            | GpuStat::Temperature
+            | GpuStat::VramUsage
+            | GpuStat::FanSpeed => true,
+            GpuStat::GpuClockTarget => self.stats.clockspeed.target_gpu_clockspeed.is_some(),
+            GpuStat::GpuVoltage => self.stats.voltage.gpu.is_some(),
+            GpuStat::GpuClock => self.stats.clockspeed.gpu_clockspeed.is_some(),
+            GpuStat::VramClock => self.stats.clockspeed.vram_clockspeed.is_some(),
+            GpuStat::GpuUsage => self.stats.busy_percent.is_some(),
+            GpuStat::GttUsage => self.stats.vram.gtt_used.is_some(),
+            GpuStat::PowerUsage => {
+                self.stats.power.average.is_some() || self.stats.power.current.is_some()
+            }
+        }
+    }
+
+    fn visible_count(&self, display: GpuStatDisplay) -> u32 {
+        self.stats_to_show
+            .iter()
+            .filter(|stat| stat.display() == display && self.has_data_for(**stat))
+            .count() as u32
+    }
+
+    fn columns(&self, display: GpuStatDisplay) -> u32 {
+        self.visible_count(display).clamp(1, 3)
     }
 }
 

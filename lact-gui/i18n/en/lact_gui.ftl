@@ -45,6 +45,8 @@ fan-control-section = Fan Control
 temperatures = Temperatures
 oc-missing-fan-control-warning = Warning: Overclocking support is disabled, fan control functionality is not available.
 fan-speed = Fan Speed
+no-fan-detected = No fan detected
+no-sensors-found = No sensors found
 throttling = Throttling
 auto-page = Automatic
 curve-page = Curve
@@ -57,6 +59,8 @@ zero-rpm = Zero RPM
 zero-rpm-stop-temp = Zero RPM stop temperature (°C)
 static-speed = Static Speed (%)
 reset-button = Reset
+reset-now-button = Reset Now
+default-button = Default
 pmfw-reset-warning = Warning: this resets the fan firmware settings!
 
 temperature-sensor = Temperature Sensor
@@ -100,7 +104,7 @@ amd-oc-updating-configuration = Updating configuration (this may take a while)
 amd-oc-updating-done = Configuration updated, please reboot to apply changes.
 
 reset-config = Reset Configuration
-reset-config-description = Are you sure you want to reset all GPU configuration?
+reset-config-description = This will reset all GPU settings to their defaults and permanently delete all profiles
 
 apply-button = Apply
 confirm = Confirm
@@ -196,6 +200,8 @@ min-gpu-clock = Minimum GPU Clock (MHz)
 min-vram-clock = Minimum VRAM Clock (MHz)
 min-gpu-voltage = Minimum GPU Voltage (mV)
 gpu-voltage-offset = GPU voltage offset (mV)
+gpu-voltage-boost = GPU Voltage Boost (%)
+gpu-voltage-boost-tooltip = Controls how much of the additional voltage headroom defined by the driver is available. 100% means all of this headroom, not 100% of total GPU voltage. More headroom may sustain higher clockspeeds but increases power draw and heat.
 gpu-pstate-clock-offset = GPU P-State {$pstate} Clock Offset (MHz)
 vram-pstate-clock-offset = VRAM P-State {$pstate} Clock Offset (MHz)
 gpu-pstate-clock = GPU P-State {$pstate} Clock (MHz)
@@ -230,18 +236,34 @@ edit-graph-sensors = Edit Graph Sensors
 error-heading = Error
 daemon-info-heading = Daemon info
 
-reconnecting-to-daemon = Daemon connection lost, reconnecting...
+reconnecting-to-daemon = Service connection lost, reconnecting...
 daemon-connection-lost = Connection Lost
-embedded-daemon-info =
-    Could not connect to daemon, running in embedded mode.
-    Please make sure the lactd service is running.
-    Using embedded mode, you will not be able to change any settings.
+service-explanation =
+    Applying GPU settings requires the LACT system service.
+    Without it, LACT runs in standalone mode, where only information and monitoring are available.
+service-setup-title = Service Setup
+setup-error = Setup error: {$error}
+service-connection-status = Connection Status
+service-status = Service Status
+service-permission-denied =
+    Permission denied, service is not configured to allow connections from your user.
+    See <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> for more information
+service-connected = connected
+service-disconnected = not connected
+service-version = Service Version
+gui-version = GUI Version
+service-version-mismatch = mismatched
+service-logs = Service Logs
 
-    {$error_info}To enable the daemon, run the following command, then restart LACT:
-version-mismatch = Version mismatch
+service-start = Start
+service-stop = Stop
+service-restart = Restart
+service-autostart = Autostart on boot
+service-autostart-disable = Also disable autostart
+
 version-mismatch-description =
     Version mismatch between GUI and Daemon ({$gui_version}-{$gui_commit} vs {$daemon_version}-{$daemon_commit})!
-    If you have updated LACT, you need to restart the service with:
+    If you have updated LACT, you need to restart the service.
 
 plot-show-detailed-info = Show detailed info
 

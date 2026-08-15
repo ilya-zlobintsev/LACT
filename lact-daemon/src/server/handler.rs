@@ -5,12 +5,17 @@ use super::{
 };
 #[cfg(feature = "display-info")]
 use crate::server::display;
+use crate::system::run_command;
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
-    server::{ClientContext, gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
+    server::{
+        ClientContext,
+        gpu_controller::{build_controller_info, init_controller},
+        profiles,
+        system::DAEMON_VERSION,
+    },
 };
-use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
     PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
@@ -28,12 +33,8 @@ use lact_schema::{
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
-#[cfg(all(not(test), feature = "nvidia"))]
-use nvml_wrapper::Nvml;
 use pciid_parser::Database;
 use serde_json::json;
-#[cfg(all(not(test), feature = "nvidia"))]
-use std::sync::Arc;
 use std::{
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap},
@@ -48,6 +49,7 @@ use std::{
 };
 use tokio::{
     process::Command,
+    select,
     sync::{RwLock, RwLockReadGuard, mpsc, oneshot},
     task::JoinHandle,
     time::sleep,
@@ -82,6 +84,7 @@ const SNAPSHOT_EXCLUDED_FILENAME_PREFIXES: &[&str] = &[
     "graphics",
     "pcie_bw",
     "msi_irqs",
+    "mtd",
 ];
 const CONFIG_RESET_CMDLINE_ARG: &str = "lact-reset";
 
@@ -105,6 +108,8 @@ pub struct Handler {
     profile_hold_snapshot: ProfileHoldSnapshot,
     next_hold_cookie: Rc<Cell<u64>>,
     polkit_proxy: Option<AuthorityProxy<'static>>,
+    ignored_gpu_ids: Rc<RwLock<Vec<String>>>,
+    reload_tx: Rc<mpsc::Sender<Duration>>,
 }
 
 impl<'a> Handler {
@@ -126,7 +131,7 @@ impl<'a> Handler {
         // For such scenarios there is a retry logic when no GPUs were found,
         // or if some of the PCI devices don't have a drm entry yet.
         for i in 1..=CONTROLLERS_LOAD_RETRY_ATTEMPTS {
-            controllers = load_controllers(base_path, pci_db)?;
+            controllers = load_controllers(base_path, pci_db, &[], &config)?;
 
             let mut should_retry = false;
 
@@ -189,6 +194,8 @@ impl<'a> Handler {
             })
             .ok();
 
+        let (reload_tx, reload_rx) = mpsc::channel(16);
+
         let handler = Self {
             gpu_controllers: Rc::new(RwLock::new(controllers)),
             config: Rc::new(RwLock::new(config)),
@@ -201,7 +208,10 @@ impl<'a> Handler {
             profile_hold_snapshot: Rc::new(RefCell::new(None)),
             next_hold_cookie: Rc::new(Cell::new(1)),
             polkit_proxy,
+            ignored_gpu_ids: Rc::new(RwLock::new(Vec::new())),
+            reload_tx: Rc::new(reload_tx),
         };
+
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
         }
@@ -213,6 +223,8 @@ impl<'a> Handler {
         if handler.config.read().await.auto_switch_profiles {
             handler.start_profile_watcher().await;
         }
+
+        tokio::task::spawn_local(handle_reload_events(handler.clone(), reload_rx));
 
         // Eagerly release memory
         // `load_controllers` allocates and deallocates the entire PCI ID database,
@@ -231,13 +243,18 @@ impl<'a> Handler {
         apply_config_to_controllers(&controllers, &config).await
     }
 
-    pub async fn reload_gpus(&self) {
+    pub async fn notify_reload_gpus(&self, accum_interval: Duration) {
+        self.reload_tx.send(accum_interval).await.unwrap();
+    }
+
+    async fn reload_gpus(&self) {
         let mut controllers_guard = self.gpu_controllers.write().await;
         let config = self.config.read().await;
+        let detached_ids = self.ignored_gpu_ids.read().await;
 
         let base_path = drm_base_path();
         let pci_db = read_pci_db();
-        match load_controllers(&base_path, &pci_db) {
+        match load_controllers(&base_path, &pci_db, &detached_ids, &config) {
             Ok(new_controllers) => {
                 info!(
                     "GPU list reloaded with {} devices, reapplying configuration",
@@ -491,6 +508,7 @@ impl<'a> Handler {
     }
 
     #[cfg(not(feature = "display-info"))]
+    #[expect(clippy::unused_async)]
     pub async fn get_displays_info(&'a self, _id: &str) -> anyhow::Result<DisplaysInfo> {
         Err(anyhow!("Daemon is compiled without display info support"))
     }
@@ -1080,6 +1098,24 @@ impl<'a> Handler {
         }
     }
 
+    pub async fn detach_gpu(&self, gpu_id: &str) -> anyhow::Result<()> {
+        let _ = self.controller_by_id(gpu_id).await?;
+
+        self.ignored_gpu_ids.write().await.push(gpu_id.to_owned());
+        self.reload_gpus().await;
+
+        Ok(())
+    }
+
+    pub async fn reattach_gpu(&self, gpu_id: &str) -> anyhow::Result<()> {
+        self.ignored_gpu_ids.write().await.retain(|id| id != gpu_id);
+        self.reload_gpus().await;
+
+        let _ = self.controller_by_id(gpu_id).await?;
+
+        Ok(())
+    }
+
     pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
         if let Some(tx) = self
             .confirm_config_tx
@@ -1316,48 +1352,6 @@ pub(crate) fn read_pci_db() -> Database {
     })
 }
 
-#[cfg(any(test, not(feature = "nvidia")))]
-pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> = LazyLock::new(|| None);
-
-#[cfg(all(not(test), feature = "nvidia"))]
-// SAFETY: We use global LazyLock to make sure it's safe.
-// Loading of shared libaries is unsafe
-// https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
-#[allow(unused_unsafe)]
-pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> =
-    LazyLock::new(|| match unsafe { Nvml::init() } {
-        Ok(nvml) => {
-            use crate::server::gpu_controller::NvApi;
-
-            // The config has to be re-read here, because a LazyLock cannot capture external variables into the init closure
-            let disable_nvapi = Config::load()
-                .ok()
-                .flatten()
-                .and_then(|config| config.daemon.disable_nvapi);
-
-            info!("Nvidia management library loaded");
-            let nvapi = if disable_nvapi == Some(true) {
-                info!("NvAPI support is disabled");
-                None
-            } else {
-                NvApi::new()
-                    .inspect(|_| {
-                        info!("NvAPI library loaded");
-                    })
-                    .inspect_err(|err| {
-                        warn!("could not load NvAPI library: {err:#}");
-                    })
-                    .ok()
-            };
-
-            Some((Arc::new(nvml), Arc::new(nvapi)))
-        }
-        Err(err) => {
-            error!("could not load Nvidia management library: {err}");
-            None
-        }
-    });
-
 pub(crate) static AMD_DRM: LazyLock<Option<LibDrmAmdgpu>> = LazyLock::new(|| {
     // SAFETY: We use global LazyLock to make sure it's safe.
     #[allow(unused_unsafe)]
@@ -1394,6 +1388,8 @@ pub(crate) static INTEL_DRM: LazyLock<Option<IntelDrm>> = LazyLock::new(|| {
 fn load_controllers(
     base_path: &Path,
     pci_db: &Database,
+    detached_ids: &[String],
+    config: &Config,
 ) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
     let mut controllers = BTreeMap::new();
 
@@ -1411,15 +1407,36 @@ fn load_controllers(
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
 
-            match init_controller(device_path.clone(), pci_db) {
+            let info = match build_controller_info(device_path.clone(), pci_db) {
+                Ok(info) => info,
+                Err(err) => {
+                    error!(
+                        "could not read GPU info at '{}': {err:#}",
+                        device_path.display()
+                    );
+                    continue;
+                }
+            };
+            let id = info.build_id();
+
+            if detached_ids.contains(&id) {
+                info!("skipping GPU '{id}', as it is currently detached");
+                continue;
+            }
+
+            match init_controller(info, config) {
                 Ok(controller) => {
                     let info = controller.controller_info();
-                    let id = info.build_id();
 
                     info!(
-                        "initialized {} controller for GPU {id} at '{}'",
+                        "initialized {} controller for GPU {id} at '{}' ({})",
                         info.driver,
-                        info.sysfs_path.display()
+                        info.sysfs_path.display(),
+                        info.pci_info
+                            .device_pci_info
+                            .model
+                            .as_deref()
+                            .unwrap_or("<Unknown>"),
                     );
 
                     controllers.insert(id, controller);
@@ -1575,4 +1592,31 @@ async fn connect_polkit_proxy() -> anyhow::Result<AuthorityProxy<'static>> {
         .context("Could not connect to polkit")?;
 
     Ok(proxy)
+}
+
+async fn handle_reload_events(handler: Handler, mut rx: mpsc::Receiver<Duration>) {
+    // Reload events often come in quick succession (usually from DRM devices initializing),
+    // this accumulation avoids unnecessarily reloading multiple times in such cases.
+    while let Some(interval) = rx.recv().await {
+        let timeout = sleep(interval);
+        tokio::pin!(timeout);
+
+        loop {
+            select! {
+                () = &mut timeout => {
+                    break
+                },
+                Some(new_interval) = rx.recv() => {
+                    let new_deadline = tokio::time::Instant::now() + new_interval;
+                    if new_deadline > timeout.deadline() {
+                        debug!("got another reload event in shrot interval, delaying reload");
+                        timeout.as_mut().reset(new_deadline);
+                    }
+                }
+            }
+        }
+
+        info!("got reload event, reloading GPUs");
+        handler.reload_gpus().await;
+    }
 }

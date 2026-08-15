@@ -90,7 +90,7 @@ impl relm4::Component for ClocksFrame {
                 },
 
                 append = &gtk::Button {
-                    set_label: &fl!(I18N, "reset-button"),
+                    set_label: &fl!(I18N, "reset-now-button"),
                     set_tooltip_text: Some(&fl!(I18N, "reset-oc-tooltip")),
 
                     add_css_class: css::DESTRUCTIVE_ACTION,
@@ -420,7 +420,7 @@ impl ClocksFrame {
                             min: sclk_offset_min,
                             max: sclk_offset_max,
                             custom_title: Some(fl!(I18N, "gpu-clock-offset")),
-                            is_secondary: false,
+                            ..Default::default()
                         },
                     );
                 }
@@ -457,8 +457,7 @@ impl ClocksFrame {
                                     current: level.clockspeed,
                                     min: min_sclk,
                                     max: max_sclk,
-                                    is_secondary: false,
-                                    custom_title: None,
+                                    ..Default::default()
                                 },
                             );
                         }
@@ -477,8 +476,7 @@ impl ClocksFrame {
                                     current: level.voltage,
                                     min: min_vddc,
                                     max: max_vddc,
-                                    is_secondary: false,
-                                    custom_title: None,
+                                    ..Default::default()
                                 },
                             );
                         }
@@ -540,7 +538,7 @@ impl ClocksFrame {
                     min,
                     max,
                     is_secondary,
-                    custom_title: None,
+                    ..Default::default()
                 },
             );
         }
@@ -598,6 +596,19 @@ impl ClocksFrame {
             self.set_clock(
                 ClockspeedType::MemClockOffset(*pstate),
                 nvidia_clock_offset_to_data(offset, *pstate > 0),
+            );
+        }
+
+        if let Some(voltage_boost) = table.voltage_boost {
+            self.set_clock(
+                ClockspeedType::VoltageBoost,
+                ClocksData {
+                    current: voltage_boost.current,
+                    min: voltage_boost.min,
+                    max: voltage_boost.max,
+                    step: 1,
+                    ..Default::default()
+                },
             );
         }
     }
@@ -664,7 +675,7 @@ fn nvidia_clock_offset_to_data(clock_info: &NvidiaClockOffset, is_secondary: boo
         current: clock_info.current,
         min: clock_info.min,
         max: clock_info.max,
-        custom_title: None,
         is_secondary,
+        ..Default::default()
     }
 }

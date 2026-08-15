@@ -16,4 +16,6 @@ expression: write_commands
     "card0/device/hwmon/hwmon8/power1_cap: 261000000",
     "card0/device/gpu_od/fan_ctrl/fan_curve: c\n",
     "card0/device/pp_od_clk_voltage: c\n",
+    "card0/device/pp_dpm_sclk: 0 1 2 ",
+    "card0/device/pp_dpm_mclk: 0 1 2 3 ",
 ]
