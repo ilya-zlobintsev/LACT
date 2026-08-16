@@ -37,6 +37,7 @@ const MIN_VISIBLE_FREQ_RANGE_PADDING: u32 = 200;
 
 #[derive(Clone)]
 pub struct VfCurveEditor {
+    /// `freq` is drawn and dragged, `freq_offset` is what gets exported - see [`set_point_freq`]
     points: Rc<RefCell<Vec<NvidiaVfPoint>>>,
     stats: Rc<RefCell<Arc<DeviceStats>>>,
     allow_editing: BoolBinding,
@@ -403,7 +404,7 @@ impl relm4::Component for VfCurveEditor {
                     let target_freq = points[base_point_idx].freq;
 
                     for point in points.iter_mut().skip(base_point_idx) {
-                        point.freq = target_freq;
+                        set_point_freq(point, target_freq);
                     }
 
                     APP_BROKER.send(AppMsg::SettingsChanged);
@@ -425,7 +426,7 @@ impl relm4::Component for VfCurveEditor {
                         if (selected_volt_start..=selected_volt_end)
                             .contains(&(point.voltage as usize))
                         {
-                            point.freq = target_freq;
+                            set_point_freq(point, target_freq);
                         }
                     }
 
@@ -435,7 +436,7 @@ impl relm4::Component for VfCurveEditor {
             VfCurveEditorMsg::ResetCurve => {
                 let mut points = self.points.borrow_mut();
                 for point in points.iter_mut() {
-                    point.freq = point.base_freq;
+                    set_point_freq(point, point.base_freq);
                 }
             }
         }
@@ -770,21 +771,23 @@ impl VfCurveEditor {
                 .contains(gdk::ModifierType::SHIFT_MASK)
             {
                 for point in points.iter_mut() {
-                    point.freq = (point.freq as i32 + drag_delta)
+                    let freq = (point.freq as i32 + drag_delta)
                         .clamp(freq_range.0 as i32, freq_range.1 as i32)
                         as u32;
+                    set_point_freq(point, freq);
                 }
             } else if let Some((selected_start, selected_end)) = self.get_selected_voltage_range() {
                 for point in points.iter_mut() {
                     let voltage = point.voltage as usize;
                     if selected_start < voltage && voltage < selected_end {
-                        point.freq = (point.freq as i32 + drag_delta)
+                        let freq = (point.freq as i32 + drag_delta)
                             .clamp(freq_range.0 as i32, freq_range.1 as i32)
                             as u32;
+                        set_point_freq(point, freq);
                     }
                 }
             } else {
-                points[point_idx].freq = new_freq;
+                set_point_freq(&mut points[point_idx], new_freq);
             }
         }
 
@@ -871,18 +874,21 @@ impl VfCurveEditor {
         self.points.borrow().is_empty()
     }
 
-    pub fn get_configured_curve(&self) -> IndexMap<u8, config::CurvePoint> {
-        if !self.allow_editing.value() {
+    pub fn get_configured_curve(&self) -> IndexMap<u8, config::NvidiaCurvePoint> {
+        let points = self.points.borrow();
+
+        // A curve that matches the base one is equivalent to having no curve configured,
+        // so that resetting it removes the curve from the config instead of pinning it to base values
+        if !self.allow_editing.value() || !curve_is_configured(&points) {
             return IndexMap::new();
         }
 
-        self.points
-            .borrow()
+        points
             .iter()
             .map(|point| {
-                let vf_point = config::CurvePoint {
-                    voltage: Some(point.voltage as i32),
-                    clockspeed: Some(point.freq as i32),
+                let vf_point = config::NvidiaCurvePoint {
+                    clockspeed_offset: point.freq_offset,
+                    voltage: Some(point.voltage),
                 };
                 (point.index, vf_point)
             })
@@ -898,6 +904,11 @@ fn vf_point_base_coords(point: &NvidiaVfPoint) -> (u32, u32) {
     (point.base_voltage, point.base_freq)
 }
 
+fn set_point_freq(point: &mut NvidiaVfPoint, freq: u32) {
+    point.freq = freq;
+    point.freq_offset = freq as i32 - point.base_freq as i32;
+}
+
 fn offset_freq(base_freq: u32, offset: i32) -> u32 {
     if offset.is_negative() {
         base_freq.saturating_sub(offset.unsigned_abs())
@@ -907,5 +918,5 @@ fn offset_freq(base_freq: u32, offset: i32) -> u32 {
 }
 
 fn curve_is_configured(points: &[NvidiaVfPoint]) -> bool {
-    points.iter().any(|point| point.freq != point.base_freq)
+    points.iter().any(|point| point.freq_offset != 0)
 }

@@ -88,6 +88,12 @@ pub struct ClocksConfiguration {
         deserialize_with = "int_map::deserialize"
     )]
     pub mem_vf_curve: IndexMap<u8, CurvePoint>,
+    #[serde(
+        default,
+        skip_serializing_if = "IndexMap::is_empty",
+        deserialize_with = "int_map::deserialize"
+    )]
+    pub nvidia_gpu_vf_curve: IndexMap<u8, NvidiaCurvePoint>,
     pub voltage_offset: Option<i32>,
     pub voltage_boost: Option<i32>,
 }
@@ -144,6 +150,13 @@ impl ClocksConfiguration {
 pub struct CurvePoint {
     pub voltage: Option<i32>,
     pub clockspeed: Option<i32>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct NvidiaCurvePoint {
+    pub clockspeed_offset: i32,
+    pub voltage: Option<u32>,
 }
 
 mod int_map {

@@ -50,7 +50,7 @@ impl Default for Config {
             profiles: IndexMap::new(),
             current_profile: None,
             auto_switch_profiles: false,
-            version: 6,
+            version: 7,
         }
     }
 }
@@ -234,6 +234,18 @@ impl Config {
                             gpu.nvidia_thermal_options
                                 .target_temperature
                                 .get_or_insert(target_temperature);
+                        }
+                    }
+                }
+                7 => {
+                    for (id, gpu) in gpu_configs {
+                        if id.starts_with(VENDOR_NVIDIA)
+                            && !gpu.clocks_configuration.gpu_vf_curve.is_empty()
+                        {
+                            gpu.clocks_configuration.gpu_vf_curve.clear();
+                            info!(
+                                "removed the outdated V/F curve of '{id}', reconfigure it to use it again"
+                            );
                         }
                     }
                 }

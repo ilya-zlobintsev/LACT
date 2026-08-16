@@ -256,7 +256,7 @@ impl OcPage {
         }
 
         if !self.vf_curve_editor.model().is_empty() {
-            config.gpu_vf_curve = self.vf_curve_editor.model().get_configured_curve();
+            config.nvidia_gpu_vf_curve = self.vf_curve_editor.model().get_configured_curve();
         }
     }
 

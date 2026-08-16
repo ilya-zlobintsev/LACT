@@ -6,7 +6,11 @@ use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::gpu_controller::{
         common::{fan_control::FanCurveExt, resolve_process_name},
-        nvidia::nvapi::{CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1},
+        nvidia::nvapi::{
+            CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1,
+            ClockClientClkVfPointsControlV1, ClockClientClkVfPointsInfoV1,
+            ClockClientClkVfPointsStatusV3,
+        },
     },
 };
 use amdgpu_sysfs::{
@@ -23,7 +27,7 @@ use lact_schema::{
     FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaThermalInfo,
     NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo,
     ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
-    config::{CurvePoint, FanControlSettings, FanCurve, GpuConfig},
+    config::{FanControlSettings, FanCurve, GpuConfig, NvidiaCurvePoint},
 };
 use nvapi::NvApi;
 use nvml_wrapper::{
@@ -72,8 +76,6 @@ pub struct NvidiaGpuController {
     // Check if reset is needed to avoid unnecessarily going to nvapi
     vf_curve_written: Cell<bool>,
     voltage_boost_written: Cell<bool>,
-    // Used as the initial value on cards which do not report base VF points themselves (Turing)
-    base_vf_curve: RefCell<Option<Vec<NvidiaVfPoint>>>,
 }
 
 impl NvidiaGpuController {
@@ -149,7 +151,6 @@ impl NvidiaGpuController {
             last_applied_vram_locked_clocks: RefCell::new(None),
             vf_curve_written: Cell::new(false),
             voltage_boost_written: Cell::new(false),
-            base_vf_curve: RefCell::new(None),
         })
     }
 
@@ -394,138 +395,54 @@ impl NvidiaGpuController {
     }
 
     fn get_vf_curve(&self) -> anyhow::Result<Vec<NvidiaVfPoint>> {
-        if let Some((nvapi, handle)) = self.nvapi.as_ref() {
-            let info;
-            let status;
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
 
-            unsafe {
-                info = nvapi.clock_client_clk_vf_points_get_info(*handle)?;
-                status =
-                    nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)?;
-            }
+        let info;
+        let status;
+        let control;
 
-            let base_vf_curve = self.base_vf_curve.borrow();
-            let point_count = point_count_from_mask(info.vf_points_mask);
-            let mut curve = Vec::with_capacity(point_count);
-
-            for i in 0..point_count {
-                let point = status.vf_points[i];
-                let point_info = info.vf_points[i];
-
-                // Only report configurable and voltage-based points
-                if !vf_curve_point_is_editable(point_info) {
-                    continue;
-                }
-
-                let (base_freq, base_voltage) = if status.b_vf_tuple_base_supported == 0 {
-                    // If vf_tuple_base is not supported, base_vf_curve must be populated before any write
-                    // Otherwise, current values are base
-                    if let Some(base_curve) = &*base_vf_curve {
-                        let base_point = base_curve
-                            .iter()
-                            .find(|point| point.index as usize == i)
-                            .expect("Mismatched base point");
-                        (base_point.base_freq, base_point.base_voltage)
-                    } else {
-                        (point.freq_khz / 1000, point.voltage_uv / 1000)
-                    }
-                } else {
-                    (
-                        point.vf_tuple_base.freq_khz / 1000,
-                        point.vf_tuple_base.voltage_uv / 1000,
-                    )
-                };
-
-                curve.push(NvidiaVfPoint {
-                    index: u8::try_from(i).expect("max 255 points"),
-                    freq: point.freq_khz / 1000,
-                    voltage: point.voltage_uv / 1000,
-                    base_freq,
-                    base_voltage,
-                });
-            }
-
-            Ok(curve)
-        } else {
-            Err(anyhow!("NvAPI not available"))
+        unsafe {
+            info = nvapi.clock_client_clk_vf_points_get_info(*handle)?;
+            status = nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)?;
+            control = nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)?;
         }
+
+        Ok(build_vf_curve(&info, &status, &control))
     }
 
-    #[expect(clippy::similar_names)]
-    fn apply_vf_curve(&self, curve: &IndexMap<u8, CurvePoint>) -> anyhow::Result<()> {
+    fn apply_vf_curve(&self, curve: &IndexMap<u8, NvidiaCurvePoint>) -> anyhow::Result<()> {
         let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
 
         debug!("applying curve with {} points", curve.len());
-
-        let info = unsafe { nvapi.clock_client_clk_vf_points_get_info(*handle)? };
-        let current_vf_curve =
-            unsafe { nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)? };
-        let mut curve_control =
-            unsafe { nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)? };
 
         let offset_info = self
             .device()
             .clock_offset(Clock::Graphics, PerformanceState::Zero)
             .context("Could not get offset info")?;
 
-        // If a base curve is needed, we should get a clean unmodified version
-        if current_vf_curve.b_vf_tuple_base_supported == 0 && self.base_vf_curve.borrow().is_none()
-        {
-            self.reset_vf_curve().context("Could not reset curve")?;
-            self.base_vf_curve.replace(Some(self.get_vf_curve()?));
-
-            return self.apply_vf_curve(curve);
-        }
-
-        let base_vf_curve = self.base_vf_curve.borrow();
-
-        for (i, configured_point) in curve {
-            let i = *i as usize;
-
-            let point_info = info.vf_points[i];
-            let current_point = current_vf_curve.vf_points[i];
-            let point_control = &mut curve_control.vf_points[i];
-
-            if !vf_curve_point_is_editable(point_info) {
-                bail!("Trying to edit non-configurable point {i}");
-            }
-
-            if let Some(configured_mv) = configured_point.voltage {
-                let current_mv = (current_point.voltage_uv / 1000).cast_signed();
-                if configured_mv != current_mv {
-                    bail!(
-                        "Voltage is immutable - point {i} was attempted to be changed from {current_mv}mV to {configured_mv}mV"
-                    );
-                }
-            }
-
-            if let Some(configured_mhz) = configured_point.clockspeed {
-                let base_freq: i32 = if let Some(base_points) = &*base_vf_curve {
-                    let base_point = base_points
-                        .iter()
-                        .find(|point| point.index as usize == i)
-                        .expect("Mismatched base point");
-                    base_point.base_freq.cast_signed() * 1000
-                } else {
-                    current_point.vf_tuple_base.freq_khz.try_into()?
-                };
-                let offset_khz = configured_mhz * 1000 - base_freq;
-                let offset_mhz = offset_khz / 1000;
-
-                let min_offset = cmp::min(offset_info.min_clock_offset_mhz, -(base_freq / 1000));
-
-                if !(min_offset..=offset_info.max_clock_offset_mhz).contains(&offset_mhz) {
-                    bail!("Configured offset {offset_mhz}MHz is outside of the allowed range");
-                }
-
-                debug!("writing offset {offset_khz}KHz to point {i}");
-
-                point_control.data.prog.freq_offset_khz = offset_khz;
-            }
-        }
+        let info;
+        let status;
+        let control;
 
         unsafe {
-            nvapi.clock_client_clk_vf_set_control(*handle, curve_control)?;
+            info = nvapi.clock_client_clk_vf_points_get_info(*handle)?;
+            status = nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)?;
+            control = nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)?;
+        }
+
+        let control = build_curve_control(
+            curve,
+            &info,
+            &status,
+            control,
+            (
+                offset_info.min_clock_offset_mhz,
+                offset_info.max_clock_offset_mhz,
+            ),
+        )?;
+
+        unsafe {
+            nvapi.clock_client_clk_vf_set_control(*handle, control)?;
         }
 
         self.vf_curve_written.set(true);
@@ -625,6 +542,102 @@ impl NvidiaGpuController {
 
 fn vf_curve_point_is_editable(point: ClockClientClkVfPointInfoV1) -> bool {
     point.b_voltage_based == 1 && point.type_ == CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG
+}
+
+/// The base curve for a point. Changes with GPU state(load,temps, e.tc), so it may only be used for display and validation
+fn vf_curve_point_base_freq_khz(
+    status: &ClockClientClkVfPointsStatusV3,
+    control: &ClockClientClkVfPointsControlV1,
+    i: usize,
+) -> i32 {
+    if status.b_vf_tuple_base_supported == 0 {
+        // Cards without the base tuple (Turing) only expose the resulting curve
+        status.vf_points[i].freq_khz.cast_signed()
+            - unsafe { control.vf_points[i].data.prog.freq_offset_khz }
+    } else {
+        status.vf_points[i].vf_tuple_base.freq_khz.cast_signed()
+    }
+}
+
+fn build_vf_curve(
+    info: &ClockClientClkVfPointsInfoV1,
+    status: &ClockClientClkVfPointsStatusV3,
+    control: &ClockClientClkVfPointsControlV1,
+) -> Vec<NvidiaVfPoint> {
+    let point_count = point_count_from_mask(info.vf_points_mask);
+    let mut curve = Vec::with_capacity(point_count);
+
+    for i in 0..point_count {
+        // Only report configurable and voltage-based points
+        if !vf_curve_point_is_editable(info.vf_points[i]) {
+            continue;
+        }
+
+        let point = status.vf_points[i];
+        let offset_khz = unsafe { control.vf_points[i].data.prog.freq_offset_khz };
+
+        let base_freq_khz = vf_curve_point_base_freq_khz(status, control, i);
+        let base_voltage_uv = if status.b_vf_tuple_base_supported == 0 {
+            point.voltage_uv
+        } else {
+            point.vf_tuple_base.voltage_uv
+        };
+
+        curve.push(NvidiaVfPoint {
+            index: u8::try_from(i).expect("max 255 points"),
+            freq: point.freq_khz / 1000,
+            voltage: point.voltage_uv / 1000,
+            base_freq: base_freq_khz.max(0).cast_unsigned() / 1000,
+            base_voltage: base_voltage_uv / 1000,
+            freq_offset: offset_khz / 1000,
+        });
+    }
+
+    curve
+}
+
+fn build_curve_control(
+    curve: &IndexMap<u8, NvidiaCurvePoint>,
+    info: &ClockClientClkVfPointsInfoV1,
+    status: &ClockClientClkVfPointsStatusV3,
+    mut control: ClockClientClkVfPointsControlV1,
+    (min_offset_mhz, max_offset_mhz): (i32, i32),
+) -> anyhow::Result<ClockClientClkVfPointsControlV1> {
+    let point_count = point_count_from_mask(info.vf_points_mask);
+
+    for (index, configured_point) in curve {
+        let i = usize::from(*index);
+
+        if i >= point_count || !vf_curve_point_is_editable(info.vf_points[i]) {
+            warn!("point {i} is not configurable on this device, skipping it");
+            continue;
+        }
+
+        if let Some(configured_mv) = configured_point.voltage {
+            let current_mv = status.vf_points[i].voltage_uv / 1000;
+            if configured_mv != current_mv {
+                warn!(
+                    "voltage is immutable - point {i} is at {current_mv}mV but was configured as {configured_mv}mV, skipping it"
+                );
+                continue;
+            }
+        }
+
+        let offset_mhz = configured_point.clockspeed_offset;
+        let base_freq_mhz = vf_curve_point_base_freq_khz(status, &control, i) / 1000;
+
+        let point_min_offset_mhz = cmp::min(min_offset_mhz, -base_freq_mhz);
+        ensure!(
+            (point_min_offset_mhz..=max_offset_mhz).contains(&offset_mhz),
+            "Configured offset {offset_mhz}MHz for point {i} is outside of the allowed range {point_min_offset_mhz}..={max_offset_mhz}"
+        );
+
+        trace!("writing offset {offset_mhz}MHz to point {i}");
+
+        control.vf_points[i].data.prog.freq_offset_khz = offset_mhz * 1000;
+    }
+
+    Ok(control)
 }
 
 fn point_count_from_mask(mask: [u32; 8]) -> usize {
@@ -1252,8 +1265,8 @@ impl GpuController for NvidiaGpuController {
                     .insert(pstate, *offset);
             }
 
-            if !clocks.gpu_vf_curve.is_empty() {
-                self.apply_vf_curve(&clocks.gpu_vf_curve)
+            if !clocks.nvidia_gpu_vf_curve.is_empty() {
+                self.apply_vf_curve(&clocks.nvidia_gpu_vf_curve)
                     .context("Could not apply VF curve")?;
             }
 
@@ -1535,5 +1548,337 @@ impl GpuController for NvidiaGpuController {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1,
+        ClockClientClkVfPointsControlV1, ClockClientClkVfPointsInfoV1,
+        ClockClientClkVfPointsStatusV3, build_curve_control, build_vf_curve,
+    };
+    use indexmap::IndexMap;
+    use lact_schema::config::NvidiaCurvePoint;
+
+    const OFFSET_RANGE: (i32, i32) = (-1000, 1000);
+
+    #[derive(Clone, Copy)]
+    struct TestPoint {
+        voltage_mv: u32,
+        base_freq_mhz: u32,
+        offset_mhz: i32,
+        /// Difference between the materialized frequency and `base + offset`
+        correction_mhz: i32,
+    }
+
+    impl TestPoint {
+        fn new(voltage_mv: u32, base_freq_mhz: u32, offset_mhz: i32) -> Self {
+            Self {
+                voltage_mv,
+                base_freq_mhz,
+                offset_mhz,
+                correction_mhz: 0,
+            }
+        }
+
+        fn with_correction(mut self, correction_mhz: i32) -> Self {
+            self.correction_mhz = correction_mhz;
+            self
+        }
+    }
+
+    fn tables(
+        points: &[TestPoint],
+        base_tuple_supported: bool,
+    ) -> (
+        ClockClientClkVfPointsInfoV1,
+        ClockClientClkVfPointsStatusV3,
+        ClockClientClkVfPointsControlV1,
+    ) {
+        let mut info = ClockClientClkVfPointsInfoV1::default();
+        let mut status = ClockClientClkVfPointsStatusV3::default();
+        let mut control = ClockClientClkVfPointsControlV1::default();
+
+        status.b_vf_tuple_base_supported = u8::from(base_tuple_supported);
+
+        for (i, point) in points.iter().enumerate() {
+            info.vf_points_mask[i / 32] |= 1 << (i % 32);
+
+            info.vf_points[i] = ClockClientClkVfPointInfoV1 {
+                type_: CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG,
+                b_voltage_based: 1,
+                rsvd: [0; 16],
+            };
+
+            let materialized_mhz =
+                point.base_freq_mhz.cast_signed() + point.offset_mhz + point.correction_mhz;
+
+            status.vf_points[i].voltage_uv = point.voltage_mv * 1000;
+            status.vf_points[i].freq_khz = (materialized_mhz * 1000).cast_unsigned();
+            status.vf_points[i].vf_tuple_base.voltage_uv = point.voltage_mv * 1000;
+            status.vf_points[i].vf_tuple_base.freq_khz = point.base_freq_mhz * 1000;
+
+            control.vf_points[i].data.prog.freq_offset_khz = point.offset_mhz * 1000;
+        }
+
+        (info, status, control)
+    }
+
+    fn written_offsets(control: &ClockClientClkVfPointsControlV1, count: usize) -> Vec<i32> {
+        (0..count)
+            .map(|i| unsafe { control.vf_points[i].data.prog.freq_offset_khz })
+            .collect()
+    }
+
+    fn offset_curve(points: &[(u8, i32)]) -> IndexMap<u8, NvidiaCurvePoint> {
+        points
+            .iter()
+            .map(|(index, offset)| {
+                (
+                    *index,
+                    NvidiaCurvePoint {
+                        clockspeed_offset: *offset,
+                        voltage: None,
+                    },
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn reports_offset_and_base_from_the_tables() {
+        let points = [
+            TestPoint::new(450, 270, 90),
+            TestPoint::new(1195, 2880, -60).with_correction(15),
+        ];
+        let (info, status, control) = tables(&points, true);
+
+        let curve = build_vf_curve(&info, &status, &control);
+
+        assert_eq!(2, curve.len());
+
+        assert_eq!(0, curve[0].index);
+        assert_eq!(450, curve[0].voltage);
+        assert_eq!(270, curve[0].base_freq);
+        assert_eq!(90, curve[0].freq_offset);
+        assert_eq!(360, curve[0].freq);
+
+        assert_eq!(2880, curve[1].base_freq);
+        assert_eq!(-60, curve[1].freq_offset);
+        assert_eq!(2835, curve[1].freq);
+    }
+
+    #[test]
+    fn derives_base_from_the_offset_without_the_base_tuple() {
+        let points = [TestPoint::new(450, 270, 90), TestPoint::new(600, 1000, -45)];
+        let (info, status, control) = tables(&points, false);
+
+        let curve = build_vf_curve(&info, &status, &control);
+
+        assert_eq!(270, curve[0].base_freq);
+        assert_eq!(90, curve[0].freq_offset);
+        assert_eq!(1000, curve[1].base_freq);
+        assert_eq!(-45, curve[1].freq_offset);
+    }
+
+    /// Reading and re-applying without an edit must not touch the table, including on the points
+    /// the driver corrected, where `status.freq - offset` overstates the base.
+    #[test]
+    fn turing_round_trip_does_not_change_the_control_table() {
+        let points = [
+            TestPoint::new(450, 270, 90),
+            TestPoint::new(1075, 2775, -30),
+            TestPoint::new(1085, 2775, -45).with_correction(15),
+        ];
+        let (info, status, control) = tables(&points, false);
+
+        let read_back = build_vf_curve(&info, &status, &control);
+        let curve = offset_curve(
+            &read_back
+                .iter()
+                .map(|point| (point.index, point.freq_offset))
+                .collect::<Vec<_>>(),
+        );
+
+        let result = build_curve_control(&curve, &info, &status, control, OFFSET_RANGE)
+            .expect("apply failed");
+
+        assert_eq!(
+            written_offsets(&control, 3),
+            written_offsets(&result, 3),
+            "re-applying an unedited curve changed the control table"
+        );
+    }
+
+    /// The GUI derives the offset of a dragged point as `new_freq - base_freq`. Without the base
+    /// tuple that has to come out as `old_offset + drag`, otherwise a drag silently shifts the
+    /// point by the driver's correction on top of the movement the user asked for.
+    #[test]
+    fn turing_drag_moves_a_point_by_exactly_the_drag_distance() {
+        let points = [
+            TestPoint::new(450, 270, 90),
+            TestPoint::new(1085, 2775, -45).with_correction(15),
+        ];
+        let (info, status, control) = tables(&points, false);
+
+        for point in build_vf_curve(&info, &status, &control) {
+            let dragged_freq = point.freq.cast_signed() + 15;
+            let dragged_offset = dragged_freq - point.base_freq.cast_signed();
+
+            assert_eq!(point.freq_offset + 15, dragged_offset);
+        }
+    }
+
+    #[test]
+    fn skips_non_editable_points() {
+        let points = [TestPoint::new(450, 270, 90), TestPoint::new(600, 1000, 0)];
+        let (mut info, status, control) = tables(&points, true);
+        info.vf_points[0].b_voltage_based = 0;
+
+        let curve = build_vf_curve(&info, &status, &control);
+
+        assert_eq!(1, curve.len());
+        assert_eq!(1, curve[0].index);
+    }
+
+    #[test]
+    fn is_idempotent_across_base_drift() {
+        let curve = offset_curve(&[(0, 90), (1, -60)]);
+
+        let idle = [
+            TestPoint::new(450, 270, 90),
+            TestPoint::new(1195, 2880, -60),
+        ];
+        let loaded = [
+            TestPoint::new(450, 300, 90),
+            TestPoint::new(1195, 2865, -60),
+        ];
+
+        let (info, status, control) = tables(&idle, true);
+        let idle_result = build_curve_control(&curve, &info, &status, control, OFFSET_RANGE)
+            .expect("apply at idle failed");
+
+        let (info, status, control) = tables(&loaded, true);
+        let loaded_result = build_curve_control(&curve, &info, &status, control, OFFSET_RANGE)
+            .expect("apply under load failed");
+
+        assert_eq!(
+            written_offsets(&idle_result, 2),
+            written_offsets(&loaded_result, 2)
+        );
+        assert_eq!(vec![90_000, -60_000], written_offsets(&idle_result, 2));
+    }
+
+    #[test]
+    fn does_not_absorb_the_monotonicity_correction() {
+        let points = [
+            TestPoint::new(1075, 2775, -30),
+            TestPoint::new(1085, 2775, -45).with_correction(15),
+        ];
+        let (info, status, control) = tables(&points, true);
+
+        let read_back = build_vf_curve(&info, &status, &control);
+        assert_ne!(
+            read_back[1].freq.cast_signed(),
+            read_back[1].base_freq.cast_signed() + read_back[1].freq_offset
+        );
+
+        let curve = offset_curve(&[(0, read_back[0].freq_offset), (1, read_back[1].freq_offset)]);
+        let result = build_curve_control(&curve, &info, &status, control, OFFSET_RANGE)
+            .expect("apply failed");
+
+        assert_eq!(vec![-30_000, -45_000], written_offsets(&result, 2));
+    }
+
+    #[test]
+    fn keeps_the_offsets_of_unconfigured_points() {
+        let points = [TestPoint::new(450, 270, 90), TestPoint::new(600, 1000, 45)];
+        let (info, status, control) = tables(&points, true);
+
+        let result = build_curve_control(
+            &offset_curve(&[(0, -15)]),
+            &info,
+            &status,
+            control,
+            OFFSET_RANGE,
+        )
+        .expect("apply failed");
+
+        assert_eq!(vec![-15_000, 45_000], written_offsets(&result, 2));
+    }
+
+    #[test]
+    fn rejects_an_offset_outside_of_the_range() {
+        let points = [TestPoint::new(450, 270, 0)];
+        let (info, status, control) = tables(&points, true);
+
+        let err = build_curve_control(
+            &offset_curve(&[(0, 1500)]),
+            &info,
+            &status,
+            control,
+            OFFSET_RANGE,
+        )
+        .map(|_| ())
+        .expect_err("out of range offset was accepted");
+        assert!(
+            err.to_string().contains("outside of the allowed range"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn allows_an_offset_below_the_reported_minimum_down_to_zero_frequency() {
+        let points = [TestPoint::new(450, 270, 0)];
+        let (info, status, control) = tables(&points, true);
+
+        // Below the reported minimum but within `-base`, which is what the driver allows
+        let result = build_curve_control(
+            &offset_curve(&[(0, -270)]),
+            &info,
+            &status,
+            control,
+            (-100, 1000),
+        )
+        .expect("apply failed");
+        assert_eq!(vec![-270_000], written_offsets(&result, 1));
+    }
+
+    #[test]
+    fn skips_points_that_do_not_exist_or_do_not_match() {
+        let points = [TestPoint::new(450, 270, 0)];
+        let (info, status, control) = tables(&points, true);
+
+        let curve = IndexMap::from([
+            (
+                0,
+                NvidiaCurvePoint {
+                    clockspeed_offset: 90,
+                    // Stale voltage, the point layout changed under the configuration
+                    voltage: Some(500),
+                },
+            ),
+            (
+                7,
+                NvidiaCurvePoint {
+                    clockspeed_offset: 45,
+                    voltage: None,
+                },
+            ),
+            // The point arrays hold 255 entries, so this index cannot be used to index them
+            (
+                u8::MAX,
+                NvidiaCurvePoint {
+                    clockspeed_offset: 30,
+                    voltage: None,
+                },
+            ),
+        ]);
+
+        let result = build_curve_control(&curve, &info, &status, control, OFFSET_RANGE)
+            .expect("stale points should not fail the apply");
+
+        assert_eq!(vec![0], written_offsets(&result, 1));
     }
 }
