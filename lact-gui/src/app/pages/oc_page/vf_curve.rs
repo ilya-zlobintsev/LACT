@@ -877,8 +877,7 @@ impl VfCurveEditor {
     pub fn get_configured_curve(&self) -> IndexMap<u8, config::NvidiaCurvePoint> {
         let points = self.points.borrow();
 
-        // A curve that matches the base one is equivalent to having no curve configured,
-        // so that resetting it removes the curve from the config instead of pinning it to base values
+        // FIXME: offset changes enables allow_editing
         if !self.allow_editing.value() || !curve_is_configured(&points) {
             return IndexMap::new();
         }
