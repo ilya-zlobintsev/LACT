@@ -50,7 +50,6 @@ The service can also be used standalone with a config file, for example in headl
 - [Hardware support](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Support)
 - [Frequently asked questions](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions)
 - [Enable overclocking on AMD](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD))
-- [NVIDIA V/F curve implementation notes](./docs/NVIDIA_VF_CURVE.md)
 - [Config file reference](./docs/CONFIG.md)
 - [API](./docs/API.md)
 - [Power profiles daemon note](#power-profiles-daemon-note)
