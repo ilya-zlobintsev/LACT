@@ -583,11 +583,12 @@ impl IntelGpuController {
             .expect("invalid amount of curve points")
     }
 
-    fn get_hwmon_fan_curve(&self, config: Option<&GpuConfig>) -> Option<FanCurveMap> {
-        if !self.has_fan_control() {
-            return None;
-        }
+    fn get_hwmon_fan_curve(&self) -> Option<FanCurveMap> { //if we need the exact fan curve in the future
+        let points: Vec<(i32, f32)> = self.get_hwmon_fan_curve_points()?;
+        Some(points.into_iter().collect())
+    }
 
+    fn get_hwmon_fan_curve_points(&self) -> Option<Vec<(i32, f32)>>{
         let amount: u8 = self.get_hwmon_controllable_points_amount();
 
         if amount == 0 {
@@ -616,6 +617,12 @@ impl IntelGpuController {
 
             points.push((temp / 1000, pwm / 255.0));
         }
+
+        Some(points)
+    }
+
+    fn get_truncated_hwmon_fan_curve(&self, config: Option<&GpuConfig>) -> Option<FanCurveMap> {
+        let mut points: Vec<(i32, f32)> = self.get_hwmon_fan_curve_points()?;
 
         if let Some(config) = &config
             && let Some(fan_settings) = &config.fan_control_settings
@@ -955,7 +962,7 @@ impl GpuController for IntelGpuController {
             speed_current: self
                 .read_hwmon_file(&["fan1_input", "fan2_input", "fan3_input"], false)
                 .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
-            curve: self.get_hwmon_fan_curve(gpu_config),
+            curve: self.get_truncated_hwmon_fan_curve(gpu_config),
             static_speed: self.get_hwmon_fan_static_speed(),
             control_mode: self.get_hwmon_fan_control_mode(),
             control_enabled: self.get_hwmon_fan_control_mode().is_some(),
