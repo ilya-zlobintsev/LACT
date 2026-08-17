@@ -345,6 +345,7 @@ impl relm4::Component for ClocksFrame {
 
                 self.core_groups.clear();
                 self.vram_groups.clear();
+                self.advanced_groups.clear();
 
                 self.enable_gpu_locked_clocks.set_value(false);
                 self.enable_vram_locked_clocks.set_value(false);
