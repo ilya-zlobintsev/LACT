@@ -8,6 +8,7 @@ use anyhow::{Context, Result, bail};
 use lact_client::DaemonClient;
 use lact_schema::{
     args::cli::{CliArgs, CliCommand, ProfileAutoSwitchCommand, ProfileCommand},
+    clean_gpu_name,
     config::GpuConfig,
     request::ConfirmCommand,
 };
@@ -100,7 +101,11 @@ impl CliContext<'_> {
                 if entries.len() > 1 {
                     eprintln!(
                         "GPU id not specified, selecting {}",
-                        first_entry.name.as_deref().unwrap_or("<Unknown>")
+                        first_entry
+                            .name
+                            .as_deref()
+                            .map(clean_gpu_name)
+                            .unwrap_or("<Unknown>")
                     );
                 }
                 Ok(first_entry.id.clone())
@@ -141,6 +146,7 @@ impl CliContext<'_> {
             .await?
             .into_iter()
             .find(|entry| entry.id == gpu_id)
-            .and_then(|entry| entry.name))
+            .and_then(|entry| entry.name)
+            .map(|name| clean_gpu_name(&name).to_owned()))
     }
 }

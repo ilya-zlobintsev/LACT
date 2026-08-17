@@ -13,7 +13,7 @@ use crate::app::{
 use gtk::pango::AttrList;
 use gtk::prelude::{BoxExt, OrientableExt, PopoverExt as _, WidgetExt};
 use i18n_embed_fl::fl;
-use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats};
+use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats, clean_gpu_name};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt as _};
 use std::collections::HashSet;
 use std::str::FromStr as _;
@@ -360,13 +360,14 @@ impl relm4::SimpleComponent for GpuStatsSection {
             GpuStatsSectionMsg::Info(info) => {
                 self.vram_clock_ratio = info.vram_clock_ratio();
                 if let Some(pci_info) = &info.pci_info {
-                    self.gpu_model = info
-                        .drm_info
-                        .as_ref()
-                        .and_then(|drm| drm.device_name.as_deref())
-                        .or(pci_info.device_pci_info.model.as_deref())
-                        .unwrap_or("Unknown")
-                        .to_owned();
+                    self.gpu_model = clean_gpu_name(
+                        info.drm_info
+                            .as_ref()
+                            .and_then(|drm| drm.device_name.as_deref())
+                            .or(pci_info.device_pci_info.model.as_deref())
+                            .unwrap_or("Unknown"),
+                    )
+                    .to_owned();
                 }
             }
             GpuStatsSectionMsg::Stats(stats) => {

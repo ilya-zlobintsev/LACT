@@ -67,6 +67,33 @@ pub fn bytes_to_mib(bytes: u64) -> f64 {
     bytes as f64 / 1024.0 / 1024.0
 }
 
+const GPU_VENDOR_PREFIXES: &[&str] = &["AMD ", "NVIDIA ", "Intel "];
+
+pub fn clean_gpu_name(name: &str) -> &str {
+    let mut short = name.trim();
+
+    if let Some(marketing_name) = GPU_VENDOR_PREFIXES
+        .iter()
+        .find_map(|&prefix| short.strip_prefix(prefix))
+    {
+        short = marketing_name
+            .split_once('[')
+            .map_or(marketing_name, |(model, _)| model.trim_end());
+    } else if let Some((_, bracketed)) = short.split_once('[')
+        && let Some((model, _)) = bracketed.split_once(']')
+    {
+        // PCI device names carry the marketing name in brackets, e.g. "DG2 [Arc A770]"
+        short = model.trim();
+    }
+
+    short = GPU_VENDOR_PREFIXES
+        .iter()
+        .find_map(|&prefix| short.strip_prefix(prefix))
+        .unwrap_or(short);
+
+    short
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Pong;
 
@@ -121,7 +148,7 @@ pub struct DeviceListEntry {
 impl Display for DeviceListEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.name {
-            Some(name) => Display::fmt(name, f),
+            Some(name) => Display::fmt(clean_gpu_name(name), f),
             None => Display::fmt(&self.id, f),
         }
     }
