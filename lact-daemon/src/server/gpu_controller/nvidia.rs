@@ -9,7 +9,7 @@ use crate::{
         nvidia::nvapi::{
             CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1,
             ClockClientClkVfPointsControlV1, ClockClientClkVfPointsInfoV1,
-            ClockClientClkVfPointsStatusV3,
+            ClockClientClkVfPointsStatusV3, NvGpuClockDomainId,
         },
     },
 };
@@ -895,6 +895,14 @@ impl GpuController for NvidiaGpuController {
             );
         }
 
+        let mut extra_clocks = [
+            ("SM", device.clock_info(Clock::SM)),
+            ("Video", device.clock_info(Clock::Video)),
+        ]
+        .into_iter()
+        .filter_map(|(name, value)| Some((name.to_owned(), u64::from(value.ok()?))))
+        .collect::<HashMap<String, u64>>();
+
         let mut voltage = None;
 
         if let Some((nvapi, handle)) = self.nvapi.as_ref() {
@@ -964,6 +972,15 @@ impl GpuController for NvidiaGpuController {
 
                 if let Ok(value) = nvapi.get_voltage(*handle) {
                     voltage = Some(u64::from(value) / 1000);
+                }
+
+                if let Ok(clocks) = nvapi.get_all_clocks(*handle) {
+                    for domain in NvGpuClockDomainId::EXTRA {
+                        if let Some(info) = clocks.get_domain(domain) {
+                            extra_clocks
+                                .insert(domain.to_string(), u64::from(info.frequency) / 1000);
+                        }
+                    }
                 }
             }
         }
@@ -1061,13 +1078,7 @@ impl GpuController for NvidiaGpuController {
                 gpu_clockspeed: device.clock_info(Clock::Graphics).map(Into::into).ok(),
                 vram_clockspeed: device.clock_info(Clock::Memory).map(Into::into).ok(),
                 target_gpu_clockspeed: None,
-                sensors: [
-                    ("SM", device.clock_info(Clock::SM)),
-                    ("Video", device.clock_info(Clock::Video)),
-                ]
-                .into_iter()
-                .filter_map(|(label, result)| Some((label.to_owned(), result.ok()?.into())))
-                .collect(),
+                sensors: extra_clocks,
             },
             throttle_info: device.current_throttle_reasons().ok().map(|reasons| {
                 reasons

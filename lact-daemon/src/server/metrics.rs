@@ -6,7 +6,7 @@ use crate::{
 };
 use indexmap::IndexMap;
 use jiff::Zoned;
-use lact_schema::DeviceStats;
+use lact_schema::{DeviceStats, clean_gpu_name};
 use schema::{
     Attribute, Gauge, GaugeDataPoint, Metric, MetricsPayload, Resource, ResourceMetric, Scope,
     ScopeMetric, Value,
@@ -335,7 +335,15 @@ async fn get_stats(handler: &Handler) -> anyhow::Result<IndexMap<String, (String
     for device in device_list {
         let stats = handler.get_gpu_stats(&device.id).await?;
 
-        devices.insert(device.id, (device.name.unwrap_or_default(), stats));
+        devices.insert(
+            device.id,
+            (
+                device
+                    .name
+                    .map_or_else(String::new, |name| clean_gpu_name(&name).to_owned()),
+                stats,
+            ),
+        );
     }
 
     Ok(devices)
