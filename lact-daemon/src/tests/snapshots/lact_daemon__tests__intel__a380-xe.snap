@@ -8,7 +8,7 @@ expression: device_info
       "type": "intel",
       "value": {
         "gt_freq": [
-          600,
+          300,
           2450
         ],
         "rp0_freq": 2450,
@@ -79,13 +79,14 @@ expression: device_info
   },
   "stats": {
     "clockspeed": {
-      "gpu_clockspeed": 600,
+      "gpu_clockspeed": 300,
       "sensors": {},
-      "target_gpu_clockspeed": 600
+      "target_gpu_clockspeed": 300
     },
     "fan": {
       "control_enabled": false,
-      "pmfw_info": {}
+      "pmfw_info": {},
+      "speed_current": 945
     },
     "power": {
       "cap_current": 55.0,
@@ -93,10 +94,25 @@ expression: device_info
       "cap_max": 400.0,
       "cap_min": 0.0
     },
-    "temps": {},
+    "temps": {
+      "pkg": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 56.0,
+        "display_only": true,
+        "primary": true
+      },
+      "vram": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 54.0,
+        "display_only": true,
+        "primary": true
+      }
+    },
     "throttle_info": {},
     "voltage": {
-      "gpu": 638,
+      "gpu": 605,
       "sensors": {}
     },
     "vram": {}
