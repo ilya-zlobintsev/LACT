@@ -27,7 +27,9 @@ expression: device_info
       },
       "vram_clock_ratio": 1.0
     },
-    "flags": [],
+    "flags": [
+      "ConfigurableFanControl"
+    ],
     "link_info": {},
     "pci_info": {
       "device_pci_info": {
@@ -85,8 +87,22 @@ expression: device_info
     },
     "fan": {
       "control_enabled": false,
+      "curve": {
+        "30": 0.0,
+        "45": 0.0,
+        "46": 0.10196078568696976,
+        "50": 0.16078431904315948,
+        "60": 0.25882354378700256,
+        "68": 0.29019609093666077,
+        "72": 0.3490196168422699,
+        "75": 0.4117647111415863,
+        "80": 0.529411792755127,
+        "85": 0.529411792755127
+      },
       "pmfw_info": {},
-      "speed_current": 1002
+      "speed_current": 1116,
+      "speed_max": 2160,
+      "static_speed": 0.0
     },
     "power": {
       "cap_current": 190.0,
@@ -98,7 +114,7 @@ expression: device_info
       "mctrl": {
         "crit": null,
         "crit_hyst": null,
-        "current": 54.0,
+        "current": 55.0,
         "display_only": true,
         "primary": false
       },
@@ -112,28 +128,28 @@ expression: device_info
       "pkg": {
         "crit": null,
         "crit_hyst": null,
-        "current": 53.0,
+        "current": 54.0,
         "display_only": true,
         "primary": true
       },
       "vram": {
         "crit": null,
         "crit_hyst": null,
-        "current": 54.0,
+        "current": 56.0,
         "display_only": true,
         "primary": true
       },
       "vram_ch_0": {
         "crit": null,
         "crit_hyst": null,
-        "current": 48.0,
+        "current": 52.0,
         "display_only": true,
         "primary": false
       },
       "vram_ch_1": {
         "crit": null,
         "crit_hyst": null,
-        "current": 52.0,
+        "current": 54.0,
         "display_only": true,
         "primary": false
       },
@@ -147,63 +163,63 @@ expression: device_info
       "vram_ch_11": {
         "crit": null,
         "crit_hyst": null,
-        "current": 52.0,
+        "current": 54.0,
         "display_only": true,
         "primary": false
       },
       "vram_ch_2": {
         "crit": null,
         "crit_hyst": null,
-        "current": 50.0,
+        "current": 54.0,
         "display_only": true,
         "primary": false
       },
       "vram_ch_3": {
         "crit": null,
         "crit_hyst": null,
-        "current": 52.0,
+        "current": 54.0,
         "display_only": true,
         "primary": false
       },
       "vram_ch_4": {
         "crit": null,
         "crit_hyst": null,
-        "current": 50.0,
+        "current": 52.0,
         "display_only": true,
         "primary": false
       },
       "vram_ch_5": {
         "crit": null,
         "crit_hyst": null,
-        "current": 50.0,
+        "current": 52.0,
         "display_only": true,
         "primary": false
       },
       "vram_ch_6": {
         "crit": null,
         "crit_hyst": null,
-        "current": 52.0,
+        "current": 54.0,
         "display_only": true,
         "primary": false
       },
       "vram_ch_7": {
         "crit": null,
         "crit_hyst": null,
-        "current": 52.0,
+        "current": 54.0,
         "display_only": true,
         "primary": false
       },
       "vram_ch_8": {
         "crit": null,
         "crit_hyst": null,
-        "current": 52.0,
+        "current": 54.0,
         "display_only": true,
         "primary": false
       },
       "vram_ch_9": {
         "crit": null,
         "crit_hyst": null,
-        "current": 54.0,
+        "current": 56.0,
         "display_only": true,
         "primary": false
       }

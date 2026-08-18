@@ -583,12 +583,13 @@ impl IntelGpuController {
             .expect("invalid amount of curve points")
     }
 
-    fn get_hwmon_fan_curve(&self) -> Option<FanCurveMap> { //if we need the exact fan curve in the future
+    fn get_hwmon_fan_curve(&self) -> Option<FanCurveMap> {
+        //if we need the exact fan curve in the future
         let points: Vec<(i32, f32)> = self.get_hwmon_fan_curve_points()?;
         Some(points.into_iter().collect())
     }
 
-    fn get_hwmon_fan_curve_points(&self) -> Option<Vec<(i32, f32)>>{
+    fn get_hwmon_fan_curve_points(&self) -> Option<Vec<(i32, f32)>> {
         let amount: u8 = self.get_hwmon_controllable_points_amount();
 
         if amount == 0 {
@@ -915,7 +916,7 @@ impl GpuController for IntelGpuController {
                         }
                     }
                 }
-            } else if self.has_fan_control() {
+            } else if self.has_fan_control() && self.get_hwmon_fan_control_mode().is_some() {
                 let fans: u8 = self.get_hwmon_fans_amount();
 
                 for fan_index in 1..=fans {
