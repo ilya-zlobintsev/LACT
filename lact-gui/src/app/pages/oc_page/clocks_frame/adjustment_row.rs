@@ -13,12 +13,23 @@ use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
 use relm4::{RelmWidgetExt, prelude::FactoryComponent};
 
+/// Identifies a row within a group of adjustments.
+///
+/// Most rows map one to one onto a clockspeed the daemon can set. The MSVDD
+/// master is the exception: it only exists in the GUI, where it drives the
+/// per-domain offset rows, so it has no clockspeed type of its own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RowId {
+    Clock(ClockspeedType),
+    MsvddMaster,
+}
+
 pub struct ClockAdjustmentRow {
-    clock_type: ClockspeedType,
+    id: RowId,
     custom_title: Option<String>,
     value_ratio: f64,
     change_signal: SignalHandlerId,
-    adjustment: OcAdjustment,
+    pub(super) adjustment: OcAdjustment,
     pub(super) is_secondary: bool,
 }
 
@@ -73,7 +84,7 @@ impl FactoryComponent for ClockAdjustmentRow {
     type Init = ClocksData;
     type Input = ClockAdjustmentRowMsg;
     type Output = ();
-    type Index = ClockspeedType;
+    type Index = RowId;
 
     view! {
         #[name = "root_box"]
@@ -93,8 +104,9 @@ impl FactoryComponent for ClockAdjustmentRow {
                         #[watch]
                         set_markup: &match &self.custom_title {
                             Some(title) => title.clone(),
-                            None => {
-                                match self.clock_type {
+                            None => match self.id {
+                                RowId::MsvddMaster => fl!(I18N, "msvdd-offset"),
+                                RowId::Clock(clock_type) => match clock_type {
                                     ClockspeedType::MaxCoreClock => fl!(I18N, "max-gpu-clock"),
                                     ClockspeedType::MaxMemoryClock => fl!(I18N, "max-vram-clock"),
                                     ClockspeedType::MaxVoltage => fl!(I18N, "max-gpu-voltage"),
@@ -113,8 +125,8 @@ impl FactoryComponent for ClockAdjustmentRow {
                                     ClockspeedType::ClockDomainOffset(domain) => fl!(I18N, "clock-domain-offset", domain = domain),
                                     ClockspeedType::ClockDomainVoltageOffset(domain) => fl!(I18N, "clock-domain-voltage-offset", domain = domain),
                                     ClockspeedType::Reset => unreachable!(),
-                                }
-                            }
+                                },
+                            },
                         },
                     },
 
@@ -122,13 +134,19 @@ impl FactoryComponent for ClockAdjustmentRow {
                         set_icon_name: "dialog-information-symbolic",
                         set_always_show_arrow: false,
                         add_css_class: "flat",
-                        set_visible: self.clock_type == ClockspeedType::VoltageBoost,
+                        set_visible: matches!(
+                            self.id,
+                            RowId::MsvddMaster | RowId::Clock(ClockspeedType::VoltageBoost)
+                        ),
 
                         #[wrap(Some)]
                         set_popover = &gtk::Popover {
                             gtk::Label {
                                 set_margin_all: 5,
-                                set_label: &fl!(I18N, "gpu-voltage-boost-tooltip"),
+                                set_label: &match self.id {
+                                    RowId::MsvddMaster => fl!(I18N, "msvdd-offset-tooltip"),
+                                    _ => fl!(I18N, "gpu-voltage-boost-tooltip"),
+                                },
                                 set_wrap: true,
                                 set_wrap_mode: gtk::pango::WrapMode::Word,
                                 set_max_width_chars: 55,
@@ -160,11 +178,7 @@ impl FactoryComponent for ClockAdjustmentRow {
         }
     }
 
-    fn init_model(
-        data: Self::Init,
-        clock_type: &Self::Index,
-        _sender: relm4::FactorySender<Self>,
-    ) -> Self {
+    fn init_model(data: Self::Init, id: &Self::Index, _sender: relm4::FactorySender<Self>) -> Self {
         let adjustment = OcAdjustment::new(
             data.current as f64,
             data.min as f64,
@@ -178,7 +192,7 @@ impl FactoryComponent for ClockAdjustmentRow {
         });
 
         Self {
-            clock_type: *clock_type,
+            id: *id,
             custom_title: data.custom_title,
             adjustment,
             change_signal,
