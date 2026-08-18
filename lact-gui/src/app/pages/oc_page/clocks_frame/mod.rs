@@ -12,12 +12,12 @@ use crate::{
     },
 };
 use adjustment_group::{AdjustmentGroup, ClockCategory};
-use adjustment_row::ClocksData;
+use adjustment_row::{ClocksData, RowId};
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
 use gtk::{
     glib::object::ObjectExt,
     pango,
-    prelude::{BoxExt, ButtonExt, CheckButtonExt, OrientableExt, WidgetExt},
+    prelude::{AdjustmentExt, BoxExt, ButtonExt, CheckButtonExt, OrientableExt, WidgetExt},
 };
 use i18n_embed_fl::fl;
 use lact_schema::{
@@ -49,6 +49,8 @@ pub enum ClocksFrameMsg {
     Clocks(Option<Arc<ClocksTable>>),
     VramRatio(f64),
     TogglePStatesVisibility,
+    /// The user moved the MSVDD master row, which drives the per-domain rows.
+    MsvddOffset(i32),
 }
 
 #[relm4::component(pub)]
@@ -345,12 +347,19 @@ impl relm4::Component for ClocksFrame {
                     .vram_locked_clocks_togglebutton
                     .unblock_signal(&widgets.vram_locked_clock_signal);
 
+                self.connect_msvdd_master(&sender);
+
                 self.update_vram_clock_ratio();
                 sender.input(ClocksFrameMsg::TogglePStatesVisibility);
             }
             ClocksFrameMsg::VramRatio(vram_ratio) => {
                 self.vram_clock_ratio = vram_ratio;
                 self.update_vram_clock_ratio();
+            }
+            ClocksFrameMsg::MsvddOffset(offset) => {
+                if let Some(group) = self.advanced_groups.get(&ClockCategory::AdvancedVoltage) {
+                    group.set_domain_voltage_offsets(offset);
+                }
             }
             ClocksFrameMsg::TogglePStatesVisibility => {
                 for group in self.all_groups() {
@@ -370,7 +379,11 @@ impl relm4::Component for ClocksFrame {
 
 impl ClocksFrame {
     fn set_clock(&mut self, clock_type: ClockspeedType, data: ClocksData) {
-        let category = ClockCategory::from_type(clock_type);
+        self.set_row(RowId::Clock(clock_type), data);
+    }
+
+    fn set_row(&mut self, id: RowId, data: ClocksData) {
+        let category = ClockCategory::from_row(id);
 
         let groups = if category.is_core() {
             &mut self.core_groups
@@ -389,7 +402,7 @@ impl ClocksFrame {
             groups.get_mut(&category).unwrap()
         };
 
-        group.set_clock(clock_type, data);
+        group.set_row(id, data);
     }
 
     fn all_groups(&self) -> impl Iterator<Item = &AdjustmentGroup> {
@@ -397,6 +410,25 @@ impl ClocksFrame {
             .values()
             .chain(self.vram_groups.values())
             .chain(self.advanced_groups.values())
+    }
+
+    /// Forwards user changes of the MSVDD master row to this component.
+    ///
+    /// The rows are rebuilt whenever the clocks table changes, so this runs
+    /// again for each new row. The handler is attached after the row was
+    /// initialized with its current value, so loading a table does not fire it.
+    fn connect_msvdd_master(&self, sender: &ComponentSender<Self>) {
+        let adjustment = self
+            .advanced_groups
+            .get(&ClockCategory::AdvancedVoltage)
+            .and_then(|group| group.row_adjustment(RowId::MsvddMaster));
+
+        if let Some(adjustment) = adjustment {
+            let sender = sender.clone();
+            adjustment.connect_value_changed(move |adjustment| {
+                sender.input(ClocksFrameMsg::MsvddOffset(adjustment.value() as i32));
+            });
+        }
     }
 
     fn advanced_any_visible(&self) -> bool {
@@ -657,6 +689,31 @@ impl ClocksFrame {
             self.set_clock(
                 ClockspeedType::MemClockOffset(*pstate),
                 nvidia_clock_offset_to_data(offset, *pstate > 0),
+            );
+        }
+
+        // Every one of these domains is fed by the same MSVDD rail, so offsetting
+        // all of them together is the common case. The master row covers that,
+        // and the per-domain rows below it stay editable as overrides.
+        let voltages: Vec<_> = table
+            .clock_domain_offsets
+            .iter()
+            .filter_map(|domain_offset| domain_offset.voltage.as_ref())
+            .collect();
+
+        if voltages.len() > 1 {
+            self.set_row(
+                RowId::MsvddMaster,
+                ClocksData {
+                    // The highest offset in effect, so the master reflects the
+                    // largest change the domains have between them.
+                    current: voltages.iter().map(|voltage| voltage.current).max().unwrap(),
+                    // Only values every domain accepts, as the master sets them all.
+                    min: voltages.iter().map(|voltage| voltage.min).max().unwrap(),
+                    max: voltages.iter().map(|voltage| voltage.max).min().unwrap(),
+                    step: 1,
+                    ..Default::default()
+                },
             );
         }
 
