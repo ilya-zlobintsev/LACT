@@ -210,6 +210,8 @@ pstate-clock = P-State {$pstate} Clock
 pstate-clock-voltage = P-State {$pstate} Voltage
 clock-domain-offset = {$domain} Clock Offset
 clock-domain-voltage-offset = {$domain} MSVDD Offset
+msvdd-offset = MSVDD Offset
+msvdd-offset-tooltip = MSVDD is a single voltage rail shared by all of the clock domains below, so this applies the same offset to every one of them. Changing an individual domain afterwards overrides the offset for that domain only.
 advanced-section = Advanced
 advanced-section-description = Clock domains the driver does not expose through its normal interface. Independent of the locked clock options above, so both can be used together.
 

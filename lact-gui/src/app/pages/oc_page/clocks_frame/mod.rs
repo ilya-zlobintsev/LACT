@@ -25,9 +25,20 @@ use std::{collections::HashSet, sync::Arc};
 
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 
+/// Identifies a row in the frame.
+///
+/// Most rows map one to one onto a clockspeed the daemon can set. The MSVDD
+/// master is the exception: it only exists in the GUI, where it drives the
+/// per-domain offset rows, so it has no clockspeed type of its own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RowId {
+    Clock(ClockspeedType),
+    MsvddMaster,
+}
+
 pub struct ClocksFrame {
-    adjustments: FactoryHashMap<ClockspeedType, AdjustmentRow<ClockspeedType>>,
-    secondary_p_state_clocks: HashSet<ClockspeedType>,
+    adjustments: FactoryHashMap<RowId, AdjustmentRow<RowId>>,
+    secondary_p_state_clocks: HashSet<RowId>,
     domain: ClockDomain,
     vram_clock_ratio: f64,
     show_nvidia_options: bool,
@@ -72,6 +83,13 @@ pub enum ClockDomain {
 }
 
 impl ClockDomain {
+    fn matches_row(self, id: RowId) -> bool {
+        match id {
+            RowId::Clock(clock_type) => self.matches(clock_type),
+            RowId::MsvddMaster => self == Self::Advanced,
+        }
+    }
+
     fn matches(self, clock_type: ClockspeedType) -> bool {
         let domain = match clock_type {
             ClockspeedType::MaxCoreClock
@@ -106,6 +124,8 @@ pub enum ClocksFrameMsg {
     VramRatio(f64),
     TogglePStatesVisibility,
     ResetGpuClockOffsets,
+    /// The user moved the MSVDD master row, which drives the per-domain rows.
+    MsvddOffset,
 }
 
 #[relm4::component(pub)]
@@ -347,6 +367,8 @@ impl relm4::Component for ClocksFrame {
                     }
                 }
 
+                self.connect_msvdd_master(&sender);
+
                 let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                 let input_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                 let lower_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
@@ -375,40 +397,40 @@ impl relm4::Component for ClocksFrame {
                 sender.input(ClocksFrameMsg::TogglePStatesVisibility);
             }
             ClocksFrameMsg::ResetGpuClockOffsets => {
-                for clock_type in self.adjustments.keys() {
-                    if matches!(clock_type, ClockspeedType::GpuClockOffset(_)) {
-                        self.adjustments
-                            .send(clock_type, AdjustmentRowMsg::SetValue(0.0));
+                for id in self.adjustments.keys() {
+                    if matches!(id, RowId::Clock(ClockspeedType::GpuClockOffset(_))) {
+                        self.adjustments.send(id, AdjustmentRowMsg::SetValue(0.0));
                     }
                 }
+            }
+            ClocksFrameMsg::MsvddOffset => {
+                self.set_domain_voltage_offsets();
             }
             ClocksFrameMsg::VramRatio(vram_ratio) => {
                 self.vram_clock_ratio = vram_ratio;
                 self.update_vram_clock_ratio();
             }
             ClocksFrameMsg::TogglePStatesVisibility => {
-                for clock_type in self.adjustments.keys() {
-                    let visible = match clock_type {
-                        ClockspeedType::MaxCoreClock
-                        | ClockspeedType::MinCoreClock
-                        | ClockspeedType::MaxMemoryClock
-                        | ClockspeedType::MinMemoryClock
-                            if self.show_nvidia_options =>
-                        {
-                            self.enable_locked_clocks.value()
-                        }
-                        ClockspeedType::GpuClockOffset(_)
+                for id in self.adjustments.keys() {
+                    let visible = match id {
+                        RowId::Clock(
+                            ClockspeedType::MaxCoreClock
+                            | ClockspeedType::MinCoreClock
+                            | ClockspeedType::MaxMemoryClock
+                            | ClockspeedType::MinMemoryClock,
+                        ) if self.show_nvidia_options => self.enable_locked_clocks.value(),
+                        RowId::Clock(ClockspeedType::GpuClockOffset(_))
                             if self.show_nvidia_options && self.vf_curve_editing.value() =>
                         {
                             false
                         }
                         _ => {
-                            !self.secondary_p_state_clocks.contains(clock_type)
+                            !self.secondary_p_state_clocks.contains(id)
                                 || self.show_all_pstates.value()
                         }
                     };
                     self.adjustments
-                        .send(clock_type, AdjustmentRowMsg::SetVisible(visible));
+                        .send(id, AdjustmentRowMsg::SetVisible(visible));
                 }
             }
         }
@@ -419,32 +441,73 @@ impl relm4::Component for ClocksFrame {
 
 impl ClocksFrame {
     fn set_clock(&mut self, clock_type: ClockspeedType, data: ClocksData) {
-        if !self.domain.matches(clock_type) {
+        self.set_row(RowId::Clock(clock_type), data);
+    }
+
+    fn set_row(&mut self, id: RowId, data: ClocksData) {
+        if !self.domain.matches_row(id) {
             return;
         }
 
         self.adjustments.insert(
-            clock_type,
+            id,
             AdjustmentRowInit {
-                title: data.custom_title.unwrap_or_else(|| clock_title(clock_type)),
-                unit: clock_unit(clock_type),
-                info_text: if clock_type == ClockspeedType::VoltageBoost {
-                    fl!(I18N, "gpu-voltage-boost-tooltip")
-                } else {
-                    String::new()
-                },
+                title: data.custom_title.unwrap_or_else(|| row_title(id)),
+                unit: row_unit(id),
+                info_text: row_info_text(id),
                 value: f64::from(data.current),
                 lower: f64::from(data.min),
                 upper: f64::from(data.max),
-                step_increment: get_row_step(clock_type),
+                step_increment: get_row_step(id),
                 ..Default::default()
             },
         );
         if data.is_secondary_p_state {
-            self.secondary_p_state_clocks.insert(clock_type);
+            self.secondary_p_state_clocks.insert(id);
         } else {
-            self.secondary_p_state_clocks.remove(&clock_type);
+            self.secondary_p_state_clocks.remove(&id);
         }
+    }
+
+    /// Pushes one offset into every per-domain MSVDD row.
+    ///
+    /// MSVDD is a single rail shared by all of these domains, so the master row
+    /// sets them together; editing one afterwards overrides it for that domain.
+    fn set_domain_voltage_offsets(&self) {
+        let offset = self
+            .adjustments
+            .get(&RowId::MsvddMaster)
+            .map_or(0.0, AdjustmentRow::get_value);
+
+        for id in self.adjustments.keys() {
+            if matches!(
+                id,
+                RowId::Clock(ClockspeedType::ClockDomainVoltageOffset(_))
+            ) {
+                self.adjustments
+                    .send(id, AdjustmentRowMsg::SetValue(offset));
+            }
+        }
+    }
+
+    /// Forwards user changes of the MSVDD master row to this component.
+    ///
+    /// The rows are rebuilt whenever the clocks table changes, so this runs again
+    /// for each new row. The handler is attached after the row was initialized
+    /// with its current value, so loading a table does not fire it.
+    fn connect_msvdd_master(&self, sender: &ComponentSender<Self>) {
+        let Some(adjustment) = self
+            .adjustments
+            .get(&RowId::MsvddMaster)
+            .map(AdjustmentRow::adjustment)
+        else {
+            return;
+        };
+
+        let sender = sender.clone();
+        adjustment.connect_value_changed(move |_| {
+            sender.input(ClocksFrameMsg::MsvddOffset);
+        });
     }
 
     fn has_any_clocks(&self) -> bool {
@@ -456,17 +519,17 @@ impl ClocksFrame {
     }
 
     fn update_vram_clock_ratio(&self) {
-        for clock_type in self.adjustments.keys() {
+        for id in self.adjustments.keys() {
             if matches!(
-                clock_type,
-                ClockspeedType::MaxMemoryClock
-                    | ClockspeedType::MinMemoryClock
-                    | ClockspeedType::MemClockOffset(_)
+                id,
+                RowId::Clock(
+                    ClockspeedType::MaxMemoryClock
+                        | ClockspeedType::MinMemoryClock
+                        | ClockspeedType::MemClockOffset(_)
+                )
             ) {
-                self.adjustments.send(
-                    clock_type,
-                    AdjustmentRowMsg::ValueRatio(self.vram_clock_ratio),
-                );
+                self.adjustments
+                    .send(id, AdjustmentRowMsg::ValueRatio(self.vram_clock_ratio));
             }
         }
     }
@@ -706,6 +769,34 @@ impl ClocksFrame {
             );
         }
 
+        // Every one of these domains is fed by the same MSVDD rail, so offsetting
+        // all of them together is the common case. The master row covers that,
+        // and the per-domain rows below it stay editable as overrides.
+        let voltages: Vec<_> = table
+            .clock_domain_offsets
+            .iter()
+            .filter_map(|domain_offset| domain_offset.voltage.as_ref())
+            .collect();
+
+        if voltages.len() > 1 {
+            self.set_row(
+                RowId::MsvddMaster,
+                ClocksData {
+                    // The highest offset in effect, so the master reflects the
+                    // largest change the domains have between them.
+                    current: voltages
+                        .iter()
+                        .map(|voltage| voltage.current)
+                        .max()
+                        .unwrap(),
+                    // Only values every domain accepts, as the master sets them all.
+                    min: voltages.iter().map(|voltage| voltage.min).max().unwrap(),
+                    max: voltages.iter().map(|voltage| voltage.max).min().unwrap(),
+                    ..Default::default()
+                },
+            );
+        }
+
         for domain_offset in &table.clock_domain_offsets {
             self.set_clock(
                 ClockspeedType::ClockDomainOffset(domain_offset.domain),
@@ -773,7 +864,13 @@ impl ClocksFrame {
     pub fn get_commands(&self) -> Vec<SetClocksCommand> {
         self.adjustments
             .iter()
-            .filter_map(|(clock_type, row)| {
+            .filter_map(|(id, row)| {
+                // Rows that only exist in the GUI are skipped; they act through
+                // the rows they drive rather than being applied themselves.
+                let RowId::Clock(clock_type) = id else {
+                    return None;
+                };
+
                 let configured_value = row.get_changed_value().map(|value| value as i32);
                 // If nvidia options are enabled, we always set locked clocks to None or Some
                 let value = if self.show_nvidia_options {
@@ -810,6 +907,21 @@ fn nvidia_clock_offset_to_data(
         max: clock_info.max,
         is_secondary_p_state,
         ..Default::default()
+    }
+}
+
+fn row_title(id: RowId) -> String {
+    match id {
+        RowId::Clock(clock_type) => clock_title(clock_type),
+        RowId::MsvddMaster => fl!(I18N, "msvdd-offset"),
+    }
+}
+
+fn row_info_text(id: RowId) -> String {
+    match id {
+        RowId::Clock(ClockspeedType::VoltageBoost) => fl!(I18N, "gpu-voltage-boost-tooltip"),
+        RowId::MsvddMaster => fl!(I18N, "msvdd-offset-tooltip"),
+        _ => String::new(),
     }
 }
 
@@ -863,7 +975,19 @@ fn clock_unit(clock_type: ClockspeedType) -> String {
     }
 }
 
-fn get_row_step(clock_type: ClockspeedType) -> f64 {
+fn row_unit(id: RowId) -> String {
+    match id {
+        RowId::Clock(clock_type) => clock_unit(clock_type),
+        RowId::MsvddMaster => fl!(I18N, "mv"),
+    }
+}
+
+fn get_row_step(id: RowId) -> f64 {
+    let RowId::Clock(clock_type) = id else {
+        // The master is an MSVDD offset like the rows it drives
+        return 1.0;
+    };
+
     match clock_type {
         ClockspeedType::MaxCoreClock
         | ClockspeedType::MinCoreClock
