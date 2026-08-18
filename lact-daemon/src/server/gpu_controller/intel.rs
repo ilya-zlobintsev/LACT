@@ -583,11 +583,11 @@ impl IntelGpuController {
             .expect("invalid amount of curve points")
     }
 
-    fn get_hwmon_fan_curve(&self) -> Option<FanCurveMap> {
-        //if we need the exact fan curve in the future
+    // if we need the exact fan curve in the future
+    /* fn get_hwmon_fan_curve(&self) -> Option<FanCurveMap> {
         let points: Vec<(i32, f32)> = self.get_hwmon_fan_curve_points()?;
         Some(points.into_iter().collect())
-    }
+    } */
 
     fn get_hwmon_fan_curve_points(&self) -> Option<Vec<(i32, f32)>> {
         let amount: u8 = self.get_hwmon_controllable_points_amount();
@@ -624,13 +624,7 @@ impl IntelGpuController {
 
     fn get_truncated_hwmon_fan_curve(&self, config: Option<&GpuConfig>) -> Option<FanCurveMap> {
         let mut points: Vec<(i32, f32)> = self.get_hwmon_fan_curve_points()?;
-
-        if let Some(config) = &config
-            && let Some(fan_settings) = &config.fan_control_settings
-            && !fan_settings.curve.0.is_empty()
-        {
-            points.truncate(fan_settings.curve.0.len());
-        }
+        points = truncate_effective_curve(points, config);
 
         Some(points.into_iter().collect())
     }
@@ -1079,6 +1073,35 @@ impl GpuController for IntelGpuController {
     }
 }
 
+#[allow(clippy::float_cmp)]
+fn truncate_effective_curve(
+    mut all_points: Vec<(i32, f32)>,
+    config: Option<&GpuConfig>,
+) -> Vec<(i32, f32)> {
+    let Some(&(_, last_speed)) = all_points.last() else {
+        return all_points;
+    };
+
+    let Some(prev_from_last) = all_points
+        .iter()
+        .rposition(|(_, speed)| *speed != last_speed)
+    else {
+        return all_points;
+    };
+    let mut effective_len = prev_from_last + 2;
+
+    if let Some(config) = config
+        && let Some(fan_settings) = &config.fan_control_settings
+        && !fan_settings.curve.0.is_empty()
+        && fan_settings.curve.0.len() > effective_len
+    {
+        effective_len = fan_settings.curve.0.len();
+    }
+
+    all_points.truncate(effective_len);
+    all_points
+}
+
 #[derive(Clone, Copy)]
 enum FrequencyType {
     Cur,
@@ -1115,9 +1138,16 @@ struct IntelVramInfo {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::{DRM_ENGINES, DRM_VRAM_KEYS};
-    use crate::server::gpu_controller::common::fdinfo::parse_fdinfo;
-    use lact_schema::ProcessUtilizationType;
+    use crate::server::gpu_controller::{
+        common::fdinfo::parse_fdinfo, intel::truncate_effective_curve,
+    };
+    use lact_schema::{
+        ProcessUtilizationType,
+        config::{FanControlSettings, FanCurve, GpuConfig},
+    };
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -1208,5 +1238,50 @@ drm-engine-capacity-ccs:        4\
         let util = parse_fdinfo(data, DRM_VRAM_KEYS, DRM_ENGINES).unwrap();
         assert_eq!(3, util.client_id);
         assert_eq!(24_567_808, util.memory_used);
+    }
+
+    #[test]
+    fn truncate_fan_curve() {
+        assert_eq!(
+            vec![(40, 0.0), (50, 0.2), (60, 0.7), (80, 1.0)],
+            truncate_effective_curve(
+                vec![
+                    (40, 0.0),
+                    (50, 0.2),
+                    (60, 0.7),
+                    (80, 1.0),
+                    (81, 1.0),
+                    (82, 1.0)
+                ],
+                None
+            )
+        );
+
+        assert_eq!(
+            vec![(40, 0.0), (50, 0.2), (60, 0.7), (80, 1.0), (81, 1.0)],
+            truncate_effective_curve(
+                vec![
+                    (40, 0.0),
+                    (50, 0.2),
+                    (60, 0.7),
+                    (80, 1.0),
+                    (81, 1.0),
+                    (82, 1.0)
+                ],
+                Some(&GpuConfig {
+                    fan_control_settings: Some(FanControlSettings {
+                        curve: FanCurve(BTreeMap::from([
+                            (40, 0.0),
+                            (50, 0.2),
+                            (60, 0.7),
+                            (80, 1.0),
+                            (81, 1.0),
+                        ])),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                })
+            )
+        );
     }
 }
