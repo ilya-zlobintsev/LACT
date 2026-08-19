@@ -162,7 +162,7 @@ amd-oc-detected-system-config =
         [unsupported] მხარდაუჭერელია
        *[other] { $config }
     }</b>
-reset-config-description = მართლა გნებავთ ყველა GPU-ის კონფიგურაციის ჩამოყრა?
+reset-config-description = ეს ჩამოყრის ყველა GPU-ის პარამეტრს მათ ნაგულისხმევ მნიშვნელობებზე და სამუდამოდ წაშლის ყველა პროფილს
 performance-level-high-description = GPU-ისთვის და VRAM-ისთვის ყოველთვის უმაღლესი სიხშირის გამოყენება.
 performance-level-low-description = GPU-ისთვის და VRAM-ისთვის ყოველთვის ყველაზე დაბალი სიხშირის გამოყენება.
 manual-level-needed = კვების მდგომარეობების და რეჟიმების გამოსაყენებლად წარმადობის დონე "მორგებულზე" უნდა დააყენოთ
@@ -302,3 +302,11 @@ service-disconnected = დაკავშირებული არაა
 gui-version = GUI-ის ვერსია
 gpu-voltage-boost = GPU-ის ძაბვის ზრდა (%)
 gpu-voltage-boost-tooltip = აკონტროლებს, რამდენი დამატებითი ძაბვაა დრაივერის მიერ დაშვებული. 100% ნიშნავს ამ ძაბვის სრულად გამოყენებას და არა GPU-ის სრული ძაბვის 100%-ს. მეტმა დამატებითმა ძაბვამ, შეიძლება, უფრო მეტი სიხშირე დაუშვას, მაგრამ ასევე იზრდება დახარჯული ენერგია და გამოყოფილი სითბოც.
+no-fan-detected = ვენტილატორები აღმოჩენილი არაა
+no-sensors-found = სენსორები აღმოჩენილი არაა
+service-autostart = ავტოგაშვება ჩატვირთვისას
+service-autostart-disable = ასევე გაითიშოს ავტოგაშვვება
+reset-now-button = ჩამოყრა ახლავე
+default-button = ნაგულისხმევი
+service-setup-title = სერვისის მორგება
+setup-error = მორგების შეცდომა: { $error }
