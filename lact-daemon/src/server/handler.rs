@@ -85,7 +85,7 @@ const SNAPSHOT_EXCLUDED_FILENAME_PREFIXES: &[&str] = &[
     "pcie_bw",
     "msi_irqs",
     "mtd",
-    "intel_pmt"
+    "intel_pmt",
 ];
 const CONFIG_RESET_CMDLINE_ARG: &str = "lact-reset";
 
