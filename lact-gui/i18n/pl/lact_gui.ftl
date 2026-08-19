@@ -1,14 +1,14 @@
 compute-units = Jednostki Obliczeniowe
 kernel-version = Wersja jądra
 gpu-usage = Użycie GPU
-workgroup-size = Rozmiar Grupy
-hardware-info = Informacje o sprzęcie
-thermals-page = Zarządzanie temperaturą
+workgroup-size = Rozmiar grupy roboczej
+hardware-info = Informacje o sprzęcie
+thermals-page = Temperatury
 software-page = Informacje o oprogramowaniu
 system-section = System
-lact-daemon = LACT Demon
-lact-gui = Środowisko Graficzne LACT
-instance = Środowisko
+lact-daemon = Demon LACT
+lact-gui = Interfejs graficzny LACT
+instance = Instancja
 driver-name = Nazwa Sterownika
 device-name = Nazwa urządzenia
 platform-name = Nazwa Platformy
@@ -32,7 +32,7 @@ zero-rpm = Tryb Passywny
 zero-rpm-stop-temp = Temperatura wył. temperatury pasywnej
 static-speed = Stała Prędkość (%)
 reset-button = Przywróć
-watt = w
+watt = W
 ghz = GHz
 mhz = MHz
 gpu-clock = Częstotliwość rdzenia GPU
@@ -41,19 +41,19 @@ gpu-clock-target = Wyznaczona Częstotliwość Rdzenia GPU
 gpu-voltage = Napięcie GPU
 gpu-temp = Temperatura
 vram-clock = Częstotliwość VRAM
-power-usage = Zużycie Energi
+power-usage = Pobór mocy
 driver-version = Wersja Sterownika
 device-not-found = { $kind } nie odnaleziono urządzenia
 target-temp = Wyznaczona temperatura (°C)
 stats-section = Statystyki
-power-cap = Limit Energi
+power-cap = Limit poboru mocy
 fan-speed = Prędkość Wentylatora
 min-fan-speed = Minimalna Prędkość Wentylatora (%)
 vram-pstate-clock-offset = VRAM P-State { $pstate } Zegar Offset (MHz)
 auto-switch-profiles = Zmień automatycznie
 performance-level-auto = Automatycznie
-min-vram-clock = Minimalne Zegary VRAM (MHz)
-performance-level-auto-description = Automatycznie dopasuj zegary GPU I VRAM. (Podstawowe)
+min-vram-clock = Minimalne taktowanie VRAM (MHz)
+performance-level-auto-description = Automatycznie dostosuj taktowania GPU I VRAM. (Domyślne)
 reset-oc-tooltip = Ostrzeżenie: to spowoduje zresetowanie wszystkich zegarów do domyślnych!
 max-gpu-clock = Maksymalne Zegary Offset GPU (MHz)
 all-rules-matched = Jeśli spełnione są wszystkie z poniższych warunków:
@@ -62,20 +62,20 @@ settings-profile = Profile Ustawień
 save = Zapisz
 rename-profile-from = Zmień nazwę profilu <b>{ $old_name }</b> na:
 nvidia-oc-description =
-    Zmiany ustawień obejmują offsety zegarów GPU i VRAM, a także ograniczenie maksymalnych wartości zegarów przy użyciu zablokowanych „funkcji”
+    Zmiany ustawień obejmują przesunięcia taktowania GPU i VRAM, a także ograniczenie maksymalnych wartości zegarów przy użyciu zablokowanych „funkcji”
 
-    Na wielu kartach graficznych offset dla taktowania VRAM wpływa na rzeczywiste taktowanie pamięci tylko w połowie wartości offsetu.
-    Przykład: Offset +1000 MHz dla VRAM może zwiększyć rzeczywistą częstotliwość pamięci tylko o 500 MHz..
-    To jest normalne — tak właśnie Nvidia obsługuje prędkości przesyłu danych w pamięci GDDR. Dostosuj swoje ustawienia podkręcania odpowiednio do tego zachowania.
+    Na wielu kartach graficznych przesunięcie dla taktowania VRAM wpływa na rzeczywiste taktowanie pamięci tylko w połowie wartości offsetu.
+    Przykład: Przesunięcie +1000 MHz dla VRAM może zwiększyć rzeczywistą częstotliwość pamięci tylko o 500 MHz..
+    To jest normalne, tak właśnie Nvidia obsługuje prędkości przesyłu danych w pamięci GDDR. Odpowiednio dostosuj swoje podkręcenie.
 
     Bezpośrednie sterowanie napięciem nie jest obsługiwane, ponieważ taka funkcja nie istnieje w sterowniku Nvidia dla systemu Linux.
 
-    Możliwe jest jednak osiągnięcie pseudo-undervoltu, łącząc zablokowane zegary z dodatnim offsetem
+    Możliwe jest jednak osiągnięcie pseudo-undervoltu, łącząc zablokowane zegary z dodatnim przesunięciem
     Wymusza to pracę GPU przy napięciu ograniczonym przez ustawione zegary, ale jednocześnie umożliwia wyższą częstotliwość dzięki offsetowi.
     Zbyt duża wartość może prowadzić do niestabilności systemu.
 profile-hook-deactivated = Dezaktywowana:
 info-page = Informacje o sprzęcie
-oc-page = Tryb OC
+oc-page = Podkręcanie
 fan-control-section = Sterowanie chłodzenia
 nvidia-cache-desc = { $size } L{ $level }
 cache-instruction = Dane
@@ -90,7 +90,7 @@ oc-missing-fan-control-warning = Uwaga: Modyfikacja jest zablokowana, ustawienia
 acoustic-target = Wyznaczony poziomu hałasu (RPM)
 amd-oc = Zarządzanie AMD
 amd-oc-status =
-    Zarządzanie AMD OC jest obecnie: <b>{ $status ->
+    Podkręcanie AMD jest obecnie: <b>{ $status ->
         [true] Dostępne
         [false] Zablokowane
        *[other] Nieznane
@@ -110,27 +110,27 @@ reset-config-description = Czy na pewno chcesz zresetować ustawienia Karty?
 no-throttling = Nie
 unknown-throttling = Nieznane
 missing-stat = Nie dotyczy
-mebibyte = Mebibajt
-performance-level-high = Najwyższe Zegary
-performance-level-low = Najniższe Zegary
+mebibyte = MiB
+performance-level-high = Najwyższe Taktowanie
+performance-level-low = Najniższe Taktowanie
 performance-level-manual = Ręczne
-performance-level-high-description = Zawsze używaj najwyższych zegarów dla GPU i VRAM.
-performance-level-low-description = Zawsze używaj najniższych zegarów dla GPU i VRAM.
+performance-level-high-description = Zawsze używaj najwyższego taktowania dla GPU i VRAM.
+performance-level-low-description = Zawsze używaj najniższego taktowania dla GPU i VRAM.
 performance-level-manual-description = Ręczne sterowanie wydajnością.
-power-profile-mode = Profil Trybu Zasilania:
+power-profile-mode = Tryb profilu zasilania:
 manual-level-needed = Poziom wydajności został ustawiony jako Ręczny aby uaktywnić profile mocy
-overclock-section = Częstotliwość Zegarów oraz Napieć
+overclock-section = Taktowanie i napięcie
 nvidia-oc-info = Zarządzanie informacjami OC Nvidia
 show-all-pstates = Pokaż wszystkie P-States
 enable-gpu-locked-clocks = Odblokuj Zablokowane Zegary GPU
-enable-vram-locked-clocks = Odblokuj Zablokowane Zegary VRAM
+enable-vram-locked-clocks = Włącz zablokowane taktowanie VRAM
 no-clocks-data = Brak danych o zegarach
-gpu-clock-offset = Zegary Offset GPU (MHz)
+gpu-clock-offset = Przesunięcie taktowania GPU (MHz)
 max-vram-clock = Maksymalne Zegary Offset VRAM (MHz)
 max-gpu-voltage = Maksymalne Napięcie GPU (mV)
-min-gpu-clock = Minimalne Zegary GPU (MHz)
+min-gpu-clock = Minimalne taktowanie GPU (MHz)
 min-gpu-voltage = Minimalne Napięcie GPU (mV)
-gpu-voltage-offset = Off-set Napięcia GPU (mV)
+gpu-voltage-offset = Przesunięcie napięcia GPU (mV)
 gpu-pstate-clock-offset = GPU P-State { $pstate } Zegar Offset (MHz)
 gpu-pstate-clock = GPU P-State { $pstate } Zegar (MHz)
 gpu-pstate-clock-voltage = GPU P-State { $pstate } Napięcie(mV)
@@ -177,7 +177,7 @@ profile-rule-specific-process = Z określonym procesem:
 pmfw-reset-warning = UWAGA: To zresetuje ustawienia sterownika wentylatora!
 pstate-list-description = <b>Widoczne wartości są zegarami z offsetem dla każdego P-State, pogrupowane od największych do najniższych.</b>
 amd-oc-disabled =
-    Zarządzanie ustawieniami AMD OC nie dostępne!
+    Podkręcanie AMD nie dostępne!
     W dalszym ciągu może dokonać zmian podstawowych, lecz zaawansowane ustawienia częstotliwości oraz energii nie będą dostępne.
 enable-amd-oc-description = Ta czynność odblokuje zaawansowane ustawienie w sterowniku amdgpu poprzez utworzenie pliku w <b>{ $path }</b> oraz zaktualizowaniu initramfs. Czy jesteś tego pewien?
 amd-oc-description =
@@ -191,7 +191,7 @@ amd-oc-description =
     }
 
     Sprawdź <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">wiki</a> po więcej informacji.
-oc-warning = Ostrzeżenie: zmieniając te ustawienia , może nastąpić niestabilność systemu które może prowadzić do uszkodzenia sprzętu!
+oc-warning = Zmiana tych wartości może prowadzić do niestabilności systemu, a nawet potencjalnie uszkodzić sprzęt!
 mem-pstate-clock = VRAM P-State { $pstate } Zegar (MHz)
 profile-activation = Aktywacja
 show-process-monitor = Pokaż monitor procesu
@@ -212,13 +212,13 @@ automatic-mode-threshold-tooltip =
 
     Ta opcja pozwala obejść to ograniczenie, używając niestandardowej krzywej tylko powyżej określonej temperatury, a poniżej niej korzystając z wbudowanego trybu automatycznego karty, który obsługuje tryb zero RPM.
 bytes = bajty
-kibibyte = kibibajty
-gibibyte = gibibajty
+kibibyte = KiB
+gibibyte = GiB
 vf-curve-editor = Edytor krzywej VF
 nvidia-vf-curve-warning =
-    Edytor krzywej napięcia–częstotliwości opiera się na nieudokumentowanej funkcjonalności sterownika.
-    Nie ma żadnych gwarancji dotyczących jego działania, bezpieczeństwa ani dostępności.
-    <span weight = "heavy" underline = "single">Używasz na własne ryzyko</span>.
+    Edytor krzywej napięcia i częstotliwości korzysta z nieudokumentowanych funkcji sterownika.
+    Nie ma gwarancji dotyczących jego działania, bezpieczeństwa ani dostępności.
+    <span weight = "heavy" underline = "single">Używasz go na własne ryzyko</span>.
 vf-curve-enable-editing = Włącz edycje
 voltage = Napięcie
 frequency = Częstotliwość
@@ -226,8 +226,8 @@ vf-active-curve = aktywna krzywa
 vf-base-curve = krzywa bazowa
 vf-curve-visible-range = Zakres widoczny (%):
 vf-curve-visible-range-to = do
-vf-curve-flatten-right = wyrównaj krzywą w prawo
-generate-debug-snapshot = wygeneruj zrzut diagnostyczny
+vf-curve-flatten-right = Wyrównaj krzywą w prawo
+generate-debug-snapshot = Wygeneruj zrzut diagnostyczny
 dump-vbios = wyeksportuj VBIOS
 reset-all-config = Zresetuj całą konfiguracje
 stats-update-interval = Interwał aktualizacji (ms)
@@ -240,14 +240,14 @@ delete-graph = usuń wykres
 edit-graphs = edytuj
 export-csv = wyeksportuj jako CSV
 edit-graph-sensors = edytuj czujniki wykresu
-reconnecting-to-daemon = Utracono połączenie z usługą (daemon), ponowne łączenie...
+reconnecting-to-daemon = Utracono połączenie z usługą (demonem), ponowne łączenie...
 daemon-connection-lost = Utracono połączenie
-plot-show-detailed-info = pokaż szczegółowe informacje
+plot-show-detailed-info = Pokaż szczegółowe informacje
 theme = motyw
 theme-auto = automatycznie
-preferences = preferencje
-daemon = Daemon
-about = O
+preferences = Preferencje
+daemon = Demon
+about = O programie
 crash-page-title = Aplikacja uległa awarii
 exit = Wyjście
 hw-ip-info = Informacje o sprzętowym adresie IP
@@ -259,5 +259,54 @@ error-heading = Błąd
 daemon-info-heading = informacje Daemon
 version-mismatch-description =
     Niezgodność wersji między interfejsem GUI a demonem ({ $gui_version }-{ $gui_commit } vs { $daemon_version }-{ $daemon_commit })!
-    Jeśli zaktualizowałeś LACT, musisz ponownie uruchomić usługę poleceniem:
+    Jeśli zaktualizowałeś LACT, musisz ponownie uruchomić usługę.
 close = Zamknij
+displays-page = Informacje o ekranach
+gpu-voltage-boost = Zwiększenie napięcia GPU (%)
+gpu-voltage-boost-tooltip = Określa, jaka część dodatkowego zakresu napięcia udostępnionego przez sterownik jest dostępna. 100% oznacza cały ten zakres, a nie 100% całkowitego napięcia GPU. Większy zakres może pozwolić na utrzymanie wyższych częstotliwości taktowania, ale zwiększa pobór energii i temperaturę.
+gtt-usage = Wykorzystanie GTT:
+gui-version = Wersja interfejsu graficznego
+no-sensors-found = Nie znaleziono sensorów
+no-fan-detected = Nie znaleziono wentylatorów
+thresholds-section = Progi i limity
+vf-curve-flatten-selection = Spłaszcz zaznaczenie
+power-mizer-mode = Tryb PowerMizera
+power-mizer-mode-auto = Automatycznie
+power-mizer-mode-adaptive = Adaptacyjny
+power-mizer-mode-prefer-maximum-performance = Preferuj maksymalną wydajność
+power-mizer-mode-prefer-consistent-performance = Preferuj stałą wydajność
+power-mizer-mode-auto-description = Pozwól sterownikowi wybrać profil wydajności.
+power-mizer-mode-adaptive-description = Dostosuj taktowanie GPU na podstawie jego wykorzystania.
+power-mizer-mode-prefer-maximum-performance-description = Preferuj maksymalną wydajność w granicach limitów sterownika.
+power-mizer-mode-prefer-consistent-performance-description = Zablokuj taktowanie GPU na poziomie bazowym.
+color-scheme = Schemat kolorów
+color-scheme-auto = Systemowy
+color-scheme-light = Jasny
+color-scheme-dark = Ciemny
+menu = Menu
+service-explanation =
+    Do zastosowania ustawień GPU wymagany jest systemowy serwis LACT.
+    Bez niego LACT działa w trybie samodzielnym, w którym dostępne są tylko informacje i monitorowanie.
+service-connection-status = Status połączenia
+service-status = Status usługi
+service-permission-denied =
+    Odmowa dostępu. Usługa nie jest skonfigurowana, aby zezwalać na połączenia z Twojego konta użytkownika.
+    Więcej informacji znajdziesz na stronie <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a>
+service-connected = Połączono
+service-disconnected = Brak połączenia
+service-version = Wersja usługi
+service-autostart = Uruchamiaj automatycznie przy starcie systemu
+service-autostart-disable = Wyłącz również automatyczne uruchamianie
+service-version-mismatch = niezgodny
+service-logs = Dzienniki usługi
+service-start = Uruchom
+service-stop = Zatrzymaj
+service-restart = Uruchom Ponownie
+display-title = Ekran { $identifier }
+display-manufacturer = Producent
+display-product-code = Kod produktu
+display-model = Model
+display-physical-size = Rozmiar fizyczny
+display-connection = Połączenie
+display-manufacture-date = Data produkcji
+displays-missing = Nie wykryto żadnych monitorów
