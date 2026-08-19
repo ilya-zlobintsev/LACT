@@ -78,8 +78,10 @@ impl Server {
                         let client_credentials = getsockopt(&stream, PeerCredentials)
                             .inspect_err(|err| warn!("could not get client credentials: {err:#}"))
                             .ok();
+
                         let ctx = ClientContext {
-                            client_pid: client_credentials.map(|creds| creds.pid().cast_unsigned()),
+                            pid: client_credentials.map(|creds| creds.pid().cast_unsigned()),
+                            uid: client_credentials.map(|creds| creds.uid()),
                         };
                         let handler = unix_handler.clone();
                         tokio::task::spawn_local(async move {
@@ -125,7 +127,8 @@ impl Server {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct ClientContext {
-    pub client_pid: Option<u32>,
+    pub pid: Option<u32>,
+    pub uid: Option<u32>,
 }
 
 #[instrument(level = "debug", skip(stream, handler))]

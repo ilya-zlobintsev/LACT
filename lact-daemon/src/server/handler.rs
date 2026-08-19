@@ -1282,8 +1282,9 @@ impl<'a> Handler {
             .as_ref()
             .context("Polkit not available, cannot ask for authorization")?;
 
-        let pid = ctx.client_pid.context("No client PID available")?;
-        let subject = policykit1::Subject::new_for_owner(pid, None, None)?;
+        let pid = ctx.pid.context("No client PID available")?;
+        let uid = ctx.uid.context("No client UID available")?;
+        let subject = policykit1::Subject::new_for_owner(pid, None, Some(uid))?;
         let result = polkit_proxy
             .check_authorization(
                 &subject,
