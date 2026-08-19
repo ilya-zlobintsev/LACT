@@ -12,6 +12,7 @@ use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mo
 use anyhow::{Context, Error, anyhow, bail, ensure};
 use futures::future::LocalBoxFuture;
 use indexmap::IndexMap;
+use lact_schema::FanControlMode::Static;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats,
     DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelClocksTable, IntelDrmInfo,
@@ -624,6 +625,12 @@ impl IntelGpuController {
 
     fn get_truncated_hwmon_fan_curve(&self, config: Option<&GpuConfig>) -> Option<FanCurveMap> {
         let mut points: Vec<(i32, f32)> = self.get_hwmon_fan_curve_points()?;
+
+        if self.get_hwmon_fan_control_mode() == Some(Static) {
+            let single_point: [(i32, f32); 1] = [*points.first().unwrap()];
+            return Some(single_point.into_iter().collect());
+        }
+
         points = truncate_effective_curve(points, config);
 
         Some(points.into_iter().collect())
