@@ -15,9 +15,9 @@ device-name = Имя устройства
 system-section = Система
 monitoring-section = Мониторинг
 amd-oc-status =
-    Статус разгона AMD: <b>{ $status ->
+    Состояние разгона AMD: <b>{ $status ->
         [true] вкл.
-        [false] выкл.
+        [false] откл.
        *[other] неизвестен
     }</b>
 enable-amd-oc = Включить разгон AMD
@@ -47,7 +47,7 @@ amd-oc-detected-system-config =
        *[other] { $config }
     }</b>
 enable-amd-oc-description = Функция разгона драйвера amdgpu будет включена путём создания файла по адресу <b>{ $path }</b> и обновления initramfs. Уверены, что хотите продолжить?
-disable-amd-oc = Выключить разгон AMD
+disable-amd-oc = Отключить разгон AMD
 amd-oc-updating-configuration = Обновление конфигурации (может занять некоторое время)
 amd-oc-updating-done = Конфигурация была обновлена, пожалуйста, перезагрузите систему для применения изменений.
 watt = Вт
@@ -69,7 +69,7 @@ workgroup-size = Размер рабочей группы
 features = Функции
 cache-info = Информация о кэше
 nvidia-cache-desc = { $size } L{ $level }
-reset-config-description = Уверены, что хотите сбросить все настройки ГП?
+reset-config-description = Это сбросит все настройки ГП до значений по умолчанию и безвозвратно удалит все профили
 zero-rpm-stop-temp = Температура остановки нулевых оборотов (°C)
 show-button = Показать
 disable-amd-oc-description = Разгон AMD будет выключен при следующей перезагрузке.
@@ -98,7 +98,7 @@ power-cap = Порог энергопотребления
 gpu-temp = Температура
 unknown-throttling = Неизвестно
 vram-clock = Частота VRAM
-performance-level-auto-description = Автоматическая регулировка частот ГП и VRAM (по умолчанию).
+performance-level-auto-description = Авторегулировка частот ГП и VRAM (по умолчанию).
 performance-level-high-description = Всегда использовать максимальные тактовые частоты для ГП и VRAM.
 auto-page = Автоматически
 performance-level-auto = Автоматически
@@ -147,7 +147,7 @@ edit-rules = Изменить правила
 export-to-file = Экспорт в файл
 no-clocks-data = Данные о частотах недоступны
 manual-level-needed = Чтобы использовать режимы питания, уровень производительности должен быть установлен на «вручную»
-oc-warning = Изменение этих значений может привести к нестабильной работе системы, а также повредить ваше аппаратное обеспечение!
+oc-warning = Изменение этих значений может привести к нестабильной работе системы и повредить ваше аппаратное обеспечение!
 enable-vram-locked-clocks = Включить фиксированные частоты VRAM
 profile-hook-command = Выполнить команду, когда профиль '{ $cmd }':
 profile-hook-activated = Активирован:
@@ -163,7 +163,7 @@ nvidia-oc-description =
     Чрезмерное увеличение параметров может привести к нестабильности системы.
 import-profile = Импорт профиля из файла
 reset-oc-tooltip = Внимание: все настройки частот будут сброшены к значениям по умолчанию!
-auto-switch-profiles = Автоматическое переключение
+auto-switch-profiles = Переключать автоматически
 add-profile = Добавить новый профиль
 profile-activation = Активация
 profile-activation-desc = Активировать профиль '{ $name }' при:
@@ -221,7 +221,7 @@ export-csv = Экспорт в CSV
 edit-graph-sensors = Редактировать сенсоры графика
 apply-button = Применить
 edit-graphs = Редактировать
-time-period-seconds = Временной промежуток (сек.):
+time-period-seconds = Период времени (секунды):
 theme = Тема
 theme-auto = Автоматическая
 crash-page-title = Сбой приложения
@@ -258,7 +258,7 @@ preferences = Настройки
 ui = Интерфейс
 daemon = Демон
 about = О программе
-displays-page = Информация о дисплее
+displays-page = Сведения о дисплеях
 thresholds-section = Пороговые значения и ограничения
 gtt-usage = Использование GTT:
 vf-curve-flatten-selection = Выровнять выделение
@@ -302,3 +302,9 @@ service-disconnected = нет подключения
 gui-version = Версия ГП
 gpu-voltage-boost = Повышение напряжения ГП (%)
 gpu-voltage-boost-tooltip = Определяет, какая часть дополнительного запаса напряжения, заданного драйвером, доступна. 100% означает весь этот запас, а не 100% общего напряжения ГП. Больший запас может поддерживать более высокие частоты, но увеличивает энергопотребление и нагрев.
+no-fan-detected = Вентилятор не обнаружен
+no-sensors-found = Датчики не найдены
+service-autostart = Автозапуск при загрузке
+service-autostart-disable = Также отключить автозапуск
+reset-now-button = Сбросить сейчас
+default-button = По умолчанию
