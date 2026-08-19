@@ -719,7 +719,7 @@ impl<'a> Handler {
         let datetime = jiff::Zoned::now().strftime("%Y%m%d-%H%M%S");
         let out_path = format!("/tmp/LACT-v{DAEMON_VERSION}-snapshot-{datetime}.tar.gz");
 
-        let out_file = File::create(&out_path)
+        let out_file = File::create_new(&out_path)
             .with_context(|| "Could not create output file at {out_path}")?;
         let out_writer = gzip::Encoder::new(BufWriter::new(out_file))
             .context("Could not create GZIP encoder")?;
