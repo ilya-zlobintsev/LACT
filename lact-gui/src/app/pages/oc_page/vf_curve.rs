@@ -65,7 +65,10 @@ pub struct VfCurveEditor {
 #[derive(Debug)]
 pub enum VfCurveEditorMsg {
     Show,
-    Clocks(Option<Arc<ClocksTable>>),
+    Clocks {
+        table: Option<Arc<ClocksTable>>,
+        vf_curve_is_configured: bool,
+    },
     Stats(Arc<DeviceStats>),
     CursorUpdate {
         x: f64,
@@ -322,7 +325,10 @@ impl relm4::Component for VfCurveEditor {
             VfCurveEditorMsg::Show => {
                 root.present();
             }
-            VfCurveEditorMsg::Clocks(clocks_table) => {
+            VfCurveEditorMsg::Clocks {
+                table: clocks_table,
+                vf_curve_is_configured,
+            } => {
                 let mut points = self.points.borrow_mut();
                 points.clear();
                 self.locked_clocks_range.take();
@@ -342,7 +348,7 @@ impl relm4::Component for VfCurveEditor {
                 widgets
                     .enable_editing_button
                     .block_signal(&widgets.enable_editing_signal);
-                self.allow_editing.set_value(curve_is_configured(&points));
+                self.allow_editing.set_value(vf_curve_is_configured);
                 widgets
                     .enable_editing_button
                     .unblock_signal(&widgets.enable_editing_signal);
@@ -877,7 +883,6 @@ impl VfCurveEditor {
     pub fn get_configured_curve(&self) -> IndexMap<u8, config::NvidiaCurvePoint> {
         let points = self.points.borrow();
 
-        // FIXME: offset changes enables allow_editing
         if !self.allow_editing.value() || !curve_is_configured(&points) {
             return IndexMap::new();
         }
