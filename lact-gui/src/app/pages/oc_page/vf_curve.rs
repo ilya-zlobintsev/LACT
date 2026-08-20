@@ -225,7 +225,7 @@ impl relm4::Component for VfCurveEditor {
                             set_valign: gtk::Align::Center,
 
                             #[watch]
-                            set_sensitive: curve_is_configured(&model.points.borrow()),
+                            set_sensitive: curve_has_offsets(&model.points.borrow()),
 
                             connect_clicked => VfCurveEditorMsg::ResetCurve,
                             connect_clicked => move |_| {
@@ -526,7 +526,7 @@ impl VfCurveEditor {
                 Rectangle::new([(x - 15, y + 2), (x, y - 1)], colors.success.filled())
             });
 
-        if curve_is_configured(points) {
+        if curve_has_offsets(points) {
             let base_line_style = colors.success.mix(0.3);
             chart
                 .draw_series(LineSeries::new(
@@ -883,7 +883,7 @@ impl VfCurveEditor {
     pub fn get_configured_curve(&self) -> IndexMap<u8, config::NvidiaCurvePoint> {
         let points = self.points.borrow();
 
-        if !self.allow_editing.value() || !curve_is_configured(&points) {
+        if !self.allow_editing.value() || !curve_has_offsets(&points) {
             return IndexMap::new();
         }
 
@@ -921,6 +921,6 @@ fn offset_freq(base_freq: u32, offset: i32) -> u32 {
     }
 }
 
-fn curve_is_configured(points: &[NvidiaVfPoint]) -> bool {
+fn curve_has_offsets(points: &[NvidiaVfPoint]) -> bool {
     points.iter().any(|point| point.freq_offset != 0)
 }
