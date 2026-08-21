@@ -106,9 +106,9 @@ impl ClockDomain {
             | ClockspeedType::MemClockOffset(_)
             | ClockspeedType::MemVfCurveClock(_)
             | ClockspeedType::MemVfCurveVoltage(_) => Self::Vram,
-            ClockspeedType::ClockDomainOffset(_) | ClockspeedType::ClockDomainVoltageOffset(_) => {
-                Self::Advanced
-            }
+            ClockspeedType::ClockDomainOffset(_)
+            | ClockspeedType::ClockDomainVoltageOffset(_)
+            | ClockspeedType::XbarRatio => Self::Advanced,
             ClockspeedType::Reset => unreachable!(),
         };
         self == domain
@@ -761,6 +761,18 @@ impl ClocksFrame {
             );
         }
 
+        if let Some(ratio) = table.gpc_xbar_ratio {
+            self.set_clock(
+                ClockspeedType::XbarRatio,
+                ClocksData {
+                    current: ratio.current,
+                    min: ratio.min,
+                    max: ratio.max,
+                    ..Default::default()
+                },
+            );
+        }
+
         // Every one of these domains is fed by the same MSVDD rail, so offsetting
         // all of them together is the common case. The master row covers that,
         // and the per-domain rows below it stay editable as overrides.
@@ -917,6 +929,7 @@ fn row_title(id: RowId) -> String {
 fn row_info_text(id: RowId) -> String {
     match id {
         RowId::Clock(ClockspeedType::VoltageBoost) => fl!(I18N, "gpu-voltage-boost-tooltip"),
+        RowId::Clock(ClockspeedType::XbarRatio) => fl!(I18N, "xbar-ratio-tooltip"),
         RowId::MsvddMaster => fl!(I18N, "msvdd-offset-tooltip"),
         _ => String::new(),
     }
@@ -939,6 +952,7 @@ fn clock_title(clock_type: ClockspeedType) -> String {
         ClockspeedType::GpuVfCurveVoltage(pstate) | ClockspeedType::MemVfCurveVoltage(pstate) => {
             fl!(I18N, "pstate-clock-voltage", pstate = pstate)
         }
+        ClockspeedType::XbarRatio => fl!(I18N, "xbar-ratio"),
         // These always carry a custom title with the domain name
         ClockspeedType::ClockDomainOffset(domain) => {
             fl!(I18N, "clock-domain-offset", domain = domain)
@@ -972,7 +986,9 @@ fn get_row_step(id: RowId) -> f64 {
         | ClockspeedType::VoltageBoost
         | ClockspeedType::GpuVfCurveVoltage(_)
         | ClockspeedType::MemVfCurveVoltage(_)
-        | ClockspeedType::ClockDomainVoltageOffset(_) => 1.0,
+        | ClockspeedType::ClockDomainVoltageOffset(_)
+        // A percentage, so it does not step like the clocks it sits next to
+        | ClockspeedType::XbarRatio => 1.0,
         ClockspeedType::Reset => unreachable!(),
     }
 }
