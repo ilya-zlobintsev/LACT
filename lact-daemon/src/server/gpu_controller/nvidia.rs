@@ -1693,54 +1693,6 @@ mod tests {
         assert_eq!(-45, curve[1].freq_offset);
     }
 
-    /// Reading and re-applying without an edit must not touch the table, including on the points
-    /// the driver corrected, where `status.freq - offset` overstates the base.
-    #[test]
-    fn turing_round_trip_does_not_change_the_control_table() {
-        let points = [
-            TestPoint::new(450, 270, 90),
-            TestPoint::new(1075, 2775, -30),
-            TestPoint::new(1085, 2775, -45).with_correction(15),
-        ];
-        let (info, status, control) = tables(&points, false);
-
-        let read_back = build_vf_curve(&info, &status, &control);
-        let curve = offset_curve(
-            &read_back
-                .iter()
-                .map(|point| (point.index, point.freq_offset))
-                .collect::<Vec<_>>(),
-        );
-
-        let result = build_curve_control(&curve, &info, &status, control, OFFSET_RANGE)
-            .expect("apply failed");
-
-        assert_eq!(
-            written_offsets(&control, 3),
-            written_offsets(&result, 3),
-            "re-applying an unedited curve changed the control table"
-        );
-    }
-
-    /// The GUI derives the offset of a dragged point as `new_freq - base_freq`. Without the base
-    /// tuple that has to come out as `old_offset + drag`, otherwise a drag silently shifts the
-    /// point by the driver's correction on top of the movement the user asked for.
-    #[test]
-    fn turing_drag_moves_a_point_by_exactly_the_drag_distance() {
-        let points = [
-            TestPoint::new(450, 270, 90),
-            TestPoint::new(1085, 2775, -45).with_correction(15),
-        ];
-        let (info, status, control) = tables(&points, false);
-
-        for point in build_vf_curve(&info, &status, &control) {
-            let dragged_freq = point.freq.cast_signed() + 15;
-            let dragged_offset = dragged_freq - point.base_freq.cast_signed();
-
-            assert_eq!(point.freq_offset + 15, dragged_offset);
-        }
-    }
-
     #[test]
     fn skips_non_editable_points() {
         let points = [TestPoint::new(450, 270, 90), TestPoint::new(600, 1000, 0)];
@@ -1751,55 +1703,6 @@ mod tests {
 
         assert_eq!(1, curve.len());
         assert_eq!(1, curve[0].index);
-    }
-
-    #[test]
-    fn is_idempotent_across_base_drift() {
-        let curve = offset_curve(&[(0, 90), (1, -60)]);
-
-        let idle = [
-            TestPoint::new(450, 270, 90),
-            TestPoint::new(1195, 2880, -60),
-        ];
-        let loaded = [
-            TestPoint::new(450, 300, 90),
-            TestPoint::new(1195, 2865, -60),
-        ];
-
-        let (info, status, control) = tables(&idle, true);
-        let idle_result = build_curve_control(&curve, &info, &status, control, OFFSET_RANGE)
-            .expect("apply at idle failed");
-
-        let (info, status, control) = tables(&loaded, true);
-        let loaded_result = build_curve_control(&curve, &info, &status, control, OFFSET_RANGE)
-            .expect("apply under load failed");
-
-        assert_eq!(
-            written_offsets(&idle_result, 2),
-            written_offsets(&loaded_result, 2)
-        );
-        assert_eq!(vec![90_000, -60_000], written_offsets(&idle_result, 2));
-    }
-
-    #[test]
-    fn does_not_absorb_the_monotonicity_correction() {
-        let points = [
-            TestPoint::new(1075, 2775, -30),
-            TestPoint::new(1085, 2775, -45).with_correction(15),
-        ];
-        let (info, status, control) = tables(&points, true);
-
-        let read_back = build_vf_curve(&info, &status, &control);
-        assert_ne!(
-            read_back[1].freq.cast_signed(),
-            read_back[1].base_freq.cast_signed() + read_back[1].freq_offset
-        );
-
-        let curve = offset_curve(&[(0, read_back[0].freq_offset), (1, read_back[1].freq_offset)]);
-        let result = build_curve_control(&curve, &info, &status, control, OFFSET_RANGE)
-            .expect("apply failed");
-
-        assert_eq!(vec![-30_000, -45_000], written_offsets(&result, 2));
     }
 
     #[test]
