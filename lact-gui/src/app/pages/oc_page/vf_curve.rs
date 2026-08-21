@@ -419,7 +419,8 @@ impl relm4::Component for VfCurveEditor {
             VfCurveEditorMsg::ResetCurve => {
                 let mut points = self.points.borrow_mut();
                 for point in points.iter_mut() {
-                    set_point_freq(point, point.base_freq);
+                    point.freq = point.base_freq;
+                    point.freq_offset = 0;
                 }
             }
         }
