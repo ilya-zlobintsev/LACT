@@ -195,6 +195,15 @@ impl relm4::Component for VfCurveEditor {
                             set_digits: 0,
                         },
 
+                        #[name = "editing_disabled_label"]
+                        gtk::Label {
+                            set_label: &fl!(I18N, "vf-curve-editing-disabled"),
+                            set_halign: gtk::Align::End,
+                            set_hexpand: true,
+                            set_valign: gtk::Align::Center,
+                            add_css_class: "dim-label",
+                        },
+
                         gtk::Box {
                             set_orientation: gtk::Orientation::Horizontal,
                             set_spacing: 5,
@@ -300,6 +309,13 @@ impl relm4::Component for VfCurveEditor {
         model
             .allow_editing
             .connect_value_notify(move |_| drawing_area.queue_draw());
+
+        model
+            .allow_editing
+            .bind_property("value", &widgets.editing_disabled_label, "visible")
+            .invert_boolean()
+            .sync_create()
+            .build();
 
         ComponentParts { model, widgets }
     }
