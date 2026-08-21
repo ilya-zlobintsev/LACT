@@ -33,20 +33,29 @@ pub struct ClocksFrame {
     show_nvidia_options: bool,
     vf_curve_available: bool,
     show_all_pstates: BoolBinding,
+    vf_curve_editing: BoolBinding,
     enable_gpu_locked_clocks: BoolBinding,
     enable_vram_locked_clocks: BoolBinding,
 }
 
+pub struct ClocksFrameInit {
+    pub vf_curve_editing: BoolBinding,
+}
+
 #[derive(Debug)]
 pub enum ClocksFrameMsg {
-    Clocks(Option<Arc<ClocksTable>>),
+    Clocks {
+        table: Option<Arc<ClocksTable>>,
+        vf_curve_is_configured: bool,
+    },
     VramRatio(f64),
     TogglePStatesVisibility,
+    ResetGpuClockOffsets,
 }
 
 #[relm4::component(pub)]
 impl relm4::Component for ClocksFrame {
-    type Init = ();
+    type Init = ClocksFrameInit;
     type Input = ClocksFrameMsg;
     type Output = OcPageMsg;
     type CommandOutput = ();
@@ -79,7 +88,6 @@ impl relm4::Component for ClocksFrame {
 
                 append = &gtk::Button {
                     set_label: &fl!(I18N, "vf-curve-editor"),
-                    add_css_class: css::WARNING,
 
                     #[watch]
                     set_visible: model.show_nvidia_options && model.vf_curve_available,
@@ -137,6 +145,18 @@ impl relm4::Component for ClocksFrame {
                         connect_toggled => move |_| {
                             APP_BROKER.send(AppMsg::SettingsChanged);
                         } @ gpu_locked_clock_signal,
+                    },
+
+                    append: vf_curve_editing_togglebutton = &gtk::CheckButton {
+                        #[watch]
+                        set_visible: model.show_nvidia_options && model.vf_curve_available,
+                        set_label: Some(&fl!(I18N, "enable-vf-curve")),
+                        add_css_class: css::WARNING,
+                        add_binding["active"]: &model.vf_curve_editing,
+                        connect_toggled[sender] => move |button| {
+                            sender.output(OcPageMsg::VfCurveEditingToggled(button.is_active())).unwrap();
+                            APP_BROKER.send(AppMsg::SettingsChanged);
+                        } @ vf_curve_editing_signal,
                     },
 
                     append: vram_locked_clocks_togglebutton = &gtk::CheckButton {
@@ -214,7 +234,7 @@ impl relm4::Component for ClocksFrame {
     }
 
     fn init(
-        _init: Self::Init,
+        ClocksFrameInit { vf_curve_editing }: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -225,12 +245,14 @@ impl relm4::Component for ClocksFrame {
             show_nvidia_options: false,
             vf_curve_available: false,
             show_all_pstates: BoolBinding::new(false),
+            vf_curve_editing,
             enable_gpu_locked_clocks: BoolBinding::new(false),
             enable_vram_locked_clocks: BoolBinding::new(false),
         };
 
         for binding in [
             &model.show_all_pstates,
+            &model.vf_curve_editing,
             &model.enable_gpu_locked_clocks,
             &model.enable_vram_locked_clocks,
         ] {
@@ -256,7 +278,13 @@ impl relm4::Component for ClocksFrame {
         _root: &Self::Root,
     ) {
         match msg {
-            ClocksFrameMsg::Clocks(clocks_table) => {
+            ClocksFrameMsg::Clocks {
+                table: clocks_table,
+                vf_curve_is_configured,
+            } => {
+                widgets
+                    .vf_curve_editing_togglebutton
+                    .block_signal(&widgets.vf_curve_editing_signal);
                 widgets
                     .gpu_locked_clocks_togglebutton
                     .block_signal(&widgets.gpu_locked_clock_signal);
@@ -269,6 +297,7 @@ impl relm4::Component for ClocksFrame {
 
                 self.enable_gpu_locked_clocks.set_value(false);
                 self.enable_vram_locked_clocks.set_value(false);
+                self.vf_curve_editing.set_value(vf_curve_is_configured);
                 self.show_nvidia_options = false;
 
                 if let Some(table) = clocks_table {
@@ -287,6 +316,9 @@ impl relm4::Component for ClocksFrame {
                 }
 
                 widgets
+                    .vf_curve_editing_togglebutton
+                    .unblock_signal(&widgets.vf_curve_editing_signal);
+                widgets
                     .gpu_locked_clocks_togglebutton
                     .unblock_signal(&widgets.gpu_locked_clock_signal);
                 widgets
@@ -295,6 +327,11 @@ impl relm4::Component for ClocksFrame {
 
                 self.update_vram_clock_ratio();
                 sender.input(ClocksFrameMsg::TogglePStatesVisibility);
+            }
+            ClocksFrameMsg::ResetGpuClockOffsets => {
+                for group in self.core_groups.values() {
+                    group.reset_gpu_clock_offsets();
+                }
             }
             ClocksFrameMsg::VramRatio(vram_ratio) => {
                 self.vram_clock_ratio = vram_ratio;
@@ -307,6 +344,7 @@ impl relm4::Component for ClocksFrame {
                         self.show_nvidia_options,
                         self.enable_gpu_locked_clocks.value(),
                         self.enable_vram_locked_clocks.value(),
+                        self.vf_curve_editing.value(),
                     );
                 }
             }

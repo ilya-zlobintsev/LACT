@@ -3,15 +3,7 @@ use crate::{
     app::{APP_BROKER, graphs_window::plot::PlotColorScheme, msg::AppMsg},
 };
 use amdgpu_sysfs::gpu_handle::PowerLevelId;
-use gtk::{
-    gdk,
-    glib::object::ObjectExt,
-    prelude::{
-        AdjustmentExt, BoxExt as _, ButtonExt as _, CheckButtonExt as _, DrawingAreaExtManual as _,
-        EventControllerExt as _, GestureSingleExt as _, GtkWindowExt as _, OrientableExt as _,
-        PopoverExt, RangeExt as _, ScaleExt as _, WidgetExt as _,
-    },
-};
+use gtk::{gdk, prelude::*};
 use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{ClocksTable, DeviceStats, NvidiaVfPoint, config};
@@ -62,13 +54,15 @@ pub struct VfCurveEditor {
     selected_range_end: Rc<Cell<Option<usize>>>,
 }
 
+pub struct VfCurveEditorInit {
+    pub global_settings_changed: BoolBinding,
+    pub allow_editing: BoolBinding,
+}
+
 #[derive(Debug)]
 pub enum VfCurveEditorMsg {
     Show,
-    Clocks {
-        table: Option<Arc<ClocksTable>>,
-        vf_curve_is_configured: bool,
-    },
+    Clocks(Option<Arc<ClocksTable>>),
     Stats(Arc<DeviceStats>),
     CursorUpdate {
         x: f64,
@@ -84,7 +78,7 @@ pub enum VfCurveEditorMsg {
 
 #[relm4::component(pub)]
 impl relm4::Component for VfCurveEditor {
-    type Init = BoolBinding;
+    type Init = VfCurveEditorInit;
     type Input = VfCurveEditorMsg;
     type Output = ();
     type CommandOutput = ();
@@ -203,24 +197,10 @@ impl relm4::Component for VfCurveEditor {
                             set_digits: 0,
                         },
 
-                        #[name = "enable_editing_button"]
-                        gtk::CheckButton {
-                            set_label: Some(&fl!(I18N, "vf-curve-enable-editing")),
-                            set_halign: gtk::Align::End,
-                            set_valign: gtk::Align::Center,
-                            set_hexpand: true,
-                            add_css_class: "warning",
-                            add_binding: (&model.allow_editing, "active"),
-
-                            connect_toggled[drawing_area] => move |_| {
-                                APP_BROKER.send(AppMsg::SettingsChanged);
-                                drawing_area.queue_draw();
-                            } @ enable_editing_signal,
-                        },
-
                         gtk::Button {
                             set_label: &fl!(I18N, "default-button"),
                             set_halign: gtk::Align::End,
+                            set_hexpand: true,
                             add_css_class: css::DESTRUCTIVE_ACTION,
                             set_valign: gtk::Align::Center,
 
@@ -286,7 +266,10 @@ impl relm4::Component for VfCurveEditor {
     }
 
     fn init(
-        global_settings_changed: Self::Init,
+        VfCurveEditorInit {
+            global_settings_changed,
+            allow_editing,
+        }: Self::Init,
         root: Self::Root,
         sender: relm4::ComponentSender<Self>,
     ) -> relm4::ComponentParts<Self> {
@@ -296,7 +279,7 @@ impl relm4::Component for VfCurveEditor {
             global_settings_changed,
             locked_clocks_range: Rc::default(),
             freq_range: Rc::default(),
-            allow_editing: BoolBinding::new(false),
+            allow_editing,
             cursor_position: Rc::new(Cell::new(None)),
             visible_range_start: gtk::Adjustment::new(30.0, 0.0, 100.0, 1.0, 10.0, 0.0),
             visible_range_end: gtk::Adjustment::new(100.0, 0.0, 100.0, 1.0, 10.0, 0.0),
@@ -310,6 +293,11 @@ impl relm4::Component for VfCurveEditor {
         };
 
         let widgets = view_output!();
+
+        let drawing_area = widgets.drawing_area.clone();
+        model
+            .allow_editing
+            .connect_value_notify(move |_| drawing_area.queue_draw());
 
         ComponentParts { model, widgets }
     }
@@ -325,10 +313,7 @@ impl relm4::Component for VfCurveEditor {
             VfCurveEditorMsg::Show => {
                 root.present();
             }
-            VfCurveEditorMsg::Clocks {
-                table: clocks_table,
-                vf_curve_is_configured,
-            } => {
+            VfCurveEditorMsg::Clocks(clocks_table) => {
                 let mut points = self.points.borrow_mut();
                 points.clear();
                 self.locked_clocks_range.take();
@@ -344,14 +329,6 @@ impl relm4::Component for VfCurveEditor {
                     self.freq_range
                         .set(Self::freq_limits_range(&points, offset_range));
                 }
-
-                widgets
-                    .enable_editing_button
-                    .block_signal(&widgets.enable_editing_signal);
-                self.allow_editing.set_value(vf_curve_is_configured);
-                widgets
-                    .enable_editing_button
-                    .unblock_signal(&widgets.enable_editing_signal);
 
                 if points.is_empty() {
                     root.set_visible(false);

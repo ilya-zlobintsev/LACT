@@ -13,7 +13,7 @@ use crate::app::{msg::AppMsg, utils::ext::RelmDefaultLauchable};
 use amdgpu_sysfs::gpu_handle::{
     PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
-use clocks_frame::{ClocksFrame, ClocksFrameMsg};
+use clocks_frame::{ClocksFrame, ClocksFrameInit, ClocksFrameMsg};
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use indexmap::IndexMap;
 use lact_schema::config;
@@ -27,7 +27,7 @@ use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt}
 use std::collections::HashSet;
 use std::sync::Arc;
 use tracing::debug;
-use vf_curve::{VfCurveEditor, VfCurveEditorMsg};
+use vf_curve::{VfCurveEditor, VfCurveEditorInit, VfCurveEditorMsg};
 
 pub struct OcPage {
     stats_section: relm4::Controller<GpuStatsSection>,
@@ -58,6 +58,7 @@ pub enum OcPageMsg {
     },
     PerformanceLevelChanged,
     ShowVfCurveEditor,
+    VfCurveEditingToggled(bool),
 }
 
 #[relm4::component(pub)]
@@ -104,12 +105,19 @@ impl relm4::Component for OcPage {
             ]),
         });
         let power_cap_section = PowerCapSection::detach_default();
-        let clocks_frame = ClocksFrame::launch_default().forward(sender.input_sender(), |msg| msg);
+        let vf_curve_editing = BoolBinding::new(false);
+        let clocks_frame = ClocksFrame::launch(ClocksFrameInit {
+            vf_curve_editing: vf_curve_editing.clone(),
+        })
+        .forward(sender.input_sender(), |msg| msg);
         let power_states_frame = PowerStatesFrame::detach_default();
         let performance_frame =
             PerformanceFrame::launch_default().forward(sender.input_sender(), |msg| msg);
 
-        let vf_curve_editor = VfCurveEditor::detach(settings_changed);
+        let vf_curve_editor = VfCurveEditor::detach(VfCurveEditorInit {
+            global_settings_changed: settings_changed,
+            allow_editing: vf_curve_editing,
+        });
 
         let model = Self {
             stats_section,
@@ -185,12 +193,12 @@ impl relm4::Component for OcPage {
             } => {
                 let table = table.map(Arc::new);
 
-                self.clocks_frame
-                    .emit(ClocksFrameMsg::Clocks(table.clone()));
-                self.vf_curve_editor.emit(VfCurveEditorMsg::Clocks {
+                self.clocks_frame.emit(ClocksFrameMsg::Clocks {
                     table: table.clone(),
                     vf_curve_is_configured,
                 });
+                self.vf_curve_editor
+                    .emit(VfCurveEditorMsg::Clocks(table.clone()));
             }
             OcPageMsg::ProfileModesTable(modes_table) => {
                 self.performance_frame
@@ -224,6 +232,13 @@ impl relm4::Component for OcPage {
             }
             OcPageMsg::ShowVfCurveEditor => {
                 self.vf_curve_editor.emit(VfCurveEditorMsg::Show);
+            }
+            OcPageMsg::VfCurveEditingToggled(enabled) => {
+                if enabled {
+                    self.clocks_frame.emit(ClocksFrameMsg::ResetGpuClockOffsets);
+                } else {
+                    self.vf_curve_editor.emit(VfCurveEditorMsg::ResetCurve);
+                }
             }
         }
 

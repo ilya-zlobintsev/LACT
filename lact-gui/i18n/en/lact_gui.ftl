@@ -175,6 +175,7 @@ oc-warning = Changing these values may lead to system instability and can potent
 show-all-pstates = Show all P-States
 enable-gpu-locked-clocks = Enable GPU Locked Clocks
 enable-vram-locked-clocks = Enable VRAM Locked Clocks
+enable-vf-curve = Enable VF Curve Edit
 pstate-list-description = <b>The following values are clock offsets for each P-State, going from highest to lowest.</b>
 no-clocks-data = No clocks data available
 reset-oc-tooltip = Warning: this resets all clock settings to defaults!
@@ -182,7 +183,6 @@ vf-curve-editor = VF Curve Editor
 nvidia-vf-curve-warning = The voltage-frequency curve editor relies on undocumented driver functionality.
     There are no guarantees regarding its behaviour, safety or availability.
     <span weight = "heavy" underline = "single">Use at your own risk</span>.
-vf-curve-enable-editing = Enable Editing
 voltage = Voltage
 frequency = Frequency
 vf-active-curve = Active Curve
