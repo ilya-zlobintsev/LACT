@@ -25,7 +25,10 @@ use std::{cmp, fmt::Write as _};
 // In percentage
 const POINT_VOLTAGE_HOVER_MARGIN: f32 = 0.01;
 const POINT_FREQ_HOVER_MARGIN: f32 = 0.03;
-const MIN_VISIBLE_FREQ_RANGE_PADDING: u32 = 200;
+
+// In MHz
+const VISIBLE_FREQ_RANGE_PADDING_MIN: u32 = 100;
+const VISIBLE_FREQ_RANGE_PADDING_MAX: u32 = 300;
 
 #[derive(Clone)]
 pub struct VfCurveEditor {
@@ -860,10 +863,10 @@ impl VfCurveEditor {
             .max()?;
 
         let y_start = min_freq
-            .saturating_sub(MIN_VISIBLE_FREQ_RANGE_PADDING)
+            .saturating_sub(VISIBLE_FREQ_RANGE_PADDING_MIN)
             .max(freq_range.0);
         let mut y_end = max_freq
-            .saturating_add(MIN_VISIBLE_FREQ_RANGE_PADDING)
+            .saturating_add(VISIBLE_FREQ_RANGE_PADDING_MAX)
             .min(freq_range.1);
         if y_start >= y_end {
             y_end = y_start.saturating_add(1).min(freq_range.1);
