@@ -524,6 +524,7 @@ pub struct NvidiaVfPoint {
     pub voltage: u32,
     pub base_freq: u32,
     pub base_voltage: u32,
+    #[serde(default)]
     pub freq_offset: i32,
 }
 
