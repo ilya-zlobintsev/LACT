@@ -43,6 +43,7 @@ impl ClockCategory {
             ClockspeedType::MemVfCurveVoltage(_) => ClockCategory::VramCurveVoltage,
             ClockspeedType::ClockDomainOffset(_) => ClockCategory::AdvancedClock,
             ClockspeedType::ClockDomainVoltageOffset(_) => ClockCategory::AdvancedVoltage,
+            ClockspeedType::XbarRatio => ClockCategory::AdvancedClock,
             ClockspeedType::Reset => unreachable!(),
         }
     }

@@ -124,6 +124,7 @@ impl FactoryComponent for ClockAdjustmentRow {
                                     // These always carry a custom title with the domain name
                                     ClockspeedType::ClockDomainOffset(domain) => fl!(I18N, "clock-domain-offset", domain = domain),
                                     ClockspeedType::ClockDomainVoltageOffset(domain) => fl!(I18N, "clock-domain-voltage-offset", domain = domain),
+                                    ClockspeedType::XbarRatio => fl!(I18N, "xbar-ratio"),
                                     ClockspeedType::Reset => unreachable!(),
                                 },
                             },
@@ -136,7 +137,10 @@ impl FactoryComponent for ClockAdjustmentRow {
                         add_css_class: "flat",
                         set_visible: matches!(
                             self.id,
-                            RowId::MsvddMaster | RowId::Clock(ClockspeedType::VoltageBoost)
+                            RowId::MsvddMaster
+                                | RowId::Clock(
+                                    ClockspeedType::VoltageBoost | ClockspeedType::XbarRatio
+                                )
                         ),
 
                         #[wrap(Some)]
@@ -145,6 +149,9 @@ impl FactoryComponent for ClockAdjustmentRow {
                                 set_margin_all: 5,
                                 set_label: &match self.id {
                                     RowId::MsvddMaster => fl!(I18N, "msvdd-offset-tooltip"),
+                                    RowId::Clock(ClockspeedType::XbarRatio) => {
+                                        fl!(I18N, "xbar-ratio-tooltip")
+                                    }
                                     _ => fl!(I18N, "gpu-voltage-boost-tooltip"),
                                 },
                                 set_wrap: true,

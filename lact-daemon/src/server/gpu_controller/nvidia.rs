@@ -24,10 +24,10 @@ use indexmap::IndexMap;
 use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
     DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
-    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockDomainOffset, NvidiaClockOffset, NvidiaClocksTable,
-    NvidiaThermalInfo, NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerState, PowerStates,
-    PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry,
-    VoltageStats, VramStats,
+    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockDomainOffset, NvidiaClockOffset, NvidiaClockRatio,
+    NvidiaClocksTable, NvidiaThermalInfo, NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerState,
+    PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType,
+    TemperatureEntry, VoltageStats, VramStats,
     config::{FanControlSettings, FanCurve, GpuConfig, NvidiaCurvePoint},
 };
 use nvapi::NvApi;
@@ -71,6 +71,11 @@ const VOLTAGE_BOOST_RANGE: RangeInclusive<i32> = 0..=100;
 /// than failing cleanly.
 const MAX_MSVDD_OFFSET_MV: i32 = 50;
 
+/// Guard rails for the GPC to XBAR ratio, as a percentage. The driver reports no
+/// range for it; the factory value is 90% and the alternate relationships the
+/// hardware lists span 80% to 200%.
+const XBAR_RATIO_RANGE: RangeInclusive<i32> = 50..=200;
+
 pub struct NvidiaGpuController {
     nvml: Rc<Nvml>,
     common: CommonControllerInfo,
@@ -90,6 +95,7 @@ pub struct NvidiaGpuController {
     vf_curve_written: Cell<bool>,
     voltage_boost_written: Cell<bool>,
     clock_domain_offsets_written: Cell<bool>,
+    xbar_ratio_written: Cell<bool>,
 }
 
 impl NvidiaGpuController {
@@ -166,6 +172,7 @@ impl NvidiaGpuController {
             vf_curve_written: Cell::new(false),
             voltage_boost_written: Cell::new(false),
             clock_domain_offsets_written: Cell::new(false),
+            xbar_ratio_written: Cell::new(false),
         })
     }
 
@@ -644,6 +651,58 @@ impl NvidiaGpuController {
 
         handle.set_clock_domain_offsets(&offsets)?;
         self.clock_domain_offsets_written.set(false);
+
+        Ok(())
+    }
+
+    /// The GPC to XBAR clock propagation ratio, if this GPU exposes one.
+    fn get_xbar_ratio(&self) -> Option<NvidiaClockRatio> {
+        let ratio = self
+            .driver_handle
+            .as_ref()?
+            .get_clock_propagation_ratio()
+            .inspect_err(|err| debug!("could not read clock propagation ratio: {err:#}"))
+            .ok()??;
+
+        #[allow(clippy::cast_possible_truncation)]
+        Some(NvidiaClockRatio {
+            current: (ratio.current * 100.0).round() as i32,
+            default: (ratio.default * 100.0).round() as i32,
+            min: *XBAR_RATIO_RANGE.start(),
+            max: *XBAR_RATIO_RANGE.end(),
+        })
+    }
+
+    fn apply_xbar_ratio(&self, percent: i32) -> anyhow::Result<()> {
+        ensure!(
+            XBAR_RATIO_RANGE.contains(&percent),
+            "XBAR ratio {percent}% is outside of the allowed range"
+        );
+
+        let handle = self
+            .driver_handle
+            .as_ref()
+            .context("Nvidia driver interface not available")?;
+
+        debug!("applying GPC to XBAR ratio {percent}%");
+        handle.set_clock_propagation_ratio(f64::from(percent) / 100.0)?;
+        self.xbar_ratio_written.set(true);
+
+        Ok(())
+    }
+
+    fn reset_xbar_ratio(&self) -> anyhow::Result<()> {
+        let handle = self
+            .driver_handle
+            .as_ref()
+            .context("Nvidia driver interface not available")?;
+
+        // The factory ratio survives writes, so stock is always recoverable.
+        let ratio = handle
+            .get_clock_propagation_ratio()?
+            .context("GPU has no clock propagation ratio")?;
+        handle.set_clock_propagation_ratio(ratio.default)?;
+        self.xbar_ratio_written.set(false);
 
         Ok(())
     }
@@ -1310,6 +1369,7 @@ impl GpuController for NvidiaGpuController {
             gpu_vf_curve,
             voltage_boost,
             clock_domain_offsets: self.get_clock_domain_offsets(),
+            gpc_xbar_ratio: self.get_xbar_ratio(),
         };
 
         Ok(ClocksInfo {
@@ -1418,6 +1478,11 @@ impl GpuController for NvidiaGpuController {
                 &clocks.clock_domain_voltage_offsets,
             )
             .context("Could not apply clock domain offsets")?;
+
+            if let Some(percent) = clocks.xbar_ratio {
+                self.apply_xbar_ratio(percent)
+                    .context("Could not apply XBAR ratio")?;
+            }
 
             if let Some(percent) = clocks.voltage_boost
                 && let Err(err) = self.apply_voltage_boost(percent)
@@ -1553,6 +1618,11 @@ impl GpuController for NvidiaGpuController {
         if self.clock_domain_offsets_written.get() {
             self.reset_clock_domain_offsets()
                 .context("Could not reset clock domain offsets")?;
+        }
+
+        if self.xbar_ratio_written.get() {
+            self.reset_xbar_ratio()
+                .context("Could not reset XBAR ratio")?;
         }
 
         if self.voltage_boost_written.get() {

@@ -510,6 +510,18 @@ pub struct NvidiaClocksTable {
     /// Offsets for clock domains that are not exposed through NVML, such as XBAR
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub clock_domain_offsets: Vec<NvidiaClockDomainOffset>,
+    #[serde(default)]
+    pub gpc_xbar_ratio: Option<NvidiaClockRatio>,
+}
+
+/// Ratio at which the GPC clock propagates to XBAR, as a percentage
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy)]
+pub struct NvidiaClockRatio {
+    pub current: i32,
+    /// The factory ratio, so that it can be restored exactly
+    pub default: i32,
+    pub min: i32,
+    pub max: i32,
 }
 
 /// Adjustable offsets of a single Nvidia clock domain

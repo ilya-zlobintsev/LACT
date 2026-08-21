@@ -70,6 +70,7 @@ gpus:
       1: -10
     voltage_offset: 0
     voltage_boost: 0
+    xbar_ratio: 75
     power_profile_mode_index: 0
     custom_power_profile_mode_hueristics:
       - - 0
