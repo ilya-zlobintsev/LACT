@@ -197,32 +197,36 @@ impl relm4::Component for VfCurveEditor {
                             set_digits: 0,
                         },
 
-                        gtk::Button {
-                            set_label: &fl!(I18N, "default-button"),
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
                             set_halign: gtk::Align::End,
                             set_hexpand: true,
-                            add_css_class: css::DESTRUCTIVE_ACTION,
-                            set_valign: gtk::Align::Center,
+                            add_write_only_binding: (&model.allow_editing, "visible"),
 
-                            #[watch]
-                            set_sensitive: curve_has_offsets(&model.points.borrow()),
+                            gtk::Button {
+                                set_label: &fl!(I18N, "default-button"),
+                                add_css_class: css::DESTRUCTIVE_ACTION,
+                                set_valign: gtk::Align::Center,
 
-                            connect_clicked => VfCurveEditorMsg::ResetCurve,
-                            connect_clicked => move |_| {
-                                APP_BROKER.send(AppMsg::SettingsChanged);
-                            }
-                        },
+                                #[watch]
+                                set_sensitive: curve_has_offsets(&model.points.borrow()),
 
+                                connect_clicked => VfCurveEditorMsg::ResetCurve,
+                                connect_clicked => move |_| {
+                                    APP_BROKER.send(AppMsg::SettingsChanged);
+                                }
+                            },
 
-                        gtk::Button {
-                            set_label: &fl!(I18N, "apply-button"),
-                            set_halign: gtk::Align::End,
-                            add_binding: (&model.global_settings_changed, "sensitive"),
-                            add_css_class: css::SUGGESTED_ACTION,
-                            set_valign: gtk::Align::Center,
+                            gtk::Button {
+                                set_label: &fl!(I18N, "apply-button"),
+                                add_binding: (&model.global_settings_changed, "sensitive"),
+                                add_css_class: css::SUGGESTED_ACTION,
+                                set_valign: gtk::Align::Center,
 
-                            connect_clicked => move |_| {
-                                APP_BROKER.send(AppMsg::ApplyChanges);
+                                connect_clicked => move |_| {
+                                    APP_BROKER.send(AppMsg::ApplyChanges);
+                                },
                             },
                         },
                     },
