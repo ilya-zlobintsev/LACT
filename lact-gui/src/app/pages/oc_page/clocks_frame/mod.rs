@@ -807,6 +807,18 @@ impl ClocksFrame {
             }
         }
 
+        if let Some(ratio) = table.gpc_xbar_ratio {
+            self.set_clock(
+                ClockspeedType::XbarRatio,
+                ClocksData {
+                    current: ratio.current,
+                    min: ratio.min,
+                    max: ratio.max,
+                    ..Default::default()
+                },
+            );
+        }
+
         if let Some(voltage_boost) = table.voltage_boost {
             self.set_clock(
                 ClockspeedType::VoltageBoost,
@@ -905,6 +917,7 @@ fn clock_title(clock_type: ClockspeedType) -> String {
         }
         ClockspeedType::GpuVfCurveClock(pstate) => fl!(I18N, "gpu-pstate-clock", pstate = pstate),
         ClockspeedType::MemVfCurveClock(pstate) => fl!(I18N, "mem-pstate-clock", pstate = pstate),
+        ClockspeedType::XbarRatio => fl!(I18N, "xbar-ratio"),
         // These always carry a custom title with the domain name
         ClockspeedType::ClockDomainOffset(domain) => {
             fl!(I18N, "clock-domain-offset", domain = domain)

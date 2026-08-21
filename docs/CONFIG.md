@@ -224,6 +224,10 @@ gpus:
     # domain's clocks and a negative one raises them. Limited to +-50.
     clock_domain_voltage_offsets:
       1: -10
+    # Ratio at which the GPC clock propagates to the XBAR domain, in percent,
+    # 90 by default. Raising it decouples XBAR from the core clock without
+    # changing the core clock itself. Applicable to Nvidia Blackwell and newer.
+    xbar_ratio: 75
 
 # Settings profiles
 profiles:

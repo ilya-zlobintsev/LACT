@@ -65,6 +65,7 @@ impl ClockCategory {
             ClockspeedType::MemVfCurveVoltage(_) => ClockCategory::VramCurveVoltage,
             ClockspeedType::ClockDomainOffset(_) => ClockCategory::AdvancedClock,
             ClockspeedType::ClockDomainVoltageOffset(_) => ClockCategory::AdvancedVoltage,
+            ClockspeedType::XbarRatio => ClockCategory::AdvancedClock,
             ClockspeedType::Reset => unreachable!(),
         }
     }
@@ -257,12 +258,18 @@ fn row_title(id: RowId) -> String {
 fn row_info_text(id: RowId) -> String {
     match id {
         RowId::Clock(ClockspeedType::VoltageBoost) => fl!(I18N, "gpu-voltage-boost-tooltip"),
+        RowId::Clock(ClockspeedType::XbarRatio) => fl!(I18N, "xbar-ratio-tooltip"),
         RowId::MsvddMaster => fl!(I18N, "msvdd-offset-tooltip"),
         _ => String::new(),
     }
 }
 
 fn get_row_step(id: RowId) -> f64 {
+    // A percentage, so it does not step like the clocks it sits next to
+    if id == RowId::Clock(ClockspeedType::XbarRatio) {
+        return 1.0;
+    }
+
     match ClockCategory::from_row(id) {
         ClockCategory::CoreClock
         | ClockCategory::VramClock

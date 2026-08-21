@@ -179,6 +179,8 @@ pub enum ClockspeedType {
     ClockDomainOffset(u32),
     /// MSVDD offset of an extra clock domain, keyed by domain id
     ClockDomainVoltageOffset(u32),
+    /// Ratio at which the GPC clock propagates to XBAR, as a percentage
+    XbarRatio,
 
     Reset,
 }
