@@ -609,18 +609,15 @@ fn build_curve_control(
         let i = usize::from(*index);
 
         if i >= point_count || !vf_curve_point_is_editable(info.vf_points[i]) {
-            warn!("point {i} is not configurable on this device, skipping it");
-            continue;
+            bail!("Point {i} is not configurable on this device");
         }
 
         if let Some(configured_mv) = configured_point.voltage {
             let current_mv = status.vf_points[i].voltage_uv / 1000;
-            if configured_mv != current_mv {
-                warn!(
-                    "voltage is immutable - point {i} is at {current_mv}mV but was configured as {configured_mv}mV, skipping it"
-                );
-                continue;
-            }
+            ensure!(
+                configured_mv == current_mv,
+                "Voltage is immutable - point {i} is at {current_mv}mV but was configured as {configured_mv}mV"
+            );
         }
 
         let offset_mhz = configured_point.clockspeed_offset;
@@ -1760,39 +1757,29 @@ mod tests {
     }
 
     #[test]
-    fn skips_points_that_do_not_exist_or_do_not_match() {
+    fn rejects_points_that_do_not_exist_or_do_not_match() {
         let points = [TestPoint::new(450, 270, 0)];
-        let (info, status, control) = tables(&points, true);
 
-        let curve = IndexMap::from([
-            (
+        let invalid_curves = [
+            IndexMap::from([(
                 0,
                 NvidiaCurvePoint {
                     clockspeed_offset: 90,
                     // Stale voltage, the point layout changed under the configuration
                     voltage: Some(500),
                 },
-            ),
-            (
-                7,
-                NvidiaCurvePoint {
-                    clockspeed_offset: 45,
-                    voltage: None,
-                },
-            ),
+            )]),
+            offset_curve(&[(7, 45)]),
             // The point arrays hold 255 entries, so this index cannot be used to index them
-            (
-                u8::MAX,
-                NvidiaCurvePoint {
-                    clockspeed_offset: 30,
-                    voltage: None,
-                },
-            ),
-        ]);
+            offset_curve(&[(u8::MAX, 30)]),
+        ];
 
-        let result = build_curve_control(&curve, &info, &status, control, OFFSET_RANGE)
-            .expect("stale points should not fail the apply");
+        for curve in invalid_curves {
+            let (info, status, control) = tables(&points, true);
 
-        assert_eq!(vec![0], written_offsets(&result, 1));
+            build_curve_control(&curve, &info, &status, control, OFFSET_RANGE)
+                .map(|_| ())
+                .expect_err("an invalid point was accepted");
+        }
     }
 }
