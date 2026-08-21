@@ -761,6 +761,19 @@ impl ClocksFrame {
             }
         }
 
+        if let Some(ratio) = table.gpc_xbar_ratio {
+            self.set_clock(
+                ClockspeedType::XbarRatio,
+                ClocksData {
+                    current: ratio.current,
+                    min: ratio.min,
+                    max: ratio.max,
+                    step: 1,
+                    ..Default::default()
+                },
+            );
+        }
+
         if let Some(voltage_boost) = table.voltage_boost {
             self.set_clock(
                 ClockspeedType::VoltageBoost,

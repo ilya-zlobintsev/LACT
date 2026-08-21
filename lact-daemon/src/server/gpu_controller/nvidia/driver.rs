@@ -2,7 +2,7 @@ use std::{
     fs::File,
     mem,
     os::fd::{AsRawFd, OwnedFd, RawFd},
-    ptr,
+    ptr, slice,
 };
 
 use crate::bindings::nvidia::{
@@ -39,7 +39,7 @@ use crate::bindings::nvidia::{
 use crate::bindings::nvidia::{
     NV04_DISPLAY_COMMON, NV0073_CTRL_CMD_DP_GET_LINK_CONFIG, NV0073_CTRL_DP_GET_LINK_CONFIG_PARAMS,
 };
-use anyhow::{Context, bail};
+use anyhow::{Context, bail, ensure};
 use lact_schema::RopInfo;
 use nix::ioctl_readwrite;
 
@@ -329,6 +329,106 @@ impl DriverHandle {
         Ok(())
     }
 
+    /// Reads the GPC to XBAR propagation ratio, if this GPU has one.
+    ///
+    /// Returns `None` on cards where the relationship carries no ratio, which is
+    /// every generation before Blackwell.
+    pub fn get_clock_propagation_ratio(&self) -> anyhow::Result<Option<ClockPropagationRatio>> {
+        let info = self.get_clock_prop_rels_info()?;
+        let Some(index) = self.find_gpc_to_xbar_relation(&info) else {
+            return Ok(None);
+        };
+
+        let control = self.get_clock_prop_rels_control(&info)?;
+        Ok(Some(ClockPropagationRatio {
+            current: ratio_from_fixed(control.relations[index].ratio),
+            // The info response keeps reporting the factory ratio after a write,
+            // which is the only way back to stock once the control has changed.
+            default: ratio_from_fixed(info.relations[index].ratio),
+        }))
+    }
+
+    /// Sets the GPC to XBAR propagation ratio.
+    ///
+    /// The whole relationship group is written in one transaction, so the current
+    /// block is kept intact and only the one ratio field is replaced. The write is
+    /// read back and the original block restored if anything but that field moved,
+    /// since the rest of the block describes topology this does not understand.
+    pub fn set_clock_propagation_ratio(&self, ratio: f64) -> anyhow::Result<()> {
+        ensure!(ratio > 0.0, "Clock propagation ratio must be positive");
+
+        let info = self.get_clock_prop_rels_info()?;
+        let index = self
+            .find_gpc_to_xbar_relation(&info)
+            .context("GPU has no adjustable GPC to XBAR clock ratio")?;
+
+        let preimage = self.get_clock_prop_rels_control(&info)?;
+        let mut control = preimage;
+        control.relations[index].ratio = ratio_to_fixed(ratio);
+
+        unsafe {
+            self.query_rm_control(NV2080_CTRL_CMD_CLK_TOP_PROP_RELS_SET_CONTROL, &mut control)
+                .context("Could not apply clock propagation ratio")?;
+        }
+
+        let applied = self.get_clock_prop_rels_control(&info)?;
+        if applied.relations[index].ratio != control.relations[index].ratio {
+            let mut restore = preimage;
+            unsafe {
+                let _ = self
+                    .query_rm_control(NV2080_CTRL_CMD_CLK_TOP_PROP_RELS_SET_CONTROL, &mut restore);
+            }
+            bail!(
+                "Clock propagation ratio was not applied: requested {ratio}, driver reports {}",
+                ratio_from_fixed(applied.relations[index].ratio),
+            );
+        }
+
+        Ok(())
+    }
+
+    /// The first relationship that propagates GPC to XBAR through a ratio.
+    ///
+    /// Several such relationships can exist (a Blackwell card reports five, with
+    /// differing factory ratios) and what selects between them is not known, so
+    /// only the first is ever touched.
+    fn find_gpc_to_xbar_relation(&self, info: &ClkPropRelsInfoParams) -> Option<usize> {
+        let domains = self.get_clock_domains().ok()?;
+        let index_of = |domain: u32| domains.iter().position(|state| state.domain == domain);
+
+        (0..CLK_PROP_REL_COUNT)
+            .filter(|index| info.relation_mask & (1 << index) != 0)
+            .find(|index| {
+                let relation = &info.relations[*index];
+                relation.rel_type == CLK_PROP_REL_TYPE_RATIO
+                    && Some(usize::from(relation.source_index)) == index_of(NV_CLK_DOMAIN_GPC)
+                    && Some(usize::from(relation.dest_index)) == index_of(NV_CLK_DOMAIN_XBAR)
+            })
+    }
+
+    fn get_clock_prop_rels_info(&self) -> anyhow::Result<ClkPropRelsInfoParams> {
+        let mut info: ClkPropRelsInfoParams = unsafe { mem::zeroed() };
+        unsafe {
+            self.query_rm_control(NV2080_CTRL_CMD_CLK_TOP_PROP_RELS_GET_INFO, &mut info)?;
+        }
+        Ok(info)
+    }
+
+    fn get_clock_prop_rels_control(
+        &self,
+        info: &ClkPropRelsInfoParams,
+    ) -> anyhow::Result<ClkPropRelsControlParams> {
+        let mut control: ClkPropRelsControlParams = unsafe { mem::zeroed() };
+        // The request header is the start of the info response.
+        control.header.copy_from_slice(unsafe {
+            slice::from_raw_parts(ptr::from_ref(info).cast::<u8>(), CLK_PROP_RELS_HEADER_LEN)
+        });
+        unsafe {
+            self.query_rm_control(NV2080_CTRL_CMD_CLK_TOP_PROP_RELS_GET_CONTROL, &mut control)?;
+        }
+        Ok(control)
+    }
+
     fn get_clock_domains_control(
         &self,
         domain_mask: u32,
@@ -403,7 +503,39 @@ const NV2080_CTRL_CMD_CLK_CLK_DOMAINS_GET_INFO: u32 = 0x2080_9019;
 const NV2080_CTRL_CMD_CLK_CLK_DOMAINS_GET_CONTROL: u32 = 0x2080_901b;
 const NV2080_CTRL_CMD_CLK_CLK_DOMAINS_SET_CONTROL: u32 = 0x2080_d01c;
 
+/// Undocumented RM controls for the clock propagation topology, which is what
+/// carries the GPC to XBAR ratio. Same caveat as the domain controls above: the
+/// layout is private, so it is discovered from the info response rather than
+/// assumed, and a write is rejected unless it reads back exactly.
+const NV2080_CTRL_CMD_CLK_TOP_PROP_RELS_GET_INFO: u32 = 0x2080_9081;
+const NV2080_CTRL_CMD_CLK_TOP_PROP_RELS_GET_CONTROL: u32 = 0x2080_9083;
+const NV2080_CTRL_CMD_CLK_TOP_PROP_RELS_SET_CONTROL: u32 = 0x2080_d084;
+
 const CLK_DOMAIN_COUNT: usize = 32;
+const CLK_PROP_REL_COUNT: usize = 32;
+
+/// Relationship type that carries a ratio. Other types describe a dependency
+/// without one, and pre-Blackwell cards report GPC to XBAR as one of those.
+const CLK_PROP_REL_TYPE_RATIO: u8 = 3;
+
+/// Ratios are U16.16 fixed point.
+const RATIO_FRACTION_BITS: u32 = 16;
+
+/// The control request starts with this many bytes copied from the info response.
+const CLK_PROP_RELS_HEADER_LEN: usize = 0x24;
+
+/// NvAPI clock domain ids of the two ends of the ratio this exposes.
+const NV_CLK_DOMAIN_GPC: u32 = 0;
+const NV_CLK_DOMAIN_XBAR: u32 = 1;
+
+fn ratio_from_fixed(raw: u32) -> f64 {
+    f64::from(raw) / f64::from(1u32 << RATIO_FRACTION_BITS)
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn ratio_to_fixed(ratio: f64) -> u32 {
+    (ratio * f64::from(1u32 << RATIO_FRACTION_BITS)).round() as u32
+}
 
 /// Index of the MSVDD rail within a domain's per-rail voltage offsets.
 const MSVDD_RAIL_INDEX: usize = 1;
@@ -420,6 +552,14 @@ pub struct ClockDomainState {
     pub msvdd_offset_uv: i32,
     pub min_offset_mhz: i32,
     pub max_offset_mhz: i32,
+}
+
+/// The GPC to XBAR clock propagation ratio.
+#[derive(Debug, Clone, Copy)]
+pub struct ClockPropagationRatio {
+    pub current: f64,
+    /// The factory value, which survives writes to the control block.
+    pub default: f64,
 }
 
 /// Offsets to apply to one clock domain.
@@ -504,8 +644,59 @@ struct ClkDomainControl {
     _reserved_3: [u8; 0x20],
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct ClkPropRelsInfoParams {
+    obj_mask: u32,
+    /// Bit `i` is set when relationship `i` exists.
+    relation_mask: u32,
+    _reserved: [u8; 0x120],
+    relations: [ClkPropRelInfo; CLK_PROP_REL_COUNT],
+    /// Trailing data the driver returns and this does not interpret. It is carried
+    /// through writes untouched.
+    _tail: [u8; 0x1170],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct ClkPropRelInfo {
+    rel_type: u8,
+    _reserved_1: u8,
+    /// Indices into the clock domain array, not domain ids.
+    source_index: u8,
+    dest_index: u8,
+    bidirectional: u8,
+    _reserved_2: [u8; 7],
+    /// Factory ratio, U16.16.
+    ratio: u32,
+    /// The reciprocal of `ratio`, which the driver keeps for the reverse direction.
+    inverse_ratio: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct ClkPropRelsControlParams {
+    /// The first 0x24 bytes are copied verbatim from the info response.
+    header: [u8; CLK_PROP_RELS_HEADER_LEN],
+    relations: [ClkPropRelControl; CLK_PROP_REL_COUNT],
+    _tail: [u8; 0xa74],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct ClkPropRelControl {
+    rel_type: u8,
+    _reserved_1: [u8; 7],
+    /// U16.16, only meaningful for [`CLK_PROP_REL_TYPE_RATIO`].
+    ratio: u32,
+}
+
 // The RM validates the parameter size, so a layout mistake would corrupt the
 // request rather than fail cleanly.
+const _: () = assert!(mem::size_of::<ClkPropRelInfo>() == 0x14);
+const _: () = assert!(mem::size_of::<ClkPropRelsInfoParams>() == 0x1518);
+const _: () = assert!(mem::size_of::<ClkPropRelControl>() == 0x0c);
+const _: () = assert!(mem::size_of::<ClkPropRelsControlParams>() == 0x0c18);
 const _: () = assert!(mem::size_of::<ClkDomainInfo>() == 0x180);
 const _: () = assert!(mem::size_of::<ClkDomainsInfoParams>() == 0x3030);
 const _: () = assert!(mem::size_of::<ClkDomainControl>() == 0x40);

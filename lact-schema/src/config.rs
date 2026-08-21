@@ -102,6 +102,7 @@ pub struct ClocksConfiguration {
     pub clock_domain_voltage_offsets: IndexMap<u32, i32>,
     pub voltage_offset: Option<i32>,
     pub voltage_boost: Option<i32>,
+    pub xbar_ratio: Option<i32>,
 }
 
 impl ClocksConfiguration {
@@ -160,6 +161,7 @@ impl ClocksConfiguration {
                     self.clock_domain_voltage_offsets.shift_remove(&domain);
                 }
             },
+            ClockspeedType::XbarRatio => self.xbar_ratio = value,
             ClockspeedType::Reset => {
                 *self = ClocksConfiguration::default();
             }
