@@ -96,7 +96,7 @@ impl relm4::Component for VfCurveEditor {
                 #[wrap(Some)]
                 set_content = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
-                    set_margin_all: 5,
+                    set_margin_all: 15,
                     set_spacing: 10,
 
                     gtk::Box {
@@ -116,7 +116,6 @@ impl relm4::Component for VfCurveEditor {
                     #[name = "drawing_area"]
                     gtk::DrawingArea {
                         set_expand: true,
-                        set_margin_all: 10,
 
                         set_draw_func[model] => move |_, ctx, width, height| {
                             model.draw_chart(ctx, width, height, PlotColorScheme::current());
@@ -168,7 +167,6 @@ impl relm4::Component for VfCurveEditor {
                     gtk::Box {
                         set_orientation: gtk::Orientation::Horizontal,
                         set_spacing: 5,
-                        set_margin_horizontal: 5,
 
                         gtk::Label {
                             set_label: &fl!(I18N, "vf-curve-visible-range"),
