@@ -740,15 +740,24 @@ impl ClocksFrame {
             .collect();
 
         if voltages.len() > 1 {
+            let highest = voltages.iter().map(|voltage| voltage.current).max().unwrap();
+            // The domains carry independent offsets, so there is no single value to
+            // show unless they happen to agree. When they do not, the master says so
+            // rather than inventing one, and sits at the largest of them so that
+            // moving it starts from the offset currently doing the most.
+            let agreed = voltages
+                .iter()
+                .all(|voltage| voltage.current == highest)
+                .then_some(highest);
+
             self.set_row(
                 RowId::MsvddMaster,
                 ClocksData {
-                    // The highest offset in effect, so the master reflects the
-                    // largest change the domains have between them.
-                    current: voltages.iter().map(|voltage| voltage.current).max().unwrap(),
+                    current: agreed.unwrap_or(highest),
                     // Only values every domain accepts, as the master sets them all.
                     min: voltages.iter().map(|voltage| voltage.min).max().unwrap(),
                     max: voltages.iter().map(|voltage| voltage.max).min().unwrap(),
+                    custom_title: agreed.is_none().then(|| fl!(I18N, "msvdd-offset-mixed")),
                     step: 1,
                     ..Default::default()
                 },
