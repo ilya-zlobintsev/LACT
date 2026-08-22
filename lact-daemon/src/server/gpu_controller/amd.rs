@@ -1165,8 +1165,9 @@ impl GpuController for AmdGpuController {
                     .context("Failed to stop fan control")?;
             }
 
-            if let Some(PerformanceLevel::High | PerformanceLevel::Low) = config.performance_level {
-                // Reset to auto first
+            if config.performance_level.is_some_and(|level| {
+                !matches!(level, PerformanceLevel::Auto | PerformanceLevel::Manual)
+            }) {
                 self.handle
                     .set_power_force_performance_level(PerformanceLevel::Auto)
                     .context("Failed to set power performance level")?;
