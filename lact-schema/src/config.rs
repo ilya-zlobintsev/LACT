@@ -88,6 +88,18 @@ pub struct ClocksConfiguration {
         deserialize_with = "int_map::deserialize"
     )]
     pub mem_vf_curve: IndexMap<u8, CurvePoint>,
+    #[serde(
+        default,
+        skip_serializing_if = "IndexMap::is_empty",
+        deserialize_with = "int_map::deserialize"
+    )]
+    pub clock_domain_offsets: IndexMap<u32, i32>,
+    #[serde(
+        default,
+        skip_serializing_if = "IndexMap::is_empty",
+        deserialize_with = "int_map::deserialize"
+    )]
+    pub clock_domain_voltage_offsets: IndexMap<u32, i32>,
     pub voltage_offset: Option<i32>,
     pub voltage_boost: Option<i32>,
 }
@@ -132,6 +144,22 @@ impl ClocksConfiguration {
             ClockspeedType::MemVfCurveVoltage(point) => {
                 self.mem_vf_curve.entry(point).or_default().voltage = value;
             }
+            ClockspeedType::ClockDomainOffset(domain) => match value {
+                Some(value) => {
+                    self.clock_domain_offsets.insert(domain, value);
+                }
+                None => {
+                    self.clock_domain_offsets.shift_remove(&domain);
+                }
+            },
+            ClockspeedType::ClockDomainVoltageOffset(domain) => match value {
+                Some(value) => {
+                    self.clock_domain_voltage_offsets.insert(domain, value);
+                }
+                None => {
+                    self.clock_domain_voltage_offsets.shift_remove(&domain);
+                }
+            },
             ClockspeedType::Reset => {
                 *self = ClocksConfiguration::default();
             }
