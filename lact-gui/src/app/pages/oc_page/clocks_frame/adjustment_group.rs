@@ -1,4 +1,5 @@
-use super::adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
+use super::adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData, RowId};
+use crate::app::components::oc_adjustment::OcAdjustment;
 use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
 use lact_schema::request::ClockspeedType;
 use relm4::{css, factory::FactoryHashMap, prelude::FactoryComponent};
@@ -12,9 +13,18 @@ pub enum ClockCategory {
     VramCurveClock,
     CoreCurveVoltage,
     VramCurveVoltage,
+    AdvancedClock,
+    AdvancedVoltage,
 }
 
 impl ClockCategory {
+    pub fn from_row(id: RowId) -> Self {
+        match id {
+            RowId::MsvddMaster => ClockCategory::AdvancedVoltage,
+            RowId::Clock(clock_type) => Self::from_type(clock_type),
+        }
+    }
+
     pub fn from_type(clock_type: ClockspeedType) -> Self {
         match clock_type {
             ClockspeedType::MaxCoreClock
@@ -31,6 +41,9 @@ impl ClockCategory {
             ClockspeedType::MemVfCurveClock(_) => ClockCategory::VramCurveClock,
             ClockspeedType::GpuVfCurveVoltage(_) => ClockCategory::CoreCurveVoltage,
             ClockspeedType::MemVfCurveVoltage(_) => ClockCategory::VramCurveVoltage,
+            ClockspeedType::ClockDomainOffset(_) => ClockCategory::AdvancedClock,
+            ClockspeedType::ClockDomainVoltageOffset(_) => ClockCategory::AdvancedVoltage,
+            ClockspeedType::XbarRatio => ClockCategory::AdvancedClock,
             ClockspeedType::Reset => unreachable!(),
         }
     }
@@ -43,12 +56,21 @@ impl ClockCategory {
         Self::VRAM.contains(self)
     }
 
+    pub fn is_advanced(&self) -> bool {
+        Self::ADVANCED.contains(self)
+    }
+
     pub const CORE: [ClockCategory; 4] = [
         ClockCategory::CoreClock,
         ClockCategory::CoreVoltage,
         ClockCategory::CoreCurveClock,
         ClockCategory::CoreCurveVoltage,
     ];
+
+    /// Controls that are not part of the core or VRAM clock story, and which live
+    /// in their own section rather than mixed into either column.
+    pub const ADVANCED: [ClockCategory; 2] =
+        [ClockCategory::AdvancedClock, ClockCategory::AdvancedVoltage];
 
     pub const VRAM: [ClockCategory; 3] = [
         ClockCategory::VramClock,
@@ -58,7 +80,7 @@ impl ClockCategory {
 }
 
 pub struct AdjustmentGroup {
-    adjustments: FactoryHashMap<ClockspeedType, ClockAdjustmentRow>,
+    adjustments: FactoryHashMap<RowId, ClockAdjustmentRow>,
 }
 
 impl AdjustmentGroup {
@@ -70,14 +92,35 @@ impl AdjustmentGroup {
         self.adjustments.values().any(|row| row.is_secondary)
     }
 
-    pub fn set_clock(&mut self, clock_type: ClockspeedType, data: ClocksData) {
-        self.adjustments.insert(clock_type, data);
+    pub fn set_row(&mut self, id: RowId, data: ClocksData) {
+        self.adjustments.insert(id, data);
+    }
+
+    /// The adjustment backing a row, so the parent can react to the user moving it.
+    ///
+    /// The adjustment is owned by the row, so any handler connected to it goes
+    /// away together with the row it belongs to.
+    pub fn row_adjustment(&self, id: RowId) -> Option<OcAdjustment> {
+        self.adjustments.get(&id).map(|row| row.adjustment.clone())
+    }
+
+    /// Pushes one offset into every per-domain MSVDD row.
+    ///
+    /// MSVDD is a single rail shared by all of these domains, so the master row
+    /// sets them together; editing one afterwards overrides it for that domain.
+    pub fn set_domain_voltage_offsets(&self, offset: i32) {
+        for id in self.adjustments.keys() {
+            if matches!(id, RowId::Clock(ClockspeedType::ClockDomainVoltageOffset(_))) {
+                self.adjustments
+                    .send(id, ClockAdjustmentRowMsg::SetValue(offset));
+            }
+        }
     }
 
     pub fn add_size_group(&self, label_group: gtk::SizeGroup, input_group: gtk::SizeGroup) {
-        for clock_type in self.adjustments.keys() {
+        for id in self.adjustments.keys() {
             self.adjustments.send(
-                clock_type,
+                id,
                 ClockAdjustmentRowMsg::AddSizeGroup {
                     label_group: label_group.clone(),
                     input_group: input_group.clone(),
@@ -87,9 +130,9 @@ impl AdjustmentGroup {
     }
 
     pub fn set_value_ratio(&self, ratio: f64) {
-        for clock_type in self.adjustments.keys() {
+        for id in self.adjustments.keys() {
             self.adjustments
-                .send(clock_type, ClockAdjustmentRowMsg::ValueRatio(ratio));
+                .send(id, ClockAdjustmentRowMsg::ValueRatio(ratio));
         }
     }
 
@@ -102,12 +145,12 @@ impl AdjustmentGroup {
     ) {
         for (key, row) in self.adjustments.iter() {
             let show_current = match key {
-                ClockspeedType::MaxCoreClock | ClockspeedType::MinCoreClock
+                RowId::Clock(ClockspeedType::MaxCoreClock | ClockspeedType::MinCoreClock)
                     if show_nvidia_options =>
                 {
                     enable_gpu_locked
                 }
-                ClockspeedType::MaxMemoryClock | ClockspeedType::MinMemoryClock
+                RowId::Clock(ClockspeedType::MaxMemoryClock | ClockspeedType::MinMemoryClock)
                     if show_nvidia_options =>
                 {
                     enable_vram_locked
@@ -120,16 +163,23 @@ impl AdjustmentGroup {
         }
     }
 
+    /// Rows that carry a value the daemon can set, paired with their new value.
+    ///
+    /// Rows that only exist in the GUI are skipped; they act through the rows
+    /// they drive rather than being applied themselves.
     pub fn get_commands(&self) -> Vec<(ClockspeedType, Option<i32>)> {
         self.adjustments
             .iter()
-            .map(|(clock_type, row)| (*clock_type, row.get_configured_value()))
+            .filter_map(|(id, row)| match id {
+                RowId::Clock(clock_type) => Some((*clock_type, row.get_configured_value())),
+                RowId::MsvddMaster => None,
+            })
             .collect()
     }
 
     pub fn get_raw_value(&self, clock_type: ClockspeedType) -> i32 {
         self.adjustments
-            .get(&clock_type)
+            .get(&RowId::Clock(clock_type))
             .map(|row| row.get_raw_value())
             .unwrap_or(0)
     }
