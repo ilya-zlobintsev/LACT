@@ -59,10 +59,15 @@ const VOLTAGE_BOOST_RANGE: RangeInclusive<i32> = 0..=100;
 
 /// The driver reports no range for per-domain rail offsets anywhere in the domain
 /// info, and reading the control block back only echoes whatever was written, so
-/// there is nothing to derive a limit from. This mirrors the range the GUI already
-/// uses for the AMD voltage offset, and acts purely as a guard rail; whether the
-/// board honours a given offset is decided by its VBIOS and cannot be observed.
-const MAX_MSVDD_OFFSET_MV: i32 = 250;
+/// there is nothing to derive a limit from.
+///
+/// This is a guard rail, not a safe range: the only envelope anyone has actually
+/// tested end to end on Blackwell is +-50mV, and offsets well inside it are enough
+/// to make a card fail. It is deliberately not widened past what has been
+/// exercised, because an offset that the board does not honour cannot be observed
+/// through any readback, and one it honours badly corrupts memory traffic rather
+/// than failing cleanly.
+const MAX_MSVDD_OFFSET_MV: i32 = 50;
 
 pub struct NvidiaGpuController {
     nvml: Rc<Nvml>,
