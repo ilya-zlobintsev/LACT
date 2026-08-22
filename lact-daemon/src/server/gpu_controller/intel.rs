@@ -9,15 +9,17 @@ use crate::{
     server::gpu_controller::common::fdinfo::{self, DrmUtilMap},
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
-use anyhow::{Context, anyhow, bail};
+use anyhow::{Context, Error, anyhow, bail, ensure};
 use futures::future::LocalBoxFuture;
 use indexmap::IndexMap;
+use lact_schema::FanControlMode::Static;
 use lact_schema::{
-    ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceInfo, DeviceStats, DeviceType,
-    DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo, PowerState,
-    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats,
-    VramStats, config::GpuConfig,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats,
+    DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelClocksTable, IntelDrmInfo,
+    LinkInfo, PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType,
+    TemperatureEntry, VoltageStats, VramStats, config::GpuConfig,
 };
+use lact_schema::{FanCurveMap, config::FanCurve};
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
@@ -224,10 +226,10 @@ impl IntelGpuController {
                 let entries = fs::read_dir(hwmon_path).ok()?;
                 for entry in entries.flatten() {
                     if let Some(name) = entry.file_name().to_str()
-                        && let Some(infix) = name
+                        && let Some(_infix) = name
                             .strip_prefix(file_prefix)
                             .and_then(|name| name.strip_suffix(file_suffix))
-                        && !infix.contains('_')
+                    // && !infix.contains('_')
                     {
                         files.push(entry.path());
                     }
@@ -570,6 +572,232 @@ impl IntelGpuController {
             .map(|value| value as f64)
             .or_else(|| self.get_power_cap().map(|_| FALLBACK_MAX_POWER_CAP))
     }
+
+    fn has_fan_control(&self) -> bool {
+        self.match_hwmon_files(&["pwm1"]).next().is_some()
+    }
+
+    fn get_hwmon_controllable_points_amount(&self) -> u8 {
+        self.read_hwmon_files::<String>("pwm1_", "_pwm")
+            .count()
+            .try_into()
+            .expect("invalid amount of curve points")
+    }
+
+    // if we need the exact fan curve in the future
+    /* fn get_hwmon_fan_curve(&self) -> Option<FanCurveMap> {
+        let points: Vec<(i32, f32)> = self.get_hwmon_fan_curve_points()?;
+        Some(points.into_iter().collect())
+    } */
+
+    fn get_hwmon_fan_curve_points(&self) -> Option<Vec<(i32, f32)>> {
+        let amount: u8 = self.get_hwmon_controllable_points_amount();
+
+        if amount == 0 {
+            return None;
+        }
+
+        let mut points: Vec<(i32, f32)> = Vec::new();
+
+        for point in 1..=amount {
+            let pwm_file: String = format!("pwm1_auto_point{point}_pwm");
+            let temp_file: String = format!("pwm1_auto_point{point}_temp");
+
+            #[allow(clippy::cast_precision_loss)]
+            let pwm: f32 = self
+                .read_hwmon_file(&[&*pwm_file], false)
+                .map(|value: u64| value as f32)
+                .context("Could not read the curve")
+                .unwrap();
+
+            #[allow(clippy::cast_possible_truncation)]
+            let temp: i32 = self
+                .read_hwmon_file(&[&*temp_file], false)
+                .map(|value: u64| value as i32)
+                .context("Could not read the curve")
+                .unwrap();
+
+            points.push((temp / 1000, pwm / 255.0));
+        }
+
+        Some(points)
+    }
+
+    fn get_truncated_hwmon_fan_curve(&self, config: Option<&GpuConfig>) -> Option<FanCurveMap> {
+        let mut points: Vec<(i32, f32)> = self.get_hwmon_fan_curve_points()?;
+
+        if self.get_hwmon_fan_control_mode() == Some(Static) {
+            let single_point: [(i32, f32); 1] = [*points.first()?];
+            return Some(single_point.into_iter().collect());
+        }
+
+        points = truncate_effective_curve(points, config);
+
+        Some(points.into_iter().collect())
+    }
+
+    #[allow(clippy::cast_precision_loss)]
+    fn get_hwmon_fan_static_speed(&self) -> Option<f32> {
+        self.read_hwmon_file(&["pwm1"], false)
+            .map(|speed: u64| speed as f32 / 255.0)
+    }
+
+    fn get_hwmon_fan_control_mode(&self) -> Option<FanControlMode> {
+        let mode: u64 = self.read_hwmon_file(&["pwm1_enable"], false)?;
+        match mode {
+            0 => Some(FanControlMode::Static),
+            1 => {
+                let mut pwm_files = self
+                    .read_hwmon_files::<String>("pwm1_", "_pwm")
+                    .map(|(pwm, _)| pwm);
+                match pwm_files.next() {
+                    None => Some(FanControlMode::Static),
+                    Some(first) => {
+                        if pwm_files.all(|pwm: String| first == pwm) {
+                            //when you set a static speed, the xe driver will set your table points to the same pwm; if one is different, then we are in a curve
+                            return Some(FanControlMode::Static);
+                        }
+                        Some(FanControlMode::Curve)
+                    }
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn get_hwmon_fans_amount(&self) -> u8 {
+        self.read_hwmon_files::<String>("fan", "_input")
+            .count()
+            .try_into()
+            .expect("too many fan curve points")
+    }
+
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+    fn apply_fan_curve(&self, curve: &FanCurve) -> Result<(), Error> {
+        ensure!(
+            self.has_fan_control(),
+            "Tried to control the fan curve when there is no fan control"
+        );
+
+        self.is_valid_fan_curve(curve)?;
+
+        let fans: u8 = self.get_hwmon_fans_amount();
+
+        for fan_index in 1..=fans {
+            let pwm_enable = format!("pwm{fan_index}_enable");
+            self.write_hwmon_file(&[&pwm_enable], "1")
+                .context("Could not enable manual fan control")?;
+        }
+
+        for (i, (temperature, speed)) in curve.0.iter().enumerate() {
+            let point = i + 1;
+            let pwm = (*speed * 255.0) as u8;
+            let temp = *temperature * 1000;
+
+            for fan_index in 1..=fans {
+                self.write_hwmon_file(
+                    &[&format!("pwm{fan_index}_auto_point{point}_temp")],
+                    &temp.to_string(),
+                )
+                .context("Could not set the temperature for a point in the curve")?;
+                self.write_hwmon_file(
+                    &[&format!("pwm{fan_index}_auto_point{point}_pwm")],
+                    &pwm.to_string(),
+                )
+                .context("Could not set the RPM for a point in the curve")?;
+            }
+        }
+
+        let last_point: Option<(&i32, &f32)> = curve.0.iter().last();
+        let points_amount: usize = self.get_hwmon_controllable_points_amount() as usize;
+
+        if let Some(last_point) = last_point
+            && curve.0.len() < points_amount
+        {
+            for (point, index) in std::iter::zip(curve.0.len() + 1..=points_amount, 1..) {
+                let pwm = (*last_point.1 * 255.0) as u8;
+                let temp = (f64::from(*last_point.0) * 1000.0) as i32 + (index * 1000); //it looks like the xe driver does not accept points with the same temperature or less than 1C apart, so we make the points be 1C from each other
+
+                for fan_index in 1..=fans {
+                    self.write_hwmon_file(
+                        &[&format!("pwm{fan_index}_auto_point{point}_temp")],
+                        &temp.to_string(),
+                    )
+                    .context("Could not set the temperature for a point in the curve")?;
+                    self.write_hwmon_file(
+                        &[&format!("pwm{fan_index}_auto_point{point}_pwm")],
+                        &pwm.to_string(),
+                    )
+                    .context("Could not set the RPM for a point in the curve")?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn is_valid_fan_curve(&self, curve: &FanCurve) -> anyhow::Result<(), Error> {
+        if curve.0.is_empty()
+            || curve.0.len() > self.get_hwmon_controllable_points_amount() as usize
+        {
+            return Err(anyhow!(
+                "The fan curve needs at least 1 point and up to {} points",
+                self.get_hwmon_controllable_points_amount()
+            ));
+        }
+
+        let mut highest_temperature: i32 = 0;
+        let mut highest_speed: f32 = 0.0;
+
+        for (temperature, speed) in &curve.0 {
+            if *temperature >= highest_temperature {
+                highest_temperature = *temperature;
+            } else {
+                return Err(anyhow!(
+                    "The fan curve temperatures must be in increasing order"
+                ));
+            }
+
+            if *speed >= highest_speed {
+                highest_speed = *speed;
+            } else {
+                return Err(anyhow!("The fan curve speeds must be in increasing order"));
+            }
+        }
+
+        Ok(())
+    }
+
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+    fn set_fans_static_speed(&self, speed: f32) -> Result<(), anyhow::Error> {
+        if !self.has_fan_control() {
+            return Result::Err(anyhow!(
+                "Tried to set the fans static speed when there is no fan control"
+            ));
+        }
+
+        let pwm_value: u8 = (speed * 255.0) as u8;
+
+        let fans: u8 = self.get_hwmon_fans_amount();
+
+        for fan_index in 1..=fans {
+            let pwm = format!("pwm{fan_index}");
+            let pwm_enable = format!("pwm{fan_index}_enable");
+
+            self.write_hwmon_file(&[&pwm_enable], "1")
+                .context("Could not enable manual fan control")?; //if it is 0 or 2, you wont be able to control the RPM
+            self.write_hwmon_file(&[&pwm], &pwm_value.to_string())
+                .context("Could not set fan RPM")?;
+        }
+
+        Ok(())
+    }
+
+    #[allow(clippy::cast_possible_truncation)]
+    fn get_hwmon_fan_max_speed(&self) -> Option<u32> {
+        self.read_hwmon_file(&["fan1_max"], false)
+            .map(|speed| speed as u32)
+    }
 }
 
 impl GpuController for IntelGpuController {
@@ -613,6 +841,12 @@ impl GpuController for IntelGpuController {
                 ..Default::default()
             };
 
+            let mut flags = vec![];
+
+            if self.has_fan_control() {
+                flags.push(DeviceFlag::ConfigurableFanControl);
+            }
+
             DeviceInfo {
                 pci_info: Some(self.common.pci_info.clone()),
                 api_info,
@@ -620,7 +854,7 @@ impl GpuController for IntelGpuController {
                 vbios_version: None,
                 link_info: LinkInfo::default(),
                 drm_info: Some(drm_info),
-                flags: vec![],
+                flags,
             }
         })
     }
@@ -668,11 +902,36 @@ impl GpuController for IntelGpuController {
                 }
             }
 
+            if config.fan_control_enabled {
+                if !self.has_fan_control() {
+                    bail!("Tried to control the fans when there is no available fan control");
+                }
+
+                if let Some(ref settings) = config.fan_control_settings {
+                    match settings.mode {
+                        lact_schema::FanControlMode::Static => {
+                            self.set_fans_static_speed(settings.static_speed)?;
+                        }
+                        lact_schema::FanControlMode::Curve => {
+                            self.apply_fan_curve(&settings.curve)?;
+                        }
+                    }
+                }
+            } else if self.has_fan_control() && self.get_hwmon_fan_control_mode().is_some() {
+                let fans: u8 = self.get_hwmon_fans_amount();
+
+                for fan_index in 1..=fans {
+                    let pwm_enable = format!("pwm{fan_index}_enable");
+                    self.write_hwmon_file(&[&pwm_enable], "2")
+                        .context("Could not enable firmware fan control")?;
+                }
+            }
+
             Ok(())
         })
     }
 
-    fn get_stats(&self, _gpu_config: Option<&GpuConfig>) -> DeviceStats {
+    fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let target_gpu_clockspeed = self.read_freq(FrequencyType::Cur);
         let gpu_clockspeed = self
             .read_freq(FrequencyType::Act)
@@ -705,6 +964,11 @@ impl GpuController for IntelGpuController {
             speed_current: self
                 .read_hwmon_file(&["fan1_input", "fan2_input", "fan3_input"], false)
                 .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
+            curve: self.get_truncated_hwmon_fan_curve(gpu_config),
+            static_speed: self.get_hwmon_fan_static_speed(),
+            control_mode: self.get_hwmon_fan_control_mode(),
+            control_enabled: self.get_hwmon_fan_control_mode().is_some(),
+            speed_max: self.get_hwmon_fan_max_speed(),
             ..Default::default()
         };
 
@@ -816,6 +1080,35 @@ impl GpuController for IntelGpuController {
     }
 }
 
+#[allow(clippy::float_cmp)]
+fn truncate_effective_curve(
+    mut all_points: Vec<(i32, f32)>,
+    config: Option<&GpuConfig>,
+) -> Vec<(i32, f32)> {
+    let Some(&(_, last_speed)) = all_points.last() else {
+        return all_points;
+    };
+
+    let Some(prev_from_last) = all_points
+        .iter()
+        .rposition(|(_, speed)| *speed != last_speed)
+    else {
+        return all_points;
+    };
+    let mut effective_len = prev_from_last + 2;
+
+    if let Some(config) = config
+        && let Some(fan_settings) = &config.fan_control_settings
+        && !fan_settings.curve.0.is_empty()
+        && fan_settings.curve.0.len() > effective_len
+    {
+        effective_len = fan_settings.curve.0.len();
+    }
+
+    all_points.truncate(effective_len);
+    all_points
+}
+
 #[derive(Clone, Copy)]
 enum FrequencyType {
     Cur,
@@ -852,9 +1145,16 @@ struct IntelVramInfo {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::{DRM_ENGINES, DRM_VRAM_KEYS};
-    use crate::server::gpu_controller::common::fdinfo::parse_fdinfo;
-    use lact_schema::ProcessUtilizationType;
+    use crate::server::gpu_controller::{
+        common::fdinfo::parse_fdinfo, intel::truncate_effective_curve,
+    };
+    use lact_schema::{
+        ProcessUtilizationType,
+        config::{FanControlSettings, FanCurve, GpuConfig},
+    };
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -945,5 +1245,50 @@ drm-engine-capacity-ccs:        4\
         let util = parse_fdinfo(data, DRM_VRAM_KEYS, DRM_ENGINES).unwrap();
         assert_eq!(3, util.client_id);
         assert_eq!(24_567_808, util.memory_used);
+    }
+
+    #[test]
+    fn truncate_fan_curve() {
+        assert_eq!(
+            vec![(40, 0.0), (50, 0.2), (60, 0.7), (80, 1.0)],
+            truncate_effective_curve(
+                vec![
+                    (40, 0.0),
+                    (50, 0.2),
+                    (60, 0.7),
+                    (80, 1.0),
+                    (81, 1.0),
+                    (82, 1.0)
+                ],
+                None
+            )
+        );
+
+        assert_eq!(
+            vec![(40, 0.0), (50, 0.2), (60, 0.7), (80, 1.0), (81, 1.0)],
+            truncate_effective_curve(
+                vec![
+                    (40, 0.0),
+                    (50, 0.2),
+                    (60, 0.7),
+                    (80, 1.0),
+                    (81, 1.0),
+                    (82, 1.0)
+                ],
+                Some(&GpuConfig {
+                    fan_control_settings: Some(FanControlSettings {
+                        curve: FanCurve(BTreeMap::from([
+                            (40, 0.0),
+                            (50, 0.2),
+                            (60, 0.7),
+                            (80, 1.0),
+                            (81, 1.0),
+                        ])),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                })
+            )
+        );
     }
 }
