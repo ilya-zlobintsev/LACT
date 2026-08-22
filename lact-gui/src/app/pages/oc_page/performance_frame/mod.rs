@@ -16,11 +16,15 @@ use i18n_embed_fl::fl;
 use nvml_wrapper::enums::device::PowerMizerMode;
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 
-const PERFORMANCE_LEVELS: [PerformanceLevel; 4] = [
+const PERFORMANCE_LEVELS: [PerformanceLevel; 8] = [
     PerformanceLevel::Auto,
     PerformanceLevel::High,
     PerformanceLevel::Low,
     PerformanceLevel::Manual,
+    PerformanceLevel::ProfileStandard,
+    PerformanceLevel::ProfileMinSclk,
+    PerformanceLevel::ProfileMinMclk,
+    PerformanceLevel::ProfilePeak,
 ];
 
 pub struct PerformanceFrame {
@@ -74,6 +78,10 @@ impl relm4::Component for PerformanceFrame {
                         Some(PerformanceLevel::High) => fl!(I18N, "performance-level-high-description"),
                         Some(PerformanceLevel::Low) => fl!(I18N, "performance-level-low-description"),
                         Some(PerformanceLevel::Manual) => fl!(I18N, "performance-level-manual-description"),
+                        Some(PerformanceLevel::ProfileStandard) => fl!(I18N, "performance-level-profile-standard-description"),
+                        Some(PerformanceLevel::ProfileMinSclk) => fl!(I18N, "performance-level-profile-min-sclk-description"),
+                        Some(PerformanceLevel::ProfileMinMclk) => fl!(I18N, "performance-level-profile-min-mclk-description"),
+                        Some(PerformanceLevel::ProfilePeak) => fl!(I18N, "performance-level-profile-peak-description"),
                         _ => String::new(),
                     },
                     set_hexpand: true,
@@ -372,12 +380,11 @@ fn level_friendly_name(level: PerformanceLevel) -> String {
         PerformanceLevel::Low => fl!(I18N, "performance-level-low"),
         PerformanceLevel::High => fl!(I18N, "performance-level-high"),
         PerformanceLevel::Manual => fl!(I18N, "performance-level-manual"),
-        PerformanceLevel::ProfileStandard
-        | PerformanceLevel::ProfileMinSclk
-        | PerformanceLevel::ProfileMinMclk
-        | PerformanceLevel::ProfilePeak
-        | PerformanceLevel::PerfDeterminism
-        | PerformanceLevel::ProfileExit => {
+        PerformanceLevel::ProfileStandard => fl!(I18N, "performance-level-profile-standard"),
+        PerformanceLevel::ProfileMinSclk => fl!(I18N, "performance-level-profile-min-sclk"),
+        PerformanceLevel::ProfileMinMclk => fl!(I18N, "performance-level-profile-min-mclk"),
+        PerformanceLevel::ProfilePeak => fl!(I18N, "performance-level-profile-peak"),
+        PerformanceLevel::PerfDeterminism | PerformanceLevel::ProfileExit => {
             unreachable!("unsupported performance level in selector")
         }
     }
