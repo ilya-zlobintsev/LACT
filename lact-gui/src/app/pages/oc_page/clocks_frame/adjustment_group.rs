@@ -99,7 +99,10 @@ impl AdjustmentGroup {
         show_nvidia_options: bool,
         enable_gpu_locked: bool,
         enable_vram_locked: bool,
+        vf_curve_editing: bool,
     ) {
+        let mut any_visible = false;
+
         for (key, row) in self.adjustments.iter() {
             let show_current = match key {
                 ClockspeedType::MaxCoreClock | ClockspeedType::MinCoreClock
@@ -112,12 +115,20 @@ impl AdjustmentGroup {
                 {
                     enable_vram_locked
                 }
+                ClockspeedType::GpuClockOffset(_) if show_nvidia_options && vf_curve_editing => {
+                    false
+                }
                 _ => !row.is_secondary || show_secondary,
             };
+
+            any_visible |= show_current;
 
             self.adjustments
                 .send(key, ClockAdjustmentRowMsg::SetVisible(show_current));
         }
+
+        // removes empty card
+        self.adjustments.widget().set_visible(any_visible);
     }
 
     pub fn get_commands(&self) -> Vec<(ClockspeedType, Option<i32>)> {
@@ -125,6 +136,15 @@ impl AdjustmentGroup {
             .iter()
             .map(|(clock_type, row)| (*clock_type, row.get_configured_value()))
             .collect()
+    }
+
+    pub fn reset_gpu_clock_offsets(&self) {
+        for clock_type in self.adjustments.keys() {
+            if matches!(clock_type, ClockspeedType::GpuClockOffset(_)) {
+                self.adjustments
+                    .send(clock_type, ClockAdjustmentRowMsg::SetValue(0));
+            }
+        }
     }
 
     pub fn get_raw_value(&self, clock_type: ClockspeedType) -> i32 {
