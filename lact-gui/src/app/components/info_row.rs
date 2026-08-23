@@ -147,6 +147,8 @@ mod imp {
         info_text: RefCell<String>,
         #[property(get, set)]
         icon: RefCell<String>,
+        #[property(get, set)]
+        max_value_width_chars: RefCell<i32>,
 
         pub(super) info_menubutton: gtk::MenuButton,
         pub(super) value_box: gtk::Box,
@@ -252,6 +254,11 @@ mod imp {
                 .build();
 
             obj.bind_property("value", value_label, "label")
+                .sync_create()
+                .build();
+
+            obj.bind_property("max-value-width-chars", value_label, "max-width-chars")
+                .transform_to(|_, value: i32| if value == 0 { None } else { Some(value) })
                 .sync_create()
                 .build();
 

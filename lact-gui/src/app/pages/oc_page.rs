@@ -98,6 +98,7 @@ impl relm4::Component for OcPage {
                 GpuStat::GttUsage,
                 GpuStat::PowerUsage,
                 GpuStat::FanSpeed,
+                GpuStat::ExtraClocks,
             ]),
         });
         let power_cap_section = PowerCapSection::detach_default();

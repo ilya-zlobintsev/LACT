@@ -717,7 +717,7 @@ pub struct ClockspeedStats {
     pub target_gpu_clockspeed: Option<u64>,
     pub vram_clockspeed: Option<u64>,
     #[serde(default)]
-    pub sensors: HashMap<String, u64>,
+    pub sensors: IndexMap<String, u64>,
 }
 
 #[skip_serializing_none]

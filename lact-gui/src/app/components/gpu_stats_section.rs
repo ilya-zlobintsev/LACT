@@ -49,7 +49,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 10,
 
-            PageSection::new("") {
+            PageSection {
                 #[watch]
                 set_visible: model.visible_count(GpuStatDisplay::Digits) > 0,
 
@@ -144,10 +144,39 @@ impl relm4::SimpleComponent for GpuStatsSection {
                         #[watch]
                         set_visible: model.shows(GpuStat::Temperature) && !secondary_temperatures.is_empty(),
                     },
+
+                    append_child = &InfoRow {
+                        set_name: fl!(I18N, "extra-clocks"),
+                        set_max_value_width_chars: 40,
+                        #[watch]
+                        set_value: extra_clocks.join(", "),
+
+                        set_icon: "go-down-symbolic".to_string(),
+
+                        #[name = "secondary_clocks_popover"]
+                        set_popover = &gtk::Popover {
+                            gtk::Label {
+                                set_margin_all: 10,
+                                set_selectable: false,
+                                set_use_markup: true,
+                                set_attributes: Some(&AttrList::from_str("0 -1 weight bold").unwrap()),
+
+                                #[watch]
+                                set_label: &extra_clocks.join("\n"),
+                            },
+                        },
+
+                        connect_clicked[secondary_clocks_popover] => move |_| {
+                            secondary_clocks_popover.popup();
+                        },
+                    } -> extra_clocks_item: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: model.shows(GpuStat::ExtraClocks),
+                    },
                 },
             },
 
-            PageSection::new("") {
+            PageSection {
                 #[watch]
                 set_visible: model.visible_count(GpuStatDisplay::LevelBar) > 0,
 
@@ -338,6 +367,7 @@ impl relm4::SimpleComponent for GpuStatsSection {
 
         let (primary_temperatures, secondary_temperatures): (Vec<String>, Vec<String>) =
             (Vec::new(), Vec::new());
+        let extra_clocks: Vec<String> = Vec::new();
 
         let model = Self {
             stats_to_show: config.stats,
@@ -385,6 +415,8 @@ impl relm4::SimpleComponent for GpuStatsSection {
     fn pre_view(&self) {
         let (primary_temperatures, secondary_temperatures) =
             formatting::fmt_temperature_text(&model.stats);
+
+        let extra_clocks = extra_clocks(&model.stats);
     }
 }
 
@@ -402,6 +434,7 @@ pub enum GpuStat {
     Temperature,
     GpuClock,
     VramClock,
+    ExtraClocks,
     GpuUsage,
     VramUsage,
     GttUsage,
@@ -424,7 +457,8 @@ impl GpuStat {
             | Self::Throttling
             | Self::GpuClockTarget
             | Self::GpuVoltage
-            | Self::Temperature => GpuStatDisplay::Digits,
+            | Self::Temperature
+            | Self::ExtraClocks => GpuStatDisplay::Digits,
             Self::GpuClock
             | Self::VramClock
             | Self::GpuUsage
@@ -459,6 +493,7 @@ impl GpuStatsSection {
             GpuStat::PowerUsage => {
                 self.stats.power.average.is_some() || self.stats.power.current.is_some()
             }
+            GpuStat::ExtraClocks => !self.stats.clockspeed.sensors.is_empty(),
         }
     }
 
@@ -486,4 +521,13 @@ fn format_current_gfxclk(value: Option<u64>) -> String {
     } else {
         fl!(I18N, "missing-stat")
     }
+}
+
+fn extra_clocks(stats: &DeviceStats) -> Vec<String> {
+    stats
+        .clockspeed
+        .sensors
+        .iter()
+        .map(|(name, value)| format!("{name}: {}", formatting::fmt_clockspeed(Some(*value), 1.0)))
+        .collect::<Vec<_>>()
 }

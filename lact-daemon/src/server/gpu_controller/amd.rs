@@ -516,7 +516,7 @@ impl AmdGpuController {
             .map(u64::from)
             .or_else(|| self.hw_mon_and_then(HwMon::get_vram_clockspeed));
 
-        let mut sensors = HashMap::new();
+        let mut sensors = IndexMap::new();
 
         let mut target_gpu_clockspeed = None;
 
