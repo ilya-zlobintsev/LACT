@@ -1741,11 +1741,11 @@ mod tests {
     }
 
     #[test]
-    fn allows_an_offset_below_the_reported_minimum_down_to_zero_frequency() {
+    fn clamps_an_offset_that_would_reduce_the_frequency_to_zero() {
         let points = [TestPoint::new(450, 270, 0)];
         let (info, status, control) = tables(&points, true);
 
-        // Below the reported minimum but within `-base`, which is what the driver allows
+        // Below the reported minimum and equal to `-base`, so clamp to a 1 MHz frequency
         let result = build_curve_control(
             &offset_curve(&[(0, -270)]),
             &info,
@@ -1754,7 +1754,7 @@ mod tests {
             (-100, 1000),
         )
         .expect("apply failed");
-        assert_eq!(vec![-270_000], written_offsets(&result, 1));
+        assert_eq!(vec![-269_000], written_offsets(&result, 1));
     }
 
     #[test]
