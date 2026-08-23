@@ -201,7 +201,7 @@ impl relm4::Component for VfCurveEditor {
                         #[name = "editing_disabled_label"]
                         gtk::Label {
                             set_label: &fl!(I18N, "vf-curve-editing-disabled"),
-                            set_halign: gtk::Align::End,
+                            set_halign: gtk::Align::Center,
                             set_hexpand: true,
                             set_valign: gtk::Align::Center,
                             add_css_class: "dim-label",
