@@ -3,15 +3,7 @@ use crate::{
     app::{APP_BROKER, graphs_window::plot::PlotColorScheme, msg::AppMsg},
 };
 use amdgpu_sysfs::gpu_handle::PowerLevelId;
-use gtk::{
-    gdk,
-    glib::object::ObjectExt,
-    prelude::{
-        AdjustmentExt, BoxExt as _, ButtonExt as _, CheckButtonExt as _, DrawingAreaExtManual as _,
-        EventControllerExt as _, GestureSingleExt as _, GtkWindowExt as _, OrientableExt as _,
-        PopoverExt, RangeExt as _, ScaleExt as _, WidgetExt as _,
-    },
-};
+use gtk::{gdk, prelude::*};
 use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{ClocksTable, DeviceStats, NvidiaVfPoint, config};
@@ -33,10 +25,14 @@ use std::{cmp, fmt::Write as _};
 // In percentage
 const POINT_VOLTAGE_HOVER_MARGIN: f32 = 0.01;
 const POINT_FREQ_HOVER_MARGIN: f32 = 0.03;
-const MIN_VISIBLE_FREQ_RANGE_PADDING: u32 = 200;
+
+// In MHz
+const VISIBLE_FREQ_RANGE_PADDING_MIN: u32 = 100;
+const VISIBLE_FREQ_RANGE_PADDING_MAX: u32 = 300;
 
 #[derive(Clone)]
 pub struct VfCurveEditor {
+    /// `freq` is drawn and dragged, `freq_offset` is what gets exported - see [`set_point_freq`]
     points: Rc<RefCell<Vec<NvidiaVfPoint>>>,
     stats: Rc<RefCell<Arc<DeviceStats>>>,
     allow_editing: BoolBinding,
@@ -61,6 +57,11 @@ pub struct VfCurveEditor {
     selected_range_end: Rc<Cell<Option<usize>>>,
 }
 
+pub struct VfCurveEditorInit {
+    pub global_settings_changed: BoolBinding,
+    pub allow_editing: BoolBinding,
+}
+
 #[derive(Debug)]
 pub enum VfCurveEditorMsg {
     Show,
@@ -80,7 +81,7 @@ pub enum VfCurveEditorMsg {
 
 #[relm4::component(pub)]
 impl relm4::Component for VfCurveEditor {
-    type Init = BoolBinding;
+    type Init = VfCurveEditorInit;
     type Input = VfCurveEditorMsg;
     type Output = ();
     type CommandOutput = ();
@@ -98,7 +99,7 @@ impl relm4::Component for VfCurveEditor {
                 #[wrap(Some)]
                 set_content = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
-                    set_margin_all: 5,
+                    set_margin_all: 15,
                     set_spacing: 10,
 
                     gtk::Box {
@@ -108,8 +109,8 @@ impl relm4::Component for VfCurveEditor {
 
                         gtk::Label {
                             set_markup: &fl!(I18N, "nvidia-vf-curve-warning"),
-                            add_css_class: "error",
-                            add_css_class: "heading",
+                            add_css_class: css::WARNING,
+                            add_css_class: css::HEADING,
                         },
 
                     },
@@ -118,7 +119,6 @@ impl relm4::Component for VfCurveEditor {
                     #[name = "drawing_area"]
                     gtk::DrawingArea {
                         set_expand: true,
-                        set_margin_all: 10,
 
                         set_draw_func[model] => move |_, ctx, width, height| {
                             model.draw_chart(ctx, width, height, PlotColorScheme::current());
@@ -170,11 +170,10 @@ impl relm4::Component for VfCurveEditor {
                     gtk::Box {
                         set_orientation: gtk::Orientation::Horizontal,
                         set_spacing: 5,
-                        set_margin_horizontal: 5,
 
                         gtk::Label {
                             set_label: &fl!(I18N, "vf-curve-visible-range"),
-                            add_css_class: "heading",
+                            add_css_class: css::HEADING,
                         },
 
                         gtk::Scale {
@@ -188,7 +187,7 @@ impl relm4::Component for VfCurveEditor {
 
                         gtk::Label {
                             set_label: &fl!(I18N, "vf-curve-visible-range-to"),
-                            add_css_class: "heading",
+                            add_css_class: css::HEADING,
                         },
 
                         gtk::Scale {
@@ -199,46 +198,45 @@ impl relm4::Component for VfCurveEditor {
                             set_digits: 0,
                         },
 
-                        #[name = "enable_editing_button"]
-                        gtk::CheckButton {
-                            set_label: Some(&fl!(I18N, "vf-curve-enable-editing")),
-                            set_halign: gtk::Align::End,
-                            set_valign: gtk::Align::Center,
+                        #[name = "editing_disabled_label"]
+                        gtk::Label {
+                            set_label: &fl!(I18N, "vf-curve-editing-disabled"),
+                            set_halign: gtk::Align::Center,
                             set_hexpand: true,
-                            add_css_class: "warning",
-                            add_binding: (&model.allow_editing, "active"),
-
-                            connect_toggled[drawing_area] => move |_| {
-                                APP_BROKER.send(AppMsg::SettingsChanged);
-                                drawing_area.queue_draw();
-                            } @ enable_editing_signal,
+                            set_valign: gtk::Align::Center,
+                            add_css_class: css::DIM_LABEL,
                         },
 
-                        gtk::Button {
-                            set_label: &fl!(I18N, "default-button"),
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 5,
                             set_halign: gtk::Align::End,
-                            add_css_class: css::DESTRUCTIVE_ACTION,
-                            set_valign: gtk::Align::Center,
+                            set_hexpand: true,
+                            add_write_only_binding: (&model.allow_editing, "visible"),
 
-                            #[watch]
-                            set_sensitive: curve_is_configured(&model.points.borrow()),
+                            gtk::Button {
+                                set_label: &fl!(I18N, "default-button"),
+                                add_css_class: css::DESTRUCTIVE_ACTION,
+                                set_valign: gtk::Align::Center,
 
-                            connect_clicked => VfCurveEditorMsg::ResetCurve,
-                            connect_clicked => move |_| {
-                                APP_BROKER.send(AppMsg::SettingsChanged);
-                            }
-                        },
+                                #[watch]
+                                set_sensitive: curve_has_offsets(&model.points.borrow()),
 
+                                connect_clicked => VfCurveEditorMsg::ResetCurve,
+                                connect_clicked => move |_| {
+                                    APP_BROKER.send(AppMsg::SettingsChanged);
+                                }
+                            },
 
-                        gtk::Button {
-                            set_label: &fl!(I18N, "apply-button"),
-                            set_halign: gtk::Align::End,
-                            add_binding: (&model.global_settings_changed, "sensitive"),
-                            add_css_class: css::SUGGESTED_ACTION,
-                            set_valign: gtk::Align::Center,
+                            gtk::Button {
+                                set_label: &fl!(I18N, "apply-button"),
+                                add_binding: (&model.global_settings_changed, "sensitive"),
+                                add_css_class: css::SUGGESTED_ACTION,
+                                set_valign: gtk::Align::Center,
 
-                            connect_clicked => move |_| {
-                                APP_BROKER.send(AppMsg::ApplyChanges);
+                                connect_clicked => move |_| {
+                                    APP_BROKER.send(AppMsg::ApplyChanges);
+                                },
                             },
                         },
                     },
@@ -248,14 +246,14 @@ impl relm4::Component for VfCurveEditor {
 
         #[name = "point_menu"]
         gtk::Popover {
-            add_css_class: "menu",
+            add_css_class: css::MENU,
 
             connect_closed => |popover| {
                 popover.unparent();
             },
 
             gtk::Box {
-                add_css_class: "flat",
+                add_css_class: css::FLAT,
                 set_orientation: gtk::Orientation::Vertical,
 
                 gtk::Button {
@@ -264,7 +262,7 @@ impl relm4::Component for VfCurveEditor {
                     connect_clicked[point_menu] => move |_| {
                         point_menu.popdown();
                     },
-                    add_css_class: "flat",
+                    add_css_class: css::FLAT,
                     #[watch]
                     set_visible: model.selected_range_start.get().is_some() && model.selected_range_end.get().is_some(),
                 },
@@ -275,14 +273,17 @@ impl relm4::Component for VfCurveEditor {
                     connect_clicked[point_menu] => move |_| {
                         point_menu.popdown();
                     },
-                    add_css_class: "flat",
+                    add_css_class: css::FLAT,
                 },
             },
         }
     }
 
     fn init(
-        global_settings_changed: Self::Init,
+        VfCurveEditorInit {
+            global_settings_changed,
+            allow_editing,
+        }: Self::Init,
         root: Self::Root,
         sender: relm4::ComponentSender<Self>,
     ) -> relm4::ComponentParts<Self> {
@@ -292,7 +293,7 @@ impl relm4::Component for VfCurveEditor {
             global_settings_changed,
             locked_clocks_range: Rc::default(),
             freq_range: Rc::default(),
-            allow_editing: BoolBinding::new(false),
+            allow_editing,
             cursor_position: Rc::new(Cell::new(None)),
             visible_range_start: gtk::Adjustment::new(30.0, 0.0, 100.0, 1.0, 10.0, 0.0),
             visible_range_end: gtk::Adjustment::new(100.0, 0.0, 100.0, 1.0, 10.0, 0.0),
@@ -306,6 +307,18 @@ impl relm4::Component for VfCurveEditor {
         };
 
         let widgets = view_output!();
+
+        let drawing_area = widgets.drawing_area.clone();
+        model
+            .allow_editing
+            .connect_value_notify(move |_| drawing_area.queue_draw());
+
+        model
+            .allow_editing
+            .bind_property("value", &widgets.editing_disabled_label, "visible")
+            .invert_boolean()
+            .sync_create()
+            .build();
 
         ComponentParts { model, widgets }
     }
@@ -337,14 +350,6 @@ impl relm4::Component for VfCurveEditor {
                     self.freq_range
                         .set(Self::freq_limits_range(&points, offset_range));
                 }
-
-                widgets
-                    .enable_editing_button
-                    .block_signal(&widgets.enable_editing_signal);
-                self.allow_editing.set_value(curve_is_configured(&points));
-                widgets
-                    .enable_editing_button
-                    .unblock_signal(&widgets.enable_editing_signal);
 
                 if points.is_empty() {
                     root.set_visible(false);
@@ -403,7 +408,7 @@ impl relm4::Component for VfCurveEditor {
                     let target_freq = points[base_point_idx].freq;
 
                     for point in points.iter_mut().skip(base_point_idx) {
-                        point.freq = target_freq;
+                        set_point_freq(point, target_freq);
                     }
 
                     APP_BROKER.send(AppMsg::SettingsChanged);
@@ -425,7 +430,7 @@ impl relm4::Component for VfCurveEditor {
                         if (selected_volt_start..=selected_volt_end)
                             .contains(&(point.voltage as usize))
                         {
-                            point.freq = target_freq;
+                            set_point_freq(point, target_freq);
                         }
                     }
 
@@ -436,6 +441,7 @@ impl relm4::Component for VfCurveEditor {
                 let mut points = self.points.borrow_mut();
                 for point in points.iter_mut() {
                     point.freq = point.base_freq;
+                    point.freq_offset = 0;
                 }
             }
         }
@@ -519,7 +525,7 @@ impl VfCurveEditor {
                 Rectangle::new([(x - 15, y + 2), (x, y - 1)], colors.success.filled())
             });
 
-        if curve_is_configured(points) {
+        if curve_has_offsets(points) {
             let base_line_style = colors.success.mix(0.3);
             chart
                 .draw_series(LineSeries::new(
@@ -770,21 +776,23 @@ impl VfCurveEditor {
                 .contains(gdk::ModifierType::SHIFT_MASK)
             {
                 for point in points.iter_mut() {
-                    point.freq = (point.freq as i32 + drag_delta)
+                    let freq = (point.freq as i32 + drag_delta)
                         .clamp(freq_range.0 as i32, freq_range.1 as i32)
                         as u32;
+                    set_point_freq(point, freq);
                 }
             } else if let Some((selected_start, selected_end)) = self.get_selected_voltage_range() {
                 for point in points.iter_mut() {
                     let voltage = point.voltage as usize;
                     if selected_start < voltage && voltage < selected_end {
-                        point.freq = (point.freq as i32 + drag_delta)
+                        let freq = (point.freq as i32 + drag_delta)
                             .clamp(freq_range.0 as i32, freq_range.1 as i32)
                             as u32;
+                        set_point_freq(point, freq);
                     }
                 }
             } else {
-                points[point_idx].freq = new_freq;
+                set_point_freq(&mut points[point_idx], new_freq);
             }
         }
 
@@ -855,10 +863,10 @@ impl VfCurveEditor {
             .max()?;
 
         let y_start = min_freq
-            .saturating_sub(MIN_VISIBLE_FREQ_RANGE_PADDING)
+            .saturating_sub(VISIBLE_FREQ_RANGE_PADDING_MIN)
             .max(freq_range.0);
         let mut y_end = max_freq
-            .saturating_add(MIN_VISIBLE_FREQ_RANGE_PADDING)
+            .saturating_add(VISIBLE_FREQ_RANGE_PADDING_MAX)
             .min(freq_range.1);
         if y_start >= y_end {
             y_end = y_start.saturating_add(1).min(freq_range.1);
@@ -871,18 +879,19 @@ impl VfCurveEditor {
         self.points.borrow().is_empty()
     }
 
-    pub fn get_configured_curve(&self) -> IndexMap<u8, config::CurvePoint> {
+    pub fn get_configured_curve(&self) -> IndexMap<u8, config::NvidiaCurvePoint> {
+        let points = self.points.borrow();
+
         if !self.allow_editing.value() {
             return IndexMap::new();
         }
 
-        self.points
-            .borrow()
+        points
             .iter()
             .map(|point| {
-                let vf_point = config::CurvePoint {
-                    voltage: Some(point.voltage as i32),
-                    clockspeed: Some(point.freq as i32),
+                let vf_point = config::NvidiaCurvePoint {
+                    clockspeed_offset: point.freq_offset,
+                    voltage: Some(point.voltage),
                 };
                 (point.index, vf_point)
             })
@@ -898,6 +907,11 @@ fn vf_point_base_coords(point: &NvidiaVfPoint) -> (u32, u32) {
     (point.base_voltage, point.base_freq)
 }
 
+fn set_point_freq(point: &mut NvidiaVfPoint, freq: u32) {
+    point.freq = freq;
+    point.freq_offset = freq as i32 - point.base_freq as i32;
+}
+
 fn offset_freq(base_freq: u32, offset: i32) -> u32 {
     if offset.is_negative() {
         base_freq.saturating_sub(offset.unsigned_abs())
@@ -906,6 +920,6 @@ fn offset_freq(base_freq: u32, offset: i32) -> u32 {
     }
 }
 
-fn curve_is_configured(points: &[NvidiaVfPoint]) -> bool {
-    points.iter().any(|point| point.freq != point.base_freq)
+fn curve_has_offsets(points: &[NvidiaVfPoint]) -> bool {
+    points.iter().any(|point| point.freq_offset != 0)
 }

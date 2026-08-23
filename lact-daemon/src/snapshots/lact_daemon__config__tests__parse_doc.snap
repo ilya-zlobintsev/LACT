@@ -60,6 +60,10 @@ gpus:
     mem_vf_curve:
       3:
         clockspeed: 920
+    nvidia_gpu_vf_curve:
+      22:
+        clockspeed_offset: 90
+        voltage: 750
     voltage_offset: 0
     voltage_boost: 0
     power_profile_mode_index: 0

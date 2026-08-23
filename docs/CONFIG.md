@@ -197,6 +197,10 @@ gpus:
       7:
         clockspeed: 1590
         voltage: 1200
+    nvidia_gpu_vf_curve:
+      22:
+        clockspeed_offset: 90
+        voltage: 750
     # VRAM V/F curve with voltage and frequency points per each power state.
     # Applicable only to AMD GCN GPUs. Overrides the values of min/max memory clock fields.
     mem_vf_curve:

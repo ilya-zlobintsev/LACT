@@ -58,6 +58,7 @@ impl ClocksData {
 #[derive(Debug)]
 pub enum ClockAdjustmentRowMsg {
     ValueRatio(f64),
+    SetValue(i32),
     SetVisible(bool),
     AddSizeGroup {
         label_group: gtk::SizeGroup,
@@ -217,6 +218,10 @@ impl FactoryComponent for ClockAdjustmentRow {
             } => {
                 label_group.add_widget(&widgets.title_box);
                 input_group.add_widget(&widgets.input_button);
+            }
+            ClockAdjustmentRowMsg::SetValue(value) => {
+                self.adjustment
+                    .set_value(f64::from(value) * self.value_ratio);
             }
             ClockAdjustmentRowMsg::SetVisible(visible) => {
                 widgets.root_box.set_visible(visible);

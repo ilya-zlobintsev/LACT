@@ -1,7 +1,10 @@
 use crate::server::gpu_controller::{GpuController, VENDOR_NVIDIA};
 use anyhow::Context;
 use indexmap::IndexMap;
-use lact_schema::config::{GpuConfig, Profile, ProfileHooks};
+use lact_schema::{
+    ClocksInfo, ClocksTable, NvidiaVfPoint,
+    config::{CurvePoint, GpuConfig, NvidiaCurvePoint, Profile, ProfileHooks},
+};
 use nix::unistd::{Group, getuid};
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
@@ -9,13 +12,13 @@ use serde_with::skip_serializing_none;
 use std::{
     cell::Cell,
     collections::BTreeMap,
-    env, fs, iter,
+    env, fs, iter, mem,
     path::PathBuf,
     rc::Rc,
     time::{Duration, Instant},
 };
 use tokio::{sync::mpsc, time};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 const FILE_NAME: &str = "config.yaml";
 const DEFAULT_ADMIN_GROUPS: [&str; 2] = ["wheel", "sudo"];
@@ -50,7 +53,7 @@ impl Default for Config {
             profiles: IndexMap::new(),
             current_profile: None,
             auto_switch_profiles: false,
-            version: 6,
+            version: 7,
         }
     }
 }
@@ -237,6 +240,38 @@ impl Config {
                         }
                     }
                 }
+                // convert the old Nvidia V/F curve points from abs to offsets
+                7 => {
+                    for (id, gpu) in gpu_configs {
+                        if !id.starts_with(VENDOR_NVIDIA)
+                            || gpu.clocks_configuration.gpu_vf_curve.is_empty()
+                        {
+                            continue;
+                        }
+
+                        let old_curve = mem::take(&mut gpu.clocks_configuration.gpu_vf_curve);
+                        let base_curve = match gpu_controllers
+                            .get(id)
+                            .map(|controller| controller.get_clocks_info(None))
+                        {
+                            Some(Ok(ClocksInfo {
+                                table: Some(ClocksTable::Nvidia(table)),
+                                ..
+                            })) => table.gpu_vf_curve,
+                            _ => Vec::new(),
+                        };
+
+                        if let Some(new_curve) = nvidia_vf_curve_to_offsets(&old_curve, &base_curve)
+                        {
+                            info!("converted the V/F curve of '{id}' to clockspeed offsets");
+                            gpu.clocks_configuration.nvidia_gpu_vf_curve = new_curve;
+                        } else {
+                            warn!(
+                                "could not convert the V/F curve of '{id}' to clockspeed offsets, it was removed and has to be reconfigured"
+                            );
+                        }
+                    }
+                }
                 _ => break,
             }
             info!("migrated config version {} to {next_version}", self.version);
@@ -300,6 +335,38 @@ pub struct Metrics {
     pub collector_address: String,
     #[serde(default = "default_metrics_interval")]
     pub interval: u64,
+}
+
+fn nvidia_vf_curve_to_offsets(
+    configured_curve: &IndexMap<u8, CurvePoint>,
+    base_curve: &[NvidiaVfPoint],
+) -> Option<IndexMap<u8, NvidiaCurvePoint>> {
+    let mut offsets = IndexMap::with_capacity(configured_curve.len());
+
+    for (index, configured_point) in configured_curve {
+        let base_point = base_curve.iter().find(|point| point.index == *index)?;
+
+        let Some(clockspeed) = configured_point.clockspeed else {
+            continue;
+        };
+
+        if configured_point
+            .voltage
+            .is_some_and(|voltage| voltage != base_point.voltage.cast_signed())
+        {
+            return None;
+        }
+
+        offsets.insert(
+            *index,
+            NvidiaCurvePoint {
+                clockspeed_offset: clockspeed - base_point.base_freq.cast_signed(),
+                voltage: Some(base_point.voltage),
+            },
+        );
+    }
+
+    (!offsets.is_empty()).then_some(offsets)
 }
 
 fn default_metrics_interval() -> u64 {
@@ -424,14 +491,66 @@ fn find_existing_group(groups: &[impl AsRef<str>]) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{Config, Daemon};
+    use crate::config::{Config, Daemon, nvidia_vf_curve_to_offsets};
     use indexmap::IndexMap;
     use insta::assert_yaml_snapshot;
     use lact_schema::{
-        FanControlMode, NvidiaThermalOptions, PmfwOptions,
-        config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
+        FanControlMode, NvidiaThermalOptions, NvidiaVfPoint, PmfwOptions,
+        config::{
+            ClocksConfiguration, CurvePoint, FanControlSettings, FanCurve, GpuConfig,
+            NvidiaCurvePoint,
+        },
     };
     use std::collections::BTreeMap;
+
+    #[test]
+    fn vf_curve_migrated_to_offsets() {
+        fn base_curve() -> Vec<NvidiaVfPoint> {
+            [(0, 450, 270), (1, 800, 1500), (2, 1050, 2500)]
+                .map(|(index, voltage, base_freq)| NvidiaVfPoint {
+                    index,
+                    voltage,
+                    base_freq,
+                    freq: base_freq,
+                    base_voltage: voltage,
+                    freq_offset: 0,
+                })
+                .to_vec()
+        }
+        fn configured_point(voltage: i32, clockspeed: i32) -> CurvePoint {
+            CurvePoint {
+                voltage: Some(voltage),
+                clockspeed: Some(clockspeed),
+            }
+        }
+        let configured = IndexMap::from([
+            (0, configured_point(450, 360)),
+            (2, configured_point(1050, 2400)),
+        ]);
+
+        let offsets =
+            nvidia_vf_curve_to_offsets(&configured, &base_curve()).expect("curve was dropped");
+
+        assert_eq!(
+            IndexMap::from([
+                (
+                    0,
+                    NvidiaCurvePoint {
+                        clockspeed_offset: 90,
+                        voltage: Some(450),
+                    }
+                ),
+                (
+                    2,
+                    NvidiaCurvePoint {
+                        clockspeed_offset: -100,
+                        voltage: Some(1050),
+                    }
+                ),
+            ]),
+            offsets
+        );
+    }
 
     #[test]
     fn serde_de_full() {

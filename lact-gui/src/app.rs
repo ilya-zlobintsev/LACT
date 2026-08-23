@@ -1141,8 +1141,12 @@ impl AppModel {
                 None
             }
         };
-        self.oc_page
-            .emit(OcPageMsg::ClocksTable(maybe_clocks_table));
+        self.oc_page.emit(OcPageMsg::ClocksTable {
+            table: maybe_clocks_table,
+            vf_curve_is_configured: gpu_config
+                .as_ref()
+                .is_some_and(|config| !config.clocks_configuration.nvidia_gpu_vf_curve.is_empty()),
+        });
 
         let maybe_modes_table = match self
             .daemon_client
