@@ -882,7 +882,7 @@ impl VfCurveEditor {
     pub fn get_configured_curve(&self) -> IndexMap<u8, config::NvidiaCurvePoint> {
         let points = self.points.borrow();
 
-        if !self.allow_editing.value() || !curve_has_offsets(&points) {
+        if !self.allow_editing.value() {
             return IndexMap::new();
         }
 
