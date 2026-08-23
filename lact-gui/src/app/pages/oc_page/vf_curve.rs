@@ -109,8 +109,8 @@ impl relm4::Component for VfCurveEditor {
 
                         gtk::Label {
                             set_markup: &fl!(I18N, "nvidia-vf-curve-warning"),
-                            add_css_class: "error",
-                            add_css_class: "heading",
+                            add_css_class: css::WARNING,
+                            add_css_class: css::HEADING,
                         },
 
                     },
@@ -173,7 +173,7 @@ impl relm4::Component for VfCurveEditor {
 
                         gtk::Label {
                             set_label: &fl!(I18N, "vf-curve-visible-range"),
-                            add_css_class: "heading",
+                            add_css_class: css::HEADING,
                         },
 
                         gtk::Scale {
@@ -187,7 +187,7 @@ impl relm4::Component for VfCurveEditor {
 
                         gtk::Label {
                             set_label: &fl!(I18N, "vf-curve-visible-range-to"),
-                            add_css_class: "heading",
+                            add_css_class: css::HEADING,
                         },
 
                         gtk::Scale {
@@ -204,7 +204,7 @@ impl relm4::Component for VfCurveEditor {
                             set_halign: gtk::Align::Center,
                             set_hexpand: true,
                             set_valign: gtk::Align::Center,
-                            add_css_class: "dim-label",
+                            add_css_class: css::DIM_LABEL,
                         },
 
                         gtk::Box {
@@ -246,14 +246,14 @@ impl relm4::Component for VfCurveEditor {
 
         #[name = "point_menu"]
         gtk::Popover {
-            add_css_class: "menu",
+            add_css_class: css::MENU,
 
             connect_closed => |popover| {
                 popover.unparent();
             },
 
             gtk::Box {
-                add_css_class: "flat",
+                add_css_class: css::FLAT,
                 set_orientation: gtk::Orientation::Vertical,
 
                 gtk::Button {
@@ -262,7 +262,7 @@ impl relm4::Component for VfCurveEditor {
                     connect_clicked[point_menu] => move |_| {
                         point_menu.popdown();
                     },
-                    add_css_class: "flat",
+                    add_css_class: css::FLAT,
                     #[watch]
                     set_visible: model.selected_range_start.get().is_some() && model.selected_range_end.get().is_some(),
                 },
@@ -273,7 +273,7 @@ impl relm4::Component for VfCurveEditor {
                     connect_clicked[point_menu] => move |_| {
                         point_menu.popdown();
                     },
-                    add_css_class: "flat",
+                    add_css_class: css::FLAT,
                 },
             },
         }

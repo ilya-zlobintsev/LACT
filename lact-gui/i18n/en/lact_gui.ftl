@@ -181,7 +181,6 @@ no-clocks-data = No clocks data available
 reset-oc-tooltip = Warning: this resets all clock settings to defaults!
 vf-curve-editor = VF Curve Editor
 nvidia-vf-curve-warning = The voltage-frequency curve editor relies on undocumented driver functionality.
-    There are no guarantees regarding its behaviour, safety or availability.
     <span weight = "heavy" underline = "single">Use at your own risk</span>.
 voltage = Voltage
 frequency = Frequency
