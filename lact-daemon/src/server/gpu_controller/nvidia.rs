@@ -899,7 +899,7 @@ impl GpuController for NvidiaGpuController {
         ]
         .into_iter()
         .filter_map(|(name, value)| Some((name.to_owned(), u64::from(value.ok()?))))
-        .collect::<HashMap<String, u64>>();
+        .collect::<IndexMap<String, u64>>();
 
         let mut voltage = None;
 

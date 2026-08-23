@@ -159,7 +159,7 @@ mod benches {
                         gpu_clockspeed: Some(500),
                         vram_clockspeed: Some(1000),
                         target_gpu_clockspeed: None,
-                        sensors: HashMap::new(),
+                        sensors: IndexMap::new(),
                     },
                     active_power_states: Some(ActivePowerStates {
                         core: Some(PowerLevelId::Index(0)),

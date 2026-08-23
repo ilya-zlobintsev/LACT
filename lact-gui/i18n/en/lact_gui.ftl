@@ -131,6 +131,7 @@ gpu-temp = Temperature
 gpu-usage = GPU Usage
 vram-clock = VRAM Clock
 power-usage = Power Usage
+extra-clocks = Extra Clocks
 no-throttling = No
 unknown-throttling = Unknown
 missing-stat = N/A
