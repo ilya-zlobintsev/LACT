@@ -623,11 +623,12 @@ fn build_curve_control(
         let offset_mhz = configured_point.clockspeed_offset;
         let base_freq_mhz = vf_curve_point_base_freq_khz(status, &control, i) / 1000;
 
-        let point_min_offset_mhz = cmp::max(min_offset_mhz, -base_freq_mhz);
+        let point_min_offset_mhz = cmp::min(min_offset_mhz, -base_freq_mhz);
         ensure!(
             (point_min_offset_mhz..=max_offset_mhz).contains(&offset_mhz),
             "Configured offset {offset_mhz}MHz for point {i} is outside of the allowed range {point_min_offset_mhz}..={max_offset_mhz}"
         );
+        let offset_mhz = offset_mhz.max(1 - base_freq_mhz);
 
         trace!("writing offset {offset_mhz}MHz to point {i}");
 
