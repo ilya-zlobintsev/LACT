@@ -51,7 +51,21 @@ const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
-const REQUIRE_MANUAL_DEVICE_IDS: [&str; 3] = ["163F", "1435", "15BF"];
+// can be replaced with libdrm is_apu
+const REQUIRE_MANUAL_DEVICE_IDS: [&str; 19] = [
+    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu12/renoir_ppt.c#L383
+    "15E7", "1636", "1638", "164C", // Renoir, Cezanne, Barcelo, Lucienne
+    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu11/vangogh_ppt.c#L2039
+    "1435", "163F", // Van Gogh
+    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu13/yellow_carp_ppt.c#L657
+    "1506", "164D", "1681", // Mendocino, Rembrandt
+    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu13/smu_v13_0_5_ppt.c#L526
+    "13C0", "164E", // Granite Ridge, Raphael
+    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu13/smu_v13_0.c#L2230
+    "15BF", "15C8", "1900", "1901", // Phoenix, Hawk Point
+    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu14/smu_v14_0.c#L1809
+    "1114", "150E", "1586", "1902", // Strix, Krackan
+];
 const AMDGPU_IDS_FLAGS_FUSION: u64 = 0x1;
 const HSA_CACHE_TYPE_DATA: u32 = 0x0000_0001;
 const HSA_CACHE_TYPE_INSTRUCTION: u32 = 0x0000_0002;
