@@ -16,6 +16,7 @@
       "1849": {
         "5401": "ASRock RX 9070 XT Taichi",
         "5411": "ASRock RX 9070 XT Taichi",
+        "5403": "ASRock RX 9070 XT Steel Legend",
         "5405": "ASRock RX 9070 Steel Legend",
         "5406": "ASRock RX 9070 Challenger"
       },
@@ -863,6 +864,11 @@
       },
       "172f": {
         "4216": "Sparkle Arc B570 Guardian OC"
+      }
+    },
+    "56a6" : {
+      "172f": {
+        "4019": "Sparkle Arc A310 ECO"
       }
     },
     "56a5": {
