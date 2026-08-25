@@ -720,10 +720,28 @@ impl AmdGpuController {
         None
     }
 
-    fn apply_clocks_config_require_manual_proformance_level(&self) -> bool {
+    fn apply_clocks_config_requires_manual_performance_level(&self) -> bool {
         self.common.pci_info.device_pci_info.vendor_id == VENDOR_AMD
             && REQUIRE_MANUAL_DEVICE_IDS
                 .contains(&self.common.pci_info.device_pci_info.model_id.as_str())
+    }
+
+    fn prepare_clocks_table(&self) -> Result<CommitHandle, Error> {
+        // Clear limits inherited from forced levels before entering the mode required for OD commands.
+        match self.handle.get_power_force_performance_level() {
+            Ok(_) => self
+                .handle
+                .set_power_force_performance_level(PerformanceLevel::Auto)?,
+            Err(err) if err.is_not_found() => (),
+            Err(err) => return Err(err),
+        }
+
+        if self.apply_clocks_config_requires_manual_performance_level() {
+            self.handle
+                .set_power_force_performance_level(PerformanceLevel::Manual)?;
+        }
+
+        self.handle.reset_clocks_table()
     }
 
     #[cfg(not(test))]
@@ -1169,9 +1187,17 @@ impl GpuController for AmdGpuController {
     fn apply_config<'a>(&'a self, config: &'a GpuConfig) -> LocalBoxFuture<'a, anyhow::Result<()>> {
         Box::pin(async {
             let mut commit_handles = VecDeque::new();
+            let is_core_clocks_used = config.is_core_clocks_used();
+            let clocks_require_manual =
+                self.apply_clocks_config_requires_manual_performance_level();
+            let keep_manual_for_clocks = clocks_require_manual && is_core_clocks_used;
 
-            // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
-            self.handle.reset_clocks_table().ok();
+            // Reset the clocks table, commit if no further changes are expected
+            if let Ok(commit_handle) = self.prepare_clocks_table()
+                && !is_core_clocks_used
+            {
+                commit_handle.commit().ok();
+            }
 
             if !config.fan_control_enabled {
                 self.stop_fan_control(true)
@@ -1179,22 +1205,7 @@ impl GpuController for AmdGpuController {
                     .context("Failed to stop fan control")?;
             }
 
-            if config.performance_level.is_some_and(|level| {
-                !matches!(level, PerformanceLevel::Auto | PerformanceLevel::Manual)
-            }) {
-                self.handle
-                    .set_power_force_performance_level(PerformanceLevel::Auto)
-                    .context("Failed to set power performance level")?;
-            }
-
-            if self.apply_clocks_config_require_manual_proformance_level() {
-                // Van Gogh/Sephiroth only allow clock settings to be used with manual performance mode
-                self.handle
-                    .set_power_force_performance_level(PerformanceLevel::Manual)
-                    .ok();
-            }
-
-            if config.is_core_clocks_used() {
+            if is_core_clocks_used {
                 match self.handle.get_clocks_table() {
                     Ok(original_table) => {
                         let mut table = original_table.clone();
@@ -1229,25 +1240,27 @@ impl GpuController for AmdGpuController {
             }
 
             let mut deferred_performance_level = None;
-            match self.handle.get_power_force_performance_level() {
-                Ok(_) => {
-                    let performance_level =
-                        config.performance_level.unwrap_or(PerformanceLevel::Auto);
+            if !keep_manual_for_clocks {
+                match self.handle.get_power_force_performance_level() {
+                    Ok(_) => {
+                        let performance_level =
+                            config.performance_level.unwrap_or(PerformanceLevel::Auto);
 
-                    match performance_level {
-                        PerformanceLevel::Auto | PerformanceLevel::Manual => {
-                            self.handle
-                                .set_power_force_performance_level(performance_level)
-                                .context("Failed to set power performance level")?;
-                        }
-                        _ => {
-                            deferred_performance_level = Some(performance_level);
+                        match performance_level {
+                            PerformanceLevel::Auto | PerformanceLevel::Manual => {
+                                self.handle
+                                    .set_power_force_performance_level(performance_level)
+                                    .context("Failed to set power performance level")?;
+                            }
+                            _ => {
+                                deferred_performance_level = Some(performance_level);
+                            }
                         }
                     }
-                }
-                Err(err) if err.is_not_found() => (),
-                Err(err) => {
-                    error!("could not get current performance level: {err}");
+                    Err(err) if err.is_not_found() => (),
+                    Err(err) => {
+                        error!("could not get current performance level: {err}");
+                    }
                 }
             }
 
@@ -1477,7 +1490,15 @@ impl GpuController for AmdGpuController {
             return Ok(());
         }
 
-        self.handle.reset_clocks_table()?;
+        let previous_performance_level = self.handle.get_power_force_performance_level().ok();
+        let commit_handle = self.prepare_clocks_table()?;
+        commit_handle.commit()?;
+
+        if let Some(level) = previous_performance_level {
+            self.handle
+                .set_power_force_performance_level(level)
+                .context("Failed to restore power performance level")?;
+        }
 
         Ok(())
     }
