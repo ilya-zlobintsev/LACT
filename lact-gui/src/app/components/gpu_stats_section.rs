@@ -13,7 +13,7 @@ use crate::app::{
 use gtk::pango::AttrList;
 use gtk::prelude::{BoxExt, OrientableExt, PopoverExt as _, WidgetExt};
 use i18n_embed_fl::fl;
-use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats, clean_gpu_name};
+use lact_schema::{DeviceInfo, DeviceStats, PowerStates, PowerStats};
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt as _};
 use std::collections::HashSet;
 use std::str::FromStr as _;
@@ -23,7 +23,6 @@ pub struct GpuStatsSection {
     stats_to_show: HashSet<GpuStat>,
     stats: Arc<DeviceStats>,
     vram_clock_ratio: f64,
-    gpu_model: String,
     max_gpu_clock: Option<u64>,
     max_vram_clock: Option<u64>,
     min_gpu_clock: Option<u64>,
@@ -62,15 +61,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
                     #[watch]
                     set_max_children_per_line: model.columns(GpuStatDisplay::Digits),
                     set_selection_mode: gtk::SelectionMode::None,
-
-                    append_child = &InfoRow {
-                        set_name: fl!(I18N, "device-name"),
-                        #[watch]
-                        set_value: model.gpu_model.clone(),
-                    } -> device_name_item: gtk::FlowBoxChild {
-                        #[watch]
-                        set_visible: model.shows(GpuStat::DeviceName),
-                    },
 
                     append_child = &InfoRow {
                         set_name: fl!(I18N, "throttling"),
@@ -373,7 +363,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
             stats_to_show: config.stats,
             stats: Arc::new(DeviceStats::default()),
             vram_clock_ratio: 1.0,
-            gpu_model: String::new(),
             max_gpu_clock: None,
             max_vram_clock: None,
             min_gpu_clock: None,
@@ -389,16 +378,6 @@ impl relm4::SimpleComponent for GpuStatsSection {
         match msg {
             GpuStatsSectionMsg::Info(info) => {
                 self.vram_clock_ratio = info.vram_clock_ratio();
-                if let Some(pci_info) = &info.pci_info {
-                    self.gpu_model = clean_gpu_name(
-                        info.drm_info
-                            .as_ref()
-                            .and_then(|drm| drm.device_name.as_deref())
-                            .or(pci_info.device_pci_info.model.as_deref())
-                            .unwrap_or("Unknown"),
-                    )
-                    .to_owned();
-                }
             }
             GpuStatsSectionMsg::Stats(stats) => {
                 self.stats = stats;
@@ -427,7 +406,6 @@ pub struct GpuStatsSectionConfig {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GpuStat {
-    DeviceName,
     Throttling,
     GpuClockTarget,
     GpuVoltage,
@@ -453,8 +431,7 @@ impl GpuStat {
     /// given a display.
     fn display(self) -> GpuStatDisplay {
         match self {
-            Self::DeviceName
-            | Self::Throttling
+            Self::Throttling
             | Self::GpuClockTarget
             | Self::GpuVoltage
             | Self::Temperature
@@ -479,11 +456,9 @@ impl GpuStatsSection {
     fn has_data_for(&self, stat: GpuStat) -> bool {
         match stat {
             // Rendered with a placeholder when unavailable
-            GpuStat::DeviceName
-            | GpuStat::Throttling
-            | GpuStat::Temperature
-            | GpuStat::VramUsage
-            | GpuStat::FanSpeed => true,
+            GpuStat::Throttling | GpuStat::Temperature | GpuStat::VramUsage | GpuStat::FanSpeed => {
+                true
+            }
             GpuStat::GpuClockTarget => self.stats.clockspeed.target_gpu_clockspeed.is_some(),
             GpuStat::GpuVoltage => self.stats.voltage.gpu.is_some(),
             GpuStat::GpuClock => self.stats.clockspeed.gpu_clockspeed.is_some(),
