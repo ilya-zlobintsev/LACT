@@ -1,0 +1,4 @@
+.clocks-frame .oc-option-toggle:checked {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}
