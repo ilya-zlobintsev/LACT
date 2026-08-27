@@ -4,11 +4,9 @@ use crate::{
     APP_BROKER, I18N,
     app::{components::page_section::PageSection, msg::AppMsg, utils::ext::RelmLaunchable as _},
 };
+use adw::prelude::*;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
-use gtk::{
-    glib::{SignalHandlerId, object::ObjectExt},
-    prelude::{BoxExt, CheckButtonExt, OrientableExt, WidgetExt},
-};
+use gtk::glib::{SignalHandlerId, object::ObjectExt};
 use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
@@ -53,42 +51,60 @@ impl relm4::SimpleComponent for PowerStatesFrame {
             append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
+                set_hexpand: true,
+                add_css_class: "oc-feature-toggle-group",
+                #[watch]
+                set_visible: model.performance_level.is_some(),
 
                 gtk::Label {
-                    set_label: &fl!(I18N, "pstates-manual-needed"),
+                    set_label: &fl!(I18N, "advanced-features"),
                     add_css_class: css::DIM_LABEL,
+                    add_css_class: css::CAPTION,
                     set_halign: gtk::Align::Start,
-                    #[watch]
-                    set_visible: model.performance_level.is_some_and(|level| level != PerformanceLevel::Manual),
                 },
 
-                gtk::CheckButton {
-                    set_label: Some(&fl!(I18N, "enable-pstate-config")),
+                gtk::ToggleButton {
+                    set_halign: gtk::Align::Start,
+                    add_css_class: "oc-option-toggle",
                     add_binding: (&model.states_configured, "active"),
-                    #[watch]
-                    set_visible: model.performance_level.is_some(),
+
+                    #[wrap(Some)]
+                    set_child = &gtk::Box {
+                        gtk::Label {
+                            set_label: &fl!(I18N, "enable-pstate-config"),
+                        },
+                    },
+
                     #[watch]
                     set_sensitive: model.performance_level.is_some_and(|level| level == PerformanceLevel::Manual),
                 },
+            },
+
+            append_child = &gtk::Label {
+                set_label: &fl!(I18N, "pstates-manual-needed"),
+                add_css_class: css::DIM_LABEL,
+                set_halign: gtk::Align::Start,
+                #[watch]
+                set_visible: model.performance_level.is_some_and(|level| level != PerformanceLevel::Manual),
+            },
+
+            append_child = &gtk::Box {
+                set_spacing: 10,
+                set_orientation: gtk::Orientation::Horizontal,
+                set_homogeneous: true,
 
                 gtk::Box {
-                    set_spacing: 10,
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_homogeneous: true,
+                    #[watch]
+                    set_visible: !model.core_states_list.model().is_empty(),
+                    append = model.core_states_list.widget(),
+                },
 
-                    gtk::Box {
-                        #[watch]
-                        set_visible: !model.core_states_list.model().is_empty(),
-                        append = model.core_states_list.widget(),
-                    },
-
-                    gtk::Box {
-                        #[watch]
-                        set_visible: !model.vram_states_list.model().is_empty(),
-                        append = model.vram_states_list.widget(),
-                    },
-                }
-            }
+                gtk::Box {
+                    #[watch]
+                    set_visible: !model.vram_states_list.model().is_empty(),
+                    append = model.vram_states_list.widget(),
+                },
+            },
         }
     }
 

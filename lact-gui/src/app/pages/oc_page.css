@@ -9,3 +9,8 @@
     margin: -10px -10px 0; /* nulify parent's padding */
     padding: 10px;
 }
+
+.oc-feature-toggle-group .oc-option-toggle:checked {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}

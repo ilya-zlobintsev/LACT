@@ -74,7 +74,6 @@ impl relm4::Component for ClocksFrame {
 
     view! {
         PageSection::new("") {
-            add_css_class: "clocks-frame",
             #[watch]
             set_name: match model.domain {
                 ClockDomain::Gpu => fl!(I18N, "core-section"),

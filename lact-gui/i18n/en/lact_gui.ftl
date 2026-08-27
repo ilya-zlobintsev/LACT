@@ -226,7 +226,7 @@ pstates = Power States
 gpu-pstates = GPU Power States
 vram-pstates = VRAM Power States
 pstates-manual-needed = Performance level must be set to 'manual' to toggle power states
-enable-pstate-config = Enable power state configuration
+enable-pstate-config = P-State Configuration
 
 menu = Menu
 show-historical-charts = Show Graphs
