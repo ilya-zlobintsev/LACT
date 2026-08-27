@@ -73,7 +73,8 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
                 gtk::Box {
                     set_spacing: 10,
-                    set_orientation: gtk::Orientation::Vertical,
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_homogeneous: true,
 
                     gtk::Box {
                         #[watch]
