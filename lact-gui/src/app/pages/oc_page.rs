@@ -180,6 +180,12 @@ impl relm4::Component for OcPage {
 
         let widgets = view_output!();
 
+        let section_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+        section_size_group.add_widget(&widgets.gpu_clocks_child);
+        section_size_group.add_widget(&widgets.vram_clocks_child);
+        section_size_group.add_widget(&widgets.power_child);
+        section_size_group.add_widget(&widgets.power_states_child);
+
         model
             .gpu_clocks_frame
             .widget()

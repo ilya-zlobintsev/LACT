@@ -125,12 +125,14 @@ gibibyte = GiB
 
 stats-section = Statistics
 gpu-clock = GPU Core Clock
+core-section = Core
 gpu-clock-avg = GPU Core Clock (Average)
 gpu-clock-target = GPU Core Clock (Target)
 gpu-voltage = GPU Voltage
 gpu-temp = Temperature
 gpu-usage = GPU Usage
 vram-clock = VRAM Clock
+vram-section = VRAM
 power-usage = Power Usage
 extra-clocks = Extra Clocks
 no-throttling = No
@@ -182,10 +184,10 @@ nvidia-oc-description =
     This will force the GPU to run at a voltage that's constrained by the locked clocks, while achieving a higher clockspeed due to the offset.
     This can cause system instability if pushed too high.
 oc-warning = Changing these values may lead to system instability and can potentially damage your hardware!
-show-all-pstates = Show all P-States
-enable-gpu-locked-clocks = Enable GPU Locked Clocks
-enable-vram-locked-clocks = Enable VRAM Locked Clocks
-enable-vf-curve = Enable VF Curve Edit
+show-all-pstates = All P-States
+enable-gpu-locked-clocks = GPU Locked Clocks
+enable-vram-locked-clocks = VRAM Locked Clocks
+enable-vf-curve = VF Curve Edit
 pstate-list-description = <b>The following values are clock offsets for each P-State, going from highest to lowest.</b>
 no-clocks-data = No clocks data available
 reset-oc-tooltip = Warning: this resets all clock settings to defaults!

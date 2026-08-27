@@ -78,8 +78,8 @@ impl relm4::Component for ClocksFrame {
             add_css_class: "clocks-frame",
             #[watch]
             set_name: match model.domain {
-                ClockDomain::Gpu => fl!(I18N, "gpu-clock"),
-                ClockDomain::Vram => fl!(I18N, "vram-clock"),
+                ClockDomain::Gpu => fl!(I18N, "core-section"),
+                ClockDomain::Vram => fl!(I18N, "vram-section"),
             },
             #[watch]
             set_visible: model.domain == ClockDomain::Gpu || model.has_any_clocks(),
@@ -92,7 +92,8 @@ impl relm4::Component for ClocksFrame {
                 append = &gtk::MenuButton {
                     #[watch]
                     set_visible: model.domain == ClockDomain::Gpu && model.show_nvidia_options,
-                    set_label: &fl!(I18N, "nvidia-oc-info"),
+                    // temp, don't change
+                    set_label: "OC",
 
                     #[wrap(Some)]
                     set_popover = &gtk::Popover {
