@@ -17,7 +17,7 @@ use lact_schema::PowerStats;
 use nvml_wrapper::enums::device::PowerMizerMode;
 use relm4::{ComponentController, ComponentParts, ComponentSender};
 
-pub struct PowerSection {
+pub struct PowerFrame {
     power: PowerStats,
     adjustment: OcAdjustment,
     cap_available: bool,
@@ -28,16 +28,16 @@ pub struct PowerSection {
 }
 
 #[derive(Debug)]
-pub enum PowerSectionMsg {
+pub enum PowerFrameMsg {
     PowerStats(PowerStats),
     Performance(PerformanceFrameMsg),
     Reset,
 }
 
 #[relm4::component(pub)]
-impl relm4::Component for PowerSection {
+impl relm4::Component for PowerFrame {
     type Init = ();
-    type Input = PowerSectionMsg;
+    type Input = PowerFrameMsg;
     type Output = OcPageMsg;
     type CommandOutput = ();
 
@@ -49,7 +49,7 @@ impl relm4::Component for PowerSection {
 
             append_header = &gtk::Button {
                 set_label: &fl!(I18N, "default-button"),
-                connect_clicked => PowerSectionMsg::Reset,
+                connect_clicked => PowerFrameMsg::Reset,
 
                 set_halign: gtk::Align::End,
                 set_hexpand: true,
@@ -129,7 +129,7 @@ impl relm4::Component for PowerSection {
         _root: &Self::Root,
     ) {
         match msg {
-            PowerSectionMsg::PowerStats(power) => {
+            PowerFrameMsg::PowerStats(power) => {
                 // The signal blocking has to be manual,
                 // because relm's signal block macro feature doesn't seem to work with non-widget objects
                 self.adjustment.block_signal(&widgets.value_notify);
@@ -144,7 +144,7 @@ impl relm4::Component for PowerSection {
                 self.power = power;
                 self.cap_available = self.power.cap_current.is_some();
             }
-            PowerSectionMsg::Performance(msg) => {
+            PowerFrameMsg::Performance(msg) => {
                 match &msg {
                     PerformanceFrameMsg::PerformanceLevel(level) => {
                         self.performance_level_available = level.is_some();
@@ -160,7 +160,7 @@ impl relm4::Component for PowerSection {
                 }
                 self.performance_frame.emit(msg);
             }
-            PowerSectionMsg::Reset => {
+            PowerFrameMsg::Reset => {
                 self.adjustment
                     .set_value(self.power.cap_default.unwrap_or_default());
             }
@@ -170,7 +170,7 @@ impl relm4::Component for PowerSection {
     }
 }
 
-impl PowerSection {
+impl PowerFrame {
     fn is_available(&self) -> bool {
         self.cap_available
             || self.performance_level_available

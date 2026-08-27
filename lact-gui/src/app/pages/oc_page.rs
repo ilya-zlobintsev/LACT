@@ -1,6 +1,6 @@
 mod clocks_frame;
 mod performance_frame;
-mod power_section;
+mod power_frame;
 mod power_states;
 mod vf_curve;
 
@@ -21,7 +21,7 @@ use lact_schema::config;
 use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
 use nvml_wrapper::enums::device::PowerMizerMode;
 use performance_frame::PerformanceFrameMsg;
-use power_section::{PowerSection, PowerSectionMsg};
+use power_frame::{PowerFrame, PowerFrameMsg};
 use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
 use relm4::binding::BoolBinding;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
@@ -34,7 +34,7 @@ pub struct OcPage {
     stats_section: relm4::Controller<GpuStatsSection>,
     device_info: Option<Arc<DeviceInfo>>,
 
-    power_section: relm4::Controller<PowerSection>,
+    power_frame: relm4::Controller<PowerFrame>,
     power_states_frame: relm4::Controller<PowerStatesFrame>,
     gpu_clocks_frame: relm4::Controller<ClocksFrame>,
     vram_clocks_frame: relm4::Controller<ClocksFrame>,
@@ -111,7 +111,7 @@ impl relm4::Component for OcPage {
                     set_valign: gtk::Align::Start,
                     set_hexpand: true,
 
-                    model.power_section.widget(),
+                    model.power_frame.widget(),
                 },
 
                 append: power_states_child = &gtk::FlowBoxChild {
@@ -162,8 +162,7 @@ impl relm4::Component for OcPage {
         .forward(sender.input_sender(), |msg| msg);
         let power_states_frame =
             PowerStatesFrame::launch_default().forward(sender.input_sender(), |msg| msg);
-        let power_section =
-            PowerSection::launch_default().forward(sender.input_sender(), |msg| msg);
+        let power_frame = PowerFrame::launch_default().forward(sender.input_sender(), |msg| msg);
 
         let vf_curve_editor = VfCurveEditor::detach(VfCurveEditorInit {
             global_settings_changed: settings_changed,
@@ -173,7 +172,7 @@ impl relm4::Component for OcPage {
         let model = Self {
             stats_section,
             device_info: None,
-            power_section,
+            power_frame,
             power_states_frame,
             gpu_clocks_frame,
             vram_clocks_frame,
@@ -201,7 +200,7 @@ impl relm4::Component for OcPage {
             .sync_create()
             .build();
         model
-            .power_section
+            .power_frame
             .widget()
             .bind_property("visible", &widgets.power_child, "visible")
             .sync_create()
@@ -236,12 +235,12 @@ impl relm4::Component for OcPage {
                         .emit(VfCurveEditorMsg::Stats(stats.clone()));
 
                     if initial {
-                        self.power_section
-                            .emit(PowerSectionMsg::PowerStats(stats.power.clone()));
-                        self.power_section.emit(PowerSectionMsg::Performance(
+                        self.power_frame
+                            .emit(PowerFrameMsg::PowerStats(stats.power.clone()));
+                        self.power_frame.emit(PowerFrameMsg::Performance(
                             PerformanceFrameMsg::PerformanceLevel(stats.performance_level),
                         ));
-                        self.power_section.emit(PowerSectionMsg::Performance(
+                        self.power_frame.emit(PowerFrameMsg::Performance(
                             PerformanceFrameMsg::PowerMizerInfo {
                                 active: stats.active_power_mizer_mode,
                                 supported: stats.supported_power_mizer_modes.clone(),
@@ -279,7 +278,7 @@ impl relm4::Component for OcPage {
                     .emit(VfCurveEditorMsg::Clocks(table.clone()));
             }
             OcPageMsg::ProfileModesTable(modes_table) => {
-                self.power_section.emit(PowerSectionMsg::Performance(
+                self.power_frame.emit(PowerFrameMsg::Performance(
                     PerformanceFrameMsg::PowerProfileModes(modes_table),
                 ));
             }
@@ -310,7 +309,7 @@ impl relm4::Component for OcPage {
                     ));
             }
             OcPageMsg::SetPerformanceLevel(level) => {
-                self.power_section.emit(PowerSectionMsg::Performance(
+                self.power_frame.emit(PowerFrameMsg::Performance(
                     PerformanceFrameMsg::PerformanceLevel(Some(level)),
                 ));
                 APP_BROKER.send(AppMsg::SettingsChanged);
@@ -334,25 +333,25 @@ impl relm4::Component for OcPage {
 
 impl OcPage {
     pub fn get_performance_level(&self) -> Option<PerformanceLevel> {
-        self.power_section.model().performance_level()
+        self.power_frame.model().performance_level()
     }
 
     pub fn get_active_power_mizer_mode(&self) -> Option<PowerMizerMode> {
-        self.power_section.model().active_power_mizer_mode()
+        self.power_frame.model().active_power_mizer_mode()
     }
 
     pub fn get_power_profile_mode(&self) -> Option<u16> {
-        self.power_section.model().power_profile_mode()
+        self.power_frame.model().power_profile_mode()
     }
 
     pub fn get_power_profile_mode_custom_heuristics(&self) -> Vec<Vec<Option<i32>>> {
-        self.power_section
+        self.power_frame
             .model()
             .power_profile_mode_custom_heuristics()
     }
 
     pub fn get_power_cap(&self) -> Option<f64> {
-        self.power_section.model().get_user_cap()
+        self.power_frame.model().get_user_cap()
     }
 
     pub fn apply_clocks_config(&self, config: &mut config::ClocksConfiguration) {
