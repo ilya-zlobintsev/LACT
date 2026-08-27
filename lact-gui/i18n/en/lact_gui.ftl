@@ -184,6 +184,7 @@ nvidia-oc-description =
     This will force the GPU to run at a voltage that's constrained by the locked clocks, while achieving a higher clockspeed due to the offset.
     This can cause system instability if pushed too high.
 oc-warning = Changing these values may lead to system instability and can potentially damage your hardware!
+advanced-features = Advanced features
 show-all-pstates = All P-States
 enable-gpu-locked-clocks = GPU Locked Clocks
 enable-vram-locked-clocks = VRAM Locked Clocks

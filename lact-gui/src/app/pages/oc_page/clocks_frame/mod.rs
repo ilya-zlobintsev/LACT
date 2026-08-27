@@ -136,6 +136,17 @@ impl relm4::Component for ClocksFrame {
             append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
+                set_hexpand: true,
+                add_css_class: "oc-feature-toggle-group",
+                #[watch]
+                set_visible: model.any_is_secondary() || model.show_nvidia_options,
+
+                gtk::Label {
+                    set_label: &fl!(I18N, "advanced-features"),
+                    set_halign: gtk::Align::Start,
+                    add_css_class: css::DIM_LABEL,
+                    add_css_class: css::CAPTION,
+                },
 
                 append = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
@@ -199,9 +210,7 @@ impl relm4::Component for ClocksFrame {
                             APP_BROKER.send(AppMsg::SettingsChanged);
                         } @ vf_curve_editing_signal,
                     },
-
                 },
-
             },
 
             append_child = &model.groups.widget().clone() -> gtk::Box {
