@@ -8,11 +8,7 @@ use crate::{
 use adjustment_group::{AdjustmentGroup, ClockCategory};
 use adjustment_row::ClocksData;
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
-use gtk::{
-    glib::object::ObjectExt,
-    pango,
-    prelude::{BoxExt, ButtonExt, CheckButtonExt, OrientableExt, WidgetExt},
-};
+use gtk::{pango, prelude::*};
 use i18n_embed_fl::fl;
 use lact_schema::{
     ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
@@ -126,44 +122,76 @@ impl relm4::Component for ClocksFrame {
 
                 append = &gtk::Box {
                     set_orientation: gtk::Orientation::Horizontal,
-                    set_homogeneous: true,
+                    set_spacing: 10,
                     set_hexpand: true,
+                    set_halign: gtk::Align::Start,
 
-                    append = &gtk::CheckButton {
+                    append = &gtk::ToggleButton {
                         #[watch]
                         set_visible: model.any_is_secondary(),
 
-                        set_label: Some(&fl!(I18N, "show-all-pstates")),
+                        add_css_class: "oc-option-toggle",
                         add_binding["active"]: &model.show_all_pstates,
+
+                        #[wrap(Some)]
+                        set_child = &gtk::Box {
+                            append = &gtk::Label {
+                                set_label: &fl!(I18N, "show-all-pstates"),
+                            },
+                        },
                     },
 
-                    append: gpu_locked_clocks_togglebutton = &gtk::CheckButton {
+                    append: gpu_locked_clocks_togglebutton = &gtk::ToggleButton {
                         #[watch]
                         set_visible: model.show_nvidia_options,
-                        set_label: Some(&fl!(I18N, "enable-gpu-locked-clocks")),
+                        add_css_class: "oc-option-toggle",
                         add_binding["active"]: &model.enable_gpu_locked_clocks,
+
+                        #[wrap(Some)]
+                        set_child = &gtk::Box {
+                            append = &gtk::Label {
+                                set_label: &fl!(I18N, "enable-gpu-locked-clocks"),
+                            },
+                        },
+
                         connect_toggled => move |_| {
                             APP_BROKER.send(AppMsg::SettingsChanged);
                         } @ gpu_locked_clock_signal,
                     },
 
-                    append: vf_curve_editing_togglebutton = &gtk::CheckButton {
+                    append: vf_curve_editing_togglebutton = &gtk::ToggleButton {
                         #[watch]
                         set_visible: model.show_nvidia_options && model.vf_curve_available,
-                        set_label: Some(&fl!(I18N, "enable-vf-curve")),
+                        add_css_class: "oc-option-toggle",
                         add_css_class: css::WARNING,
                         add_binding["active"]: &model.vf_curve_editing,
+
+                        #[wrap(Some)]
+                        set_child = &gtk::Box {
+                            append = &gtk::Label {
+                                set_label: &fl!(I18N, "enable-vf-curve"),
+                            },
+                        },
+
                         connect_toggled[sender] => move |button| {
                             sender.output(OcPageMsg::VfCurveEditingToggled(button.is_active())).unwrap();
                             APP_BROKER.send(AppMsg::SettingsChanged);
                         } @ vf_curve_editing_signal,
                     },
 
-                    append: vram_locked_clocks_togglebutton = &gtk::CheckButton {
+                    append: vram_locked_clocks_togglebutton = &gtk::ToggleButton {
                         #[watch]
                         set_visible: model.show_nvidia_options,
-                        set_label: Some(&fl!(I18N, "enable-vram-locked-clocks")),
+                        add_css_class: "oc-option-toggle",
                         add_binding["active"]: &model.enable_vram_locked_clocks,
+
+                        #[wrap(Some)]
+                        set_child = &gtk::Box {
+                            append = &gtk::Label {
+                                set_label: &fl!(I18N, "enable-vram-locked-clocks"),
+                            },
+                        },
+
                         connect_toggled => move |_| {
                             APP_BROKER.send(AppMsg::SettingsChanged);
                         } @ vram_locked_clock_signal,
