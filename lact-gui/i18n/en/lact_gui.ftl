@@ -154,9 +154,9 @@ performance-level-high-description = Always use the highest clockspeeds for GPU 
 performance-level-low-description = Always use the lowest clockspeeds for GPU and VRAM
 performance-level-manual-description = Manual performance control
 performance-level-profile-standard-description = Fixed profiling mode
-performance-level-profile-min-sclk-description = Profiling mode that forces the GPU clock to lowest level
-performance-level-profile-min-mclk-description = Profiling mode that forces the VRAM clock to lowest level
-performance-level-profile-peak-description = Profiling mode that forces GPU and VRAM clocks to highest levels
+performance-level-profile-min-sclk-description = forces the GPU clock to lowest level
+performance-level-profile-min-mclk-description = forces the VRAM clock to lowest level
+performance-level-profile-peak-description = forces GPU and VRAM clocks to highest levels
 
 performance-level = Performance Level
 power-profile-mode = Power Profile Mode:
