@@ -7,7 +7,7 @@ use crate::{
             OcPageMsg,
             performance_frame::{PerformanceFrame, PerformanceFrameMsg},
         },
-        utils::ext::RelmDefaultLauchable,
+        utils::ext::{RelmDefaultLauchable, make_event_controller_no_scroll},
     },
 };
 use adw::prelude::*;
@@ -15,13 +15,11 @@ use amdgpu_sysfs::gpu_handle::PerformanceLevel;
 use i18n_embed_fl::fl;
 use lact_schema::PowerStats;
 use nvml_wrapper::enums::device::PowerMizerMode;
-use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
-use std::fmt::Write;
+use relm4::{ComponentController, ComponentParts, ComponentSender};
 
 pub struct PowerSection {
     power: PowerStats,
     adjustment: OcAdjustment,
-    value_text: String,
     cap_available: bool,
     performance_level_available: bool,
     power_profile_available: bool,
@@ -33,7 +31,6 @@ pub struct PowerSection {
 pub enum PowerSectionMsg {
     PowerStats(PowerStats),
     Performance(PerformanceFrameMsg),
-    RefreshText,
     Reset,
 }
 
@@ -59,7 +56,7 @@ impl relm4::Component for PowerSection {
                 #[watch]
                 set_visible: model.cap_available,
             },
-
+            // todo: refactor to adjustment-row
             append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
@@ -67,21 +64,27 @@ impl relm4::Component for PowerSection {
                 set_visible: model.cap_available,
 
                 gtk::Label {
-                    set_label: &fl!(I18N, "power-cap"),
-                },
-
-                gtk::Label {
-                    #[watch]
-                    set_label: &model.value_text,
+                    set_label: &format!("{} ({})", fl!(I18N, "power-cap"), fl!(I18N, "watt")),
+                    set_xalign: 0.0,
                 },
 
                 gtk::Scale {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_hexpand: true,
+                    set_digits: 0,
                     set_round_digits: 0,
-                    set_margin_horizontal: 5,
-                    set_draw_value: false,
+                    set_value_pos: gtk::PositionType::Right,
+                    set_width_request: 100,
                     set_adjustment: adjustment,
+                    add_controller = make_event_controller_no_scroll(),
+                },
+
+                gtk::SpinButton {
+                    set_adjustment: adjustment,
+                    add_controller = make_event_controller_no_scroll(),
+                    connect_changed => move |_| {
+                        APP_BROKER.send(AppMsg::SettingsChanged);
+                    },
                 },
             },
 
@@ -93,8 +96,6 @@ impl relm4::Component for PowerSection {
             connect_value_notify => move |_| {
                 APP_BROKER.send(AppMsg::SettingsChanged);
             } @ value_notify,
-            connect_value_notify => PowerSectionMsg::RefreshText,
-            connect_upper_notify => PowerSectionMsg::RefreshText,
         },
     }
 
@@ -105,8 +106,7 @@ impl relm4::Component for PowerSection {
     ) -> ComponentParts<Self> {
         let model = Self {
             power: PowerStats::default(),
-            adjustment: OcAdjustment::default(),
-            value_text: String::new(),
+            adjustment: OcAdjustment::new(0.0, 0.0, 0.0, 1.0, 10.0),
             cap_available: false,
             performance_level_available: false,
             power_profile_available: false,
@@ -159,17 +159,6 @@ impl relm4::Component for PowerSection {
                     | PerformanceFrameMsg::PowerMizerSelected(_) => {}
                 }
                 self.performance_frame.emit(msg);
-            }
-            PowerSectionMsg::RefreshText => {
-                self.value_text.clear();
-                write!(
-                    self.value_text,
-                    "{}/{} {}",
-                    self.adjustment.value(),
-                    self.adjustment.upper(),
-                    fl!(I18N, "watt")
-                )
-                .unwrap();
             }
             PowerSectionMsg::Reset => {
                 self.adjustment
