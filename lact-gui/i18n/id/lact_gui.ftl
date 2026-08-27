@@ -234,7 +234,6 @@ nvidia-vf-curve-warning =
     Editor kurva tegangan-frekuensi bergantung pada fungsionalitas driver yang tidak terdokumentasi.
     Tidak ada jaminan terkait perilaku, keamanan, atau ketersediaannya.
     <span weight = "heavy" underline = "single">Gunakan dengan risiko Anda sendiri</span>.
-vf-curve-enable-editing = Aktifkan Pengeditan
 voltage = Tegangan
 frequency = Frekuensi
 vf-active-curve = Kurva Aktif
