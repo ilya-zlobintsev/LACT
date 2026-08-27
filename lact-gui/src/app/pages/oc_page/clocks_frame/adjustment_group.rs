@@ -1,7 +1,7 @@
 use super::adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
-use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
+use adw::prelude::*;
 use lact_schema::request::ClockspeedType;
-use relm4::{css, factory::FactoryHashMap, prelude::FactoryComponent};
+use relm4::{factory::FactoryHashMap, prelude::FactoryComponent};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ClockCategory {
@@ -169,7 +169,6 @@ impl FactoryComponent for AdjustmentGroup {
             set_orientation: gtk::Orientation::Vertical,
             set_spacing: 5,
             set_valign: gtk::Align::Start,
-            add_css_class: css::CARD,
         }
     }
 

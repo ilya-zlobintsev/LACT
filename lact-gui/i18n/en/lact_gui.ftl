@@ -113,6 +113,7 @@ revert-button = Revert
 settings-confirmation = Do you want to keep the new settings? (Reverting in {$seconds_left} seconds)
 
 power-cap = Power Usage Limit
+power-section = Power
 
 watt = W
 ghz = GHz
