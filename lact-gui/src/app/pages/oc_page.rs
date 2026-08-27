@@ -148,17 +148,16 @@ impl relm4::Component for OcPage {
             ]),
         });
         let vf_curve_editing = BoolBinding::new(false);
-        let show_all_pstates = BoolBinding::new(false);
         let gpu_clocks_frame = ClocksFrame::launch(ClocksFrameInit {
             domain: ClockDomain::Gpu,
             vf_curve_editing: vf_curve_editing.clone(),
-            show_all_pstates: show_all_pstates.clone(),
+            show_all_pstates: BoolBinding::new(false),
         })
         .forward(sender.input_sender(), |msg| msg);
         let vram_clocks_frame = ClocksFrame::launch(ClocksFrameInit {
             domain: ClockDomain::Vram,
             vf_curve_editing: BoolBinding::new(false),
-            show_all_pstates,
+            show_all_pstates: BoolBinding::new(false),
         })
         .forward(sender.input_sender(), |msg| msg);
         let power_states_frame =
