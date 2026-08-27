@@ -87,23 +87,6 @@ impl relm4::Component for ClocksFrame {
                 set_hexpand: true,
                 set_halign: gtk::Align::End,
 
-                append = &gtk::MenuButton {
-                    #[watch]
-                    set_visible: model.domain == ClockDomain::Gpu && model.show_nvidia_options,
-                    // temp, don't change
-                    set_label: "OC",
-
-                    #[wrap(Some)]
-                    set_popover = &gtk::Popover {
-                        gtk::Label {
-                            set_margin_all: 5,
-                            set_markup: &fl!(I18N, "nvidia-oc-description"),
-                            set_wrap: true,
-                            set_max_width_chars: 75,
-                        }
-                    }
-                },
-
                 append = &gtk::Button {
                     set_label: &fl!(I18N, "vf-curve-editor"),
 

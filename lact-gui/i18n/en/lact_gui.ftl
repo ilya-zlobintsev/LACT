@@ -172,17 +172,6 @@ power-mizer-mode-prefer-maximum-performance-description = Favor maximum performa
 power-mizer-mode-prefer-consistent-performance-description = Lock to GPU base clocks.
 
 overclock-section = Clockspeed and Voltage
-nvidia-oc-info = Overclocking Information
-nvidia-oc-description =
-    Overclocking functionality on Nvidia includes setting offsets for GPU/VRAM clockspeeds and limiting the potential range of clockspeeds using the "locked clocks" feature.
-
-    On many cards, the VRAM clockpeed offset will only affect the actual memory clockspeed by half of the offset value.
-    For example, a +1000MHz VRAM offset may only increase the measured VRAM speed by 500MHz.
-    This is normal, and is how Nvidia handles GDDR data rates. Adjust your overclock accordingly.
-
-    It is possible to achieve a pseudo-undervolt by combining the locked clocks option with a positive clockspeed offset.
-    This will force the GPU to run at a voltage that's constrained by the locked clocks, while achieving a higher clockspeed due to the offset.
-    This can cause system instability if pushed too high.
 oc-warning = Changing these values may lead to system instability and can potentially damage your hardware!
 advanced-features = Advanced features
 show-all-pstates = All P-States
