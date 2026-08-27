@@ -9,7 +9,6 @@ use adjustment_group::{AdjustmentGroup, ClockCategory};
 use adjustment_row::ClocksData;
 use adw::prelude::*;
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
-use gtk::pango;
 use i18n_embed_fl::fl;
 use lact_schema::{
     ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
@@ -203,15 +202,6 @@ impl relm4::Component for ClocksFrame {
 
                 },
 
-                append = &gtk::Label {
-                    #[watch]
-                    set_visible: model.show_all_pstates.value() && model.show_nvidia_options,
-
-                    set_margin_horizontal: 5,
-                    set_markup: &fl!(I18N, "pstate-list-description"),
-                    set_wrap_mode: pango::WrapMode::Word,
-                    set_halign: gtk::Align::Start,
-                },
             },
 
             append_child = &model.groups.widget().clone() -> gtk::Box {
