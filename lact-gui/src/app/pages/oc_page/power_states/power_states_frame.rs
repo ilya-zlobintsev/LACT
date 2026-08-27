@@ -2,7 +2,10 @@ use super::power_states_list::PowerStatesList;
 use super::power_states_list::{PowerStatesListMsg, PowerStatesListOptions};
 use crate::{
     APP_BROKER, I18N,
-    app::{components::page_section::PageSection, msg::AppMsg, utils::ext::RelmLaunchable as _},
+    app::{
+        components::page_section::PageSection, msg::AppMsg, pages::oc_page::OcPageMsg,
+        utils::ext::RelmLaunchable as _,
+    },
 };
 use adw::prelude::*;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
@@ -11,11 +14,14 @@ use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
-    ComponentController, ComponentParts, ComponentSender, RelmObjectExt,
+    ComponentController, ComponentParts, ComponentSender,
     binding::{Binding, BoolBinding},
     css,
 };
 use std::sync::Arc;
+
+const RESPONSE_CANCEL: &str = "cancel";
+const RESPONSE_SWITCH: &str = "switch";
 
 pub struct PowerStatesFrame {
     core_states_list: relm4::Controller<PowerStatesList>,
@@ -37,6 +43,11 @@ pub enum PowerStatesFrameMsg {
     PerformanceLevel(Option<PerformanceLevel>),
     VramClockRatio(f64),
     Configurable(bool),
+    ConfiguredToggled {
+        configured: bool,
+        parent: gtk::Widget,
+    },
+    EnableWithManualPerformanceLevel,
     InternalConfigurableChanged(bool),
 }
 
@@ -44,7 +55,7 @@ pub enum PowerStatesFrameMsg {
 impl relm4::SimpleComponent for PowerStatesFrame {
     type Init = ();
     type Input = PowerStatesFrameMsg;
-    type Output = ();
+    type Output = OcPageMsg;
 
     view! {
         PageSection::new(&fl!(I18N, "pstates")) {
@@ -66,7 +77,17 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 gtk::ToggleButton {
                     set_halign: gtk::Align::Start,
                     add_css_class: "oc-option-toggle",
-                    add_binding: (&model.states_configured, "active"),
+
+                    #[watch]
+                    #[block_signal(configured_toggled_handler)]
+                    set_active: model.states_configured.value(),
+
+                    connect_toggled[sender] => move |button| {
+                        sender.input(PowerStatesFrameMsg::ConfiguredToggled {
+                            configured: button.is_active(),
+                            parent: button.clone().upcast(),
+                        });
+                    } @ configured_toggled_handler,
 
                     #[wrap(Some)]
                     set_child = &gtk::Box {
@@ -74,18 +95,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                             set_label: &fl!(I18N, "enable-pstate-config"),
                         },
                     },
-
-                    #[watch]
-                    set_sensitive: model.performance_level.is_some_and(|level| level == PerformanceLevel::Manual),
                 },
-            },
-
-            append_child = &gtk::Label {
-                set_label: &fl!(I18N, "pstates-manual-needed"),
-                add_css_class: css::DIM_LABEL,
-                set_halign: gtk::Align::Start,
-                #[watch]
-                set_visible: model.performance_level.is_some_and(|level| level != PerformanceLevel::Manual),
             },
 
             append_child = &gtk::Box {
@@ -124,8 +134,9 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
         let states_configured = BoolBinding::new(false);
 
+        let configured_sender = sender.clone();
         let configured_signal = states_configured.connect_value_notify(move |states_configured| {
-            sender.input(PowerStatesFrameMsg::InternalConfigurableChanged(
+            configured_sender.input(PowerStatesFrameMsg::InternalConfigurableChanged(
                 states_configured.get(),
             ));
             APP_BROKER.send(AppMsg::SettingsChanged);
@@ -146,7 +157,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             PowerStatesFrameMsg::PowerStates {
                 pstates,
@@ -195,6 +206,41 @@ impl relm4::SimpleComponent for PowerStatesFrame {
             }
             PowerStatesFrameMsg::PerformanceLevel(level) => {
                 self.performance_level = level;
+            }
+            PowerStatesFrameMsg::ConfiguredToggled { configured, parent } => {
+                if self.performance_level == Some(PerformanceLevel::Manual) {
+                    self.states_configured.set_value(configured);
+                } else {
+                    let dialog = adw::AlertDialog::builder()
+                        .heading(fl!(I18N, "enable-pstate-config"))
+                        .body(fl!(I18N, "pstates-manual-needed"))
+                        .default_response(RESPONSE_SWITCH)
+                        .close_response(RESPONSE_CANCEL)
+                        .build();
+                    dialog.add_responses(&[
+                        (RESPONSE_CANCEL, &fl!(I18N, "cancel")),
+                        (RESPONSE_SWITCH, &fl!(I18N, "confirm")),
+                    ]);
+                    dialog.set_response_appearance(
+                        RESPONSE_SWITCH,
+                        adw::ResponseAppearance::Suggested,
+                    );
+
+                    let dialog_sender = sender.clone();
+                    dialog.connect_response(None, move |_, response| {
+                        if response == RESPONSE_SWITCH {
+                            dialog_sender
+                                .input(PowerStatesFrameMsg::EnableWithManualPerformanceLevel);
+                        }
+                    });
+                    dialog.present(Some(&parent));
+                }
+            }
+            PowerStatesFrameMsg::EnableWithManualPerformanceLevel => {
+                sender
+                    .output(OcPageMsg::SetPerformanceLevel(PerformanceLevel::Manual))
+                    .unwrap();
+                self.states_configured.set_value(true);
             }
             PowerStatesFrameMsg::InternalConfigurableChanged(configurable) => {
                 self.core_states_list
