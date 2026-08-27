@@ -4,6 +4,7 @@ mod power_cap_section;
 mod power_states;
 mod vf_curve;
 
+use crate::APP_BROKER;
 use crate::app::components::gpu_stats_section::{
     GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
 };
@@ -57,6 +58,8 @@ pub enum OcPageMsg {
         configured: bool,
     },
     PerformanceLevelChanged,
+    SetPerformanceLevel(PerformanceLevel),
+    EnablePstateConfig,
     ShowVfCurveEditor,
     VfCurveEditingToggled(bool),
 }
@@ -110,7 +113,8 @@ impl relm4::Component for OcPage {
             vf_curve_editing: vf_curve_editing.clone(),
         })
         .forward(sender.input_sender(), |msg| msg);
-        let power_states_frame = PowerStatesFrame::detach_default();
+        let power_states_frame =
+            PowerStatesFrame::launch_default().forward(sender.input_sender(), |msg| msg);
         let performance_frame =
             PerformanceFrame::launch_default().forward(sender.input_sender(), |msg| msg);
 
@@ -229,6 +233,15 @@ impl relm4::Component for OcPage {
                     .emit(PowerStatesFrameMsg::PerformanceLevel(
                         self.get_performance_level(),
                     ));
+            }
+            OcPageMsg::SetPerformanceLevel(level) => {
+                self.performance_frame
+                    .emit(PerformanceFrameMsg::PerformanceLevel(Some(level)));
+                APP_BROKER.send(AppMsg::SettingsChanged);
+            }
+            OcPageMsg::EnablePstateConfig => {
+                self.power_states_frame
+                    .emit(PowerStatesFrameMsg::EnableWithManualPerformanceLevel);
             }
             OcPageMsg::ShowVfCurveEditor => {
                 self.vf_curve_editor.emit(VfCurveEditorMsg::Show);

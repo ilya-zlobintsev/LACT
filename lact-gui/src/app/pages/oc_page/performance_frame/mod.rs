@@ -97,7 +97,6 @@ impl relm4::Component for PerformanceFrame {
                         let idx = dropdown.selected();
                         if let Some(level) = PERFORMANCE_LEVELS.get(idx as usize) {
                             sender.input(PerformanceFrameMsg::PerformanceLevel(Some(*level)));
-                            sender.output(OcPageMsg::PerformanceLevelChanged).unwrap();
                             APP_BROKER.send(AppMsg::SettingsChanged);
                         }
                     } @ level_select_handler,
@@ -251,6 +250,7 @@ impl relm4::Component for PerformanceFrame {
         match msg {
             PerformanceFrameMsg::PerformanceLevel(level) => {
                 self.performance_level = level;
+                sender.output(OcPageMsg::PerformanceLevelChanged).unwrap();
             }
             PerformanceFrameMsg::PowerProfileModes(table) => {
                 while self.power_profile_modes.n_items() != 0 {

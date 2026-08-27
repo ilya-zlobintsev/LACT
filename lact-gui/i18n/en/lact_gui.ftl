@@ -227,8 +227,8 @@ mem-pstate-clock-voltage = VRAM P-State {$pstate} Voltage (mV)
 pstates = Power States
 gpu-pstates = GPU Power States
 vram-pstates = VRAM Power States
-pstates-manual-needed = Performance level must be set to 'manual' to toggle power states
-enable-pstate-config = Enable power state configuration
+pstates-manual-needed = To enable P-State configuration, the performance level must be set to Manual.
+enable-pstate-config = P-State Configuration
 
 menu = Menu
 show-historical-charts = Show Graphs
