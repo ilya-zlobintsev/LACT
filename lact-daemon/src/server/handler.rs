@@ -41,7 +41,10 @@ use std::{
     env,
     fs::{self, File, Permissions},
     io::{BufWriter, Cursor, Write},
-    os::unix::fs::{MetadataExt, PermissionsExt},
+    os::{
+        fd::AsFd as _,
+        unix::fs::{MetadataExt, PermissionsExt},
+    },
     path::{Path, PathBuf},
     rc::Rc,
     sync::LazyLock,
@@ -55,6 +58,7 @@ use tokio::{
     time::sleep,
 };
 use tracing::{debug, error, info, trace, warn};
+use zbus::zvariant::Value as ZbusValue;
 use zbus_polkit::policykit1::{self, AuthorityProxy};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
@@ -948,7 +952,7 @@ impl<'a> Handler {
         &self,
         name: String,
         base: ProfileBase,
-        ctx: ClientContext,
+        ctx: &ClientContext,
     ) -> anyhow::Result<()> {
         {
             let mut config = self.config.write().await;
@@ -1043,7 +1047,7 @@ impl<'a> Handler {
         name: &str,
         rule: Option<ProfileRule>,
         hooks: ProfileHooks,
-        ctx: ClientContext,
+        ctx: &ClientContext,
     ) -> anyhow::Result<()> {
         if !hooks.is_empty() {
             self.check_auth(
@@ -1275,16 +1279,25 @@ impl<'a> Handler {
         &self,
         action: &str,
         error_msg: &str,
-        ctx: ClientContext,
+        ctx: &ClientContext,
     ) -> anyhow::Result<()> {
         let polkit_proxy = self
             .polkit_proxy
             .as_ref()
             .context("Polkit not available, cannot ask for authorization")?;
 
-        let pid = ctx.pid.context("No client PID available")?;
         let uid = ctx.uid.context("No client UID available")?;
-        let subject = policykit1::Subject::new_for_owner(pid, None, Some(uid))?;
+        let pid = ctx.pid.context("No client PID available")?;
+
+        let mut subject = policykit1::Subject::new_for_owner(pid, None, Some(uid))?;
+
+        if let Some(pid_fd) = &ctx.pid_fd {
+            subject.subject_details.insert(
+                "pidfd".to_owned(),
+                ZbusValue::Fd(pid_fd.as_fd().into()).try_into()?,
+            );
+        }
+
         let result = polkit_proxy
             .check_authorization(
                 &subject,
