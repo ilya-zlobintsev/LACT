@@ -32,7 +32,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "amdgpu-sysfs"
 version = "0.21.0"
-source = "git+https://github.com/makarov-roman/amdgpu-sysfs-rs.git?rev=d63ea166bf7b087adf196c5b65c1ddae838b14e5#d63ea166bf7b087adf196c5b65c1ddae838b14e5"
+source = "git+https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs.git?rev=215eafbcbca0fe28f66f8ba0cbcec0f547baaba1#215eafbcbca0fe28f66f8ba0cbcec0f547baaba1"
 dependencies = [
  "enum_dispatch",
  "serde",
