@@ -40,6 +40,8 @@ pub type DynGpuController = Box<dyn GpuController>;
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 
 pub trait GpuController {
+    fn controller_type(&self) -> &'static str;
+
     fn controller_info(&self) -> &CommonControllerInfo;
 
     fn device_type(&self) -> DeviceType;

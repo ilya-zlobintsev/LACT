@@ -1,24 +1,17 @@
----
-source: lact-daemon/src/tests/mod.rs
-expression: device_info
----
 {
   "clocks_info": {
     "table": {
       "type": "intel",
       "value": {
-        "gt_freq": [
-          1100,
-          1300
-        ],
-        "rp0_freq": 1300,
-        "rpe_freq": 600,
-        "rpn_freq": 100
+        "gt_freq": [300, 1150],
+        "rp0_freq": 1150,
+        "rpe_freq": 300,
+        "rpn_freq": 300
       }
     }
   },
   "info": {
-    "driver": "xe",
+    "driver": "i915",
     "drm_info": {
       "execution_units": 24,
       "memory_info": {
@@ -33,13 +26,13 @@ expression: device_info
     "link_info": {},
     "pci_info": {
       "device_pci_info": {
-        "model": "TigerLake-LP GT2 [Iris Xe Graphics]",
-        "model_id": "9A49",
+        "model": "CometLake-U GT2 [UHD Graphics]",
+        "model_id": "9B41",
         "vendor": "Intel Corporation",
         "vendor_id": "8086"
       },
       "subsystem_pci_info": {
-        "model_id": "3F19",
+        "model_id": "22B1",
         "vendor": "Lenovo",
         "vendor_id": "17AA"
       }
@@ -48,13 +41,13 @@ expression: device_info
   },
   "pci_info": {
     "device_pci_info": {
-      "model": "TigerLake-LP GT2 [Iris Xe Graphics]",
-      "model_id": "9A49",
+      "model": "CometLake-U GT2 [UHD Graphics]",
+      "model_id": "9B41",
       "vendor": "Intel Corporation",
       "vendor_id": "8086"
     },
     "subsystem_pci_info": {
-      "model_id": "3F19",
+      "model_id": "22B1",
       "vendor": "Lenovo",
       "vendor_id": "17AA"
     }
@@ -64,24 +57,29 @@ expression: device_info
     "core": [
       {
         "enabled": true,
-        "value": 100
+        "value": 300
       },
       {
         "enabled": true,
-        "value": 600
+        "value": 300
       },
       {
         "enabled": true,
-        "value": 1300
+        "value": 1150
+      },
+      {
+        "enabled": true,
+        "value": 1150
       }
     ],
     "vram": []
   },
   "stats": {
+    "busy_percent": 0,
     "clockspeed": {
-      "gpu_clockspeed": 1100,
+      "gpu_clockspeed": 300,
       "sensors": {},
-      "target_gpu_clockspeed": 1100
+      "target_gpu_clockspeed": 300
     },
     "fan": {
       "control_enabled": false,

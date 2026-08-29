@@ -744,6 +744,10 @@ fn apply_power_cap(device: &mut Device<'_>, power_cap: Option<f64>) -> anyhow::R
 }
 
 impl GpuController for NvidiaGpuController {
+    fn controller_type(&self) -> &'static str {
+        "nvidia"
+    }
+
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
     }

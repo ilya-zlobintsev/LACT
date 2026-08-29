@@ -709,6 +709,10 @@ impl IntelGpuController {
 }
 
 impl GpuController for IntelGpuController {
+    fn controller_type(&self) -> &'static str {
+        "intel"
+    }
+
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
     }

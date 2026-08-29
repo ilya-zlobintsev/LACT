@@ -1,38 +1,43 @@
 use super::{DrmProvider, VramInfo};
-use lact_schema::{DeviceStats, DrmInfo, IntelDrmInfo};
-use serde::de::DeserializeOwned;
+use crate::server::handler::SnapshotDeviceInfo;
+use lact_schema::IntelDrmInfo;
 use std::path::Path;
 
 pub struct MockDrmProvider {
-    info: DrmInfo,
-    stats: DeviceStats,
+    snapshot: SnapshotDeviceInfo,
 }
 
 impl MockDrmProvider {
     pub fn new(sysfs: &Path) -> Option<Self> {
-        Some(Self {
-            info: read_json(sysfs, "drm_info.json")?,
-            stats: read_json(sysfs, "stats.json")?,
-        })
-    }
-}
+        let info_path = sysfs.parent()?.parent()?.join("info.json");
+        let raw_snapshot = std::fs::read_to_string(info_path).ok()?;
+        let snapshot = serde_json::from_str(&raw_snapshot).expect("could not parse snapshot");
 
-fn read_json<T: DeserializeOwned>(sysfs: &Path, name: &str) -> Option<T> {
-    std::fs::read_to_string(sysfs.join(name))
-        .ok()
-        .and_then(|contents| serde_json::from_str::<T>(&contents).ok())
+        Some(Self { snapshot })
+    }
 }
 
 impl DrmProvider for MockDrmProvider {
     fn get_intel_info(&self) -> IntelDrmInfo {
-        self.info.intel.clone()
+        self.snapshot
+            .info
+            .drm_info
+            .as_ref()
+            .map(|info| info.intel.clone())
+            .unwrap_or_default()
     }
 
     fn get_vram_info(&self) -> VramInfo {
         VramInfo {
-            total: self.stats.vram.total.unwrap_or(0),
-            used: self.stats.vram.used.unwrap_or(0),
-            mem_info: self.info.memory_info.clone().unwrap_or_default(),
+            total: self.snapshot.stats.vram.total.unwrap_or(0),
+            used: self.snapshot.stats.vram.used.unwrap_or(0),
+            mem_info: self
+                .snapshot
+                .info
+                .drm_info
+                .as_ref()
+                .and_then(|info| info.memory_info.clone())
+                .unwrap_or_default(),
         }
     }
 }
