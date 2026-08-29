@@ -278,7 +278,7 @@ impl DeviceInfo {
                 stats
                     .vram
                     .total
-                    .map(|size| format!("{} Mb", bytes_to_mib(size))),
+                    .map(|size| format!("{} MiB", bytes_to_mib(size))),
             ));
         }
 
