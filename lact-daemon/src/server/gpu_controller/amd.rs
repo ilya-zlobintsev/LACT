@@ -767,6 +767,10 @@ impl AmdGpuController {
 }
 
 impl GpuController for AmdGpuController {
+    fn controller_type(&self) -> &'static str {
+        "amd"
+    }
+
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
     }

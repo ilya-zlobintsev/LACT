@@ -20,11 +20,13 @@ expression: device_info
   "info": {
     "driver": "xe",
     "drm_info": {
+      "execution_units": 128,
       "memory_info": {
-        "cpu_accessible_total": 0,
-        "cpu_accessible_used": 0,
+        "cpu_accessible_total": 6383730688,
+        "cpu_accessible_used": 22360064,
         "resizeable_bar": true
       },
+      "subslices": 8,
       "vram_clock_ratio": 1.0
     },
     "flags": [],
@@ -115,6 +117,9 @@ expression: device_info
       "gpu": 605,
       "sensors": {}
     },
-    "vram": {}
+    "vram": {
+      "total": 6383730688,
+      "used": 22360064
+    }
   }
 }
