@@ -7,6 +7,7 @@ edition.workspace = true
 default = ["lact-gui", "nvidia", "display-info"]
 nvidia = ["lact-daemon/nvidia"]
 display-info = ["lact-daemon/display-info"]
+mock = ["lact-daemon/mock"]
 
 [dependencies]
 lact-daemon = { path = "../lact-daemon", default-features = false }

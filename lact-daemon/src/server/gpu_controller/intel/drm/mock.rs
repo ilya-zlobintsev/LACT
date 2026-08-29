@@ -2,6 +2,7 @@ use super::{DrmProvider, VramInfo};
 use crate::server::handler::SnapshotDeviceInfo;
 use lact_schema::IntelDrmInfo;
 use std::path::Path;
+use tracing::info;
 
 pub struct MockDrmProvider {
     snapshot: SnapshotDeviceInfo,
@@ -10,8 +11,10 @@ pub struct MockDrmProvider {
 impl MockDrmProvider {
     pub fn new(sysfs: &Path) -> Option<Self> {
         let info_path = sysfs.parent()?.parent()?.join("info.json");
-        let raw_snapshot = std::fs::read_to_string(info_path).ok()?;
+        let raw_snapshot = std::fs::read_to_string(&info_path).ok()?;
         let snapshot = serde_json::from_str(&raw_snapshot).expect("could not parse snapshot");
+
+        info!("using mock device info from {}", info_path.display());
 
         Some(Self { snapshot })
     }
