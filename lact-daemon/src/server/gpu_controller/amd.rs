@@ -1,4 +1,4 @@
-use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
+use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::server::gpu_controller::common::{
     fan_control::FanCurveExt,
     fdinfo::{self, DrmUtilMap},
@@ -51,21 +51,6 @@ const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
-// can be replaced with libdrm is_apu
-const REQUIRE_MANUAL_DEVICE_IDS: [&str; 19] = [
-    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu12/renoir_ppt.c#L383
-    "15E7", "1636", "1638", "164C", // Renoir, Cezanne, Barcelo, Lucienne
-    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu11/vangogh_ppt.c#L2039
-    "1435", "163F", // Van Gogh
-    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu13/yellow_carp_ppt.c#L657
-    "1506", "164D", "1681", // Mendocino, Rembrandt
-    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu13/smu_v13_0_5_ppt.c#L526
-    "13C0", "164E", // Granite Ridge, Raphael
-    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu13/smu_v13_0.c#L2230
-    "15BF", "15C8", "1900", "1901", // Phoenix, Hawk Point
-    // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu14/smu_v14_0.c#L1809
-    "1114", "150E", "1586", "1902", // Strix, Krackan
-];
 const AMDGPU_IDS_FLAGS_FUSION: u64 = 0x1;
 const HSA_CACHE_TYPE_DATA: u32 = 0x0000_0001;
 const HSA_CACHE_TYPE_INSTRUCTION: u32 = 0x0000_0002;
@@ -720,10 +705,26 @@ impl AmdGpuController {
         None
     }
 
-    fn apply_clocks_config_require_manual_proformance_level(&self) -> bool {
-        self.common.pci_info.device_pci_info.vendor_id == VENDOR_AMD
-            && REQUIRE_MANUAL_DEVICE_IDS
-                .contains(&self.common.pci_info.device_pci_info.model_id.as_str())
+    fn prepare_clocks_table(&self) -> (Result<CommitHandle, Error>, bool) {
+        let performance_level_available = match self.handle.get_power_force_performance_level() {
+            Ok(_) => true,
+            Err(err) if err.is_not_found() => false,
+            Err(err) => return (Err(err), false),
+        };
+
+        let reset_handle = if performance_level_available {
+            self.handle
+                .set_power_force_performance_level(PerformanceLevel::Auto)
+                .and_then(|()| {
+                    self.handle
+                        .set_power_force_performance_level(PerformanceLevel::Manual)
+                })
+                .and_then(|()| self.handle.reset_clocks_table())
+        } else {
+            self.handle.reset_clocks_table()
+        };
+
+        (reset_handle, performance_level_available)
     }
 
     #[cfg(not(test))]
@@ -1173,9 +1174,15 @@ impl GpuController for AmdGpuController {
     fn apply_config<'a>(&'a self, config: &'a GpuConfig) -> LocalBoxFuture<'a, anyhow::Result<()>> {
         Box::pin(async {
             let mut commit_handles = VecDeque::new();
+            let is_core_clocks_used = config.is_core_clocks_used();
+            let (reset_handle, performance_level_available) = self.prepare_clocks_table();
 
-            // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
-            self.handle.reset_clocks_table().ok();
+            // Reset the clocks table, commit if no further changes are expected
+            if let Ok(commit_handle) = reset_handle
+                && !is_core_clocks_used
+            {
+                commit_handle.commit().ok();
+            }
 
             if !config.fan_control_enabled {
                 self.stop_fan_control(true)
@@ -1183,22 +1190,7 @@ impl GpuController for AmdGpuController {
                     .context("Failed to stop fan control")?;
             }
 
-            if config.performance_level.is_some_and(|level| {
-                !matches!(level, PerformanceLevel::Auto | PerformanceLevel::Manual)
-            }) {
-                self.handle
-                    .set_power_force_performance_level(PerformanceLevel::Auto)
-                    .context("Failed to set power performance level")?;
-            }
-
-            if self.apply_clocks_config_require_manual_proformance_level() {
-                // Van Gogh/Sephiroth only allow clock settings to be used with manual performance mode
-                self.handle
-                    .set_power_force_performance_level(PerformanceLevel::Manual)
-                    .ok();
-            }
-
-            if config.is_core_clocks_used() {
+            if is_core_clocks_used {
                 match self.handle.get_clocks_table() {
                     Ok(original_table) => {
                         let mut table = original_table.clone();
@@ -1229,29 +1221,6 @@ impl GpuController for AmdGpuController {
                             "custom clock settings are present but will be ignored, could not get clocks table: {err}"
                         );
                     }
-                }
-            }
-
-            let mut deferred_performance_level = None;
-            match self.handle.get_power_force_performance_level() {
-                Ok(_) => {
-                    let performance_level =
-                        config.performance_level.unwrap_or(PerformanceLevel::Auto);
-
-                    match performance_level {
-                        PerformanceLevel::Auto | PerformanceLevel::Manual => {
-                            self.handle
-                                .set_power_force_performance_level(performance_level)
-                                .context("Failed to set power performance level")?;
-                        }
-                        _ => {
-                            deferred_performance_level = Some(performance_level);
-                        }
-                    }
-                }
-                Err(err) if err.is_not_found() => (),
-                Err(err) => {
-                    error!("could not get current performance level: {err}");
                 }
             }
 
@@ -1454,9 +1423,11 @@ impl GpuController for AmdGpuController {
                 handle.commit()?;
             }
 
-            if let Some(performance_level) = deferred_performance_level {
+            if performance_level_available {
                 self.handle
-                    .set_power_force_performance_level(performance_level)
+                    .set_power_force_performance_level(
+                        config.performance_level.unwrap_or(PerformanceLevel::Auto),
+                    )
                     .context("Failed to set power performance level")?;
             }
 
@@ -1481,7 +1452,15 @@ impl GpuController for AmdGpuController {
             return Ok(());
         }
 
-        self.handle.reset_clocks_table()?;
+        let previous_performance_level = self.handle.get_power_force_performance_level().ok();
+        let (commit_handle, _) = self.prepare_clocks_table();
+        commit_handle?.commit()?;
+
+        if let Some(level) = previous_performance_level {
+            self.handle
+                .set_power_force_performance_level(level)
+                .context("Failed to restore power performance level")?;
+        }
 
         Ok(())
     }
