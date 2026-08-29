@@ -22,7 +22,7 @@ global-memory = Mémoire globale
 lact-daemon = Démon LACT
 local-memory = Mémoire locale
 temperatures = Températures
-reset-config-description = Voulez-vous vraiment réinitialiser toute la configuration GPU ?
+reset-config-description = Cela réinitialisera tous les paramètres du GPU à leurs valeurs par défaut et supprimera définitivement tous les profils
 throttling = Régulation
 device-not-found = Périphérique { $kind } introuvable
 cache-info = Informations sur le cache
@@ -194,7 +194,7 @@ generate-debug-snapshot = Générer un instantané de débogage
 dump-vbios = Dumper le VBIOS
 reset-all-config = Réinitialiser toute la configuration
 stats-update-interval = Intervalle de mise à jour (ms)
-reconnecting-to-daemon = Connexion au démon perdue, reconnexion...
+reconnecting-to-daemon = Connexion au service perdue, reconnexion...
 daemon-connection-lost = Connexion perdue
 plot-show-detailed-info = Afficher les détails
 show-process-monitor = Afficher le moniteur de processus
@@ -234,9 +234,8 @@ theme-auto = Automatique
 vf-curve-editor = Éditeur de courbes VF
 nvidia-vf-curve-warning =
     L’éditeur de courbes voltage-fréquence dépend de fonctionnalités non documentées du pilote.
-    Son fonctionnement, sa sécurité et sa disponibilité ne sont pas garantis.
+    Il n'existe aucune garantie quant à son fonctionnement, sa sécurité ou sa disponibilité.
     <span weight = "heavy" underline = "single">À utiliser à vos risques et périls</span>.
-vf-curve-enable-editing = Activer la modification
 voltage = Voltage
 frequency = Fréquence
 vf-active-curve = Courbe active
@@ -255,8 +254,56 @@ error-heading = Erreur
 daemon-info-heading = Infos sur le démon
 version-mismatch-description =
     La version de l'interface graphique et du démon sont incompatibles ({ $gui_version }-{ $gui_commit } contre { $daemon_version }-{ $daemon_commit }) !
-    Si vous avez mis à jour LACT, vous devez redémarrer le service avec :
+    Si vous avez mis à jour LACT, vous devez redémarrer le service.
 close = Fermer
 menu = Menu
 color-scheme-dark = Sombre
 color-scheme-light = Clair
+displays-page = Informations sur l’écran
+thresholds-section = Seuils et limites
+no-fan-detected = Aucun ventilateur détecté
+no-sensors-found = Aucun capteurs détectés
+reset-now-button = Réinitialiser maintenant
+default-button = Par défaut
+power-mizer-mode = Mode PowerMizer
+power-mizer-mode-auto = Auto
+power-mizer-mode-adaptive = Adaptatif
+power-mizer-mode-prefer-maximum-performance = Préférer des performances optimales
+power-mizer-mode-prefer-consistent-performance = Préférer des performances consistantes
+power-mizer-mode-auto-description = Laisser le driver choisir le mode de performance.
+power-mizer-mode-adaptive-description = Ajuster les fréquences du GPU en fonction de son utilisation.
+power-mizer-mode-prefer-maximum-performance-description = Privilégier les performances maximales dans les limites des capacités du conducteur.
+power-mizer-mode-prefer-consistent-performance-description = Verrouiller sur les fréquences de base du GPU.
+color-scheme = Palette de couleurs
+color-scheme-auto = Système
+gtt-usage = Utilisation du GTT :
+vf-curve-flatten-selection = Aplatir la selection
+gpu-voltage-boost = Augmentation de la tension du GPU (%)
+gpu-voltage-boost-tooltip = Détermine la part de la marge de tension supplémentaire définie par le pilote qui est disponible. Une valeur de 100 % correspond à la totalité de cette marge, et non à 100 % de la tension totale du GPU. Une marge plus importante peut permettre d'atteindre des fréquences d'horloge plus élevées, mais augmente la consommation électrique et la production de chaleur.
+service-explanation =
+    La configuration des paramètres du GPU nécessite le service système LACT.
+    En son absence, LACT fonctionne en mode autonome, dans lequel seules les fonctions d'information et de surveillance sont disponibles.
+service-connection-status = État de la connexion
+service-status = État du service
+service-permission-denied =
+    Autorisation refusée, le service n'est pas configuré pour autoriser les connexions provenant de votre utilisateur.
+    Consultez <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> pour plus d'informations
+service-connected = connecté
+service-disconnected = déconnecté
+service-version = Version du service
+gui-version = Version de l'interface
+service-version-mismatch = incompatible
+service-logs = Journaux du service
+service-start = Démarrer
+service-stop = Arrêter
+service-restart = Redémarrer
+service-autostart = Démarrer automatiquement au démarrage
+service-autostart-disable = Désactivez également le démarrage automatique
+display-title = Écran { $identifier }
+display-manufacturer = Fabriquant
+display-product-code = Code produit
+display-model = Modèle
+display-physical-size = Taille physique
+display-connection = Connexion
+display-manufacture-date = Date de fabrication
+displays-missing = Aucun écrans détectes

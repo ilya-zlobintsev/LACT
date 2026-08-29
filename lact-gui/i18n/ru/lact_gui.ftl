@@ -15,9 +15,9 @@ device-name = Имя устройства
 system-section = Система
 monitoring-section = Мониторинг
 amd-oc-status =
-    Статус разгона AMD: <b>{ $status ->
+    Состояние разгона AMD: <b>{ $status ->
         [true] вкл.
-        [false] выкл.
+        [false] откл.
        *[other] неизвестен
     }</b>
 enable-amd-oc = Включить разгон AMD
@@ -47,7 +47,7 @@ amd-oc-detected-system-config =
        *[other] { $config }
     }</b>
 enable-amd-oc-description = Функция разгона драйвера amdgpu будет включена путём создания файла по адресу <b>{ $path }</b> и обновления initramfs. Уверены, что хотите продолжить?
-disable-amd-oc = Выключить разгон AMD
+disable-amd-oc = Отключить разгон AMD
 amd-oc-updating-configuration = Обновление конфигурации (может занять некоторое время)
 amd-oc-updating-done = Конфигурация была обновлена, пожалуйста, перезагрузите систему для применения изменений.
 watt = Вт
@@ -63,13 +63,13 @@ no-throttling = Нет
 missing-stat = Н/Д
 performance-level-high = Максимальные частоты
 performance-level-low = Минимальные частоты
-performance-level-low-description = Всегда использовать минимальные тактовые частоты для ГП и VRAM.
-performance-level-manual-description = Ручное управление производительностью.
+performance-level-low-description = Всегда использовать минимальные тактовые частоты для ГП и видеопамяти
+performance-level-manual-description = Ручное управление производительностью
 workgroup-size = Размер рабочей группы
 features = Функции
 cache-info = Информация о кэше
 nvidia-cache-desc = { $size } L{ $level }
-reset-config-description = Уверены, что хотите сбросить все настройки ГП?
+reset-config-description = Это сбросит все настройки ГП до значений по умолчанию и безвозвратно удалит все профили
 zero-rpm-stop-temp = Температура остановки нулевых оборотов (°C)
 show-button = Показать
 disable-amd-oc-description = Разгон AMD будет выключен при следующей перезагрузке.
@@ -97,26 +97,26 @@ amd-oc-description =
 power-cap = Порог энергопотребления
 gpu-temp = Температура
 unknown-throttling = Неизвестно
-vram-clock = Частота VRAM
-performance-level-auto-description = Автоматическая регулировка частот ГП и VRAM (по умолчанию).
-performance-level-high-description = Всегда использовать максимальные тактовые частоты для ГП и VRAM.
+vram-clock = Частота видеопамяти
+performance-level-auto-description = Авторегулировка частот ГП и VRAM (по умолчанию).
+performance-level-high-description = Всегда использовать максимальные тактовые частоты для ГП и видеопамяти
 auto-page = Автоматически
 performance-level-auto = Автоматически
 performance-level-manual = Вручную
-vram-pstates = Состояния питания VRAM
+vram-pstates = Состояния питания видеопамяти
 profile-hook-deactivated = Деактивирован:
 power-profile-mode = Режим профиля питания:
 overclock-section = Частота и напряжение
 show-all-pstates = Показать все P-States
 enable-gpu-locked-clocks = Включить фиксированные частоты ГП
 gpu-clock-offset = Смещение частоты ГП (МГц)
-max-vram-clock = Максимальная частота VRAM (МГц)
+max-vram-clock = Максимальная частота видеопамяти (МГц)
 max-gpu-voltage = Максимальное напряжение ГП (мВ)
 gpu-voltage-offset = Смещение напряжения ГП (мВ)
 gpu-pstate-clock = Частота ГП для P-State { $pstate } (МГц)
-mem-pstate-clock = Частота VRAM для P-State { $pstate } (МГц)
+mem-pstate-clock = Частота видеопамяти для P-State { $pstate } (МГц)
 gpu-pstate-clock-voltage = Напряжение ГП для P-State { $pstate } (мВ)
-mem-pstate-clock-voltage = Напряжение VRAM для P-State { $pstate } (мВ)
+mem-pstate-clock-voltage = Напряжение видеопамяти для P-State { $pstate } (мВ)
 pstates = Состояния питания (P-States)
 enable-pstate-config = Включить настройку состояний питания
 settings-profile = Профиль настроек
@@ -136,9 +136,9 @@ profile-rule-args-contain = Аргументы содержат:
 profile-rule-specific-process = С определенным процессом:
 nvidia-oc-info = Информация о разгоне
 min-gpu-clock = Минимальная частота ГП (МГц)
-min-vram-clock = Минимальная частота VRAM (МГц)
+min-vram-clock = Минимальная частота видеопамяти (МГц)
 gpu-pstate-clock-offset = Смещение частоты ГП для P-State { $pstate } (МГц)
-vram-pstate-clock-offset = Смещение частоты VRAM для P-State { $pstate } (МГц)
+vram-pstate-clock-offset = Смещение частоты видеопамяти для P-State { $pstate } (МГц)
 gpu-pstates = Состояния питания ГП
 rename-profile-from = Переименовать профиль <b>{ $old_name }</b>:
 pstate-list-description = <b>Следующие значения являются смещениями частоты для каждого P-State, от самого высокого к самому низкому.</b>
@@ -147,23 +147,23 @@ edit-rules = Изменить правила
 export-to-file = Экспорт в файл
 no-clocks-data = Данные о частотах недоступны
 manual-level-needed = Чтобы использовать режимы питания, уровень производительности должен быть установлен на «вручную»
-oc-warning = Изменение этих значений может привести к нестабильной работе системы, а также повредить ваше аппаратное обеспечение!
-enable-vram-locked-clocks = Включить фиксированные частоты VRAM
+oc-warning = Изменение этих значений может нарушить стабильность системы и повредить оборудование!
+enable-vram-locked-clocks = Включить фиксированные частоты видеопамяти
 profile-hook-command = Выполнить команду, когда профиль '{ $cmd }':
 profile-hook-activated = Активирован:
 nvidia-oc-description =
-    Разгон на видеокартах Nvidia включает возможность задавать смещения для частот ГП и VRAM, а также ограничивать потенциальный диапазон частот с помощью функции «locked clocks» (фиксированные частоты).
+    Разгон на видеокартах Nvidia включает возможность задавать смещения для частот ГП и видеопамяти, а также ограничивать потенциальный диапазон частот с помощью функции «locked clocks» (фиксированные частоты).
 
     На многих моделях видеокарт смещение частоты видеопамяти фактически влияет на реальную скорость памяти только наполовину от заданного значения.
-    Например, при установке смещения +1000 МГц прирост измеренной частоты VRAM может составить всего +500 МГц.
+    Например, при установке смещения +1000 МГц прирост измеренной частоты видеопамяти может составить всего +500 МГц.
     Это нормальное поведение, связанное с тем, как Nvidia обрабатывает скорость передачи данных GDDR. Учитывайте это при настройке разгона.
 
-    Можно сделать «псевдо-андервольт» с помощью комбинации «locked clocks» и положительного смещения частоты.
+    Можно сделать «псевдо-андервольт» с помощью комбинации фиксированных частот и положительного смещения частоты.
     В этом случае ГП будет работать на напряжении, ограниченном фиксированными частотами, но при этом достигнет более высокой частоты за счёт смещения.
     Чрезмерное увеличение параметров может привести к нестабильности системы.
 import-profile = Импорт профиля из файла
 reset-oc-tooltip = Внимание: все настройки частот будут сброшены к значениям по умолчанию!
-auto-switch-profiles = Автоматическое переключение
+auto-switch-profiles = Переключать автоматически
 add-profile = Добавить новый профиль
 profile-activation = Активация
 profile-activation-desc = Активировать профиль '{ $name }' при:
@@ -210,7 +210,7 @@ automatic-mode-threshold-tooltip =
 
     Эта настройка позволяет обойти это ограничение: при температуре выше заданного порога используется пользовательская кривая, а при более низкой — автоматический режим видеокарты с поддержкой режима Zero RPM.
 revert-button = Сбросить
-vram-usage = Использование VRAM:
+vram-usage = Использование видеопамяти:
 performance-level = Уровень производительности
 historical-data-title = История показаний сенсоров
 graphs-per-row = Графиков в строке:
@@ -221,7 +221,7 @@ export-csv = Экспорт в CSV
 edit-graph-sensors = Редактировать сенсоры графика
 apply-button = Применить
 edit-graphs = Редактировать
-time-period-seconds = Временной промежуток (сек.):
+time-period-seconds = Период времени (секунды):
 theme = Тема
 theme-auto = Автоматическая
 crash-page-title = Сбой приложения
@@ -236,10 +236,8 @@ confirm-settings = Подтвердить настройки
 settings-confirmation = Сохранить новые настройки? (Возврат через { $seconds_left } с)
 vf-curve-editor = Редактор кривой напряжение-частота
 nvidia-vf-curve-warning =
-    Редактор кривой напряжение-частота полагается на недокументированную функциональность драйвера.
-    Никаких гарантий относительно его поведения, безопасности или доступности не даётся.
+    Редактор кривой напряжение-частота использует недокументированные возможности драйвера.
     <span weight = "heavy" underline = "single">Используйте на свой страх и риск</span>.
-vf-curve-enable-editing = Включить правку
 voltage = Напряжение
 frequency = Частота
 vf-active-curve = Активная кривая
@@ -258,7 +256,7 @@ preferences = Настройки
 ui = Интерфейс
 daemon = Демон
 about = О программе
-displays-page = Информация о дисплее
+displays-page = Сведения о дисплеях
 thresholds-section = Пороговые значения и ограничения
 gtt-usage = Использование GTT:
 vf-curve-flatten-selection = Выровнять выделение
@@ -302,3 +300,22 @@ service-disconnected = нет подключения
 gui-version = Версия ГП
 gpu-voltage-boost = Повышение напряжения ГП (%)
 gpu-voltage-boost-tooltip = Определяет, какая часть дополнительного запаса напряжения, заданного драйвером, доступна. 100% означает весь этот запас, а не 100% общего напряжения ГП. Больший запас может поддерживать более высокие частоты, но увеличивает энергопотребление и нагрев.
+no-fan-detected = Вентилятор не обнаружен
+no-sensors-found = Датчики не найдены
+service-autostart = Автозапуск при загрузке
+service-autostart-disable = Также отключить автозапуск
+reset-now-button = Сбросить сейчас
+default-button = По умолчанию
+extra-clocks = Дополнительные тактовые частоты
+performance-level-profile-standard = Стандартный профиль
+performance-level-profile-min-sclk = Минимальная частота ГП
+performance-level-profile-min-mclk = Минимальная частота видеопамяти
+performance-level-profile-peak = Максимальная производительность
+performance-level-profile-standard-description = Фиксированный режим профилирования
+performance-level-profile-min-sclk-description = Режим профилирования, принудительно устанавливающий минимальную частоту ГП
+performance-level-profile-min-mclk-description = Режим профилирования, принудительно устанавливающий минимальную частоту видеопамяти
+performance-level-profile-peak-description = Режим профилирования, принудительно устанавливающий максимальные частоты ГП и видеопамяти
+enable-vf-curve = Включить редактирование кривой напряжения-частоты
+vf-curve-editing-disabled = Редактирование кривой напряжения-частоты отключено на странице разгона
+service-setup-title = Настройка службы
+setup-error = Ошибка настройки: { $error }
