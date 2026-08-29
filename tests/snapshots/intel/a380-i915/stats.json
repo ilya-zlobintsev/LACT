@@ -1,0 +1,37 @@
+{
+  "clockspeed": {
+    "gpu_clockspeed": 600,
+    "sensors": {},
+    "target_gpu_clockspeed": 600
+  },
+  "fan": {
+    "control_enabled": false,
+    "pmfw_info": {},
+    "speed_current": 741
+  },
+  "power": {
+    "cap_current": 65.0,
+    "cap_default": 65.0,
+    "cap_max": 400.0,
+    "cap_min": 0.0,
+    "current": 18.0
+  },
+  "temps": {
+    "gpu": {
+      "crit": null,
+      "crit_hyst": null,
+      "current": 54.0,
+      "display_only": true,
+      "primary": true
+    }
+  },
+  "throttle_info": {},
+  "voltage": {
+    "gpu": 605,
+    "sensors": {}
+  },
+  "vram": {
+    "total": 6383730688,
+    "used": 22360064
+  }
+}

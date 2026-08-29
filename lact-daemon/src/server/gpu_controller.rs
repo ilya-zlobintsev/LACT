@@ -29,6 +29,7 @@ use lact_schema::{
     ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates, config::GpuConfig,
 };
 use std::io;
+use std::os::fd::OwnedFd;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
@@ -147,6 +148,14 @@ impl CommonControllerInfo {
             "/dev/dri/by-path/pci-{}-render",
             self.pci_slot_name
         ))
+    }
+
+    pub fn open_drm_render(&self) -> io::Result<OwnedFd> {
+        fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(self.get_drm_render()?)
+            .map(OwnedFd::from)
     }
 
     pub fn get_drm_card(&self) -> io::Result<PathBuf> {

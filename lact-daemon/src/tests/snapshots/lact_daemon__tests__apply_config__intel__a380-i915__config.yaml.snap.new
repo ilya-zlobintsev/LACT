@@ -1,0 +1,6 @@
+---
+source: lact-daemon/src/tests/mod.rs
+assertion_line: 123
+expression: write_commands
+---
+[]

@@ -464,7 +464,7 @@ pub struct IntelDrmInfo {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DrmMemoryInfo {
     pub cpu_accessible_used: u64,
     pub cpu_accessible_total: u64,

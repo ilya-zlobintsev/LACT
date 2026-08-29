@@ -1813,6 +1813,7 @@ dependencies = [
  "indexmap",
  "insta",
  "jiff",
+ "lact-daemon",
  "lact-schema",
  "libcopes",
  "libdisplay-info",

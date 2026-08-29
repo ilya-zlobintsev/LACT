@@ -1509,15 +1509,12 @@ impl GpuController for NvidiaGpuController {
     #[cfg(feature = "display-info")]
     fn populate_displays_info(&self, info: &mut lact_schema::DisplaysInfo) -> anyhow::Result<()> {
         use lact_schema::DisplayConnector;
-        use std::fs;
         use std::os::fd::AsRawFd as _;
 
         if let Some(handle) = &self.driver_handle {
-            let drm_path = self.common.get_drm_render()?;
-            let drm_file = fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(drm_path)
+            let drm_file = self
+                .common
+                .open_drm_render()
                 .context("Could not open DRM file")?;
 
             for (key, display_info) in &mut info.displays {
