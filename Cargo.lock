@@ -1812,6 +1812,7 @@ dependencies = [
  "indexmap",
  "insta",
  "jiff",
+ "lact-daemon",
  "lact-schema",
  "libcopes",
  "libdisplay-info",
@@ -4075,8 +4076,7 @@ dependencies = [
 [[package]]
 name = "zbus_polkit"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad23d5c4d198c7e2641b33e6e0d1f866f117408ba66fe80bbe52e289eeb77c52"
+source = "git+https://github.com/ilya-zlobintsev/zbus_polkit?branch=fix-uid-type#cebdd40f9f91780816427922e6c8aa41b4d59e66"
 dependencies = [
  "enumflags2",
  "serde",
