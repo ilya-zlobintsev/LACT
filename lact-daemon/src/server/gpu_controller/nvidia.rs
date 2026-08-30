@@ -66,7 +66,7 @@ pub struct NvidiaGpuController {
 
     nvapi: Option<(Rc<NvApi>, NvPhysicalGpuHandle)>,
     driver_handle: Option<DriverHandle>,
-    nvapi_thermals_mask: Option<i32>,
+    nvapi_therm_channel_mask: Option<i32>,
 
     last_util_timestamp: Cell<Option<u64>>,
     // Store last applied offsets as a workaround when the driver doesn't tell us the current offset
@@ -93,7 +93,7 @@ impl NvidiaGpuController {
                 )
             })?;
 
-        let (nvapi_handle, nvapi_thermals_mask) = match nvapi.as_ref() {
+        let (nvapi_handle, nvapi_therm_channel_mask) = match nvapi.as_ref() {
             Some(nvapi) => {
                 let bus_id = common.get_slot_info()?.bus;
                 let gpu_handle = nvapi
@@ -102,19 +102,19 @@ impl NvidiaGpuController {
                     .ok()
                     .flatten();
 
-                let thermals_mask = gpu_handle.and_then(|handle| unsafe {
+                let therm_channel_mask = gpu_handle.and_then(|handle| unsafe {
                     nvapi
-                        .calculate_thermals_mask(handle)
+                        .calculate_therm_channel_mask(handle)
                         .inspect(|mask| {
-                            debug!("calculated NvAPI thermals mask {mask:x}");
+                            debug!("calculated NvAPI therm channel mask {mask:x}");
                         })
                         .inspect_err(|err| {
-                            error!("could not calculate NvAPI thermal mask: {err:#}");
+                            error!("could not calculate NvAPI therm channel mask: {err:#}");
                         })
                         .ok()
                 });
 
-                (gpu_handle, thermals_mask)
+                (gpu_handle, therm_channel_mask)
             }
             None => (None, None),
         };
@@ -142,7 +142,7 @@ impl NvidiaGpuController {
             nvapi: nvapi.zip(nvapi_handle),
             common,
             driver_handle,
-            nvapi_thermals_mask,
+            nvapi_therm_channel_mask,
             initial_target_temp: target_temp,
             last_util_timestamp: Cell::new(None),
             fan_control_handle: RefCell::new(None),
@@ -404,7 +404,7 @@ impl NvidiaGpuController {
         unsafe {
             info = nvapi.clock_client_clk_vf_points_get_info(*handle)?;
             status = nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)?;
-            control = nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)?;
+            control = nvapi.clock_client_clk_vf_points_get_control(*handle, info.vf_points_mask)?;
         }
 
         Ok(build_vf_curve(&info, &status, &control))
@@ -427,7 +427,7 @@ impl NvidiaGpuController {
         unsafe {
             info = nvapi.clock_client_clk_vf_points_get_info(*handle)?;
             status = nvapi.clock_client_clk_vf_points_get_status(*handle, info.vf_points_mask)?;
-            control = nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)?;
+            control = nvapi.clock_client_clk_vf_points_get_control(*handle, info.vf_points_mask)?;
         }
 
         let control = build_curve_control(
@@ -442,7 +442,7 @@ impl NvidiaGpuController {
         )?;
 
         unsafe {
-            nvapi.clock_client_clk_vf_set_control(*handle, control)?;
+            nvapi.clock_client_clk_vf_points_set_control(*handle, control)?;
         }
 
         self.vf_curve_written.set(true);
@@ -455,7 +455,7 @@ impl NvidiaGpuController {
 
         let info = unsafe { nvapi.clock_client_clk_vf_points_get_info(*handle)? };
         let mut curve_control =
-            unsafe { nvapi.clock_client_clk_vf_get_control(*handle, info.vf_points_mask)? };
+            unsafe { nvapi.clock_client_clk_vf_points_get_control(*handle, info.vf_points_mask)? };
 
         for i in 0..point_count_from_mask(info.vf_points_mask) {
             let point_info = info.vf_points[i];
@@ -465,7 +465,7 @@ impl NvidiaGpuController {
         }
 
         unsafe {
-            nvapi.clock_client_clk_vf_set_control(*handle, curve_control)?;
+            nvapi.clock_client_clk_vf_points_set_control(*handle, curve_control)?;
         }
 
         Ok(())
@@ -474,7 +474,7 @@ impl NvidiaGpuController {
     fn get_voltage_boost(&self) -> anyhow::Result<NvidiaVoltageBoost> {
         let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
 
-        let current = unsafe { nvapi.get_voltage_boost(*handle)? };
+        let current = unsafe { nvapi.client_volt_rails_get_control(*handle)? };
 
         Ok(NvidiaVoltageBoost {
             current: current.into(),
@@ -494,11 +494,11 @@ impl NvidiaGpuController {
         debug!("applying voltage boost {percent}%");
 
         unsafe {
-            nvapi.set_voltage_boost(*handle, percent)?;
+            nvapi.client_volt_rails_set_control(*handle, percent)?;
         }
         self.voltage_boost_written.set(true);
 
-        let applied = unsafe { nvapi.get_voltage_boost(*handle) }
+        let applied = unsafe { nvapi.client_volt_rails_get_control(*handle) }
             .context("Could not verify voltage boost")?;
         ensure!(
             applied == percent,
@@ -512,7 +512,7 @@ impl NvidiaGpuController {
         let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
 
         unsafe {
-            nvapi.set_voltage_boost(*handle, 0)?;
+            nvapi.client_volt_rails_set_control(*handle, 0)?;
         }
         self.voltage_boost_written.set(false);
 
@@ -911,8 +911,8 @@ impl GpuController for NvidiaGpuController {
             let arch = device.architecture().ok();
 
             unsafe {
-                if let Some(mask) = self.nvapi_thermals_mask
-                    && let Ok(thermals) = nvapi.get_thermals(*handle, mask)
+                if let Some(mask) = self.nvapi_therm_channel_mask
+                    && let Ok(thermals) = nvapi.therm_channel_get_status(*handle, mask)
                 {
                     if let Some(hotspot) = nvapi.read_hotspot(&thermals, *handle, arch.as_ref()) {
                         temps.insert(
@@ -972,7 +972,7 @@ impl GpuController for NvidiaGpuController {
                     }
                 }
 
-                if let Ok(value) = nvapi.get_voltage(*handle) {
+                if let Ok(value) = nvapi.client_volt_rails_get_status(*handle) {
                     voltage = Some(u64::from(value) / 1000);
                 }
 
