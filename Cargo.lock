@@ -4076,8 +4076,9 @@ dependencies = [
 
 [[package]]
 name = "zbus_polkit"
-version = "5.0.0"
-source = "git+https://github.com/ilya-zlobintsev/zbus_polkit?branch=fix-uid-type#cebdd40f9f91780816427922e6c8aa41b4d59e66"
+version = "5.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "283d50dac36a7fee0d9c2e6b9c71253326c1f863a9d350342d338637aa3019ae"
 dependencies = [
  "enumflags2",
  "serde",

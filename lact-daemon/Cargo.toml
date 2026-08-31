@@ -39,7 +39,7 @@ nvml-wrapper = { workspace = true }
 bitflags = "2.13.0"
 pciid-parser = { version = "0.8", features = ["serde"] }
 zbus = { workspace = true }
-zbus_polkit = { version = "5.0.0", default-features = false, features = ["tokio"] }
+zbus_polkit = { version = "5.1.0", default-features = false, features = ["tokio"] }
 libdrm_amdgpu_sys = { version = "0.8.16", default-features = false, features = [
     "dynamic_loading",
 ] }

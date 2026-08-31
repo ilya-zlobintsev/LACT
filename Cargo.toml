@@ -62,6 +62,3 @@ strip = false
 debug = 1
 lto = "thin"
 codegen-units = 256
-
-[patch.crates-io]
-zbus_polkit = { git = "https://github.com/ilya-zlobintsev/zbus_polkit", branch = "fix-uid-type" }
