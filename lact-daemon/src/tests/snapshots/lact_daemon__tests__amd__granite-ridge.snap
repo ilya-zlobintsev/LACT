@@ -1,0 +1,243 @@
+---
+source: lact-daemon/src/tests/mod.rs
+expression: device_info
+---
+{
+  "clocks_info": {
+    "max_sclk": 2200,
+    "table": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "current_mclk_range": {
+            "max": null,
+            "min": null
+          },
+          "current_sclk_range": {
+            "max": 2200,
+            "min": 600
+          },
+          "od_range": {
+            "curve_sclk_points": [],
+            "curve_voltage_points": [],
+            "mclk": null,
+            "sclk": {
+              "max": 2200,
+              "min": 600
+            },
+            "sclk_offset": null,
+            "voltage_offset": null
+          },
+          "sclk_offset": null,
+          "vddc_curve": [],
+          "voltage_offset": null
+        },
+        "kind": "rdna"
+      }
+    }
+  },
+  "info": {
+    "driver": "amdgpu",
+    "drm_info": {
+      "amd_ip_info": [
+        {
+          "count": 1,
+          "ip_type": "GFX",
+          "queues": 1,
+          "version_major": 10,
+          "version_minor": 0
+        },
+        {
+          "count": 1,
+          "ip_type": "COMPUTE",
+          "queues": 4,
+          "version_major": 10,
+          "version_minor": 0
+        },
+        {
+          "count": 1,
+          "ip_type": "DMA",
+          "queues": 1,
+          "version_major": 5,
+          "version_minor": 2
+        },
+        {
+          "count": 1,
+          "ip_type": "VCN_DEC",
+          "queues": 1,
+          "version_major": 3,
+          "version_minor": 0
+        },
+        {
+          "count": 1,
+          "ip_type": "VCN_ENC",
+          "queues": 1,
+          "version_major": 3,
+          "version_minor": 0
+        },
+        {
+          "count": 1,
+          "ip_type": "VCN_JPEG",
+          "queues": 1,
+          "version_major": 3,
+          "version_minor": 0
+        }
+      ],
+      "asic_name": "GFX1036/Raphael/Mendocino/Granite Ridge",
+      "chip_class": "GFX10_3",
+      "compute_units": 2,
+      "family_id": 149,
+      "family_name": "GC 10.3.6",
+      "isa": "gfx1036",
+      "memory_info": {
+        "cpu_accessible_total": 536870912,
+        "cpu_accessible_used": 30269440,
+        "resizeable_bar": true
+      },
+      "pci_revision_id": 201,
+      "rop_info": {
+        "operations_count": 8,
+        "operations_factor": 8,
+        "unit_count": 1
+      },
+      "vram_bit_width": 128,
+      "vram_clock_ratio": 1.0,
+      "vram_max_bw": "96",
+      "vram_type": "DDR5"
+    },
+    "flags": [
+      "DumpableVBios",
+      "HasPmfw"
+    ],
+    "link_info": {
+      "current_speed": "16.0 GT/s PCIe",
+      "current_width": "16",
+      "max_speed": "16.0 GT/s PCIe",
+      "max_width": "16"
+    },
+    "pci_info": {
+      "device_pci_info": {
+        "model": "Granite Ridge [Radeon Graphics]",
+        "model_id": "13C0",
+        "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+        "vendor_id": "1002"
+      },
+      "subsystem_pci_info": {
+        "model_id": "7E56",
+        "vendor": "Micro-Star International Co., Ltd. [MSI]",
+        "vendor_id": "1462"
+      }
+    },
+    "vbios_version": "102-RAPHAEL-008",
+    "vulkan_instances": []
+  },
+  "pci_info": {
+    "device_pci_info": {
+      "model": "Granite Ridge [Radeon Graphics]",
+      "model_id": "13C0",
+      "vendor": "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "vendor_id": "1002"
+    },
+    "subsystem_pci_info": {
+      "model_id": "7E56",
+      "vendor": "Micro-Star International Co., Ltd. [MSI]",
+      "vendor_id": "1462"
+    }
+  },
+  "power_profile_modes": null,
+  "power_states": {
+    "core": [
+      {
+        "enabled": true,
+        "id": {
+          "Index": 0
+        },
+        "value": 600
+      },
+      {
+        "enabled": true,
+        "id": {
+          "Index": 1
+        },
+        "value": 700
+      },
+      {
+        "enabled": true,
+        "id": {
+          "Index": 2
+        },
+        "value": 2200
+      }
+    ],
+    "vram": [
+      {
+        "enabled": true,
+        "id": {
+          "Index": 0
+        },
+        "value": 3000
+      }
+    ]
+  },
+  "stats": {
+    "active_power_states": {
+      "core": {
+        "Index": 2
+      },
+      "memory": {
+        "Index": 0
+      }
+    },
+    "busy_percent": 5,
+    "clockspeed": {
+      "gpu_clockspeed": 2200,
+      "sensors": {},
+      "vram_clockspeed": 3000
+    },
+    "fan": {
+      "control_enabled": false,
+      "pmfw_info": {}
+    },
+    "performance_level": "auto",
+    "power": {
+      "current": 0.064,
+      "sensors": {
+        "gfx": 22.506,
+        "soc": 16.8
+      }
+    },
+    "temps": {
+      "edge": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 46.0,
+        "display_only": false,
+        "primary": true
+      },
+      "soc": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 49.0,
+        "display_only": true,
+        "primary": false
+      }
+    },
+    "throttle_info": {
+      "Current": [
+        "EDC_CPU"
+      ]
+    },
+    "voltage": {
+      "gpu": 1375,
+      "sensors": {
+        "northbridge": 1199
+      }
+    },
+    "vram": {
+      "gtt_total_usable": 33110503424,
+      "gtt_used": 25473024,
+      "total": 536870912,
+      "used": 30269440
+    }
+  }
+}
