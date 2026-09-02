@@ -217,6 +217,21 @@ gpu-pstate-clock = GPU P-State {$pstate} Clock (MHz)
 mem-pstate-clock = VRAM P-State {$pstate} Clock (MHz)
 gpu-pstate-clock-voltage = GPU P-State {$pstate} Voltage (mV)
 mem-pstate-clock-voltage = VRAM P-State {$pstate} Voltage (mV)
+clock-domain-offset = {$domain} Clock Offset (MHz)
+clock-domain-voltage-offset = {$domain} MSVDD Offset (mV)
+msvdd-offset = MSVDD Offset (mV)
+msvdd-offset-mixed = MSVDD Offset (mV) — Mixed
+msvdd-offset-tooltip = Writes the same offset into each of the clock domains below. The driver has no single control for the MSVDD rail, so this is a convenience that sets all of them at once, not a rail voltage setting of its own; changing an individual domain afterwards overrides it for that domain.
+
+    Each offset shifts how much voltage its own domain asks for at a given clockspeed, and the domains share one rail. A positive offset therefore lowers that domain's clocks, while a negative one raises them slightly at the cost of the margin that keeps memory traffic correct.
+advanced-section = Advanced
+advanced-section-description = Clock domains the driver does not expose through its normal interface. Independent of the locked clock options above, so both can be used together.
+xbar-ratio = GPC Clock Propagation Ratio (%)
+xbar-ratio-tooltip = Ratio at which the GPC clock propagates to XBAR, 90% by default. Raising it decouples XBAR from the core clock without changing the core clock itself.
+
+    SYS, Power and Legacy follow XBAR, so they rise with it. GPC, memory, HUB and Display are unaffected.
+
+    This raises the voltage the card requests to sustain the higher clocks, so it interacts with the power limit.
 
 pstates = Power States
 gpu-pstates = GPU Power States
