@@ -665,10 +665,6 @@ impl AmdGpuController {
         self.common
             .get_drm_render()
             .ok()
-            // self.drm_handle
-            //     .as_ref()
-            //     .and_then(|handle| handle.get_pci_bus_info().ok())
-            //     .and_then(|bus_info| bus_info.get_drm_render_path().ok())
             .and_then(|path| {
                 path.file_name()
                     .and_then(|name| name.to_str())
