@@ -1,3 +1,5 @@
+mod drm;
+
 use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
 use crate::server::gpu_controller::common::{
     fan_control::FanCurveExt,
@@ -15,20 +17,22 @@ use amdgpu_sysfs::{
     sysfs::SysFS,
 };
 use anyhow::{Context, anyhow, bail};
+#[cfg(feature = "mock")]
+use drm::mock::MockDrmProvider;
+use drm::{DrmProvider, amdgpu::AmdGpuDrmProvider};
 use futures::{FutureExt, future::LocalBoxFuture};
 use indexmap::IndexMap;
 use lact_schema::{
-    ActivePowerStates, AmdCacheInstance, AmdIpInfo, CacheInfo, CacheType, ClocksInfo,
-    ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
-    FanControlMode, FanStats, IntelDrmInfo, LinkInfo, NvidiaThermalInfo, PmfwInfo, PowerState,
-    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo, TemperatureEntry,
-    VoltageStats, VramStats,
+    ActivePowerStates, AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats,
+    DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, FanControlMode,
+    FanStats, LinkInfo, NvidiaThermalInfo, PmfwInfo, PowerState, PowerStates, PowerStats,
+    ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
 #[cfg(feature = "display-info")]
 use lact_schema::{DisplayConnector, DisplaysInfo};
-use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, HW_IP::HW_IP_TYPE, ThrottlerBit, ThrottlerType};
-use libdrm_amdgpu_sys::{AMDGPU::SENSOR_INFO::SENSOR_TYPE, LibDrmAmdgpu, PCI};
+use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, MetricsInfo, ThrottlerBit, ThrottlerType};
+use libdrm_amdgpu_sys::{LibDrmAmdgpu, PCI};
 use std::{
     cell::RefCell,
     cmp,
@@ -40,11 +44,6 @@ use std::{
 use std::{collections::BTreeMap, fs, time::Instant};
 use tokio::{select, sync::Notify, time::sleep};
 use tracing::{debug, error, info, trace, warn};
-
-use {
-    lact_schema::DrmMemoryInfo,
-    libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, GPU_INFO, MetricsInfo},
-};
 
 /// RDNA3 - minimum family with PMFW
 const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
@@ -66,7 +65,6 @@ const REQUIRE_MANUAL_DEVICE_IDS: [&str; 19] = [
     // https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu14/smu_v14_0.c#L1809
     "1114", "150E", "1586", "1902", // Strix, Krackan
 ];
-const AMDGPU_IDS_FLAGS_FUSION: u64 = 0x1;
 const HSA_CACHE_TYPE_DATA: u32 = 0x0000_0001;
 const HSA_CACHE_TYPE_INSTRUCTION: u32 = 0x0000_0002;
 const HSA_CACHE_TYPE_CPU: u32 = 0x0000_0004;
@@ -81,22 +79,9 @@ const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
     ("enc_1", ProcessUtilizationType::Encode),
 ];
 
-const ALL_HW_IP: &[HW_IP_TYPE] = &[
-    HW_IP_TYPE::GFX,
-    HW_IP_TYPE::COMPUTE,
-    HW_IP_TYPE::DMA,
-    HW_IP_TYPE::UVD,
-    HW_IP_TYPE::VCE,
-    HW_IP_TYPE::UVD_ENC,
-    HW_IP_TYPE::VCN_DEC,
-    HW_IP_TYPE::VCN_ENC,
-    HW_IP_TYPE::VCN_JPEG,
-    HW_IP_TYPE::VPE,
-];
-
 pub struct AmdGpuController {
     handle: GpuHandle,
-    drm_handle: Option<DrmHandle>,
+    drm_handle: Option<Box<dyn DrmProvider>>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
     last_drm_util: RefCell<Option<DrmUtilMap>>,
@@ -111,16 +96,24 @@ impl AmdGpuController {
         let handle = GpuHandle::new_from_path(common.sysfs_path.clone())
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
 
-        #[allow(unused_mut)]
-        let mut drm_handle = None;
-        #[cfg(not(test))]
-        if let Some(libdrm_amdgpu) = libdrm_amdgpu
-            && handle.get_driver() == "amdgpu"
-        {
-            drm_handle = Some(
-                get_drm_handle(&common, libdrm_amdgpu).context("Could not get AMD DRM handle")?,
-            );
-        }
+        #[allow(unused_labels)]
+        let drm_handle: Option<Box<dyn DrmProvider>> = 'drm: {
+            #[cfg(feature = "mock")]
+            if let Some(mock) = MockDrmProvider::new(&common.sysfs_path) {
+                break 'drm Some(Box::new(mock) as Box<dyn DrmProvider>);
+            }
+
+            if let Some(libdrm_amdgpu) = libdrm_amdgpu
+                && handle.get_driver() == "amdgpu"
+                && !cfg!(test)
+            {
+                let handle = AmdGpuDrmProvider::new(&common, libdrm_amdgpu)
+                    .context("Could not get AMD DRM handle")?;
+                Some(Box::new(handle))
+            } else {
+                None
+            }
+        };
 
         Ok(Self {
             handle,
@@ -526,8 +519,7 @@ impl AmdGpuController {
         let vram_clockspeed = self
             .drm_handle
             .as_ref()
-            .and_then(|handle| handle.sensor_info(SENSOR_TYPE::GFX_MCLK).ok())
-            .map(u64::from)
+            .and_then(|handle| handle.get_vram_clock().ok())
             .or_else(|| self.hw_mon_and_then(HwMon::get_vram_clockspeed));
 
         let mut sensors = IndexMap::new();
@@ -577,8 +569,6 @@ impl AmdGpuController {
     }
 
     fn get_drm_info(&self) -> Option<DrmInfo> {
-        use libdrm_amdgpu_sys::AMDGPU::VRAM_TYPE;
-
         let cache_info = self
             .kfd_node_path()
             .inspect(|path| debug!("found KFD node path at '{}'", path.display()))
@@ -595,64 +585,8 @@ impl AmdGpuController {
         trace!("Reading DRM info");
         let drm_handle = self.drm_handle.as_ref();
 
-        let drm_memory_info =
-            drm_handle
-                .and_then(|handle| handle.memory_info().ok())
-                .map(|memory_info| DrmMemoryInfo {
-                    resizeable_bar: Some(memory_info.check_resizable_bar()),
-                    cpu_accessible_used: memory_info.cpu_accessible_vram.heap_usage,
-                    cpu_accessible_total: memory_info.cpu_accessible_vram.total_heap_size,
-                });
-
         match drm_handle {
-            Some(handle) => handle.device_info().ok().map(|drm_info| DrmInfo {
-                device_name: drm_info.find_device_name(),
-                pci_revision_id: Some(drm_info.pci_rev_id()),
-                family_name: Some(drm_info.get_family_name().to_string()),
-                family_id: Some(drm_info.family_id()),
-                asic_name: Some(drm_info.get_asic_name().to_string()),
-                chip_class: Some(drm_info.get_chip_class().to_string()),
-                compute_units: Some(drm_info.cu_active_number),
-                isa: drm_info
-                    .get_gfx_target_version()
-                    .map(|version| version.to_string()),
-                streaming_multiprocessors: None,
-                cuda_cores: None,
-                vram_type: Some(drm_info.get_vram_type().to_string()),
-                vram_vendor: self.handle.get_vram_vendor().ok(),
-                vram_clock_ratio: match drm_info.get_vram_type() {
-                    VRAM_TYPE::GDDR6 => 2.0,
-                    _ => 1.0,
-                },
-                amd_ip_info: ALL_HW_IP
-                    .iter()
-                    .filter_map(|ip_type| {
-                        let ip_info = handle.get_hw_ip_info(*ip_type).ok()?;
-
-                        Some(AmdIpInfo {
-                            ip_type: ip_info.ip_type.to_string(),
-                            version_major: ip_info.info.hw_ip_version_major,
-                            version_minor: ip_info.info.hw_ip_version_minor,
-                            queues: ip_info.info.num_queues(),
-                            count: ip_info.count,
-                        })
-                    })
-                    .collect(),
-                vram_bit_width: Some(drm_info.vram_bit_width),
-                vram_max_bw: Some(drm_info.peak_memory_bw_gb().to_string()),
-                cache_info,
-                memory_info: drm_memory_info,
-                rop_info: Some(RopInfo {
-                    unit_count: drm_info.rb_pipes(),
-                    operations_factor: if drm_info.get_asic_name().rbplus_allowed() {
-                        8
-                    } else {
-                        4
-                    },
-                    operations_count: drm_info.calc_rop_count(),
-                }),
-                intel: IntelDrmInfo::default(),
-            }),
+            Some(drm_handle) => drm_handle.get_drm_info(&self.handle, cache_info),
             None => Some(DrmInfo {
                 cache_info,
                 vram_clock_ratio: 1.0,
@@ -728,10 +662,9 @@ impl AmdGpuController {
 
     #[cfg(not(test))]
     fn kfd_node_path(&self) -> Option<PathBuf> {
-        self.drm_handle
-            .as_ref()
-            .and_then(|handle| handle.get_pci_bus_info().ok())
-            .and_then(|bus_info| bus_info.get_drm_render_path().ok())
+        self.common
+            .get_drm_render()
+            .ok()
             .and_then(|path| {
                 path.file_name()
                     .and_then(|name| name.to_str())
@@ -778,14 +711,8 @@ impl GpuController for AmdGpuController {
     fn device_type(&self) -> DeviceType {
         self.drm_handle
             .as_ref()
-            .and_then(|drm| drm.device_info().ok())
-            .map_or(DeviceType::Dedicated, |info| {
-                if (info.ids_flags & AMDGPU_IDS_FLAGS_FUSION) > 0 {
-                    DeviceType::Integrated
-                } else {
-                    DeviceType::Dedicated
-                }
-            })
+            .and_then(|drm| drm.get_device_type())
+            .unwrap_or(DeviceType::Dedicated)
     }
 
     fn get_info(
@@ -850,8 +777,7 @@ impl GpuController for AmdGpuController {
     fn friendly_name(&self) -> Option<String> {
         self.drm_handle
             .as_ref()
-            .and_then(|handle| handle.device_info().ok())
-            .and_then(|info| info.find_device_name())
+            .and_then(|handle| handle.get_device_name())
             .or_else(|| self.common.pci_info.device_pci_info.model.clone())
     }
 
@@ -1064,12 +990,11 @@ impl GpuController for AmdGpuController {
                 gtt_total_usable: self
                     .drm_handle
                     .as_ref()
-                    .and_then(|handle| handle.vram_gtt_info().ok())
-                    .map(|info| info.gtt_size),
+                    .and_then(|handle| handle.get_gtt_size().ok()),
                 gtt_used: self
                     .drm_handle
                     .as_ref()
-                    .and_then(|handle| handle.gtt_usage_info().ok()),
+                    .and_then(|handle| handle.get_gtt_used().ok()),
             },
             power: PowerStats {
                 average: self.hw_mon_and_then(HwMon::get_power_average),
@@ -1554,23 +1479,6 @@ impl GpuController for AmdGpuController {
 
         Ok(())
     }
-}
-
-#[cfg(not(test))]
-fn get_drm_handle(
-    common: &CommonControllerInfo,
-    libdrm_amdgpu: &LibDrmAmdgpu,
-) -> anyhow::Result<DrmHandle> {
-    let path = common.get_drm_render()?;
-    let drm_file = fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(&path)
-        .with_context(|| format!("Could not open drm file at {}", path.display()))?;
-    let (handle, _, _) = libdrm_amdgpu
-        .init_device_handle_with_fd(drm_file)
-        .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
-    Ok(handle)
 }
 
 fn apply_clocks_config_to_table(
