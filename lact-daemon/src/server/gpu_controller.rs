@@ -381,3 +381,14 @@ fn get_embedded_device_name(pci_info: &GpuPciInfo) -> Option<String> {
         .and_then(|subsys_device| subsys_device.as_str())
         .map(str::to_owned)
 }
+
+#[cfg(feature = "mock")]
+pub fn read_mock_snapshot(
+    device_path: &std::path::Path,
+) -> Option<super::handler::SnapshotDeviceInfo> {
+    let info_path = device_path.parent()?.parent()?.join("info.json");
+    let raw_snapshot = std::fs::read_to_string(&info_path).ok()?;
+    let snapshot = serde_json::from_str(&raw_snapshot).expect("could not parse snapshot");
+
+    Some(snapshot)
+}
