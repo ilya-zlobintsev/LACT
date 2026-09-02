@@ -7,11 +7,33 @@ expression: device_info
   "info": {
     "driver": "amdgpu",
     "drm_info": {
-      "vram_clock_ratio": 1.0
+      "asic_name": "GFX1102/Navi33",
+      "chip_class": "GFX11",
+      "compute_units": 32,
+      "device_name": "AMD Radeon RX 7700S",
+      "family_id": 145,
+      "family_name": "GC 11.0.0",
+      "isa": "gfx1102",
+      "memory_info": {
+        "cpu_accessible_total": 8573157376,
+        "cpu_accessible_used": 183201792,
+        "resizeable_bar": true
+      },
+      "pci_revision_id": 193,
+      "rop_info": {
+        "operations_count": 64,
+        "operations_factor": 8,
+        "unit_count": 8
+      },
+      "vram_bit_width": 128,
+      "vram_clock_ratio": 2.0,
+      "vram_max_bw": "287",
+      "vram_type": "GDDR6",
+      "vram_vendor": "samsung"
     },
     "flags": [
       "DumpableVBios",
-      "ConfigurableFanControl"
+      "HasPmfw"
     ],
     "link_info": {
       "current_speed": "16.0 GT/s PCIe",

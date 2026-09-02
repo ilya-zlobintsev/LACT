@@ -46,10 +46,77 @@ expression: device_info
   "info": {
     "driver": "amdgpu",
     "drm_info": {
-      "vram_clock_ratio": 1.0
+      "amd_ip_info": [
+        {
+          "count": 1,
+          "ip_type": "GFX",
+          "queues": 1,
+          "version_major": 11,
+          "version_minor": 0
+        },
+        {
+          "count": 1,
+          "ip_type": "COMPUTE",
+          "queues": 4,
+          "version_major": 11,
+          "version_minor": 0
+        },
+        {
+          "count": 2,
+          "ip_type": "DMA",
+          "queues": 2,
+          "version_major": 6,
+          "version_minor": 0
+        },
+        {
+          "count": 2,
+          "ip_type": "VCN_DEC",
+          "queues": 0,
+          "version_major": 4,
+          "version_minor": 0
+        },
+        {
+          "count": 2,
+          "ip_type": "VCN_ENC",
+          "queues": 1,
+          "version_major": 4,
+          "version_minor": 0
+        },
+        {
+          "count": 1,
+          "ip_type": "VCN_JPEG",
+          "queues": 1,
+          "version_major": 4,
+          "version_minor": 0
+        }
+      ],
+      "asic_name": "GFX1100/Navi31",
+      "chip_class": "GFX11",
+      "compute_units": 96,
+      "device_name": "AMD Radeon RX 7900 XTX",
+      "family_id": 145,
+      "family_name": "GC 11.0.0",
+      "isa": "gfx1100",
+      "memory_info": {
+        "cpu_accessible_total": 25753026560,
+        "cpu_accessible_used": 679034880,
+        "resizeable_bar": true
+      },
+      "pci_revision_id": 200,
+      "rop_info": {
+        "operations_count": 192,
+        "operations_factor": 8,
+        "unit_count": 24
+      },
+      "vram_bit_width": 384,
+      "vram_clock_ratio": 2.0,
+      "vram_max_bw": "959",
+      "vram_type": "GDDR6",
+      "vram_vendor": "samsung"
     },
     "flags": [
       "DumpableVBios",
+      "HasPmfw",
       "ConfigurableFanControl"
     ],
     "link_info": {
@@ -418,7 +485,7 @@ expression: device_info
     "clockspeed": {
       "gpu_clockspeed": 31,
       "sensors": {},
-      "vram_clockspeed": 1249
+      "vram_clockspeed": 456
     },
     "fan": {
       "control_enabled": false,

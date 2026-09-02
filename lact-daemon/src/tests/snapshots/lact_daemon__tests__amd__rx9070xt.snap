@@ -45,10 +45,33 @@ expression: device_info
   "info": {
     "driver": "amdgpu",
     "drm_info": {
-      "vram_clock_ratio": 1.0
+      "asic_name": "GFX1201",
+      "chip_class": "GFX12",
+      "compute_units": 64,
+      "device_name": "AMD Radeon RX 9070 XT",
+      "family_id": 152,
+      "family_name": "GC 12.0.0",
+      "isa": "gfx1201",
+      "memory_info": {
+        "cpu_accessible_total": 17095983104,
+        "cpu_accessible_used": 1525264384,
+        "resizeable_bar": true
+      },
+      "pci_revision_id": 192,
+      "rop_info": {
+        "operations_count": 128,
+        "operations_factor": 8,
+        "unit_count": 16
+      },
+      "vram_bit_width": 256,
+      "vram_clock_ratio": 2.0,
+      "vram_max_bw": "644",
+      "vram_type": "GDDR6",
+      "vram_vendor": "samsung"
     },
     "flags": [
       "DumpableVBios",
+      "HasPmfw",
       "ConfigurableFanControl"
     ],
     "link_info": {
