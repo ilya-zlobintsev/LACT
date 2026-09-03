@@ -1,6 +1,6 @@
 [Unit]
 Description=LACT GPU Control Daemon
-After=multi-user.target
+After=systemd-udev.service
 
 [Service]
 ExecStart=lact daemon
