@@ -51,8 +51,8 @@ vram-clock = Frequenza VRAM
 no-throttling = No
 performance-level-high = Frequenze Più Alte
 performance-level-low = Frequenze Più Basse
-performance-level-high-description = Utilizza sempre le frequenze più elevate per GPU e VRAM.
-performance-level-manual-description = Controllo manuale delle prestazioni.
+performance-level-high-description = Utilizza sempre le frequenze più elevate per GPU e VRAM
+performance-level-manual-description = Controllo manuale delle prestazioni
 overclock-section = Frequenze e Voltaggio
 nvidia-oc-info = Informazioni Overclocking
 driver-version = Versione Driver
@@ -63,7 +63,7 @@ amd-cache-desc =
     }
 zero-rpm-stop-temp = Temperatura di arresto a zero RPM (°C)
 performance-level-auto-description = Regola automaticamente le frequenze della GPU e della VRAM. (Predefinito)
-performance-level-low-description = Utilizza sempre le frequenze più basse per GPU e VRAM.
+performance-level-low-description = Utilizza sempre le frequenze più basse per GPU e VRAM
 target-temp = Temperatura target (°C)
 enable-amd-oc-description = Questo abiliterà la funzione di overdrive del driver amdgpu creando un file in <b>{ $path }</b> e aggiornando l'initramfs. Sei sicuro di voler procedere?
 thermals-page = Temperature
@@ -236,7 +236,6 @@ theme-auto = Automatico
 vf-curve-editor = Editor della curva VF
 nvidia-vf-curve-warning =
     L'editor della curva tensione-frequenza si basa su funzionalità del driver non documentate. 
-    Non vi è alcuna garanzia in merito al suo funzionamento, alla sua sicurezza o alla sua disponibilità. 
     <span weight = "heavy" underline = "single">Utilizzare a proprio rischio.</span>.
 voltage = Tensione
 frequency = Frequenza
@@ -311,3 +310,14 @@ vf-curve-flatten-selection = Appiattisci la selezione
 gpu-voltage-boost-tooltip = Controlla quanto del margine di tensione aggiuntivo definito dal driver sia effettivamente disponibile. Il 100% indica l'intero margine disponibile, non il 100% della tensione totale della GPU. Un margine maggiore può consentire frequenze più elevate, ma comporta un aumento del consumo energetico e della generazione di calore.
 service-setup-title = Setup Servizio
 setup-error = Errore di setup: { $error }
+extra-clocks = Clocks Extra
+performance-level-profile-standard = standard di profilazione
+performance-level-profile-min-sclk = Clock GPU minimo per la profilazione
+performance-level-profile-min-mclk = Clock VRAM minimo per la profilazione
+performance-level-profile-peak = Picco durante la profilazione
+performance-level-profile-standard-description = Modalità di profilazione fissa
+performance-level-profile-min-sclk-description = Clock GPU minimo per la profilazione
+performance-level-profile-min-mclk-description = Modalità di profilazione che forza il clock della VRAM al livello minimo
+performance-level-profile-peak-description = Modalità di profilazione che forza i clock della GPU e della VRAM ai livelli massimi
+enable-vf-curve = Abilita la modifica della curva VF
+vf-curve-editing-disabled = Modalità di profilazione che forza il clock della VRAM al livello minimo
