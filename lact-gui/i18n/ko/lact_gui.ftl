@@ -127,9 +127,9 @@ performance-level-high = 최대 클럭
 performance-level-low = 최소 클럭
 performance-level-manual = 수동
 performance-level-auto-description = GPU 및 VRAM 클럭을 자동으로 조절합니다. (기본값)
-performance-level-high-description = GPU 및 VRAM에 항상 최대 클럭 속도를 사용합니다.
-performance-level-low-description = GPU 및 VRAM에 항상 최소 클럭 속도를 사용합니다.
-performance-level-manual-description = 수동 성능 제어.
+performance-level-high-description = GPU 및 VRAM에 항상 최대 클럭 속도를 사용합니다
+performance-level-low-description = GPU 및 VRAM에 항상 최소 클럭 속도를 사용합니다
+performance-level-manual-description = 수동 성능 제어
 performance-level = 성능 레벨
 power-profile-mode = 전력 프로파일 모드:
 manual-level-needed = 전력 상태 및 모드를 사용하려면 성능 레벨을 "수동"으로 설정해야 합니다
@@ -154,8 +154,7 @@ no-clocks-data = 클럭 데이터 없음
 reset-oc-tooltip = 경고: 모든 클럭 설정이 기본값으로 초기화됩니다!
 vf-curve-editor = VF 커브 편집기
 nvidia-vf-curve-warning =
-    전압-주파수 커브 편집기는 문서화되지 않은 드라이버 기능에 의존합니다.
-    동작, 안정성 또는 사용 가능 여부에 대한 보장이 없습니다.
+    전압-주파수 곡선 편집기는 문서화되지 않은 드라이버 기능에 의존합니다.
     <span weight = "heavy" underline = "single">사용에 따른 책임은 사용자에게 있습니다</span>.
 voltage = 전압
 frequency = 주파수
@@ -309,3 +308,14 @@ service-autostart-disable = 자동 시작도 비활성화
 default-button = 기본값
 service-setup-title = 서비스 설정
 setup-error = 설정 오류: { $error }
+extra-clocks = 추가 클럭
+performance-level-profile-standard = 표준 프로파일링
+performance-level-profile-min-sclk = 최저 GPU 클럭 프로파일링
+performance-level-profile-min-mclk = 최저 VRAM 클럭 프로파일링
+performance-level-profile-peak = 최고점 프로파일링
+performance-level-profile-standard-description = 고정된 프로파일링 방식
+performance-level-profile-min-sclk-description = GPU 클럭을 최저 수준으로 강제하는 프로파일링 방식
+performance-level-profile-min-mclk-description = VRAM 클럭을 최저 수준으로 강제하는 프로파일링 방식
+performance-level-profile-peak-description = GPU 및 VRAM을 최대 수준으로 강제하는 프로파일링 방식
+enable-vf-curve = VF 곡선 편집 활성화
+vf-curve-editing-disabled = VF 곡선 편집은 OP 부분에서 비활성화되어 있습니다
