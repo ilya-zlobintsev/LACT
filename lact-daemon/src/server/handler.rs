@@ -22,7 +22,7 @@ use amdgpu_sysfs::gpu_handle::{
 use anyhow::{Context, anyhow, bail};
 use lact_schema::{
     ClocksInfo, DeviceApiInfo, DeviceInfo, DeviceListEntry, DeviceStats, DisplaysInfo,
-    FanControlMode, FanOptions, PmfwOptions, PowerStates, ProcessList, ProfileRule,
+    FanControlMode, FanOptions, GpuPciInfo, PmfwOptions, PowerStates, ProcessList, ProfileRule,
     ProfileWatcherState, ProfilesInfo,
     config::{
         FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks, default_fan_static_speed,
@@ -34,6 +34,7 @@ use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
 use pciid_parser::Database;
+use serde::Serialize;
 use serde_json::json;
 use std::{
     cell::{Cell, RefCell},
@@ -41,7 +42,10 @@ use std::{
     env,
     fs::{self, File, Permissions},
     io::{BufWriter, Cursor, Write},
-    os::unix::fs::{MetadataExt, PermissionsExt},
+    os::{
+        fd::AsFd as _,
+        unix::fs::{MetadataExt, PermissionsExt},
+    },
     path::{Path, PathBuf},
     rc::Rc,
     sync::LazyLock,
@@ -55,6 +59,7 @@ use tokio::{
     time::sleep,
 };
 use tracing::{debug, error, info, trace, warn};
+use zbus::zvariant::Value as ZbusValue;
 use zbus_polkit::policykit1::{self, AuthorityProxy};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
@@ -828,7 +833,7 @@ impl<'a> Handler {
 
     pub(crate) async fn generate_snapshot_device_info(
         &self,
-    ) -> BTreeMap<String, serde_json::Value> {
+    ) -> BTreeMap<String, SnapshotDeviceInfo> {
         let controllers = self.gpu_controllers.read().await;
         let config = self.config.read().await;
 
@@ -839,14 +844,14 @@ impl<'a> Handler {
 
             let unique_vendor = controller_vendor_is_unique(controller, id, &controllers);
 
-            let data = json!({
-                "pci_info": controller.controller_info().pci_info.clone(),
-                "info": controller.get_info(unique_vendor, true).await,
-                "stats": controller.get_stats(gpu_config),
-                "clocks_info": controller.get_clocks_info(gpu_config).ok(),
-                "power_profile_modes": controller.get_power_profile_modes().ok(),
-                "power_states": controller.get_power_states(gpu_config),
-            });
+            let data = SnapshotDeviceInfo {
+                pci_info: controller.controller_info().pci_info.clone(),
+                info: controller.get_info(unique_vendor, true).await,
+                stats: controller.get_stats(gpu_config),
+                clocks_info: controller.get_clocks_info(gpu_config).ok(),
+                power_profile_modes: controller.get_power_profile_modes().ok(),
+                power_states: controller.get_power_states(gpu_config),
+            };
 
             map.insert(id.clone(), data);
         }
@@ -948,7 +953,7 @@ impl<'a> Handler {
         &self,
         name: String,
         base: ProfileBase,
-        ctx: ClientContext,
+        ctx: &ClientContext,
     ) -> anyhow::Result<()> {
         {
             let mut config = self.config.write().await;
@@ -1043,7 +1048,7 @@ impl<'a> Handler {
         name: &str,
         rule: Option<ProfileRule>,
         hooks: ProfileHooks,
-        ctx: ClientContext,
+        ctx: &ClientContext,
     ) -> anyhow::Result<()> {
         if !hooks.is_empty() {
             self.check_auth(
@@ -1275,16 +1280,25 @@ impl<'a> Handler {
         &self,
         action: &str,
         error_msg: &str,
-        ctx: ClientContext,
+        ctx: &ClientContext,
     ) -> anyhow::Result<()> {
         let polkit_proxy = self
             .polkit_proxy
             .as_ref()
             .context("Polkit not available, cannot ask for authorization")?;
 
-        let pid = ctx.pid.context("No client PID available")?;
         let uid = ctx.uid.context("No client UID available")?;
-        let subject = policykit1::Subject::new_for_owner(pid, None, Some(uid))?;
+        let pid = ctx.pid.context("No client PID available")?;
+
+        let mut subject = policykit1::Subject::new_for_owner(pid, None, Some(uid))?;
+
+        if let Some(pid_fd) = &ctx.pid_fd {
+            subject.subject_details.insert(
+                "pidfd".to_owned(),
+                ZbusValue::Fd(pid_fd.as_fd().into()).try_into()?,
+            );
+        }
+
         let result = polkit_proxy
             .check_authorization(
                 &subject,
@@ -1302,6 +1316,18 @@ impl<'a> Handler {
             bail!("{error_msg}");
         }
     }
+}
+
+#[derive(Serialize)]
+#[cfg_attr(feature = "mock", derive(serde::Deserialize))]
+pub(crate) struct SnapshotDeviceInfo {
+    pub pci_info: GpuPciInfo,
+    pub info: DeviceInfo,
+    pub stats: DeviceStats,
+    #[serde(default)]
+    pub clocks_info: Option<ClocksInfo>,
+    pub power_profile_modes: Option<PowerProfileModesTable>,
+    pub power_states: PowerStates,
 }
 
 async fn apply_config_to_controllers(
@@ -1432,7 +1458,7 @@ fn load_controllers(
 
                     info!(
                         "initialized {} controller for GPU {id} at '{}' ({})",
-                        info.driver,
+                        controller.controller_type(),
                         info.sysfs_path.display(),
                         info.pci_info
                             .device_pci_info

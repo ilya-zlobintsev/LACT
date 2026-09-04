@@ -132,7 +132,6 @@ impl relm4::Component for OcPage {
     ) -> ComponentParts<Self> {
         let stats_section = GpuStatsSection::detach(GpuStatsSectionConfig {
             stats: HashSet::from([
-                GpuStat::DeviceName,
                 GpuStat::Throttling,
                 GpuStat::GpuClockTarget,
                 GpuStat::GpuVoltage,

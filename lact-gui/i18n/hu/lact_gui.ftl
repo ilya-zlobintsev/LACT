@@ -239,7 +239,6 @@ nvidia-vf-curve-warning =
     A feszültség-frekvencia görbe szerkesztője nem dokumentált illesztőprogram-funkcionalitásra épít. 
     Nincsenek garanciák a viselkedésére, biztonságára és elérhetőségére vonatkozóan.
     <span weight="heavy" underline="single">A saját felelősségére használja</span>.
-vf-curve-enable-editing = Szerkesztés engedélyezése
 voltage = Feszültség
 frequency = Frekvencia
 vf-active-curve = Aktív görbe

@@ -1,22 +1,28 @@
 use super::gpu_controller::CommonControllerInfo;
 use crate::server::gpu_controller::PciSlotInfo;
+#[cfg(feature = "mock")]
+use crate::server::gpu_controller::read_mock_snapshot;
 use anyhow::{Context, bail};
 use lact_schema::OpenCLInfo;
 use serde::Deserialize;
 use tracing::error;
 
-#[cfg_attr(test, allow(unused_variables))]
 pub async fn get_opencl_info(info: &CommonControllerInfo, unique_vendor: bool) -> Vec<OpenCLInfo> {
+    #[cfg(feature = "mock")]
+    if let Some(snapshot) = read_mock_snapshot(&info.sysfs_path) {
+        return snapshot.info.api_info.opencl_instances.clone();
+    } else if cfg!(test) {
+        return vec![];
+    }
+
     try_get_opencl_info(info, unique_vendor)
         .await
         .inspect_err(|err| {
-            #[cfg(not(test))]
             tracing::warn!("could not fetch OpenCL info: {err:#}");
         })
         .unwrap_or_default()
 }
 
-#[cfg(not(test))]
 async fn try_get_opencl_info(
     info: &CommonControllerInfo,
     unique_vendor: bool,
@@ -40,37 +46,6 @@ async fn try_get_opencl_info(
 
     let cl_info: ClInfo<'_> =
         serde_json::from_slice(&clinfo_output.stdout).context("Could not parse 'clinfo' output")?;
-
-    let expected_slot = info.get_slot_info()?;
-
-    Ok(extract_device_info(
-        &cl_info,
-        info,
-        &expected_slot,
-        unique_vendor,
-    ))
-}
-
-#[cfg(test)]
-#[allow(clippy::unused_async)]
-async fn try_get_opencl_info(
-    info: &CommonControllerInfo,
-    unique_vendor: bool,
-) -> anyhow::Result<Vec<OpenCLInfo>> {
-    let base_path = info
-        .sysfs_path
-        .parent()
-        .and_then(|path| path.parent())
-        .context("Could not get test parent path")?;
-
-    let file_path = base_path.join("clinfo.json");
-    if !file_path.exists() {
-        bail!("'clinfo.json' not present in test data");
-    }
-
-    let data = std::fs::read_to_string(&file_path)?;
-    let cl_info: ClInfo<'_> =
-        serde_json::from_str(&data).context("Could not parse 'clinfo.json'")?;
 
     let expected_slot = info.get_slot_info()?;
 

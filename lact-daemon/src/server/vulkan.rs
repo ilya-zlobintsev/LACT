@@ -1,3 +1,7 @@
+#[cfg(feature = "mock")]
+use crate::server::gpu_controller::read_mock_snapshot;
+use crate::server::gpu_controller::{CommonControllerInfo, PciSlotInfo};
+use crate::system::IS_FLATBOX;
 use anyhow::{Context, anyhow, bail};
 use indexmap::{IndexMap, map::Entry};
 use lact_schema::{VulkanDriverInfo, VulkanInfo};
@@ -6,17 +10,17 @@ use std::{env, fs, path::Path};
 use tokio::process::Command;
 use tracing::{error, trace};
 
-use crate::server::gpu_controller::{CommonControllerInfo, PciSlotInfo};
-use crate::system::IS_FLATBOX;
-
 include!(concat!(env!("OUT_DIR"), "/vulkan_constants.rs"));
 
 const VULKAN_ICD_DIR: &str = "/usr/share/vulkan/icd.d";
 
-#[cfg_attr(test, allow(unreachable_code, unused_variables))]
 pub async fn get_vulkan_info(info: &CommonControllerInfo) -> anyhow::Result<Vec<VulkanInfo>> {
-    #[cfg(test)]
-    return Ok(vec![]);
+    #[cfg(feature = "mock")]
+    if let Some(snapshot) = read_mock_snapshot(&info.sysfs_path) {
+        return Ok(snapshot.info.api_info.vulkan_instances.clone());
+    } else if cfg!(test) {
+        return Ok(vec![]);
+    }
 
     let mut results = Vec::new();
 
