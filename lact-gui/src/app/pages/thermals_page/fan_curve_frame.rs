@@ -2,7 +2,8 @@ use super::{FanSettingRow, PmfwOptions, adj_is_empty};
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::oc_adjustment::OcAdjustment, graphs_window::plot::PlotColorScheme, msg::AppMsg,
+        components::adjustment_value::AdjustmentValue, graphs_window::plot::PlotColorScheme,
+        msg::AppMsg,
     },
 };
 use gtk::{
@@ -62,9 +63,9 @@ pub(super) struct FanCurveFrame {
     temp_keys: gtk::StringList,
     current_temp_key: U32Binding,
 
-    spindown_delay_adj: OcAdjustment,
-    change_threshold_adj: OcAdjustment,
-    auto_threshold_adj: OcAdjustment,
+    spindown_delay_adj: AdjustmentValue,
+    change_threshold_adj: AdjustmentValue,
+    auto_threshold_adj: AdjustmentValue,
     change_signals: Rc<[(glib::Object, SignalHandlerId)]>,
 
     is_dragging: Rc<AtomicBool>,
@@ -323,10 +324,10 @@ impl relm4::Component for FanCurveFrame {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let spindown_delay_adj =
-            OcAdjustment::new(DEFAULT_SPINDOWN_DELAY_MS as f64, 0.0, 30_000.0, 10.0, 10.0);
+            AdjustmentValue::new(DEFAULT_SPINDOWN_DELAY_MS as f64, 0.0, 30_000.0, 10.0, 10.0);
         let change_threshold_adj =
-            OcAdjustment::new(DEFAULT_CHANGE_THRESHOLD as f64, 0.0, 10.0, 1.0, 1.0);
-        let auto_threshold_adj = OcAdjustment::new(0.0, 0.0, 0.0, 1.0, 5.0);
+            AdjustmentValue::new(DEFAULT_CHANGE_THRESHOLD as f64, 0.0, 10.0, 1.0, 1.0);
+        let auto_threshold_adj = AdjustmentValue::new(0.0, 0.0, 0.0, 1.0, 5.0);
         let temp_keys = gtk::StringList::default();
         let current_temp_key = U32Binding::new(0u32);
 

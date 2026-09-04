@@ -7,7 +7,7 @@ use crate::app::pages::PageUpdate;
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::{oc_adjustment::OcAdjustment, page_section::PageSection},
+        components::{adjustment_value::AdjustmentValue, page_section::PageSection},
         msg::AppMsg,
         utils::ext::{RelmLaunchable as _, make_event_controller_no_scroll},
     },
@@ -61,17 +61,17 @@ pub struct ThermalsPage {
 
 #[derive(Clone, Default)]
 struct PmfwOptions {
-    target_temperature: OcAdjustment,
-    acoustic_limit: OcAdjustment,
-    acoustic_target: OcAdjustment,
-    minimum_pwm: OcAdjustment,
-    zero_rpm_temperature: OcAdjustment,
+    target_temperature: AdjustmentValue,
+    acoustic_limit: AdjustmentValue,
+    acoustic_target: AdjustmentValue,
+    minimum_pwm: AdjustmentValue,
+    zero_rpm_temperature: AdjustmentValue,
     zero_rpm_available: Rc<Cell<bool>>,
     zero_rpm: BoolBinding,
 }
 
 impl PmfwOptions {
-    fn adjustments(&self) -> [&OcAdjustment; 5] {
+    fn adjustments(&self) -> [&AdjustmentValue; 5] {
         [
             &self.target_temperature,
             &self.acoustic_limit,
@@ -88,12 +88,12 @@ impl PmfwOptions {
 
 #[derive(Clone, Default)]
 struct NvidiaThermalOptions {
-    target_temperature: OcAdjustment,
+    target_temperature: AdjustmentValue,
     target_temperaure_default: Option<u32>,
 }
 
 impl NvidiaThermalOptions {
-    fn adjustments(&self) -> [&OcAdjustment; 1] {
+    fn adjustments(&self) -> [&AdjustmentValue; 1] {
         [&self.target_temperature]
     }
 }
@@ -688,11 +688,11 @@ impl relm4::WidgetTemplate for FanSettingRow {
     }
 }
 
-fn adj_is_empty(adj: &OcAdjustment) -> bool {
+fn adj_is_empty(adj: &AdjustmentValue) -> bool {
     adj.lower() == 0.0 && adj.upper() == 0.0
 }
 
-fn set_fan_info(adjustment: &OcAdjustment, info: Option<FanInfo>) {
+fn set_fan_info(adjustment: &AdjustmentValue, info: Option<FanInfo>) {
     match info {
         Some(info) => {
             if let Some((min, max)) = info.allowed_range {

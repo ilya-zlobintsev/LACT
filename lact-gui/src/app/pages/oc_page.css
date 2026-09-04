@@ -2,15 +2,3 @@
     min-width: 400px;
     padding: 0;
 }
-
-.oc-feature-toggle-group {
-    background-color: alpha(@window_fg_color, 0.05);
-    border-radius: 9px 9px 0 0;
-    margin: -10px -10px 0; /* nulify parent's padding */
-    padding: 10px;
-}
-
-.oc-feature-toggle-group .oc-option-toggle:checked {
-    background-color: @accent_bg_color;
-    color: @accent_fg_color;
-}

@@ -1,13 +1,16 @@
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::{oc_adjustment::OcAdjustment, page_section::PageSection},
+        components::{
+            adjustment_card::AdjustmentCard, adjustment_row::AdjustmentRow,
+            adjustment_value::AdjustmentValue, page_section::PageSection,
+        },
         msg::AppMsg,
         pages::oc_page::{
             OcPageMsg,
             performance_frame::{PerformanceFrame, PerformanceFrameMsg},
         },
-        utils::ext::{RelmDefaultLauchable, make_event_controller_no_scroll},
+        utils::ext::RelmDefaultLauchable,
     },
 };
 use adw::prelude::*;
@@ -19,7 +22,7 @@ use relm4::{ComponentController, ComponentParts, ComponentSender};
 
 pub struct PowerFrame {
     power: PowerStats,
-    adjustment: OcAdjustment,
+    adjustment: AdjustmentValue,
     cap_available: bool,
     performance_frame: relm4::Controller<PerformanceFrame>,
 }
@@ -54,44 +57,37 @@ impl relm4::Component for PowerFrame {
                 #[watch]
                 set_visible: model.cap_available,
             },
-            // todo: refactor to adjustment-row
-            append_child = &gtk::Box {
-                set_orientation: gtk::Orientation::Horizontal,
-                set_spacing: 10,
-                #[watch]
-                set_visible: model.cap_available,
+            #[template]
+            append_child = &AdjustmentCard {
+                #[template_child]
+                content {
+                    #[template]
+                    #[name = "power_row"]
+                    AdjustmentRow {
+                        set_adjustment: adjustment,
+                        #[watch]
+                        set_visible: model.cap_available,
 
-                gtk::Label {
-                    set_label: &format!("{} ({})", fl!(I18N, "power-cap"), fl!(I18N, "watt")),
-                    set_xalign: 0.0,
-                },
+                        #[template_child]
+                        label {
+                            set_label: &format!("{} ({})", fl!(I18N, "power-cap"), fl!(I18N, "watt")),
+                        },
 
-                gtk::Scale {
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_hexpand: true,
-                    set_digits: 0,
-                    set_round_digits: 0,
-                    set_value_pos: gtk::PositionType::Right,
-                    set_width_request: 100,
-                    set_adjustment: adjustment,
-                    add_controller = make_event_controller_no_scroll(),
-                },
+                        #[template_child]
+                        spinbutton {
+                            connect_changed => move |_| {
+                                APP_BROKER.send(AppMsg::SettingsChanged);
+                            } @ text_change_signal,
+                        },
+                    },
 
-                #[name = "input_button"]
-                gtk::SpinButton {
-                    set_adjustment: adjustment,
-                    add_controller = make_event_controller_no_scroll(),
-                    connect_changed => move |_| {
-                        APP_BROKER.send(AppMsg::SettingsChanged);
-                    } @ text_change_signal,
+                    append: model.performance_frame.widget(),
                 },
             },
-
-            append_child = model.performance_frame.widget(),
         },
 
         #[local_ref]
-        adjustment -> OcAdjustment {
+        adjustment -> AdjustmentValue {
             connect_value_notify => move |_| {
                 APP_BROKER.send(AppMsg::SettingsChanged);
             } @ value_notify,
@@ -105,7 +101,7 @@ impl relm4::Component for PowerFrame {
     ) -> ComponentParts<Self> {
         let model = Self {
             power: PowerStats::default(),
-            adjustment: OcAdjustment::new(0.0, 0.0, 0.0, 1.0, 10.0),
+            adjustment: AdjustmentValue::new(0.0, 0.0, 0.0, 1.0, 10.0),
             cap_available: false,
             performance_frame: PerformanceFrame::launch_default()
                 .forward(sender.output_sender(), |msg| msg),
@@ -137,7 +133,8 @@ impl relm4::Component for PowerFrame {
                 // because relm's signal block macro feature doesn't seem to work with non-widget objects
                 self.adjustment.block_signal(&widgets.value_notify);
                 widgets
-                    .input_button
+                    .power_row
+                    .spinbutton
                     .block_signal(&widgets.text_change_signal);
 
                 self.adjustment.set_upper(power.cap_max.unwrap_or_default());
@@ -146,7 +143,8 @@ impl relm4::Component for PowerFrame {
                     .set_initial_value(power.cap_current.unwrap_or_default());
 
                 widgets
-                    .input_button
+                    .power_row
+                    .spinbutton
                     .unblock_signal(&widgets.text_change_signal);
                 self.adjustment.unblock_signal(&widgets.value_notify);
 

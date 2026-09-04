@@ -3,7 +3,9 @@ use super::power_states_list::{PowerStatesListMsg, PowerStatesListOptions};
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::page_section::PageSection, msg::AppMsg, pages::oc_page::OcPageMsg,
+        components::{adjustment_card::AdjustmentCard, page_section::PageSection},
+        msg::AppMsg,
+        pages::oc_page::OcPageMsg,
         utils::ext::RelmLaunchable as _,
     },
 };
@@ -16,7 +18,6 @@ use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
     ComponentController, ComponentParts, ComponentSender,
     binding::{Binding, BoolBinding},
-    css,
 };
 use std::sync::Arc;
 
@@ -59,60 +60,59 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
     view! {
         PageSection::new(&fl!(I18N, "pstates")) {
-            append_child = &gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
-                set_hexpand: true,
-                add_css_class: "oc-feature-toggle-group",
-                #[watch]
-                set_visible: model.performance_level.is_some(),
-
-                gtk::Label {
-                    set_label: &fl!(I18N, "advanced-features"),
-                    add_css_class: css::DIM_LABEL,
-                    add_css_class: css::CAPTION,
-                    set_halign: gtk::Align::Start,
+            #[template]
+            append_child = &AdjustmentCard {
+                #[template_child]
+                advanced_features {
+                    #[watch]
+                    set_visible: model.performance_level.is_some(),
                 },
 
-                gtk::ToggleButton {
-                    set_halign: gtk::Align::Start,
-                    add_css_class: "oc-option-toggle",
+                #[template_child]
+                controls {
+                    gtk::ToggleButton {
+                        set_halign: gtk::Align::Start,
+                        add_css_class: "oc-option-toggle",
 
-                    #[watch]
-                    #[block_signal(configured_toggled_handler)]
-                    set_active: model.states_configured.value(),
+                        #[watch]
+                        #[block_signal(configured_toggled_handler)]
+                        set_active: model.states_configured.value(),
 
-                    connect_toggled[sender] => move |button| {
-                        sender.input(PowerStatesFrameMsg::ConfiguredToggled {
-                            configured: button.is_active(),
-                            parent: button.clone().upcast(),
-                        });
-                    } @ configured_toggled_handler,
+                        connect_toggled[sender] => move |button| {
+                            sender.input(PowerStatesFrameMsg::ConfiguredToggled {
+                                configured: button.is_active(),
+                                parent: button.clone().upcast(),
+                            });
+                        } @ configured_toggled_handler,
 
-                    #[wrap(Some)]
-                    set_child = &gtk::Box {
-                        gtk::Label {
-                            set_label: &fl!(I18N, "enable-pstate-config"),
+                        #[wrap(Some)]
+                        set_child = &gtk::Box {
+                            gtk::Label {
+                                set_label: &fl!(I18N, "enable-pstate-config"),
+                            },
                         },
                     },
                 },
-            },
 
-            append_child = &gtk::Box {
-                set_spacing: 10,
-                set_orientation: gtk::Orientation::Horizontal,
-                set_homogeneous: true,
+                #[template_child]
+                content {
+                    gtk::Box {
+                        set_spacing: 10,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_homogeneous: true,
 
-                gtk::Box {
-                    #[watch]
-                    set_visible: !model.core_states_list.model().is_empty(),
-                    append = model.core_states_list.widget(),
-                },
+                        gtk::Box {
+                            #[watch]
+                            set_visible: !model.core_states_list.model().is_empty(),
+                            append = model.core_states_list.widget(),
+                        },
 
-                gtk::Box {
-                    #[watch]
-                    set_visible: !model.vram_states_list.model().is_empty(),
-                    append = model.vram_states_list.widget(),
+                        gtk::Box {
+                            #[watch]
+                            set_visible: !model.vram_states_list.model().is_empty(),
+                            append = model.vram_states_list.widget(),
+                        },
+                    },
                 },
             },
         }
