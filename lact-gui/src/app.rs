@@ -218,6 +218,32 @@ impl AsyncComponent for AppModel {
                                         set_vexpand: true,
                                     },
 
+                                    gtk::MenuButton {
+                                        set_margin_all: 8,
+                                        add_css_class: "oc-warning-button",
+                                        set_label: &fl!(I18N, "oc-warning-button"),
+                                        set_direction: gtk::ArrowType::Down,
+
+                                        #[wrap(Some)]
+                                        set_popover = &gtk::Popover {
+                                            set_position: gtk::PositionType::Top,
+
+                                            #[wrap(Some)]
+                                            set_child = &gtk::Box {
+                                                set_orientation: gtk::Orientation::Vertical,
+                                                set_spacing: 12,
+                                                set_margin_all: 12,
+
+                                                gtk::Label {
+                                                    set_markup: &fl!(I18N, "oc-warning-description"),
+                                                    set_xalign: 0.0,
+                                                    set_wrap: true,
+                                                    set_max_width_chars: 45,
+                                                },
+                                            },
+                                        },
+                                    },
+
                                     gtk::Separator {},
 
                                     gtk::Box {
