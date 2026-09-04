@@ -240,6 +240,11 @@ button:checked {
   box-shadow: none;
 }
 
+button.adjustment-card-option-toggle:checked {
+  background: @accent_bg_color;
+  color: @accent_fg_color;
+}
+
 button:focus {
   outline-color: @theme_button_decoration_focus_breeze;
 }

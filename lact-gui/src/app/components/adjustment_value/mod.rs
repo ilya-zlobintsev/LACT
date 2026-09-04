@@ -10,18 +10,18 @@ use std::sync::atomic::Ordering;
 use tracing::debug;
 
 glib::wrapper! {
-    pub struct OcAdjustment(ObjectSubclass<imp::OcAdjustment>)
+    pub struct AdjustmentValue(ObjectSubclass<imp::AdjustmentValue>)
         @extends gtk::Adjustment,
         @implements gtk::Actionable, gtk::Buildable, gtk::ConstraintTarget;
 }
 
-impl Default for OcAdjustment {
+impl Default for AdjustmentValue {
     fn default() -> Self {
         Object::builder().build()
     }
 }
 
-impl OcAdjustment {
+impl AdjustmentValue {
     pub fn new(
         value: f64,
         lower: f64,
@@ -29,18 +29,18 @@ impl OcAdjustment {
         step_increment: f64,
         page_increment: f64,
     ) -> Self {
-        let oc_adjustment = Self::default();
+        let adjustment_value = Self::default();
 
-        let adjustment = oc_adjustment.imp().obj();
+        let adjustment = adjustment_value.imp().obj();
         adjustment.set_lower(lower);
         adjustment.set_upper(upper);
         adjustment.set_step_increment(step_increment);
         adjustment.set_page_increment(page_increment);
         adjustment.set_page_size(0.0);
 
-        oc_adjustment.set_initial_value(value);
+        adjustment_value.set_initial_value(value);
 
-        oc_adjustment
+        adjustment_value
     }
 
     pub fn get_changed_value(&self, filter_zero: bool) -> Option<f64> {

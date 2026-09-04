@@ -113,6 +113,7 @@ revert-button = Revert
 settings-confirmation = Do you want to keep the new settings? (Reverting in {$seconds_left} seconds)
 
 power-cap = Power Usage Limit
+power-section = Power
 
 watt = W
 ghz = GHz
@@ -124,12 +125,14 @@ gibibyte = GiB
 
 stats-section = Statistics
 gpu-clock = GPU Core Clock
+core-section = Core
 gpu-clock-avg = GPU Core Clock (Average)
 gpu-clock-target = GPU Core Clock (Target)
 gpu-voltage = GPU Voltage
 gpu-temp = Temperature
 gpu-usage = GPU Usage
 vram-clock = VRAM Clock
+vram-section = VRAM
 power-usage = Power Usage
 extra-clocks = Extra Clocks
 no-throttling = No
@@ -151,9 +154,9 @@ performance-level-high-description = Always use the highest clockspeeds for GPU 
 performance-level-low-description = Always use the lowest clockspeeds for GPU and VRAM
 performance-level-manual-description = Manual performance control
 performance-level-profile-standard-description = Fixed profiling mode
-performance-level-profile-min-sclk-description = Profiling mode that forces the GPU clock to lowest level
-performance-level-profile-min-mclk-description = Profiling mode that forces the VRAM clock to lowest level
-performance-level-profile-peak-description = Profiling mode that forces GPU and VRAM clocks to highest levels
+performance-level-profile-min-sclk-description = forces the GPU clock to lowest level
+performance-level-profile-min-mclk-description = forces the VRAM clock to lowest level
+performance-level-profile-peak-description = forces GPU and VRAM clocks to highest levels
 
 performance-level = Performance Level
 power-profile-mode = Power Profile Mode:
@@ -169,22 +172,18 @@ power-mizer-mode-prefer-maximum-performance-description = Favor maximum performa
 power-mizer-mode-prefer-consistent-performance-description = Lock to GPU base clocks.
 
 overclock-section = Clockspeed and Voltage
-nvidia-oc-info = Overclocking Information
-nvidia-oc-description =
-    Overclocking functionality on Nvidia includes setting offsets for GPU/VRAM clockspeeds and limiting the potential range of clockspeeds using the "locked clocks" feature.
+oc-warning-button = Use at your own risk
+oc-warning-description =
+    Aggressive overclocking can cause visual artifacts, crashes, or freezes
 
-    On many cards, the VRAM clockpeed offset will only affect the actual memory clockspeed by half of the offset value.
-    For example, a +1000MHz VRAM offset may only increase the measured VRAM speed by 500MHz.
-    This is normal, and is how Nvidia handles GDDR data rates. Adjust your overclock accordingly.
+    Higher voltage can shorten GPU lifespan, even without overheating. Insufficient cooling can damage the hardware
 
-    It is possible to achieve a pseudo-undervolt by combining the locked clocks option with a positive clockspeed offset.
-    This will force the GPU to run at a voltage that's constrained by the locked clocks, while achieving a higher clockspeed due to the offset.
-    This can cause system instability if pushed too high.
-oc-warning = Changing these values may lead to system instability and can potentially damage your hardware!
-show-all-pstates = Show all P-States
-enable-gpu-locked-clocks = Enable GPU Locked Clocks
-enable-vram-locked-clocks = Enable VRAM Locked Clocks
-enable-vf-curve = Enable VF Curve Edit
+    <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock">Recovering from a bad overclock</a>
+advanced-features = Advanced features
+show-all-pstates = All P-States
+enable-gpu-locked-clocks = GPU Locked Clocks
+enable-vram-locked-clocks = VRAM Locked Clocks
+enable-vf-curve = VF Curve Edit
 pstate-list-description = <b>The following values are clock offsets for each P-State, going from highest to lowest.</b>
 no-clocks-data = No clocks data available
 reset-oc-tooltip = Warning: this resets all clock settings to defaults!
@@ -221,8 +220,8 @@ mem-pstate-clock-voltage = VRAM P-State {$pstate} Voltage (mV)
 pstates = Power States
 gpu-pstates = GPU Power States
 vram-pstates = VRAM Power States
-pstates-manual-needed = Performance level must be set to 'manual' to toggle power states
-enable-pstate-config = Enable power state configuration
+pstates-manual-needed = To enable P-State configuration, the performance level must be set to Manual.
+enable-pstate-config = P-State Configuration
 
 menu = Menu
 show-historical-charts = Show Graphs

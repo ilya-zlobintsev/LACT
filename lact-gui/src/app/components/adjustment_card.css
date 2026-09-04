@@ -1,0 +1,11 @@
+.adjustment-card-advanced-features {
+    background-color: alpha(@window_fg_color, 0.05);
+    border-radius: 9px 9px 0 0;
+    margin: -10px -10px 0; /* nulify parent's padding */
+    padding: 10px;
+}
+
+.adjustment-card-advanced-features .adjustment-card-option-toggle:checked {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}
