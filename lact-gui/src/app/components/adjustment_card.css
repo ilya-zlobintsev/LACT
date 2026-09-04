@@ -5,7 +5,7 @@
     padding: 10px;
 }
 
-.adjustment-card-advanced-features .oc-option-toggle:checked {
+.adjustment-card-advanced-features .adjustment-card-option-toggle:checked {
     background-color: @accent_bg_color;
     color: @accent_fg_color;
 }

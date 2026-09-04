@@ -240,7 +240,7 @@ button:checked {
   box-shadow: none;
 }
 
-button.oc-option-toggle:checked {
+button.adjustment-card-option-toggle:checked {
   background: @accent_bg_color;
   color: @accent_fg_color;
 }

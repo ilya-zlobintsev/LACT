@@ -145,7 +145,7 @@ impl relm4::Component for ClocksFrame {
                         #[watch]
                         set_visible: model.any_is_secondary(),
 
-                        add_css_class: "oc-option-toggle",
+                        add_css_class: "adjustment-card-option-toggle",
                         add_binding["active"]: &model.show_all_pstates,
 
                         #[wrap(Some)]
@@ -159,7 +159,7 @@ impl relm4::Component for ClocksFrame {
                     append: locked_clocks_togglebutton = &gtk::ToggleButton {
                         #[watch]
                         set_visible: model.show_nvidia_options,
-                        add_css_class: "oc-option-toggle",
+                        add_css_class: "adjustment-card-option-toggle",
                         add_binding["active"]: &model.enable_locked_clocks,
 
                         #[wrap(Some)]
@@ -181,7 +181,7 @@ impl relm4::Component for ClocksFrame {
                         set_visible: model.domain == ClockDomain::Gpu
                             && model.show_nvidia_options
                             && model.vf_curve_available,
-                        add_css_class: "oc-option-toggle",
+                        add_css_class: "adjustment-card-option-toggle",
                         add_css_class: css::WARNING,
                         add_binding["active"]: &model.vf_curve_editing,
 

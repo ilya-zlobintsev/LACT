@@ -72,7 +72,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 controls {
                     gtk::ToggleButton {
                         set_halign: gtk::Align::Start,
-                        add_css_class: "oc-option-toggle",
+                        add_css_class: "adjustment-card-option-toggle",
 
                         #[watch]
                         #[block_signal(configured_toggled_handler)]
