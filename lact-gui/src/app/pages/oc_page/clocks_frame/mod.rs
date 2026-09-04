@@ -3,12 +3,15 @@ mod adjustment_row;
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::{adjustment_card::AdjustmentCard, page_section::PageSection},
+        components::{
+            adjustment_card::AdjustmentCard, adjustment_row::AdjustmentRowMsg,
+            page_section::PageSection,
+        },
         msg::AppMsg,
         pages::oc_page::OcPageMsg,
     },
 };
-use adjustment_row::{ClockAdjustmentRow, ClockAdjustmentRowMsg, ClocksData};
+use adjustment_row::{ClockAdjustmentRow, ClocksData};
 use adw::prelude::*;
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
 use i18n_embed_fl::fl;
@@ -293,7 +296,7 @@ impl relm4::Component for ClocksFrame {
                 for clock_type in self.adjustments.keys() {
                     self.adjustments.send(
                         clock_type,
-                        ClockAdjustmentRowMsg::AddSizeGroup {
+                        AdjustmentRowMsg::AddSizeGroup {
                             label_group: label_size_group.clone(),
                             input_group: input_size_group.clone(),
                         },
@@ -314,7 +317,7 @@ impl relm4::Component for ClocksFrame {
                 for clock_type in self.adjustments.keys() {
                     if matches!(clock_type, ClockspeedType::GpuClockOffset(_)) {
                         self.adjustments
-                            .send(clock_type, ClockAdjustmentRowMsg::SetValue(0));
+                            .send(clock_type, AdjustmentRowMsg::SetValue(0.0));
                     }
                 }
             }
@@ -341,7 +344,7 @@ impl relm4::Component for ClocksFrame {
                         _ => !row.is_secondary || self.show_all_pstates.value(),
                     };
                     self.adjustments
-                        .send(clock_type, ClockAdjustmentRowMsg::SetVisible(visible));
+                        .send(clock_type, AdjustmentRowMsg::SetVisible(visible));
                 }
             }
         }
@@ -375,7 +378,7 @@ impl ClocksFrame {
             ) {
                 self.adjustments.send(
                     clock_type,
-                    ClockAdjustmentRowMsg::ValueRatio(self.vram_clock_ratio),
+                    AdjustmentRowMsg::ValueRatio(self.vram_clock_ratio),
                 );
             }
         }

@@ -1,24 +1,17 @@
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::{adjustment_row::AdjustmentRow, adjustment_value::AdjustmentValue},
+        components::adjustment_row::{AdjustmentRow, AdjustmentRowInit, AdjustmentRowMsg},
         msg::AppMsg,
+        utils::ext::RelmLaunchable,
     },
-};
-use gtk::{
-    glib::{SignalHandlerId, object::ObjectExt},
-    prelude::{AdjustmentExt, EditableExt, WidgetExt},
 };
 use i18n_embed_fl::fl;
 use lact_schema::request::ClockspeedType;
-use relm4::prelude::FactoryComponent;
+use relm4::{ComponentController, prelude::FactoryComponent};
 
 pub struct ClockAdjustmentRow {
-    clock_type: ClockspeedType,
-    custom_title: Option<String>,
-    value_ratio: f64,
-    change_signal: SignalHandlerId,
-    adjustment: AdjustmentValue,
+    row: relm4::Controller<AdjustmentRow>,
     pub(super) is_secondary: bool,
 }
 
@@ -55,70 +48,17 @@ impl ClocksData {
     }
 }
 
-#[derive(Debug)]
-pub enum ClockAdjustmentRowMsg {
-    ValueRatio(f64),
-    SetValue(i32),
-    SetVisible(bool),
-    AddSizeGroup {
-        label_group: gtk::SizeGroup,
-        input_group: gtk::SizeGroup,
-    },
-}
-
 #[relm4::factory(pub)]
 impl FactoryComponent for ClockAdjustmentRow {
     type ParentWidget = gtk::Box;
     type CommandOutput = ();
     type Init = ClocksData;
-    type Input = ClockAdjustmentRowMsg;
+    type Input = AdjustmentRowMsg;
     type Output = ();
     type Index = ClockspeedType;
 
     view! {
-        #[template]
-        #[name = "row"]
-        AdjustmentRow {
-            set_adjustment: &self.adjustment,
-            set_info_text: &if self.clock_type == ClockspeedType::VoltageBoost {
-                fl!(I18N, "gpu-voltage-boost-tooltip")
-            } else {
-                String::new()
-            },
-
-            #[template_child]
-            label {
-                set_markup: &match &self.custom_title {
-                    Some(title) => title.clone(),
-                    None => {
-                        match self.clock_type {
-                            ClockspeedType::MaxCoreClock => fl!(I18N, "max-gpu-clock"),
-                            ClockspeedType::MaxMemoryClock => fl!(I18N, "max-vram-clock"),
-                            ClockspeedType::MaxVoltage => fl!(I18N, "max-gpu-voltage"),
-                            ClockspeedType::MinCoreClock => fl!(I18N, "min-gpu-clock"),
-                            ClockspeedType::MinMemoryClock => fl!(I18N, "min-vram-clock"),
-                            ClockspeedType::MinVoltage => fl!(I18N, "min-gpu-voltage"),
-                            ClockspeedType::VoltageOffset => fl!(I18N, "gpu-voltage-offset"),
-                            ClockspeedType::VoltageBoost => fl!(I18N, "gpu-voltage-boost"),
-                            ClockspeedType::GpuClockOffset(pstate) => fl!(I18N, "gpu-pstate-clock-offset", pstate = pstate),
-                            ClockspeedType::MemClockOffset(pstate) => fl!(I18N, "vram-pstate-clock-offset", pstate = pstate),
-                            ClockspeedType::GpuVfCurveClock(pstate) => fl!(I18N, "gpu-pstate-clock", pstate = pstate),
-                            ClockspeedType::MemVfCurveClock(pstate) => fl!(I18N, "mem-pstate-clock", pstate = pstate),
-                            ClockspeedType::GpuVfCurveVoltage(pstate) => fl!(I18N, "gpu-pstate-clock-voltage", pstate = pstate),
-                            ClockspeedType::MemVfCurveVoltage(pstate) => fl!(I18N, "mem-pstate-clock-voltage", pstate = pstate),
-                            ClockspeedType::Reset => unreachable!(),
-                        }
-                    }
-                },
-            },
-
-            #[template_child]
-            spinbutton {
-                connect_changed => move |_| {
-                    APP_BROKER.send(AppMsg::SettingsChanged);
-                } @ text_change_signal,
-            },
-        }
+        self.row.widget().clone() -> gtk::Box {}
     }
 
     fn init_model(
@@ -126,86 +66,72 @@ impl FactoryComponent for ClockAdjustmentRow {
         clock_type: &Self::Index,
         _sender: relm4::FactorySender<Self>,
     ) -> Self {
-        let adjustment = AdjustmentValue::new(
-            data.current as f64,
-            data.min as f64,
-            data.max as f64,
-            data.step as f64,
-            10.0,
-        );
-
-        let change_signal = adjustment.connect_value_changed(move |_| {
-            APP_BROKER.send(AppMsg::SettingsChanged);
-        });
+        let title = data
+            .custom_title
+            .unwrap_or_else(|| clock_title(*clock_type));
+        let row = AdjustmentRow::launch(AdjustmentRowInit {
+            title,
+            info_text: if *clock_type == ClockspeedType::VoltageBoost {
+                fl!(I18N, "gpu-voltage-boost-tooltip")
+            } else {
+                String::new()
+            },
+            value: f64::from(data.current),
+            lower: f64::from(data.min),
+            upper: f64::from(data.max),
+            step_increment: f64::from(data.step),
+            ..Default::default()
+        })
+        .connect_receiver(|_, ()| APP_BROKER.send(AppMsg::SettingsChanged));
 
         Self {
-            clock_type: *clock_type,
-            custom_title: data.custom_title,
-            adjustment,
-            change_signal,
-            value_ratio: 1.0,
+            row,
             is_secondary: data.is_secondary,
         }
     }
 
-    fn update_with_view(
-        &mut self,
-        widgets: &mut Self::Widgets,
-        msg: Self::Input,
-        sender: relm4::FactorySender<Self>,
-    ) {
-        match msg {
-            ClockAdjustmentRowMsg::ValueRatio(ratio) => {
-                self.adjustment.block_signal(&self.change_signal);
-                widgets
-                    .row
-                    .spinbutton
-                    .block_signal(&widgets.text_change_signal);
-
-                let raw_current = self.adjustment.value() / self.value_ratio;
-                let raw_min = self.adjustment.lower() / self.value_ratio;
-                let raw_max = self.adjustment.upper() / self.value_ratio;
-
-                self.adjustment.set_lower(raw_min * ratio);
-                self.adjustment.set_upper(raw_max * ratio);
-                self.adjustment.set_initial_value(raw_current * ratio);
-
-                self.value_ratio = ratio;
-
-                widgets
-                    .row
-                    .spinbutton
-                    .unblock_signal(&widgets.text_change_signal);
-                self.adjustment.unblock_signal(&self.change_signal);
-            }
-            ClockAdjustmentRowMsg::AddSizeGroup {
-                label_group,
-                input_group,
-            } => {
-                label_group.add_widget(&widgets.row.title_box);
-                input_group.add_widget(&widgets.row.spinbutton);
-            }
-            ClockAdjustmentRowMsg::SetValue(value) => {
-                self.adjustment
-                    .set_value(f64::from(value) * self.value_ratio);
-            }
-            ClockAdjustmentRowMsg::SetVisible(visible) => {
-                widgets.row.set_visible(visible);
-            }
-        }
-
-        self.update_view(widgets, sender);
+    fn update(&mut self, msg: Self::Input, _sender: relm4::FactorySender<Self>) {
+        self.row.emit(msg);
     }
 }
 
 impl ClockAdjustmentRow {
     pub fn get_configured_value(&self) -> Option<i32> {
-        self.adjustment
-            .get_changed_value(false)
-            .map(|value| (value / self.value_ratio) as i32)
+        self.row
+            .model()
+            .get_changed_value()
+            .map(|value| value as i32)
     }
 
     pub fn get_raw_value(&self) -> i32 {
-        (self.adjustment.value() / self.value_ratio) as i32
+        self.row.model().get_value() as i32
+    }
+}
+
+fn clock_title(clock_type: ClockspeedType) -> String {
+    match clock_type {
+        ClockspeedType::MaxCoreClock => fl!(I18N, "max-gpu-clock"),
+        ClockspeedType::MaxMemoryClock => fl!(I18N, "max-vram-clock"),
+        ClockspeedType::MaxVoltage => fl!(I18N, "max-gpu-voltage"),
+        ClockspeedType::MinCoreClock => fl!(I18N, "min-gpu-clock"),
+        ClockspeedType::MinMemoryClock => fl!(I18N, "min-vram-clock"),
+        ClockspeedType::MinVoltage => fl!(I18N, "min-gpu-voltage"),
+        ClockspeedType::VoltageOffset => fl!(I18N, "gpu-voltage-offset"),
+        ClockspeedType::VoltageBoost => fl!(I18N, "gpu-voltage-boost"),
+        ClockspeedType::GpuClockOffset(pstate) => {
+            fl!(I18N, "gpu-pstate-clock-offset", pstate = pstate)
+        }
+        ClockspeedType::MemClockOffset(pstate) => {
+            fl!(I18N, "vram-pstate-clock-offset", pstate = pstate)
+        }
+        ClockspeedType::GpuVfCurveClock(pstate) => fl!(I18N, "gpu-pstate-clock", pstate = pstate),
+        ClockspeedType::MemVfCurveClock(pstate) => fl!(I18N, "mem-pstate-clock", pstate = pstate),
+        ClockspeedType::GpuVfCurveVoltage(pstate) => {
+            fl!(I18N, "gpu-pstate-clock-voltage", pstate = pstate)
+        }
+        ClockspeedType::MemVfCurveVoltage(pstate) => {
+            fl!(I18N, "mem-pstate-clock-voltage", pstate = pstate)
+        }
+        ClockspeedType::Reset => unreachable!(),
     }
 }
