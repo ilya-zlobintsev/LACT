@@ -182,7 +182,7 @@ nvidia-oc-description =
     This can cause system instability if pushed too high.
 oc-warning-button = Use at your own risk
 oc-warning-description =
-    Agressive overclock can cause visual artifacts, crashes, or freezes.
+    Aggressive overclocking can cause visual artifacts, crashes, or freezes
 
     Higher voltage can shorten GPU lifespan, even without overheating. Insufficient cooling can damage the hardware
 
