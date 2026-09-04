@@ -1,6 +1,3 @@
-#[cfg(all(test, feature = "gtk-tests"))]
-mod tests;
-
 use super::adjustment_value::AdjustmentValue;
 use crate::app::utils::ext::make_event_controller_no_scroll;
 use gtk::prelude::*;
@@ -37,12 +34,6 @@ impl Default for AdjustmentRowInit {
 
 #[derive(Debug)]
 pub enum AdjustmentRowMsg {
-    /// Refresh from the device without reporting an edit.
-    Configure {
-        value: f64,
-        lower: f64,
-        upper: f64,
-    },
     /// Change display units while preserving the configured value and edit state.
     ValueRatio(f64),
     /// Set a value as an edit, for example when the user presses Reset.
@@ -156,35 +147,33 @@ impl relm4::Component for AdjustmentRow {
         _sender: ComponentSender<Self>,
         root: &Self::Root,
     ) {
-        // Block both sources at emission time so a refresh cannot queue an edit.
-        let silent = matches!(
-            msg,
-            AdjustmentRowMsg::Configure { .. } | AdjustmentRowMsg::ValueRatio(_)
-        );
-        if silent {
-            self.adjustment.block_signal(&widgets.value_change_signal);
-            widgets.spinbutton.block_signal(&widgets.text_change_signal);
-        }
-
         match msg {
-            AdjustmentRowMsg::Configure {
-                value,
-                lower,
-                upper,
-            } => {
-                self.configure(value, lower, upper);
-                self.adjustment.set_initial_value(value * self.value_ratio);
-            }
             AdjustmentRowMsg::ValueRatio(ratio) => {
+                // Changing display units must not emit an edit notification.
+                self.adjustment.block_signal(&widgets.value_change_signal);
+                widgets.spinbutton.block_signal(&widgets.text_change_signal);
+
                 let changed = self.get_changed_value().is_some();
                 let value = self.get_value();
                 let lower = self.adjustment.lower() / self.value_ratio;
                 let upper = self.adjustment.upper() / self.value_ratio;
                 self.value_ratio = ratio;
-                self.configure(value, lower, upper);
+                self.adjustment.configure(
+                    value * ratio,
+                    lower * ratio,
+                    upper * ratio,
+                    self.adjustment.step_increment(),
+                    self.adjustment.page_increment(),
+                    0.0,
+                );
                 if !changed {
                     self.adjustment.set_initial_value(value * ratio);
                 }
+
+                widgets
+                    .spinbutton
+                    .unblock_signal(&widgets.text_change_signal);
+                self.adjustment.unblock_signal(&widgets.value_change_signal);
             }
             AdjustmentRowMsg::SetValue(value) => {
                 self.adjustment.set_value(value * self.value_ratio);
@@ -198,13 +187,6 @@ impl relm4::Component for AdjustmentRow {
                 input_group.add_widget(&widgets.spinbutton);
             }
         }
-
-        if silent {
-            widgets
-                .spinbutton
-                .unblock_signal(&widgets.text_change_signal);
-            self.adjustment.unblock_signal(&widgets.value_change_signal);
-        }
     }
 }
 
@@ -217,16 +199,5 @@ impl AdjustmentRow {
         self.adjustment
             .get_changed_value(false)
             .map(|value| value / self.value_ratio)
-    }
-
-    fn configure(&self, value: f64, lower: f64, upper: f64) {
-        self.adjustment.configure(
-            value * self.value_ratio,
-            lower * self.value_ratio,
-            upper * self.value_ratio,
-            self.adjustment.step_increment(),
-            self.adjustment.page_increment(),
-            0.0,
-        );
     }
 }

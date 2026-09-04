@@ -23,8 +23,7 @@ use relm4::{ComponentController, ComponentParts, ComponentSender};
 
 pub struct PowerFrame {
     power: PowerStats,
-    power_row: relm4::Controller<AdjustmentRow>,
-    cap_available: bool,
+    power_row: Option<relm4::Controller<AdjustmentRow>>,
     performance_frame: relm4::Controller<PerformanceFrame>,
 }
 
@@ -37,10 +36,11 @@ pub enum PowerFrameMsg {
 }
 
 #[relm4::component(pub)]
-impl relm4::SimpleComponent for PowerFrame {
+impl relm4::Component for PowerFrame {
     type Init = ();
     type Input = PowerFrameMsg;
     type Output = OcPageMsg;
+    type CommandOutput = ();
 
     view! {
         #[root]
@@ -55,15 +55,17 @@ impl relm4::SimpleComponent for PowerFrame {
                 set_halign: gtk::Align::End,
                 set_hexpand: true,
                 #[watch]
-                set_visible: model.cap_available,
+                set_visible: model.power_row.is_some(),
             },
             #[template]
             append_child = &AdjustmentCard {
                 #[template_child]
                 content {
-                    append = &model.power_row.widget().clone() -> gtk::Box {
+                    #[name = "power_row_box"]
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
                         #[watch]
-                        set_visible: model.cap_available,
+                        set_visible: model.power_row.is_some(),
                     },
 
                     append: model.performance_frame.widget(),
@@ -79,12 +81,7 @@ impl relm4::SimpleComponent for PowerFrame {
     ) -> ComponentParts<Self> {
         let model = Self {
             power: PowerStats::default(),
-            power_row: AdjustmentRow::launch(AdjustmentRowInit {
-                title: format!("{} ({})", fl!(I18N, "power-cap"), fl!(I18N, "watt")),
-                ..Default::default()
-            })
-            .connect_receiver(|_, ()| APP_BROKER.send(AppMsg::SettingsChanged)),
-            cap_available: false,
+            power_row: None,
             performance_frame: PerformanceFrame::launch_default()
                 .forward(sender.output_sender(), |msg| msg),
         };
@@ -101,38 +98,60 @@ impl relm4::SimpleComponent for PowerFrame {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: ComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
         match msg {
             PowerFrameMsg::PowerStats(power) => {
-                self.power_row.emit(AdjustmentRowMsg::Configure {
-                    value: power.cap_current.unwrap_or_default(),
-                    lower: power.cap_min.unwrap_or_default(),
-                    upper: power.cap_max.unwrap_or_default(),
-                });
+                if let Some(row) = self.power_row.take() {
+                    widgets.power_row_box.remove(row.widget());
+                }
+
+                if let Some(value) = power.cap_current {
+                    let row = AdjustmentRow::launch(AdjustmentRowInit {
+                        title: format!("{} ({})", fl!(I18N, "power-cap"), fl!(I18N, "watt")),
+                        value,
+                        lower: power.cap_min.unwrap_or_default(),
+                        upper: power.cap_max.unwrap_or_default(),
+                        ..Default::default()
+                    })
+                    .connect_receiver(|_, ()| APP_BROKER.send(AppMsg::SettingsChanged));
+
+                    widgets.power_row_box.append(row.widget());
+                    self.power_row = Some(row);
+                }
 
                 self.power = power;
-                self.cap_available = self.power.cap_current.is_some();
             }
             PowerFrameMsg::Performance(msg) => {
                 self.performance_frame.emit(msg);
             }
             PowerFrameMsg::RefreshVisibility => (),
             PowerFrameMsg::Reset => {
-                self.power_row.emit(AdjustmentRowMsg::SetValue(
-                    self.power.cap_default.unwrap_or_default(),
-                ));
+                if let Some(row) = &self.power_row {
+                    row.emit(AdjustmentRowMsg::SetValue(
+                        self.power.cap_default.unwrap_or_default(),
+                    ));
+                }
             }
         }
+
+        self.update_view(widgets, sender);
     }
 }
 
 impl PowerFrame {
     fn is_available(&self) -> bool {
-        self.cap_available || self.performance_frame.widget().get_visible()
+        self.power_row.is_some() || self.performance_frame.widget().get_visible()
     }
 
     pub fn get_user_cap(&self) -> Option<f64> {
         self.power_row
+            .as_ref()?
             .model()
             .get_changed_value()
             .filter(|value| *value != 0.0)
