@@ -21,9 +21,6 @@ pub struct PowerFrame {
     power: PowerStats,
     adjustment: OcAdjustment,
     cap_available: bool,
-    performance_level_available: bool,
-    power_profile_available: bool,
-    power_mizer_available: bool,
     performance_frame: relm4::Controller<PerformanceFrame>,
 }
 
@@ -31,6 +28,7 @@ pub struct PowerFrame {
 pub enum PowerFrameMsg {
     PowerStats(PowerStats),
     Performance(PerformanceFrameMsg),
+    RefreshVisibility,
     Reset,
 }
 
@@ -79,12 +77,13 @@ impl relm4::Component for PowerFrame {
                     add_controller = make_event_controller_no_scroll(),
                 },
 
+                #[name = "input_button"]
                 gtk::SpinButton {
                     set_adjustment: adjustment,
                     add_controller = make_event_controller_no_scroll(),
                     connect_changed => move |_| {
                         APP_BROKER.send(AppMsg::SettingsChanged);
-                    },
+                    } @ text_change_signal,
                 },
             },
 
@@ -108,12 +107,16 @@ impl relm4::Component for PowerFrame {
             power: PowerStats::default(),
             adjustment: OcAdjustment::new(0.0, 0.0, 0.0, 1.0, 10.0),
             cap_available: false,
-            performance_level_available: false,
-            power_profile_available: false,
-            power_mizer_available: false,
             performance_frame: PerformanceFrame::launch_default()
                 .forward(sender.output_sender(), |msg| msg),
         };
+        let visibility_sender = sender.clone();
+        model
+            .performance_frame
+            .widget()
+            .connect_visible_notify(move |_| {
+                visibility_sender.input(PowerFrameMsg::RefreshVisibility);
+            });
         let adjustment = &model.adjustment;
 
         let widgets = view_output!();
@@ -133,33 +136,27 @@ impl relm4::Component for PowerFrame {
                 // The signal blocking has to be manual,
                 // because relm's signal block macro feature doesn't seem to work with non-widget objects
                 self.adjustment.block_signal(&widgets.value_notify);
+                widgets
+                    .input_button
+                    .block_signal(&widgets.text_change_signal);
 
                 self.adjustment.set_upper(power.cap_max.unwrap_or_default());
                 self.adjustment.set_lower(power.cap_min.unwrap_or_default());
                 self.adjustment
                     .set_initial_value(power.cap_current.unwrap_or_default());
 
+                widgets
+                    .input_button
+                    .unblock_signal(&widgets.text_change_signal);
                 self.adjustment.unblock_signal(&widgets.value_notify);
 
                 self.power = power;
                 self.cap_available = self.power.cap_current.is_some();
             }
             PowerFrameMsg::Performance(msg) => {
-                match &msg {
-                    PerformanceFrameMsg::PerformanceLevel(level) => {
-                        self.performance_level_available = level.is_some();
-                    }
-                    PerformanceFrameMsg::PowerProfileModes(table) => {
-                        self.power_profile_available = table.is_some();
-                    }
-                    PerformanceFrameMsg::PowerMizerInfo { active, .. } => {
-                        self.power_mizer_available = active.is_some();
-                    }
-                    PerformanceFrameMsg::PowerProfileSelected(_)
-                    | PerformanceFrameMsg::PowerMizerSelected(_) => {}
-                }
                 self.performance_frame.emit(msg);
             }
+            PowerFrameMsg::RefreshVisibility => (),
             PowerFrameMsg::Reset => {
                 self.adjustment
                     .set_value(self.power.cap_default.unwrap_or_default());
@@ -172,10 +169,7 @@ impl relm4::Component for PowerFrame {
 
 impl PowerFrame {
     fn is_available(&self) -> bool {
-        self.cap_available
-            || self.performance_level_available
-            || self.power_profile_available
-            || self.power_mizer_available
+        self.cap_available || self.performance_frame.widget().get_visible()
     }
 
     pub fn get_user_cap(&self) -> Option<f64> {
