@@ -172,7 +172,13 @@ power-mizer-mode-prefer-maximum-performance-description = Favor maximum performa
 power-mizer-mode-prefer-consistent-performance-description = Lock to GPU base clocks.
 
 overclock-section = Clockspeed and Voltage
-oc-warning = Changing these values may lead to system instability and can potentially damage your hardware!
+oc-warning-button = Use at your own risk
+oc-warning-description =
+    Aggressive overclocking can cause visual artifacts, crashes, or freezes
+
+    Higher voltage can shorten GPU lifespan, even without overheating. Insufficient cooling can damage the hardware
+
+    <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock">Recovering from a bad overclock</a>
 advanced-features = Advanced features
 show-all-pstates = All P-States
 enable-gpu-locked-clocks = GPU Locked Clocks
