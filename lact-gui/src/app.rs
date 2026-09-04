@@ -228,18 +228,12 @@ impl AsyncComponent for AppModel {
                                         set_popover = &gtk::Popover {
                                             set_position: gtk::PositionType::Top,
 
-                                            #[wrap(Some)]
-                                            set_child = &gtk::Box {
-                                                set_orientation: gtk::Orientation::Vertical,
-                                                set_spacing: 12,
+                                            gtk::Label {
                                                 set_margin_all: 12,
-
-                                                gtk::Label {
-                                                    set_markup: &fl!(I18N, "oc-warning-description"),
-                                                    set_xalign: 0.0,
-                                                    set_wrap: true,
-                                                    set_max_width_chars: 45,
-                                                },
+                                                set_markup: &fl!(I18N, "oc-warning-description"),
+                                                set_xalign: 0.0,
+                                                set_wrap: true,
+                                                set_max_width_chars: 45,
                                             },
                                         },
                                     },
