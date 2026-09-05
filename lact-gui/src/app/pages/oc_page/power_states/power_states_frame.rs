@@ -26,7 +26,7 @@ pub struct PowerStatesFrame {
     core_states_list: relm4::Controller<PowerStatesList>,
     vram_states_list: relm4::Controller<PowerStatesList>,
     states_configurable: BoolBinding,
-    states_configured: BoolBinding,
+    states_configuration_enabled: BoolBinding,
     performance_level: Option<PerformanceLevel>,
     configured_signal: SignalHandlerId,
     vram_clock_ratio: f64,
@@ -67,7 +67,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
                 gtk::CheckButton {
                     set_label: Some(&fl!(I18N, "enable-pstate-config")),
-                    add_binding: (&model.states_configured, "active"),
+                    add_binding: (&model.states_configuration_enabled, "active"),
                     #[watch]
                     set_visible: model.performance_level.is_some(),
                     #[watch]
@@ -108,20 +108,21 @@ impl relm4::SimpleComponent for PowerStatesFrame {
             value_suffix: fl!(I18N, "mhz"),
         });
 
-        let states_configured = BoolBinding::new(false);
+        let states_configuration_enabled = BoolBinding::new(false);
 
-        let configured_signal = states_configured.connect_value_notify(move |states_configured| {
-            sender.input(PowerStatesFrameMsg::InternalConfigurableChanged(
-                states_configured.get(),
-            ));
-            APP_BROKER.send(AppMsg::SettingsChanged);
-        });
+        let configured_signal =
+            states_configuration_enabled.connect_value_notify(move |states_configured| {
+                sender.input(PowerStatesFrameMsg::InternalConfigurableChanged(
+                    states_configured.get(),
+                ));
+                APP_BROKER.send(AppMsg::SettingsChanged);
+            });
 
         let model = Self {
             core_states_list,
             vram_states_list,
             states_configurable: BoolBinding::new(false),
-            states_configured,
+            states_configuration_enabled,
             configured_signal,
             performance_level: None,
             vram_clock_ratio: 1.0,
@@ -138,9 +139,10 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 pstates,
                 configured,
             } => {
-                self.states_configured.block_signal(&self.configured_signal);
-                self.states_configured.set_value(configured);
-                self.states_configured
+                self.states_configuration_enabled
+                    .block_signal(&self.configured_signal);
+                self.states_configuration_enabled.set_value(configured);
+                self.states_configuration_enabled
                     .unblock_signal(&self.configured_signal);
 
                 self.core_states_list
@@ -161,23 +163,26 @@ impl relm4::SimpleComponent for PowerStatesFrame {
             PowerStatesFrameMsg::VramClockRatio(ratio) => {
                 self.vram_clock_ratio = ratio;
             }
-            PowerStatesFrameMsg::Configurable(configurable) => {
-                let value = configurable
+            PowerStatesFrameMsg::Configurable(is_plvl_manual) => {
+                let configurable = is_plvl_manual
                     && (!self.core_states_list.model().is_empty()
                         || !self.vram_states_list.model().is_empty());
-                self.states_configurable.set_value(value);
+                self.states_configurable.set_value(configurable);
 
-                self.core_states_list
-                    .emit(PowerStatesListMsg::Configurable(value));
-                self.vram_states_list
-                    .emit(PowerStatesListMsg::Configurable(value));
-
-                if !value {
-                    self.states_configured.block_signal(&self.configured_signal);
-                    self.states_configured.set_value(false);
-                    self.states_configured
+                if !configurable {
+                    self.states_configuration_enabled
+                        .block_signal(&self.configured_signal);
+                    self.states_configuration_enabled.set_value(false);
+                    self.states_configuration_enabled
                         .unblock_signal(&self.configured_signal);
                 }
+
+                self.core_states_list.emit(PowerStatesListMsg::Configurable(
+                    configurable && self.states_configuration_enabled.value(),
+                ));
+                self.vram_states_list.emit(PowerStatesListMsg::Configurable(
+                    configurable && self.states_configuration_enabled.value(),
+                ));
             }
             PowerStatesFrameMsg::PerformanceLevel(level) => {
                 self.performance_level = level;
@@ -194,7 +199,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
 impl PowerStatesFrame {
     pub fn get_enabled_power_states(&self) -> IndexMap<PowerLevelKind, Vec<u8>> {
-        if self.states_configured.value() {
+        if self.states_configuration_enabled.value() {
             let state_types = [
                 (PowerLevelKind::CoreClock, &self.core_states_list),
                 (PowerLevelKind::MemoryClock, &self.vram_states_list),
