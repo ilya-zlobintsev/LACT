@@ -850,6 +850,24 @@ impl AppModel {
                 self.overdrive_dialog.emit(OverdriveDialogMsg::Loaded);
                 result?;
             }
+            AppMsg::EnablePstateConfig => {
+                self.info_dialog
+                    .emit(InfoDialogMsg::Show(Box::new(InfoDialogData {
+                        id: InfoDialogId::EnablePstateConfigConfirmation,
+                        heading: fl!(I18N, "enable-pstate-config"),
+                        body: fl!(I18N, "pstates-manual-needed"),
+                        confirmation: Some(InfoDialogConfirmation {
+                            confirm_label: fl!(I18N, "confirm"),
+                            cancel_label: fl!(I18N, "cancel"),
+                            appearance: adw::ResponseAppearance::Suggested,
+                            confirm_msg: AppMsg::EnablePstateConfigConfirmed,
+                        }),
+                        ..Default::default()
+                    })));
+            }
+            AppMsg::EnablePstateConfigConfirmed => {
+                self.oc_page.emit(OcPageMsg::EnablePstateConfig);
+            }
             AppMsg::ResetConfig => {
                 self.info_dialog
                     .emit(InfoDialogMsg::Show(Box::new(InfoDialogData {

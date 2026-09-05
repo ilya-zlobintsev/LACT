@@ -151,9 +151,9 @@ performance-level-high-description = Always use the highest clockspeeds for GPU 
 performance-level-low-description = Always use the lowest clockspeeds for GPU and VRAM
 performance-level-manual-description = Manual performance control
 performance-level-profile-standard-description = Fixed profiling mode
-performance-level-profile-min-sclk-description = Profiling mode that forces the GPU clock to lowest level
-performance-level-profile-min-mclk-description = Profiling mode that forces the VRAM clock to lowest level
-performance-level-profile-peak-description = Profiling mode that forces GPU and VRAM clocks to highest levels
+performance-level-profile-min-sclk-description = Forces the GPU clock to lowest level
+performance-level-profile-min-mclk-description = Forces the VRAM clock to lowest level
+performance-level-profile-peak-description = Forces GPU and VRAM clocks to highest levels
 
 performance-level = Performance Level
 power-profile-mode = Power Profile Mode:
@@ -180,7 +180,6 @@ nvidia-oc-description =
     It is possible to achieve a pseudo-undervolt by combining the locked clocks option with a positive clockspeed offset.
     This will force the GPU to run at a voltage that's constrained by the locked clocks, while achieving a higher clockspeed due to the offset.
     This can cause system instability if pushed too high.
-oc-warning = Changing these values may lead to system instability and can potentially damage your hardware!
 show-all-pstates = Show all P-States
 enable-gpu-locked-clocks = Enable GPU Locked Clocks
 enable-vram-locked-clocks = Enable VRAM Locked Clocks
@@ -221,8 +220,8 @@ mem-pstate-clock-voltage = VRAM P-State {$pstate} Voltage (mV)
 pstates = Power States
 gpu-pstates = GPU Power States
 vram-pstates = VRAM Power States
-pstates-manual-needed = Performance level must be set to 'manual' to toggle power states
-enable-pstate-config = Enable power state configuration
+pstates-manual-needed = To enable P-State configuration, the performance level must be set to Manual.
+enable-pstate-config = P-State Configuration
 
 menu = Menu
 show-historical-charts = Show Graphs

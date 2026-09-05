@@ -17,6 +17,7 @@ pub enum InfoDialogId {
     Unknown,
     Error,
     ResetConfigConfirmation,
+    EnablePstateConfigConfirmation,
 }
 
 #[derive(Clone, Debug, Default)]
