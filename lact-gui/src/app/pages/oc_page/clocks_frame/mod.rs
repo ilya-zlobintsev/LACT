@@ -112,14 +112,6 @@ impl relm4::Component for ClocksFrame {
                 },
             },
 
-            append_child = &gtk::Label {
-                set_label: &fl!(I18N, "oc-warning"),
-                set_wrap_mode: pango::WrapMode::Word,
-                set_halign: gtk::Align::Start,
-                add_css_class: css::WARNING,
-                add_css_class: css::DIM_LABEL,
-            },
-
             append_child = &gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,

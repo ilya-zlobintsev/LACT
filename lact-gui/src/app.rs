@@ -218,6 +218,26 @@ impl AsyncComponent for AppModel {
                                         set_vexpand: true,
                                     },
 
+                                    gtk::MenuButton {
+                                        set_margin_all: 8,
+                                        add_css_class: "oc-warning-button",
+                                        set_label: &fl!(I18N, "oc-warning-button"),
+                                        set_direction: gtk::ArrowType::Down,
+
+                                        #[wrap(Some)]
+                                        set_popover = &gtk::Popover {
+                                            set_position: gtk::PositionType::Top,
+
+                                            gtk::Label {
+                                                set_margin_all: 12,
+                                                set_markup: &fl!(I18N, "oc-warning-description"),
+                                                set_xalign: 0.0,
+                                                set_wrap: true,
+                                                set_max_width_chars: 45,
+                                            },
+                                        },
+                                    },
+
                                     gtk::Separator {},
 
                                     gtk::Box {
@@ -849,6 +869,24 @@ impl AppModel {
                 let result = self.daemon_client.disable_overdrive().await;
                 self.overdrive_dialog.emit(OverdriveDialogMsg::Loaded);
                 result?;
+            }
+            AppMsg::EnablePstateConfig => {
+                self.info_dialog
+                    .emit(InfoDialogMsg::Show(Box::new(InfoDialogData {
+                        id: InfoDialogId::EnablePstateConfigConfirmation,
+                        heading: fl!(I18N, "enable-pstate-config"),
+                        body: fl!(I18N, "pstates-manual-needed"),
+                        confirmation: Some(InfoDialogConfirmation {
+                            confirm_label: fl!(I18N, "confirm"),
+                            cancel_label: fl!(I18N, "cancel"),
+                            appearance: adw::ResponseAppearance::Suggested,
+                            confirm_msg: AppMsg::EnablePstateConfigConfirmed,
+                        }),
+                        ..Default::default()
+                    })));
+            }
+            AppMsg::EnablePstateConfigConfirmed => {
+                self.oc_page.emit(OcPageMsg::EnablePstateConfig);
             }
             AppMsg::ResetConfig => {
                 self.info_dialog

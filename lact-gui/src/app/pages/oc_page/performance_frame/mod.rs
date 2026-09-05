@@ -14,7 +14,7 @@ use gtk::{
 use heuristics_list::PowerProfileHeuristicsList;
 use i18n_embed_fl::fl;
 use nvml_wrapper::enums::device::PowerMizerMode;
-use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
+use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt, css};
 
 const PERFORMANCE_LEVELS: [PerformanceLevel; 8] = [
     PerformanceLevel::Auto,
@@ -67,28 +67,39 @@ impl relm4::Component for PerformanceFrame {
                 #[watch]
                 set_visible: model.performance_level.is_some(),
 
-                gtk::Label {
-                    set_label: &fl!(I18N, "performance-level"),
-                },
-
-                gtk::Label {
-                    #[watch]
-                    set_label: &match model.performance_level {
-                        Some(PerformanceLevel::Auto) => fl!(I18N, "performance-level-auto-description"),
-                        Some(PerformanceLevel::High) => fl!(I18N, "performance-level-high-description"),
-                        Some(PerformanceLevel::Low) => fl!(I18N, "performance-level-low-description"),
-                        Some(PerformanceLevel::Manual) => fl!(I18N, "performance-level-manual-description"),
-                        Some(PerformanceLevel::ProfileStandard) => fl!(I18N, "performance-level-profile-standard-description"),
-                        Some(PerformanceLevel::ProfileMinSclk) => fl!(I18N, "performance-level-profile-min-sclk-description"),
-                        Some(PerformanceLevel::ProfileMinMclk) => fl!(I18N, "performance-level-profile-min-mclk-description"),
-                        Some(PerformanceLevel::ProfilePeak) => fl!(I18N, "performance-level-profile-peak-description"),
-                        _ => String::new(),
-                    },
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
                     set_hexpand: true,
-                    set_halign: gtk::Align::End,
+                    set_valign: gtk::Align::Center,
+
+                    gtk::Label {
+                        set_label: &fl!(I18N, "performance-level"),
+                        set_halign: gtk::Align::Start,
+                    },
+
+                    gtk::Label {
+                        #[watch]
+                        set_label: &match model.performance_level {
+                            Some(PerformanceLevel::Auto) => fl!(I18N, "performance-level-auto-description"),
+                            Some(PerformanceLevel::High) => fl!(I18N, "performance-level-high-description"),
+                            Some(PerformanceLevel::Low) => fl!(I18N, "performance-level-low-description"),
+                            Some(PerformanceLevel::Manual) => fl!(I18N, "performance-level-manual-description"),
+                            Some(PerformanceLevel::ProfileStandard) => fl!(I18N, "performance-level-profile-standard-description"),
+                            Some(PerformanceLevel::ProfileMinSclk) => fl!(I18N, "performance-level-profile-min-sclk-description"),
+                            Some(PerformanceLevel::ProfileMinMclk) => fl!(I18N, "performance-level-profile-min-mclk-description"),
+                            Some(PerformanceLevel::ProfilePeak) => fl!(I18N, "performance-level-profile-peak-description"),
+                            _ => String::new(),
+                        },
+                        set_halign: gtk::Align::Start,
+                        set_xalign: 0.0,
+                        set_wrap: true,
+                        add_css_class: css::DIM_LABEL,
+                        add_css_class: css::CAPTION,
+                    },
                 },
 
                 gtk::DropDown::from_strings(&level_names_ref) {
+                    set_valign: gtk::Align::Center,
                     #[watch]
                     #[block_signal(level_select_handler)]
                     set_selected: PERFORMANCE_LEVELS.iter().position(|level| model.performance_level == Some(*level)).unwrap_or(0) as u32,
@@ -97,7 +108,6 @@ impl relm4::Component for PerformanceFrame {
                         let idx = dropdown.selected();
                         if let Some(level) = PERFORMANCE_LEVELS.get(idx as usize) {
                             sender.input(PerformanceFrameMsg::PerformanceLevel(Some(*level)));
-                            sender.output(OcPageMsg::PerformanceLevelChanged).unwrap();
                             APP_BROKER.send(AppMsg::SettingsChanged);
                         }
                     } @ level_select_handler,
@@ -179,25 +189,36 @@ impl relm4::Component for PerformanceFrame {
                 #[watch]
                 set_visible: model.active_power_mizer_mode.is_some(),
 
-                gtk::Label {
-                    set_label: &fl!(I18N, "power-mizer-mode"),
-                },
-
-                gtk::Label {
-                    #[watch]
-                    set_label: &match model.active_power_mizer_mode {
-                        Some(PowerMizerMode::Auto) => fl!(I18N, "power-mizer-mode-auto-description"),
-                        Some(PowerMizerMode::Adaptive) => fl!(I18N, "power-mizer-mode-adaptive-description"),
-                        Some(PowerMizerMode::PreferMaximumPerformance) => fl!(I18N, "power-mizer-mode-prefer-maximum-performance-description"),
-                        Some(PowerMizerMode::PreferConsistentPerformance) => fl!(I18N, "power-mizer-mode-prefer-consistent-performance-description"),
-                        None => String::new(),
-                    },
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
                     set_hexpand: true,
-                    set_halign: gtk::Align::End,
+                    set_valign: gtk::Align::Center,
+
+                    gtk::Label {
+                        set_label: &fl!(I18N, "power-mizer-mode"),
+                        set_halign: gtk::Align::Start,
+                    },
+
+                    gtk::Label {
+                        #[watch]
+                        set_label: &match model.active_power_mizer_mode {
+                            Some(PowerMizerMode::Auto) => fl!(I18N, "power-mizer-mode-auto-description"),
+                            Some(PowerMizerMode::Adaptive) => fl!(I18N, "power-mizer-mode-adaptive-description"),
+                            Some(PowerMizerMode::PreferMaximumPerformance) => fl!(I18N, "power-mizer-mode-prefer-maximum-performance-description"),
+                            Some(PowerMizerMode::PreferConsistentPerformance) => fl!(I18N, "power-mizer-mode-prefer-consistent-performance-description"),
+                            None => String::new(),
+                        },
+                        set_halign: gtk::Align::Start,
+                        set_xalign: 0.0,
+                        set_wrap: true,
+                        add_css_class: css::DIM_LABEL,
+                        add_css_class: css::CAPTION,
+                    },
                 },
 
                 #[name = "power_mizer_dropdown"]
                 gtk::DropDown {
+                    set_valign: gtk::Align::Center,
                     #[watch]
                     #[block_signal(power_mizer_select_handler)]
                     set_model: Some(&model.power_mizer_modes),
@@ -251,6 +272,7 @@ impl relm4::Component for PerformanceFrame {
         match msg {
             PerformanceFrameMsg::PerformanceLevel(level) => {
                 self.performance_level = level;
+                sender.output(OcPageMsg::PerformanceLevelChanged).unwrap();
             }
             PerformanceFrameMsg::PowerProfileModes(table) => {
                 while self.power_profile_modes.n_items() != 0 {
