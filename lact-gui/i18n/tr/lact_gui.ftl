@@ -172,7 +172,6 @@ nvidia-vf-curve-warning =
     Voltaj-frekans eğrisi düzenleyicisi belgelenmemiş sürücü işlevlerine dayanır.
     Davranışı, güvenliği veya kullanılabilirliği konusunda hiçbir garanti yoktur.
     <span weight = "heavy" underline = "single">Kendi riskinizle kullanın</span>.
-vf-curve-enable-editing = Düzenlemeyi Etkinleştir
 voltage = Voltaj
 frequency = Frekans
 vf-active-curve = Etkin Eğri
@@ -227,7 +226,7 @@ service-explanation =
     GPU ayarlarını uygulamak LACT sistem hizmetini gerektirir.
     Bu hizmet olmadan LACT, yalnızca bilgi ve izleme özelliklerinin kullanılabildiği bağımsız modda çalışır.
 service-setup-title = Hizmet Kurulumu
-setup-error = Kurulum hatası: {$error}
+setup-error = Kurulum hatası: { $error }
 service-connection-status = Bağlantı Durumu
 service-status = Hizmet Durumu
 service-permission-denied =
@@ -245,10 +244,10 @@ service-restart = Yeniden Başlat
 service-autostart = Açılışta otomatik başlat
 service-autostart-disable = Otomatik başlatmayı da devre dışı bırak
 version-mismatch-description =
-    GUI ve daemon sürümleri eşleşmiyor ({$gui_version}-{$gui_commit} ile {$daemon_version}-{$daemon_commit})!
+    GUI ve daemon sürümleri eşleşmiyor ({ $gui_version }-{ $gui_commit } ile { $daemon_version }-{ $daemon_commit })!
     LACT'yi güncellediyseniz hizmeti yeniden başlatmanız gerekir.
 plot-show-detailed-info = Ayrıntılı Bilgiyi Göster
-display-title = Ekran {$identifier}
+display-title = Ekran { $identifier }
 display-manufacturer = Üretici
 display-product-code = Ürün Kodu
 display-model = Model

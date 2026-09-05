@@ -98,15 +98,15 @@ modules:
       - type: archive
         only-arches:
           - x86_64
-        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.12/flatbox-Linux-musl-x86_64.tar.gz
+        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.14/flatbox-Linux-musl-x86_64.tar.gz
         strip-components: 0
-        sha256: de32e42d27fce5113d3e3148d2bfee8020cc180df4c365c92efde27d02fc398e
+        sha256: b13ecb1cd79831c9c0cb56f61da9ad6abff188eb0909e3e98d243054418ad129
       - type: archive
         only-arches:
           - aarch64
-        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.12/flatbox-Linux-musl-arm64.tar.gz
+        url: https://github.com/ilya-zlobintsev/flatbox/releases/download/v0.0.14/flatbox-Linux-musl-arm64.tar.gz
         strip-components: 0
-        sha256: a32ededf08fca1b0c075401ec400881539156c12b97f10f62a17803f1b9d304b
+        sha256: ecceae9d69593a465aeb39618cdd0799719fb704a836ffedd428a3349c095106
 
   - name: hwdata
     config-opts:

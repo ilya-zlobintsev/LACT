@@ -49,7 +49,6 @@ expression: device_info
       "vram_clock_ratio": 1.0
     },
     "flags": [
-      "DumpableVBios",
       "ConfigurableFanControl"
     ],
     "link_info": {

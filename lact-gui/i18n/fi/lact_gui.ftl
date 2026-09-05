@@ -236,7 +236,6 @@ nvidia-vf-curve-warning =
     Jännite-taajuuskäyrän muokkain perustuu dokumentoimattomaan ajuritoimintoon.
     Sen toiminnasta, turvallisuudesta tai saatavuudesta ei ole takeita.
     <span weight = "heavy" underline = "single">Käytä omalla vastuullasi</span>.
-vf-curve-enable-editing = Ota muokkaus käyttöön
 voltage = Jännite
 frequency = Taajuus
 vf-active-curve = Aktiivinen käyrä

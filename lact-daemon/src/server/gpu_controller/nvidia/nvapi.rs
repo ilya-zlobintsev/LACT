@@ -24,19 +24,19 @@ const QUERY_INTERFACE_FN: &[u8] = b"nvapi_QueryInterface\0";
 const QUERY_NVAPI_INITIALIZE: u32 = 0x0150e828;
 const QUERY_NVAPI_UNLOAD: u32 = 0xd22bdd7e;
 const QUERY_NVAPI_ENUM_PHYSICAL_GPUS: u32 = 0xe5ac921f;
-const QUERY_NVAPI_GET_BUS_ID: u32 = 0x1be0b8e5;
+const QUERY_NVAPI_GPU_GET_BUS_ID: u32 = 0x1be0b8e5;
 const QUERY_NVAPI_GET_ERROR_MESSAGE: u32 = 0x6c2d048c;
 // Undocumented calls
-const QUERY_NVAPI_THERMALS: u32 = 0x65fe3aad;
-const QUERY_NVAPI_VOLTAGE: u32 = 0x465f9bcf;
-const QUERY_NVAPI_VOLTAGE_BOOST_GET: u32 = 0x9df23ca1;
-const QUERY_NVAPI_VOLTAGE_BOOST_SET: u32 = 0xb9306d9b;
+const QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS: u32 = 0x65fe3aad;
+const QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_STATUS: u32 = 0x465f9bcf;
+const QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_CONTROL: u32 = 0x9df23ca1;
+const QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_SET_CONTROL: u32 = 0xb9306d9b;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_STATUS: u32 = 0x21537ad4;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_INFO: u32 = 0x507b4b59;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL: u32 = 0x733e009;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_CONTROL: u32 = 0x23f1b133;
 const QUERY_NVAPI_GPU_REGISTER_OP: u32 = 0x2eb3c140;
-const QUERY_NVAPI_GPU_GET_ALL_CLOCKS: u32 = 0x1BD69F49;
+const QUERY_NVAPI_GPU_GET_ALL_CLOCKS: u32 = 0x1bd69f49;
 
 const REG_OFFSET_BLACKWELL_HOTSPOT_AGGREGATED: u32 = 0xad0aa0;
 
@@ -70,7 +70,7 @@ impl NvApi {
         unsafe {
             let handles = self.enum_physical_gpus()?;
             for handle in handles {
-                let f = self.query_interface(QUERY_NVAPI_GET_BUS_ID)?;
+                let f = self.query_interface(QUERY_NVAPI_GPU_GET_BUS_ID)?;
                 let f: unsafe extern "C" fn(
                     handle: NvPhysicalGpuHandle,
                     id: &mut u32,
@@ -89,12 +89,12 @@ impl NvApi {
         Ok(None)
     }
 
-    pub unsafe fn get_thermals(
+    pub unsafe fn therm_channel_get_status(
         &self,
         handle: NvPhysicalGpuHandle,
         mask: i32,
     ) -> anyhow::Result<NvApiThermals> {
-        let f = self.query_interface(QUERY_NVAPI_THERMALS)?;
+        let f = self.query_interface(QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS)?;
         let f: unsafe extern "C" fn(
             handle: NvPhysicalGpuHandle,
             sensors: &mut NvApiThermals,
@@ -113,18 +113,32 @@ impl NvApi {
         Ok(sensors)
     }
 
-    pub unsafe fn get_voltage(&self, handle: NvPhysicalGpuHandle) -> anyhow::Result<u32> {
-        let mut data = NvApiVoltage::default();
-        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE)?;
+    pub unsafe fn client_volt_rails_get_status(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<u32> {
+        let mut data = ClientVoltRailsStatusV1::default();
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_STATUS,
+        )?;
 
         Ok(data.rails[0].current_voltage_uv)
     }
 
-    pub unsafe fn get_voltage_boost(&self, handle: NvPhysicalGpuHandle) -> anyhow::Result<u8> {
-        let mut data = NvApiVoltageBoost::default();
-        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE_BOOST_GET)?;
+    pub unsafe fn client_volt_rails_get_control(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<u8> {
+        let mut data = ClientVoltRailsControlV1::default();
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_CONTROL,
+        )?;
 
-        Ok(data.percent)
+        Ok(data.percent_delta)
     }
 
     pub unsafe fn get_all_clocks(
@@ -137,16 +151,20 @@ impl NvApi {
         Ok(data)
     }
 
-    pub unsafe fn set_voltage_boost(
+    pub unsafe fn client_volt_rails_set_control(
         &self,
         handle: NvPhysicalGpuHandle,
         percent: u8,
     ) -> anyhow::Result<()> {
-        let mut data = NvApiVoltageBoost {
-            percent,
+        let mut data = ClientVoltRailsControlV1 {
+            percent_delta: percent,
             ..Default::default()
         };
-        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_VOLTAGE_BOOST_SET)?;
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_SET_CONTROL,
+        )?;
 
         Ok(())
     }
@@ -185,7 +203,7 @@ impl NvApi {
         Ok(data)
     }
 
-    pub unsafe fn clock_client_clk_vf_get_control(
+    pub unsafe fn clock_client_clk_vf_points_get_control(
         &self,
         handle: NvPhysicalGpuHandle,
         vf_points_mask: [NvU32; 8],
@@ -204,7 +222,7 @@ impl NvApi {
         Ok(data)
     }
 
-    pub unsafe fn clock_client_clk_vf_set_control(
+    pub unsafe fn clock_client_clk_vf_points_set_control(
         &self,
         handle: NvPhysicalGpuHandle,
         mut control: ClockClientClkVfPointsControlV1,
@@ -218,11 +236,11 @@ impl NvApi {
         Ok(())
     }
 
-    pub unsafe fn calculate_thermals_mask(
+    pub unsafe fn calculate_therm_channel_mask(
         &self,
         handle: NvPhysicalGpuHandle,
     ) -> anyhow::Result<i32> {
-        let f = self.query_interface(QUERY_NVAPI_THERMALS)?;
+        let f = self.query_interface(QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS)?;
         let f: unsafe extern "C" fn(
             handle: NvPhysicalGpuHandle,
             sensors: &mut NvApiThermals,
@@ -516,25 +534,25 @@ impl NvApiThermals {
 
 #[repr(C)]
 #[derive(Debug)]
-struct NvApiVoltage {
+struct ClientVoltRailsStatusV1 {
     version: NvU32,
     rsvd: [NvU8; 32],
-    rails: [NvApiVoltageRail; 1],
+    rails: [ClientVoltRailStatusV1; 1],
 }
 
-impl Default for NvApiVoltage {
+impl Default for ClientVoltRailsStatusV1 {
     fn default() -> Self {
         Self {
             version: make_version::<Self>(1),
             rsvd: [0; 32],
-            rails: [NvApiVoltageRail::default()],
+            rails: [ClientVoltRailStatusV1::default()],
         }
     }
 }
 
 #[repr(C)]
 #[derive(Debug, Default)]
-struct NvApiVoltageRail {
+struct ClientVoltRailStatusV1 {
     rail_id: NvU32,
     current_voltage_uv: NvU32,
     rsvd: [NvU8; 32],
@@ -542,17 +560,17 @@ struct NvApiVoltageRail {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-struct NvApiVoltageBoost {
+struct ClientVoltRailsControlV1 {
     version: NvU32,
-    percent: NvU8,
+    percent_delta: NvU8,
     rsvd: [NvU8; 32],
 }
 
-impl Default for NvApiVoltageBoost {
+impl Default for ClientVoltRailsControlV1 {
     fn default() -> Self {
         Self {
             version: make_version::<Self>(1),
-            percent: 0,
+            percent_delta: 0,
             rsvd: [0; 32],
         }
     }

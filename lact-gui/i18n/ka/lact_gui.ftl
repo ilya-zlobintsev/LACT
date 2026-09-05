@@ -2,7 +2,7 @@ gpu-clock = GPU-ის ბირთვის სიხშირე
 compute-units = გამომთვლელი ერთეულები
 gpu-usage = GPU-ის გამოყენება
 profile-hooks = კაუჭი
-performance-level-manual-description = წარმადობის ხელით მართვა.
+performance-level-manual-description = წარმადობის ხელით მართვა
 watt = ვტ
 thermals-page = თერმული პარამეტრები
 pstates = კვების მდგომარეობები
@@ -162,9 +162,9 @@ amd-oc-detected-system-config =
         [unsupported] მხარდაუჭერელია
        *[other] { $config }
     }</b>
-reset-config-description = მართლა გნებავთ ყველა GPU-ის კონფიგურაციის ჩამოყრა?
-performance-level-high-description = GPU-ისთვის და VRAM-ისთვის ყოველთვის უმაღლესი სიხშირის გამოყენება.
-performance-level-low-description = GPU-ისთვის და VRAM-ისთვის ყოველთვის ყველაზე დაბალი სიხშირის გამოყენება.
+reset-config-description = ეს ჩამოყრის ყველა GPU-ის პარამეტრს მათ ნაგულისხმევ მნიშვნელობებზე და სამუდამოდ წაშლის ყველა პროფილს
+performance-level-high-description = GPU-ისთვის და VRAM-ისთვის ყოველთვის უმაღლესი სიხშირის გამოყენება
+performance-level-low-description = GPU-ისთვის და VRAM-ისთვის ყოველთვის ყველაზე დაბალი სიხშირის გამოყენება
 manual-level-needed = კვების მდგომარეობების და რეჟიმების გამოსაყენებლად წარმადობის დონე "მორგებულზე" უნდა დააყენოთ
 oc-warning = ამ მნიშვნელობების შეცვლამ, შეიძლება, სისტემა არასტაბილურ მდგომარეობამდე მიიყვანოს და დიდი შანსია, თქვენი აპარატურა დააზიანოს!
 oc-missing-fan-control-warning = გაფრთხილება: აჩქარების მხარდაჭერა გამორთულია. ვენტილატორის კონტროლის ფუნქციონალი ხელმისაწვდომი არაა.
@@ -234,9 +234,7 @@ theme-auto = ავტომატური
 vf-curve-editor = VF მრუდის რედაქტორი
 nvidia-vf-curve-warning =
     ძაბვა-სიხშირის მრუდის რედაქტორი იყენებს დრაივერის არადოკუმენტირებულ ფუნქციონალს.
-    გარანტია, ქცევის, უსაფრთხოების, ან ხელმისაწვდომობის შესახებ არ არსებობს.
     <span weight = "heavy" underline = "single">გამოიყენეთ თქვენი პასუხისმგებლობის ქვეშ</span>.
-vf-curve-enable-editing = ჩასწორების ჩართვა
 voltage = ძაბვა
 frequency = სიხშირე
 vf-active-curve = აქტიური ძაბვა
@@ -302,3 +300,22 @@ service-disconnected = დაკავშირებული არაა
 gui-version = GUI-ის ვერსია
 gpu-voltage-boost = GPU-ის ძაბვის ზრდა (%)
 gpu-voltage-boost-tooltip = აკონტროლებს, რამდენი დამატებითი ძაბვაა დრაივერის მიერ დაშვებული. 100% ნიშნავს ამ ძაბვის სრულად გამოყენებას და არა GPU-ის სრული ძაბვის 100%-ს. მეტმა დამატებითმა ძაბვამ, შეიძლება, უფრო მეტი სიხშირე დაუშვას, მაგრამ ასევე იზრდება დახარჯული ენერგია და გამოყოფილი სითბოც.
+no-fan-detected = ვენტილატორები აღმოჩენილი არაა
+no-sensors-found = სენსორები აღმოჩენილი არაა
+service-autostart = ავტოგაშვება ჩატვირთვისას
+service-autostart-disable = ასევე გაითიშოს ავტოგაშვვება
+reset-now-button = ჩამოყრა ახლავე
+default-button = ნაგულისხმევი
+service-setup-title = სერვისის მორგება
+setup-error = მორგების შეცდომა: { $error }
+extra-clocks = დამატებითი საათები
+performance-level-profile-standard = პროფილირების სტანდარტი
+performance-level-profile-min-sclk = GPU-ის უმდაბლესი საათის პროფილირება
+performance-level-profile-min-mclk = VRAM-ის უმდაბლესი საათის პროფილირება
+performance-level-profile-peak = პიკის პროფილირება
+performance-level-profile-standard-description = პროფილირების ფიქსირებული რეჟიმი
+performance-level-profile-min-sclk-description = პროფილირების რეჟიმი, რომელიც GPU-ის საათს აიძულებს, უმდაბლეს დონეზე იმუშაოს
+performance-level-profile-min-mclk-description = პროფილირების რეჟიმი, რომელიც VRAM-ის საათს აიძულებს, უმდაბლეს დონეზე იმუშაოს
+performance-level-profile-peak-description = პროფილირების რეჟიმი, რომელიც GPU-ის და VRAM-ის საათებს აიძულებს, უმაღლეს დონეზე იმუშაოს
+enable-vf-curve = VF-ის მრუდის ჩასწორების ჩართვა
+vf-curve-editing-disabled = VF-ის მრუდის ჩასწორება გამორთულია OC-ის გვერდზე

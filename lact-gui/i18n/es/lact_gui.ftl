@@ -236,7 +236,6 @@ nvidia-vf-curve-warning =
     El editor de curva para frecuenta‐voltaje confía en funcionalidad de unidad no documentada.
     No hay ninguna garantía respecto a su comportamiento, seguridad o disponibilidad.
     <span weight="heavy" underline="single">Úselo a su propio riesgo</span>.
-vf-curve-enable-editing = Habilita Editar
 voltage = Voltaje
 frequency = Frecuencia
 vf-active-curve = Curva activa

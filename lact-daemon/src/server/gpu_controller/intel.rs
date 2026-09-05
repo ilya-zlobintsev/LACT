@@ -1,11 +1,13 @@
+#[cfg_attr(test, allow(dead_code))]
 mod drm;
 
+use self::drm::DrmProvider;
+#[cfg(feature = "mock")]
+use self::drm::mock::MockDrmProvider;
+use self::drm::{i915::I915DrmProvider, xe::XeDrmProvider};
 use super::{CommonControllerInfo, GpuController};
 use crate::{
-    bindings::intel::{
-        IntelDrm, drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE,
-        drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM,
-    },
+    bindings::intel::IntelDrm,
     server::gpu_controller::common::fdinfo::{self, DrmUtilMap},
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
@@ -15,9 +17,9 @@ use indexmap::IndexMap;
 use lact_schema::FanControlMode::Static;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats,
-    DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode, FanStats, IntelClocksTable, IntelDrmInfo,
-    LinkInfo, PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType,
-    TemperatureEntry, VoltageStats, VramStats, config::GpuConfig,
+    DeviceType, DrmInfo, FanControlMode, FanStats, IntelClocksTable, LinkInfo, PowerState,
+    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats,
+    VramStats, config::GpuConfig,
 };
 use lact_schema::{FanCurveMap, config::FanCurve};
 use std::{
@@ -27,7 +29,6 @@ use std::{
     fmt::{self, Display},
     fs,
     io::{BufRead, BufReader, ErrorKind},
-    os::{fd::AsRawFd, raw::c_int},
     path::{Path, PathBuf},
     str::FromStr,
     time::Instant,
@@ -61,8 +62,7 @@ pub struct IntelGpuController {
     common: CommonControllerInfo,
     tile_gts: Vec<PathBuf>,
     hwmon_path: Option<PathBuf>,
-    drm_file: fs::File,
-    drm: &'static IntelDrm,
+    drm: Box<dyn DrmProvider>,
     last_drm_util: RefCell<Option<DrmUtilMap>>,
     last_gpu_busy: Cell<Option<(Instant, u64)>>,
     #[allow(dead_code)]
@@ -112,15 +112,22 @@ impl IntelGpuController {
             );
             tile_gts.sort();
         }
-        let drm_file = if cfg!(not(test)) {
-            let drm_path = common.get_drm_render()?;
-            fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(drm_path)
-                .context("Could not open DRM file")?
-        } else {
-            fs::File::open("/dev/null").unwrap()
+
+        #[allow(unused_labels)]
+        let drm: Box<dyn DrmProvider> = 'drm: {
+            #[cfg(feature = "mock")]
+            if let Some(mock) = MockDrmProvider::new(&common.sysfs_path) {
+                break 'drm Box::new(mock) as Box<dyn DrmProvider>;
+            }
+
+            let drm_fd = common
+                .open_drm_render()
+                .context("Could not open DRM file")?;
+
+            match driver_type {
+                DriverType::I915 => Box::new(I915DrmProvider::new(drm, drm_fd)),
+                DriverType::Xe => Box::new(XeDrmProvider::new(drm_fd)),
+            }
         };
 
         let hwmon_path = fs::read_dir(common.sysfs_path.join("hwmon"))
@@ -135,7 +142,6 @@ impl IntelGpuController {
             driver_type,
             tile_gts,
             hwmon_path,
-            drm_file,
             drm,
             last_drm_util: RefCell::new(None),
             last_gpu_busy: Cell::new(None),
@@ -270,33 +276,6 @@ impl IntelGpuController {
         debug!("writing value '{contents}' to '{}'", path.display());
 
         self.write_file(path, contents)
-    }
-
-    fn get_drm_info_i915(&self) -> IntelDrmInfo {
-        IntelDrmInfo {
-            execution_units: self.drm_try(IntelDrm::drm_intel_get_eu_total),
-            subslices: self.drm_try(IntelDrm::drm_intel_get_subslice_total),
-        }
-    }
-
-    #[allow(clippy::unused_self)]
-    fn get_drm_info_xe(&self) -> IntelDrmInfo {
-        IntelDrmInfo {
-            execution_units: None,
-            subslices: None,
-        }
-    }
-
-    #[cfg_attr(test, allow(unreachable_code, unused_variables))]
-    fn drm_try<T: Default>(&self, f: unsafe fn(&IntelDrm, c_int, *mut T) -> c_int) -> Option<T> {
-        #[cfg(test)]
-        return None;
-
-        unsafe {
-            let mut out = T::default();
-            let result = f(self.drm, self.drm_file.as_raw_fd(), &raw mut out);
-            if result == 0 { Some(out) } else { None }
-        }
     }
 
     #[allow(
@@ -485,77 +464,6 @@ impl IntelGpuController {
             }
         }
         Some(reasons)
-    }
-
-    fn get_vram_info(&self) -> IntelVramInfo {
-        let mut total = 0;
-        let mut used = 0;
-        let mut cpu_accessible_total = 0;
-        let mut cpu_accessible_used = 0;
-
-        match self.driver_type {
-            DriverType::I915 => {
-                if let Ok(Some(query)) = drm::i915::query_memory_regions(&self.drm_file) {
-                    let mut i915_unallocated = 0;
-                    let mut cpu_unallocated = 0;
-
-                    unsafe {
-                        let regions = query.regions.as_slice(query.num_regions as usize);
-                        for region_info in regions {
-                            if u32::from(region_info.region.memory_class)
-                                == drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE
-                            {
-                                total += region_info.probed_size;
-                                i915_unallocated += region_info.unallocated_size;
-
-                                let cpu_region_info = region_info.__bindgen_anon_1.__bindgen_anon_1;
-                                if cpu_region_info.probed_cpu_visible_size > 0 {
-                                    cpu_accessible_total += cpu_region_info.probed_cpu_visible_size;
-                                    cpu_unallocated += cpu_region_info.unallocated_cpu_visible_size;
-                                }
-                            }
-                        }
-                    }
-
-                    if total > 0 {
-                        used = total - i915_unallocated;
-                    }
-
-                    if cpu_accessible_total > 0 {
-                        cpu_accessible_used = cpu_accessible_total - cpu_unallocated;
-                    }
-                }
-            }
-            DriverType::Xe => {
-                if let Ok(Some(query)) = drm::xe::query_mem_regions(&self.drm_file) {
-                    unsafe {
-                        let regions = query.mem_regions.as_slice(query.num_mem_regions as usize);
-                        for region_info in regions {
-                            if u32::from(region_info.mem_class)
-                                == drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM
-                            {
-                                total += region_info.total_size;
-                                used += region_info.used;
-
-                                if region_info.cpu_visible_size > 0 {
-                                    cpu_accessible_total += region_info.cpu_visible_size;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        IntelVramInfo {
-            total,
-            used,
-            mem_info: DrmMemoryInfo {
-                cpu_accessible_used,
-                cpu_accessible_total,
-                resizeable_bar: Some(cpu_accessible_total == total),
-            },
-        }
     }
 
     #[allow(clippy::cast_precision_loss)]
@@ -801,12 +709,16 @@ impl IntelGpuController {
 }
 
 impl GpuController for IntelGpuController {
+    fn controller_type(&self) -> &'static str {
+        "intel"
+    }
+
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
     }
 
     fn device_type(&self) -> DeviceType {
-        if self.get_vram_info().total > 0 {
+        if self.drm.get_vram_info().total > 0 {
             DeviceType::Dedicated
         } else {
             DeviceType::Integrated
@@ -829,15 +741,10 @@ impl GpuController for IntelGpuController {
                 DeviceApiInfo::default()
             };
 
-            let vram_info = self.get_vram_info();
-
             let drm_info = DrmInfo {
-                intel: match self.driver_type {
-                    DriverType::I915 => self.get_drm_info_i915(),
-                    DriverType::Xe => self.get_drm_info_xe(),
-                },
+                intel: self.drm.get_intel_info(),
                 vram_clock_ratio: 1.0,
-                memory_info: Some(vram_info.mem_info),
+                memory_info: Some(self.drm.get_vram_info().mem_info),
                 ..Default::default()
             };
 
@@ -972,7 +879,7 @@ impl GpuController for IntelGpuController {
             ..Default::default()
         };
 
-        let vram_info = self.get_vram_info();
+        let vram_info = self.drm.get_vram_info();
         let vram = VramStats {
             total: match vram_info.total {
                 0 => None,
@@ -1135,12 +1042,6 @@ impl fmt::Display for FrequencyType {
         };
         s.fmt(f)
     }
-}
-
-struct IntelVramInfo {
-    total: u64,
-    used: u64,
-    mem_info: DrmMemoryInfo,
 }
 
 #[cfg(test)]

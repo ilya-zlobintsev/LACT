@@ -236,7 +236,6 @@ nvidia-vf-curve-warning =
     L’editor de corba tensió-freqüència depèn de funcionalitats del controlador que no estan documentades. 
     No hi ha garanties pel que fa al seu comportament, seguretat o disponibilitat. 
     <span weight="heavy" underline="single">Usa-ho sota la teva pròpia responsabilitat</span>.
-vf-curve-enable-editing = Activa l’Edició
 voltage = Voltatge
 frequency = Freqüència
 vf-active-curve = Corba Activa

@@ -2678,7 +2678,7 @@
     },
     {
         "type": "inline",
-        "contents": "[package]\nname = \"nvml-wrapper\"\nversion = \"0.12.1\"\nauthors = [\"Cldfire\"]\ndescription = \"A safe and ergonomic Rust wrapper for the NVIDIA Management Library\"\nreadme = \"../README.md\"\ndocumentation = \"https://docs.rs/nvml-wrapper\"\nrepository = \"https://github.com/Cldfire/nvml-wrapper\"\nlicense = \"MIT OR Apache-2.0\"\nedition = \"2021\"\nrust-version = \"1.60.0\"\nkeywords = [\"nvidia\", \"gpu\", \"managment\", \"monitoring\", \"hardware\"]\ncategories = [\"api-bindings\", \"hardware-support\"]\n\n[features]\ndefault = []\nlegacy-functions = [\"nvml-wrapper-sys/legacy-functions\"]\nserde = [\"dep:serde\", \"dep:serde_derive\", \"bitflags/serde\"]\n\n[dependencies]\nthiserror = \"1.0\"\nbitflags = \"2.4.0\"\nwrapcenum-derive = \"0.4.1\"\nlibloading = \"0.8.1\"\nstatic_assertions = \"1.1\"\n\n[dependencies.serde]\nversion = \"1.0\"\noptional = true\n\n[dependencies.serde_derive]\nversion = \"1.0\"\noptional = true\n\n[dependencies.nvml-wrapper-sys]\nversion = \"0.9.1\"\npath = \"../nvml-wrapper-sys\"\n\n[dev-dependencies]\npretty-bytes = \"0.2\"\n",
+        "contents": "[package]\nname = \"nvml-wrapper\"\nversion = \"0.12.1\"\nauthors = [ \"Cldfire\",]\ndescription = \"A safe and ergonomic Rust wrapper for the NVIDIA Management Library\"\nreadme = \"../README.md\"\ndocumentation = \"https://docs.rs/nvml-wrapper\"\nrepository = \"https://github.com/Cldfire/nvml-wrapper\"\nlicense = \"MIT OR Apache-2.0\"\nedition = \"2021\"\nrust-version = \"1.60.0\"\nkeywords = [ \"nvidia\", \"gpu\", \"managment\", \"monitoring\", \"hardware\",]\ncategories = [ \"api-bindings\", \"hardware-support\",]\n\n[features]\ndefault = []\nlegacy-functions = [ \"nvml-wrapper-sys/legacy-functions\",]\nserde = [ \"dep:serde\", \"dep:serde_derive\", \"bitflags/serde\",]\n\n[dependencies]\nthiserror = \"1.0\"\nbitflags = \"2.4.0\"\nwrapcenum-derive = \"0.4.1\"\nlibloading = \"0.8.1\"\nstatic_assertions = \"1.1\"\n\n[dev-dependencies]\npretty-bytes = \"0.2\"\n\n[dependencies.serde]\nversion = \"1.0\"\noptional = true\n\n[dependencies.serde_derive]\nversion = \"1.0\"\noptional = true\n\n[dependencies.nvml-wrapper-sys]\nversion = \"0.9.1\"\npath = \"../nvml-wrapper-sys\"\n",
         "dest": "cargo/vendor/nvml-wrapper",
         "dest-filename": "Cargo.toml"
     },
@@ -2696,7 +2696,7 @@
     },
     {
         "type": "inline",
-        "contents": "[package]\nname = \"nvml-wrapper-sys\"\nversion = \"0.9.1\"\nauthors = [\"Cldfire\"]\ndescription = \"Generated bindings to the NVIDIA Management Library.\"\nreadme = \"README.md\"\ndocumentation = \"https://docs.rs/nvml-wrapper-sys\"\nrepository = \"https://github.com/Cldfire/nvml-wrapper\"\nlicense = \"MIT OR Apache-2.0\"\nedition = \"2021\"\nrust-version = \"1.60.0\"\nkeywords = [\"nvidia\", \"gpu\", \"managment\", \"monitoring\", \"hardware\"]\ncategories = [\"external-ffi-bindings\", \"hardware-support\"]\nexclude = [\"nvml.h\"]\n\n[dependencies]\nlibloading = \"0.8.1\"\n\n[features]\ndefault = []\nlegacy-functions = []\n",
+        "contents": "[package]\nname = \"nvml-wrapper-sys\"\nversion = \"0.9.1\"\nauthors = [ \"Cldfire\",]\ndescription = \"Generated bindings to the NVIDIA Management Library.\"\nreadme = \"README.md\"\ndocumentation = \"https://docs.rs/nvml-wrapper-sys\"\nrepository = \"https://github.com/Cldfire/nvml-wrapper\"\nlicense = \"MIT OR Apache-2.0\"\nedition = \"2021\"\nrust-version = \"1.60.0\"\nkeywords = [ \"nvidia\", \"gpu\", \"managment\", \"monitoring\", \"hardware\",]\ncategories = [ \"external-ffi-bindings\", \"hardware-support\",]\nexclude = [ \"nvml.h\",]\n\n[dependencies]\nlibloading = \"0.8.1\"\n\n[features]\ndefault = []\nlegacy-functions = []\n",
         "dest": "cargo/vendor/nvml-wrapper-sys",
         "dest-filename": "Cargo.toml"
     },
@@ -5231,14 +5231,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/zbus_polkit/zbus_polkit-5.0.0.crate",
-        "sha256": "ad23d5c4d198c7e2641b33e6e0d1f866f117408ba66fe80bbe52e289eeb77c52",
-        "dest": "cargo/vendor/zbus_polkit-5.0.0"
+        "url": "https://static.crates.io/crates/zbus_polkit/zbus_polkit-5.1.0.crate",
+        "sha256": "283d50dac36a7fee0d9c2e6b9c71253326c1f863a9d350342d338637aa3019ae",
+        "dest": "cargo/vendor/zbus_polkit-5.1.0"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"ad23d5c4d198c7e2641b33e6e0d1f866f117408ba66fe80bbe52e289eeb77c52\", \"files\": {}}",
-        "dest": "cargo/vendor/zbus_polkit-5.0.0",
+        "contents": "{\"package\": \"283d50dac36a7fee0d9c2e6b9c71253326c1f863a9d350342d338637aa3019ae\", \"files\": {}}",
+        "dest": "cargo/vendor/zbus_polkit-5.1.0",
         "dest-filename": ".cargo-checksum.json"
     },
     {

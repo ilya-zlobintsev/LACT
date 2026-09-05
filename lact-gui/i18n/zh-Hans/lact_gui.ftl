@@ -96,7 +96,7 @@ disable-amd-oc-description = 此操作将在下一次重启时禁用 AMD 超频 
 amd-oc-updating-configuration = 正在更新配置 (可能需要一些时间)
 amd-oc-updating-done = 配置已更新，请重启以应用更改。
 reset-config = 重置配置
-reset-config-description = 您确定要重置所有 GPU 配置吗？
+reset-config-description = 这将重置所有 GPU 配置到默认并永久性删除所有配置文件
 revert-button = 还原
 power-cap = 功耗限制
 watt = W
@@ -172,7 +172,7 @@ add-graph = 添加图表
 delete-graph = 删除图表
 export-csv = 导出为 CSV
 edit-graph-sensors = 编辑图表传感器
-reconnecting-to-daemon = 守护进程连接丢失，正在重新连接...
+reconnecting-to-daemon = 后台服务连接丢失，正在尝试重新连接...
 daemon-connection-lost = 连接丢失
 plot-show-detailed-info = 显示详细信息
 settings-profile = 设置配置文件
@@ -236,7 +236,6 @@ nvidia-vf-curve-warning =
     电压/频率曲线编辑器依赖于未公开的驱动程序功能。
     对其行为、安全性或可用性不作任何保证。
     <span weight = "heavy" underline = "single">风险自负</span>。
-vf-curve-enable-editing = 启用编辑
 voltage = 电压
 frequency = 频率
 vf-active-curve = 有效曲线
@@ -248,7 +247,7 @@ menu = 菜单
 daemon-info-heading = 守护进程信息
 version-mismatch-description =
     图形用户界面和守护进程间版本不匹配 ({ $gui_version }-{ $gui_commit } 对比 { $daemon_version }-{ $daemon_commit })！
-    如果您更新过 LACT ，则您需要重启后台服务：
+    如果您更新过 LACT ，您需要重新启动后台服务。
 display-title = 显示 { $identifier }
 display-manufacturer = 制造商
 display-product-code = 产品代码
@@ -270,3 +269,43 @@ color-scheme-auto = 系统
 color-scheme-light = 浅色
 color-scheme-dark = 深色
 power-mizer-mode-auto = 自动
+thresholds-section = 阈值和限制
+no-fan-detected = 没有检测到风扇
+no-sensors-found = 没有检测到传感器
+reset-now-button = 现在重置
+default-button = 默认
+gtt-usage = GTT 使用：
+power-mizer-mode = PowerMizer 模式
+power-mizer-mode-adaptive = 自适应
+power-mizer-mode-prefer-maximum-performance = 偏好最大化性能
+power-mizer-mode-prefer-consistent-performance = 偏好一致化性能
+power-mizer-mode-auto-description = 让驱动程序选择性能策略。
+power-mizer-mode-adaptive-description = 根据 GPU 使用率调整 GPU 频率。
+power-mizer-mode-prefer-maximum-performance-description = 青睐在驱动限制内最大化性能。
+power-mizer-mode-prefer-consistent-performance-description = 锁定 GPU 到基础频率。
+vf-curve-flatten-selection = 拉平选择
+gpu-voltage-boost = GPU 电压提升 (%)
+gpu-voltage-boost-tooltip = 控制驱动程序定义的额外电压余量的可用量。100% 意味着使用所有这些余量，而不是 GPU 总电压的 100%。更多的余量可能支撑更高的时钟频率，但会增加功耗和发热。
+service-explanation =
+    应用 GPU 设置需要 LACT 系统服务。
+    没有该服务时，LACT 将以独立模式运行，此模式下只能获取信息和进行监控。
+service-setup-title = 服务设置
+setup-error = 设置错误：{ $error }
+service-connection-status = 连接状态
+service-status = 服务状态
+service-permission-denied =
+    权限被拒绝，服务未配置为允许您的用户连接。
+    可从 <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> 获得更多信息
+service-connected = 已连接
+service-disconnected = 未连接
+service-version = 服务版本
+gui-version = 图形用户界面版本
+service-version-mismatch = 不匹配
+service-logs = 服务日志
+service-start = 启动
+service-stop = 停止
+service-restart = 重启
+service-autostart = 开机时自动启动
+service-autostart-disable = 也关闭自动启动
+displays-missing = 未检测到显示器
+color-scheme = 配色方案

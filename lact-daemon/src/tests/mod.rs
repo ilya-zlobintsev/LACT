@@ -48,6 +48,7 @@ async fn snapshot_everything() {
                 .into_values()
                 .next()
                 .unwrap();
+            let device_info = serde_json::to_value(&device_info).unwrap();
 
             assert_json_snapshot!(test_key, device_info);
         }

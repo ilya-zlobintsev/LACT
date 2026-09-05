@@ -278,7 +278,7 @@ impl DeviceInfo {
                 stats
                     .vram
                     .total
-                    .map(|size| format!("{} Mb", bytes_to_mib(size))),
+                    .map(|size| format!("{} MiB", bytes_to_mib(size))),
             ));
         }
 
@@ -464,7 +464,7 @@ pub struct IntelDrmInfo {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DrmMemoryInfo {
     pub cpu_accessible_used: u64,
     pub cpu_accessible_total: u64,

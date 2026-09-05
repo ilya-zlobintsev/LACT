@@ -8,6 +8,7 @@ default = ["nvidia", "display-info"]
 bench = ["dep:divan"]
 nvidia = []
 display-info = ["dep:libdisplay-info"]
+mock = []
 
 [dependencies]
 lact-schema = { path = "../lact-schema" }
@@ -38,7 +39,7 @@ nvml-wrapper = { workspace = true }
 bitflags = "2.13.0"
 pciid-parser = { version = "0.8", features = ["serde"] }
 zbus = { workspace = true }
-zbus_polkit = { version = "5.0.0", default-features = false, features = ["tokio"] }
+zbus_polkit = { version = "5.1.0", default-features = false, features = ["tokio"] }
 libdrm_amdgpu_sys = { version = "0.8.16", default-features = false, features = [
     "dynamic_loading",
 ] }
@@ -57,6 +58,7 @@ pretty_assertions = { workspace = true }
 insta = { version = "1.48.0", features = ["json", "yaml"] }
 easy_fuser = { version = "0.5.0", default-features = false, features = ["parallel"] }
 tempfile = "3.27.0"
+lact-daemon = { path = ".", features= ["mock"] }
 
 [build-dependencies]
 bindgen = "0.72"

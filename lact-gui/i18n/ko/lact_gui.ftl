@@ -95,7 +95,7 @@ disable-amd-oc-description = 다음 재부팅 시 AMD 오버클럭(오버드라�
 amd-oc-updating-configuration = 구성 업데이트 중 (시간이 소요될 수 있습니다)
 amd-oc-updating-done = 구성이 업데이트되었습니다. 변경 사항을 적용하려면 재부팅하십시오.
 reset-config = 구성 초기화
-reset-config-description = 모든 GPU 구성을 초기화하시겠습니까?
+reset-config-description = 이는 모든 GPU 설정값이 지정된 기본값으로 재지정되고 모든 프로파일이 영구적으로 삭제됩니다
 apply-button = 적용
 confirm = 확인
 confirm-settings = 설정 확인
@@ -157,7 +157,6 @@ nvidia-vf-curve-warning =
     전압-주파수 커브 편집기는 문서화되지 않은 드라이버 기능에 의존합니다.
     동작, 안정성 또는 사용 가능 여부에 대한 보장이 없습니다.
     <span weight = "heavy" underline = "single">사용에 따른 책임은 사용자에게 있습니다</span>.
-vf-curve-enable-editing = 편집 활성화
 voltage = 전압
 frequency = 주파수
 vf-active-curve = 활성 커브
@@ -302,3 +301,11 @@ service-stop = 중지
 service-restart = 재시작
 gpu-voltage-boost = GPU 전압 상승 (%)
 gpu-voltage-boost-tooltip = 드라이버에 의해 정의된 추가 전압의 여유 중에서 얼마나 사용 할 수 있는지를 제어합니다. 100%는 이와 같은 여유 전압을 의미하고, 총 GPU 전압을 의미하는 것은 아닙니다. 더 많은 여유 전압은 더 높은 클럭속도를 유지 할 수 있지만 전력 소모와 발열을 증가시킵니다.
+no-fan-detected = 팬이 탐지되지 않습니다
+no-sensors-found = 센서를 찾을 수 없습니다
+reset-now-button = 지금 다시 시작
+service-autostart = 부팅 시에 자동시작
+service-autostart-disable = 자동 시작도 비활성화
+default-button = 기본값
+service-setup-title = 서비스 설정
+setup-error = 설정 오류: { $error }

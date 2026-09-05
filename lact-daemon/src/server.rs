@@ -12,9 +12,12 @@ use crate::{config::Config, socket, system};
 use anyhow::Context;
 use futures::future::join_all;
 use lact_schema::{Pong, Request, Response};
-use nix::sys::socket::{getsockopt, sockopt::PeerCredentials};
+use nix::sys::socket::{
+    getsockopt,
+    sockopt::{PeerCredentials, PeerPidfd},
+};
 use serde::Serialize;
-use std::fmt::Debug;
+use std::{fmt::Debug, os::fd::OwnedFd};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     net::{TcpListener, UnixListener},
@@ -79,9 +82,14 @@ impl Server {
                             .inspect_err(|err| warn!("could not get client credentials: {err:#}"))
                             .ok();
 
+                        let pid_fd = getsockopt(&stream, PeerPidfd)
+                            .inspect_err(|err| warn!("could not get client pidfd: {err:#}"))
+                            .ok();
+
                         let ctx = ClientContext {
                             pid: client_credentials.map(|creds| creds.pid().cast_unsigned()),
                             uid: client_credentials.map(|creds| creds.uid()),
+                            pid_fd,
                         };
                         let handler = unix_handler.clone();
                         tokio::task::spawn_local(async move {
@@ -125,10 +133,11 @@ impl Server {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Debug, Default)]
 pub(crate) struct ClientContext {
     pub pid: Option<u32>,
     pub uid: Option<u32>,
+    pub pid_fd: Option<OwnedFd>,
 }
 
 #[instrument(level = "debug", skip(stream, handler))]
@@ -147,10 +156,12 @@ pub async fn handle_stream<T: AsyncRead + AsyncWrite + Unpin>(
 
         let maybe_request = serde_json::from_str(&buf);
         let response = match maybe_request {
-            Ok(request) => match handle_request(request, &handler, &disconnect_notify, ctx).await {
-                Ok(response) => response,
-                Err(error) => serde_json::to_vec(&Response::<()>::from(error))?,
-            },
+            Ok(request) => {
+                match handle_request(request, &handler, &disconnect_notify, &ctx).await {
+                    Ok(response) => response,
+                    Err(error) => serde_json::to_vec(&Response::<()>::from(error))?,
+                }
+            }
             Err(error) => serde_json::to_vec(&Response::<()>::from(
                 anyhow::Error::new(error).context("Failed to deserialize"),
             ))?,
@@ -172,7 +183,7 @@ async fn handle_request<'a>(
     request: Request<'a>,
     handler: &'a Handler,
     disconnect_notify: &std::sync::Arc<Notify>,
-    ctx: ClientContext,
+    ctx: &ClientContext,
 ) -> anyhow::Result<Vec<u8>> {
     match request {
         Request::Ping => ok_response(ping()),
