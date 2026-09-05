@@ -1434,6 +1434,13 @@ async fn create_connection(
     root: &adw::ApplicationWindow,
     sender: &relm4::AsyncComponentSender<AppModel>,
 ) -> (DaemonClient, bool) {
+    if std::env::var("_LACT_DRM_SYSFS_PATH").is_ok() {
+        let client = create_embedded_connection()
+            .await
+            .expect("Could not spawn embedded daemon");
+        return (client, false);
+    }
+
     match DaemonClient::connect().await {
         Ok(client) => (client, false),
         Err(err) => {
