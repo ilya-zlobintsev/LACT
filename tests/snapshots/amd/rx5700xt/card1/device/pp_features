@@ -1,4 +1,4 @@
-features high: 0x00000623 low: 0xa3ddaffb
+features high: 0x00000622 low: 0xa3ddaffb
 No. Feature               Bit : State
 00. DPM_PREFETCHER       ( 0) : enabled
 01. DPM_GFXCLK           ( 1) : enabled
@@ -32,7 +32,7 @@ No. Feature               Bit : State
 29. VR0HOT               (29) : enabled
 30. VR1HOT               (30) : disabled
 31. FW_CTF               (31) : enabled
-32. FAN_CONTROL          (32) : enabled
+32. FAN_CONTROL          (32) : disabled
 33. THERMAL              (33) : enabled
 34. GFX_DCS              (34) : disabled
 35. RM                   (35) : disabled
