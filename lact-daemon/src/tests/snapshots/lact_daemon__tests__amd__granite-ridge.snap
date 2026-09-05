@@ -106,7 +106,6 @@ expression: device_info
       "vram_type": "DDR5"
     },
     "flags": [
-      "DumpableVBios",
       "HasPmfw"
     ],
     "link_info": {

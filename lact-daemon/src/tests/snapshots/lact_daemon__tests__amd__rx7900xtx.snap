@@ -115,7 +115,6 @@ expression: device_info
       "vram_vendor": "samsung"
     },
     "flags": [
-      "DumpableVBios",
       "HasPmfw",
       "ConfigurableFanControl"
     ],

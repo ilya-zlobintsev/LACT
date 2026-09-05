@@ -654,6 +654,19 @@ impl AmdGpuController {
         None
     }
 
+    fn vbios_path(&self) -> anyhow::Result<PathBuf> {
+        let path = self
+            .debugfs_path()
+            .context("DebugFS not found")?
+            .join("amdgpu_vbios");
+
+        if path.exists() {
+            Ok(path)
+        } else {
+            Err(anyhow!("VBIOS file does not exist in DebugFS"))
+        }
+    }
+
     fn apply_clocks_config_require_manual_proformance_level(&self) -> bool {
         self.common.pci_info.device_pci_info.vendor_id == VENDOR_AMD
             && REQUIRE_MANUAL_DEVICE_IDS
@@ -733,7 +746,11 @@ impl GpuController for AmdGpuController {
             let link_info = self.get_link_info();
             let drm_info = self.get_drm_info();
 
-            let mut flags = vec![DeviceFlag::DumpableVBios];
+            let mut flags = vec![];
+
+            if self.vbios_path().is_ok() {
+                flags.push(DeviceFlag::DumpableVBios);
+            }
 
             if drm_info
                 .as_ref()
@@ -1090,8 +1107,8 @@ impl GpuController for AmdGpuController {
     }
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
-        let debugfs = self.debugfs_path().context("DebugFS not found")?;
-        fs::read(debugfs.join("amdgpu_vbios")).context("Could not read VBIOS file")
+        let path = self.vbios_path()?;
+        fs::read(path).context("Could not read VBIOS file")
     }
 
     #[allow(clippy::too_many_lines)]
