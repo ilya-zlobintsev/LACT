@@ -1,4 +1,5 @@
 mod clocks_frame;
+mod masonry_layout;
 mod performance_frame;
 mod power_frame;
 mod power_states;
@@ -80,47 +81,25 @@ impl relm4::Component for OcPage {
 
             model.stats_section.widget(),
 
-            gtk::FlowBox {
-                set_orientation: gtk::Orientation::Horizontal,
-                set_selection_mode: gtk::SelectionMode::None,
-                set_min_children_per_line: 1,
-                set_max_children_per_line: 2,
-                set_column_spacing: 10,
-                set_row_spacing: 10,
-                set_homogeneous: false,
+            gtk::Box {
+                set_layout_manager: Some(masonry_layout::MasonryLayout::default()),
                 set_valign: gtk::Align::Start,
                 set_hexpand: true,
 
-                append: gpu_clocks_child = &gtk::FlowBoxChild {
+                model.gpu_clocks_frame.widget() {
                     add_css_class: "oc-page-section",
-                    set_valign: gtk::Align::Start,
-                    set_hexpand: true,
-
-                    model.gpu_clocks_frame.widget(),
                 },
 
-                append: vram_clocks_child = &gtk::FlowBoxChild {
+                model.vram_clocks_frame.widget() {
                     add_css_class: "oc-page-section",
-                    set_valign: gtk::Align::Start,
-                    set_hexpand: true,
-
-                    model.vram_clocks_frame.widget(),
                 },
 
-                append: power_child = &gtk::FlowBoxChild {
+                model.power_frame.widget() {
                     add_css_class: "oc-page-section",
-                    set_valign: gtk::Align::Start,
-                    set_hexpand: true,
-
-                    model.power_frame.widget(),
                 },
 
-                append: power_states_child = &gtk::FlowBoxChild {
+                model.power_states_frame.widget() {
                     add_css_class: "oc-page-section",
-                    set_valign: gtk::Align::Start,
-                    set_hexpand: true,
-
-                    model.power_states_frame.widget(),
                 },
             },
         },
@@ -180,37 +159,6 @@ impl relm4::Component for OcPage {
         };
 
         let widgets = view_output!();
-
-        let section_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
-        section_size_group.add_widget(&widgets.gpu_clocks_child);
-        section_size_group.add_widget(&widgets.vram_clocks_child);
-        section_size_group.add_widget(&widgets.power_child);
-        section_size_group.add_widget(&widgets.power_states_child);
-
-        model
-            .gpu_clocks_frame
-            .widget()
-            .bind_property("visible", &widgets.gpu_clocks_child, "visible")
-            .sync_create()
-            .build();
-        model
-            .vram_clocks_frame
-            .widget()
-            .bind_property("visible", &widgets.vram_clocks_child, "visible")
-            .sync_create()
-            .build();
-        model
-            .power_frame
-            .widget()
-            .bind_property("visible", &widgets.power_child, "visible")
-            .sync_create()
-            .build();
-        model
-            .power_states_frame
-            .widget()
-            .bind_property("visible", &widgets.power_states_child, "visible")
-            .sync_create()
-            .build();
 
         ComponentParts { model, widgets }
     }
