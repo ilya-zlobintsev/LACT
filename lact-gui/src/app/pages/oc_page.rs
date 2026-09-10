@@ -1,3 +1,4 @@
+mod card_layout;
 mod clocks_frame;
 mod performance_frame;
 mod power_frame;
@@ -15,6 +16,7 @@ use adw::prelude::*;
 use amdgpu_sysfs::gpu_handle::{
     PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
+use card_layout::{CardLayout, ColumnBias};
 use clocks_frame::{ClockDomain, ClocksFrame, ClocksFrameInit, ClocksFrameMsg};
 use indexmap::IndexMap;
 use lact_schema::config;
@@ -80,49 +82,30 @@ impl relm4::Component for OcPage {
 
             model.stats_section.widget(),
 
-            gtk::FlowBox {
-                set_max_children_per_line: 2,
-                set_selection_mode: gtk::SelectionMode::None,
-                set_column_spacing: 10,
-                set_row_spacing: 10,
+            gtk::Box {
+                set_layout_manager: Some(CardLayout::new([
+                    ColumnBias::Left, // Core
+                    ColumnBias::Right,   // VRAM
+                    ColumnBias::Left, // Power
+                    ColumnBias::Right,   // Power States
+
+                ])),
                 set_valign: gtk::Align::Start,
 
-                gtk::FlowBoxChild {
-                    set_focusable: false,
-
-                    #[name = "left_column"]
-                    gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 10,
-                        set_valign: gtk::Align::Start,
-
-                        model.gpu_clocks_frame.widget() {
-                            add_css_class: "oc-page-section",
-                        },
-
-                        model.power_frame.widget() {
-                            add_css_class: "oc-page-section",
-                        },
-                    },
+                model.gpu_clocks_frame.widget() {
+                    add_css_class: "oc-page-section",
                 },
 
-                gtk::FlowBoxChild {
-                    set_focusable: false,
+                model.vram_clocks_frame.widget() {
+                    add_css_class: "oc-page-section",
+                },
 
-                    #[name = "right_column"]
-                    gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 10,
-                        set_valign: gtk::Align::Start,
+                model.power_frame.widget() {
+                    add_css_class: "oc-page-section",
+                },
 
-                        model.vram_clocks_frame.widget() {
-                            add_css_class: "oc-page-section",
-                        },
-
-                        model.power_states_frame.widget() {
-                            add_css_class: "oc-page-section",
-                        },
-                    },
+                model.power_states_frame.widget() {
+                    add_css_class: "oc-page-section",
                 },
             },
         },
@@ -182,10 +165,6 @@ impl relm4::Component for OcPage {
         };
 
         let widgets = view_output!();
-
-        let column_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
-        column_size_group.add_widget(&widgets.left_column);
-        column_size_group.add_widget(&widgets.right_column);
 
         ComponentParts { model, widgets }
     }
