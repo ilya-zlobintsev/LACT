@@ -81,17 +81,11 @@ impl relm4::Component for OcPage {
             model.stats_section.widget(),
 
             gtk::FlowBox {
-                add_css_class: "oc-page-columns",
-                set_orientation: gtk::Orientation::Horizontal,
-                set_min_children_per_line: 1,
                 set_max_children_per_line: 2,
                 set_selection_mode: gtk::SelectionMode::None,
-                set_activate_on_single_click: false,
-                set_homogeneous: false,
                 set_column_spacing: 10,
                 set_row_spacing: 10,
                 set_valign: gtk::Align::Start,
-                set_hexpand: true,
 
                 gtk::FlowBoxChild {
                     set_focusable: false,
@@ -101,7 +95,6 @@ impl relm4::Component for OcPage {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 10,
                         set_valign: gtk::Align::Start,
-                        set_hexpand: true,
 
                         model.gpu_clocks_frame.widget() {
                             add_css_class: "oc-page-section",
@@ -121,7 +114,6 @@ impl relm4::Component for OcPage {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 10,
                         set_valign: gtk::Align::Start,
-                        set_hexpand: true,
 
                         model.vram_clocks_frame.widget() {
                             add_css_class: "oc-page-section",
