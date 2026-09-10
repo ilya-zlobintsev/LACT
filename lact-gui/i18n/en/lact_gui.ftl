@@ -1,3 +1,7 @@
+language = Language
+language-system-default = System Default
+language-restart-notice = Restart the LACT GUI to apply language changes.
+
 info-page = Hardware Info
 oc-page = Overclocking
 thermals-page = Thermals
