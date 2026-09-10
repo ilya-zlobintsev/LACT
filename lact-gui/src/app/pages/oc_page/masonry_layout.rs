@@ -1,5 +1,4 @@
 use gtk::{glib, prelude::*};
-use std::cell::RefCell;
 
 glib::wrapper! {
     pub struct MasonryLayout(ObjectSubclass<imp::MasonryLayout>)
@@ -17,9 +16,7 @@ mod imp {
     use gtk::subclass::prelude::*;
 
     #[derive(Default)]
-    pub struct MasonryLayout {
-        packing: RefCell<Packing>,
-    }
+    pub struct MasonryLayout;
 
     #[glib::object_subclass]
     impl ObjectSubclass for MasonryLayout {
@@ -47,32 +44,20 @@ mod imp {
                 (minimum, natural, -1, -1)
             } else {
                 let width = if for_size < 0 { natural } else { for_size };
-                let (height, _) = layout(widget, width, &self.packing.borrow(), |_, _| {});
+                let height = layout(widget, width, |_, _| {});
                 (height, height, -1, -1)
             }
         }
 
         fn allocate(&self, widget: &gtk::Widget, width: i32, _height: i32, _baseline: i32) {
-            let (_, packing) = layout(
-                widget,
-                width,
-                &self.packing.borrow(),
-                |child, allocation| {
-                    child.size_allocate(allocation, -1);
-                },
-            );
-            self.packing.replace(packing);
+            layout(widget, width, |child, allocation| {
+                child.size_allocate(allocation, -1);
+            });
         }
     }
 }
 
 const SPACING: i32 = 10;
-
-#[derive(Default)]
-struct Packing {
-    columns: usize,
-    children: Vec<(glib::WeakRef<gtk::Widget>, usize)>,
-}
 
 fn children(widget: &gtk::Widget) -> impl Iterator<Item = gtk::Widget> {
     std::iter::successors(widget.first_child(), |child| child.next_sibling())
@@ -99,36 +84,18 @@ fn measure_width(widget: &gtk::Widget) -> (i32, i32) {
 fn layout(
     widget: &gtk::Widget,
     width: i32,
-    previous: &Packing,
     mut place: impl FnMut(&gtk::Widget, &gtk::Allocation),
-) -> (i32, Packing) {
+) -> i32 {
     let (minimum, _) = measure_width(widget);
-    let children: Vec<_> = children(widget).collect();
-    let columns = if children.len() > 1 && width >= minimum * 2 + SPACING {
+    let columns = if children(widget).count() > 1 && width >= minimum * 2 + SPACING {
         2
     } else {
         1
     };
     let column_width = ((width - SPACING * (columns as i32 - 1)) / columns as i32).max(0);
-    let reuse = previous.columns == columns
-        && previous.children.len() == children.len()
-        && previous
-            .children
-            .iter()
-            .zip(&children)
-            .all(|((previous, _), child)| previous.upgrade().as_ref() == Some(child));
-    let mut packing = Packing {
-        columns,
-        children: Vec::with_capacity(children.len()),
-    };
     let mut heights = [0, 0];
-    for (index, child) in children.into_iter().enumerate() {
-        let column = if reuse {
-            previous.children[index].1
-        } else {
-            usize::from(columns == 2 && heights[1] < heights[0])
-        };
-        packing.children.push((child.downgrade(), column));
+    for child in children(widget) {
+        let column = usize::from(columns == 2 && heights[1] < heights[0]);
         let x = column as i32 * (column_width + SPACING);
         let child_width = if column == columns - 1 {
             width - x
@@ -145,5 +112,5 @@ fn layout(
         place(&child, &gtk::Allocation::new(x, y, child_width, height));
         heights[column] = y + height + SPACING;
     }
-    ((heights[0].max(heights[1]) - SPACING).max(0), packing)
+    (heights[0].max(heights[1]) - SPACING).max(0)
 }
