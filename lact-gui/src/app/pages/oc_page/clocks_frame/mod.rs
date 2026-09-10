@@ -145,7 +145,7 @@ impl relm4::Component for ClocksFrame {
                     add_css_class: css::DESTRUCTIVE_ACTION,
 
                     #[watch]
-                    set_visible: model.has_any_clocks(),
+                    set_visible: model.domain == ClockDomain::Gpu && model.has_any_clocks(),
 
                     connect_clicked => move |_| {
                         APP_BROKER.send(AppMsg::ResetClocks);
