@@ -8,6 +8,9 @@ use std::cell::RefCell;
 use crate::{CONFIG, app::utils::color_scheme::AppColorScheme};
 
 pub const COMBINED_CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/combined.css"));
+// cosmic gtk4 override has 800 prio, so we have to beat it
+const BREEZE_CSS_PRIORITY: u32 = 801;
+pub const APPLICATION_CSS_PRIORITY: u32 = 802;
 
 macro_rules! include_theme_str {
     ($file:literal) => {
@@ -64,11 +67,7 @@ pub fn apply_theme(theme: AppTheme) -> anyhow::Result<()> {
         #[allow(deprecated)]
         provider.load_from_data(css);
 
-        style_context_add_provider_for_display(
-            &display,
-            &provider,
-            gtk::STYLE_PROVIDER_PRIORITY_SETTINGS,
-        );
+        style_context_add_provider_for_display(&display, &provider, BREEZE_CSS_PRIORITY);
 
         EXISTING_STYLE_PROVIDER.set(Some(provider));
     }
