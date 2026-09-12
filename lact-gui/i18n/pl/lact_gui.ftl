@@ -191,7 +191,6 @@ amd-oc-description =
     }
 
     Sprawdź <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">wiki</a> po więcej informacji.
-oc-warning = Zmiana tych wartości może prowadzić do niestabilności systemu, a nawet potencjalnie uszkodzić sprzęt!
 mem-pstate-clock = VRAM P-State { $pstate } Zegar (MHz)
 profile-activation = Aktywacja
 show-process-monitor = Pokaż monitor procesu

@@ -146,7 +146,6 @@ nvidia-oc-description =
     Es posible lograr un pseudo-subvoltaje combinando la opción de relojes bloqueados con una compensación positiva de la velocidad de reloj.
     Esto obligará a la GPU a funcionar a un voltaje limitado por los relojes bloqueados, mientras que alcanzará una velocidad de reloj más alta gracias a la compensación.
     Esto puede causar inestabilidad en el sistema si se aumenta demasiado.
-oc-warning = Cambiar estos valores puede provocar inestabilidad en el sistema y potencialmente dañar su hardware.
 show-all-pstates = Muestra todos los Estados-P
 enable-gpu-locked-clocks = Habilitar Relojes Bloqueados de GPU
 enable-vram-locked-clocks = Habilita Relojes VRAM Bloqueados

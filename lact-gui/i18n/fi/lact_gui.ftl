@@ -140,7 +140,6 @@ nvidia-oc-description =
     On mahdollista saavuttaa näennäisalijännite yhdistämällä lukitut kellot -vaihtoehto positiiviseen kellotaajuuspoikkeamaan.
     Tämä pakottaa GPU:n toimimaan lukittujen kellojen rajoittamalla jännitteellä, samalla kun saavutetaan korkeampi kellotaajuus poikkeaman ansiosta.
     Tämä voi aiheuttaa järjestelmän epävakautta, jos sen asetusarvoa nostetaan liian korkealle.
-oc-warning = Näiden arvojen muuttaminen voi johtaa järjestelmän epävakauteen ja mahdollisesti vahingoittaa laitteistoasi!
 show-all-pstates = Näytä kaikki P-tilat
 enable-gpu-locked-clocks = Ota GPU:n lukitut kellotaajuudet käyttöön
 enable-vram-locked-clocks = Ota VRAM:n lukitut kellotaajuudet käyttöön

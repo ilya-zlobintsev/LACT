@@ -128,7 +128,6 @@ power-profile-mode = Fogyasztási profilmód:
 manual-level-needed = A teljesítményszintnek „kézi” módban kell lennie, hogy a teljesítmény-állapotok és -módok használhatók legyenek
 overclock-section = Órajel és feszültség
 nvidia-oc-info = Túlhajtási információk
-oc-warning = Ezen értékek megváltoztatása a rendszer instabilitást okozhatja, és akár kárt is tehet a hardverében!
 show-all-pstates = Összes teljesítményállapot megjelenítése
 enable-gpu-locked-clocks = Zárolt GPU órajelek bekapcsolása
 enable-vram-locked-clocks = Zárolt VRAM órajelek bekapcsolása
