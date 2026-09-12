@@ -115,7 +115,6 @@ performance-level = Nivell de rendiment
 power-profile-mode = Mode de perfil d'energia:
 overclock-section = Velocitat de rellotge i voltatge
 nvidia-oc-info = Informació d'Overclocking
-oc-warning = Canviar aquests valors pot provocar inestabilitat del sistema i pot danyar potencialment el vostre maquinari!
 show-all-pstates = Mostra tots els estats P
 enable-gpu-locked-clocks = Habilita els rellotges bloquejats de la GPU
 enable-vram-locked-clocks = Habilita els rellotges bloquejats de la VRAM
