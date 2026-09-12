@@ -93,7 +93,7 @@ disable-amd-oc-description = Ini akan menonaktifkan dukungan overclocking AMD (o
 amd-oc-updating-configuration = Memperbarui konfigurasi (ini mungkin memakan waktu)
 amd-oc-updating-done = Konfigurasi diperbarui, harap reboot untuk menerapkan perubahan.
 reset-config = Reset Konfigurasi
-reset-config-description = Apakah Anda yakin ingin mereset semua konfigurasi GPU?
+reset-config-description = Tindakan ini akan mengatur ulang semua pengaturan GPU ke nilai default serta menghapus semua profil secara permanen
 apply-button = Terapkan
 revert-button = Kembalikan
 power-cap = Batas Penggunaan Daya
@@ -122,9 +122,9 @@ performance-level-high = Clock Tertinggi
 performance-level-low = Clock Terendah
 performance-level-manual = Manual
 performance-level-auto-description = Sesuaikan clock GPU dan VRAM secara otomatis. (Default)
-performance-level-high-description = Selalu gunakan kecepatan clock tertinggi untuk GPU dan VRAM.
-performance-level-low-description = Selalu gunakan kecepatan clock terendah untuk GPU dan VRAM.
-performance-level-manual-description = Kontrol performa manual.
+performance-level-high-description = Selalu gunakan kecepatan clock tertinggi untuk GPU dan VRAM
+performance-level-low-description = Selalu gunakan kecepatan clock terendah untuk GPU dan VRAM
+performance-level-manual-description = Kontrol performa manual
 performance-level = Level Performa
 power-profile-mode = Mode Profil Daya:
 manual-level-needed = Level performa harus diatur ke "manual" untuk menggunakan status daya dan mode
@@ -140,7 +140,6 @@ nvidia-oc-description =
     Dimungkinkan untuk mencapai pseudo-undervolt dengan menggabungkan opsi locked clocks dengan offset kecepatan clock positif.
     Ini akan memaksa GPU berjalan pada tegangan yang dibatasi oleh locked clocks, sekaligus mencapai kecepatan clock yang lebih tinggi berkat offset tersebut.
     Hal ini dapat menyebabkan ketidakstabilan sistem jika didorong terlalu tinggi.
-oc-warning = Mengubah nilai-nilai ini dapat menyebabkan ketidakstabilan sistem dan berpotensi merusak perangkat keras Anda!
 show-all-pstates = Tampilkan Semua P-State
 enable-gpu-locked-clocks = Aktifkan Locked Clocks GPU
 enable-vram-locked-clocks = Aktifkan Locked Clocks VRAM
@@ -232,7 +231,6 @@ hw-queues = Antrean
 vf-curve-editor = Editor Kurva VF
 nvidia-vf-curve-warning =
     Editor kurva tegangan-frekuensi bergantung pada fungsionalitas driver yang tidak terdokumentasi.
-    Tidak ada jaminan terkait perilaku, keamanan, atau ketersediaannya.
     <span weight = "heavy" underline = "single">Gunakan dengan risiko Anda sendiri</span>.
 voltage = Tegangan
 frequency = Frekuensi
@@ -301,3 +299,22 @@ color-scheme = Skema Warna
 color-scheme-auto = Sistem
 color-scheme-light = Terang
 color-scheme-dark = Gelap
+no-fan-detected = Tidak ada kipas yang terdeteksi
+no-sensors-found = Tidak ada sensor yang ditemukan
+reset-now-button = Atur Ulang Sekarang
+default-button = Default
+extra-clocks = Clock Tambahan
+performance-level-profile-standard = Standar Profiling
+performance-level-profile-min-sclk = Profiling Clock GPU Terendah
+performance-level-profile-min-mclk = Profiling Clock VRAM Terendah
+performance-level-profile-peak = Profiling Puncak
+performance-level-profile-standard-description = Mode profiling tetap
+performance-level-profile-min-sclk-description = Mode profiling yang memaksa clock GPU ke tingkat terendah
+performance-level-profile-min-mclk-description = Mode profiling yang memaksa clock VRAM ke tingkat terendah
+performance-level-profile-peak-description = Mode profiling yang memaksa clock GPU dan VRAM ke tingkat tertinggi
+enable-vf-curve = Aktifkan Pengeditan Kurva VF
+vf-curve-editing-disabled = Pengeditan kurva VF dinonaktifkan pada halaman OC
+service-setup-title = Pengaturan Layanan
+setup-error = Kesalahan pengaturan: { $error }
+service-autostart = Mulai otomatis saat boot
+service-autostart-disable = Nonaktifkan mulai otomatis juga
