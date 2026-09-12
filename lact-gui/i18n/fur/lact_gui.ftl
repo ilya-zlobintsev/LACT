@@ -114,7 +114,6 @@ gpu-temp = Temperadure GPU
 oc-missing-fan-control-warning = Atenzion: il supuart pal overclock al è disabilitât, il control de svintule nol è disponibil.
 gpu-voltage-offset = Variazion voltaç GPU (mV)
 fan-control-section = Control svintule
-oc-warning = Atenzion: la modifiche di chescj valôrs e podarès puartâ a vê un sisteme instabil e al podarès adiriture ruvinâ l'hardware!
 pstate-list-description = <b>Chescj valôrs a son variazions di frecuence par ogni P-State, lant dal plui alt al plui bas.</b>
 max-gpu-clock = Frecuence massime GPU (MHz)
 max-gpu-voltage = Voltaç massim GPU (mV)
