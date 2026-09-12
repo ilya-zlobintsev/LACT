@@ -112,7 +112,8 @@ confirm-settings = Confirm Settings
 revert-button = Revert
 settings-confirmation = Do you want to keep the new settings? (Reverting in {$seconds_left} seconds)
 
-power-cap = Power Usage Limit
+power-cap = Power Limit
+power-section = Power
 
 watt = W
 ghz = GHz
@@ -124,12 +125,14 @@ gibibyte = GiB
 
 stats-section = Statistics
 gpu-clock = GPU Core Clock
+core-section = Core
 gpu-clock-avg = GPU Core Clock (Average)
 gpu-clock-target = GPU Core Clock (Target)
 gpu-voltage = GPU Voltage
 gpu-temp = Temperature
 gpu-usage = GPU Usage
 vram-clock = VRAM Clock
+vram-section = VRAM
 power-usage = Power Usage
 extra-clocks = Extra Clocks
 no-throttling = No
@@ -169,21 +172,10 @@ power-mizer-mode-prefer-maximum-performance-description = Favor maximum performa
 power-mizer-mode-prefer-consistent-performance-description = Lock to GPU base clocks.
 
 overclock-section = Clockspeed and Voltage
-nvidia-oc-info = Overclocking Information
-nvidia-oc-description =
-    Overclocking functionality on Nvidia includes setting offsets for GPU/VRAM clockspeeds and limiting the potential range of clockspeeds using the "locked clocks" feature.
-
-    On many cards, the VRAM clockpeed offset will only affect the actual memory clockspeed by half of the offset value.
-    For example, a +1000MHz VRAM offset may only increase the measured VRAM speed by 500MHz.
-    This is normal, and is how Nvidia handles GDDR data rates. Adjust your overclock accordingly.
-
-    It is possible to achieve a pseudo-undervolt by combining the locked clocks option with a positive clockspeed offset.
-    This will force the GPU to run at a voltage that's constrained by the locked clocks, while achieving a higher clockspeed due to the offset.
-    This can cause system instability if pushed too high.
-show-all-pstates = Show all P-States
-enable-gpu-locked-clocks = Enable GPU Locked Clocks
-enable-vram-locked-clocks = Enable VRAM Locked Clocks
-enable-vf-curve = Enable VF Curve Edit
+advanced-features = Advanced features
+show-all-pstates = All P-States
+enable-locked-clocks = Locked Clocks
+enable-vf-curve = VF Curve Edit
 pstate-list-description = <b>The following values are clock offsets for each P-State, going from highest to lowest.</b>
 no-clocks-data = No clocks data available
 reset-oc-tooltip = Warning: this resets all clock settings to defaults!
@@ -200,22 +192,17 @@ vf-curve-flatten-right = Flatten curve to the right
 vf-curve-flatten-selection = Flatten selection
 vf-curve-editing-disabled = VF curve editing is disabled on the OC page
 
-gpu-clock-offset = GPU Clock Offset (MHz)
-max-gpu-clock = Maximum GPU Clock (MHz)
-max-vram-clock = Maximum VRAM Clock (MHz)
-max-gpu-voltage = Maximum GPU Voltage (mV)
-min-gpu-clock = Minimum GPU Clock (MHz)
-min-vram-clock = Minimum VRAM Clock (MHz)
-min-gpu-voltage = Minimum GPU Voltage (mV)
-gpu-voltage-offset = GPU voltage offset (mV)
-gpu-voltage-boost = GPU Voltage Boost (%)
+gpu-clock-offset = Clock Offset (MHz)
+max-clock = Maximum Clock (MHz)
+max-gpu-voltage = Maximum Voltage (mV)
+min-clock = Minimum Clock (MHz)
+min-gpu-voltage = Minimum Voltage (mV)
+gpu-voltage-offset = Voltage Offset (mV)
+gpu-voltage-boost = Voltage Boost (%)
 gpu-voltage-boost-tooltip = Controls how much of the additional voltage headroom defined by the driver is available. 100% means all of this headroom, not 100% of total GPU voltage. More headroom may sustain higher clockspeeds but increases power draw and heat.
-gpu-pstate-clock-offset = GPU P-State {$pstate} Clock Offset (MHz)
-vram-pstate-clock-offset = VRAM P-State {$pstate} Clock Offset (MHz)
-gpu-pstate-clock = GPU P-State {$pstate} Clock (MHz)
-mem-pstate-clock = VRAM P-State {$pstate} Clock (MHz)
-gpu-pstate-clock-voltage = GPU P-State {$pstate} Voltage (mV)
-mem-pstate-clock-voltage = VRAM P-State {$pstate} Voltage (mV)
+pstate-clock-offset = P-State {$pstate} Clock Offset (MHz)
+pstate-clock = P-State {$pstate} Clock (MHz)
+pstate-clock-voltage = P-State {$pstate} Voltage (mV)
 
 pstates = Power States
 gpu-pstates = GPU Power States

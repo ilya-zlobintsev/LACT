@@ -3,15 +3,15 @@ use super::power_states_list::{PowerStatesListMsg, PowerStatesListOptions};
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::page_section_expander::PageSectionExpander, msg::AppMsg,
-        pages::oc_page::OcPageMsg, utils::ext::RelmLaunchable as _,
+        components::{adjustment_card::AdjustmentCard, page_section::PageSection},
+        msg::AppMsg,
+        pages::oc_page::OcPageMsg,
+        utils::ext::RelmLaunchable as _,
     },
 };
+use adw::prelude::*;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
-use gtk::{
-    glib::{SignalHandlerId, object::ObjectExt},
-    prelude::{BoxExt, CheckButtonExt, OrientableExt, WidgetExt},
-};
+use gtk::glib::{SignalHandlerId, object::ObjectExt};
 use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
@@ -55,44 +55,61 @@ impl relm4::SimpleComponent for PowerStatesFrame {
     type Output = OcPageMsg;
 
     view! {
-        PageSectionExpander::new(&fl!(I18N, "pstates")) {
-            append_expandable = &gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
-
-                gtk::CheckButton {
-                    set_label: Some(&fl!(I18N, "enable-pstate-config")),
-                    #[watch]
-                    #[block_signal(configured_toggled_handler)]
-                    set_active: model.states_configuration_enabled.value(),
-
-                    connect_toggled[sender] => move |button| {
-                        sender.input(PowerStatesFrameMsg::ConfiguredToggled {
-                            configured: button.is_active(),
-                        });
-                    } @ configured_toggled_handler,
-
+        PageSection::new(&fl!(I18N, "pstates")) {
+            #[template]
+            append_child = &AdjustmentCard {
+                #[template_child]
+                advanced_features {
                     #[watch]
                     set_visible: model.performance_level.is_some(),
                 },
 
-                gtk::Box {
-                    set_spacing: 10,
-                    set_orientation: gtk::Orientation::Horizontal,
+                #[template_child]
+                controls {
+                    gtk::ToggleButton {
+                        set_halign: gtk::Align::Start,
+                        add_css_class: "adjustment-card-option-toggle",
 
-                    gtk::Box {
                         #[watch]
-                        set_visible: !model.core_states_list.model().is_empty(),
-                        append = model.core_states_list.widget(),
-                    },
+                        #[block_signal(configured_toggled_handler)]
+                        set_active: model.states_configuration_enabled.value(),
 
-                    gtk::Box {
-                        #[watch]
-                        set_visible: !model.vram_states_list.model().is_empty(),
-                        append = model.vram_states_list.widget(),
+                        connect_toggled[sender] => move |button| {
+                            sender.input(PowerStatesFrameMsg::ConfiguredToggled {
+                                configured: button.is_active(),
+                            });
+                        } @ configured_toggled_handler,
+
+                        #[wrap(Some)]
+                        set_child = &gtk::Box {
+                            gtk::Label {
+                                set_label: &fl!(I18N, "enable-pstate-config"),
+                            },
+                        },
                     },
-                }
-            }
+                },
+
+                #[template_child]
+                content {
+                    gtk::Box {
+                        set_spacing: 10,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_homogeneous: true,
+
+                        gtk::Box {
+                            #[watch]
+                            set_visible: !model.core_states_list.model().is_empty(),
+                            append = model.core_states_list.widget(),
+                        },
+
+                        gtk::Box {
+                            #[watch]
+                            set_visible: !model.vram_states_list.model().is_empty(),
+                            append = model.vram_states_list.widget(),
+                        },
+                    },
+                },
+            },
         }
     }
 

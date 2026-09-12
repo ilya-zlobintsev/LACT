@@ -1,3 +1,4 @@
+pub(crate) mod adjustment_card;
 pub(crate) mod adjustment_row;
 pub(crate) mod adjustment_value;
 pub(crate) mod gpu_stats_section;

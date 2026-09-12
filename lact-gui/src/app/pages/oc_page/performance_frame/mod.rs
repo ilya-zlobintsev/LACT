@@ -2,15 +2,11 @@ mod heuristics_list;
 
 use crate::{
     APP_BROKER, I18N,
-    app::{components::page_section::PageSection, msg::AppMsg, pages::oc_page::OcPageMsg},
+    app::{msg::AppMsg, pages::oc_page::OcPageMsg},
 };
+use adw::prelude::*;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, power_profile_mode::PowerProfileModesTable};
-use gtk::{
-    StringObject,
-    gio::prelude::ListModelExt,
-    glib::object::Cast,
-    prelude::{BoxExt, ListBoxRowExt, OrientableExt, WidgetExt},
-};
+use gtk::StringObject;
 use heuristics_list::PowerProfileHeuristicsList;
 use i18n_embed_fl::fl;
 use nvml_wrapper::enums::device::PowerMizerMode;
@@ -57,11 +53,15 @@ impl relm4::Component for PerformanceFrame {
     type CommandOutput = ();
 
     view! {
-        PageSection::new("Performance") {
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            set_spacing: 10,
             #[watch]
-            set_visible: model.performance_level.is_some() || model.active_power_mizer_mode.is_some(),
+            set_visible: model.performance_level.is_some()
+                || model.power_profile_modes_table.is_some()
+                || model.active_power_mizer_mode.is_some(),
 
-            append_child = &gtk::Box {
+            append = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
                 #[watch]
@@ -114,7 +114,7 @@ impl relm4::Component for PerformanceFrame {
                 },
             },
 
-            append_child = &gtk::Box {
+            append = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
                 #[watch]
@@ -183,7 +183,7 @@ impl relm4::Component for PerformanceFrame {
                 },
             },
 
-            append_child = &gtk::Box {
+            append = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
                 #[watch]
