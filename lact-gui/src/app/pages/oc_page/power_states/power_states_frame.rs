@@ -29,6 +29,8 @@ pub struct PowerStatesFrame {
     performance_level: Option<PerformanceLevel>,
     configured_signal: SignalHandlerId,
     vram_clock_ratio: f64,
+    has_core_states: bool,
+    has_vram_states: bool,
 }
 
 #[derive(Debug)]
@@ -82,13 +84,13 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
                     gtk::Box {
                         #[watch]
-                        set_visible: !model.core_states_list.model().is_empty(),
+                        set_visible: model.has_core_states,
                         append = model.core_states_list.widget(),
                     },
 
                     gtk::Box {
                         #[watch]
-                        set_visible: !model.vram_states_list.model().is_empty(),
+                        set_visible: model.has_vram_states,
                         append = model.vram_states_list.widget(),
                     },
                 }
@@ -129,6 +131,8 @@ impl relm4::SimpleComponent for PowerStatesFrame {
             configured_signal,
             performance_level: None,
             vram_clock_ratio: 1.0,
+            has_core_states: false,
+            has_vram_states: false,
         };
 
         let widgets = view_output!();
@@ -142,6 +146,9 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 pstates,
                 configured,
             } => {
+                // Child updates are queued; use the received states for availability
+                self.has_core_states = !pstates.core.is_empty();
+                self.has_vram_states = !pstates.vram.is_empty();
                 self.states_configuration_enabled
                     .block_signal(&self.configured_signal);
                 self.states_configuration_enabled.set_value(configured);
@@ -167,9 +174,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 self.vram_clock_ratio = ratio;
             }
             PowerStatesFrameMsg::Configurable(is_plvl_manual) => {
-                let configurable = is_plvl_manual
-                    && (!self.core_states_list.model().is_empty()
-                        || !self.vram_states_list.model().is_empty());
+                let configurable = is_plvl_manual && (self.has_core_states || self.has_vram_states);
                 self.states_configurable.set_value(configurable);
 
                 if !configurable {
@@ -235,5 +240,59 @@ impl PowerStatesFrame {
         } else {
             IndexMap::new()
         }
+    }
+}
+
+#[cfg(all(test, feature = "gtk-tests"))]
+mod tests {
+    use super::*;
+    use amdgpu_sysfs::gpu_handle::PowerLevelId;
+    use lact_schema::PowerState;
+
+    #[test]
+    #[ignore = "requires a GTK display; run explicitly with --ignored"]
+    fn restores_configured_states_before_child_lists_update() {
+        adw::init().unwrap();
+        let context = gtk::glib::MainContext::default();
+        let _guard = context.acquire().unwrap();
+        let frame = PowerStatesFrame::detach(());
+        let states = PowerStates {
+            core: vec![],
+            vram: (0..4)
+                .map(|index| PowerState {
+                    enabled: index == 3,
+                    min_value: None,
+                    value: 100 * u64::from(index + 1),
+                    id: Some(PowerLevelId::Index(index)),
+                })
+                .collect(),
+        };
+
+        // Queue the startup messages together, before child components can update
+        frame.emit(PowerStatesFrameMsg::PowerStates {
+            pstates: states,
+            configured: true,
+        });
+        frame.emit(PowerStatesFrameMsg::Configurable(true));
+        while context.pending() {
+            context.iteration(false);
+        }
+        assert!(frame.model().states_configuration_enabled.value());
+        assert_eq!(
+            frame.model().get_enabled_power_states()[&PowerLevelKind::MemoryClock],
+            vec![3],
+        );
+
+        // Changing to a GPU without power states must clear the previous capability
+        frame.emit(PowerStatesFrameMsg::PowerStates {
+            pstates: PowerStates::default(),
+            configured: false,
+        });
+        frame.emit(PowerStatesFrameMsg::Configurable(true));
+        while context.pending() {
+            context.iteration(false);
+        }
+        assert!(!frame.model().states_configurable.value());
+        assert!(frame.model().get_enabled_power_states().is_empty());
     }
 }
