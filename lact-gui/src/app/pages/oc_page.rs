@@ -76,7 +76,7 @@ impl relm4::Component for OcPage {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 10,
+            set_spacing: 15,
             set_margin_all: 15,
             set_margin_top: 20, // align with gpu picker
 
@@ -84,9 +84,9 @@ impl relm4::Component for OcPage {
 
             gtk::Box {
                 set_layout_manager: Some(CardLayout::new([
-                    ColumnBias::Left, // Core
+                    ColumnBias::Left,    // Core
                     ColumnBias::Right,   // VRAM
-                    ColumnBias::Left, // Power
+                    ColumnBias::Left,    // Power
                     ColumnBias::Right,   // Power States
 
                 ])),

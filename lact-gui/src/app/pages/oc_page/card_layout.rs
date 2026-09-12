@@ -71,7 +71,7 @@ mod imp {
     }
 }
 
-const SPACING: i32 = 10;
+const SPACING: i32 = 15;
 
 fn children(widget: &gtk::Widget) -> impl Iterator<Item = (usize, gtk::Widget)> {
     std::iter::successors(widget.first_child(), |child| child.next_sibling())
