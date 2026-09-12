@@ -187,10 +187,7 @@ impl relm4::Component for ClocksFrame {
                         #[wrap(Some)]
                         set_child = &gtk::Box {
                             append = &gtk::Label {
-                                set_label: &match model.domain {
-                                    ClockDomain::Gpu => fl!(I18N, "enable-gpu-locked-clocks"),
-                                    ClockDomain::Vram => fl!(I18N, "enable-vram-locked-clocks"),
-                                },
+                                set_label: &fl!(I18N, "enable-locked-clocks"),
                             },
                         },
                         connect_toggled => move |_| {
@@ -740,27 +737,20 @@ fn nvidia_clock_offset_to_data(
 
 fn clock_title(clock_type: ClockspeedType) -> String {
     match clock_type {
-        ClockspeedType::MaxCoreClock => fl!(I18N, "max-gpu-clock"),
-        ClockspeedType::MaxMemoryClock => fl!(I18N, "max-vram-clock"),
+        ClockspeedType::MaxCoreClock | ClockspeedType::MaxMemoryClock => fl!(I18N, "max-clock"),
         ClockspeedType::MaxVoltage => fl!(I18N, "max-gpu-voltage"),
-        ClockspeedType::MinCoreClock => fl!(I18N, "min-gpu-clock"),
-        ClockspeedType::MinMemoryClock => fl!(I18N, "min-vram-clock"),
+        ClockspeedType::MinCoreClock | ClockspeedType::MinMemoryClock => fl!(I18N, "min-clock"),
         ClockspeedType::MinVoltage => fl!(I18N, "min-gpu-voltage"),
         ClockspeedType::VoltageOffset => fl!(I18N, "gpu-voltage-offset"),
         ClockspeedType::VoltageBoost => fl!(I18N, "gpu-voltage-boost"),
-        ClockspeedType::GpuClockOffset(pstate) => {
-            fl!(I18N, "gpu-pstate-clock-offset", pstate = pstate)
+        ClockspeedType::GpuClockOffset(pstate) | ClockspeedType::MemClockOffset(pstate) => {
+            fl!(I18N, "pstate-clock-offset", pstate = pstate)
         }
-        ClockspeedType::MemClockOffset(pstate) => {
-            fl!(I18N, "vram-pstate-clock-offset", pstate = pstate)
+        ClockspeedType::GpuVfCurveClock(pstate) | ClockspeedType::MemVfCurveClock(pstate) => {
+            fl!(I18N, "pstate-clock", pstate = pstate)
         }
-        ClockspeedType::GpuVfCurveClock(pstate) => fl!(I18N, "gpu-pstate-clock", pstate = pstate),
-        ClockspeedType::MemVfCurveClock(pstate) => fl!(I18N, "mem-pstate-clock", pstate = pstate),
-        ClockspeedType::GpuVfCurveVoltage(pstate) => {
-            fl!(I18N, "gpu-pstate-clock-voltage", pstate = pstate)
-        }
-        ClockspeedType::MemVfCurveVoltage(pstate) => {
-            fl!(I18N, "mem-pstate-clock-voltage", pstate = pstate)
+        ClockspeedType::GpuVfCurveVoltage(pstate) | ClockspeedType::MemVfCurveVoltage(pstate) => {
+            fl!(I18N, "pstate-clock-voltage", pstate = pstate)
         }
         ClockspeedType::Reset => unreachable!(),
     }
