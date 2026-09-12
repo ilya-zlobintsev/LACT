@@ -95,7 +95,6 @@ reset-config-description = سيؤدي هذا إلى تصفير جميع إعدا
 amd-oc-disabled = رفع تردد تشغيل معالج AMD غير مُفعّل! <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">لن تتوفر بعض الوظائف.</a>
 pstates = حالات الطاقة
 enable-amd-oc-description = سيؤدي هذا إلى تمكين ميزة زيادة سرعة التشغيل (overdrive) لمُشغّل amdgpu عن طريق إنشاء ملف في <b>{ $path }</b> وتحديث initramfs. هل أنت متأكد أنك تريد القيام بذلك؟
-oc-warning = قد يؤدي تغيير هذه القيم إلى عدم استقرار النظام وقد يتسبب في تلف عتادك!
 max-gpu-voltage = الحد الأقصى لجهد معالج الرسوميات (mV)
 performance-level-auto-description = اضبط تلقائيًا ترددات معالج الرسوميات وذاكرة الفيديو. (افتراضي)
 performance-level-high-description = استخدم دائمًا أعلى سرعات تردد المعالج لبطاقة الرسوميات وذاكرة الفيديو.
