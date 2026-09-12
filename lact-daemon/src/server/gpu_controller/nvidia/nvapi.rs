@@ -831,6 +831,14 @@ impl NvGpuClockDomainId {
         Self::Disp1,
     ];
 
+    /// Resolves a raw domain id, but only for the domains in [`Self::EXTRA`].
+    ///
+    /// Domains that NVML already exposes deliberately do not resolve, so callers
+    /// cannot end up driving the same clock through two different interfaces.
+    pub fn from_id(id: u32) -> Option<Self> {
+        Self::EXTRA.into_iter().find(|domain| *domain as u32 == id)
+    }
+
     pub fn into_str(self) -> &'static str {
         match self {
             // Self::Gpc => "GPC",

@@ -2,14 +2,20 @@ mod adjustment_group;
 
 use crate::{
     APP_BROKER, I18N,
-    app::{components::page_section::PageSection, msg::AppMsg, pages::oc_page::OcPageMsg},
+    app::{
+        components::{
+            page_section::PageSection, page_section_expander::PageSectionExpander,
+        },
+        msg::AppMsg,
+        pages::oc_page::OcPageMsg,
+    },
 };
-use adjustment_group::{AdjustmentGroup, ClockCategory};
+use adjustment_group::{AdjustmentGroup, ClockCategory, RowId};
 use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
 use gtk::{
     glib::object::ObjectExt,
     pango,
-    prelude::{BoxExt, ButtonExt, CheckButtonExt, OrientableExt, WidgetExt},
+    prelude::{AdjustmentExt, BoxExt, ButtonExt, CheckButtonExt, OrientableExt, WidgetExt},
 };
 use i18n_embed_fl::fl;
 use lact_schema::{
@@ -27,6 +33,7 @@ const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 pub struct ClocksFrame {
     core_groups: FactoryHashMap<ClockCategory, AdjustmentGroup>,
     vram_groups: FactoryHashMap<ClockCategory, AdjustmentGroup>,
+    advanced_groups: FactoryHashMap<ClockCategory, AdjustmentGroup>,
     vram_clock_ratio: f64,
     show_nvidia_options: bool,
     vf_curve_available: bool,
@@ -69,6 +76,8 @@ pub enum ClocksFrameMsg {
     VramRatio(f64),
     TogglePStatesVisibility,
     ResetGpuClockOffsets,
+    /// The user moved the MSVDD master row, which drives the per-domain rows.
+    MsvddOffset(i32),
 }
 
 #[relm4::component(pub)]
@@ -233,6 +242,48 @@ impl relm4::Component for ClocksFrame {
                 },
             },
 
+            append_child = &PageSectionExpander::new(&fl!(I18N, "advanced-section")) {
+                #[watch]
+                set_visible: model.advanced_any_visible(),
+                // The surrounding section has no container of its own, so this one
+                // drops its padding too and the cards keep the same width as above.
+                set_hide_visible_container: true,
+
+                append_header = &gtk::MenuButton {
+                    set_icon_name: "dialog-information-symbolic",
+                    set_always_show_arrow: false,
+                    add_css_class: "flat",
+                    set_valign: gtk::Align::Center,
+
+                    #[wrap(Some)]
+                    set_popover = &gtk::Popover {
+                        gtk::Label {
+                            set_margin_all: 5,
+                            set_label: &fl!(I18N, "advanced-section-description"),
+                            set_wrap: true,
+                            set_wrap_mode: pango::WrapMode::Word,
+                            set_max_width_chars: 55,
+                        }
+                    },
+                },
+
+                append_expandable = &gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 10,
+
+                    #[local_ref]
+                    advanced_groups_widget -> gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_valign: gtk::Align::Start,
+                        set_spacing: 10,
+                        set_hexpand: true,
+                        // Cards only get their inner padding through this class, the
+                        // same way the core and VRAM columns above receive it.
+                        add_css_class: "clocks-frame-group",
+                    },
+                },
+            },
+
             append_child = &gtk::Label {
                 set_label: &fl!(I18N, "no-clocks-data"),
                 set_margin_horizontal: 10,
@@ -251,6 +302,7 @@ impl relm4::Component for ClocksFrame {
         let model = Self {
             core_groups: FactoryHashMap::builder().launch_default().detach(),
             vram_groups: FactoryHashMap::builder().launch_default().detach(),
+            advanced_groups: FactoryHashMap::builder().launch_default().detach(),
             vram_clock_ratio: 1.0,
             show_nvidia_options: false,
             vf_curve_available: false,
@@ -274,6 +326,7 @@ impl relm4::Component for ClocksFrame {
 
         let core_groups_widget = model.core_groups.widget();
         let vram_groups_widget = model.vram_groups.widget();
+        let advanced_groups_widget = model.advanced_groups.widget();
 
         let widgets = view_output!();
 
@@ -304,6 +357,7 @@ impl relm4::Component for ClocksFrame {
 
                 self.core_groups.clear();
                 self.vram_groups.clear();
+                self.advanced_groups.clear();
 
                 self.enable_gpu_locked_clocks.set_value(false);
                 self.enable_vram_locked_clocks.set_value(false);
@@ -335,6 +389,8 @@ impl relm4::Component for ClocksFrame {
                     .vram_locked_clocks_togglebutton
                     .unblock_signal(&widgets.vram_locked_clock_signal);
 
+                self.connect_msvdd_master(&sender);
+
                 self.update_vram_clock_ratio();
                 sender.input(ClocksFrameMsg::TogglePStatesVisibility);
             }
@@ -346,6 +402,11 @@ impl relm4::Component for ClocksFrame {
             ClocksFrameMsg::VramRatio(vram_ratio) => {
                 self.vram_clock_ratio = vram_ratio;
                 self.update_vram_clock_ratio();
+            }
+            ClocksFrameMsg::MsvddOffset(offset) => {
+                if let Some(group) = self.advanced_groups.get(&ClockCategory::AdvancedVoltage) {
+                    group.set_domain_voltage_offsets(offset);
+                }
             }
             ClocksFrameMsg::TogglePStatesVisibility => {
                 for group in self.all_groups() {
@@ -366,12 +427,18 @@ impl relm4::Component for ClocksFrame {
 
 impl ClocksFrame {
     fn set_clock(&mut self, clock_type: ClockspeedType, data: ClocksData) {
-        let category = ClockCategory::from_type(clock_type);
+        self.set_row(RowId::Clock(clock_type), data);
+    }
+
+    fn set_row(&mut self, id: RowId, data: ClocksData) {
+        let category = ClockCategory::from_row(id);
 
         let groups = if category.is_core() {
             &mut self.core_groups
         } else if category.is_vram() {
             &mut self.vram_groups
+        } else if category.is_advanced() {
+            &mut self.advanced_groups
         } else {
             unreachable!()
         };
@@ -383,11 +450,37 @@ impl ClocksFrame {
             groups.get_mut(&category).unwrap()
         };
 
-        group.set_clock(clock_type, data);
+        group.set_row(id, data);
     }
 
     fn all_groups(&self) -> impl Iterator<Item = &AdjustmentGroup> {
-        self.core_groups.values().chain(self.vram_groups.values())
+        self.core_groups
+            .values()
+            .chain(self.vram_groups.values())
+            .chain(self.advanced_groups.values())
+    }
+
+    /// Forwards user changes of the MSVDD master row to this component.
+    ///
+    /// The rows are rebuilt whenever the clocks table changes, so this runs
+    /// again for each new row. The handler is attached after the row was
+    /// initialized with its current value, so loading a table does not fire it.
+    fn connect_msvdd_master(&self, sender: &ComponentSender<Self>) {
+        let adjustment = self
+            .advanced_groups
+            .get(&ClockCategory::AdvancedVoltage)
+            .and_then(|group| group.row_adjustment(RowId::MsvddMaster));
+
+        if let Some(adjustment) = adjustment {
+            let sender = sender.clone();
+            adjustment.connect_value_changed(move |adjustment| {
+                sender.input(ClocksFrameMsg::MsvddOffset(adjustment.value() as i32));
+            });
+        }
+    }
+
+    fn advanced_any_visible(&self) -> bool {
+        self.advanced_groups.values().any(|group| !group.is_empty())
     }
 
     fn has_any_clocks(&self) -> bool {
@@ -647,6 +740,85 @@ impl ClocksFrame {
             );
         }
 
+        // Every one of these domains is fed by the same MSVDD rail, so offsetting
+        // all of them together is the common case. The master row covers that,
+        // and the per-domain rows below it stay editable as overrides.
+        let voltages: Vec<_> = table
+            .clock_domain_offsets
+            .iter()
+            .filter_map(|domain_offset| domain_offset.voltage.as_ref())
+            .collect();
+
+        if voltages.len() > 1 {
+            let highest = voltages.iter().map(|voltage| voltage.current).max().unwrap();
+            // The domains carry independent offsets, so there is no single value to
+            // show unless they happen to agree. When they do not, the master says so
+            // rather than inventing one, and sits at the largest of them so that
+            // moving it starts from the offset currently doing the most.
+            let agreed = voltages
+                .iter()
+                .all(|voltage| voltage.current == highest)
+                .then_some(highest);
+
+            self.set_row(
+                RowId::MsvddMaster,
+                ClocksData {
+                    current: agreed.unwrap_or(highest),
+                    // Only values every domain accepts, as the master sets them all.
+                    min: voltages.iter().map(|voltage| voltage.min).max().unwrap(),
+                    max: voltages.iter().map(|voltage| voltage.max).min().unwrap(),
+                    custom_title: agreed.is_none().then(|| fl!(I18N, "msvdd-offset-mixed")),
+                    ..Default::default()
+                },
+            );
+        }
+
+        for domain_offset in &table.clock_domain_offsets {
+            self.set_clock(
+                ClockspeedType::ClockDomainOffset(domain_offset.domain),
+                ClocksData {
+                    current: domain_offset.freq.current,
+                    min: domain_offset.freq.min,
+                    max: domain_offset.freq.max,
+                    custom_title: Some(fl!(
+                        I18N,
+                        "clock-domain-offset",
+                        domain = domain_offset.name.clone()
+                    )),
+                    ..Default::default()
+                },
+            );
+
+            if let Some(voltage) = &domain_offset.voltage {
+                self.set_clock(
+                    ClockspeedType::ClockDomainVoltageOffset(domain_offset.domain),
+                    ClocksData {
+                        current: voltage.current,
+                        min: voltage.min,
+                        max: voltage.max,
+                        custom_title: Some(fl!(
+                            I18N,
+                            "clock-domain-voltage-offset",
+                            domain = domain_offset.name.clone()
+                        )),
+                        ..Default::default()
+                    },
+                );
+            }
+        }
+
+        if let Some(ratio) = table.gpc_xbar_ratio {
+            self.set_clock(
+                ClockspeedType::XbarRatio,
+                ClocksData {
+                    current: ratio.current,
+                    min: ratio.min,
+                    max: ratio.max,
+                    ..Default::default()
+                },
+            );
+        }
+
         if let Some(voltage_boost) = table.voltage_boost {
             self.set_clock(
                 ClockspeedType::VoltageBoost,
@@ -690,7 +862,7 @@ impl ClocksFrame {
                             .then(|| {
                                 self.core_groups
                                     .get(&ClockCategory::from_type(clock_type))
-                                    .map(|group| group.get_raw_value(clock_type))
+                                    .map(|group| group.get_raw_value(RowId::Clock(clock_type)))
                             })
                             .flatten(),
                         ClockspeedType::MinMemoryClock | ClockspeedType::MaxMemoryClock => self
@@ -699,7 +871,7 @@ impl ClocksFrame {
                             .then(|| {
                                 self.vram_groups
                                     .get(&ClockCategory::from_type(clock_type))
-                                    .map(|group| group.get_raw_value(clock_type))
+                                    .map(|group| group.get_raw_value(RowId::Clock(clock_type)))
                             })
                             .flatten(),
                         _ => Some(configured_value?),
@@ -745,6 +917,14 @@ fn clock_title(clock_type: ClockspeedType) -> String {
         }
         ClockspeedType::GpuVfCurveClock(pstate) => fl!(I18N, "gpu-pstate-clock", pstate = pstate),
         ClockspeedType::MemVfCurveClock(pstate) => fl!(I18N, "mem-pstate-clock", pstate = pstate),
+        ClockspeedType::XbarRatio => fl!(I18N, "xbar-ratio"),
+        // These always carry a custom title with the domain name
+        ClockspeedType::ClockDomainOffset(domain) => {
+            fl!(I18N, "clock-domain-offset", domain = domain)
+        }
+        ClockspeedType::ClockDomainVoltageOffset(domain) => {
+            fl!(I18N, "clock-domain-voltage-offset", domain = domain)
+        }
         ClockspeedType::GpuVfCurveVoltage(pstate) => {
             fl!(I18N, "gpu-pstate-clock-voltage", pstate = pstate)
         }

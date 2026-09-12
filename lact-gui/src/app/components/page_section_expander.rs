@@ -56,6 +56,11 @@ mod imp {
 
         #[property(get, set)]
         expanded: std::cell::Cell<bool>,
+
+        /// Drop the padding around the content, so that it lines up with the
+        /// sections around it instead of sitting inset.
+        #[property(get, set)]
+        hide_visible_container: std::cell::Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -114,10 +119,21 @@ mod imp {
                     append = children_box {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 10,
-                        set_margin_all: 10,
+                        // Same class PageSection uses, so the padding and the option
+                        // to drop it are shared rather than duplicated here.
+                        add_css_class: "page-section-children-box",
                     },
                 },
             }
+
+            obj.connect_notify_local(Some("hide-visible-container"), |obj, _| {
+                use glib::subclass::types::ObjectSubclassIsExt;
+                let content_box = &obj.imp().content_box;
+                content_box.set_class_active(
+                    "page-section-no-container",
+                    obj.hide_visible_container(),
+                );
+            });
 
             obj.bind_property("name", &self.section_label, "label")
                 .transform_to(|_, value: String| {
