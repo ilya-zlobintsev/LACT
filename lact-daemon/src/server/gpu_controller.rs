@@ -14,7 +14,6 @@ use lact_schema::ProcessList;
 use nvidia::NvidiaGpuController;
 use tokio::join;
 
-pub const VENDOR_AMD: &str = "1002";
 pub const VENDOR_NVIDIA: &str = "10DE";
 
 use crate::config::Config;
