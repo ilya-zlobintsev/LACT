@@ -160,7 +160,6 @@ nvidia-oc-description =
     Kilitli saat hızları seçeneğini pozitif bir saat hızı ofsetiyle birleştirerek sözde undervolt elde etmek mümkündür.
     Bu, ofset sayesinde daha yüksek bir saat hızı elde edilirken GPU'nun kilitli saat hızlarıyla sınırlandırılmış bir voltajda çalışmasını zorlar.
     Çok yüksek değerlerde sistem kararsızlığına neden olabilir.
-oc-warning = Bu değerleri değiştirmek sistem kararsızlığına yol açabilir ve donanımınıza zarar verebilir!
 show-all-pstates = Tüm P-State'leri Göster
 enable-gpu-locked-clocks = GPU için Kilitli Saat Hızlarını Etkinleştir
 enable-vram-locked-clocks = VRAM için Kilitli Saat Hızlarını Etkinleştir
