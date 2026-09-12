@@ -1,5 +1,5 @@
 use crate::{
-    CONFIG, I18N,
+    CONFIG, I18N, Localizations,
     app::{
         APP_BROKER,
         msg::AppMsg,
@@ -11,12 +11,13 @@ use crate::{
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
 };
 use adw::prelude::{
-    ActionRowExt, AdwDialogExt, PreferencesDialogExt, PreferencesGroupExt, PreferencesPageExt,
-    PreferencesRowExt,
+    ActionRowExt, AdwDialogExt, ComboRowExt, PreferencesDialogExt, PreferencesGroupExt,
+    PreferencesPageExt, PreferencesRowExt,
 };
 use gtk::prelude::{
     ButtonExt, EditableExt, ListBoxRowExt, OrientableExt, ToggleButtonExt, WidgetExt,
 };
+use i18n_embed::LanguageLoader;
 use i18n_embed_fl::fl;
 use lact_schema::SystemInfo;
 use relm4::{ComponentParts, ComponentSender};
@@ -24,6 +25,7 @@ use relm4::{ComponentParts, ComponentSender};
 pub struct PreferencesDialog {
     parent: adw::ApplicationWindow,
     system_info: SystemInfo,
+    languages: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -31,6 +33,7 @@ pub enum PreferencesDialogMsg {
     Show,
     ThemeSelected(AppTheme),
     ColorSchemeSelected(AppColorScheme),
+    LanguageSelected(u32),
 }
 
 #[relm4::component(pub)]
@@ -47,6 +50,16 @@ impl relm4::Component for PreferencesDialog {
             add = &adw::PreferencesPage {
                 add = &adw::PreferencesGroup {
                     set_title: &fl!(I18N, "ui"),
+
+                    adw::ComboRow {
+                        set_title: &fl!(I18N, "language"),
+                        set_subtitle: &fl!(I18N, "language-restart-notice"),
+                        set_model: Some(&language_names),
+                        set_selected: selected_language,
+                        connect_selected_notify[sender] => move |row| {
+                            sender.input(PreferencesDialogMsg::LanguageSelected(row.selected()));
+                        },
+                    },
 
                     adw::ActionRow {
                         set_title: &fl!(I18N, "theme"),
@@ -198,9 +211,11 @@ impl relm4::Component for PreferencesDialog {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let (languages, language_names, selected_language) = build_language_list();
         let model = PreferencesDialog {
             parent,
             system_info,
+            languages,
         };
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -214,6 +229,16 @@ impl relm4::Component for PreferencesDialog {
         root: &Self::Root,
     ) {
         match msg {
+            PreferencesDialogMsg::LanguageSelected(index) => {
+                let language = if index == 0 {
+                    None
+                } else if let Some(language) = self.languages.get(index as usize - 1) {
+                    Some(language.clone())
+                } else {
+                    return;
+                };
+                CONFIG.write().edit(|config| config.language = language);
+            }
             PreferencesDialogMsg::Show => {
                 root.present(Some(&self.parent));
             }
@@ -234,5 +259,60 @@ impl relm4::Component for PreferencesDialog {
             }
         }
         self.update_view(widgets, sender);
+    }
+}
+
+fn build_language_list() -> (Vec<String>, gtk::StringList, u32) {
+    let languages: Vec<String> = I18N
+        .available_languages(&Localizations)
+        .expect("Could not list GUI languages")
+        .into_iter()
+        .map(|language| language.to_string())
+        .collect();
+
+    let selected_language = CONFIG
+        .read()
+        .language
+        .as_ref()
+        .and_then(|language| languages.iter().position(|id| id == language))
+        .map_or(0, |index| index as u32 + 1);
+    let language_names = gtk::StringList::new(&[&fl!(I18N, "language-system-default")]);
+    for language in &languages {
+        language_names.append(language_name(language));
+    }
+
+    (languages, language_names, selected_language)
+}
+
+// have to be manually updated if new languages are added
+fn language_name(id: &str) -> &str {
+    match id {
+        "ar" => "العربية",
+        "ca" => "Català",
+        "cs" => "Čeština",
+        "de" => "Deutsch",
+        "en" => "English",
+        "es" => "Español",
+        "fi" => "Suomi",
+        "fr" => "Français",
+        "fur" => "Furlan",
+        "he" => "עברית",
+        "hu" => "Magyar",
+        "id" => "Bahasa Indonesia",
+        "it" => "Italiano",
+        "ka" => "ქართული",
+        "kab" => "Taqbaylit",
+        "ko" => "한국어",
+        "lo" => "ລາວ",
+        "pl" => "Polski",
+        "pt-BR" => "Português (Brasil)",
+        "ru" => "Русский",
+        "sr" => "Српски",
+        "th" => "ไทย",
+        "tr" => "Türkçe",
+        "uk" => "Українська",
+        "zh-Hans" => "简体中文",
+        "zh-Hant" => "繁體中文",
+        _ => id,
     }
 }

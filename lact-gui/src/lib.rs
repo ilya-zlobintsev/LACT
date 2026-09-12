@@ -10,7 +10,11 @@ use std::{
 use anyhow::Context;
 use app::{APP_BROKER, AppModel, msg::AppMsg};
 use config::UiConfig;
-use i18n_embed::fluent::{FluentLanguageLoader, fluent_language_loader};
+use i18n_embed::{
+    LanguageLoader,
+    fluent::{FluentLanguageLoader, fluent_language_loader},
+    unic_langid::LanguageIdentifier,
+};
 use lact_schema::{args::GuiArgs, i18n};
 use relm4::{
     RelmApp, SharedState,
@@ -87,17 +91,40 @@ pub fn run(args: GuiArgs) -> anyhow::Result<()> {
         }
     }));
 
-    // Pre-init localization
-    LazyLock::force(&I18N);
-    LazyLock::force(&lact_schema::i18n::LANGUAGE_LOADER);
-
     if let Some(existing_config) = UiConfig::load() {
         *CONFIG.write() = existing_config;
+    }
+
+    // Initialize system localization before applying the saved override.
+    LazyLock::force(&I18N);
+    LazyLock::force(&i18n::LANGUAGE_LOADER);
+    if let Some(language) = &CONFIG.read().language
+        && let Err(err) = select_language(language, &I18N, &i18n::LANGUAGE_LOADER)
+    {
+        tracing::warn!(%language, "Could not apply saved language: {err:#}");
     }
 
     RelmApp::new(APP_ID)
         .with_broker(&APP_BROKER)
         .with_args(vec![])
         .run_async::<AppModel>(args);
+    Ok(())
+}
+
+fn select_language(
+    language: &str,
+    gui_loader: &FluentLanguageLoader,
+    schema_loader: &FluentLanguageLoader,
+) -> anyhow::Result<()> {
+    let language: LanguageIdentifier = language.parse().context("Invalid language identifier")?;
+    anyhow::ensure!(
+        gui_loader
+            .available_languages(&Localizations)?
+            .contains(&language),
+        "Language is not available in GUI localizations"
+    );
+    let requested = [language];
+    i18n_embed::select(gui_loader, &Localizations, &requested)?;
+    i18n_embed::select(schema_loader, &i18n::Localizations, &requested)?;
     Ok(())
 }
