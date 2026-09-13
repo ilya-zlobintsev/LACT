@@ -88,7 +88,6 @@ pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
-const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
 const DEFAULT_WINDOW_WIDTH: i32 = 1100;
 const DEFAULT_WINDOW_HEIGHT: i32 = 750;
 const CONFIRM_RESPONSE_APPLY: &str = "confirm";

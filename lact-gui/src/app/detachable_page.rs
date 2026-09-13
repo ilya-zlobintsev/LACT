@@ -1,8 +1,13 @@
-use crate::{I18N, app::CONTENT_MAXIMUM_WIDTH};
+use crate::{
+    I18N,
+    app::{DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH},
+};
 use adw::prelude::*;
 use gtk::glib;
 use i18n_embed_fl::fl;
 use relm4::{ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding};
+
+const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
 
 pub struct DetachablePage {
     pub init: DetachablePageInit,
@@ -102,8 +107,8 @@ impl relm4::Component for DetachablePage {
         #[name = "window"]
         adw::Window {
             set_title: Some(&model.init.title),
-            set_default_width: 900,
-            set_default_height: 750,
+            set_default_width: DEFAULT_WINDOW_WIDTH,
+            set_default_height: DEFAULT_WINDOW_HEIGHT,
             set_transient_for: Some(&model.init.parent),
             set_destroy_with_parent: true,
             #[watch]
