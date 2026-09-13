@@ -50,8 +50,8 @@ impl relm4::Component for DetachablePage {
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 12,
-                set_margin_all: 24,
+                set_spacing: 15,
+                set_margin_all: 15,
                 set_align: gtk::Align::Center,
                 set_vexpand: true,
                 #[watch]
@@ -76,8 +76,8 @@ impl relm4::Component for DetachablePage {
             update_property: &[gtk::accessible::Property::Label(&model.init.title)],
             #[wrap(Some)]
             set_child = &gtk::Box {
-                set_spacing: 6,
-                set_margin_vertical: 6,
+                set_spacing: 5,
+                set_margin_vertical: 5,
                 gtk::Label {
                     set_label: &model.init.title,
                     set_halign: gtk::Align::Start,
