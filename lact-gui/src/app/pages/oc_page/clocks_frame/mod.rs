@@ -170,6 +170,17 @@ impl relm4::Component for ClocksFrame {
                         add_css_class: "adjustment-card-option-toggle",
                         add_binding["active"]: &model.show_all_pstates,
 
+                        #[watch]
+                        set_sensitive: {
+                            if model.domain == ClockDomain::Gpu
+                                && model.show_nvidia_options
+                                && model.vf_curve_available {
+                                !model.vf_curve_editing.value()
+                            } else {
+                                true
+                            }
+                        },
+
                         #[wrap(Some)]
                         set_child = &gtk::Box {
                             append = &gtk::Label {
