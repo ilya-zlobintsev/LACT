@@ -19,6 +19,7 @@ pub struct DetachablePageInit {
 
 #[derive(Debug)]
 pub enum DetachablePageMsg {
+    ToggleDetached,
     Detach,
     Attach,
 }
@@ -85,10 +86,15 @@ impl relm4::Component for DetachablePage {
                 },
                 gtk::Button {
                     set_icon_name: "window-new-symbolic",
-                    set_tooltip_text: Some(&fl!(I18N, "detach-page", page = model.init.title.as_str())),
+                    #[watch]
+                    set_tooltip_text: Some(&if model.detached {
+                        fl!(I18N, "reattach-page")
+                    } else {
+                        fl!(I18N, "detach-page", page = model.init.title.as_str())
+                    }),
                     add_css_class: "flat",
                     add_css_class: "page-detach-button",
-                    connect_clicked => DetachablePageMsg::Detach,
+                    connect_clicked => DetachablePageMsg::ToggleDetached,
                 },
             },
         },
@@ -146,6 +152,13 @@ impl relm4::Component for DetachablePage {
         root: &Self::Root,
     ) {
         match msg {
+            DetachablePageMsg::ToggleDetached => {
+                sender.input(if self.detached {
+                    DetachablePageMsg::Attach
+                } else {
+                    DetachablePageMsg::Detach
+                });
+            }
             DetachablePageMsg::Detach => {
                 if !self.detached {
                     root.remove(&widgets.content);
