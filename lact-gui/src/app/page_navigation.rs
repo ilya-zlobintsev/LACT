@@ -37,7 +37,6 @@ impl relm4::Component for PageNavigation {
         #[root]
         gtk::ListBox {
             add_css_class: "navigation-sidebar",
-            set_margin_vertical: 1,
             set_vexpand: true,
             connect_row_selected[sender] => move |_, row| {
                 if let Some(row) = row {

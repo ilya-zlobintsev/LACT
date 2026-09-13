@@ -284,9 +284,6 @@ impl AsyncComponent for AppModel {
                                 #[wrap(Some)]
                                 #[name = "root_stack"]
                                 set_content = &model.page_navigation.widgets().stack.clone() -> gtk::Stack {
-                                    set_vexpand: true,
-                                    set_vhomogeneous: false,
-
                                     add_binding: (&model.ui_sensitive, "sensitive"),
 
                                     add_named[Some("crash_page")] = model.crash_page.widget(),
