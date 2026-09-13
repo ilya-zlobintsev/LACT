@@ -36,7 +36,6 @@ impl relm4::Component for PageNavigation {
     view! {
         #[root]
         gtk::ListBox {
-            update_property: &[gtk::accessible::Property::Label(&fl!(I18N, "sidebar"))],
             add_css_class: "navigation-sidebar",
             set_margin_vertical: 1,
             set_vexpand: true,
