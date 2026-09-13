@@ -22,12 +22,3 @@
 .page-detach-button:focus-visible {
     opacity: 1;
 }
-
-.oc-warning-button > button {
-    color: @warning_color;
-    background: alpha(@warning_color, 0.15);
-}
-
-.oc-warning-button > button:hover {
-    background: alpha(@warning_color, 0.25);
-}

@@ -114,8 +114,4 @@ impl PowerStatesList {
             })
             .collect()
     }
-
-    pub fn is_empty(&self) -> bool {
-        self.states.is_empty()
-    }
 }
