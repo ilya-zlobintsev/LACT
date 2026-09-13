@@ -1,6 +1,6 @@
 compute-units = Вычислительные блоки (Compute Units)
-disabled = Выкл.
-vram-size = Объем VRAM
+disabled = Откл.
+vram-size = Объём видеопамяти
 gpu-model = Модель ГП
 pcie-speed = Скорость соединения PCIe
 isa = Набор инструкций
@@ -20,4 +20,4 @@ subvendor = Производитель видеокарты
 driver-used = Текущий драйвер
 l1-cache-per-cu = Кэш L1 (на CU)
 vbios-version = Версия VBIOS
-cpu-vram = Доступная VRAM для CPU
+cpu-vram = Доступная видеопамять для процессора
