@@ -2,12 +2,8 @@ use super::{
     detachable_page::{DetachablePage, DetachablePageInit, DetachablePageMsg},
     utils::ext::RelmLaunchable,
 };
-use crate::I18N;
 use adw::prelude::*;
-use i18n_embed_fl::fl;
-use relm4::{
-    ComponentController, ComponentParts, ComponentSender, RelmWidgetExt, binding::BoolBinding,
-};
+use relm4::{ComponentController, ComponentParts, ComponentSender, binding::BoolBinding};
 
 pub struct PageNavigation {
     pages: Vec<relm4::Controller<DetachablePage>>,
