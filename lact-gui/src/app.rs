@@ -189,6 +189,7 @@ impl AsyncComponent for AppModel {
                     #[name = "navbar"]
                     adw::NavigationSplitView {
                         set_expand: true,
+                        set_min_sidebar_width: 230.0,
                         set_max_sidebar_width: 230.0,
 
                         #[wrap(Some)]
