@@ -1,6 +1,6 @@
 use crate::{
     I18N,
-    app::{DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH},
+    app::{DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH, pages::PageId},
 };
 use adw::prelude::*;
 use gtk::glib;
@@ -15,7 +15,7 @@ pub struct DetachablePage {
 }
 
 pub struct DetachablePageInit {
-    pub name: &'static str,
+    pub id: PageId,
     pub title: String,
     pub content: gtk::Widget,
     pub parent: adw::ApplicationWindow,

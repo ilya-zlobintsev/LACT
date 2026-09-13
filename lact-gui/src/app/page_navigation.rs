@@ -1,5 +1,6 @@
 use super::{
     detachable_page::{DetachablePage, DetachablePageInit, DetachablePageMsg},
+    pages::PageId,
     utils::ext::RelmLaunchable,
 };
 use adw::prelude::*;
@@ -10,7 +11,7 @@ pub struct PageNavigation {
 }
 
 pub struct PageNavigationInit {
-    pub pages: Vec<(&'static str, String, gtk::Widget)>,
+    pub pages: Vec<(PageId, String, gtk::Widget)>,
     pub parent: adw::ApplicationWindow,
     pub sensitive: BoolBinding,
 }
@@ -56,9 +57,9 @@ impl relm4::Component for PageNavigation {
         let pages = init
             .pages
             .into_iter()
-            .map(|(name, title, content)| {
+            .map(|(id, title, content)| {
                 DetachablePage::detach(DetachablePageInit {
-                    name,
+                    id,
                     title,
                     content,
                     parent: init.parent.clone(),
@@ -73,7 +74,7 @@ impl relm4::Component for PageNavigation {
             root.append(&page.widgets().row);
             widgets.stack.add_titled(
                 page.widget(),
-                Some(page.model().init.name),
+                Some(page.model().init.id.as_str()),
                 &page.model().init.title,
             );
         }
@@ -92,11 +93,12 @@ impl relm4::Component for PageNavigation {
             PageNavigationMsg::Select(index) => {
                 widgets
                     .stack
-                    .set_visible_child_name(self.pages[index].model().init.name);
+                    .set_visible_child_name(self.pages[index].model().init.id.as_str());
             }
             PageNavigationMsg::SyncSelection => {
                 let index = self.pages.iter().position(|page| {
-                    Some(page.model().init.name) == widgets.stack.visible_child_name().as_deref()
+                    Some(page.model().init.id.as_str())
+                        == widgets.stack.visible_child_name().as_deref()
                 });
                 root.block_signal(&widgets.selection_signal);
                 root.select_row(

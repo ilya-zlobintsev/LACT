@@ -53,7 +53,7 @@ use lact_schema::{
 use msg::AppMsg;
 use page_navigation::{PageNavigation, PageNavigationInit, PageNavigationMsg};
 use pages::{
-    PageUpdate,
+    PageId, PageUpdate,
     crash_page::CrashPage,
     info_page::InformationPage,
     oc_page::{OcPage, OcPageMsg},
@@ -285,7 +285,7 @@ impl AsyncComponent for AppModel {
                                 set_content = &model.page_navigation.widgets().stack.clone() -> gtk::Stack {
                                     add_binding: (&model.ui_sensitive, "sensitive"),
 
-                                    add_named[Some("crash_page")] = model.crash_page.widget(),
+                                    add_named[Some(PageId::Crash.as_str())] = model.crash_page.widget(),
 
                                     set_visible_child_name: &CONFIG.read().selected_tab,
                                     connect_visible_child_name_notify[content_page] => move |stack| {
@@ -294,7 +294,7 @@ impl AsyncComponent for AppModel {
                                             content_page.set_title(&page.title().unwrap_or_default());
 
                                             let name = stack.visible_child_name().unwrap().to_string();
-                                            if name != "crash_page" {
+                                            if name != PageId::Crash.as_str() {
                                                 CONFIG.write().edit(|config| {
                                                     config.selected_tab = name;
                                                 });
@@ -415,27 +415,27 @@ impl AsyncComponent for AppModel {
         let page_navigation = PageNavigation::detach(PageNavigationInit {
             pages: vec![
                 (
-                    "info_page",
+                    PageId::Info,
                     fl!(I18N, "info-page"),
                     info_page.widget().clone().upcast(),
                 ),
                 (
-                    "oc_page",
+                    PageId::Oc,
                     fl!(I18N, "oc-page"),
                     oc_page.widget().clone().upcast(),
                 ),
                 (
-                    "thermals_page",
+                    PageId::Thermals,
                     fl!(I18N, "thermals-page"),
                     thermals_page.widget().clone().upcast(),
                 ),
                 (
-                    "software_page",
+                    PageId::Software,
                     fl!(I18N, "software-page"),
                     software_page.widget().clone().upcast(),
                 ),
                 (
-                    "displays_page",
+                    PageId::Displays,
                     fl!(I18N, "displays-page"),
                     displays_page.widget().clone().upcast(),
                 ),
@@ -950,7 +950,9 @@ impl AppModel {
                 self.settings_changed.set_value(false);
 
                 self.ui_sensitive.set_value(true);
-                widgets.root_stack.set_visible_child_name("crash_page");
+                widgets
+                    .root_stack
+                    .set_visible_child_name(PageId::Crash.as_str());
                 self.crash_page.emit(message);
 
                 if let Some(handle) = self.stats_task_handle.take() {
