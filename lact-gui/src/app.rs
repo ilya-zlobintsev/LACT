@@ -1,5 +1,6 @@
 mod about_dialog;
 pub(crate) mod components;
+mod detachable_page;
 mod gpu_selector;
 pub mod graphs_window;
 mod info_dialog;

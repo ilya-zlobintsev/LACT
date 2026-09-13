@@ -1,9 +1,9 @@
-mod detachable_page;
-
-use super::utils::ext::RelmLaunchable;
+use super::{
+    detachable_page::{DetachablePage, DetachablePageInit, DetachablePageMsg},
+    utils::ext::RelmLaunchable,
+};
 use crate::I18N;
 use adw::prelude::*;
-use detachable_page::{DetachablePage, DetachablePageInit, DetachablePageMsg};
 use i18n_embed_fl::fl;
 use relm4::{
     ComponentController, ComponentParts, ComponentSender, RelmWidgetExt, binding::BoolBinding,
