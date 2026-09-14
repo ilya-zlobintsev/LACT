@@ -119,7 +119,9 @@ gpus:
     nvidia_thermal_options:
       # Target temperature for the GPU in degrees.
       target_temperature: 83
-    # Power limit in watts.
+    # Power limit in watts reported by the GPU (no automatic shunt correction).
+    # On NVIDIA 610.57.04, verified ordinary power-client support allows values
+    # down to 30 W, below the VBIOS minimum. The VBIOS maximum still applies.
     power_cap: 320.0
     # Performance level option for AMD GPUs.
     # Can be `auto`, `low`, `high` or `manual`.
