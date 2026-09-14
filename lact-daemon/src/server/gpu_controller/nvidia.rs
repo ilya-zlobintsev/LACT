@@ -136,7 +136,7 @@ impl NvidiaGpuController {
 
         let minor_number = device.minor_number()?;
 
-        let driver_handle = match DriverHandle::open(minor_number) {
+        let driver_handle = match DriverHandle::open(minor_number, &common.get_slot_info()?) {
             Ok(handle) => {
                 debug!("opened Nvidia driver handle");
                 Some(handle)
