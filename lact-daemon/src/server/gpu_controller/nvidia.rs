@@ -24,10 +24,10 @@ use indexmap::IndexMap;
 use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
     DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
-    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockDomainOffset, NvidiaClockOffset, NvidiaClocksTable,
-    NvidiaThermalInfo, NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerState, PowerStates,
-    PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry,
-    VoltageStats, VramStats,
+    FanStats, IntelDrmInfo, LinkInfo, NvidiaClockDomainOffset, NvidiaClockOffset,
+    NvidiaClocksTable, NvidiaThermalInfo, NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerState,
+    PowerStates, PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType,
+    TemperatureEntry, VoltageStats, VramStats,
     config::{FanControlSettings, FanCurve, GpuConfig, NvidiaCurvePoint},
 };
 use nvapi::NvApi;
@@ -136,7 +136,7 @@ impl NvidiaGpuController {
 
         let minor_number = device.minor_number()?;
 
-        let driver_handle = match DriverHandle::open(minor_number) {
+        let driver_handle = match DriverHandle::open(minor_number, &common.get_slot_info()?) {
             Ok(handle) => {
                 debug!("opened Nvidia driver handle");
                 Some(handle)
