@@ -213,6 +213,22 @@ gpus:
     mem_clock_offsets:
       0: 200
 
+    # Clockspeed offset values in MHz for the clock domains Nvidia does not expose
+    # through its normal interface, keyed by domain id: 1 is XBAR, 2 is SYS and
+    # 20 is NVD. Only the domains the card reports as adjustable are accepted.
+    clock_domain_offsets:
+      1: 500
+    # Voltage offset values in mV for those same domains, keyed by domain id.
+    # Each one shifts how much voltage its domain asks for at a given clockspeed,
+    # and the domains share the MSVDD rail, so a positive offset lowers that
+    # domain's clocks and a negative one raises them. Limited to +-50.
+    clock_domain_voltage_offsets:
+      1: -10
+    # Ratio at which the GPC clock propagates to the XBAR domain, in percent,
+    # 90 by default. Raising it decouples XBAR from the core clock without
+    # changing the core clock itself. Applicable to Nvidia Blackwell and newer.
+    xbar_ratio: 75
+
 # Settings profiles
 profiles:
   # Name of the profile
