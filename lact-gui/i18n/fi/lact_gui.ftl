@@ -129,21 +129,7 @@ performance-level = Suorituskykytaso
 power-profile-mode = Virtaprofiilitila:
 manual-level-needed = Suorituskykytaso on asetettava "käsin":ksi, virrankäyttötilojen ja -tilojen käyttämiseksi
 overclock-section = Kellotaajuus ja jännite
-nvidia-oc-info = Ylikellotustiedot
-nvidia-oc-description =
-    Nvidian ylikellotustoimintoihin kuuluu GPU/VRAM-kellotaajuuspoikkeamien asettaminen ja mahdollisen kellotaajuuksien alueen rajoittaminen "lukitut kellot" -ominaisuutta käyttäen.
-
-    Monilla näytönohjaimilla VRAM-kellotaajuuspoikkeama vaikuttaa muistin todelliseen kellotaajuuteen vain puolella poikkeaman arvosta.
-    Esimerkiksi +1000 MHz:n VRAM-poikkeama voi lisätä mitattua VRAM-nopeutta vain 500 MHz:llä.
-    Tämä on normaalia, ja näin Nvidia käsittelee GDDR-tiedonsiirtonopeuksia. Säädä ylikellotusta vastaavasti.
-
-    On mahdollista saavuttaa näennäisalijännite yhdistämällä lukitut kellot -vaihtoehto positiiviseen kellotaajuuspoikkeamaan.
-    Tämä pakottaa GPU:n toimimaan lukittujen kellojen rajoittamalla jännitteellä, samalla kun saavutetaan korkeampi kellotaajuus poikkeaman ansiosta.
-    Tämä voi aiheuttaa järjestelmän epävakautta, jos sen asetusarvoa nostetaan liian korkealle.
-oc-warning = Näiden arvojen muuttaminen voi johtaa järjestelmän epävakauteen ja mahdollisesti vahingoittaa laitteistoasi!
 show-all-pstates = Näytä kaikki P-tilat
-enable-gpu-locked-clocks = Ota GPU:n lukitut kellotaajuudet käyttöön
-enable-vram-locked-clocks = Ota VRAM:n lukitut kellotaajuudet käyttöön
 pstate-list-description = <b>Seuraavat arvot ovat kellon siirtymiä kullekin P-tilalle korkeimmasta alhaisempaan.</b>
 no-clocks-data = Ei kellotietoja saatavilla
 reset-oc-tooltip = Varoitus: tämä palauttaa kaikki kellojen asetukset oletusasetuksiin!
@@ -202,20 +188,10 @@ profile-rule-process-name = Prosessin nimi:
 profile-rule-args-contain = Argumentit sisältävät:
 profile-rule-specific-process = Tietyn prosessin kanssa:
 throttling = Ylikuumenemisen estotoimi
-max-gpu-clock = GPU:n enimmäiskellotaajuus (MHz)
-max-vram-clock = VRAM:n enimmäiskellotaajuus (MHz)
 max-gpu-voltage = GPU:n enimmäisjännite (mV)
-min-gpu-clock = GPU:n vähimmäiskellotaajuus (MHz)
-min-vram-clock = VRAM:n vähimmäiskellotaajuus (MHz)
 min-gpu-voltage = GPU:n vähimmäisjännite (mV)
 gpu-clock-offset = GPU-kellotaajuuspoikkeama (MHz)
 gpu-voltage-offset = GPU-jännitepoikkeama (mV)
-gpu-pstate-clock-offset = GPU:n P-tila { $pstate } kellopoikkeama (MHz)
-vram-pstate-clock-offset = VRAM:n P-tila { $pstate } kellopoikkeama (MHz)
-gpu-pstate-clock = GPU:n P-tila { $pstate } kellotaajuus (MHz)
-mem-pstate-clock = VRAM:n P-tila { $pstate } kellotaajuus (MHz)
-gpu-pstate-clock-voltage = GPU:n P-tila { $pstate } jännite (mV)
-mem-pstate-clock-voltage = VRAM:n P-tila { $pstate } jännite (mV)
 cache-data = Data
 cache-instruction = Data
 watt = W
