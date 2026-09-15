@@ -1,17 +1,40 @@
 use super::DriverHandle;
 use anyhow::{Context, anyhow, ensure};
 
-// Private layouts verified against NvAPI 33ab0353/17695269 on Linux 610.57.04.
+// Private layouts compared against NvAPI and GSP from R595, R610 and R615.
 // These are the native RM payloads, without NvAPI's 0x10-byte transport prefix.
 const GET_INFO: u32 = 0x2080_a630;
 const GET_CONTROL: u32 = 0x2080_a632;
 const SET_CONTROL: u32 = 0x2080_e633;
-const INFO_SIZE: usize = 0x924;
-const CONTROL_SIZE: usize = 0x328;
-const REQUEST_AT: usize = 0x2c;
-const CLIENT_AT: usize = 0x30;
 const ORDINARY_CLIENT: u8 = 0xfe;
 const LOWER_LIMIT_MW: u32 = 30_000;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct PowerLimitLayout {
+    info_size: usize,
+    control_size: usize,
+    info_min_at: usize,
+    request_at: usize,
+    client_at: usize,
+    mask_end: usize,
+}
+
+const EXTENDED_LAYOUT: PowerLimitLayout = PowerLimitLayout {
+    info_size: 0x924,
+    control_size: 0x328,
+    info_min_at: 0x28,
+    request_at: 0x2c,
+    client_at: 0x30,
+    mask_end: 0x24,
+};
+const LEGACY_LAYOUT: PowerLimitLayout = PowerLimitLayout {
+    info_size: 0x488,
+    control_size: 0x188,
+    info_min_at: 0xc,
+    request_at: 0xc,
+    client_at: 0x10,
+    mask_end: 0x8,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 // Keep units explicit: NVML/RM use milliwatts, while config and UI use watts.
@@ -28,64 +51,86 @@ impl PowerLimitBounds {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LowerPowerLimit {
+    pub bounds: PowerLimitBounds,
+    layout: PowerLimitLayout,
+}
+
+impl LowerPowerLimit {
+    pub fn lower_min_mw(self) -> u32 {
+        self.bounds.lower_min_mw()
+    }
+}
+
 impl DriverHandle {
     /// Only advertise the private route when its layout, units and GPU identity
     /// agree with NVML. Discovery does not issue SET, including on startup.
     pub fn probe_lower_power_limit(
         &self,
-        driver_version: &str,
         nvml_bounds: PowerLimitBounds,
         nvml_current_mw: u32,
-    ) -> anyhow::Result<Option<PowerLimitBounds>> {
-        probe(
-            driver_version,
-            nvml_bounds,
-            nvml_current_mw,
-            |cmd, data| unsafe { self.query_rm_control_sized(cmd, data) },
-        )
+    ) -> anyhow::Result<Option<LowerPowerLimit>> {
+        probe(nvml_bounds, nvml_current_mw, |cmd, data| unsafe {
+            self.query_rm_control_sized(cmd, data)
+        })
     }
 
     pub fn set_lower_power_limit(
         &self,
         limit_mw: u32,
-        bounds: PowerLimitBounds,
+        support: LowerPowerLimit,
     ) -> anyhow::Result<()> {
-        set_limit(limit_mw, bounds, |cmd, data| unsafe {
+        set_limit(limit_mw, support, |cmd, data| unsafe {
             self.query_rm_control_sized(cmd, data)
         })
     }
 }
 
 fn probe(
-    driver_version: &str,
     nvml_bounds: PowerLimitBounds,
     nvml_current_mw: u32,
     mut query: impl FnMut(u32, &mut [u8]) -> anyhow::Result<()>,
-) -> anyhow::Result<Option<PowerLimitBounds>> {
-    // Do not infer private ABI compatibility from the major driver version.
-    if driver_version != "610.57.04" || !cfg!(target_endian = "little") {
+) -> anyhow::Result<Option<LowerPowerLimit>> {
+    if !cfg!(target_endian = "little") {
         return Ok(None);
     }
-    let bounds = read_bounds(&mut query)?;
-    ensure!(bounds == nvml_bounds, "RM power bounds differ from NVML");
-    let control = read_control(&mut query)?;
-    ensure!(
-        read_u32(&control, REQUEST_AT) == nvml_current_mw,
-        "RM ordinary power request differs from NVML"
-    );
-    Ok(Some(bounds))
+    // Probe only the two known wire formats, using GETs. A version number is
+    // not evidence that the payload still has the same layout or units.
+    let mut errors = Vec::new();
+    for layout in [EXTENDED_LAYOUT, LEGACY_LAYOUT] {
+        let candidate: anyhow::Result<LowerPowerLimit> = (|| {
+            let bounds = read_bounds(layout, &mut query)?;
+            ensure!(bounds == nvml_bounds, "RM power bounds differ from NVML");
+            let control = read_control(layout, &mut query)?;
+            ensure!(
+                read_u32(&control, layout.request_at) == nvml_current_mw,
+                "RM ordinary power request differs from NVML"
+            );
+            Ok(LowerPowerLimit { bounds, layout })
+        })();
+        match candidate {
+            Ok(support) => return Ok(Some(support)),
+            Err(error) => errors.push(format!("{layout:?}: {error:#}")),
+        }
+    }
+    Err(anyhow!(
+        "No compatible RM power layout: {}",
+        errors.join("; ")
+    ))
 }
 
 fn read_bounds(
+    layout: PowerLimitLayout,
     query: &mut impl FnMut(u32, &mut [u8]) -> anyhow::Result<()>,
 ) -> anyhow::Result<PowerLimitBounds> {
-    let mut info = [0; INFO_SIZE];
+    let mut info = vec![0; layout.info_size];
     query(GET_INFO, &mut info)?;
-    validate_header(&info)?;
+    validate_header(layout, &info)?;
     let bounds = PowerLimitBounds {
-        min_mw: read_u32(&info, 0x28),
-        default_mw: read_u32(&info, 0x2c),
-        max_mw: read_u32(&info, 0x30),
+        min_mw: read_u32(&info, layout.info_min_at),
+        default_mw: read_u32(&info, layout.info_min_at + 4),
+        max_mw: read_u32(&info, layout.info_min_at + 8),
     };
     ensure!(
         bounds.min_mw > 0
@@ -97,27 +142,30 @@ fn read_bounds(
 }
 
 fn read_control(
+    layout: PowerLimitLayout,
     query: &mut impl FnMut(u32, &mut [u8]) -> anyhow::Result<()>,
-) -> anyhow::Result<[u8; CONTROL_SIZE]> {
-    let mut control = [0; CONTROL_SIZE];
+) -> anyhow::Result<Vec<u8>> {
+    let mut control = vec![0; layout.control_size];
     control[4..8].copy_from_slice(&1u32.to_le_bytes());
-    control[CLIENT_AT] = ORDINARY_CLIENT;
+    control[layout.client_at] = ORDINARY_CLIENT;
     query(GET_CONTROL, &mut control)?;
-    validate_header(&control)?;
+    validate_header(layout, &control)?;
     ensure!(
-        control[CLIENT_AT] == ORDINARY_CLIENT,
+        control[layout.client_at] == ORDINARY_CLIENT,
         "Unexpected power client"
     );
     ensure!(
-        !matches!(read_u32(&control, REQUEST_AT), 0 | u32::MAX),
+        !matches!(read_u32(&control, layout.request_at), 0 | u32::MAX),
         "No ordinary power request available"
     );
     Ok(control)
 }
 
-fn validate_header(data: &[u8]) -> anyhow::Result<()> {
+fn validate_header(layout: PowerLimitLayout, data: &[u8]) -> anyhow::Result<()> {
     ensure!(
-        read_u32(data, 0) == 0xff && read_u32(data, 4) == 1,
+        read_u32(data, 0) == 0xff
+            && read_u32(data, 4) == 1
+            && data[8..layout.mask_end].iter().all(|byte| *byte == 0),
         "Unrecognized RM power client layout"
     );
     Ok(())
@@ -129,12 +177,13 @@ fn read_u32(data: &[u8], offset: usize) -> u32 {
 
 fn set_limit(
     limit_mw: u32,
-    expected_bounds: PowerLimitBounds,
+    support: LowerPowerLimit,
     mut query: impl FnMut(u32, &mut [u8]) -> anyhow::Result<()>,
 ) -> anyhow::Result<()> {
-    let bounds = read_bounds(&mut query)?;
+    let layout = support.layout;
+    let bounds = read_bounds(layout, &mut query)?;
     ensure!(
-        bounds == expected_bounds,
+        bounds == support.bounds,
         "RM power bounds changed since discovery"
     );
     ensure!(
@@ -142,19 +191,19 @@ fn set_limit(
         "Power limit is outside the supported range"
     );
 
-    let before = read_control(&mut query)?;
-    if read_u32(&before, REQUEST_AT) == limit_mw {
+    let before = read_control(layout, &mut query)?;
+    if read_u32(&before, layout.request_at) == limit_mw {
         return Ok(());
     }
     // Keep the entire current payload, changing only entry 0's request. Mask 1
     // and selector FE prevent modifying any other entry or the additional F8 client.
-    let mut expected = before;
-    expected[REQUEST_AT..REQUEST_AT + 4].copy_from_slice(&limit_mw.to_le_bytes());
+    let mut expected = before.clone();
+    expected[layout.request_at..layout.request_at + 4].copy_from_slice(&limit_mw.to_le_bytes());
     let applied = (|| -> anyhow::Result<()> {
-        let mut request = expected;
+        let mut request = expected.clone();
         query(SET_CONTROL, &mut request).context("Could not set ordinary power request")?;
         ensure!(
-            read_control(&mut query)? == expected,
+            read_control(layout, &mut query)? == expected,
             "Power request readback differs"
         );
         Ok(())
@@ -164,10 +213,10 @@ fn set_limit(
         // A failed SET can have side effects. Restore even on transport failure,
         // and use FE so a previous limit below VBIOS minimum can also be restored.
         let restored = (|| -> anyhow::Result<()> {
-            let mut restore = before;
+            let mut restore = before.clone();
             query(SET_CONTROL, &mut restore)?;
             ensure!(
-                read_control(&mut query)? == before,
+                read_control(layout, &mut query)? == before,
                 "Restored power request differs"
             );
             Ok(())
@@ -193,7 +242,9 @@ mod tests {
     };
 
     struct FakeRm {
-        control: [u8; CONTROL_SIZE],
+        layout: PowerLimitLayout,
+        control: Vec<u8>,
+        reads: Vec<(u32, usize)>,
         writes: Vec<Vec<u8>>,
         fail_first_write: bool,
         fail_readback: bool,
@@ -201,14 +252,17 @@ mod tests {
     }
 
     impl FakeRm {
-        fn new(current: u32) -> Self {
-            let mut control = [0; CONTROL_SIZE];
+        fn new(layout: PowerLimitLayout, current: u32) -> Self {
+            let mut control = vec![0; layout.control_size];
             control[..8].copy_from_slice(&[0xff, 0, 0, 0, 1, 0, 0, 0]);
-            control[0x28..0x2c].copy_from_slice(&[0x67, 0x67, 0, 0]);
-            control[0x2c..0x30].copy_from_slice(&current.to_le_bytes());
-            control[0x30] = 0xfe;
+            control[layout.request_at - 4..layout.request_at].copy_from_slice(&[0x67, 0x67, 0, 0]);
+            control[layout.request_at..layout.request_at + 4]
+                .copy_from_slice(&current.to_le_bytes());
+            control[layout.client_at] = 0xfe;
             Self {
+                layout,
                 control,
+                reads: Vec::new(),
                 writes: Vec::new(),
                 fail_first_write: false,
                 fail_readback: false,
@@ -219,28 +273,38 @@ mod tests {
         fn query(&mut self, cmd: u32, data: &mut [u8]) -> anyhow::Result<()> {
             match cmd {
                 GET_INFO => {
-                    assert_eq!(data.len(), INFO_SIZE);
+                    self.reads.push((cmd, data.len()));
+                    ensure!(data.len() == self.layout.info_size, "Unsupported INFO size");
                     data[..8].copy_from_slice(&[0xff, 0, 0, 0, 1, 0, 0, 0]);
-                    for (offset, value) in [(0x28, 250_000u32), (0x2c, 300_000), (0x30, 325_000)] {
+                    for (index, value) in [250_000u32, 300_000, 325_000].into_iter().enumerate() {
+                        let offset = self.layout.info_min_at + 4 * index;
                         data[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
                     }
                 }
                 GET_CONTROL => {
-                    assert_eq!(data[0x30], 0xfe);
+                    self.reads.push((cmd, data.len()));
+                    ensure!(
+                        data.len() == self.layout.control_size,
+                        "Unsupported CONTROL size"
+                    );
+                    assert_eq!(data[self.layout.client_at], 0xfe);
                     if self.fail_readback && self.writes.len() == 1 {
                         anyhow::bail!("readback unavailable");
                     }
                     data.copy_from_slice(&self.control);
                 }
                 SET_CONTROL => {
-                    assert_eq!(data.len(), CONTROL_SIZE);
+                    assert_eq!(data.len(), self.layout.control_size);
                     assert_eq!(&data[4..8], &[1, 0, 0, 0]);
-                    assert_eq!(data[0x30], 0xfe);
+                    assert_eq!(data[self.layout.client_at], 0xfe);
                     assert!(
                         data.iter()
-                            .zip(self.control)
+                            .zip(&self.control)
                             .enumerate()
-                            .all(|(i, (a, b))| (0x2c..0x30).contains(&i) || *a == b)
+                            .all(|(i, (a, b))| {
+                                (self.layout.request_at..self.layout.request_at + 4).contains(&i)
+                                    || a == b
+                            })
                     );
                     self.writes.push(data.to_vec());
                     if self.fail_restore && self.writes.len() > 1 {
@@ -258,59 +322,129 @@ mod tests {
     }
 
     #[test]
-    fn unknown_driver_does_not_probe_and_nvml_mismatch_rejects_support() {
-        assert_eq!(
-            probe("610.57.05", BOUNDS, 250_000, |_, _| panic!(
-                "unsupported ABI"
-            ))
-            .unwrap(),
-            None
+    fn detects_both_layouts_with_gets_without_a_driver_version() {
+        for layout in [EXTENDED_LAYOUT, LEGACY_LAYOUT] {
+            let mut rm = FakeRm::new(layout, 250_000);
+            let support = probe(BOUNDS, 250_000, |c, d| rm.query(c, d))
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                support,
+                LowerPowerLimit {
+                    bounds: BOUNDS,
+                    layout
+                }
+            );
+            let expected = if layout == EXTENDED_LAYOUT {
+                vec![(GET_INFO, 0x924), (GET_CONTROL, 0x328)]
+            } else {
+                vec![(GET_INFO, 0x924), (GET_INFO, 0x488), (GET_CONTROL, 0x188)]
+            };
+            assert_eq!(rm.reads, expected);
+            assert!(rm.writes.is_empty());
+        }
+    }
+
+    #[test]
+    fn unknown_layout_and_nvml_mismatches_never_write() {
+        let mut calls = Vec::new();
+        assert!(
+            probe(BOUNDS, 250_000, |cmd, data| {
+                calls.push((cmd, data.len()));
+                anyhow::bail!("Unsupported payload")
+            })
+            .is_err()
         );
-        let mut rm = FakeRm::new(250_000);
-        assert!(probe("610.57.04", BOUNDS, 300_000, |c, d| rm.query(c, d)).is_err());
+        assert_eq!(calls, [(GET_INFO, 0x924), (GET_INFO, 0x488)]);
+
+        for layout in [EXTENDED_LAYOUT, LEGACY_LAYOUT] {
+            let mut rm = FakeRm::new(layout, 250_000);
+            assert!(probe(BOUNDS, 300_000, |c, d| rm.query(c, d)).is_err());
+            let other_bounds = PowerLimitBounds {
+                max_mw: 350_000,
+                ..BOUNDS
+            };
+            assert!(probe(other_bounds, 250_000, |c, d| rm.query(c, d)).is_err());
+            assert!(rm.writes.is_empty());
+        }
+    }
+
+    #[test]
+    fn rejects_unrecognized_headers_masks_and_client_values() {
+        for layout in [EXTENDED_LAYOUT, LEGACY_LAYOUT] {
+            for (at, value) in [(0, 0), (4, 3), (layout.client_at, 0xf8)] {
+                let mut rm = FakeRm::new(layout, 250_000);
+                rm.control[at] = value;
+                assert!(probe(BOUNDS, 250_000, |c, d| rm.query(c, d)).is_err());
+                assert!(rm.writes.is_empty());
+            }
+            for current in [0, u32::MAX] {
+                let mut rm = FakeRm::new(layout, current);
+                assert!(probe(BOUNDS, current, |c, d| rm.query(c, d)).is_err());
+            }
+        }
+        // The larger group has additional mask words. Accepting only its low
+        // word would allow an unexpected client to be included in a later SET.
+        let mut rm = FakeRm::new(EXTENDED_LAYOUT, 250_000);
+        rm.control[8] = 1;
+        assert!(probe(BOUNDS, 250_000, |c, d| rm.query(c, d)).is_err());
         assert!(rm.writes.is_empty());
     }
 
     #[test]
     fn changes_only_fe_request_and_keeps_vbios_maximum() {
-        let mut rm = FakeRm::new(250_000);
-        let bounds = probe("610.57.04", BOUNDS, 250_000, |c, d| rm.query(c, d))
-            .unwrap()
-            .unwrap();
-        for cap in [150_000, 30_000, 250_000] {
-            set_limit(cap, bounds, |c, d| rm.query(c, d)).unwrap();
-            assert_eq!(read_u32(&rm.control, 0x2c), cap);
+        for layout in [EXTENDED_LAYOUT, LEGACY_LAYOUT] {
+            let mut rm = FakeRm::new(layout, 250_000);
+            let support = probe(BOUNDS, 250_000, |c, d| rm.query(c, d))
+                .unwrap()
+                .unwrap();
+            for cap in [150_000, 30_000, 250_000] {
+                set_limit(cap, support, |c, d| rm.query(c, d)).unwrap();
+                assert_eq!(read_u32(&rm.control, layout.request_at), cap);
+            }
+            let writes = rm.writes.len();
+            for cap in [0, 29_999, 325_001, 350_000, u32::MAX] {
+                assert!(set_limit(cap, support, |c, d| rm.query(c, d)).is_err());
+            }
+            assert_eq!(rm.writes.len(), writes);
         }
-        let writes = rm.writes.len();
-        for cap in [0, 29_999, 325_001, 350_000, u32::MAX] {
-            assert!(set_limit(cap, bounds, |c, d| rm.query(c, d)).is_err());
-        }
-        assert_eq!(rm.writes.len(), writes);
     }
 
     #[test]
     fn restores_previous_below_minimum_request_after_set_or_readback_failure() {
-        for fail_set in [false, true] {
-            let mut rm = FakeRm::new(100_000);
-            let original = rm.control;
-            rm.fail_first_write = fail_set;
-            rm.fail_readback = !fail_set;
-            assert!(set_limit(150_000, BOUNDS, |c, d| rm.query(c, d)).is_err());
-            assert_eq!(rm.writes.len(), 2);
-            assert_eq!(rm.control, original);
+        for layout in [EXTENDED_LAYOUT, LEGACY_LAYOUT] {
+            for fail_set in [false, true] {
+                let mut rm = FakeRm::new(layout, 100_000);
+                let original = rm.control.clone();
+                rm.fail_first_write = fail_set;
+                rm.fail_readback = !fail_set;
+                let support = LowerPowerLimit {
+                    bounds: BOUNDS,
+                    layout,
+                };
+                assert!(set_limit(150_000, support, |c, d| rm.query(c, d)).is_err());
+                assert_eq!(rm.writes.len(), 2);
+                assert_eq!(rm.control, original);
+            }
         }
     }
 
     #[test]
     fn reports_restore_failure_and_rejects_wrong_client_before_writing() {
-        let mut rm = FakeRm::new(100_000);
-        rm.fail_first_write = true;
-        rm.fail_restore = true;
-        let err = set_limit(150_000, BOUNDS, |c, d| rm.query(c, d)).unwrap_err();
-        assert!(err.to_string().contains("restoration also failed"));
-        let mut rm = FakeRm::new(250_000);
-        rm.control[0x30] = 0xf8;
-        assert!(set_limit(150_000, BOUNDS, |c, d| rm.query(c, d)).is_err());
-        assert!(rm.writes.is_empty());
+        for layout in [EXTENDED_LAYOUT, LEGACY_LAYOUT] {
+            let support = LowerPowerLimit {
+                bounds: BOUNDS,
+                layout,
+            };
+            let mut rm = FakeRm::new(layout, 100_000);
+            rm.fail_first_write = true;
+            rm.fail_restore = true;
+            let err = set_limit(150_000, support, |c, d| rm.query(c, d)).unwrap_err();
+            assert!(err.to_string().contains("restoration also failed"));
+            let mut rm = FakeRm::new(layout, 250_000);
+            rm.control[layout.client_at] = 0xf8;
+            assert!(set_limit(150_000, support, |c, d| rm.query(c, d)).is_err());
+            assert!(rm.writes.is_empty());
+        }
     }
 }

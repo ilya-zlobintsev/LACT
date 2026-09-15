@@ -20,8 +20,8 @@ pub(super) fn resolve_gpu_instance(
     let mut attached = [0xff; MAX_GPUS * 4];
     query(GET_ATTACHED_IDS, &mut attached)?;
 
-    for id in attached.chunks_exact(4) {
-        let gpu_id = u32::from_ne_bytes(id.try_into()?);
+    for id in attached.as_chunks::<4>().0 {
+        let gpu_id = u32::from_ne_bytes(*id);
         if gpu_id == INVALID_GPU_ID {
             continue;
         }
