@@ -18,7 +18,10 @@ use amdgpu_sysfs::{
     hw_mon::Temperature,
 };
 use anyhow::{Context, anyhow, bail, ensure};
-use driver::{DriverHandle, power_limit::PowerLimitBounds};
+use driver::{
+    DriverHandle,
+    power_limit::{LowerPowerLimit, PowerLimitBounds},
+};
 use futures::{FutureExt, future::LocalBoxFuture};
 use indexmap::IndexMap;
 use lact_schema::{
@@ -66,7 +69,7 @@ pub struct NvidiaGpuController {
 
     nvapi: Option<(Rc<NvApi>, NvPhysicalGpuHandle)>,
     driver_handle: Option<DriverHandle>,
-    lower_power_limit: Option<PowerLimitBounds>,
+    lower_power_limit: Option<LowerPowerLimit>,
     nvapi_therm_channel_mask: Option<i32>,
 
     last_util_timestamp: Cell<Option<u64>>,
@@ -138,7 +141,6 @@ impl NvidiaGpuController {
             let probe = (|| -> anyhow::Result<_> {
                 let constraints = device.power_management_limit_constraints()?;
                 handle.probe_lower_power_limit(
-                    &nvml.sys_driver_version()?,
                     PowerLimitBounds {
                         min_mw: constraints.min_limit,
                         default_mw: device.power_management_limit_default()?,
@@ -762,11 +764,12 @@ impl NvidiaGpuController {
             let constraints = device
                 .power_management_limit_constraints()
                 .context("Could not get power cap constraints")?;
-            let lower_power_limit = self.lower_power_limit.filter(|bounds| {
-                bounds.min_mw == constraints.min_limit && bounds.max_mw == constraints.max_limit
+            let lower_power_limit = self.lower_power_limit.filter(|support| {
+                support.bounds.min_mw == constraints.min_limit
+                    && support.bounds.max_mw == constraints.max_limit
             });
             let min_mw =
-                lower_power_limit.map_or(constraints.min_limit, PowerLimitBounds::lower_min_mw);
+                lower_power_limit.map_or(constraints.min_limit, LowerPowerLimit::lower_min_mw);
             let cap = checked_power_cap_mw(cap, min_mw, constraints.max_limit)?;
 
             let current_cap = device
@@ -1132,11 +1135,11 @@ impl GpuController for NvidiaGpuController {
                 cap_min: power_constraints.as_ref().map(|constraints| {
                     let min = self
                         .lower_power_limit
-                        .filter(|bounds| {
-                            bounds.min_mw == constraints.min_limit
-                                && bounds.max_mw == constraints.max_limit
+                        .filter(|support| {
+                            support.bounds.min_mw == constraints.min_limit
+                                && support.bounds.max_mw == constraints.max_limit
                         })
-                        .map_or(constraints.min_limit, PowerLimitBounds::lower_min_mw);
+                        .map_or(constraints.min_limit, LowerPowerLimit::lower_min_mw);
                     f64::from(min) / 1000.0
                 }),
                 cap_default: device
