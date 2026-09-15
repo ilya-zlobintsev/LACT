@@ -69,7 +69,6 @@ amd-oc-updating-configuration = Aktualisieren der Konfiguration (die kann etwas 
 amd-oc-updating-done = Konfiguration aktualisiert, bitte Systemneustart durchführen um die Änderungen anzuwenden.
 reset-config = Konfiguration zurücksetzen
 reset-config-description = Dies wird alle GPU Einstellungen auf ihre Standardwerte zurücksetzen und alle Profile löschen
-power-cap = Leistungsaufnahmelimit
 watt = W
 ghz = GHz
 stats-section = Statistiken
@@ -83,32 +82,21 @@ performance-level-manual = Manuell
 power-profile-mode = Leistungsprofil Modus:
 manual-level-needed = Um Energiezustände und -modi nutzen zu können, muss die Leistungsstufe auf „manuell“ eingestellt werden
 overclock-section = Takt und Spannung
-nvidia-oc-info = Overclocking Informationen
-show-all-pstates = Zeige alle P-States
-enable-gpu-locked-clocks = Aktiviere GPU Takt Sperre
+show-all-pstates = Alle P-Zustände
 pstate-list-description = <b>Die folgenden Werte zeigen den Taktraten Versatz für jeden P-State, von Höchstem zu Niedrigstem.</b>
 no-clocks-data = Keine Informationen zum Takt verfügbar
-gpu-clock-offset = GPU Takt-Offset (MHz)
-max-gpu-clock = Maximaler GPU Takt (MHz)
-max-gpu-voltage = Maximale GPU Spannung (mV)
-min-gpu-clock = Minimaler GPU Takt (MHz)
-min-vram-clock = Minimaler VRAM Takt (MHz)
+gpu-clock-offset = GPU-Takt Offset (MHz)
+max-gpu-voltage = Maximale Spannung (mV)
 gpu-voltage-offset = GPU Spannungs-Offset (mV)
-vram-pstate-clock-offset = VRAM P-State { $pstate } Takt-Offset (MHz)
-gpu-pstate-clock = GPU P-State { $pstate } Takt (MHz)
-mem-pstate-clock = VRAM P-State { $pstate } Takt (MHz)
-gpu-pstate-clock-voltage = GPU P-State { $pstate } Spannung (mV)
-mem-pstate-clock-voltage = VRAM P-State { $pstate } Spannung (mV)
 pstates = Power States
 gpu-pstates = GPU Power States
 vram-pstates = VRAM Power States
 power-usage = Leistungsaufnahme
-performance-level-high-description = Verwende immer den höchsten Takt für GPU und VRAM.
-performance-level-low-description = Verwende immer den niedrigsten Takt für GPU und VRAM.
-performance-level-manual-description = Manuelle Leistungskontrolle.
-gpu-pstate-clock-offset = GPU P-State { $pstate } Takt-Offset (MHz)
+performance-level-high-description = Immer den höchsten Takt für GPU und VRAM verwenden
+performance-level-low-description = Immer den niedrigsten Takt für GPU und VRAM verwenden
+performance-level-manual-description = Manuelle Leistungskontrolle
 gpu-usage = GPU Auslastung
-min-gpu-voltage = Minimale GPU Spannung (mV)
+min-gpu-voltage = Minimale Spannung (mV)
 performance-level-auto-description = Automatische Anpassung des GPU und VRAM Takts. (Standard)
 amd-oc-disabled = AMD Overclocking ist nicht aktiv!<a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Einige Funktionen werden nicht verfügbar sein.</a>
 disable-amd-oc-description = Dies wird die AMD Overclocking Unterstützung (Overdrive) für den nächsten System-Neustart deaktivieren.
@@ -124,13 +112,10 @@ amd-oc-description =
 
     Weitere Informationen  <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">im Wiki</a>.
 gpu-clock-avg = GPU Kern Takt (Durchschnitt)
-max-vram-clock = Maximaler VRAM Takt (MHz)
 enable-amd-oc-description = Dies wird die Overdrive Funktionen des amdgpu Treibers aktivieren indem die Datei <b>{ $path }</b> erstellt und das initramfs aktualisiert wird. Sind Sie sicher, dass die dies tun wollen?
 gpu-clock-target = GPU Kern Takt (Ziel)
 gpu-voltage = GPU Spannung
 gpu-temp = Temperatur
-oc-warning = Änderungen an diesen Werten kann zu Instabilität des Systems führen und möglicherweise die Hardware beschädigen!
-enable-vram-locked-clocks = Aktiviere VRAM Takt Sperre
 no-throttling = Nein
 performance-level-auto = Automatisch
 add-profile = Neues Profil hinzufügen
@@ -139,7 +124,7 @@ auto-switch-profiles = Automatisch umschalten
 all-rules-matched = Alle der folgenden Regeln treffen zu:
 any-rules-matched = Jeder der folgenden Regeln trifft zu:
 profile-activation-desc = Aktiviere Profil '{ $name }' wenn:
-enable-pstate-config = Power-State Konfiguration aktivieren
+enable-pstate-config = P-State-Konfiguration
 show-historical-charts = Zeige Graphen
 create-profile = Profil erstellen
 profile-copy-from = Einstellungen übernehmen von:
@@ -178,16 +163,6 @@ profile-rule-args-contain = Argumente enthalten:
 profile-rule-specific-process = Mit einem spezifischen Prozess:
 activation-auto-switching-disabled = Der automatische Profilwechsel ist momentan deaktiviert
 profile-hook-note = Hinweis: Diese Befehle werden als root durch den LACT Daemon ausgeführt und haben keinen Zugriff auf die Desktopumgebung. Somit können sie keine grafischen Anwendungen starten.
-nvidia-oc-description =
-    Die Übertaktungsfunktionen bei Nvidia beinhalten das Festlegen von Offsets für die GPU- und VRAM-Taktraten sowie das Einschränken des möglichen Taktbereichs durch die Funktion "gesperrte Takte".
-
-    Bei vielen Grafikkarten wirkt sich der VRAM-Takt-Offset nur zur Hälfte auf den tatsächlichen Speichertakt aus.
-    Zum Beispiel kann ein VRAM-Offset von +1000 MHz die gemessene VRAM-Takt nur um 500 MHz erhöhen.
-    Das ist normal und entspricht der Art und Weise, wie Nvidia mit GDDR-Datenraten umgeht. Passe dein Overclocking entsprechend an.
-
-    Ein sogenanntes „Pseudo-Undervolting“ ist möglich, indem man die Option „gesperrten Takte“ mit einem positiven Takt-Offset kombiniert.
-    Dies zwingt die GPU dazu, mit einer durch die gesperrten Takte begrenzten Spannung zu arbeiten, während durch den Offset eine höhere Taktrate erreicht wird.
-    Wird diese Einstellung zu aggressiv gewählt, kann sie zu Systeminstabilität führen.
 mebibyte = MiB
 reconnecting-to-daemon = Verbindung zum Dienst verloren, verbinde neu...
 daemon-connection-lost = Verbindung verloren
@@ -234,7 +209,6 @@ spindown-delay = Drosselungsverzögerung (ms)
 vf-curve-editor = VF Kurven Editor
 nvidia-vf-curve-warning =
     Der Spannungs-Frequenzkurveneditor beruht auf undokumentierten Treiberfunktionalitäten.
-    Es gibt keine Garantien betreffend seines Verhaltens, Sicherheit oder Verfügbarkeit.
     <span weight="heavy" underline="single">Benutzung auf eigene Gefahr</span>.
 voltage = Spannung
 frequency = Frequenz
@@ -299,7 +273,7 @@ color-scheme-light = Hell
 color-scheme-dark = Dunkel
 power-mizer-mode = PowerMizer Modus
 power-mizer-mode-auto = Auto
-gpu-voltage-boost = GPU Spannungsanhebung (%)
+gpu-voltage-boost = Spannungsanhebung (%)
 gpu-voltage-boost-tooltip = Kontrolliert wie viel des Spielraums der zusätzlichen Spannung des Treibers verfügbar ist. 100% bedeutet den kompletten Spielraum, nicht 100% der kompletten GPU-Spannung. Mehr Spielraum kann höhere Taktraten stützen, aber Leistungsaufnahme und Hitze erhöhen.
 setup-error = Setup Fehler: { $error }
 no-fan-detected = Keinen Lüfter entdeckt
@@ -309,3 +283,21 @@ default-button = Standard
 service-setup-title = Diensteinrichtung
 service-autostart = Beim Hochfahren automatisch starten
 service-autostart-disable = Autostart auch deaktivieren
+vf-curve-editing-disabled = Bearbeiten der VF-Kurve ist auf der OC Seite deaktiviert
+extra-clocks = Extra Takte
+performance-level-profile-standard = Profil Standard
+performance-level-profile-min-sclk = Profil niedrigster GPU Takt
+performance-level-profile-min-mclk = Profil niedrigster VRAM Takt
+performance-level-profile-peak = Profil Spitze
+performance-level-profile-standard-description = Fester Profil Modus
+performance-level-profile-min-sclk-description = Zwingt die GPU-Taktfrequenz auf die niedrigste Stufe
+performance-level-profile-min-mclk-description = Zwingt die VRAM-Taktfrequenz auf die niedrigste Stufe
+performance-level-profile-peak-description = Zwingt die GPU- und VRAM-Taktfrequenzen auf die höcheten Stufen
+enable-vf-curve = Aktiviere VF Kurvenbearbeitung
+vram-section = VRAM
+max-clock = Maximale Taktfrequenz (MHz)
+min-clock = Minimale Taktfrequenz (MHz)
+pstate-clock = P-Zustand { $pstate } Taktfrequenz (MHz)
+pstate-clock-voltage = P-Zustand { $pstate } Spannung (mV)
+core-section = Kern
+advanced-features = Erweiterte Funktionen
