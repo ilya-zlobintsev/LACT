@@ -107,7 +107,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                     gtk::Label {
                         set_markup: &format!(
                             "<a href=\"details\">{}</a>",
-                            gtk::glib::markup_escape_text(&fl!(I18N, "details")),
+                            gtk::glib::markup_escape_text(&fl!(I18N, "adjustment-row-details")),
                         ),
                         set_visible: !self.info_text.is_empty(),
                         connect_activate_link[info_popover] => move |_, _| {

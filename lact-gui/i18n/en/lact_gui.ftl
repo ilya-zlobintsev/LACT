@@ -193,7 +193,7 @@ vf-curve-flatten-right = Flatten curve to the right
 vf-curve-flatten-selection = Flatten selection
 vf-curve-editing-disabled = VF curve editing is disabled on the OC page
 
-details = details
+adjustment-row-details = details
 gpu-clock-offset = Clock Offset
 max-clock = Maximum Clock
 max-gpu-voltage = Maximum Voltage
