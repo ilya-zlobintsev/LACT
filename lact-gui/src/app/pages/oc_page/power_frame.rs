@@ -117,7 +117,7 @@ impl relm4::Component for PowerFrame {
                         (),
                         AdjustmentRowInit {
                             title: fl!(I18N, "power-cap"),
-                            unit: Some(fl!(I18N, "watt")),
+                            unit: fl!(I18N, "watt"),
                             value,
                             lower: power.cap_min.unwrap_or_default(),
                             upper: power.cap_max.unwrap_or_default(),

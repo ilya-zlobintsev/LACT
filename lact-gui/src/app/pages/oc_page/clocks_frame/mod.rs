@@ -399,7 +399,7 @@ impl ClocksFrame {
             clock_type,
             AdjustmentRowInit {
                 title: data.custom_title.unwrap_or_else(|| clock_title(clock_type)),
-                unit: Some(clock_unit(clock_type)),
+                unit: clock_unit(clock_type),
                 info_text: if clock_type == ClockspeedType::VoltageBoost {
                     fl!(I18N, "gpu-voltage-boost-tooltip")
                 } else {

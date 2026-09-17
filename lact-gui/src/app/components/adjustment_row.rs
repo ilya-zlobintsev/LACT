@@ -10,7 +10,7 @@ pub struct AdjustmentRow<Key> {
     title: String,
     title_tooltip: String,
     info_text: String,
-    unit: Option<String>,
+    unit: String,
     _key: PhantomData<Key>,
     adjustment: AdjustmentValue,
     value_ratio: f64,
@@ -20,7 +20,7 @@ pub struct AdjustmentRowInit {
     pub title: String,
     pub title_tooltip: String,
     pub info_text: String,
-    pub unit: Option<String>,
+    pub unit: String,
     pub value: f64,
     pub lower: f64,
     pub upper: f64,
@@ -34,7 +34,7 @@ impl Default for AdjustmentRowInit {
             title: String::new(),
             title_tooltip: String::new(),
             info_text: String::new(),
-            unit: None,
+            unit: String::new(),
             value: 0.0,
             lower: 0.0,
             upper: 0.0,
@@ -241,12 +241,10 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 impl<Key> AdjustmentRow<Key> {
     fn subtitle(&self) -> String {
         let range = format!("{} – {}", self.adjustment.lower(), self.adjustment.upper());
-        if let Some(unit) = &self.unit
-            && !unit.is_empty()
-        {
-            format!("{unit} · {range}")
-        } else {
+        if self.unit.is_empty() {
             range
+        } else {
+            format!("{} · {range}", self.unit)
         }
     }
 
