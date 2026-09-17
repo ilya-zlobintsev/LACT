@@ -107,18 +107,12 @@ vram-pstates = Состояния питания видеопамяти
 profile-hook-deactivated = Деактивирован:
 power-profile-mode = Режим профиля питания:
 overclock-section = Частота и напряжение
-show-all-pstates = Показать все P-States
-enable-gpu-locked-clocks = Включить фиксированные частоты ГП
-gpu-clock-offset = Смещение частоты ГП (МГц)
-max-vram-clock = Максимальная частота видеопамяти (МГц)
-max-gpu-voltage = Максимальное напряжение ГП (мВ)
-gpu-voltage-offset = Смещение напряжения ГП (мВ)
-gpu-pstate-clock = Частота ГП для P-State { $pstate } (МГц)
-mem-pstate-clock = Частота видеопамяти для P-State { $pstate } (МГц)
-gpu-pstate-clock-voltage = Напряжение ГП для P-State { $pstate } (мВ)
-mem-pstate-clock-voltage = Напряжение видеопамяти для P-State { $pstate } (мВ)
+show-all-pstates = Все P-States
+gpu-clock-offset = Смещение частоты (МГц)
+max-gpu-voltage = Максимальное напряжение (мВ)
+gpu-voltage-offset = Смещение напряжения (мВ)
 pstates = Состояния питания (P-States)
-enable-pstate-config = Включить настройку состояний питания
+enable-pstate-config = Настройка состояний питания (P-State)
 settings-profile = Профиль настроек
 create-profile = Создать профиль
 profile-copy-from = Скопировать настройки:
@@ -134,33 +128,15 @@ profile-rule-gamemode-tab = Игровой режим (gamemode) активен
 profile-rule-process-name = Имя процесса:
 profile-rule-args-contain = Аргументы содержат:
 profile-rule-specific-process = С определенным процессом:
-nvidia-oc-info = Информация о разгоне
-min-gpu-clock = Минимальная частота ГП (МГц)
-min-vram-clock = Минимальная частота видеопамяти (МГц)
-gpu-pstate-clock-offset = Смещение частоты ГП для P-State { $pstate } (МГц)
-vram-pstate-clock-offset = Смещение частоты видеопамяти для P-State { $pstate } (МГц)
 gpu-pstates = Состояния питания ГП
 rename-profile-from = Переименовать профиль <b>{ $old_name }</b>:
 pstate-list-description = <b>Следующие значения являются смещениями частоты для каждого P-State, от самого высокого к самому низкому.</b>
-max-gpu-clock = Максимальная частота ГП (МГц)
 edit-rules = Изменить правила
 export-to-file = Экспорт в файл
 no-clocks-data = Данные о частотах недоступны
 manual-level-needed = Чтобы использовать режимы питания, уровень производительности должен быть установлен на «вручную»
-oc-warning = Изменение этих значений может нарушить стабильность системы и повредить оборудование!
-enable-vram-locked-clocks = Включить фиксированные частоты видеопамяти
 profile-hook-command = Выполнить команду, когда профиль '{ $cmd }':
 profile-hook-activated = Активирован:
-nvidia-oc-description =
-    Разгон на видеокартах Nvidia включает возможность задавать смещения для частот ГП и видеопамяти, а также ограничивать потенциальный диапазон частот с помощью функции «locked clocks» (фиксированные частоты).
-
-    На многих моделях видеокарт смещение частоты видеопамяти фактически влияет на реальную скорость памяти только наполовину от заданного значения.
-    Например, при установке смещения +1000 МГц прирост измеренной частоты видеопамяти может составить всего +500 МГц.
-    Это нормальное поведение, связанное с тем, как Nvidia обрабатывает скорость передачи данных GDDR. Учитывайте это при настройке разгона.
-
-    Можно сделать «псевдо-андервольт» с помощью комбинации фиксированных частот и положительного смещения частоты.
-    В этом случае ГП будет работать на напряжении, ограниченном фиксированными частотами, но при этом достигнет более высокой частоты за счёт смещения.
-    Чрезмерное увеличение параметров может привести к нестабильности системы.
 import-profile = Импорт профиля из файла
 reset-oc-tooltip = Внимание: все настройки частот будут сброшены к значениям по умолчанию!
 auto-switch-profiles = Переключать автоматически
@@ -169,8 +145,8 @@ profile-activation = Активация
 profile-activation-desc = Активировать профиль '{ $name }' при:
 show-historical-charts = Показать графики
 move-down = Вниз
-min-gpu-voltage = Минимальное напряжение ГП (мВ)
-pstates-manual-needed = Уровень производительности должен быть установлен на «вручную» для переключения состояний питания
+min-gpu-voltage = Минимальное напряжение (мВ)
+pstates-manual-needed = Чтобы включить настройку состояний питания (P-State), установите уровень производительности «Вручную».
 profile-hooks = Хуки
 activation-settings-status =
     Выбранные настройки активации в данный момент <b>{ $matched ->
@@ -298,7 +274,7 @@ service-stop = Остановить
 service-restart = Перезапустить
 service-disconnected = нет подключения
 gui-version = Версия ГП
-gpu-voltage-boost = Повышение напряжения ГП (%)
+gpu-voltage-boost = Повышение напряжения (%)
 gpu-voltage-boost-tooltip = Определяет, какая часть дополнительного запаса напряжения, заданного драйвером, доступна. 100% означает весь этот запас, а не 100% общего напряжения ГП. Больший запас может поддерживать более высокие частоты, но увеличивает энергопотребление и нагрев.
 no-fan-detected = Вентилятор не обнаружен
 no-sensors-found = Датчики не найдены
@@ -312,10 +288,20 @@ performance-level-profile-min-sclk = Минимальная частота ГП
 performance-level-profile-min-mclk = Минимальная частота видеопамяти
 performance-level-profile-peak = Максимальная производительность
 performance-level-profile-standard-description = Фиксированный режим профилирования
-performance-level-profile-min-sclk-description = Режим профилирования, принудительно устанавливающий минимальную частоту ГП
-performance-level-profile-min-mclk-description = Режим профилирования, принудительно устанавливающий минимальную частоту видеопамяти
-performance-level-profile-peak-description = Режим профилирования, принудительно устанавливающий максимальные частоты ГП и видеопамяти
-enable-vf-curve = Включить редактирование кривой напряжения-частоты
+performance-level-profile-min-sclk-description = Принудительно устанавливает минимальную частоту ГП
+performance-level-profile-min-mclk-description = Принудительно устанавливает минимальную частоту видеопамяти
+performance-level-profile-peak-description = Принудительно устанавливает максимальные частоты ГП и видеопамяти
+enable-vf-curve = Пользовательская кривая напряжение-частота
 vf-curve-editing-disabled = Редактирование кривой напряжения-частоты отключено на странице разгона
 service-setup-title = Настройка службы
 setup-error = Ошибка настройки: { $error }
+power-section = Питание
+core-section = Ядро
+vram-section = Видеопамять
+advanced-features = Дополнительные возможности
+enable-locked-clocks = Зафиксированные частоты
+max-clock = Максимальная частота (МГц)
+min-clock = Минимальная частота (МГц)
+pstate-clock-offset = Смещение частоты P-State { $pstate } (МГц)
+pstate-clock = Частота P-State { $pstate } (МГц)
+pstate-clock-voltage = Напряжение P-State { $pstate } (мВ)
