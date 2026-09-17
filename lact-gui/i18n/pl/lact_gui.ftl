@@ -49,30 +49,15 @@ stats-section = Statystyki
 power-cap = Limit poboru mocy
 fan-speed = Prędkość Wentylatora
 min-fan-speed = Minimalna Prędkość Wentylatora (%)
-vram-pstate-clock-offset = VRAM P-State { $pstate } Zegar Offset (MHz)
 auto-switch-profiles = Zmień automatycznie
 performance-level-auto = Automatycznie
-min-vram-clock = Minimalne taktowanie VRAM (MHz)
 performance-level-auto-description = Automatycznie dostosuj taktowania GPU I VRAM. (Domyślne)
 reset-oc-tooltip = Ostrzeżenie: to spowoduje zresetowanie wszystkich zegarów do domyślnych!
-max-gpu-clock = Maksymalne Zegary Offset GPU (MHz)
 all-rules-matched = Jeśli spełnione są wszystkie z poniższych warunków:
 pstates-manual-needed = Poziom wydajności musi być ustawiony na „ręczny”, aby można było przełączać stany zasilania
 settings-profile = Profile Ustawień
 save = Zapisz
 rename-profile-from = Zmień nazwę profilu <b>{ $old_name }</b> na:
-nvidia-oc-description =
-    Zmiany ustawień obejmują przesunięcia taktowania GPU i VRAM, a także ograniczenie maksymalnych wartości zegarów przy użyciu zablokowanych „funkcji”
-
-    Na wielu kartach graficznych przesunięcie dla taktowania VRAM wpływa na rzeczywiste taktowanie pamięci tylko w połowie wartości offsetu.
-    Przykład: Przesunięcie +1000 MHz dla VRAM może zwiększyć rzeczywistą częstotliwość pamięci tylko o 500 MHz..
-    To jest normalne, tak właśnie Nvidia obsługuje prędkości przesyłu danych w pamięci GDDR. Odpowiednio dostosuj swoje podkręcenie.
-
-    Bezpośrednie sterowanie napięciem nie jest obsługiwane, ponieważ taka funkcja nie istnieje w sterowniku Nvidia dla systemu Linux.
-
-    Możliwe jest jednak osiągnięcie pseudo-undervoltu, łącząc zablokowane zegary z dodatnim przesunięciem
-    Wymusza to pracę GPU przy napięciu ograniczonym przez ustawione zegary, ale jednocześnie umożliwia wyższą częstotliwość dzięki offsetowi.
-    Zbyt duża wartość może prowadzić do niestabilności systemu.
 profile-hook-deactivated = Dezaktywowana:
 info-page = Informacje o sprzęcie
 oc-page = Podkręcanie
@@ -120,21 +105,12 @@ performance-level-manual-description = Ręczne sterowanie wydajnością.
 power-profile-mode = Tryb profilu zasilania:
 manual-level-needed = Poziom wydajności został ustawiony jako Ręczny aby uaktywnić profile mocy
 overclock-section = Taktowanie i napięcie
-nvidia-oc-info = Zarządzanie informacjami OC Nvidia
 show-all-pstates = Pokaż wszystkie P-States
-enable-gpu-locked-clocks = Odblokuj Zablokowane Zegary GPU
-enable-vram-locked-clocks = Włącz zablokowane taktowanie VRAM
 no-clocks-data = Brak danych o zegarach
 gpu-clock-offset = Przesunięcie taktowania GPU (MHz)
-max-vram-clock = Maksymalne Zegary Offset VRAM (MHz)
 max-gpu-voltage = Maksymalne Napięcie GPU (mV)
-min-gpu-clock = Minimalne taktowanie GPU (MHz)
 min-gpu-voltage = Minimalne Napięcie GPU (mV)
 gpu-voltage-offset = Przesunięcie napięcia GPU (mV)
-gpu-pstate-clock-offset = GPU P-State { $pstate } Zegar Offset (MHz)
-gpu-pstate-clock = GPU P-State { $pstate } Zegar (MHz)
-gpu-pstate-clock-voltage = GPU P-State { $pstate } Napięcie(mV)
-mem-pstate-clock-voltage = VRAM P-State { $pstate } Napięcie (mV)
 pstates = Stany Zasilania
 gpu-pstates = Stany Zasilania GPU
 vram-pstates = Stany Zasilania VRAN
@@ -191,8 +167,6 @@ amd-oc-description =
     }
 
     Sprawdź <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">wiki</a> po więcej informacji.
-oc-warning = Zmiana tych wartości może prowadzić do niestabilności systemu, a nawet potencjalnie uszkodzić sprzęt!
-mem-pstate-clock = VRAM P-State { $pstate } Zegar (MHz)
 profile-activation = Aktywacja
 show-process-monitor = Pokaż monitor procesu
 apply-button = Zastosuj
