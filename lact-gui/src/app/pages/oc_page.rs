@@ -208,7 +208,7 @@ impl relm4::Component for OcPage {
 
                     self.device_info = Some(info.clone());
                     self.power_frame
-                        .emit(PowerFrameMsg::Nvidia(info.driver == "nvidia"));
+                        .emit(PowerFrameMsg::Driver(info.driver.clone()));
                     self.stats_section
                         .emit(GpuStatsSectionMsg::Info(info.clone()));
                     self.power_states_frame

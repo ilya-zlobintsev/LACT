@@ -32,7 +32,7 @@ pub struct PowerFrame {
 #[derive(Debug)]
 pub enum PowerFrameMsg {
     PowerStats(PowerStats),
-    Nvidia(bool),
+    Driver(String),
     NvidiaMode(NvidiaPowerCapMode),
     ToggleNvidiaIoctl(bool),
     Performance(PerformanceFrameMsg),
@@ -73,6 +73,7 @@ impl relm4::Component for PowerFrame {
                         set_visible: !model.power_row.is_empty(),
                     },
 
+                    #[name = "experimental_controls"]
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 6,
@@ -158,7 +159,10 @@ impl relm4::Component for PowerFrame {
                     );
                 }
             }
-            PowerFrameMsg::Nvidia(is_nvidia) => self.is_nvidia = is_nvidia,
+            PowerFrameMsg::Driver(driver) => {
+                // DeviceInfo includes the driver version, e.g. "nvidia 610.57.04".
+                self.is_nvidia = driver.split_ascii_whitespace().next() == Some("nvidia");
+            }
             // Config arrives before the initial stats rebuild; it is not a user edit.
             PowerFrameMsg::NvidiaMode(mode) => self.nvidia_mode = mode,
             PowerFrameMsg::ToggleNvidiaIoctl(enabled) => {
@@ -221,10 +225,11 @@ mod tests {
             cap_default: Some(300.0),
             ..Default::default()
         };
-        frame.emit(PowerFrameMsg::Nvidia(true));
+        frame.emit(PowerFrameMsg::Driver("nvidia 610.57.04".to_owned()));
         frame.emit(PowerFrameMsg::NvidiaMode(NvidiaPowerCapMode::Nvml));
         frame.emit(PowerFrameMsg::PowerStats(native_stats.clone()));
         drain();
+        assert!(frame.widgets().experimental_controls.is_visible());
         assert!(!frame.widgets().ioctl_toggle.is_active());
         assert_eq!(frame.model().cap_min(), 250.0);
         assert_eq!(frame.model().get_user_cap(), None);
@@ -270,9 +275,18 @@ mod tests {
         drain();
         assert!(!frame.widgets().ioctl_toggle.is_active());
         assert_eq!(frame.model().get_user_cap(), None);
-        frame.emit(PowerFrameMsg::Nvidia(false));
+        frame.emit(PowerFrameMsg::Driver("amdgpu".to_owned()));
         drain();
         assert_eq!(frame.model().nvidia_power_cap_mode(), None);
+        assert!(!frame.widgets().experimental_controls.is_visible());
+
+        frame.emit(PowerFrameMsg::Driver("nvidia_drm".to_owned()));
+        drain();
+        assert!(!frame.widgets().experimental_controls.is_visible());
+
+        frame.emit(PowerFrameMsg::Driver("nvidia".to_owned()));
+        drain();
+        assert!(frame.widgets().experimental_controls.is_visible());
     }
 }
 
