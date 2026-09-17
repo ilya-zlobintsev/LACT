@@ -127,35 +127,20 @@ performance-level-high = 최대 클럭
 performance-level-low = 최소 클럭
 performance-level-manual = 수동
 performance-level-auto-description = GPU 및 VRAM 클럭을 자동으로 조절합니다. (기본값)
-performance-level-high-description = GPU 및 VRAM에 항상 최대 클럭 속도를 사용합니다.
-performance-level-low-description = GPU 및 VRAM에 항상 최소 클럭 속도를 사용합니다.
-performance-level-manual-description = 수동 성능 제어.
+performance-level-high-description = GPU 및 VRAM에 항상 최대 클럭 속도를 사용합니다
+performance-level-low-description = GPU 및 VRAM에 항상 최소 클럭 속도를 사용합니다
+performance-level-manual-description = 수동 성능 제어
 performance-level = 성능 레벨
 power-profile-mode = 전력 프로파일 모드:
 manual-level-needed = 전력 상태 및 모드를 사용하려면 성능 레벨을 "수동"으로 설정해야 합니다
 overclock-section = 클럭 속도 및 전압
-nvidia-oc-info = 오버클럭 정보
-nvidia-oc-description =
-    Nvidia의 오버클럭 기능에는 GPU/VRAM 클럭 속도 오프셋 설정과 "잠금 클럭" 기능을 사용한 클럭 속도 범위 제한이 포함됩니다.
-
-    많은 카드에서 VRAM 클럭 속도 오프셋은 실제 메모리 클럭 속도에 오프셋 값의 절반만 반영됩니다.
-    예를 들어, +1000MHz VRAM 오프셋은 측정된 VRAM 속도를 500MHz만 증가시킬 수 있습니다.
-    이는 Nvidia가 GDDR 데이터 전송률을 처리하는 정상적인 방식입니다. 이에 맞게 오버클럭을 조정하십시오.
-
-    잠금 클럭 옵션과 양수 클럭 속도 오프셋을 조합하여 의사 언더볼트를 구현할 수 있습니다.
-    이를 통해 잠금 클럭에 의해 제한된 전압에서 GPU를 실행하면서, 오프셋으로 인해 더 높은 클럭 속도를 달성할 수 있습니다.
-    지나치게 높이면 시스템 불안정을 유발할 수 있습니다.
-oc-warning = 이 값들을 변경하면 시스템 불안정이 발생할 수 있으며 하드웨어가 손상될 가능성이 있습니다!
 show-all-pstates = 모든 P-States 보기
-enable-gpu-locked-clocks = GPU 잠금 클럭 활성화
-enable-vram-locked-clocks = VRAM 잠금 클럭 활성화
 pstate-list-description = <b>다음 값은 가장 높은 것부터 가장 낮은 것까지 각 P-State의 클럭 오프셋입니다.</b>
 no-clocks-data = 클럭 데이터 없음
 reset-oc-tooltip = 경고: 모든 클럭 설정이 기본값으로 초기화됩니다!
 vf-curve-editor = VF 커브 편집기
 nvidia-vf-curve-warning =
-    전압-주파수 커브 편집기는 문서화되지 않은 드라이버 기능에 의존합니다.
-    동작, 안정성 또는 사용 가능 여부에 대한 보장이 없습니다.
+    전압-주파수 곡선 편집기는 문서화되지 않은 드라이버 기능에 의존합니다.
     <span weight = "heavy" underline = "single">사용에 따른 책임은 사용자에게 있습니다</span>.
 voltage = 전압
 frequency = 주파수
@@ -165,19 +150,9 @@ vf-curve-visible-range = 표시 범위 (%):
 vf-curve-visible-range-to = ~
 vf-curve-flatten-right = 커브를 오른쪽으로 평탄화
 gpu-clock-offset = GPU 클럭 오프셋 (MHz)
-max-gpu-clock = 최대 GPU 클럭 (MHz)
-max-vram-clock = 최대 VRAM 클럭 (MHz)
 max-gpu-voltage = 최대 GPU 전압 (mV)
-min-gpu-clock = 최소 GPU 클럭 (MHz)
-min-vram-clock = 최소 VRAM 클럭 (MHz)
 min-gpu-voltage = 최소 GPU 전압 (mV)
 gpu-voltage-offset = GPU 전압 오프셋 (mV)
-gpu-pstate-clock-offset = GPU P-State { $pstate } 클럭 오프셋 (MHz)
-vram-pstate-clock-offset = VRAM P-State { $pstate } 클럭 오프셋 (MHz)
-gpu-pstate-clock = GPU P-State { $pstate } 클럭 (MHz)
-mem-pstate-clock = VRAM P-State { $pstate } 클럭 (MHz)
-gpu-pstate-clock-voltage = GPU P-State { $pstate } 전압 (mV)
-mem-pstate-clock-voltage = VRAM P-State { $pstate } 전압 (mV)
 pstates = 전력 상태
 gpu-pstates = GPU 전력 상태
 vram-pstates = VRAM 전력 상태
@@ -309,3 +284,14 @@ service-autostart-disable = 자동 시작도 비활성화
 default-button = 기본값
 service-setup-title = 서비스 설정
 setup-error = 설정 오류: { $error }
+extra-clocks = 추가 클럭
+performance-level-profile-standard = 표준 프로파일링
+performance-level-profile-min-sclk = 최저 GPU 클럭 프로파일링
+performance-level-profile-min-mclk = 최저 VRAM 클럭 프로파일링
+performance-level-profile-peak = 최고점 프로파일링
+performance-level-profile-standard-description = 고정된 프로파일링 방식
+performance-level-profile-min-sclk-description = GPU 클럭을 최저 수준으로 강제하는 프로파일링 방식
+performance-level-profile-min-mclk-description = VRAM 클럭을 최저 수준으로 강제하는 프로파일링 방식
+performance-level-profile-peak-description = GPU 및 VRAM을 최대 수준으로 강제하는 프로파일링 방식
+enable-vf-curve = VF 곡선 편집 활성화
+vf-curve-editing-disabled = VF 곡선 편집은 OP 부분에서 비활성화되어 있습니다
