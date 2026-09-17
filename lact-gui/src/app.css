@@ -13,12 +13,3 @@
 .main-sidebar-container .sidebar-section {
     margin: 4px 8px 8px 8px;
 }
-
-.oc-warning-button > button {
-    color: @warning_color;
-    background: alpha(@warning_color, 0.15);
-}
-
-.oc-warning-button > button:hover {
-    background: alpha(@warning_color, 0.25);
-}

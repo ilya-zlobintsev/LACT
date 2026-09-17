@@ -39,10 +39,7 @@ use crate::{
 use adw::prelude::*;
 use anyhow::{Context, anyhow};
 use graphs_window::{GraphsWindow, GraphsWindowMsg};
-use gtk::{
-    STYLE_PROVIDER_PRIORITY_APPLICATION,
-    glib::{self, ControlFlow, clone},
-};
+use gtk::glib::{self, ControlFlow, clone};
 use i18n_embed_fl::fl;
 use lact_client::{ConnectionStatusMsg, DaemonClient};
 use lact_schema::{
@@ -368,10 +365,7 @@ impl AsyncComponent for AppModel {
             .application()
             .expect("Failed to get application from root window");
 
-        relm4::set_global_css_with_priority(
-            styles::COMBINED_CSS,
-            STYLE_PROVIDER_PRIORITY_APPLICATION,
-        );
+        relm4::set_global_css_with_priority(styles::COMBINED_CSS, styles::APPLICATION_CSS_PRIORITY);
 
         if let Err(err) = styles::apply_theme(CONFIG.read().theme) {
             error!("could not apply theme: {err:#}");
