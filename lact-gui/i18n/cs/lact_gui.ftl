@@ -106,32 +106,18 @@ performance-level = Výkonnostní stupeň
 power-profile-mode = Režim profilu napájení:
 manual-level-needed = Výkonnostní stupeň byl nastaven na „ručně“, aby bylo možné používat stavy a režimy napájení
 overclock-section = Takt a napětí
-nvidia-oc-info = Informace o přetaktování
-oc-warning = Změna těchto hodnot může vést k nestabilitě systému a případně poškodit váš hardware!
 show-all-pstates = Zobrazit veškeré P-stavy
-enable-gpu-locked-clocks = Povolit GPU uzamčené takty
-enable-vram-locked-clocks = Povolit uzamčené takty videopaměti
 no-clocks-data = Nejsou k dispozici žádné údaje o taktech
 reset-oc-tooltip = Varování: toto vrátí veškerá nastavení taktů na výchozí hodnoty!
 gpu-clock-offset = Posun taktu GPU (MHz)
-max-gpu-clock = Nejvyšší takt GPU (MHz)
-max-vram-clock = Nejvyšší takt videopaměti (MHz)
 max-gpu-voltage = Nejvyšší napětí GPU (mV)
-min-gpu-clock = Nejnižší takt GPU (MHz)
-min-vram-clock = Nejnižší takt videopaměti (MHz)
 min-gpu-voltage = Nejnižší napětí GPU (mV)
 gpu-voltage-offset = Posun napětí GPU (mV)
-gpu-pstate-clock-offset = Posun taktu (MHz) P-stavu GPU { $pstate }
-vram-pstate-clock-offset = Posun taktu (MHz) P-stavu videopaměti { $pstate }
-gpu-pstate-clock = Takt (MHz) GPU P-stavu { $pstate }
-mem-pstate-clock = Takt (MHz) P-stavu videopaměti { $pstate }
-gpu-pstate-clock-voltage = Napětí (mV) GPU P-stavu { $pstate }
-mem-pstate-clock-voltage = Napětí (mV) P-stavu videopaměti { $pstate }
 pstates = Stavy napájení
 gpu-pstates = Stavy napájení GPU
 vram-pstates = Stavy napájení videopaměti
-pstates-manual-needed = Aby bylo možné přepínat stavy napájení, je třeba výkonnostní úroveň nastavit na „ručně“
-enable-pstate-config = Povolit nastavování stavu napájení
+pstates-manual-needed = Aby bylo možné zapnout nastavování P-State, je třeba výkonnostní úroveň nastavit na „ručně“.
+enable-pstate-config = Nastavení P-State
 show-historical-charts = Zobrazit grafy
 show-process-monitor = Zobrazit monitor procesů
 generate-debug-snapshot = Vytvořit ladící zachycený stav
@@ -212,16 +198,6 @@ activation-settings-status =
        *[false] neodpovídá
     }</b>
 profile-hook-note = Pozn.: tyto příkazy jsou vykonávány procesem služby LACT (jako root) a nemají proto přístup k desktopovému prostředí. Jako takové je tedy není možné použít přímo ke spouštění grafických aplikací.
-nvidia-oc-description =
-    Funkce přetaktování na Nvidia zahrnuje nastavení posunů pro takty GPU / videopaměti a omezení potenciálního rozsahu taktů pomocí funkce „uzamčené takty“.
-
-    Na mnoha kartách ovlivní posun taktu videopaměti skutečný takt paměti pouze o polovinu hodnoty posunu.
-    Například, posun +1000MHz videopaměti může zvýšit měřenou rychlost paměti pouze o 500MHz.
-    Toto je normální a plyne z toho, jak Nvidia zachází s takty GDDR. Přizpůsobte tomu příslušně svá nastavení přetaktování.
-
-    Je možné dosáhnout svého druhu snížení napětí kombinací předvolby uzamčené takt a kladného posunu taktu.
-    Toto GPU přinutí běžet na napětí, které je omezeno uzamčenými takty a přitom dosahovat vyšších taktů (díky posunu).
-    Pokud nastaveno příliš vysoko, může toto ale způsobovat nestabilitu systému.
 gibibyte = GiB
 crash-page-title = Aplikace zhavarovala
 exit = Ukončit
@@ -314,8 +290,8 @@ performance-level-profile-min-sclk = Profilování nejnižšího taktu GPU
 performance-level-profile-min-mclk = Profilování nejnižšího taktu VRAM
 performance-level-profile-peak = Profilování špičky
 performance-level-profile-standard-description = Pevný režim profilování
-performance-level-profile-min-sclk-description = Režim profilování, který vynutí takty GPU na nejnižší úroveň
-performance-level-profile-min-mclk-description = Režim profilování, který vynutí takty videopaměti na nejnižší úroveň
-performance-level-profile-peak-description = Režim profilování, který vynutí takty GPU a videopaměti na nejvyšší úrovně
+performance-level-profile-min-sclk-description = Vynutí takty GPU na nejnižší úroveň
+performance-level-profile-min-mclk-description = Vynutí takty videopaměti na nejnižší úroveň
+performance-level-profile-peak-description = Vynutí takty GPU a videopaměti na nejvyšší úrovně
 enable-vf-curve = Povolit upravování křivky napětí a frekvence
 vf-curve-editing-disabled = Upravování křivky napětí a frekvence je zakázáno na stránce Přetaktování
