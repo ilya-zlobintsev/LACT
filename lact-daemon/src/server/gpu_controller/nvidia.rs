@@ -1,5 +1,6 @@
 mod driver;
 pub mod nvapi;
+mod power_cap;
 
 use super::{CommonControllerInfo, FanControlHandle, GpuController};
 use crate::{
@@ -30,7 +31,7 @@ use lact_schema::{
     FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaThermalInfo,
     NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo,
     ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
-    config::{FanControlSettings, FanCurve, GpuConfig, NvidiaCurvePoint},
+    config::{FanControlSettings, FanCurve, GpuConfig, NvidiaCurvePoint, NvidiaPowerCapMode},
 };
 use nvapi::NvApi;
 use nvml_wrapper::{
@@ -69,7 +70,7 @@ pub struct NvidiaGpuController {
 
     nvapi: Option<(Rc<NvApi>, NvPhysicalGpuHandle)>,
     driver_handle: Option<DriverHandle>,
-    lower_power_limit: Option<LowerPowerLimit>,
+    lower_power_limit: Cell<Option<LowerPowerLimit>>,
     nvapi_therm_channel_mask: Option<i32>,
 
     last_util_timestamp: Cell<Option<u64>>,
@@ -137,30 +138,6 @@ impl NvidiaGpuController {
             }
         };
 
-        let lower_power_limit = driver_handle.as_ref().and_then(|handle| {
-            let probe = (|| -> anyhow::Result<_> {
-                let constraints = device.power_management_limit_constraints()?;
-                handle.probe_lower_power_limit(
-                    PowerLimitBounds {
-                        min_mw: constraints.min_limit,
-                        default_mw: device.power_management_limit_default()?,
-                        max_mw: constraints.max_limit,
-                    },
-                    device.power_management_limit()?,
-                )
-            })();
-            match probe {
-                Ok(bounds) => {
-                    debug!(?bounds, "detected lower power limit support");
-                    bounds
-                }
-                Err(err) => {
-                    debug!("lower power limit support unavailable: {err:#}");
-                    None
-                }
-            }
-        });
-
         let target_temp = device
             .temperature_threshold(TemperatureThreshold::AcousticCurr)
             .ok();
@@ -170,7 +147,7 @@ impl NvidiaGpuController {
             nvapi: nvapi.zip(nvapi_handle),
             common,
             driver_handle,
-            lower_power_limit,
+            lower_power_limit: Cell::new(None),
             nvapi_therm_channel_mask,
             initial_target_temp: target_temp,
             last_util_timestamp: Cell::new(None),
@@ -740,18 +717,47 @@ fn supported_power_mizer_modes(modes: PowerMizerModes) -> Vec<PowerMizerMode> {
     .collect()
 }
 
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-fn checked_power_cap_mw(cap: f64, min_mw: u32, max_mw: u32) -> anyhow::Result<u32> {
-    ensure!(
-        cap.is_finite()
-            && cap > 0.0
-            && cap >= f64::from(min_mw) / 1000.0
-            && cap <= f64::from(max_mw) / 1000.0,
-        "Power cap must be between {} and {} W",
-        f64::from(min_mw) / 1000.0,
-        f64::from(max_mw) / 1000.0,
-    );
-    Ok((cap * 1000.0) as u32)
+struct NvidiaPowerCapControl<'a, 'nvml> {
+    device: &'a mut Device<'nvml>,
+    driver: Option<&'a DriverHandle>,
+}
+
+impl power_cap::PowerCapControl for NvidiaPowerCapControl<'_, '_> {
+    type IoctlSupport = LowerPowerLimit;
+
+    fn range(&self) -> anyhow::Result<(u32, u32)> {
+        let limits = self.device.power_management_limit_constraints()?;
+        Ok((limits.min_limit, limits.max_limit))
+    }
+
+    fn current(&self) -> anyhow::Result<u32> {
+        Ok(self.device.power_management_limit()?)
+    }
+
+    fn default_cap(&self) -> anyhow::Result<u32> {
+        Ok(self.device.power_management_limit_default()?)
+    }
+
+    fn set_nvml(&mut self, cap: u32) -> anyhow::Result<()> {
+        Ok(self.device.set_power_management_limit(cap)?)
+    }
+
+    fn probe_ioctl(
+        &self,
+        bounds: PowerLimitBounds,
+        current: u32,
+    ) -> anyhow::Result<LowerPowerLimit> {
+        self.driver
+            .context("NVIDIA RM is unavailable")?
+            .probe_lower_power_limit(bounds, current)?
+            .context("No compatible NVIDIA RM power client")
+    }
+
+    fn set_ioctl(&self, cap: u32, support: &LowerPowerLimit) -> anyhow::Result<()> {
+        self.driver
+            .context("NVIDIA RM is unavailable")?
+            .set_lower_power_limit(cap, *support)
+    }
 }
 
 impl NvidiaGpuController {
@@ -759,56 +765,17 @@ impl NvidiaGpuController {
         &self,
         device: &mut Device<'_>,
         power_cap: Option<f64>,
+        mode: NvidiaPowerCapMode,
     ) -> anyhow::Result<()> {
-        if let Some(cap) = power_cap {
-            let constraints = device
-                .power_management_limit_constraints()
-                .context("Could not get power cap constraints")?;
-            let lower_power_limit = self.lower_power_limit.filter(|support| {
-                support.bounds.min_mw == constraints.min_limit
-                    && support.bounds.max_mw == constraints.max_limit
-            });
-            let min_mw =
-                lower_power_limit.map_or(constraints.min_limit, LowerPowerLimit::lower_min_mw);
-            let cap = checked_power_cap_mw(cap, min_mw, constraints.max_limit)?;
-
-            let current_cap = device
-                .power_management_limit()
-                .context("Could not get current cap")?;
-
-            if current_cap != cap {
-                debug!("setting power cap to {cap}");
-                if cap < constraints.min_limit {
-                    self.driver_handle
-                        .as_ref()
-                        .context(
-                            "Nvidia RM is unavailable for a power cap below the VBIOS minimum",
-                        )?
-                        .set_lower_power_limit(
-                            cap,
-                            lower_power_limit.context("Lower power cap is not supported")?,
-                        )
-                        .context("Could not set lower power cap")?;
-                } else {
-                    device
-                        .set_power_management_limit(cap)
-                        .context("Could not set power cap")?;
-                }
-            }
-        } else {
-            let current_cap = device.power_management_limit();
-            let default_cap = device.power_management_limit_default();
-
-            if let (Ok(current_cap), Ok(default_cap)) = (current_cap, default_cap)
-                && current_cap != default_cap
-            {
-                debug!("resetting power cap to {default_cap}");
-                device
-                    .set_power_management_limit(default_cap)
-                    .context("Could not reset power cap")?;
-            }
-        }
-
+        let support = power_cap::apply(
+            &mut NvidiaPowerCapControl {
+                device,
+                driver: self.driver_handle.as_ref(),
+            },
+            power_cap,
+            mode,
+        )?;
+        self.lower_power_limit.set(support);
         Ok(())
     }
 }
@@ -1135,6 +1102,12 @@ impl GpuController for NvidiaGpuController {
                 cap_min: power_constraints.as_ref().map(|constraints| {
                     let min = self
                         .lower_power_limit
+                        .get()
+                        .filter(|_| {
+                            gpu_config.is_some_and(|config| {
+                                config.nvidia_power_cap_mode == NvidiaPowerCapMode::Ioctl
+                            })
+                        })
                         .filter(|support| {
                             support.bounds.min_mw == constraints.min_limit
                                 && support.bounds.max_mw == constraints.max_limit
@@ -1142,6 +1115,9 @@ impl GpuController for NvidiaGpuController {
                         .map_or(constraints.min_limit, LowerPowerLimit::lower_min_mw);
                     f64::from(min) / 1000.0
                 }),
+                cap_min_native: power_constraints
+                    .as_ref()
+                    .map(|constraints| f64::from(constraints.min_limit) / 1000.0),
                 cap_default: device
                     .power_management_limit_default()
                     .map(|mw| f64::from(mw) / 1000.0)
@@ -1285,7 +1261,7 @@ impl GpuController for NvidiaGpuController {
         Box::pin(async {
             let mut device = self.device();
 
-            self.apply_power_cap(&mut device, config.power_cap)?;
+            self.apply_power_cap(&mut device, config.power_cap, config.nvidia_power_cap_mode)?;
             apply_power_mizer_mode(&mut device, config.power_mizer_mode)?;
 
             self.reset_clocks()?;
@@ -1649,32 +1625,6 @@ mod tests {
     use lact_schema::config::NvidiaCurvePoint;
 
     const OFFSET_RANGE: (i32, i32) = (-1000, 1000);
-
-    #[test]
-    fn power_cap_validates_before_converting_to_milliwatts() {
-        use super::checked_power_cap_mw;
-        for cap in [30.0, 150.0, 250.0, 325.0] {
-            assert!(checked_power_cap_mw(cap, 30_000, 325_000).is_ok());
-        }
-        assert_eq!(
-            checked_power_cap_mw(150.125, 30_000, 325_000).unwrap(),
-            150_125
-        );
-        for cap in [
-            f64::NAN,
-            f64::INFINITY,
-            f64::NEG_INFINITY,
-            -1.0,
-            0.0,
-            29.999,
-            325.001,
-            8000.0,
-        ] {
-            assert!(checked_power_cap_mw(cap, 30_000, 325_000).is_err());
-        }
-        // Without verified FE support the VBIOS minimum still applies.
-        assert!(checked_power_cap_mw(150.0, 250_000, 325_000).is_err());
-    }
 
     #[derive(Clone, Copy)]
     struct TestPoint {

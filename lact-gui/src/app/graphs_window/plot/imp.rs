@@ -182,6 +182,7 @@ mod benches {
                     supported_power_mizer_modes: None,
                     performance_level: Some(PerformanceLevel::Auto),
                     power: PowerStats {
+                        cap_min_native: None,
                         average: Some(36.0),
                         cap_current: Some(289.0),
                         cap_default: Some(289.0),

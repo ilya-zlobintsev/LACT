@@ -1128,6 +1128,13 @@ impl AppModel {
             .ok()
             .flatten();
 
+        self.oc_page.emit(OcPageMsg::NvidiaPowerCapMode(
+            gpu_config
+                .as_ref()
+                .map(|config| config.nvidia_power_cap_mode)
+                .unwrap_or_default(),
+        ));
+
         let stats = self
             .daemon_client
             .get_device_stats(&gpu_id)
@@ -1212,6 +1219,9 @@ impl AppModel {
         let cap = self.oc_page.model().get_power_cap();
         if let Some(cap) = cap {
             gpu_config.power_cap = Some(cap);
+        }
+        if let Some(mode) = self.oc_page.model().get_nvidia_power_cap_mode() {
+            gpu_config.nvidia_power_cap_mode = mode;
         }
 
         let performance_level = self.oc_page.model().get_performance_level();
