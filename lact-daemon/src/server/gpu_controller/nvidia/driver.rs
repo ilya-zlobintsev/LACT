@@ -1,3 +1,6 @@
+mod device_id;
+pub mod power_limit;
+
 use std::{
     fs::File,
     mem,
@@ -39,7 +42,8 @@ use crate::bindings::nvidia::{
 use crate::bindings::nvidia::{
     NV04_DISPLAY_COMMON, NV0073_CTRL_CMD_DP_GET_LINK_CONFIG, NV0073_CTRL_DP_GET_LINK_CONFIG_PARAMS,
 };
-use anyhow::{Context, bail};
+use crate::server::gpu_controller::PciSlotInfo;
+use anyhow::{Context, bail, ensure};
 use lact_schema::RopInfo;
 use nix::ioctl_readwrite;
 
@@ -57,7 +61,7 @@ pub struct DriverHandle {
 }
 
 impl DriverHandle {
-    pub fn open(minor_number: u32) -> anyhow::Result<Self> {
+    pub fn open(minor_number: u32, pci_slot: &PciSlotInfo) -> anyhow::Result<Self> {
         let nvidiactl_fd: OwnedFd = File::options()
             .read(true)
             .write(true)
@@ -68,8 +72,36 @@ impl DriverHandle {
         let client_handle: NvHandle = unsafe {
             let mut client_request: NVOS21_PARAMETERS = mem::zeroed();
             rm_alloc_nvos21(nvidiactl_fd.as_raw_fd(), &raw mut client_request)?;
+            ensure!(
+                client_request.status == 0,
+                "Could not allocate Nvidia RM client"
+            );
             client_request.hObjectNew
         };
+
+        // /dev/nvidiaN minors and RM device instances can have different orders.
+        // Resolve the RM object by PCI identity before opening its device class.
+        let (device_instance, subdevice_instance) =
+            device_id::resolve_gpu_instance(pci_slot, |cmd, params| {
+                let mut request = NVOS54_PARAMETERS {
+                    hClient: client_handle,
+                    hObject: client_handle,
+                    cmd,
+                    flags: 0,
+                    params: params.as_mut_ptr().cast(),
+                    paramsSize: params.len().try_into()?,
+                    status: 0,
+                };
+                unsafe {
+                    rm_control_nvos54(nvidiactl_fd.as_raw_fd(), &raw mut request)?;
+                }
+                ensure!(
+                    request.status == 0,
+                    "Nvidia root request {cmd:#x} failed: {:#x}",
+                    request.status
+                );
+                Ok(())
+            })?;
 
         let device_fd: OwnedFd = File::options()
             .read(true)
@@ -82,7 +114,7 @@ impl DriverHandle {
             register_fd(device_fd.as_raw_fd(), &mut nvidiactl_fd.as_raw_fd())?;
 
             let mut alloc_params: NV0080_ALLOC_PARAMETERS = mem::zeroed();
-            alloc_params.deviceId = minor_number;
+            alloc_params.deviceId = device_instance;
 
             alloc_object(
                 client_handle,
@@ -95,6 +127,7 @@ impl DriverHandle {
 
         let subdevice_handle: NvHandle = unsafe {
             let mut alloc_params: NV2080_ALLOC_PARAMETERS = mem::zeroed();
+            alloc_params.subDeviceId = subdevice_instance;
 
             alloc_object(
                 client_handle,
@@ -263,6 +296,26 @@ impl DriverHandle {
 
     unsafe fn query_rm_control<T: Copy>(&self, cmd: u32, params: &mut T) -> anyhow::Result<()> {
         unsafe { self.query_rm_control_on_object(cmd, self.subdevice_handle, params) }
+    }
+
+    /// Issues a control whose parameter block is a plain byte buffer.
+    unsafe fn query_rm_control_sized(&self, cmd: u32, params: &mut [u8]) -> anyhow::Result<()> {
+        let mut request = NVOS54_PARAMETERS {
+            hClient: self.client_handle,
+            hObject: self.subdevice_handle,
+            cmd,
+            flags: 0,
+            params: params.as_mut_ptr().cast(),
+            paramsSize: params.len().try_into().unwrap(),
+            status: 0,
+        };
+        unsafe {
+            rm_control_nvos54(self.nvidiactl_fd.as_raw_fd(), &raw mut request)?;
+        }
+        if request.status != 0 {
+            bail!("Nvidia request failed with status {:x}", request.status);
+        }
+        Ok(())
     }
 
     unsafe fn query_rm_control_on_object<T: Copy>(

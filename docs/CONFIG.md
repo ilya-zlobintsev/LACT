@@ -119,8 +119,13 @@ gpus:
     nvidia_thermal_options:
       # Target temperature for the GPU in degrees.
       target_temperature: 83
-    # Power limit in watts.
+    # Power limit in watts reported by the GPU (no automatic shunt correction).
     power_cap: 320.0
+    # NVIDIA power control: nvml (default) or ioctl (experimental opt-in).
+    # WARNING: ioctl uses an undocumented interface for ALL power limits and
+    # resets. It may cause instability or fail after driver updates. On compatible
+    # drivers it permits values down to 30 W; the native maximum still applies.
+    nvidia_power_cap_mode: nvml
     # Performance level option for AMD GPUs.
     # Can be `auto`, `low`, `high` or `manual`.
     performance_level: auto

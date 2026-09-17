@@ -64,6 +64,7 @@ pub enum OcPageMsg {
     EnablePstateConfig,
     ShowVfCurveEditor,
     VfCurveEditingToggled(bool),
+    NvidiaPowerCapMode(config::NvidiaPowerCapMode),
 }
 
 #[relm4::component(pub)]
@@ -206,6 +207,8 @@ impl relm4::Component for OcPage {
                     let vram_clock_ratio = info.vram_clock_ratio();
 
                     self.device_info = Some(info.clone());
+                    self.power_frame
+                        .emit(PowerFrameMsg::Driver(info.driver.clone()));
                     self.stats_section
                         .emit(GpuStatsSectionMsg::Info(info.clone()));
                     self.power_states_frame
@@ -230,6 +233,9 @@ impl relm4::Component for OcPage {
                 });
                 self.vf_curve_editor
                     .emit(VfCurveEditorMsg::Clocks(table.clone()));
+            }
+            OcPageMsg::NvidiaPowerCapMode(mode) => {
+                self.power_frame.emit(PowerFrameMsg::NvidiaMode(mode));
             }
             OcPageMsg::ProfileModesTable(modes_table) => {
                 self.power_frame.emit(PowerFrameMsg::Performance(
@@ -310,6 +316,10 @@ impl OcPage {
 
     pub fn get_power_cap(&self) -> Option<f64> {
         self.power_frame.model().get_user_cap()
+    }
+
+    pub fn get_nvidia_power_cap_mode(&self) -> Option<config::NvidiaPowerCapMode> {
+        self.power_frame.model().nvidia_power_cap_mode()
     }
 
     pub fn apply_clocks_config(&self, config: &mut config::ClocksConfiguration) {
