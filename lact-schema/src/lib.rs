@@ -747,6 +747,8 @@ pub struct PowerStats {
     pub cap_current: Option<f64>,
     pub cap_max: Option<f64>,
     pub cap_min: Option<f64>,
+    /// Native minimum before an explicitly enabled experimental power mode.
+    pub cap_min_native: Option<f64>,
     pub cap_default: Option<f64>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub sensors: HashMap<String, f64>,

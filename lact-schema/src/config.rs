@@ -44,6 +44,8 @@ pub struct GpuConfig {
     pub nvidia_thermal_options: NvidiaThermalOptions,
     pub power_mizer_mode: Option<PowerMizerMode>,
     pub power_cap: Option<f64>,
+    #[serde(default, skip_serializing_if = "NvidiaPowerCapMode::is_default")]
+    pub nvidia_power_cap_mode: NvidiaPowerCapMode,
     pub performance_level: Option<PerformanceLevel>,
     #[serde(default, flatten)]
     pub clocks_configuration: ClocksConfiguration,
@@ -53,6 +55,21 @@ pub struct GpuConfig {
     pub custom_power_profile_mode_hueristics: Vec<Vec<Option<i32>>>,
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub power_states: IndexMap<PowerLevelKind, Vec<u8>>,
+}
+
+/// The experimental mode must be explicitly selected, independently of watts.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum NvidiaPowerCapMode {
+    #[default]
+    Nvml,
+    Ioctl,
+}
+
+impl NvidiaPowerCapMode {
+    pub fn is_default(&self) -> bool {
+        *self == Self::Nvml
+    }
 }
 
 #[skip_serializing_none]
@@ -241,7 +258,28 @@ pub fn default_fan_static_speed() -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::GpuConfig;
+    use super::{GpuConfig, NvidiaPowerCapMode};
+
+    #[test]
+    fn nvidia_power_cap_mode_requires_explicit_opt_in() {
+        for cap in [30, 150, 300] {
+            let config: GpuConfig =
+                serde_json::from_str(&format!(r#"{{"power_cap":{cap}}}"#)).unwrap();
+            assert_eq!(config.nvidia_power_cap_mode, NvidiaPowerCapMode::Nvml);
+            assert!(
+                serde_json::to_value(&config)
+                    .unwrap()
+                    .get("nvidia_power_cap_mode")
+                    .is_none()
+            );
+        }
+        let config: GpuConfig =
+            serde_json::from_str(r#"{"power_cap":150,"nvidia_power_cap_mode":"ioctl"}"#).unwrap();
+        assert_eq!(config.nvidia_power_cap_mode, NvidiaPowerCapMode::Ioctl);
+        let restored: GpuConfig =
+            serde_json::from_value(serde_json::to_value(&config).unwrap()).unwrap();
+        assert_eq!(restored, config);
+    }
 
     #[test]
     fn deserialize_config_json() {

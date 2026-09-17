@@ -113,6 +113,8 @@ revert-button = Revert
 settings-confirmation = Do you want to keep the new settings? (Reverting in {$seconds_left} seconds)
 
 power-cap = Power Limit
+nvidia-power-cap-ioctl = Use experimental NVIDIA power control
+nvidia-power-cap-ioctl-warning = Warning: uses an undocumented driver interface for all power limits, including resets. This allows values below the VBIOS minimum and may cause instability or stop working after driver updates. Enable at your own risk.
 power-section = Power
 
 watt = W

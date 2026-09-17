@@ -1020,6 +1020,7 @@ impl GpuController for AmdGpuController {
                 cap_current: self.hw_mon_and_then(HwMon::get_power_cap),
                 cap_max: self.hw_mon_and_then(HwMon::get_power_cap_max),
                 cap_min: self.hw_mon_and_then(HwMon::get_power_cap_min),
+                cap_min_native: None,
                 cap_default: self.hw_mon_and_then(HwMon::get_power_cap_default),
                 sensors: power_sensors,
             },
