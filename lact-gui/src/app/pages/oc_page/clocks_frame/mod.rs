@@ -399,6 +399,7 @@ impl ClocksFrame {
             clock_type,
             AdjustmentRowInit {
                 title: data.custom_title.unwrap_or_else(|| clock_title(clock_type)),
+                unit: Some(clock_unit(clock_type)),
                 info_text: if clock_type == ClockspeedType::VoltageBoost {
                     fl!(I18N, "gpu-voltage-boost-tooltip")
                 } else {
@@ -763,6 +764,26 @@ fn clock_title(clock_type: ClockspeedType) -> String {
         ClockspeedType::GpuVfCurveVoltage(pstate) | ClockspeedType::MemVfCurveVoltage(pstate) => {
             fl!(I18N, "pstate-clock-voltage", pstate = pstate)
         }
+        ClockspeedType::Reset => unreachable!(),
+    }
+}
+
+fn clock_unit(clock_type: ClockspeedType) -> String {
+    match clock_type {
+        ClockspeedType::MaxCoreClock
+        | ClockspeedType::MinCoreClock
+        | ClockspeedType::GpuClockOffset(_)
+        | ClockspeedType::MaxMemoryClock
+        | ClockspeedType::MinMemoryClock
+        | ClockspeedType::MemClockOffset(_)
+        | ClockspeedType::GpuVfCurveClock(_)
+        | ClockspeedType::MemVfCurveClock(_) => fl!(I18N, "mhz"),
+        ClockspeedType::MinVoltage
+        | ClockspeedType::MaxVoltage
+        | ClockspeedType::VoltageOffset
+        | ClockspeedType::GpuVfCurveVoltage(_)
+        | ClockspeedType::MemVfCurveVoltage(_) => fl!(I18N, "mv"),
+        ClockspeedType::VoltageBoost => "%".into(),
         ClockspeedType::Reset => unreachable!(),
     }
 }

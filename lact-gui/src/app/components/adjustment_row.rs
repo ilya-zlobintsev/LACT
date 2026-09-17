@@ -1,6 +1,8 @@
 use super::adjustment_value::AdjustmentValue;
+use crate::I18N;
 use crate::app::utils::ext::make_event_controller_no_scroll;
 use adw::prelude::*;
+use i18n_embed_fl::fl;
 use relm4::{FactorySender, RelmWidgetExt, css, factory::FactoryComponent};
 use std::marker::PhantomData;
 
@@ -8,6 +10,7 @@ pub struct AdjustmentRow<Key> {
     title: String,
     title_tooltip: String,
     info_text: String,
+    unit: Option<String>,
     _key: PhantomData<Key>,
     adjustment: AdjustmentValue,
     value_ratio: f64,
@@ -17,6 +20,7 @@ pub struct AdjustmentRowInit {
     pub title: String,
     pub title_tooltip: String,
     pub info_text: String,
+    pub unit: Option<String>,
     pub value: f64,
     pub lower: f64,
     pub upper: f64,
@@ -30,6 +34,7 @@ impl Default for AdjustmentRowInit {
             title: String::new(),
             title_tooltip: String::new(),
             info_text: String::new(),
+            unit: None,
             value: 0.0,
             lower: 0.0,
             upper: 0.0,
@@ -71,7 +76,9 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
             #[name = "title_box"]
             gtk::Box {
-                set_spacing: 5,
+                set_orientation: gtk::Orientation::Vertical,
+                set_valign: gtk::Align::Center,
+                set_spacing: 2,
 
                 #[name = "label"]
                 gtk::Label {
@@ -80,22 +87,32 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                     set_tooltip_text: (!self.title_tooltip.is_empty()).then_some(self.title_tooltip.as_str()),
                 },
 
-                #[name = "info_button"]
-                gtk::MenuButton {
-                    set_icon_name: "dialog-information-symbolic",
-                    set_always_show_arrow: false,
-                    add_css_class: css::FLAT,
-                    set_visible: !self.info_text.is_empty(),
+                gtk::Box {
+                    add_css_class: css::CAPTION,
 
-                    #[wrap(Some)]
-                    set_popover = &gtk::Popover {
-                        #[name = "info_label"]
-                        gtk::Label {
-                            set_label: &self.info_text,
-                            set_margin_all: 5,
-                            set_wrap: true,
-                            set_wrap_mode: gtk::pango::WrapMode::Word,
-                            set_max_width_chars: 55,
+                    #[name = "subtitle_label"]
+                    gtk::Label {
+                        set_xalign: 0.0,
+                        set_label: &self.subtitle(),
+                        add_css_class: css::DIM_LABEL,
+                    },
+
+                    gtk::Label {
+                        set_label: " · ",
+                        set_visible: !self.info_text.is_empty(),
+                        add_css_class: css::DIM_LABEL,
+                    },
+
+                    #[name = "details_label"]
+                    gtk::Label {
+                        set_markup: &format!(
+                            "<a href=\"details\">{}</a>",
+                            gtk::glib::markup_escape_text(&fl!(I18N, "details")),
+                        ),
+                        set_visible: !self.info_text.is_empty(),
+                        connect_activate_link[info_popover] => move |_, _| {
+                            info_popover.popup();
+                            gtk::glib::Propagation::Stop
                         },
                     },
                 },
@@ -116,10 +133,22 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
             #[name = "spinbutton"]
             gtk::SpinButton {
                 set_adjustment: &self.adjustment,
+                set_valign: gtk::Align::Center,
                 add_controller = make_event_controller_no_scroll(),
                 connect_changed[sender] => move |_| {
                     let _ = sender.output(());
                 } @ text_change_signal,
+            },
+        },
+
+        #[name = "info_popover"]
+        gtk::Popover {
+            gtk::Label {
+                set_label: &self.info_text,
+                set_margin_all: 5,
+                set_wrap: true,
+                set_wrap_mode: gtk::pango::WrapMode::Word,
+                set_max_width_chars: 55,
             },
         },
 
@@ -136,6 +165,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
             title: init.title,
             title_tooltip: init.title_tooltip,
             info_text: init.info_text,
+            unit: init.unit,
             _key: PhantomData,
             adjustment: AdjustmentValue::new(
                 init.value,
@@ -157,7 +187,12 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
     ) -> Self::Widgets {
         let adjustment = &self.adjustment;
         let widgets = view_output!();
+        widgets.info_popover.set_parent(&widgets.details_label);
         widgets
+    }
+
+    fn shutdown(&mut self, widgets: &mut Self::Widgets, _output: relm4::Sender<Self::Output>) {
+        widgets.info_popover.unparent();
     }
 
     fn update_with_view(
@@ -181,6 +216,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                 self.adjustment.set_initial_value(raw_current * ratio);
 
                 self.value_ratio = ratio;
+                widgets.subtitle_label.set_label(&self.subtitle());
 
                 widgets
                     .spinbutton
@@ -203,6 +239,17 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 }
 
 impl<Key> AdjustmentRow<Key> {
+    fn subtitle(&self) -> String {
+        let range = format!("{} – {}", self.adjustment.lower(), self.adjustment.upper());
+        if let Some(unit) = &self.unit
+            && !unit.is_empty()
+        {
+            format!("{unit} · {range}")
+        } else {
+            range
+        }
+    }
+
     pub fn get_value(&self) -> f64 {
         self.adjustment.value() / self.value_ratio
     }

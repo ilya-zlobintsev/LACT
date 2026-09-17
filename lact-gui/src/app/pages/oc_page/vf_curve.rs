@@ -542,14 +542,14 @@ impl VfCurveEditor {
         if let Some((min_freq, max_freq)) = self.locked_clocks_range.get() {
             let mut curves = vec![(
                 [(x_spec.start, max_freq), (x_spec.end, max_freq)],
-                fl!(I18N, "max-clock"),
+                format!("{} ({})", fl!(I18N, "max-clock"), fl!(I18N, "mhz")),
                 colors.error,
             )];
 
             if min_freq >= y_spec.start {
                 curves.push((
                     [(x_spec.start, min_freq), (x_spec.end, min_freq)],
-                    fl!(I18N, "min-clock"),
+                    format!("{} ({})", fl!(I18N, "min-clock"), fl!(I18N, "mhz")),
                     colors.warning,
                 ));
             }
