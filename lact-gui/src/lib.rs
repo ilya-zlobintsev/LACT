@@ -96,8 +96,6 @@ pub fn run(args: GuiArgs) -> anyhow::Result<()> {
     }
 
     // Initialize system localization before applying the saved override.
-    LazyLock::force(&I18N);
-    LazyLock::force(&i18n::LANGUAGE_LOADER);
     if let Some(language) = &CONFIG.read().language
         && let Err(err) = select_language(language, &I18N, &i18n::LANGUAGE_LOADER)
     {
