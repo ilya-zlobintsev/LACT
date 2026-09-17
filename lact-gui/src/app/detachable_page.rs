@@ -109,8 +109,7 @@ impl relm4::Component for DetachablePage {
             set_title: Some(&model.init.title),
             set_default_width: DEFAULT_WINDOW_WIDTH,
             set_default_height: DEFAULT_WINDOW_HEIGHT,
-            set_transient_for: Some(&model.init.parent),
-            set_destroy_with_parent: true,
+            set_application: model.init.parent.application().as_ref(),
             #[watch]
             set_visible: model.detached,
             connect_close_request[sender] => move |_| {
@@ -129,6 +128,7 @@ impl relm4::Component for DetachablePage {
             connect_close_request[sender, window] => move |_| {
                 // Hide immediately, before the application's main loop can stop.
                 window.set_visible(false);
+                window.set_application(gtk::Application::NONE);
                 sender.input(DetachablePageMsg::Attach);
                 glib::Propagation::Proceed
             },
