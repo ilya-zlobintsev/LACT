@@ -29,6 +29,7 @@ pub struct UiConfig {
     pub theme: AppTheme,
     #[serde(default)]
     pub color_scheme: AppColorScheme,
+    pub language: Option<String>,
     pub window_size: Option<WindowSize>,
 }
 
@@ -43,6 +44,7 @@ impl Default for UiConfig {
             gpus: HashMap::new(),
             theme: AppTheme::Automatic,
             color_scheme: AppColorScheme::default(),
+            language: None,
             window_size: None,
         }
     }
