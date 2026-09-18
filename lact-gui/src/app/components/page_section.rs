@@ -101,6 +101,7 @@ mod imp {
                     #[local_ref]
                     append = content_box {
                         set_orientation: gtk::Orientation::Vertical,
+                        set_overflow: gtk::Overflow::Hidden,
                         add_css_class: "page-section-content" ,
                         set_class_active: (css::CARD, !self.hide_visible_container.get()),
                         set_class_active: ("page-section-no-container", self.hide_visible_container.get()),

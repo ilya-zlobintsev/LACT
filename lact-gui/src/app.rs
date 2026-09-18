@@ -1203,7 +1203,13 @@ impl AppModel {
                     configured: gpu_config.is_some_and(|config| !config.power_states.is_empty()),
                 });
             }
-            Err(err) => warn!("could not get power states: {err:?}"),
+            Err(err) => {
+                warn!("could not get power states: {err:?}");
+                self.oc_page.emit(OcPageMsg::PowerStates {
+                    pstates: Default::default(),
+                    configured: false,
+                });
+            }
         }
 
         self.stats_task_handle = Some(start_stats_update_loop(

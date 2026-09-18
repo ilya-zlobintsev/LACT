@@ -24,7 +24,7 @@ use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
 use nvml_wrapper::enums::device::PowerMizerMode;
 use performance_frame::PerformanceFrameMsg;
 use power_frame::{PowerFrame, PowerFrameMsg};
-use power_states::power_states_frame::{PowerStatesFrame, PowerStatesFrameMsg};
+use power_states::power_states_dialog::{PowerStatesDialog, PowerStatesDialogMsg};
 use relm4::binding::BoolBinding;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::collections::HashSet;
@@ -37,7 +37,7 @@ pub struct OcPage {
     device_info: Option<Arc<DeviceInfo>>,
 
     power_frame: relm4::Controller<PowerFrame>,
-    power_states_frame: relm4::Controller<PowerStatesFrame>,
+    power_states_dialog: relm4::Controller<PowerStatesDialog>,
     gpu_clocks_frame: relm4::Controller<ClocksFrame>,
     vram_clocks_frame: relm4::Controller<ClocksFrame>,
 
@@ -62,6 +62,7 @@ pub enum OcPageMsg {
     PerformanceLevelChanged,
     SetPerformanceLevel(PerformanceLevel),
     EnablePstateConfig,
+    ShowPowerStates(ClockDomain),
     ShowVfCurveEditor,
     VfCurveEditingToggled(bool),
 }
@@ -87,8 +88,6 @@ impl relm4::Component for OcPage {
                     ColumnBias::Left,    // Core
                     ColumnBias::Right,   // VRAM
                     ColumnBias::Left,    // Power
-                    ColumnBias::Right,   // Power States
-
                 ])),
                 set_valign: gtk::Align::Start,
 
@@ -101,10 +100,6 @@ impl relm4::Component for OcPage {
                 },
 
                 model.power_frame.widget() {
-                    add_css_class: "oc-page-section",
-                },
-
-                model.power_states_frame.widget() {
                     add_css_class: "oc-page-section",
                 },
             },
@@ -145,8 +140,8 @@ impl relm4::Component for OcPage {
             show_all_pstates: BoolBinding::new(false),
         })
         .forward(sender.input_sender(), |msg| msg);
-        let power_states_frame =
-            PowerStatesFrame::launch_default().forward(sender.input_sender(), |msg| msg);
+        let power_states_dialog =
+            PowerStatesDialog::launch_default().forward(sender.input_sender(), |msg| msg);
         let power_frame = PowerFrame::launch_default().forward(sender.input_sender(), |msg| msg);
 
         let vf_curve_editor = VfCurveEditor::detach(VfCurveEditorInit {
@@ -158,7 +153,7 @@ impl relm4::Component for OcPage {
             stats_section,
             device_info: None,
             power_frame,
-            power_states_frame,
+            power_states_dialog,
             gpu_clocks_frame,
             vram_clocks_frame,
             vf_curve_editor,
@@ -174,13 +169,17 @@ impl relm4::Component for OcPage {
         widgets: &mut Self::Widgets,
         msg: Self::Input,
         sender: ComponentSender<Self>,
-        _root: &Self::Root,
+        root: &Self::Root,
     ) {
         match msg {
             OcPageMsg::Update { update, initial } => match &update {
                 PageUpdate::Stats(stats) => {
-                    self.power_states_frame
-                        .emit(PowerStatesFrameMsg::Stats(stats.clone()));
+                    self.power_states_dialog
+                        .emit(PowerStatesDialogMsg::Stats(stats.clone()));
+                    self.gpu_clocks_frame
+                        .emit(ClocksFrameMsg::Stats(stats.clone()));
+                    self.vram_clocks_frame
+                        .emit(ClocksFrameMsg::Stats(stats.clone()));
 
                     self.stats_section
                         .emit(GpuStatsSectionMsg::Stats(stats.clone()));
@@ -208,8 +207,8 @@ impl relm4::Component for OcPage {
                     self.device_info = Some(info.clone());
                     self.stats_section
                         .emit(GpuStatsSectionMsg::Info(info.clone()));
-                    self.power_states_frame
-                        .emit(PowerStatesFrameMsg::VramClockRatio(vram_clock_ratio));
+                    self.power_states_dialog
+                        .emit(PowerStatesDialogMsg::VramClockRatio(vram_clock_ratio));
                     self.vram_clocks_frame
                         .emit(ClocksFrameMsg::VramRatio(vram_clock_ratio));
                 }
@@ -240,11 +239,19 @@ impl relm4::Component for OcPage {
                 pstates,
                 configured,
             } => {
-                self.power_states_frame
-                    .emit(PowerStatesFrameMsg::PowerStates {
+                self.power_states_dialog
+                    .emit(PowerStatesDialogMsg::PowerStates {
                         pstates: pstates.clone(),
                         configured,
                     });
+                self.gpu_clocks_frame
+                    .emit(ClocksFrameMsg::PowerStatesAvailable(
+                        !pstates.core.is_empty(),
+                    ));
+                self.vram_clocks_frame
+                    .emit(ClocksFrameMsg::PowerStatesAvailable(
+                        !pstates.vram.is_empty(),
+                    ));
                 self.stats_section
                     .emit(GpuStatsSectionMsg::PowerStates(Arc::new(pstates)));
                 sender.input(OcPageMsg::PerformanceLevelChanged);
@@ -252,13 +259,13 @@ impl relm4::Component for OcPage {
             OcPageMsg::PerformanceLevelChanged => {
                 let custom_pstates_configurable =
                     self.get_performance_level() == Some(PerformanceLevel::Manual);
-                self.power_states_frame
-                    .emit(PowerStatesFrameMsg::Configurable(
+                self.power_states_dialog
+                    .emit(PowerStatesDialogMsg::Configurable(
                         custom_pstates_configurable,
                     ));
 
-                self.power_states_frame
-                    .emit(PowerStatesFrameMsg::PerformanceLevel(
+                self.power_states_dialog
+                    .emit(PowerStatesDialogMsg::PerformanceLevel(
                         self.get_performance_level(),
                     ));
             }
@@ -269,8 +276,14 @@ impl relm4::Component for OcPage {
                 APP_BROKER.send(AppMsg::SettingsChanged);
             }
             OcPageMsg::EnablePstateConfig => {
-                self.power_states_frame
-                    .emit(PowerStatesFrameMsg::EnableWithManualPerformanceLevel);
+                self.power_states_dialog
+                    .emit(PowerStatesDialogMsg::EnableWithManualPerformanceLevel);
+            }
+            OcPageMsg::ShowPowerStates(domain) => {
+                self.power_states_dialog.emit(PowerStatesDialogMsg::Show {
+                    domain,
+                    parent: root.clone().upcast(),
+                });
             }
             OcPageMsg::ShowVfCurveEditor => {
                 self.vf_curve_editor.emit(VfCurveEditorMsg::Show);
@@ -329,7 +342,7 @@ impl OcPage {
 
     pub fn get_enabled_power_states(&self) -> IndexMap<PowerLevelKind, Vec<u8>> {
         if self.get_performance_level() == Some(PerformanceLevel::Manual) {
-            self.power_states_frame.model().get_enabled_power_states()
+            self.power_states_dialog.model().get_enabled_power_states()
         } else {
             IndexMap::new()
         }
