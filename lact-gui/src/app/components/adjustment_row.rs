@@ -203,6 +203,12 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 }
 
 impl<Key> AdjustmentRow<Key> {
+    /// The adjustment behind the row, for callers that need to observe edits as
+    /// they happen rather than when the settings are applied.
+    pub fn adjustment(&self) -> AdjustmentValue {
+        self.adjustment.clone()
+    }
+
     pub fn get_value(&self) -> f64 {
         self.adjustment.value() / self.value_ratio
     }
