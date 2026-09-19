@@ -10,6 +10,11 @@
     padding-bottom: 10px;
 }
 
+/* The card owns row spacing, including Adwaita action rows. */
+.adjustment-list > row > box.header {
+    margin: 0;
+}
+
 .adjustment-row scale {
     padding: 10px 0;
 }

@@ -3,24 +3,10 @@
     padding: 0;
 }
 
-.power-states-summary,
-.power-states-dialog-card list {
+.power-states-dialog-card list:not(.boxed-list) {
     /* Embedded lists use the surrounding card's background, not the view background. */
     background: none;
     border-radius: 12px;
-}
-
-.power-states-summary {
-    margin: 0 -10px -10px;
-}
-
-.power-states-summary row {
-    padding: 0 10px;
-}
-
-.power-states-summary row > box.header {
-    margin-left: 0;
-    margin-right: 0;
 }
 
 .power-states-dialog-card .page-section-children-box,

@@ -252,44 +252,40 @@ impl relm4::Component for ClocksFrame {
                         },
                     },
 
-                    gtk::ListBox {
-                        set_selection_mode: gtk::SelectionMode::None,
+                    adw::ActionRow {
+                        set_title: &fl!(I18N, "pstates"),
+                        set_activatable: true,
                         add_css_class: "power-states-summary",
                         #[watch]
                         set_visible: model.has_power_states,
+                        connect_activated[sender, domain = model.domain] => move |_| {
+                            sender.output(OcPageMsg::ShowPowerStates(domain)).unwrap();
+                        },
 
-                        adw::ActionRow {
-                            set_title: &fl!(I18N, "pstates"),
-                            set_activatable: true,
-                            connect_activated[sender, domain = model.domain] => move |_| {
-                                sender.output(OcPageMsg::ShowPowerStates(domain)).unwrap();
-                            },
+                        add_suffix = &gtk::Box {
+                            set_spacing: 4,
+                            set_valign: gtk::Align::Center,
 
-                            add_suffix = &gtk::Box {
-                                set_spacing: 4,
-                                set_valign: gtk::Align::Center,
-
-                                gtk::Label {
-                                    add_css_class: css::HEADING,
-                                    #[watch]
-                                    set_label: &match model.active_power_state {
-                                        Some(PowerLevelId::Index(index)) => format!("P{index}"),
-                                        Some(PowerLevelId::Sleep) => "S".to_owned(),
-                                        None => "N/A".to_owned(),
-                                    },
-                                },
-
-                                gtk::Label {
-                                    add_css_class: css::DIM_LABEL,
-                                    #[watch]
-                                    set_label: &model.power_state_clock_label(),
+                            gtk::Label {
+                                add_css_class: css::HEADING,
+                                #[watch]
+                                set_label: &match model.active_power_state {
+                                    Some(PowerLevelId::Index(index)) => format!("P{index}"),
+                                    Some(PowerLevelId::Sleep) => "S".to_owned(),
+                                    None => "N/A".to_owned(),
                                 },
                             },
 
-                            add_suffix = &gtk::Image {
-                                set_icon_name: Some("go-next-symbolic"),
+                            gtk::Label {
                                 add_css_class: css::DIM_LABEL,
+                                #[watch]
+                                set_label: &model.power_state_clock_label(),
                             },
+                        },
+
+                        add_suffix = &gtk::Image {
+                            set_icon_name: Some("go-next-symbolic"),
+                            add_css_class: css::DIM_LABEL,
                         },
                     },
                 },
@@ -336,6 +332,13 @@ impl relm4::Component for ClocksFrame {
         }
 
         let widgets = view_output!();
+
+        model.adjustments.widget().set_sort_func(|left, right| {
+            // Keep the summary after dynamically inserted clock controls.
+            left.has_css_class("power-states-summary")
+                .cmp(&right.has_css_class("power-states-summary"))
+                .into()
+        });
 
         ComponentParts { model, widgets }
     }
