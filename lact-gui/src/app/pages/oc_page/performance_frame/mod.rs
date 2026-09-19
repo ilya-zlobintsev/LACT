@@ -33,6 +33,23 @@ pub struct PerformanceFrame {
     heuristics_components: Vec<relm4::Controller<PowerProfileHeuristicsList>>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct PerformanceRows {
+    pub performance_level: gtk::ListBoxRow,
+    pub power_profile: gtk::ListBoxRow,
+    pub power_mizer: gtk::ListBoxRow,
+}
+
+impl PerformanceRows {
+    pub fn rows(&self) -> [&gtk::ListBoxRow; 3] {
+        [
+            &self.performance_level,
+            &self.power_profile,
+            &self.power_mizer,
+        ]
+    }
+}
+
 #[derive(Debug)]
 pub enum PerformanceFrameMsg {
     PerformanceLevel(Option<PerformanceLevel>),
@@ -53,19 +70,19 @@ impl relm4::Component for PerformanceFrame {
     type CommandOutput = ();
 
     view! {
-        gtk::Box {
-            set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 10,
-            #[watch]
-            set_visible: model.performance_level.is_some()
-                || model.power_profile_modes_table.is_some()
-                || model.active_power_mizer_mode.is_some(),
+        #[root]
+        PerformanceRows::default() {},
 
-            append = &gtk::Box {
+        #[local]
+        performance_level_row -> gtk::ListBoxRow {
+            set_activatable: false,
+            set_selectable: false,
+            #[watch]
+            set_visible: model.performance_level.is_some(),
+
+            gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
-                #[watch]
-                set_visible: model.performance_level.is_some(),
 
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
@@ -113,12 +130,18 @@ impl relm4::Component for PerformanceFrame {
                     } @ level_select_handler,
                 },
             },
+        },
 
-            append = &gtk::Box {
+        #[local]
+        power_profile_row -> gtk::ListBoxRow {
+            set_activatable: false,
+            set_selectable: false,
+            #[watch]
+            set_visible: model.power_profile_modes_table.is_some(),
+
+            gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
-                #[watch]
-                set_visible: model.power_profile_modes_table.is_some(),
 
                 gtk::Label {
                     set_label: &fl!(I18N, "power-profile-mode"),
@@ -182,12 +205,18 @@ impl relm4::Component for PerformanceFrame {
                     },
                 },
             },
+        },
 
-            append = &gtk::Box {
+        #[local]
+        power_mizer_row -> gtk::ListBoxRow {
+            set_activatable: false,
+            set_selectable: false,
+            #[watch]
+            set_visible: model.active_power_mizer_mode.is_some(),
+
+            gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 10,
-                #[watch]
-                set_visible: model.active_power_mizer_mode.is_some(),
 
                 gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
@@ -238,9 +267,12 @@ impl relm4::Component for PerformanceFrame {
 
     fn init(
         _init: Self::Init,
-        _root: Self::Root,
+        root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let performance_level_row = root.performance_level.clone();
+        let power_profile_row = root.power_profile.clone();
+        let power_mizer_row = root.power_mizer.clone();
         let level_names = PERFORMANCE_LEVELS.map(level_friendly_name);
         let level_names_ref = level_names
             .iter()
