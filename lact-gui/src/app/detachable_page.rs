@@ -85,7 +85,6 @@ impl relm4::Component for DetachablePage {
             #[wrap(Some)]
             set_child = &gtk::Box {
                 set_spacing: 5,
-                set_margin_vertical: 5,
                 gtk::Label {
                     set_label: &model.init.title,
                     set_halign: gtk::Align::Start,

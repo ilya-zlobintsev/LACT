@@ -15,6 +15,11 @@
 }
 
 .page-detach-button {
+    -gtk-icon-size: 12px;
+    min-width: 26px;
+    min-height: 26px;
+    padding: 0;
+    margin: 4px 0;
     opacity: 0;
 }
 
