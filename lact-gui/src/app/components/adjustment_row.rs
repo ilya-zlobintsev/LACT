@@ -54,6 +54,8 @@ pub enum AdjustmentRowMsg {
     AddSizeGroup {
         label_group: gtk::SizeGroup,
         input_group: gtk::SizeGroup,
+        lower_label_group: gtk::SizeGroup,
+        upper_label_group: gtk::SizeGroup,
     },
 }
 
@@ -76,6 +78,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
+                set_spacing: 5,
                 add_css_class: "adjustment-row",
 
                 gtk::Box {
@@ -138,33 +141,35 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                     },
                 },
 
-                #[name = "scale"]
-                gtk::Scale {
-                    set_adjustment: &self.adjustment,
-                    set_orientation: gtk::Orientation::Horizontal,
-                    set_hexpand: true,
-                    set_digits: 0,
-                    set_round_digits: 0,
-                    set_value_pos: gtk::PositionType::Right,
-                    set_width_request: 100,
-                    add_controller = make_event_controller_no_scroll(),
-                },
-
                 gtk::Box {
-                    add_css_class: css::CAPTION,
-                    add_css_class: css::DIM_LABEL,
+                    set_spacing: 12,
 
                     #[name = "lower_label"]
                     gtk::Label {
                         set_label: &self.adjustment.lower().to_string(),
-                        set_hexpand: true,
                         set_xalign: 0.0,
+                        add_css_class: css::CAPTION,
+                        add_css_class: css::DIM_LABEL,
+                    },
+
+                    #[name = "scale"]
+                    gtk::Scale {
+                        set_adjustment: &self.adjustment,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_hexpand: true,
+                        set_digits: 0,
+                        set_round_digits: 0,
+                        set_value_pos: gtk::PositionType::Right,
+                        set_width_request: 100,
+                        add_controller = make_event_controller_no_scroll(),
                     },
 
                     #[name = "upper_label"]
                     gtk::Label {
                         set_label: &self.adjustment.upper().to_string(),
                         set_xalign: 1.0,
+                        add_css_class: css::CAPTION,
+                        add_css_class: css::DIM_LABEL,
                     },
                 },
             },
@@ -264,9 +269,13 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
             AdjustmentRowMsg::AddSizeGroup {
                 label_group,
                 input_group,
+                lower_label_group,
+                upper_label_group,
             } => {
                 label_group.add_widget(&widgets.title_box);
                 input_group.add_widget(&widgets.spinbutton);
+                lower_label_group.add_widget(&widgets.lower_label);
+                upper_label_group.add_widget(&widgets.upper_label);
             }
         }
     }

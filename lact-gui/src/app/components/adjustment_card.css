@@ -3,10 +3,18 @@
 }
 
 .adjustment-list > row {
-    padding: 5px 12px;
+    padding: 5px 10px;
 }
 
-.adjustment-row > scale {
+.adjustment-list > row:first-child {
+    padding-top: 10px;
+}
+
+.adjustment-list > row:last-child {
+    padding-bottom: 10px;
+}
+
+.adjustment-row scale {
     padding: 10px 0;
 }
 

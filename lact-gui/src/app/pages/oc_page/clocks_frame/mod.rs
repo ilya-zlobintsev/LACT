@@ -327,6 +327,8 @@ impl relm4::Component for ClocksFrame {
 
                 let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                 let input_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+                let lower_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+                let upper_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
 
                 for clock_type in self.adjustments.keys() {
                     self.adjustments.send(
@@ -334,6 +336,8 @@ impl relm4::Component for ClocksFrame {
                         AdjustmentRowMsg::AddSizeGroup {
                             label_group: label_size_group.clone(),
                             input_group: input_size_group.clone(),
+                            lower_label_group: lower_label_group.clone(),
+                            upper_label_group: upper_label_group.clone(),
                         },
                     );
                 }
