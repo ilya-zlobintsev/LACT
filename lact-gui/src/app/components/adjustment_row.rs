@@ -13,6 +13,7 @@ pub struct AdjustmentRow<Key> {
     _key: PhantomData<Key>,
     adjustment: AdjustmentValue,
     value_ratio: f64,
+    size_group_widgets: Vec<(gtk::SizeGroup, gtk::Widget)>,
 }
 
 pub struct AdjustmentRowInit {
@@ -195,6 +196,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                 init.page_increment,
             ),
             value_ratio: 1.0,
+            size_group_widgets: Vec::new(),
         }
     }
 
@@ -247,17 +249,35 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
             AdjustmentRowMsg::SetValue(value) => {
                 self.adjustment.set_value(value * self.value_ratio);
             }
-            AdjustmentRowMsg::SetVisible(visible) => widgets.root_row.set_visible(visible),
+            AdjustmentRowMsg::SetVisible(visible) => {
+                if widgets.root_row.get_visible() != visible {
+                    for (group, widget) in &self.size_group_widgets {
+                        if visible {
+                            group.add_widget(widget);
+                        } else {
+                            group.remove_widget(widget);
+                        }
+                    }
+                    widgets.root_row.set_visible(visible);
+                }
+            }
             AdjustmentRowMsg::AddSizeGroup {
                 label_group,
                 input_group,
                 lower_label_group,
                 upper_label_group,
             } => {
-                label_group.add_widget(&widgets.title_box);
-                input_group.add_widget(&widgets.spinbutton);
-                lower_label_group.add_widget(&widgets.lower_label);
-                upper_label_group.add_widget(&widgets.upper_label);
+                for (group, widget) in [
+                    (label_group, widgets.title_box.clone().upcast()),
+                    (input_group, widgets.spinbutton.clone().upcast()),
+                    (lower_label_group, widgets.lower_label.clone().upcast()),
+                    (upper_label_group, widgets.upper_label.clone().upcast()),
+                ] {
+                    if widgets.root_row.get_visible() {
+                        group.add_widget(&widget);
+                    }
+                    self.size_group_widgets.push((group, widget));
+                }
             }
         }
     }
