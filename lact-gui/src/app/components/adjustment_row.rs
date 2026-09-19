@@ -1,5 +1,6 @@
 use super::adjustment_value::AdjustmentValue;
 use crate::app::utils::ext::make_event_controller_no_scroll;
+use crate::app::utils::formatting::fmt_value_with_unit;
 use adw::prelude::*;
 use relm4::{FactorySender, RelmWidgetExt, css, factory::FactoryComponent};
 use std::marker::PhantomData;
@@ -144,7 +145,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
                     #[name = "lower_label"]
                     gtk::Label {
-                        set_label: &format!("{} {}", self.adjustment.lower(), self.unit),
+                        set_label: &fmt_value_with_unit(self.adjustment.lower(), &self.unit),
                         add_css_class: css::CAPTION,
                         add_css_class: css::DIM_LABEL,
                     },
@@ -163,7 +164,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
                     #[name = "upper_label"]
                     gtk::Label {
-                        set_label: &format!("{} {}", self.adjustment.upper(), self.unit),
+                        set_label: &fmt_value_with_unit(self.adjustment.upper(), &self.unit),
                         add_css_class: css::CAPTION,
                         add_css_class: css::DIM_LABEL,
                     },
@@ -233,10 +234,10 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                 self.value_ratio = ratio;
                 widgets
                     .lower_label
-                    .set_label(&self.adjustment.lower().to_string());
+                    .set_label(&fmt_value_with_unit(self.adjustment.lower(), &self.unit));
                 widgets
                     .upper_label
-                    .set_label(&self.adjustment.upper().to_string());
+                    .set_label(&fmt_value_with_unit(self.adjustment.upper(), &self.unit));
 
                 widgets
                     .spinbutton
