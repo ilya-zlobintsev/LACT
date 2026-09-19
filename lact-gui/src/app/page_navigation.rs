@@ -1,0 +1,118 @@
+use super::{
+    detachable_page::{DetachablePage, DetachablePageInit, DetachablePageMsg},
+    pages::PageId,
+    utils::ext::RelmLaunchable,
+};
+use adw::prelude::*;
+use relm4::{ComponentController, ComponentParts, ComponentSender, binding::BoolBinding};
+
+pub struct PageNavigation {
+    pages: Vec<relm4::Controller<DetachablePage>>,
+}
+
+pub struct PageNavigationInit {
+    pub pages: Vec<(PageId, String, gtk::Widget)>,
+    pub parent: adw::ApplicationWindow,
+    pub sensitive: BoolBinding,
+}
+
+#[derive(Debug)]
+pub enum PageNavigationMsg {
+    Select(usize),
+    SyncSelection,
+    CloseWindows,
+}
+
+#[relm4::component(pub)]
+impl relm4::Component for PageNavigation {
+    type Init = PageNavigationInit;
+    type Input = PageNavigationMsg;
+    type Output = ();
+    type CommandOutput = ();
+
+    view! {
+        #[root]
+        gtk::ListBox {
+            add_css_class: "navigation-sidebar",
+            set_vexpand: true,
+            connect_row_selected[sender] => move |_, row| {
+                if let Some(row) = row {
+                    sender.input(PageNavigationMsg::Select(row.index() as usize));
+                }
+            } @ selection_signal,
+        },
+
+        #[name = "stack"]
+        gtk::Stack {
+            set_vhomogeneous: false,
+            connect_visible_child_name_notify => PageNavigationMsg::SyncSelection,
+        },
+    }
+
+    fn init(
+        init: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let pages = init
+            .pages
+            .into_iter()
+            .map(|(id, title, content)| {
+                DetachablePage::detach(DetachablePageInit {
+                    id,
+                    title,
+                    content,
+                    parent: init.parent.clone(),
+                    sensitive: init.sensitive.clone(),
+                })
+            })
+            .collect();
+        let model = Self { pages };
+        let widgets = view_output!();
+
+        for page in &model.pages {
+            root.append(&page.widgets().row);
+            widgets.stack.add_titled(
+                page.widget(),
+                Some(page.model().init.id.as_str()),
+                &page.model().init.title,
+            );
+        }
+
+        ComponentParts { model, widgets }
+    }
+
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        _sender: ComponentSender<Self>,
+        root: &Self::Root,
+    ) {
+        match msg {
+            PageNavigationMsg::Select(index) => {
+                widgets
+                    .stack
+                    .set_visible_child_name(self.pages[index].model().init.id.as_str());
+            }
+            PageNavigationMsg::SyncSelection => {
+                let index = self.pages.iter().position(|page| {
+                    Some(page.model().init.id.as_str())
+                        == widgets.stack.visible_child_name().as_deref()
+                });
+                root.block_signal(&widgets.selection_signal);
+                root.select_row(
+                    index
+                        .and_then(|index| root.row_at_index(index as i32))
+                        .as_ref(),
+                );
+                root.unblock_signal(&widgets.selection_signal);
+            }
+            PageNavigationMsg::CloseWindows => {
+                for page in &self.pages {
+                    page.emit(DetachablePageMsg::Attach);
+                }
+            }
+        }
+    }
+}

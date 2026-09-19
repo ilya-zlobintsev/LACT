@@ -1,5 +1,6 @@
 use crate::app::{
     graphs_window::stat::StatType,
+    pages::PageId,
     utils::{color_scheme::AppColorScheme, styles::AppTheme},
 };
 use serde::{Deserialize, Deserializer, Serialize};
@@ -125,5 +126,5 @@ fn deserialize_poll_interval<'de, D: Deserializer<'de>>(deserializer: D) -> Resu
 }
 
 fn default_tab() -> String {
-    "info_page".to_owned()
+    PageId::Info.as_str().to_owned()
 }

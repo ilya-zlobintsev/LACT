@@ -1,10 +1,12 @@
 mod about_dialog;
 pub(crate) mod components;
+mod detachable_page;
 mod gpu_selector;
 pub mod graphs_window;
 mod info_dialog;
 pub(crate) mod msg;
 mod overdrive_dialog;
+mod page_navigation;
 pub(crate) mod pages;
 mod preferences_dialog;
 mod process_monitor;
@@ -49,8 +51,9 @@ use lact_schema::{
     request::{ConfirmCommand, ProfileBase, SetClocksCommand},
 };
 use msg::AppMsg;
+use page_navigation::{PageNavigation, PageNavigationInit, PageNavigationMsg};
 use pages::{
-    PageUpdate,
+    PageId, PageUpdate,
     crash_page::CrashPage,
     info_page::InformationPage,
     oc_page::{OcPage, OcPageMsg},
@@ -85,7 +88,6 @@ pub(crate) static APP_BROKER: MessageBroker<AppMsg> = MessageBroker::new();
 
 const PROCESS_POLL_INTERVAL_MS: u64 = 1500;
 const NVIDIA_RECOMMENDED_MIN_VERSION: u32 = 560;
-const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
 const DEFAULT_WINDOW_WIDTH: i32 = 1100;
 const DEFAULT_WINDOW_HEIGHT: i32 = 750;
 const CONFIRM_RESPONSE_APPLY: &str = "confirm";
@@ -117,6 +119,7 @@ pub struct AppModel {
     software_page: relm4::Controller<SoftwarePage>,
     displays_page: relm4::Controller<DisplaysPage>,
     crash_page: relm4::Controller<CrashPage>,
+    page_navigation: relm4::Controller<PageNavigation>,
     service_setup_dialog: Option<AsyncController<ServiceSetupDialog>>,
 
     gpu_selector: relm4::Controller<GpuSelector>,
@@ -183,6 +186,7 @@ impl AsyncComponent for AppModel {
                     #[name = "navbar"]
                     adw::NavigationSplitView {
                         set_expand: true,
+                        set_min_sidebar_width: 230.0,
                         set_max_sidebar_width: 230.0,
 
                         #[wrap(Some)]
@@ -209,11 +213,7 @@ impl AsyncComponent for AppModel {
 
                                     gtk::Separator {},
 
-                                    gtk::StackSidebar {
-                                        set_margin_vertical: 1,
-                                        set_stack: &root_stack,
-                                        set_vexpand: true,
-                                    },
+                                    model.page_navigation.widget(),
 
                                     gtk::Separator {},
 
@@ -281,43 +281,26 @@ impl AsyncComponent for AppModel {
                                 },
 
                                 #[wrap(Some)]
-                                set_content = &gtk::ScrolledWindow {
-                                    set_hscrollbar_policy: gtk::PolicyType::Never,
+                                #[name = "root_stack"]
+                                set_content = &model.page_navigation.widgets().stack.clone() -> gtk::Stack {
+                                    add_binding: (&model.ui_sensitive, "sensitive"),
 
-                                    adw::Clamp {
-                                        set_maximum_size: CONTENT_MAXIMUM_WIDTH,
-                                        set_tightening_threshold: CONTENT_MAXIMUM_WIDTH,
+                                    add_named[Some(PageId::Crash.as_str())] = model.crash_page.widget(),
 
-                                        #[name = "root_stack"]
-                                        gtk::Stack {
-                                            set_vexpand: false,
-                                            set_vhomogeneous: false,
+                                    set_visible_child_name: &CONFIG.read().selected_tab,
+                                    connect_visible_child_name_notify[content_page] => move |stack| {
+                                        if let Some(child) = stack.visible_child() {
+                                            let page = stack.page(&child);
+                                            content_page.set_title(&page.title().unwrap_or_default());
 
-                                            add_binding: (&model.ui_sensitive, "sensitive"),
-
-                                            add_titled[Some("info_page"), &fl!(I18N, "info-page")] = model.info_page.widget(),
-                                            add_titled[Some("oc_page"), &fl!(I18N, "oc-page")] = model.oc_page.widget(),
-                                            add_titled[Some("thermals_page"), &fl!(I18N, "thermals-page")] = model.thermals_page.widget(),
-                                            add_titled[Some("software_page"), &fl!(I18N, "software-page")] = model.software_page.widget(),
-                                            add_titled[Some("displays_page"), &fl!(I18N, "displays-page")] = model.displays_page.widget(),
-                                            add_named[Some("crash_page")] = model.crash_page.widget(),
-
-                                            set_visible_child_name: &CONFIG.read().selected_tab,
-                                            connect_visible_child_name_notify[content_page] => move |stack| {
-                                                if let Some(child) = stack.visible_child() {
-                                                    let page = stack.page(&child);
-                                                    content_page.set_title(&page.title().unwrap_or_default());
-
-                                                    let name = stack.visible_child_name().unwrap().to_string();
-                                                    if name != "crash_page" {
-                                                        CONFIG.write().edit(|config| {
-                                                            config.selected_tab = name;
-                                                        });
-                                                    }
-                                                }
-                                            },
+                                            let name = stack.visible_child_name().unwrap().to_string();
+                                            if name != PageId::Crash.as_str() {
+                                                CONFIG.write().edit(|config| {
+                                                    config.selected_tab = name;
+                                                });
+                                            }
                                         }
-                                    }
+                                    },
                                 },
                             }
                         }
@@ -428,6 +411,39 @@ impl AsyncComponent for AppModel {
 
         let displays_page = DisplaysPage::detach_default();
 
+        let ui_sensitive = BoolBinding::new(false);
+        let page_navigation = PageNavigation::detach(PageNavigationInit {
+            pages: vec![
+                (
+                    PageId::Info,
+                    fl!(I18N, "info-page"),
+                    info_page.widget().clone().upcast(),
+                ),
+                (
+                    PageId::Oc,
+                    fl!(I18N, "oc-page"),
+                    oc_page.widget().clone().upcast(),
+                ),
+                (
+                    PageId::Thermals,
+                    fl!(I18N, "thermals-page"),
+                    thermals_page.widget().clone().upcast(),
+                ),
+                (
+                    PageId::Software,
+                    fl!(I18N, "software-page"),
+                    software_page.widget().clone().upcast(),
+                ),
+                (
+                    PageId::Displays,
+                    fl!(I18N, "displays-page"),
+                    displays_page.widget().clone().upcast(),
+                ),
+            ],
+            parent: root.clone(),
+            sensitive: ui_sensitive.clone(),
+        });
+
         let crash_page = CrashPage::launch_default().forward(sender.input_sender(), |msg| msg);
 
         let overdrive_dialog =
@@ -493,10 +509,11 @@ impl AsyncComponent for AppModel {
             software_page,
             crash_page,
             displays_page,
+            page_navigation,
             gpu_selector,
             profile_selector,
             service_setup_dialog: None,
-            ui_sensitive: BoolBinding::new(false),
+            ui_sensitive,
             is_reconnecting: BoolBinding::new(false),
             stats_task_handle: None,
             settings_changed,
@@ -845,6 +862,7 @@ impl AppModel {
                 result?;
             }
             AppMsg::EnablePstateConfig => {
+                root.present();
                 self.info_dialog
                     .emit(InfoDialogMsg::Show(Box::new(InfoDialogData {
                         id: InfoDialogId::EnablePstateConfigConfirmation,
@@ -923,6 +941,7 @@ impl AppModel {
                 self.reload_profiles(None).await?;
             }
             AppMsg::Crash(message) => {
+                self.page_navigation.emit(PageNavigationMsg::CloseWindows);
                 // we cannot be sure that the application is fully functional after a crash
                 // even though the main loop is restored via crash handler, we want user to restart
                 // this is why navigation controls are disabled
@@ -931,7 +950,9 @@ impl AppModel {
                 self.settings_changed.set_value(false);
 
                 self.ui_sensitive.set_value(true);
-                widgets.root_stack.set_visible_child_name("crash_page");
+                widgets
+                    .root_stack
+                    .set_visible_child_name(PageId::Crash.as_str());
                 self.crash_page.emit(message);
 
                 if let Some(handle) = self.stats_task_handle.take() {
