@@ -19,6 +19,7 @@
 }
 
 .navigation-sidebar row:hover .page-detach-button,
+.navigation-sidebar row:selected .page-detach-button,
 .page-detach-button:focus-visible {
     opacity: 1;
 }

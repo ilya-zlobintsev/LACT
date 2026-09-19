@@ -5,7 +5,9 @@ use crate::{
 use adw::prelude::*;
 use gtk::glib;
 use i18n_embed_fl::fl;
-use relm4::{ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding};
+use relm4::{
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
+};
 
 const CONTENT_MAXIMUM_WIDTH: i32 = 1200;
 
@@ -97,7 +99,7 @@ impl relm4::Component for DetachablePage {
                     } else {
                         fl!(I18N, "detach-page", page = model.init.title.as_str())
                     }),
-                    add_css_class: "flat",
+                    add_css_class: css::FLAT,
                     add_css_class: "page-detach-button",
                     connect_clicked => DetachablePageMsg::ToggleDetached,
                 },
