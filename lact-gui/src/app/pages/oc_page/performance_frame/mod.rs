@@ -145,12 +145,10 @@ impl relm4::Component for PerformanceFrame {
 
                 gtk::Label {
                     set_label: &fl!(I18N, "power-profile-mode"),
-                    set_hexpand: true,
                     set_halign: gtk::Align::Start,
                 },
 
                 gtk::MenuButton {
-                    set_icon_name: "dialog-information-symbolic",
                     #[watch]
                     set_visible: model.performance_level != Some(PerformanceLevel::Manual),
 
@@ -160,9 +158,18 @@ impl relm4::Component for PerformanceFrame {
                             set_label: &fl!(I18N, "manual-level-needed"),
                         }
                     },
+
+                    add_css_class: css::FLAT,
+                    #[wrap(Some)]
+                    set_child = &gtk::Image {
+                        set_icon_name: Some("info-outline-symbolic"),
+                        set_pixel_size: 12,
+                    },
                 },
 
                 gtk::MenuButton {
+                    set_hexpand: true,
+                    set_halign: gtk::Align::End,
                     set_always_show_arrow: false,
                     #[watch]
                     set_label: model.power_profile_modes_table.as_ref().and_then(|table| table.modes.get(&table.active)).map(|profile| profile.name.as_str()).unwrap_or_default(),
