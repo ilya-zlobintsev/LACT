@@ -1,8 +1,25 @@
+.adjustment-list > row {
+    padding: 5px 10px;
+}
+
+.adjustment-list > row:first-child {
+    padding-top: 10px;
+}
+
+.adjustment-list > row:last-child {
+    padding-bottom: 10px;
+}
+
+.adjustment-row scale {
+    padding: 10px 0;
+}
+
+.adjustment-row menubutton > button {
+    padding: 3px 6px;
+}
+
 .adjustment-card-advanced-features {
     background-color: alpha(@window_fg_color, 0.05);
-    border-radius: 9px 9px 0 0;
-    margin: -10px -10px 0; /* nulify parent's padding */
-    padding: 10px;
 }
 
 .adjustment-card-advanced-features .adjustment-card-option-toggle {

@@ -57,7 +57,9 @@ impl relm4::SimpleComponent for PowerStatesFrame {
     type Output = OcPageMsg;
 
     view! {
-        PageSection::new(&fl!(I18N, "pstates")) {
+        PageSection {
+            set_name: fl!(I18N, "pstates"),
+            set_hide_visible_container: true,
             #[template]
             append_child = &AdjustmentCard {
                 #[template_child]
@@ -93,21 +95,26 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
                 #[template_child]
                 content {
-                    gtk::Box {
-                        set_spacing: 10,
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_homogeneous: true,
+                    gtk::ListBoxRow {
+                        set_activatable: false,
+                        set_selectable: false,
 
                         gtk::Box {
-                            #[watch]
-                            set_visible: model.has_core_states,
-                            append = model.core_states_list.widget(),
-                        },
+                            set_spacing: 10,
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_homogeneous: true,
 
-                        gtk::Box {
-                            #[watch]
-                            set_visible: model.has_vram_states,
-                            append = model.vram_states_list.widget(),
+                            gtk::Box {
+                                #[watch]
+                                set_visible: model.has_core_states,
+                                append = model.core_states_list.widget(),
+                            },
+
+                            gtk::Box {
+                                #[watch]
+                                set_visible: model.has_vram_states,
+                                append = model.vram_states_list.widget(),
+                            },
                         },
                     },
                 },

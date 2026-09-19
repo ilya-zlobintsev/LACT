@@ -1,6 +1,9 @@
 use crate::{
     I18N,
-    app::{APP_BROKER, graphs_window::plot::PlotColorScheme, msg::AppMsg},
+    app::{
+        APP_BROKER, graphs_window::plot::PlotColorScheme, msg::AppMsg,
+        utils::formatting::fmt_value_with_unit,
+    },
 };
 use amdgpu_sysfs::gpu_handle::PowerLevelId;
 use gtk::{gdk, prelude::*};
@@ -505,8 +508,8 @@ impl VfCurveEditor {
             .configure_mesh()
             .axis_style(colors.border_secondary)
             .bold_line_style(colors.border)
-            .x_label_formatter(&|voltage| format!("{voltage} mV"))
-            .y_label_formatter(&|clock| format!("{clock} MHz"))
+            .x_label_formatter(&|voltage| fmt_value_with_unit(voltage, &fl!(I18N, "mv")))
+            .y_label_formatter(&|clock| fmt_value_with_unit(clock, &fl!(I18N, "mhz")))
             .x_label_style(("sans-serif", 14, &colors.text))
             .y_label_style(("sans-serif", 14, &colors.text))
             .x_desc(fl!(I18N, "voltage"))
@@ -542,14 +545,14 @@ impl VfCurveEditor {
         if let Some((min_freq, max_freq)) = self.locked_clocks_range.get() {
             let mut curves = vec![(
                 [(x_spec.start, max_freq), (x_spec.end, max_freq)],
-                fl!(I18N, "max-clock"),
+                format!("{} ({})", fl!(I18N, "max-clock"), fl!(I18N, "mhz")),
                 colors.error,
             )];
 
             if min_freq >= y_spec.start {
                 curves.push((
                     [(x_spec.start, min_freq), (x_spec.end, min_freq)],
-                    fl!(I18N, "min-clock"),
+                    format!("{} ({})", fl!(I18N, "min-clock"), fl!(I18N, "mhz")),
                     colors.warning,
                 ));
             }
@@ -571,7 +574,11 @@ impl VfCurveEditor {
         if let Some(current_voltage) = stats.voltage.gpu
             && let Some(current_clock) = stats.clockspeed.gpu_clockspeed
         {
-            let mut label = format!("Current: {current_clock} MHz @ {current_voltage} mV");
+            let mut label = format!(
+                "Current: {} @ {}",
+                fmt_value_with_unit(current_clock, &fl!(I18N, "mhz")),
+                fmt_value_with_unit(current_voltage, &fl!(I18N, "mv"))
+            );
 
             if stats
                 .active_power_states
@@ -665,7 +672,7 @@ impl VfCurveEditor {
                         style.color = hovered_style.to_rgba();
                         size *= 2;
 
-                        let mut text = format!("{} MHz", point.freq);
+                        let mut text = fmt_value_with_unit(point.freq, &fl!(I18N, "mhz"));
 
                         let offset = point.freq as i32 - point.base_freq as i32;
                         if offset != 0 {
@@ -675,11 +682,16 @@ impl VfCurveEditor {
                                 negative_offset = true;
                                 ""
                             };
-                            write!(text, " ({symbol}{offset}) MHz").unwrap();
+                            write!(text, " ({symbol}{offset}) {}", fl!(I18N, "mhz")).unwrap();
                             text_width += 50;
                         }
 
-                        write!(text, " @ {} mV", point.voltage).unwrap();
+                        write!(
+                            text,
+                            " @ {}",
+                            fmt_value_with_unit(point.voltage, &fl!(I18N, "mv"))
+                        )
+                        .unwrap();
                         text
                     } else {
                         String::new()

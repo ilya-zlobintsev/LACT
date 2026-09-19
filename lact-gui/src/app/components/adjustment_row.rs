@@ -1,5 +1,6 @@
 use super::adjustment_value::AdjustmentValue;
 use crate::app::utils::ext::make_event_controller_no_scroll;
+use crate::app::utils::formatting::fmt_value_with_unit;
 use adw::prelude::*;
 use relm4::{FactorySender, RelmWidgetExt, css, factory::FactoryComponent};
 use std::marker::PhantomData;
@@ -8,15 +9,18 @@ pub struct AdjustmentRow<Key> {
     title: String,
     title_tooltip: String,
     info_text: String,
+    unit: String,
     _key: PhantomData<Key>,
     adjustment: AdjustmentValue,
     value_ratio: f64,
+    size_group_widgets: Vec<(gtk::SizeGroup, gtk::Widget)>,
 }
 
 pub struct AdjustmentRowInit {
     pub title: String,
     pub title_tooltip: String,
     pub info_text: String,
+    pub unit: String,
     pub value: f64,
     pub lower: f64,
     pub upper: f64,
@@ -30,6 +34,7 @@ impl Default for AdjustmentRowInit {
             title: String::new(),
             title_tooltip: String::new(),
             info_text: String::new(),
+            unit: String::new(),
             value: 0.0,
             lower: 0.0,
             upper: 0.0,
@@ -49,12 +54,14 @@ pub enum AdjustmentRowMsg {
     AddSizeGroup {
         label_group: gtk::SizeGroup,
         input_group: gtk::SizeGroup,
+        lower_label_group: gtk::SizeGroup,
+        upper_label_group: gtk::SizeGroup,
     },
 }
 
 #[relm4::factory(pub)]
 impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
-    type ParentWidget = gtk::Box;
+    type ParentWidget = gtk::ListBox;
     type Index = Key;
     type Init = AdjustmentRowInit;
     type Input = AdjustmentRowMsg;
@@ -64,62 +71,105 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
     view! {
         #[root]
-        #[name = "root_box"]
-        gtk::Box {
-            set_orientation: gtk::Orientation::Horizontal,
-            add_css_class: "adjustment-row",
+        #[name = "root_row"]
+        gtk::ListBoxRow {
+            set_activatable: false,
+            set_selectable: false,
 
-            #[name = "title_box"]
             gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
                 set_spacing: 5,
+                add_css_class: "adjustment-row",
 
-                #[name = "label"]
-                gtk::Label {
-                    set_xalign: 0.0,
-                    set_markup: &self.title,
-                    set_tooltip_text: (!self.title_tooltip.is_empty()).then_some(self.title_tooltip.as_str()),
-                },
+                gtk::Box {
+                    set_spacing: 12,
 
-                #[name = "info_button"]
-                gtk::MenuButton {
-                    set_icon_name: "dialog-information-symbolic",
-                    set_always_show_arrow: false,
-                    add_css_class: css::FLAT,
-                    set_visible: !self.info_text.is_empty(),
+                    #[name = "title_box"]
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_valign: gtk::Align::Center,
+                        set_hexpand: true,
+                        set_spacing: 5,
 
-                    #[wrap(Some)]
-                    set_popover = &gtk::Popover {
-                        #[name = "info_label"]
+                        #[name = "label"]
                         gtk::Label {
-                            set_label: &self.info_text,
-                            set_margin_all: 5,
-                            set_wrap: true,
-                            set_wrap_mode: gtk::pango::WrapMode::Word,
-                            set_max_width_chars: 55,
+                            set_valign: gtk::Align::Center,
+                            set_xalign: 0.0,
+                            set_markup: &self.title,
+                            set_tooltip_text: (!self.title_tooltip.is_empty()).then_some(self.title_tooltip.as_str()),
+                        },
+
+                        gtk::Box {
+                            add_css_class: css::CAPTION,
+                            set_valign: gtk::Align::End,
+
+                            #[name = "details_button"]
+                            gtk::MenuButton {
+                                set_valign: gtk::Align::Center,
+                                set_visible: !self.info_text.is_empty(),
+                                add_css_class: css::FLAT,
+
+                                #[wrap(Some)]
+                                set_popover = &gtk::Popover {
+                                    gtk::Label {
+                                        set_label: &self.info_text,
+                                        set_margin_all: 5,
+                                        set_wrap: true,
+                                        set_wrap_mode: gtk::pango::WrapMode::Word,
+                                        set_max_width_chars: 55,
+                                    },
+                                },
+
+
+                                #[wrap(Some)]
+                                set_child = &gtk::Image {
+                                    set_icon_name: Some("info-outline-symbolic"),
+                                    set_pixel_size: 12,
+                                },
+                            },
                         },
                     },
+
+                    #[name = "spinbutton"]
+                    gtk::SpinButton {
+                        set_adjustment: &self.adjustment,
+                        set_valign: gtk::Align::Center,
+                        add_controller = make_event_controller_no_scroll(),
+                        connect_changed[sender] => move |_| {
+                            let _ = sender.output(());
+                        } @ text_change_signal,
+                    },
                 },
-            },
 
-            #[name = "scale"]
-            gtk::Scale {
-                set_adjustment: &self.adjustment,
-                set_orientation: gtk::Orientation::Horizontal,
-                set_hexpand: true,
-                set_digits: 0,
-                set_round_digits: 0,
-                set_value_pos: gtk::PositionType::Right,
-                set_width_request: 100,
-                add_controller = make_event_controller_no_scroll(),
-            },
+                gtk::Box {
+                    set_spacing: 12,
 
-            #[name = "spinbutton"]
-            gtk::SpinButton {
-                set_adjustment: &self.adjustment,
-                add_controller = make_event_controller_no_scroll(),
-                connect_changed[sender] => move |_| {
-                    let _ = sender.output(());
-                } @ text_change_signal,
+                    #[name = "lower_label"]
+                    gtk::Label {
+                        set_label: &fmt_value_with_unit(self.adjustment.lower(), &self.unit),
+                        add_css_class: css::CAPTION,
+                        add_css_class: css::DIM_LABEL,
+                    },
+
+                    #[name = "scale"]
+                    gtk::Scale {
+                        set_adjustment: &self.adjustment,
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_hexpand: true,
+                        set_digits: 0,
+                        set_round_digits: 0,
+                        set_value_pos: gtk::PositionType::Right,
+                        set_width_request: 100,
+                        add_controller = make_event_controller_no_scroll(),
+                    },
+
+                    #[name = "upper_label"]
+                    gtk::Label {
+                        set_label: &fmt_value_with_unit(self.adjustment.upper(), &self.unit),
+                        add_css_class: css::CAPTION,
+                        add_css_class: css::DIM_LABEL,
+                    },
+                },
             },
         },
 
@@ -136,6 +186,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
             title: init.title,
             title_tooltip: init.title_tooltip,
             info_text: init.info_text,
+            unit: init.unit,
             _key: PhantomData,
             adjustment: AdjustmentValue::new(
                 init.value,
@@ -145,6 +196,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                 init.page_increment,
             ),
             value_ratio: 1.0,
+            size_group_widgets: Vec::new(),
         }
     }
 
@@ -152,11 +204,12 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
         &mut self,
         _index: &Self::Index,
         root: Self::Root,
-        _returned_widget: &gtk::Widget,
+        _returned_widget: &gtk::ListBoxRow,
         sender: FactorySender<Self>,
     ) -> Self::Widgets {
         let adjustment = &self.adjustment;
         let widgets = view_output!();
+
         widgets
     }
 
@@ -181,6 +234,12 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                 self.adjustment.set_initial_value(raw_current * ratio);
 
                 self.value_ratio = ratio;
+                widgets
+                    .lower_label
+                    .set_label(&fmt_value_with_unit(self.adjustment.lower(), &self.unit));
+                widgets
+                    .upper_label
+                    .set_label(&fmt_value_with_unit(self.adjustment.upper(), &self.unit));
 
                 widgets
                     .spinbutton
@@ -190,13 +249,35 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
             AdjustmentRowMsg::SetValue(value) => {
                 self.adjustment.set_value(value * self.value_ratio);
             }
-            AdjustmentRowMsg::SetVisible(visible) => widgets.root_box.set_visible(visible),
+            AdjustmentRowMsg::SetVisible(visible) => {
+                if widgets.root_row.get_visible() != visible {
+                    for (group, widget) in &self.size_group_widgets {
+                        if visible {
+                            group.add_widget(widget);
+                        } else {
+                            group.remove_widget(widget);
+                        }
+                    }
+                    widgets.root_row.set_visible(visible);
+                }
+            }
             AdjustmentRowMsg::AddSizeGroup {
                 label_group,
                 input_group,
+                lower_label_group,
+                upper_label_group,
             } => {
-                label_group.add_widget(&widgets.title_box);
-                input_group.add_widget(&widgets.spinbutton);
+                for (group, widget) in [
+                    (label_group, widgets.title_box.clone().upcast()),
+                    (input_group, widgets.spinbutton.clone().upcast()),
+                    (lower_label_group, widgets.lower_label.clone().upcast()),
+                    (upper_label_group, widgets.upper_label.clone().upcast()),
+                ] {
+                    if widgets.root_row.get_visible() {
+                        group.add_widget(&widget);
+                    }
+                    self.size_group_widgets.push((group, widget));
+                }
             }
         }
     }

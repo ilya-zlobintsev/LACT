@@ -90,7 +90,8 @@ impl relm4::Component for ThermalsPage {
 
             model.stats_section.widget(),
 
-            PageSection::new(&fl!(I18N, "thresholds-section")) {
+            PageSection {
+                set_name: fl!(I18N, "thresholds-section"),
                 #[watch]
                 set_visible: !model.nvidia_target_temperature.is_empty(),
 
@@ -104,7 +105,8 @@ impl relm4::Component for ThermalsPage {
                 append_child = model.nvidia_target_temperature.widget(),
             },
 
-            PageSection::new(&fl!(I18N, "fan-control-section")) {
+            PageSection {
+                set_name: fl!(I18N, "fan-control-section"),
                 // Disable fan configuration when overdrive is disabled on GPUs that have PMFW (RDNA3+)
                 #[watch]
                 set_sensitive: model.custom_control_supported,
