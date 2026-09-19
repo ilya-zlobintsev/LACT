@@ -16,7 +16,7 @@ use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
-    ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
+    ComponentController, ComponentParts, ComponentSender,
     binding::{Binding, BoolBinding},
 };
 use std::sync::Arc;
@@ -58,7 +58,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
     view! {
         PageSection::new(&fl!(I18N, "pstates")) {
-            set_unpadded: true,
+            set_hide_visible_container: true,
             #[template]
             append_child = &AdjustmentCard {
                 #[template_child]
@@ -94,22 +94,26 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
                 #[template_child]
                 content {
-                    gtk::Box {
-                        set_margin_all: 10,
-                        set_spacing: 10,
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_homogeneous: true,
+                    gtk::ListBoxRow {
+                        set_activatable: false,
+                        set_selectable: false,
 
                         gtk::Box {
-                            #[watch]
-                            set_visible: model.has_core_states,
-                            append = model.core_states_list.widget(),
-                        },
+                            set_spacing: 10,
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_homogeneous: true,
 
-                        gtk::Box {
-                            #[watch]
-                            set_visible: model.has_vram_states,
-                            append = model.vram_states_list.widget(),
+                            gtk::Box {
+                                #[watch]
+                                set_visible: model.has_core_states,
+                                append = model.core_states_list.widget(),
+                            },
+
+                            gtk::Box {
+                                #[watch]
+                                set_visible: model.has_vram_states,
+                                append = model.vram_states_list.widget(),
+                            },
                         },
                     },
                 },

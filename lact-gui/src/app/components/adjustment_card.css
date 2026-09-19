@@ -1,7 +1,3 @@
-.adjustment-list {
-    background: transparent;
-}
-
 .adjustment-list > row {
     padding: 5px 10px;
 }
@@ -20,8 +16,6 @@
 
 .adjustment-card-advanced-features {
     background-color: alpha(@window_fg_color, 0.05);
-    border-radius: 9px 9px 0 0;
-    padding: 10px;
 }
 
 .adjustment-card-advanced-features .adjustment-card-option-toggle {

@@ -93,6 +93,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
                         #[name = "label"]
                         gtk::Label {
+                            set_valign: gtk::Align::BaselineCenter,
                             set_xalign: 0.0,
                             set_markup: &self.title,
                             set_tooltip_text: (!self.title_tooltip.is_empty()).then_some(self.title_tooltip.as_str()),
@@ -100,9 +101,10 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
                         gtk::Box {
                             add_css_class: css::CAPTION,
-                            set_valign: gtk::Align::Center,
+                            set_valign: gtk::Align::BaselineCenter,
 
                             gtk::Label {
+                                set_valign: gtk::Align::BaselineCenter,
                                 set_xalign: 0.0,
                                 set_label: &self.unit,
                                 set_visible: !self.unit.is_empty(),
@@ -110,6 +112,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                             },
 
                             gtk::Label {
+                                set_valign: gtk::Align::BaselineCenter,
                                 set_label: " · ",
                                 set_visible: !self.unit.is_empty() && !self.info_text.is_empty(),
                                 add_css_class: css::DIM_LABEL,
@@ -117,6 +120,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
                             #[name = "details_label"]
                             gtk::Label {
+                                set_valign: gtk::Align::BaselineCenter,
                                 set_markup: &format!(
                                     "<a href=\"details\">{}</a>",
                                     gtk::glib::markup_escape_text(&fl!(I18N, "adjustment-row-details")),

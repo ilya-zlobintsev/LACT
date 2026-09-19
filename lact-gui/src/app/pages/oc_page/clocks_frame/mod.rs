@@ -18,7 +18,7 @@ use lact_schema::{
     request::{ClockspeedType, SetClocksCommand},
 };
 use relm4::{
-    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
+    ComponentParts, ComponentSender, RelmObjectExt, WidgetTemplate, binding::BoolBinding, css,
     factory::FactoryHashMap,
 };
 use std::{collections::HashSet, sync::Arc};
@@ -112,7 +112,7 @@ impl relm4::Component for ClocksFrame {
 
     view! {
         PageSection::new("") {
-            set_unpadded: true,
+            set_hide_visible_container: true,
             #[watch]
             set_name: match model.domain {
                 ClockDomain::Gpu => fl!(I18N, "core-section"),
@@ -155,7 +155,8 @@ impl relm4::Component for ClocksFrame {
             },
 
             #[template]
-            append_child = &AdjustmentCard {
+            #[local]
+            append_child = &card -> AdjustmentCard {
                 #[template_child]
                 advanced_features {
                     #[watch]
@@ -232,19 +233,16 @@ impl relm4::Component for ClocksFrame {
 
                 #[template_child]
                 content {
-                    #[local_ref]
-                    adjustments_widget -> gtk::ListBox {
-                        add_css_class: "adjustment-list",
-                        set_selection_mode: gtk::SelectionMode::None,
-                        set_show_separators: true,
-                    },
-
-                    gtk::Label {
-                        set_label: &fl!(I18N, "no-clocks-data"),
-                        set_margin_all: 10,
-                        set_halign: gtk::Align::Start,
+                    gtk::ListBoxRow {
+                        set_activatable: false,
+                        set_selectable: false,
                         #[watch]
                         set_visible: !model.has_any_clocks(),
+
+                        gtk::Label {
+                            set_label: &fl!(I18N, "no-clocks-data"),
+                            set_halign: gtk::Align::Start,
+                        },
                     },
                 },
             },
@@ -260,9 +258,10 @@ impl relm4::Component for ClocksFrame {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let card = AdjustmentCard::init(());
         let model = Self {
             adjustments: FactoryHashMap::builder()
-                .launch_default()
+                .launch(card.content.clone())
                 .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged),
             secondary_p_state_clocks: HashSet::new(),
             domain,
@@ -285,7 +284,6 @@ impl relm4::Component for ClocksFrame {
             });
         }
 
-        let adjustments_widget = model.adjustments.widget();
         let widgets = view_output!();
 
         ComponentParts { model, widgets }

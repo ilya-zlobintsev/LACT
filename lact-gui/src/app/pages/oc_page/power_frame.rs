@@ -20,7 +20,7 @@ use i18n_embed_fl::fl;
 use lact_schema::PowerStats;
 use nvml_wrapper::enums::device::PowerMizerMode;
 use relm4::{
-    ComponentController, ComponentParts, ComponentSender, RelmWidgetExt, factory::FactoryHashMap,
+    ComponentController, ComponentParts, ComponentSender, WidgetTemplate, factory::FactoryHashMap,
 };
 
 pub struct PowerFrame {
@@ -47,7 +47,7 @@ impl relm4::Component for PowerFrame {
     view! {
         #[root]
         PageSection::new(&fl!(I18N, "power-section")) {
-            set_unpadded: true,
+            set_hide_visible_container: true,
             #[watch]
             set_visible: model.is_available(),
 
@@ -61,20 +61,18 @@ impl relm4::Component for PowerFrame {
                 set_visible: !model.power_row.is_empty(),
             },
             #[template]
-            append_child = &AdjustmentCard {
+            #[local]
+            append_child = &card -> AdjustmentCard {
                 #[template_child]
                 content {
-                    #[local_ref]
-                    power_row_widget -> gtk::ListBox {
-                        add_css_class: "adjustment-list",
-                        set_selection_mode: gtk::SelectionMode::None,
-                        set_show_separators: true,
+                    #[name = "performance_row"]
+                    gtk::ListBoxRow {
+                        set_activatable: false,
+                        set_selectable: false,
                         #[watch]
-                        set_visible: !model.power_row.is_empty(),
-                    },
+                        set_visible: model.performance_frame.widget().get_visible(),
 
-                    append = model.performance_frame.widget() {
-                        set_margin_all: 10,
+                        set_child: Some(model.performance_frame.widget()),
                     },
                 },
             },
@@ -86,10 +84,11 @@ impl relm4::Component for PowerFrame {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let card = AdjustmentCard::init(());
         let model = Self {
             power: PowerStats::default(),
             power_row: FactoryHashMap::builder()
-                .launch_default()
+                .launch(card.content.clone())
                 .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged),
             performance_frame: PerformanceFrame::launch_default()
                 .forward(sender.output_sender(), |msg| msg),
@@ -102,8 +101,14 @@ impl relm4::Component for PowerFrame {
                 visibility_sender.input(PowerFrameMsg::RefreshVisibility);
             });
 
-        let power_row_widget = model.power_row.widget();
         let widgets = view_output!();
+        let performance_row = widgets.performance_row.clone();
+        // FIXME: performance-row should be adjustmentRow like factory. until that we need to sort to get right order
+        model.power_row.widget().set_sort_func(move |left, right| {
+            (left == &performance_row)
+                .cmp(&(right == &performance_row))
+                .into()
+        });
 
         ComponentParts { model, widgets }
     }
