@@ -1,7 +1,10 @@
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::adjustment_row::{AdjustmentRow, AdjustmentRowInit, AdjustmentRowMsg},
+        components::{
+            adjustment_card::AdjustmentCard,
+            adjustment_row::{AdjustmentRow, AdjustmentRowInit, AdjustmentRowMsg},
+        },
         graphs_window::plot::PlotColorScheme,
         msg::AppMsg,
     },
@@ -23,8 +26,8 @@ use plotters::{
 };
 use plotters_cairo::CairoBackend;
 use relm4::{
-    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::U32Binding,
-    factory::FactoryHashMap,
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, WidgetTemplate,
+    binding::U32Binding, factory::FactoryHashMap,
 };
 use std::{
     cell::{Cell, RefCell},
@@ -193,9 +196,7 @@ impl relm4::Component for FanCurveFrame {
                 },
             },
 
-            model.adjustments.borrow().widget().clone() -> gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
+            model.adjustments.borrow().widget().clone() -> gtk::ListBox {
                 #[watch]
                 set_visible: !model.hw_based_fan_curve.load(Ordering::SeqCst)
                     || model.adjustments.borrow().get(&CurveSetting::AutoThreshold).is_some(),
@@ -227,7 +228,7 @@ impl relm4::Component for FanCurveFrame {
         let model = Self {
             adjustments: Rc::new(RefCell::new(
                 FactoryHashMap::builder()
-                    .launch_default()
+                    .launch(AdjustmentCard::init(()).content.clone())
                     .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged),
             )),
             label_size_group: gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal),
@@ -299,6 +300,8 @@ impl relm4::Component for FanCurveFrame {
                 self.current_temp_key
                     .unblock_signal(&widgets.temp_key_change_signal);
                 self.adjustments.borrow_mut().clear();
+                let lower_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+                let upper_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                 for (setting, init) in [
                     (
                         CurveSetting::SpindownDelay,
@@ -349,6 +352,8 @@ impl relm4::Component for FanCurveFrame {
                             AdjustmentRowMsg::AddSizeGroup {
                                 label_group: self.label_size_group.clone(),
                                 input_group: self.input_size_group.clone(),
+                                lower_label_group: lower_label_group.clone(),
+                                upper_label_group: upper_label_group.clone(),
                             },
                         );
                         adjustments.send(

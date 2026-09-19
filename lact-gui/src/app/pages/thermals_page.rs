@@ -8,6 +8,7 @@ use crate::{
     APP_BROKER, I18N,
     app::{
         components::{
+            adjustment_card::AdjustmentCard,
             adjustment_row::{AdjustmentRow, AdjustmentRowInit, AdjustmentRowMsg},
             page_section::PageSection,
         },
@@ -29,7 +30,7 @@ use lact_schema::{
     default_fan_curve,
 };
 use relm4::{
-    ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
+    ComponentController, ComponentParts, ComponentSender, RelmWidgetExt, WidgetTemplate,
     binding::{Binding, BoolBinding, ConnectBinding},
     factory::FactoryHashMap,
 };
@@ -92,6 +93,7 @@ impl relm4::Component for ThermalsPage {
 
             PageSection {
                 set_name: fl!(I18N, "thresholds-section"),
+                set_hide_visible_container: true,
                 #[watch]
                 set_visible: !model.nvidia_target_temperature.is_empty(),
 
@@ -107,6 +109,7 @@ impl relm4::Component for ThermalsPage {
 
             PageSection {
                 set_name: fl!(I18N, "fan-control-section"),
+                set_hide_visible_container: true,
                 // Disable fan configuration when overdrive is disabled on GPUs that have PMFW (RDNA3+)
                 #[watch]
                 set_sensitive: model.custom_control_supported,
@@ -161,9 +164,7 @@ impl relm4::Component for ThermalsPage {
                     #[watch]
                     set_visible: model.fan_settings_available(),
 
-                    model.pmfw_rows.widget().clone() -> gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 5,
+                    model.pmfw_rows.widget().clone() -> gtk::ListBox {
                         #[watch]
                         set_visible: model.selected_mode.is_none() && !model.pmfw_rows.is_empty(),
                     },
@@ -173,7 +174,7 @@ impl relm4::Component for ThermalsPage {
                         set_visible: model.selected_mode == Some(FanControlMode::Curve),
                     },
 
-                    model.static_speed.widget().clone() -> gtk::Box {
+                    model.static_speed.widget().clone() -> gtk::ListBox {
                         #[watch]
                         set_visible: model.selected_mode == Some(FanControlMode::Static),
                     },
@@ -197,7 +198,7 @@ impl relm4::Component for ThermalsPage {
                         },
                     },
 
-                    model.zero_rpm_temperature.widget().clone() -> gtk::Box {
+                    model.zero_rpm_temperature.widget().clone() -> gtk::ListBox {
                         #[watch]
                         set_visible: model.selected_mode != Some(FanControlMode::Static)
                             && !model.zero_rpm_temperature.is_empty(),
@@ -242,16 +243,16 @@ impl relm4::Component for ThermalsPage {
 
         let model = Self {
             pmfw_rows: FactoryHashMap::builder()
-                .launch_default()
+                .launch(AdjustmentCard::init(()).content.clone())
                 .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged),
             nvidia_target_temperature: FactoryHashMap::builder()
-                .launch_default()
+                .launch(AdjustmentCard::init(()).content.clone())
                 .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged),
             zero_rpm_temperature: FactoryHashMap::builder()
-                .launch_default()
+                .launch(AdjustmentCard::init(()).content.clone())
                 .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged),
             static_speed: FactoryHashMap::builder()
-                .launch_default()
+                .launch(AdjustmentCard::init(()).content.clone())
                 .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged),
             stats_section,
             fan_curve_frame,
@@ -350,6 +351,8 @@ impl relm4::Component for ThermalsPage {
                         self.fan_curve_frame.emit(FanCurveFrameMsg::Curve(msg));
 
                         let info = stats.fan.pmfw_info;
+                        let lower_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+                        let upper_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                         for (setting, title, info) in [
                             (
                                 ThermalSetting::TargetTemperature,
@@ -379,6 +382,8 @@ impl relm4::Component for ThermalsPage {
                                     AdjustmentRowMsg::AddSizeGroup {
                                         label_group: self.label_size_group.clone(),
                                         input_group: self.input_size_group.clone(),
+                                        lower_label_group: lower_label_group.clone(),
+                                        upper_label_group: upper_label_group.clone(),
                                     },
                                 );
                             }
@@ -402,6 +407,8 @@ impl relm4::Component for ThermalsPage {
                                     AdjustmentRowMsg::AddSizeGroup {
                                         label_group: self.label_size_group.clone(),
                                         input_group: self.input_size_group.clone(),
+                                        lower_label_group: lower_label_group.clone(),
+                                        upper_label_group: upper_label_group.clone(),
                                     },
                                 );
                             }
