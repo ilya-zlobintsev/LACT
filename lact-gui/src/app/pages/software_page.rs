@@ -50,7 +50,8 @@ impl relm4::SimpleComponent for SoftwarePage {
             set_spacing: 15,
             set_margin_all: 15,
 
-            PageSection::new(&fl!(I18N, "system-section")) {
+            PageSection {
+                set_name: fl!(I18N, "system-section"),
                 append_child = &gtk::FlowBox {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,
@@ -83,7 +84,8 @@ impl relm4::SimpleComponent for SoftwarePage {
                 #[name = "vulkan_stack"]
                 match model.selected_vulkan_info() {
                     Some(info) => {
-                        PageSection::new("Vulkan") {
+                        PageSection {
+                            set_name: "Vulkan",
                             append_child = &gtk::FlowBox {
                                 set_orientation: gtk::Orientation::Horizontal,
                                 set_column_spacing: 10,
@@ -140,7 +142,8 @@ impl relm4::SimpleComponent for SoftwarePage {
                         }
                     }
                     None => {
-                        PageSection::new("Vulkan") {
+                        PageSection {
+                            set_name: "Vulkan",
                             append_child = &gtk::Label {
                                 set_label: &fl!(I18N, "device-not-found", kind = "Vulkan"),
                                 set_halign: gtk::Align::Start,
@@ -152,7 +155,8 @@ impl relm4::SimpleComponent for SoftwarePage {
                 #[name = "opencl_stack"]
                 match model.selected_opencl_info() {
                     Some(info) => {
-                        PageSection::new("OpenCL") {
+                        PageSection {
+                            set_name: "OpenCL",
                             append_child = &gtk::FlowBox {
                                 set_orientation: gtk::Orientation::Horizontal,
                                 set_column_spacing: 10,
@@ -230,7 +234,8 @@ impl relm4::SimpleComponent for SoftwarePage {
                         }
                     }
                     None => {
-                        PageSection::new("OpenCL") {
+                        PageSection {
+                            set_name: "OpenCL",
                             append_child = &gtk::Label {
                                 set_label: &fl!(I18N, "device-not-found", kind = "OpenCL"),
                                 set_halign: gtk::Align::Start,

@@ -5,6 +5,14 @@ use lact_schema::DeviceStats;
 
 use crate::I18N;
 
+pub fn fmt_value_with_unit(value: impl fmt::Display, unit: &str) -> String {
+    if unit.is_empty() {
+        value.to_string()
+    } else {
+        format!("{value} {unit}")
+    }
+}
+
 /// Displays numeric values with monospace font.
 /// Should be used in oftent updated data.
 pub enum Mono {

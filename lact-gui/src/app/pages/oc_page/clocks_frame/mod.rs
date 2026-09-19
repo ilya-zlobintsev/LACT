@@ -18,7 +18,7 @@ use lact_schema::{
     request::{ClockspeedType, SetClocksCommand},
 };
 use relm4::{
-    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, binding::BoolBinding, css,
+    ComponentParts, ComponentSender, RelmObjectExt, WidgetTemplate, binding::BoolBinding, css,
     factory::FactoryHashMap,
 };
 use std::{collections::HashSet, sync::Arc};
@@ -111,7 +111,8 @@ impl relm4::Component for ClocksFrame {
     type CommandOutput = ();
 
     view! {
-        PageSection::new("") {
+        PageSection {
+            set_hide_visible_container: true,
             #[watch]
             set_name: match model.domain {
                 ClockDomain::Gpu => fl!(I18N, "core-section"),
@@ -154,7 +155,8 @@ impl relm4::Component for ClocksFrame {
             },
 
             #[template]
-            append_child = &AdjustmentCard {
+            #[local]
+            append_child = &card -> AdjustmentCard {
                 #[template_child]
                 advanced_features {
                     #[watch]
@@ -231,18 +233,16 @@ impl relm4::Component for ClocksFrame {
 
                 #[template_child]
                 content {
-                    #[local_ref]
-                    adjustments_widget -> gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 5,
-                    },
-
-                    gtk::Label {
-                        set_label: &fl!(I18N, "no-clocks-data"),
-                        set_margin_horizontal: 10,
-                        set_halign: gtk::Align::Start,
+                    gtk::ListBoxRow {
+                        set_activatable: false,
+                        set_selectable: false,
                         #[watch]
                         set_visible: !model.has_any_clocks(),
+
+                        gtk::Label {
+                            set_label: &fl!(I18N, "no-clocks-data"),
+                            set_halign: gtk::Align::Start,
+                        },
                     },
                 },
             },
@@ -258,9 +258,10 @@ impl relm4::Component for ClocksFrame {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let card = AdjustmentCard::init(());
         let model = Self {
             adjustments: FactoryHashMap::builder()
-                .launch_default()
+                .launch(card.content.clone())
                 .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged),
             secondary_p_state_clocks: HashSet::new(),
             domain,
@@ -283,7 +284,6 @@ impl relm4::Component for ClocksFrame {
             });
         }
 
-        let adjustments_widget = model.adjustments.widget();
         let widgets = view_output!();
 
         ComponentParts { model, widgets }
@@ -325,6 +325,8 @@ impl relm4::Component for ClocksFrame {
 
                 let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                 let input_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+                let lower_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+                let upper_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
 
                 for clock_type in self.adjustments.keys() {
                     self.adjustments.send(
@@ -332,6 +334,8 @@ impl relm4::Component for ClocksFrame {
                         AdjustmentRowMsg::AddSizeGroup {
                             label_group: label_size_group.clone(),
                             input_group: input_size_group.clone(),
+                            lower_label_group: lower_label_group.clone(),
+                            upper_label_group: upper_label_group.clone(),
                         },
                     );
                 }
@@ -399,6 +403,7 @@ impl ClocksFrame {
             clock_type,
             AdjustmentRowInit {
                 title: data.custom_title.unwrap_or_else(|| clock_title(clock_type)),
+                unit: clock_unit(clock_type),
                 info_text: if clock_type == ClockspeedType::VoltageBoost {
                     fl!(I18N, "gpu-voltage-boost-tooltip")
                 } else {
@@ -763,6 +768,26 @@ fn clock_title(clock_type: ClockspeedType) -> String {
         ClockspeedType::GpuVfCurveVoltage(pstate) | ClockspeedType::MemVfCurveVoltage(pstate) => {
             fl!(I18N, "pstate-clock-voltage", pstate = pstate)
         }
+        ClockspeedType::Reset => unreachable!(),
+    }
+}
+
+fn clock_unit(clock_type: ClockspeedType) -> String {
+    match clock_type {
+        ClockspeedType::MaxCoreClock
+        | ClockspeedType::MinCoreClock
+        | ClockspeedType::GpuClockOffset(_)
+        | ClockspeedType::MaxMemoryClock
+        | ClockspeedType::MinMemoryClock
+        | ClockspeedType::MemClockOffset(_)
+        | ClockspeedType::GpuVfCurveClock(_)
+        | ClockspeedType::MemVfCurveClock(_) => fl!(I18N, "mhz"),
+        ClockspeedType::MinVoltage
+        | ClockspeedType::MaxVoltage
+        | ClockspeedType::VoltageOffset
+        | ClockspeedType::GpuVfCurveVoltage(_)
+        | ClockspeedType::MemVfCurveVoltage(_) => fl!(I18N, "mv"),
+        ClockspeedType::VoltageBoost => "%".into(),
         ClockspeedType::Reset => unreachable!(),
     }
 }

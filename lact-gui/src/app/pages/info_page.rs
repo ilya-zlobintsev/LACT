@@ -36,7 +36,7 @@ impl relm4::SimpleComponent for InformationPage {
             set_margin_all: 15,
             set_margin_top: 20, // align with gpu picker
 
-            PageSection::new("") {
+            PageSection {
                 append_child = &model.values_list.widget().clone() -> gtk::FlowBox {
                     set_orientation: gtk::Orientation::Horizontal,
                     set_column_spacing: 10,
