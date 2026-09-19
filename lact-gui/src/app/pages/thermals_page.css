@@ -1,0 +1,8 @@
+.thermals-page .adjustment-row > scale {
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.thermals-page .adjustment-row > spinbutton {
+    min-width: 120px;
+}
