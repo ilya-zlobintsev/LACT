@@ -1,8 +1,6 @@
 use super::adjustment_value::AdjustmentValue;
-use crate::I18N;
 use crate::app::utils::ext::make_event_controller_no_scroll;
 use adw::prelude::*;
-use i18n_embed_fl::fl;
 use relm4::{FactorySender, RelmWidgetExt, css, factory::FactoryComponent};
 use std::marker::PhantomData;
 
@@ -89,11 +87,11 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                         set_orientation: gtk::Orientation::Horizontal,
                         set_valign: gtk::Align::Center,
                         set_hexpand: true,
-                        set_spacing: 12,
+                        set_spacing: 5,
 
                         #[name = "label"]
                         gtk::Label {
-                            set_valign: gtk::Align::End,
+                            set_valign: gtk::Align::Center,
                             set_xalign: 0.0,
                             set_markup: &self.title,
                             set_tooltip_text: (!self.title_tooltip.is_empty()).then_some(self.title_tooltip.as_str()),
@@ -103,32 +101,28 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                             add_css_class: css::CAPTION,
                             set_valign: gtk::Align::End,
 
-                            gtk::Label {
-                                set_valign: gtk::Align::End,
-                                set_xalign: 0.0,
-                                set_label: &self.unit,
-                                set_visible: !self.unit.is_empty(),
-                                add_css_class: css::DIM_LABEL,
-                            },
-
-                            gtk::Label {
-                                set_valign: gtk::Align::End,
-                                set_label: " · ",
-                                set_visible: !self.unit.is_empty() && !self.info_text.is_empty(),
-                                add_css_class: css::DIM_LABEL,
-                            },
-
-                            #[name = "details_label"]
-                            gtk::Label {
-                                set_valign: gtk::Align::End,
-                                set_markup: &format!(
-                                    "<a href=\"details\">{}</a>",
-                                    gtk::glib::markup_escape_text(&fl!(I18N, "adjustment-row-details")),
-                                ),
+                            #[name = "details_button"]
+                            gtk::MenuButton {
+                                set_valign: gtk::Align::Center,
                                 set_visible: !self.info_text.is_empty(),
-                                connect_activate_link[info_popover] => move |_, _| {
-                                    info_popover.popup();
-                                    gtk::glib::Propagation::Stop
+                                add_css_class: css::FLAT,
+
+                                #[wrap(Some)]
+                                set_popover = &gtk::Popover {
+                                    gtk::Label {
+                                        set_label: &self.info_text,
+                                        set_margin_all: 5,
+                                        set_wrap: true,
+                                        set_wrap_mode: gtk::pango::WrapMode::Word,
+                                        set_max_width_chars: 55,
+                                    },
+                                },
+
+
+                                #[wrap(Some)]
+                                set_child = &gtk::Image {
+                                    set_icon_name: Some("info-outline-symbolic"),
+                                    set_pixel_size: 12,
                                 },
                             },
                         },
@@ -150,7 +144,7 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
                     #[name = "lower_label"]
                     gtk::Label {
-                        set_label: &self.adjustment.lower().to_string(),
+                        set_label: &format!("{} {}", self.adjustment.lower(), self.unit),
                         set_xalign: 0.0,
                         add_css_class: css::CAPTION,
                         add_css_class: css::DIM_LABEL,
@@ -170,23 +164,12 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
                     #[name = "upper_label"]
                     gtk::Label {
-                        set_label: &self.adjustment.upper().to_string(),
+                        set_label: &format!("{} {}", self.adjustment.upper(), self.unit),
                         set_xalign: 1.0,
                         add_css_class: css::CAPTION,
                         add_css_class: css::DIM_LABEL,
                     },
                 },
-            },
-        },
-
-        #[name = "info_popover"]
-        gtk::Popover {
-            gtk::Label {
-                set_label: &self.info_text,
-                set_margin_all: 5,
-                set_wrap: true,
-                set_wrap_mode: gtk::pango::WrapMode::Word,
-                set_max_width_chars: 55,
             },
         },
 
@@ -225,12 +208,6 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
     ) -> Self::Widgets {
         let adjustment = &self.adjustment;
         let widgets = view_output!();
-        widgets.info_popover.set_parent(&widgets.details_label);
-
-        let info_popover = widgets.info_popover.clone();
-        widgets.details_label.connect_destroy(move |_| {
-            info_popover.unparent();
-        });
 
         widgets
     }
