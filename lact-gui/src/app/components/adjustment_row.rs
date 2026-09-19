@@ -145,7 +145,6 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                     #[name = "lower_label"]
                     gtk::Label {
                         set_label: &format!("{} {}", self.adjustment.lower(), self.unit),
-                        set_xalign: 0.0,
                         add_css_class: css::CAPTION,
                         add_css_class: css::DIM_LABEL,
                     },
@@ -165,7 +164,6 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                     #[name = "upper_label"]
                     gtk::Label {
                         set_label: &format!("{} {}", self.adjustment.upper(), self.unit),
-                        set_xalign: 1.0,
                         add_css_class: css::CAPTION,
                         add_css_class: css::DIM_LABEL,
                     },
