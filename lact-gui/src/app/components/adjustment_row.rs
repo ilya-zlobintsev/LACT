@@ -226,11 +226,13 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
         let adjustment = &self.adjustment;
         let widgets = view_output!();
         widgets.info_popover.set_parent(&widgets.details_label);
-        widgets
-    }
 
-    fn shutdown(&mut self, widgets: &mut Self::Widgets, _output: relm4::Sender<Self::Output>) {
-        widgets.info_popover.unparent();
+        let info_popover = widgets.info_popover.clone();
+        widgets.details_label.connect_destroy(move |_| {
+            info_popover.unparent();
+        });
+
+        widgets
     }
 
     fn update_with_view(
