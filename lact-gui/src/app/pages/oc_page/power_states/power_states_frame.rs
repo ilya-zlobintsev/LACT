@@ -57,7 +57,8 @@ impl relm4::SimpleComponent for PowerStatesFrame {
     type Output = OcPageMsg;
 
     view! {
-        PageSection::new(&fl!(I18N, "pstates")) {
+        PageSection {
+            set_name: fl!(I18N, "pstates"),
             set_hide_visible_container: true,
             #[template]
             append_child = &AdjustmentCard {

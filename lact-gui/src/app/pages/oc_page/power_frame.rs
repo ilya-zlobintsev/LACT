@@ -46,7 +46,8 @@ impl relm4::Component for PowerFrame {
 
     view! {
         #[root]
-        PageSection::new(&fl!(I18N, "power-section")) {
+        PageSection {
+            set_name: fl!(I18N, "power-section"),
             set_hide_visible_container: true,
             #[watch]
             set_visible: model.is_available(),

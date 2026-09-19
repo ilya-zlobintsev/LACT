@@ -14,10 +14,6 @@ glib::wrapper! {
 }
 
 impl PageSection {
-    pub fn new(name: &str) -> Self {
-        Object::builder().property("name", name).build()
-    }
-
     pub fn append_header(&self, widget: &impl IsA<gtk::Widget>) {
         use glib::subclass::types::ObjectSubclassIsExt;
         self.imp().header_box.append(widget);
@@ -31,7 +27,7 @@ impl PageSection {
 
 impl Default for PageSection {
     fn default() -> Self {
-        Self::new("")
+        Object::builder().property("name", "").build()
     }
 }
 

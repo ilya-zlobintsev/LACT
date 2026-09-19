@@ -111,7 +111,7 @@ impl relm4::Component for ClocksFrame {
     type CommandOutput = ();
 
     view! {
-        PageSection::new("") {
+        PageSection {
             set_hide_visible_container: true,
             #[watch]
             set_name: match model.domain {
