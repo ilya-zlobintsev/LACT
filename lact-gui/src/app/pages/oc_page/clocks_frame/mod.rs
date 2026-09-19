@@ -112,6 +112,7 @@ impl relm4::Component for ClocksFrame {
 
     view! {
         PageSection::new("") {
+            set_unpadded: true,
             #[watch]
             set_name: match model.domain {
                 ClockDomain::Gpu => fl!(I18N, "core-section"),
@@ -232,14 +233,15 @@ impl relm4::Component for ClocksFrame {
                 #[template_child]
                 content {
                     #[local_ref]
-                    adjustments_widget -> gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
-                        set_spacing: 5,
+                    adjustments_widget -> gtk::ListBox {
+                        add_css_class: "adjustment-list",
+                        set_selection_mode: gtk::SelectionMode::None,
+                        set_show_separators: true,
                     },
 
                     gtk::Label {
                         set_label: &fl!(I18N, "no-clocks-data"),
-                        set_margin_horizontal: 10,
+                        set_margin_all: 10,
                         set_halign: gtk::Align::Start,
                         #[watch]
                         set_visible: !model.has_any_clocks(),

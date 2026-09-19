@@ -4,7 +4,8 @@
     margin: 10px;
 }
 
-.page-section-no-container .page-section-children-box {
+.page-section-no-container .page-section-children-box,
+.page-section-unpadded .page-section-children-box {
     margin: 0;
 }
 

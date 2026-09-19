@@ -19,7 +19,9 @@ use amdgpu_sysfs::gpu_handle::PerformanceLevel;
 use i18n_embed_fl::fl;
 use lact_schema::PowerStats;
 use nvml_wrapper::enums::device::PowerMizerMode;
-use relm4::{ComponentController, ComponentParts, ComponentSender, factory::FactoryHashMap};
+use relm4::{
+    ComponentController, ComponentParts, ComponentSender, RelmWidgetExt, factory::FactoryHashMap,
+};
 
 pub struct PowerFrame {
     power: PowerStats,
@@ -45,6 +47,7 @@ impl relm4::Component for PowerFrame {
     view! {
         #[root]
         PageSection::new(&fl!(I18N, "power-section")) {
+            set_unpadded: true,
             #[watch]
             set_visible: model.is_available(),
 
@@ -62,13 +65,17 @@ impl relm4::Component for PowerFrame {
                 #[template_child]
                 content {
                     #[local_ref]
-                    power_row_widget -> gtk::Box {
-                        set_orientation: gtk::Orientation::Vertical,
+                    power_row_widget -> gtk::ListBox {
+                        add_css_class: "adjustment-list",
+                        set_selection_mode: gtk::SelectionMode::None,
+                        set_show_separators: true,
                         #[watch]
                         set_visible: !model.power_row.is_empty(),
                     },
 
-                    append: model.performance_frame.widget(),
+                    append = model.performance_frame.widget() {
+                        set_margin_all: 10,
+                    },
                 },
             },
         },

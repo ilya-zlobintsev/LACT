@@ -8,7 +8,6 @@ impl relm4::WidgetTemplate for AdjustmentCard {
     view! {
         gtk::Box {
             set_orientation: gtk::Orientation::Vertical,
-            set_spacing: 10,
             set_hexpand: true,
             set_valign: gtk::Align::Start,
 
@@ -37,7 +36,6 @@ impl relm4::WidgetTemplate for AdjustmentCard {
             #[name = "content"]
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 10,
             },
         }
     }

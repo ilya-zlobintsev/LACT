@@ -16,7 +16,7 @@ use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
-    ComponentController, ComponentParts, ComponentSender,
+    ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
     binding::{Binding, BoolBinding},
 };
 use std::sync::Arc;
@@ -58,6 +58,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
     view! {
         PageSection::new(&fl!(I18N, "pstates")) {
+            set_unpadded: true,
             #[template]
             append_child = &AdjustmentCard {
                 #[template_child]
@@ -94,6 +95,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                 #[template_child]
                 content {
                     gtk::Box {
+                        set_margin_all: 10,
                         set_spacing: 10,
                         set_orientation: gtk::Orientation::Horizontal,
                         set_homogeneous: true,

@@ -62,6 +62,9 @@ mod imp {
 
         #[property(get, set)]
         hide_visible_container: Cell<bool>,
+
+        #[property(get, set)]
+        unpadded: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -108,6 +111,7 @@ mod imp {
                         add_css_class: "page-section-content" ,
                         set_class_active: (css::CARD, !self.hide_visible_container.get()),
                         set_class_active: ("page-section-no-container", self.hide_visible_container.get()),
+                        set_class_active: ("page-section-unpadded", self.unpadded.get()),
 
                         #[local_ref]
                         append = children_box {
@@ -134,6 +138,12 @@ mod imp {
                 let content_box = &obj.imp().content_box;
                 content_box.set_class_active(css::CARD, !hidden);
                 content_box.set_class_active("page-section-no-container", hidden);
+            });
+
+            obj.connect_notify_local(Some("unpadded"), |obj, _| {
+                obj.imp()
+                    .content_box
+                    .set_class_active("page-section-unpadded", obj.unpadded());
             });
         }
     }
