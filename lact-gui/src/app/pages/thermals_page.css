@@ -6,3 +6,17 @@
 .thermals-page .adjustment-row > spinbutton {
     min-width: 120px;
 }
+
+.fan-control-section .adjustment-list {
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.fan-control-section .adjustment-list > row {
+    border-radius: 0;
+}
+
+.fan-control-section .fan-control-option {
+    margin: 5px 10px;
+}

@@ -109,7 +109,7 @@ impl relm4::Component for ThermalsPage {
 
             PageSection {
                 set_name: fl!(I18N, "fan-control-section"),
-                set_hide_visible_container: true,
+                add_css_class: "fan-control-section",
                 // Disable fan configuration when overdrive is disabled on GPUs that have PMFW (RDNA3+)
                 #[watch]
                 set_sensitive: model.custom_control_supported,
@@ -180,6 +180,7 @@ impl relm4::Component for ThermalsPage {
                     },
 
                     gtk::Box {
+                        add_css_class: "fan-control-option",
                         set_spacing: 5,
                         #[watch]
                         set_visible: model.selected_mode != Some(FanControlMode::Static)

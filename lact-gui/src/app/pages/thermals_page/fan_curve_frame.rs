@@ -177,6 +177,7 @@ impl relm4::Component for FanCurveFrame {
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
+                add_css_class: "fan-control-option",
                 set_spacing: 5,
                 #[watch]
                 set_visible: model.temp_keys_available(),
