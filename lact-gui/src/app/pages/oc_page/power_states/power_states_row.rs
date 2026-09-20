@@ -67,13 +67,21 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
                     add_css_class: css::MONOSPACE,
                     #[watch]
                     set_class_active: (css::DIM_LABEL, !self.active.value()),
+                    set_label: &match self.power_state.id {
+                        Some(PowerLevelId::Index(index)) => format!("{index}:"),
+                        Some(PowerLevelId::Sleep) => "S:".to_owned(),
+                        None => String::new(),
+                    },
+                },
+
+                append = &gtk::Label {
+                    add_css_class: css::MONOSPACE,
+                    set_hexpand: true,
+                    set_xalign: 1.0,
+                    #[watch]
+                    set_class_active: (css::DIM_LABEL, !self.active.value()),
                     #[watch]
                     set_label: &{
-                        let index_text = match self.power_state.id {
-                            Some(PowerLevelId::Index(index)) => index.to_string(),
-                            Some(PowerLevelId::Sleep) => "S".to_owned(),
-                            None => String::new(),
-                        };
                         let value = (self.power_state.value as f64 * self.value_ratio) as u64;
                         let value_text = match self.power_state.min_value {
                             Some(min) if min != self.power_state.value => {
@@ -82,7 +90,7 @@ impl relm4::factory::FactoryComponent for PowerStateRow {
                             }
                             _ => value.to_string(),
                         };
-                        format!("{index_text}: {value_text} {}", self.value_suffix)
+                        format!("{value_text} {}", self.value_suffix)
                     },
                 },
             },
