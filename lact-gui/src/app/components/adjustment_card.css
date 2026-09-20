@@ -1,17 +1,26 @@
 .adjustment-list > row {
+    padding: 10px;
+}
+
+.adjustment-list > row.adjustment-row {
     padding: 5px 10px;
 }
 
-.adjustment-list > row:first-child {
+.adjustment-list > row.adjustment-row:first-child {
     padding-top: 10px;
 }
 
-.adjustment-list > row:last-child {
+.adjustment-list > row.adjustment-row:last-child {
     padding-bottom: 10px;
 }
 
 /* The card owns row spacing, including Adwaita action rows. */
 .adjustment-list > row > box.header {
+    margin: 0;
+    min-height: 0;
+}
+
+.adjustment-list > row > box.header > box.title {
     margin: 0;
 }
 

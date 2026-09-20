@@ -465,9 +465,9 @@ impl ClocksFrame {
                     ClockDomain::Gpu => 1.0,
                     ClockDomain::Vram => self.vram_clock_ratio,
                 };
-                format!("· {:.0} {}", clock as f64 * ratio, fl!(I18N, "mhz"))
+                format!("{:.0} {}", clock as f64 * ratio, fl!(I18N, "mhz"))
             }
-            None => "· N/A".to_owned(),
+            None => "N/A".to_owned(),
         }
     }
 
