@@ -1,5 +1,26 @@
 # Contributing
 
+## AI Policy
+
+The most important rule is that **all communication must be human-written**.
+Do not make others to talk to a bot, or force them to understand blocks of LLM-generated text.
+
+### Reporting issues or feature requests
+- You must describe the problem/feature in your own words.
+- If you have used an AI tool to analyze or debug an issue, you must distinguish parts which have been verified by you vs what AI analysis told you.
+
+### Contributing code
+- You must understand the code you are submitting. If asked about a specific change, you need to be able to explain why you did it.
+- Avoid needlessly verbose comments, checks against impossible cases, or other things which make the code more complex than it needs to be.
+- Do not submit submit unnecessarily large PRs which are difficult to review.
+- It is better to leave a well-formulated feature request, than a purely vibecoded implementation.
+  - De-slopping someone else's code as a maintainer often takes more time than implementing the same thing from scratch.
+- Create an issue for discussion before submitting a PR for a large feature.
+  - Features that add a lot of complexity, but only benefit a small number of users (e.g. something that only works on select GPU models) may not be worth maintaining.
+- If you receive feedback on a PR, you must think about it yourself, not just submit it as the next prompt.
+
+## Overview
+
 LACT is entirely written in Rust, but depends on several C libraries. See [README](../README.md#building-from-source) for the list.
 
 For development builds, it is enough to simply run `cargo build`, `make` is not necessary. 
@@ -9,7 +30,7 @@ Often times you might want to test local daemon changes togther with the UI. To 
 - `cargo build && sudo ./target/debug/lact daemon` in one terminal
 - `cargo run` in another terminal to run the GUI
 
-# Hardware
+## Hardware
 
 LACT supports multiple GPU vendors, which often have very different behaviour. This affects both the daemon and parts of the GUI.
 
@@ -23,7 +44,7 @@ _LACT_DRM_SYSFS_PATH=./lact-daemon/src/tests/data/amd/rx9070 cargo run
 ```
 This will display the UI mostly the way it looks on that device (though some things will be missing). It is also readonly, applying settings is not supported.
 
-# Tests
+## Tests
 
 For running the tests, you can simply use `cargo test`.
 
