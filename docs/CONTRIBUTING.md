@@ -8,6 +8,7 @@ Do not make others to talk to a bot, or force them to understand blocks of LLM-g
 ### Reporting issues or feature requests
 - You must describe the problem/feature in your own words.
 - If you have used an AI tool to analyze or debug an issue, you must distinguish parts which have been verified by you vs what AI analysis told you.
+- If an issue is reported with AI assistance, it must follow the [AI Report ruleset](ai-bug-report-rules/v1.md).
 
 ### Contributing code
 - You must understand the code you are submitting. If asked about a specific change, you need to be able to explain why you did it.
