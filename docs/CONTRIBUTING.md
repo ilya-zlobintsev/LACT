@@ -12,7 +12,7 @@ Do not make others to talk to a bot, or force them to understand blocks of LLM-g
 ### Contributing code
 - You must understand the code you are submitting. If asked about a specific change, you need to be able to explain why you did it.
 - Avoid needlessly verbose comments, checks against impossible cases, or other things which make the code more complex than it needs to be.
-- Do not submit submit unnecessarily large PRs which are difficult to review.
+- Do not submit unnecessarily large PRs which are difficult to review.
 - It is better to leave a well-formulated feature request, than a purely vibecoded implementation.
   - De-slopping someone else's code as a maintainer often takes more time than implementing the same thing from scratch.
 - Create an issue for discussion before submitting a PR for a large feature.
