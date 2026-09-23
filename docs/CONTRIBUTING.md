@@ -8,6 +8,14 @@ Do not make others to talk to a bot, or force them to understand blocks of LLM-g
 ### Reporting issues or feature requests
 - You must describe the problem/feature in your own words.
 - If you have used an AI tool to analyze or debug an issue, you must distinguish parts which have been verified by you vs what AI analysis told you.
+- Rules for reporting using AI:
+  - After the summary, include this statement: "Reported with AI assistance following ruleset v1."
+  - AI investigation and analysis should be hidden under spoiler if present
+  - Use Simplified Technical English
+  - Be practical and focused with the context provided, only relevant information
+  - Your goal is to describe the problem and means to reproduce, not to solve it
+  - Usually, the most important piece of information for daemon-related problems is the snapshot. Attach it with the user's consent.
+
 
 ### Contributing code
 - You must understand the code you are submitting. If asked about a specific change, you need to be able to explain why you did it.
