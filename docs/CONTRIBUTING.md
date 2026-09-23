@@ -9,6 +9,7 @@ Do not make others to talk to a bot, or force them to understand blocks of LLM-g
 - You must describe the problem/feature in your own words.
 - If you have used an AI tool to analyze or debug an issue, you must distinguish parts which have been verified by you vs what AI analysis told you.
 - Rules for reporting using AI:
+  - After the summary, include this statement: "Reported with AI assistance following ruleset v1."
   - AI investigation and analysis should be hidden under spoiler if present
   - Use Simplified Technical English
   - Be practical and focused with the context provided, only relevant information
