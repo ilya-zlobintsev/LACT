@@ -857,6 +857,7 @@ impl GpuController for IntelGpuController {
             current: self.get_power_usage(),
             cap_current: self.get_power_cap(),
             cap_min: Some(0.0),
+            cap_min_native: None,
             cap_max: self.get_power_cap_max(),
             cap_default: self.initial_power_cap,
             sensors: HashMap::new(),
