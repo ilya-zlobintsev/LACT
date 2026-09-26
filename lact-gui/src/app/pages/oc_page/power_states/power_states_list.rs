@@ -1,21 +1,18 @@
 use super::power_states_row::{PowerStateRow, PowerStateRowMsg, PowerStateRowOptions};
 use amdgpu_sysfs::gpu_handle::PowerLevelId;
-use gtk::prelude::{FrameExt, WidgetExt};
+use gtk::prelude::WidgetExt;
 use lact_schema::PowerState;
-use relm4::{
-    ComponentParts, ComponentSender, RelmWidgetExt, binding::BoolBinding, css,
-    prelude::FactoryVecDeque,
-};
+use relm4::{ComponentParts, ComponentSender, binding::BoolBinding, prelude::FactoryVecDeque};
 
 pub struct PowerStatesList {
     states: FactoryVecDeque<PowerStateRow>,
     value_suffix: String,
     is_active_indicator_visible: BoolBinding,
     configurable: BoolBinding,
+    active_state: Option<PowerLevelId>,
 }
 
 pub struct PowerStatesListOptions {
-    pub title: String,
     pub value_suffix: String,
 }
 
@@ -24,6 +21,7 @@ pub enum PowerStatesListMsg {
     PowerStates(Vec<PowerState>, f64),
     ActiveState(Option<PowerLevelId>),
     Configurable(bool),
+    ValueRatio(f64),
 }
 
 #[relm4::component(pub)]
@@ -33,16 +31,11 @@ impl relm4::SimpleComponent for PowerStatesList {
     type Output = ();
 
     view! {
-        gtk::Frame {
+        gtk::Box {
             set_hexpand: true,
-            #[wrap(Some)]
-            set_label_widget = &gtk::Label {
-                set_label: &opts.title,
-                set_margin_horizontal: 5,
-                add_css_class: css::CAPTION_HEADING,
-            },
             #[local_ref]
             states_widget -> gtk::ListBox {
+                set_hexpand: true,
                 set_selection_mode: gtk::SelectionMode::None,
             },
         }
@@ -60,6 +53,7 @@ impl relm4::SimpleComponent for PowerStatesList {
             value_suffix: opts.value_suffix,
             is_active_indicator_visible: BoolBinding::new(false),
             configurable: BoolBinding::new(true),
+            active_state: None,
         };
 
         let states_widget = model.states.widget();
@@ -75,12 +69,12 @@ impl relm4::SimpleComponent for PowerStatesList {
                 let mut states = self.states.guard();
                 states.clear();
 
-                for mut power_state in new_pstates {
-                    power_state.value = (power_state.value as f64 * value_ratio) as u64;
+                for power_state in new_pstates {
                     let opts = PowerStateRowOptions {
                         power_state,
                         value_suffix: self.value_suffix.clone(),
-                        active: false,
+                        value_ratio,
+                        active: self.active_state.is_some() && power_state.id == self.active_state,
                         show_active_indicator: self.is_active_indicator_visible.clone(),
                         configurable: self.configurable.clone(),
                     };
@@ -88,16 +82,20 @@ impl relm4::SimpleComponent for PowerStatesList {
                 }
             }
             PowerStatesListMsg::ActiveState(active_idx) => {
+                self.active_state = active_idx;
                 self.is_active_indicator_visible
                     .set_value(active_idx.is_some());
                 for (i, row) in self.states.iter().enumerate() {
-                    let is_active = row.power_state.id == active_idx;
+                    let is_active = active_idx.is_some() && row.power_state.id == active_idx;
 
                     self.states.send(i, PowerStateRowMsg::Active(is_active));
                 }
             }
             PowerStatesListMsg::Configurable(configurable) => {
                 self.configurable.set_value(configurable);
+            }
+            PowerStatesListMsg::ValueRatio(ratio) => {
+                self.states.broadcast(PowerStateRowMsg::ValueRatio(ratio));
             }
         }
     }

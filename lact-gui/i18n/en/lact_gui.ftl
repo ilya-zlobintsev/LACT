@@ -213,6 +213,7 @@ pstate-clock-offset = P-State {$pstate} Clock Offset
 pstate-clock = P-State {$pstate} Clock
 pstate-clock-voltage = P-State {$pstate} Voltage
 
+pstate = Power State
 pstates = Power States
 gpu-pstates = GPU Power States
 vram-pstates = VRAM Power States
