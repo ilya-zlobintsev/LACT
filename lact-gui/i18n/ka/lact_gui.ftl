@@ -33,7 +33,7 @@ mhz = მჰც
 stats-section = სტატისტიკა
 reset-config = კონფიგურაციის ჩამოყრა
 gpu-voltage = GPU-ის ვოლტაჟი
-power-cap = კვების ხარჯვის ლიმიტი
+power-cap = კვების ლიმიტი
 gpu-temp = ტემპერატურა
 vram-clock = VLAM-ის სიხშირე
 power-usage = კვების გამოყენება
@@ -107,7 +107,7 @@ performance-level = წარმადობის დონე
 historical-data-title = ისტორიული მონაცემები
 add-graph = გრაფიკის დამატება
 delete-graph = გრაფიკის წაშლა
-show-all-pstates = ყველა P-State-ის ჩვენება
+show-all-pstates = ყველა P-State
 gpu-pstates = GPU-ის კვების მდგომარეობები
 vram-pstates = VRAM-ის კვების მდგომარეობები
 show-historical-charts = გრაფიკების ჩვენება
@@ -127,18 +127,12 @@ export-csv = გატანა CSV-ში
 edit-graph-sensors = გრაფიკის სენსორების ჩასწორება
 gpu-clock-avg = GPU-ის ბირთვის სიხშირე (საშუალო)
 gpu-clock-target = GPU-ის ბირთვის სიხშირე (სამიზნე)
-enable-gpu-locked-clocks = GPU-ის ჩაკეტილი სიხშირეების ჩართვა
-enable-vram-locked-clocks = VRAM-ის ჩაკეტილი სიხშირეების ჩართვა
 no-clocks-data = სიხშირეების შესახებ მონაცემები ხელმისაწვდომი არაა
-gpu-clock-offset = GPU-ის სიხშირის წანაცვლება (მჰც)
-max-gpu-clock = GPU-ის მაქსიმალური სიხშირე (მჰც)
-max-vram-clock = VRAM-ის მაქსიმალური სიხშირე (მჰც)
-max-gpu-voltage = GPU-ის მაქსიმალური ვოლტაჟი (მვ)
-min-gpu-clock = GPU-ის მინიმალური სიხშირე (მჰც)
-min-vram-clock = VRAM-ის მინიმალური სიხშირე (მჰც)
-min-gpu-voltage = GPU-ის მინიმალური ვოლტაჟი (მვ)
-gpu-voltage-offset = GPU-ის ვოლტაჟის წანაცვლება (მვ)
-enable-pstate-config = კვების მდგომარეობის მორგების ჩართვა
+gpu-clock-offset = სიხშირის წანაცვლება
+max-gpu-voltage = მაქსიმალური ძაბვა
+min-gpu-voltage = მინიმალური ძაბვა
+gpu-voltage-offset = ძაბვის წანაცვლება
+enable-pstate-config = P-State-ის მორგება
 import-profile = პროფილის შემოტანა ფაილიდან
 profile-rule-process-tab = პროცესი გაშვებულია
 profile-rule-specific-process = სპეციფიკური პროცესით:
@@ -152,10 +146,6 @@ activation-auto-switching-disabled = ავტომატური პროფ
 amd-oc-updating-configuration = კონფიგურაციის განახლება (ამას, შეიძლება, საკმაო დრო დასჭირდეს)
 amd-oc-updating-done = კონფიგურაცია განახლდა. ცვლილებების ძალაში შესასვლელად გადატვირთეთ კომპიუტერი.
 performance-level-auto-description = GPU-ის და VRAM-ის სიხშირეების ავტომატური გასწორება. (ნაგულისხმევი)
-gpu-pstate-clock = GPU-ის P-State { $pstate } სიხშირე (მჰც)
-mem-pstate-clock = VRAM-ის P-State { $pstate } სიხშირე (მჰც)
-gpu-pstate-clock-voltage = GPU-ის P-State { $pstate } ვოლტაჟი (მვ)
-mem-pstate-clock-voltage = VRAM-ის P-State { $pstate } ვოლტაჟი (მვ)
 spindown-delay-tooltip = რამდენ ხანს უნდა იყოს GPU დაბალ ტემპერატურაზე, სანამ ვენტილატორის ბრუნვის რიცხვები შემცირდება
 amd-oc-detected-system-config =
     დადგენილი სისტემის კონფიგურაცია: <b>{ $config ->
@@ -166,7 +156,6 @@ reset-config-description = ეს ჩამოყრის ყველა GPU-�
 performance-level-high-description = GPU-ისთვის და VRAM-ისთვის ყოველთვის უმაღლესი სიხშირის გამოყენება
 performance-level-low-description = GPU-ისთვის და VRAM-ისთვის ყოველთვის ყველაზე დაბალი სიხშირის გამოყენება
 manual-level-needed = კვების მდგომარეობების და რეჟიმების გამოსაყენებლად წარმადობის დონე "მორგებულზე" უნდა დააყენოთ
-oc-warning = ამ მნიშვნელობების შეცვლამ, შეიძლება, სისტემა არასტაბილურ მდგომარეობამდე მიიყვანოს და დიდი შანსია, თქვენი აპარატურა დააზიანოს!
 oc-missing-fan-control-warning = გაფრთხილება: აჩქარების მხარდაჭერა გამორთულია. ვენტილატორის კონტროლის ფუნქციონალი ხელმისაწვდომი არაა.
 automatic-mode-threshold-tooltip =
     ვენტილატორის კონტროლი ავტომატურ რეჟიმზე გადართვა, როცა ტემპერატურა ამ წერტილს ქვემოთაა.
@@ -185,10 +174,7 @@ amd-oc-status =
 disable-amd-oc = AMD-ის გაჩქარების გათიშვა
 enable-amd-oc = AMD-ის გაჩქარების ჩართვა
 disable-amd-oc-description = ეს გამორთავს AMD-ის გაჩქარების მხარდაჭერას შემდეგი გაჩქარებისას.
-nvidia-oc-info = გაჩქარების ინფორმაცია
 reset-oc-tooltip = გაფრთხილება: ეს ყველა სიხშირის პარამეტრს ნაგულისხმევზე ჩამოყრის!
-gpu-pstate-clock-offset = GPU P-State-ის { $pstate } სიხშირის წანაცვლება (მჰც)
-vram-pstate-clock-offset = VRAM P-State { $pstate }-ის სიხშირის წანაცვლება (მჰც)
 any-rules-matched = ნებისმიერი შემდეგი წესებიდან, რომელიც ემთხვევა:
 all-rules-matched = ემთხვევა ყველა შემდეგი წესი:
 amd-oc-description =
@@ -203,18 +189,8 @@ amd-oc-description =
 
     მეტი ინფორმაციისთვის იხილეთ <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">ვიკი</a>.
 enable-amd-oc-description = ეს ჩართავს amdgpu-ის overdrive-ის ფუნქციას. ამისთვის ის შექმნის ფაილს <b>{ $path }</b> და შემდეგ განაახლებს initramfs-ს. მართლა გნებავთ, ეს გააკეთოთ?
-nvidia-oc-description =
-    გაჩქარების ფუნქციონალი Nvidia-ის ბარათებზე შეიცავს პარამეტრებს GPU/VRAM-ის სიხშირეების წანაცვლებისთვის და შეზღუდვებს სიხშირეებისთვის "ჩაკეტილი სიხშირეების" ფუნქციი გამოყენებით.
-
-    ბევრ ბარათზე VRAM-ის სიხშირის წანაცვლება მეხსიერების მოდულების სიხშირეზე, მხოლოდ, წანაცვლების მნიშვნელობის ნახევრით იმოქმედებს.
-    მაგალითად, +10000მჰც VRAM-ის წანაცვლება VRAM-ის სიხშირეს, მხოლოდ, 5000მჰც-ით გაზრდის.
-    ეს ნორმალურია და ეს ის გზაა, როგორც Nvidia ამუშავებს GDDR-ის სიხშირეებს. ასე რომ, გაჩქარებისას გაითვალისწინეთ ეს.
-
-    შესაძლებელია ფსევდო-ვოლტაჟის დაკლება ჩაკეტილი სიხშირის პარამეტრისა და დადებითი სიხშირის წანაცვლების პარამეტრის კომბინაციით.
-    ეს აიძულებს GPU-ს, რომ იმუშაოს ვოლტაჟით, რომელიც შეზღუდულია ჩაკეტილი სიხშირით მაშინ, როცა ის იმუშავებს უფრო მაღალი სიხშირით წანაცვლების გამო.
-    თუ ამას მეტისმეტად დიდ მნიშვნელობაზე დააყენებთ, ამას სისტემის არასტაბილურ მუშაობამდე შეუძლია, მიგიყვანოთ.
 pstate-list-description = <b>ეს მნიშვნელობები სიხშირის წანაცვლებებია თითოეული P-state-სთვის უდიდესიდან უმცირესამდე.</b>
-pstates-manual-needed = კვების მდგომარეობების გადასართველად წარმადობის დონე "ხელით დაყენებაზე" უნდა იყოს დაყენებული
+pstates-manual-needed = P-State-ის კონფიგურაციის ჩასართავად წარმადობის დონე ხელით დაყენებულზე უნდა გადართოთ.
 activation-settings-status =
     არჩეული გააქტიურების პარამეტრები ამჟამად<b>{ $matched ->
         [true] ემთხვევა
@@ -298,7 +274,7 @@ service-start = გაშვება
 service-stop = გაჩერება
 service-disconnected = დაკავშირებული არაა
 gui-version = GUI-ის ვერსია
-gpu-voltage-boost = GPU-ის ძაბვის ზრდა (%)
+gpu-voltage-boost = ძაბვის ზრდა
 gpu-voltage-boost-tooltip = აკონტროლებს, რამდენი დამატებითი ძაბვაა დრაივერის მიერ დაშვებული. 100% ნიშნავს ამ ძაბვის სრულად გამოყენებას და არა GPU-ის სრული ძაბვის 100%-ს. მეტმა დამატებითმა ძაბვამ, შეიძლება, უფრო მეტი სიხშირე დაუშვას, მაგრამ ასევე იზრდება დახარჯული ენერგია და გამოყოფილი სითბოც.
 no-fan-detected = ვენტილატორები აღმოჩენილი არაა
 no-sensors-found = სენსორები აღმოჩენილი არაა
@@ -314,8 +290,26 @@ performance-level-profile-min-sclk = GPU-ის უმდაბლესი ს�
 performance-level-profile-min-mclk = VRAM-ის უმდაბლესი საათის პროფილირება
 performance-level-profile-peak = პიკის პროფილირება
 performance-level-profile-standard-description = პროფილირების ფიქსირებული რეჟიმი
-performance-level-profile-min-sclk-description = პროფილირების რეჟიმი, რომელიც GPU-ის საათს აიძულებს, უმდაბლეს დონეზე იმუშაოს
-performance-level-profile-min-mclk-description = პროფილირების რეჟიმი, რომელიც VRAM-ის საათს აიძულებს, უმდაბლეს დონეზე იმუშაოს
-performance-level-profile-peak-description = პროფილირების რეჟიმი, რომელიც GPU-ის და VRAM-ის საათებს აიძულებს, უმაღლეს დონეზე იმუშაოს
-enable-vf-curve = VF-ის მრუდის ჩასწორების ჩართვა
+performance-level-profile-min-sclk-description = აიძულებს GPU-ის საათს, უმდაბლეს დონეზე იმუშაოს
+performance-level-profile-min-mclk-description = აიძულებს VRAM-ის საათს, უმდაბლეს დონეზე იმუშაოს
+performance-level-profile-peak-description = აიძულებს GPU-ის და VRAM-ის საათებს, უმაღლეს დონეზე იმუშაონ
+enable-vf-curve = მომხმარებლის VF-ის მრუდი
 vf-curve-editing-disabled = VF-ის მრუდის ჩასწორება გამორთულია OC-ის გვერდზე
+mv = მვ
+enable-locked-clocks = ჩაკეტილი სიხშირეები
+vram-section = VRAM
+max-clock = მაქსიმალური სიხშირე
+pstate-clock-offset = P-State-ის { $pstate } სიხშირის წანაცვლება
+pstate-clock-voltage = P-State { $pstate } ძაბვა
+reattach-page = დაბრუნება მთავარ ფანჯარაზე
+language-system-default = სისტემის ნაგულისხმევი
+show-page-window = ფოკუსის გადატანა ფანჯარაზე
+page-detached = ეს გვერდი სხვა ფანჯარაშია გახსნილი.
+min-clock = მინიმალური სიხშირე
+detach-page = { $page }-ის მოხსნა
+language-restart-notice = ენის ცვლილების ძალაში შესასვლელად გადატვირთეთ LACT-ის GUI.
+pstate-clock = P-State { $pstate } სიხშირე
+advanced-features = დამატებითი ფუნქციები
+core-section = ბირთვი
+language = ენა
+power-section = კვება
