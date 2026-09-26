@@ -253,9 +253,9 @@ impl relm4::Component for ClocksFrame {
                     },
 
                     adw::ActionRow {
-                        set_title: &fl!(I18N, "pstates"),
+                        set_title: &fl!(I18N, "pstate"),
                         set_activatable: true,
-                        add_css_class: "power-states-summary",
+                        add_css_class: "pstates",
                         #[watch]
                         set_visible: model.has_power_states,
                         connect_activated[sender, domain = model.domain] => move |_| {
@@ -334,9 +334,9 @@ impl relm4::Component for ClocksFrame {
         let widgets = view_output!();
 
         model.adjustments.widget().set_sort_func(|left, right| {
-            // Keep the summary after dynamically inserted clock controls.
-            left.has_css_class("power-states-summary")
-                .cmp(&right.has_css_class("power-states-summary"))
+            // Keep the pstates row after dynamically inserted clock controls.
+            left.has_css_class("pstates")
+                .cmp(&right.has_css_class("pstates"))
                 .into()
         });
 

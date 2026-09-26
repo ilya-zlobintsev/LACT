@@ -83,7 +83,6 @@ impl relm4::Component for PowerStatesDialog {
                     set_max_content_height: 500,
 
                     PageSection {
-                        set_name: "",
                         set_hide_visible_container: true,
                         set_margin_all: 15,
                         add_css_class: "power-states-dialog-card",
@@ -297,5 +296,59 @@ impl PowerStatesDialog {
         } else {
             IndexMap::new()
         }
+    }
+}
+
+#[cfg(all(test, feature = "gtk-tests"))]
+mod tests {
+    use super::*;
+    use amdgpu_sysfs::gpu_handle::PowerLevelId;
+    use lact_schema::PowerState;
+
+    #[test]
+    #[ignore = "requires a GTK display; run explicitly with --ignored"]
+    fn restores_configured_states_before_child_lists_update() {
+        adw::init().unwrap();
+        let context = gtk::glib::MainContext::default();
+        let _guard = context.acquire().unwrap();
+        let dialog = PowerStatesDialog::detach(());
+        let states = PowerStates {
+            core: vec![],
+            vram: (0..4)
+                .map(|index| PowerState {
+                    enabled: index == 3,
+                    min_value: None,
+                    value: 100 * u64::from(index + 1),
+                    id: Some(PowerLevelId::Index(index)),
+                })
+                .collect(),
+        };
+
+        // Queue the startup messages together, before child components can update
+        dialog.emit(PowerStatesDialogMsg::PowerStates {
+            pstates: states,
+            configured: true,
+        });
+        dialog.emit(PowerStatesDialogMsg::Configurable(true));
+        while context.pending() {
+            context.iteration(false);
+        }
+        assert!(dialog.model().states_configuration_enabled.value());
+        assert_eq!(
+            dialog.model().get_enabled_power_states()[&PowerLevelKind::MemoryClock],
+            vec![3],
+        );
+
+        // Changing to a GPU without power states must clear the previous capability
+        dialog.emit(PowerStatesDialogMsg::PowerStates {
+            pstates: PowerStates::default(),
+            configured: false,
+        });
+        dialog.emit(PowerStatesDialogMsg::Configurable(true));
+        while context.pending() {
+            context.iteration(false);
+        }
+        assert!(!dialog.model().states_configurable.value());
+        assert!(dialog.model().get_enabled_power_states().is_empty());
     }
 }
