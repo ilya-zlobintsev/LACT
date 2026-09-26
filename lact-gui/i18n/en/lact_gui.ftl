@@ -168,7 +168,7 @@ performance-level-profile-min-mclk-description = Forces the VRAM clock to lowest
 performance-level-profile-peak-description = Forces GPU and VRAM clocks to highest levels
 
 performance-level = Performance Level
-power-profile-mode = Power Profile Mode:
+power-profile-mode = Power Profile Mode
 manual-level-needed = Performance level has to be set to "manual" to use power states and modes
 power-mizer-mode = PowerMizer Mode
 power-mizer-mode-auto = Auto
