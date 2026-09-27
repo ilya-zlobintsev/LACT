@@ -855,6 +855,7 @@ impl GpuController for NvidiaGpuController {
                         .ok(),
                     amd_ip_info: vec![],
                     intel: IntelDrmInfo::default(),
+                    ..Default::default()
                 }),
                 flags: vec![
                     DeviceFlag::ConfigurableFanControl,

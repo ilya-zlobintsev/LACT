@@ -23,10 +23,10 @@ use drm::{DrmProvider, amdgpu::AmdGpuDrmProvider};
 use futures::{FutureExt, future::LocalBoxFuture};
 use indexmap::IndexMap;
 use lact_schema::{
-    ActivePowerStates, AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats,
-    DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, FanControlMode,
-    FanStats, LinkInfo, NvidiaThermalInfo, PmfwInfo, PowerState, PowerStates, PowerStats,
-    ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
+    ActivePowerStates, AmdCacheInstance, AmdUmaCarveout, CacheInfo, CacheType, ClocksInfo,
+    ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
+    FanControlMode, FanStats, LinkInfo, NvidiaThermalInfo, PmfwInfo, PowerState, PowerStates,
+    PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
 #[cfg(feature = "display-info")]
@@ -567,6 +567,18 @@ impl AmdGpuController {
                     .ok()
             });
 
+        let amd_uma_carveout = self
+            .handle
+            .get_uma_carveout_options()
+            .and_then(|options| {
+                let current = self.handle.get_current_uma_carveout()?;
+                Ok(AmdUmaCarveout {
+                    options: options.options,
+                    current,
+                })
+            })
+            .ok();
+
         trace!("Reading DRM info");
         let drm_handle = self.drm_handle.as_ref();
 
@@ -575,6 +587,7 @@ impl AmdGpuController {
             None => Some(DrmInfo {
                 cache_info,
                 vram_clock_ratio: 1.0,
+                amd_uma_carveout,
                 ..Default::default()
             }),
         }

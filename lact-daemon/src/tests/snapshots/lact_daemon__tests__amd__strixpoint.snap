@@ -39,6 +39,43 @@ expression: device_info
   "info": {
     "driver": "amdgpu",
     "drm_info": {
+      "amd_uma_carveout": {
+        "current": 0,
+        "options": [
+          {
+            "name": "Minimum",
+            "size_bytes": 536870912
+          },
+          {
+            "name": null,
+            "size_bytes": 1073741824
+          },
+          {
+            "name": null,
+            "size_bytes": 2147483648
+          },
+          {
+            "name": null,
+            "size_bytes": 4294967296
+          },
+          {
+            "name": null,
+            "size_bytes": 6442450944
+          },
+          {
+            "name": "Medium",
+            "size_bytes": 8589934592
+          },
+          {
+            "name": null,
+            "size_bytes": 12884901888
+          },
+          {
+            "name": "High",
+            "size_bytes": 17179869184
+          }
+        ]
+      },
       "cache_info": {
         "Amd": [
           [
