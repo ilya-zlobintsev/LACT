@@ -46,6 +46,8 @@ use anyhow::{Context, bail, ensure};
 use lact_schema::RopInfo;
 use nix::ioctl_readwrite;
 
+pub mod power_limit;
+
 pub struct DriverHandle {
     nvidiactl_fd: OwnedFd,
     #[allow(dead_code)]
@@ -291,6 +293,26 @@ impl DriverHandle {
         }
 
         Ok(info_list[0].data)
+    }
+
+    /// Issues a control whose parameter block is a plain byte buffer.
+    unsafe fn query_rm_control_sized(&self, cmd: u32, params: &mut [u8]) -> anyhow::Result<()> {
+        let mut request = NVOS54_PARAMETERS {
+            hClient: self.client_handle,
+            hObject: self.subdevice_handle,
+            cmd,
+            flags: 0,
+            params: params.as_mut_ptr().cast(),
+            paramsSize: params.len().try_into().unwrap(),
+            status: 0,
+        };
+        unsafe {
+            rm_control_nvos54(self.nvidiactl_fd.as_raw_fd(), &raw mut request)?;
+        }
+        if request.status != 0 {
+            bail!("Nvidia request failed with status {:x}", request.status);
+        }
+        Ok(())
     }
 
     unsafe fn query_rm_control<T: Copy>(&self, cmd: u32, params: &mut T) -> anyhow::Result<()> {

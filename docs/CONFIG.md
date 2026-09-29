@@ -121,6 +121,9 @@ gpus:
       target_temperature: 83
     # Power limit in watts.
     power_cap: 320.0
+    # NVIDIA only: `nvml` (default) or `ioctl`, an experimental undocumented interface
+    # that applies every power limit and allows values down to 30 W.
+    nvidia_power_cap_mode: nvml
     # Performance level option for AMD GPUs.
     # Can be `auto`, `low`, `high` or `manual`.
     performance_level: auto

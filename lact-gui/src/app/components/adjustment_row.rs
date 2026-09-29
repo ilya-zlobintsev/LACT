@@ -50,6 +50,11 @@ pub enum AdjustmentRowMsg {
     ValueRatio(f64),
     /// Set a value as an edit, for example when the user presses Reset.
     SetValue(f64),
+    /// Update the permitted range, keeping the current edit where possible.
+    SetBounds {
+        lower: f64,
+        upper: f64,
+    },
     SetVisible(bool),
     AddSizeGroup {
         label_group: gtk::SizeGroup,
@@ -248,6 +253,14 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
             }
             AdjustmentRowMsg::SetValue(value) => {
                 self.adjustment.set_value(value * self.value_ratio);
+            }
+            AdjustmentRowMsg::SetBounds { lower, upper } => {
+                let lower = lower * self.value_ratio;
+                let upper = upper * self.value_ratio;
+                self.adjustment.set_lower(lower);
+                self.adjustment.set_upper(upper);
+                self.adjustment
+                    .set_value(self.adjustment.value().clamp(lower, upper));
             }
             AdjustmentRowMsg::SetVisible(visible) => {
                 if widgets.root_row.get_visible() != visible {

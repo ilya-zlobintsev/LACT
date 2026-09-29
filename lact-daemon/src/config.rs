@@ -602,6 +602,7 @@ mod tests {
     #[test]
     fn clocks_configuration_applied() {
         let mut gpu = GpuConfig {
+            nvidia_power_cap_mode: Default::default(),
             fan_control_enabled: false,
             fan_control_settings: None,
             pmfw_options: PmfwOptions::default(),

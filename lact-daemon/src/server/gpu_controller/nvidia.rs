@@ -1208,7 +1208,12 @@ impl GpuController for NvidiaGpuController {
         Box::pin(async {
             let mut device = self.device();
 
-            apply_power_cap(&mut device, config.power_cap)?;
+            if config.nvidia_power_cap_mode == lact_schema::config::NvidiaPowerCapMode::Ioctl {
+                driver::power_limit::apply(self.driver_handle.as_ref(), &device, config.power_cap)?;
+            } else {
+                driver::power_limit::ensure_native_range(&device, config.power_cap)?;
+                apply_power_cap(&mut device, config.power_cap)?;
+            }
             apply_power_mizer_mode(&mut device, config.power_mizer_mode)?;
 
             self.reset_clocks()?;

@@ -18,6 +18,7 @@ use adw::prelude::*;
 use amdgpu_sysfs::gpu_handle::PerformanceLevel;
 use i18n_embed_fl::fl;
 use lact_schema::PowerStats;
+use lact_schema::config::NvidiaPowerCapMode;
 use nvml_wrapper::enums::device::PowerMizerMode;
 use relm4::{
     ComponentController, ComponentParts, ComponentSender, WidgetTemplate, factory::FactoryHashMap,
@@ -27,11 +28,15 @@ pub struct PowerFrame {
     power: PowerStats,
     power_row: FactoryHashMap<(), AdjustmentRow<()>>,
     performance_frame: relm4::Controller<PerformanceFrame>,
+    nvidia_mode: Option<NvidiaPowerCapMode>,
 }
 
 #[derive(Debug)]
 pub enum PowerFrameMsg {
     PowerStats(PowerStats),
+    /// `None` unless the GPU uses the NVIDIA driver.
+    NvidiaMode(Option<NvidiaPowerCapMode>),
+    ToggleNvidiaIoctl(bool),
     Performance(PerformanceFrameMsg),
     RefreshVisibility,
     Reset,
@@ -63,7 +68,41 @@ impl relm4::Component for PowerFrame {
             },
             #[template]
             #[local]
-            append_child = &card -> AdjustmentCard {},
+            append_child = &card -> AdjustmentCard {
+                #[template_child]
+                content {
+                    #[name = "experimental_controls"]
+                    gtk::ListBoxRow {
+                        set_activatable: false,
+                        set_selectable: false,
+                        #[watch]
+                        set_visible: model.nvidia_mode_available(),
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_spacing: 6,
+
+                            #[name = "ioctl_toggle"]
+                            gtk::CheckButton {
+                                set_label: Some(&fl!(I18N, "nvidia-power-cap-ioctl")),
+                                #[watch]
+                                #[block_signal(ioctl_toggled_handler)]
+                                set_active: model.nvidia_mode == Some(NvidiaPowerCapMode::Ioctl),
+                                connect_toggled[sender] => move |button| {
+                                    sender.input(PowerFrameMsg::ToggleNvidiaIoctl(button.is_active()));
+                                } @ ioctl_toggled_handler,
+                            },
+                            gtk::Label {
+                                set_label: &fl!(I18N, "nvidia-power-cap-ioctl-warning"),
+                                set_wrap: true,
+                                set_max_width_chars: 55,
+                                set_xalign: 0.0,
+                                add_css_class: relm4::css::WARNING,
+                            },
+                        },
+                    },
+                },
+            },
         },
     }
 
@@ -80,6 +119,7 @@ impl relm4::Component for PowerFrame {
                 .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged),
             performance_frame: PerformanceFrame::launch_default()
                 .forward(sender.output_sender(), |msg| msg),
+            nvidia_mode: None,
         };
         for row in model.performance_frame.widget().rows() {
             card.content.append(row);
@@ -90,7 +130,11 @@ impl relm4::Component for PowerFrame {
         }
 
         let widgets = view_output!();
-        let rows = model.performance_frame.widget().rows().map(Clone::clone);
+        // The experimental toggle ranks first, so it sits between the power limit and them.
+        let rows: Vec<_> = std::iter::once(&widgets.experimental_controls)
+            .chain(model.performance_frame.widget().rows())
+            .cloned()
+            .collect();
         // FIXME: performance rows should be factory items like AdjustmentRow; until then
         // sort to keep the power limit before them when the factory recreates it.
         model.power_row.widget().set_sort_func(move |left, right| {
@@ -121,7 +165,7 @@ impl relm4::Component for PowerFrame {
                             title: fl!(I18N, "power-cap"),
                             unit: fl!(I18N, "watt"),
                             value,
-                            lower: power.cap_min.unwrap_or_default(),
+                            lower: self.cap_min(power.cap_min),
                             upper: power.cap_max.unwrap_or_default(),
                             ..Default::default()
                         },
@@ -129,6 +173,26 @@ impl relm4::Component for PowerFrame {
                 }
 
                 self.power = power;
+            }
+            // Config arrives before the initial stats rebuild; it is not a user edit.
+            PowerFrameMsg::NvidiaMode(mode) => self.nvidia_mode = mode,
+            PowerFrameMsg::ToggleNvidiaIoctl(enabled) => {
+                let mode = if enabled {
+                    NvidiaPowerCapMode::Ioctl
+                } else {
+                    NvidiaPowerCapMode::Nvml
+                };
+                if self.nvidia_mode_available() && self.nvidia_mode != Some(mode) {
+                    self.nvidia_mode = Some(mode);
+                    self.power_row.send(
+                        &(),
+                        AdjustmentRowMsg::SetBounds {
+                            lower: self.cap_min(self.power.cap_min),
+                            upper: self.power.cap_max.unwrap_or_default(),
+                        },
+                    );
+                    APP_BROKER.send(AppMsg::SettingsChanged);
+                }
             }
             PowerFrameMsg::Performance(msg) => {
                 self.performance_frame.emit(msg);
@@ -184,3 +248,27 @@ impl PowerFrame {
             .power_profile_mode_custom_heuristics()
     }
 }
+
+impl PowerFrame {
+    fn nvidia_mode_available(&self) -> bool {
+        self.nvidia_mode.is_some() && self.power.cap_min.is_some() && !self.power_row.is_empty()
+    }
+
+    /// The native minimum, lowered to 30 W while the experimental mode is selected.
+    fn cap_min(&self, native: Option<f64>) -> f64 {
+        let native = native.unwrap_or_default();
+        if self.nvidia_mode == Some(NvidiaPowerCapMode::Ioctl) {
+            native.min(30.0)
+        } else {
+            native
+        }
+    }
+
+    pub fn nvidia_power_cap_mode(&self) -> Option<NvidiaPowerCapMode> {
+        self.nvidia_mode.filter(|_| self.nvidia_mode_available())
+    }
+}
+
+#[cfg(all(test, feature = "gtk-tests"))]
+#[path = "power_frame_tests.rs"]
+mod tests;
