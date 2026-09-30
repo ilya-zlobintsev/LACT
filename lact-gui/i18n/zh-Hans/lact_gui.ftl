@@ -125,11 +125,7 @@ performance-level = 性能等级
 power-profile-mode = 功耗模式:
 manual-level-needed = 必须将性能等级设置为“手动”，才能使用电源状态和模式
 overclock-section = 时钟速度和电压
-nvidia-oc-info = 超频信息
-oc-warning = 更改这些数值可能导致系统不稳定，并存在损坏硬件的风险！
 show-all-pstates = 显示所有 P-State
-enable-gpu-locked-clocks = 启用 GPU 时钟锁定
-enable-vram-locked-clocks = 启用显存时钟锁定
 mebibyte = MiB
 unknown-throttling = 未知
 performance-level-auto = 自动
@@ -140,19 +136,9 @@ pstate-list-description = <b>以下数值为各 P-State 的时钟偏移，从最
 no-clocks-data = 无可用时钟数据
 reset-oc-tooltip = 警告：此操作会重置所有时钟设置为默认值！
 gpu-clock-offset = GPU 时钟偏移 (MHz)
-max-gpu-clock = 最大 GPU 时钟 (MHz)
-max-vram-clock = 最大显存时钟 (MHz)
 max-gpu-voltage = 最大 GPU 电压 (mV)
-min-gpu-clock = 最小 GPU 时钟 (MHz)
-min-vram-clock = 最小显存时钟 (MHz)
 min-gpu-voltage = 最小 GPU 电压 (mV)
 gpu-voltage-offset = GPU 电压偏移 (mV)
-gpu-pstate-clock-offset = GPU P-State { $pstate } 时钟偏移 (MHz)
-vram-pstate-clock-offset = 显存 P-State { $pstate } 时钟偏移 (MHz)
-gpu-pstate-clock = GPU P-State { $pstate } 时钟 (MHz)
-mem-pstate-clock = 显存 P-State { $pstate } 时钟 (MHz)
-gpu-pstate-clock-voltage = GPU P-State { $pstate } 电压 (mV)
-mem-pstate-clock-voltage = GPU P-State { $pstate } 电压(mV)
 pstates = 电源状态
 gpu-pstates = GPU 电源状态
 vram-pstates = 显存电源状态
@@ -212,16 +198,6 @@ profile-rule-gamemode-tab = 游戏模式激活时
 profile-rule-process-name = 进程名称：
 profile-rule-args-contain = 参数中包含：
 profile-rule-specific-process = 使用特定进程：
-nvidia-oc-description =
-    英伟达超频功能包括为GPU和显存设置时钟速度偏移，使用“锁定时钟”特性限制时钟速度范围。
-
-    在许多显卡上，显存时钟速度偏移对实际显存时钟速度的影响仅为偏移数值的一半。
-    例如， +1000MHz 的显存偏移可能只会使测得的显存速度增加 500MHz.
-    这是正常现象，因为英伟达处理 GDDR 数据速率的方式就是如此。请据此调整你的超频设置。
-
-    可通过将锁定时钟选项与正时钟偏移结合使用，实现类似降压效果。
-    这种方式会强制 GPU 在受锁定时钟限制的电压下运行，同时通过偏移实现更高的时钟速度。
-    如果偏移过高，可能会导致系统不稳定。
 gibibyte = GiB
 crash-page-title = 应用程序崩溃
 exit = 退出

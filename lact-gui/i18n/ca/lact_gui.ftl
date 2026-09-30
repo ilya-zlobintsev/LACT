@@ -114,28 +114,14 @@ performance-level-manual-description = Control de rendiment manual.
 performance-level = Nivell de rendiment
 power-profile-mode = Mode de perfil d'energia:
 overclock-section = Velocitat de rellotge i voltatge
-nvidia-oc-info = Informació d'Overclocking
-oc-warning = Canviar aquests valors pot provocar inestabilitat del sistema i pot danyar potencialment el vostre maquinari!
 show-all-pstates = Mostra tots els estats P
-enable-gpu-locked-clocks = Habilita els rellotges bloquejats de la GPU
-enable-vram-locked-clocks = Habilita els rellotges bloquejats de la VRAM
 pstate-list-description = <b>Els valors següents són compensacions de rellotge per a cada estat P, anant de més alt a més baix.</b>
 no-clocks-data = No hi ha dades de rellotges disponibles
 reset-oc-tooltip = Avís: això restableix tota la configuració del rellotge als valors predeterminats!
 gpu-clock-offset = Compensació del rellotge de la GPU (MHz)
-max-gpu-clock = Rellotge màxim de la GPU (MHz)
-max-vram-clock = Rellotge màxim de la VRAM (MHz)
 max-gpu-voltage = Voltatge màxim de la GPU (mV)
-min-gpu-clock = Rellotge mínim de la GPU (MHz)
-min-vram-clock = Rellotge mínim de la VRAM (MHz)
 min-gpu-voltage = Voltatge mínim de la GPU (mV)
 gpu-voltage-offset = Compensació del voltatge de la GPU (mV)
-gpu-pstate-clock-offset = Compensació rellotge estat P { $pstate } GPU (MHz)
-vram-pstate-clock-offset = Compensació rellotge estat P { $pstate } VRAM (MHz)
-gpu-pstate-clock = Rellotge estat P { $pstate } GPU (MHz)
-mem-pstate-clock = Rellotge estat P { $pstate } VRAM (MHz)
-gpu-pstate-clock-voltage = Voltatge estat P { $pstate } GPU (mV)
-mem-pstate-clock-voltage = Voltatge estat P { $pstate } VRAM (mV)
 pstates = Estats d'energia
 gpu-pstates = Estats d'energia de la GPU
 vram-pstates = Estats d'energia de la VRAM
@@ -212,16 +198,6 @@ amd-oc-description =
 
     Consulta <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">la wiki</a> per a més informació.
 manual-level-needed = El nivell de rendiment ha d'estar configurat a "manual" per utilitzar els estats i modes d'energia
-nvidia-oc-description =
-    La funcionalitat d'overclocking a Nvidia inclou la configuració d'increments per a les velocitats de rellotge de la GPU/VRAM i la limitació de l'interval potencial de velocitats de rellotge mitjançant la funció "locked clocks".
-
-    A moltes targetes, l'increment de la velocitat de rellotge de la VRAM només afectarà la velocitat real de la memòria per la meitat del valor de l'increment.
-    Per exemple, un increment de +1000MHz a la VRAM podria augmentar la velocitat mesurada de la VRAM només 500MHz.
-    Això és normal i és com Nvidia gestiona les velocitats de dades GDDR. Ajusta el teu overclocking en conseqüència.
-
-    És possible aconseguir un pseudo-undervolt combinant l'opció de rellotges bloquejats amb un increment de la velocitat de rellotge.
-    Això forçarà la GPU a funcionar a un voltatge que està limitat pels rellotges bloquejats, mentre s'aconsegueix una velocitat de rellotge més alta a causa de l'increment.
-    Això pot causar inestabilitat del sistema si s'augmenta massa.
 exit = Sortir
 gibibyte = GiB
 crash-page-title = L'aplicació ha fallat
