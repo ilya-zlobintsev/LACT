@@ -149,21 +149,7 @@ power-mizer-mode-adaptive-description = GPU kullanımına göre GPU saat hızlar
 power-mizer-mode-prefer-maximum-performance-description = Sürücü sınırları içinde maksimum performansı tercih et.
 power-mizer-mode-prefer-consistent-performance-description = GPU'nun temel saat hızlarını sabitle.
 overclock-section = Saat Hızı ve Voltaj
-nvidia-oc-info = Hız Aşırtma Bilgisi
-nvidia-oc-description =
-    NVIDIA'da hız aşırtma işlevi, GPU/VRAM saat hızları için ofsetler ayarlamayı ve "kilitli saat hızları" özelliğiyle saat hızlarının olası aralığını sınırlamayı içerir.
-
-    Birçok kartta VRAM saat hızı ofseti, gerçek bellek saat hızını ofset değerinin yalnızca yarısı kadar etkiler.
-    Örneğin, +1000 MHz VRAM ofseti ölçülen VRAM hızını yalnızca 500 MHz artırabilir.
-    Bu normaldir; NVIDIA'nın GDDR veri hızlarını ele alış biçimi böyledir. Hız aşırtmanızı buna göre ayarlayın.
-
-    Kilitli saat hızları seçeneğini pozitif bir saat hızı ofsetiyle birleştirerek sözde undervolt elde etmek mümkündür.
-    Bu, ofset sayesinde daha yüksek bir saat hızı elde edilirken GPU'nun kilitli saat hızlarıyla sınırlandırılmış bir voltajda çalışmasını zorlar.
-    Çok yüksek değerlerde sistem kararsızlığına neden olabilir.
-oc-warning = Bu değerleri değiştirmek sistem kararsızlığına yol açabilir ve donanımınıza zarar verebilir!
 show-all-pstates = Tüm P-State'leri Göster
-enable-gpu-locked-clocks = GPU için Kilitli Saat Hızlarını Etkinleştir
-enable-vram-locked-clocks = VRAM için Kilitli Saat Hızlarını Etkinleştir
 pstate-list-description = <b>Aşağıdaki değerler, en yüksekten en düşüğe doğru her P-State için saat hızı ofsetleridir.</b>
 no-clocks-data = Saat hızı verisi yok
 reset-oc-tooltip = Uyarı: Bu işlem tüm saat hızı ayarlarını varsayılanlara sıfırlar!
@@ -181,21 +167,11 @@ vf-curve-visible-range-to = ile
 vf-curve-flatten-right = Eğriyi sağa doğru düzleştir
 vf-curve-flatten-selection = Seçimi düzleştir
 gpu-clock-offset = GPU Saat Hızı Ofseti (MHz)
-max-gpu-clock = Maksimum GPU Saat Hızı (MHz)
-max-vram-clock = Maksimum VRAM Saat Hızı (MHz)
 max-gpu-voltage = Maksimum GPU Voltajı (mV)
-min-gpu-clock = Minimum GPU Saat Hızı (MHz)
-min-vram-clock = Minimum VRAM Saat Hızı (MHz)
 min-gpu-voltage = Minimum GPU Voltajı (mV)
 gpu-voltage-offset = GPU Voltaj Ofseti (mV)
 gpu-voltage-boost = GPU Voltaj Takviyesi (%)
 gpu-voltage-boost-tooltip = Sürücünün tanımladığı ek voltaj payının ne kadarının kullanılacağını belirler. %100, toplam GPU voltajının %100'ünü değil, bu ek payın tamamını ifade eder. Daha fazla voltaj payı daha yüksek saat hızlarının korunmasını sağlayabilir, ancak güç tüketimini ve sıcaklığı artırır.
-gpu-pstate-clock-offset = GPU P-State { $pstate } Saat Hızı Ofseti (MHz)
-vram-pstate-clock-offset = VRAM P-State { $pstate } Saat Hızı Ofseti (MHz)
-gpu-pstate-clock = GPU P-State { $pstate } Saat Hızı (MHz)
-mem-pstate-clock = VRAM P-State { $pstate } Saat Hızı (MHz)
-gpu-pstate-clock-voltage = GPU P-State { $pstate } Voltajı (mV)
-mem-pstate-clock-voltage = VRAM P-State { $pstate } Voltajı (mV)
 pstates = Güç Durumları
 gpu-pstates = GPU Güç Durumları
 vram-pstates = VRAM Güç Durumları
