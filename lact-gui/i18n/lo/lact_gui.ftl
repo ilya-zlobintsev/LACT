@@ -125,21 +125,7 @@ performance-level = ລະດັບປະສິດທິພາບ
 power-profile-mode = ໂໝດໂປຣໄຟລ໌ພະລັງງານ:
 manual-level-needed = ຕ້ອງຕັ້ງຄ່າລະດັບປະສິດທິພາບເປັນ "ກຳນົດເອງ" ເພື່ອໃຊ້ສະຖານະພະລັງງານ ແລະ ໂໝດຕ່າງໆ
 overclock-section = ຄວາມໄວໂມງ ແລະ ແຮງດັນໄຟ
-nvidia-oc-info = ຂໍ້ມູນການໂອເວີຄລັອກ
-nvidia-oc-description =
-    ຟັງຊັນການໂອເວີຄລັອກໃນ Nvidia ລວມເຖິງການຕັ້ງຄ່າ offset ສຳລັບຄວາມໄວໂມງ GPU/VRAM ແລະ ການຈຳກັດຂອບເຂດຄວາມໄວໂມງທີ່ເປັນໄປໄດ້ ໂດຍໃຊ້ຄຸນສົມບັດ "ລັອກຄວາມໄວໂມງ".
-
-    ສຳລັບກາດຈໍຫຼາຍລຸ້ນ, ການຕັ້ງຄ່າ offset ຄວາມໄວ VRAM ຈະສົ່ງຜົນຕໍ່ຄວາມໄວໜ່ວຍຄວາມຈຳຕົວຈິງພຽງເຄິ່ງໜຶ່ງຂອງຄ່າ offset ເທົ່ານັ້ນ.
-    ຕົວຢ່າງ, ການຕັ້ງ offset VRAM +1000MHz ອາດຈະເພີ່ມຄວາມໄວ VRAM ທີ່ວັດແທກໄດ້ພຽງ 500MHz ເທົ່ານັ້ນ.
-    ນີ້ແມ່ນເລື່ອງປົກກະຕິ, ແລະ ເປັນວິທີທີ່ Nvidia ຈັດການອັດຕາການສົ່ງຂໍ້ມູນຂອງ GDDR. ປັບການໂອເວີຄລັອກຂອງທ່ານຕາມຄວາມເໝາະສົມ.
-
-    ສາມາດເຮັດການຫຼຸດແຮງດັນໄຟແບບຈຳລອງ (pseudo-undervolt) ໄດ້ໂດຍການປະສົມປະສານຕົວເລືອກລັອກຄວາມໄວໂມງກັບຄ່າ offset ຄວາມໄວໂມງທີ່ເປັນບວກ.
-    ສິ່ງນີ້ຈະບັງຄັບໃຫ້ GPU ເຮັດວຽກໃນລະດັບແຮງດັນໄຟທີ່ຖືກຈຳກັດໂດຍຄວາມໄວໂມງທີ່ຖືກລັອກໄວ້, ໃນຂະນະດຽວກັນກໍໄດ້ຄວາມໄວໂມງທີ່ສູງຂຶ້ນເນື່ອງຈາກຄ່າ offset.
-    ອັນນີ້ອາດຈະເຮັດໃຫ້ລະບົບບໍ່ສະຖຽນ ຖ້າຫາກດັນຂຶ້ນສູງເກີນໄປ.
-oc-warning = ການປ່ຽນແປງຄ່າເຫຼົ່ານີ້ອາດເຮັດໃຫ້ລະບົບບໍ່ສະຖຽນ ແລະ ອາດສ້າງຄວາມເສຍຫາຍຕໍ່ຮາດແວຂອງທ່ານໄດ້!
 show-all-pstates = ສະແດງ P-States ທັງໝົດ
-enable-gpu-locked-clocks = ເປີດໃຊ້ງານການລັອກຄວາມໄວໂມງ GPU
-enable-vram-locked-clocks = ເປີດໃຊ້ງານການລັອກຄວາມໄວໂມງ VRAM
 pstate-list-description = <b>ຄ່າຕໍ່ໄປນີ້ແມ່ນຄ່າ offset ຂອງຄວາມໄວໂມງສຳລັບແຕ່ລະ P-State, ໂດຍເລີ່ມຈາກສູງສຸດໄປຫາຕ່ຳສຸດ.</b>
 no-clocks-data = ບໍ່ມີຂໍ້ມູນຄວາມໄວໂມງ
 reset-oc-tooltip = ຄຳເຕືອນ: ນີ້ແມ່ນການຣີເຊັດການຕັ້ງຄ່າຄວາມໄວໂມງທັງໝົດເປັນຄ່າເລີ່ມຕົ້ນ!
@@ -156,19 +142,9 @@ vf-curve-visible-range = ຊ່ວງທີ່ເບິ່ງເຫັນ (%):
 vf-curve-visible-range-to = ຫາ
 vf-curve-flatten-right = ເຮັດໃຫ້ເສັ້ນໂຄ້ງຮາບພຽງໄປທາງຂວາ
 gpu-clock-offset = GPU Clock Offset (MHz)
-max-gpu-clock = ຄວາມໄວໂມງ GPU ສູງສຸດ (MHz)
-max-vram-clock = ຄວາມໄວໂມງ VRAM ສູງສຸດ (MHz)
 max-gpu-voltage = ແຮງດັນໄຟ GPU ສູງສຸດ (mV)
-min-gpu-clock = ຄວາມໄວໂມງ GPU ຕ່ຳສຸດ (MHz)
-min-vram-clock = ຄວາມໄວໂມງ VRAM ຕ່ຳສຸດ (MHz)
 min-gpu-voltage = ແຮງດັນໄຟ GPU ຕ່ຳສຸດ (mV)
 gpu-voltage-offset = GPU voltage offset (mV)
-gpu-pstate-clock-offset = GPU P-State { $pstate } Clock Offset (MHz)
-vram-pstate-clock-offset = VRAM P-State { $pstate } Clock Offset (MHz)
-gpu-pstate-clock = GPU P-State { $pstate } Clock (MHz)
-mem-pstate-clock = VRAM P-State { $pstate } Clock (MHz)
-gpu-pstate-clock-voltage = GPU P-State { $pstate } Voltage (mV)
-mem-pstate-clock-voltage = VRAM P-State { $pstate } Voltage (mV)
 pstates = ສະຖານະພະລັງງານ
 gpu-pstates = ສະຖານະພະລັງງານ GPU
 vram-pstates = ສະຖານະພະລັງງານ VRAM
