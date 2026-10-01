@@ -245,38 +245,6 @@ impl NvApi {
         Ok(())
     }
 
-    pub unsafe fn calculate_therm_channel_mask(
-        &self,
-        handle: NvPhysicalGpuHandle,
-    ) -> anyhow::Result<i32> {
-        let f = self.query_interface(QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS)?;
-        let f: unsafe extern "C" fn(
-            handle: NvPhysicalGpuHandle,
-            sensors: &mut NvApiThermals,
-        ) -> NvAPI_Status = transmute(f);
-
-        let mut sensors = NvApiThermals {
-            #[allow(clippy::cast_possible_truncation)]
-            version: (mem::size_of::<NvApiThermals>() | (2 << 16)) as u32,
-            mask: 1,
-            rsvd: [0; 32],
-            temps: [0; 32],
-        };
-
-        let initial_status = f(handle, &mut sensors);
-        self.handle_status(initial_status)?;
-
-        for bit in 0..32 {
-            sensors.mask = 1 << bit;
-            let status = f(handle, &mut sensors);
-            if status != 0 {
-                return Ok(sensors.mask - 1);
-            }
-        }
-
-        bail!("Could not find suitable mask");
-    }
-
     unsafe fn enum_physical_gpus(&self) -> anyhow::Result<Vec<NvPhysicalGpuHandle>> {
         let f = self.query_interface(QUERY_NVAPI_ENUM_PHYSICAL_GPUS)?;
         let f: unsafe extern "C" fn(
@@ -592,6 +560,10 @@ pub struct NvApiThermChannelInfo {
 }
 
 impl NvApiThermChannelInfo {
+    pub fn mask(&self) -> i32 {
+        self.mask
+    }
+
     fn primary_channel(&self, channel_type: usize) -> Option<usize> {
         self.primary_channel_idx
             .get(channel_type)
