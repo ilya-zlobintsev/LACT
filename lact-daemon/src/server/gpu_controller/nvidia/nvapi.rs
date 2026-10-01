@@ -90,26 +90,34 @@ impl NvApi {
         Ok(None)
     }
 
+    pub unsafe fn therm_channel_get_info(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<NvApiThermChannelInfo> {
+        let mut thermals_info = NvApiThermChannelInfo::default();
+        self.physical_gpu_query(
+            handle,
+            &mut thermals_info,
+            QUERY_NVAPI_GPU_THERM_CHANNEL_GET_INFO,
+        )?;
+        Ok(thermals_info)
+    }
+
     pub unsafe fn therm_channel_get_status(
         &self,
         handle: NvPhysicalGpuHandle,
         mask: i32,
     ) -> anyhow::Result<NvApiThermals> {
-        let f = self.query_interface(QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS)?;
-        let f: unsafe extern "C" fn(
-            handle: NvPhysicalGpuHandle,
-            sensors: &mut NvApiThermals,
-        ) -> NvAPI_Status = transmute(f);
-
         let mut sensors = NvApiThermals {
-            #[allow(clippy::cast_possible_truncation)]
-            version: make_version::<NvApiThermals>(2),
             mask,
-            values: [0; 40],
+            ..Default::default()
         };
 
-        let status = f(handle, &mut sensors);
-        self.handle_status(status)?;
+        self.physical_gpu_query(
+            handle,
+            &mut sensors,
+            QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS,
+        )?;
 
         Ok(sensors)
     }
@@ -251,7 +259,8 @@ impl NvApi {
             #[allow(clippy::cast_possible_truncation)]
             version: (mem::size_of::<NvApiThermals>() | (2 << 16)) as u32,
             mask: 1,
-            values: [0; 40],
+            rsvd: [0; 32],
+            temps: [0; 32],
         };
 
         let initial_status = f(handle, &mut sensors);
@@ -480,6 +489,7 @@ impl NvApi {
     /// Gets the value from `NvApiThermals` if possible, otherwise reads from register
     pub fn read_hotspot(
         &self,
+        thermals_info: &NvApiThermChannelInfo,
         thermals: &NvApiThermals,
         handle: NvPhysicalGpuHandle,
         arch: Option<&DeviceArchitecture>,
@@ -491,7 +501,7 @@ impl NvApi {
                     .and_then(|value| value.try_into().ok())
             }
         } else {
-            thermals.get_value(9)
+            thermals.read_hotspot(thermals_info)
         }
     }
 }
@@ -514,25 +524,43 @@ impl Drop for NvApi {
 pub struct NvApiThermals {
     version: u32,
     mask: i32,
-    values: [i32; 40],
+    rsvd: [NvU8; 32],
+    temps: [i32; 32],
 }
 
-impl NvApiThermals {
-    fn get_value(&self, index: usize) -> Option<i32> {
-        self.values
-            .get(index)
-            .map(|&value| value / 256)
-            .filter(|&value| value > 0 && value < 255)
-    }
-
-    pub fn vram(&self, vram_type: Option<&str>) -> Option<i32> {
-        match vram_type {
-            Some("GDDR7") => self.get_value(10),
-            _ => self.get_value(15),
+impl Default for NvApiThermals {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(2),
+            mask: 0,
+            rsvd: [0; 32],
+            temps: [0; 32],
         }
     }
 }
 
+impl NvApiThermals {
+    fn get_value(&self, channel: usize) -> Option<i32> {
+        self.temps
+            .get(channel)
+            .map(|&value| value / 256)
+            .filter(|&value| value > 0 && value < 255)
+    }
+
+    fn read_hotspot(&self, thermals_info: &NvApiThermChannelInfo) -> Option<i32> {
+        thermals_info
+            .primary_channel(THERM_CHANNEL_TYPE_HOTSPOT)
+            .and_then(|channel| self.get_value(channel))
+    }
+
+    pub fn read_vram(&self, thermals_info: &NvApiThermChannelInfo) -> Option<i32> {
+        thermals_info
+            .primary_channel(THERM_CHANNEL_TYPE_MEMORY)
+            .and_then(|channel| self.get_value(channel))
+    }
+}
+
+const THERM_CHANNEL_TYPE_HOTSPOT: usize = 1;
 const THERM_CHANNEL_TYPE_MEMORY: usize = 3;
 
 #[repr(C)]
@@ -564,8 +592,11 @@ pub struct NvApiThermChannelInfo {
 }
 
 impl NvApiThermChannelInfo {
-    pub fn mask(&self) -> i32 {
-        self.mask
+    fn primary_channel(&self, channel_type: usize) -> Option<usize> {
+        self.primary_channel_idx
+            .get(channel_type)
+            .map(|&channel| usize::from(channel))
+            .filter(|&channel| channel < 32 && self.mask & (1 << channel) != 0)
     }
 }
 

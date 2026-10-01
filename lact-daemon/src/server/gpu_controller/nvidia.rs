@@ -912,9 +912,12 @@ impl GpuController for NvidiaGpuController {
 
             unsafe {
                 if let Some(mask) = self.nvapi_therm_channel_mask
+                    && let Ok(thermals_info) = nvapi.therm_channel_get_info(*handle)
                     && let Ok(thermals) = nvapi.therm_channel_get_status(*handle, mask)
                 {
-                    if let Some(hotspot) = nvapi.read_hotspot(&thermals, *handle, arch.as_ref()) {
+                    if let Some(hotspot) =
+                        nvapi.read_hotspot(&thermals_info, &thermals, *handle, arch.as_ref())
+                    {
                         temps.insert(
                             "GPU Hotspot".to_owned(),
                             TemperatureEntry {
@@ -934,7 +937,7 @@ impl GpuController for NvidiaGpuController {
                         .as_ref()
                         .and_then(|driver| driver.get_ram_type().ok());
 
-                    if let Some(vram) = thermals.vram(vram_type) {
+                    if let Some(vram) = thermals.read_vram(&thermals_info) {
                         temps.insert(
                             "VRAM".to_owned(),
                             TemperatureEntry {
