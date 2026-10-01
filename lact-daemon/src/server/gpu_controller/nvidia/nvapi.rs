@@ -27,6 +27,7 @@ const QUERY_NVAPI_ENUM_PHYSICAL_GPUS: u32 = 0xe5ac921f;
 const QUERY_NVAPI_GPU_GET_BUS_ID: u32 = 0x1be0b8e5;
 const QUERY_NVAPI_GET_ERROR_MESSAGE: u32 = 0x6c2d048c;
 // Undocumented calls
+const QUERY_NVAPI_GPU_THERM_CHANNEL_GET_INFO: u32 = 0x0bc8163d;
 const QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS: u32 = 0x65fe3aad;
 const QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_STATUS: u32 = 0x465f9bcf;
 const QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_CONTROL: u32 = 0x9df23ca1;
@@ -528,6 +529,54 @@ impl NvApiThermals {
         match vram_type {
             Some("GDDR7") => self.get_value(10),
             _ => self.get_value(15),
+        }
+    }
+}
+
+const THERM_CHANNEL_TYPE_MEMORY: usize = 3;
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+struct NvApiThermChannel {
+    class: NvU32,
+    channel_type: NvU32,
+    rel_loc: NvU32,
+    target_gpu: NvU32,
+    scaling: NvS32,
+    offset_sw: NvS32,
+    min_temp: NvS32,
+    max_temp: NvS32,
+    is_temp_sim_supported: NvU8,
+    flags: NvU8,
+    offset_hw: NvS32,
+    rsvd: [NvU8; 28],
+    data: [NvU8; 16],
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct NvApiThermChannelInfo {
+    version: NvU32,
+    mask: i32,
+    rsvd: [NvU8; 32],
+    channels: [NvApiThermChannel; 32],
+    primary_channel_idx: [NvU8; 5],
+}
+
+impl NvApiThermChannelInfo {
+    pub fn mask(&self) -> i32 {
+        self.mask
+    }
+}
+
+impl Default for NvApiThermChannelInfo {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(2),
+            mask: 0,
+            rsvd: [0; 32],
+            channels: [NvApiThermChannel::default(); 32],
+            primary_channel_idx: [0; 5],
         }
     }
 }
