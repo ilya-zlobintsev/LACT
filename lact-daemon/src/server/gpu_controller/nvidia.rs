@@ -9,7 +9,7 @@ use crate::{
         nvidia::nvapi::{
             CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1,
             ClockClientClkVfPointsControlV1, ClockClientClkVfPointsInfoV1,
-            ClockClientClkVfPointsStatusV3, NvApiThermChannelInfo, NvGpuClockDomainId,
+            ClockClientClkVfPointsStatusV3, NvApiThermChannels, NvGpuClockDomainId,
         },
     },
 };
@@ -66,7 +66,7 @@ pub struct NvidiaGpuController {
 
     nvapi: Option<(Rc<NvApi>, NvPhysicalGpuHandle)>,
     driver_handle: Option<DriverHandle>,
-    nvapi_thermals_info: Option<NvApiThermChannelInfo>,
+    nvapi_therm_channels: Option<NvApiThermChannels>,
 
     last_util_timestamp: Cell<Option<u64>>,
     // Store last applied offsets as a workaround when the driver doesn't tell us the current offset
@@ -93,7 +93,7 @@ impl NvidiaGpuController {
                 )
             })?;
 
-        let (nvapi_handle, nvapi_thermals_info) = match nvapi.as_ref() {
+        let (nvapi_handle, nvapi_therm_channels) = match nvapi.as_ref() {
             Some(nvapi) => {
                 let bus_id = common.get_slot_info()?.bus;
                 let gpu_handle = nvapi
@@ -102,11 +102,11 @@ impl NvidiaGpuController {
                     .ok()
                     .flatten();
 
-                let thermals_info = gpu_handle.and_then(|handle| unsafe {
+                let therm_channels = gpu_handle.and_then(|handle| unsafe {
                     nvapi
                         .therm_channel_get_info(handle)
-                        .inspect(|thermals_info| {
-                            debug!("NvAPI therm channel mask {:x}", thermals_info.mask());
+                        .inspect(|channels| {
+                            debug!("NvAPI therm channels: {channels:?}");
                         })
                         .inspect_err(|err| {
                             error!("could not get NvAPI therm channel info: {err:#}");
@@ -114,7 +114,7 @@ impl NvidiaGpuController {
                         .ok()
                 });
 
-                (gpu_handle, thermals_info)
+                (gpu_handle, therm_channels)
             }
             None => (None, None),
         };
@@ -142,7 +142,7 @@ impl NvidiaGpuController {
             nvapi: nvapi.zip(nvapi_handle),
             common,
             driver_handle,
-            nvapi_thermals_info,
+            nvapi_therm_channels,
             initial_target_temp: target_temp,
             last_util_timestamp: Cell::new(None),
             fan_control_handle: RefCell::new(None),
@@ -911,12 +911,11 @@ impl GpuController for NvidiaGpuController {
             let arch = device.architecture().ok();
 
             unsafe {
-                if let Some(thermals_info) = &self.nvapi_thermals_info
-                    && let Ok(thermals) =
-                        nvapi.therm_channel_get_status(*handle, thermals_info.mask())
+                if let Some(channels) = self.nvapi_therm_channels
+                    && let Ok(thermals) = nvapi.therm_channel_get_status(*handle, channels.mask)
                 {
                     if let Some(hotspot) =
-                        nvapi.read_hotspot(thermals_info, &thermals, *handle, arch.as_ref())
+                        nvapi.read_hotspot(&thermals, channels.hotspot, *handle, arch.as_ref())
                     {
                         temps.insert(
                             "GPU Hotspot".to_owned(),
@@ -937,7 +936,10 @@ impl GpuController for NvidiaGpuController {
                         .as_ref()
                         .and_then(|driver| driver.get_ram_type().ok());
 
-                    if let Some(vram) = thermals.read_vram(thermals_info) {
+                    if let Some(vram) = channels
+                        .vram
+                        .and_then(|channel| thermals.get_value(channel))
+                    {
                         temps.insert(
                             "VRAM".to_owned(),
                             TemperatureEntry {

@@ -93,14 +93,18 @@ impl NvApi {
     pub unsafe fn therm_channel_get_info(
         &self,
         handle: NvPhysicalGpuHandle,
-    ) -> anyhow::Result<NvApiThermChannelInfo> {
+    ) -> anyhow::Result<NvApiThermChannels> {
         let mut thermals_info = NvApiThermChannelInfo::default();
         self.physical_gpu_query(
             handle,
             &mut thermals_info,
             QUERY_NVAPI_GPU_THERM_CHANNEL_GET_INFO,
         )?;
-        Ok(thermals_info)
+        Ok(NvApiThermChannels {
+            mask: thermals_info.mask,
+            hotspot: thermals_info.primary_channel(THERM_CHANNEL_TYPE_HOTSPOT),
+            vram: thermals_info.primary_channel(THERM_CHANNEL_TYPE_MEMORY),
+        })
     }
 
     pub unsafe fn therm_channel_get_status(
@@ -457,8 +461,8 @@ impl NvApi {
     /// Gets the value from `NvApiThermals` if possible, otherwise reads from register
     pub fn read_hotspot(
         &self,
-        thermals_info: &NvApiThermChannelInfo,
         thermals: &NvApiThermals,
+        channel: Option<usize>,
         handle: NvPhysicalGpuHandle,
         arch: Option<&DeviceArchitecture>,
     ) -> Option<i32> {
@@ -469,7 +473,7 @@ impl NvApi {
                     .and_then(|value| value.try_into().ok())
             }
         } else {
-            thermals.read_hotspot(thermals_info)
+            channel.and_then(|channel| thermals.get_value(channel))
         }
     }
 }
@@ -508,24 +512,19 @@ impl Default for NvApiThermals {
 }
 
 impl NvApiThermals {
-    fn get_value(&self, channel: usize) -> Option<i32> {
+    pub fn get_value(&self, channel: usize) -> Option<i32> {
         self.temps
             .get(channel)
             .map(|&value| value / 256)
             .filter(|&value| value > 0 && value < 255)
     }
+}
 
-    fn read_hotspot(&self, thermals_info: &NvApiThermChannelInfo) -> Option<i32> {
-        thermals_info
-            .primary_channel(THERM_CHANNEL_TYPE_HOTSPOT)
-            .and_then(|channel| self.get_value(channel))
-    }
-
-    pub fn read_vram(&self, thermals_info: &NvApiThermChannelInfo) -> Option<i32> {
-        thermals_info
-            .primary_channel(THERM_CHANNEL_TYPE_MEMORY)
-            .and_then(|channel| self.get_value(channel))
-    }
+#[derive(Debug, Clone, Copy)]
+pub struct NvApiThermChannels {
+    pub mask: i32,
+    pub hotspot: Option<usize>,
+    pub vram: Option<usize>,
 }
 
 const THERM_CHANNEL_TYPE_HOTSPOT: usize = 1;
@@ -551,7 +550,7 @@ struct NvApiThermChannel {
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct NvApiThermChannelInfo {
+struct NvApiThermChannelInfo {
     version: NvU32,
     mask: i32,
     rsvd: [NvU8; 32],
@@ -560,10 +559,6 @@ pub struct NvApiThermChannelInfo {
 }
 
 impl NvApiThermChannelInfo {
-    pub fn mask(&self) -> i32 {
-        self.mask
-    }
-
     fn primary_channel(&self, channel_type: usize) -> Option<usize> {
         self.primary_channel_idx
             .get(channel_type)
@@ -579,7 +574,7 @@ impl Default for NvApiThermChannelInfo {
             mask: 0,
             rsvd: [0; 32],
             channels: [NvApiThermChannel::default(); 32],
-            primary_channel_idx: [0; 5],
+            primary_channel_idx: [u8::MAX; 5],
         }
     }
 }
