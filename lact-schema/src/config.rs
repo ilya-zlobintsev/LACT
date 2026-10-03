@@ -53,6 +53,7 @@ pub struct GpuConfig {
     pub custom_power_profile_mode_hueristics: Vec<Vec<Option<i32>>>,
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub power_states: IndexMap<PowerLevelKind, Vec<u8>>,
+    pub uma_carveout: Option<usize>,
 }
 
 #[skip_serializing_none]

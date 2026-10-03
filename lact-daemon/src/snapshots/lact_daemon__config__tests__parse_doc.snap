@@ -103,6 +103,7 @@ gpus:
       memory_clock:
         - 0
         - 1
+    uma_carveout: 1
 profiles:
   vkcube:
     rule:

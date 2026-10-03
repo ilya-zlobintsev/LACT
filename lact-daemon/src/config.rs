@@ -495,7 +495,7 @@ mod tests {
     use indexmap::IndexMap;
     use insta::assert_yaml_snapshot;
     use lact_schema::{
-        FanControlMode, NvidiaThermalOptions, NvidiaVfPoint, PmfwOptions,
+        FanControlMode, NvidiaVfPoint, PmfwOptions,
         config::{
             ClocksConfiguration, CurvePoint, FanControlSettings, FanCurve, GpuConfig,
             NvidiaCurvePoint,
@@ -601,20 +601,7 @@ mod tests {
 
     #[test]
     fn clocks_configuration_applied() {
-        let mut gpu = GpuConfig {
-            fan_control_enabled: false,
-            fan_control_settings: None,
-            pmfw_options: PmfwOptions::default(),
-            nvidia_thermal_options: NvidiaThermalOptions::default(),
-            power_mizer_mode: None,
-            power_cap: None,
-            performance_level: None,
-            clocks_configuration: ClocksConfiguration::default(),
-            power_profile_mode_index: None,
-            custom_power_profile_mode_hueristics: vec![],
-            power_states: IndexMap::new(),
-        };
-
+        let mut gpu = GpuConfig::default();
         assert!(!gpu.is_core_clocks_used());
         gpu.clocks_configuration.voltage_offset = Some(10);
         assert!(gpu.is_core_clocks_used());
