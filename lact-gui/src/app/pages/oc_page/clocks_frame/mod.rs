@@ -185,6 +185,14 @@ impl relm4::Component for ClocksFrame {
 
                         #[wrap(Some)]
                         set_child = &gtk::Box {
+                            set_spacing: 6,
+
+                            append = &gtk::CheckButton {
+                                set_can_target: false,
+                                set_focusable: false,
+                                add_binding["active"]: &model.show_all_pstates,
+                            },
+
                             append = &gtk::Label {
                                 set_label: &fl!(I18N, "show-all-pstates"),
                             },
@@ -199,6 +207,14 @@ impl relm4::Component for ClocksFrame {
 
                         #[wrap(Some)]
                         set_child = &gtk::Box {
+                            set_spacing: 6,
+
+                            append = &gtk::CheckButton {
+                                set_can_target: false,
+                                set_focusable: false,
+                                add_binding["active"]: &model.enable_locked_clocks,
+                            },
+
                             append = &gtk::Label {
                                 set_label: &fl!(I18N, "enable-locked-clocks"),
                             },
@@ -219,6 +235,14 @@ impl relm4::Component for ClocksFrame {
 
                         #[wrap(Some)]
                         set_child = &gtk::Box {
+                            set_spacing: 6,
+
+                            append = &gtk::CheckButton {
+                                set_can_target: false,
+                                set_focusable: false,
+                                add_binding["active"]: &model.vf_curve_editing,
+                            },
+
                             append = &gtk::Label {
                                 set_label: &fl!(I18N, "enable-vf-curve"),
                             },

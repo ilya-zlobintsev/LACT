@@ -86,6 +86,15 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
                         #[wrap(Some)]
                         set_child = &gtk::Box {
+                            set_spacing: 6,
+
+                            gtk::CheckButton {
+                                set_can_target: false,
+                                set_focusable: false,
+                                #[watch]
+                                set_active: model.states_configuration_enabled.value(),
+                            },
+
                             gtk::Label {
                                 set_label: &fl!(I18N, "enable-pstate-config"),
                             },
