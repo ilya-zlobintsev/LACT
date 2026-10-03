@@ -1266,10 +1266,9 @@ impl AppModel {
             .context("Could not apply settings")?;
         self.ask_settings_confirmation(
             delay,
-            &gtk::Window::list_toplevels()
-                .into_iter()
-                .filter_map(|widget| widget.downcast::<gtk::Window>().ok())
-                .find(|window| window.is_active())
+            &self
+                .application
+                .active_window()
                 .unwrap_or_else(|| root.clone().upcast()),
             sender,
         );
