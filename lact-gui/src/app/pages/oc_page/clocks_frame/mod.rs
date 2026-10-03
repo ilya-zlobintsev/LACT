@@ -1,5 +1,5 @@
 use crate::{
-    APP_BROKER, I18N,
+    APP_BROKER, CONFIG, I18N,
     app::{
         components::{
             adjustment_card::AdjustmentCard,
@@ -167,7 +167,8 @@ impl relm4::Component for ClocksFrame {
                 controls {
                     append = &gtk::ToggleButton {
                         #[watch]
-                        set_visible: model.has_secondary_p_states(),
+                        set_visible: model.has_secondary_p_states()
+                            && model.secondary_p_states_enabled(),
 
                         add_css_class: "adjustment-card-option-toggle",
                         add_binding["active"]: &model.show_all_pstates,
@@ -363,6 +364,9 @@ impl relm4::Component for ClocksFrame {
                 self.update_vram_clock_ratio();
             }
             ClocksFrameMsg::TogglePStatesVisibility => {
+                if !self.secondary_p_states_enabled() && self.show_all_pstates.value() {
+                    self.show_all_pstates.set_value(false);
+                }
                 for clock_type in self.adjustments.keys() {
                     let visible = match clock_type {
                         ClockspeedType::MaxCoreClock
@@ -380,7 +384,8 @@ impl relm4::Component for ClocksFrame {
                         }
                         _ => {
                             !self.secondary_p_state_clocks.contains(clock_type)
-                                || self.show_all_pstates.value()
+                                || (self.secondary_p_states_enabled()
+                                    && self.show_all_pstates.value())
                         }
                     };
                     self.adjustments
@@ -394,6 +399,10 @@ impl relm4::Component for ClocksFrame {
 }
 
 impl ClocksFrame {
+    fn secondary_p_states_enabled(&self) -> bool {
+        !self.show_nvidia_options || CONFIG.read().experimental_nvidia_pstate_offsets
+    }
+
     fn set_clock(&mut self, clock_type: ClockspeedType, data: ClocksData) {
         if !self.domain.matches(clock_type) {
             return;
@@ -712,6 +721,11 @@ impl ClocksFrame {
         self.adjustments
             .iter()
             .filter_map(|(clock_type, row)| {
+                if !self.secondary_p_states_enabled()
+                    && self.secondary_p_state_clocks.contains(clock_type)
+                {
+                    return None;
+                }
                 let configured_value = row.get_changed_value().map(|value| value as i32);
                 // If nvidia options are enabled, we always set locked clocks to None or Some
                 let value = if self.show_nvidia_options {

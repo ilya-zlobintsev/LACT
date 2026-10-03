@@ -670,6 +670,9 @@ impl AppModel {
             AppMsg::ShowPreferencesDialog => {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
             }
+            AppMsg::ExperimentalFeaturesChanged => {
+                sender.input(AppMsg::ReloadData { full: false });
+            }
             AppMsg::ShowAboutDialog => {
                 self.about_dialog.emit(AboutDialogMsg::Show);
             }
@@ -1255,6 +1258,12 @@ impl AppModel {
         self.oc_page
             .model()
             .apply_clocks_config(&mut gpu_config.clocks_configuration);
+
+        if self.device_driver == "nvidia" && !CONFIG.read().experimental_nvidia_pstate_offsets {
+            let clocks = &mut gpu_config.clocks_configuration;
+            clocks.gpu_clock_offsets.retain(|pstate, _| *pstate == 0);
+            clocks.mem_clock_offsets.retain(|pstate, _| *pstate == 0);
+        }
 
         let enabled_power_states = self.oc_page.model().get_enabled_power_states();
         gpu_config.power_states = enabled_power_states;

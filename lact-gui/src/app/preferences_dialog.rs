@@ -173,6 +173,22 @@ impl relm4::Component for PreferencesDialog {
                 },
 
                 add = &adw::PreferencesGroup {
+                    set_title: &fl!(I18N, "experimental-features"),
+
+                    adw::SwitchRow {
+                        set_title: &fl!(I18N, "nvidia-pstate-offsets"),
+                        set_subtitle: &fl!(I18N, "nvidia-pstate-offsets-description"),
+                        set_active: CONFIG.read().experimental_nvidia_pstate_offsets,
+                        connect_active_notify => move |row| {
+                            CONFIG.write().edit(|config| {
+                                config.experimental_nvidia_pstate_offsets = row.is_active();
+                            });
+                            APP_BROKER.send(AppMsg::ExperimentalFeaturesChanged);
+                        },
+                    },
+                },
+
+                add = &adw::PreferencesGroup {
                     set_title: &fl!(I18N, "daemon"),
 
                     adw::ActionRow {
