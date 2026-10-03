@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="res/io.github.ilya_zlobintsev.LACT.png" alt="icon" height="80"/>
+  <img src="res/io.github.ilya_zlobintsev.LACT.png" alt="icon" width="120px"/>
 </p>
 
 # Linux GPU Control Application
