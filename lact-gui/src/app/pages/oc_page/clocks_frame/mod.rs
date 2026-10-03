@@ -11,10 +11,10 @@ use crate::{
     },
 };
 use adw::prelude::*;
-use amdgpu_sysfs::gpu_handle::overdrive::ClocksTableGen as AmdClocksTable;
+use amdgpu_sysfs::gpu_handle::{PowerLevelId, overdrive::ClocksTableGen as AmdClocksTable};
 use i18n_embed_fl::fl;
 use lact_schema::{
-    ClocksTable, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
+    ClocksTable, DeviceStats, IntelClocksTable, NvidiaClockOffset, NvidiaClocksTable,
     request::{ClockspeedType, SetClocksCommand},
 };
 use relm4::{
@@ -35,6 +35,9 @@ pub struct ClocksFrame {
     show_all_pstates: BoolBinding,
     vf_curve_editing: BoolBinding,
     enable_locked_clocks: BoolBinding,
+    has_power_states: bool,
+    active_power_state: Option<PowerLevelId>,
+    current_clock: Option<u64>,
 }
 
 #[derive(Default)]
@@ -99,6 +102,8 @@ pub enum ClocksFrameMsg {
         vf_curve_is_configured: bool,
     },
     VramRatio(f64),
+    PowerStatesAvailable(bool),
+    Stats(Arc<DeviceStats>),
     TogglePStatesVisibility,
     ResetGpuClockOffsets,
 }
@@ -119,7 +124,9 @@ impl relm4::Component for ClocksFrame {
                 ClockDomain::Vram => fl!(I18N, "vram-section"),
             },
             #[watch]
-            set_visible: model.domain == ClockDomain::Gpu || model.has_any_clocks(),
+            set_visible: model.domain == ClockDomain::Gpu
+                || model.has_any_clocks()
+                || model.has_power_states,
 
             append_header = &gtk::Box {
                 set_spacing: 10,
@@ -244,6 +251,43 @@ impl relm4::Component for ClocksFrame {
                             set_halign: gtk::Align::Start,
                         },
                     },
+
+                    adw::ActionRow {
+                        set_title: &fl!(I18N, "pstate"),
+                        set_activatable: true,
+                        add_css_class: "pstates",
+                        #[watch]
+                        set_visible: model.has_power_states,
+                        connect_activated[sender, domain = model.domain] => move |_| {
+                            sender.output(OcPageMsg::ShowPowerStates(domain)).unwrap();
+                        },
+
+                        add_suffix = &gtk::Box {
+                            set_spacing: 4,
+                            set_valign: gtk::Align::Center,
+
+                            gtk::Label {
+                                add_css_class: css::HEADING,
+                                #[watch]
+                                set_label: &match model.active_power_state {
+                                    Some(PowerLevelId::Index(index)) => format!("P{index}"),
+                                    Some(PowerLevelId::Sleep) => "S".to_owned(),
+                                    None => "N/A".to_owned(),
+                                },
+                            },
+
+                            gtk::Label {
+                                add_css_class: css::DIM_LABEL,
+                                #[watch]
+                                set_label: &model.power_state_clock_label(),
+                            },
+                        },
+
+                        add_suffix = &gtk::Image {
+                            set_icon_name: Some("go-next-symbolic"),
+                            add_css_class: css::DIM_LABEL,
+                        },
+                    },
                 },
             },
         }
@@ -271,6 +315,9 @@ impl relm4::Component for ClocksFrame {
             show_all_pstates,
             vf_curve_editing,
             enable_locked_clocks: BoolBinding::new(false),
+            has_power_states: false,
+            active_power_state: None,
+            current_clock: None,
         };
 
         for binding in [
@@ -285,6 +332,13 @@ impl relm4::Component for ClocksFrame {
         }
 
         let widgets = view_output!();
+
+        model.adjustments.widget().set_sort_func(|left, right| {
+            // Keep the pstates row after dynamically inserted clock controls.
+            left.has_css_class("pstates")
+                .cmp(&right.has_css_class("pstates"))
+                .into()
+        });
 
         ComponentParts { model, widgets }
     }
@@ -362,6 +416,16 @@ impl relm4::Component for ClocksFrame {
                 self.vram_clock_ratio = vram_ratio;
                 self.update_vram_clock_ratio();
             }
+            ClocksFrameMsg::PowerStatesAvailable(available) => {
+                self.has_power_states = available;
+            }
+            ClocksFrameMsg::Stats(stats) => {
+                let active_states = stats.active_power_states.unwrap_or_default();
+                (self.active_power_state, self.current_clock) = match self.domain {
+                    ClockDomain::Gpu => (active_states.core, stats.clockspeed.gpu_clockspeed),
+                    ClockDomain::Vram => (active_states.memory, stats.clockspeed.vram_clockspeed),
+                };
+            }
             ClocksFrameMsg::TogglePStatesVisibility => {
                 for clock_type in self.adjustments.keys() {
                     let visible = match clock_type {
@@ -394,6 +458,19 @@ impl relm4::Component for ClocksFrame {
 }
 
 impl ClocksFrame {
+    fn power_state_clock_label(&self) -> String {
+        match self.current_clock {
+            Some(clock) => {
+                let ratio = match self.domain {
+                    ClockDomain::Gpu => 1.0,
+                    ClockDomain::Vram => self.vram_clock_ratio,
+                };
+                format!("{:.0} {}", clock as f64 * ratio, fl!(I18N, "mhz"))
+            }
+            None => "N/A".to_owned(),
+        }
+    }
+
     fn set_clock(&mut self, clock_type: ClockspeedType, data: ClocksData) {
         if !self.domain.matches(clock_type) {
             return;

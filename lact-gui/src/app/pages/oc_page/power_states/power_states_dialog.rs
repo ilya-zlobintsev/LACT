@@ -5,7 +5,7 @@ use crate::{
     app::{
         components::{adjustment_card::AdjustmentCard, page_section::PageSection},
         msg::AppMsg,
-        pages::oc_page::OcPageMsg,
+        pages::oc_page::{OcPageMsg, clocks_frame::ClockDomain},
         utils::ext::RelmLaunchable as _,
     },
 };
@@ -16,12 +16,13 @@ use i18n_embed_fl::fl;
 use indexmap::IndexMap;
 use lact_schema::{DeviceStats, PowerStates};
 use relm4::{
-    ComponentController, ComponentParts, ComponentSender,
+    ComponentController, ComponentParts, ComponentSender, RelmWidgetExt,
     binding::{Binding, BoolBinding},
 };
 use std::sync::Arc;
 
-pub struct PowerStatesFrame {
+pub struct PowerStatesDialog {
+    domain: ClockDomain,
     core_states_list: relm4::Controller<PowerStatesList>,
     vram_states_list: relm4::Controller<PowerStatesList>,
     states_configurable: BoolBinding,
@@ -34,7 +35,11 @@ pub struct PowerStatesFrame {
 }
 
 #[derive(Debug)]
-pub enum PowerStatesFrameMsg {
+pub enum PowerStatesDialogMsg {
+    Show {
+        domain: ClockDomain,
+        parent: gtk::Widget,
+    },
     PowerStates {
         pstates: PowerStates,
         configured: bool,
@@ -51,69 +56,83 @@ pub enum PowerStatesFrameMsg {
 }
 
 #[relm4::component(pub)]
-impl relm4::SimpleComponent for PowerStatesFrame {
+impl relm4::Component for PowerStatesDialog {
     type Init = ();
-    type Input = PowerStatesFrameMsg;
+    type Input = PowerStatesDialogMsg;
     type Output = OcPageMsg;
+    type CommandOutput = ();
 
     view! {
-        PageSection {
-            set_name: fl!(I18N, "pstates"),
-            set_hide_visible_container: true,
-            #[template]
-            append_child = &AdjustmentCard {
-                #[template_child]
-                advanced_features {
-                    #[watch]
-                    set_visible: model.performance_level.is_some(),
-                },
+        adw::Dialog {
+            set_content_width: 420,
+            set_follows_content_size: true,
+            #[watch]
+            set_title: &match model.domain {
+                ClockDomain::Gpu => fl!(I18N, "gpu-pstates"),
+                ClockDomain::Vram => fl!(I18N, "vram-pstates"),
+            },
 
-                #[template_child]
-                controls {
-                    gtk::ToggleButton {
-                        set_halign: gtk::Align::Start,
-                        add_css_class: "adjustment-card-option-toggle",
+            #[wrap(Some)]
+            set_child = &adw::ToolbarView {
+                add_top_bar = &adw::HeaderBar {},
 
-                        #[watch]
-                        #[block_signal(configured_toggled_handler)]
-                        set_active: model.states_configuration_enabled.value(),
+                #[wrap(Some)]
+                set_content = &gtk::ScrolledWindow {
+                    set_hscrollbar_policy: gtk::PolicyType::Never,
+                    set_propagate_natural_height: true,
+                    set_max_content_height: 500,
 
-                        connect_toggled[sender] => move |button| {
-                            sender.input(PowerStatesFrameMsg::ConfiguredToggled {
-                                configured: button.is_active(),
-                            });
-                        } @ configured_toggled_handler,
+                    PageSection {
+                        set_hide_visible_container: true,
+                        set_margin_all: 15,
+                        add_css_class: "power-states-dialog-card",
 
-                        #[wrap(Some)]
-                        set_child = &gtk::Box {
-                            gtk::Label {
-                                set_label: &fl!(I18N, "enable-pstate-config"),
-                            },
-                        },
-                    },
-                },
-
-                #[template_child]
-                content {
-                    gtk::ListBoxRow {
-                        set_activatable: false,
-                        set_selectable: false,
-
-                        gtk::Box {
-                            set_spacing: 10,
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_homogeneous: true,
-
-                            gtk::Box {
+                        #[template]
+                        append_child = &AdjustmentCard {
+                            #[template_child]
+                            advanced_features {
                                 #[watch]
-                                set_visible: model.has_core_states,
-                                append = model.core_states_list.widget(),
+                                set_visible: model.performance_level.is_some(),
                             },
 
-                            gtk::Box {
-                                #[watch]
-                                set_visible: model.has_vram_states,
-                                append = model.vram_states_list.widget(),
+                            #[template_child]
+                            controls {
+                                gtk::ToggleButton {
+                                    set_halign: gtk::Align::Start,
+                                    add_css_class: "adjustment-card-option-toggle",
+                                    set_label: &fl!(I18N, "enable-pstate-config"),
+
+                                    #[watch]
+                                    #[block_signal(configured_toggled_handler)]
+                                    set_active: model.states_configuration_enabled.value(),
+
+                                    connect_toggled[sender] => move |button| {
+                                        sender.input(PowerStatesDialogMsg::ConfiguredToggled {
+                                            configured: button.is_active(),
+                                        });
+                                    } @ configured_toggled_handler,
+                                },
+                            },
+
+                            #[template_child]
+                            content {
+                                gtk::ListBoxRow {
+                                    set_activatable: false,
+                                    set_selectable: false,
+                                    #[watch]
+                                    set_visible: model.domain == ClockDomain::Gpu && model.has_core_states,
+                                    #[wrap(Some)]
+                                    set_child = model.core_states_list.widget(),
+                                },
+
+                                gtk::ListBoxRow {
+                                    set_activatable: false,
+                                    set_selectable: false,
+                                    #[watch]
+                                    set_visible: model.domain == ClockDomain::Vram && model.has_vram_states,
+                                    #[wrap(Some)]
+                                    set_child = model.vram_states_list.widget(),
+                                },
                             },
                         },
                     },
@@ -128,11 +147,9 @@ impl relm4::SimpleComponent for PowerStatesFrame {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let core_states_list = PowerStatesList::detach(PowerStatesListOptions {
-            title: fl!(I18N, "gpu-pstates"),
             value_suffix: fl!(I18N, "mhz"),
         });
         let vram_states_list = PowerStatesList::detach(PowerStatesListOptions {
-            title: fl!(I18N, "vram-pstates"),
             value_suffix: fl!(I18N, "mhz"),
         });
 
@@ -141,13 +158,14 @@ impl relm4::SimpleComponent for PowerStatesFrame {
         let configured_sender = sender.clone();
         let configured_signal =
             states_configuration_enabled.connect_value_notify(move |states_configured| {
-                configured_sender.input(PowerStatesFrameMsg::InternalConfigurableChanged(
+                configured_sender.input(PowerStatesDialogMsg::InternalConfigurableChanged(
                     states_configured.get(),
                 ));
                 APP_BROKER.send(AppMsg::SettingsChanged);
             });
 
         let model = Self {
+            domain: ClockDomain::Gpu,
             core_states_list,
             vram_states_list,
             states_configurable: BoolBinding::new(false),
@@ -164,9 +182,20 @@ impl relm4::SimpleComponent for PowerStatesFrame {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        msg: Self::Input,
+        sender: ComponentSender<Self>,
+        root: &Self::Root,
+    ) {
         match msg {
-            PowerStatesFrameMsg::PowerStates {
+            PowerStatesDialogMsg::Show { domain, parent } => {
+                self.domain = domain;
+                self.update_view(widgets, sender.clone());
+                root.present(Some(&parent));
+            }
+            PowerStatesDialogMsg::PowerStates {
                 pstates,
                 configured,
             } => {
@@ -186,7 +215,7 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                     self.vram_clock_ratio,
                 ));
             }
-            PowerStatesFrameMsg::Stats(stats) => {
+            PowerStatesDialogMsg::Stats(stats) => {
                 self.core_states_list.emit(PowerStatesListMsg::ActiveState(
                     stats.active_power_states.and_then(|states| states.core),
                 ));
@@ -194,10 +223,12 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                     stats.active_power_states.and_then(|states| states.memory),
                 ));
             }
-            PowerStatesFrameMsg::VramClockRatio(ratio) => {
+            PowerStatesDialogMsg::VramClockRatio(ratio) => {
                 self.vram_clock_ratio = ratio;
+                self.vram_states_list
+                    .emit(PowerStatesListMsg::ValueRatio(ratio));
             }
-            PowerStatesFrameMsg::Configurable(is_plvl_manual) => {
+            PowerStatesDialogMsg::Configurable(is_plvl_manual) => {
                 let configurable = is_plvl_manual && (self.has_core_states || self.has_vram_states);
                 self.states_configurable.set_value(configurable);
 
@@ -216,33 +247,34 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                     configurable && self.states_configuration_enabled.value(),
                 ));
             }
-            PowerStatesFrameMsg::PerformanceLevel(level) => {
+            PowerStatesDialogMsg::PerformanceLevel(level) => {
                 self.performance_level = level;
             }
-            PowerStatesFrameMsg::ConfiguredToggled { configured } => {
+            PowerStatesDialogMsg::ConfiguredToggled { configured } => {
                 if !configured || self.performance_level == Some(PerformanceLevel::Manual) {
                     self.states_configuration_enabled.set_value(configured);
                 } else {
                     APP_BROKER.send(AppMsg::EnablePstateConfig);
                 }
             }
-            PowerStatesFrameMsg::EnableWithManualPerformanceLevel => {
+            PowerStatesDialogMsg::EnableWithManualPerformanceLevel => {
                 sender
                     .output(OcPageMsg::SetPerformanceLevel(PerformanceLevel::Manual))
                     .unwrap();
                 self.states_configuration_enabled.set_value(true);
             }
-            PowerStatesFrameMsg::InternalConfigurableChanged(configurable) => {
+            PowerStatesDialogMsg::InternalConfigurableChanged(configurable) => {
                 self.core_states_list
                     .emit(PowerStatesListMsg::Configurable(configurable));
                 self.vram_states_list
                     .emit(PowerStatesListMsg::Configurable(configurable));
             }
         }
+        self.update_view(widgets, sender);
     }
 }
 
-impl PowerStatesFrame {
+impl PowerStatesDialog {
     pub fn get_enabled_power_states(&self) -> IndexMap<PowerLevelKind, Vec<u8>> {
         if self.states_configuration_enabled.value() {
             let state_types = [
@@ -279,7 +311,7 @@ mod tests {
         adw::init().unwrap();
         let context = gtk::glib::MainContext::default();
         let _guard = context.acquire().unwrap();
-        let frame = PowerStatesFrame::detach(());
+        let dialog = PowerStatesDialog::detach(());
         let states = PowerStates {
             core: vec![],
             vram: (0..4)
@@ -293,30 +325,30 @@ mod tests {
         };
 
         // Queue the startup messages together, before child components can update
-        frame.emit(PowerStatesFrameMsg::PowerStates {
+        dialog.emit(PowerStatesDialogMsg::PowerStates {
             pstates: states,
             configured: true,
         });
-        frame.emit(PowerStatesFrameMsg::Configurable(true));
+        dialog.emit(PowerStatesDialogMsg::Configurable(true));
         while context.pending() {
             context.iteration(false);
         }
-        assert!(frame.model().states_configuration_enabled.value());
+        assert!(dialog.model().states_configuration_enabled.value());
         assert_eq!(
-            frame.model().get_enabled_power_states()[&PowerLevelKind::MemoryClock],
+            dialog.model().get_enabled_power_states()[&PowerLevelKind::MemoryClock],
             vec![3],
         );
 
         // Changing to a GPU without power states must clear the previous capability
-        frame.emit(PowerStatesFrameMsg::PowerStates {
+        dialog.emit(PowerStatesDialogMsg::PowerStates {
             pstates: PowerStates::default(),
             configured: false,
         });
-        frame.emit(PowerStatesFrameMsg::Configurable(true));
+        dialog.emit(PowerStatesDialogMsg::Configurable(true));
         while context.pending() {
             context.iteration(false);
         }
-        assert!(!frame.model().states_configurable.value());
-        assert!(frame.model().get_enabled_power_states().is_empty());
+        assert!(!dialog.model().states_configurable.value());
+        assert!(dialog.model().get_enabled_power_states().is_empty());
     }
 }
