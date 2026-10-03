@@ -25,7 +25,7 @@ impl relm4::Component for AboutDialog {
             set_application_name: &fl!(I18N, "lact-gui"),
             set_application_icon: APP_ID,
             set_version: &format!("{GUI_VERSION} ({GIT_COMMIT})"),
-            set_website: &format!("{REPO_URL}/wiki"),
+            set_website: &format!("{REPO_URL}/blob/master/docs/wiki/Navigation.md"),
             set_issue_url: &format!("{REPO_URL}/issues"),
             set_license_type: gtk::License::MitX11,
         }
