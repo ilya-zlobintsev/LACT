@@ -1,10 +1,10 @@
-<p align="center">
-  <img src="res/io.github.ilya_zlobintsev.LACT.png" alt="icon" width="120px"/>
-</p>
-
 # Linux GPU Control Application
 
 [![Translation status](https://translate.fedoraproject.org/widget/lact/svg-badge.svg)](https://translate.fedoraproject.org/engage/lact/)
+
+<p align="center">
+  <img src="res/io.github.ilya_zlobintsev.LACT.png" alt="icon" width="120px"/>
+</p>
 
 Control your AMD, Nvidia or Intel GPU on a Linux
 system.
