@@ -567,7 +567,7 @@ impl AmdGpuController {
                     .ok()
             });
 
-        let amd_uma_carveout = self
+        let uma_carveout = self
             .handle
             .get_uma_carveout_options()
             .and_then(|options| {
@@ -583,11 +583,11 @@ impl AmdGpuController {
         let drm_handle = self.drm_handle.as_ref();
 
         match drm_handle {
-            Some(drm_handle) => drm_handle.get_drm_info(&self.handle, cache_info),
+            Some(drm_handle) => drm_handle.get_drm_info(&self.handle, cache_info, uma_carveout),
             None => Some(DrmInfo {
                 cache_info,
                 vram_clock_ratio: 1.0,
-                amd_uma_carveout,
+                amd_uma_carveout: uma_carveout,
                 ..Default::default()
             }),
         }
@@ -1396,6 +1396,19 @@ impl GpuController for AmdGpuController {
                 self.handle
                     .set_enabled_power_levels(*kind, states)
                     .with_context(|| format!("Could not set {kind:?} power states"))?;
+            }
+
+            if let Some(uma_carveout) = config.uma_carveout {
+                let current_carveout = self
+                    .handle
+                    .get_current_uma_carveout()
+                    .context("Could not get current UMA carveout")?;
+
+                if uma_carveout != current_carveout {
+                    self.handle
+                        .set_uma_carveout(uma_carveout)
+                        .context("Could not apply UMA carveout")?;
+                }
             }
 
             Ok(())
