@@ -14,7 +14,7 @@ env:
 
 jobs:
   build-test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -25,7 +25,7 @@ jobs:
         run: cargo test --all --all-features --verbose
 
   check-format:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -35,7 +35,7 @@ jobs:
         run: cargo fmt -- --check
 
   check-clippy:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -46,7 +46,7 @@ jobs:
         run: cargo clippy --all --all-features -- --deny clippy::all
 
   check-audit:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -60,7 +60,7 @@ jobs:
         run: cargo audit
 
   coverage:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -74,7 +74,7 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-llvm-cov
-          version: '0.6.18'
+          version: '0.9.0'
 
       - name: Generate coverage report
         run: |
@@ -92,7 +92,7 @@ jobs:
           verbose: true
 
   test-miri:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -112,7 +112,7 @@ jobs:
       run: cargo +nightly-2026-01-27 miri test
 
   test-sanitizers:
-      runs-on: ubuntu-24.04
+      runs-on: ubuntu-26.04
       strategy:
         fail-fast: false
         matrix:
@@ -138,7 +138,7 @@ jobs:
               cargo +nightly-2026-01-27 -Zbuild-std test --target x86_64-unknown-linux-gnu --lib
 
   check-features-powerset:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     strategy:
       matrix:
