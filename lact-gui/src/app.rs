@@ -671,7 +671,7 @@ impl AppModel {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
             }
             AppMsg::ExperimentalFeaturesChanged => {
-                self.oc_page.emit(OcPageMsg::ExperimentalFeaturesChanged);
+                sender.input(AppMsg::ReloadData { full: false });
             }
             AppMsg::ShowAboutDialog => {
                 self.about_dialog.emit(AboutDialogMsg::Show);

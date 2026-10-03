@@ -64,7 +64,6 @@ pub enum OcPageMsg {
     EnablePstateConfig,
     ShowVfCurveEditor,
     VfCurveEditingToggled(bool),
-    ExperimentalFeaturesChanged,
 }
 
 #[relm4::component(pub)]
@@ -275,12 +274,6 @@ impl relm4::Component for OcPage {
             }
             OcPageMsg::ShowVfCurveEditor => {
                 self.vf_curve_editor.emit(VfCurveEditorMsg::Show);
-            }
-            OcPageMsg::ExperimentalFeaturesChanged => {
-                self.gpu_clocks_frame
-                    .emit(ClocksFrameMsg::TogglePStatesVisibility);
-                self.vram_clocks_frame
-                    .emit(ClocksFrameMsg::TogglePStatesVisibility);
             }
             OcPageMsg::VfCurveEditingToggled(enabled) => {
                 if enabled {
