@@ -1273,11 +1273,16 @@ impl AppModel {
             .set_gpu_config(&gpu_id, gpu_config)
             .await
             .context("Could not apply settings")?;
-        self.ask_settings_confirmation(delay, root, sender);
+        self.ask_settings_confirmation(
+            delay,
+            &self
+                .application
+                .active_window()
+                .unwrap_or_else(|| root.clone().upcast()),
+            sender,
+        );
 
         sender.input(AppMsg::ReloadData { full: false });
-
-        root.present();
 
         Ok(())
     }
@@ -1285,7 +1290,7 @@ impl AppModel {
     fn ask_settings_confirmation(
         &self,
         mut delay: u64,
-        window: &adw::ApplicationWindow,
+        window: &gtk::Window,
         sender: &AsyncComponentSender<AppModel>,
     ) {
         let dialog = adw::AlertDialog::builder()
