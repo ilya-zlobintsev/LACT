@@ -27,6 +27,7 @@ const QUERY_NVAPI_ENUM_PHYSICAL_GPUS: u32 = 0xe5ac921f;
 const QUERY_NVAPI_GPU_GET_BUS_ID: u32 = 0x1be0b8e5;
 const QUERY_NVAPI_GET_ERROR_MESSAGE: u32 = 0x6c2d048c;
 // Undocumented calls
+const QUERY_NVAPI_GPU_THERM_CHANNEL_GET_INFO: u32 = 0x0bc8163d;
 const QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS: u32 = 0x65fe3aad;
 const QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_STATUS: u32 = 0x465f9bcf;
 const QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_CONTROL: u32 = 0x9df23ca1;
@@ -89,26 +90,34 @@ impl NvApi {
         Ok(None)
     }
 
+    pub unsafe fn therm_channel_get_info(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<NvApiThermChannelInfo> {
+        let mut thermals_info = NvApiThermChannelInfo::default();
+        self.physical_gpu_query(
+            handle,
+            &mut thermals_info,
+            QUERY_NVAPI_GPU_THERM_CHANNEL_GET_INFO,
+        )?;
+        Ok(thermals_info)
+    }
+
     pub unsafe fn therm_channel_get_status(
         &self,
         handle: NvPhysicalGpuHandle,
         mask: i32,
     ) -> anyhow::Result<NvApiThermals> {
-        let f = self.query_interface(QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS)?;
-        let f: unsafe extern "C" fn(
-            handle: NvPhysicalGpuHandle,
-            sensors: &mut NvApiThermals,
-        ) -> NvAPI_Status = transmute(f);
-
         let mut sensors = NvApiThermals {
-            #[allow(clippy::cast_possible_truncation)]
-            version: make_version::<NvApiThermals>(2),
             mask,
-            values: [0; 40],
+            ..Default::default()
         };
 
-        let status = f(handle, &mut sensors);
-        self.handle_status(status)?;
+        self.physical_gpu_query(
+            handle,
+            &mut sensors,
+            QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS,
+        )?;
 
         Ok(sensors)
     }
@@ -234,37 +243,6 @@ impl NvApi {
         )?;
 
         Ok(())
-    }
-
-    pub unsafe fn calculate_therm_channel_mask(
-        &self,
-        handle: NvPhysicalGpuHandle,
-    ) -> anyhow::Result<i32> {
-        let f = self.query_interface(QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS)?;
-        let f: unsafe extern "C" fn(
-            handle: NvPhysicalGpuHandle,
-            sensors: &mut NvApiThermals,
-        ) -> NvAPI_Status = transmute(f);
-
-        let mut sensors = NvApiThermals {
-            #[allow(clippy::cast_possible_truncation)]
-            version: (mem::size_of::<NvApiThermals>() | (2 << 16)) as u32,
-            mask: 1,
-            values: [0; 40],
-        };
-
-        let initial_status = f(handle, &mut sensors);
-        self.handle_status(initial_status)?;
-
-        for bit in 0..32 {
-            sensors.mask = 1 << bit;
-            let status = f(handle, &mut sensors);
-            if status != 0 {
-                return Ok(sensors.mask - 1);
-            }
-        }
-
-        bail!("Could not find suitable mask");
     }
 
     unsafe fn enum_physical_gpus(&self) -> anyhow::Result<Vec<NvPhysicalGpuHandle>> {
@@ -480,6 +458,7 @@ impl NvApi {
     pub fn read_hotspot(
         &self,
         thermals: &NvApiThermals,
+        channel: Option<usize>,
         handle: NvPhysicalGpuHandle,
         arch: Option<&DeviceArchitecture>,
     ) -> Option<i32> {
@@ -490,7 +469,7 @@ impl NvApi {
                     .and_then(|value| value.try_into().ok())
             }
         } else {
-            thermals.get_value(9)
+            channel.and_then(|channel| thermals.get_value(channel))
         }
     }
 }
@@ -513,21 +492,90 @@ impl Drop for NvApi {
 pub struct NvApiThermals {
     version: u32,
     mask: i32,
-    values: [i32; 40],
+    rsvd: [NvU8; 32],
+    temps: [i32; 32],
+}
+
+impl Default for NvApiThermals {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(2),
+            mask: 0,
+            rsvd: [0; 32],
+            temps: [0; 32],
+        }
+    }
 }
 
 impl NvApiThermals {
-    fn get_value(&self, index: usize) -> Option<i32> {
-        self.values
-            .get(index)
+    pub fn get_value(&self, channel: usize) -> Option<i32> {
+        self.temps
+            .get(channel)
             .map(|&value| value / 256)
             .filter(|&value| value > 0 && value < 255)
     }
+}
 
-    pub fn vram(&self, vram_type: Option<&str>) -> Option<i32> {
-        match vram_type {
-            Some("GDDR7") => self.get_value(10),
-            _ => self.get_value(15),
+const THERM_CHANNEL_TYPE_HOTSPOT: usize = 1;
+const THERM_CHANNEL_TYPE_MEMORY: usize = 3;
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+struct NvApiThermChannel {
+    class: NvU32,
+    channel_type: NvU32,
+    rel_loc: NvU32,
+    target_gpu: NvU32,
+    scaling: NvS32,
+    offset_sw: NvS32,
+    min_temp: NvS32,
+    max_temp: NvS32,
+    is_temp_sim_supported: NvU8,
+    flags: NvU8,
+    offset_hw: NvS32,
+    rsvd: [NvU8; 28],
+    data: [NvU8; 16],
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct NvApiThermChannelInfo {
+    version: NvU32,
+    mask: i32,
+    rsvd: [NvU8; 32],
+    channels: [NvApiThermChannel; 32],
+    primary_channel_idx: [NvU8; 5],
+}
+
+impl NvApiThermChannelInfo {
+    pub fn mask(&self) -> i32 {
+        self.mask
+    }
+
+    pub fn hotspot_channel(&self) -> Option<usize> {
+        self.primary_channel(THERM_CHANNEL_TYPE_HOTSPOT)
+    }
+
+    pub fn vram_channel(&self) -> Option<usize> {
+        self.primary_channel(THERM_CHANNEL_TYPE_MEMORY)
+    }
+
+    fn primary_channel(&self, channel_type: usize) -> Option<usize> {
+        self.primary_channel_idx
+            .get(channel_type)
+            .map(|&channel| usize::from(channel))
+            .filter(|&channel| channel < 32 && self.mask & (1 << channel) != 0)
+    }
+}
+
+impl Default for NvApiThermChannelInfo {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(2),
+            mask: 0,
+            rsvd: [0; 32],
+            channels: [NvApiThermChannel::default(); 32],
+            primary_channel_idx: [u8::MAX; 5],
         }
     }
 }

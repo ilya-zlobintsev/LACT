@@ -2,6 +2,10 @@ language = Language
 language-system-default = System Default
 language-restart-notice = Restart the LACT GUI to apply language changes.
 
+experimental-features = Experimental Features
+nvidia-pstate-offsets = NVIDIA per-P-state offsets
+nvidia-pstate-offsets-description = Expose offsets for non-P0 states. Disabled by default because no known device/driver version supports it.
+
 info-page = Hardware Info
 oc-page = Overclocking
 thermals-page = Thermals
