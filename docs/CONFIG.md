@@ -213,6 +213,10 @@ gpus:
     mem_clock_offsets:
       0: 200
 
+    # Index of the UMA (dedicated VRAM) configuration that should be used.
+    # Needs a reboot to actually take effect. Applicable to certain AMD iGPUs.
+    uma_carveout: 1
+
 # Settings profiles
 profiles:
   # Name of the profile

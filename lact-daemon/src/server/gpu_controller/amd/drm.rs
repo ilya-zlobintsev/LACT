@@ -3,11 +3,16 @@ pub mod amdgpu;
 pub mod mock;
 
 use amdgpu_sysfs::gpu_handle::GpuHandle;
-use lact_schema::{CacheInfo, DeviceType, DrmInfo};
+use lact_schema::{AmdUmaCarveout, CacheInfo, DeviceType, DrmInfo};
 use libdrm_amdgpu_sys::AMDGPU::VBIOS::VbiosInfo;
 
 pub trait DrmProvider {
-    fn get_drm_info(&self, handle: &GpuHandle, cache_info: Option<CacheInfo>) -> Option<DrmInfo>;
+    fn get_drm_info(
+        &self,
+        handle: &GpuHandle,
+        cache_info: Option<CacheInfo>,
+        uma_carveout: Option<AmdUmaCarveout>,
+    ) -> Option<DrmInfo>;
 
     fn get_device_type(&self) -> Option<DeviceType>;
 

@@ -92,6 +92,7 @@ impl relm4::Component for VfCurveEditor {
     view! {
         #[root]
         adw::Window {
+            set_application: Some(&relm4::main_application()),
             set_hide_on_close: true,
             set_default_size: (1100, 700),
             set_title: Some(&fl!(I18N, "vf-curve-editor")),

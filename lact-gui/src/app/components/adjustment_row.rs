@@ -75,11 +75,10 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
         gtk::ListBoxRow {
             set_activatable: false,
             set_selectable: false,
+            add_css_class: "adjustment-row",
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
-                add_css_class: "adjustment-row",
 
                 gtk::Box {
                     set_spacing: 12,

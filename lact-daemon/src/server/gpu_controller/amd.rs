@@ -23,10 +23,10 @@ use drm::{DrmProvider, amdgpu::AmdGpuDrmProvider};
 use futures::{FutureExt, future::LocalBoxFuture};
 use indexmap::IndexMap;
 use lact_schema::{
-    ActivePowerStates, AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats,
-    DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, FanControlMode,
-    FanStats, LinkInfo, NvidiaThermalInfo, PmfwInfo, PowerState, PowerStates, PowerStats,
-    ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
+    ActivePowerStates, AmdCacheInstance, AmdUmaCarveout, CacheInfo, CacheType, ClocksInfo,
+    ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
+    FanControlMode, FanStats, LinkInfo, NvidiaThermalInfo, PmfwInfo, PowerState, PowerStates,
+    PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
 #[cfg(feature = "display-info")]
@@ -567,14 +567,27 @@ impl AmdGpuController {
                     .ok()
             });
 
+        let uma_carveout = self
+            .handle
+            .get_uma_carveout_options()
+            .and_then(|options| {
+                let current = self.handle.get_current_uma_carveout()?;
+                Ok(AmdUmaCarveout {
+                    options: options.options,
+                    current,
+                })
+            })
+            .ok();
+
         trace!("Reading DRM info");
         let drm_handle = self.drm_handle.as_ref();
 
         match drm_handle {
-            Some(drm_handle) => drm_handle.get_drm_info(&self.handle, cache_info),
+            Some(drm_handle) => drm_handle.get_drm_info(&self.handle, cache_info, uma_carveout),
             None => Some(DrmInfo {
                 cache_info,
                 vram_clock_ratio: 1.0,
+                amd_uma_carveout: uma_carveout,
                 ..Default::default()
             }),
         }
@@ -1383,6 +1396,19 @@ impl GpuController for AmdGpuController {
                 self.handle
                     .set_enabled_power_levels(*kind, states)
                     .with_context(|| format!("Could not set {kind:?} power states"))?;
+            }
+
+            if let Some(uma_carveout) = config.uma_carveout {
+                let current_carveout = self
+                    .handle
+                    .get_current_uma_carveout()
+                    .context("Could not get current UMA carveout")?;
+
+                if uma_carveout != current_carveout {
+                    self.handle
+                        .set_uma_carveout(uma_carveout)
+                        .context("Could not apply UMA carveout")?;
+                }
             }
 
             Ok(())
