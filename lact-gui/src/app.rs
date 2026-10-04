@@ -546,6 +546,8 @@ impl AsyncComponent for AppModel {
                 });
             }
 
+            root.application().unwrap().quit();
+
             glib::Propagation::Proceed
         });
 

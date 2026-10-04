@@ -123,17 +123,6 @@ impl relm4::Component for DetachablePage {
                 add_top_bar = &adw::HeaderBar {},
             },
         },
-
-        #[local_ref]
-        parent -> adw::ApplicationWindow {
-            connect_close_request[sender, window] => move |_| {
-                // Hide immediately, before the application's main loop can stop.
-                window.set_visible(false);
-                window.set_application(gtk::Application::NONE);
-                sender.input(DetachablePageMsg::Attach);
-                glib::Propagation::Proceed
-            },
-        },
     }
 
     fn init(
@@ -145,7 +134,6 @@ impl relm4::Component for DetachablePage {
             init,
             detached: false,
         };
-        let parent = &model.init.parent;
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }
