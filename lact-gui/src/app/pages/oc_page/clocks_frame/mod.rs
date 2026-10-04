@@ -180,7 +180,6 @@ impl relm4::Component for ClocksFrame {
                         set_visible: model.has_secondary_p_states()
                             && model.secondary_p_states_enabled(),
 
-                        add_css_class: "adjustment-card-option-toggle",
                         add_binding["active"]: &model.show_all_pstates,
 
                         #[watch]
@@ -200,7 +199,6 @@ impl relm4::Component for ClocksFrame {
                         set_label: &fl!(I18N, "enable-locked-clocks"),
                         #[watch]
                         set_visible: model.show_nvidia_options,
-                        add_css_class: "adjustment-card-option-toggle",
                         add_binding["active"]: &model.enable_locked_clocks,
 
                         connect_toggled => move |_| {
@@ -215,7 +213,6 @@ impl relm4::Component for ClocksFrame {
                         set_visible: model.domain == ClockDomain::Gpu
                             && model.show_nvidia_options
                             && model.vf_curve_available,
-                        add_css_class: "adjustment-card-option-toggle",
                         add_css_class: css::WARNING,
                         add_binding["active"]: &model.vf_curve_editing,
 

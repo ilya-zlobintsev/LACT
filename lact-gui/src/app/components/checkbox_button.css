@@ -1,3 +1,8 @@
+.checkbox-button:checked {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}
+
 .checkbox-button check {
     background-color: transparent;
     color: inherit;

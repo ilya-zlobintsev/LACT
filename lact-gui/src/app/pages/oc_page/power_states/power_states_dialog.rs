@@ -103,7 +103,6 @@ impl relm4::Component for PowerStatesDialog {
                                 #[template]
                                 CheckboxButton {
                                     set_halign: gtk::Align::Start,
-                                    add_css_class: "adjustment-card-option-toggle",
                                     set_label: &fl!(I18N, "enable-pstate-config"),
 
                                     #[watch]
