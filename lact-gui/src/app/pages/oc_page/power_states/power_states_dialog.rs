@@ -3,7 +3,10 @@ use super::power_states_list::{PowerStatesListMsg, PowerStatesListOptions};
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::{adjustment_card::AdjustmentCard, page_section::PageSection},
+        components::{
+            adjustment_card::AdjustmentCard, checkbox_button::CheckboxButton,
+            page_section::PageSection,
+        },
         msg::AppMsg,
         pages::oc_page::{OcPageMsg, clocks_frame::ClockDomain},
         utils::ext::RelmLaunchable as _,
@@ -97,10 +100,10 @@ impl relm4::Component for PowerStatesDialog {
 
                             #[template_child]
                             controls {
-                                gtk::ToggleButton {
+                                #[template]
+                                CheckboxButton {
                                     set_halign: gtk::Align::Start,
-                                    add_css_class: "adjustment-card-option-toggle",
-                                    set_label: &fl!(I18N, "enable-pstate-config"),
+                                    set_label: Some(&fl!(I18N, "enable-pstate-config")),
 
                                     #[watch]
                                     #[block_signal(configured_toggled_handler)]
