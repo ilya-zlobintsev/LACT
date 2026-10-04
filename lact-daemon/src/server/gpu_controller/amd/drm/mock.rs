@@ -1,6 +1,6 @@
 use super::DrmProvider;
 use crate::server::{gpu_controller::read_mock_snapshot, handler::SnapshotDeviceInfo};
-use lact_schema::{DeviceType, DrmInfo};
+use lact_schema::{AmdUmaCarveout, DeviceType, DrmInfo};
 use libdrm_amdgpu_sys::AMDGPU::VBIOS::VbiosInfo;
 use std::path::Path;
 
@@ -21,12 +21,13 @@ impl DrmProvider for MockDrmProvider {
         &self,
         _handle: &amdgpu_sysfs::gpu_handle::GpuHandle,
         cache_info: Option<lact_schema::CacheInfo>,
+        amd_uma_carveout: Option<AmdUmaCarveout>,
     ) -> Option<DrmInfo> {
-        self.snapshot
-            .info
-            .drm_info
-            .clone()
-            .map(|info| DrmInfo { cache_info, ..info })
+        self.snapshot.info.drm_info.clone().map(|info| DrmInfo {
+            cache_info,
+            amd_uma_carveout,
+            ..info
+        })
     }
 
     fn get_device_type(&self) -> Option<DeviceType> {

@@ -15,7 +15,7 @@ pub use response::Response;
 
 use amdgpu_sysfs::{
     gpu_handle::{
-        PerformanceLevel, PowerLevelId,
+        PerformanceLevel, PowerLevelId, UmaCarveoutOption,
         fan_control::FanInfo,
         overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTableGen},
     },
@@ -415,8 +415,17 @@ pub struct DrmInfo {
     pub memory_info: Option<DrmMemoryInfo>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub amd_ip_info: Vec<AmdIpInfo>,
+    pub amd_uma_carveout: Option<AmdUmaCarveout>,
     #[serde(flatten)]
     pub intel: IntelDrmInfo,
+}
+
+/// Options for iGPU UMA allocation
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct AmdUmaCarveout {
+    pub options: Vec<UmaCarveoutOption>,
+    pub current: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]

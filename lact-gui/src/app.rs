@@ -1154,6 +1154,18 @@ impl AppModel {
             .ok()
             .flatten();
 
+        let info = self
+            .daemon_client
+            .get_device_info(&gpu_id, Some(false))
+            .await
+            .context("Could not fetch info")?;
+        let info = Arc::new(info);
+
+        self.oc_page.emit(OcPageMsg::Update {
+            update: PageUpdate::Info(info),
+            initial: true,
+        });
+
         let stats = self
             .daemon_client
             .get_device_stats(&gpu_id)
@@ -1269,6 +1281,14 @@ impl AppModel {
 
         let enabled_power_states = self.oc_page.model().get_enabled_power_states();
         gpu_config.power_states = enabled_power_states;
+
+        // Avoids applying the setting if it's the default but doesn't wipe it if it's unchanged in the UI
+        gpu_config.uma_carveout = self
+            .oc_page
+            .model()
+            .get_uma_carveout()
+            .map(|value| value as usize)
+            .or(gpu_config.uma_carveout);
 
         let delay = self
             .daemon_client

@@ -1,7 +1,9 @@
 use super::DrmProvider;
 use amdgpu_sysfs::gpu_handle::GpuHandle;
 use anyhow::{Context as _, anyhow};
-use lact_schema::{AmdIpInfo, CacheInfo, DeviceType, DrmInfo, DrmMemoryInfo, RopInfo};
+use lact_schema::{
+    AmdIpInfo, AmdUmaCarveout, CacheInfo, DeviceType, DrmInfo, DrmMemoryInfo, RopInfo,
+};
 use libdrm_amdgpu_sys::{
     AMDGPU::{
         GPU_INFO as _, HW_IP::HW_IP_TYPE, SENSOR_INFO::SENSOR_TYPE, VBIOS::VbiosInfo, VRAM_TYPE,
@@ -50,7 +52,12 @@ impl AmdGpuDrmProvider {
 }
 
 impl DrmProvider for AmdGpuDrmProvider {
-    fn get_drm_info(&self, handle: &GpuHandle, cache_info: Option<CacheInfo>) -> Option<DrmInfo> {
+    fn get_drm_info(
+        &self,
+        handle: &GpuHandle,
+        cache_info: Option<CacheInfo>,
+        amd_uma_carveout: Option<AmdUmaCarveout>,
+    ) -> Option<DrmInfo> {
         let drm_memory_info = self.0.memory_info().ok().map(|memory_info| DrmMemoryInfo {
             resizeable_bar: Some(memory_info.check_resizable_bar()),
             cpu_accessible_used: memory_info.cpu_accessible_vram.heap_usage,
@@ -108,6 +115,7 @@ impl DrmProvider for AmdGpuDrmProvider {
                 },
                 operations_count: drm_info.calc_rop_count(),
             }),
+            amd_uma_carveout,
             ..Default::default()
         })
     }

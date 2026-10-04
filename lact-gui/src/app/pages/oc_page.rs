@@ -1,5 +1,6 @@
 mod card_layout;
 mod clocks_frame;
+mod igpu_frame;
 mod performance_frame;
 mod power_frame;
 mod power_states;
@@ -10,6 +11,7 @@ use crate::app::components::gpu_stats_section::{
     GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
 };
 use crate::app::pages::PageUpdate;
+use crate::app::pages::oc_page::igpu_frame::{IGpuFrame, IGpuFrameMsg};
 use crate::app::utils::ext::RelmLaunchable as _;
 use crate::app::{msg::AppMsg, utils::ext::RelmDefaultLauchable};
 use adw::prelude::*;
@@ -40,6 +42,7 @@ pub struct OcPage {
     power_states_dialog: relm4::Controller<PowerStatesDialog>,
     gpu_clocks_frame: relm4::Controller<ClocksFrame>,
     vram_clocks_frame: relm4::Controller<ClocksFrame>,
+    igpu_frame: relm4::Controller<IGpuFrame>,
 
     vf_curve_editor: relm4::Controller<VfCurveEditor>,
 }
@@ -88,6 +91,8 @@ impl relm4::Component for OcPage {
                     ColumnBias::Left,    // Core
                     ColumnBias::Right,   // VRAM
                     ColumnBias::Left,    // Power
+                    ColumnBias::Right,   // Integrated Graphics
+
                 ])),
                 set_valign: gtk::Align::Start,
 
@@ -100,6 +105,10 @@ impl relm4::Component for OcPage {
                 },
 
                 model.power_frame.widget() {
+                    add_css_class: "oc-page-section",
+                },
+
+                model.igpu_frame.widget() {
                     add_css_class: "oc-page-section",
                 },
             },
@@ -143,6 +152,7 @@ impl relm4::Component for OcPage {
         let power_states_dialog =
             PowerStatesDialog::launch_default().forward(sender.input_sender(), |msg| msg);
         let power_frame = PowerFrame::launch_default().forward(sender.input_sender(), |msg| msg);
+        let igpu_frame = IGpuFrame::launch_default().forward(sender.input_sender(), |msg| msg);
 
         let vf_curve_editor = VfCurveEditor::detach(VfCurveEditorInit {
             global_settings_changed: settings_changed,
@@ -156,6 +166,7 @@ impl relm4::Component for OcPage {
             power_states_dialog,
             gpu_clocks_frame,
             vram_clocks_frame,
+            igpu_frame,
             vf_curve_editor,
         };
 
@@ -211,6 +222,13 @@ impl relm4::Component for OcPage {
                         .emit(PowerStatesDialogMsg::VramClockRatio(vram_clock_ratio));
                     self.vram_clocks_frame
                         .emit(ClocksFrameMsg::VramRatio(vram_clock_ratio));
+
+                    let uma_carveout = info
+                        .drm_info
+                        .as_ref()
+                        .and_then(|info| info.amd_uma_carveout.clone());
+                    self.igpu_frame
+                        .emit(IGpuFrameMsg::UmaCarveout(uma_carveout));
                 }
             },
             OcPageMsg::ClocksTable {
@@ -346,5 +364,9 @@ impl OcPage {
         } else {
             IndexMap::new()
         }
+    }
+
+    pub fn get_uma_carveout(&self) -> Option<u32> {
+        self.igpu_frame.model().get_uma_carveout()
     }
 }
