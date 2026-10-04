@@ -670,6 +670,9 @@ impl AppModel {
             AppMsg::ShowPreferencesDialog => {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
             }
+            AppMsg::ExperimentalFeaturesChanged => {
+                sender.input(AppMsg::ReloadData { full: false });
+            }
             AppMsg::ShowAboutDialog => {
                 self.about_dialog.emit(AboutDialogMsg::Show);
             }
@@ -1268,6 +1271,12 @@ impl AppModel {
             .model()
             .apply_clocks_config(&mut gpu_config.clocks_configuration);
 
+        if self.device_driver == "nvidia" && !CONFIG.read().experimental_nvidia_pstate_offsets {
+            let clocks = &mut gpu_config.clocks_configuration;
+            clocks.gpu_clock_offsets.retain(|pstate, _| *pstate == 0);
+            clocks.mem_clock_offsets.retain(|pstate, _| *pstate == 0);
+        }
+
         let enabled_power_states = self.oc_page.model().get_enabled_power_states();
         gpu_config.power_states = enabled_power_states;
 
@@ -1284,11 +1293,16 @@ impl AppModel {
             .set_gpu_config(&gpu_id, gpu_config)
             .await
             .context("Could not apply settings")?;
-        self.ask_settings_confirmation(delay, root, sender);
+        self.ask_settings_confirmation(
+            delay,
+            &self
+                .application
+                .active_window()
+                .unwrap_or_else(|| root.clone().upcast()),
+            sender,
+        );
 
         sender.input(AppMsg::ReloadData { full: false });
-
-        root.present();
 
         Ok(())
     }
@@ -1296,7 +1310,7 @@ impl AppModel {
     fn ask_settings_confirmation(
         &self,
         mut delay: u64,
-        window: &adw::ApplicationWindow,
+        window: &gtk::Window,
         sender: &AsyncComponentSender<AppModel>,
     ) {
         let dialog = adw::AlertDialog::builder()
