@@ -175,7 +175,7 @@ impl relm4::Component for ClocksFrame {
                 controls {
                     #[template]
                     append = &CheckboxButton {
-                        set_label: &fl!(I18N, "show-all-pstates"),
+                        set_label: Some(&fl!(I18N, "show-all-pstates")),
                         #[watch]
                         set_visible: model.has_secondary_p_states()
                             && model.secondary_p_states_enabled(),
@@ -196,7 +196,7 @@ impl relm4::Component for ClocksFrame {
 
                     #[template]
                     append: locked_clocks_togglebutton = &CheckboxButton {
-                        set_label: &fl!(I18N, "enable-locked-clocks"),
+                        set_label: Some(&fl!(I18N, "enable-locked-clocks")),
                         #[watch]
                         set_visible: model.show_nvidia_options,
                         add_binding["active"]: &model.enable_locked_clocks,
@@ -208,7 +208,7 @@ impl relm4::Component for ClocksFrame {
 
                     #[template]
                     append: vf_curve_editing_togglebutton = &CheckboxButton {
-                        set_label: &fl!(I18N, "enable-vf-curve"),
+                        set_label: Some(&fl!(I18N, "enable-vf-curve")),
                         #[watch]
                         set_visible: model.domain == ClockDomain::Gpu
                             && model.show_nvidia_options
