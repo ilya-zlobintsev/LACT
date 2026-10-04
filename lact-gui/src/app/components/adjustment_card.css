@@ -26,8 +26,3 @@
     background-color: @accent_bg_color;
     color: @accent_fg_color;
 }
-
-.adjustment-card-advanced-features .adjustment-card-option-toggle check {
-    background-color: transparent;
-    color: inherit;
-}

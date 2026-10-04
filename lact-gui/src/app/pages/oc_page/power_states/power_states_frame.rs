@@ -3,7 +3,10 @@ use super::power_states_list::{PowerStatesListMsg, PowerStatesListOptions};
 use crate::{
     APP_BROKER, I18N,
     app::{
-        components::{adjustment_card::AdjustmentCard, page_section::PageSection},
+        components::{
+            adjustment_card::AdjustmentCard, checkbox_button::CheckboxButton,
+            page_section::PageSection,
+        },
         msg::AppMsg,
         pages::oc_page::OcPageMsg,
         utils::ext::RelmLaunchable as _,
@@ -70,7 +73,9 @@ impl relm4::SimpleComponent for PowerStatesFrame {
 
                 #[template_child]
                 controls {
-                    gtk::ToggleButton {
+                    #[template]
+                    CheckboxButton {
+                        set_label: &fl!(I18N, "enable-pstate-config"),
                         set_halign: gtk::Align::Start,
                         add_css_class: "adjustment-card-option-toggle",
 
@@ -83,22 +88,6 @@ impl relm4::SimpleComponent for PowerStatesFrame {
                                 configured: button.is_active(),
                             });
                         } @ configured_toggled_handler,
-
-                        #[wrap(Some)]
-                        set_child = &gtk::Box {
-                            set_spacing: 6,
-
-                            gtk::CheckButton {
-                                set_can_target: false,
-                                set_focusable: false,
-                                #[watch]
-                                set_active: model.states_configuration_enabled.value(),
-                            },
-
-                            gtk::Label {
-                                set_label: &fl!(I18N, "enable-pstate-config"),
-                            },
-                        },
                     },
                 },
 

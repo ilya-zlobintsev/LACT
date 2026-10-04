@@ -4,6 +4,7 @@ use crate::{
         components::{
             adjustment_card::AdjustmentCard,
             adjustment_row::{AdjustmentRow, AdjustmentRowInit, AdjustmentRowMsg},
+            checkbox_button::CheckboxButton,
             page_section::PageSection,
         },
         msg::AppMsg,
@@ -165,7 +166,9 @@ impl relm4::Component for ClocksFrame {
 
                 #[template_child]
                 controls {
-                    append = &gtk::ToggleButton {
+                    #[template]
+                    append = &CheckboxButton {
+                        set_label: &fl!(I18N, "show-all-pstates"),
                         #[watch]
                         set_visible: model.has_secondary_p_states(),
 
@@ -182,49 +185,24 @@ impl relm4::Component for ClocksFrame {
                                 true
                             }
                         },
-
-                        #[wrap(Some)]
-                        set_child = &gtk::Box {
-                            set_spacing: 6,
-
-                            append = &gtk::CheckButton {
-                                set_can_target: false,
-                                set_focusable: false,
-                                add_binding["active"]: &model.show_all_pstates,
-                            },
-
-                            append = &gtk::Label {
-                                set_label: &fl!(I18N, "show-all-pstates"),
-                            },
-                        },
                     },
 
-                    append: locked_clocks_togglebutton = &gtk::ToggleButton {
+                    #[template]
+                    append: locked_clocks_togglebutton = &CheckboxButton {
+                        set_label: &fl!(I18N, "enable-locked-clocks"),
                         #[watch]
                         set_visible: model.show_nvidia_options,
                         add_css_class: "adjustment-card-option-toggle",
                         add_binding["active"]: &model.enable_locked_clocks,
 
-                        #[wrap(Some)]
-                        set_child = &gtk::Box {
-                            set_spacing: 6,
-
-                            append = &gtk::CheckButton {
-                                set_can_target: false,
-                                set_focusable: false,
-                                add_binding["active"]: &model.enable_locked_clocks,
-                            },
-
-                            append = &gtk::Label {
-                                set_label: &fl!(I18N, "enable-locked-clocks"),
-                            },
-                        },
                         connect_toggled => move |_| {
                             APP_BROKER.send(AppMsg::SettingsChanged);
                         } @ locked_clock_signal,
                     },
 
-                    append: vf_curve_editing_togglebutton = &gtk::ToggleButton {
+                    #[template]
+                    append: vf_curve_editing_togglebutton = &CheckboxButton {
+                        set_label: &fl!(I18N, "enable-vf-curve"),
                         #[watch]
                         set_visible: model.domain == ClockDomain::Gpu
                             && model.show_nvidia_options
@@ -232,21 +210,6 @@ impl relm4::Component for ClocksFrame {
                         add_css_class: "adjustment-card-option-toggle",
                         add_css_class: css::WARNING,
                         add_binding["active"]: &model.vf_curve_editing,
-
-                        #[wrap(Some)]
-                        set_child = &gtk::Box {
-                            set_spacing: 6,
-
-                            append = &gtk::CheckButton {
-                                set_can_target: false,
-                                set_focusable: false,
-                                add_binding["active"]: &model.vf_curve_editing,
-                            },
-
-                            append = &gtk::Label {
-                                set_label: &fl!(I18N, "enable-vf-curve"),
-                            },
-                        },
 
                         connect_toggled[sender] => move |button| {
                             sender.output(OcPageMsg::VfCurveEditingToggled(button.is_active())).unwrap();
