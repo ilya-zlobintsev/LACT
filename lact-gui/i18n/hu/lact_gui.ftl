@@ -127,28 +127,14 @@ performance-level = Teljesítményszint
 power-profile-mode = Fogyasztási profilmód:
 manual-level-needed = A teljesítményszintnek „kézi” módban kell lennie, hogy a teljesítmény-állapotok és -módok használhatók legyenek
 overclock-section = Órajel és feszültség
-nvidia-oc-info = Túlhajtási információk
-oc-warning = Ezen értékek megváltoztatása a rendszer instabilitást okozhatja, és akár kárt is tehet a hardverében!
 show-all-pstates = Összes teljesítményállapot megjelenítése
-enable-gpu-locked-clocks = Zárolt GPU órajelek bekapcsolása
-enable-vram-locked-clocks = Zárolt VRAM órajelek bekapcsolása
 pstate-list-description = <b>A következő értékek az egyes teljesítményállapotok órajeleltolásai, a legmagasabbtól a legalacsonyabbig.</b>
 no-clocks-data = Az órajeladatok nem érhetőek el
 reset-oc-tooltip = Figyelem: ez alaphelyzetbe állítja az összes órajel-beállítást!
 gpu-clock-offset = GPU órajelléptetése (MHz)
-max-gpu-clock = Legmagasabb GPU órajel (MHz)
-max-vram-clock = Legmagasabb VRAM órajel (MHz)
 max-gpu-voltage = Legmagasabb GPU feszültség (mV)
-min-gpu-clock = Legalacsonyabb GPU órajel (MHz)
-min-vram-clock = Legalacsonyabb VRAM órajel (MHz)
 min-gpu-voltage = Legalacsonyabb GPU feszültség (mV)
 gpu-voltage-offset = GPU feszültségléptetése (mV)
-gpu-pstate-clock-offset = „{ $pstate }” GPU teljesítményállapot órajelléptetése (MHz)
-vram-pstate-clock-offset = „{ $pstate }” VRAM teljesítményállapot órajeleltolása (MHz)
-gpu-pstate-clock = „{ $pstate }” GPU teljesítményállapot órajele (MHz)
-mem-pstate-clock = „{ $pstate }” VRAM teljesítményállapot órajele (MHz)
-gpu-pstate-clock-voltage = „{ $pstate }” GPU teljesítményállapot feszültsége (mV)
-mem-pstate-clock-voltage = „{ $pstate }” VRAM teljesítményállapot feszültsége (mV)
 pstates = Teljesítményállapotok
 gpu-pstates = GPU teljesítményállapotok
 vram-pstates = VRAM teljesítményállapotok
@@ -215,16 +201,6 @@ profile-rule-args-contain = Az argumentumok tartalmazzák:
 profile-rule-specific-process = Egy konkrét folyamattal:
 crash-page-title = Az alkalmazás összeomlott
 exit = Kilépés
-nvidia-oc-description =
-    Az Nvidia kártyákon a túlhajtási funkcionalitás része a GPU/VRAM órajelének léptetése, és a potenciális órajelkeretének korlátozása a „órajelek zárolása” funkcióval.
-
-    Sok kártyán a VRAM órajel eltolása csak a megadott érték felével lép érvénybe.
-    Például a +1000 MHz-es VRAM-eltolás lehet, hogy a VRAM mért sebességét csak 500 MHz-cel növeli.
-    Ez normális, az Nvidia így kezeli a GDDR adatsebességeket, ennek megfelelően állítsa be a túlhajtást.
-
-    A feszültségcsökkentéshez hasonló eredményt lehet elérni zárolt órajelekkel és pozitív órajelléptetéssel.
-    Ez arra kényszeríti a GPU-t, hogy olyan feszültséggel fusson, melyet a zárolt órajelek korlátoznak, miközben a léptetés miatt magasabb órajelet ér el.
-    Ha túl magasra van állítva, ez a rendszer instabilitását okozhatja.
 hw-ip-info = Hardver IP információi
 hw-queues = várakozási sor
 bytes = bájt
