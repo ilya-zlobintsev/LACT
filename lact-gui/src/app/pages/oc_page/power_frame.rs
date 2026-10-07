@@ -63,20 +63,7 @@ impl relm4::Component for PowerFrame {
             },
             #[template]
             #[local]
-            append_child = &card -> AdjustmentCard {
-                #[template_child]
-                content {
-                    #[name = "performance_row"]
-                    gtk::ListBoxRow {
-                        set_activatable: false,
-                        set_selectable: false,
-                        #[watch]
-                        set_visible: model.performance_frame.widget().get_visible(),
-
-                        set_child: Some(model.performance_frame.widget()),
-                    },
-                },
-            },
+            append_child = &card -> AdjustmentCard {},
         },
     }
 
@@ -94,20 +81,22 @@ impl relm4::Component for PowerFrame {
             performance_frame: PerformanceFrame::launch_default()
                 .forward(sender.output_sender(), |msg| msg),
         };
-        let visibility_sender = sender.clone();
-        model
-            .performance_frame
-            .widget()
-            .connect_visible_notify(move |_| {
+        for row in model.performance_frame.widget().rows() {
+            card.content.append(row);
+            let visibility_sender = sender.clone();
+            row.connect_visible_notify(move |_| {
                 visibility_sender.input(PowerFrameMsg::RefreshVisibility);
             });
+        }
 
         let widgets = view_output!();
-        let performance_row = widgets.performance_row.clone();
-        // FIXME: performance-row should be adjustmentRow like factory. until that we need to sort to get right order
+        let rows = model.performance_frame.widget().rows().map(Clone::clone);
+        // FIXME: performance rows should be factory items like AdjustmentRow; until then
+        // sort to keep the power limit before them when the factory recreates it.
         model.power_row.widget().set_sort_func(move |left, right| {
-            (left == &performance_row)
-                .cmp(&(right == &performance_row))
+            rows.iter()
+                .position(|row| row == left)
+                .cmp(&rows.iter().position(|row| row == right))
                 .into()
         });
 
@@ -161,7 +150,13 @@ impl relm4::Component for PowerFrame {
 
 impl PowerFrame {
     fn is_available(&self) -> bool {
-        !self.power_row.is_empty() || self.performance_frame.widget().get_visible()
+        !self.power_row.is_empty()
+            || self
+                .performance_frame
+                .widget()
+                .rows()
+                .iter()
+                .any(|row| row.get_visible())
     }
 
     pub fn get_user_cap(&self) -> Option<f64> {

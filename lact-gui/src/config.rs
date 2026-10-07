@@ -1,5 +1,6 @@
 use crate::app::{
     graphs_window::stat::StatType,
+    pages::PageId,
     utils::{color_scheme::AppColorScheme, styles::AppTheme},
 };
 use serde::{Deserialize, Deserializer, Serialize};
@@ -29,6 +30,8 @@ pub struct UiConfig {
     pub theme: AppTheme,
     #[serde(default)]
     pub color_scheme: AppColorScheme,
+    #[serde(default)]
+    pub experimental_nvidia_pstate_offsets: bool,
     pub language: Option<String>,
     pub window_size: Option<WindowSize>,
 }
@@ -44,6 +47,7 @@ impl Default for UiConfig {
             gpus: HashMap::new(),
             theme: AppTheme::Automatic,
             color_scheme: AppColorScheme::default(),
+            experimental_nvidia_pstate_offsets: false,
             language: None,
             window_size: None,
         }
@@ -125,5 +129,5 @@ fn deserialize_poll_interval<'de, D: Deserializer<'de>>(deserializer: D) -> Resu
 }
 
 fn default_tab() -> String {
-    "info_page".to_owned()
+    PageId::Info.as_str().to_owned()
 }

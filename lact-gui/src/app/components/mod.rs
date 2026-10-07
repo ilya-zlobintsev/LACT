@@ -1,6 +1,7 @@
 pub(crate) mod adjustment_card;
 pub(crate) mod adjustment_row;
 pub(crate) mod adjustment_value;
+pub(crate) mod checkbox_button;
 pub(crate) mod gpu_stats_section;
 pub(crate) mod info_row;
 pub(crate) mod info_row_level;

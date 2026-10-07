@@ -2,11 +2,19 @@ language = Language
 language-system-default = System Default
 language-restart-notice = Restart the LACT GUI to apply language changes.
 
+experimental-features = Experimental Features
+nvidia-pstate-offsets = NVIDIA per-P-state offsets
+nvidia-pstate-offsets-description = Expose offsets for non-P0 states. Disabled by default because no known device/driver version supports it.
+
 info-page = Hardware Info
 oc-page = Overclocking
 thermals-page = Thermals
 software-page = Software Info
 displays-page = Display Info
+detach-page = Detach {$page}
+page-detached = This page is open in another window.
+show-page-window = Focus Window
+reattach-page = Return to Main Window
 
 hardware-info = Hardware Information
 
@@ -146,6 +154,10 @@ missing-stat = N/A
 vram-usage = VRAM Usage:
 gtt-usage = GTT Usage:
 
+igpu-section = Integrated Graphics
+uma-carveout = UMA Carveout Size
+uma-carveout-caption = Amount of memory reserved as dedicated VRAM. Requires a reboot to take effect.
+
 performance-level-auto = Automatic
 performance-level-high = Highest Clocks
 performance-level-low = Lowest Clocks
@@ -164,7 +176,7 @@ performance-level-profile-min-mclk-description = Forces the VRAM clock to lowest
 performance-level-profile-peak-description = Forces GPU and VRAM clocks to highest levels
 
 performance-level = Performance Level
-power-profile-mode = Power Profile Mode:
+power-profile-mode = Power Profile Mode
 manual-level-needed = Performance level has to be set to "manual" to use power states and modes
 power-mizer-mode = PowerMizer Mode
 power-mizer-mode-auto = Auto
@@ -209,6 +221,7 @@ pstate-clock-offset = P-State {$pstate} Clock Offset
 pstate-clock = P-State {$pstate} Clock
 pstate-clock-voltage = P-State {$pstate} Voltage
 
+pstate = Power State
 pstates = Power States
 gpu-pstates = GPU Power States
 vram-pstates = VRAM Power States

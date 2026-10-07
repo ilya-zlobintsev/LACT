@@ -1,13 +1,27 @@
 .adjustment-list > row {
+    padding: 10px;
+}
+
+.adjustment-list > row.adjustment-row {
     padding: 5px 10px;
 }
 
-.adjustment-list > row:first-child {
+.adjustment-list > row.adjustment-row:first-child {
     padding-top: 10px;
 }
 
-.adjustment-list > row:last-child {
+.adjustment-list > row.adjustment-row:last-child {
     padding-bottom: 10px;
+}
+
+/* The card owns row spacing, including Adwaita action rows. */
+.adjustment-list > row > box.header {
+    margin: 0;
+    min-height: 0;
+}
+
+.adjustment-list > row > box.header > box.title {
+    margin: 0;
 }
 
 .adjustment-row scale {
@@ -20,13 +34,4 @@
 
 .adjustment-card-advanced-features {
     background-color: alpha(@window_fg_color, 0.05);
-}
-
-.adjustment-card-advanced-features .adjustment-card-option-toggle {
-    border-radius: 25px;
-}
-
-.adjustment-card-advanced-features .adjustment-card-option-toggle:checked {
-    background-color: @accent_bg_color;
-    color: @accent_fg_color;
 }
