@@ -200,8 +200,7 @@ impl relm4::Component for FanCurveFrame {
 
             model.adjustments.widget().clone() -> gtk::ListBox {
                 #[watch]
-                set_visible: !model.hw_based_fan_curve
-                    || model.adjustments.get(&CurveSetting::AutoThreshold).is_some(),
+                set_visible: !model.adjustments.is_empty(),
             },
         },
 
@@ -301,12 +300,10 @@ impl relm4::Component for FanCurveFrame {
                 self.current_temp_key
                     .unblock_signal(&widgets.temp_key_change_signal);
                 self.adjustments.clear();
-                let lower_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
-                let upper_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
-                for (setting, init) in [
-                    (
+                if !msg.hw_based {
+                    self.adjustments.insert(
                         CurveSetting::SpindownDelay,
-                        Some(AdjustmentRowInit {
+                        AdjustmentRowInit {
                             title: glib::markup_escape_text(&fl!(I18N, "spindown-delay")).into(),
                             value: msg.spindown_delay.unwrap_or(DEFAULT_SPINDOWN_DELAY_MS) as f64,
                             upper: 30_000.0,
@@ -314,55 +311,47 @@ impl relm4::Component for FanCurveFrame {
                             page_increment: 10.0,
                             title_tooltip: fl!(I18N, "spindown-delay-tooltip"),
                             ..Default::default()
-                        }),
-                    ),
-                    (
+                        },
+                    );
+                    self.adjustments.insert(
                         CurveSetting::ChangeThreshold,
-                        Some(AdjustmentRowInit {
+                        AdjustmentRowInit {
                             title: glib::markup_escape_text(&fl!(I18N, "speed-change-threshold"))
                                 .into(),
                             value: msg.change_threshold.unwrap_or(DEFAULT_CHANGE_THRESHOLD) as f64,
                             upper: 10.0,
                             page_increment: 1.0,
                             ..Default::default()
-                        }),
-                    ),
-                    (
+                        },
+                    );
+                }
+                if msg.auto_threshold_supported && *msg.temperature_range.end() != 0.0 {
+                    self.adjustments.insert(
                         CurveSetting::AutoThreshold,
-                        (msg.auto_threshold_supported && *msg.temperature_range.end() != 0.0).then(
-                            || AdjustmentRowInit {
-                                title: glib::markup_escape_text(&fl!(
-                                    I18N,
-                                    "automatic-mode-threshold"
-                                ))
+                        AdjustmentRowInit {
+                            title: glib::markup_escape_text(&fl!(I18N, "automatic-mode-threshold"))
                                 .into(),
-                                value: msg.auto_threshold.unwrap_or(DEFAULT_AUTO_THRESHOLD) as f64,
-                                upper: *msg.temperature_range.end() as f64,
-                                title_tooltip: fl!(I18N, "automatic-mode-threshold-tooltip"),
-                                page_increment: 5.0,
-                                ..Default::default()
-                            },
-                        ),
-                    ),
-                ] {
-                    if let Some(init) = init {
-                        self.adjustments.insert(setting, init);
-                        self.adjustments.send(
-                            &setting,
-                            AdjustmentRowMsg::AddSizeGroup {
-                                label_group: self.label_size_group.clone(),
-                                input_group: self.input_size_group.clone(),
-                                lower_label_group: lower_label_group.clone(),
-                                upper_label_group: upper_label_group.clone(),
-                            },
-                        );
-                        self.adjustments.send(
-                            &setting,
-                            AdjustmentRowMsg::SetVisible(
-                                setting == CurveSetting::AutoThreshold || !msg.hw_based,
-                            ),
-                        );
-                    }
+                            value: msg.auto_threshold.unwrap_or(DEFAULT_AUTO_THRESHOLD) as f64,
+                            upper: *msg.temperature_range.end() as f64,
+                            title_tooltip: fl!(I18N, "automatic-mode-threshold-tooltip"),
+                            page_increment: 5.0,
+                            ..Default::default()
+                        },
+                    );
+                }
+
+                let lower_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+                let upper_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+                for setting in self.adjustments.keys() {
+                    self.adjustments.send(
+                        setting,
+                        AdjustmentRowMsg::AddSizeGroup {
+                            label_group: self.label_size_group.clone(),
+                            input_group: self.input_size_group.clone(),
+                            lower_label_group: lower_label_group.clone(),
+                            upper_label_group: upper_label_group.clone(),
+                        },
+                    );
                 }
                 widgets.drawing_area.queue_draw();
             }
