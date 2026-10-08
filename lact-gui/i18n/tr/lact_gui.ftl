@@ -1,4 +1,4 @@
-info-page = Donanım Bilgileri
+info-page = Donanım bilgileri
 oc-page = Hız Aşırtma
 thermals-page = Sıcaklıklar
 software-page = Yazılım Bilgileri
@@ -107,7 +107,7 @@ confirm = Onayla
 confirm-settings = Ayarları Onayla
 revert-button = Geri Al
 settings-confirmation = Yeni ayarları korumak istiyor musunuz? ({ $seconds_left } saniye içinde geri alınacak)
-power-cap = Güç Tüketimi Sınırı
+power-cap = Güç Sınırı
 watt = W
 ghz = GHz
 mhz = MHz
@@ -133,11 +133,11 @@ performance-level-high = En Yüksek Saat Hızları
 performance-level-low = En Düşük Saat Hızları
 performance-level-manual = Manuel
 performance-level-auto-description = GPU ve VRAM saat hızlarını otomatik olarak ayarla. (Varsayılan)
-performance-level-high-description = GPU ve VRAM için her zaman en yüksek saat hızlarını kullan.
-performance-level-low-description = GPU ve VRAM için her zaman en düşük saat hızlarını kullan.
-performance-level-manual-description = Manuel performans kontrolü.
+performance-level-high-description = GPU ve VRAM için her zaman en yüksek saat hızlarını kullan
+performance-level-low-description = GPU ve VRAM için her zaman en düşük saat hızlarını kullan
+performance-level-manual-description = Manuel performans kontrolü
 performance-level = Performans Seviyesi
-power-profile-mode = Güç Profili Modu:
+power-profile-mode = Güç Profili Modu
 manual-level-needed = Güç durumlarını ve modlarını kullanmak için performans seviyesi "manuel" olarak ayarlanmalıdır.
 power-mizer-mode = PowerMizer Modu
 power-mizer-mode-auto = Otomatik
@@ -149,29 +149,12 @@ power-mizer-mode-adaptive-description = GPU kullanımına göre GPU saat hızlar
 power-mizer-mode-prefer-maximum-performance-description = Sürücü sınırları içinde maksimum performansı tercih et.
 power-mizer-mode-prefer-consistent-performance-description = GPU'nun temel saat hızlarını sabitle.
 overclock-section = Saat Hızı ve Voltaj
-nvidia-oc-info = Hız Aşırtma Bilgisi
-nvidia-oc-description =
-    NVIDIA'da hız aşırtma işlevi, GPU/VRAM saat hızları için ofsetler ayarlamayı ve "kilitli saat hızları" özelliğiyle saat hızlarının olası aralığını sınırlamayı içerir.
-
-    Birçok kartta VRAM saat hızı ofseti, gerçek bellek saat hızını ofset değerinin yalnızca yarısı kadar etkiler.
-    Örneğin, +1000 MHz VRAM ofseti ölçülen VRAM hızını yalnızca 500 MHz artırabilir.
-    Bu normaldir; NVIDIA'nın GDDR veri hızlarını ele alış biçimi böyledir. Hız aşırtmanızı buna göre ayarlayın.
-
-    Kilitli saat hızları seçeneğini pozitif bir saat hızı ofsetiyle birleştirerek sözde undervolt elde etmek mümkündür.
-    Bu, ofset sayesinde daha yüksek bir saat hızı elde edilirken GPU'nun kilitli saat hızlarıyla sınırlandırılmış bir voltajda çalışmasını zorlar.
-    Çok yüksek değerlerde sistem kararsızlığına neden olabilir.
-oc-warning = Bu değerleri değiştirmek sistem kararsızlığına yol açabilir ve donanımınıza zarar verebilir!
-show-all-pstates = Tüm P-State'leri Göster
-enable-gpu-locked-clocks = GPU için Kilitli Saat Hızlarını Etkinleştir
-enable-vram-locked-clocks = VRAM için Kilitli Saat Hızlarını Etkinleştir
+show-all-pstates = Tüm P-State'leri göster
 pstate-list-description = <b>Aşağıdaki değerler, en yüksekten en düşüğe doğru her P-State için saat hızı ofsetleridir.</b>
 no-clocks-data = Saat hızı verisi yok
 reset-oc-tooltip = Uyarı: Bu işlem tüm saat hızı ayarlarını varsayılanlara sıfırlar!
 vf-curve-editor = VF Eğrisi Düzenleyicisi
-nvidia-vf-curve-warning =
-    Voltaj-frekans eğrisi düzenleyicisi belgelenmemiş sürücü işlevlerine dayanır.
-    Davranışı, güvenliği veya kullanılabilirliği konusunda hiçbir garanti yoktur.
-    <span weight = "heavy" underline = "single">Kendi riskinizle kullanın</span>.
+nvidia-vf-curve-warning = Voltaj-frekans eğrisi düzenleyicisi belgelenmemiş sürücü işlevlerine dayanır. Davranışı, güvenliği veya kullanılabilirliği konusunda hiçbir garanti yoktur. <span weight = 'heavy' underline = 'single'
 voltage = Voltaj
 frequency = Frekans
 vf-active-curve = Etkin Eğri
@@ -180,27 +163,17 @@ vf-curve-visible-range = Görünür Aralık (%):
 vf-curve-visible-range-to = ile
 vf-curve-flatten-right = Eğriyi sağa doğru düzleştir
 vf-curve-flatten-selection = Seçimi düzleştir
-gpu-clock-offset = GPU Saat Hızı Ofseti (MHz)
-max-gpu-clock = Maksimum GPU Saat Hızı (MHz)
-max-vram-clock = Maksimum VRAM Saat Hızı (MHz)
-max-gpu-voltage = Maksimum GPU Voltajı (mV)
-min-gpu-clock = Minimum GPU Saat Hızı (MHz)
-min-vram-clock = Minimum VRAM Saat Hızı (MHz)
-min-gpu-voltage = Minimum GPU Voltajı (mV)
-gpu-voltage-offset = GPU Voltaj Ofseti (mV)
-gpu-voltage-boost = GPU Voltaj Takviyesi (%)
+gpu-clock-offset = Saat hızı ofseti
+max-gpu-voltage = Maksimum Voltajı
+min-gpu-voltage = Minimum voltaj
+gpu-voltage-offset = Voltaj Ofset
+gpu-voltage-boost = Voltaj Takviyesi
 gpu-voltage-boost-tooltip = Sürücünün tanımladığı ek voltaj payının ne kadarının kullanılacağını belirler. %100, toplam GPU voltajının %100'ünü değil, bu ek payın tamamını ifade eder. Daha fazla voltaj payı daha yüksek saat hızlarının korunmasını sağlayabilir, ancak güç tüketimini ve sıcaklığı artırır.
-gpu-pstate-clock-offset = GPU P-State { $pstate } Saat Hızı Ofseti (MHz)
-vram-pstate-clock-offset = VRAM P-State { $pstate } Saat Hızı Ofseti (MHz)
-gpu-pstate-clock = GPU P-State { $pstate } Saat Hızı (MHz)
-mem-pstate-clock = VRAM P-State { $pstate } Saat Hızı (MHz)
-gpu-pstate-clock-voltage = GPU P-State { $pstate } Voltajı (mV)
-mem-pstate-clock-voltage = VRAM P-State { $pstate } Voltajı (mV)
 pstates = Güç Durumları
 gpu-pstates = GPU Güç Durumları
 vram-pstates = VRAM Güç Durumları
-pstates-manual-needed = Güç durumlarını değiştirmek için performans seviyesi 'manuel' olmalıdır.
-enable-pstate-config = Güç durumu yapılandırmasını etkinleştir
+pstates-manual-needed = P-State yapılandırmasını etkinleştirmek için performans seviyesi Manuel olarak ayarlanmalıdır.
+enable-pstate-config = P-State Yapılandırması
 menu = Menü
 show-historical-charts = Geçmiş Grafikleri Göster
 show-process-monitor = İşlem İzleyicisini Göster
@@ -220,7 +193,7 @@ edit-graph-sensors = Grafikteki Sensörleri Düzenle
 gtt-usage = GTT Kullanımı:
 error-heading = Hata
 daemon-info-heading = Daemon Bilgileri
-reconnecting-to-daemon = Daemon bağlantısı koptu, yeniden bağlanılıyor...
+reconnecting-to-daemon = Hizmet bağlantısı kesildi, yeniden bağlanıyor...
 daemon-connection-lost = Daemon Bağlantısı Koptu
 service-explanation =
     GPU ayarlarını uygulamak LACT sistem hizmetini gerektirir.
@@ -310,3 +283,32 @@ color-scheme-dark = Koyu
 # Crash page
 crash-page-title = Uygulama Çöktü
 exit = Çık
+language = Dil
+language-system-default = Sistem Varsayılanı
+language-restart-notice = Dil değişikliklerini uygulamak için LACT grafik arayüzünü yeniden başlatın.
+detach-page = { $page } öğesini ayır
+page-detached = Diğer pencerede bu sayfa açık.
+show-page-window = Pencereye Odaklan
+reattach-page = Ana pencereye geri dön
+power-section = Güç
+mv = mV
+core-section = Çekirdek
+vram-section = VRAM
+extra-clocks = Ek saatler
+performance-level-profile-standard = Standad Profil
+performance-level-profile-min-sclk = En düşük GPU saat hızını profille
+performance-level-profile-min-mclk = En düşük VRAM saat hızını profille
+performance-level-profile-peak = Zirve profili
+performance-level-profile-standard-description = Performans seviyesi için sabit profil modu
+performance-level-profile-min-sclk-description = GPU saat hızını en düşük seviyeye zorlar
+performance-level-profile-min-mclk-description = VRAM saat hızını en düşük seviyeye zorlar
+performance-level-profile-peak-description = GPU ve VRAM saat hızlarını en yüksek seviyeye zorlar
+advanced-features = Gelişmiş özellikler
+enable-locked-clocks = Kilitli saatleri etkinleştir
+enable-vf-curve = Özel VF eğrisini etkinleştir
+vf-curve-editing-disabled = OC sayfasında VF eğrisi düzenlemesi devre dışı bırakıldı
+max-clock = Maksimum saat hızı
+min-clock = Minimum saat hızı
+pstate-clock-offset = P-State { $pstate } Saat Hızı Ofseti
+pstate-clock = P-State { $pstate } Saat Hızı
+pstate-clock-voltage = P-State { $pstate } Voltaj
