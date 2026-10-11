@@ -19,6 +19,7 @@ static PROFILE_WATCHER_LOCK: Mutex<()> = Mutex::const_new(());
 
 const PROFILE_WATCHER_MIN_DELAY_MS: u64 = 50;
 const PROFILE_WATCHER_MAX_DELAY_MS: u64 = 500;
+const GAMEMODE_MAX_RECONNECTS: usize = 3;
 
 #[derive(Debug)]
 enum ProfileWatcherEvent {
@@ -72,11 +73,29 @@ pub async fn run_watcher(handler: Handler, mut command_rx: mpsc::Receiver<Profil
                 let stop_notify = gamemode_stop_notify.clone();
 
                 let handle = tokio::task::spawn_local(async move {
+                    let mut reconnect_attempt = 0;
                     loop {
                         select! {
-                            Some(event) = rx.recv() => {
-                                debug!("gamemode event: {event}");
-                                let _ = event_tx.send(ProfileWatcherEvent::Gamemode(event)).await;
+                            event = rx.recv() => {
+                                if let Some(event) = event {
+                                    debug!("gamemode event: {event}");
+                                    let _ = event_tx.send(ProfileWatcherEvent::Gamemode(event)).await;
+                                    reconnect_attempt = 0;
+                                } else if reconnect_attempt < GAMEMODE_MAX_RECONNECTS {
+                                    reconnect_attempt += 1;
+                                    match gamemode.receieve_events(&stop_notify) {
+                                       Ok(new_rx) => {
+                                           info!("established new gamemode watcher");
+                                           rx = new_rx;
+                                       }
+                                       Err(err) => {
+                                           error!("gamemode watcher could not be re-established: {err}");
+                                       }
+                                   }
+                                } else {
+                                    error!("giving up on listening to gamemode after {GAMEMODE_MAX_RECONNECTS} attempts");
+                                    break;
+                                }
                             },
                             () = stop_notify.notified() => {
                                 break;
