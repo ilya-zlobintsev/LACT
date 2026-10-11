@@ -19,7 +19,7 @@
 
 - ## How to enable overclocking on AMD
 
-  See [here](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD))
+  See [here](./Overclocking-(AMD).md)
 
 - ## How to undervolt Nvidia GPUs
 
@@ -29,4 +29,3 @@
     This will force the GPU to run at a voltage that's constrained by the locked clocks, while achieving a higher clockspeed due to the offset.
 
   See [#486](https://github.com/ilya-zlobintsev/LACT/issues/486) for more details and some example setups.
-
