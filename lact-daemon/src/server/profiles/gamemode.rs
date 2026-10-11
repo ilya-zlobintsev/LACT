@@ -188,7 +188,10 @@ impl GameModeConnector {
                                     },
                                     Err(err) => warn!("could not parse gamemode signal: {err}: {line}"),
                                 },
-                                Ok(None) => (),
+                                Ok(None) => {
+                                    warn!("gamemode watcher process exited unexpectedly");
+                                    break;
+                                },
                                 Err(err) => {
                                     error!("gamemode watcher error: {err}");
                                     break;
