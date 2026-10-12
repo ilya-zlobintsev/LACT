@@ -17,4 +17,4 @@ runs:
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.11
       with:
-        version: "v0.10.0"
+        version: "v0.18.0"
