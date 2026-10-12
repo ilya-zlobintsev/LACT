@@ -92,7 +92,7 @@ async fn apply_settings() {
                         mock_fs,
                         mock_fs_dir.path(),
                         &[],
-                        Some(1),
+                        Some(easy_fuser::types::MountThreads::new(1, 1)),
                     )
                     .expect("Could not mount mock fs");
 
@@ -112,7 +112,7 @@ async fn apply_settings() {
 
                     handler.apply_current_config().await.unwrap();
 
-                    mount.join();
+                    mount.join().expect("mock FUSE mount failed");
                     mock_fs_dir.close().unwrap();
 
                     let write_commands = writes

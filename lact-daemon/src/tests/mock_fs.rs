@@ -2,12 +2,13 @@ use easy_fuser::{
     delegate_fs,
     fuse_parallel::prelude::*,
     fuse_presets::{
-        DefaultFuseHandler,
+        StatelessHandler, UnimplementedFuseHandler,
         mirror_fs::{MirrorFsReadOnly, MirrorFsTrait},
     },
 };
 use std::{
     ffi::OsStr,
+    os::fd::OwnedFd,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -17,7 +18,8 @@ const WRITEABLE_FILES: &[&str] = &["power_dpm_force_performance_level"];
 
 pub struct MockSysfs {
     mirror_fs: MirrorFsReadOnly,
-    default_fs: DefaultFuseHandler<PathBuf>,
+    stateless_fs: StatelessHandler<PathBuf>,
+    unimplemented_fs: UnimplementedFuseHandler<PathBuf>,
     pub writes: Arc<Mutex<Vec<(PathBuf, String)>>>,
 }
 
@@ -25,7 +27,8 @@ impl MockSysfs {
     pub fn new(source_path: PathBuf) -> Self {
         MockSysfs {
             mirror_fs: MirrorFsReadOnly::new(source_path),
-            default_fs: DefaultFuseHandler::new(),
+            stateless_fs: StatelessHandler::new(),
+            unimplemented_fs: UnimplementedFuseHandler::new(),
             writes: Arc::default(),
         }
     }
@@ -33,25 +36,28 @@ impl MockSysfs {
 
 impl FuseHandler for MockSysfs {
     type TId = PathBuf;
+    type FileHandle = OwnedFd;
 
     delegate_fs! { mirror_fs, [
         flush, fsync, lseek, release, access, getattr, listxattr, lookup, open, readdir,
         readlink
     ] }
 
-    delegate_fs! { default_fs, [
+    delegate_fs! { stateless_fs, [forget, fsyncdir, opendir, releasedir] }
+
+    delegate_fs! { unimplemented_fs, [
         copy_file_range, fallocate, create, mkdir, mknod, removexattr, rename, rmdir, symlink,
-        unlink, bmap, forget, fsyncdir, getlk, ioctl, link, opendir, releasedir, setlk, statfs
+        unlink, bmap, getlk, ioctl, link, setlk, statfs
     ] }
 
     fn write(
         &self,
         _req: &RequestInfo,
         file_id: PathBuf,
-        _file_handle: BorrowedFileHandle,
+        _file_handle: Option<&mut Self::FileHandle>,
         _seek: std::io::SeekFrom,
         data: Vec<u8>,
-        _write_flags: FUSEWriteFlags,
+        _write_flags: WriteFlags,
         _flags: OpenFlags,
         _lock_owner: Option<u64>,
     ) -> FuseResult<u32> {
@@ -67,10 +73,10 @@ impl FuseHandler for MockSysfs {
         &self,
         req: &RequestInfo,
         file_id: Self::TId,
-        file_handle: BorrowedFileHandle<'_>,
+        file_handle: Option<&mut Self::FileHandle>,
         seek: SeekFrom,
         size: u32,
-        flags: FUSEOpenFlags,
+        flags: OpenFlags,
         lock_owner: Option<u64>,
     ) -> FuseResult<Vec<u8>> {
         let file_name = file_id.file_name().unwrap().to_str().unwrap();
@@ -90,6 +96,7 @@ impl FuseHandler for MockSysfs {
         req: &RequestInfo,
         file_id: PathBuf,
         _attrs: SetAttrRequest,
+        _file_handle: Option<&mut Self::FileHandle>,
     ) -> FuseResult<FileAttribute> {
         self.getattr(req, file_id, None)
     }
@@ -110,7 +117,7 @@ impl FuseHandler for MockSysfs {
         _file_id: PathBuf,
         _name: &OsStr,
         _value: Vec<u8>,
-        _flags: FUSESetXAttrFlags,
+        _flags: SetXAttrFlags,
         _position: u32,
     ) -> FuseResult<()> {
         Ok(())
