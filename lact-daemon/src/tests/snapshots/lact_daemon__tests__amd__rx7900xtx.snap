@@ -41,6 +41,42 @@ expression: device_info
         },
         "kind": "rdna"
       }
+    },
+    "table_default": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "current_mclk_range": {
+            "max": 1250,
+            "min": 97
+          },
+          "current_sclk_range": {
+            "max": 2735,
+            "min": 500
+          },
+          "od_range": {
+            "curve_sclk_points": [],
+            "curve_voltage_points": [],
+            "mclk": {
+              "max": 1500,
+              "min": 97
+            },
+            "sclk": {
+              "max": 5000,
+              "min": 500
+            },
+            "sclk_offset": null,
+            "voltage_offset": {
+              "max": 0,
+              "min": -450
+            }
+          },
+          "sclk_offset": null,
+          "vddc_curve": [],
+          "voltage_offset": 0
+        },
+        "kind": "rdna"
+      }
     }
   },
   "info": {
@@ -1140,6 +1176,34 @@ expression: device_info
   },
   "power_profile_modes": {
     "active": 0,
+    "custom_heuristics_default": [
+      {
+        "clock_type": "GFXCLK",
+        "values": [
+          0,
+          0,
+          1200,
+          4,
+          0,
+          655360,
+          -3276,
+          -65536
+        ]
+      },
+      {
+        "clock_type": "FCLK",
+        "values": [
+          0,
+          3,
+          0,
+          3,
+          0,
+          1310720,
+          -6553,
+          -6553
+        ]
+      }
+    ],
     "modes": {
       "0": {
         "components": [
@@ -1481,6 +1545,7 @@ expression: device_info
           ],
           "current": 3200
         },
+        "acoustic_limit_default": 3200,
         "acoustic_target": {
           "allowed_range": [
             500,
@@ -1488,6 +1553,7 @@ expression: device_info
           ],
           "current": 1450
         },
+        "acoustic_target_default": 1450,
         "minimum_pwm": {
           "allowed_range": [
             15,
@@ -1495,13 +1561,15 @@ expression: device_info
           ],
           "current": 15
         },
+        "minimum_pwm_default": 15,
         "target_temp": {
           "allowed_range": [
             25,
             105
           ],
           "current": 83
-        }
+        },
+        "target_temp_default": 83
       },
       "pwm_current": 0,
       "pwm_max": 254,

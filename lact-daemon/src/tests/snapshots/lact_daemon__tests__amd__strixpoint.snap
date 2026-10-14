@@ -34,6 +34,36 @@ expression: device_info
         },
         "kind": "rdna"
       }
+    },
+    "table_default": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "current_mclk_range": {
+            "max": null,
+            "min": null
+          },
+          "current_sclk_range": {
+            "max": 2900,
+            "min": 600
+          },
+          "od_range": {
+            "curve_sclk_points": [],
+            "curve_voltage_points": [],
+            "mclk": null,
+            "sclk": {
+              "max": 2900,
+              "min": 600
+            },
+            "sclk_offset": null,
+            "voltage_offset": null
+          },
+          "sclk_offset": null,
+          "vddc_curve": [],
+          "voltage_offset": null
+        },
+        "kind": "rdna"
+      }
     }
   },
   "info": {
@@ -41,6 +71,7 @@ expression: device_info
     "drm_info": {
       "amd_uma_carveout": {
         "current": 0,
+        "default": 0,
         "options": [
           {
             "name": "Minimum",

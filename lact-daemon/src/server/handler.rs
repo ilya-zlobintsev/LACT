@@ -16,14 +16,12 @@ use crate::{
         system::DAEMON_VERSION,
     },
 };
-use amdgpu_sysfs::gpu_handle::{
-    PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
-};
+use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use anyhow::{Context, anyhow, bail};
 use lact_schema::{
     ClocksInfo, DeviceApiInfo, DeviceInfo, DeviceListEntry, DeviceStats, DisplaysInfo,
-    FanControlMode, FanOptions, GpuPciInfo, PmfwOptions, PowerStates, ProcessList, ProfileRule,
-    ProfileWatcherState, ProfilesInfo,
+    FanControlMode, FanOptions, GpuPciInfo, PmfwOptions, PowerProfileModesInfo, PowerStates,
+    ProcessList, ProfileRule, ProfileWatcherState, ProfilesInfo,
     config::{
         FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks, default_fan_static_speed,
     },
@@ -261,13 +259,16 @@ impl<'a> Handler {
         let base_path = drm_base_path();
         let pci_db = read_pci_db();
         match load_controllers(&base_path, &pci_db, &detached_ids, &config) {
-            Ok(new_controllers) => {
+            Ok(mut new_controllers) => {
                 info!(
                     "GPU list reloaded with {} devices, reapplying configuration",
                     new_controllers.len()
                 );
 
-                for old_controller in controllers_guard.values() {
+                for (id, old_controller) in controllers_guard.iter() {
+                    if let Some(new_controller) = new_controllers.get_mut(id) {
+                        new_controller.retain_defaults(old_controller.as_ref());
+                    }
                     old_controller.cleanup().await;
                     let _ = old_controller.reset_clocks();
                 }
@@ -677,10 +678,7 @@ impl<'a> Handler {
         .context("Failed to edit GPU config and batch set clocks")
     }
 
-    pub async fn get_power_profile_modes(
-        &self,
-        id: &str,
-    ) -> anyhow::Result<PowerProfileModesTable> {
+    pub async fn get_power_profile_modes(&self, id: &str) -> anyhow::Result<PowerProfileModesInfo> {
         let modes_table = self.controller_by_id(id).await?.get_power_profile_modes()?;
         Ok(modes_table)
     }
@@ -1326,7 +1324,7 @@ pub(crate) struct SnapshotDeviceInfo {
     pub stats: DeviceStats,
     #[serde(default)]
     pub clocks_info: Option<ClocksInfo>,
-    pub power_profile_modes: Option<PowerProfileModesTable>,
+    pub power_profile_modes: Option<PowerProfileModesInfo>,
     pub power_states: PowerStates,
 }
 

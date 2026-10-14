@@ -10,16 +10,16 @@ use crate::{
     bindings::intel::IntelDrm,
     server::gpu_controller::common::fdinfo::{self, DrmUtilMap},
 };
-use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
+use amdgpu_sysfs::hw_mon::Temperature;
 use anyhow::{Context, Error, anyhow, bail, ensure};
 use futures::future::LocalBoxFuture;
 use indexmap::IndexMap;
 use lact_schema::FanControlMode::Static;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats,
-    DeviceType, DrmInfo, FanControlMode, FanStats, IntelClocksTable, LinkInfo, PowerState,
-    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats,
-    VramStats, config::GpuConfig,
+    DeviceType, DrmInfo, FanControlMode, FanStats, IntelClocksTable, LinkInfo,
+    PowerProfileModesInfo, PowerState, PowerStates, PowerStats, ProcessList,
+    ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats, config::GpuConfig,
 };
 use lact_schema::{FanCurveMap, config::FanCurve};
 use std::{
@@ -968,7 +968,7 @@ impl GpuController for IntelGpuController {
         Ok(())
     }
 
-    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable> {
+    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesInfo> {
         Err(anyhow!("Not supported"))
     }
 

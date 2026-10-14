@@ -4,11 +4,10 @@ mod macros;
 
 pub use lact_schema as schema;
 use lact_schema::{
-    DeviceApiInfo, DisplaysInfo, Pong, ProcessList, ProfileRule,
+    DeviceApiInfo, DisplaysInfo, Pong, PowerProfileModesInfo, ProcessList, ProfileRule,
     config::{GpuConfig, Profile, ProfileHooks},
 };
 
-use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::Context;
 use connection::{DaemonConnection, tcp::TcpConnection, unix::UnixConnection};
 use nix::unistd::getuid;
@@ -167,7 +166,7 @@ impl DaemonClient {
     request_with_id!(
         get_device_power_profile_modes,
         DevicePowerProfileModes,
-        PowerProfileModesTable
+        PowerProfileModesInfo
     );
     request_with_id!(get_power_states, GetPowerStates, PowerStates);
     request_with_id!(reset_pmfw, ResetPmfw, u64);

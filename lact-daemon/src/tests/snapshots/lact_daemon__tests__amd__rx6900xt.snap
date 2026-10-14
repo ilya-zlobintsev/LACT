@@ -38,6 +38,39 @@ expression: device_info
         },
         "kind": "rdna"
       }
+    },
+    "table_default": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "current_mclk_range": {
+            "max": 1000,
+            "min": 97
+          },
+          "current_sclk_range": {
+            "max": 2499,
+            "min": 500
+          },
+          "od_range": {
+            "curve_sclk_points": [],
+            "curve_voltage_points": [],
+            "mclk": {
+              "max": 1075,
+              "min": 674
+            },
+            "sclk": {
+              "max": 3000,
+              "min": 500
+            },
+            "sclk_offset": null,
+            "voltage_offset": null
+          },
+          "sclk_offset": null,
+          "vddc_curve": [],
+          "voltage_offset": -10
+        },
+        "kind": "rdna"
+      }
     }
   },
   "info": {
@@ -87,6 +120,50 @@ expression: device_info
   },
   "power_profile_modes": {
     "active": 0,
+    "custom_heuristics_default": [
+      {
+        "clock_type": "GFXCLK",
+        "values": [
+          0,
+          5,
+          1,
+          0,
+          4,
+          800,
+          4587520,
+          -65536,
+          0
+        ]
+      },
+      {
+        "clock_type": "SOCCLK",
+        "values": [
+          0,
+          5,
+          1,
+          0,
+          1,
+          0,
+          3276800,
+          -65536,
+          -6553
+        ]
+      },
+      {
+        "clock_type": "MEMLK",
+        "values": [
+          0,
+          5,
+          1,
+          0,
+          4,
+          800,
+          327680,
+          -65536,
+          0
+        ]
+      }
+    ],
     "modes": {
       "0": {
         "components": [
