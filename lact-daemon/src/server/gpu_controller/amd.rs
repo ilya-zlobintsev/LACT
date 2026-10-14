@@ -1,6 +1,6 @@
 mod drm;
 
-use super::{CommonControllerInfo, FanControlHandle, GpuController};
+use super::{CommonControllerInfo, ControllerRetainedState, FanControlHandle, GpuController};
 use crate::server::gpu_controller::common::{
     fan_control::FanCurveExt,
     fdinfo::{self, DrmUtilMap},
@@ -75,6 +75,13 @@ pub struct AmdGpuController {
     clocks_table_default: Option<ClocksTableGen>,
     uma_carveout_default: Option<usize>,
     custom_heuristics_default: Option<Vec<PowerProfileComponent>>,
+}
+
+pub struct AmdRetainedState {
+    pmfw_options: PmfwOptions,
+    clocks_table: Option<ClocksTableGen>,
+    uma_carveout: Option<usize>,
+    custom_heuristics: Option<Vec<PowerProfileComponent>>,
 }
 
 impl AmdGpuController {
@@ -1146,14 +1153,21 @@ impl GpuController for AmdGpuController {
         })
     }
 
-    fn retain_defaults(&mut self, previous: &dyn GpuController) {
-        if let Some(previous) = (previous as &dyn std::any::Any).downcast_ref::<Self>() {
-            self.pmfw_options_default = previous.pmfw_options_default;
-            self.clocks_table_default
-                .clone_from(&previous.clocks_table_default);
-            self.uma_carveout_default = previous.uma_carveout_default;
-            self.custom_heuristics_default
-                .clone_from(&previous.custom_heuristics_default);
+    fn retained_state(&self) -> Option<ControllerRetainedState> {
+        Some(ControllerRetainedState::Amd(Box::new(AmdRetainedState {
+            pmfw_options: self.pmfw_options_default,
+            clocks_table: self.clocks_table_default.clone(),
+            uma_carveout: self.uma_carveout_default,
+            custom_heuristics: self.custom_heuristics_default.clone(),
+        })))
+    }
+
+    fn restore_retained_state(&mut self, state: ControllerRetainedState) {
+        if let ControllerRetainedState::Amd(state) = state {
+            self.pmfw_options_default = state.pmfw_options;
+            self.clocks_table_default = state.clocks_table;
+            self.uma_carveout_default = state.uma_carveout;
+            self.custom_heuristics_default = state.custom_heuristics;
         }
     }
 

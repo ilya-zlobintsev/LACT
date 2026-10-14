@@ -1,7 +1,7 @@
 mod driver;
 pub mod nvapi;
 
-use super::{CommonControllerInfo, FanControlHandle, GpuController};
+use super::{CommonControllerInfo, ControllerRetainedState, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::gpu_controller::{
@@ -1215,9 +1215,18 @@ impl GpuController for NvidiaGpuController {
         Err(anyhow!("Not supported on Nvidia"))
     }
 
-    fn retain_defaults(&mut self, previous: &dyn GpuController) {
-        if let Some(previous) = (previous as &dyn std::any::Any).downcast_ref::<Self>() {
-            self.initial_target_temp = previous.initial_target_temp;
+    fn retained_state(&self) -> Option<ControllerRetainedState> {
+        Some(ControllerRetainedState::Nvidia {
+            initial_target_temp: self.initial_target_temp,
+        })
+    }
+
+    fn restore_retained_state(&mut self, state: ControllerRetainedState) {
+        if let ControllerRetainedState::Nvidia {
+            initial_target_temp,
+        } = state
+        {
+            self.initial_target_temp = initial_target_temp;
         }
     }
 

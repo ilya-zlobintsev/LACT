@@ -38,7 +38,12 @@ use tracing::{error, warn};
 pub type DynGpuController = Box<dyn GpuController>;
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 
-pub trait GpuController: std::any::Any {
+pub enum ControllerRetainedState {
+    Amd(Box<amd::AmdRetainedState>),
+    Nvidia { initial_target_temp: Option<u32> },
+}
+
+pub trait GpuController {
     fn controller_type(&self) -> &'static str;
 
     fn controller_info(&self) -> &CommonControllerInfo;
@@ -84,8 +89,11 @@ pub trait GpuController: std::any::Any {
 
     fn reset_pmfw_settings(&self) {}
 
-    /// allows to keep parts of controller's state between reloads
-    fn retain_defaults(&mut self, _previous: &dyn GpuController) {}
+    fn retained_state(&self) -> Option<ControllerRetainedState> {
+        None
+    }
+
+    fn restore_retained_state(&mut self, _state: ControllerRetainedState) {}
 
     fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
         async {}.boxed_local()

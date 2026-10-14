@@ -266,8 +266,10 @@ impl<'a> Handler {
                 );
 
                 for (id, old_controller) in controllers_guard.iter() {
-                    if let Some(new_controller) = new_controllers.get_mut(id) {
-                        new_controller.retain_defaults(old_controller.as_ref());
+                    if let Some(new_controller) = new_controllers.get_mut(id)
+                        && let Some(state) = old_controller.retained_state()
+                    {
+                        new_controller.restore_retained_state(state);
                     }
                     old_controller.cleanup().await;
                     let _ = old_controller.reset_clocks();
